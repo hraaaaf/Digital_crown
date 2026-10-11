@@ -6,7 +6,7 @@ from backend import models
 from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionIdentity
 from backend.routers.patient_companion_common import create_patient_device_token
 from backend.services.archive_service import ArchiveService
-from backend.services.station_care_sheet import record_trusted_finalization, verified_care_sheet_bytes, is_finalized_care_sheet
+from backend.services.station_care_sheet import record_trusted_finalization, verified_care_sheet_bytes, is_finalized_care_sheet, authorize_withdrawal
 
 
 def _login(client, email: str, password: str = "TestPass123!") -> dict[str, str]:
@@ -642,4 +642,94 @@ def test_official_finalize_api_rejects_mismatched_patient_archive(client, db, de
         models.AuditLog.action == "STATION_CARE_SHEET_TRUSTED_FINALIZATION_V1",
         models.AuditLog.resource_type == "DocumentArchive",
         models.AuditLog.resource_id == str(foreign_document.id),
+    ).count() == 0
+
+
+def test_care_sheet_fue0_cross_tenant_authorization_denied(client, db, dentiste):
+    """A staff workstation must not authorize another tenant's finalized document."""
+    from backend.core.security import get_password_hash
+
+    headers, _session_id, _patient = _identified_session(
+        client, db, dentiste, dossier="ST043-FUE0-TENANT-LOCAL"
+    )
+    other_owner = models.User(
+        email="station.fue0.other.owner@cabinet.ma",
+        hashed_password=get_password_hash("OtherPass123!"),
+        role=models.UserRole.DENTISTE,
+        nom_complet="FUE0 Foreign Owner",
+        is_active=True, is_licensed=True, employer_id=None,
+    )
+    db.add(other_owner)
+    db.flush()
+    foreign_patient = models.Patient(
+        numero_dossier="ST043-FUE0-TENANT-FOREIGN",
+        nom="Other", prenom="Care", date_naissance=datetime(1985, 1, 1),
+        sexe="F", employer_id=other_owner.id,
+    )
+    db.add(foreign_patient)
+    db.commit()
+    document = _care_sheet(db, foreign_patient)
+
+    _set_mode(client, headers, "cabinet")
+    denied = client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=headers,
+    )
+    assert denied.status_code == 404, denied.text
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_CARE_SHEET_WITHDRAWAL_AUTHORIZED",
+        models.AuditLog.resource_id == str(document.id),
+    ).count() == 0
+
+
+def test_care_sheet_fue0_revoked_station_cannot_retrieve(client, db, dentiste):
+    """Device revocation after staff authorization must deny the actual PDF."""
+    headers, session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-FUE0-REVOKED"
+    )
+    document = _care_sheet(db, patient)
+    _set_mode(client, headers, "cabinet")
+    approved = client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=headers,
+    )
+    assert approved.status_code == 200, approved.text
+    _set_mode(client, headers, "station")
+    session = db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.id == session_id,
+    ).one()
+    workstation = db.query(models.WorkstationMode).filter(
+        models.WorkstationMode.id == session.workstation_id,
+    ).one()
+    workstation.revoked_at = datetime.utcnow()
+    db.commit()
+    denied = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
+        headers=headers,
+    )
+    assert denied.status_code == 423, denied.text
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_CARE_SHEET_WITHDRAWN",
+        models.AuditLog.resource_id == str(document.id),
+    ).count() == 0
+
+
+def test_care_sheet_fue0_other_staff_cannot_approve_finalizers_document(client, db, dentiste):
+    """Even an authenticated non-finalizer ID cannot approve a trusted care sheet."""
+    _headers, _session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-FUE0-STAFF"
+    )
+    document = _care_sheet(db, patient)
+    try:
+        authorize_withdrawal(
+            db, document, employer_id=dentiste.id,
+            user_id=dentiste.id + 100000,
+        )
+    except ValueError as exc:
+        assert str(exc) == "CARE_SHEET_AUTHORIZER_NOT_FINALIZER"
+    else:
+        raise AssertionError("Non-finalizer must not approve another practitioner's PDF")
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_CARE_SHEET_WITHDRAWAL_AUTHORIZED",
+        models.AuditLog.resource_id == str(document.id),
     ).count() == 0
