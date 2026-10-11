@@ -7,3 +7,6 @@ STRICT limitation: MSYS2 dependency closure/transitive pacman and Python pip tra
 This research proves candidate upstream availability and will record native DLL hashes for a follow-up immutable full provenance manifest; run must never certify clinic native PDF.
 Trigger workflow .github/workflows/fue-g04-weasyprint-ucrt64-discovery.yml on DRAFT CI-only PR #825. Keep master fa377f1ee05534cafbc26971f70f2e8ba8b792fd and official CODE_CERTIFIED run #38100167771 untouched.
 Previous native DLL audit #38103213961 legitimately RED (five missing DLL), unchanged.
+
+RETRY_PACMAN_CACHE=2
+Previous experimental discovery run https://github.com/hraaaaf/Digital_crown/actions/runs/38103667335 was RED BEFORE native render because direct mirror responded anti-bot Verification Required; MSYS2 UCRT64 Pango installation itself was successful. New CI-only workflow commit 1dd1c06b73fd3986e9794b7ba1cf13e0eed0d6c7 takes exact Pango package 1.58.2-1 from authenticated pacman cache (pacman -Sw fallback), still checks original official SHA256 8d86e4a018ff139b010bf357fa1c9f9030fa32ee195c54ed7e89d8ea701851c8 without bypass. LAB ONLY, MSYS2 transitive packages and pip transitives not pinned, never use these native files in signed installer. Protected master and CODE_CERTIFIED artifact unchanged. No real cabinet/patient data, no Vercel.
