@@ -15,6 +15,12 @@ const polishedSurfaces = [
   'views/FinanceView.tsx',
   'views/StockView.tsx',
   'views/LabView.tsx',
+  'views/WaitingRoomView.tsx',
+  'views/NotificationsView.tsx',
+  'views/LibraryView.tsx',
+  'views/DentistsView.tsx',
+  'views/SecuriteView.tsx',
+  'components/MobileNotificationCenter.tsx',
   'MobileDashboard.tsx',
   'MobilePreviewDashboard.tsx',
   'types.tsx',
@@ -49,6 +55,9 @@ describe('P1/P2 iOS micro-polish color inheritance', () => {
     expect(palette).toContain('--color-on-primary: var(--text-on-primary)');
     expect(palette).toContain('--color-warning-surface: var(--status-warning-surface)');
     expect(palette).toContain("[data-theme='dark'], [data-theme='prestige']");
+    const reducedMotion = readSource('src/features/mobile/mobileRuntimeTheme.css');
+    expect(reducedMotion).toContain('prefers-reduced-motion: reduce');
+    expect(reducedMotion).toContain('[data-dc-mobile-shell]');
   });
 
   it.each([
