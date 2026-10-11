@@ -28,12 +28,13 @@ describe('Digital Crown Pocket canonical navigation', () => {
     const onToggleQuickActions = vi.fn();
 
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={setActiveTab} totalCount={4} termineCount={1} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={onToggleQuickActions} />,
+      <MobileBottomNav activeTab="today" setActiveTab={setActiveTab} totalCount={4} termineCount={1} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={onToggleQuickActions} />,
     );
 
     expect(screen.getByText('Aujourd’hui')).toBeTruthy();
+    expect(screen.getByText('Agenda')).toBeTruthy();
     expect(screen.getByText('Patients')).toBeTruthy();
-    expect(screen.getByText('Assistant')).toBeTruthy();
+    expect(screen.queryByText('Assistant')).toBeNull();
     expect(screen.getByText('Plus')).toBeTruthy();
     expect(screen.queryByText('Alertes')).toBeNull();
 
@@ -43,14 +44,14 @@ describe('Digital Crown Pocket canonical navigation', () => {
     fireEvent.click(screen.getByText('Patients'));
     expect(setActiveTab).toHaveBeenCalledWith('patients');
 
-    fireEvent.click(screen.getByText('Assistant'));
-    expect(setActiveTab).toHaveBeenCalledWith('bot');
+    fireEvent.click(screen.getByText('Agenda'));
+    expect(setActiveTab).toHaveBeenCalledWith('agenda');
   });
 
   it('restores merged Pocket V1 secondary destinations for practitioners', () => {
     const setActiveTab = vi.fn();
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={setActiveTab} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+      <MobileBottomNav activeTab="today" setActiveTab={setActiveTab} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     fireEvent.click(screen.getByText('Plus'));
@@ -64,7 +65,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(screen.getByText('Trésorerie')).toBeTruthy();
     expect(screen.getByText('Envois Labo')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
-    expect(screen.getByText('Assistant')).toBeTruthy();
+    expect(screen.getByText('Assistant · En cours de construction')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Salle d’attente'));
     expect(setActiveTab).toHaveBeenCalledWith('waiting-room');
@@ -73,7 +74,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
   it('traps focus inside Plus and restores it to the trigger on Escape', () => {
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+      <MobileBottomNav activeTab="today" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     const trigger = screen.getByText('Plus').closest('button') as HTMLButtonElement;
@@ -100,7 +101,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
   it('gives secretary the same bounded Pocket secondary shell', () => {
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={{ ...SNAPSHOT, role: 'SECRETAIRE' }} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+      <MobileBottomNav activeTab="today" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={{ ...SNAPSHOT, role: 'SECRETAIRE' }} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     expect(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }).hasAttribute('disabled')).toBe(true);
@@ -111,7 +112,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Stock')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
-    expect(screen.getByText('Assistant')).toBeTruthy();
+    expect(screen.getByText('Assistant · En cours de construction')).toBeTruthy();
     expect(screen.queryByText('Bibliothèque')).toBeNull();
     expect(screen.queryByText('Approvisionnement')).toBeNull();
     expect(screen.queryByText('Trésorerie')).toBeNull();
@@ -120,7 +121,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
   it('fails closed when role is not loaded yet', () => {
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={null} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+      <MobileBottomNav activeTab="today" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={null} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     fireEvent.click(screen.getByText('Plus'));
