@@ -136,7 +136,294 @@ const installRoutes = async (context, state, unexpected, requests) => {
       expiresAt, fallbackMode: 'disabled',
     }, 201);
   });
-  await context.route(/\\/api\\/workstation\\/patient-session\\/fue-documents-session-\\d+(?:\\/purge)?$/, route => {
+  await context.route(new RegExp('/api/workstation/patient-session/fue-documents-session-[0-9]+(/purge)?
+    const url = new URL(route.request().url());
+    const sessionId = url.pathname.split('/').at(-1) === 'purge'
+      ? url.pathname.split('/').at(-2) : url.pathname.split('/').at(-1);
+    const isPurge = url.pathname.endsWith('/purge');
+    requests.push({ action: isPurge ? 'document-session-purge' : 'document-session-status',
+      method: route.request().method(), sessionId });
+    if (!createdSessionIds.has(sessionId)) return json(route, { detail: 'UNKNOWN_SESSION' }, 404);
+    if (isPurge) {
+      if (route.request().method() !== 'POST') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
+      purgedSessionIds.add(sessionId);
+      return route.fulfill({ status: 204, body: '' });
+    }
+    if (route.request().method() !== 'GET') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
+    return json(route, { status: purgedSessionIds.has(sessionId) ? 'expired' : 'pending',
+      sessionId, expiresAt: new Date(Date.now() + 120_000).toISOString() });
+  });
+  await context.route('**/api/workstation/mode', route => {
+    const data = route.request().postDataJSON();
+    requests.push({ action: 'change-mode', mode: data.mode, pinLength: String(data.ownerPin || '').length });
+    if (data.ownerPin !== '2468') return json(route, { detail: 'PIN refusé' }, 403);
+    state.value = { ...state.value, defaultExperience: data.mode, stationLocked: data.mode === 'station',
+      stationEscapeAuthorized: false };
+    return json(route, state.value);
+  });
+  await context.route('**/api/workstation/station/escape', route => {
+    const data = route.request().postDataJSON();
+    requests.push({ action: 'escape', pinLength: String(data.ownerPin || '').length });
+    if (data.ownerPin !== '2468') return json(route, { detail: 'PIN refusé' }, 403);
+    state.value = { ...state.value, stationEscapeAuthorized: true,
+      stationEscapeExpiresAt: Math.floor(Date.now() / 1000) + 600 };
+    requests.push({ action: 'escape-authorized', mode: state.value.defaultExperience,
+      escapeAuthorized: state.value.stationEscapeAuthorized });
+    return json(route, { expiresAt: state.value.stationEscapeExpiresAt });
+  });
+  await context.route('**/api/workstation/pair', route => {
+    const data = route.request().postDataJSON();
+    requests.push({ action: 'pair', name: data.displayName, codeLength: String(data.code || '').length });
+    if (data.code !== '123456') return json(route, { detail: 'CODE_INVALID' }, 403);
+    state.value = { ...initial, displayName: data.displayName, workstationId: 'ws-fue-paired' };
+    return json(route, state.value);
+  });
+  await context.route('**/health', route => json(route, { status: 'ok' }));
+  // This persona is explicitly authenticated in the synthetic workstation bootstrap.
+  // A contradictory /auth/me 401 causes the real frontend auth interceptor to log out.
+  await context.route('**/api/auth/me', route => json(route, {
+    id: 1, nom_complet: 'Audit FUE synthétique', role: 'owner', email: 'synthetic@example.invalid',
+  }));
+  await context.route('**/api/clinics/init-status', route => json(route, { is_initialized: true }));
+};
+
+const run = async (journey, viewport) => {
+  const state = { value: { ...fixtures[journey] } };
+  const unexpected = [];
+  const requests = [];
+  const issues = { journey, viewport: viewport.label, captures: [], unexpected, requests, errors: [], checks: [], navigations: [] };
+  const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
+  let page;
+  try {
+    await installRoutes(context, state, unexpected, requests);
+    page = await context.newPage();
+    page.on('framenavigated', frame => {
+      if (frame === page.mainFrame()) issues.navigations.push(frame.url());
+    });
+    page.on('pageerror', e => issues.errors.push('PAGEERROR ' + e.message));
+    page.on('requestfailed', r => issues.errors.push('FAILED ' + r.method() + ' ' + r.url() + ' ' + (r.failure()?.errorText || '')));
+    page.on('console', m => { if (m.type() === 'error') issues.errors.push('CONSOLE ' + m.text()); });
+
+    if (journey === 'station-public') {
+      await page.goto(base + '/station', { waitUntil: 'networkidle' });
+      await page.locator('[data-station-screen="home"]').waitFor();
+      const before = await inspect(page, '01-before', journey, viewport, issues);
+      if (viewport.width === 390) {
+        await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+        await inspect(page, '01b-text-at-200-percent', journey, viewport, issues);
+        await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+      }
+      record(journey + '/' + viewport.label + '/no-clinical-links', before.clinicalLinks.length === 0,
+        JSON.stringify(before.clinicalLinks));
+
+      await page.keyboard.press('Tab');
+      const keyboard = await page.evaluate(() => ({
+        tag: document.activeElement?.tagName,
+        visible: Boolean(document.activeElement?.matches(':focus-visible')),
+      }));
+      issues.checks.push({ keyboard });
+      record(journey + '/' + viewport.label + '/keyboard-focus', keyboard.tag === 'BUTTON' && keyboard.visible,
+        JSON.stringify(keyboard));
+      await inspect(page, '02-keyboard-focus', journey, viewport, issues);
+
+      await page.locator('[data-station-action="documents"]').click();
+      await page.locator('[data-station-screen="documents"]').waitFor();
+      await page.locator('[data-station-patient-session]').waitFor();
+      await page.getByRole('img', { name: 'QR d’identification Patient Companion' }).waitFor();
+      record(journey + '/' + viewport.label + '/documents-qr-nfc-identity',
+        await page.getByText('NFC utilise le même lien sécurisé, sans donnée patient.').count() === 1);
+      record(journey + '/' + viewport.label + '/documents-session-created-once',
+        requests.filter(r => r.action === 'document-session-create' && r.method === 'POST').length >= 1,
+        JSON.stringify(requests));
+      record(journey + '/' + viewport.label + '/documents-no-arrival-ui',
+        await page.locator('[data-station-arrival-bridge], [data-station-staff-notified], [data-station-arrival-confirmed]').count() === 0);
+      await inspect(page, '03-documents-qr-nfc-after-click', journey, viewport, issues);
+      await page.getByRole('button', { name: 'Retour à l’accueil' }).click();
+      await page.locator('[data-station-screen="home"]').waitFor();
+      // Every distinct session minted by StrictMode must receive its own purge.
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const createdSoFar = requests.filter(r => r.action === 'document-session-create' && r.method === 'POST');
+        const purgedSoFar = requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST');
+        if (createdSoFar.length > 0 && createdSoFar.every(r => purgedSoFar.some(p => p.sessionId === r.sessionId))) break;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      const created = requests.filter(r => r.action === 'document-session-create' && r.method === 'POST');
+      const purged = requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST');
+      record(journey + '/' + viewport.label + '/documents-all-created-ids-purged',
+        created.length >= 1 &&
+        new Set(created.map(r => r.sessionId)).size === created.length &&
+        created.every(r => purged.some(p => p.sessionId === r.sessionId)) &&
+        purged.every(r => created.some(p => p.sessionId === r.sessionId)),
+        JSON.stringify(requests));
+      record(journey + '/' + viewport.label + '/documents-no-clinical-requests',
+        unexpected.every(url => !/\/appointments(?:\/|$)|\/arrive(?:\/|$)|\/staff-assistance(?:\/|$)/i.test(url)),
+        JSON.stringify(unexpected));
+      await inspect(page, '04-back-home', journey, viewport, issues);
+
+      await page.locator('[data-station-action="help"]').click();
+      await page.locator('[data-station-screen="help"]').waitFor();
+      await inspect(page, '05-help-after-click', journey, viewport, issues);
+      await page.getByRole('button', { name: 'Retour à l’accueil' }).click();
+      await page.getByRole('button', { name: 'العربية' }).click();
+      await page.locator('[data-station-language="ar"][dir="rtl"]').waitFor();
+      await inspect(page, '06-rtl-after-click', journey, viewport, issues);
+      await page.getByRole('button', { name: 'English' }).click();
+      await page.locator('[data-station-language="en"][dir="ltr"]').waitFor();
+      await page.getByRole('button', { name: 'Français' }).click();
+
+      await page.keyboard.press('Control+Alt+h');
+      await page.locator('[data-station-admin]').waitFor();
+      await inspect(page, '07-admin-before-pin', journey, viewport, issues);
+      const pin = page.getByLabel('PIN propriétaire', { exact: true });
+      await pin.fill('123');
+      await page.getByRole('button', { name: 'Autoriser l’accès au Hub' }).click();
+      record(journey + '/' + viewport.label + '/short-pin-refused',
+        await page.getByRole('status').filter({ hasText: 'PIN propriétaire requis.' }).count() > 0);
+      record(journey + '/' + viewport.label + '/invalid-no-server-call',
+        requests.filter(r => r.action === 'escape').length === 0);
+      await inspect(page, '08-invalid-pin-after-click', journey, viewport, issues);
+
+      await page.getByRole('button', { name: 'Annuler' }).click();
+      await page.locator('[data-station-screen="home"]').waitFor();
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.locator('[data-station-screen="home"]').waitFor();
+      await inspect(page, '09-cancel-reload-still-station', journey, viewport, issues);
+      for (const route of ['/hub?select=1', '/control-center', '/cabinet']) {
+        await page.goto(base + route, { waitUntil: 'networkidle' });
+        await page.locator('[data-station-screen="home"]').waitFor({ timeout: 12000 });
+        record(journey + '/' + viewport.label + '/direct-lock-' + route,
+          new URL(page.url()).pathname === '/station', page.url());
+      }
+      await inspect(page, '10-direct-url-blocked', journey, viewport, issues);
+    }
+
+    if (journey === 'hub-mode-transition') {
+      await page.goto(base + '/hub?select=1', { waitUntil: 'networkidle' });
+      await page.locator('[data-workstation-admin]').waitFor();
+      await inspect(page, '01-before', journey, viewport, issues);
+      if (viewport.width === 390) {
+        await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+        await inspect(page, '01b-text-at-200-percent', journey, viewport, issues);
+        await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+      }
+
+      const mode = page.getByRole('button', { name: "Station d'accueil", exact: true });
+      await mode.focus();
+      await page.keyboard.press('Enter');
+      record(journey + '/' + viewport.label + '/keyboard-mode-selected',
+        (await mode.getAttribute('aria-pressed')) === 'true');
+      await inspect(page, '02-mode-selected-with-keyboard', journey, viewport, issues);
+      await page.getByLabel('PIN propriétaire', { exact: true }).fill('123');
+      await page.getByRole('button', { name: 'Appliquer ce mode' }).click();
+      record(journey + '/' + viewport.label + '/invalid-pin-blocked',
+        await page.getByRole('status').filter({ hasText: 'Saisissez le PIN propriétaire.' }).count() > 0);
+      record(journey + '/' + viewport.label + '/mode-not-sent', requests.filter(x => x.action === 'change-mode').length === 0,
+        JSON.stringify(requests.filter(x => x.action === 'change-mode')));
+      await inspect(page, '03-invalid-mode-after-click', journey, viewport, issues);
+
+      await page.getByLabel('PIN propriétaire', { exact: true }).fill('2468');
+      await page.getByRole('button', { name: 'Appliquer ce mode' }).click();
+      await page.locator('[data-station-screen="home"]').waitFor({ timeout: 12000 });
+      record(journey + '/' + viewport.label + '/mode-change-called',
+        requests.filter(x => x.action === 'change-mode' && x.mode === 'station' && x.pinLength === 4).length === 1);
+      await inspect(page, '04-mode-applied-after-click', journey, viewport, issues);
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.locator('[data-station-screen="home"]').waitFor();
+      await inspect(page, '05-mode-persisted-after-reload', journey, viewport, issues);
+      await page.keyboard.press('Control+Alt+h');
+      await page.locator('[data-station-admin]').waitFor();
+      await page.getByLabel('PIN propriétaire', { exact: true }).fill('2468');
+      await page.getByRole('button', { name: 'Autoriser l’accès au Hub' }).click();
+      await page.locator('[data-workstation-admin]').waitFor({ timeout: 12000 });
+      record(journey + '/' + viewport.label + '/authorized-escape',
+        requests.filter(x => x.action === 'escape' && x.pinLength === 4).length === 1);
+      await inspect(page, '06-authorized-hub-return', journey, viewport, issues);
+    }
+
+    if (journey === 'hub-reenrollment') {
+      await page.goto(base + '/hub?select=1', { waitUntil: 'networkidle' });
+      await page.locator('[data-workstation-enrollment]').waitFor();
+      await inspect(page, '01-before', journey, viewport, issues);
+      if (viewport.width === 390) {
+        await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+        await inspect(page, '01b-text-at-200-percent', journey, viewport, issues);
+        await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+      }
+      const pair = page.getByRole('button', { name: 'Appairer cette borne' });
+      record(journey + '/' + viewport.label + '/pair-disabled-until-code',
+        await pair.isDisabled());
+      await page.getByLabel('Nom de cette borne').fill('Accueil FUE');
+      await page.getByLabel('Code d’appairage').fill('123');
+      record(journey + '/' + viewport.label + '/short-code-blocked', await pair.isDisabled());
+      await inspect(page, '02-invalid-enrollment', journey, viewport, issues);
+      await page.getByLabel('Code d’appairage').fill('123456');
+      await pair.click();
+      await page.locator('[data-workstation-admin]').waitFor({ timeout: 12000 });
+      record(journey + '/' + viewport.label + '/pair-action-called',
+        requests.filter(x => x.action === 'pair' && x.codeLength === 6 && x.name === 'Accueil FUE').length === 1);
+      await inspect(page, '03-paired-after-click', journey, viewport, issues);
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.locator('[data-workstation-admin]').waitFor({ timeout: 12000 });
+      record(journey + '/' + viewport.label + '/no-repeat-enrollment',
+        await page.locator('[data-workstation-enrollment]').count() === 0);
+      await inspect(page, '04-pair-persisted-after-reload', journey, viewport, issues);
+    }
+
+    record(journey + '/' + viewport.label + '/zero-browser-errors', issues.errors.length === 0,
+      JSON.stringify(issues.errors));
+    record(journey + '/' + viewport.label + '/zero-unmodelled-apis', unexpected.length === 0,
+      JSON.stringify(unexpected));
+    if (journey === 'station-public') {
+      record(journey + '/' + viewport.label + '/touch-targets-44px',
+        issues.captures.filter(c => c.phase.includes('before') || c.phase.includes('admin-before'))
+          .every(c => c.smallControls.length === 0),
+        JSON.stringify(issues.captures.flatMap(c => c.smallControls)));
+    }
+    issues.outcome = 'PASS';
+  } catch (error) {
+    issues.outcome = 'FAIL';
+    issues.failure = String(error?.stack || error);
+    failures.push({ journey, viewport: viewport.label, failure: issues.failure });
+    try { if (page) await page.screenshot({ path: path.join(out, journey + '-' + viewport.label + '-FAIL.png'), fullPage: true }); }
+    catch { /* Preserve the original error */ }
+  } finally {
+    issues.unexpected = [...unexpected];
+    issues.requests = [...requests];
+    issues.finalUrl = page?.url() || null;
+    issues.finalServerState = { mode: state.value.defaultExperience, escapeAuthorized: state.value.stationEscapeAuthorized,
+      escapeExpiresAt: state.value.stationEscapeExpiresAt };
+    await fs.writeFile(path.join(out, journey + '-' + viewport.label + '.json'), JSON.stringify(issues, null, 2));
+    await context.close();
+  }
+};
+
+try {
+  for (const journey of Object.keys(fixtures)) {
+    // Independent browser contexts and fixtures; no cross-viewport state sharing.
+    await Promise.all(viewports.map(viewport => run(journey, viewport)));
+  }
+} finally {
+  await browser.close();
+}
+const report = {
+  head: process.env.GITHUB_HEAD_SHA || process.env.GITHUB_SHA || null,
+  scope: 'synthetic Workstation FUE-I; backend auth/PIN intentionally not certified',
+  scenarios: Object.keys(fixtures),
+  viewportCount: viewports.length,
+  assertionCount: phases.length,
+  passedAssertions: phases.filter(p => p.pass).length,
+  failedAssertions: phases.filter(p => !p.pass).length,
+  phases,
+  failures,
+};
+await fs.writeFile(path.join(out, 'journey-matrix.json'), JSON.stringify(report, null, 2));
+console.log('FUE 00.3 journeys:', JSON.stringify({
+  scenarios: report.scenarios, viewportCount: report.viewportCount,
+  assertions: report.assertionCount, passed: report.passedAssertions, fails: failures,
+}, null, 2));
+if (failures.length) process.exitCode = 1;
+), route => {
     const url = new URL(route.request().url());
     const sessionId = url.pathname.split('/').at(-1) === 'purge'
       ? url.pathname.split('/').at(-2) : url.pathname.split('/').at(-1);
