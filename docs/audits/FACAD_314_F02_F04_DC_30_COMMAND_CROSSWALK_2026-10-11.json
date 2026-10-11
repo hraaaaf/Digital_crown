@@ -1,0 +1,603 @@
+{
+  "schema": "FACAD_F02_F04_VS_DC_COMMAND_CROSSWALK_V1",
+  "date": "2026-10-11",
+  "status": "DOCUMENTARY_MAPPING_ONLY_NO_BEHAVIORAL_OR_CLINICAL_PARITY",
+  "sources": {
+    "vendor_run_id": 37967170536,
+    "vendor_artifact_id": 11634502406,
+    "vendor_zip_sha256": "e8db415cda6c4dbc27cdca1eaa25bd6f6200a95a428c902726998a4fc79c1574",
+    "vendor_evidence_blob": "aae2169d977ffff93f07163df9fd137b277d7436",
+    "vendor_replay_blob": "48da3823ee5f95fdce30588857045629fc24815b",
+    "DC_source_head": "c0d47f4832e6da2211c6f94eb88f0db56fcaebb6",
+    "DC_layer_registry_blob": "0597b006bb8c0a093a0563e12c1ad1fe676720a8",
+    "DC_step1_controls_blob": "caf7a57067d9fded9ac09f2f2688131f12445b15",
+    "DC_tracing_layer_blob": "3353e6485ac39b4a2e5fb3b78264de166bc43026",
+    "DC_tracing_base_blob": "a27c8850f2c3bfa47e5d8f82fe967b11d2049a63",
+    "DC_superimposition_blob": "db06f601a507af8ec8e92b14b38f3ec1b335aec0",
+    "DC_analysis_panel_blob": "c2b3b3337bd6aa99cd6b977811749fce561a5b22"
+  },
+  "facad_menu_rows": [
+    {
+      "menu": "Tracing",
+      "ordinal": 1,
+      "name": "Tracing information",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 2,
+      "name": "New tracing",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 3,
+      "name": "Duplicate tracing",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 4,
+      "name": "Select tracing",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 5,
+      "name": "Close tracing",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 6,
+      "name": "Close other tracings",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 7,
+      "name": "Close all tracings",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 8,
+      "name": "Allow multiple tracings open",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 9,
+      "name": "Detach profile photo",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "Tracing",
+      "ordinal": 10,
+      "name": "Lock",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 1,
+      "name": "Image/Tracing manager",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NO_EXACT_EQUIVALENT_PROVEN_IN_REVIEWED_DC_SOURCES",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 2,
+      "name": "Tracing image",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 3,
+      "name": "Profile photo",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NO_EXACT_EQUIVALENT_PROVEN_IN_REVIEWED_DC_SOURCES",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 4,
+      "name": "Analysis",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": "analyses",
+        "status": "DC_ANALYSIS_SELECTOR_EXISTS_VENDOR_PARITY_UNTESTED",
+        "source": "CephaloTracingLayer.tsx"
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 5,
+      "name": "Harmony box",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 6,
+      "name": "Generate predicted photo",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NO_EXACT_EQUIVALENT_PROVEN_IN_REVIEWED_DC_SOURCES",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 7,
+      "name": "Predicted photo",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 8,
+      "name": "Original positions",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NO_EXACT_EQUIVALENT_PROVEN_IN_REVIEWED_DC_SOURCES",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 9,
+      "name": "Planned positions",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "UIA_ENABLED_VISIBLE_TOGGLE_ON_NOT_INVOKED",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NO_EXACT_EQUIVALENT_PROVEN_IN_REVIEWED_DC_SOURCES",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 10,
+      "name": "Marker guide",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "UIA_ENABLED_VISIBLE_TOGGLE_ON_NOT_INVOKED",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NO_EXACT_EQUIVALENT_PROVEN_IN_REVIEWED_DC_SOURCES",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 11,
+      "name": "Image",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 12,
+      "name": "Image #2",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 13,
+      "name": "Profile",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": "soft_tissue",
+        "status": "DC_LAYER_AVAILABLE_FACAD_EQUIVALENCE_UNTESTED",
+        "source": "orthoLayerRegistry.ts"
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 14,
+      "name": "Hard tissue",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": "hard_tissue",
+        "status": "DC_LAYER_PLANNED_NOT_IMPLEMENTED",
+        "source": "orthoLayerRegistry.ts"
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 15,
+      "name": "Markers",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": "landmarks",
+        "status": "DC_LAYER_AVAILABLE_FACAD_EQUIVALENCE_UNTESTED",
+        "source": "orthoLayerRegistry.ts"
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 16,
+      "name": "Marker names",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": "landmarks",
+        "status": "CANDIDATE_ONLY_NAME_RENDERING_NOT_TESTED",
+        "source": "CephaloTracingLayerBase.tsx"
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 17,
+      "name": "Ceph/Lines",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": "plans",
+        "status": "DC_LAYER_AVAILABLE_FACAD_EQUIVALENCE_UNTESTED",
+        "source": "orthoLayerRegistry.ts"
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 18,
+      "name": "Bindings",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 19,
+      "name": "Toolbars",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    },
+    {
+      "menu": "View",
+      "ordinal": 20,
+      "name": "Status bar",
+      "observed_from_vendor_UIA": true,
+      "enabled_or_toggle_state": "NOT_VERIFIED_IN_THIS_MAPPING",
+      "vendor_leaf_invoked": false,
+      "vendor_behavior_verified": false,
+      "dc": {
+        "dc": null,
+        "status": "NOT_EVALUATED_NO_EQUIVALENCE_CLAIM",
+        "source": null
+      },
+      "measured_same_case": false
+    }
+  ],
+  "facad_target_toggle_rows": [
+    {
+      "name": "Marker guide",
+      "uIA_enabled": true,
+      "uIA_visible": true,
+      "toggle_pattern": "On",
+      "clicked": false,
+      "result": "NOT_TESTED"
+    },
+    {
+      "name": "Planned positions",
+      "uIA_enabled": true,
+      "uIA_visible": true,
+      "toggle_pattern": "On",
+      "clicked": false,
+      "result": "NOT_TESTED"
+    }
+  ],
+  "facad_values_and_properties": [
+    {
+      "label": "Values",
+      "ControlType": "TabItem",
+      "UIA_files": 7,
+      "actual_tab_selected": false,
+      "feature_behavior": "NOT_TESTED",
+      "DC_equivalence": "UNKNOWN"
+    },
+    {
+      "label": "Properties",
+      "ControlType": "TabItem",
+      "UIA_files": 7,
+      "actual_tab_selected": false,
+      "feature_behavior": "NOT_TESTED",
+      "DC_equivalence": "UNKNOWN"
+    }
+  ],
+  "DC_layer_registry_status": [
+    {
+      "id": "landmarks",
+      "availability": "available",
+      "authority": "derived_visualization"
+    },
+    {
+      "id": "plans",
+      "availability": "available",
+      "authority": "derived_visualization"
+    },
+    {
+      "id": "hard_tissue",
+      "availability": "planned",
+      "authority": "display_template_only"
+    },
+    {
+      "id": "teeth",
+      "availability": "available",
+      "authority": "display_template_only"
+    },
+    {
+      "id": "soft_tissue",
+      "availability": "available",
+      "authority": "display_template_only"
+    },
+    {
+      "id": "measurements",
+      "availability": "available",
+      "authority": "derived_visualization"
+    },
+    {
+      "id": "t1",
+      "availability": "available",
+      "authority": "derived_visualization"
+    },
+    {
+      "id": "t2",
+      "availability": "available",
+      "authority": "derived_visualization"
+    }
+  ],
+  "confirmed_candidate_gaps": [
+    {
+      "code": "FACAD_HARD_TISSUE_VS_DC_PLANNED",
+      "severity": "MAJOR_PRODUCT_CAPABILITY",
+      "meaning": "FACAD View menu contains 'Hard tissue' label; DC hard_tissue is explicitly planned rather than available; cannot infer vendor behavior from menu"
+    },
+    {
+      "code": "FACAD_PLANNED_POSITIONS_BEHAVIOR_UNKNOWN",
+      "severity": "MAJOR_SOURCE_GAP",
+      "meaning": "Vendor item UIA TogglePattern On without leaf click; DC exact equivalent not proven in inspected files"
+    },
+    {
+      "code": "FACAD_MARKER_GUIDE_BEHAVIOR_UNKNOWN",
+      "severity": "MAJOR_SOURCE_GAP",
+      "meaning": "Vendor item UIA TogglePattern On without leaf click; DC exact equivalent not proven in inspected files"
+    },
+    {
+      "code": "FACAD_VALUES_PROPERTIES_PANEL_BEHAVIOR_UNKNOWN",
+      "severity": "MAJOR_SOURCE_GAP",
+      "meaning": "FACAD two tabs visible seven UIA files each; Properties never activated; Digital Crown cannot claim feature parity"
+    }
+  ],
+  "blocked_requirements": [
+    "Real FACAD View/Tracing leaf behavior requires legitimately authorized executable under validated isolation",
+    "Digital Crown matching actions must be exercised on same nonclinical state",
+    "Same anatomical image, landmarks, calibration for numerical parity only if ever properly obtained"
+  ],
+  "gates": {
+    "f02_2": "OPEN",
+    "f02_3": "OPEN",
+    "f04_1": "OPEN_PARTIAL",
+    "f02_4": "OPEN",
+    "f05_4": "OPEN",
+    "d3": "OPEN_RED",
+    "facad_numeric_parity": "NOT_TESTED"
+  },
+  "stats": {
+    "Tracing": 10,
+    "View": 20,
+    "facad_total_menu_commands": 30,
+    "vendor_leaf_invocations": 0,
+    "DC_layer_ids_checked": 8,
+    "DC_hard_tissue_planned": 1
+  },
+  "progress": {
+    "facad_closed": 21,
+    "facad_total": 39,
+    "facad_percent": 53.8,
+    "global_closed": 41,
+    "global_total": 99,
+    "global_percent": 41.4,
+    "new_closed_this_passage": 0
+  },
+  "disclaimer": "Non-exact match, no inference of legal license from ephemeral execution; no new FACAD binary execution or copy."
+}
