@@ -181,23 +181,60 @@ jobs:
           $proc = [Diagnostics.Process]::new()
           $proc.StartInfo = $info
           $healthy = $false
+          $lastProbe = "none"
+          $startedAt = [DateTime]::UtcNow
+          $nextStatus = $startedAt.AddSeconds(15)
           try {
             if (-not $proc.Start()) { throw "Frozen DigitalCrown.exe did not start" }
-            $deadline = [DateTime]::UtcNow.AddSeconds(100)
+            Write-Host "FROZEN_RUNTIME_STARTED_PID=$($proc.Id)"
+            $deadline = [DateTime]::UtcNow.AddSeconds(180)
             while ([DateTime]::UtcNow -lt $deadline) {
               if ($proc.HasExited) { throw "Frozen EXE exited before healthy loopback startup (exit $($proc.ExitCode))" }
               try {
                 $health = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:$port/health" -TimeoutSec 3 -ErrorAction Stop
+                $lastProbe = "HTTP 200 with status=$($health.status); db=$($health.db)"
                 if ($health.status -eq "ok" -and $health.db -eq "ok") {
                   $healthy = $true
                   Write-Host "FROZEN_ISOLATED_LOOPBACK_HEALTH=PASS"
                   break
                 }
-              } catch { }
+              } catch {
+                $lastProbe = $_.Exception.GetType().Name
+                if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+                  $lastProbe = "HTTP status=$([int]$_.Exception.Response.StatusCode)"
+                }
+              }
+              if ([DateTime]::UtcNow -ge $nextStatus) {
+                $elapsed = [int]([DateTime]::UtcNow - $startedAt).TotalSeconds
+                $dbPresent = Test-Path -LiteralPath (Join-Path $data "ci-only.db") -PathType Leaf
+                $logPresent = Test-Path -LiteralPath (Join-Path $logs "digitalcrown.log") -PathType Leaf
+                $portListening = @(
+                  Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+                ).Count -gt 0
+                $proc.Refresh()
+                Write-Host "FROZEN_SMOKE_DIAGNOSTIC elapsed=$elapsed sec, alive=$(-not $proc.HasExited), cpuSeconds=$([int]$proc.TotalProcessorTime.TotalSeconds), dbPresent=$dbPresent, logPresent=$logPresent, loopbackListening=$portListening, probe=$lastProbe"
+                $nextStatus = [DateTime]::UtcNow.AddSeconds(15)
+              }
               Start-Sleep -Seconds 2
             }
-            if (-not $healthy) { throw "Frozen EXE did not report healthy isolated database/loopback in 100s" }
+            if (-not $healthy) { throw "Frozen EXE did not report healthy isolated database/loopback within 180s; lastProbe=$lastProbe" }
           } finally {
+            # Diagnostic is intentionally runner-local and secret-safe: only synthetic
+            # log lines matching known error categories; never print env/profile,
+            # patient data, or arbitrary runtime logs.
+            Write-Host "FROZEN_SMOKE_FINAL healthy=$healthy processExited=$($proc.HasExited) lastProbe=$lastProbe"
+            Write-Host "FROZEN_SMOKE_SYNTHETIC_DATABASE_PRESENT=$(Test-Path -LiteralPath (Join-Path $data "ci-only.db") -PathType Leaf)"
+            $candidateLogs = @(Get-ChildItem -LiteralPath $logs -File -ErrorAction SilentlyContinue)
+            Write-Host "FROZEN_SMOKE_LOG_FILE_COUNT=$($candidateLogs.Count)"
+            foreach ($candidate in $candidateLogs | Where-Object { $_.Name -eq "digitalcrown.log" }) {
+              $lines = @(Get-Content -LiteralPath $candidate.FullName -Tail 120 -ErrorAction SilentlyContinue)
+              foreach ($line in $lines) {
+                if ($line -match "Traceback|ModuleNotFoundError|ImportError|RuntimeError|DLL load failed|Application startup|Startup refused|SECURITE|exception|ERROR|CRITICAL") {
+                  $redacted = $line -replace '(?i)[0-9a-f]{32,}', '[REDACTED_HEX]' -replace '(?i)(password|secret|token|key)=\\S+', '$1=[REDACTED]'
+                  Write-Host "FROZEN_SMOKE_LOG_DIAGNOSTIC: $($redacted.Substring(0,[Math]::Min(200,$redacted.Length)))"
+                }
+              }
+            }
             if ($proc -and -not $proc.HasExited) {
               Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
               $proc.WaitForExit(10000) | Out-Null
