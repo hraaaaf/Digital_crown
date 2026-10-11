@@ -1,0 +1,97 @@
+name: FACAD 3.14 F02 F04 30-command readonly source lock
+on:
+  push:
+    branches:
+      - research/facad-f02-f04-observational-ledger-20261011
+    paths:
+      - .github/workflows/facad-314-f02-f04-30-command-source-lock.yml
+      - docs/audits/FACAD_314_F02_F04_DC_30_COMMAND_CROSSWALK_2026-10-11.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provenance-and-no-false-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prove 30 FACAD commands and source-locked Digital Crown status
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,copy,subprocess
+          base=Path('docs/audits')
+          a=json.loads((base/'FACAD_314_F02_F04_DC_30_COMMAND_CROSSWALK_2026-10-11.json').read_text())
+          facad=json.loads((base/'FACAD_314_F02_F04_READONLY_EVIDENCE_MINIMAL_2026-10-11.json').read_text())
+          def blob(path):
+              return subprocess.check_output(['git','hash-object',str(path)],text=True).strip()
+          files={
+              'DC_layer_registry_blob':'frontend/src/features/ortho/orthoLayerRegistry.ts',
+              'DC_step1_controls_blob':'frontend/src/features/ortho/components/Step1Cephalo.tsx',
+              'DC_tracing_layer_blob':'frontend/src/features/ortho/CephaloTracingLayer.tsx',
+              'DC_tracing_base_blob':'frontend/src/features/ortho/CephaloTracingLayerBase.tsx',
+              'DC_superimposition_blob':'frontend/src/features/ortho/OrthoSuperimpositionViewer.tsx',
+              'DC_analysis_panel_blob':'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx',
+              'vendor_evidence_blob':str(base/'FACAD_314_F02_F04_READONLY_EVIDENCE_MINIMAL_2026-10-11.json'),
+              'vendor_replay_blob':str(base/'FACAD_314_F02_F04_PASSIVE_OBSERVATION_REPLAY_2026-10-11.md')
+          }
+          assert a['schema']=='FACAD_F02_F04_VS_DC_COMMAND_CROSSWALK_V1'
+          assert all(a['sources'][k]==blob(p) for k,p in files.items())
+          v=a['sources']
+          assert v['vendor_run_id']==facad['evidence']['run_id']==37967170536
+          assert v['vendor_artifact_id']==facad['evidence']['artifact_id']==11634502406
+          assert v['vendor_zip_sha256']==facad['evidence']['zip_sha256']
+          commands=a['facad_menu_rows']
+          assert len(commands)==30
+          assert len({(q['menu'],q['ordinal']) for q in commands})==30
+          assert [q['ordinal'] for q in commands if q['menu']=='Tracing']==list(range(1,11))
+          assert [q['ordinal'] for q in commands if q['menu']=='View']==list(range(1,21))
+          assert len([q for q in commands if q['menu']=='Tracing'])==facad['f02_3']['menu_app_entries']['Tracing']
+          assert len([q for q in commands if q['menu']=='View'])==facad['f02_3']['menu_app_entries']['View']
+          assert all(q['observed_from_vendor_UIA'] and not q['vendor_leaf_invoked']
+                     and not q['vendor_behavior_verified'] and not q['measured_same_case'] for q in commands)
+          assert len(a['facad_target_toggle_rows'])==2
+          assert all(not q['clicked'] and q['result']=='NOT_TESTED' for q in a['facad_target_toggle_rows'])
+          assert len(a['facad_values_and_properties'])==2
+          assert all(q['UIA_files']==7 and not q['actual_tab_selected'] and q['feature_behavior']=='NOT_TESTED'
+                     for q in a['facad_values_and_properties'])
+          registry=Path(files['DC_layer_registry_blob']).read_text()
+          assert "id: 'hard_tissue'" in registry
+          hard=registry[registry.index("id: 'hard_tissue'"):registry.index("id: 'teeth'")]
+          assert "availability: 'planned'" in hard
+          assert len(a['DC_layer_registry_status'])==8
+          assert next(x for x in a['DC_layer_registry_status'] if x['id']=='hard_tissue')['availability']=='planned'
+          assert a['stats']=={'Tracing':10,'View':20,'facad_total_menu_commands':30,
+                              'vendor_leaf_invocations':0,'DC_layer_ids_checked':8,'DC_hard_tissue_planned':1}
+          assert len(a['confirmed_candidate_gaps'])==4
+          assert a['progress']['facad_closed']==21 and a['progress']['facad_total']==39
+          assert a['progress']['global_closed']==41 and a['progress']['global_total']==99
+          assert a['progress']['new_closed_this_passage']==0
+          gate=a['gates']
+          assert gate=={'f02_2':'OPEN','f02_3':'OPEN','f04_1':'OPEN_PARTIAL','f02_4':'OPEN',
+                        'f05_4':'OPEN','d3':'OPEN_RED','facad_numeric_parity':'NOT_TESTED'}
+          def safe(x):
+              return (len(x['facad_menu_rows'])==30 and
+                      all(not q['vendor_leaf_invoked'] and not q['vendor_behavior_verified']
+                          for q in x['facad_menu_rows']) and
+                      x['gates']==gate and
+                      x['progress']['new_closed_this_passage']==0 and
+                      next(q for q in x['DC_layer_registry_status'] if q['id']=='hard_tissue')['availability']=='planned')
+          assert safe(a)
+          negatives=[]
+          for k,v in [('f02_2','CLOSED'),('f02_3','CLOSED'),('f04_1','CLOSED'),
+                      ('d3','CLOSED'),('facad_numeric_parity','VERIFIED'),('f05_4','CLOSED')]:
+              y=copy.deepcopy(a);y['gates'][k]=v;negatives.append(y)
+          z=copy.deepcopy(a);z['facad_menu_rows'][0]['vendor_leaf_invoked']=True;negatives.append(z)
+          z=copy.deepcopy(a);z['DC_layer_registry_status'][2]['availability']='available';negatives.append(z)
+          z=copy.deepcopy(a);z['progress']['new_closed_this_passage']=1;negatives.append(z)
+          assert len(negatives)==9 and all(not safe(n) for n in negatives)
+          print('FACAD_COMMANDS_SOURCE_LOCKED=30')
+          print('FACAD_3_14_VIEW_COMMANDS=20_TRACING_COMMANDS=10')
+          print('DC_HARD_TISSUE_PLANNED_NOT_IMPLEMENTED=true')
+          print('FACAD_VALUES_PROPERTIES_BEHAVIOR_VERIFIED=false')
+          print('FACAD_FALSE_PROMOTIONS_REJECTED=9')
+          print('FACAD_PROGRESS=21_OF_39_UNCHANGED')
+          PY
