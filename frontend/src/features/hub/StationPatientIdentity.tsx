@@ -232,7 +232,7 @@ export const StationPatientIdentity = ({
     }
   };
 
-  const leave = () => {
+  const leave = async () => {
     ++generationRef.current;
     const sessionId = sessionRef.current || session?.sessionId;
     if (sessionId) requestPurge(sessionId);
