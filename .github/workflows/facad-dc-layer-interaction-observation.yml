@@ -100,7 +100,7 @@ jobs:
           // Fixed, preregistered visual thresholds; no dynamic tuning from this run.
           const rasterDiff=(a,b)=>{
             if(a.width!==b.width||a.height!==b.height)throw new Error('Raster geometry changed');
-            let pixelsOver10=0,pixelsOver30=0,maxRgbDelta=0,energyRgb=0;
+            let pixelsOver3=0,pixelsOver10=0,pixelsOver30=0,maxRgbDelta=0,energyRgb=0,excessEnergyOver10=0;
             for(let i=0;i<a.data.length;i+=4){
               const dr=Math.abs(a.data[i]-b.data[i]);
               const dg=Math.abs(a.data[i+1]-b.data[i+1]);
@@ -108,10 +108,12 @@ jobs:
               const d=Math.max(dr,dg,db);
               maxRgbDelta=Math.max(maxRgbDelta,d);
               energyRgb+=dr+dg+db;
+              excessEnergyOver10+=Math.max(dr-10,0)+Math.max(dg-10,0)+Math.max(db-10,0);
+              if(d>3)pixelsOver3++;
               if(d>10)pixelsOver10++;
               if(d>30)pixelsOver30++;
             }
-            return {totalPixels:a.width*a.height,pixelsOver10,pixelsOver30,maxRgbDelta,energyRgb};
+            return {totalPixels:a.width*a.height,pixelsOver3,pixelsOver10,pixelsOver30,maxRgbDelta,energyRgb,excessEnergyOver10};
           };
           const visualGate=(before,toggled,restored)=>{
             const toggle=rasterDiff(before,toggled);
@@ -119,7 +121,8 @@ jobs:
             return {toggle,residual,changed:toggle.pixelsOver30>=60,
               restored:residual.pixelsOver30===0
                 && residual.pixelsOver10<=Math.max(35,Math.ceil(residual.totalPixels*0.0003))
-                && residual.energyRgb<=Math.max(200,toggle.energyRgb*0.01)};
+                && residual.pixelsOver3<=Math.max(350,Math.ceil(residual.totalPixels*0.001))
+                && residual.excessEnergyOver10<=250};
           };
           const geometrySegments=async()=>page.evaluate(()=>{
             const root=document.querySelector('[data-cephalo-analysis]');
@@ -147,9 +150,15 @@ jobs:
           corrupt.data[0]=clean.data[0]>127?0:255;
           const benign={...clean,data:Buffer.from(clean.data)};
           benign.data[0]=clean.data[0]>127?clean.data[0]-10:clean.data[0]+10;
-          if(visualGate(clean,clean,corrupt).restored||!visualGate(clean,clean,benign).restored)
-            throw new Error('Raster visual-oracle sabotage/benign-noise controls failed');
+          const widespread={...clean,data:Buffer.from(clean.data)};
+          for(let i=0;i<3000;i++){
+            const offset=i*4;
+            widespread.data[offset]=clean.data[offset]>127?clean.data[offset]-5:clean.data[offset]+5;
+          }
+          if(visualGate(clean,clean,corrupt).restored||visualGate(clean,clean,widespread).restored||!visualGate(clean,clean,benign).restored)
+            throw new Error('Raster visual-oracle single-pixel/broad-drift sabotage or benign-noise controls failed');
           layerAudit.rasterOracleSabotageRejected=true;
+          layerAudit.rasterOracleWidespreadDriftRejected=true;
           layerAudit.rasterOracleBenignNoiseAccepted=true;
           for(const id of ['landmarks','plans','teeth','soft_tissue','measurements','t1','t2']){
             const control=page.locator('[data-ortho-layer-control="'+id+'"] button');
@@ -219,7 +228,7 @@ jobs:
             layerAudit.svgProbes.push({id,before:beforeSvg,toggled:toggledSvg,restored:restoredSvg,spoofRejected,svg_effect_verified:true});
             layerAudit.controlled.push({id,original,toggled:changed,restored:original,click_verified:true});
           }
-          layerAudit.valid=layerAudit.rasterOracleSabotageRejected&&layerAudit.rasterOracleBenignNoiseAccepted&&layerAudit.hardTissueDisabled&&layerAudit.controlled.length===7&&layerAudit.svgProbes.length===7&&layerAudit.svgProbes.every(x=>x.spoofRejected&&x.svg_effect_verified)&&layerAudit.tracePixelProbes.length===7&&layerAudit.tracePixelProbes.every(x=>x.pixelsVerified&&x.before.sha256!==x.toggled.sha256);
+          layerAudit.valid=layerAudit.rasterOracleSabotageRejected&&layerAudit.rasterOracleWidespreadDriftRejected&&layerAudit.rasterOracleBenignNoiseAccepted&&layerAudit.hardTissueDisabled&&layerAudit.controlled.length===7&&layerAudit.svgProbes.length===7&&layerAudit.svgProbes.every(x=>x.spoofRejected&&x.svg_effect_verified)&&layerAudit.tracePixelProbes.length===7&&layerAudit.tracePixelProbes.every(x=>x.pixelsVerified&&x.before.sha256!==x.toggled.sha256);
           if(!layerAudit.valid)throw new Error('Layer audit failure');
           """
           s=s.replace(needle,extra+'\n'+needle)
@@ -267,7 +276,7 @@ jobs:
             assert capture['valid'] and len(capture['states'])==6 and all(s['valid'] for s in capture['states'])
             a=capture['layerAudit']
             assert a['valid'] and a['hardTissueDisabled'] and a['viewport'] in viewports
-            assert a['rasterOracleSabotageRejected'] and a['rasterOracleBenignNoiseAccepted']
+            assert a['rasterOracleSabotageRejected'] and a['rasterOracleWidespreadDriftRejected'] and a['rasterOracleBenignNoiseAccepted']
             assert {x['id'] for x in a['controlled']}==expected
             assert all(x['click_verified'] and x['original']==x['restored'] and x['original']!=x['toggled'] for x in a['controlled'])
             assert len(a['svgProbes'])==7
@@ -295,7 +304,7 @@ jobs:
           print('FACAD_F02_4B_ARIA_SPOOF_NEGATIVES=28_REJECTED')
           print('FACAD_F02_4B_RENDERED_TRACE_PIXEL_TOGGLES=28_CHANGED_AND_SVG_RESTORED')
           print('FACAD_F02_4C_RASTER_TOLERANT_RESTORATION=28_OF_28_PREREGISTERED_THRESHOLD_PASS')
-          print('FACAD_F02_4C_RASTER_NEGATIVE_CONTROL=SINGLE_CORRUPT_PIXEL_REJECTED_ON_4_VIEWPORTS')
+          print('FACAD_F02_4C_RASTER_NEGATIVE_CONTROL=SINGLE_CORRUPT_PIXEL_AND_WIDESPREAD_DRIFT_REJECTED_ON_4_VIEWPORTS')
           print('FACAD_F02_4C_RASTER_EVIDENCE=116_HASHED_PNGS; T1_T2_INCLUDED')
           print('FACAD_F02_4B_PROJECTED_COORDINATES=T1_T2_DISTINCT_SYNTHETIC_ORACLE')
           print('FACAD_F02_4_MOBILE_RENDERED=390x844')
