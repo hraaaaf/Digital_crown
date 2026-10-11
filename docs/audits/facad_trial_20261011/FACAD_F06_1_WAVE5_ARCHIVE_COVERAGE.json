@@ -1,0 +1,800 @@
+{
+  "schema": "FACAD_F06_1_WAVE5_DURABLE_ARCHIVE_COVERAGE_V1",
+  "date": "2026-10-11",
+  "status": "RESEARCH_ONLY_INCOMPLETE_RETENTION_NOT_ATTESTED",
+  "basis": "GitHub B65 exact-source 65 profiles, Google Drive folder direct metadata listing; no raw Drive archive data used",
+  "sources": {
+    "b65_blob": "54cf83e2f76fb08b8d887ac73f138bfd003ec189",
+    "source_ref": "068d30a5437a4bf0fe8a46a96391fa3cd8a6428d",
+    "drive_folder_url": "https://drive.google.com/drive/folders/17df8HYGAD-Jn4oRnXldCVt4LzvRhJFhJ",
+    "drive_files_in_folder_observed": 9,
+    "drive_verified_zip_content": false,
+    "proprietary_archive_reupload_authorized": false,
+    "retention_policy_approved": false
+  },
+  "counts": {
+    "catalog": 65,
+    "editor_ledger": 65,
+    "git_complete_csv_triplets": 42,
+    "git_strict_triplets_not_versioned": 23,
+    "drive_profile_zip_files_visible": 8,
+    "other_drive_folder_zip_files_visible": 1,
+    "remaining_without_confirmed_drive_zip_in_THIS_FOLDER": 57,
+    "global_archive_absence_proven": false
+  },
+  "profiles": [
+    {
+      "ordinal": 1,
+      "analysis": "ABO",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37914743636",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37914743636",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": {
+        "drive_id": "1mRil9cZm9_gR1dWq3bMDNd_9wQHEwtYR",
+        "filename": "FACAD_D1C_ABO_run37914743636.zip",
+        "url": "https://drive.google.com/file/d/1mRil9cZm9_gR1dWq3bMDNd_9wQHEwtYR/view",
+        "status": "FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED"
+      },
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 2,
+      "analysis": "Airway (FH)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951785899",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951785899",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 3,
+      "analysis": "Airway (McNamara)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37914729075",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37914729075",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": {
+        "drive_id": "1ODxcO75Z0e9_KpHhFkTvwMaG33NpMCaN",
+        "filename": "FACAD_D1C_AirwayMcNamara_run37914729075.zip",
+        "url": "https://drive.google.com/file/d/1ODxcO75Z0e9_KpHhFkTvwMaG33NpMCaN/view",
+        "status": "FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED"
+      },
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 4,
+      "analysis": "Airway (Mochida)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951785888",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951785888",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 5,
+      "analysis": "Airway (NL)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951785996",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951785996",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 6,
+      "analysis": "Alexander",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951786073",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951786073",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 7,
+      "analysis": "AM Schwarz",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951786057",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951786057",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 8,
+      "analysis": "Ancell",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532550",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532550",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 9,
+      "analysis": "Arnett STCA (female)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37914719024",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37914719024",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": {
+        "drive_id": "1DC8XP92k-59pf4zKFYcN6ezfBv1bpt9C",
+        "filename": "FACAD_D1C_ArnettSTCAFemale_run37914719024.zip",
+        "url": "https://drive.google.com/file/d/1DC8XP92k-59pf4zKFYcN6ezfBv1bpt9C/view",
+        "status": "FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED"
+      },
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 10,
+      "analysis": "Arnett STCA (male)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37914723547",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37914723547",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": {
+        "drive_id": "1KK26UhLd_aKhoxH-JuA7xNyezpkcD9Iu",
+        "filename": "FACAD_D1C_ArnettSTCAMale_run37914723547.zip",
+        "url": "https://drive.google.com/file/d/1KK26UhLd_aKhoxH-JuA7xNyezpkcD9Iu/view",
+        "status": "FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED"
+      },
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 11,
+      "analysis": "Arnett STCA Midface (female)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37948363481",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37948363481",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 12,
+      "analysis": "Arnett STCA Midface (male)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37948363686",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37948363686",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 13,
+      "analysis": "Basel 2013",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951785827",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951785827",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 14,
+      "analysis": "Bergen",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37914715358",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37914715358",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": {
+        "drive_id": "1Z7HoLC7EdlZCeaoGvrPMousfe-XhdBth",
+        "filename": "FACAD_D1C_Bergen_run37914715358.zip",
+        "url": "https://drive.google.com/file/d/1Z7HoLC7EdlZCeaoGvrPMousfe-XhdBth/view",
+        "status": "FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED"
+      },
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 15,
+      "analysis": "Bergen short",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37914622966",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37914622966",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": {
+        "drive_id": "1gPnqOiYA2glSkY87LFezPNvqHKZXbTot",
+        "filename": "FACAD_D1C_BergenShort_run37914622966.zip",
+        "url": "https://drive.google.com/file/d/1gPnqOiYA2glSkY87LFezPNvqHKZXbTot/view",
+        "status": "FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED"
+      },
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 16,
+      "analysis": "Bern analysis",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951785861",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951785861",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 17,
+      "analysis": "Bern University",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532753",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532753",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 18,
+      "analysis": "Bimler",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951785879",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951785879",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 19,
+      "analysis": "Bjork",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37914735062",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37914735062",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": {
+        "drive_id": "102ak7uuUgpBzFD1lF2hf2_MeLttl5BBP",
+        "filename": "FACAD_D1C_Bjork_run37914735062.zip",
+        "url": "https://drive.google.com/file/d/102ak7uuUgpBzFD1lF2hf2_MeLttl5BBP/view",
+        "status": "FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED"
+      },
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 20,
+      "analysis": "Bjork-DK",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951013922",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951013922",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 21,
+      "analysis": "Bjork-DK-extended",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951013805",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951013805",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 22,
+      "analysis": "Bjork-Tiops",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532699",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532699",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 23,
+      "analysis": "Bjork-Tiops (female-11)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532439",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532439",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 24,
+      "analysis": "Bjork-Tiops (male-12)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532922",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532922",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 25,
+      "analysis": "Burstone (female)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37948363584",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37948363584",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 26,
+      "analysis": "Burstone (male)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37948363857",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37948363857",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 27,
+      "analysis": "Downs",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37948363599",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37948363599",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 28,
+      "analysis": "EAIO",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532651",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532651",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 29,
+      "analysis": "Facad Mini",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532539",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532539",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 30,
+      "analysis": "Geneve",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532517",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532517",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 31,
+      "analysis": "HarmonyBox",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532281",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532281",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 32,
+      "analysis": "Harvold",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957533614",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957533614",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 33,
+      "analysis": "Hasund",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951013876",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951013876",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 34,
+      "analysis": "Hasund regression",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951013993",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951013993",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 35,
+      "analysis": "Holdaway Soft",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37948363944",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37948363944",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 36,
+      "analysis": "Jarabak",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37948363976",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37948363976",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 37,
+      "analysis": "Jefferson-Sassouni",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532509",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532509",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 38,
+      "analysis": "Legan-Burstone Surgical",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37948363398",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37948363398",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 39,
+      "analysis": "Mahony FFG",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532369",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532369",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 40,
+      "analysis": "Mahony FFG + soft",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951013982",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951013982",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 41,
+      "analysis": "McGann",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532521",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532521",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 42,
+      "analysis": "McLaughlin",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532438",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532438",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 43,
+      "analysis": "McNamara",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37862652488",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37862652488",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 44,
+      "analysis": "Oslo",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532620",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532620",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 45,
+      "analysis": "Oslo Surgical",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951013880",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951013880",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 46,
+      "analysis": "Pancherz-post",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951014008",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951014008",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 47,
+      "analysis": "Pancherz-pre",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37951014004",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37951014004",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 48,
+      "analysis": "Photo AM Schwarz",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532617",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532617",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 49,
+      "analysis": "Quadrilateral DiPaolo",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532660",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532660",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 50,
+      "analysis": "Rakosi",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532320",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532320",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 51,
+      "analysis": "Ricketts",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37865416188",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37865416188",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 52,
+      "analysis": "Ricketts (13 F)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37864557101",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37864557101",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 53,
+      "analysis": "Ricketts (32 F)",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37863549712",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37863549712",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 54,
+      "analysis": "Ricketts acc G. Samson",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37866339218",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37866339218",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 55,
+      "analysis": "Ricketts Summary",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37867888641",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37867888641",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 56,
+      "analysis": "Roth-Jarabak",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37868934136",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37868934136",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 57,
+      "analysis": "Sato Denture Frame",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37885795048",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37885795048",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 58,
+      "analysis": "Sato Denture Frame mod Kim",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37907174679",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37907174679",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 59,
+      "analysis": "Steiner",
+      "editor_observation": "EDITOR_OBSERVED_UNSAVED_IN_PARTIAL_FAILURE",
+      "run_id": "37857655276",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37857655276",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 60,
+      "analysis": "Trygde-analysen",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37908245978",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37908245978",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 61,
+      "analysis": "Tubingen",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37958732410",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37958732410",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 62,
+      "analysis": "Tweed",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37861203066",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37861203066",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 63,
+      "analysis": "Wits appraisal",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37914739084",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37914739084",
+      "git_three_ui_csv": "3_OF_3_FILES_PRESENT",
+      "drive_copy": {
+        "drive_id": "14LZdWwpuZMX6Fm-sdiiBKPNmm5CYgiBS",
+        "filename": "FACAD_D1C_WitsAppraisal_run37914739084.zip",
+        "url": "https://drive.google.com/file/d/14LZdWwpuZMX6Fm-sdiiBKPNmm5CYgiBS/view",
+        "status": "FOLDER_LIST_METADATA_CONFIRMED_FILE_BYTES_AND_SHA_NOT_REPLAYED"
+      },
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 64,
+      "analysis": "Wylie",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532916",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532916",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    },
+    {
+      "ordinal": 65,
+      "analysis": "Zurich",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "run_id": "37957532681",
+      "run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532681",
+      "git_three_ui_csv": "0_OF_3_IN_THIS_REF",
+      "drive_copy": null,
+      "archive_durable_complete": false,
+      "clinical_data_expected": false
+    }
+  ],
+  "non_profile_archive": {
+    "title": "FACAD_D1C_WAVE1_24_VERIFIED_UIA_CSV_AND_MANIFEST_2026-10-09.zip",
+    "drive_url": "https://drive.google.com/file/d/1gXnJJ-vktGoM-5UBnxrt-wMWIpUEfXvh/view",
+    "content_unverified_this_wave": true
+  },
+  "retention_gates": {
+    "vendor_artifact_redistribution_permission": "NOT_GRANTED_IN_THIS_WAVE",
+    "content_hash_verification_all_drive_zips": "NOT_EXECUTED",
+    "retention_deadline_and_deletion": "UNKNOWN",
+    "scope_and_custodian_approval": "UNKNOWN",
+    "all_profiles_durable_archive_pass": false
+  },
+  "f06_1": "OPEN",
+  "f06_2": "CLOSED_DOCUMENTARY",
+  "d3": "OPEN_RED",
+  "facad_numeric_parity": "NOT_TESTED",
+  "no_vendor_execution": true,
+  "converged": false
+}
