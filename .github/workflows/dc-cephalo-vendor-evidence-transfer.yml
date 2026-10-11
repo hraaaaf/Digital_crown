@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/certify_dc_cephalo_vendor_evidence_transfer.py
-      - name: Certify DC-only provenance and 11 fail-closed mutations
+      - name: Certify DC-only provenance and 12 fail-closed mutations
         shell: bash
         run: |
           set -euo pipefail
@@ -51,7 +51,7 @@ jobs:
           assert data['dc_measurement_contract_count']==38
           assert data['facad_compatibility_dispositions_ricketts32']==26
           assert data['vendor_direct_parity_rows']==0
-          assert data['mutation_negative_controls_passed']==11
+          assert data['mutation_negative_controls_passed']==12
           assert data['facad_new_executions']==0
           assert data['clinical_activation'] is False
           assert data['patient_access'] is False
