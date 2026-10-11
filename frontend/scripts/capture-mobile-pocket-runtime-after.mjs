@@ -207,6 +207,10 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   if (await page.locator('[data-mobile-restricted]').count()) throw new Error('P1: Frontdesk rejected an authorized Pocket role');
   await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-frontdesk-${viewport.width}x${viewport.height}.png`) });
 
+  await page.goto(`${baseUrl}/mobile/dashboard?tab=securite`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Téléphone connecté', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-securite-${viewport.width}x${viewport.height}.png`) });
+
   await page.goto(`${baseUrl}/mobile/dashboard?tab=stock`, { waitUntil: 'domcontentloaded' });
   await page.locator('[data-mobile-stock]').waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText('Gants nitrile', { exact: true }).waitFor({ state: 'visible' });
@@ -326,6 +330,9 @@ try {
     await page.goto(`${baseUrl}/mobile/dashboard?tab=stock`, { waitUntil: 'domcontentloaded' });
     await page.getByText('Gants nitrile', { exact: true }).waitFor({ state: 'visible' });
     await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-stock-430x932.png`) });
+    await page.goto(`${baseUrl}/mobile/dashboard?tab=securite`, { waitUntil: 'domcontentloaded' });
+    await page.getByText('Téléphone connecté', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+    await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-securite-430x932.png`) });
     themeEvidence.push(result);
     await context.close();
   }
