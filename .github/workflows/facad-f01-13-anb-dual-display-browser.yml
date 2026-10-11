@@ -1,0 +1,91 @@
+name: FACAD F01.13 ANB React dual-mode browser contract (EXPERIMENTAL)
+
+on:
+  push:
+    branches:
+      - docs/facad-product-science-coverage-20261011
+    paths:
+      - .github/workflows/facad-f01-13-anb-dual-display-browser.yml
+      - docs/audits/scripts/facad_anb_workbench_display_browser.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  anb-workbench-browser:
+    name: Real React component, two ANB modes, two viewports (NO FACAD)
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      FACAD_ANB_SYNTHETIC_FIXTURES_PATH: ${{ runner.temp }}/facad-anb-source-fixtures.json
+      FACAD_ANB_BROWSER_OUTPUT: ${{ runner.temp }}/facad-anb-display-proof
+    steps:
+      - name: Checkout exact HEAD
+        uses: actions/checkout@v4
+      - name: Setup Python for pinned legacy/typed oracle
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate only synthetic source-locked ANB inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python docs/audits/scripts/facad_anb_source_route_oracle.py --self-test --report "$FACAD_ANB_SYNTHETIC_FIXTURES_PATH"
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+      - name: Install exact locked browser tooling and real frontend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm --prefix frontend ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Execute browser actual React dual-mode display parity and fail-closed controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check docs/audits/scripts/facad_anb_workbench_display_browser.mjs
+          node docs/audits/scripts/facad_anb_workbench_display_browser.mjs
+          python - <<'PY'
+          import json,os,pathlib
+          result=pathlib.Path(os.environ['FACAD_ANB_BROWSER_OUTPUT'])
+          x=json.loads((result/'report.json').read_text(encoding='utf-8'))
+          assert x['schema']=='FACAD_F01_13_ANB_DUAL_DISPLAY_BROWSER_RESEARCH_V1'
+          assert x['status']=='RESEARCH_BROWSER_COMPONENT_PASS'
+          assert x['head']==os.environ['GITHUB_SHA']
+          assert x['viewport_count']==2 and x['fixture_count']==4
+          assert len(x['captures'])==2
+          assert len(x['traces'])==12
+          assert x['real_react_panel_rendered'] is True
+          assert x['real_zustand_store_used'] is True
+          assert x['expected_inter_mode_values_equal'] is True
+          assert x['unverified_steiner_fail_closed'] is True
+          assert x['explicit_divergence_visible'] is True
+          assert x['authenticated_product_e2e'] is False
+          assert x['facad_vendor_numeric_oracle_executed'] is False
+          assert x['patient_data_used'] is False
+          assert x['external_api_traffic_allowed'] is False
+          assert x['product_runtime_modified'] is False
+          for name in ('mobile','desktop'):
+              for mode in ('BEFORE-all','AFTER-steiner'):
+                  assert (result/(name+'-'+mode+'.png')).is_file()
+          print('FACAD_ANB_DUAL_MODE_CHROMIUM_CONTRACT=PASS')
+          print('FACAD_NUMERIC_PARITY=NOT_TESTED')
+          print('CLINICAL_GATE_STATUS=OPEN')
+          PY
+      - name: Upload only synthetic browser proof and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-anb-dual-display-chromium-${{ github.sha }}
+          retention-days: 14
+          path: ${{ runner.temp }}/facad-anb-display-proof/
+          if-no-files-found: warn
