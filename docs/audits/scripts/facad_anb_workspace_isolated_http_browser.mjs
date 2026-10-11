@@ -35,8 +35,8 @@ if(cases.some(x=>!Number.isFinite(x.legacy)||!Number.isFinite(x.unsignedHypothes
 const entry=[
  "import React from 'react';",
  "import {createRoot} from 'react-dom/client';",
- "import {CephaloWorkspace} from './features/ortho/CephaloWorkspace';
-import {MemoryRouter} from 'react-router-dom';",
+ "import {CephaloWorkspace} from './features/ortho/CephaloWorkspace';",
+ "import {MemoryRouter} from 'react-router-dom';",
  "import {useOrthoStore} from './features/ortho/stores/useOrthoStore';",
  "import './index.css';",
  "const cases=FIXTURE_CASES;",
