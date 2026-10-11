@@ -3,7 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const engine = process.env.MOBILE_RUNTIME_ENGINE === 'webkit' ? webkit : chromium;
 
 const baseUrl = process.env.MOBILE_RUNTIME_URL || 'http://127.0.0.1:5173';
 const outputDir = process.env.MOBILE_RUNTIME_DIR || '../artifacts/mobile-pocket-runtime';
@@ -261,7 +262,7 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
 }
 
 await fs.mkdir(outputDir, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await engine.launch({ headless: true });
 const evidence = [];
 const themeEvidence = [];
 
@@ -334,4 +335,4 @@ try {
 
 await fs.writeFile(path.join(outputDir, 'runtime-evidence.json'), JSON.stringify(evidence, null, 2));
 await fs.writeFile(path.join(outputDir, 'theme-evidence.json'), JSON.stringify(themeEvidence, null, 2));
-console.log(JSON.stringify(evidence, null, 2));
+console.log(JSON.stringify({ engine: engine.name(), evidence, themeEvidence }, null, 2));
