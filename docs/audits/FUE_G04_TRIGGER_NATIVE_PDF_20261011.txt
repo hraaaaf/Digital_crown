@@ -1,0 +1,13 @@
+FUE-G04 V1.5 CI-ONLY NATIVE PDF PACKAGE DIAGNOSTIC — 2026-10-11
+Run only on GitHub-hosted ephemeral Windows, no production/Lenovo, no patient data.
+Predecessor full frozen ReportLab PDF run #38102918558 completed SUCCESS:
+https://github.com/hraaaaf/Digital_crown/actions/runs/38102918558
+Official CODE_CERTIFIED exact master SHA fa377f1ee05534cafbc26971f70f2e8ba8b792fd
+Certified code run #38100167771, Sigstore attestation #54712076.
+Installable LAB full Windows build #38101353034 completed SUCCESS.
+Inner Inno setup EXE SHA256 a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c
+Current diagnostic workflow from commit bbf6b042c2067a1fc3d025534744c66c10f476b3.
+Test signed installer + proof, perform disposable Windows install, verify native Pango/GLib/Fontconfig/Harfbuzz libraries are bundled as proof of native dependencies. Fail closed on any missing DLL.
+THIS IS ONLY NATIVE DLL INVENTORY; NO ACTUAL WEASYPRINT PDF RENDER CLAIM, EVEN IF GREEN.
+Existing prior PyInstaller native WARNING: Depending libraries not found - weasyprint will likely fail to work!
+FUE-G04 Windows source/installer and ReportLab auth validated; clinical WeasyPrint remains separate field blocker. No master or original signed code change.
