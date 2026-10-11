@@ -15,3 +15,6 @@ Previous experimental discovery run https://github.com/hraaaaf/Digital_crown/act
 
 RETRY_FULL_PROVENANCE=4
 Run #38104035183 PASS on SHA 09b965920a917fc0a198173327717a984cbd0dae: real synthetic 7772-byte WeasyPrint 68.1 PDF. Experimental next step: hash all native UCRT64 installed package archives/DLLs and exact-version Windows wheels in GitHub Actions only; never use this metadata to certify Digital Crown production installer without separate closure/packaged-executable proof.
+
+RETRY_VALID_YAML_INVENTORY=5
+Previous #38104472360 failed before job scheduling because the experimental YAML was corrupted by editing. Corrected the workflow structure, preserve green PDF laboratory and fail-closed provenance inventory.
