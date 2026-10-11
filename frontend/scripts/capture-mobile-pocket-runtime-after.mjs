@@ -220,17 +220,28 @@ async function captureStableScreenshot(page, options) {
   await page.screenshot({ ...options, animations: 'disabled' });
 }
 
-// Production bundle can load route chunks asynchronously after DOMContentLoaded.
-// A hard navigation that interrupts an in-flight WebKit import can emit
-// "Importing a module script failed" even when the previous route rendered.
-// Wait for a settled module/network lifecycle between independently certified
-// deep links; do NOT swallow page errors or retry a broken route.
+// Perform one genuine hard-load of Pocket per fresh browser context, then
+// move between its tabs through React Router history. Repeated page.goto()
+// unmounted the real SPA 12 times within seconds and caused WebKit to report
+// aborted dynamic module imports after the next page had already rendered.
+// This preserves route-resolution and RBAC checks on each ?tab= URL. Errors
+// and missing route views still fail the run; no catch/retry is introduced.
 async function navigatePocketDeepLink(page, tab = null) {
   const suffix = tab ? `?tab=${tab}` : '';
-  const response = await page.goto(`${baseUrl}/mobile/dashboard${suffix}`, {
-    waitUntil: 'networkidle', timeout: 30000,
-  });
-  if (!response?.ok()) throw new Error(`Pocket deep-link HTTP ${response?.status() ?? 'missing'}: ${tab || 'today'}`);
+  const path = `/mobile/dashboard${suffix}`;
+  if (!tab || !(await page.locator('[data-dc-mobile-shell]').count())) {
+    const response = await page.goto(`${baseUrl}${path}`, {
+      waitUntil: 'networkidle', timeout: 30000,
+    });
+    if (!response?.ok()) throw new Error(`Pocket deep-link HTTP ${response?.status() ?? 'missing'}: ${tab || 'today'}`);
+    return;
+  }
+  await page.evaluate(nextPath => {
+    window.history.pushState(window.history.state, '', nextPath);
+    window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
+  }, path);
+  await page.waitForURL(url => url.pathname === '/mobile/dashboard'
+    && url.searchParams.get('tab') === tab, { timeout: 10000 });
 }
 
 async function assertTouchTarget(locator, label) {
@@ -337,6 +348,10 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
 
   const screenshot = `runtime-${role.slug}-plus-${viewport.width}x${viewport.height}.png`;
   await captureStableScreenshot(page, { path: path.join(outputDir, screenshot) });
+  // A user would dismiss the overlay before following another route.
+  // Hard reloading hid this persistent React state in the previous harness.
+  await page.getByRole('button', { name: 'Fermer Plus' }).click();
+  await moreMenu.waitFor({ state: 'detached' });
 
   await navigatePocketDeepLink(page, 'frontdesk');
   await page.getByText('Patient Web', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
@@ -499,6 +514,8 @@ try {
     await page.locator('[data-mobile-bottom-nav]').getByText('Plus', { exact: true }).click();
     await page.locator('[data-mobile-more-menu]').waitFor({ state: 'visible' });
     await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-plus-430x932.png`) });
+    await page.getByRole('button', { name: 'Fermer Plus' }).click();
+    await page.locator('[data-mobile-more-menu]').waitFor({ state: 'detached' });
     await navigatePocketDeepLink(page, 'stock');
     await page.getByText('Gants nitrile', { exact: true }).waitFor({ state: 'visible' });
     await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-stock-430x932.png`) });
