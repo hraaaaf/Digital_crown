@@ -391,7 +391,7 @@ jobs:
           assert content.index('## PHASE F') < content.index('## GATE TRANSFERT') < content.index('## PHASE D')
           assert 'sans secret, licence bypass, patient' in content
           assert 'FACAD ACQUISITION' in content
-          assert 'une seule checklist canonique Notion' in content
+          assert 'Une seule checklist canonique Notion' in content
           print('FACAD_ACQUISITION_ROADMAP_F_A_TO_F_F=6_STAGES')
           print('FACAD_ACQUISITION_CANONICAL_CHECKLIST=39_ITEMS_UNCHANGED')
           print('FACAD_ACQUISITION_SOURCE_PROFILE_COVERAGE=65_EDITOR_42_GIT_23_NOT_VERSIONED')
