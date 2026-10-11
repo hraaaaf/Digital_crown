@@ -1,0 +1,107 @@
+name: FACAD vs Digital Crown research-only visual reference comparison
+on:
+  push:
+    branches:
+      - research/facad-dc-visual-comparison-20261011
+    paths:
+      - .github/workflows/facad-dc-reference-visual-comparison.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  captured-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PRODUCT_SHA: c0d47f4832e6da2211c6f94eb88f0db56fcaebb6
+    steps:
+      - name: Checkout pinned Digital Crown code only
+        uses: actions/checkout@v4
+        with:
+          ref: c0d47f4832e6da2211c6f94eb88f0db56fcaebb6
+          persist-credentials: false
+      - name: Confirm product commit and frozen screenshot harness
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
+          test "$(git hash-object frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs)" = "01a834b070ced65fd8074e5cbfe7c0e3b2a8916d"
+          grep -q "blockedExternalRequests" frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs
+          grep -q "patientId: 919" frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated synthetic-browser harness
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Add 1024x768 FACAD-reference desktop viewport to temporary harness
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs')
+          c=p.read_text()
+          target="  { name: '768x1024', width: 768, height: 1024 },"
+          assert c.count(target)==1
+          c=c.replace(target,"  { name: '1024x768', width: 1024, height: 768 },\n"+target)
+          assert c.count("1024x768")==1
+          p.write_text(c)
+          PY
+      - name: Capture Digital Crown R19 on synthetic patient fixture in offline-mocked browser
+        working-directory: frontend
+        shell: bash
+        env:
+          PRODUCT_HEAD: c0d47f4832e6da2211c6f94eb88f0db56fcaebb6
+        run: node scripts/capture-cephalo-r19-analysis-reference-after.mjs > /tmp/dc-visual-report.log 2>&1 || { tail -150 /tmp/dc-visual-report.log; exit 1; }
+      - name: Verify real browser screenshots and publish reproducible evidence manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          base=Path('frontend/cephalo-r19-analysis-reference-after-artifacts')
+          d=json.loads((base/'report.json').read_text())
+          want={'390x844','1024x768','768x1024','1280x900'}
+          assert d['productHead']=='c0d47f4832e6da2211c6f94eb88f0db56fcaebb6'
+          assert set(d['viewports'])==want and len(d['captures'])==4
+          assert d['invalidCount']==0 and d['blockedExternalRequests']==[]
+          assert all(c['valid'] and len(c['states'])==6 and all(s['valid'] for s in c['states']) for c in d['captures'])
+          pics=[]
+          for viewport in sorted(want):
+            for mode in ('all','steiner','tweed','mcnamara','com','ricketts'):
+              p=base/f'after-reference-{mode}-{viewport}.png'
+              assert p.stat().st_size>1000
+              pics.append({'path':p.name,'viewport':viewport,'mode':mode,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
+          evidence={
+            'schema':'FACAD_DC_VISUAL_SAME_VIEWPORT_COMPARISON_RESEARCH_V1',
+            'product':'DIGITAL_CROWN_SYNTHETIC_FIXTURE_ONLY',
+            'product_head':d['productHead'],'facad_source_run':37967170536,
+            'facad_source_artifact_id':11634502406,
+            'facad_source_zip_sha256':'e8db415cda6c4dbc27cdca1eaa25bd6f6200a95a428c902726998a4fc79c1574',
+            'facad_reference_viewport':'1024x768',
+            'dc_1024x768_reference_available':True,
+            'facad_and_dc_same_anatomical_case':False,
+            'facad_ui_visual_feature_parity_certified':False,
+            'facad_numeric_scientific_parity_certified':False,
+            'clinical_use_allowed':False,
+            'd3':'OPEN_RED','new_facad_execution':False,
+            'dc_images':pics
+          }
+          (base/'facad-dc-evidence-manifest.json').write_text(json.dumps(evidence,indent=2)+'\n')
+          print('DC_FACAD_VIEWPORT_REFERENCE=1024x768_CAPTURED')
+          print('DC_RESPONSIVE_MOBILE_REFERENCE=390x844_CAPTURED')
+          print('DC_MODE_SCREENSHOTS=24_SHA256_VERIFIED')
+          print('SAME_ANATOMICAL_CASE=false CLINICAL_PARITY=false D3=OPEN_RED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: facad-dc-synthetic-comparison
+          path: frontend/cephalo-r19-analysis-reference-after-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
