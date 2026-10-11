@@ -253,8 +253,12 @@ jobs:
               raise AssertionError("Test did not run in a frozen PyInstaller executable")
           if "msys" in os.environ["PATH"].lower() or "ucrt64" in os.environ["PATH"].lower():
               raise AssertionError("MSYS2 leak in frozen executable PATH")
+          exe_sha = hashlib.sha256(Path(sys.executable).read_bytes()).hexdigest()
+          if exe_sha != os.environ.get("FUE_G04_FROZEN_EXE_SHA256"):
+              raise AssertionError("Frozen EXE SHA mismatch")
 
-          bundled = Path(sys._MEIPASS).resolve() / "native"
+          frozen_internal = Path(sys._MEIPASS).resolve()
+          bundled = frozen_internal / "native"
           if not bundled.is_dir():
               raise AssertionError("Bundled native DLL directory missing")
           if len(list(bundled.glob("*.dll"))) != 64:
@@ -291,14 +295,22 @@ jobs:
               if not kernel.GetModuleFileNameW(handle, buf, len(buf)):
                   raise AssertionError(f"Cannot resolve frozen DLL module path for {name}")
               resolved = Path(buf.value).resolve()
-              if resolved.parent != bundled:
-                  raise AssertionError(f"Frozen DLL did not load from bundle: {name}: {resolved}")
-              loaded[name] = str(resolved)
+              if resolved.parent not in (frozen_internal, bundled):
+                  raise AssertionError(f"External DLL loader fallback: {name}: {resolved}")
+              canonical = bundled / name
+              if not canonical.is_file():
+                  raise AssertionError(f"Canonical packaged native DLL absent: {name}")
+              loaded_sha = hashlib.sha256(resolved.read_bytes()).hexdigest()
+              canonical_sha = hashlib.sha256(canonical.read_bytes()).hexdigest()
+              if loaded_sha != canonical_sha:
+                  raise AssertionError(f"PyInstaller native DLL conflicts with canonical bundle: {name}")
+              loaded[name] = {"path": str(resolved), "sha256": loaded_sha}
 
           record = {
               "status": "EXPERIMENTAL_FROZEN_PDF_ONLY",
               "sha": os.environ["GITHUB_SHA"],
               "pyinstaller_toolchain": "6.22.3",
+              "exe_sha256": exe_sha,
               "pdf_bytes": len(pdf),
               "pdf_sha256": hashlib.sha256(pdf).hexdigest(),
               "bundled_dlls": 64,
@@ -326,6 +338,29 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'PyInstaller frozen native probe build failed' }
           $exe = Join-Path $dist 'FUEG04LabFrozenPDF/FUEG04LabFrozenPDF.exe'
           if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Frozen laboratory EXE missing' }
+          # PyInstaller's own WeasyPrint hook may place some of the same DLLs
+          # directly beneath _internal, separate from our explicit native folder.
+          # Require every copied native DLL to match source and every root duplicate
+          # to have exactly the same bytes: never accept an OS/GTK fallback.
+          $frozenInternal = Join-Path $dist 'FUEG04LabFrozenPDF/_internal'
+          $frozenNative = Join-Path $frozenInternal 'native'
+          $dupes = 0
+          foreach ($dll in $dlls) {
+            $canonical = Join-Path $frozenNative $dll.Name
+            if (-not (Test-Path -LiteralPath $canonical -PathType Leaf)) { throw "Missing packaged canonical DLL: $($dll.Name)" }
+            $sourceHash = (Get-FileHash -LiteralPath $dll.FullName -Algorithm SHA256).Hash
+            $canonicalHash = (Get-FileHash -LiteralPath $canonical -Algorithm SHA256).Hash
+            if ($sourceHash -ne $canonicalHash) { throw "Packaged DLL source hash mismatch: $($dll.Name)" }
+            $rootCopy = Join-Path $frozenInternal $dll.Name
+            if (Test-Path -LiteralPath $rootCopy -PathType Leaf) {
+              $dupes += 1
+              if ((Get-FileHash -LiteralPath $rootCopy -Algorithm SHA256).Hash -ne $sourceHash) {
+                throw "PyInstaller root duplicate differs from official UCRT64 source: $($dll.Name)"
+              }
+            }
+          }
+          Write-Host "EXPERIMENTAL_FROZEN_ROOT_DLL_DUPLICATES_SHA_VERIFIED=$dupes"
+          $env:FUE_G04_FROZEN_EXE_SHA256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
           # Execution has no Python nor MSYS2 toolchain directory in PATH.
           $system = $env:SystemRoot
           $env:PATH = "$system\System32;$system;$system\System32\Wbem"
@@ -333,9 +368,7 @@ jobs:
           if ($env:PATH -match '(?i)(msys|ucrt64)') { throw 'Host PATH isolation failed' }
           & $exe
           if ($LASTEXITCODE -ne 0) { throw 'Frozen executable native PDF failed' }
-          $exeSha = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
-          Add-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'fue-g04-frozen-lab-evidence.json') -Value ''
-          Write-Host "EXPERIMENTAL_FROZEN_EXE_SHA256=$exeSha"
+          Write-Host "EXPERIMENTAL_FROZEN_EXE_SHA256=$env:FUE_G04_FROZEN_EXE_SHA256"
           Write-Host 'EXPERIMENTAL_ONLY_APP_INSTALLER_NOT_TESTED=YES'
       - name: Save experimental digest inventory for subsequent strict manifest work
         if: success()
