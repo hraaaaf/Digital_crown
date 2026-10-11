@@ -1,0 +1,85 @@
+name: FUE-G04 EXPERIMENTAL WeasyPrint UCRT64 native discovery
+
+# EXPERIMENTAL research lab only: floating transitive pacman/pip packages
+# MUST NEVER be inserted into signed CODE_CERTIFIED or an installer.
+# No patient data, no production release, no clinic machine, no secrets.
+on:
+  push:
+    branches:
+      - ci/fue-g04-windows-installable-chain-20261010
+    paths:
+      - 'docs/audits/FUE_G04_TRIGGER_WEASYPRINT_UCRT64_DISCOVERY_20261011.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  experimental-native-discovery:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Install official MSYS2 UCRT64 Pango in disposable runner
+        id: msys
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e
+        with:
+          msystem: UCRT64
+          update: true
+          cache: false
+          install: mingw-w64-ucrt-x86_64-pango
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin Pango archive SHA and verify lab-only native discovery
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys.outputs.msys2-location }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $native = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
+          if (-not (Test-Path -LiteralPath $native -PathType Container)) { throw 'No UCRT64 native bin' }
+          $archive = Join-Path $env:RUNNER_TEMP 'pango-1.58.2-1.pkg.tar.zst'
+          $url = 'https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-pango-1.58.2-1-any.pkg.tar.zst'
+          Invoke-WebRequest -Uri $url -OutFile $archive -MaximumRedirection 5 -TimeoutSec 90
+          $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '8d86e4a018ff139b010bf357fa1c9f9030fa32ee195c54ed7e89d8ea701851c8') {
+            throw 'Official Pango package SHA256 mismatch: stop discovery'
+          }
+          Write-Host 'DISCOVERY_OFFICIAL_PANGO_PACKAGE_SHA256=VERIFIED'
+          $needed = @('libgobject-2.0-0.dll', 'libpango-1.0-0.dll', 'libpangoft2-1.0-0.dll', 'libfontconfig-1.dll', 'libharfbuzz-0.dll')
+          $manifest = @()
+          foreach ($name in $needed) {
+            $f = Join-Path $native $name
+            if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { throw "MSYS2 native library missing: $name" }
+            $actual = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()
+            $manifest += [pscustomobject]@{ Name = $name; Sha256 = $actual; Bytes = (Get-Item -LiteralPath $f).Length }
+            Write-Host "DISCOVERY_NATIVE_DLL_FOUND=$name"
+          }
+          $manifestFile = Join-Path $env:RUNNER_TEMP 'FUE-G04-experimental-dll-hashes.json'
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestFile -Encoding utf8
+          $env:WEASYPRINT_DLL_DIRECTORIES = $native
+          $env:PATH = "$native;$env:PATH"
+          python -m pip install --no-input --disable-pip-version-check 'weasyprint==68.1'
+          if ($LASTEXITCODE -ne 0) { throw 'Exact WeasyPrint 68.1 lab dependency failed to install' }
+          @'
+          import os
+          from pathlib import Path
+          from weasyprint import HTML
+          out = Path(os.environ['RUNNER_TEMP']) / 'fue-g04-synthetic-native-test.pdf'
+          HTML(string='<html><body><h1>FUE-G04 Native PDF Research</h1><p>Fictional test, no patient data.</p></body></html>').write_pdf(out)
+          b = out.read_bytes()
+          if not b.startswith(b'%PDF-') or not 1024 < len(b) < 500000:
+              raise AssertionError('Real native WeasyPrint 68.1 PDF failed size/signature')
+          print('EXPERIMENTAL_WEASYPRINT_NATIVE_RENDER=PASS')
+          print('DISCOVERY_PDF_BYTES=' + str(len(b)))
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Actual native WeasyPrint lab rendering failed' }
+          Write-Host 'EXPERIMENTAL_ONLY_TRANSITIVE_PACKAGES_NOT_YET_PINNED=YES'
+          Write-Host 'PRODUCTION_CODE_CERTIFIED_AND_INSTALLER=UNCHANGED'
+      - name: Save experimental digest inventory for subsequent strict manifest work
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-g04-experimental-native-ucrt64-inventory
+          path: ${{ runner.temp }}/FUE-G04-experimental-dll-hashes.json
+          if-no-files-found: error
+          retention-days: 7
