@@ -42,9 +42,17 @@ function Get-SafeCounters([int]$id,[int]$rootId){
     return $null
   }
   try{
+    # The process may exit AFTER GetProcessById but BEFORE Handle or P/Invoke.
+    # These are NOT confirmed absent-child lookups: fail closed even for children.
     $c=[D3SafeProcessIoCounters+Counters]::new()
-    if(-not [D3SafeProcessIoCounters]::GetProcessIoCounters($proc.Handle,[ref]$c)){
-      throw 'Windows process I/O counter query failed'
+    try{
+      $handle=$proc.Handle
+      if(-not [D3SafeProcessIoCounters]::GetProcessIoCounters($handle,[ref]$c)){
+        throw 'D3_PROCESS_COUNTER_API_UNAVAILABLE'
+      }
+    }catch{
+      # No native exception text, process name, ID, path, or OS error escapes.
+      throw 'D3_PROCESS_COUNTER_READ_UNAVAILABLE'
     }
     return @{
       write_ops=[uint64]$c.WriteOperationCount
