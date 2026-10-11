@@ -101,6 +101,11 @@ export function MobileHeader({
               {syncStatus === 'loading' ? 'Mise à jour…' : syncStatus === 'error' ? 'Hors ligne' : 'À jour'}
               {queuedActionsCount > 0 && <span className="bg-rose-500 text-white px-1 rounded-full">{queuedActionsCount}</span>}
             </span>
+            {queuedActionsCount > 0 && (
+              <span aria-label={`${queuedActionsCount} modification(s) en attente de synchronisation`} className="sm:hidden ml-1 rounded-full bg-amber-500/10 px-1.5 text-[10px] font-black text-amber-700">
+                {queuedActionsCount}
+              </span>
+            )}
           </button>
         </div>
       </div>
