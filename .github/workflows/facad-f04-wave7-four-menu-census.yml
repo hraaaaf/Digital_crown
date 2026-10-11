@@ -1,0 +1,87 @@
+name: FACAD F04 root menus archive read-only census
+on:
+  push:
+    branches:
+      - research/facad-f02-f04-observational-ledger-20261011
+    paths:
+      - docs/audits/FACAD_314_F04_1_WAVE7_FOUR_MENU_CENSUS.json
+      - .github/workflows/facad-f04-wave7-four-menu-census.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  metadata-and-source-census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      GITHUB_TOKEN_READONLY: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check exact historic artifact digest and source-only census fails closed
+        shell: bash
+        run: |
+          python - <<'PY'
+          import copy,json,os,urllib.request
+          from pathlib import Path
+          p=Path('docs/audits/FACAD_314_F04_1_WAVE7_FOUR_MENU_CENSUS.json')
+          z=json.loads(p.read_text(encoding='utf-8'))
+          assert z['schema']=='FACAD_F04_1_FOUR_MENU_READONLY_ARCHIVE_ADJUDICATION_V1'
+          assert z['source_run']==38139444512 and z['artifact_id']==11702675538
+          assert z['zip_integrity_check']=='PASS_NO_BAD_MEMBER' and z['zip_member_count']==65
+          assert z['archive_size_bytes']==6102154
+          assert z['artifact_zip_sha256']=='526d63629b02df8837931c611e43463e99df84602e4ebeb1d6e23746328dbedb'
+          req=urllib.request.Request(
+            'https://api.github.com/repos/hraaaaf/Digital_crown/actions/artifacts/11702675538',
+            headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN_READONLY'],
+                     'Accept':'application/vnd.github+json',
+                     'X-GitHub-Api-Version':'2022-11-28'})
+          with urllib.request.urlopen(req,timeout=25) as response:
+              artifact=json.load(response)
+          assert artifact['id']==z['artifact_id']
+          assert artifact['size_in_bytes']==z['archive_size_bytes']
+          assert artifact.get('digest')=='sha256:'+z['artifact_zip_sha256']
+          assert artifact.get('expired') is False
+          count={x['name']:(x['total'],x['enabled'],x['disabled']) for x in z['root_menu_counts']}
+          assert count=={'File':(16,15,1),'Edit':(3,1,2),'Cephalometry':(15,8,7),'Tools':(16,11,5)}
+          assert sum(v[0] for v in count.values())==z['total_menu_items']==50
+          assert sum(v[1] for v in count.values())==35
+          assert sum(v[2] for v in count.values())==15
+          assert {v['name'] for v in z['facad_tab_metadata']}=={'Values','Properties'}
+          assert {v['name']:v['selected'] for v in z['facad_tab_metadata']}=={'Values':True,'Properties':False}
+          assert all(v['selection_item_pattern'] and not v['child_content_read'] for v in z['facad_tab_metadata'])
+          assert len(z['selected_critical_menu_labels'])==9
+          assert all(v['uia_enabled'] and v['executed'] is False for v in z['selected_critical_menu_labels'])
+          assert z['not_observed_in_current_root_state']==['Analysis Values','Analysis Properties','Marker Positions','Object Values']
+          assert z['progress']=={'facad_closed':21,'facad_total':39,'facad_percent':53.8,
+                                  'overall_closed':41,'overall_total':99,'overall_percent':41.4,
+                                  'added_gate_this_passage':0}
+          def failclosed(x):
+              return (x['gates']['F04_1']=='OPEN_PARTIAL'
+                and x['gates']['F04_2']=='OPEN'
+                and x['d3']=='OPEN_RED'
+                and x['leaf_clicked'] is False
+                and x['ui_action_behavior_proven'] is False
+                and x['facad_native_execution_this_passage'] is False
+                and x['absence_from_product_proven'] is False
+                and x['converged'] is False
+                and x['progress']['added_gate_this_passage']==0)
+          assert failclosed(z)
+          mutants=[]
+          for key,value in [('leaf_clicked',True),('ui_action_behavior_proven',True),
+                            ('facad_native_execution_this_passage',True),
+                            ('absence_from_product_proven',True),('converged',True),('d3','CLOSED')]:
+              v=copy.deepcopy(z);v[key]=value;mutants.append(v)
+          for key,value in [('F04_1','CLOSED'),('F04_2','CLOSED')]:
+              v=copy.deepcopy(z);v['gates'][key]=value;mutants.append(v)
+          v=copy.deepcopy(z);v['progress']['added_gate_this_passage']=1;mutants.append(v)
+          assert len(mutants)==9 and all(not failclosed(m) for m in mutants)
+          print('FACAD_F04_UIA_FOUR_ROOT_MENUS=50_35_ENABLED_15_DISABLED')
+          print('FACAD_F04_UIA_VISIBLE_TABS=VALUES_SELECTED_PROPERTIES_NOT_SELECTED')
+          print('FACAD_F04_ARTIFACT_ZIP_DIGEST_CONFIRMED=true')
+          print('FACAD_F04_FALSE_CLOSURES_REJECTED=9')
+          print('FACAD_F04_F01_PROGRESS=21_OF_39_UNCHANGED')
+          print('FACAD_F04_VENDOR_NATIVE_BEHAVIOR_PROVEN=false D3=OPEN_RED')
+          PY
