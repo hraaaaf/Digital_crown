@@ -59,7 +59,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
     const indicator = nav.querySelector<HTMLElement>('[data-mobile-nav-indicator]');
 
     expect(nav.hasAttribute('data-pocket-glass-nav')).toBe(true);
-    expect(nav.style.backgroundColor).toContain('color-mix');
+    expect(nav.getAttribute('style')).toContain('var(--card-bg)');
     expect(nav.style.backdropFilter).toContain('blur(24px)');
     expect(targets.map(target => target.dataset.mobileNavItem)).toEqual([
       'today', 'agenda', 'actions', 'patients', 'more',
