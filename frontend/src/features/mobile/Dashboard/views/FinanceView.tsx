@@ -32,7 +32,7 @@ export function FinanceView({
           {syncStatus === 'loading' && !f
             ? <Skeleton className="h-8 w-24 bg-on-primary/15" />
             : <>
-                <p className="text-[21px] font-bold tracking-tight text-on-primary font-outfit">{fmt(f?.today_revenue ?? 0)}</p>
+                <p className="text-[21px] font-bold tracking-tight text-on-primary ">{fmt(f?.today_revenue ?? 0)}</p>
                 <p className="text-[10px] font-semibold text-on-primary/80 uppercase tracking-widest mt-1">Recettes du jour</p>
               </>
           }
@@ -45,7 +45,7 @@ export function FinanceView({
             ? <Skeleton className="h-8 w-24" />
             : <>
                 <div className="flex items-baseline gap-1.5">
-                  <p className="text-[21px] font-bold tracking-tight text-text-main font-outfit">{fmt(f?.month_revenue ?? 0)}</p>
+                  <p className="text-[21px] font-bold tracking-tight text-text-main ">{fmt(f?.month_revenue ?? 0)}</p>
                   {f?.month_variation != null && (
                     <span className={cn('text-[10px] font-semibold flex items-center', f.month_variation >= 0 ? 'text-success' : 'text-danger')}>
                       {f.month_variation >= 0 ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
@@ -61,14 +61,14 @@ export function FinanceView({
           <div className="w-8 h-8 bg-success-surface rounded-[12px] flex items-center justify-center text-success mb-3 border border-success-border">
             <Users size={16} />
           </div>
-          <p className="text-[21px] font-bold tracking-tight text-text-main font-outfit">{f?.total_patients ?? '—'}</p>
+          <p className="text-[21px] font-bold tracking-tight text-text-main ">{f?.total_patients ?? '—'}</p>
           <p className="text-[10px] font-semibold text-text-muted uppercase tracking-widest mt-1">Patients</p>
         </div>
         <div className="bg-card border border-border-main rounded-[22px] p-4 shadow-sm">
           <div className="w-8 h-8 bg-danger-surface rounded-[12px] flex items-center justify-center text-danger mb-3 border border-danger-border">
             <AlertTriangle size={16} />
           </div>
-          <p className="text-[21px] font-bold tracking-tight text-danger font-outfit">{fmt(f?.total_debt ?? 0)}</p>
+          <p className="text-[21px] font-bold tracking-tight text-danger ">{fmt(f?.total_debt ?? 0)}</p>
           <p className="text-[10px] font-semibold text-text-muted uppercase tracking-widest mt-1">Créances</p>
         </div>
       </div>
@@ -82,7 +82,7 @@ export function FinanceView({
           <div className="flex items-center justify-between mb-6 border-b border-border-main pb-4">
             <div>
               <p className="text-[10px] font-semibold text-text-muted uppercase tracking-[0.2em]">Activité</p>
-              <h4 className="text-lg font-black text-primary font-outfit mt-0.5">7 derniers jours</h4>
+              <h4 className="text-lg font-black text-primary  mt-0.5">7 derniers jours</h4>
             </div>
             <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">MAD</span>
           </div>
@@ -134,7 +134,7 @@ export function FinanceView({
         {!snapshot?.debtors.length ? (
           <div className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] py-12 text-center shadow-elite">
             <CheckCircle2 size={32} className="mx-auto mb-3 text-success" />
-            <p className="text-sm font-black text-text-main font-outfit">Aucun impayé</p>
+            <p className="text-sm font-black text-text-main ">Aucun impayé</p>
             <p className="text-text-muted text-[11px] mt-1">Tous les comptes sont à jour.</p>
           </div>
         ) : (
@@ -145,7 +145,7 @@ export function FinanceView({
                 className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[20px] p-4 flex items-center justify-between shadow-elite hover:border-danger-border transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-[12px] flex items-center justify-center font-black text-primary font-outfit">
+                  <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-[12px] flex items-center justify-center font-black text-primary ">
                     {d.name.charAt(0)}
                   </div>
                   <div>
