@@ -125,7 +125,12 @@ export const StationPatientIdentity = ({
   const sessionRef = useRef<string | null>(null);
 
   const requestPurge = useCallback((sessionId: string) => {
-    if (purgeStartedRef.current.ha  const createSession = async (generation: number) => {
+    if (purgeStartedRef.current.has(sessionId)) return;
+    purgeStartedRef.current.add(sessionId);
+    void purgeSessionBestEffort(sessionId);
+  }, []);
+
+  const createSession = async (generation: number) => {
     try {
       const created = await stationPatientSessionService.create();
       if (!mountedRef.current || generation !== generationRef.current) {
@@ -168,13 +173,6 @@ export const StationPatientIdentity = ({
       ++generationRef.current;
       if (sessionRef.current) requestPurge(sessionRef.current);
     };
-  }, []);
-
-setError(COPY[language].unavailable);
-      }
-    };
-    void create();
-    return () => { active = false; };
   }, []);
 
   useEffect(() => {
