@@ -123,6 +123,58 @@ describe('OnboardingScanner G1 interactive matrix', () => {
       device_id: 'device',
     }));
     expect(MobileStorage.clearBridgeContext).toHaveBeenCalledTimes(1);
+    // A success banner alone is not certification: the real route must render.
+    expect(await screen.findByText('Mobile dashboard destination', {}, { timeout: 4000 })).toBeTruthy();
+  });
+
+  it('continues after a paired success even when Safari rejects localStorage reads', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(true, 200, {
+        publicId: 'a'.repeat(16),
+        access_token: 'access',
+        refresh_token: 'refresh',
+        device_id: 'device',
+        server_public_key_hex: 'server-key',
+        encrypted_master_key_hex: 'encrypted-key',
+      }))
+      .mockResolvedValueOnce(response(false, 404, {}))
+      .mockResolvedValueOnce(response(true, 200, { destination: 'agenda' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const getter = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Storage is blocked', 'SecurityError');
+    });
+
+    try {
+      renderScanner();
+      fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
+      fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
+      expect(await screen.findByText('Appairage réussi')).toBeTruthy();
+      expect(await screen.findByText('Mobile dashboard destination', {}, { timeout: 4000 })).toBeTruthy();
+      expect(MobileStorage.saveCredentials).toHaveBeenCalledOnce();
+    } finally {
+      getter.mockRestore();
+    }
+  });
+
+  it('provides a secure manual continuation when Safari throttles the success timer', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(true, 200, {
+        publicId: 'a'.repeat(16),
+        access_token: 'access',
+        refresh_token: 'refresh',
+        device_id: 'device',
+        server_public_key_hex: 'server-key',
+        encrypted_master_key_hex: 'encrypted-key',
+      }))
+      .mockResolvedValueOnce(response(false, 404, {}))
+      .mockResolvedValueOnce(response(true, 200, { destination: 'agenda' })));
+    renderScanner();
+    expect(screen.getByRole('button', { name: "Valider le code d'appairage" })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
+    const button = await screen.findByRole('button', { name: 'Continuer vers Agenda' });
+    fireEvent.click(button);
+    expect(await screen.findByText('Mobile dashboard destination')).toBeTruthy();
   });
 
   it('surfaces backend claim refusal and Retry restores the welcome state without false success', async () => {
