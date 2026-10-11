@@ -1,0 +1,785 @@
+{
+  "schema": "FACAD_F06_2_CANONICAL_EXCEPTIONS_AND_GAPS_V1",
+  "date": "2026-10-11",
+  "scope": "DOCUMENTARY_RESEARCH_ONLY_NO_VENDOR_EXECUTION",
+  "notion": {
+    "page_id": "3ec77c66-3362-811d-b11e-c59dbd9eb7d3",
+    "page_url": "https://app.notion.com/p/3ec77c663362811db11ec59dbd9eb7d3",
+    "section": "Volet B — Facad 3.14.1.1111",
+    "counting_rule": "39 first-level FACAD checkboxes. Nested F01.12a.. and similar annotations excluded from denominator",
+    "snapshot_before": {
+      "total": 39,
+      "already_checked": 19,
+      "open": 20
+    },
+    "candidate_to_close": "F06.2"
+  },
+  "evidence_sources": {
+    "b65_source_ref": "068d30a5437a4bf0fe8a46a96391fa3cd8a6428d",
+    "b65_blob_sha": "54cf83e2f76fb08b8d887ac73f138bfd003ec189",
+    "matched_profiles": 65,
+    "git_triplets_complete": 42,
+    "git_triplets_not_versioned_here": 23,
+    "d3_blob_sha": "72f5e1a97a42ec95b8f547b73f194829f74b07af",
+    "d3_source_head": "b075701f0740458d898a5e67c2dd1d61394c8559",
+    "science_c01_c02_blob_sha": "d766e19a39f29f12d06740fd570035412bae863e",
+    "c02_pdf_sha256": "4dbd3fa8419b684529fcbc17f615f49f7486cdf037fcfff025b1b307c0c0a548",
+    "c01_pdf_sha256": "a977f219b6c9b95543551fe7a6e48587ac597b065e0200ab844e20ed322ba119",
+    "f04_2_verified_run": "https://github.com/hraaaaf/Digital_crown/actions/runs/38139444512",
+    "f04_2_current_state_two_visible_tabs": [
+      "Values",
+      "Properties"
+    ],
+    "f04_2_other_allowlist_labels": "NOT_OBSERVED_IN_CURRENT_STATE",
+    "fac05_synthetic_run": "https://github.com/hraaaaf/Digital_crown/actions/runs/38139642699",
+    "fac05_synthetic_tests_ran": 56,
+    "fac05_vendor_same_case_numeric_parity": "NOT_TESTED",
+    "f04_quick_demo_hold_run": "https://github.com/hraaaaf/Digital_crown/actions/runs/38142848214",
+    "f04_hold_scope": "ONLY_RESEARCH_BRANCH_NOT_GLOBAL_PRODUCTION_BLOCK"
+  },
+  "canonical_facad_gates_before": [
+    {
+      "id": "F00.1",
+      "title": "Installation Quick Demo officielle sur Windows jetable",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F00.1 Installation Quick Demo officielle sur Windows jetable** — tests Actions verts, sans action licence détournée ; preuve : scripts/workflow + ZIP.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F00.2",
+      "title": "Menus 9/9",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F00.2 Menus 9/9** — inventaire D0, screenshots et traces UIA.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F00.3",
+      "title": "Exemple Robert original/copied integrity",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F00.3 Exemple Robert original/copied integrity** — SHA256 source/copie avant/après des runs clos ; preuve : rapports session/hash.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F00.4",
+      "title": "Date d'expiration et conservation",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F00.4 Date d'expiration et conservation** — relever droit d'essai exact sans contournement ; archiver légalement captures/CSV. Preuve : licence officielle + inventaire durable.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.1",
+      "title": "Catalogue D1B 65/65 analyses sélectionnables",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.1 Catalogue D1B 65/65 analyses sélectionnables** — preuve : [ledger D1C et catalogue](https://github.com/hraaaaf/Digital_crown/tree/feat/cephalo-facad-direct-parity-runtime-probe/docs/audits/data) + runs D1B.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.2",
+      "title": "Inventaire des 65 éditeurs D1C : 65/65 OBSERVÉS",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.2 Inventaire des 65 éditeurs D1C : 65/65 OBSERVÉS** — 65 entrées exactes du catalogue, 3 onglets captures/UIA et SHA Robert source/copie non modifiés ; pas de Save ni patient Load. [Ledger et dernier manifeste vérifiés](https://github.com/hraaaaf/Digital_crown/commit/c68fd358a2010e03048e61d72059dc30d9e61294) ; les 21 derniers ZIP + 63 CSV en Library, les 96 CSV des vagues 1–4 sur GitHub. **Exception Steiner : run global rouge, observation conservée sans fausse CI verte ; Harvold Lines=0 ; Tubingen→Tübingen alias exact sur run vert.** Ce gate couvre UNIQUEMENT les métadonn",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.3",
+      "title": "Vague de huit runners : succès technique ET audit de lecture seule",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.3 Vague de huit runners : succès technique ET audit de lecture seule** — 8/8 jobs SUCCESS, 8 ZIP intégralement inspectés et doublés sur [Drive](https://drive.google.com/drive/folders/17df8HYGAD-Jn4oRnXldCVt4LzvRhJFhJ), [index des preuves](https://github.com/hraaaaf/Digital_crown/blob/05916e1a1d5a86791badaa451eca2ef99e9996ee/docs/audits/data/FACAD_314_D1C_TRIAL_WAVE1_EVIDENCE_INDEX_2026-10-09.md). **20/65 comptés seulement après contrôle ZIP/UIA et empreintes.**",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.4",
+      "title": "Audit Bergen short",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.4 Audit Bergen short** — [run #37914622966](https://github.com/hraaaaf/Digital_crown/actions/runs/37914622966) SUCCESS, [artefact #11608648140](https://github.com/hraaaaf/Digital_crown/actions/runs/37914622966/artifacts/11608648140), [copie ZIP Drive](https://drive.google.com/file/d/1gPnqOiYA2glSkY87LFezPNvqHKZXbTot/view). **12 mesures / 4 constructions / 28 marqueurs**. 3 captures + grilles UIA actives auditées ; Save/Load non invoqués ; empreintes Robert avant/après inchangées ; CSV extraits en archive ; [manifest exact SHA256](https://github.com/hraaaaf/Digital_crown/b",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.5",
+      "title": "Audit Bergen",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.5 Audit Bergen** — [run #37914715358](https://github.com/hraaaaf/Digital_crown/actions/runs/37914715358) SUCCESS, [artefact #11609862518](https://github.com/hraaaaf/Digital_crown/actions/runs/37914715358/artifacts/11609862518), [copie ZIP Drive](https://drive.google.com/file/d/1Z7HoLC7EdlZCeaoGvrPMousfe-XhdBth/view). **22 mesures / 8 constructions / 30 marqueurs** (27 lignes de grille dont 5 Heading). 3 captures + grilles UIA actives auditées ; Save/Load non invoqués ; empreintes Robert avant/après inchangées ; CSV extraits en archive ; [manifest exact SHA256](https://git",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.6",
+      "title": "Audit Arnett STCA female",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.6 Audit Arnett STCA female** — [run #37914719024](https://github.com/hraaaaf/Digital_crown/actions/runs/37914719024) SUCCESS, [artefact #11609282582](https://github.com/hraaaaf/Digital_crown/actions/runs/37914719024/artifacts/11609282582), [copie ZIP Drive](https://drive.google.com/file/d/1DC8XP92k-59pf4zKFYcN6ezfBv1bpt9C/view). **38 mesures / 4 constructions / 30 marqueurs**. 3 captures + grilles UIA actives auditées ; Save/Load non invoqués ; empreintes Robert avant/après inchangées ; CSV extraits en archive ; [manifest exact SHA256](https://github.com/hraaaaf/Digital_c",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.7",
+      "title": "Audit Arnett STCA male",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.7 Audit Arnett STCA male** — [run #37914723547](https://github.com/hraaaaf/Digital_crown/actions/runs/37914723547) SUCCESS, [artefact #11609242427](https://github.com/hraaaaf/Digital_crown/actions/runs/37914723547/artifacts/11609242427), [copie ZIP Drive](https://drive.google.com/file/d/1KK26UhLd_aKhoxH-JuA7xNyezpkcD9Iu/view). **38 mesures / 4 constructions / 30 marqueurs**. 3 captures + grilles UIA actives auditées ; Save/Load non invoqués ; empreintes Robert avant/après inchangées ; CSV extraits en archive ; [manifest exact SHA256](https://github.com/hraaaaf/Digital_cro",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.8",
+      "title": "Audit Airway McNamara",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.8 Audit Airway McNamara** — [run #37914729075](https://github.com/hraaaaf/Digital_crown/actions/runs/37914729075) SUCCESS, [artefact #11609222785](https://github.com/hraaaaf/Digital_crown/actions/runs/37914729075/artifacts/11609222785), [copie ZIP Drive](https://drive.google.com/file/d/1ODxcO75Z0e9_KpHhFkTvwMaG33NpMCaN/view). **6 mesures / 3 constructions / 10 marqueurs**. 3 captures + grilles UIA actives auditées ; Save/Load non invoqués ; empreintes Robert avant/après inchangées ; CSV extraits en archive ; [manifest exact SHA256](https://github.com/hraaaaf/Digital_crown",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.9",
+      "title": "Audit Bjork",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.9 Audit Bjork** — [run #37914735062](https://github.com/hraaaaf/Digital_crown/actions/runs/37914735062) SUCCESS, [artefact #11609157729](https://github.com/hraaaaf/Digital_crown/actions/runs/37914735062/artifacts/11609157729), [copie ZIP Drive](https://drive.google.com/file/d/102ak7uuUgpBzFD1lF2hf2_MeLttl5BBP/view). **27 mesures / 4 constructions / 28 marqueurs**. 3 captures + grilles UIA actives auditées ; Save/Load non invoqués ; empreintes Robert avant/après inchangées ; CSV extraits en archive ; [manifest exact SHA256](https://github.com/hraaaaf/Digital_crown/blob/059",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.10",
+      "title": "Audit Wits appraisal",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.10 Audit Wits appraisal** — [run #37914739084](https://github.com/hraaaaf/Digital_crown/actions/runs/37914739084) SUCCESS, [artefact #11608478539](https://github.com/hraaaaf/Digital_crown/actions/runs/37914739084/artifacts/11608478539), [copie ZIP Drive](https://drive.google.com/file/d/14LZdWwpuZMX6Fm-sdiiBKPNmm5CYgiBS/view). **1 mesures / 2 constructions / 5 marqueurs**. 3 captures + grilles UIA actives auditées ; Save/Load non invoqués ; empreintes Robert avant/après inchangées ; CSV extraits en archive ; [manifest exact SHA256](https://github.com/hraaaaf/Digital_crown/",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.11",
+      "title": "Audit ABO",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.11 Audit ABO** — [run #37914743636](https://github.com/hraaaaf/Digital_crown/actions/runs/37914743636) SUCCESS, [artefact #11609767255](https://github.com/hraaaaf/Digital_crown/actions/runs/37914743636/artifacts/11609767255), [copie ZIP Drive](https://drive.google.com/file/d/1mRil9cZm9_gR1dWq3bMDNd_9wQHEwtYR/view). **11 mesures / 6 constructions / 29 marqueurs**. 3 captures + grilles UIA actives auditées ; Save/Load non invoqués ; empreintes Robert avant/après inchangées ; CSV extraits en archive ; [manifest exact SHA256](https://github.com/hraaaaf/Digital_crown/blob/0591",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.12",
+      "title": "— Clôture de l'extraction des 65 éditeurs",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.12 — Clôture de l'extraction des 65 éditeurs** : **65/65 observés, 0 restant** au ledger [commit ](https://github.com/hraaaaf/Digital_crown/commit/c68fd358a2010e03048e61d72059dc30d9e61294)[`c68fd358`](https://github.com/hraaaaf/Digital_crown/commit/c68fd358a2010e03048e61d72059dc30d9e61294). 21 derniers sous-lots F01.12-W5-01→21 vérifiés : job, ZIP SHA256, 3 UIA/PNG (Harvold 0 lignes justifié), headings/offscreen, Robert original/copie intacts, Save/Load non invoqués, archives en Library. Gate uniquement de récolte en lecture seule : **D3/D4/D5 et CEPH08 restent ouverts**.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.13",
+      "title": "Audit des écarts scientifiques vers CEPH08",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F01.13 Audit des écarts scientifiques vers CEPH08** — comparer nomenclature des profils, sources/versions/normes, séparer lignes source-lockées et inconnues, aucune formule réputée prouvée par UIA. Preuve : manifest Facad→contrat source→ID LOT06, BLOCKED si non démontré. **Phase 1 documentaire (2026-10-09) : 65/65 profils et 36 libellés candidats rapprochés sous statut non certifié, **[**CI #37972959707**](https://github.com/hraaaaf/Digital_crown/actions/runs/37972959707)** SUCCESS + 14/14 tests négatifs. Reste OPEN : source/versions/géométrie/normes et équivalence des varian",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F01.14",
+      "title": "— Conservation des CSV de la campagne",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F01.14 — Conservation des CSV de la campagne** : vagues 1–2 **48 CSV** [f8d3a12](https://github.com/hraaaaf/Digital_crown/commit/f8d3a123c6a0ce952be5468ee58ac618c3394341) / [9cf0d62](https://github.com/hraaaaf/Digital_crown/commit/9cf0d625f23a3cea29fc8cb1c42148ada80db689) ; vagues 3–4 **48 CSV** [818b580](https://github.com/hraaaaf/Digital_crown/commit/818b580ec21868be71f7a326fd4049342fb1056e), donc **96 CSV individuels dans GitHub** ; dernière vague **63 CSV + MANIFEST + 21 ZIP** archivés dans Library `/Digital Crown/Cephalo Facad/Facad Trial Final 21/`, inventoriés par [ind",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F02.1",
+      "title": "Inventaire D2B View 19/19",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F02.1 Inventaire D2B View 19/19** — actions/vues accessibles documentées, screenshots.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F02.2",
+      "title": "D2C Marker guide et Planned positions",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F02.2 D2C Marker guide et Planned positions** — BEFORE/AFTER réel, même viewport, état non destructif et aucune modification de patient. Preuve : screenshots, UIA, trace d'action exacte, analyse des incidents CI.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F02.3",
+      "title": "Tracing hard/soft/teeth / layers / superimposition",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F02.3 Tracing hard/soft/teeth / layers / superimposition** — exposer seulement ce qui peut être visualisé sans sauvegarde ni effet latéral; capturer menus/contrôles et variantes. Preuve : vidéos/images/états UI et limites explicites.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F02.4",
+      "title": "Matrice visuelle comparée CEPH07",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F02.4 Matrice visuelle comparée CEPH07** — mêmes comportements et écarts, pas de score d'ergonomie tant que référence image exploitable absente. Preuve : dossiers BEFORE/AFTER et matrice source.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F03.1",
+      "title": "Static review et snapshots Windows",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F03.1 Static review et snapshots Windows** — 9 scopes BEFORE/AFTER, 0 drift observé, six scopes absents. Preuve : [run #37910256983](https://github.com/hraaaaf/Digital_crown/actions/runs/37910256983), artefact #11607045471.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F03.2",
+      "title": "Instrumentation compteur processus réelle",
+      "canonical_state": "ALREADY_CHECKED",
+      "source_excerpt": "- [x] **F03.2 Instrumentation compteur processus réelle** — 12 échantillons du processus Facad sur court intervalle, aucun transfert de write observé ; verdict strict `INCONCLUSIVE_PROCESS_IO_COUNTERS_ONLY`. Preuve : JSON startup et test témoin séparé.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F03.3",
+      "title": "Traces process-aware et couverture du stockage réelle",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F03.3 Traces process-aware et couverture du stockage réelle** — parents/enfants, écritures chemin/régistre avec REDACTION et périmètres couverts, interdiction lecture secrets/valeurs licence. Preuve : event manifest, attribution, tests de capture manquante.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F03.4",
+      "title": "Banc d'isolation fail-closed",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F03.4 Banc d'isolation fail-closed** — comparer vrais chemins, démontrer non-interférence avec ressources partagées, restauration, red tests, licence/licites ; validation indépendante. Preuve : expériences contrôlées, BEFORE/AFTER, conclusions bornées.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F03.5",
+      "title": "Décision d'ouverture clinique",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F03.5 Décision d'ouverture clinique** — seulement si isolation démontrée et validée humainement ; sinon laisser Save/Load interdits. Preuve : gate signé et revues A/B.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F04.1",
+      "title": "Recenser menus/aperçus Analysis Values, Analysis Properties, Marker Positions/Object Values",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F04.1 Recenser menus/aperçus Analysis Values, Analysis Properties, Marker Positions/Object Values** — uniquement lecture si possible ; preuve screenshots UIA/versions et mode autorisé.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F04.2",
+      "title": "Valider faisabilité d'export sans écriture partagée",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F04.2 Valider faisabilité d'export sans écriture partagée** — séparer export view-only, écriture locale, export modifiant données ; D3 requis pour action sensible. Preuve : classification side-effects et consentements.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F04.3",
+      "title": "Capturer 32F/13F Ricketts sur Robert si légalement/sûrement possible",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F04.3 Capturer 32F/13F Ricketts sur Robert si légalement/sûrement possible** — fichier brut versionné avec SHA, unités, signe, arrondi, ordre, norms, identités marker, provenance précise ; sinon BLOCKED.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F04.4",
+      "title": "Rapport/PDF Facad reference",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F04.4 Rapport/PDF Facad reference** — screenshot ou export autorisé, champs, provenance, structure par chapitre. Preuve : archive non sensible + manifeste hash.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F05.1",
+      "title": "Jeux de cas alignés",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F05.1 Jeux de cas alignés** — même exemple/tracé/landmarks/calibration, source de vérité claire, aucun faux équivalent. Preuve : immutable case manifest & hashes.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F05.2",
+      "title": "Comparaison facteur par facteur Ricketts 32F puis 13F",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F05.2 Comparaison facteur par facteur Ricketts 32F puis 13F** — géométrie, unité, signe, arrondi, normes, couverture, état NOT_COMPUTABLE ; distinguer édition vendor et sources scientifiques. Preuve : CSV diff/exact expected et revue clinique.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F05.3",
+      "title": "Parité protocoles / UX / export",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F05.3 Parité protocoles / UX / export** — Steiner/Tweed/McNamara/Downs, viewer/rapports selon priorité, limites explicites. Preuve : tableau par fonctionnalité, images mêmes cas.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F05.4",
+      "title": "Écarts → tickets CEPH06/07/08/12",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F05.4 Écarts → tickets CEPH06/07/08/12** — priorité P0/P1/P2, dépendances, test de non-régression et source scientifique ; ne pas intégrer directement du code ou une norme Facad. Preuve : issues liées à tâche canonique.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F06.1",
+      "title": "Archivage durable des ZIP/screens/CSV essentiels",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F06.1 Archivage durable des ZIP/screens/CSV essentiels** — organisation par lot/run/commit/profil/date/hash ; le ZIP Actions seul ne suffit pas, dates de rétention vérifiées.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F06.2",
+      "title": "Registre d'exceptions et lacunes",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F06.2 Registre d'exceptions et lacunes** — profils non audités, UI manquante, absence d'accès licence, FAIL/INCONCLUSIVE, risques qualité.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F06.3",
+      "title": "Revue finale A/B et couverture",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F06.3 Revue finale A/B et couverture** — D0/D1/D2/D3/D4/D5 exact, scores sévères par domaine bornés par preuve, 0 green inventé.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    },
+    {
+      "id": "F06.4",
+      "title": "Clôture de la campagne Facad",
+      "canonical_state": "OPEN",
+      "source_excerpt": "- [ ] **F06.4 Clôture de la campagne Facad** — si 65/65 observés et preuves durables mais D3/D4/D5 bloqués, clore uniquement *la récolte en lecture seule*, laisser la parité scientifique ouverte.",
+      "source": "NOTION_FACAD_PRIMARY_CHECKBOX"
+    }
+  ],
+  "git_source_profile_exceptions": [
+    {
+      "ordinal": 8,
+      "analysis_name": "Ancell",
+      "source_run_id": "37957532550",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532550",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 17,
+      "analysis_name": "Bern University",
+      "source_run_id": "37957532753",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532753",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 22,
+      "analysis_name": "Bjork-Tiops",
+      "source_run_id": "37957532699",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532699",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 23,
+      "analysis_name": "Bjork-Tiops (female-11)",
+      "source_run_id": "37957532439",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532439",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 24,
+      "analysis_name": "Bjork-Tiops (male-12)",
+      "source_run_id": "37957532922",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532922",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 28,
+      "analysis_name": "EAIO",
+      "source_run_id": "37957532651",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532651",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 29,
+      "analysis_name": "Facad Mini",
+      "source_run_id": "37957532539",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532539",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 30,
+      "analysis_name": "Geneve",
+      "source_run_id": "37957532517",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532517",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 31,
+      "analysis_name": "HarmonyBox",
+      "source_run_id": "37957532281",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532281",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 32,
+      "analysis_name": "Harvold",
+      "source_run_id": "37957533614",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957533614",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 37,
+      "analysis_name": "Jefferson-Sassouni",
+      "source_run_id": "37957532509",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532509",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 39,
+      "analysis_name": "Mahony FFG",
+      "source_run_id": "37957532369",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532369",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 41,
+      "analysis_name": "McGann",
+      "source_run_id": "37957532521",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532521",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 42,
+      "analysis_name": "McLaughlin",
+      "source_run_id": "37957532438",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532438",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 44,
+      "analysis_name": "Oslo",
+      "source_run_id": "37957532620",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532620",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 48,
+      "analysis_name": "Photo AM Schwarz",
+      "source_run_id": "37957532617",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532617",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 49,
+      "analysis_name": "Quadrilateral DiPaolo",
+      "source_run_id": "37957532660",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532660",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 50,
+      "analysis_name": "Rakosi",
+      "source_run_id": "37957532320",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532320",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 59,
+      "analysis_name": "Steiner",
+      "source_run_id": "37857655276",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37857655276",
+      "editor_observation": "EDITOR_OBSERVED_UNSAVED_IN_PARTIAL_FAILURE",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 61,
+      "analysis_name": "Tubingen",
+      "source_run_id": "37958732410",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37958732410",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 62,
+      "analysis_name": "Tweed",
+      "source_run_id": "37861203066",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37861203066",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 64,
+      "analysis_name": "Wylie",
+      "source_run_id": "37957532916",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532916",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    },
+    {
+      "ordinal": 65,
+      "analysis_name": "Zurich",
+      "source_run_id": "37957532681",
+      "source_run_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37957532681",
+      "editor_observation": "EDITOR_DEFINITION_LOADED_NOT_SAVED",
+      "exception_class": "STRICT_3_UIA_CSV_NOT_VERSIONED_AT_PINNED_GIT_REF",
+      "does_not_mean_vendor_analysis_absent": true,
+      "external_historical_archive_verification": "NOT_FULLY_REPLAYED_IN_THIS_GATE"
+    }
+  ],
+  "case_specific_exceptions": [
+    {
+      "id": "RUN_STEINER_PARTIAL",
+      "severity": "MAJOR",
+      "case": "Steiner",
+      "evidence_run_id": "37857655276",
+      "detail": "EDITOR_OBSERVED_UNSAVED_IN_PARTIAL_FAILURE; source run not wholly green. Historical ZIP has tab text views, not 3 Git UIA CSVs",
+      "status": "OPEN_NOT_SCIENTIFICALLY_RESOLVED"
+    },
+    {
+      "id": "RUN_TWEED_CSV_0_OF_3",
+      "severity": "MAJOR",
+      "case": "Tweed",
+      "evidence_run_id": "37861203066",
+      "detail": "Historical UIA archive recovered; strict CSV Git count remains 0/3 at pinned ref",
+      "status": "OPEN_DOCUMENTARY_GAP"
+    },
+    {
+      "id": "RUN_HARVOLD_EMPTY_LINES",
+      "severity": "MAJOR",
+      "case": "Harvold",
+      "evidence_run_id": "37957533614",
+      "detail": "Historical editor Lines grid recorded as 0 lines; not an application capability absence claim",
+      "status": "OPEN_INTERPRETATION_GAP"
+    },
+    {
+      "id": "RUN_TUBINGEN_ALIAS",
+      "severity": "MINOR",
+      "case": "Tubingen",
+      "evidence_run_id": "37958732410",
+      "detail": "Catalog alias Tubingen versus displayed Tübingen; naming normalization is metadata-only, not anatomical identity",
+      "status": "OPEN_IDENTITY_REVIEW"
+    },
+    {
+      "id": "F04_UIA_4_NOT_OBSERVED",
+      "severity": "MAJOR",
+      "case": "F04.2",
+      "evidence_run_id": "38139444512",
+      "detail": "Four exact-name surface labels not observed in the initial UI; 2 visible tab capabilities Values and Properties. No Properties activation, behavior or export observed",
+      "status": "NOT_OBSERVED_IN_CURRENT_STATE"
+    },
+    {
+      "id": "D3_LIVE_ISOLATION_MISSING",
+      "severity": "BLOCKER",
+      "case": "D3",
+      "evidence_run_id": null,
+      "detail": "Source/copy hash equality and zero visual mutation do not establish shared application storage isolation",
+      "status": "OPEN_RED"
+    },
+    {
+      "id": "D3_VENDOR_PERMISSION_NOT_PRODUCED",
+      "severity": "BLOCKER",
+      "case": "SEC-01",
+      "evidence_run_id": null,
+      "detail": "Written Ilexis permission for ephemeral GitHub/VM, test data, storage and licence constraints absent; QuickDemo workflow suspended in F04 research branch only",
+      "status": "OPEN_RED"
+    },
+    {
+      "id": "SCI_NUMERIC_PARITY_NOT_TESTED",
+      "severity": "BLOCKER",
+      "case": "FAC05",
+      "evidence_run_id": null,
+      "detail": "56 synthetic geometrical tests have no paired FACAD native same-trace output, and 10 generic types do not certify operator formulas",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "RETENTION_PERMISSIONS_UNKNOWN",
+      "severity": "MAJOR",
+      "case": "F00.4/F06.1",
+      "evidence_run_id": null,
+      "detail": "Legal retention window for proprietary research artifacts and trial expiry evidence still not certified",
+      "status": "OPEN"
+    },
+    {
+      "id": "D3_REVIEWER_HUMAN_0_OF_2",
+      "severity": "BLOCKER",
+      "case": "SCI-03",
+      "evidence_run_id": null,
+      "detail": "Only two internal AI viewpoints, no two independent humans on same immutable HEAD",
+      "status": "OPEN_RED"
+    }
+  ],
+  "d3_open_blockers": [
+    {
+      "blocker_id": "SEC-01",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SEC-02",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SEC-03",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SCI-01",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SCI-02",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "controls_passed": false
+    },
+    {
+      "blocker_id": "SCI-03",
+      "proof_status": "NOT_OBSERVED",
+      "primary_evidence_uri": null,
+      "independent_reviewer_id": null,
+      "controls_passed": false
+    }
+  ],
+  "d3_cross_cutting_fail_closed": [
+    {
+      "id": "RIGHTS",
+      "ready": false,
+      "provenance": "UNKNOWN"
+    },
+    {
+      "id": "ISOLATION",
+      "ready": false,
+      "provenance": "NOT_TESTED"
+    },
+    {
+      "id": "EGRESS",
+      "ready": false,
+      "provenance": "NOT_APPROVED"
+    },
+    {
+      "id": "DESTRUCTION",
+      "ready": false,
+      "provenance": "NOT_TESTED"
+    },
+    {
+      "id": "REVIEWER_INDEPENDENCE",
+      "ready": false,
+      "provenance": "NOT_VERIFIED"
+    }
+  ],
+  "operator_unknowns": [
+    {
+      "operator": "Angle2ln",
+      "editor_occurrences": 12,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "Angle3p",
+      "editor_occurrences": 11,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "Angle4p",
+      "editor_occurrences": 20,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "Dist2p",
+      "editor_occurrences": 8,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "Dist3p",
+      "editor_occurrences": 4,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "DistLine",
+      "editor_occurrences": 13,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "Heading",
+      "editor_occurrences": 13,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "Proj90Line",
+      "editor_occurrences": 1,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "ProjLine",
+      "editor_occurrences": 9,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    },
+    {
+      "operator": "Sub",
+      "editor_occurrences": 2,
+      "formula_state": "UNKNOWN",
+      "clinical_gate": "OPEN",
+      "numeric_vendor_parity": "NOT_TESTED"
+    }
+  ],
+  "closure_policy": {
+    "candidate_gate": "F06.2",
+    "would_close_only": "Documentation of already-known exceptions and missing evidence; does not repair them",
+    "other_open_gates_not_reclassified": true,
+    "no_proprietary_formula_certified": true,
+    "no_patient_data_or_nonclinical_vendor_installer_launched": true,
+    "facad_clinical_gate": "OPEN",
+    "d3_gate": "D3_OPEN_RED",
+    "facad_same_trace_vendor_numeric_parity": "NOT_TESTED",
+    "two_human_independent_reviewers_observed": 0,
+    "converged": false,
+    "no_merge_or_deploy": true
+  }
+}
