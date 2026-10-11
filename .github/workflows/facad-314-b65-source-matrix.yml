@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/facad-314-b65-source-matrix.yml
       - docs/audits/facad_trial_20261011/B_65_PROFILE_SOURCE_GATES_20261011.json
+      - docs/audits/facad_trial_20261011/B_STEINER_TWEED_SOURCE_ARTIFACT_RECOVERY_20261011.json
   workflow_dispatch:
 
 permissions:
@@ -77,4 +78,35 @@ jobs:
           print('B65_SOURCE_MATRIX_PASS=65_NAME_AND_ORDINAL_JOINED')
           print('B65_UIA_GIT_TRIPLETS=42_PRESENT_23_NOT_VERSIONED_HERE')
           print('B65_FORMULA_PARITY_VALIDATED=false')
+          PY
+      - name: Cross-check Steiner/Tweed recovered UIA artifact provenance (not certified formulas)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,re
+          from pathlib import Path
+          root=Path('research/docs/audits/facad_trial_20261011')
+          entries=json.loads((root/'B_65_PROFILE_SOURCE_GATES_20261011.json').read_text())
+          recovery=json.loads((root/'B_STEINER_TWEED_SOURCE_ARTIFACT_RECOVERY_20261011.json').read_text())
+          assert len(recovery['items'])==2
+          assert [x['analysis'] for x in recovery['items']]==['Steiner','Tweed']
+          assert len(entries['items'])==65
+          for item in recovery['items']:
+              p=next(x for x in entries['items'] if x['analysis']==item['analysis'])
+              assert p['source_run_id']==str(item['source_run_id'])
+              assert p['git_uia_triplets']=='0_OF_3_IN_THIS_REF'
+              assert item['strict_csv_triplets_versioned'] is False
+              assert item['clinical_parity_tested'] is False
+              assert item['page_c02_definition_verified'] is False
+              assert re.fullmatch(r'[0-9a-f]{64}',item['zip_sha256'])
+              assert set(item['three_text_views'])=={'measurements','lines','markers'}
+              for tab,record in item['three_text_views'].items():
+                  assert record['zip_member']==f"d1c-{item['analysis']}-{tab}-texts.txt"
+                  assert re.fullmatch(r'[0-9a-f]{64}',record['sha256'])
+                  assert record['bytes']>0 and record['uia_text_lines']>0
+          ml={x['analysis']:x['observed_arguments'] for x in recovery['scientific_hazards']}
+          assert ml=={'Steiner':['Go','Gn'],'Tweed':['Go','Me']}
+          print('B65_RECOVERY_SOURCE_REFERENCES_PASS=2_PROFILES_6_TEXT_VIEWS')
+          print('B65_STRICT_UIA_CSV_TRIPLETS_PRESENT=42_UNCHANGED')
+          print('B65_VENDOR_FORMULAS_VERIFIED=false')
           PY
