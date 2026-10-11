@@ -156,6 +156,32 @@ describe('OnboardingScanner G1 interactive matrix', () => {
     }
   });
 
+  it('scrubs the consumed QR route even if iPhone sessionStorage setItem throws', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(true, 200, {
+        publicId: 'a'.repeat(16), access_token: 'access',
+        refresh_token: 'refresh', device_id: 'device',
+        server_public_key_hex: 'server-key', encrypted_master_key_hex: 'encrypted-key',
+      }))
+      .mockResolvedValueOnce(response(false, 404, {}))
+      .mockResolvedValueOnce(response(true, 200, { destination: 'agenda' })));
+    const setter = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Blocked by Safari', 'SecurityError');
+    });
+    const scrub = vi.spyOn(window.history, 'replaceState');
+    try {
+      renderScanner();
+      fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
+      fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
+      expect(await screen.findByText('Appairage réussi')).toBeTruthy();
+      expect(scrub).toHaveBeenCalledWith(expect.anything(), '', '/mobile/onboarding');
+      expect(await screen.findByText('Mobile dashboard destination', {}, { timeout: 4000 })).toBeTruthy();
+    } finally {
+      scrub.mockRestore();
+      setter.mockRestore();
+    }
+  });
+
   it('provides a secure manual continuation when Safari throttles the success timer', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(response(true, 200, {
