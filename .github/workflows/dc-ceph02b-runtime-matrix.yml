@@ -66,6 +66,13 @@ jobs:
           assert len(x["revision_sequence"])==4
           assert all(sum(x[period].values())==38 for period in ("uncalibrated","calibrated","post_correction"))
           assert x["calibrated"]["AVAILABLE"] > x["uncalibrated"]["AVAILABLE"]
+          rows=x["per_measure_statuses"]
+          contract=json.load(open("docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json",encoding="utf-8"))
+          assert set(rows)=={i["measurement_id"] for i in contract["measurements"]}
+          for phase in ("uncalibrated","calibrated","post_correction"):
+            assert all(row[phase] in {"AVAILABLE","NOT_COMPUTABLE","INVALID","NOT_EXPOSED"} for row in rows.values())
+            assert {state:sum(row[phase]==state for row in rows.values()) for state in ("AVAILABLE","NOT_COMPUTABLE","INVALID","NOT_EXPOSED")} == x[phase]
+          assert x["all_38_measurements_available"] == (x["post_correction"]["AVAILABLE"]==38)
           assert x["typed_runtime_read_valid"] is True
           assert x["pdf_projection_invoked"] is True
           assert x["pdf_document_clinically_complete"] is False
