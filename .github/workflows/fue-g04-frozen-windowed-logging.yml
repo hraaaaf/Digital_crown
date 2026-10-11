@@ -6,14 +6,14 @@ on:
   pull_request:
     paths:
       - 'run.py'
-      - 'backend/tests/test_frozen_windows_uvicorn_logging.py'
+      - 'ci_fue_g04/test_frozen_windows_uvicorn_logging.py'
       - '.github/workflows/fue-g04-frozen-windowed-logging.yml'
   push:
     branches:
       - fix/fue-g04-frozen-uvicorn-no-console-20261011
     paths:
       - 'run.py'
-      - 'backend/tests/test_frozen_windows_uvicorn_logging.py'
+      - 'ci_fue_g04/test_frozen_windows_uvicorn_logging.py'
       - '.github/workflows/fue-g04-frozen-windowed-logging.yml'
 
 permissions:
@@ -40,6 +40,6 @@ jobs:
       - name: Install pinned Uvicorn and test harness only
         run: python -m pip install uvicorn==0.27.1 pytest==9.0.3
       - name: Verify no console streams and preserve dev launcher behavior
-        run: python -m pytest -q backend/tests/test_frozen_windows_uvicorn_logging.py
+        run: python -m pytest -q ci_fue_g04/test_frozen_windows_uvicorn_logging.py
       - name: Python syntax check source
-        run: python -m py_compile run.py backend/tests/test_frozen_windows_uvicorn_logging.py
+        run: python -m py_compile run.py ci_fue_g04/test_frozen_windows_uvicorn_logging.py
