@@ -43,6 +43,30 @@ if (canonicalHexColor('#111') !== canonicalHexColor('#111111')
   throw new Error('Pocket color normalization guard failed');
 }
 
+// Independent runtime WCAG oracle; do not reuse the app's ink algorithm.
+function rgbForRatio(value) {
+  const input = String(value ?? '').trim().toLowerCase();
+  const hex = canonicalHexColor(input === 'white' ? '#ffffff' : input === 'black' ? '#000000' : input);
+  if (hex) return [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const match = input.match(/^rgba?\(([^)]+)\)$/);
+  if (!match) return null;
+  const parts = match[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+  if (parts.length !== 3 && parts.length !== 4) return null;
+  if (!parts.every(Number.isFinite) || parts.slice(0, 3).some(c => c < 0 || c > 255)
+    || (parts.length === 4 && parts[3] < 0.999)) return null;
+  return parts.slice(0, 3);
+}
+function contrastRatio(a, b) {
+  const lhs = rgbForRatio(a), rhs = rgbForRatio(b);
+  if (!lhs || !rhs) return null;
+  const luminance = rgb => rgb.map(c => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  }).reduce((s, c, i) => s + c * [0.2126, 0.7152, 0.0722][i], 0);
+  const x = luminance(lhs), y = luminance(rhs);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
 const expectedDentistLabels = ['Notifications', 'Stock', 'Bibliothèque', 'Approvisionnement', 'Trésorerie', 'Envois Labo', 'Équipe'];
 const expectedSecretaryLabels = ['Notifications', 'Stock', 'Équipe'];
 const credentials = {
