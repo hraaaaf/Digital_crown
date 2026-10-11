@@ -49,6 +49,9 @@ jobs:
           src/features/mobile/Dashboard/PocketRuntimeScope.contract.test.ts
           src/features/partnerMarketplace/usePartnerMarketplace.test.tsx
           src/test/mobileM62OfflineTruth.test.ts
+          src/test/mobileM62Behavior.test.ts
+          src/features/mobile/Dashboard/MobileP0UI.test.tsx
+          src/features/mobile/Dashboard/hooks/useMobileDashboard.p0.test.tsx
       - name: Verify production frontend build
         working-directory: frontend
         run: npm run build
