@@ -1,0 +1,150 @@
+name: FACAD F02.4 DC synthetic layer interaction proof
+on:
+  push:
+    branches:
+      - research/facad-dc-visual-comparison-20261011
+    paths:
+      - .github/workflows/facad-dc-layer-interaction-observation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  digital-crown-layer-interaction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PRODUCT_HEAD: c0d47f4832e6da2211c6f94eb88f0db56fcaebb6
+    steps:
+      - name: Checkout pinned product tree without product edits
+        uses: actions/checkout@v4
+        with:
+          ref: c0d47f4832e6da2211c6f94eb88f0db56fcaebb6
+          persist-credentials: false
+      - name: Verify exact HEAD and unmodified source harness
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test "$(git hash-object frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs)" = "01a834b070ced65fd8074e5cbfe7c0e3b2a8916d"
+          test "$(git hash-object frontend/src/features/ortho/orthoLayerRegistry.ts)" = "0597b006bb8c0a093a0563e12c1ad1fe676720a8"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install synthetic UI dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Extend checked-in R19 browser fixture temporarily with measured layer actions
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs')
+          s=p.read_text()
+          a="  { name: '768x1024', width: 768, height: 1024 },"
+          assert s.count(a)==1
+          s=s.replace(a,"  { name: '1024x768', width: 1024, height: 768 },\n"+a)
+          needle='  const states=[];'
+          assert s.count(needle)==1
+          extra=r"""
+          const layerAudit={viewport:viewport.name,fixture:'synthetic-only',controlled:[],hardTissueDisabled:false,valid:false};
+          const hardControl=page.locator('[data-ortho-layer-control="hard_tissue"] button');
+          await hardControl.waitFor({state:'visible',timeout:8000});
+          layerAudit.hardTissueDisabled=await hardControl.isDisabled();
+          const hardLabel=(await hardControl.getAttribute('aria-label'))||'';
+          if(!layerAudit.hardTissueDisabled || !hardLabel.includes('en construction'))
+            throw new Error('hard_tissue gate incorrectly appears available');
+          await page.screenshot({path:path.join(OUTPUT_DIR,'layer-before-'+viewport.name+'.png'),fullPage:false});
+          for(const id of ['landmarks','plans','teeth','soft_tissue','measurements','t1','t2']){
+            const control=page.locator('[data-ortho-layer-control="'+id+'"] button');
+            if(await control.isDisabled())throw new Error('Available layer unexpectedly disabled: '+id);
+            const original=await control.getAttribute('aria-pressed');
+            if(original!=='true'&&original!=='false')throw new Error('Missing original pressed state: '+id);
+            await control.click();
+            const changed=original==='true'?'false':'true';
+            await page.waitForFunction(([which,expected])=>
+              document.querySelector('[data-ortho-layer-control="'+which+'"] button')?.getAttribute('aria-pressed')===expected,
+              [id,changed],{timeout:4000});
+            if(id==='landmarks'||id==='soft_tissue')
+              await page.screenshot({path:path.join(OUTPUT_DIR,'layer-toggle-'+id+'-'+viewport.name+'.png'),fullPage:false});
+            await control.click();
+            await page.waitForFunction(([which,expected])=>
+              document.querySelector('[data-ortho-layer-control="'+which+'"] button')?.getAttribute('aria-pressed')===expected,
+              [id,original],{timeout:4000});
+            layerAudit.controlled.push({id,original,toggled:changed,restored:original,click_verified:true});
+          }
+          layerAudit.valid=layerAudit.hardTissueDisabled&&layerAudit.controlled.length===7;
+          if(!layerAudit.valid)throw new Error('Layer audit failure');
+          """
+          s=s.replace(needle,extra+'\n'+needle)
+          original_return='return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,states};'
+          assert s.count(original_return)==1
+          s=s.replace(original_return,'return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,states,layerAudit};')
+          assert s.count('layerAudit.valid')>=2
+          p.write_text(s)
+          PY
+      - name: Execute actual Playwright clicks 7 layers times 4 viewports on local synthetic patient
+        working-directory: frontend
+        shell: bash
+        run: |
+          node scripts/capture-cephalo-r19-analysis-reference-after.mjs >/tmp/facad-dc-layer-action.log 2>&1 || { tail -120 /tmp/facad-dc-layer-action.log; exit 1; }
+      - name: Verify screenshots and exact original vendor limitations
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          root=Path('frontend/cephalo-r19-analysis-reference-after-artifacts')
+          z=json.loads((root/'report.json').read_text())
+          viewports={'390x844','768x1024','1024x768','1280x900'}
+          expected={'landmarks','plans','teeth','soft_tissue','measurements','t1','t2'}
+          assert z['productHead']=='c0d47f4832e6da2211c6f94eb88f0db56fcaebb6'
+          assert set(z['viewports'])==viewports
+          assert z['invalidCount']==0 and not z['blockedExternalRequests']
+          assert len(z['captures'])==4
+          manifest={
+            'schema':'FACAD_F02_4_DC_LAYER_REAL_BROWSER_ACTIONS_V1',
+            'provenance':'REAL_CHROMIUM_SYNTHETIC_FIXTURE_NOT_VENDOR',
+            'DC_product_head':z['productHead'],
+            'vendor_source_run':37967170536,
+            'vendor_source_archive_SHA256':'e8db415cda6c4dbc27cdca1eaa25bd6f6200a95a428c902726998a4fc79c1574',
+            'vendor_leaf_clicks_proven':0,
+            'vendor_behavior_parity_proven':False,
+            'same_case_numeric_parity':False,
+            'D3':'OPEN_RED',
+            'f02_4':'OPEN_PARTIAL',
+            'f05_1':'OPEN',
+            'facad_percentage_before_and_after':53.8,
+            'global_percentage_before_and_after':41.4,
+            'captures':[],'layer_control_probes':[]}
+          for capture in z['captures']:
+            assert capture['valid'] and len(capture['states'])==6 and all(s['valid'] for s in capture['states'])
+            a=capture['layerAudit']
+            assert a['valid'] and a['hardTissueDisabled'] and a['viewport'] in viewports
+            assert {x['id'] for x in a['controlled']}==expected
+            assert all(x['click_verified'] and x['original']==x['restored'] and x['original']!=x['toggled'] for x in a['controlled'])
+            manifest['layer_control_probes'].append(a)
+            for name in ('layer-before','layer-toggle-landmarks','layer-toggle-soft_tissue'):
+              p=root/(name+'-'+a['viewport']+'.png')
+              assert p.stat().st_size>1000,p
+              manifest['captures'].append({'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
+          assert len(manifest['layer_control_probes'])==4
+          assert len(manifest['captures'])==12
+          (root/'facad-f02-4-verified-layer-action-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
+          print('FACAD_F02_4_DC_ACTUAL_LAYER_TOGGLES=28_CONFIRMED_AND_RESTORED')
+          print('FACAD_F02_4_DC_HARD_TISSUE_DISABLED=4_OF_4')
+          print('FACAD_F02_4_MOBILE_RENDERED=390x844')
+          print('FACAD_F02_4_SCREENSHOTS=12_SHA256')
+          print('FACAD_F02_4_SAME_CASE_VENDOR_BEHAVIOR_PROVED=false')
+          print('FACAD_F02_4_PERCENTAGE_UNCHANGED=21_OF_39')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: facad-f02-4-dc-layer-action-evidence
+          path: frontend/cephalo-r19-analysis-reference-after-artifacts/
+          if-no-files-found: error
+          retention-days: 14
