@@ -216,6 +216,7 @@ def finalize_insurance_submission(
         record_trusted_finalization(
             db, document, employer_id=int(current_user.get_employer_id()),
             practitioner_id=int(current_user.id),
+            expected_patient_id=int(draft.patient_id),
         )
     except ValueError as exc:
         raise _http_422(exc) from exc
