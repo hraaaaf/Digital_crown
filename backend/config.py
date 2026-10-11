@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "development"
     APP_PUBLIC_URL: str = "http://localhost:5173"
+    # V1.5-04.4: canonical same-origin URL reachable by the patient's phone.
+    # Required for QR/NFC handoff in cabinet/production, never derived from Host.
+    STATION_HANDOFF_PUBLIC_ORIGIN: str = ""
     SUPPORT_EMAIL: str = "support@digitalcrown.local"
     SUPERADMIN_EMAIL: str = ""
 
