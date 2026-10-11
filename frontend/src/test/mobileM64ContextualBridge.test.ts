@@ -63,7 +63,9 @@ describe('Digital Crown Pocket general QR bridge', () => {
     expect(onboardingSource).toContain('/api/mobile/bridge-destination');
     expect(onboardingSource).toContain('Authorization: `Bearer ${accessToken}`');
     expect(onboardingSource).toContain('body: JSON.stringify({ credential })');
-    expect(onboardingSource).toContain("window.history.replaceState({}, '', '/mobile/onboarding')");
+    // Keep the React Router history state while scrubbing the one-time QR token.
+    expect(onboardingSource).toContain("window.history.replaceState(window.history.state, '', '/mobile/onboarding')");
+    expect(onboardingSource).not.toContain("window.history.replaceState({}, '', '/mobile/onboarding')");
     expect(onboardingSource).toContain('Ouverture :');
     expect(onboardingSource).not.toContain("navigate('/mobile/dashboard', { replace: true })");
   });
