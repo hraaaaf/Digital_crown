@@ -29,6 +29,10 @@ from backend.services.station_document_eligibility import (
     StationEligibilityContext,
     evaluate_document_eligibility,
 )
+from backend.services.station_care_sheet import (
+    AUTHORIZE_ACTION, WITHDRAW_ACTION, authorize_withdrawal,
+    care_sheet_state, verified_care_sheet_bytes,
+)
 from backend.services.station_presence_receipt import (
     presence_receipt_verification_code,
     reliable_presence_proof,
@@ -777,6 +781,95 @@ def station_patient_arrive(
     response.headers["Cache-Control"] = "no-store"
     return {"status": "ARRIVED", "appointmentId": appointment.id}
 
+
+@router.post("/documents/care-sheet/{document_id}/authorize-withdrawal")
+def authorize_station_care_sheet_withdrawal(
+    document_id: int, request: Request, response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_permission("accounting")),
+):
+    employer_id = int(current_user.get_employer_id())
+    staff_workstation = _find_workstation(request, db, employer_id)
+    if staff_workstation is None or staff_workstation.default_experience == "station":
+        raise HTTPException(status_code=423, detail="STAFF_WORKSTATION_REQUIRED")
+    document = db.query(models.DocumentArchive).join(
+        models.Patient, models.Patient.id == models.DocumentArchive.patient_id,
+    ).filter(
+        models.DocumentArchive.id == document_id,
+        models.Patient.employer_id == employer_id,
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if document is None:
+        raise HTTPException(status_code=404, detail="CARE_SHEET_NOT_FOUND")
+    try:
+        created = authorize_withdrawal(
+            db, document, employer_id=employer_id, user_id=current_user.id,
+            ip_address=request.client.host if request.client else None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    response.headers["Cache-Control"] = "no-store"
+    return {"status": "AUTHORIZED", "documentId": document.id, "created": created}
+
+
+@router.get("/patient-session/{session_id}/documents/care-sheet/{document_id}")
+def station_care_sheet(
+    session_id: str, document_id: int, request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    workstation, row = _identified_station_session_or_error(
+        session_id, request, db, current_user,
+    )
+    document = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == document_id,
+        models.DocumentArchive.patient_id == row.patient_id,
+    ).first()
+    if document is None:
+        raise HTTPException(status_code=404, detail="STATION_CARE_SHEET_NOT_FOUND")
+    state = care_sheet_state(db, document, employer_id=workstation.employer_id)
+    decision = evaluate_document_eligibility(
+        StationEligibilityContext(
+            tenant_id=workstation.employer_id, patient_id=row.patient_id,
+            station_id=workstation.id, session_id=row.id,
+            session_tenant_id=row.employer_id, session_patient_id=row.patient_id,
+            session_station_id=row.workstation_id,
+            session_created_at=row.created_at, session_claimed_at=row.claimed_at,
+            session_expires_at=row.expires_at, session_purged_at=row.purged_at,
+            station_tenant_id=workstation.employer_id,
+            station_experience=workstation.default_experience,
+            station_revoked_at=workstation.revoked_at, now=datetime.utcnow(),
+        ),
+        SelfServiceDocumentCandidate(
+            document_id=str(document.id), tenant_id=workstation.employer_id,
+            patient_id=document.patient_id, kind="care_sheet",
+            is_active=document.status == models.DocumentStatus.ACTIF,
+            is_latest_version=document.is_latest_version is True,
+            finalized=state.finalized, withdrawal_authorized=state.withdrawal_authorized,
+        ),
+    )
+    if not decision.eligible:
+        raise HTTPException(status_code=409, detail="STATION_CARE_SHEET_NOT_ELIGIBLE")
+    try:
+        content = verified_care_sheet_bytes(document)
+    except (ValueError, OSError):
+        raise HTTPException(status_code=409, detail="STATION_CARE_SHEET_FILE_UNTRUSTED") from None
+    db.add(models.AuditLog(
+        user_id=current_user.id, employer_id=workstation.employer_id,
+        action=WITHDRAW_ACTION, resource_type="DocumentArchive",
+        resource_id=str(document.id),
+        details=f"Verified PDF delivered; sha256={document.file_hash}",
+        ip_address=request.client.host if request.client else None,
+    ))
+    db.commit()
+    return Response(
+        content=content, media_type="application/pdf",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f"attachment; filename=care-sheet-{int(document.id)}.pdf",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 @router.get("/patient-session/{session_id}/documents/presence-receipt/{appointment_id}")
 def station_presence_receipt(
