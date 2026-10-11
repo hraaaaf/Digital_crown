@@ -172,10 +172,11 @@ jobs:
           printf 'head=%s\nruntime=MobileDashboard\npreview=false\nroles=DENTISTE,SECRETAIRE\nviewports=390x844,430x932,768x1024,1280x800\nstock=real-runtime-routable\nlibrary=real-runtime-routable-rbac\nrestored_modules=real-runtime-routable\nrole_guards=verified\ntouch_targets=date+plus-close>=44\ndeployment=none\n' '${{ github.event.pull_request.head.sha || github.sha }}' > artifacts/mobile-pocket-runtime/result.txt
           cp /tmp/mobile-pocket-runtime-vite.log artifacts/mobile-pocket-runtime/vite.log
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: mobile-pocket-real-runtime-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             artifacts/mobile-pocket-runtime
             artifacts/mobile-pocket-webkit
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
