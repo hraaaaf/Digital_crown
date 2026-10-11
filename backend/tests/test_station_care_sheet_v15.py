@@ -115,6 +115,7 @@ def _care_sheet(db, patient, *, status: str = "VALIDATED", emit_finalization_eve
         record_trusted_finalization(
             db, document, employer_id=patient.employer_id,
             practitioner_id=patient.employer_id,
+            expected_patient_id=patient.id,
         )
     return document
 
@@ -532,3 +533,113 @@ def test_official_finalize_route_records_provenance_before_authorization(
     )
     assert retrieved.status_code == 200
     assert hashlib.sha256(retrieved.content).hexdigest() == document.file_hash
+
+
+def test_official_finalize_api_records_request_bound_provenance(client, db, dentiste, monkeypatch):
+    """Exercise the actual HTTP finalize route; canonical renderer is stubbed here."""
+    from types import SimpleNamespace
+
+    from backend.tests.test_insurance_finalization import _validated_draft
+
+    headers, session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-FINALIZE-ROUTE"
+    )
+    document = _care_sheet(db, patient)
+    db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_CARE_SHEET_TRUSTED_FINALIZATION_V1",
+        models.AuditLog.resource_type == "DocumentArchive",
+        models.AuditLog.resource_id == str(document.id),
+    ).delete(synchronize_session=False)
+    db.commit()
+
+    draft = _validated_draft("a" * 64).model_copy(update={
+        "patient_id": patient.id,
+        "validated_by_practitioner_id": dentiste.id,
+    })
+    monkeypatch.setattr(
+        "backend.routers.insurance_submissions._template_config_for",
+        lambda _organization: (SimpleNamespace(version=draft.template.template_version), draft.template.template_hash, None),
+    )
+
+    def verified_service_stub(_db, **kwargs):
+        assert kwargs["draft"].patient_id == patient.id
+        assert kwargs["uploaded_by_id"] == dentiste.id
+        return document, False, b"%PDF-1.4\\n%%EOF\\n"
+
+    monkeypatch.setattr(
+        "backend.routers.insurance_submissions.finalize_insurance_submission_pdf",
+        verified_service_stub,
+    )
+
+    _set_mode(client, headers, "cabinet")
+    finalized = client.post(
+        "/api/documents/insurance-submissions/finalize",
+        headers=headers, json=draft.model_dump(mode="json"),
+    )
+    assert finalized.status_code == 200, finalized.text
+    assert finalized.json()["document_id"] == document.id
+
+    provenance = db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_CARE_SHEET_TRUSTED_FINALIZATION_V1",
+        models.AuditLog.resource_type == "DocumentArchive",
+        models.AuditLog.resource_id == str(document.id),
+    ).all()
+    assert len(provenance) == 1
+    assert provenance[0].user_id == dentiste.id
+    assert f"patient_id={patient.id};sha256={document.file_hash}" in provenance[0].details
+    authorized = client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=headers,
+    )
+    assert authorized.status_code == 200, authorized.text
+    _set_mode(client, headers, "station")
+    delivered = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
+        headers=headers,
+    )
+    assert delivered.status_code == 200, delivered.text
+    assert hashlib.sha256(delivered.content).hexdigest() == document.file_hash
+
+
+def test_official_finalize_api_rejects_mismatched_patient_archive(client, db, dentiste, monkeypatch):
+    """A service contract regression cannot authorize a different patient's PDF."""
+    from types import SimpleNamespace
+
+    from backend.tests.test_insurance_finalization import _validated_draft
+
+    headers, _session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST043-REQUEST-PATIENT"
+    )
+    other = models.Patient(
+        numero_dossier="ST043-RETURNED-OTHER", nom="Other", prenom="Patient",
+        date_naissance=datetime(1980, 1, 1), sexe="F", employer_id=dentiste.id,
+    )
+    db.add(other)
+    db.commit()
+    foreign_document = _care_sheet(db, other, status="READY_FOR_REVIEW")
+
+    draft = _validated_draft("a" * 64).model_copy(update={
+        "patient_id": patient.id,
+        "validated_by_practitioner_id": dentiste.id,
+    })
+    monkeypatch.setattr(
+        "backend.routers.insurance_submissions._template_config_for",
+        lambda _organization: (SimpleNamespace(version=draft.template.template_version), draft.template.template_hash, None),
+    )
+    monkeypatch.setattr(
+        "backend.routers.insurance_submissions.finalize_insurance_submission_pdf",
+        lambda _db, **_kwargs: (foreign_document, False, b"%PDF-1.4\\n%%EOF\\n"),
+    )
+
+    _set_mode(client, headers, "cabinet")
+    response = client.post(
+        "/api/documents/insurance-submissions/finalize",
+        headers=headers, json=draft.model_dump(mode="json"),
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["detail"] == "CARE_SHEET_FINALIZATION_SOURCE_MISMATCH"
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_CARE_SHEET_TRUSTED_FINALIZATION_V1",
+        models.AuditLog.resource_type == "DocumentArchive",
+        models.AuditLog.resource_id == str(foreign_document.id),
+    ).count() == 0
