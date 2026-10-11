@@ -1,0 +1,85 @@
+name: FACAD F06.1 metadata inventory of missing Git UIA triplets
+on:
+  push:
+    branches:
+      - research/facad-f06-1-archive-evidence-20261011
+    paths:
+      - .github/workflows/facad-f06-1-wave6-artifact-availability.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  action-artifact-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Query only GitHub artifact metadata for 23 strict Git UIA CSV gaps
+        shell: bash
+        env:
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request,urllib.error,subprocess
+          from pathlib import Path
+          src=Path('docs/audits/facad_trial_20261011/FACAD_F06_1_WAVE5_ARCHIVE_COVERAGE.json')
+          doc=json.loads(src.read_text())
+          base=Path('docs/audits/facad_trial_20261011/B_65_PROFILE_SOURCE_GATES_20261011.json')
+          b=json.loads(base.read_text())
+          assert subprocess.check_output(['git','hash-object',str(base)],text=True).strip()==doc['sources']['b65_blob']
+          candidates=[q for q in b['items'] if q['git_uia_triplets']=='0_OF_3_IN_THIS_REF']
+          assert len(candidates)==23
+          token=os.environ['GH_API_TOKEN']
+          assert token
+          result=[]
+          for q in candidates:
+              run=str(q['source_run_id'])
+              assert run.isdecimal()
+              url=f'https://api.github.com/repos/hraaaaf/Digital_crown/actions/runs/{run}/artifacts?per_page=100'
+              req=urllib.request.Request(url,headers={'Accept':'application/vnd.github+json','Authorization':'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(req,timeout=25) as response:
+                  data=json.load(response)
+              arts=[{
+                   'id':a['id'],'name':a['name'],'size_in_bytes':a['size_in_bytes'],
+                   'digest':a.get('digest'),'expired':a.get('expired'),
+                   'created_at':a.get('created_at'),'expires_at':a.get('expires_at')
+                  } for a in data.get('artifacts',[])]
+              assert len(arts)<=100
+              result.append({'ordinal':q['ordinal'],'analysis':q['analysis'],'run_id':int(run),
+                             'artifacts':arts,'metadata_only':True,'bytes_downloaded':False,
+                             'source_git_three_tab_csv':'NOT_VERSIONED_AT_SOURCE_REF',
+                             'durably_archived_with_approved_retention':False})
+          assert len(result)==23
+          assert len({r['ordinal'] for r in result})==23
+          status={
+            'schema':'FACAD_F06_1_WAVE6_ACTIONS_METADATA_RESCUE_V1',
+            'source_b65_git_blob':doc['sources']['b65_blob'],
+            'metadata_only_no_facad_native_execution':True,
+            'vendor_file_bytes_redistributed':False,
+            'globally_durable_archive_verified':False,
+            'vendor_rights_approved':False,
+            'D3':'OPEN_RED','F06_1':'OPEN',
+            'total_strict_git_triplet_gaps':23,
+            'run_artifact_metadata_found':sum(bool(r['artifacts']) for r in result),
+            'expired_artifact_count':sum(a['expired'] is True for r in result for a in r['artifacts']),
+            'rows':result}
+          out=Path('facad-f06-1-wave6-metadata-only')
+          out.mkdir(exist_ok=True)
+          (out/'23-archive-metadata.json').write_text(json.dumps(status,ensure_ascii=False,indent=2)+'\n')
+          print('FACAD_F06_1_MISSING_GIT_TRIPLETS='+str(len(result)))
+          print('FACAD_F06_1_ARTIFACT_RUN_METADATA_AVAILABLE='+str(status['run_artifact_metadata_found']))
+          print('FACAD_F06_1_EXPIRED_ARTIFACTS='+str(status['expired_artifact_count']))
+          print('FACAD_F06_1_ARCHIVE_RIGHTS_APPROVED=false')
+          print('FACAD_F06_1_DURABLE_COMPLETE=false')
+          PY
+      - name: Upload metadata only (never raw vendor screenshots or ZIPs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-f06-1-23-run-metadata-only
+          path: facad-f06-1-wave6-metadata-only/23-archive-metadata.json
+          if-no-files-found: warn
+          retention-days: 14
