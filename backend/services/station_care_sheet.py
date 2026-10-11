@@ -27,9 +27,20 @@ def _claim(document: models.DocumentArchive) -> str:
     return f"document_id={int(document.id)};patient_id={int(document.patient_id)};sha256={document.file_hash}"
 
 
-def record_trusted_finalization(db: Session, document: models.DocumentArchive, *, employer_id: int, practitioner_id: int) -> None:
-    """Only call from the canonical insurance finalize endpoint *after* DB-backed rerender."""
-    if document.uploaded_by_id != practitioner_id or not _SHA256_RE.fullmatch(str(document.file_hash or "")):
+def record_trusted_finalization(
+    db: Session,
+    document: models.DocumentArchive,
+    *,
+    employer_id: int,
+    practitioner_id: int,
+    expected_patient_id: int,
+) -> None:
+    """Accept only the archive identity produced for the validated request."""
+    if (
+        document.patient_id != expected_patient_id
+        or document.uploaded_by_id != practitioner_id
+        or not _SHA256_RE.fullmatch(str(document.file_hash or ""))
+    ):
         raise ValueError("CARE_SHEET_FINALIZATION_SOURCE_MISMATCH")
     db.add(models.AuditLog(
         employer_id=employer_id, user_id=practitioner_id,
