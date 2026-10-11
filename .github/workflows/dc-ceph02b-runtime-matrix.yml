@@ -1,0 +1,86 @@
+name: DC Cephalo 02B typed runtime coverage and PDF gate
+
+on:
+  push:
+    branches:
+      - research/dc-ceph02b-runtime-matrix-20261011
+    paths:
+      - .github/workflows/dc-ceph02b-runtime-matrix.yml
+      - backend/tests/test_dc_ceph02b_runtime_matrix.py
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-typed-runtime-matrix:
+    name: Source graph revision calibration runtime read and PDF
+    if: github.event_name == 'push' && github.ref == 'refs/heads/research/dc-ceph02b-runtime-matrix-20261011'
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      ENVIRONMENT: test
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm isolated exact HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/research/dc-ceph02b-runtime-matrix-20261011"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "DC_CEPH02B_EXACT_HEAD=$GITHUB_SHA"
+          echo "DC_CEPH02B_FACAD_EXECUTED=false"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install backend scientific test runtime, no model weights
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install pytest==9.0.3 SQLAlchemy==2.0.28 pydantic==2.6.3 pydantic-settings==2.2.1 fastapi==0.115.6 httpx==0.28.1 numpy==2.4.3 opencv-python-headless==4.13.0.92 onnxruntime==1.25.0 python-jose==3.5.0 python-dotenv==1.2.1 cryptography==49.0.0 pillow==12.2.0 requests==2.32.5 PyYAML==6.0.3 reportlab==4.4.10 email-validator==2.3.0 passlib==1.7.4 python-multipart==0.0.31 pytest-asyncio==1.3.0
+      - name: Run existing runtime, calibration and PDF regression plus 38-status matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q -s \
+            backend/tests/test_dc_ceph02b_runtime_matrix.py \
+            backend/tests/test_cephalo_runtime_chain.py \
+            backend/tests/test_cephalo_calibration_evidence.py \
+            backend/tests/test_cephalo_r17_pdf_projection.py \
+            | tee /tmp/dc-ceph02b-test.log
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          logs=Path("/tmp/dc-ceph02b-test.log").read_text(encoding="utf-8")
+          matches=[s.removeprefix("DC_CEPH02B_MATRIX_SAFE=") for s in logs.splitlines() if s.startswith("DC_CEPH02B_MATRIX_SAFE=")]
+          assert len(matches)==1, "Expected exactly one safe runtime matrix"
+          x=json.loads(matches[0])
+          assert x["schema"]=="DC_CEPH02B_RUNTIME_MATRIX_V1"
+          assert x["contract_measurements"]==38
+          assert len(x["revision_sequence"])==4
+          assert all(sum(x[period].values())==38 for period in ("uncalibrated","calibrated","post_correction"))
+          assert x["calibrated"]["AVAILABLE"] > x["uncalibrated"]["AVAILABLE"]
+          assert x["typed_runtime_read_valid"] is True
+          assert x["pdf_projection_invoked"] is True
+          assert x["pdf_document_clinically_complete"] is False
+          assert x["facad_numeric_parity_proved"] is False
+          assert x["clinical_activation_allowed"] is False
+          assert x["real_patient_data_used"] is False
+          assert "NOT_EXPOSED" in x["post_correction"]
+          Path("dc-ceph02b-safe-matrix.json").write_text(json.dumps(x, sort_keys=True, indent=2)+"\n",encoding="utf-8")
+          print("DC_CEPH02B_GATE=SYNTHETIC_RUNTIME_ONLY")
+          PY
+      - name: Upload non-identifying status matrix only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc-ceph02b-runtime-matrix-safe-aggregate
+          path: dc-ceph02b-safe-matrix.json
+          if-no-files-found: warn
+          retention-days: 7
