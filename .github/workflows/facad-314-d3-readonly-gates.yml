@@ -55,4 +55,27 @@ jobs:
           print('D3_SIX_BLOCKERS_PASS=SOURCE_ONLY_NO_GO')
           print('D3_REAL_VENDOR_WRITER_PROVEN=false')
           print('D3_SHARED_STORAGE_ISOLATION_VERIFIED=false')
+          # 6 blocker mutations + 3 unsafe-gate mutations MUST be rejected
+          # without executing vendor, writing a patient or reading sensitive traces.
+          def still_blocked(candidate):
+              b=candidate['blockers']
+              return (len(b)==6 and
+                      {v['id'] for v in b}=={'SEC-01','SEC-02','SEC-03','SCI-01','SCI-02','SCI-03'} and
+                      all(v['status']=='BLOCKER' for v in b) and
+                      all(v is False for v in candidate['gates'].values()))
+          assert still_blocked(x)
+          checks=0
+          for i in range(6):
+              altered=json.loads(json.dumps(x))
+              altered['blockers'][i]['status']='RESOLVED'
+              assert not still_blocked(altered),f'UNSAFE_BLOCKER_PROMOTION:{i}'
+              checks+=1
+          for name in ('vendor_test_authorized','live_writer_proven','storage_isolation_verified'):
+              altered=json.loads(json.dumps(x))
+              altered['gates'][name]=True
+              assert not still_blocked(altered),f'UNSAFE_GATE_PROMOTION:{name}'
+              checks+=1
+          assert checks==9
+          print('D3_NEGATIVE_MUTATION_BLOCKED=9')
+          print('D3_NO_LIVE_VENDOR_CAPTURE=true')
           PY
