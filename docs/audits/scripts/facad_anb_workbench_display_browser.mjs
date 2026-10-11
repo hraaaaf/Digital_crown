@@ -16,7 +16,7 @@ const OUTPUT=process.env.FACAD_ANB_BROWSER_OUTPUT||path.join(os.tmpdir(),'facad-
 const PROOF_FILE=process.env.FACAD_ANB_SYNTHETIC_FIXTURES_PATH;
 const ENTRY=path.join(FRONTEND,'src','facad-anb-research-fixture-entry.tsx');
 const HTML=path.join(FRONTEND,'facad-anb-research-fixture.html');
-const PORT=5278,URL='http://127.0.0.1:'+PORT+'/facad-anb-research-fixture.html';
+const PORT=5278,APP_URL='http://127.0.0.1:'+PORT+'/facad-anb-research-fixture.html';
 const VIEWPORTS=[{name:'mobile',width:390,height:844},{name:'desktop',width:1280,height:900}];
 if(!PROOF_FILE||!existsSync(PROOF_FILE))throw Error('Missing pinned Python oracle output');
 const proof=JSON.parse(await readFile(PROOF_FILE,'utf8'));
@@ -67,7 +67,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function waitVite(){
  for(let i=0;i<120;i++){
   if(server?.exitCode!==null&&server?.exitCode!==undefined)throw Error('Vite failed early');
-  try{if((await fetch(URL)).ok)return}catch{}
+  try{if((await fetch(APP_URL)).ok)return}catch{}
   await sleep(250);
  }
  throw Error('Vite did not start');
@@ -106,7 +106,7 @@ try{
    networkBlocked.push(u.origin);return route.abort('blockedbyclient');
   });
   try{
-   await page.goto(URL,{waitUntil:'domcontentloaded',timeout:45000});
+   await page.goto(APP_URL,{waitUntil:'domcontentloaded',timeout:45000});
    await page.locator('[data-r19-analysis-panel="all"]').waitFor({state:'visible'});
    for(const fixture of cases){
     await page.getByTestId('fixture-'+fixture.id).click();
