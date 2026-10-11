@@ -186,14 +186,54 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   await nav.getByText('Plus', { exact: true }).click();
   const moreMenu = page.locator('[data-mobile-more-menu]');
   await moreMenu.waitFor({ state: 'visible' });
-  await moreMenu.getByText('Salle d’attente', { exact: true }).waitFor({ state: 'visible' });
-  await moreMenu.getByText('Accueil', { exact: true }).waitFor({ state: 'visible' });
-  await moreMenu.getByText('Sécurité', { exact: true }).waitFor({ state: 'visible' });
+  // Inspect initial menu geometry before moving the scroll position: WebKit
+  // differs from Chromium when a focused overflow container opens in a portal.
+  const menuState = await page.evaluate(() => {
+    const menu = document.querySelector('[data-mobile-more-menu]');
+    const dialog = menu?.querySelector('[role="dialog"]');
+    const items = [...(menu?.querySelectorAll('[data-mobile-more-item]') ?? [])];
+    const rect = (element) => {
+      const b = element.getBoundingClientRect();
+      return { top: b.top, bottom: b.bottom, height: b.height };
+    };
+    return {
+      role: document.querySelector('[data-dc-pocket-today]')?.getAttribute('data-dc-pocket-role'),
+      dialog: dialog ? rect(dialog) : null,
+      items: items.map(item => ({
+        id: item.getAttribute('data-mobile-more-item'),
+        text: item.textContent?.trim(),
+        rect: rect(item),
+      })),
+    };
+  });
+  await fs.writeFile(path.join(outputDir, `menu-${role.slug}-${viewport.width}x${viewport.height}-${engine.name()}.json`),
+    JSON.stringify(menuState, null, 2));
+  await page.screenshot({ path: path.join(outputDir, `menu-before-scroll-${role.slug}-${viewport.width}x${viewport.height}-${engine.name()}.png`) });
+  // Plus contains an intentionally scrollable secondary-action list. A menu
+  // item can be in the DOM but outside the visible scrollport on WebKit.
+  // Exercise the user's actual scrollable menu, then assert rendered labels.
+  async function assertMoreItem(id, label) {
+    const item = moreMenu.locator(`[data-mobile-more-item="${id}"]`);
+    await item.waitFor({ state: 'attached', timeout: 15000 });
+    await item.scrollIntoViewIfNeeded({ timeout: 15000 });
+    await item.waitFor({ state: 'visible', timeout: 15000 });
+    await item.getByText(label, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+  }
+  await assertMoreItem('waiting-room', 'Salle d’attente');
+  await assertMoreItem('frontdesk', 'Accueil');
+  await assertMoreItem('securite', 'Sécurité');
+  await moreMenu.getByRole('button', { name: 'Assistant' }).scrollIntoViewIfNeeded();
   await moreMenu.getByRole('button', { name: 'Assistant' }).waitFor({ state: 'visible' });
+  const labelIds = new Map([
+    ['Notifications', 'notifications'], ['Stock', 'stock'], ['Bibliothèque', 'library'],
+    ['Approvisionnement', 'marketplace'], ['Trésorerie', 'finance'],
+    ['Envois Labo', 'lab'], ['Équipe', 'dentists'],
+  ]);
   const expectedLabels = role.value === 'DENTISTE' ? expectedDentistLabels : expectedSecretaryLabels;
   for (const label of expectedLabels) {
-    await moreMenu.getByText(label, { exact: true }).waitFor({ state: 'visible' });
+    await assertMoreItem(labelIds.get(label), label);
   }
+  await moreMenu.locator('[data-mobile-more-item="waiting-room"]').scrollIntoViewIfNeeded();
   if (role.value === 'SECRETAIRE' && await moreMenu.getByText('Bibliothèque', { exact: true }).count()) {
     throw new Error('SECRETAIRE: Bibliothèque must remain RBAC-hidden in Plus');
   }
