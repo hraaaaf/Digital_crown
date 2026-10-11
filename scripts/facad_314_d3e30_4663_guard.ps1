@@ -49,7 +49,7 @@ function Get-D3E30Security4663Batch {
     if($fields['ObjectName'].Length -gt 8192 -or $fields['ObjectName'].Contains([char]0)){
       throw 'D3E30_AUDIT_PATH_INVALID'
     }
-    [void]$records.Add([pscustomobject]@{
+    [void]$records.Add(@{
       ObjectType='File'
       ObjectName=$fields['ObjectName']
       ProcessId=$fields['ProcessId']
