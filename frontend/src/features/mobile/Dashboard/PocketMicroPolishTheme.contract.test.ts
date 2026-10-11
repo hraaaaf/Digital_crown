@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyMobileRuntimeTheme, textColorForHex } from './hooks/useMobileRuntimeTheme';
+import { accessiblePrimaryInk, applyMobileRuntimeTheme, textColorForHex } from './hooks/useMobileRuntimeTheme';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 const POCKET = 'src/features/mobile/Dashboard/';
@@ -53,10 +53,13 @@ describe('P1/P2 iOS micro-polish color inheritance', () => {
     }
     const palette = readSource('src/index.css');
     expect(palette).toContain('--color-on-primary: var(--text-on-primary)');
+    expect(palette).toContain('--color-primary-ink: var(--primary-ink)');
     expect(palette).toContain('--color-warning-surface: var(--status-warning-surface)');
     expect(palette).toContain("[data-theme='dark'], [data-theme='prestige']");
     const reducedMotion = readSource('src/features/mobile/mobileRuntimeTheme.css');
     expect(reducedMotion).toContain('prefers-reduced-motion: reduce');
+    expect(reducedMotion).toContain("[data-theme='emerald']");
+    expect(reducedMotion).toContain("[data-theme='dark']");
     expect(reducedMotion).toContain('[data-dc-mobile-shell]');
   });
 
@@ -72,6 +75,22 @@ describe('P1/P2 iOS micro-polish color inheritance', () => {
   ])('chooses WCAG contrast against primary %s, not YIQ guesses', (primary, foreground) => {
     expect(textColorForHex(primary)).toBe(foreground);
     expect(contrast(primary, foreground)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ['#003380', '#ffffff', '#f8fafc'],
+    ['#059669', '#fcfdfd', '#f0fdf4'],
+    ['#db2777', '#fffbfb', '#fff1f2'],
+    ['#3b82f6', '#1e293b', '#0f172a'],
+    ['#0284c7', '#ffffff', '#f0f9ff'],
+    ['#475569', '#ffffff', '#f1f5f9'],
+    ['#4f46e5', '#0f172a', '#020617'],
+    ['#000000', '#ffffff', '#ffffff'],
+  ])('derives a 4.5:1 small-label primary ink while retaining the brand fill %s', (primary, card, canvas) => {
+    const ink = accessiblePrimaryInk(primary, card, canvas);
+    expect(ink).toMatch(/^#[a-f0-9]{6}$/);
+    expect(contrast(ink as string, card)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(ink as string, canvas)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('inherits selected dark, rose and high-contrast themes without a component-owned preset', () => {
