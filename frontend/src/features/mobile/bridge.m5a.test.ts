@@ -15,7 +15,7 @@ describe('Digital Crown Pocket canonical routing', () => {
   });
 
   it('fails closed only for unknown dashboard modules', () => {
-    expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
-    expect(resolveDashboardTab('')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=unknown')).toBe('today');
+    expect(resolveDashboardTab('')).toBe('today');
   });
 });
