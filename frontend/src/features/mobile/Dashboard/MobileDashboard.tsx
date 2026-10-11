@@ -155,13 +155,13 @@ export const MobileDashboard = () => {
             {state.activeTab === 'frontdesk' && <FrontdeskView />}
             {state.activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} />}
             {state.activeTab === 'lab' && (practitionerModuleAllowed
-              ? <LabView labJobs={state.labJobs} handleWhatsAppSend={actions.handleWhatsAppSend} />
+              ? <LabView labJobs={state.labJobs} handleWhatsAppSend={actions.handleWhatsAppSend} isOnline={state.isOnline} />
               : <PocketRestrictedView label="Envois Labo" />)}
             {state.activeTab === 'finance' && (practitionerModuleAllowed
-              ? <FinanceView snapshot={state.snapshot} syncStatus={state.syncStatus} selectedDate={state.selectedDate} openWhatsApp={actions.openWhatsApp} handleExportPDF={actions.handleExportPDF} />
+              ? <FinanceView snapshot={state.snapshot} syncStatus={state.syncStatus} selectedDate={state.selectedDate} openWhatsApp={actions.openWhatsApp} handleExportPDF={actions.handleExportPDF} pocketSummaryOnly />
               : <PocketRestrictedView label="Trésorerie" />)}
             {state.activeTab === 'dentists' && <DentistsView embedded />}
-            {state.activeTab === 'stock' && <StockView />}
+            {state.activeTab === 'stock' && <StockView quickMode isOnline={state.isOnline} />}
             {state.activeTab === 'library' && <LibraryView role={state.snapshot?.role} />}
             {state.activeTab === 'marketplace' && (practitionerModuleAllowed
               ? <MarketplaceView />
