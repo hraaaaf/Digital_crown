@@ -220,6 +220,19 @@ async function captureStableScreenshot(page, options) {
   await page.screenshot({ ...options, animations: 'disabled' });
 }
 
+// Production bundle can load route chunks asynchronously after DOMContentLoaded.
+// A hard navigation that interrupts an in-flight WebKit import can emit
+// "Importing a module script failed" even when the previous route rendered.
+// Wait for a settled module/network lifecycle between independently certified
+// deep links; do NOT swallow page errors or retry a broken route.
+async function navigatePocketDeepLink(page, tab = null) {
+  const suffix = tab ? `?tab=${tab}` : '';
+  const response = await page.goto(`${baseUrl}/mobile/dashboard${suffix}`, {
+    waitUntil: 'networkidle', timeout: 30000,
+  });
+  if (!response?.ok()) throw new Error(`Pocket deep-link HTTP ${response?.status() ?? 'missing'}: ${tab || 'today'}`);
+}
+
 async function assertTouchTarget(locator, label) {
   const box = await locator.boundingBox();
   if (!box || box.width < 44 || box.height < 44) {
@@ -325,23 +338,23 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
   const screenshot = `runtime-${role.slug}-plus-${viewport.width}x${viewport.height}.png`;
   await captureStableScreenshot(page, { path: path.join(outputDir, screenshot) });
 
-  await page.goto(`${baseUrl}/mobile/dashboard?tab=frontdesk`, { waitUntil: 'domcontentloaded' });
+  await navigatePocketDeepLink(page, 'frontdesk');
   await page.getByText('Patient Web', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   if (await page.locator('[data-mobile-restricted]').count()) throw new Error('P1: Frontdesk rejected an authorized Pocket role');
   await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-frontdesk-${viewport.width}x${viewport.height}.png`) });
 
-  await page.goto(`${baseUrl}/mobile/dashboard?tab=securite`, { waitUntil: 'domcontentloaded' });
+  await navigatePocketDeepLink(page, 'securite');
   await page.getByText('Téléphone connecté', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-securite-${viewport.width}x${viewport.height}.png`) });
 
-  await page.goto(`${baseUrl}/mobile/dashboard?tab=stock`, { waitUntil: 'domcontentloaded' });
+  await navigatePocketDeepLink(page, 'stock');
   await page.locator('[data-mobile-stock]').waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText('Gants nitrile', { exact: true }).waitFor({ state: 'visible' });
   if (await page.locator('[data-dc-preview-demo]').count()) throw new Error('Preview rendered for Stock deep-link');
   const stockScreenshot = `runtime-${role.slug}-stock-${viewport.width}x${viewport.height}.png`;
   await captureStableScreenshot(page, { path: path.join(outputDir, stockScreenshot) });
 
-  await page.goto(`${baseUrl}/mobile/dashboard?tab=library`, { waitUntil: 'domcontentloaded' });
+  await navigatePocketDeepLink(page, 'library');
   await page.locator('[data-mobile-library]').waitFor({ state: 'visible', timeout: 30000 });
   if (role.value === 'DENTISTE') await page.getByText('Bibliothèque', { exact: true }).first().waitFor({ state: 'visible' });
   else await page.getByText('Accès réservé', { exact: true }).waitFor({ state: 'visible' });
@@ -355,7 +368,7 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
       ['marketplace', '[data-mobile-marketplace]'],
       ['bot', '[data-mobile-assistant]'],
     ]) {
-      await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
+      await navigatePocketDeepLink(page, tab);
       if (tab === 'lab') {
         // An empty LabView is a valid practitioner runtime state. Its root has zero
         // geometry when there are no jobs, so Playwright does not classify it as
@@ -371,13 +384,13 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
     }
   } else {
     for (const tab of ['finance', 'lab', 'marketplace']) {
-      await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
+      await navigatePocketDeepLink(page, tab);
       await page.locator('[data-mobile-restricted]').waitFor({ state: 'visible', timeout: 30000 });
       await page.getByText('Accès réservé', { exact: true }).waitFor({ state: 'visible' });
       await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
     }
     for (const [tab, marker] of [['dentists', '[data-mob5a-team]'], ['bot', '[data-mobile-assistant]']]) {
-      await page.goto(`${baseUrl}/mobile/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded' });
+      await navigatePocketDeepLink(page, tab);
       await page.locator(marker).waitFor({ state: 'visible', timeout: 30000 });
       await captureStableScreenshot(page, { path: path.join(outputDir, `runtime-${role.slug}-${tab}-${viewport.width}x${viewport.height}.png`) });
     }
@@ -416,7 +429,7 @@ try {
       try {
         const routes = await installRoutes(page, role.value);
         await seedPocketSession(page);
-        await page.goto(`${baseUrl}/mobile/dashboard`, { waitUntil: 'domcontentloaded' });
+        await navigatePocketDeepLink(page);
         const certified = await assertRuntime(page, role, viewport, runtimeErrors);
         if (routes.passkeyStatusHits < 1) throw new Error('Pocket passkey/status fixture not observed: certification cannot assert paired UI');
         evidence.push({ ...certified, passkeyStatusHits: routes.passkeyStatusHits, serviceWorkers: 'blocked-for-route-fixtures' });
@@ -435,7 +448,7 @@ try {
     const page = await context.newPage();
     const routes = await installRoutes(page, 'DENTISTE', theme);
     await seedPocketSession(page);
-    await page.goto(`${baseUrl}/mobile/dashboard`, { waitUntil: 'domcontentloaded' });
+    await navigatePocketDeepLink(page);
     await page.locator('[data-dc-pocket-today]').waitFor({ state: 'visible', timeout: 30000 });
     await page.waitForFunction(({ id, primary }) => {
       const computed = getComputedStyle(document.documentElement);
@@ -486,10 +499,10 @@ try {
     await page.locator('[data-mobile-bottom-nav]').getByText('Plus', { exact: true }).click();
     await page.locator('[data-mobile-more-menu]').waitFor({ state: 'visible' });
     await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-plus-430x932.png`) });
-    await page.goto(`${baseUrl}/mobile/dashboard?tab=stock`, { waitUntil: 'domcontentloaded' });
+    await navigatePocketDeepLink(page, 'stock');
     await page.getByText('Gants nitrile', { exact: true }).waitFor({ state: 'visible' });
     await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-stock-430x932.png`) });
-    await page.goto(`${baseUrl}/mobile/dashboard?tab=securite`, { waitUntil: 'domcontentloaded' });
+    await navigatePocketDeepLink(page, 'securite');
     await page.getByText('Téléphone connecté', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
     await captureStableScreenshot(page, { path: path.join(outputDir, `theme-${theme.id}-securite-430x932.png`) });
     if (routes.passkeyStatusHits < 1) throw new Error(`Pocket ${theme.id}: passkey/status fixture not observed`);
