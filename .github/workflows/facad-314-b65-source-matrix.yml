@@ -10,6 +10,7 @@ on:
       - docs/audits/facad_trial_20261011/B_STEINER_TWEED_SOURCE_ARTIFACT_RECOVERY_20261011.json
       - docs/audits/facad_trial_20261011/B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json
       - docs/audits/facad_trial_20261011/B_WAVE4_OFFICIAL_REFERENCE_OPERATOR_TYPES.json
+      - docs/audits/facad_trial_20261011/FACAD_F06_2_CANONICAL_EXCEPTION_REGISTER_20261011.json
   workflow_dispatch:
 
 permissions:
@@ -202,4 +203,104 @@ jobs:
           print('B_WAVE4_NEGATIVE_CLINICAL_PROMOTIONS_REJECTED=10')
           print('B_WAVE4_C01_C02_FORMULAS_CERTIFIED=false')
           print('B_WAVE4_VENDOR_NUMERIC_PARITY_TESTED=false')
+          PY
+
+      - name: Enforce F06.2 exceptions register traceability and ten negative mutations
+        shell: bash
+        run: |
+          python - <<'PY'
+          import copy,json,subprocess
+          from pathlib import Path
+          base=Path('research/docs/audits/facad_trial_20261011')
+          reg=json.loads((base/'FACAD_F06_2_CANONICAL_EXCEPTION_REGISTER_20261011.json').read_text(encoding='utf-8'))
+          src=json.loads((base/'B_65_PROFILE_SOURCE_GATES_20261011.json').read_text(encoding='utf-8'))
+          science=json.loads((base/'B_C01_C02_WAVE3_SOURCE_ADJUDICATION.json').read_text(encoding='utf-8'))
+          assert reg['schema']=='FACAD_F06_2_CANONICAL_EXCEPTIONS_AND_GAPS_V1'
+          assert reg['notion']['page_id']=='3ec77c66-3362-811d-b11e-c59dbd9eb7d3'
+          assert reg['notion']['snapshot_before']=={'total':39,'already_checked':19,'open':20}
+          assert reg['notion']['candidate_to_close']=='F06.2'
+          gates=reg['canonical_facad_gates_before']
+          assert len(gates)==39 and len({g['id'] for g in gates})==39
+          assert sum(g['canonical_state']=='ALREADY_CHECKED' for g in gates)==19
+          assert sum(g['canonical_state']=='OPEN' for g in gates)==20
+          assert next(g for g in gates if g['id']=='F06.2')['canonical_state']=='OPEN'
+          assert all(g['source']=='NOTION_FACAD_PRIMARY_CHECKBOX' for g in gates)
+          assert 'Registre' in next(g for g in gates if g['id']=='F06.2')['title']
+          p=reg['git_source_profile_exceptions']
+          expected=[x for x in src['items'] if x['git_uia_triplets']=='0_OF_3_IN_THIS_REF']
+          assert len(p)==23 and len(expected)==23
+          assert src['verification']['git_uiatriplets_complete']==42
+          assert [(x['ordinal'],x['analysis_name'],str(x['source_run_id'])) for x in p]==[
+             (x['ordinal'],x['analysis'],str(x['source_run_id'])) for x in expected]
+          assert all(x['does_not_mean_vendor_analysis_absent'] is True for x in p)
+          assert reg['evidence_sources']['b65_blob_sha']=='54cf83e2f76fb08b8d887ac73f138bfd003ec189'
+          assert reg['evidence_sources']['science_c01_c02_blob_sha']=='d766e19a39f29f12d06740fd570035412bae863e'
+          assert reg['evidence_sources']['d3_blob_sha']=='72f5e1a97a42ec95b8f547b73f194829f74b07af'
+          assert reg['evidence_sources']['fac05_synthetic_tests_ran']==56
+          assert reg['evidence_sources']['fac05_vendor_same_case_numeric_parity']=='NOT_TESTED'
+          assert reg['evidence_sources']['git_triplets_not_versioned_here']==23
+          assert len(reg['case_specific_exceptions'])>=10
+          assert len({e['id'] for e in reg['case_specific_exceptions']})==len(reg['case_specific_exceptions'])
+          assert any(e['id']=='RUN_STEINER_PARTIAL' for e in reg['case_specific_exceptions'])
+          assert any(e['id']=='RUN_HARVOLD_EMPTY_LINES' for e in reg['case_specific_exceptions'])
+          assert any(e['id']=='D3_VENDOR_PERMISSION_NOT_PRODUCED' for e in reg['case_specific_exceptions'])
+          assert len(reg['d3_open_blockers'])==6
+          assert {q['blocker_id'] for q in reg['d3_open_blockers']}=={
+                 'SEC-01','SEC-02','SEC-03','SCI-01','SCI-02','SCI-03'}
+          assert all(x['proof_status']=='NOT_OBSERVED' and x['controls_passed'] is False and
+                     x['independent_reviewer_id'] is None for x in reg['d3_open_blockers'])
+          assert len(reg['d3_cross_cutting_fail_closed'])==5
+          assert all(x['ready'] is False for x in reg['d3_cross_cutting_fail_closed'])
+          assert len(reg['operator_unknowns'])==len(science['operators'])==10
+          for a,b in zip(reg['operator_unknowns'],science['operators']):
+              assert a['operator']==b['operator']
+              assert a['formula_state']=='UNKNOWN'
+              assert a['numeric_vendor_parity']=='NOT_TESTED'
+          c=reg['closure_policy']
+          assert c=={
+              'candidate_gate':'F06.2',
+              'would_close_only':'Documentation of already-known exceptions and missing evidence; does not repair them',
+              'other_open_gates_not_reclassified':True,
+              'no_proprietary_formula_certified':True,
+              'no_patient_data_or_nonclinical_vendor_installer_launched':True,
+              'facad_clinical_gate':'OPEN',
+              'd3_gate':'D3_OPEN_RED',
+              'facad_same_trace_vendor_numeric_parity':'NOT_TESTED',
+              'two_human_independent_reviewers_observed':0,
+              'converged':False,
+              'no_merge_or_deploy':True
+          }
+          def valid(x):
+              gates=x['canonical_facad_gates_before']
+              return (
+                sum(g['canonical_state']=='ALREADY_CHECKED' for g in gates)==19 and
+                next(g for g in gates if g['id']=='F06.2')['canonical_state']=='OPEN' and
+                len(x['git_source_profile_exceptions'])==23 and
+                len(x['d3_open_blockers'])==6 and
+                all(b['proof_status']=='NOT_OBSERVED' for b in x['d3_open_blockers']) and
+                x['closure_policy']['d3_gate']=='D3_OPEN_RED' and
+                x['closure_policy']['facad_same_trace_vendor_numeric_parity']=='NOT_TESTED' and
+                not x['closure_policy']['converged'])
+          assert valid(reg)
+          mutations=[]
+          for field,value in [
+              ('d3_gate','CLOSED'),('facad_same_trace_vendor_numeric_parity','VERIFIED'),
+              ('converged',True),('other_open_gates_not_reclassified',False)]:
+              z=copy.deepcopy(reg);z['closure_policy'][field]=value
+              mutations.append(z)
+          for idx in range(6):
+              z=copy.deepcopy(reg);z['d3_open_blockers'][idx]['proof_status']='VERIFIED'
+              mutations.append(z)
+          z=copy.deepcopy(reg)
+          next(g for g in z['canonical_facad_gates_before'] if g['id']=='F06.2')['canonical_state']='ALREADY_CHECKED'
+          mutations.append(z)
+          z=copy.deepcopy(reg);z['git_source_profile_exceptions'].pop()
+          mutations.append(z)
+          assert len(mutations)==12
+          assert all(not valid(z) for z in mutations)
+          print('F06_2_REGISTRY_GATES=39_CANONICAL_19_CLOSED_20_OPEN')
+          print('F06_2_GIT_MISSING_UIA_TRIPLETS=23_OF_65')
+          print('F06_2_D3_OPEN_BLOCKERS=6_AND_CASE_EXCEPTIONS='+str(len(reg['case_specific_exceptions'])))
+          print('F06_2_MUTATIONS_REJECTED=12')
+          print('F06_2_REGISTER_DOCUMENTED_ONLY_NO_CLINICAL_CERTIFICATION=true')
           PY
