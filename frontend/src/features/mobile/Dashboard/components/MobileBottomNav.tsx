@@ -111,8 +111,8 @@ export function MobileBottomNav({
         <div className="fixed inset-0 z-[60]" data-mobile-more-menu>
           <button
             type="button"
-            className="absolute inset-0 backdrop-blur-[2px]"
-            style={{ backgroundColor: 'color-mix(in srgb, var(--text-main) 23%, transparent)' }}
+            className="absolute inset-0 backdrop-blur-[3px]"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--text-main) 48%, transparent)' }}
             aria-label="Fermer le menu Plus"
             onClick={() => setMoreOpen(false)}
           />
@@ -122,13 +122,13 @@ export function MobileBottomNav({
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-more-title"
-            className="absolute left-3 right-3 bottom-[calc(96px+env(safe-area-inset-bottom))] mx-auto max-w-[720px] rounded-[24px] border border-glass-border bg-card p-4 shadow-elite"
-            style={{ backgroundColor: 'var(--glass-bg)', fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)' }}
+            className="absolute left-3 right-3 bottom-[calc(96px+env(safe-area-inset-bottom))] mx-auto max-w-[720px] rounded-[26px] border border-border-main bg-card p-4 shadow-elite"
+            style={{ backgroundColor: 'var(--card-bg)', fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)' }}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 id="mobile-more-title" className="text-[18px] font-bold text-text-main">Plus</h2>
-                <p className="mt-0.5 text-[11px] font-medium text-text-muted">Accès secondaires</p>
+                <h2 id="mobile-more-title" className="text-[20px] font-bold text-text-main">Plus</h2>
+                <p className="mt-0.5 text-[12px] font-medium text-text-muted">Accès secondaires</p>
               </div>
               <button
                 type="button"
@@ -140,9 +140,9 @@ export function MobileBottomNav({
               </button>
             </div>
 
-            <div className="grid gap-1.5 max-h-[min(54dvh,470px)] overflow-y-auto overscroll-contain pr-0.5">
+            <div className="grid gap-2 max-h-[min(62dvh,560px)] overflow-y-auto overscroll-contain pr-0.5">
               {secondaryTabs.some(tab => tab.id === 'waiting-room') && (
-                <p className="px-2 text-[10px] font-black uppercase tracking-wider text-primary">Accueil &amp; attente</p>
+                <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">Accueil &amp; attente</p>
               )}
               {secondaryTabs.map(({ id, icon: Icon, label, badge }) => (
                 <button
@@ -151,12 +151,12 @@ export function MobileBottomNav({
                   data-mobile-more-item={id}
                   aria-label={id === 'bot' ? 'Assistant' : label}
                   onClick={() => selectTab(id)}
-                  className={cn('flex min-h-12 items-center gap-3 rounded-[14px] border border-glass-border bg-background px-4 text-left text-text-main active:scale-[0.99]', id === 'waiting-room' || id === 'frontdesk' ? 'border-primary/25 bg-primary/5' : '')}
+                  className={cn('flex min-h-[54px] items-center gap-3 rounded-[16px] border border-border-main bg-background px-3.5 text-left text-text-main transition-colors active:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50', id === 'waiting-room' || id === 'frontdesk' ? 'border-primary/25 bg-primary/5' : '')}
                 >
-                  <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-[12px] bg-primary/10 text-primary">
-                    <Icon size={18} />
+                  <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-primary/10 text-primary">
+                    <Icon size={19} />
                   </span>
-                  <span className="flex-1 text-[12px] font-semibold">{label}</span>
+                  <span className="flex-1 text-[14px] font-semibold leading-snug">{label}</span>
                   {badge != null && (
                     <span data-mob5i-waiting-badge className="grid min-h-7 min-w-7 place-items-center rounded-full bg-warning-surface border border-warning-border px-2 text-[11px] font-bold text-warning">
                       {badge}
@@ -177,9 +177,9 @@ export function MobileBottomNav({
       <nav
         data-mobile-bottom-nav
         aria-label="Navigation mobile principale"
-        className="fixed left-3 right-3 mx-auto h-[76px] max-w-[720px] rounded-[28px] border backdrop-blur-xl shadow-elite z-[65]"
+        className="fixed left-3 right-3 mx-auto h-[76px] max-w-[720px] rounded-[28px] border shadow-elite z-[65]"
         style={{
-          backgroundColor: 'var(--glass-bg)',
+          backgroundColor: 'var(--card-bg)',
           borderColor: 'var(--glass-border)',
           bottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
@@ -190,7 +190,7 @@ export function MobileBottomNav({
             aria-current={activeTab === 'today' ? 'page' : undefined}
             onClick={() => selectTab('today')}
             className={cn(
-              'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               activeTab === 'today' ? 'text-primary' : 'text-text-muted'
             )}
           >
@@ -206,7 +206,7 @@ export function MobileBottomNav({
             aria-current={activeTab === 'agenda' ? 'page' : undefined}
             onClick={() => selectTab('agenda')}
             className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               activeTab === 'agenda' ? 'text-primary' : 'text-text-muted'
             )}
           >
@@ -235,7 +235,7 @@ export function MobileBottomNav({
             aria-current={activeTab === 'patients' ? 'page' : undefined}
             onClick={() => selectTab('patients')}
             className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               activeTab === 'patients' ? 'text-primary' : 'text-text-muted'
             )}
           >
@@ -253,7 +253,7 @@ export function MobileBottomNav({
               setMoreOpen(value => !value);
             }}
             className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               isMoreActive || moreOpen ? 'text-primary' : 'text-text-muted'
             )}
           >
