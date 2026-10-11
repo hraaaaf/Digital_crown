@@ -1,0 +1,86 @@
+name: FACAD D3E29 synthetic fail-closed Windows counters
+
+on:
+  push:
+    branches:
+      - research/facad-d3e29-failclosed-counters-20261011
+    paths:
+      - .github/workflows/facad-d3e29-synthetic-counter-failclosed.yml
+      - scripts/facad_314_d3e29_synthetic_counter_failure.ps1
+      - scripts/facad_314_d3e28_synthetic_process_race.ps1
+      - scripts/facad_314_d3_process_io_observer.ps1
+
+permissions:
+  contents: read
+
+jobs:
+  failclosed-counter-synthetic:
+    name: Windows synthetic API failures and no vendor
+    if: github.event_name == 'push' && github.ref == 'refs/heads/research/facad-d3e29-failclosed-counters-20261011'
+    runs-on: windows-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify branch, source, and vendor-free scope
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REF -cne 'refs/heads/research/facad-d3e29-failclosed-counters-20261011' -or
+             (git rev-parse HEAD) -cne $env:GITHUB_SHA){throw 'D3E29_SCOPE_OR_EXACT_HEAD_INVALID'}
+          foreach($path in @('scripts/facad_314_d3_process_io_observer.ps1','scripts/facad_314_d3e29_synthetic_counter_failure.ps1','scripts/facad_314_d3e28_synthetic_process_race.ps1')){
+            if(-not (Test-Path -LiteralPath $path -PathType Leaf)){throw 'D3E29_SOURCE_MISSING'}
+          }
+          Write-Host 'D3E29_REAL_VENDOR_EXECUTION=FORBIDDEN'
+          Write-Host ('D3E29_EXACT_HEAD='+$env:GITHUB_SHA)
+      - name: Inject synthetic late counter failures without vendor
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e29_synthetic_counter_failure.ps1
+          if(-not $?){throw 'D3E29_COUNTER_CASES_FAILED'}
+      - name: Rerun previous root/child Windows integration suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & scripts/facad_314_d3e28_synthetic_process_race.ps1
+          if(-not $?){throw 'D3E29_REGRESSION_SUITE_FAILED'}
+      - name: Verify final redacted artifact and no false clinical certification
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $path='d3e29-safe-counter-failclosed.json'
+          $old='d3e28-synthetic-safe-summary.json'
+          if(-not (Test-Path -LiteralPath $path) -or -not (Test-Path -LiteralPath $old)){
+            throw 'D3E29_MISSING_SAFE_EVIDENCE'
+          }
+          $x=Get-Content -LiteralPath $path -Raw|ConvertFrom-Json
+          $y=Get-Content -LiteralPath $old -Raw|ConvertFrom-Json
+          if($x.schema -cne 'facad_d3e29_synthetic_counter_failclosed_v1' -or
+             $x.executed_synthetic_cases -ne 8 -or $x.positive_counter_cases -ne 2 -or
+             $x.counter_failures_rejected -ne 4 -or
+             $x.native_exception_details_redacted -cne $true -or
+             $x.late_root_and_child_counter_fail_closed -cne $true -or
+             $x.root_absent_rejected -cne $true -or
+             $x.child_absent_allowed_only_at_lookup -cne $true -or
+             $x.facad_executed -cne $false -or $x.security_4663_queried -cne $false -or
+             $x.audit_4663_certified -cne $false -or
+             $x.shared_app_storage_isolation_verified -cne $false -or
+             $x.clinical_edit_allowed -cne $false -or
+             $x.verdict -cne 'COUNTERS_SYNTHETIC_ONLY_D3_OPEN_RED' -or
+             $y.exited_synthetic_child_counter_skipped -cne $true -or
+             $y.root_absent_fails_closed -cne $true -or
+             $y.healthy_root_sample_count -ne 6 -or
+             $y.facad_executable_used -cne $false){
+            throw 'D3E29_FAIL_CLOSED_AGGREGATE_INVALID'
+          }
+          Write-Host 'D3E29_GATE=SYNTHETIC_COUNTERS_PASS'
+          Write-Host 'D3E29_FAC03_D3=OPEN_RED'
+      - name: Upload only minimal non-identifying aggregate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facad-d3e29-synthetic-counter-safe-aggregate
+          path: d3e29-safe-counter-failclosed.json
+          retention-days: 7
+          if-no-files-found: warn
