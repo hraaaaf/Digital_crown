@@ -1,0 +1,210 @@
+name: FUE-G04 Windows isolated installer and frozen-runtime smoke
+
+# Experimental CI safety test. No production machine, real patients or default
+# cabinet profile is used. Never automatically activates a physical cabinet.
+on:
+  push:
+    branches:
+      - ci/fue-g04-windows-installable-chain-20261010
+    paths:
+      - 'docs/audits/FUE_G04_TRIGGER_WINDOWS_RUNTIME_SMOKE_20261011.txt'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  isolated-frozen-runtime:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MASTER_SHA: 9c41d327400b8c41d8541517603d84bf9fdf9c23
+      CODE_RUN: "38092782085"
+      WINDOWS_BUILD_RUN: "38095783298"
+      EXPECTED_INSTALLER_SHA256: 9a8e07644dde4b7eff153a84a53d4c7a81c9ea7731262e8aa1daa807f765e33d
+    steps:
+      - name: Pin canonical certified master and completed installer run
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:GITHUB_REPOSITORY -ne "hraaaaf/Digital_crown") { throw "Wrong repo" }
+          if ($env:GITHUB_REF -ne "refs/heads/ci/fue-g04-windows-installable-chain-20261010") { throw "Wrong branch" }
+          $actual = gh api repos/hraaaaf/Digital_crown/git/ref/heads/master --jq '.object.sha'
+          if ($LASTEXITCODE -ne 0 -or $actual.Trim() -ne $env:MASTER_SHA) { throw "Master changed, fail closed" }
+          foreach ($runId in @($env:CODE_RUN, $env:WINDOWS_BUILD_RUN)) {
+            $record = gh api "repos/hraaaaf/Digital_crown/actions/runs/$runId" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $record.status -ne "completed" -or $record.conclusion -ne "success") { throw "Missing successful upstream CI proof" }
+          }
+          $code = gh api "repos/hraaaaf/Digital_crown/actions/runs/$env:CODE_RUN" | ConvertFrom-Json
+          if ($code.head_sha -ne $env:MASTER_SHA) { throw "CODE source SHA mismatch" }
+          Write-Host "IMMUTABLE_UPSTREAM_CERTIFICATIONS=VERIFIED"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download pinned installer and inner SHA256 evidence
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38095783298
+          name: fue-g04-windows-installer-9c41d327
+          repository: hraaaaf/Digital_crown
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/signed-ci-installer
+
+      - name: Validate installer bytes before any execution
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = Join-Path $env:RUNNER_TEMP "signed-ci-installer"
+          $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe")
+          if ($files.Count -ne 1) { throw "Require exactly one certified installer EXE" }
+          $installer = $files[0]
+          $digest = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($digest -ne $env:EXPECTED_INSTALLER_SHA256) { throw "Installer EXE sha256 mismatch" }
+          $proof = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "INSTALLER_EVIDENCE.txt")
+          if ($proof.Count -ne 1) { throw "Missing installer evidence" }
+          $text = Get-Content -LiteralPath $proof[0].FullName -Raw
+          foreach ($expected in @(
+            "MASTER_SHA=$env:MASTER_SHA",
+            "CODE_RUN=$env:CODE_RUN",
+            "INSTALLER_SHA256=$digest",
+            "WINDOWS_RUNNER_ONLY=YES",
+            "ACTUAL_CABINET_INSTALL=NOT_EXECUTED"
+          )) {
+            if (-not $text.Contains($expected)) { throw "Installer evidence mismatch: $expected" }
+          }
+          Write-Host "ISOLATED_INSTALLER_INNER_SHA256=VERIFIED"
+
+      - name: Install only under disposable Windows runner temp and verify proof parity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = Join-Path $env:RUNNER_TEMP "FUEG04-ci-only"
+          $install = Join-Path $root "installed"
+          $original = Join-Path $env:RUNNER_TEMP "signed-ci-installer"
+          $exe = @(Get-ChildItem -LiteralPath $original -Recurse -File -Filter "DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe")
+          if ($exe.Count -ne 1) { throw "Missing pinned installer" }
+          if (Test-Path -LiteralPath $root) { throw "Smoke root must be fresh, never reuse" }
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $argument = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR="' + $install + '"'
+          $p = Start-Process -FilePath $exe[0].FullName -ArgumentList $argument -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "Disposable Inno Setup failed with exit $($p.ExitCode)" }
+          $application = Join-Path $install "DigitalCrown.exe"
+          if (-not (Test-Path -LiteralPath $application -PathType Leaf)) { throw "Installed Windows EXE missing" }
+          foreach ($name in @(
+            "release-certification.json", ".digitalcrown-release-sha",
+            "release-content.sha256", "installable-certification.json",
+            "runtime-assets-certification.json", "runtime-assets-content.sha256",
+            "github-attestation-verification.json"
+          )) {
+            $outer = Join-Path $install $name
+            $inner = Join-Path (Join-Path $install "_internal") $name
+            if (-not (Test-Path -LiteralPath $outer -PathType Leaf) -or -not (Test-Path -LiteralPath $inner -PathType Leaf)) { throw "Missing installed identity proof $name" }
+            if ((Get-FileHash -LiteralPath $outer -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $inner -Algorithm SHA256).Hash) { throw "Installed proof byte mismatch $name" }
+          }
+          $marker = (Get-Content -LiteralPath (Join-Path $install "_internal/.digitalcrown-release-sha") -Raw).Trim()
+          if ($marker -ne $env:MASTER_SHA) { throw "Installed build claims wrong certified SHA" }
+          Write-Host "DISPOSABLE_WINDOWS_INSTALL_AND_SEVEN_PROOFS=PASS"
+          Write-Host "REAL_CABINET_INSTALLATION=NOT_EXECUTED"
+
+      - name: Isolated frozen runtime loopback health and fail-closed profile gate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = Join-Path $env:RUNNER_TEMP "FUEG04-ci-only"
+          $exe = Join-Path $root "installed/DigitalCrown.exe"
+          $sandbox = Join-Path $root "isolated-frozen-smoke"
+          $data = Join-Path $sandbox "data"
+          $config = Join-Path $sandbox "config"
+          $logs = Join-Path $sandbox "logs"
+          $runtime = Join-Path $sandbox "runtime"
+          $media = Join-Path $data "media"
+          $profile = Join-Path $config "isolated.env"
+          foreach ($folder in @($data, $config, $logs, $runtime, $media)) {
+            New-Item -ItemType Directory -Force -Path $folder | Out-Null
+          }
+          # The only database is synthetic and runner-local, and its exact target
+          # identity is explicitly attested by the isolated-runtime gate.
+          $dbPath = (Join-Path $data "ci-only.db").Replace("\", "/")
+          $dbUrl = "sqlite:///$dbPath"
+          $env:DIGITALCROWN_SMOKE_DB_URL = $dbUrl
+          $fingerprint = @'
+          import hashlib
+          import os
+          from urllib.parse import urlsplit, urlunsplit, unquote
+          p = urlsplit(os.environ["DIGITALCROWN_SMOKE_DB_URL"])
+          print(hashlib.sha256(urlunsplit(("sqlite", "", unquote(p.path), "", "")).encode()).hexdigest())
+          '@ | python -
+          if ($LASTEXITCODE -ne 0 -or -not ($fingerprint -match "^[0-9a-f]{64}$")) { throw "Synthetic DB fingerprint generation failed" }
+          $port = @'
+          import socket
+          with socket.socket() as s:
+              s.bind(("127.0.0.1", 0))
+              print(s.getsockname()[1])
+          '@ | python -
+          if ($LASTEXITCODE -ne 0 -or -not ($port -match "^[0-9]{4,5}$")) { throw "No disposable loopback port" }
+          $secret = [Convert]::ToHexString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+          $envLines = @(
+            "ENVIRONMENT=development", "DEBUG=false", "TELEMETRY_ENABLED=false",
+            "SECRET_KEY=$secret",
+            "DATABASE_URL=$dbUrl", "MEDIA_ROOT=$($media.Replace('\','/'))",
+            "CABINET_HOST=127.0.0.1", "CABINET_PORT=$port",
+            "DIGITALCROWN_ENABLE_HTTPS=false",
+            "ALLOWED_ORIGINS=http://127.0.0.1:$port",
+            "DIGITALCROWN_ISOLATED_RUNTIME=true",
+            "DIGITALCROWN_ISOLATION_DB_FINGERPRINT=$fingerprint",
+            "DIGITALCROWN_RESTORE_RESTART=1",
+            "DIGITALCROWN_USER_DATA_DIR=$($data.Replace('\','/'))",
+            "DIGITALCROWN_CONFIG_DIR=$($config.Replace('\','/'))",
+            "DIGITALCROWN_RUNTIME_DIR=$($runtime.Replace('\','/'))",
+            "DIGITALCROWN_LOG_DIR=$($logs.Replace('\','/'))",
+            "DIGITALCROWN_ENV_FILE=$($profile.Replace('\','/'))"
+          )
+          [IO.File]::WriteAllLines($profile, $envLines, [Text.UTF8Encoding]::new($false))
+          $info = [Diagnostics.ProcessStartInfo]::new($exe)
+          $info.UseShellExecute = $false
+          $info.CreateNoWindow = $true
+          $info.Arguments = '--cabinet-env-file "' + $profile + '"'
+          $info.Environment["DIGITALCROWN_ENV_FILE"] = $profile
+          $info.Environment["DIGITALCROWN_ISOLATED_RUNTIME"] = "true"
+          $info.Environment["DIGITALCROWN_ISOLATION_DB_FINGERPRINT"] = "$fingerprint"
+          $info.Environment["DIGITALCROWN_USER_DATA_DIR"] = $data
+          $info.Environment["DIGITALCROWN_CONFIG_DIR"] = $config
+          $info.Environment["DIGITALCROWN_RUNTIME_DIR"] = $runtime
+          $info.Environment["DIGITALCROWN_LOG_DIR"] = $logs
+          $info.Environment["DIGITALCROWN_RESTORE_RESTART"] = "1"
+          $info.Environment["APPDATA"] = (Join-Path $sandbox "appdata")
+          $info.Environment["SENTRY_DSN"] = ""
+          $info.Environment["PATIENT_COMPANION_RELAY_URL"] = ""
+          $proc = [Diagnostics.Process]::new()
+          $proc.StartInfo = $info
+          $healthy = $false
+          try {
+            if (-not $proc.Start()) { throw "Frozen DigitalCrown.exe did not start" }
+            $deadline = [DateTime]::UtcNow.AddSeconds(100)
+            while ([DateTime]::UtcNow -lt $deadline) {
+              if ($proc.HasExited) { throw "Frozen EXE exited before healthy loopback startup (exit $($proc.ExitCode))" }
+              try {
+                $health = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:$port/health" -TimeoutSec 3 -ErrorAction Stop
+                if ($health.status -eq "ok" -and $health.db -eq "ok") {
+                  $healthy = $true
+                  Write-Host "FROZEN_ISOLATED_LOOPBACK_HEALTH=PASS"
+                  break
+                }
+              } catch { }
+              Start-Sleep -Seconds 2
+            }
+            if (-not $healthy) { throw "Frozen EXE did not report healthy isolated database/loopback in 100s" }
+          } finally {
+            if ($proc -and -not $proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              $proc.WaitForExit(10000) | Out-Null
+            }
+          }
+          if (-not $healthy) { throw "Isolated frozen runtime health refused" }
+          if (-not (Test-Path -LiteralPath (Join-Path $data "ci-only.db") -PathType Leaf)) {
+            throw "Synthetic database not created in explicitly isolated runner-only directory"
+          }
+          Write-Host "PHYSICAL_ACTIVATION=NOT_EXECUTED"
