@@ -35,14 +35,15 @@ class WindowsNativePdfBundleTest(unittest.TestCase):
 
     def test_unapproved_source_is_always_rejected(self):
         self.assertIsNone(contract.RELEASE_APPROVED_PROVENANCE_SHA256)
-        with mock.patch.object(contract.os, "name", "nt"):
-            with mock.patch.dict(os.environ, {
-                "DIGITALCROWN_WINDOWS_PDF_MSYS2_ROOT": "C:/untrusted",
-                "DIGITALCROWN_WINDOWS_PDF_PROVENANCE": "C:/untrusted/provenance.json",
-                "DIGITALCROWN_WINDOWS_NATIVE_APPROVED": "1",
-            }):
-                with self.assertRaisesRegex(contract.WindowsNativePdfError, "not release-approved"):
-                    contract.verified_windows_pdf_spec_assets()
+        with mock.patch.dict(os.environ, {
+            "DIGITALCROWN_WINDOWS_PDF_MSYS2_ROOT": "C:/untrusted",
+            "DIGITALCROWN_WINDOWS_PDF_PROVENANCE": "C:/untrusted/provenance.json",
+            "DIGITALCROWN_WINDOWS_NATIVE_APPROVED": "1",
+        }):
+            with self.assertRaisesRegex(contract.WindowsNativePdfError, "not release-approved"):
+                contract.verify_windows_pdf_sources(
+                    ROOT, ROOT / "untrusted-provenance.json", lab_only=False
+                )
 
     def test_lab_manifest_must_match_exact_sha_before_parsing(self):
         with tempfile.TemporaryDirectory() as tmp:
