@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/facad-f06-1-wave5-archive-coverage.yml
       - docs/audits/facad_trial_20261011/FACAD_F06_1_WAVE5_ARCHIVE_COVERAGE.json
+      - docs/audits/facad_trial_20261011/FACAD_F06_1_WAVE7_METADATA_PASSAGE.md
   workflow_dispatch:
 permissions:
   contents: read
@@ -68,4 +69,28 @@ jobs:
           print('F06_1_GIT_THREE_CSV_TRIPLETS=42_PRESENT_23_GAPS')
           print('F06_1_FALSE_ARCHIVE_CLOSURES_REJECTED=8')
           print('F06_1_NOT_CLOSED_NO_RETENTION_ATTESTATION=true')
+          PY
+
+      - name: Certify F06.1 metadata passage preserves NO GO
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('docs/audits/facad_trial_20261011/FACAD_F06_1_WAVE7_METADATA_PASSAGE.md').read_text()
+          for phrase in (
+              '23/23 lignes','23/23 artefacts référencés',
+              'b82cf6f2b1606e83d7b336eaded8a444ee67ed5724a78c189b7dbf7c14c13833',
+              '2027-01-06T23:07:39Z','2027-01-07T16:23:10Z',
+              'F06.1=OPEN','F00.4=OPEN','D3=OPEN_RED',
+              '21/39=53,8 %','41/99=41,4 %',
+              'Aucune case coché par ce passage',
+              'CONVERGED=false'):
+              assert phrase in p, phrase
+          forbidden=(
+              'F06.1=CLOSED','D3=CLOSED','CONVERGED=true',
+              'FACAD 22/39','GLOBAL 42/99')
+          assert all(s not in p for s in forbidden)
+          print('F06_1_23_RUN_METADATA_PASSAGE=PASS')
+          print('F06_1_DURABLE_VENDOR_COPY_VERIFIED=false')
+          print('F06_1_PERCENTAGE_UNCHANGED=21_OF_39')
           PY
