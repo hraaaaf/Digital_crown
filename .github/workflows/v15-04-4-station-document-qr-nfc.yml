@@ -132,7 +132,15 @@ jobs:
           cd /tmp/v15-04-4-base/frontend
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
+          ./node_modules/.bin/vite --host 127.0.0.1 --port 4197 >/tmp/v15-04-4-before-ui.log 2>&1 &
+          baseline_pid=$!
+          trap 'kill "$baseline_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:4197 >/dev/null; then ready=1; break; fi; sleep 1; done
+          if [[ "$ready" != 1 ]]; then cat /tmp/v15-04-4-before-ui.log; exit 1; fi
           EVIDENCE_PHASE=before EVALUATED_SHA="${EVALUATED_BASE}" node capture-04-4-baseline.mjs
+          test -f artifacts/v15-04-4-documents-identity-before/evidence.json
+          cp -r artifacts/v15-04-4-documents-identity-before "$GITHUB_WORKSPACE/frontend/artifacts/"
       - name: Declare evidence scope
         working-directory: frontend
         run: |
@@ -146,5 +154,6 @@ jobs:
           path: |
             frontend/artifacts/v15-03-3-patient-session-after
             frontend/artifacts/v15-04-4-documents-identity-after
+            frontend/artifacts/v15-04-4-documents-identity-before
           if-no-files-found: warn
           retention-days: 21
