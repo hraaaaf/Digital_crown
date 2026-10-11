@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/facad-anb-workspace-browser-research.yml
       - docs/audits/scripts/facad_anb_workspace_isolated_http_browser.mjs
+      - docs/audits/scripts/facad_anb_legacy_provenance_contract.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,7 +23,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Synthetic math inputs
-        run: python docs/audits/scripts/facad_anb_source_route_oracle.py --self-test --report "$FACAD_ANB_SYNTHETIC_FIXTURES_PATH"
+        run: |
+          python docs/audits/scripts/facad_anb_source_route_oracle.py --self-test --report "$FACAD_ANB_SYNTHETIC_FIXTURES_PATH"
+          python docs/audits/scripts/facad_anb_legacy_provenance_contract.py --self-test --report "$FACAD_ANB_BROWSER_OUTPUT/provenance.json"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
