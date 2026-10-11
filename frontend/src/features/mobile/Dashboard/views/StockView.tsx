@@ -187,7 +187,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
           value={search}
           onChange={event => setSearch(event.target.value)}
           placeholder="Rechercher un article…"
-          className="min-h-11 w-full rounded-[16px] border border-glass-border bg-card pl-10 pr-4 text-[12px] font-bold text-text-main outline-none focus:ring-2 focus:ring-primary/20"
+          className="min-h-11 w-full rounded-[16px] border border-glass-border bg-card pl-10 pr-4 text-[16px] font-medium text-text-main outline-none focus:ring-2 focus:ring-primary/20"
         />
       </div>
 
@@ -228,11 +228,11 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}>{meta.label}</span>
-                  <h2 className="mt-2 truncate text-[14px] font-semibold text-text-main">{item.nom}</h2>
-                  <p className="mt-1 text-[10px] font-bold text-text-muted">
+                  <h2 className="mt-2 truncate text-[16px] font-semibold text-text-main">{item.nom}</h2>
+                  <p className="mt-1 text-[12px] font-medium text-text-muted">
                     {CATEGORY_LABELS[item.categorie] ?? item.categorie} · seuil {item.seuil_alerte} {item.unite}
                   </p>
-                  {item.fournisseur && <p className="mt-1 truncate text-[10px] font-bold text-text-muted">{item.fournisseur}</p>}
+                  {item.fournisseur && <p className="mt-1 truncate text-[12px] font-medium text-text-muted">{item.fournisseur}</p>}
                 </div>
                 {item.alerte && <AlertTriangle size={18} className={item.quantite <= 0 ? 'text-danger' : 'text-warning'} />}
               </div>
@@ -248,7 +248,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
                   <Minus size={17} />
                 </button>
                 <div className="text-center">
-                  <p className="text-[22px] font-black text-text-main">{item.quantite}</p>
+                  <p className="text-[24px] font-bold text-text-main">{item.quantite}</p>
                   <p className="text-[11px] font-black uppercase tracking-wider text-text-muted">{item.unite}</p>
                 </div>
                 <button
