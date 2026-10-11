@@ -51,3 +51,10 @@ Negative assertions cover degenerate/missing/nonfinite landmarks, coordinate sca
 - Review by **real independent qualified orthodontic clinician** and code safety specialist, two converged clean reviews on exact scientific HEAD, not ChatGPT-only perspectives.
 - **No change to the 39/99 (39.4%) roadmap score**, no clinical gate promotion, no merge, no Vercel deployment.
 
+
+## 6. Exact HEAD CI result and replay evidence (verified, NOT FACAD validation)
+
+- **Scientific harness** : [ANB source-route run #38104089716](https://github.com/hraaaaf/Digital_crown/actions/runs/38104089716) **COMPLETED/SUCCESS** on the exact source HEAD `5d56f3e3949880d01a5b293b4903e37af7f7e3bd`; [job #114365796968](https://github.com/hraaaaf/Digital_crown/actions/runs/38104089716/job/114365796968) log explicitly says **`Ran 9 tests in 0.061s / OK`**, `SOURCE_ROUTE_PINS_VERIFIED=6`, `RESEARCH_SYNTHETIC_CASES=4`, `ANB_VENDOR_PARITY_NOT_CERTIFIED=true`. All job steps completed successfully.
+- **Artifact verified independently after download :** artifact **11689062603**, ZIP SHA256 `2b0e33b098d81adda91db248992f2e6eee3430e72c11cd966311ea74e0ed9a9d`; the only file is `facad-anb-source-route-metadata.json` SHA256 `d8df0f2855db148306afaab35ba40acdaba349c11ddf2d517d61177f3156fe62`. A separate JSON parser replay verified six Git blob pins, eight route assertions, four expected fixture triples with zero vendor outputs, `fac03_d3=OPEN_RED`, `fac05=NOT_TESTED`, `f01_13=OPEN`, and no clinical edit.
+- **CI classification:** this one ANB workflow is **EXPERIMENTAL scientific research**, not a required clinical/merge gate; independent source-route tests and declared synthetic geometry pass, **FACAD proprietary `Angle3p` numeric semantics remain untested**. Even green GitHub workflow must not be interpreted as safety-isolated FACAD execution or independent orthodontic approval.
+- All verification above is tied to the **source test HEAD `5d56f3e...`**, with unchanged harness and runtime source pins on the documentation-only subsequent commit. PR current/latest SHA should be independently checked before any merge or release decision.
