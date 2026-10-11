@@ -25,6 +25,9 @@ const COPY = {
     checking: 'Vérification…', confirm: 'Confirmer mon identité',
     privacy: 'Les informations servent uniquement à cette vérification et ne sont pas affichées dans la file d’attente.',
     expired: 'Session expirée', newQr: 'Nouveau QR', retry: 'Réessayer',
+    documentsVerified: 'Identité confirmée',
+    documentsConstruction: 'Le retrait des documents est en cours de construction sur cette station.',
+    documentsStaff: 'Pour retirer un document aujourd’hui, adressez-vous à l’accueil.',
   },
   en: {
     tooMany: 'Too many attempts. Generate a new session or ask for help.',
@@ -44,6 +47,9 @@ const COPY = {
     checking: 'Checking…', confirm: 'Confirm my identity',
     privacy: 'This information is used only for this verification and is not displayed in the waiting queue.',
     expired: 'Session expired', newQr: 'New QR code', retry: 'Try again',
+    documentsVerified: 'Identity confirmed',
+    documentsConstruction: 'Document collection is under construction at this station.',
+    documentsStaff: 'To collect a document today, please contact reception.',
   },
   ar: {
     tooMany: 'محاولات كثيرة جداً. أنشئوا جلسة جديدة أو اطلبوا المساعدة.',
@@ -63,6 +69,9 @@ const COPY = {
     checking: 'جارٍ التحقق…', confirm: 'تأكيد هويتي',
     privacy: 'تُستخدم هذه المعلومات لهذا التحقق فقط ولا تظهر في قائمة الانتظار.',
     expired: 'انتهت صلاحية الجلسة', newQr: 'رمز QR جديد', retry: 'إعادة المحاولة',
+    documentsVerified: 'تم تأكيد الهوية',
+    documentsConstruction: 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.',
+    documentsStaff: 'لاستلام وثيقة اليوم، يرجى مراجعة موظفي الاستقبال.',
   },
 } as const;
 
@@ -92,10 +101,12 @@ export const StationPatientIdentity = ({
   onBack,
   backLabel,
   language = 'fr',
+  purpose = 'appointment',
 }: {
   onBack: () => void;
   backLabel: string;
   language?: StationFlowLanguage;
+  purpose?: 'appointment' | 'documents';
 }) => {
   const copy = COPY[language];
   const [session, setSession] = useState<StationPatientSessionCreated | null>(null);
@@ -206,6 +217,21 @@ export const StationPatientIdentity = ({
     onBack();
     if (sessionId) requestPurge(sessionId);
   };
+
+  if (status === 'identified' && session && purpose === 'documents') {
+    return (
+      <section data-station-documents-identity-confirmed className="mx-auto mt-9 w-full max-w-xl rounded-elite-lg border border-border-main bg-card-bg p-6 text-center shadow-elite sm:p-8">
+        <ShieldCheck className="mx-auto text-success" size={38} aria-hidden="true" />
+        <h2 className="mt-4 text-2xl font-black">{copy.documentsVerified}</h2>
+        <p className="mt-2 text-base font-bold text-text-muted">{displayName}</p>
+        <p className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsConstruction}</p>
+        <p className="mt-3 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsStaff}</p>
+        <button type="button" onClick={() => void leave()} className="mt-6 min-h-12 w-full rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">
+          {backLabel}
+        </button>
+      </section>
+    );
+  }
 
   if (status === 'identified' && session) {
     return (
