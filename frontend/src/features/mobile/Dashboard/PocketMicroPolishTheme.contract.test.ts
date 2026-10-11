@@ -1,0 +1,87 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { applyMobileRuntimeTheme, textColorForHex } from './hooks/useMobileRuntimeTheme';
+
+const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
+const POCKET = 'src/features/mobile/Dashboard/';
+const polishedSurfaces = [
+  'components/MobileHeader.tsx',
+  'components/MobileBottomNav.tsx',
+  'components/PocketTodayOverview.tsx',
+  'components/MobileQuickActionHub.tsx',
+  'views/PocketAgendaDay.tsx',
+  'views/FrontdeskView.tsx',
+  'views/FinanceView.tsx',
+  'views/StockView.tsx',
+  'views/LabView.tsx',
+  'MobileDashboard.tsx',
+  'MobilePreviewDashboard.tsx',
+  'types.tsx',
+];
+
+function luminance(hex: string): number {
+  const rgb = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255);
+  return rgb.map(c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, c, index) => sum + c * [0.2126, 0.7152, 0.0722][index], 0);
+}
+function contrast(a: string, b: string): number {
+  const [upper, lower] = [luminance(a), luminance(b)].sort((a, b) => b - a);
+  return (upper + 0.05) / (lower + 0.05);
+}
+
+beforeEach(() => {
+  localStorage.clear();
+  document.documentElement.removeAttribute('style');
+  document.body.removeAttribute('style');
+  document.documentElement.dataset.theme = '';
+  document.body.dataset.theme = '';
+});
+
+describe('P1/P2 iOS micro-polish color inheritance', () => {
+  it('does not bake fixed palette colors into the polished Pocket surfaces', () => {
+    const hardcoded = /#[a-f0-9]{3,8}\b|\b(?:bg|text|border|ring|hover:border)-(?:slate|white|black|rose|amber|emerald|blue|indigo|gray|sky|cyan|teal|green|red|orange)(?:-\d{2,3})?(?:\/\d{1,3})?\b/i;
+    for (const relative of polishedSurfaces) {
+      const source = readSource(POCKET + relative);
+      expect(source, relative).not.toMatch(hardcoded);
+    }
+    const palette = readSource('src/index.css');
+    expect(palette).toContain('--color-on-primary: var(--text-on-primary)');
+    expect(palette).toContain('--color-warning-surface: var(--status-warning-surface)');
+    expect(palette).toContain("[data-theme='dark'], [data-theme='prestige']");
+  });
+
+  it.each([
+    ['#003380', '#ffffff'],
+    ['#059669', '#020617'],
+    ['#3b82f6', '#020617'],
+    ['#db2777', '#ffffff'],
+    ['#000000', '#ffffff'],
+    ['#ffffff', '#020617'],
+    ['#475569', '#ffffff'],
+    ['#0284c7', '#020617'],
+  ])('chooses WCAG contrast against primary %s, not YIQ guesses', (primary, foreground) => {
+    expect(textColorForHex(primary)).toBe(foreground);
+    expect(contrast(primary, foreground)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('inherits selected dark, rose and high-contrast themes without a component-owned preset', () => {
+    for (const selected_theme of ['prestige', 'dark', 'rose', 'emerald', 'ocean', 'graphite', 'high-contrast']) {
+      applyMobileRuntimeTheme({ selected_theme });
+      expect(document.documentElement.dataset.theme).toBe(selected_theme);
+      expect(document.body.dataset.theme).toBe(selected_theme);
+      expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
+    }
+    applyMobileRuntimeTheme({ selected_theme: 'emerald', primary_color: '#059669' });
+    expect(document.documentElement.style.getPropertyValue('--text-on-primary')).toBe('#020617');
+    applyMobileRuntimeTheme({ selected_theme: 'elite', primary_color: '#003380' });
+    expect(document.documentElement.style.getPropertyValue('--text-on-primary')).toBe('#ffffff');
+  });
+
+  it('keeps theme switching in the demo harness rather than hardcoding Elite', () => {
+    const demo = readSource(POCKET + 'MobilePreviewDashboard.tsx');
+    expect(demo).toContain("new URLSearchParams(window.location.search).get('theme')");
+    expect(demo).toContain("'high-contrast'");
+    expect(demo).not.toContain("primary_color: '#003380'");
+  });
+});
