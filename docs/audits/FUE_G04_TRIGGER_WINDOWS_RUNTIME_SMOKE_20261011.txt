@@ -12,3 +12,13 @@ Diagnosis: installer and seven proof SHA parity succeeded, frozen executable rem
 CI-only fix: add bounded diagnostics (process CPU, synthetic test DB exists, loopback TCP port, filtered/redacted synthetic-only application log, HTTP exception category) and extend fixed readiness observation to 180s while still FAILING on missing /health OK; no certified runtime or installer change.
 Workflow hardening commit eec52c43084a0970e0cdbc11dae4f30c1cdf8ded.
 No real cabinet data, physical Lenovo, production master, secrets, or Vercel accessed.
+
+CI_ONLY_NEW_MASTER_RUNTIME_SMOKE=1
+OFFICIAL_CODE_CERTIFIED_RUN=38100167771
+MASTER_SHA=fa377f1ee05534cafbc26971f70f2e8ba8b792fd
+NEW_WINDOWS_INSTALLER_RUN=38101353034 SUCCESS
+NEW_WINDOWS_INSTALLER_ARTIFACT=11687509142, name=fue-g04-windows-installer-fa377f1e, github zip SHA256=b1496b8c591ed692f21654ab828ab53d397ab521ae9e3f3f54b07202f7a223b7
+INNER_SETUP_EXE_SHA256=a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c
+GitHub run SHA evidence in uploaded installer evidence and successful runner logs; CI-only signed identity/7 proofs preserved.
+New smoke workflow commit=18636767a6b339e39143b9a2578e27ed2138bfd4 with mandatory inner installer SHA pinned; install ONLY on throw-away GH Windows runner temp; synthetic test database and ephemeral localhost TCP port, no clinic data. Require frozen installed DigitalCrown.exe /health.status=ok and db=ok. Fail-closed if anything missing.
+No real Lenovo/36 patient records, Vercel, production merge or machine activation.
