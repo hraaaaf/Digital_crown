@@ -5,3 +5,10 @@ Inner setup EXE SHA256: 9a8e07644dde4b7eff153a84a53d4c7a81c9ea7731262e8aa1daa807
 Scope: throw-away GitHub Windows runner install under RUNNER_TEMP, check 7 identity proofs with exact bytes, isolated synthetic database/paths and loopback health; fail on errors.
 No Lenovo, historic patient archive, real cabinet, Vercel, clinic secrets, physical installation or release/branch merge.
 Initial run: 1
+
+CI_ONLY_RUN_RETRY=2
+Previous RED: https://github.com/hraaaaf/Digital_crown/actions/runs/38097354550
+Diagnosis: installer and seven proof SHA parity succeeded, frozen executable remained alive but synthetic loopback /health did not reach status=ok, db=ok within 100s. Existing harness omitted error and process telemetry.
+CI-only fix: add bounded diagnostics (process CPU, synthetic test DB exists, loopback TCP port, filtered/redacted synthetic-only application log, HTTP exception category) and extend fixed readiness observation to 180s while still FAILING on missing /health OK; no certified runtime or installer change.
+Workflow hardening commit eec52c43084a0970e0cdbc11dae4f30c1cdf8ded.
+No real cabinet data, physical Lenovo, production master, secrets, or Vercel accessed.
