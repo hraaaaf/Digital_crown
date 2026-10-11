@@ -86,11 +86,15 @@ const json = (route, payload, status = 200) => route.fulfill({
 });
 
 async function installRoutes(page, role, selectedTheme = { id: 'elite', primary: '#003380', secondary: '#1e40af', accent: '#60a5fa' }) {
-  await page.route('**/api/mobile/passkey/status', route => json(route, {
+  const routeEvidence = { passkeyStatusHits: 0 };
+  await page.route('**/api/mobile/passkey/status', route => {
+    routeEvidence.passkeyStatusHits += 1;
+    return json(route, {
     state: 'disabled', credential_id: null, rp_id: 'digitalcrown.local',
     expected_origin: 'https://digitalcrown.local:8005', origin_ready: true,
     user_verification: 'required', server_gate: false,
-  }));
+    });
+  });
   await page.route('**/api/mobile/snapshot**', route => json(route, snapshotFor(role, route.request().url())));
   await page.route('**/api/mobile/patients', route => json(route, {
     data: [
@@ -130,6 +134,7 @@ async function installRoutes(page, role, selectedTheme = { id: 'elite', primary:
       source: 'WEB', expires_at: null, created_at: new Date().toISOString(),
     },
   ]));
+  return routeEvidence;
 }
 
 async function seedPocketSession(page) {
@@ -368,6 +373,12 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
 }
 
 await fs.mkdir(outputDir, { recursive: true });
+// Screenshot fixtures intercept paired-mobile API responses through page.route.
+// In WebKit, production Workbox can own these requests before page.route sees them,
+// causing a *real* biometric origin guard against an unmocked response. Isolate
+// route-fixture UI evidence from the service-worker/offline lifecycle contract;
+// never disable biometrics in product code or change its fail-closed decision.
+const screenshotContextOptions = viewport => ({ viewport, serviceWorkers: 'block' });
 const browser = await engine.launch({ headless: true });
 const evidence = [];
 const themeEvidence = [];
@@ -375,7 +386,7 @@ const themeEvidence = [];
 try {
   for (const role of roles) {
     for (const viewport of viewports) {
-      const context = await browser.newContext({ viewport });
+      const context = await browser.newContext(screenshotContextOptions(viewport));
       const page = await context.newPage();
       const runtimeErrors = [];
       page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}`));
@@ -387,10 +398,12 @@ try {
 
       const failStage = 'runtime';
       try {
-        await installRoutes(page, role.value);
+        const routes = await installRoutes(page, role.value);
         await seedPocketSession(page);
         await page.goto(`${baseUrl}/mobile/dashboard`, { waitUntil: 'domcontentloaded' });
-        evidence.push(await assertRuntime(page, role, viewport, runtimeErrors));
+        const certified = await assertRuntime(page, role, viewport, runtimeErrors);
+        if (routes.passkeyStatusHits < 1) throw new Error('Pocket passkey/status fixture not observed: certification cannot assert paired UI');
+        evidence.push({ ...certified, passkeyStatusHits: routes.passkeyStatusHits, serviceWorkers: 'blocked-for-route-fixtures' });
       } catch (error) {
         await captureRuntimeFailure(page, failStage, role, viewport, runtimeErrors).catch(console.error);
         throw error;
@@ -402,9 +415,9 @@ try {
   // Selectable themes must come from the same paired cabinet runtime endpoint,
   // not from an injected CSS palette or the unauthenticated demo shell.
   for (const theme of themes) {
-    const context = await browser.newContext({ viewport: { width: 430, height: 932 } });
+    const context = await browser.newContext(screenshotContextOptions({ width: 430, height: 932 }));
     const page = await context.newPage();
-    await installRoutes(page, 'DENTISTE', theme);
+    const routes = await installRoutes(page, 'DENTISTE', theme);
     await seedPocketSession(page);
     await page.goto(`${baseUrl}/mobile/dashboard`, { waitUntil: 'domcontentloaded' });
     await page.locator('[data-dc-pocket-today]').waitFor({ state: 'visible', timeout: 30000 });
@@ -463,7 +476,8 @@ try {
     await page.goto(`${baseUrl}/mobile/dashboard?tab=securite`, { waitUntil: 'domcontentloaded' });
     await page.getByText('Téléphone connecté', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
     await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-securite-430x932.png`) });
-    themeEvidence.push(result);
+    if (routes.passkeyStatusHits < 1) throw new Error(`Pocket ${theme.id}: passkey/status fixture not observed`);
+    themeEvidence.push({ ...result, passkeyStatusHits: routes.passkeyStatusHits, serviceWorkers: 'blocked-for-route-fixtures' });
     await context.close();
   }
 } finally {
