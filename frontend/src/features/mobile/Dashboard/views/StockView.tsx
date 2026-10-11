@@ -36,7 +36,7 @@ function stockState(item: MobileStockItem) {
   return { label: 'OK', className: 'border-emerald-500/25 bg-emerald-500/5 text-emerald-700' };
 }
 
-export function StockView({ previewData }: { previewData?: MobileStockItem[] }) {
+export function StockView({ previewData, quickMode = false, isOnline = true }: { previewData?: MobileStockItem[]; quickMode?: boolean; isOnline?: boolean }) {
   const [items, setItems] = useState<MobileStockItem[]>(previewData ?? []);
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
@@ -90,7 +90,7 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
   }, [items, filter, search]);
 
   const adjust = async (item: MobileStockItem, delta: number) => {
-    if (previewData) return;
+    if (previewData || !isOnline) return;
     const next = Math.max(0, Number(item.quantite) + delta);
     if (next === item.quantite) return;
     setMutatingId(item.id);
@@ -154,7 +154,7 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button
+          {!quickMode && <button
             type="button"
             aria-label="Ajouter un article"
             onClick={() => setAddOpen(true)}
@@ -162,10 +162,12 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
             className="grid min-h-11 min-w-11 place-items-center rounded-full bg-primary text-white disabled:opacity-50"
           >
             <Plus size={20} />
-          </button>
+          </button>}
         </div>
       </div>
 
+      {quickMode && <p className="mb-3 rounded-[16px] border border-glass-border bg-card px-4 py-3 text-[11px] font-semibold text-text-muted">Mouvements rapides uniquement. La création et la configuration des articles restent sur le poste de travail.</p>}
+      {!isOnline && <p role="status" className="mb-3 rounded-[16px] border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-[11px] font-bold text-amber-700">Stock en consultation hors ligne ; ajustements désactivés.</p>}
       <div className="mb-4 grid grid-cols-3 gap-2" aria-label="Résumé du stock">
         {[
           ['Rupture', counts.rupture, 'text-rose-600'],
@@ -239,7 +241,7 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
                 <button
                   type="button"
                   aria-label={`Retirer une ${item.unite} de ${item.nom}`}
-                  disabled={busy || Boolean(previewData) || item.quantite <= 0}
+                  disabled={busy || Boolean(previewData) || !isOnline || item.quantite <= 0}
                   onClick={() => void adjust(item, -1)}
                   className="grid min-h-11 place-items-center rounded-[16px] border border-glass-border bg-background text-text-main disabled:opacity-35"
                 >
@@ -252,7 +254,7 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
                 <button
                   type="button"
                   aria-label={`Ajouter une ${item.unite} à ${item.nom}`}
-                  disabled={busy || Boolean(previewData)}
+                  disabled={busy || Boolean(previewData) || !isOnline}
                   onClick={() => void adjust(item, 1)}
                   className="grid min-h-11 place-items-center rounded-[16px] bg-primary text-white disabled:opacity-35"
                 >
@@ -264,7 +266,7 @@ export function StockView({ previewData }: { previewData?: MobileStockItem[] }) 
         })}
       </div>
 
-      {addOpen && (
+      {addOpen && !quickMode && (
         <div className="fixed inset-0 z-[80] flex items-end bg-slate-950/20 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-12 backdrop-blur-[1px]">
           <section role="dialog" aria-modal="true" aria-labelledby="mobile-stock-add-title" className="mx-auto w-full max-w-[720px] rounded-[28px] border border-glass-border bg-card p-5 shadow-elite-hover">
             <div className="mb-4 flex items-center justify-between gap-3">
