@@ -96,7 +96,7 @@ async function installRoutes(page, role) {
   await page.route('**/api/mobile/partner-catalog/suppliers', route => json(route, []));
   await page.route('**/api/mobile/partner-catalog/products', route => json(route, []));
   await page.route('**/stock/alerts', route => json(route, []));
-  await page.route('**/appointments/pending', route => json(route, [
+  await page.route('**/api/mobile/frontdesk/pending', route => json(route, [
     {
       id: 701, patient_name: 'Patient Web', phone: '+212600000099',
       datetime_start: new Date(Date.now() + 3600000).toISOString(),
@@ -191,6 +191,11 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
 
   const screenshot = `runtime-${role.slug}-plus-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outputDir, screenshot) });
+
+  await page.goto(`${baseUrl}/mobile/dashboard?tab=frontdesk`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Patient Web', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  if (await page.locator('[data-mobile-restricted]').count()) throw new Error('P1: Frontdesk rejected an authorized Pocket role');
+  await page.screenshot({ path: path.join(outputDir, `runtime-${role.slug}-frontdesk-${viewport.width}x${viewport.height}.png`) });
 
   await page.goto(`${baseUrl}/mobile/dashboard?tab=stock`, { waitUntil: 'domcontentloaded' });
   await page.locator('[data-mobile-stock]').waitFor({ state: 'visible', timeout: 30000 });
