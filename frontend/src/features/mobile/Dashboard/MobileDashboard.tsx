@@ -102,9 +102,9 @@ export const MobileDashboard = () => {
       />
 
       {state.error && state.syncStatus === 'error' && (
-        <div className="mx-6 mb-4 p-3 bg-amber-500/5 border border-amber-200 rounded-[16px] flex items-center gap-3 relative z-10 shadow-sm">
-          <WifiOff size={14} className="text-amber-500 shrink-0" />
-          <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">{state.error}</p>
+        <div className="mx-6 mb-4 p-3 bg-warning-surface border border-warning-border rounded-[16px] flex items-center gap-3 relative z-10 shadow-sm">
+          <WifiOff size={14} className="text-warning shrink-0" />
+          <p className="text-[10px] font-black text-warning uppercase tracking-widest">{state.error}</p>
         </div>
       )}
 
@@ -112,7 +112,7 @@ export const MobileDashboard = () => {
         <PWAInstallPrompt />
       </div>
 
-      <main ref={mainRef} className="flex-1 px-6 overflow-x-hidden overflow-y-auto">
+      <main ref={mainRef} className="min-w-0 flex-1 px-4 sm:px-6 overflow-x-hidden overflow-y-auto pb-[calc(108px+env(safe-area-inset-bottom))]">
         <AnimatePresence mode="wait">
           <motion.div
             key={state.activeTab}
