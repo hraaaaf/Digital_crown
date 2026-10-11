@@ -11,7 +11,6 @@ import ast
 from pathlib import Path
 import subprocess
 import sys
-from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,14 +45,11 @@ def test_frozen_launcher_keeps_file_logging_and_avoids_console_formatter():
     assert isinstance(expr.body, ast.Constant) and expr.body.value is None
     assert ast.unparse(expr.test) == "getattr(sys, 'frozen', False)"
     assert ast.unparse(expr.orelse) == "uvicorn.config.LOGGING_CONFIG"
-    compiled = compile(ast.fix_missing_locations(ast.Expression(expr)), "<launch-policy>", "eval")
-    uvicorn_stub = SimpleNamespace(config=SimpleNamespace(LOGGING_CONFIG="STANDARD_TTY"))
-    for frozen, expected in ((True, None), (False, "STANDARD_TTY")):
-        actual = eval(
-            compiled,
-            {"sys": SimpleNamespace(frozen=frozen), "uvicorn": uvicorn_stub, "getattr": getattr},
-        )
-        assert actual == expected
+    # The AST requires an explicit frozen-only condition and leaves
+    # development's original Uvicorn console default unchanged. Avoid eval.
+    assert isinstance(expr.test, ast.Call)
+    assert isinstance(expr.test.func, ast.Name)
+    assert expr.test.func.id == "getattr"
 
 
 def test_uvicorn_accepts_no_console_streams_when_logging_config_disabled():
