@@ -17,6 +17,15 @@ const roles = [
   { value: 'DENTISTE', slug: 'dentiste', marker: 'practitioner', label: 'Vue praticien · priorité clinique' },
   { value: 'SECRETAIRE', slug: 'secretaire', marker: 'assistant', label: 'Vue assistante · flux cabinet' },
 ];
+const themes = [
+  { id: 'emerald', primary: '#059669', secondary: '#065f46', accent: '#10b981', foreground: 'rgb(2, 6, 23)' },
+  { id: 'rose', primary: '#db2777', secondary: '#9d174d', accent: '#f472b6', foreground: 'rgb(255, 255, 255)' },
+  { id: 'prestige', primary: '#3b82f6', secondary: '#2563eb', accent: '#60a5fa', foreground: 'rgb(2, 6, 23)' },
+  { id: 'ocean', primary: '#0284c7', secondary: '#0369a1', accent: '#38bdf8', foreground: 'rgb(2, 6, 23)' },
+  { id: 'graphite', primary: '#475569', secondary: '#334155', accent: '#94a3b8', foreground: 'rgb(255, 255, 255)' },
+  { id: 'dark', primary: '#4f46e5', secondary: '#3730a3', accent: '#6366f1', foreground: 'rgb(255, 255, 255)' },
+  { id: 'high-contrast', primary: '#000000', secondary: '#000000', accent: '#000000', foreground: 'rgb(255, 255, 255)' },
+];
 const expectedDentistLabels = ['Notifications', 'Stock', 'Bibliothèque', 'Approvisionnement', 'Trésorerie', 'Envois Labo', 'Équipe'];
 const expectedSecretaryLabels = ['Notifications', 'Stock', 'Équipe'];
 const credentials = {
@@ -59,7 +68,7 @@ const json = (route, payload, status = 200) => route.fulfill({
   body: JSON.stringify(payload),
 });
 
-async function installRoutes(page, role) {
+async function installRoutes(page, role, selectedTheme = { id: 'elite', primary: '#003380', secondary: '#1e40af', accent: '#60a5fa' }) {
   await page.route('**/api/mobile/passkey/status', route => json(route, {
     state: 'disabled', credential_id: null, rp_id: 'digitalcrown.local',
     expected_origin: 'https://digitalcrown.local:8005', origin_ready: true,
@@ -80,8 +89,8 @@ async function installRoutes(page, role) {
     can_pay: false,
   }));
   await page.route('**/api/clinics/mobile-theme', route => json(route, {
-    selected_theme: 'elite', primary_color: '#003380', secondary_color: '#1e40af',
-    accent_color: '#60a5fa', app_accent_color: null, font_fr: 'inter',
+    selected_theme: selectedTheme.id, primary_color: selectedTheme.primary, secondary_color: selectedTheme.secondary,
+    accent_color: selectedTheme.accent, app_accent_color: null, font_fr: 'inter',
   }));
   await page.route('**/api/mobile/lab-jobs**', route => json(route, []));
   await page.route('**/api/mobile/dentists', route => json(route, { dentists: [] }));
@@ -254,6 +263,7 @@ async function assertRuntime(page, role, viewport, runtimeErrors) {
 await fs.mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
+const themeEvidence = [];
 
 try {
   for (const role of roles) {
@@ -275,9 +285,53 @@ try {
       await context.close();
     }
   }
+  // Selectable themes must come from the same paired cabinet runtime endpoint,
+  // not from an injected CSS palette or the unauthenticated demo shell.
+  for (const theme of themes) {
+    const context = await browser.newContext({ viewport: { width: 430, height: 932 } });
+    const page = await context.newPage();
+    await installRoutes(page, 'DENTISTE', theme);
+    await seedPocketSession(page);
+    await page.goto(`${baseUrl}/mobile/dashboard`, { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-dc-pocket-today]').waitFor({ state: 'visible', timeout: 30000 });
+    await page.waitForFunction(({ id, primary }) => {
+      const computed = getComputedStyle(document.documentElement);
+      return document.documentElement.dataset.theme === id
+        && computed.getPropertyValue('--primary').trim().toLowerCase() === primary.toLowerCase();
+    }, { id: theme.id, primary: theme.primary }, { timeout: 20000 });
+
+    const result = await page.evaluate(() => {
+      const nav = document.querySelector('[data-mobile-bottom-nav]');
+      const primaryAction = nav?.querySelector('button[aria-label="Ouvrir les actions rapides"]');
+      const computed = getComputedStyle(document.documentElement);
+      return {
+        id: document.documentElement.dataset.theme,
+        primary: computed.getPropertyValue('--primary').trim(),
+        textOnPrimary: computed.getPropertyValue('--text-on-primary').trim(),
+        background: computed.getPropertyValue('--bg-medical-pearl').trim(),
+        primaryActionText: primaryAction ? getComputedStyle(primaryAction).color : null,
+        navBackground: nav ? getComputedStyle(nav).backgroundColor : null,
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+        preview: Boolean(document.querySelector('[data-dc-preview-demo]')),
+      };
+    });
+    if (result.preview || result.horizontalOverflow || result.primaryActionText !== theme.foreground) {
+      throw new Error(`Pocket theme ${theme.id}: invalid mobile runtime inheritance: ${JSON.stringify(result)}`);
+    }
+    await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-today-430x932.png`) });
+    await page.locator('[data-mobile-bottom-nav]').getByText('Plus', { exact: true }).click();
+    await page.locator('[data-mobile-more-menu]').waitFor({ state: 'visible' });
+    await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-plus-430x932.png`) });
+    await page.goto(`${baseUrl}/mobile/dashboard?tab=stock`, { waitUntil: 'domcontentloaded' });
+    await page.getByText('Gants nitrile', { exact: true }).waitFor({ state: 'visible' });
+    await page.screenshot({ path: path.join(outputDir, `theme-${theme.id}-stock-430x932.png`) });
+    themeEvidence.push(result);
+    await context.close();
+  }
 } finally {
   await browser.close();
 }
 
 await fs.writeFile(path.join(outputDir, 'runtime-evidence.json'), JSON.stringify(evidence, null, 2));
+await fs.writeFile(path.join(outputDir, 'theme-evidence.json'), JSON.stringify(themeEvidence, null, 2));
 console.log(JSON.stringify(evidence, null, 2));
