@@ -55,6 +55,49 @@ export function textColorForHex(hexColor?: string | null): string | null {
   return contrastDark >= contrastWhite ? dark : white;
 }
 
+/**
+ * Compute a readable foreground ink from the actual cabinet-selected fill.
+ * Keep --primary untouched for brand surfaces. Small labels must reach 4.5:1
+ * against both the card and the Pocket canvas, including dark themes.
+ */
+export function accessiblePrimaryInk(
+  primary: string | null | undefined,
+  cardSurface: string,
+  canvasSurface: string,
+): string | null {
+  const parse = (value: string | null | undefined): number[] | null => {
+    if (!value) return null;
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'white') return [255, 255, 255];
+    if (normalized === 'black') return [0, 0, 0];
+    if (!/^#[0-9a-f]{6}$/.test(normalized)) return null;
+    return [1, 3, 5].map(offset => Number.parseInt(normalized.slice(offset, offset + 2), 16));
+  };
+  const base = parse(primary);
+  const card = parse(cardSurface);
+  const canvas = parse(canvasSurface);
+  if (!base || !card || !canvas) return null;
+  const luminance = (rgb: number[]) => rgb
+    .map(channel => channel / 255)
+    .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  const ratio = (foreground: number[], background: number[]) => {
+    const a = luminance(foreground);
+    const b = luminance(background);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+  const target = luminance(card) < 0.179 ? [255, 255, 255] : [0, 0, 0];
+  const encode = (rgb: number[]) => '#' + rgb.map(value => Math.round(value).toString(16).padStart(2, '0')).join('');
+  for (let step = 0; step <= 100; step += 2) {
+    const portion = step / 100;
+    const foreground = base.map((value, index) => Math.round(value + (target[index] - value) * portion));
+    if (ratio(foreground, card) >= 4.5 && ratio(foreground, canvas) >= 4.5) {
+      return encode(foreground);
+    }
+  }
+  return encode(target);
+}
+
 function enableMobileRuntimeFontRouting() {
   document.documentElement.dataset.mobileThemeRuntime = 'true';
 }
@@ -72,6 +115,12 @@ export function applyMobileRuntimeTheme(theme: MobileRuntimeTheme) {
   setCssVariable('--accent', theme.accent_color);
   setCssVariable('--app-accent', theme.app_accent_color);
   setCssVariable('--text-on-primary', textColorForHex(theme.primary_color));
+  const selectedPalette = getComputedStyle(document.documentElement);
+  setCssVariable('--primary-ink', accessiblePrimaryInk(
+    selectedPalette.getPropertyValue('--primary'),
+    selectedPalette.getPropertyValue('--card-bg'),
+    selectedPalette.getPropertyValue('--bg-medical-pearl'),
+  ));
 
   const fontId = theme.font_fr || 'inter';
   const fontStack = FONT_STACKS[fontId] || FONT_STACKS.inter;
