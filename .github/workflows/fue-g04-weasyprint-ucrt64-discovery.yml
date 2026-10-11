@@ -225,6 +225,118 @@ jobs:
           '@ | & $python -
           if ($LASTEXITCODE -ne 0) { throw 'Isolated native smoke failed' }
           Write-Host 'EXPERIMENTAL_ONLY_NO_STANDALONE_INSTALLER=YES'
+      - name: Smoke disposable PyInstaller onedir executable with copied native DLLs (LAB only)
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys.outputs.msys2-location }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = Join-Path $env:pythonLocation 'python.exe'
+          $sourceNative = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
+          $dlls = @(Get-ChildItem -LiteralPath $sourceNative -File -Filter '*.dll' | Sort-Object Name)
+          if ($dlls.Count -ne 64) { throw 'Unexpected DLL count: abort frozen laboratory' }
+          # This is the canonical Windows toolchain version; no app runtime is changed.
+          & $python -m pip install --no-input --disable-pip-version-check 'pyinstaller==6.22.3'
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller 6.22.3 unavailable' }
+          $root = Join-Path $env:RUNNER_TEMP 'fue-g04-disposable-frozen-probe'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $source = Join-Path $root 'fue-g04-synthetic-pdf-only.py'
+          @'
+          import ctypes
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          if not getattr(sys, "frozen", False):
+              raise AssertionError("Test did not run in a frozen PyInstaller executable")
+          if "msys" in os.environ["PATH"].lower() or "ucrt64" in os.environ["PATH"].lower():
+              raise AssertionError("MSYS2 leak in frozen executable PATH")
+
+          bundled = Path(sys._MEIPASS).resolve() / "native"
+          if not bundled.is_dir():
+              raise AssertionError("Bundled native DLL directory missing")
+          if len(list(bundled.glob("*.dll"))) != 64:
+              raise AssertionError("Bundled DLL count mismatch")
+
+          os.environ["WEASYPRINT_DLL_DIRECTORIES"] = str(bundled)
+          dll_handle = os.add_dll_directory(str(bundled))
+          from weasyprint import HTML
+
+          required = (
+              "libgobject-2.0-0.dll", "libpango-1.0-0.dll",
+              "libpangoft2-1.0-0.dll", "libfontconfig-1.dll", "libharfbuzz-0.dll"
+          )
+          for name in required:
+              ctypes.WinDLL(str(bundled / name))
+
+          out = Path(os.environ["RUNNER_TEMP"]) / "fue-g04-frozen-lab-synthetic.pdf"
+          HTML(string="<html><body><h1>Frozen probe</h1><p>Fictional only.</p></body></html>").write_pdf(out)
+          pdf = out.read_bytes()
+          if not (pdf.startswith(b"%PDF-") and 1024 < len(pdf) < 500000):
+              raise AssertionError("Bundled frozen WeasyPrint PDF invalid")
+
+          kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+          kernel.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
+          kernel.GetModuleHandleW.restype = ctypes.c_void_p
+          kernel.GetModuleFileNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint]
+          kernel.GetModuleFileNameW.restype = ctypes.c_uint
+          loaded = {}
+          for name in required:
+              handle = kernel.GetModuleHandleW(name)
+              if not handle:
+                  raise AssertionError(f"Missing frozen DLL module {name}")
+              buf = ctypes.create_unicode_buffer(4096)
+              if not kernel.GetModuleFileNameW(handle, buf, len(buf)):
+                  raise AssertionError(f"Cannot resolve frozen DLL module path for {name}")
+              resolved = Path(buf.value).resolve()
+              if resolved.parent != bundled:
+                  raise AssertionError(f"Frozen DLL did not load from bundle: {name}: {resolved}")
+              loaded[name] = str(resolved)
+
+          record = {
+              "status": "EXPERIMENTAL_FROZEN_PDF_ONLY",
+              "sha": os.environ["GITHUB_SHA"],
+              "pyinstaller_toolchain": "6.22.3",
+              "pdf_bytes": len(pdf),
+              "pdf_sha256": hashlib.sha256(pdf).hexdigest(),
+              "bundled_dlls": 64,
+              "loaded_critical_dlls": loaded,
+              "notes": "Synthetic minimal PyInstaller executable only, NOT the certified Digital Crown app or installer",
+          }
+          (Path(os.environ["RUNNER_TEMP"]) / "fue-g04-frozen-lab-evidence.json").write_text(
+              json.dumps(record, indent=2), encoding="utf-8"
+          )
+          print("EXPERIMENTAL_FROZEN_NATIVE_PDF=PASS")
+          print("EXPERIMENTAL_FROZEN_BUNDLED_DLL_PATHS=PASS")
+          print("EXPERIMENTAL_FROZEN_PDF_BYTES=" + str(len(pdf)))
+          '@ | Set-Content -LiteralPath $source -Encoding utf8
+          $dist = Join-Path $root 'dist'
+          $build = Join-Path $root 'build'
+          $spec = Join-Path $root 'spec'
+          $pyArgs = @('-m','PyInstaller','--noconfirm','--clean','--onedir','--console',
+                      '--name','FUEG04LabFrozenPDF','--distpath',$dist,
+                      '--workpath',$build,'--specpath',$spec)
+          foreach ($dll in $dlls) {
+            $pyArgs += @('--add-binary', "$($dll.FullName);native")
+          }
+          $pyArgs += $source
+          & $python @pyArgs
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller frozen native probe build failed' }
+          $exe = Join-Path $dist 'FUEG04LabFrozenPDF/FUEG04LabFrozenPDF.exe'
+          if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Frozen laboratory EXE missing' }
+          # Execution has no Python nor MSYS2 toolchain directory in PATH.
+          $system = $env:SystemRoot
+          $env:PATH = "$system\System32;$system;$system\System32\Wbem"
+          $env:WEASYPRINT_DLL_DIRECTORIES = ''
+          if ($env:PATH -match '(?i)(msys|ucrt64)') { throw 'Host PATH isolation failed' }
+          & $exe
+          if ($LASTEXITCODE -ne 0) { throw 'Frozen executable native PDF failed' }
+          $exeSha = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          Add-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'fue-g04-frozen-lab-evidence.json') -Value ''
+          Write-Host "EXPERIMENTAL_FROZEN_EXE_SHA256=$exeSha"
+          Write-Host 'EXPERIMENTAL_ONLY_APP_INSTALLER_NOT_TESTED=YES'
       - name: Save experimental digest inventory for subsequent strict manifest work
         if: success()
         uses: actions/upload-artifact@v4
@@ -236,5 +348,7 @@ jobs:
             ${{ runner.temp }}/FUE-G04-experimental-python-requirements.txt
             ${{ runner.temp }}/fue-g04-isolated-native-smoke.pdf
             ${{ runner.temp }}/fue-g04-isolated-native-check.json
+            ${{ runner.temp }}/fue-g04-frozen-lab-synthetic.pdf
+            ${{ runner.temp }}/fue-g04-frozen-lab-evidence.json
           if-no-files-found: error
           retention-days: 7
