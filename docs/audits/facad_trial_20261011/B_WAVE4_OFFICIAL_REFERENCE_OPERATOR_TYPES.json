@@ -1,0 +1,175 @@
+{
+  "schema": "FACAD_B_WAVE4_OFFICIAL_314_OPERATOR_TYPE_REFERENCES_V1",
+  "date": "2026-10-11",
+  "scope": "RESEARCH_ONLY_GENERIC_OPERATOR_DEFINITION_NOT_ANALYSIS_PARITY",
+  "source": {
+    "url": "https://www.facad.com/dox/dox314/FacadRefMan.pdf",
+    "document": "Facad 3.14 Reference Manual",
+    "chapter": "Chapter 12 The Analysis Editor",
+    "pages_printed": [
+      86,
+      87
+    ],
+    "acquisition": "OFFICIAL_DOMAIN_INDEXED_WEB_EXCERPTS_ONLY",
+    "direct_pdf_bytes_acquired": false,
+    "direct_visual_page_review": false,
+    "not_equivalent_to_c01_c02_measurement_library": true
+  },
+  "operator_count": 10,
+  "type_definitions_from_official_reference": 9,
+  "structural_editor_heading": 1,
+  "records": [
+    {
+      "operator": "Angle2ln",
+      "facad_314_reference_manual_print_page": 86,
+      "generic_documented_type": "Angle between two named lines",
+      "generic_arguments": [
+        "line_1",
+        "line_2"
+      ],
+      "known_unresolved": "RANGE_SIGN_VECTOR_ORIENTATION_UNKNOWN",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "Angle3p",
+      "facad_314_reference_manual_print_page": 86,
+      "generic_documented_type": "Angle centered on named center marker and defined with two additional markers",
+      "generic_arguments": [
+        "center_marker",
+        "marker_2",
+        "marker_3"
+      ],
+      "known_unresolved": "CENTER_DOCUMENTED_VECTOR_DIRECTION_AND_SIGN_UNKNOWN",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "Angle4p",
+      "facad_314_reference_manual_print_page": 86,
+      "generic_documented_type": "Angle between a first two-marker line and a second two-marker line",
+      "generic_arguments": [
+        "line_1_marker_1",
+        "line_1_marker_2",
+        "line_2_marker_1",
+        "line_2_marker_2"
+      ],
+      "known_unresolved": "ORDER_ORIENTATION_AND_SIGN_UNKNOWN",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "Dist2p",
+      "facad_314_reference_manual_print_page": 86,
+      "generic_documented_type": "Distance between two markers",
+      "generic_arguments": [
+        "marker_1",
+        "marker_2"
+      ],
+      "known_unresolved": "UNITS_CALIBRATION_AND_DEGENERACY_UNKNOWN",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "Dist3p",
+      "facad_314_reference_manual_print_page": 86,
+      "generic_documented_type": "Distance between a two-marker line and another marker",
+      "generic_arguments": [
+        "line_marker_1",
+        "line_marker_2",
+        "point_marker"
+      ],
+      "known_unresolved": "PERPENDICULAR_INFINITE_LINE_AND_SIGN_NOT_EXPLICITLY_RESOLVED",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "DistLine",
+      "facad_314_reference_manual_print_page": 86,
+      "generic_documented_type": "Perpendicular point-to-named-line distance, optional sign inversion",
+      "generic_arguments": [
+        "named_line",
+        "point_marker"
+      ],
+      "known_unresolved": "LINE_ORIENTATION_BASE_SIGN_AND_UNITS_UNKNOWN",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "Proj90Line",
+      "facad_314_reference_manual_print_page": 86,
+      "generic_documented_type": "Distance between two points projected onto the perpendicular to a named line",
+      "generic_arguments": [
+        "named_line",
+        "marker_1",
+        "marker_2"
+      ],
+      "known_unresolved": "PROJECTION_SIGN_AND_ORIENTATION_UNKNOWN",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "ProjLine",
+      "facad_314_reference_manual_print_page": 86,
+      "generic_documented_type": "Distance between two markers projected onto a named line",
+      "generic_arguments": [
+        "named_line",
+        "marker_1",
+        "marker_2"
+      ],
+      "known_unresolved": "PROJECTION_SIGN_AND_ORIENTATION_UNKNOWN",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "Sub",
+      "facad_314_reference_manual_print_page": 87,
+      "generic_documented_type": "Subtraction of two cephalometric measurements",
+      "generic_arguments": [
+        "value_1",
+        "value_2"
+      ],
+      "known_unresolved": "EXACT_OPERAND_ORDER_DIMENSION_AND_ROUNDING_NOT_CERTIFIED",
+      "evidence_level": "OFFICIAL_INDEXED_PDF_EXCERPT_NOT_PAGE_RENDERED",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    },
+    {
+      "operator": "Heading",
+      "facad_314_reference_manual_print_page": null,
+      "generic_documented_type": "Editor structural heading, not presented as a mathematical measurement operator",
+      "generic_arguments": [],
+      "known_unresolved": "NO_MATHEMATICAL_OPERATION_CLAIM",
+      "evidence_level": "UIA_EDITOR_STRUCTURAL_ONLY",
+      "c01_c02_specific_definition": "NOT_CERTIFIED",
+      "measured_FACAD_DigitalCrown_numeric_parity": "NOT_TESTED",
+      "clinical_use_allowed": false
+    }
+  ],
+  "explicit_nonclaims": [
+    "The vendor's mathematical formula, measurement orientation and numeric rounding are NOT validated",
+    "The presence of a type definition does NOT certify a specific source analysis or norm",
+    "Change sign does NOT define the base orientation of a signed distance",
+    "The word subtraction does NOT certify operand order, calibration or matching vendor engine",
+    "A candidate Digital Crown formula is NOT FACAD numeric parity"
+  ],
+  "science_gate": "OPEN_VENDOR_FORMULA_AND_SAME_TRACE_PARITY",
+  "future": "Acquire/licence approved full source pages C01/C02 and document per-operator construction/vector/calibration/sign/tolerance, independent science review before clinical use"
+}
