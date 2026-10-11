@@ -230,7 +230,7 @@ jobs:
               $lines = @(Get-Content -LiteralPath $candidate.FullName -Tail 120 -ErrorAction SilentlyContinue)
               foreach ($line in $lines) {
                 if ($line -match "Traceback|ModuleNotFoundError|ImportError|RuntimeError|DLL load failed|Application startup|Startup refused|SECURITE|exception|ERROR|CRITICAL") {
-                  $redacted = $line -replace '(?i)[0-9a-f]{32,}', '[REDACTED_HEX]' -replace '(?i)(password|secret|token|key)=\\S+', '$1=[REDACTED]'
+                  $redacted = $line -replace '(?i)[0-9a-f]{32,}', '[REDACTED_HEX]' -replace '(?i)(password|secret|token|key)=[^ ]+', '$1=[REDACTED]'
                   Write-Host "FROZEN_SMOKE_LOG_DIAGNOSTIC: $($redacted.Substring(0,[Math]::Min(200,$redacted.Length)))"
                 }
               }
