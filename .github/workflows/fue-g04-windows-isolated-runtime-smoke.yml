@@ -147,9 +147,13 @@ jobs:
           '@ | python -
           if ($LASTEXITCODE -ne 0 -or -not ($port -match "^[0-9]{4,5}$")) { throw "No disposable loopback port" }
           $secret = [Convert]::ToHexString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+          $syntheticAdminEmail = "fue-g04-ci-synthetic@example.invalid"
+          $syntheticAdminPassword = [Convert]::ToHexString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
           $envLines = @(
             "ENVIRONMENT=development", "DEBUG=false", "TELEMETRY_ENABLED=false",
             "SECRET_KEY=$secret",
+            "SUPERADMIN_EMAIL=$syntheticAdminEmail",
+            "SUPERADMIN_INITIAL_PASSWORD=$syntheticAdminPassword",
             "DATABASE_URL=$dbUrl", "MEDIA_ROOT=$($media.Replace('\','/'))",
             "CABINET_HOST=127.0.0.1", "CABINET_PORT=$port",
             "DIGITALCROWN_ENABLE_HTTPS=false",
@@ -219,6 +223,18 @@ jobs:
               Start-Sleep -Seconds 2
             }
             if (-not $healthy) { throw "Frozen EXE did not report healthy isolated database/loopback within 180s; lastProbe=$lastProbe" }
+            # Real multipart/form-data parsing inside the *frozen* executable:
+            # OAuth2PasswordRequestForm is consumed by FastAPI/Starlette.
+            # No patient, clinical file, or real identity is created.
+            # -Form on PowerShell 7 sends multipart rather than urlencoded.
+            $login = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$port/api/auth/login" -Form @{
+              username = $syntheticAdminEmail
+              password = $syntheticAdminPassword
+            } -TimeoutSec 15 -ErrorAction Stop
+            if (-not $login.access_token -or $login.token_type -ne "bearer") {
+              throw "Frozen FastAPI multipart form auth did not produce a valid synthetic token"
+            }
+            Write-Host "FROZEN_MULTIPART_FORM_LOGIN=PASS"
           } finally {
             # Diagnostic is intentionally runner-local and secret-safe: only synthetic
             # log lines matching known error categories; never print env/profile,
