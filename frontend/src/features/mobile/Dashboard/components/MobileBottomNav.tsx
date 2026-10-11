@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
+import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, LayoutDashboard, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 
@@ -35,6 +35,7 @@ export function MobileBottomNav({
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
       badge: waitingCount > 0 ? waitingCount : undefined,
     },
+    { id: 'frontdesk' as Tab, icon: ClipboardList, label: 'Accueil', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
     { id: 'notifications' as Tab, icon: Bell, label: 'Notifications', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
     { id: 'stock' as Tab, icon: Package, label: 'Stock', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
     { id: 'library' as Tab, icon: BookOpen, label: 'Bibliothèque', allowedRoles: ['DENTISTE', 'ADMIN'] },
@@ -42,12 +43,7 @@ export function MobileBottomNav({
     { id: 'dentists' as Tab, icon: Users, label: 'Équipe', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
     { id: 'finance' as Tab, icon: TrendingUp, label: 'Trésorerie', allowedRoles: ['DENTISTE', 'ADMIN'] },
     { id: 'lab' as Tab, icon: FlaskConical, label: 'Envois Labo', allowedRoles: ['DENTISTE', 'ADMIN'] },
-    {
-      id: 'frontdesk' as Tab,
-      icon: ClipboardList,
-      label: 'Accueil',
-      allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
-    },
+    { id: 'bot' as Tab, icon: Bot, label: 'Assistant · En cours de construction', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
     {
       id: 'securite' as Tab,
       icon: ShieldCheck,
@@ -149,8 +145,9 @@ export function MobileBottomNav({
                   key={id}
                   type="button"
                   data-mobile-more-item={id}
+                  aria-label={id === 'bot' ? 'Assistant' : label}
                   onClick={() => selectTab(id)}
-                  className="flex min-h-[56px] items-center gap-3 rounded-[18px] border border-glass-border bg-background px-4 text-left text-text-main active:scale-[0.99]"
+                  className={cn('flex min-h-[56px] items-center gap-3 rounded-[18px] border border-glass-border bg-background px-4 text-left text-text-main active:scale-[0.99]', id === 'waiting-room' || id === 'frontdesk' ? 'border-primary/25 bg-primary/5' : '')}
                 >
                   <span className="relative grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
                     <Icon size={18} />
@@ -186,15 +183,15 @@ export function MobileBottomNav({
         <div className="grid h-full grid-cols-5 items-center px-1.5">
           <button
             type="button"
-            aria-current={activeTab === 'agenda' ? 'page' : undefined}
-            onClick={() => selectTab('agenda')}
+            aria-current={activeTab === 'today' ? 'page' : undefined}
+            onClick={() => selectTab('today')}
             className={cn(
               'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'agenda' ? 'text-primary' : 'text-text-muted'
+              activeTab === 'today' ? 'text-primary' : 'text-text-muted'
             )}
           >
             <span className="relative grid h-8 w-11 place-items-center">
-              <CalendarDays size={20} strokeWidth={activeTab === 'agenda' ? 2.35 : 1.9} />
+              <LayoutDashboard size={20} strokeWidth={activeTab === 'today' ? 2.35 : 1.9} />
               {agendaHasPending && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-white/80" />}
             </span>
             <span className="max-w-full truncate">Aujourd’hui</span>
@@ -202,15 +199,15 @@ export function MobileBottomNav({
 
           <button
             type="button"
-            aria-current={activeTab === 'patients' ? 'page' : undefined}
-            onClick={() => selectTab('patients')}
+            aria-current={activeTab === 'agenda' ? 'page' : undefined}
+            onClick={() => selectTab('agenda')}
             className={cn(
               'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'patients' ? 'text-primary' : 'text-text-muted'
+              activeTab === 'agenda' ? 'text-primary' : 'text-text-muted'
             )}
           >
-            <span className="grid h-8 w-11 place-items-center"><UserRound size={20} strokeWidth={activeTab === 'patients' ? 2.35 : 1.9} /></span>
-            <span className="max-w-full truncate">Patients</span>
+            <span className="grid h-8 w-11 place-items-center"><CalendarDays size={20} strokeWidth={activeTab === 'agenda' ? 2.35 : 1.9} /></span>
+            <span className="max-w-full truncate">Agenda</span>
           </button>
 
           <div className="relative grid h-full place-items-center">
@@ -231,15 +228,15 @@ export function MobileBottomNav({
 
           <button
             type="button"
-            aria-current={activeTab === 'bot' ? 'page' : undefined}
-            onClick={() => selectTab('bot')}
+            aria-current={activeTab === 'patients' ? 'page' : undefined}
+            onClick={() => selectTab('patients')}
             className={cn(
               'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'bot' ? 'text-primary' : 'text-text-muted'
+              activeTab === 'patients' ? 'text-primary' : 'text-text-muted'
             )}
           >
-            <span className="grid h-8 w-11 place-items-center"><Bot size={20} strokeWidth={activeTab === 'bot' ? 2.35 : 1.9} /></span>
-            <span className="max-w-full truncate">Assistant</span>
+            <span className="grid h-8 w-11 place-items-center"><UserRound size={20} strokeWidth={activeTab === 'patients' ? 2.35 : 1.9} /></span>
+            <span className="max-w-full truncate">Patients</span>
           </button>
 
           <button
