@@ -38,8 +38,8 @@ describe('Digital Crown Pocket general QR bridge', () => {
     expect(resolveDashboardTab('?tab=stock')).toBe('stock');
     expect(resolveDashboardTab('?tab=library')).toBe('library');
     expect(resolveDashboardTab('?tab=marketplace')).toBe('marketplace');
-    expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
-    expect(resolveDashboardTab('')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=unknown')).toBe('today');
+    expect(resolveDashboardTab('')).toBe('today');
     expect(dashboardSource).toContain("import { useLocation } from 'react-router-dom'");
     expect(dashboardSource).toContain('const location = useLocation()');
     expect(dashboardSource).toContain('resolveDashboardTab(location.search)');
