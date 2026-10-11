@@ -40,13 +40,20 @@ def check_tunnel(origin, key):
     public_url = origin + "/session/" + key
     for _ in range(40):
         try:
+            # The first-party 200 confirmation avoids iOS redirect cookie loss.
             with opener.open(public_url, timeout=7) as response:
+                landing = response.read(20000).decode("utf-8", "replace")
+                if response.url != public_url or response.status != 200:
+                    raise ValueError("Unexpected session landing response")
+                if "Continuer vers l'appairage" not in landing:
+                    raise ValueError("Missing Safari first-party confirmation")
+                if not any(cookie.name == "pocket_fue" and cookie.secure for cookie in jar):
+                    raise ValueError("Secure session cookie missing")
+            with opener.open(origin + "/mobile/onboarding", timeout=7) as response:
                 html = response.read(20000).decode("utf-8", "replace")
                 if response.url != origin + "/mobile/onboarding" or "<html" not in html.lower():
-                    raise ValueError("Unexpected login redirect or frontend document")
-                if not any(cookie.name == "pocket_fue" for cookie in jar):
-                    raise ValueError("Authenticated secure session cookie missing")
-                return
+                    raise ValueError("Authenticated onboarding failed")
+            return
         except Exception:
             time.sleep(2)
     raise RuntimeError("TLS tunnel and authenticated onboarding not reachable")
