@@ -31,3 +31,10 @@ Prior red: https://github.com/hraaaaf/Digital_crown/actions/runs/38094796568
 Root cause: PyInstaller 6 onedir stores signed runtime proofs in dist/DigitalCrown/_internal; the canonical Inno Setup preprocessor also requires same proof bytes at dist/DigitalCrown root.
 Fix CI workflow commit d3a3df6bc3de48f97eed4494df85decb19b2c096: require all seven _internal proofs, SHA256-match each to certified source release, fail on unexpected root file, copy exact bytes to installer root, rehash and refuse mismatches.
 No change to master, CODE_CERTIFIED, frozen launcher, original installer .iss or original DigitalCrown.spec. No real cabinet or data operations.
+
+CI_ONLY_NEW_MASTER_CERTIFIED_RUN=1
+CODE_CERTIFIED new signed master SHA=fa377f1ee05534cafbc26971f70f2e8ba8b792fd
+Official GH Actions source certification run=https://github.com/hraaaaf/Digital_crown/actions/runs/38100167771
+Official CODE artifact id=11687458055 name=code-certified-dc-cabinet-fa377f1ee055-run38100167771
+Sigstore attestation=https://github.com/hraaaaf/Digital_crown/attestations/54712076 manifest-sha256=eb5417fa9f787f92866a1d75b7238dd378c3aa346f1d7b40b6c717874edf9d16
+CI-only workflow pinned new master and CODE_RUN in commit 292884c1f6a0efc3a50acc59c90606d54fb341cd. Rebuild true Digital Crown Windows PyInstaller and Inno Setup in ephemeral runner. Do not mutate signed source, origin master, Lenovo historical real patient data or install to physical cabinet. FROZEN_RUNTIME_SMOKE requires new installer's actual EXE SHA; keep old smoke pinned and dormant until that is available.
