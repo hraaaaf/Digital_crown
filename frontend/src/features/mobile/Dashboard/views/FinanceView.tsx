@@ -100,7 +100,7 @@ export function FinanceView({
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(val, i) => dayLabel(val, i, f.weekly_revenue.length)}
-                  tick={{ fontSize: 9, fontWeight: 900, fill: '#94a3b8' }}
+                  tick={{ fontSize: 9, fontWeight: 900, fill: 'var(--text-muted)' }}
                   dy={10}
                 />
                 <Tooltip
@@ -108,7 +108,7 @@ export function FinanceView({
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="bg-white/95 backdrop-blur-md p-3 rounded-[16px] border border-border-main shadow-elite">
+                        <div className="bg-card backdrop-blur-md p-3 rounded-[16px] border border-border-main shadow-elite">
                           <p className="text-[10px] font-semibold text-text-muted uppercase tracking-widest mb-1">
                             {new Date(payload[0].payload.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
                           </p>
@@ -142,7 +142,7 @@ export function FinanceView({
             {snapshot.debtors.map(d => (
               <div
                 key={d.id}
-                className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[20px] p-4 flex items-center justify-between shadow-elite hover:border-rose-200 transition-all"
+                className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[20px] p-4 flex items-center justify-between shadow-elite hover:border-danger-border transition-all"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-[12px] flex items-center justify-center font-black text-primary font-outfit">
