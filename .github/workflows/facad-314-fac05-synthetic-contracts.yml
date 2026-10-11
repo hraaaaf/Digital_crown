@@ -8,6 +8,7 @@ on:
       - .github/workflows/facad-314-fac05-synthetic-contracts.yml
       - docs/audits/facad_trial_20261011/FAC05_SAME_TRACE_PREREGISTRATION_20261011.json
       - docs/audits/scripts/facad_fac05_dc_synthetic_bridge_test.py
+      - docs/audits/scripts/facad_fac05_dc_wave3_multifamily_test.py
   workflow_dispatch:
 
 permissions:
@@ -46,6 +47,16 @@ jobs:
             exit 1
           fi
           echo "EXACT_DC_STEINER_BLOB_PASS=$observed_dc"
+          for spec in "backend/services/cephalo_tweed_merrifield_geometry.py:bf307c7c5f0a99a1f6a589af5795bd50855b0465" "backend/services/cephalo_mcnamara_geometry.py:5c1b010b4380697807cd7baad3427843f532f075" "backend/services/cephalo_ricketts_geometry.py:29cb2a34b5d45e7b0e67d060ddcdf689bf80f16a"; do
+            name="${spec%%:*}"
+            expected="${spec##*:}"
+            observed="$(git -C science-source hash-object "$name")"
+            if [ "$observed" != "$expected" ]; then
+              echo "FAC05_MULTIFAMILY_SOURCE_DRIFT_STOP=$name"
+              exit 1
+            fi
+            echo "FAC05_MULTIFAMILY_SOURCE_PIN_PASS=$name"
+          done
 
       - name: Validate research-only prerequisite gates and twelve synthetic scenarios
         shell: bash
@@ -85,4 +96,13 @@ jobs:
         run: |
           python protocol/docs/audits/scripts/facad_fac05_dc_synthetic_bridge_test.py -v
           echo "FAC05_DC_SOURCE_ONLY_BRIDGE_PASS=true"
+          echo "FAC05_VENDOR_PARITY_VALIDATED=false"
+
+      - name: Test DC Tweed McNamara Ricketts independent synthetic bridges
+        shell: bash
+        env:
+          FAC05_PINNED_SOURCE_ROOT: ${{ github.workspace }}/science-source
+        run: |
+          python protocol/docs/audits/scripts/facad_fac05_dc_wave3_multifamily_test.py -v
+          echo "FAC05_WAVE3_MULTIFAMILY_SYNTHETIC_PASS=true"
           echo "FAC05_VENDOR_PARITY_VALIDATED=false"
