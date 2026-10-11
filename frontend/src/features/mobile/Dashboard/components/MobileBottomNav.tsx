@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, LayoutDashboard, MoreHorizontal, Package, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
+import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, LayoutDashboard, MoreHorizontal, Package, Plus, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 
@@ -54,6 +54,15 @@ export function MobileBottomNav({
 
   const isMoreActive = secondaryTabs.some(tab => tab.id === activeTab);
   const agendaHasPending = totalCount > 0 && termineCount < totalCount;
+  // Five equally sized targets. The active highlight glides between them;
+  // quick actions and Plus retain their existing callbacks/permissions.
+  const selectedNavIndex = quickActionsOpen ? 2
+    : moreOpen || isMoreActive ? 4
+      : activeTab === 'patients' ? 3
+        : activeTab === 'agenda' ? 1 : 0;
+  const navItemClass = 'relative z-10 flex min-h-[54px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[23px] text-[11px] font-semibold transition-[color,transform] duration-200 ease-out active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none motion-reduce:active:scale-100';
+  const navLabelClass = 'max-w-full truncate';
+
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -176,76 +185,89 @@ export function MobileBottomNav({
 
       <nav
         data-mobile-bottom-nav
+        data-pocket-glass-nav
         inert={moreOpen}
         aria-label="Navigation mobile principale"
-        className="fixed left-3 right-3 mx-auto h-[76px] max-w-[720px] rounded-[28px] border shadow-elite z-[65]"
+        className="fixed left-3 right-3 z-[65] mx-auto h-[76px] max-w-[720px] overflow-hidden rounded-[30px] border shadow-elite isolate"
         style={{
-          backgroundColor: 'var(--card-bg)',
-          borderColor: 'var(--glass-border)',
+          backgroundColor: 'color-mix(in srgb, var(--card-bg) 88%, transparent)',
+          borderColor: 'color-mix(in srgb, var(--primary) 14%, var(--glass-border) 86%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(165%)',
+          backdropFilter: 'blur(24px) saturate(165%)',
           bottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
       >
-        <div className="grid h-full grid-cols-5 items-center px-1.5">
+        <div className="relative grid h-full grid-cols-5 items-center px-1.5">
+          <span
+            data-mobile-nav-indicator
+            aria-hidden="true"
+            className="pointer-events-none absolute z-0 h-[56px] rounded-[24px] border transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+            style={{
+              left: '6px',
+              top: '50%',
+              width: 'calc((100% - 12px) / 5)',
+              transform: `translate(${selectedNavIndex * 100}%, -50%)`,
+              backgroundColor: 'color-mix(in srgb, var(--primary) 11%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--primary) 14%, transparent)',
+            }}
+          />
           <button
+            data-mobile-nav-item="today"
             type="button"
             aria-current={activeTab === 'today' ? 'page' : undefined}
             onClick={() => selectTab('today')}
-            className={cn(
-              'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'today' ? 'text-primary' : 'text-text-muted'
-            )}
+            className={cn(navItemClass, activeTab === 'today' ? 'text-primary' : 'text-text-muted')}
           >
             <span className="relative grid h-8 w-11 place-items-center">
-              <LayoutDashboard size={20} strokeWidth={activeTab === 'today' ? 2.35 : 1.9} />
+              <LayoutDashboard size={21} strokeWidth={activeTab === 'today' ? 2.35 : 1.9} />
               {agendaHasPending && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-card" />}
             </span>
-            <span className="max-w-full truncate">Aujourd’hui</span>
+            <span className={navLabelClass}>Aujourd’hui</span>
           </button>
 
           <button
+            data-mobile-nav-item="agenda"
             type="button"
             aria-current={activeTab === 'agenda' ? 'page' : undefined}
             onClick={() => selectTab('agenda')}
-            className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'agenda' ? 'text-primary' : 'text-text-muted'
-            )}
+            className={cn(navItemClass, activeTab === 'agenda' ? 'text-primary' : 'text-text-muted')}
           >
-            <span className="grid h-8 w-11 place-items-center"><CalendarDays size={20} strokeWidth={activeTab === 'agenda' ? 2.35 : 1.9} /></span>
-            <span className="max-w-full truncate">Agenda</span>
+            <span className="grid h-8 w-11 place-items-center"><CalendarDays size={21} strokeWidth={activeTab === 'agenda' ? 2.35 : 1.9} /></span>
+            <span className={navLabelClass}>Agenda</span>
           </button>
 
-          <div className="relative grid h-full place-items-center">
-            <button
-              type="button"
-              aria-label={quickActionsOpen ? 'Fermer les actions rapides' : 'Ouvrir les actions rapides'}
-              aria-expanded={quickActionsOpen}
-              disabled={!quickActionsAvailable}
-              onClick={() => {
-                setMoreOpen(false);
-                onToggleQuickActions();
-              }}
-              className="absolute -top-2.5 grid h-[54px] w-[54px] place-items-center rounded-full border-[3px] border-card bg-primary text-on-primary shadow-elite transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
-            >
-              {quickActionsOpen ? <X size={24} /> : <span className="text-[30px] font-light leading-none">+</span>}
-            </button>
-          </div>
+          <button
+            data-mobile-nav-item="actions"
+            type="button"
+            aria-label={quickActionsOpen ? 'Fermer les actions rapides' : 'Ouvrir les actions rapides'}
+            aria-expanded={quickActionsOpen}
+            disabled={!quickActionsAvailable}
+            onClick={() => {
+              setMoreOpen(false);
+              onToggleQuickActions();
+            }}
+            className={cn(navItemClass, 'disabled:cursor-not-allowed disabled:opacity-35', quickActionsOpen ? 'text-primary' : 'text-text-muted')}
+          >
+            <span className="grid h-8 w-11 place-items-center">
+              {quickActionsOpen ? <X size={21} strokeWidth={2.2} /> : <Plus size={23} strokeWidth={2.2} />}
+            </span>
+            <span className={navLabelClass}>Actions</span>
+          </button>
 
           <button
+            data-mobile-nav-item="patients"
             type="button"
             aria-current={activeTab === 'patients' ? 'page' : undefined}
             onClick={() => selectTab('patients')}
-            className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              activeTab === 'patients' ? 'text-primary' : 'text-text-muted'
-            )}
+            className={cn(navItemClass, activeTab === 'patients' ? 'text-primary' : 'text-text-muted')}
           >
-            <span className="grid h-8 w-11 place-items-center"><UserRound size={20} strokeWidth={activeTab === 'patients' ? 2.35 : 1.9} /></span>
-            <span className="max-w-full truncate">Patients</span>
+            <span className="grid h-8 w-11 place-items-center"><UserRound size={21} strokeWidth={activeTab === 'patients' ? 2.35 : 1.9} /></span>
+            <span className={navLabelClass}>Patients</span>
           </button>
 
           <button
             ref={moreTriggerRef}
+            data-mobile-nav-item="more"
             type="button"
             aria-current={isMoreActive ? 'page' : undefined}
             aria-expanded={moreOpen}
@@ -253,13 +275,10 @@ export function MobileBottomNav({
               if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(35);
               setMoreOpen(value => !value);
             }}
-            className={cn(
-              'flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              isMoreActive || moreOpen ? 'text-primary' : 'text-text-muted'
-            )}
+            className={cn(navItemClass, isMoreActive || moreOpen ? 'text-primary' : 'text-text-muted')}
           >
-            <span className="grid h-8 w-11 place-items-center"><MoreHorizontal size={21} strokeWidth={isMoreActive || moreOpen ? 2.35 : 1.9} /></span>
-            <span className="max-w-full truncate">Plus</span>
+            <span className="grid h-8 w-11 place-items-center"><MoreHorizontal size={22} strokeWidth={isMoreActive || moreOpen ? 2.35 : 1.9} /></span>
+            <span className={navLabelClass}>Plus</span>
           </button>
         </div>
       </nav>
