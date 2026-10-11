@@ -13,6 +13,8 @@ on:
       - 'backend/windows_fontconfig/fonts.conf'
       - 'backend/scripts/pyi_rth_windows_native_pdf.py'
       - 'backend/tests/test_windows_native_pdf_bundle.py'
+      - 'backend/scripts/audit_windows_native_pdf_security.py'
+      - 'backend/tests/test_windows_native_pdf_security_audit.py'
       - 'docs/audits/FUE_G04_NATIVE_PDF_CANDIDATE_20261011.md'
 
 permissions:
@@ -34,13 +36,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile backend/windows_native_pdf_bundle.py backend/scripts/pyi_rth_windows_native_pdf.py backend/tests/test_windows_native_pdf_bundle.py
+          python -m py_compile backend/windows_native_pdf_bundle.py backend/scripts/pyi_rth_windows_native_pdf.py backend/tests/test_windows_native_pdf_bundle.py backend/scripts/audit_windows_native_pdf_security.py backend/tests/test_windows_native_pdf_security_audit.py
           python - <<'PY'
           from pathlib import Path
           compile(Path("DigitalCrown.spec").read_text(encoding="utf-8"), "DigitalCrown.spec", "exec")
           print("FUE_G04_CANDIDATE_SPEC_SYNTAX=PASS")
           PY
           python -m unittest discover -s backend/tests -p test_windows_native_pdf_bundle.py -v
+          python -m unittest discover -s backend/tests -p test_windows_native_pdf_security_audit.py -v
           echo "FUE_G04_RELEASE_APPROVAL=NOT_GRANTED"
 
   windows-native-input-parity:
@@ -84,3 +87,29 @@ jobs:
           Write-Host 'FUE_G04_WINDOWS_SOURCE_PINS=VERIFIED_IN_LAB'
           Write-Host 'FUE_G04_PRODUCTION_SPEC_EXECUTION=NOT_ATTEMPTED'
           Write-Host 'FUE_G04_INSTALLABLE_CERTIFIED=NO_GO'
+
+      - name: Audit all 40 package owners/licenses and static PE import dependencies
+        shell: pwsh
+        env:
+          FUE_G04_MSYS2_ROOT: ${{ steps.msys.outputs.msys2-location }}
+          FUE_G04_PROVENANCE_JSON: ${{ runner.temp }}/fue-g04-locked-lab-manifest/FUE-G04-experimental-complete-provenance.json
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = Join-Path $env:pythonLocation 'python.exe'
+          & $python -m pip install --no-input --disable-pip-version-check 'pefile==2024.8.26'
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned PE parser unavailable' }
+          $report = Join-Path $env:RUNNER_TEMP 'fue-g04-native-security-audit.json'
+          & $python backend/scripts/audit_windows_native_pdf_security.py --msys2-root "$env:FUE_G04_MSYS2_ROOT" --provenance "$env:FUE_G04_PROVENANCE_JSON" --report "$report"
+          if ($LASTEXITCODE -ne 0) { throw 'MSYS2 license ownership/PE dependency audit rejected inputs' }
+          if (-not (Test-Path -LiteralPath $report -PathType Leaf)) { throw 'Native security audit produced no report' }
+          $sha = (Get-FileHash -LiteralPath $report -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "FUE_G04_NATIVE_SECURITY_AUDIT_SHA256=$sha"
+          Write-Host "FUE_G04_NATIVE_AUDIT_REPORT_EXPERIMENTAL_ONLY=YES"
+
+      - name: Upload experimental PE-closure and licenses report (not release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-g04-pr831-experimental-native-security
+          path: ${{ runner.temp }}/fue-g04-native-security-audit.json
+          retention-days: 7
+          if-no-files-found: error
