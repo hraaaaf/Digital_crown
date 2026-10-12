@@ -68,6 +68,9 @@ export const OnboardingScanner = () => {
   const [destinationLabel, setDestinationLabel] = useState('Digital Crown Pocket');
   const { isIOS, isInstalled } = usePWAInstall();
   const isPreviewDemo = PREVIEW_DEMO_HOSTS.has(window.location.hostname) && searchParams.get('demo') === '1';
+  // Safari iOS and Home Screen Pocket may keep separate IndexedDB credentials.
+  // Avoid claiming the one-use desktop token outside the installed PWA.
+  const mustInstallPocketFirst = isIOS && !isInstalled && !isPreviewDemo;
 
   const continueAfterPairing = useCallback(() => {
     let certSkipped = false;
@@ -97,6 +100,11 @@ export const OnboardingScanner = () => {
 
     const token = searchParams.get('token');
     if (token) {
+      if (mustInstallPocketFirst) {
+        try { window.history.replaceState(window.history.state, '', '/mobile/onboarding'); } catch { /* no credential logging */ }
+        setShowIOSInstallHint(true);
+        return;
+      }
       setPhase('claiming');
       void exchangeToken(token);
     }
@@ -143,6 +151,11 @@ export const OnboardingScanner = () => {
   }
 
   async function exchangeToken(token: string) {
+    if (mustInstallPocketFirst) {
+      setShowIOSInstallHint(true);
+      setPhase('welcome');
+      return;
+    }
     try {
       const { privateKey, publicKeyHex } = await generateClientKeyPair();
 
@@ -218,6 +231,10 @@ export const OnboardingScanner = () => {
   }
 
   function startScanner() {
+    if (mustInstallPocketFirst) {
+      setShowIOSInstallHint(true);
+      return;
+    }
     setPhase('scanning');
   }
 
@@ -326,7 +343,7 @@ export const OnboardingScanner = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Étape 1 — Installez d'abord l'app</p>
                   <p className="text-[11px] text-text-muted leading-relaxed font-bold mb-3">
-                    Sur iPhone, scannez le QR depuis l'app installée sur votre écran d'accueil, pas depuis Safari — sinon la connexion ne sera pas conservée quand vous rouvrirez l'icône.
+                    Safari et Pocket installé peuvent avoir des coffres distincts. Ajoutez Pocket à l'écran d'accueil, ouvrez son icône, puis appairez-le une seule fois depuis l'app.
                   </p>
                   <button
                     type="button"
@@ -347,13 +364,20 @@ export const OnboardingScanner = () => {
                       </p>
                       <p className="flex items-center gap-2 text-[11px] font-bold text-text-muted">
                         <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center shrink-0">3</span>
-                        Ouvrez l'icône installée puis scannez le QR ci-dessous
+                        Ouvrez l'icône Pocket puis saisissez un nouveau code d'appairage
                       </p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
+          )}
+
+          {mustInstallPocketFirst && (
+            <p role="status" data-dc-pocket-install-first className="mt-4 w-full rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-center text-[12px] font-bold leading-relaxed text-amber-900">
+              Installez Pocket et ouvrez son icône avant de saisir un code.
+              Les codes sont à usage unique et ne transfèrent pas la session Safari.
+            </p>
           )}
 
           <div className="w-full mt-6 p-5 rounded-3xl flex gap-4 mb-10 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)', borderWidth: '1px' }}>
@@ -367,6 +391,7 @@ export const OnboardingScanner = () => {
           </div>
 
           <button
+            disabled={mustInstallPocketFirst}
             onClick={startScanner}
             className="w-full min-h-[52px] px-4 bg-primary hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-white uppercase tracking-widest transition-all shadow-elite-hover mb-4"
           >
@@ -387,6 +412,7 @@ export const OnboardingScanner = () => {
               aria-label="Code d'appairage à 6 chiffres"
               className="min-w-0 flex-1 min-h-[52px] bg-white dark:bg-slate-900 border border-border-main rounded-2xl px-3 text-center font-black tracking-widest text-base outline-none focus:border-primary transition-all"
               value={manualToken}
+              disabled={mustInstallPocketFirst}
               onChange={event => setManualToken(event.target.value.replace(/\D/g, '').slice(0, 6))}
               maxLength={6}
             />
@@ -399,7 +425,7 @@ export const OnboardingScanner = () => {
                   void exchangeToken(manualToken);
                 }
               }}
-              disabled={manualToken.length !== 6}
+              disabled={mustInstallPocketFirst || manualToken.length !== 6}
               className="shrink-0 min-h-[52px] px-5 bg-slate-800 disabled:bg-slate-300 text-white font-bold rounded-2xl active:scale-95 transition-transform"
             >
               OK
