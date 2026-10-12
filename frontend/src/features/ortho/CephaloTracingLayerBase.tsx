@@ -219,6 +219,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     isGhost = false,
     overrideColor?: string,
     layerOp = 1,
+    ghostLayerKey?: string,
   ) => {
     const applyVTO = (points: Landmark[]) => {
       if (!vto.enabled || isGhost) return points;
@@ -382,7 +383,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     })();
 
     return (
-      <g key={isGhost ? `ghost-${layerOp}` : 'main-layer'}>
+      <g
+        key={isGhost ? `ghost-${ghostLayerKey ?? 'unscoped'}-${layerOp}` : 'main-layer'}
+        data-ceph03b-ghost-layer={isGhost ? ghostLayerKey : undefined}
+      >
         {showTweed ? seg(poAnatomic, or_, 'fh', P.francfort, { renderKey: 'fh-tweed' }) : null}
         {showMcNamara ? seg(po, or_, 'fh', P.francfort, { renderKey: 'fh-mcnamara' }) : null}
         {showTweed ? seg(go, me, 'mp', P.mandibule) : null}
@@ -407,6 +411,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         )}
 
         {showWits && seg(occPost, occAnt, 'occ', cephaloGeometryColor('occ'), { dash: '4,4' })}
+        {/* COM has no registered Wits plane in some images. T1/T2 are
+            visualization-only historical layers: show their existing FH/MP
+            geometry without changing any COM construction or clinical value. */}
+        {isGhost && showWits && seg(po, or_, 'fh', P.francfort, { renderKey: 'fh-ghost-com' })}
+        {isGhost && showWits && seg(go, me, 'mp', P.mandibule, { renderKey: 'mp-ghost-com' })}
 
         {vto.showSoftTissue && isLayerVisible('soft_tissue') && !isGhost && (() => {
           const ls2 = getPoint(finalPts, 'Ls2') || getPoint(finalPts, 'ls2');
@@ -642,8 +651,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         )}
 
         <motion.g animate={{ opacity: skeletalOp }} transition={{ duration: 0.10 }}>
-          {ghosts.map(g => (!g.layerId || isLayerVisible(g.layerId))
-            ? renderSkeletalLayer(g.landmarks, true, g.color, g.opacity * (g.layerId ? layerOpacityFor(g.layerId) : 1))
+          {ghosts.map((g, index) => (!g.layerId || isLayerVisible(g.layerId))
+            ? renderSkeletalLayer(g.landmarks, true, g.color, g.opacity * (g.layerId ? layerOpacityFor(g.layerId) : 1), g.layerId ?? `legacy-${index}`)
             : null)}
           {renderSkeletalLayer(landmarks, false, undefined, baseOpacity)}
 
