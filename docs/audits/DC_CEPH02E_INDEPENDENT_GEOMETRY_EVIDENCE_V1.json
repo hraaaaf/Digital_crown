@@ -1,0 +1,182 @@
+{
+  "schema": "DC_CEPH02E_INDEPENDENT_GEOMETRY_EVIDENCE_V1",
+  "version": 1,
+  "based_on_head": "caa436da9b105ee2d26c176d47bab255c6da21ac",
+  "intent": "DIAGNOSTIC_GEOMETRY_ORACLES_ONLY",
+  "patient_data_used": false,
+  "vendor_executed": false,
+  "clinical_unblock_allowed": false,
+  "clinical_norms_added": false,
+  "formula_runtime_modified": false,
+  "literature_role": "SUPPORTS_GENERIC_GEOMETRY_NOT_SOURCE_LOCKED_IDENTITY_PARITY",
+  "requires_external_orthodontist_review": true,
+  "methods": [
+    {
+      "canonical_id": "M_AB_PRIME_FH_MM_V1",
+      "legacy_method_id": "CRANIOM_AB_PRIME_MM_V1",
+      "function": "backend.services.cephalo_constructions:craniom_ab_prime_mm_v1",
+      "unit": "mm",
+      "points": [
+        "A",
+        "B",
+        "Po_anatomic",
+        "Or"
+      ],
+      "construction_ids": [
+        "FH_PO_OR_V1",
+        "CRANIOM_AB_PRIME_V1"
+      ],
+      "operation": "SIGNED_FH_PROJECTION_A_MINUS_B",
+      "positive_direction": "A_ANTERIOR_TO_B_ALONG_PO_TO_OR",
+      "calibration_required": true,
+      "source_internal": [
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md",
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "literature": [
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/2639735/",
+          "scope": "INDEPENDENT_FH_PROJECTION_OF_A_AND_B__NOT_IDENTICAL_DC_METHOD_PROVEN"
+        }
+      ],
+      "source_identity_proof": "GEOMETRY_SUPPORT_NOT_RUNTIME_IDENTITY_PROOF",
+      "missing_evidence": [
+        "INDEPENDENT_VALIDATION_OF_LEGACY_VS_CANONICAL_ANATOMICAL_PROVENANCE",
+        "NUMERIC_SAME_TRACE_ADJUDICATION",
+        "ORTHODONTIST_SIGNOFF"
+      ],
+      "runtime_state": "BLOCKED",
+      "runtime_reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED",
+      "clinical_activation_allowed": false,
+      "scientific_authority_certified": false,
+      "facad_numeric_parity_certified": false
+    },
+    {
+      "canonical_id": "M_B_NPERP_MM_V1",
+      "legacy_method_id": "CRANIOM_SITUATION_B_MM_V1",
+      "function": "backend.services.cephalo_constructions:nasion_vertical_offset_mm_v1",
+      "unit": "mm",
+      "points": [
+        "B",
+        "N",
+        "Po_anatomic",
+        "Or"
+      ],
+      "construction_ids": [
+        "FH_PO_OR_V1",
+        "NASION_VERTICAL_FH_V1"
+      ],
+      "operation": "SIGNED_FH_PROJECTION_B_MINUS_N",
+      "positive_direction": "B_ANTERIOR_TO_NPERP_ALONG_PO_TO_OR",
+      "calibration_required": true,
+      "source_internal": [
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md",
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "literature": [
+        {
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4436328/",
+          "scope": "McNAMARA_NPERP_DESCRIBES_A_AND_POG__B_IS_DISTINCT_AND_NOT_AUTOMATIC_ALIAS"
+        }
+      ],
+      "source_identity_proof": "NO_EXTERNAL_PROOF_THAT_B_NPERP_EQUALS_MCNAMARA_POG_NPERP",
+      "missing_evidence": [
+        "SOURCE_FOR_SPECIFIC_COM_DC_B_NPERP_CLINICAL_CONVENTION",
+        "LEGACY_VS_CANONICAL_ANATOMICAL_LINEAGE",
+        "NUMERIC_SAME_TRACE_ADJUDICATION",
+        "ORTHODONTIST_SIGNOFF"
+      ],
+      "runtime_state": "BLOCKED",
+      "runtime_reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED",
+      "clinical_activation_allowed": false,
+      "scientific_authority_certified": false,
+      "facad_numeric_parity_certified": false
+    },
+    {
+      "canonical_id": "M_COM_S_NPERP_DEPTH_MM_V1",
+      "legacy_method_id": "CRANIOM_FACIAL_DEPTH_MM_V1",
+      "function": "backend.services.cephalo_constructions:craniom_facial_depth_mm_v1",
+      "unit": "mm",
+      "points": [
+        "S",
+        "N",
+        "Po_anatomic",
+        "Or"
+      ],
+      "construction_ids": [
+        "FH_PO_OR_V1",
+        "NASION_VERTICAL_FH_V1",
+        "CRANIOM_S_TO_N_VERTICAL_DEPTH_V1"
+      ],
+      "operation": "ABSOLUTE_FH_PROJECTION_S_MINUS_N",
+      "positive_direction": "UNSIGNED_NONNEGATIVE_MAGNITUDE",
+      "calibration_required": true,
+      "source_internal": [
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md",
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md"
+      ],
+      "literature": [
+        {
+          "url": "https://www.ncbi.nlm.nih.gov/sites/books/NBK594272/table/article-131913.table2/",
+          "scope": "ANATOMIC_PO_OR_FRANKFORT_ONLY__NO_INDEPENDENT_VALIDATION_OF_S_NPERP_DEPTH_TERM"
+        }
+      ],
+      "source_identity_proof": "SEMANTIC_UNVERIFIED_NON_STANDARD_NAME__NOT_RICKETTS_FACIAL_ANGLE",
+      "missing_evidence": [
+        "PEER_REVIEWED_PRIMARY_SOURCE_FOR_EXACT_S_TO_NPERP_DEPTH_DEFINITION",
+        "CLINICAL_LABEL_ADJUDICATION",
+        "NUMERIC_SAME_TRACE_ADJUDICATION",
+        "ORTHODONTIST_SIGNOFF"
+      ],
+      "runtime_state": "BLOCKED",
+      "runtime_reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED",
+      "clinical_activation_allowed": false,
+      "scientific_authority_certified": false,
+      "facad_numeric_parity_certified": false
+    },
+    {
+      "canonical_id": "M_U1_FH_DEG_V1",
+      "legacy_method_id": "CRANIOM_U1_FRANKFORT_DEG_V1",
+      "function": "backend.services.cephalo_craniom_angular:craniom_u1_frankfort_deg_v1",
+      "unit": "°",
+      "points": [
+        "U1_apex",
+        "U1_incisal",
+        "Po_anatomic",
+        "Or"
+      ],
+      "construction_ids": [
+        "FH_PO_OR_V1"
+      ],
+      "operation": "SUPPLEMENT_180_MINUS_ACOS_U1_APEX_TO_INCISAL_VS_PO_TO_OR",
+      "positive_direction": "DIRECTIONAL_SUPPLEMENT_0_TO_180",
+      "calibration_required": false,
+      "source_internal": [
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/CEPHALO_CONSTRUCTION_REGISTRY.md"
+      ],
+      "literature": [
+        {
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3059215/",
+          "scope": "INDEPENDENT_U1_FH_ANGLE_REFERENCE_3D_DISTINCTION__NOT_2D_AXIS_DIRECTION_SIGN_OFF"
+        },
+        {
+          "url": "https://www.mdpi.com/2075-4418/15/12/1553",
+          "scope": "INDEPENDENT_CLINICAL_USE_OF_U1_FH_IN_2D__NOT_CODE_CONVENTION_ADJUDICATION"
+        }
+      ],
+      "source_identity_proof": "ANGLE_FAMILY_SUPPORTED_CONVENTION_NOT_YET_INDEPENDENTLY_ADJUDICATED",
+      "missing_evidence": [
+        "ORTHODONTIST_SIGNOFF_FOR_SUPPLEMENT_AND_AXIS_DIRECTION",
+        "LEGACY_VS_CANONICAL_U1_AXIS_PROVENANCE",
+        "NUMERIC_SAME_TRACE_ADJUDICATION"
+      ],
+      "runtime_state": "BLOCKED",
+      "runtime_reason": "LEGACY_LANDMARK_IDENTITY_BRIDGE_REQUIRED",
+      "clinical_activation_allowed": false,
+      "scientific_authority_certified": false,
+      "facad_numeric_parity_certified": false
+    }
+  ],
+  "decision": "ALL_FOUR_BLOCKED_PENDING_ANATOMICAL_LINEAGE_AND_CLINICAL_ADJUDICATION"
+}
