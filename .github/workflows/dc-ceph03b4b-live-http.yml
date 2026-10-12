@@ -118,6 +118,11 @@ jobs:
             src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx \
             src/features/ortho/components/cephaloLabelLayout.test.ts
           node --check scripts/certify-ceph03b3f-live-step1.mjs
+      - name: REQUIRED source provenance retained in real CephaloService upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q backend/tests/test_cephalo_service_calibration_candidate.py
       - name: Start real HTTP FastAPI with isolated test account, SQLite and SRPose38
         shell: bash
         run: |
