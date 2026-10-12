@@ -1,0 +1,52 @@
+name: V1.5-05.1 SQL Copy Inspector Proof
+
+on:
+  pull_request:
+    paths:
+      - backend/services/legacy_sql_inspector_v15.py
+      - backend/tests/test_legacy_sql_inspector_v15.py
+      - docs/quality/V15_05_SQL_MIGRATION_CONTRACT.md
+      - .github/workflows/v15-05-1-sql-inspector.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-schema-inspector:
+    name: Synthetic read-only SQL inspector
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Verify exact test collection and synthetic isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f backend/services/legacy_sql_inspector_v15.py
+          test -f backend/tests/test_legacy_sql_inspector_v15.py
+          python -m compileall -q backend/services/legacy_sql_inspector_v15.py backend/tests/test_legacy_sql_inspector_v15.py
+          PYTHONWARNINGS=error::ResourceWarning python -m unittest backend.tests.test_legacy_sql_inspector_v15 -v 2>&1 | tee /tmp/lot05-inspector-results.txt
+          grep -q 'Ran 14 tests' /tmp/lot05-inspector-results.txt
+          grep -q '^OK$' /tmp/lot05-inspector-results.txt
+      - name: Exact SHA and honest gate claim
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$EXPECTED"
+          {
+            echo "LOT05.1 schema-only inspector — exact SHA: $EXPECTED"
+            echo "Synthetic 14 unittest cases; NO production data, migration, dry-run, mapping or UI."
+            echo "Native PostgreSQL dumps, full MySQL dump coverage, large files: NOT IMPLEMENTED."
+            echo "No database schema change and no import writes."
+          } >> "$GITHUB_STEP_SUMMARY"
