@@ -11,7 +11,7 @@ import html
 import os
 import secrets
 from datetime import datetime, timezone
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 # The test fixture sets a hard isolated :memory: database before imports.
 assert os.environ.get("GITHUB_ACTIONS") == "true", "GitHub Actions-only"
@@ -27,7 +27,7 @@ from backend.models_document_provenance_p3 import install_document_provenance_p3
 from backend.config import settings
 from backend.security import get_password_hash
 from backend.routers.auth import get_current_user
-from backend.routers.workstation_mode import WORKSTATION_COOKIE
+from backend.routers.workstation_mode import WORKSTATION_COOKIE, _find_workstation
 from backend.services.qr_service import qr_service
 from backend.tests.test_station_patient_session_v15 import _login, _patient_context, _station
 from backend.tests.test_station_https_cross_process_v15 import _valid_finalized_pdf
@@ -153,9 +153,10 @@ def field_qr(k: str = ""):
     return Response(content=image, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
-@app.post("/field-lab/station-publish", include_in_schema=False)
+@app.post("/api/workstation/field-lab/station-publish", include_in_schema=False)
 def station_publish(
     body: StationPublish,
+    request: Request,
     user: models.User = Depends(get_current_user),
 ):
     # Only a synthetically authenticated owner can publish. Never accept
@@ -165,7 +166,18 @@ def station_publish(
     session = fixture._SessionLocal()
     try:
         row = session.get(models.WorkstationPatientSession, body.session_id)
-        if row is None or row.employer_id != owner_id or row.purged_at is not None:
+        station_workstation = _find_workstation(request, session, owner_id)
+        handoff_token = body.handoff_url.split("stationSession=", 1)[-1]
+        if (
+            row is None or row.employer_id != owner_id
+            or row.purged_at is not None
+            or row.expires_at <= datetime.utcnow()
+            or row.claimed_at is not None
+            or station_workstation is None
+            or station_workstation.default_experience != "station"
+            or row.workstation_id != station_workstation.id
+            or not secrets.compare_digest(hashlib.sha256(handoff_token.encode("utf-8")).hexdigest(), row.claim_token_hash)
+        ):
             raise HTTPException(403, "FIELD_SESSION_REJECTED")
     finally:
         session.close()
