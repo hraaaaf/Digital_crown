@@ -36,5 +36,26 @@ jobs:
         run: python -m pip install pytest
       - name: Policy source syntax
         run: python -m py_compile backend/services/station_document_print_policy.py
-      - name: Denial, private release and cross-printer identity tests
-        run: python -m pytest backend/tests/test_station_document_print_policy_v15.py -q
+      - name: Pure module unit tests without unrelated backend boot side effects
+        run: |
+          # backend/tests/conftest.py boots every SQLAlchemy model and FastAPI
+          # even for a pure dataclass helper. Run this real module and real
+          # test source in a neutral test root. Full backend integration remains
+          # a separate REQUIRED gate before real print routes exist.
+          mkdir -p /tmp/dc04-8-print-policy
+          cp backend/tests/test_station_document_print_policy_v15.py /tmp/dc04-8-print-policy/test_print_policy.py
+          python - <<'PY'
+          import os
+          import sys
+          import types
+          import pytest
+
+          for module_name, directory in (
+              ("backend", "backend"),
+              ("backend.services", "backend/services"),
+          ):
+              module = types.ModuleType(module_name)
+              module.__path__ = [os.path.abspath(directory)]
+              sys.modules[module_name] = module
+          raise SystemExit(pytest.main(["-q", "/tmp/dc04-8-print-policy/test_print_policy.py"]))
+          PY
