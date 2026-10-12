@@ -2,19 +2,51 @@
 
 No database URLs, connections, source dumps, migrations or patient rows used.
 """
-import dataclasses
-import hashlib
+import ast
 import importlib
+import importlib.util
 import json
+import pathlib
+import sys
+import types
 import unittest
 
 from sqlalchemy import Column, Integer, MetaData, String, Table
 
-from backend.services.legacy_sql_target_manifest_v15 import (
-    TargetManifestRefused,
-    build_declared_target_manifest,
-)
-from backend.services.legacy_sql_mapping_v15 import propose_mapping
+
+_BACKEND_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def _load_source_file(alias: str, relative: str):
+    spec = importlib.util.spec_from_file_location(alias, _BACKEND_ROOT / relative)
+    if spec is None or spec.loader is None:
+        raise AssertionError("LOCAL_SOURCE_MODULE_UNAVAILABLE")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[alias] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+declared = _load_source_file("lot05_declared_target_v15", "services/legacy_sql_target_manifest_v15.py")
+mapping = _load_source_file("lot05_mapping_v15", "services/legacy_sql_mapping_v15.py")
+TargetManifestRefused = declared.TargetManifestRefused
+build_declared_target_manifest = declared.build_declared_target_manifest
+propose_mapping = mapping.propose_mapping
+
+
+def _real_models_without_backend_boot():
+    """Create namespace-only backend package: NEVER execute backend/__init__.py."""
+    if "backend" not in sys.modules:
+        package = types.ModuleType("backend")
+        package.__path__ = [str(_BACKEND_ROOT)]
+        sys.modules["backend"] = package
+    elif getattr(sys.modules["backend"], "__file__", None):
+        raise AssertionError("BACKEND_PACKAGE_INIT_EXECUTED")
+    importlib.import_module("backend.models")
+    base = importlib.import_module("backend.models_base")
+    if "backend.database" in sys.modules:
+        raise AssertionError("RUNTIME_DATABASE_IMPORTED")
+    return base.Base
 
 
 def clinical_metadata():
@@ -51,7 +83,9 @@ class TargetManifestAdapterTest(unittest.TestCase):
         self.assertEqual(out.provenance, "SQLALCHEMY_DECLARED_METADATA_ONLY")
         self.assertEqual(out.as_ui_json()["schema_revision"], "orm-declared:neo000000027")
         self.assertEqual(
-            [t.name for t in out.as_mapping_target().tables], ["appointments", "patients"]
+            [t.name for t in out.as_mapping_target(
+                snapshot_type=mapping.TargetSnapshot, table_type=mapping.TargetTable
+            ).tables], ["appointments", "patients"]
         )
 
     def test_filters_credentials_and_privilege_flags(self):
@@ -146,6 +180,16 @@ class TargetManifestAdapterTest(unittest.TestCase):
         with self.assertRaisesRegex(TargetManifestRefused, "NO_SAFE_COLUMNS_IN_TARGET_TABLE"):
             build(md, ("clinic",))
 
+    def test_local_head_constant_matches_source_only_alembic_schema_runtime(self):
+        # Read static source with ast; do not import the backend package or database.
+        tree = ast.parse((_BACKEND_ROOT / "core/schema_runtime.py").read_text(encoding="utf-8"))
+        current = [
+            node.value.value for node in tree.body if isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Constant)
+            and any(isinstance(t, ast.Name) and t.id == "CURRENT_ALEMBIC_HEAD" for t in node.targets)
+        ]
+        self.assertEqual(current, [declared.DECLARED_EXPECTED_ALEMBIC_HEAD])
+
     def test_rejects_schema_qualified_user_account_table(self):
         md = MetaData()
         Table("users", md, Column("id", Integer), schema="public")
@@ -184,8 +228,7 @@ class TargetManifestAdapterTest(unittest.TestCase):
 
     def test_real_backend_models_declarations_exist_without_database_import(self):
         # Import code-defined ORM declarations, *not* database.py or any live URL.
-        from backend.models_base import Base
-        importlib.import_module("backend.models")
+        Base = _real_models_without_backend_boot()
         manifest = build(Base.metadata, ("patients", "appointments", "payments"))
         self.assertIn("patients", [t.name for t in manifest.tables])
         self.assertIn("numero_dossier", next(t for t in manifest.tables if t.name == "patients").columns)
@@ -194,7 +237,9 @@ class TargetManifestAdapterTest(unittest.TestCase):
 
     def test_interoperates_with_non_approving_mapping_engine(self):
         from types import SimpleNamespace
-        declared = build(scope=("patients",)).as_mapping_target()
+        declared = build(scope=("patients",)).as_mapping_target(
+            snapshot_type=mapping.TargetSnapshot, table_type=mapping.TargetTable
+        )
         source = SimpleNamespace(
             sha256="a" * 64, import_permitted=False,
             tables=(SimpleNamespace(
@@ -208,8 +253,7 @@ class TargetManifestAdapterTest(unittest.TestCase):
         self.assertFalse(proposal.mapping_approved)
 
     def test_sensitive_credentials_not_exported_from_real_users_even_if_requested(self):
-        from backend.models_base import Base
-        importlib.import_module("backend.models")
+        Base = _real_models_without_backend_boot()
         with self.assertRaisesRegex(TargetManifestRefused, "SENSITIVE_TARGET_TABLE_FORBIDDEN"):
             build(Base.metadata, ("users",))
 
