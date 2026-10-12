@@ -174,3 +174,56 @@ def test_rejected_edit_does_not_mutate_existing_configuration(inventory):
         compile_config(inventory, {**proposal("reception", ["station-a"], ["reception-1"]), "tenantId": 99})
     assert stable.mode == "reception"
     assert stable.printers[0].printer_id == "reception-1"
+
+
+def test_compiled_configuration_interoperates_with_existing_eligibility_gate(inventory):
+    """Contract integration, synthetic only: no real Station, route or printer."""
+    from datetime import datetime, timedelta, timezone
+
+    from backend.services.station_document_eligibility import (
+        SelfServiceDocumentCandidate, StationEligibilityContext,
+    )
+    from backend.services.station_document_print_policy import can_offer_print
+
+    now = datetime(2026, 10, 12, tzinfo=timezone.utc)
+    context = StationEligibilityContext(
+        tenant_id=10, patient_id=77, station_id="station-a", session_id="demo-session",
+        session_tenant_id=10, session_patient_id=77, session_station_id="station-a",
+        session_created_at=now - timedelta(seconds=40),
+        session_claimed_at=now - timedelta(seconds=20),
+        session_expires_at=now + timedelta(seconds=80),
+        session_purged_at=None, station_tenant_id=10,
+        station_experience="station", station_revoked_at=None, now=now,
+    )
+    candidate = SelfServiceDocumentCandidate(
+        document_id="fake-document-1", tenant_id=10, patient_id=77,
+        kind="care_sheet", is_active=True, is_latest_version=True,
+        finalized=True, withdrawal_authorized=True,
+    )
+    policy = compile_config(inventory, proposal(
+        "both", ["station-a"], ["reception-1", "near-1"],
+    ))
+    assert can_offer_print(context, candidate, policy, "reception-1").allowed
+    assert can_offer_print(context, candidate, policy, "near-1").allowed
+    assert not can_offer_print(context, candidate, policy, "unlisted").allowed
+    assert not can_offer_print(
+        context, replace(candidate, withdrawal_authorized=False), policy, "near-1"
+    ).allowed
+    assert not can_offer_print(
+        replace(context, session_expires_at=now), candidate, policy, "reception-1"
+    ).allowed
+    assert not can_offer_print(
+        replace(context, tenant_id=20), candidate, policy, "reception-1"
+    ).allowed
+    disabled = default_disabled_print_config(10)
+    assert not can_offer_print(context, candidate, disabled, "near-1").allowed
+
+
+def test_compiled_near_only_policy_requires_explicit_certified_printer(inventory):
+    policy = compile_config(inventory, proposal(
+        "near_station", ["station-a"], ["near-1"],
+    ))
+    assert policy.mode == "near_station"
+    assert policy.printers[0].private_channel_verified
+    assert policy.printers[0].secure_release_verified
+    assert not policy.printers[0].staff_supervised
