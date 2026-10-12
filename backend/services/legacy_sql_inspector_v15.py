@@ -321,6 +321,11 @@ def inspect_staged_copy(
     if source.suffix.lower() in _SQLITE_EXT and dialect == "sqlite":
         if not magic.startswith(b"SQLite format 3\x00"):
             raise UnsafeSource("SQLITE_MAGIC_MISMATCH")
+        # An immutable WAL-mode file without its journal can appear readable
+        # while omitting uncheckpointed schema changes; require a cold,
+        # rollback-journal SQLite copy for this narrow 05.1 inspector.
+        if magic[18:20] != b"\x01\x01":
+            raise UnsafeSource("SQLITE_ROLLBACK_JOURNAL_COPY_REQUIRED")
         if any(source.with_name(source.name + suffix).exists()
                for suffix in ("-wal", "-shm", "-journal")):
             raise UnsafeSource("SQLITE_SIDECAR_REQUIRES_COLD_COPY")
