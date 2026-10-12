@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../../services/api';
 import type { PatientPairing } from './PatientCompanionStorage';
 
@@ -18,6 +18,7 @@ export const PatientCompanionStationDocuments = ({
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const [error, setError] = useState('');
+  const closingRef = useRef(false);
   const endpoint = `${API_BASE}/api/patient-companion/station-session/${encodeURIComponent(sessionId)}/documents`;
   const access = `accessId=${encodeURIComponent(pairing.context.access_id)}`;
 
@@ -32,14 +33,14 @@ export const PatientCompanionStationDocuments = ({
       if (!response.ok) throw new Error('SESSION_UNAVAILABLE');
       return response.json() as Promise<{ documents: StationDocument[] }>;
     }).then(result => {
-      if (!cancelled) setDocuments(result.documents);
+      if (!cancelled && !closingRef.current) setDocuments(result.documents);
     }).catch(() => {
-      if (!cancelled) {
+      if (!cancelled && !closingRef.current) {
         setDocuments([]);
         setError('Session expirée ou indisponible. Réidentifiez-vous sur la borne.');
       }
     }).finally(() => {
-      if (!cancelled) setBusy(false);
+      if (!cancelled && !closingRef.current) setBusy(false);
     });
     return () => { cancelled = true; };
   }, [sessionId, pairing.context.access_id, pairing.accessToken]);
@@ -79,8 +80,15 @@ export const PatientCompanionStationDocuments = ({
 
   const closeSession = async () => {
     if (closing || downloadingKey !== null) return;
+    closingRef.current = true;
     setClosing(true);
+    // Client-side privacy wipe must not wait for a stalled/offline network.
+    setDocuments([]);
+    setError('');
+    setBusy(false);
     let revoked = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 5000);
     try {
       const response = await fetch(
         `${API_BASE}/api/patient-companion/station-session/${encodeURIComponent(sessionId)}/purge?${access}`,
@@ -88,6 +96,7 @@ export const PatientCompanionStationDocuments = ({
           method: 'POST',
           headers: { Authorization: `Bearer ${pairing.accessToken}` },
           cache: 'no-store',
+          signal: controller.signal,
         },
       );
       revoked = response.status === 204;
@@ -95,6 +104,7 @@ export const PatientCompanionStationDocuments = ({
       // The UI must still clear sensitive content locally if the LAN is down.
       // Report a possible server-side pending expiry to the parent.
     } finally {
+      window.clearTimeout(timeout);
       setDocuments([]);
       onClose(revoked);
       setClosing(false);
