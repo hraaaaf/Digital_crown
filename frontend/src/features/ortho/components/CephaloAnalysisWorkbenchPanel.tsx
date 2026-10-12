@@ -370,7 +370,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                       type="button"
                       data-ceph03-metric-select={definition.key}
                       aria-label={`Sélectionner la mesure ${definition.label}`}
-                      aria-pressed={selected}
+                      aria-pressed={selectedKey === definition.key}
                       onClick={() => setSelectedKey(definition.key)}
                       onFocus={() => { setHoverKey(null); setSelectedKey(definition.key); }}
                       className="flex min-h-9 w-full items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
