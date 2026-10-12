@@ -1,0 +1,487 @@
+name: FUE-G04 EXPERIMENTAL WeasyPrint UCRT64 native discovery
+
+# EXPERIMENTAL research lab only: floating transitive pacman/pip packages
+# MUST NEVER be inserted into signed CODE_CERTIFIED or an installer.
+# No patient data, no production release, no clinic machine, no secrets.
+on:
+  push:
+    branches:
+      - ci/fue-g04-windows-installable-chain-20261010
+    paths:
+      - 'docs/audits/FUE_G04_TRIGGER_WEASYPRINT_UCRT64_DISCOVERY_20261011.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  experimental-native-discovery:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Install official MSYS2 UCRT64 Pango in disposable runner
+        id: msys
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e
+        with:
+          msystem: UCRT64
+          update: true
+          cache: false
+          install: mingw-w64-ucrt-x86_64-pango mingw-w64-ucrt-x86_64-ttf-dejavu
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin Pango archive SHA and verify lab-only native discovery
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys.outputs.msys2-location }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $native = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
+          if (-not (Test-Path -LiteralPath $native -PathType Container)) { throw 'No UCRT64 native bin' }
+          # Package-manager cache, authenticated by MSYS2 repository; no direct mirror request.
+          $cache = Join-Path $env:MSYS2_LOCATION 'var/cache/pacman/pkg'
+          $archive = Join-Path $cache 'mingw-w64-ucrt-x86_64-pango-1.58.2-1-any.pkg.tar.zst'
+          if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) {
+            $bash = Join-Path $env:MSYS2_LOCATION 'usr/bin/bash.exe'
+            if (-not (Test-Path -LiteralPath $bash -PathType Leaf)) { throw 'Cannot use authenticated package manager' }
+            & $bash -lc 'pacman -Sw --noconfirm --cachedir /var/cache/pacman/pkg mingw-w64-ucrt-x86_64-pango'
+            if ($LASTEXITCODE -ne 0) { throw 'Official MSYS2 package manager could not cache Pango' }
+          }
+          if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw 'The exact Pango archive version is unavailable; do not use floating dependency' }
+          $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '8d86e4a018ff139b010bf357fa1c9f9030fa32ee195c54ed7e89d8ea701851c8') {
+            throw 'Official Pango package SHA256 mismatch: stop discovery'
+          }
+          Write-Host 'DISCOVERY_OFFICIAL_PANGO_PACKAGE_SHA256=VERIFIED'
+          $needed = @('libgobject-2.0-0.dll', 'libpango-1.0-0.dll', 'libpangoft2-1.0-0.dll', 'libfontconfig-1.dll', 'libharfbuzz-0.dll')
+          $manifest = @()
+          foreach ($name in $needed) {
+            $f = Join-Path $native $name
+            if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { throw "MSYS2 native library missing: $name" }
+            $actual = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()
+            $manifest += [pscustomobject]@{ Name = $name; Sha256 = $actual; Bytes = (Get-Item -LiteralPath $f).Length }
+            Write-Host "DISCOVERY_NATIVE_DLL_FOUND=$name"
+          }
+          $manifestFile = Join-Path $env:RUNNER_TEMP 'FUE-G04-experimental-dll-hashes.json'
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestFile -Encoding utf8
+          $env:WEASYPRINT_DLL_DIRECTORIES = $native
+          $env:PATH = "$native;$env:PATH"
+          # PATH intentionally includes native MSYS2 DLLs, but the MSYS2 Python lacks pip.
+          # Always execute the CPython 3.12 selected by actions/setup-python.
+          $hostPython = Join-Path $env:pythonLocation 'python.exe'
+          if (-not (Test-Path -LiteralPath $hostPython -PathType Leaf)) { throw 'Missing setup-python interpreter' }
+          & $hostPython -c 'import sys; print("LAB_HOST_PYTHON=" + sys.executable)'
+          if ($LASTEXITCODE -ne 0) { throw 'setup-python interpreter failed' }
+          & $hostPython -m pip install --no-input --disable-pip-version-check 'weasyprint==68.1'
+          if ($LASTEXITCODE -ne 0) { throw 'Exact WeasyPrint 68.1 lab dependency failed to install' }
+          @'
+          import os
+          from pathlib import Path
+          from weasyprint import HTML
+          out = Path(os.environ['RUNNER_TEMP']) / 'fue-g04-synthetic-native-test.pdf'
+          HTML(string='<html><body><h1>FUE-G04 Native PDF Research</h1><p>Fictional test, no patient data.</p></body></html>').write_pdf(out)
+          b = out.read_bytes()
+          if not b.startswith(b'%PDF-') or not 1024 < len(b) < 500000:
+              raise AssertionError('Real native WeasyPrint 68.1 PDF failed size/signature')
+          print('EXPERIMENTAL_WEASYPRINT_NATIVE_RENDER=PASS')
+          print('DISCOVERY_PDF_BYTES=' + str(len(b)))
+          '@ | & $hostPython -
+          if ($LASTEXITCODE -ne 0) { throw 'Actual native WeasyPrint lab rendering failed' }
+          Write-Host 'EXPERIMENTAL_ONLY_TRANSITIVE_PACKAGES_NOT_YET_PINNED=YES'
+          Write-Host 'PRODUCTION_CODE_CERTIFIED_AND_INSTALLER=UNCHANGED'
+      - name: Audit transitive package archives, native DLLs and Windows wheels (LAB only)
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys.outputs.msys2-location }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkgDir = Join-Path $env:MSYS2_LOCATION 'var/cache/pacman/pkg'
+          $native = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
+          $bash = Join-Path $env:MSYS2_LOCATION 'usr/bin/bash.exe'
+          $hostPython = Join-Path $env:pythonLocation 'python.exe'
+          $lines = @(& $bash -lc 'pacman -Q')
+          if ($LASTEXITCODE -ne 0) { throw 'pacman inventory failed' }
+          $archives = @(Get-ChildItem -LiteralPath $pkgDir -File -Filter '*.pkg.tar.zst')
+          $pkgs = @()
+          foreach ($line in $lines) {
+            if ($line -notmatch '^(mingw-w64-ucrt-x86_64-\S+)\s+(\S+)$') { continue }
+            $name = $Matches[1]; $ver = $Matches[2]
+            $found = @($archives | Where-Object { $_.Name.StartsWith("$name-$ver-", [StringComparison]::Ordinal) })
+            if ($found.Count -ne 1) { throw "Missing/ambiguous archive for $name $ver" }
+            $f = $found[0]
+            $pkgs += @{ Name=$name; Version=$ver; Archive=$f.Name; Bytes=$f.Length; Sha256=(Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          }
+          $pkgs = @($pkgs | Sort-Object Name)
+          if ($pkgs.Count -lt 5 -or @($pkgs | Where-Object { $_.Name -eq 'mingw-w64-ucrt-x86_64-pango' }).Count -ne 1) {
+            throw 'Incomplete MSYS2 UCRT64 package closure'
+          }
+          $dlls = @(Get-ChildItem -LiteralPath $native -File -Filter '*.dll' | Sort-Object Name | ForEach-Object {
+            @{ Name=$_.Name; Bytes=$_.Length; Sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          })
+          if ($dlls.Count -lt 5) { throw 'Missing native DLL inventory' }
+          $distJson = & $hostPython -m pip list --format=json
+          if ($LASTEXITCODE -ne 0) { throw 'pip distribution query failed' }
+          $dist = @($distJson | ConvertFrom-Json | Where-Object { $_.name -notin @('pip','setuptools','wheel') } | Sort-Object name)
+          if (@($dist | Where-Object { $_.name -eq 'weasyprint' -and $_.version -eq '68.1' }).Count -ne 1) { throw 'WeasyPrint missing' }
+          $reqFile = Join-Path $env:RUNNER_TEMP 'FUE-G04-experimental-python-requirements.txt'
+          @($dist | ForEach-Object { "$($_.name)==$($_.version)" }) | Set-Content -LiteralPath $reqFile -Encoding utf8
+          $wheelDir = Join-Path $env:RUNNER_TEMP 'fue-g04-wheel-discovery'
+          New-Item -Path $wheelDir -ItemType Directory -Force | Out-Null
+          & $hostPython -m pip download --no-input --disable-pip-version-check --only-binary=:all: --no-deps -r $reqFile -d $wheelDir
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned Windows wheel download failed' }
+          $wheels = @(Get-ChildItem -LiteralPath $wheelDir -File -Filter '*.whl' | Sort-Object Name | ForEach-Object {
+            @{ Name=$_.Name; Bytes=$_.Length; Sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          })
+          if ($wheels.Count -ne $dist.Count) { throw 'Wheel/distribution cardinality mismatch' }
+          $report = @{
+            Status='EXPERIMENTAL_NOT_RELEASE_APPROVED'; Sha=$env:GITHUB_SHA
+            MsYs2Packages=$pkgs; NativeDlls=$dlls; PythonDistributions=$dist; WindowsWheels=$wheels
+            Limitations='metadata-only; no PE import closure or bundled executable run; no frozen package replay'
+          }
+          $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'FUE-G04-experimental-complete-provenance.json') -Encoding utf8
+          Write-Host "EXPERIMENTAL_MSYS2_PACKAGES=$($pkgs.Count)"
+          Write-Host "EXPERIMENTAL_NATIVE_DLLS=$($dlls.Count)"
+          Write-Host "EXPERIMENTAL_PYTHON_WHEELS=$($wheels.Count)"
+          Write-Host 'EXPERIMENTAL_METADATA_ONLY=YES'
+      - name: Prove synthetic PDF with copied UCRT64 DLLs and isolated PATH (LAB only)
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys.outputs.msys2-location }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $native = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
+          $copy = Join-Path $env:RUNNER_TEMP 'fue-g04-isolated-dll-directory'
+          New-Item -Path $copy -ItemType Directory -Force | Out-Null
+          $libraries = @(Get-ChildItem -LiteralPath $native -Filter '*.dll' -File)
+          if ($libraries.Count -ne 64) { throw "Unexpected UCRT64 DLL inventory: $($libraries.Count), expected 64" }
+          foreach ($lib in $libraries) {
+            $destination = Join-Path $copy $lib.Name
+            Copy-Item -LiteralPath $lib.FullName -Destination $destination -ErrorAction Stop
+            $fromHash = (Get-FileHash -LiteralPath $lib.FullName -Algorithm SHA256).Hash
+            $toHash = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash
+            if ($fromHash -ne $toHash) { throw "Isolated copied DLL mismatch: $($lib.Name)" }
+          }
+          $python = Join-Path $env:pythonLocation 'python.exe'
+          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw 'Missing pinned GitHub Python 3.12' }
+          $env:WEASYPRINT_DLL_DIRECTORIES = $copy
+          $system = $env:SystemRoot
+          $env:PATH = "$env:pythonLocation;$system\System32;$system;$system\System32\Wbem"
+          if ($env:PATH -match '(?i)(msys|ucrt64)') { throw 'Native MSYS2 PATH was not isolated' }
+          @'
+          import ctypes
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from weasyprint import HTML
+
+          native = Path(os.environ["WEASYPRINT_DLL_DIRECTORIES"]).resolve()
+          if "msys" in os.environ["PATH"].lower() or "ucrt64" in os.environ["PATH"].lower():
+              raise AssertionError("MSYS2 installation leaked into PATH")
+          dll_guard = os.add_dll_directory(str(native))
+          required = (
+              "libgobject-2.0-0.dll", "libpango-1.0-0.dll",
+              "libpangoft2-1.0-0.dll", "libfontconfig-1.dll", "libharfbuzz-0.dll",
+          )
+          for name in required:
+              ctypes.WinDLL(str(native / name))
+          out = Path(os.environ["RUNNER_TEMP"]) / "fue-g04-isolated-native-smoke.pdf"
+          HTML(string="<html><body><h1>Isolated native PDF</h1><p>Fictional data only.</p></body></html>").write_pdf(out)
+          data = out.read_bytes()
+          if not (data.startswith(b"%PDF-") and 1024 < len(data) < 500000):
+              raise AssertionError("Invalid isolated Windows native PDF")
+
+          kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+          kernel.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
+          kernel.GetModuleHandleW.restype = ctypes.c_void_p
+          kernel.GetModuleFileNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint]
+          kernel.GetModuleFileNameW.restype = ctypes.c_uint
+          modules = {}
+          for name in required:
+              handle = kernel.GetModuleHandleW(name)
+              if not handle:
+                  raise AssertionError(f"Native DLL not loaded: {name}")
+              buf = ctypes.create_unicode_buffer(4096)
+              if not kernel.GetModuleFileNameW(handle, buf, len(buf)):
+                  raise AssertionError(f"Cannot inspect module path: {name}")
+              resolved = Path(buf.value).resolve()
+              if resolved.parent != native:
+                  raise AssertionError(f"Unexpected DLL loader fallback: {name} at {resolved}")
+              modules[name] = str(resolved)
+          report = {
+              "status": "EXPERIMENTAL_ISOLATION_ONLY",
+              "sha": os.environ["GITHUB_SHA"],
+              "pdf_bytes": len(data),
+              "pdf_sha256": hashlib.sha256(data).hexdigest(),
+              "isolated_dll_count": len(list(native.glob("*.dll"))),
+              "five_loaded_modules": modules,
+              "notes": "Not a packaged Digital Crown executable. No clinic or Lenovo test.",
+          }
+          (Path(os.environ["RUNNER_TEMP"]) / "fue-g04-isolated-native-check.json").write_text(
+              json.dumps(report, indent=2), encoding="utf-8"
+          )
+          print("EXPERIMENTAL_ISOLATED_NATIVE_PDF=PASS")
+          print("EXPERIMENTAL_ISOLATED_PDF_BYTES=" + str(len(data)))
+          print("EXPERIMENTAL_DLL_PATHS_ONLY_COPIED_FOLDER=PASS")
+          '@ | & $python -
+          if ($LASTEXITCODE -ne 0) { throw 'Isolated native smoke failed' }
+          Write-Host 'EXPERIMENTAL_ONLY_NO_STANDALONE_INSTALLER=YES'
+      - name: Smoke disposable PyInstaller onedir executable with copied native DLLs (LAB only)
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys.outputs.msys2-location }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = Join-Path $env:pythonLocation 'python.exe'
+          $sourceNative = Join-Path $env:MSYS2_LOCATION 'ucrt64/bin'
+          $dlls = @(Get-ChildItem -LiteralPath $sourceNative -File -Filter '*.dll' | Sort-Object Name)
+          if ($dlls.Count -ne 64) { throw 'Unexpected DLL count: abort frozen laboratory' }
+          # The font package is official MSYS2 UCRT64 and its archive bytes are pinned.
+          $fontPackageName = 'mingw-w64-ucrt-x86_64-ttf-dejavu-2.37-4-any.pkg.tar.zst'
+          $fontArchive = Join-Path $env:MSYS2_LOCATION "var/cache/pacman/pkg/$fontPackageName"
+          if (-not (Test-Path -LiteralPath $fontArchive -PathType Leaf)) {
+            $bash = Join-Path $env:MSYS2_LOCATION 'usr/bin/bash.exe'
+            & $bash -lc 'pacman -Sw --noconfirm --cachedir /var/cache/pacman/pkg mingw-w64-ucrt-x86_64-ttf-dejavu'
+            if ($LASTEXITCODE -ne 0) { throw 'Official DejaVu archive not available via pacman' }
+          }
+          if (-not (Test-Path -LiteralPath $fontArchive -PathType Leaf)) { throw 'Missing pinned DejaVu font package archive' }
+          $fontPackageHash = (Get-FileHash -LiteralPath $fontArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($fontPackageHash -ne 'dd9fd7bb48ceb0f0f004a4b34d6ac0d9cb4fd2d15273d88780b3cda6cab0beea') {
+            throw 'Official DejaVu font package SHA256 mismatch'
+          }
+          $fontDir = Join-Path $env:MSYS2_LOCATION 'ucrt64/share/fonts/TTF'
+          $regular = Join-Path $fontDir 'DejaVuSans.ttf'
+          $bold = Join-Path $fontDir 'DejaVuSans-Bold.ttf'
+          $fontLicense = Join-Path $env:MSYS2_LOCATION 'ucrt64/share/licenses/ttf-dejavu/LICENSE'
+          foreach ($item in @($regular, $bold, $fontLicense)) {
+            if (-not (Test-Path -LiteralPath $item -PathType Leaf)) { throw "Missing official bundled font source: $item" }
+          }
+          Write-Host 'EXPERIMENTAL_DEJAVU_PACKAGE_SHA256=VERIFIED'
+          # This is the canonical Windows toolchain version; no app runtime is changed.
+          & $python -m pip install --no-input --disable-pip-version-check 'pyinstaller==6.22.3'
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller 6.22.3 unavailable' }
+          $root = Join-Path $env:RUNNER_TEMP 'fue-g04-disposable-frozen-probe'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $source = Join-Path $root 'fue-g04-synthetic-pdf-only.py'
+          $config = Join-Path $root 'fontconfig/fonts.conf'
+          New-Item -ItemType Directory -Path (Split-Path -Path $config -Parent) -Force | Out-Null
+          @'
+          <?xml version="1.0"?>
+          <fontconfig>
+            <dir prefix="relative">../fonts</dir>
+            <alias>
+              <family>sans-serif</family>
+              <prefer><family>DejaVu Sans</family></prefer>
+            </alias>
+          </fontconfig>
+          '@ | Set-Content -LiteralPath $config -Encoding utf8
+          @'
+          import ctypes
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          if not getattr(sys, "frozen", False):
+              raise AssertionError("Test did not run in a frozen PyInstaller executable")
+          if "msys" in os.environ["PATH"].lower() or "ucrt64" in os.environ["PATH"].lower():
+              raise AssertionError("MSYS2 leak in frozen executable PATH")
+          exe_sha = hashlib.sha256(Path(sys.executable).read_bytes()).hexdigest()
+          if exe_sha != os.environ.get("FUE_G04_FROZEN_EXE_SHA256"):
+              raise AssertionError("Frozen EXE SHA mismatch")
+
+          frozen_internal = Path(sys._MEIPASS).resolve()
+          bundled = frozen_internal / "native"
+          if not bundled.is_dir():
+              raise AssertionError("Bundled native DLL directory missing")
+          if len(list(bundled.glob("*.dll"))) != 64:
+              raise AssertionError("Bundled DLL count mismatch")
+
+          font_root = frozen_internal / "fonts"
+          fontconfig = frozen_internal / "fontconfig" / "fonts.conf"
+          regular_font = font_root / "DejaVuSans.ttf"
+          bold_font = font_root / "DejaVuSans-Bold.ttf"
+          font_license = font_root / "LICENSE"
+          for file in (fontconfig, regular_font, bold_font, font_license):
+              if not file.is_file():
+                  raise AssertionError(f"Frozen fontconfig/DejaVu asset missing: {file}")
+          os.environ["FONTCONFIG_FILE"] = str(fontconfig)
+          os.environ["FONTCONFIG_PATH"] = str(fontconfig.parent)
+          os.environ["WEASYPRINT_DLL_DIRECTORIES"] = str(bundled)
+          dll_handle = os.add_dll_directory(str(bundled))
+          from weasyprint import HTML
+
+          required = (
+              "libgobject-2.0-0.dll", "libpango-1.0-0.dll",
+              "libpangoft2-1.0-0.dll", "libfontconfig-1.dll", "libharfbuzz-0.dll"
+          )
+          for name in required:
+              ctypes.WinDLL(str(bundled / name))
+
+          # Query the real native Fontconfig API: rendered font must resolve to
+          # our bundled TTF, not the ephemeral runner's installed system fonts.
+          fc = ctypes.WinDLL(str(bundled / "libfontconfig-1.dll"))
+          fc.FcInitLoadConfigAndFonts.argtypes = []
+          fc.FcInitLoadConfigAndFonts.restype = ctypes.c_void_p
+          cfg = fc.FcInitLoadConfigAndFonts()
+          if not cfg:
+              raise AssertionError("Fontconfig could not load bundled XML")
+          fc.FcNameParse.argtypes = [ctypes.c_char_p]
+          fc.FcNameParse.restype = ctypes.c_void_p
+          pat = fc.FcNameParse(b"DejaVu Sans")
+          if not pat:
+              raise AssertionError("Fontconfig pattern parse failure")
+          fc.FcFontMatch.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+          fc.FcFontMatch.restype = ctypes.c_void_p
+          match_status = ctypes.c_int()
+          matched = fc.FcFontMatch(cfg, pat, ctypes.byref(match_status))
+          if not matched:
+              raise AssertionError("No matching bundled font")
+          fc.FcPatternGetString.argtypes = [
+              ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int,
+              ctypes.POINTER(ctypes.c_char_p),
+          ]
+          fc.FcPatternGetString.restype = ctypes.c_int
+          selected_ptr = ctypes.c_char_p()
+          if fc.FcPatternGetString(matched, b"file", 0, ctypes.byref(selected_ptr)) != 0:
+              raise AssertionError("Fontconfig match has no file")
+          selected_font = Path(os.fsdecode(selected_ptr.value)).resolve()
+          if selected_font.parent != font_root:
+              raise AssertionError(f"Fontconfig selected an external font: {selected_font}")
+
+          out = Path(os.environ["RUNNER_TEMP"]) / "fue-g04-frozen-lab-synthetic.pdf"
+          HTML(string='<html><style>body { font-family: "DejaVu Sans", sans-serif; }</style><body><h1>Frozen probe</h1><p>Fictional français: été, façade, Noël.</p></body></html>').write_pdf(out)
+          pdf = out.read_bytes()
+          if not (pdf.startswith(b"%PDF-") and 1024 < len(pdf) < 500000):
+              raise AssertionError("Bundled frozen WeasyPrint PDF invalid")
+
+          kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+          kernel.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
+          kernel.GetModuleHandleW.restype = ctypes.c_void_p
+          kernel.GetModuleFileNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint]
+          kernel.GetModuleFileNameW.restype = ctypes.c_uint
+          loaded = {}
+          for name in required:
+              handle = kernel.GetModuleHandleW(name)
+              if not handle:
+                  raise AssertionError(f"Missing frozen DLL module {name}")
+              buf = ctypes.create_unicode_buffer(4096)
+              if not kernel.GetModuleFileNameW(handle, buf, len(buf)):
+                  raise AssertionError(f"Cannot resolve frozen DLL module path for {name}")
+              resolved = Path(buf.value).resolve()
+              if resolved.parent not in (frozen_internal, bundled):
+                  raise AssertionError(f"External DLL loader fallback: {name}: {resolved}")
+              canonical = bundled / name
+              if not canonical.is_file():
+                  raise AssertionError(f"Canonical packaged native DLL absent: {name}")
+              loaded_sha = hashlib.sha256(resolved.read_bytes()).hexdigest()
+              canonical_sha = hashlib.sha256(canonical.read_bytes()).hexdigest()
+              if loaded_sha != canonical_sha:
+                  raise AssertionError(f"PyInstaller native DLL conflicts with canonical bundle: {name}")
+              loaded[name] = {"path": str(resolved), "sha256": loaded_sha}
+
+          record = {
+              "status": "EXPERIMENTAL_FROZEN_PDF_ONLY",
+              "sha": os.environ["GITHUB_SHA"],
+              "pyinstaller_toolchain": "6.22.3",
+              "exe_sha256": exe_sha,
+              "pdf_bytes": len(pdf),
+              "pdf_sha256": hashlib.sha256(pdf).hexdigest(),
+              "bundled_dlls": 64,
+              "fontconfig_file_sha256": hashlib.sha256(fontconfig.read_bytes()).hexdigest(),
+              "font_regular_sha256": hashlib.sha256(regular_font.read_bytes()).hexdigest(),
+              "font_bold_sha256": hashlib.sha256(bold_font.read_bytes()).hexdigest(),
+              "font_license_sha256": hashlib.sha256(font_license.read_bytes()).hexdigest(),
+              "fontconfig_selected_file": str(selected_font),
+              "loaded_critical_dlls": loaded,
+              "notes": "Synthetic minimal PyInstaller executable only, NOT the certified Digital Crown app or installer",
+          }
+          (Path(os.environ["RUNNER_TEMP"]) / "fue-g04-frozen-lab-evidence.json").write_text(
+              json.dumps(record, indent=2), encoding="utf-8"
+          )
+          print("EXPERIMENTAL_FROZEN_NATIVE_PDF=PASS")
+          print("EXPERIMENTAL_FROZEN_BUNDLED_DLL_PATHS=PASS")
+          print("EXPERIMENTAL_FROZEN_PDF_BYTES=" + str(len(pdf)))
+          '@ | Set-Content -LiteralPath $source -Encoding utf8
+          $dist = Join-Path $root 'dist'
+          $build = Join-Path $root 'build'
+          $spec = Join-Path $root 'spec'
+          $pyArgs = @('-m','PyInstaller','--noconfirm','--clean','--onedir','--console',
+                      '--name','FUEG04LabFrozenPDF','--distpath',$dist,
+                      '--workpath',$build,'--specpath',$spec)
+          foreach ($dll in $dlls) {
+            $pyArgs += @('--add-binary', "$($dll.FullName);native")
+          }
+          foreach ($entry in @(
+            @($regular, 'fonts'), @($bold, 'fonts'),
+            @($fontLicense, 'fonts'), @($config, 'fontconfig')
+          )) {
+            $pyArgs += @('--add-data', "$($entry[0]);$($entry[1])")
+          }
+          $pyArgs += $source
+          & $python @pyArgs
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller frozen native probe build failed' }
+          $exe = Join-Path $dist 'FUEG04LabFrozenPDF/FUEG04LabFrozenPDF.exe'
+          if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Frozen laboratory EXE missing' }
+          # PyInstaller's own WeasyPrint hook may place some of the same DLLs
+          # directly beneath _internal, separate from our explicit native folder.
+          # Require every copied native DLL to match source and every root duplicate
+          # to have exactly the same bytes: never accept an OS/GTK fallback.
+          $frozenInternal = Join-Path $dist 'FUEG04LabFrozenPDF/_internal'
+          $frozenNative = Join-Path $frozenInternal 'native'
+          $dupes = 0
+          foreach ($dll in $dlls) {
+            $canonical = Join-Path $frozenNative $dll.Name
+            if (-not (Test-Path -LiteralPath $canonical -PathType Leaf)) { throw "Missing packaged canonical DLL: $($dll.Name)" }
+            $sourceHash = (Get-FileHash -LiteralPath $dll.FullName -Algorithm SHA256).Hash
+            $canonicalHash = (Get-FileHash -LiteralPath $canonical -Algorithm SHA256).Hash
+            if ($sourceHash -ne $canonicalHash) { throw "Packaged DLL source hash mismatch: $($dll.Name)" }
+            $rootCopy = Join-Path $frozenInternal $dll.Name
+            if (Test-Path -LiteralPath $rootCopy -PathType Leaf) {
+              $dupes += 1
+              if ((Get-FileHash -LiteralPath $rootCopy -Algorithm SHA256).Hash -ne $sourceHash) {
+                throw "PyInstaller root duplicate differs from official UCRT64 source: $($dll.Name)"
+              }
+            }
+          }
+          Write-Host "EXPERIMENTAL_FROZEN_ROOT_DLL_DUPLICATES_SHA_VERIFIED=$dupes"
+          $env:FUE_G04_FROZEN_EXE_SHA256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          # Execution has no Python nor MSYS2 toolchain directory in PATH.
+          $system = $env:SystemRoot
+          $env:PATH = "$system\System32;$system;$system\System32\Wbem"
+          $env:WEASYPRINT_DLL_DIRECTORIES = ''
+          if ($env:PATH -match '(?i)(msys|ucrt64)') { throw 'Host PATH isolation failed' }
+          $outFile = Join-Path $env:RUNNER_TEMP 'fue-g04-frozen-stdout.txt'
+          $errFile = Join-Path $env:RUNNER_TEMP 'fue-g04-frozen-stderr.txt'
+          $p = Start-Process -FilePath $exe -NoNewWindow -Wait -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+          $output = Get-Content -LiteralPath $outFile -Raw
+          $errors = Get-Content -LiteralPath $errFile -Raw
+          if ($p.ExitCode -ne 0) {
+            Write-Host $output
+            Write-Host $errors
+            throw "Frozen executable native PDF failed with exit $($p.ExitCode)"
+          }
+          if ($errors -match '(?i)Fontconfig error|Cannot load default config file') { throw "Fontconfig rejected packaged font directory: $errors" }
+          foreach ($expected in @('EXPERIMENTAL_FROZEN_NATIVE_PDF=PASS','EXPERIMENTAL_FROZEN_BUNDLED_DLL_PATHS=PASS')) {
+            if (-not $output.Contains($expected)) { throw "Frozen program did not print success: $expected" }
+          }
+          Write-Host $output
+          Write-Host 'EXPERIMENTAL_FROZEN_FONTCONFIG_LOCAL_FONT_MATCH=PASS'
+          Write-Host 'EXPERIMENTAL_FROZEN_NO_DEFAULT_FONTCONFIG_ERRORS=PASS'
+          Write-Host "EXPERIMENTAL_FROZEN_EXE_SHA256=$env:FUE_G04_FROZEN_EXE_SHA256"
+          Write-Host 'EXPERIMENTAL_ONLY_APP_INSTALLER_NOT_TESTED=YES'
+      - name: Save experimental digest inventory for subsequent strict manifest work
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fue-g04-experimental-native-ucrt64-inventory
+          path: |
+            ${{ runner.temp }}/FUE-G04-experimental-dll-hashes.json
+            ${{ runner.temp }}/FUE-G04-experimental-complete-provenance.json
+            ${{ runner.temp }}/FUE-G04-experimental-python-requirements.txt
+            ${{ runner.temp }}/fue-g04-isolated-native-smoke.pdf
+            ${{ runner.temp }}/fue-g04-isolated-native-check.json
+            ${{ runner.temp }}/fue-g04-frozen-lab-synthetic.pdf
+            ${{ runner.temp }}/fue-g04-frozen-lab-evidence.json
+          if-no-files-found: error
+          retention-days: 7

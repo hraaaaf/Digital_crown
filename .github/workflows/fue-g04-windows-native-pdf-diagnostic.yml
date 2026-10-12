@@ -1,0 +1,93 @@
+name: FUE-G04 Windows native PDF dependency diagnostic
+
+# LAB diagnostic only. This verifies the portable GTK/Pango DLL presence
+# inside the *actual* signed Windows installer, without clinical data.
+# Native DLL presence is NOT a successful WeasyPrint PDF rendering test.
+on:
+  push:
+    branches:
+      - ci/fue-g04-windows-installable-chain-20261010
+    paths:
+      - 'docs/audits/FUE_G04_TRIGGER_NATIVE_PDF_20261011.txt'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  native-pdf-bundle:
+    runs-on: windows-latest
+    timeout-minutes: 18
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MASTER_SHA: fa377f1ee05534cafbc26971f70f2e8ba8b792fd
+      CODE_RUN: '38100167771'
+      WINDOWS_BUILD_RUN: '38101353034'
+      EXPECTED_INNER_SETUP_SHA256: a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c
+    steps:
+      - name: Verify official immutable signed source and successful builder
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_REPOSITORY -ne 'hraaaaf/Digital_crown') { throw 'Unexpected repo' }
+          if ($env:GITHUB_REF -ne 'refs/heads/ci/fue-g04-windows-installable-chain-20261010') { throw 'Unexpected branch' }
+          $master = gh api repos/hraaaaf/Digital_crown/git/ref/heads/master --jq '.object.sha'
+          if ($LASTEXITCODE -ne 0 -or $master.Trim() -ne $env:MASTER_SHA) { throw 'Master immutable signed identity has changed' }
+          foreach ($id in @($env:CODE_RUN, $env:WINDOWS_BUILD_RUN)) {
+            $r = gh api "repos/hraaaaf/Digital_crown/actions/runs/$id" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $r.status -ne 'completed' -or $r.conclusion -ne 'success') { throw 'Upstream certified run did not pass' }
+          }
+          $code = gh api "repos/hraaaaf/Digital_crown/actions/runs/$env:CODE_RUN" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $code.head_sha -ne $env:MASTER_SHA) { throw 'Official certified source SHA mismatch' }
+          Write-Host 'NATIVE_PDF_UPSTREAM_IDENTITY=VERIFIED'
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 38101353034
+          name: fue-g04-windows-installer-fa377f1e
+          repository: hraaaaf/Digital_crown
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/fue-g04-native-pdf/setup
+      - name: Install only in ephemeral Windows runner and test native PDF DLL presence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $env:RUNNER_TEMP 'fue-g04-native-pdf/setup'
+          $install = Join-Path $env:RUNNER_TEMP 'fue-g04-native-pdf/installed'
+          $setup = @(Get-ChildItem -LiteralPath $source -Recurse -File -Filter 'DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe')
+          if ($setup.Count -ne 1) { throw 'Expected exactly one official installer EXE' }
+          $digest = (Get-FileHash -LiteralPath $setup[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($digest -ne $env:EXPECTED_INNER_SETUP_SHA256) { throw 'Installer identity mismatch; fail closed' }
+          $evidence = @(Get-ChildItem -LiteralPath $source -Recurse -File -Filter 'INSTALLER_EVIDENCE.txt')
+          if ($evidence.Count -ne 1) { throw 'Signed build evidence not found' }
+          $ev = Get-Content -LiteralPath $evidence[0].FullName -Raw
+          foreach ($expect in @("MASTER_SHA=$env:MASTER_SHA", "CODE_RUN=$env:CODE_RUN", "INSTALLER_SHA256=$digest", 'ACTUAL_CABINET_INSTALL=NOT_EXECUTED')) {
+            if (-not $ev.Contains($expect)) { throw 'Installer evidence/provenance mismatch' }
+          }
+          $args = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR="' + $install + '"'
+          $p = Start-Process -FilePath $setup[0].FullName -ArgumentList $args -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Ephemeral Inno installation failed with exit $($p.ExitCode)" }
+          $internal = Join-Path $install '_internal'
+          if (-not (Test-Path (Join-Path $install 'DigitalCrown.exe')) -or -not (Test-Path $internal -PathType Container)) { throw 'Actual frozen app not installed' }
+          Write-Host 'NATIVE_PDF_ACTUAL_EPHEMERAL_WINDOWS_INSTALL=PASS'
+          # WeasyPrint 68.1 on Windows requires native Pango/GLib/
+          # Fontconfig/Harfbuzz; these are not Python distribution names.
+          # This gate asks whether the signed install is self-contained,
+          # not whether a hypothetical target PC has GTK separately.
+          $needed = @('libgobject-2.0-0.dll', 'libpango-1.0-0.dll', 'libpangoft2-1.0-0.dll', 'libfontconfig-1.dll', 'libharfbuzz-0.dll')
+          $missing = @()
+          foreach ($name in $needed) {
+            $hits = @(Get-ChildItem -LiteralPath $internal -Recurse -File -Filter $name -ErrorAction Stop)
+            if ($hits.Count -eq 0) {
+              $missing += $name
+              Write-Host "NATIVE_PDF_DEPENDENCY_MISSING=$name"
+            } else {
+              Write-Host "NATIVE_PDF_DEPENDENCY_BUNDLED=$name"
+            }
+          }
+          if ($missing.Count -gt 0) {
+            Write-Host "NATIVE_PDF_BUNDLE=FAIL_MISSING_$($missing.Count)_DLL"
+            throw 'WeasyPrint native library dependency missing from certified Windows installer; clinical native PDF gate remains NO-GO'
+          }
+          Write-Host 'NATIVE_PDF_BUNDLE_LIBRARIES_PRESENT=PASS'
+          Write-Host 'NATIVE_PDF_REAL_PDF_RENDER=NOT_TESTED'
+          Write-Host 'PHYSICAL_ACTIVATION=NOT_EXECUTED'

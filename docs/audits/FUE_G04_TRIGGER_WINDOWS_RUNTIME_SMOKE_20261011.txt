@@ -1,0 +1,39 @@
+FUE-G04 — isolated Windows CI smoke trigger (runner-only, no clinical data)
+Source: official CODE_CERTIFIED master SHA 9c41d327400b8c41d8541517603d84bf9fdf9c23, run 38092782085
+Successful Windows installer build: https://github.com/hraaaaf/Digital_crown/actions/runs/38095783298
+Inner setup EXE SHA256: 9a8e07644dde4b7eff153a84a53d4c7a81c9ea7731262e8aa1daa807f765e33d
+Scope: throw-away GitHub Windows runner install under RUNNER_TEMP, check 7 identity proofs with exact bytes, isolated synthetic database/paths and loopback health; fail on errors.
+No Lenovo, historic patient archive, real cabinet, Vercel, clinic secrets, physical installation or release/branch merge.
+Initial run: 1
+
+CI_ONLY_RUN_RETRY=2
+Previous RED: https://github.com/hraaaaf/Digital_crown/actions/runs/38097354550
+Diagnosis: installer and seven proof SHA parity succeeded, frozen executable remained alive but synthetic loopback /health did not reach status=ok, db=ok within 100s. Existing harness omitted error and process telemetry.
+CI-only fix: add bounded diagnostics (process CPU, synthetic test DB exists, loopback TCP port, filtered/redacted synthetic-only application log, HTTP exception category) and extend fixed readiness observation to 180s while still FAILING on missing /health OK; no certified runtime or installer change.
+Workflow hardening commit eec52c43084a0970e0cdbc11dae4f30c1cdf8ded.
+No real cabinet data, physical Lenovo, production master, secrets, or Vercel accessed.
+
+CI_ONLY_NEW_MASTER_RUNTIME_SMOKE=1
+OFFICIAL_CODE_CERTIFIED_RUN=38100167771
+MASTER_SHA=fa377f1ee05534cafbc26971f70f2e8ba8b792fd
+NEW_WINDOWS_INSTALLER_RUN=38101353034 SUCCESS
+NEW_WINDOWS_INSTALLER_ARTIFACT=11687509142, name=fue-g04-windows-installer-fa377f1e, github zip SHA256=b1496b8c591ed692f21654ab828ab53d397ab521ae9e3f3f54b07202f7a223b7
+INNER_SETUP_EXE_SHA256=a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c
+GitHub run SHA evidence in uploaded installer evidence and successful runner logs; CI-only signed identity/7 proofs preserved.
+New smoke workflow commit=18636767a6b339e39143b9a2578e27ed2138bfd4 with mandatory inner installer SHA pinned; install ONLY on throw-away GH Windows runner temp; synthetic test database and ephemeral localhost TCP port, no clinic data. Require frozen installed DigitalCrown.exe /health.status=ok and db=ok. Fail-closed if anything missing.
+No real Lenovo/36 patient records, Vercel, production merge or machine activation.
+
+CI_ONLY_NEW_MASTER_RUNTIME_SMOKE_RETRY=2
+Previous GitHub smoke workflow parse RED: https://github.com/hraaaaf/Digital_crown/actions/runs/38101948661, 0 jobs, invalid workflow YAML due corrupted string substitution in new SHA256 guard; NOT an application executable failure.
+Repair commit e1b1c35123e0c5736cdce962bf2cfd81d88ce12e restores valid workflow. GitHub compared old known-working workflow: exactly seven changed lines (new official master/CODE run/build run/installer hash/artifact name plus additional SHA pin regex guard), no clinical code changes or bypass.
+Fresh inner installed installer SHA256 a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c. Installer LAB #38101353034 SUCCESS. Rerun Windows isolated full installed EXE /health with synthetic database only; protect archived patient records/Lenovo and no Vercel.
+
+CI_ONLY_FROZEN_MULTIPART_SMOKE=1
+PREVIOUS full installed Windows frozen runtime health SUCCESS https://github.com/hraaaaf/Digital_crown/actions/runs/38102069326, /health status=ok db=ok with disposable SQLite/SQLCipher.
+NEW CI-only diagnostic: synthetic development-only administrator seeded within fresh RUNNER_TEMP, randomly generated ephemeral CI credential, POST multipart/form-data /api/auth/login against installed frozen DigitalCrown.exe on 127.0.0.1, require actual access_token and bearer without printing credential/token. Purpose: exercise FastAPI python-multipart parser warning inside genuine PyInstaller Windows EXE. No actual patient or clinical media. Keep existing signed installer SHA and 7 proof gates. No PDF/WeasyPrint or ONNX feature claim.
+Workflow-only patch commit e6a0317a3cf3aa19d4f3819ea956e8124e269ba6. Safe retry from original official master fa377f1ee05534cafbc26971f70f2e8ba8b792fd / CODE_RUN 38100167771 / Windows artifact run 38101353034 (inner SHA a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c).
+No master mutation, Lenovo, historical 36 patients, Vercel, PR825 merge or physical deployment.
+
+CI_ONLY_REPORTLAB_PDF_SMOKE=1
+Previous frozen Windows install, /health SQLCipher and true multipart/form-data login SUCCESS: https://github.com/hraaaaf/Digital_crown/actions/runs/38102485208. New CI-only harness commit 2656e90ff527999a3130afe4db58da3b1d65438e on DRAFT PR825 exercises actual authenticated POST /api/documents/sample-preview for a built-in fictitious patient and GET signed preview PDF from the installed frozen EXE. Require PDF output magic %PDF- and 1KB..5MB size, no source changes, no real patient files, no internet download, no WeasyPrint-native claim (ReportLab ordonnance only). Official master sha fa377f1ee05534cafbc26971f70f2e8ba8b792fd unchanged, CODE_RUN 38100167771, new built installer #38101353034, exact inner setup SHA a67cc2047c1a99895fc88e1bad9e231920933ec39fe60032fbda194c1387c00c.
+Fail closed on errors. No Lenovo, Vercel, archived 36 real patients or merge.

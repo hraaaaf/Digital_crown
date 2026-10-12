@@ -1,0 +1,32 @@
+FUE-G04 Windows native PDF TEST LAB ONLY — 2026-10-11.
+Use separately authenticated official MSYS2 UCRT64 native Pango package SHA256: 8d86e4a018ff139b010bf357fa1c9f9030fa32ee195c54ed7e89d8ea701851c8, version 1.58.2-1.
+Official WeasyPrint doc recommends MSYS2 UCRT64 + mingw-w64-ucrt-x86_64-pango; source docs https://doc.courtbouillon.org/weasyprint/stable/first_steps.html and https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-pango.
+Lab action msys2/setup-msys2 pinned to commit ec48f7c5447b3140e2b088413ae3a55687bccb6e.
+Actual native WeasyPrint==68.1 render test uses synthetic HTML only and no installed/packaged Digital Crown executable.
+STRICT limitation: MSYS2 dependency closure/transitive pacman and Python pip transitive dependencies are NOT pinned at this stage; no binary may be imported into CODE_CERTIFIED, production, Windows setup, physical Lenovo, or historic patient records.
+This research proves candidate upstream availability and will record native DLL hashes for a follow-up immutable full provenance manifest; run must never certify clinic native PDF.
+Trigger workflow .github/workflows/fue-g04-weasyprint-ucrt64-discovery.yml on DRAFT CI-only PR #825. Keep master fa377f1ee05534cafbc26971f70f2e8ba8b792fd and official CODE_CERTIFIED run #38100167771 untouched.
+Previous native DLL audit #38103213961 legitimately RED (five missing DLL), unchanged.
+
+RETRY_HOST_PYTHON=3
+Previous experimental discovery run https://github.com/hraaaaf/Digital_crown/actions/runs/38103667335 was RED BEFORE native render because direct mirror responded anti-bot Verification Required; MSYS2 UCRT64 Pango installation itself was successful. New CI-only workflow commit 1dd1c06b73fd3986e9794b7ba1cf13e0eed0d6c7 takes exact Pango package 1.58.2-1 from authenticated pacman cache (pacman -Sw fallback), still checks original official SHA256 8d86e4a018ff139b010bf357fa1c9f9030fa32ee195c54ed7e89d8ea701851c8 without bypass. LAB ONLY, MSYS2 transitive packages and pip transitives not pinned, never use these native files in signed installer. Protected master and CODE_CERTIFIED artifact unchanged. No real cabinet/patient data, no Vercel.
+
+2026-10-11 LAB RETRY: prior run #38103857569 confirmed official Pango package SHA256 plus all 5 UCRT64 DLLs, but native rendering was not attempted because PATH chose MSYS2 python.exe lacking pip; force GitHub setup-python interpreter for both pip and render. No production, no package promotion, no physical installation.
+
+RETRY_FULL_PROVENANCE=4
+Run #38104035183 PASS on SHA 09b965920a917fc0a198173327717a984cbd0dae: real synthetic 7772-byte WeasyPrint 68.1 PDF. Experimental next step: hash all native UCRT64 installed package archives/DLLs and exact-version Windows wheels in GitHub Actions only; never use this metadata to certify Digital Crown production installer without separate closure/packaged-executable proof.
+
+RETRY_VALID_YAML_INVENTORY=5
+Previous #38104472360 failed before job scheduling because the experimental YAML was corrupted by editing. Corrected the workflow structure, preserve green PDF laboratory and fail-closed provenance inventory.
+
+RETRY_COPIED_DLL_ISOLATION=6
+2026-10-11 Gate after manifest green #38104533589: copy SHA-checked 64 UCRT64 DLLs into standalone LAB folder, strip MSYS2 PATH, generate synthetic PDF with WeasyPrint 68.1, verify GetModuleFileNameW resolves five critical DLLs exclusively to isolated folder. Experimental only, not a packaged Digital Crown app, not permission to ship binaries.
+
+RETRY_FROZEN_NATIVE_PROBE=7
+Green #38104766896 verified 64 copied DLLs and real synthetic PDF with no MSYS2 PATH. Now CI-only probe builds a minimal synthetic PyInstaller==6.22.3 onedir EXE with 64 DLLs under _internal/native, executes with system-only PATH, hashes synthetic PDF, checks five loaded DLL paths, publishes only metadata+PDF (never frozen executable). It is not a Digital Crown app installer nor clinic certification.
+
+RETRY_FROZEN_ROOT_DUPLICATES_SHA=8
+RED #38105118650: frozen PyInstaller minimal EXE built and rendered but assertion rejected libgobject auto-collected into _internal instead of _internal/native. Next check accepts only those two exact package directories; SHA must equal the official source across all 64 native DLLs and every auto-collected duplicate, fail on any external module path/hash mismatch. Report EXE SHA and synthetic PDF only. Fontconfig warnings persist and font fidelity is not certified. Still LAB, no release/Lenovo.
+
+RETRY_BUNDLED_FONTCONFIG=9
+Run #38105319697 frozen PyInstaller PDF SUCCESS on af8d9c7248b00d1a4303f03c9c973303815fb0e2, 5127 bytes. But unresolved Fontconfig 'Cannot load default config file' affects font fidelity. CI-only retry adds pinned official MSYS2 DejaVu fonts 2.37-4 SHA256 dd9fd7bb48ceb0f0f004a4b34d6ac0d9cb4fd2d15273d88780b3cda6cab0beea with license, self-contained XML Fontconfig relative fonts directory, native FcFontMatch selected path assertion, and captures stderr fail-closed against missing-fontconfig error. Synthetic proof only; never production DLL promotion, install or merge.

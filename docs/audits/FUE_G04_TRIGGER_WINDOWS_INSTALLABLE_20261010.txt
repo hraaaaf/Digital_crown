@@ -1,0 +1,40 @@
+FUE-G04 — Windows CI-only installable certification LAB trigger
+Date: 2026-10-10
+Repository: hraaaaf/Digital_crown
+Exact immutable master commit_sha: 9c41d327400b8c41d8541517603d84bf9fdf9c23
+Official CODE_CERTIFIED GitHub Actions run: 38092782085
+CODE_CERTIFIED artifact: code-certified-dc-cabinet-9c41d327400b-run38092782085
+Sigstore provenance attestation: https://github.com/hraaaaf/Digital_crown/attestations/54694472
+Windows scientific model preflight: https://github.com/hraaaaf/Digital_crown/actions/runs/38093155924
+Scientific model source run: 34281082926
+Scientific model SHA256: a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb
+GOAL: trigger staged GitHub Actions Windows ephemeral-runner-only, fail-closed release composition + PyInstaller + Inno Setup proof tests.
+LIMITS: No merge, no Vercel, no installation/execution on real cabinet, no clinic data, no Lenovo, no firewall, no clinical activation.
+CERTIFICATION: This trigger itself does NOT establish INSTALLABLE_CERTIFIED; inspect the actual Windows run, required proof artifacts, and no failures first.
+
+CI_ONLY_RUN_RETRY=2
+Prior run: https://github.com/hraaaaf/Digital_crown/actions/runs/38093928122
+Reason: Windows verifier could not import SQLAlchemy because pinned dependencies installed after verifier.
+Fix commit: 9747878cb791eafba6d5307f10838f23425d396e
+New safeguard: dependency files verified against signed CODE manifest and installed before verifier.
+Production release/master SHA/attestation unchanged. Ephemeral Windows GitHub runner only; no physical execution or patient data.
+
+CI_ONLY_RUN_RETRY=3
+Previous run: https://github.com/hraaaaf/Digital_crown/actions/runs/38094252763
+Reason: authenticated verifier imported module and wrote unmanifested __pycache__ bytecode into CODE payload, correctly rejected by fail-closed release composer.
+Fix commit: d83bacf5a67bef70ab7b3e33bd21a055ce878424
+Controls: PYTHONDONTWRITEBYTECODE=1, full signed-manifest exact-file-set verification, signed-only ZIP packaging, refuse all extras.
+No relaxation of safety/provenance checks. No master, CODE artifact, physical cabinet, or patient data modifications.
+
+CI_ONLY_RUN_RETRY=4
+Prior red: https://github.com/hraaaaf/Digital_crown/actions/runs/38094796568
+Root cause: PyInstaller 6 onedir stores signed runtime proofs in dist/DigitalCrown/_internal; the canonical Inno Setup preprocessor also requires same proof bytes at dist/DigitalCrown root.
+Fix CI workflow commit d3a3df6bc3de48f97eed4494df85decb19b2c096: require all seven _internal proofs, SHA256-match each to certified source release, fail on unexpected root file, copy exact bytes to installer root, rehash and refuse mismatches.
+No change to master, CODE_CERTIFIED, frozen launcher, original installer .iss or original DigitalCrown.spec. No real cabinet or data operations.
+
+CI_ONLY_NEW_MASTER_CERTIFIED_RUN=1
+CODE_CERTIFIED new signed master SHA=fa377f1ee05534cafbc26971f70f2e8ba8b792fd
+Official GH Actions source certification run=https://github.com/hraaaaf/Digital_crown/actions/runs/38100167771
+Official CODE artifact id=11687458055 name=code-certified-dc-cabinet-fa377f1ee055-run38100167771
+Sigstore attestation=https://github.com/hraaaaf/Digital_crown/attestations/54712076 manifest-sha256=eb5417fa9f787f92866a1d75b7238dd378c3aa346f1d7b40b6c717874edf9d16
+CI-only workflow pinned new master and CODE_RUN in commit 292884c1f6a0efc3a50acc59c90606d54fb341cd. Rebuild true Digital Crown Windows PyInstaller and Inno Setup in ephemeral runner. Do not mutate signed source, origin master, Lenovo historical real patient data or install to physical cabinet. FROZEN_RUNTIME_SMOKE requires new installer's actual EXE SHA; keep old smoke pinned and dormant until that is available.

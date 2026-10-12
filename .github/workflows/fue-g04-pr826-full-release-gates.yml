@@ -1,0 +1,82 @@
+name: FUE-G04 PR826 complete release-gate rehearsal (never CODE_CERTIFIED)
+
+# Exact PR826 commit rehearsal. Official release workflow still runs only from master.
+on:
+  push:
+    branches:
+      - ci/fue-g04-windows-installable-chain-20261010
+    paths:
+      - '.github/workflows/fue-g04-pr826-full-release-gates.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  TARGET_PR_SHA: ce247eed6fff947bffc892edaff0d1e6470a33c0
+
+jobs:
+  backend-complete:
+    name: Full backend regression and production safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    env:
+      SECRET_KEY: release-rehearsal-strong-ci-key-00000000-only
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ce247eed6fff947bffc892edaff0d1e6470a33c0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert pinned candidate, refuse unexpected checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_PR_SHA"
+          echo "PR826_CANDIDATE_SHA=$TARGET_PR_SHA"
+          echo "RELEASE_CERTIFICATION=NOT_PERFORMED"
+      - name: Install canonical release backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          pip install httpx==0.28.1 pytest pytest-asyncio
+          python -m pip check
+      - name: Production safety invariant
+        run: python scripts/prod_safety_check.py
+      - name: Full release backend suite (no skipping safety)
+        run: python -m pytest backend/tests -q --maxfail=5
+
+  frontend-complete:
+    name: Full frontend tests and exact candidate production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ce247eed6fff947bffc892edaff0d1e6470a33c0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Assert candidate identity
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$TARGET_PR_SHA"
+      - name: Install exact candidate frontend dependencies
+        run: npm ci
+      - name: Complete frontend regression, including canonical-focus adapter
+        run: npm test
+      - name: Produce code-only frontend build for verification
+        run: npm run build
