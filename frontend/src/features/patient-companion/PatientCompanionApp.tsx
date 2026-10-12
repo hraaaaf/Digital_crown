@@ -315,7 +315,7 @@ export const PatientCompanionApp = () => {
       if (typeof payload.sessionId === 'string') {
         setStationDocumentSession({ sessionId: payload.sessionId, accessId: pairing.context.access_id });
       }
-      setStationHandoffMessage('Identité confirmée. Vos documents autorisés sont disponibles ci-dessous sur votre téléphone.');
+      setStationHandoffMessage('Identité confirmée sur la station. Vous pouvez consulter ci-dessous les feuilles de soins autorisées, si elles sont disponibles.');
       return true;
     } catch (err) {
       setStationHandoffMessage(err instanceof Error ? err.message : 'Session borne invalide ou expirée.');
