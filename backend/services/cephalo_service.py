@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from backend.repositories.cephalo_repository import CephaloRepository
 from backend.services.cephalo_safe_engine import cephalo_safe_engine as cephalo_engine
 from backend.services.vision_service import vision_engine
+from backend.services.cephalo_scale_source_resolver import resolve_scale_sources
 from backend.services.bilan_ortho_engine import bilan_ortho_engine
 from backend.services.cephalo_runtime_evidence import (
     EVIDENCE_GRAPH_KEY,
@@ -115,6 +116,12 @@ class CephaloService:
             "candidate_unverified" if calibration_candidate is not None else "unverified"
         )
         final_data_dict["calibration_candidate"] = candidate_payload
+        # Commercial multi-device source evidence, display/audit only.
+        # Current JPEG/PNG uploads have NO trustworthy DICOM metadata,
+        # physical fiducial profile or permitted automatic scale promotion.
+        final_data_dict["calibration_source_resolution"] = resolve_scale_sources(
+            ruler=calibration_candidate,
+        ).to_payload()
 
         evidence_payload = build_cephalo_runtime_evidence_payload(
             patient_id=patient_id,
