@@ -63,8 +63,10 @@ def test_real_srpose38_two_lateral_xrays_authenticated_upload_edit_sqlite_reload
     expected_model_sha = "a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb"
     model = Path(__file__).resolve().parents[1] / "ai_models/srpose38-tta-1024.onnx"
     assert hashlib.sha256(model.read_bytes()).hexdigest() == expected_model_sha
-    # Isolated explicit adapter to the ACTUAL SOTA ONNX engine, not dummy points.
-    monkeypatch.setattr(cephalo_service.vision_engine, "predict_landmarks", sota_vision_engine.predict_landmarks)
+    # IMPORTANT: exercise the production VisionEngine.predict_landmarks path
+    # unmodified. It chooses the ready SRPose38 primary engine itself; the
+    # response mode assertion below fails if it ever falls back to legacy ML.
+    assert cephalo_service.vision_engine is not None
     export_dir = Path(os.environ["DC_CEPH03B3D_PREDICTIONS_DIR"])
     export_dir.mkdir(parents=True, exist_ok=True)
     import backend.services.cmo_agent_service as cmo_module
