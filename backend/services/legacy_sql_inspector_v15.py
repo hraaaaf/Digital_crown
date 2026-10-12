@@ -276,7 +276,14 @@ def _sql(text: str) -> tuple[tuple[TableInventory, ...], tuple[str, ...]]:
             if type_match is None:
                 raise UnsafeSource("UNSUPPORTED_COLUMN_TYPE")
             suffix = declaration[type_match.end():]
-            if re.match(r"^\s+UNSIGNED\b", suffix, re.I):
+            # Do not silently collapse an unparsed array or oversized/complex
+            # precision into its scalar prefix: it would mislead human mapping.
+            remaining = suffix.lstrip()
+            if remaining.startswith(("(", "[", ".")) or re.match(
+                r"^(?:ARRAY|ZEROFILL)\b", remaining, re.I
+            ):
+                raise UnsafeSource("UNSUPPORTED_COLUMN_TYPE_SUFFIX")
+            if re.match(r"^UNSIGNED\b", remaining, re.I):
                 declared_type = type_match.group(0) + " UNSIGNED"
             else:
                 declared_type = type_match.group(0)
