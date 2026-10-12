@@ -146,6 +146,28 @@ class TargetManifestAdapterTest(unittest.TestCase):
         with self.assertRaisesRegex(TargetManifestRefused, "NO_SAFE_COLUMNS_IN_TARGET_TABLE"):
             build(md, ("clinic",))
 
+    def test_rejects_schema_qualified_user_account_table(self):
+        md = MetaData()
+        Table("users", md, Column("id", Integer), schema="public")
+        with self.assertRaisesRegex(TargetManifestRefused, "SENSITIVE_TARGET_TABLE_FORBIDDEN"):
+            build(md, ("public.users",))
+
+    def test_declared_revision_cannot_claim_an_unknown_alembic_head(self):
+        with self.assertRaisesRegex(TargetManifestRefused, "DECLARED_ALEMBIC_REVISION_MISMATCH"):
+            build_declared_target_manifest(
+                clinical_metadata(), requested_tables=("patients",),
+                declared_revision="neo000000026",
+            )
+
+    def test_role_and_lifecycle_privileges_are_filtered(self):
+        md = clinical_metadata()
+        md.tables["patients"].append_column(Column("role", String(20)))
+        md.tables["patients"].append_column(Column("is_active", Integer))
+        preview = build(md, ("patients",))
+        self.assertNotIn("role", preview.tables[0].columns)
+        self.assertNotIn("is_active", preview.tables[0].columns)
+        self.assertIn("id", preview.tables[0].columns)
+
     def test_does_not_call_engine_or_reflect_tables(self):
         import sqlalchemy
         old = sqlalchemy.create_engine
