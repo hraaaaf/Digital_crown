@@ -13,6 +13,7 @@ on:
       - "backend/tests/test_station_document_handoff_v15.py"
       - "backend/tests/test_station_document_delivery_purge_v15.py"
       - "backend/tests/test_station_https_cross_process_v15.py"
+      - "docs/quality/V15_04_5_RPG_ADVERSARIAL_REVIEW_20261012.md"
       - ".github/workflows/v15-04-4-station-document-qr-nfc.yml"
       - "frontend/src/features/hub/StationPatientIdentity.tsx"
       - "frontend/src/features/hub/StationKioskShell.tsx"
@@ -30,6 +31,7 @@ on:
       - 'backend/tests/test_station_document_handoff_v15.py'
       - 'backend/tests/test_station_document_delivery_purge_v15.py'
       - 'backend/tests/test_station_https_cross_process_v15.py'
+      - 'docs/quality/V15_04_5_RPG_ADVERSARIAL_REVIEW_20261012.md'
       - 'frontend/src/features/hub/StationPatientIdentity.tsx'
       - 'frontend/src/features/hub/StationPatientIdentity.test.tsx'
       - 'frontend/scripts/capture-v15-04-4-documents-identity.mjs'
