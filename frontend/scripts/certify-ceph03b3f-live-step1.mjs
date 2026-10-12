@@ -93,6 +93,21 @@ try {
       const anonUpload=await anon.request.post(origin+'/api/ia/upload-radio?patient_id='+patient,{
         multipart:{file:{name:radio.file_name,mimeType:'image/jpeg',buffer:imageBytes[film]}}});
       assert([401,403].includes(anonUpload.status()),'Unauthenticated real upload not blocked');
+      const outsider=await browser.newContext({viewport:{width:1280,height:900},serviceWorkers:'block'});
+      try {
+        const outsiderLogin=await outsider.request.post(origin+'/api/auth/login',{
+          form:{username:meta.other_doctor_email,password:'TestPass123!'}});
+        assert(outsiderLogin.status()===200,'Second clinician login failed');
+        const deniedCrossPatient=await outsider.request.get(origin+'/api/patients/'+patient);
+        assert([403,404].includes(deniedCrossPatient.status()),
+          'CROSS_CABINET_PATIENT_READ: '+deniedCrossPatient.status());
+        const deniedCrossUpload=await outsider.request.post(origin+'/api/ia/upload-radio?patient_id='+patient,{
+          multipart:{file:{name:radio.file_name,mimeType:'image/jpeg',buffer:imageBytes[film]}}});
+        assert([403,404].includes(deniedCrossUpload.status()),
+          'CROSS_CABINET_UPLOAD: '+deniedCrossUpload.status());
+      } finally {
+        await outsider.close();
+      }
       const login=await context.request.post(origin+'/api/auth/login',{
         form:{username:meta.doctor_email,password:'TestPass123!'}});
       assert(login.status()===200,'Real login failed '+film+': '+login.status());
