@@ -189,7 +189,9 @@ export const StationPatientIdentity = ({
   }, []);
 
   useEffect(() => {
-    if (!session || status !== 'pending') return undefined;
+    // Once documents have been identified, continue observing server revocation:
+    // a phone-side purge must clear the shared Station without waiting for TTL.
+    if (!session || (status !== 'pending' && !(purpose === 'documents' && status === 'identified'))) return undefined;
     let cancelled = false;
     const poll = async () => {
       try {
@@ -201,7 +203,13 @@ export const StationPatientIdentity = ({
           setStatus('identified');
           return;
         }
-        if (next.status === 'expired') setStatus('expired');
+        if (next.status === 'expired') {
+          setDisplayName('');
+          setCompanionPaired(false);
+          setAvailableDocuments([]);
+          setDocumentsError('');
+          setStatus('expired');
+        }
       } catch {
         if (!cancelled) {
           setStatus('error');
@@ -215,7 +223,7 @@ export const StationPatientIdentity = ({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [session, status]);
+  }, [session, status, purpose]);
 
   useEffect(() => {
     if (status !== 'identified' || purpose !== 'documents' || !session) return undefined;
