@@ -33,6 +33,7 @@ interface CephaloLandmarkReticlesProps {
   clientToSVG: (clientX: number, clientY: number) => { x: number; y: number } | null;
   onPointMouseDown?: (id: string) => void;
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
+  onLandmarkDragPreview?: (preview: { id: string; x: number; y: number } | null) => void;
 }
 
 export const CephaloLandmarkReticles = ({
@@ -53,6 +54,7 @@ export const CephaloLandmarkReticles = ({
   clientToSVG,
   onPointMouseDown,
   onUpdateLandmarks,
+  onLandmarkDragPreview,
 }: CephaloLandmarkReticlesProps) => {
   const P = palette;
   const isHoverActive = !!hoveredMetric;
@@ -106,7 +108,9 @@ export const CephaloLandmarkReticles = ({
                 e.stopPropagation();
                 const coords = clientToSVG(e.clientX, e.clientY);
                 if (!coords) return;
-                setActiveDragPos({ id: pt.id, ...coords });
+                const preview = { id: pt.id, ...coords };
+                setActiveDragPos(preview);
+                onLandmarkDragPreview?.(preview);
                 if (magnifierEnabled) setMagnifier({ x: coords.x, y: coords.y, show: true });
               }}
               onPointerUp={e => {
@@ -115,6 +119,7 @@ export const CephaloLandmarkReticles = ({
                 const coords = clientToSVG(e.clientX, e.clientY);
                 setActiveDragId(null);
                 setActiveDragPos(null);
+                onLandmarkDragPreview?.(null);
                 setMagnifier(m => ({ ...m, show: false }));
                 if (coords) {
                   onUpdateLandmarks(
@@ -128,6 +133,7 @@ export const CephaloLandmarkReticles = ({
                 // A cancelled gesture is not a clinical edit; never persist its preview.
                 setActiveDragId(null);
                 setActiveDragPos(null);
+                onLandmarkDragPreview?.(null);
                 setMagnifier(m => ({ ...m, show: false }));
               }}
               onLostPointerCapture={() => {
@@ -135,6 +141,7 @@ export const CephaloLandmarkReticles = ({
                 // OS/window interruption must not strand the point in dragging mode.
                 setActiveDragId(null);
                 setActiveDragPos(null);
+                onLandmarkDragPreview?.(null);
                 setMagnifier(m => ({ ...m, show: false }));
               }}
               onPointerEnter={() => {
