@@ -173,11 +173,10 @@ jobs:
             exit 0
           fi
           git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
-          git merge-base --is-ancestor "${EVALUATED_BASE}" HEAD || {
-            echo "Historical 04.4 BEFORE is not an ancestor of candidate; refuse comparison"
-            exit 1
-          }
           git worktree add --detach /tmp/v15-04-4-base "${EVALUATED_BASE}"
+          # Checkout is shallow by default: verify the exact immutable SHA,
+          # not ancestry, which cannot be evaluated with a depth-one graph.
+          test "$(git -C /tmp/v15-04-4-base rev-parse HEAD)" = "${EVALUATED_BASE}"
           cp scripts/capture-v15-04-4-documents-identity.mjs /tmp/v15-04-4-base/frontend/capture-04-4-baseline.mjs
           cp scripts/capture-v15-04-5-companion-phone.mjs /tmp/v15-04-4-base/frontend/capture-04-5-companion-baseline.mjs
           cd /tmp/v15-04-4-base/frontend
