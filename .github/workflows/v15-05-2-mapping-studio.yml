@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/lot05-2-tests.log
-          grep -q 'Ran 24 tests' /tmp/lot05-2-tests.log
+          grep -q 'Ran 25 tests' /tmp/lot05-2-tests.log
           grep -q '^OK$' /tmp/lot05-2-tests.log
           if grep -Ei 'skipped|expected failure' /tmp/lot05-2-tests.log; then exit 1; fi
       - name: 05.1 inspector regression
@@ -56,6 +56,6 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED"
           {
             echo "05.2-A metadata Mapping Studio draft tests at SHA: $EXPECTED"
-            echo "24 synthetic mapping cases + 28 inspector regressions per Python version."
+            echo "25 synthetic mapping cases + 28 inspector regressions per Python version."
             echo "NO authenticated admin approval, live data, data import, UI or migration."
           } >> "$GITHUB_STEP_SUMMARY"
