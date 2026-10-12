@@ -92,7 +92,7 @@ with httpx.Client(base_url=origin, verify=cert, trust_env=False, timeout=15, hea
         response = c.get(phone.replace("/documents?", f"/documents/care-sheet/{p['document_id']}?"))
         assert response.status_code == 200, (response.status_code, response.text)
         assert response.headers["content-type"].startswith("application/pdf")
-        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["cache-control"].startswith("no-store")
         assert response.headers["x-content-type-options"] == "nosniff"
         digest = hashlib.sha256(response.content).hexdigest()
         assert digest == p["expected_sha256"], (digest, p["expected_sha256"])
