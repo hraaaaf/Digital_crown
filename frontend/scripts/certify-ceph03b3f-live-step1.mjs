@@ -125,7 +125,23 @@ try {
       assert(uploaded.is_calibrated===false && uploaded.mm_per_pixel===null,'Unjustified physical calibration');
       const id=uploaded.analysis_id;
       assert(Number.isSafeInteger(id)&&id>0,'Missing real analysis ID');
-      await page.locator('[data-r20-workbench-layout]').waitFor({timeout:60000});
+      await page.locator('[data-r20-workbench-layout]').waitFor({timeout:35000}).catch(async original => {
+        const diagnostic={
+          film,
+          url:page.url(),
+          body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,3500),
+          workbenchCount:await page.locator('[data-r20-workbench-layout]').count(),
+          rootHtml:(await page.locator('#root').innerHTML().catch(()=>'' )).slice(0,3500),
+          consoleErrors:consoleErrors.slice(-20),
+          uploadResponseKeys:Object.keys(uploaded),
+          uploadPath:uploaded.image_path,
+        };
+        const file=film+'-AFTER-LIVE-UPLOAD-FAILURE.png';
+        await page.screenshot({path:path.join(out,file),fullPage:false}).catch(()=>{});
+        await writeFile(path.join(out,film+'-failure.json'),JSON.stringify(diagnostic,null,2));
+        console.error('DC_CEPH03B3F_LIVE_STEP1_BLOCKER',JSON.stringify(diagnostic).slice(0,6500));
+        throw original;
+      });
       await page.locator('[data-ceph03b-drag-handle="N"]').waitFor({timeout:60000});
       await page.locator('svg[viewBox="0 0 '+radio.width+' '+radio.height+'"]').first().waitFor({timeout:45000});
       const initialGet=await context.request.get(origin+pathForId(id));
