@@ -1,10 +1,58 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import type { Landmark } from '../cephaloShared';
 
 const SOFT_TISSUE_IDS = new Set([
   'ul', 'll', 'sn', 'stpog', 'ls', 'li', 'prn', 'cm', 'g_soft', 'n_soft', 'a_soft', 'st', 'b_soft', 'pog_soft', 'me_soft', 'g-soft', 'n-soft'
 ]);
+
+type LabelSlot = { x: number; y: number };
+type LabelRect = LabelSlot & { width: number; height: number };
+
+// Display-only placement; the anatomical coordinates never change.
+// Dense clusters reveal additional labels when selected with the keyboard.
+const layoutReticleLabels = (
+  landmarks: Landmark[], width: number, height: number,
+  fontSize: number, priorityId: string | null,
+): Map<string, LabelSlot> => {
+  const slots = new Map<string, LabelSlot>();
+  const used: LabelRect[] = [];
+  const pad = fontSize * 0.24;
+  const ordered = [...landmarks].sort((a, b) =>
+    Number(b.id === priorityId) - Number(a.id === priorityId));
+  for (const pt of ordered) {
+    const textWidth = fontSize * (pt.id.length * 0.70 + 0.9);
+    const textHeight = fontSize * 1.2;
+    const gap = fontSize * 0.7;
+    const candidates: LabelSlot[] = [
+      { x: pt.x + gap, y: pt.y - textHeight - gap },
+      { x: pt.x - textWidth - gap, y: pt.y - textHeight - gap },
+      { x: pt.x + gap, y: pt.y + gap },
+      { x: pt.x - textWidth - gap, y: pt.y + gap },
+      { x: pt.x + gap, y: pt.y - textHeight / 2 },
+      { x: pt.x - textWidth - gap, y: pt.y - textHeight / 2 },
+      { x: pt.x - textWidth / 2, y: pt.y - textHeight - gap },
+      { x: pt.x - textWidth / 2, y: pt.y + gap },
+    ];
+    const free = candidates.find(({ x, y }) =>
+      x >= pad && y >= pad && x + textWidth <= width - pad
+      && y + textHeight <= height - pad
+      && used.every(rect => x + textWidth + pad <= rect.x
+        || rect.x + rect.width + pad <= x
+        || y + textHeight + pad <= rect.y
+        || rect.y + rect.height + pad <= y));
+    if (free) {
+      slots.set(pt.id, free);
+      used.push({ ...free, width: textWidth, height: textHeight });
+    } else if (pt.id === priorityId) {
+      slots.set(pt.id, {
+        x: Math.max(0, Math.min(width - textWidth, pt.x + gap)),
+        y: Math.max(0, Math.min(height - textHeight, pt.y - gap - textHeight)),
+      });
+    }
+  }
+  return slots;
+};
 
 interface CephaloLandmarkReticlesProps {
   landmarks: Landmark[];
@@ -65,9 +113,17 @@ export const CephaloLandmarkReticles = ({
   onLandmarkDragPreview,
 }: CephaloLandmarkReticlesProps) => {
   const P = palette;
+  const [keyboardFocusedId, setKeyboardFocusedId] = useState<string | null>(null);
   const isHoverActive = !!hoveredMetric;
   const isPointHovered = (ptId: string) =>
     !isHoverActive || hoveredMetric!.points.map(p => p.toLowerCase()).includes(ptId.toLowerCase());
+
+  const focusId = keyboardFocusedId ?? focusedPointId ?? activeDragId ?? activePointId ?? null;
+  const labelFontSize = Math.max(20, Math.min(36, imageWidth * 0.014));
+  const labelSlots = layoutReticleLabels(
+    landmarks.filter(pt => !isHoverActive || isPointHovered(pt.id) || pt.id === focusId),
+    imageWidth, imageHeight, labelFontSize, focusId,
+  );
 
   return (
     <>
@@ -75,8 +131,9 @@ export const CephaloLandmarkReticles = ({
         const isSoft = SOFT_TISSUE_IDS.has(pt.id.toLowerCase());
         const isDragged = activeDragId === pt.id;
         const isActive = pt.id === activePointId;
-        const isFocused = pt.id === focusedPointId;
+        const isFocused = pt.id === focusedPointId || pt.id === keyboardFocusedId;
         const isHovMetric = isPointHovered(pt.id);
+        const labelSlot = labelSlots.get(pt.id);
 
         if (activeDragId && !isDragged) return null;
 
@@ -104,6 +161,9 @@ export const CephaloLandmarkReticles = ({
           >
             <g
               data-ceph03b-drag-handle={pt.id}
+              data-ceph03b-keyboard-focus={isFocused ? 'true' : 'false'}
+              onFocus={() => setKeyboardFocusedId(pt.id)}
+              onBlur={() => setKeyboardFocusedId(current => current === pt.id ? null : current)}
               tabIndex={0}
               role="button"
               aria-label={`Point anatomique ${pt.id}, flèches pour déplacer de 1 pixel image, Maj et flèches pour 10 pixels`}
@@ -204,6 +264,13 @@ export const CephaloLandmarkReticles = ({
               }}
             >
               <circle cx={dispX} cy={dispY} r={20} fill="transparent" stroke="transparent" />
+              {isFocused && (
+                <circle data-ceph03b-focus-ring={pt.id}
+                  cx={dispX} cy={dispY}
+                  r={Math.max(11, imageWidth * 0.014)}
+                  fill="none" stroke={P.ptFocus} strokeWidth="3"
+                  opacity="0.98" vectorEffect="non-scaling-stroke" />
+              )}
               <circle
                 cx={dispX}
                 cy={dispY}
@@ -240,13 +307,12 @@ export const CephaloLandmarkReticles = ({
                 </>
               )}
 
-              {(isHovMetric || isDragged || isFocused) && (
+              {labelSlot && (
                 <text
-                  x={dispX}
-                  y={dispY}
-                  dx="13"
-                  dy="-13"
-                  fontSize="10"
+                  data-ceph03b-label={pt.id}
+                  x={labelSlot.x}
+                  y={labelSlot.y + labelFontSize * 0.95}
+                  fontSize={labelFontSize}
                   fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
                   fontWeight="900"
                   className="pointer-events-none select-none"
