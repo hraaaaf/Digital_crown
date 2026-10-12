@@ -80,13 +80,16 @@ with httpx.Client(base_url=origin, verify=cert, trust_env=False, timeout=15, hea
         assert response.status_code == (200 if action == "claim" else 409), (response.status_code, response.text)
         result = {"claim_once": action == "claim", "replay_denied": action == "replay"}
     elif action == "receive":
-        listing = c.get(base + "/documents")
+        # The receiver is a separate patient-phone OS process, not the kiosk.
+        phone = f"/api/patient-companion/station-session/{p['session_id']}/documents"
+        phone += f"?accessId={p['access_id']}"
+        listing = c.get(phone)
         assert listing.status_code == 200, (listing.status_code, listing.text)
         assert listing.headers["cache-control"] == "no-store"
         assert listing.json() == {"documents": [{"documentId": p["document_id"], "kind": "care_sheet"}]}
-        alien = c.get(base + f"/documents/care-sheet/{p['other_document_id']}")
+        alien = c.get(phone.replace("/documents?", f"/documents/care-sheet/{p['other_document_id']}?"))
         assert alien.status_code == 404, (alien.status_code, alien.text)
-        response = c.get(base + f"/documents/care-sheet/{p['document_id']}")
+        response = c.get(phone.replace("/documents?", f"/documents/care-sheet/{p['document_id']}?"))
         assert response.status_code == 200, (response.status_code, response.text)
         assert response.headers["content-type"].startswith("application/pdf")
         assert response.headers["cache-control"] == "no-store"
@@ -102,12 +105,23 @@ with httpx.Client(base_url=origin, verify=cert, trust_env=False, timeout=15, hea
     elif action == "purge":
         purge = c.post(base + "/purge")
         assert purge.status_code == 204, (purge.status_code, purge.text)
-        listing = c.get(base + "/documents")
-        download = c.get(base + f"/documents/care-sheet/{p['document_id']}")
+        phone = f"/api/patient-companion/station-session/{p['session_id']}/documents"
+        phone += f"?accessId={p['access_id']}"
+        patient_headers = {"Authorization": p["patient_authorization"]}
+        listing = c.get(phone, headers=patient_headers)
+        download = c.get(
+            phone.replace("/documents?", f"/documents/care-sheet/{p['document_id']}?"),
+            headers=patient_headers,
+        )
         assert listing.status_code in (404, 409)
         assert download.status_code in (404, 409)
         assert not download.headers.get("content-type", "").startswith("application/pdf")
         result = {"purged": True, "listing_denied": True, "pdf_denied": True}
+    elif action == "kiosk_pdf_denied":
+        response = c.get(base + f"/documents/care-sheet/{p['document_id']}")
+        assert response.status_code == 423, (response.status_code, response.text)
+        assert not response.headers.get("content-type", "").startswith("application/pdf")
+        result = {"kiosk_pdf_denied": True}
     elif action == "wrong_station":
         listing = c.get(base + "/documents")
         download = c.get(base + f"/documents/care-sheet/{p['document_id']}")
@@ -236,12 +250,20 @@ def test_045_tls_sender_companion_receiver_are_independent_os_processes(
             **bound, "authorization": patient_auth["Authorization"],
             "workstation_cookie": "", "access_id": access_a.public_id,
         })
-        received = _actor("receive", bound)
+        kiosk_blocked = _actor("kiosk_pdf_denied", bound)
+        assert kiosk_blocked["kiosk_pdf_denied"]
+        received = _actor("receive", {
+            **bound, "authorization": patient_auth["Authorization"],
+            "workstation_cookie": "", "access_id": access_a.public_id,
+        })
         wrong_station = _actor("wrong_station", {**bound, "workstation_cookie": cabinet_cookie})
         token_only = _actor("token_only", {
             **bound, "authorization": "", "workstation_cookie": "",
         })
-        purged = _actor("purge", bound)
+        purged = _actor("purge", {
+            **bound, "access_id": access_a.public_id,
+            "patient_authorization": patient_auth["Authorization"],
+        })
         db.expire_all()
         session = db.get(models.WorkstationPatientSession, created["session_id"])
         assert session is not None
@@ -267,8 +289,8 @@ def test_045_tls_sender_companion_receiver_are_independent_os_processes(
                        "distinct_workstation_credentials": cabinet_cookie != station_cookie},
             "tls": received["tls"], "sha256": digest, "received_bytes": received["bytes"],
             "pdf_pages_rendered": received["pdf_pages_rendered"],
-            "denials": ["not_identified", "replay", "other_patient", "wrong_workstation", "token_only", "post_purge"],
-            "scope": "isolated GitHub runner; separate OS client processes; no physical PCs, NFC or real printer",
+            "denials": ["not_identified", "replay", "other_patient", "wrong_workstation", "kiosk_pdf", "token_only", "post_purge"],
+            "scope": "isolated GitHub runner; separate Cabinet+Station workstation identities and personal-phone OS process; no physical PCs, NFC or real printer",
         }
         artifact = Path("backend/artifacts/v15-04-5-https/evidence.json")
         artifact.parent.mkdir(parents=True, exist_ok=True)
