@@ -105,7 +105,7 @@ jobs:
           cp /tmp/ceph03b3c-srpose/srpose38-tta-1024.onnx backend/ai_models/srpose38-tta-1024.onnx
           echo 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb  backend/ai_models/srpose38-tta-1024.onnx' | sha256sum -c -
           test "$(stat -c%s backend/ai_models/srpose38-tta-1024.onnx)" = '267484931'
-          python backend/scripts/certify_ceph03b3c_two_real_radio_inference.py
+          PYTHONPATH="$PWD" python backend/scripts/certify_ceph03b3c_two_real_radio_inference.py
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
