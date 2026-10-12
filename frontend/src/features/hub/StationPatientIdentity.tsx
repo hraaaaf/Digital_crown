@@ -115,6 +115,7 @@ export const StationPatientIdentity = ({
   const [session, setSession] = useState<StationPatientSessionCreated | null>(null);
   const [status, setStatus] = useState<'loading' | 'pending' | 'identified' | 'expired' | 'error'>('loading');
   const [displayName, setDisplayName] = useState('');
+  const [companionPaired, setCompanionPaired] = useState(false);
   const [availableDocuments, setAvailableDocuments] = useState<Array<{ documentId: number }>>([]);
   const [documentsBusy, setDocumentsBusy] = useState(false);
   const [documentsError, setDocumentsError] = useState('');
@@ -162,6 +163,7 @@ export const StationPatientIdentity = ({
     setStatus('loading');
     setError('');
     setDisplayName('');
+    setCompanionPaired(false);
     setAvailableDocuments([]);
     setDocumentsError('');
     setFallbackOpen(false);
@@ -192,6 +194,7 @@ export const StationPatientIdentity = ({
         if (cancelled) return;
         if (next.status === 'identified') {
           setDisplayName(next.displayName);
+          setCompanionPaired(next.companionPaired === true);
           setStatus('identified');
           return;
         }
@@ -229,6 +232,7 @@ export const StationPatientIdentity = ({
     if (purpose !== 'documents' || status !== 'identified' || !session) return undefined;
     const closeExpired = () => {
       setDisplayName('');
+      setCompanionPaired(false);
       setAvailableDocuments([]);
       setDocumentsError('');
       setStatus('expired');
@@ -263,6 +267,7 @@ export const StationPatientIdentity = ({
           : { birthDate, firstName, lastName },
       );
       setDisplayName(result.displayName);
+      setCompanionPaired(false);
       setStatus('identified');
       setFallbackOpen(false);
     } catch (fallbackError) {
@@ -289,7 +294,12 @@ export const StationPatientIdentity = ({
         {!documentsBusy && availableDocuments.length === 0 && !documentsError && (
           <p className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsStaff}</p>
         )}
-        {!documentsBusy && availableDocuments.length > 0 && !documentsError && (
+        {!documentsBusy && availableDocuments.length > 0 && !documentsError && !companionPaired && (
+          <p data-station-phone-fallback className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">
+            {copy.documentsStaff}
+          </p>
+        )}
+        {!documentsBusy && availableDocuments.length > 0 && !documentsError && companionPaired && (
           <p data-station-phone-delivery className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">
             {copy.documentsReady}
           </p>
