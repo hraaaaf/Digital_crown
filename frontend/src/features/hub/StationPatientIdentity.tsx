@@ -197,6 +197,20 @@ export const StationPatientIdentity = ({
       try {
         const next = await stationPatientSessionService.status(session.sessionId);
         if (cancelled) return;
+        // An already-expired server response must never resurrect patient data
+        // on a shared kiosk, even when a stale status reply says "identified".
+        if (purpose === 'documents' && (
+          !Number.isFinite(new Date(session.expiresAt).getTime())
+          || Date.now() >= new Date(session.expiresAt).getTime()
+        )) {
+          setDisplayName('');
+          setCompanionPaired(false);
+          setAvailableDocuments([]);
+          setDocumentsError('');
+          setStatus('expired');
+          requestPurge(session.sessionId);
+          return;
+        }
         if (next.status === 'identified') {
           setDisplayName(next.displayName);
           setCompanionPaired(next.companionPaired === true);
