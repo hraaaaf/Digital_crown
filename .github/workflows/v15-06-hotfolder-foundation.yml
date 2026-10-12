@@ -17,8 +17,8 @@ on:
 
 jobs:
   synthetic:
-    name: Synthetic hot-folder on \${{ matrix.os }}
-    runs-on: \${{ matrix.os }}
+    name: Synthetic hot-folder on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:

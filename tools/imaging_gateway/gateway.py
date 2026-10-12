@@ -5,6 +5,7 @@ The server-side authorization/idempotency gate is a separate integration step.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 import hashlib
@@ -111,11 +112,19 @@ class HotFolder:
             );
             """)
 
+    @contextmanager
     def _db(self):
         db = sqlite3.connect(self.db_file, timeout=10)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=FULL")
-        return db
+        try:
+            db.execute("PRAGMA journal_mode=WAL")
+            db.execute("PRAGMA synchronous=FULL")
+            yield db
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
     def _identity(self, digest):
         parts = [self.config.cabinet, self.config.workstation,
