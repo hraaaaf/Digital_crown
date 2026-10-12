@@ -7,6 +7,12 @@ on:
       - feat/v15-04-5-04-6-document-delivery-purge-20261011
     paths:
       - "backend/routers/station_patient_session.py"
+      - "backend/routers/patient_companion.py"
+      - "backend/routers/patient_companion_station_documents.py"
+      - "backend/tests/test_station_companion_delivery_v15.py"
+      - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionStationDocuments.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionStationDocuments.test.tsx"
       - "backend/config.py"
       - "backend/.env.example"
       - "docs/v1.5/V15_04_4_STATION_DOCUMENT_QR_NFC_HANDOFF_20261011.md"
@@ -28,6 +34,12 @@ on:
       - master
     paths:
       - 'backend/routers/station_patient_session.py'
+      - 'backend/routers/patient_companion.py'
+      - 'backend/routers/patient_companion_station_documents.py'
+      - 'backend/tests/test_station_companion_delivery_v15.py'
+      - 'frontend/src/features/patient-companion/PatientCompanionApp.tsx'
+      - 'frontend/src/features/patient-companion/PatientCompanionStationDocuments.tsx'
+      - 'frontend/src/features/patient-companion/PatientCompanionStationDocuments.test.tsx'
       - 'backend/tests/test_station_document_handoff_v15.py'
       - 'backend/tests/test_station_document_delivery_purge_v15.py'
       - 'backend/tests/test_station_https_cross_process_v15.py'
@@ -75,11 +87,11 @@ jobs:
           pip install -r /tmp/requirements-v15-04-4.txt
       - name: Python syntax and deterministic collection
         run: |
-          python -m py_compile backend/routers/station_patient_session.py backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py
-          python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py --collect-only -q | tee /tmp/v15-04-4-collect.txt
+          python -m py_compile backend/routers/station_patient_session.py backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/routers/patient_companion_station_documents.py backend/tests/test_station_companion_delivery_v15.py
+          python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/tests/test_station_companion_delivery_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py --collect-only -q | tee /tmp/v15-04-4-collect.txt
           grep -Eq '[0-9]+ tests? collected' /tmp/v15-04-4-collect.txt
       - name: Execute 04.4 + 04.3 + 04.1 + 03.3/04.2 real FastAPI regressions
-        run: python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py -q
+        run: python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/tests/test_station_companion_delivery_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py -q
       - name: RPG-X HTTPS sender/companion/receiver in separate OS processes
         run: |
           python -m py_compile backend/tests/test_station_https_cross_process_v15.py
@@ -114,7 +126,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Targeted existing QR/NFC frontend contracts
         working-directory: frontend
-        run: npx vitest run src/test/v15StationPatientSessionContract.test.ts src/features/hub/StationPatientIdentity.test.tsx src/features/hub/StationKioskShell.test.tsx --maxWorkers=1 --fileParallelism=false
+        run: npx vitest run src/test/v15StationPatientSessionContract.test.ts src/features/hub/StationPatientIdentity.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/patient-companion/PatientCompanionStationDocuments.test.tsx --maxWorkers=1 --fileParallelism=false
       - name: Run station FUE-I LAB matrix (simulated station backend)
         working-directory: frontend
         shell: bash
