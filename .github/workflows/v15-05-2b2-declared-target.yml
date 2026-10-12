@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONWARNINGS=error::ResourceWarning python -m unittest discover -s backend/tests -p 'test_legacy_sql_target_manifest_v15.py' -v 2>&1 | tee /tmp/lot05-b2a.log
-          grep -q 'Ran 24 tests' /tmp/lot05-b2a.log
+          grep -q 'Ran 25 tests' /tmp/lot05-b2a.log
           grep -q '^OK$' /tmp/lot05-b2a.log
           if grep -Ei 'skipped|expected failure' /tmp/lot05-b2a.log; then exit 1; fi
       - name: 05.2-A mapping engine regressions
@@ -61,6 +61,6 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           {
             echo "LOT05.2-B2a HEAD: ${{ github.event.pull_request.head.sha || github.sha }}"
-            echo "24 ORM preview + 25 mapping + 28 inspector tests per Python job."
+            echo "25 ORM preview + 25 mapping + 28 inspector tests per Python job."
             echo "No DATABASE import/connection/physical Alembic check, admin validation or import."
           } >> "$GITHUB_STEP_SUMMARY"
