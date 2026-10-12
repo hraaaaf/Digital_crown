@@ -92,13 +92,13 @@ with httpx.Client(base_url=origin, timeout=35, follow_redirects=False) as statio
         assert not denied.headers.get("content-type", "").startswith("application/pdf")
 
         published = station.post(
-            "/field-lab/station-publish",
+            "/api/workstation/field-lab/station-publish",
             headers=auth, json={"session_id": session_id, "handoff_url": data["handoffUrl"]},
         )
         assert published.status_code == 200, (published.status_code, published.text[:500])
         print(
             f"STATION_READY run={run_id} iteration={iteration+1} session_id={session_id} "
-            f"qr_status=published kiosk_pdf=423 station_workstation_id={station_workstation_id}",
+            f"qr_status=published preclaim_kiosk_pdf=409 station_workstation_id={station_workstation_id}",
             flush=True,
         )
 
