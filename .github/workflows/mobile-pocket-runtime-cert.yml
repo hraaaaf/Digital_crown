@@ -9,6 +9,7 @@ on:
       - frontend/src/services/api.ts
       - frontend/src/App.tsx
       - frontend/src/main.tsx
+      - frontend/src/hooks/usePWAInstall.ts
       - frontend/index.html
       - frontend/public/manifest.json
       - frontend/src/test/mobilePocketPwaLifecycle.contract.test.ts
