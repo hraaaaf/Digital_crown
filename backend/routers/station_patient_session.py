@@ -1069,7 +1069,11 @@ def purge_station_patient_session(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    workstation = _station_or_423(request, db, current_user)
+    # Cleanup must remain possible after Station -> Cabinet mode changes or revocation.
+    # Identity creation and document access still require active Station mode.
+    workstation = _find_workstation(request, db, int(current_user.get_employer_id()))
+    if workstation is None:
+        raise HTTPException(status_code=404, detail="STATION_SESSION_NOT_FOUND")
     now = datetime.utcnow()
     updated = db.query(models.WorkstationPatientSession).filter(
         models.WorkstationPatientSession.id == session_id,
