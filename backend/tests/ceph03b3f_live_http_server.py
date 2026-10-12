@@ -55,6 +55,7 @@ with TemporaryDirectory(prefix="dc-ceph03b3f-") as scratch:
 
     with _SessionLocal() as db:
         doctor = make_user(db, email="ceph03b3f-synthetic-doctor@cabinet.test")
+        other_doctor = make_user(db, email="ceph03b3f-other-doctor@cabinet.test")
         patient_ids = {}
         for film in ("A", "B"):
             patient = models.Patient(
@@ -75,6 +76,7 @@ with TemporaryDirectory(prefix="dc-ceph03b3f-") as scratch:
         "scope": "SYNTHETIC_ONLY_LIVE_HTTP_BACKEND_NO_PATIENT_DATA",
         "patient_ids": patient_ids,
         "doctor_email": "ceph03b3f-synthetic-doctor@cabinet.test",
+        "other_doctor_email": "ceph03b3f-other-doctor@cabinet.test",
         # The password belongs to a disposable account in ephemeral CI only.
     }), encoding="utf-8")
     print("DC_CEPH03B3F_EPHEMERAL_HTTP_READY", flush=True)
