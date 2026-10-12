@@ -136,7 +136,10 @@ try {
           .filter(node => node.right > window.innerWidth + 1 && node.left < window.innerWidth)
           .slice(0, 15),
       }));
-      if (layout.scrollWidth > layout.width) {
+      // BEFORE is a pinned historical revision. Capture its known accessibility
+      // defect as evidence instead of demanding that the baseline be fixed.
+      // AFTER must have zero horizontal overflow at every viewport and scale.
+      if (phase === 'after' && layout.scrollWidth > layout.width) {
         throw new Error(`Phone horizontal overflow: ${layout.scrollWidth} > ${layout.width}; offending DOM: ${JSON.stringify(layout.overflowCandidates)}`);
       }
       if (layout.rawSessionTokenInUrl) throw new Error('Raw station QR leaked into phone URL after claim');
@@ -145,7 +148,8 @@ try {
       }
       report.push({
         phase, sha, filename, componentFilename, viewport: viewport.label, scale: scale.label,
-        ...layout, claims: seen.claims, listings: seen.listings,
+        ...layout, overflowPx: Math.max(0, layout.scrollWidth - layout.width),
+        claims: seen.claims, listings: seen.listings,
         downloads: seen.downloads, phonePurges: seen.phonePurges, errors,
         scope: 'synthetic app with encrypted local test-only pairing, mocked API responses; not physical phone',
       });
@@ -160,6 +164,7 @@ const evidence = {
   limitations: [
     'Actual Patient Companion React application and encrypted IndexedDB vault',
     'Mocked HTTPS transport API responses; true PDF SHA and deny/expiry cases validated in separate backend/TLS CI',
+    'BEFORE records historic layout defects without gating them; AFTER strictly fails on any horizontal overflow',
     'Not a real camera, NFC tag, mobile device, printer, or LAN compatibility proof',
   ],
   report,
