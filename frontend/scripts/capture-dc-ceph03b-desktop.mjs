@@ -132,7 +132,14 @@ async function browserCapture(viewport, mode) {
     await take('commit');
 
     await page.locator('[data-toggle-plans]').click();
-    assert(await overlay().count(), 0, 'Plan overlay is hidden when plans off');
+    if (mode.name === 'com') {
+      // COM preserves its SVG construction nodes but hides them at opacity zero.
+      assert(await overlay().count(), 1, 'COM overlay node remains available');
+      assert(Number(await overlay().getAttribute('opacity')), 0, 'COM plan must be visually transparent');
+    } else {
+      // Ricketts conditionally removes hidden construction nodes.
+      assert(await overlay().count(), 0, 'Ricketts plan must be absent when hidden');
+    }
     await page.locator('[data-toggle-plans]').click();
     assert(await overlay().count(), 1, 'Plan overlay restored');
     const afterToggle = await coordinates();
