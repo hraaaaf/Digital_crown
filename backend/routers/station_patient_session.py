@@ -911,6 +911,31 @@ def station_available_documents(
         )
         if decision.eligible:
             available.append({"documentId": document.id, "kind": "care_sheet"})
+    appointments = list_station_patient_appointments_for_today(
+        db, employer_id=workstation.employer_id, patient_id=row.patient_id,
+    )
+    for appointment in appointments:
+        proof = reliable_presence_proof(
+            db, employer_id=workstation.employer_id,
+            patient_id=row.patient_id, appointment=appointment,
+        )
+        if proof is None:
+            continue
+        decision = evaluate_document_eligibility(
+            context,
+            SelfServiceDocumentCandidate(
+                document_id=f"presence-receipt:{appointment.id}:{proof.audit_id}",
+                tenant_id=appointment.employer_id,
+                patient_id=appointment.patient_id,
+                kind="presence_receipt",
+                is_active=appointment.deleted_at is None,
+                is_latest_version=True,
+                presence_confirmed=True,
+                presence_proof_source=proof.source,
+            ),
+        )
+        if decision.eligible:
+            available.append({"documentId": appointment.id, "kind": "presence_receipt"})
     response.headers["Cache-Control"] = "no-store"
     return {"documents": available}
 
