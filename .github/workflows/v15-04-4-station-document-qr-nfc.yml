@@ -203,11 +203,14 @@ jobs:
             const post = new Set(afterPhone.report.map(phoneKey));
             if (pre.size !== 8 || post.size !== 8 || [...pre].some(k => !post.has(k)) ||
                 beforePhone.report.some(r => r.documentPickupVisible || r.phoneDownloadVisible || r.errors.length) ||
-                afterPhone.report.some(r => !r.documentPickupVisible || !r.phoneDownloadVisible || r.errors.length)) {
+                afterPhone.report.some(r => !r.documentPickupVisible || !r.phoneDownloadVisible ||
+                  !r.presenceReceiptVisible || r.errors.length || r.scrollWidth > r.width)) {
               console.error("04.5 matched personal Companion phone BEFORE/AFTER validation failed");
               process.exit(1);
             }
-            console.log("04.5 paired 8 BEFORE and 8 AFTER Patient Companion captures");
+            const baselineOverflows = beforePhone.report.filter(r => r.scrollWidth > r.width);
+            console.log("04.5 paired 8 BEFORE and 8 AFTER Patient Companion captures; historical base overflows:", baselineOverflows.map(r => ({ viewport: r.viewport, scale: r.scale, overflowPx: r.overflowPx })));
+            console.log("04.5 candidate AFTER overflow count: 0, verified on every viewport/scale");
           '
       - name: Declare evidence scope
         working-directory: frontend
