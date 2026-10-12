@@ -1,0 +1,141 @@
+import { chromium } from 'playwright';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+const phase = process.env.EVIDENCE_PHASE === 'before' ? 'before' : 'after';
+const out = path.resolve(`artifacts/v15-04-5-companion-phone-${phase}`);
+await fs.mkdir(out, { recursive: true });
+const sha = process.env.EVALUATED_SHA || '';
+const viewports = [
+  { width: 390, height: 844, label: '390x844' },
+  { width: 430, height: 932, label: '430x932' },
+  { width: 768, height: 1024, label: '768x1024' },
+  { width: 1280, height: 900, label: '1280x900' },
+];
+const scales = [
+  { label: 'normal', font: null },
+  { label: 'text200', font: '200%' },
+];
+const accessId = '00000000-0000-0000-0000-000000000101';
+const sessionId = 'visual-phone-session';
+const browser = await chromium.launch({ headless: true });
+const report = [];
+try {
+  for (const viewport of viewports) {
+    for (const scale of scales) {
+      const context = await browser.newContext({
+        viewport: { width: viewport.width, height: viewport.height },
+        acceptDownloads: true,
+      });
+      const seen = { claims: 0, listings: 0, downloads: 0, phonePurges: 0 };
+      await context.route('**/api/workstation/patient-session/claim', async route => {
+        seen.claims += 1;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Cache-Control': 'no-store' },
+          body: JSON.stringify({ status: 'identified', sessionId }),
+        });
+      });
+      await context.route('**/api/patient-companion/station-session/**', async route => {
+        const uri = route.request().url();
+        if (!uri.includes(`/station-session/${sessionId}/`) || !uri.includes(`accessId=${accessId}`)) {
+          return route.fulfill({ status: 403, contentType: 'application/json', body: '{"detail":"INVALID_SCOPE"}' });
+        }
+        if (route.request().method() === 'POST' && uri.includes('/purge?')) {
+          seen.phonePurges += 1;
+          return route.fulfill({ status: 204, body: '' });
+        }
+        if (uri.includes('/care-sheet/')) {
+          seen.downloads += 1;
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/pdf',
+            headers: { 'Cache-Control': 'no-store, private' },
+            body: '%PDF-1.4\\n%Synthetic phone-only document fixture\\n%%EOF\\n',
+          });
+        }
+        seen.listings += 1;
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Cache-Control': 'no-store' },
+          body: JSON.stringify({ documents: [{ documentId: 42, kind: 'care_sheet' }] }),
+        });
+      });
+      const page = await context.newPage();
+      const errors = [];
+      page.on('pageerror', error => errors.push(error.message));
+      await page.goto('http://127.0.0.1:4197/companion', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      // Seed only an isolated encrypted fixture vault; never use patient data.
+      await page.evaluate(async ({ accessId }) => {
+        const module = await import('/src/features/patient-companion/PatientCompanionStorage.ts');
+        await module.PatientCompanionStorage.savePairing({
+          accessToken: 'visual-only-phone-token',
+          context: {
+            access_id: accessId,
+            relationship_type: 'SELF',
+            patient: { display_name: 'Aya Audit', prenom: 'Aya', nom: 'Audit' },
+          },
+          pairedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        });
+      }, { accessId });
+      await page.goto(
+        'http://127.0.0.1:4197/companion?stationSession=opaque-visual-qr',
+        { waitUntil: 'domcontentloaded', timeout: 30000 },
+      );
+      if (scale.font) {
+        await page.evaluate(value => { document.documentElement.style.fontSize = value; }, scale.font);
+      }
+      await page.locator('[data-station-handoff-status]').waitFor({ timeout: 12000 });
+      if (phase === 'after') {
+        await page.locator('[data-pc-station-documents]').waitFor({ timeout: 12000 });
+        await page.locator('[data-pc-care-sheet-download="42"]').waitFor({ timeout: 12000 });
+        if (seen.listings !== 1) throw new Error('Phone eligibility list was not claimed exactly once');
+      } else {
+        if (await page.locator('[data-pc-station-documents]').count()) {
+          throw new Error('BEFORE base unexpectedly contains the new phone document collection surface');
+        }
+      }
+      const filename = `${phase}-companion-phone-${viewport.label}-${scale.label}.png`;
+      await page.screenshot({ path: path.join(out, filename), fullPage: false });
+      const layout = await page.evaluate(() => ({
+        width: window.innerWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        documentPickupVisible: Boolean(document.querySelector('[data-pc-station-documents]')),
+        phoneDownloadVisible: Boolean(document.querySelector('[data-pc-care-sheet-download="42"]')),
+        rawSessionTokenInUrl: location.search.includes('stationSession'),
+        text: document.body.innerText.slice(0, 1500),
+      }));
+      if (layout.scrollWidth > layout.width) {
+        throw new Error(`Phone horizontal overflow: ${layout.scrollWidth} > ${layout.width}`);
+      }
+      if (layout.rawSessionTokenInUrl) throw new Error('Raw station QR leaked into phone URL after claim');
+      if (seen.claims !== 1 || seen.downloads !== 0 || seen.phonePurges !== 0 || errors.length) {
+        throw new Error(`Phone UI baseline regression: ${JSON.stringify({ seen, errors })}`);
+      }
+      report.push({
+        phase, sha, filename, viewport: viewport.label, scale: scale.label,
+        ...layout, claims: seen.claims, listings: seen.listings,
+        downloads: seen.downloads, phonePurges: seen.phonePurges, errors,
+        scope: 'synthetic app with encrypted local test-only pairing, mocked API responses; not physical phone',
+      });
+      await context.close();
+    }
+  }
+} finally {
+  await browser.close();
+}
+const evidence = {
+  phase, sha, base: phase === 'before' ? sha : null,
+  limitations: [
+    'Actual Patient Companion React application and encrypted IndexedDB vault',
+    'Mocked HTTPS transport API responses; true PDF SHA and deny/expiry cases validated in separate backend/TLS CI',
+    'Not a real camera, NFC tag, mobile device, printer, or LAN compatibility proof',
+  ],
+  report,
+};
+await fs.writeFile(path.join(out, 'evidence.json'), JSON.stringify(evidence, null, 2));
+if (report.length !== 8) throw new Error('Expected 8 matched personal phone captures');
+console.log(`04.5 Personal phone ${phase.toUpperCase()} screenshots: ${report.length} verified`);
