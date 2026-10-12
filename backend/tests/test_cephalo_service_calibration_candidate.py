@@ -101,7 +101,7 @@ def test_refinement_retains_unverified_candidate_and_source(monkeypatch):
         "applied_to_analysis": False,
     }
     existing = SimpleNamespace(
-        id=77, patient_id=12, image_original_path="radio.png",
+        id=77, patient_id=12, image_original_path="radio.png", patient=None,
         angles_data={
             "calibration_candidate": candidate,
             "calibration_source_resolution": source,
@@ -114,6 +114,7 @@ def test_refinement_retains_unverified_candidate_and_source(monkeypatch):
             return existing
         def update(self, *_args, **_kwargs):
             self.saved = (_args, _kwargs)
+            existing.landmarks_data = _args[1]
             return existing
     monkeypatch.setattr(
         cephalo_service_module.cephalo_engine,
@@ -122,5 +123,10 @@ def test_refinement_retains_unverified_candidate_and_source(monkeypatch):
     )
     service = CephaloService(_FakeDB())
     service.repo = RefinementRepo()
-    service.refine_analysis(77, [{"id": "S", "x": 10.0, "y": 20.0}])
+    service.refine_analysis(77, [{"id": "S", "x": 10.0, "y": 20.0}], ai_diagnostic={"test": True})
     assert service.repo.saved is not None
+    persisted = service.repo.saved[0][2]
+    assert persisted["calibration_candidate"] == candidate
+    assert persisted["calibration_source_resolution"] == source
+    assert persisted["calibration_status"] == "candidate_unverified"
+    assert service.repo.saved[0][3] is None
