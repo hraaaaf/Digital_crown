@@ -118,8 +118,11 @@ def test_real_srpose38_two_lateral_xrays_authenticated_upload_edit_sqlite_reload
         assert baseline["is_calibrated"] is False
 
         def correction(dx):
+            # ONNX output has an inference-only confidence field. The strict
+            # PUT AnalysisUpdate/LandmarkItem schema intentionally persists
+            # only the canonical id/x/y coordinates, not model confidence.
             return [
-                {**p, "x": p["x"] + dx} if p["id"] == "N" else dict(p)
+                {"id": p["id"], "x": p["x"] + (dx if p["id"] == "N" else 0), "y": p["y"]}
                 for p in original
             ]
 
