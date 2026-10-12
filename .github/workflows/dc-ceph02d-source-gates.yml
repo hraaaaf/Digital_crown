@@ -95,7 +95,7 @@ jobs:
           assert x["clinical_activation_allowed"] is False
           assert x["real_patient_data_used"] is False
           assert "NOT_EXPOSED" in x["post_correction"]
-          source_rows=[line.removeprefix("DC_CEPH02D_SAFE=") for line in logs.splitlines() if line.startswith("DC_CEPH02D_SAFE=")]
+          source_rows=[line.split("DC_CEPH02D_SAFE=",1)[1] for line in logs.splitlines() if "DC_CEPH02D_SAFE=" in line]
           assert len(source_rows)==1
           findings=json.loads(source_rows[0])
           exact={"M_AB_PRIME_FH_MM_V1","M_B_NPERP_MM_V1","M_COM_S_NPERP_DEPTH_MM_V1","M_U1_FH_DEG_V1"}
