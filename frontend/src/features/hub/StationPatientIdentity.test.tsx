@@ -194,7 +194,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
     expect(screen.getByText('Aya Audit')).toBeInTheDocument();
     await waitFor(() => expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledWith('session-1'));
-    expect(screen.getByText(/personnel du cabinet/i)).toBeInTheDocument();
+    expect(await screen.findByText('Pour retirer un document aujourd’hui, adressez-vous à l’accueil.')).toBeInTheDocument();
     expect(screen.queryByText('Confirmer mon arrivée')).toBeNull();
     expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
     expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
@@ -213,14 +213,66 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       claimedAt: new Date().toISOString(),
     });
     for (const [lang, phrase] of [
-      ['fr', 'Pour obtenir vos documents, adressez-vous au personnel du cabinet.'],
-      ['en', 'Please ask the practice staff for your documents.'],
-      ['ar', 'يرجى طلب الوثائق من فريق العيادة.'],
+      ['fr', 'Pour retirer un document aujourd’hui, adressez-vous à l’accueil.'],
+      ['en', 'To collect a document today, please contact reception.'],
+      ['ar', 'لاستلام وثيقة اليوم، يرجى مراجعة موظفي الاستقبال.'],
     ] as const) {
       const rendered = render(<StationPatientIdentity purpose="documents" language={lang} onBack={vi.fn()} backLabel="Retour" />);
       expect(await screen.findByText(phrase)).toBeInTheDocument();
       expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
       rendered.unmount();
+    }
+  });
+
+  it('04.5 offers only eligible documents and downloads selected PDF after identity', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({
+      documents: [{ documentId: 42, kind: 'care_sheet' }],
+    });
+    const createObjectURL = vi.fn(() => 'blob:care-sheet-42');
+    const revokeObjectURL = vi.fn();
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    try {
+      render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
+      const download = await screen.findByRole('button', { name: 'Télécharger la feuille de soins' });
+      fireEvent.click(download);
+      await waitFor(() => expect(stationPatientSessionService.downloadCareSheet).toHaveBeenCalledWith('session-1', 42));
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      expect(click).toHaveBeenCalledTimes(1);
+      expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
+    } finally {
+      click.mockRestore();
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+    }
+  });
+
+  it('04.5 refuses a failed PDF download without creating a browser blob', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({
+      documents: [{ documentId: 42, kind: 'care_sheet' }],
+    });
+    vi.mocked(stationPatientSessionService.downloadCareSheet).mockRejectedValue(new Error('403'));
+    const createObjectURL = vi.fn();
+    const originalCreate = URL.createObjectURL;
+    URL.createObjectURL = createObjectURL;
+    try {
+      render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Télécharger la feuille de soins' }));
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(createObjectURL).not.toHaveBeenCalled();
+    } finally {
+      URL.createObjectURL = originalCreate;
     }
   });
 
