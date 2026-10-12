@@ -1,6 +1,7 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import type { Landmark } from '../cephaloShared';
+import { cephaloLabelFontSize, layoutCephaloLandmarkLabels } from './cephaloLabelLayout';
 
 const SOFT_TISSUE_IDS = new Set([
   'ul', 'll', 'sn', 'stpog', 'ls', 'li', 'prn', 'cm', 'g_soft', 'n_soft', 'a_soft', 'st', 'b_soft', 'pog_soft', 'me_soft', 'g-soft', 'n-soft'
@@ -65,9 +66,25 @@ export const CephaloLandmarkReticles = ({
   onLandmarkDragPreview,
 }: CephaloLandmarkReticlesProps) => {
   const P = palette;
+  // DOM focus must be rendered even when the parent does not control focusedPointId.
+  const [keyboardFocusedId, setKeyboardFocusedId] = useState<string | null>(null);
   const isHoverActive = !!hoveredMetric;
+  const hoveredIds = new Set(hoveredMetric?.points.map(p => p.toLowerCase()) ?? []);
   const isPointHovered = (ptId: string) =>
-    !isHoverActive || hoveredMetric!.points.map(p => p.toLowerCase()).includes(ptId.toLowerCase());
+    !isHoverActive || hoveredIds.has(ptId.toLowerCase());
+  const priorityId = activeDragId ?? keyboardFocusedId ?? focusedPointId ?? activePointId ?? null;
+  const shownLabels = new Set<string>();
+  for (const point of landmarks) {
+    if ((isHoverActive && hoveredIds.has(point.id.toLowerCase()))
+      || point.id === keyboardFocusedId || point.id === focusedPointId
+      || point.id === activeDragId || point.id === activePointId) shownLabels.add(point.id);
+  }
+  const labelPositions = layoutCephaloLandmarkLabels(
+    landmarks.map(point => activeDragPos?.id === point.id
+      ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
+    shownLabels, priorityId, imageWidth, imageHeight,
+  );
+  const labelFontSize = cephaloLabelFontSize(imageWidth, imageHeight);
 
   return (
     <>
@@ -75,7 +92,8 @@ export const CephaloLandmarkReticles = ({
         const isSoft = SOFT_TISSUE_IDS.has(pt.id.toLowerCase());
         const isDragged = activeDragId === pt.id;
         const isActive = pt.id === activePointId;
-        const isFocused = pt.id === focusedPointId;
+        const isFocused = pt.id === focusedPointId || pt.id === keyboardFocusedId;
+        const labelPosition = labelPositions.get(pt.id);
         const isHovMetric = isPointHovered(pt.id);
 
         if (activeDragId && !isDragged) return null;
@@ -91,7 +109,7 @@ export const CephaloLandmarkReticles = ({
 
         const ptOp = activeDragId
           ? (isDragged ? 1 : P.isolationDim)
-          : (isHovMetric ? baseOpacity : baseOpacity * 0.42);
+          : (isFocused || isActive ? 1 : (isHovMetric ? baseOpacity * 0.75 : baseOpacity * 0.35));
 
         const glowStyle = isPro && (isDragged || isFocused || isHovMetric)
           ? { filter: `drop-shadow(0 0 6px ${renderColor})` } : {};
@@ -104,10 +122,13 @@ export const CephaloLandmarkReticles = ({
           >
             <g
               data-ceph03b-drag-handle={pt.id}
+              data-ceph03b-keyboard-focused={isFocused ? 'true' : undefined}
               tabIndex={0}
               role="button"
               aria-label={`Point anatomique ${pt.id}, flèches pour déplacer de 1 pixel image, Maj et flèches pour 10 pixels`}
               aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight"
+              onFocus={() => setKeyboardFocusedId(pt.id)}
+              onBlur={() => setKeyboardFocusedId(previous => previous === pt.id ? null : previous)}
               onKeyDown={e => {
                 const key = e.key;
                 if (key === 'Enter' || key === ' ') {
@@ -204,10 +225,18 @@ export const CephaloLandmarkReticles = ({
               }}
             >
               <circle cx={dispX} cy={dispY} r={20} fill="transparent" stroke="transparent" />
+              {isFocused && (
+                <g data-ceph03b-focus-ring={pt.id} pointerEvents="none">
+                  <circle cx={dispX} cy={dispY} r={19} fill="none"
+                    stroke="#0b1220" strokeWidth="7" vectorEffect="non-scaling-stroke" />
+                  <circle cx={dispX} cy={dispY} r={19} fill="none"
+                    stroke="#ffffff" strokeWidth="3.5" vectorEffect="non-scaling-stroke" />
+                </g>
+              )}
               <circle
                 cx={dispX}
                 cy={dispY}
-                r={isFocused || isDragged ? 4.5 : 2.5}
+                r={isFocused || isDragged ? 5 : 3.5}
                 fill={renderColor}
                 vectorEffect="non-scaling-stroke"
               />
@@ -240,18 +269,17 @@ export const CephaloLandmarkReticles = ({
                 </>
               )}
 
-              {(isHovMetric || isDragged || isFocused) && (
+              {labelPosition && (
                 <text
-                  x={dispX}
-                  y={dispY}
-                  dx="13"
-                  dy="-13"
-                  fontSize="10"
+                  data-ceph03b-landmark-label={pt.id}
+                  x={labelPosition.x}
+                  y={labelPosition.y}
+                  fontSize={labelFontSize}
                   fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
                   fontWeight="900"
                   className="pointer-events-none select-none"
                   fill={P.text}
-                  style={{ paintOrder: 'stroke', stroke: P.magnifierBg, strokeWidth: isPro ? '2px' : '3.5px' }}
+                  style={{ paintOrder: 'stroke', stroke: P.magnifierBg, strokeWidth: labelFontSize * 0.2 }}
                 >
                   {pt.id}
                 </text>
