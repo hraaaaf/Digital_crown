@@ -80,3 +80,11 @@ def test_new_analysis_persists_candidate_without_physical_scale(monkeypatch):
     assert response["is_calibrated"] is False
     assert response["mm_per_pixel"] is None
     assert response["calibration_candidate"]["status"] == "CANDIDATE_UNVERIFIED"
+    source = persisted["calibration_source_resolution"]
+    assert source["schema_version"] == "CEPHALO_SOURCE_RESOLUTION_V1"
+    assert source["state"] == "IMAGE_RULER_UNVERIFIED"
+    assert source["reason"] == "RULER_WITHOUT_PROFILE"
+    assert source["eligible_mm_per_pixel"] is None
+    assert source["applied_to_analysis"] is False
+    assert response["results"]["calibration_source_resolution"] == source
+
