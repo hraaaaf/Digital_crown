@@ -1,6 +1,8 @@
 """Synthetic fixtures only; no device, patient or server access."""
 import base64
 import os
+import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -73,6 +75,27 @@ class GatewayTests(unittest.TestCase):
         file.write_bytes(SYNTHETIC + b"-changed")
         self.assertEqual(self.agent.scan_once()["unstable"], 1)
         self.assertEqual(self.agent.scan_once()["staged"], 1)
+
+    def test_abrupt_process_exit_replays_without_duplicate(self):
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        script = (
+            "import os,sys; from pathlib import Path; "
+            "from tools.imaging_gateway import Config, HotFolder; "
+            "a=HotFolder(Config('cabinet1','device1',Path(sys.argv[1]),"
+            "Path(sys.argv[2]),b'k'*32)); a.scan_once(); a.scan_once(); os._exit(17)"
+        )
+        # A separate interpreter writes and exits without Python cleanup.
+        result = subprocess.run(
+            [sys.executable, "-c", script, str(self.watch), str(self.private)],
+            cwd=Path(__file__).resolve().parents[3],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 17, result.stderr)
+        recovered = HotFolder(self.config)
+        self.assertEqual(recovered.scan_once()["unstable"], 1)
+        self.assertEqual(recovered.scan_once()["duplicate"], 1)
+        self.assertEqual(len(recovered.items()), 1)
+        self.assertEqual(recovered.read_verified(1), SYNTHETIC)
 
     def test_retry_is_durable_bounded_and_does_not_confirm_server(self):
         self.stage()
