@@ -20,7 +20,7 @@ const SYNTHETIC_GHOST = {
 
 const commit = vi.fn();
 
-function Fixture({ mode }: { mode: 'com' | 'ricketts' }) {
+function Fixture({ mode }: { mode: 'com' | 'all' }) {
   const [landmarks, setLandmarks] = useState(LANDMARKS.map(p => ({ ...p })));
   return (
     <div style={{ width: 320, height: 320 }}>
@@ -104,8 +104,8 @@ describe('DC-CEPH03B independent tracing overlays — render only drag preview',
     expect(commit).not.toHaveBeenCalled();
   });
 
-  it('Ricketts N–Pog follows the live N point then rolls back on lost pointer capture', () => {
-    render(<Fixture mode="ricketts" />);
+  it('Ricketts overlay in Tous mode follows live N and rolls back on lost capture', () => {
+    render(<Fixture mode="all" />);
     const npog = () => line('ricketts-n-pog');
     const n = handle('N');
     expect(npog().getAttribute('x1')).toBe('130');
