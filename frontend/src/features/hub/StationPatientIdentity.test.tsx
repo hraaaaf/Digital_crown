@@ -192,7 +192,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
     expect(screen.getByText('Aya Audit')).toBeInTheDocument();
     await waitFor(() => expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledWith('session-1'));
-    expect(await screen.findByText('Aucune feuille de soins autorisée à retirer. Adressez-vous à l’accueil.')).toBeInTheDocument();
+    expect(await screen.findByText('Aucun document autorisé à retirer. Adressez-vous à l’accueil.')).toBeInTheDocument();
     expect(screen.queryByText('Confirmer mon arrivée')).toBeNull();
     expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
     expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
@@ -211,9 +211,9 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       claimedAt: new Date().toISOString(),
     });
     for (const [lang, phrase] of [
-      ['fr', 'Aucune feuille de soins autorisée à retirer. Adressez-vous à l’accueil.'],
-      ['en', 'No care sheet is available for collection. Please contact reception.'],
-      ['ar', 'لا توجد ورقة علاج مرخصة للاستلام. يرجى مراجعة الاستقبال.'],
+      ['fr', 'Aucun document autorisé à retirer. Adressez-vous à l’accueil.'],
+      ['en', 'No document is available for collection. Please contact reception.'],
+      ['ar', 'لا توجد وثيقة مرخصة للاستلام. يرجى مراجعة الاستقبال.'],
     ] as const) {
       const rendered = render(<StationPatientIdentity purpose="documents" language={lang} onBack={vi.fn()} backLabel="Retour" />);
       expect(await screen.findByText(phrase)).toBeInTheDocument();
@@ -235,7 +235,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     URL.createObjectURL = createObjectURL;
     try {
       render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
-      expect(await screen.findByText(/Feuille de soins disponible sur votre téléphone dans Patient Companion/)).toBeInTheDocument();
+      expect(await screen.findByText(/Document disponible sur votre téléphone dans Patient Companion/)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Télécharger/i })).not.toBeInTheDocument();
       expect(createObjectURL).not.toHaveBeenCalled();
     } finally {
