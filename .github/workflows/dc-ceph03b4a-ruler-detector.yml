@@ -1,0 +1,155 @@
+name: DC Cephalo 03B4a ruler detection V2 isolated hardening
+on:
+  push:
+    branches:
+      - feat/dc-ceph03b4a-calibration-ruler-detector-20261012
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate-geometry-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      BASE_HEAD: 6675cc27132263d122ab0830d7c73355a9276fc3
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      ENVIRONMENT: test
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: REQUIRED exact HEAD and minimal scientific scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b4a-calibration-ruler-detector-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          while IFS= read -r file; do
+            case "$file" in
+              backend/services/calibration_service.py | \
+              backend/tests/test_ceph03b4a_ruler_detector.py | \
+              .github/workflows/dc-ceph03b4a-ruler-detector.yml) ;;
+              *) echo "OUT OF SCOPE: $file" >&2; exit 1;;
+            esac
+          done < <(git diff --name-only "$BASE_HEAD" "$GITHUB_SHA")
+          echo "DC_CEPH03B4A_TESTED_HEAD=$GITHUB_SHA"
+          echo "NO_MOBILE_NO_CLINICAL_CALCULATION_NO_SCALE_BYPASS"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Minimal image-only test dependencies (no ML or real cabinet)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check \
+            numpy==2.3.5 opencv-python-headless==4.13.0.92 pytest==9.0.2
+      - name: Pin two public Wikimedia originals with publisher SHA-1
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DC_CEPH03B4A_RADIO_DIR="$RUNNER_TEMP/dc-ceph03b4a-public-jpegs"
+          echo "DC_CEPH03B4A_RADIO_DIR=$DC_CEPH03B4A_RADIO_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$DC_CEPH03B4A_RADIO_DIR"
+          python - <<'PY'
+          import hashlib,json,os,pathlib,urllib.request
+          manifest=json.loads(pathlib.Path('frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json').read_text())
+          assert len(manifest['images'])==2
+          for item in manifest['images']:
+              assert item['license']=='CC BY-SA 4.0'
+              assert item['source_page'].startswith('https://commons.wikimedia.org/')
+              req=urllib.request.Request(item['url'],headers={
+                  'User-Agent':'DigitalCrown-Cephalo-03B4a/1.0 (public research image reproducibility)',
+                  'Accept':'image/jpeg','Referer':item['source_page']})
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  assert response.status==200
+                  raw=response.read(11*1024*1024)
+              assert len(raw)==item['size_bytes'] and hashlib.sha1(raw).hexdigest()==item['sha1']
+              assert raw[:3]==b'\xff\xd8\xff' and raw[-2:]==b'\xff\xd9'
+              pathlib.Path(os.environ['DC_CEPH03B4A_RADIO_DIR'],item['file_name']).write_bytes(raw)
+              print('VERIFIED_PUBLIC_JPEG',item['id'],item['sha1'])
+          PY
+      - name: REQUIRED V1 baseline vs V2 two film classification and no physical mm
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ceph03b4a-proof"
+          export DC_CEPH03B4A_PROOF="$RUNNER_TEMP/ceph03b4a-proof"
+          echo "DC_CEPH03B4A_PROOF=$DC_CEPH03B4A_PROOF" >> "$GITHUB_ENV"
+          python - <<'PY'
+          import cv2, json, os, pathlib, subprocess
+          from backend.services.calibration_service import CalibrationService
+          baseline=subprocess.check_output(['git','show',os.environ['BASE_HEAD']+':backend/services/calibration_service.py'],text=True)
+          ns={'__name__':'baseline_calibration_service'}
+          exec(compile(baseline,'calibration_service_baseline.py','exec'),ns)
+          old=ns['CalibrationService']()
+          new=CalibrationService()
+          record={'head':os.environ['GITHUB_SHA'],'original_baseline':os.environ['BASE_HEAD'],'images':{}}
+          proof=pathlib.Path(os.environ['DC_CEPH03B4A_PROOF'])
+          for film in ('A','B'):
+              src=pathlib.Path(os.environ['DC_CEPH03B4A_RADIO_DIR'])/('cephalo-'+film+'.jpg')
+              previous=old.detect_candidate(str(src))
+              proposed=new.detect_candidate(str(src))
+              assert (previous is not None), 'Regression evidence: old detector did not reproduce V1 candidate '+film
+              if film=='A':
+                  assert proposed and len(proposed.tick_positions_y_px)>=8
+                  assert 2000<=proposed.axis_x_px<=2100
+              else:
+                  assert proposed is None, 'False film-edge candidate in B'
+              assert new.detect_mm_per_pixel(str(src)) is None
+              image=cv2.imread(str(src))
+              if proposed is not None:
+                  x=int(proposed.axis_x_px)
+                  cv2.line(image,(x,0),(x,int(max(proposed.tick_positions_y_px))+15),(0,255,255),3)
+                  for y in proposed.tick_positions_y_px:
+                      cv2.circle(image,(x,int(y)),5,(0,255,0),2)
+              else:
+                  cv2.putText(image,'NO VERIFIED RULER CANDIDATE', (20,40),
+                              cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,255,255),2)
+              assert cv2.imwrite(str(proof/('radio-'+film+'-overlay.png')),image)
+              record['images'][film]={
+                'v1_candidate': previous is not None,
+                'v1_ticks': len(previous.tick_positions_y_px) if previous else 0,
+                'v2_candidate': proposed is not None,
+                'v2_ticks': len(proposed.tick_positions_y_px) if proposed else 0,
+                'v2_method': proposed.detector_method if proposed else None,
+                'mm_per_pixel':None,
+                'clinical_accuracy_evaluated':False,
+              }
+          (proof/'report.json').write_text(json.dumps(record,indent=2))
+          print('DC_CEPH03B4A_V2_RULER_A_DETECTED_B_REJECTED_NO_MM_PASS')
+          PY
+      - name: REQUIRED local candidate geometry, safety gate and provenance regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            backend/tests/test_calibration_service_candidate.py \
+            backend/tests/test_ceph03b4a_ruler_detector.py \
+            backend/tests/test_cephalo_calibration_candidate.py \
+            backend/tests/test_cephalo_auto_calibration_gate.py
+          python - <<'PY'
+          from backend.services.cephalo_fiducial_profiles import validated_fiducial_profiles
+          assert validated_fiducial_profiles.profile_count==0, 'Never enable physical profiles from geometry-only work'
+          from backend.services.calibration_service import CalibrationService
+          assert CalibrationService().detect_mm_per_pixel('non-existent.jpg') is None
+          print('DC_CEPH03B4A_PRODUCTION_PROFILE_REGISTRY_STILL_EMPTY')
+          PY
+      - name: Publish visual/source proof and scope
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/ceph03b4a-proof"
+          cp frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json "$RUNNER_TEMP/ceph03b4a-proof/source-manifest.json"
+          printf 'HEAD=%s\nSOURCE=two Wikimedia Commons public CC BY-SA 4.0 X-rays\nSCOPE=geometric candidate detector, never physical calibration\nPHYSICAL_PROFILE=not configured in production\nCLINICAL_VALIDATION=not performed\n' "$GITHUB_SHA" > "$RUNNER_TEMP/ceph03b4a-proof/scope.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-ceph03b4a-ruler-detection-public-visual-proof
+          path: ${{ runner.temp }}/ceph03b4a-proof
+          retention-days: 10
+          if-no-files-found: warn
