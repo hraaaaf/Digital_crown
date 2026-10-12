@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   isolated-real-radio-http-sqlite:
     runs-on: ubuntu-latest
@@ -34,6 +35,7 @@ jobs:
           while IFS= read -r file; do
             case "$file" in
               backend/tests/test_ceph03b3c_two_real_cephalograms_e2e.py | \
+              backend/scripts/certify_ceph03b3c_two_real_radio_inference.py | \
               frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json | \
               .github/workflows/dc-ceph03b3c-two-real-radios-e2e.yml | \
               frontend/scripts/capture-dc-ceph03b3c-real-radios.mjs | \
@@ -90,6 +92,20 @@ jobs:
           python -m pytest -q -s \
             backend/tests/test_ceph03b3c_two_real_cephalograms_e2e.py
           echo "DC_CEPH03B3C_AUTHENTICATED_TWO_RADIO_SQLITE_PASS"
+      - name: EXPERIMENTAL real SRPose38 on both original radiographs (no clinical accuracy claim)
+        id: experimental_srpose
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ceph03b3c-srpose backend/ai_models
+          gh run download 34281082926 --repo "$GITHUB_REPOSITORY" --name cephalo-srpose38-onnx-parity --dir /tmp/ceph03b3c-srpose
+          cp /tmp/ceph03b3c-srpose/srpose38-tta-1024.onnx backend/ai_models/srpose38-tta-1024.onnx
+          echo 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb  backend/ai_models/srpose38-tta-1024.onnx' | sha256sum -c -
+          test "$(stat -c%s backend/ai_models/srpose38-tta-1024.onnx)" = '267484931'
+          python backend/scripts/certify_ceph03b3c_two_real_radio_inference.py
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -145,7 +161,11 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/dc-ceph03b3c-proof
           cp frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json /tmp/dc-ceph03b3c-proof/source-manifest.json
-          printf 'HEAD=%s\nSCOPE=isolated SQLite only\nIMAGES=two Commons CC BY-SA 4.0 originals\nMODEL_INFERENCE=stubbed; nonclinical\n' "$GITHUB_SHA" > /tmp/dc-ceph03b3c-proof/scope.txt
+          mkdir -p /tmp/dc-ceph03b3c-proof/CC-BY-SA-originals
+          cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-A.jpg /tmp/dc-ceph03b3c-proof/CC-BY-SA-originals/cephalo-A.jpg
+          cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-B.jpg /tmp/dc-ceph03b3c-proof/CC-BY-SA-originals/cephalo-B.jpg
+          printf 'HEAD=%s\nSCOPE=isolated SQLite backend with mocked upload landmarks + separately-tested actual SRPose38 model\nIMAGES=two Wikimedia Commons CC BY-SA 4.0 originals with source attribution in manifest\nCLINICAL_ACCURACY=not assessed\n' "$GITHUB_SHA" > /tmp/dc-ceph03b3c-proof/scope.txt
+          echo 'EXPERIMENTAL_SRPOSE38_OUTCOME=${{ steps.experimental_srpose.outcome }}' >> /tmp/dc-ceph03b3c-proof/scope.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
