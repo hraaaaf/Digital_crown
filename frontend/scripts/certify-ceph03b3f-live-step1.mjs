@@ -119,6 +119,12 @@ try {
       const uploadResponse=await uploadDone;
       assert(uploadResponse.status()===200,'Real product upload failed '+film+' '+uploadResponse.status());
       const uploaded=await uploadResponse.json();
+      const source=uploaded.results?.calibration_source_resolution;
+      const expectedSourceState=film==='A'?'IMAGE_RULER_UNVERIFIED':'NO_PHYSICAL_SOURCE';
+      assert(source?.schema_version==='CEPHALO_SOURCE_RESOLUTION_V1'
+        && source.state===expectedSourceState
+        && source.eligible_mm_per_pixel===null && source.applied_to_analysis===false,
+        'Real Step1 source resolver must fail closed for '+film+': '+JSON.stringify(source));
       assert(uploaded.status==='success' && uploaded.landmarks?.length===38,'Backend did not return 38 SRPose38 points');
       assert(uploaded.results?.vision_metadata?.mode_inference==='SOTA_ONNX_38',
         'Live product upload switched to non-SRPose model');
@@ -147,6 +153,10 @@ try {
       const initialGet=await context.request.get(origin+pathForId(id));
       assert(initialGet.status()===200,'Initial authenticated GET failed');
       const initial=await initialGet.json();
+      assert(initial.angles_data?.calibration_source_resolution?.state===expectedSourceState
+        && initial.angles_data?.calibration_source_resolution?.applied_to_analysis===false
+        && initial.mm_per_pixel===null && initial.is_calibrated===false,
+        'SQLite GET lost calibrated source provenance/no-mm invariant');
       assert(initial.landmarks_data.length===38,'Initial SQLite GET not 38 landmarks');
       let expected=initial.landmarks_data;
       const originalN=persistedPoint(initial,'N');
@@ -234,7 +244,8 @@ try {
       assert(filmApi.some(r=>r.method==='GET'&&r.url===pathForId(id)),
         'No actual GET from real Step1/history');
       errors.push(...relevantErrors.map(v=>film+': '+v));
-      cases.push({film,stage:'reloaded',analysisId:id,model:'SOTA_ONNX_38',nInitial:originalN.x,
+      cases.push({film,stage:'reloaded',analysisId:id,model:'SOTA_ONNX_38',
+        calibrationSourceState:expectedSourceState,calibrationApplied:false,nInitial:originalN.x,
         nPersisted:originalN.x+11,beforeReload,afterReload,authenticated:true,
         deniedAnonymousPatient:anonPatient.status(),deniedAnonymousUpload:anonUpload.status(),
         deniedAnonymousRead:anonRead.status(),deniedAnonymousMedia:anonMedia.status(),
