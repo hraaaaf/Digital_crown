@@ -36,6 +36,8 @@ interface CephaloLandmarkReticlesProps {
   clientToSVG: (clientX: number, clientY: number) => { x: number; y: number } | null;
   onPointMouseDown?: (id: string) => void;
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
+  /** Optional atomic store command for rapid keyboard events. */
+  onKeyboardNudgeLandmark?: (id: string, dx: number, dy: number, imageWidth: number, imageHeight: number) => void;
   onLandmarkDragPreview?: (preview: { id: string; x: number; y: number } | null) => void;
 }
 
@@ -59,6 +61,7 @@ export const CephaloLandmarkReticles = ({
   clientToSVG,
   onPointMouseDown,
   onUpdateLandmarks,
+  onKeyboardNudgeLandmark,
   onLandmarkDragPreview,
 }: CephaloLandmarkReticlesProps) => {
   const P = palette;
@@ -130,8 +133,13 @@ export const CephaloLandmarkReticles = ({
                 if (!delta || activeDragId || isCalibrating) return;
                 e.preventDefault();
                 e.stopPropagation();
-                // Keyboard adjustments are explicit audited landmark updates,
-                // one per keypress; never move ghosts or preview-only state.
+                // In the clinical workspace prefer an atomic store command.
+                // Read-modify-write from props can lose two same-tick keypresses.
+                if (onKeyboardNudgeLandmark) {
+                  onKeyboardNudgeLandmark(pt.id, delta[0], delta[1], imageWidth, imageHeight);
+                  return;
+                }
+                // Standalone tracing fixtures retain a controlled-update fallback.
                 const x = Math.max(0, Math.min(imageWidth, pt.x + delta[0]));
                 const y = Math.max(0, Math.min(imageHeight, pt.y + delta[1]));
                 if (x === pt.x && y === pt.y) return;
