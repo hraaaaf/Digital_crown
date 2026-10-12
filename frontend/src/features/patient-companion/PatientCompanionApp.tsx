@@ -21,6 +21,13 @@ import { PatientCompanionEmergencyPhoto } from './PatientCompanionEmergencyPhoto
 import { PatientCompanionFinance } from './PatientCompanionFinance';
 import { PatientCompanionTeleconsultation } from './PatientCompanionTeleconsultation';
 import { PatientCompanionStationDocuments } from './PatientCompanionStationDocuments';
+import { isSyntheticFieldLabLocalPairing } from './fieldLabLocalPairing';
+
+// Test-only HTTPS tunnel opt-in. Never skip remote-key protection in a Cabinet build.
+const syntheticLabLocalPairing = isSyntheticFieldLabLocalPairing(
+  import.meta.env.VITE_FIELD_LAB_LOCAL_PAIRING === 'true',
+  typeof window !== 'undefined' ? window.location : undefined,
+);
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
 
@@ -196,10 +203,16 @@ export const PatientCompanionApp = () => {
         throw new Error('Appairage refusé : ouvrez Patient Companion via la connexion HTTPS sécurisée du cabinet.');
       }
 
-      try {
-        preparedRemote = await PatientCompanionRemoteCrypto.prepareEnrollment();
-      } catch {
-        preparedRemote = null;
+      // GitHub Linux cannot provide Windows DPAPI cabinet key protection.
+      // The normal API supports local-only pairing without remote_keys; in the
+      // explicit synthetic lab, use it rather than weakening DPAPI or pretending
+      // to certify encrypted remote transport.
+      if (!syntheticLabLocalPairing) {
+        try {
+          preparedRemote = await PatientCompanionRemoteCrypto.prepareEnrollment();
+        } catch {
+          preparedRemote = null;
+        }
       }
 
       const baseBody = manual ? { manual_code: credential } : { token: credential };
@@ -641,6 +654,11 @@ export const PatientCompanionApp = () => {
           </div>
           <h1 className="mt-2 text-3xl font-black tracking-tight">Patient Companion</h1>
           <p className="mt-2 text-sm font-bold text-text-muted">Vos informations restent dans votre cabinet et sur cet appareil.</p>
+          {syntheticLabLocalPairing && (
+            <p role="status" className="mt-4 rounded-xl border border-amber-400 bg-amber-50 p-3 text-xs font-semibold text-amber-900">
+              LABORATOIRE GITHUB ACTIONS — données fictives. Appairage local uniquement : aucune clé distante du Cabinet ni relay chiffré n'est activé dans cette simulation Linux. Ne jamais utiliser de vrai dossier patient.
+            </p>
+          )}
         </header>
 
         {phase === 'loading' && <Card title="Ouverture du coffre" icon={<Loader2 className="animate-spin" size={20} />}><p className="text-sm font-bold text-text-muted">Lecture locale sécurisée…</p></Card>}
