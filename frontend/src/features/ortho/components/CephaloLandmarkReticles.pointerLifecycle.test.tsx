@@ -242,3 +242,24 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
   });
 
 });
+
+describe('DC-CEPH-03B.3e labels and keyboard focus presentation', () => {
+  afterEach(cleanup);
+
+  it('keeps labels separated and gives SVG keyboard focus an explicit ring without a clinical edit', () => {
+    const save = vi.fn();
+    render(<Fixture onUpdate={save} />);
+    const labels = Array.from(document.querySelectorAll('[data-ceph03b-label]'));
+    expect(labels.map(label => label.getAttribute('data-ceph03b-label'))).toEqual(['N', 'S']);
+    expect(labels[0].getAttribute('x')).not.toBe(labels[1].getAttribute('x'));
+    const handle = dragHandle();
+    expect(handle.getAttribute('data-ceph03b-keyboard-focus')).toBe('false');
+    fireEvent.focus(handle);
+    expect(handle.getAttribute('data-ceph03b-keyboard-focus')).toBe('true');
+    expect(handle.querySelector('[data-ceph03b-focus-ring="N"]')).not.toBeNull();
+    expect(save).not.toHaveBeenCalled();
+    fireEvent.blur(handle);
+    expect(handle.getAttribute('data-ceph03b-keyboard-focus')).toBe('false');
+    expect(handle.querySelector('[data-ceph03b-focus-ring="N"]')).toBeNull();
+  });
+});
