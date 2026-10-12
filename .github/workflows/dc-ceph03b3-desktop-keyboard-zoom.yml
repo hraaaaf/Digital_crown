@@ -1,0 +1,99 @@
+name: DC Cephalo 03B3 desktop keyboard and zoom (targeted)
+on:
+  push:
+    branches:
+      - feat/dc-ceph03b3-desktop-keyboard-zoom-20261012
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  keyboard-zoom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE_HEAD: ec7900a5f57957327f59729d14a20680360ae373
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Exact HEAD and scoped desktop-only changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b3-desktop-keyboard-zoom-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          while IFS= read -r file; do
+            case "$file" in
+              frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayerBase.tsx | \
+              frontend/src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayer.visualFixture.tsx | \
+              frontend/scripts/capture-dc-ceph03b3-keyboard-zoom.mjs | \
+              .github/workflows/dc-ceph03b3-desktop-keyboard-zoom.yml) ;;
+              *) echo "Out-of-scope path: $file" >&2; exit 1;;
+            esac
+          done < <(git diff --name-only "$BASE_HEAD" "$GITHUB_SHA")
+          echo "DC_CEPH03B3_HEAD=$GITHUB_SHA"
+          echo "DC_CEPH03B3_MOBILE_IN_SCOPE=false"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies and isolated Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Execute keyboard, pointer, overlay, edit history and layer regressions
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx \
+            src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx \
+            src/features/ortho/orthoLandmarkEditHistory.test.ts \
+            src/features/ortho/orthoLandmarkEditStore.test.ts \
+            src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx \
+            src/features/ortho/orthoLayerRegistry.test.ts \
+            src/features/ortho/orthoLayerStore.test.ts
+      - name: Verify real Chromium keyboard focus and zoomed pointer CTM
+        working-directory: frontend
+        run: |
+          node scripts/capture-dc-ceph03b3-keyboard-zoom.mjs
+      - name: Assert per-mode and per-viewport evidence
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const dir='dc-ceph03b3-keyboard-zoom-artifacts';
+          const report=JSON.parse(await readFile(dir+'/report.json','utf8'));
+          if(report.sourceHead!==process.env.GITHUB_SHA
+              ||report.invalidCount!==0||report.captures.length!==4
+              ||report.blockedExternal.length)throw Error('Keyboard zoom harness RED');
+          for(const width of [1280,1600])for(const mode of ['com','all']){
+            const vp=width===1280?'1280x900':'1600x1000';
+            const c=report.captures.find(x=>x.viewport===vp&&x.mode===mode);
+            if(!c||!c.valid||!c.focusState||c.commits!=='3'
+               ||!Number.isFinite(c.matrixA)||c.matrixA<=1.25
+               ||Math.abs(c.final.x-65)>0.4||Math.abs(c.final.y-75)>0.4
+               ||c.errors.length||c.consoleErrors.length||c.images.length!==5)
+              throw Error('Invalid '+vp+'/'+mode);
+            for(const name of c.images){
+              const png=await readFile(dir+'/'+name);
+              if(png.length<300||png.subarray(1,4).toString()!=='PNG'
+                 ||vp!==png.readUInt32BE(16)+'x'+png.readUInt32BE(20))
+                throw Error('Invalid PNG '+name);
+            }
+          }
+          console.log('DC_CEPH03B3_DESKTOP_KEYBOARD_ZOOM_CTM_4_OF_4_PASS');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-ceph03b3-keyboard-zoom-desktop
+          path: frontend/dc-ceph03b3-keyboard-zoom-artifacts
+          if-no-files-found: warn
+          retention-days: 10
