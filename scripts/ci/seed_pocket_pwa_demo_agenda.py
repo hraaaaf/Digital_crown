@@ -5,8 +5,14 @@ Runs ONLY inside the dedicated GitHub Actions test runner after T2 boot. Never
 run against a real practice, shared database, or persistent clinical environment.
 """
 import os
+import sys
 from datetime import datetime, time
 from pathlib import Path
+
+# Direct execution from scripts/ci excludes the repository root from sys.path.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 if os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") != "1":
     raise SystemExit("Refusing to seed outside the disposable CI lab")
