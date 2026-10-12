@@ -1,0 +1,36 @@
+name: V1.5-06A Imaging Synthetic
+
+on:
+  push:
+    branches:
+      - feat/v15-06-*
+    paths:
+      - 'tools/imaging_gateway/**'
+      - 'docs/quality/V15_06_IMAGING_ACQUISITION_GATEWAY_CONTRACT.md'
+      - '.github/workflows/v15-06-hotfolder-foundation.yml'
+  pull_request:
+    paths:
+      - 'tools/imaging_gateway/**'
+      - 'docs/quality/V15_06_IMAGING_ACQUISITION_GATEWAY_CONTRACT.md'
+      - '.github/workflows/v15-06-hotfolder-foundation.yml'
+  workflow_dispatch:
+
+jobs:
+  synthetic:
+    name: Synthetic hot-folder on \${{ matrix.os }}
+    runs-on: \${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install spool encryption
+        run: python -m pip install "cryptography>=42,<48"
+      - name: Compile source
+        run: python -m compileall -q tools/imaging_gateway
+      - name: Run synthetic tests
+        run: python -m unittest discover -s tools/imaging_gateway/tests -v
