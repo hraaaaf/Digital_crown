@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PatientPairing } from './PatientCompanionStorage';
 import { PatientCompanionStationDocuments } from './PatientCompanionStationDocuments';
@@ -109,6 +109,30 @@ describe('04.5 — Patient Companion private-phone withdrawal', () => {
     await screen.findByText('Aucun document disponible pour cette session.');
     fireEvent.click(screen.getByRole('button', { name: 'Terminer et effacer ma session' }));
     await waitFor(() => expect(onClose).toHaveBeenCalledWith(false));
+  });
+
+  it('04.7 hides phone download controls immediately and bounds offline purge', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, json: async () => ({ documents: [{ documentId: 42, kind: 'care_sheet' }] }),
+      })
+      .mockImplementationOnce((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new Error('purge timeout')));
+      }));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const onClose = vi.fn();
+    render(<PatientCompanionStationDocuments sessionId="offline" pairing={pairing} onClose={onClose} />);
+    await screen.findByRole('button', { name: 'Télécharger ma feuille de soins' });
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Terminer et effacer ma session' }));
+      expect(screen.queryByRole('button', { name: 'Télécharger ma feuille de soins' })).not.toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
+      await act(async () => { await vi.advanceTimersByTimeAsync(5001); });
+      expect(onClose).toHaveBeenCalledWith(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows no document controls when the private phone session has expired', async () => {
