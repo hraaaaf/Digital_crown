@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pocket-pwa-first-launch-webkit-20261012
+  group: pocket-pwa-fast-qr-refresh-20261012
   cancel-in-progress: true
 
 jobs:
