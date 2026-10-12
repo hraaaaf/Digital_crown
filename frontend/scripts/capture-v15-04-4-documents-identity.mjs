@@ -80,7 +80,7 @@ try {
         await context.route('**/api/workstation/patient-session/proof-session', route => {
           if (route.request().method() !== 'GET') return route.continue();
           const payload = scenario.mode === 'identified'
-            ? { status: 'identified', sessionId: 'proof-session', displayName: 'Aya Audit', claimedAt: caseClaimedAt }
+            ? { status: 'identified', sessionId: 'proof-session', displayName: 'Aya Audit', claimedAt: caseClaimedAt, companionPaired: true }
             : { status: 'pending', sessionId: 'proof-session', expiresAt: caseExpiresAt };
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
         });
