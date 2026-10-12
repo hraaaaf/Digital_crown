@@ -39,7 +39,8 @@ jobs:
               frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json | \
               .github/workflows/dc-ceph03b3c-two-real-radios-e2e.yml | \
               frontend/scripts/capture-dc-ceph03b3c-real-radios.mjs | \
-              frontend/src/features/ortho/CephaloTracingLayer.realRadioFixture.tsx) ;;
+              frontend/src/features/ortho/CephaloTracingLayer.realRadioFixture.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayerBase.tsx) ;;
               *) echo "HORS SCOPE: $file" >&2; exit 1;;
             esac
           done < <(git diff --name-only "$BASE_HEAD" "$GITHUB_SHA")
