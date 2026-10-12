@@ -19,7 +19,7 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 const evidence = {
-  paired: false, todayBoot: false, fiveTabs: false,
+  needsPairingFirstRun: false, paired: false, todayBoot: false, fiveTabs: false,
   agendaTab: false, plusWorks: false, todayWorks: false,
   persistentRelaunch: false, pwaStandaloneManifest: false,
 };
@@ -47,6 +47,12 @@ try {
     && manifest?.start_url === '/mobile/dashboard'
     && manifest?.name === 'Digital Crown Pocket' && manifest?.id === '/';
   if (!evidence.pwaStandaloneManifest) throw Error('PWA_MANIFEST_WRONG');
+  // First installed-app start without device credentials must require pairing,
+  // while preserving the already-authorized synthetic HTTPS test gateway.
+  await page.goto(origin + '/mobile/dashboard', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.getByText('Compagnon Mobile', { exact: true }).waitFor({ state: 'visible', timeout: 20000 });
+  if (new URL(page.url()).pathname !== '/mobile/onboarding') throw Error('PWA_UNPAIRED_BYPASS');
+  evidence.needsPairingFirstRun = true;
   await page.getByLabel("Code d'appairage à 6 chiffres").fill(fields.POCKET_FUE_CODE);
   await page.getByRole('button', { name: "Valider le code d'appairage" }).click();
   await page.getByText('Appairage réussi', { exact: true }).waitFor({ state: 'visible', timeout: 25000 });
