@@ -203,10 +203,11 @@ def _expire_and_purge(db: Session, row: models.WorkstationPatientSession, now: d
         return True
     if row.expires_at > now:
         return False
-    row.patient_access_id = None
-    row.patient_id = None
-    row.purged_at = now
-    db.commit()
+    from backend.services.station_session_cleanup import purge_expired_station_session_on_read
+    purge_expired_station_session_on_read(
+        db, session_id=row.id, employer_id=row.employer_id,
+        now=now, actor="ttl_station_read",
+    )
     return True
 
 
@@ -277,17 +278,31 @@ def create_station_patient_session(
     canonical_origin = _station_handoff_origin(request)
     now = datetime.utcnow()
 
-    db.query(models.WorkstationPatientSession).filter(
-        models.WorkstationPatientSession.workstation_id == workstation.id,
-        models.WorkstationPatientSession.purged_at.is_(None),
-    ).update(
-        {
+    existing_ids = [
+        sid for (sid,) in db.query(models.WorkstationPatientSession.id).filter(
+            models.WorkstationPatientSession.workstation_id == workstation.id,
+            models.WorkstationPatientSession.purged_at.is_(None),
+        ).all()
+    ]
+    for old_sid in existing_ids:
+        removed = db.query(models.WorkstationPatientSession).filter(
+            models.WorkstationPatientSession.id == old_sid,
+            models.WorkstationPatientSession.workstation_id == workstation.id,
+            models.WorkstationPatientSession.purged_at.is_(None),
+        ).update({
             models.WorkstationPatientSession.patient_access_id: None,
             models.WorkstationPatientSession.patient_id: None,
             models.WorkstationPatientSession.purged_at: now,
-        },
-        synchronize_session=False,
-    )
+        }, synchronize_session=False)
+        if removed == 1:
+            db.add(models.AuditLog(
+                employer_id=workstation.employer_id,
+                user_id=current_user.id,
+                action="STATION_DOCUMENT_SESSION_PURGED_REPLACED",
+                resource_type="WorkstationPatientSession",
+                resource_id=old_sid,
+                details="patient_binding_cleared=true;actor=new_station_session",
+            ))
 
     raw = secrets.token_urlsafe(32)
     row = models.WorkstationPatientSession(
