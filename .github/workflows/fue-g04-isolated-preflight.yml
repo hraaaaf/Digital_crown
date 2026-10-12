@@ -1,0 +1,53 @@
+name: FUE-G04 isolated security and release preflight
+
+on:
+  push:
+    branches:
+      - audit/fue-g04-installable-ci-gates
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-contracts:
+    name: SQLCipher, mobile and release contracts (NOT installable certification)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: "sqlite:///:memory:"
+      SECRET_KEY: fue-g04-isolated-ci-secret-minimum-32-characters
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install existing backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx==0.28.1
+          python -m pip check
+      - name: Validate release scripts parse
+        run: |
+          python -m py_compile backend/scripts/compose_installable_release.py backend/scripts/verify_installable_release.py
+      - name: Security and certification regression
+        run: |
+          python -m pytest -q --maxfail=1 \
+            backend/tests/test_sqlcipher_fail_closed.py \
+            backend/tests/test_sqlcipher_backup_contract.py \
+            backend/tests/test_mobile_revocation_epoch.py \
+            backend/tests/test_mobile_https_runtime_contract.py \
+            backend/tests/test_mobile_auth_security_contract.py \
+            backend/tests/test_mobile_credential_hardening.py \
+            backend/tests/test_patient_companion_remote_keys.py \
+            backend/tests/test_patient_companion_remote_pairing.py \
+            backend/tests/test_certified_release_policy.py
+      - name: Explicit certification boundary
+        if: always()
+        run: |
+          echo "FUE-G04 isolated CI tests do NOT issue INSTALLABLE_CERTIFIED."
+          echo "Physical Windows reboot and real phone HTTPS/QR remain separate gates."
