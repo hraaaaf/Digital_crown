@@ -90,6 +90,54 @@ jobs:
           python -m pytest -q -s \
             backend/tests/test_ceph03b3c_two_real_cephalograms_e2e.py
           echo "DC_CEPH03B3C_AUTHENTICATED_TWO_RADIO_SQLITE_PASS"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install real-image desktop browser and stage verified source bytes
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+          mkdir -p public/dc-ceph03b3c
+          cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-A.jpg public/dc-ceph03b3c/cephalo-A.jpg
+          cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-B.jpg public/dc-ceph03b3c/cephalo-B.jpg
+      - name: Real public X-ray visible in Chromium with real desktop store & undo redo
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/capture-dc-ceph03b3c-real-radios.mjs
+      - name: Assert 2 real X-rays by 2 modes by 2 desktop viewports and screenshot dimensions
+        working-directory: frontend
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const out='dc-ceph03b3c-real-radio-proof/';
+          const report=JSON.parse(await readFile(out+'report.json','utf8'));
+          if(report.head!==process.env.GITHUB_SHA || report.invalidCount!==0
+             ||report.blockedExternal.length!==0 || report.cases.length!==8
+             ||report.provenance.length!==2)throw Error('Real X-ray browser gate failed');
+          for(const film of ['A','B']) for(const mode of ['com','all'])
+            for(const vp of ['1280x900','1600x1000']){
+              const c=report.cases.find(x=>x.film===film&&x.mode===mode&&x.viewport===vp);
+              if(!c ||!c.valid ||c.errors.length ||c.consoleErrors.length
+                 ||c.navigationCount!==1 ||c.auditEvents!==4 ||c.images.length!==4
+                 ||c.decoded.width<=0 ||c.decoded.height<=0)throw Error('Bad case '+film+mode+vp);
+              for(const name of c.images){
+                const data=await readFile(out+name);
+                if(data.length<300 ||data.subarray(1,4).toString()!=='PNG'
+                   ||vp!==data.readUInt32BE(16)+'x'+data.readUInt32BE(20))
+                  throw Error('Bad screenshot '+name);
+              }
+            }
+          console.log('DC_CEPH03B3C_REAL_FILMS_8_OF_8_CHROMIUM_PASS');
+          NODE
       - name: Publish tested public image provenance metadata only
         if: always()
         shell: bash
@@ -102,6 +150,8 @@ jobs:
         if: always()
         with:
           name: dc-ceph03b3c-two-real-radios-e2e-proof
-          path: /tmp/dc-ceph03b3c-proof
+          path: |
+            /tmp/dc-ceph03b3c-proof
+            frontend/dc-ceph03b3c-real-radio-proof
           retention-days: 10
           if-no-files-found: warn
