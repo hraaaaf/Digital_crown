@@ -32,7 +32,7 @@ def _before():
     return points, previous, result
 
 
-def _calibrate(previous, points, result):
+def _calibrate(previous, points, result, *, distance_mm=10.0):
     return rebuild_evidence_after_manual_calibration(
         previous_payload=previous,
         patient_id=7,
@@ -41,7 +41,7 @@ def _calibrate(previous, points, result):
         runtime_landmarks=points,
         p1={"x": 0.0, "y": 0.0},
         p2={"x": 0.0, "y": 50.0},
-        distance_mm=10.0,
+        distance_mm=distance_mm,
         clinician_id="synthetic-operator",
         calibrated_at=LATEST,
     )
@@ -134,3 +134,54 @@ def test_unknown_prior_steiner_linear_method_fails_closed_without_promotion():
     target["method_id"] = "UNVERIFIED_VENDOR_FAKE_LINEAR_METHOD"
     with pytest.raises(CephaloRuntimeEvidenceError, match="Unknown prior Steiner linear method"):
         _calibrate(previous, raw, result)
+
+
+def test_stale_steiner_anatomical_construction_cannot_be_silently_reused():
+    raw, previous, result = _before()
+    old_methods = {
+        x["method_id"]: x for x in previous["measurements"]
+        if x["method_id"] in METHOD_TO_CANONICAL
+    }
+    # This modification is referentially valid (the construction exists) but
+    # clinically invalid: it swaps the U1 NA line for an L1 NB construction.
+    u1 = old_methods["STEINER_U1_NA_CANONICAL_MM_V2"]
+    l1 = old_methods["STEINER_L1_NB_CANONICAL_MM_V2"]
+    u1["construction_refs"] = list(l1["construction_refs"])
+    with pytest.raises(
+        CephaloRuntimeEvidenceError,
+        match="Steiner linear method/construction identity mismatch",
+    ):
+        _calibrate(previous, raw, result)
+
+
+def test_second_calibration_rebuilds_all_four_with_current_provenance_only():
+    raw, previous, initial_result = _before()
+    once = _calibrate(previous, raw, initial_result)
+    previous_sources = {
+        source["evidence_id"] for source in once["sources"]
+        if source["kind"] == "calibration"
+    }
+    assert len(previous_sources) == 1
+    twice_result = CephaloEngine(mm_per_pixel=0.4).calculate_metrics(_points(raw))
+    twice = _calibrate(once, raw, twice_result, distance_mm=20.0)
+    assert twice["revision"] == once["revision"] + 1
+    assert twice["revision_reason"] == "MANUAL_CALIBRATION"
+    new_sources = {
+        source["evidence_id"] for source in twice["sources"]
+        if source["kind"] == "calibration"
+    }
+    assert len(new_sources) == 1 and new_sources.isdisjoint(previous_sources)
+    protocol = [m for m in twice["measurements"] if m["method_id"] in METHOD_TO_CANONICAL]
+    assert len(protocol) == 4
+    for m in protocol:
+        assert all(ref not in previous_sources for ref in m["evidence_refs"])
+        assert new_sources.issubset(m["evidence_refs"])
+        if m["availability_status"] == "AVAILABLE":
+            assert m["calibration_ref"] in new_sources
+            assert m["value"] is not None
+        else:
+            assert m["calibration_ref"] is None
+            assert m["value"] is None
+    status, count = _matrix(_read(twice, twice_result))
+    assert count["NOT_EXPOSED"] == 4
+    assert all(status[canonical] != "NOT_EXPOSED" for canonical in METHOD_TO_CANONICAL.values())
