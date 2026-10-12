@@ -6,7 +6,7 @@ import {
   suggestExact, syntheticSource, syntheticTarget, type MappingChoices,
 } from './mappingStudioModel';
 
-afterEach(() => cleanup());
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 const select = (id: string, value: string) => {
   const input = document.getElementById(id) as HTMLSelectElement | null;
@@ -42,7 +42,8 @@ describe('V1.5-05.2-B inert Mapping Studio', () => {
     expect((screen.getByRole('button', { name: /Contrôler le brouillon/i }) as HTMLButtonElement).disabled).toBe(true);
   });
   it('can review a complete synthetic-only draft but never import or persist it', () => {
-    const fakeNetwork = vi.spyOn(window, 'fetch');
+    const fakeNetwork = vi.fn();
+    vi.stubGlobal('fetch', fakeNetwork);
     start();
     select('table-choice-0', 'patients');
     select('column-choice-0-0', 'id');
@@ -61,7 +62,7 @@ describe('V1.5-05.2-B inert Mapping Studio', () => {
     expect((screen.getByTestId('migration-import-disabled') as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/Aucune approbation administrateur/i)).toBeTruthy();
     expect(fakeNetwork).not.toHaveBeenCalled();
-    fakeNetwork.mockRestore();
+    vi.unstubAllGlobals();
   });
   it('invalidates all previously chosen columns when a table mapping is changed', () => {
     start();
