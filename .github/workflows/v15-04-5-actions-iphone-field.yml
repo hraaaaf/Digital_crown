@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  issues: write
+  actions: read
 concurrency:
   group: field-iphone-${{ github.ref }}
   cancel-in-progress: true
@@ -63,11 +63,10 @@ jobs:
           curl -fsSL --retry 3 --max-time 120 https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared
           chmod 700 /tmp/cloudflared
           /tmp/cloudflared --version
-          /tmp/cloudflared tunnel --url http://127.0.0.1:5173 --no-autoupdate >/tmp/field-tunnel.log 2>&1 &
+          nohup /tmp/cloudflared tunnel --url http://127.0.0.1:5173 --no-autoupdate >/tmp/field-tunnel.log 2>&1 </dev/null &
           tunnel_pid=$!
           server_pid=""
           vite_pid=""
-          trap '[[ -z "$vite_pid" ]] || kill "$vite_pid" 2>/dev/null || true; [[ -z "$server_pid" ]] || kill "$server_pid" 2>/dev/null || true; kill "$tunnel_pid" 2>/dev/null || true' EXIT
           origin=""
           for i in {1..70}; do
             origin=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/field-tunnel.log | head -n1 || true)
@@ -76,9 +75,9 @@ jobs:
             sleep 2
           done
           [[ "$origin" =~ ^https://[a-z0-9-]+\.trycloudflare\.com$ ]] || { cat /tmp/field-tunnel.log; exit 1; }
-          FIELD_PUBLIC_ORIGIN="$origin" python -m backend.tests.field_actions_cabinet_server >/tmp/field-cabinet.log 2>&1 &
+          nohup env FIELD_PUBLIC_ORIGIN="$origin" python -m backend.tests.field_actions_cabinet_server >/tmp/field-cabinet.log 2>&1 </dev/null &
           server_pid=$!
-          (cd frontend && VITE_API_URL="$origin" ./node_modules/.bin/vite --config vite.field-actions.config.ts --host 127.0.0.1 --port 5173) >/tmp/field-vite.log 2>&1 &
+          (cd frontend && nohup env VITE_API_URL="$origin" ./node_modules/.bin/vite --config vite.field-actions.config.ts --host 127.0.0.1 --port 5173 >/tmp/field-vite.log 2>&1 </dev/null &)
           vite_pid=$!
           healthy=false
           for i in {1..90}; do
@@ -96,17 +95,29 @@ jobs:
             echo "- Donnees fictives uniquement. Le lien meurt avec les jobs."
             echo "- Run https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           } >> "$GITHUB_STEP_SUMMARY"
-          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/844/comments" -f body="FIELD_LAB_RUN_ID=$GITHUB_RUN_ID FIELD_LAB_HOST=$origin
-          HYBRID_IPHONE_LINK=$landing
-          EXPIRES_WHEN_GITHUB_RUN_STOPS. SYNTHETIC_ONLY." >/dev/null
+          # Publish a synthetic-only landing URL as an Actions artifact.
+          # GitHub's run summary already presents it to the real phone operator.
+          printf '%s\n' "$GITHUB_RUN_ID" "$origin" "$landing" > "$GITHUB_WORKSPACE/.field-live.txt"
           echo "FIELD_LAB_PHONE_LINK=$landing"
-          for i in $(seq 1 850); do
-            kill -0 "$server_pid" 2>/dev/null || { tail -80 /tmp/field-cabinet.log; exit 1; }
-            kill -0 "$vite_pid" 2>/dev/null || { tail -80 /tmp/field-vite.log; exit 1; }
-            kill -0 "$tunnel_pid" 2>/dev/null || { tail -80 /tmp/field-tunnel.log; exit 1; }
-            sleep 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v15-04-5-live-link
+          path: .field-live.txt
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+      - name: Hold isolated server for bounded iPhone interaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin=$(sed -n '2p' "$GITHUB_WORKSPACE/.field-live.txt")
+          [[ "$origin" =~ ^https://[a-z0-9-]+\.trycloudflare\.com$ ]] || exit 1
+          for i in $(seq 1 170); do
+            curl --silent --show-error --fail --max-time 12 "$origin/field-lab/health" >/dev/null
+            sleep 5
           done
           echo "FIELD_LAB_AUTO_EXPIRED"
+
   station-runner:
     name: Station QR and independent API - GitHub runner 2
     runs-on: ubuntu-latest
