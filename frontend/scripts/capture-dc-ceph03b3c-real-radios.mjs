@@ -138,6 +138,9 @@ try{
       }
       const initialLabelCount=await page.locator('[data-ceph03b-landmark-label]').count();
       assert(initialLabelCount===0,'Ambient labels still crowd the radiograph');
+      const duplicateOverlayLabels=await page.locator('[data-r19-point] text, [data-r18-point] text').count();
+      assert(duplicateOverlayLabels===0,
+        'Ambient COM/Ricketts overlays still overprint landmark identifiers');
       const initialT1=await ghostLines('t1');
       const initialT2=await ghostLines('t2');
       const ghostOpacities=await page.locator('[data-ceph03b-ghost-layer] [data-cephalo-line-key]')
@@ -218,6 +221,7 @@ try{
       record.initialX=initialX;
       record.currentX=await pointX();
       record.initialLabelCount=initialLabelCount;
+      record.duplicateOverlayLabels=duplicateOverlayLabels;
       record.focusedLabelCount=focusedLabelCount;
       record.focusRingCount=focusRingCount;
       record.ghostOpacityMax=Math.max(...ghostOpacities);
