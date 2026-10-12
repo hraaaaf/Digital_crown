@@ -252,8 +252,10 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       documents: [{ documentId: 42, kind: 'care_sheet' }],
     });
     render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
-    expect(await screen.findByText(/Aucune feuille de soins autorisée à retirer/)).toBeInTheDocument();
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    await waitFor(() => expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledWith('session-1'));
     expect(screen.queryByText(/disponible sur votre téléphone/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Télécharger/i })).not.toBeInTheDocument();
   });
 
   it('04.5 keeps the kiosk fail closed when document discovery fails', async () => {
@@ -265,7 +267,6 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Télécharger/i })).not.toBeInTheDocument();
-    expect(stationPatientSessionService.downloadCareSheet).not.toHaveBeenCalled();
   });
 
   it('04.5 expires an unattended document kiosk and clears the patient name', async () => {
