@@ -358,20 +358,27 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                 <tr
                   key={definition.key}
                   data-r19-metric={definition.key}
-                  aria-selected={selected}
-                  tabIndex={0}
+                  data-selected={selected ? 'true' : 'false'}
                   onClick={() => setSelectedKey(definition.key)}
-                  onFocus={() => setSelectedKey(definition.key)}
                   onMouseEnter={() => setHoverKey(definition.key)}
                   onMouseLeave={() => setHoverKey(null)}
-                  className="cursor-pointer border-b transition-colors outline-none"
+                  className="cursor-pointer border-b transition-colors"
                   style={{ borderColor: P.border, background: selected ? `${P.accent}12` : 'transparent' }}
                 >
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      data-ceph03-metric-select={definition.key}
+                      aria-label={`Sélectionner la mesure ${definition.label}`}
+                      aria-pressed={selected}
+                      onClick={() => setSelectedKey(definition.key)}
+                      onFocus={() => setSelectedKey(definition.key)}
+                      className="flex min-h-9 w-full items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      style={{ '--tw-ring-color': P.accent, '--tw-ring-offset-color': P.bgPanel } as React.CSSProperties}
+                    >
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: familyTone }} />
                       <span className="break-words text-[11px] font-semibold leading-tight" style={{ color: selected ? P.text : P.textMuted }}>{definition.label}</span>
-                    </div>
+                    </button>
                   </td>
                   <td className="px-2 py-3 font-mono text-[11px] font-black tabular-nums" style={{ color: value === null ? P.textDim : P.text }}>
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
