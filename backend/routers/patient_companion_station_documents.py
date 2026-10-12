@@ -16,6 +16,13 @@ from backend import models
 from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionIdentity
 from backend.routers.patient_companion_common import get_db, patient_identity, principal_for_access
 from backend.services.station_care_sheet import WITHDRAW_ACTION, care_sheet_state, verified_care_sheet_bytes
+from backend.services.station_arrival_bridge import (
+    list_station_patient_appointments_for_today, station_appointment_for_today,
+)
+from backend.services.station_presence_receipt import (
+    reliable_presence_proof, presence_receipt_verification_code,
+    render_presence_receipt_pdf,
+)
 from backend.services.station_document_eligibility import (
     SelfServiceDocumentCandidate, StationEligibilityContext,
     evaluate_document_eligibility,
@@ -101,6 +108,22 @@ def _eligible(db: Session, employer_id: int, context: StationEligibilityContext,
     ).eligible
 
 
+def _receipt_eligible(context: StationEligibilityContext, appointment: models.Appointment, proof) -> bool:
+    return evaluate_document_eligibility(
+        context,
+        SelfServiceDocumentCandidate(
+            document_id=f"presence-receipt:{appointment.id}:{proof.audit_id}",
+            tenant_id=appointment.employer_id,
+            patient_id=appointment.patient_id,
+            kind="presence_receipt",
+            is_active=appointment.deleted_at is None,
+            is_latest_version=True,
+            presence_confirmed=True,
+            presence_proof_source=proof.source,
+        ),
+    ).eligible
+
+
 @router.get("/station-session/{session_id}/documents")
 def companion_station_documents(
     session_id: str,
@@ -119,6 +142,16 @@ def companion_station_documents(
         {"documentId": item.id, "kind": "care_sheet"}
         for item in rows if _eligible(db, principal.employer_id, context, item)
     ]
+    appointments = list_station_patient_appointments_for_today(
+        db, employer_id=principal.employer_id, patient_id=principal.patient_id,
+    )
+    for appointment in appointments:
+        proof = reliable_presence_proof(
+            db, employer_id=principal.employer_id,
+            patient_id=principal.patient_id, appointment=appointment,
+        )
+        if proof is not None and _receipt_eligible(context, appointment, proof):
+            eligible.append({"documentId": appointment.id, "kind": "presence_receipt"})
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
     return {"documents": eligible}
@@ -164,6 +197,73 @@ def companion_station_care_sheet(
             "Cache-Control": "no-store, private",
             "Pragma": "no-cache",
             "Content-Disposition": f'attachment; filename="care-sheet-{int(doc.id)}.pdf"',
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer",
+        },
+    )
+
+
+@router.get("/station-session/{session_id}/documents/presence-receipt/{appointment_id}")
+def companion_station_presence_receipt(
+    session_id: str, appointment_id: int, request: Request,
+    access_id: str = Query(alias="accessId", min_length=36, max_length=36),
+    db: Session = Depends(get_db),
+    identity: PatientCompanionIdentity = Depends(patient_identity),
+):
+    principal, context = _authorized_session(db, identity, access_id, session_id)
+    appointment = station_appointment_for_today(
+        db, appointment_id=appointment_id,
+        employer_id=principal.employer_id, patient_id=principal.patient_id,
+    )
+    if appointment is None:
+        raise HTTPException(status_code=404, detail="STATION_APPOINTMENT_NOT_FOUND")
+    proof = reliable_presence_proof(
+        db, employer_id=principal.employer_id,
+        patient_id=principal.patient_id, appointment=appointment,
+    )
+    if proof is None:
+        raise HTTPException(status_code=409, detail="STATION_PRESENCE_NOT_PROVEN")
+    if not _receipt_eligible(context, appointment, proof):
+        raise HTTPException(status_code=409, detail="STATION_PRESENCE_RECEIPT_NOT_ELIGIBLE")
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == principal.patient_id,
+        models.Patient.employer_id == principal.employer_id,
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=409, detail="STATION_SESSION_PATIENT_UNAVAILABLE")
+    config = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == principal.employer_id,
+    ).first()
+    verification_code = presence_receipt_verification_code(
+        employer_id=principal.employer_id,
+        patient_id=patient.id,
+        appointment_id=appointment.id,
+        appointment_start=appointment.datetime_start,
+        proof=proof,
+    )
+    payload = render_presence_receipt_pdf(
+        cabinet_name=(config.nom_cabinet if config else "") or "Cabinet dentaire",
+        practitioner_name=(config.nom_praticien if config else "") or "",
+        patient_name=f"{patient.prenom or ''} {patient.nom or ''}".strip(),
+        appointment_start=appointment.datetime_start,
+        verification_code=verification_code,
+    )
+    db.add(models.AuditLog(
+        user_id=None, employer_id=principal.employer_id,
+        action="STATION_PRESENCE_RECEIPT_WITHDRAWN_PHONE",
+        resource_type="Appointment", resource_id=str(appointment.id),
+        details=f"patient_id={principal.patient_id};access_id={principal.access_id};proof={proof.audit_id}",
+        ip_address=request.client.host if request.client else None,
+    ))
+    db.commit()
+    return Response(
+        content=payload, media_type="application/pdf",
+        headers={
+            "Cache-Control": "no-store, private",
+            "Pragma": "no-cache",
+            "Content-Disposition": f'attachment; filename="presence-receipt-{appointment.id}.pdf"',
+            "X-Digital-Crown-Verification": verification_code,
             "X-Content-Type-Options": "nosniff",
             "Referrer-Policy": "no-referrer",
         },
