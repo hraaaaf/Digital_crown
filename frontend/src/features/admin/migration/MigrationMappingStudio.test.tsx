@@ -76,6 +76,29 @@ describe('LOT05.2-B1 Mapping Studio staff wizard', () => {
     expect((screen.getByRole('combobox', { name: 'Colonne patients.id' }) as HTMLSelectElement).value).toBe('');
     expect((screen.getByRole('button', { name: /^Vérifier/ }) as HTMLButtonElement).disabled).toBe(true);
   });
+  it('a delayed older file read cannot overwrite a newer source inventory', async () => {
+    launch();
+    let resolveOld: ((v: string) => void) | undefined;
+    const older = new File(['old'], 'old.json', { type: 'application/json' });
+    const newer = new File(['new'], 'new.json', { type: 'application/json' });
+    Object.defineProperty(older, 'text', {
+      value: () => new Promise<string>(resolve => { resolveOld = resolve; }),
+    });
+    const newerReport = {
+      dialect_declared: 'sqlite', source_format: 'sqlite-copy',
+      sha256: 'b'.repeat(64), file_size_bytes: 123, row_counts: null,
+      warnings: [], mapping_approved: false, dry_run_completed: false, import_permitted: false,
+      tables: [{ source_name: 'patients', columns: [{ name: 'id', declared_type: 'INT' }] }],
+    };
+    Object.defineProperty(newer, 'text', { value: async () => JSON.stringify(newerReport) });
+    const fileInput = screen.getByLabelText('Rapport source JSON');
+    fireEvent.change(fileInput, { target: { files: [older] } });
+    fireEvent.change(fileInput, { target: { files: [newer] } });
+    await waitFor(() => expect(screen.getByText(/SHA bbbbbbbbbbbb/)).toBeTruthy());
+    resolveOld?.(JSON.stringify({ ...newerReport, sha256: 'a'.repeat(64) }));
+    await waitFor(() => expect(screen.getByText(/SHA bbbbbbbbbbbb/)).toBeTruthy());
+    expect(screen.queryByText(/SHA aaaaaaaaaaaa/)).toBeNull();
+  });
   it('a newly rejected source inventory clears the old source and all decisions', async () => {
     launch(); completed();
     fireEvent.click(screen.getByRole('button', { name: 'Inventaires' }));
