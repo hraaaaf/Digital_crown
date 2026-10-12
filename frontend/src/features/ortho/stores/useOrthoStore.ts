@@ -127,6 +127,7 @@ interface OrthoState {
   handleSave: () => Promise<void>;
   applyCalibration: () => Promise<void>;
   updateLandmarksOptimistic: (newLms: Landmark[]) => void;
+  nudgeLandmarkFromKeyboard: (id: string, dx: number, dy: number, imageWidth: number, imageHeight: number) => void;
   handlePreview: () => Promise<void>;
   handlePrint: () => Promise<void>;
   handlePhotoUpload: (id: string, file: File) => void;
@@ -616,6 +617,30 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       state.local.landmarks,
       newLms,
       'POINTER_DRAG',
+    );
+    if (!transition.changed) return;
+    set({
+      local: { landmarks: transition.landmarks, version: state.local.version + 1 },
+      landmarkEditTimeline: transition.timeline,
+    });
+    queueAuditedLandmarkSave(transition.landmarks, get, set);
+  },
+  nudgeLandmarkFromKeyboard: (id, dx, dy, imageWidth, imageHeight) => {
+    // Each keypress reads the current canonical store, not a potentially stale
+    // React landmark prop. Therefore rapid arrow presses preserve every edit.
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)
+      || !Number.isFinite(imageWidth) || !Number.isFinite(imageHeight)
+      || imageWidth <= 0 || imageHeight <= 0) return;
+    const state = get();
+    const target = state.local.landmarks.find(point => point.id === id);
+    if (!target) return;
+    const x = Math.max(0, Math.min(imageWidth, target.x + dx));
+    const y = Math.max(0, Math.min(imageHeight, target.y + dy));
+    if (x === target.x && y === target.y) return;
+    const next = state.local.landmarks.map(point => point.id === id
+      ? { ...point, x, y } : point);
+    const transition = applyLandmarkEdit(
+      state.landmarkEditTimeline, state.local.landmarks, next, 'KEYBOARD_NUDGE',
     );
     if (!transition.changed) return;
     set({
