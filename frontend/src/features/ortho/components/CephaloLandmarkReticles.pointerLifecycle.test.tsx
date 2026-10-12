@@ -225,7 +225,9 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
   it('does not edit points while calibrating or during an active pointer gesture', () => {
     const onUpdate = vi.fn();
     const view = render(<Fixture onUpdate={onUpdate} calibrating />);
-    fireEvent.keyDown(dragHandle(), { key: 'ArrowDown' });
+    // During calibration, edit handles are intentionally absent: no keyboard
+    // target exists. This is the stronger guard than ignoring a keydown.
+    expect(dragHandle()).toBeNull();
     expect(onUpdate).not.toHaveBeenCalled();
     view.unmount();
     render(<Fixture onUpdate={onUpdate} />);
