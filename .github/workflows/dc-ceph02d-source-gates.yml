@@ -114,7 +114,7 @@ jobs:
           assert all(x["per_measure_statuses"][key]["calibrated"]=="NOT_EXPOSED" for key in exact)
           assert x["per_measure_statuses"][findings["invalid_canonical_id"]]["calibrated"]=="INVALID"
           Path("dc-ceph02d-safe-diagnostic.json").write_text(
-            json.dumps(findings, sort_keys=True, indent=2)+"\\n",encoding="utf-8"
+            json.dumps(findings, sort_keys=True, indent=2)+"\n",encoding="utf-8"
           )
           print("DC_CEPH02D_GATE=SCIENTIFIC_GATES_RETAINED")
           PY
