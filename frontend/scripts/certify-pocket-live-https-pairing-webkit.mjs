@@ -26,6 +26,23 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 const evidence = { realHttps: false, pairingSuccess: false, dashboardAgenda: false, plusOpens: false, todayResponds: false };
+const transitions = [];
+const apiStatuses = [];
+let jsErrors = 0;
+const safePath = (url) => {
+  try {
+    const p = new URL(url).pathname;
+    return p.startsWith('/session/') ? '/session/[REDACTED]' : p;
+  } catch { return '[invalid-url]'; }
+};
+page.on('framenavigated', frame => {
+  if (frame === page.mainFrame()) transitions.push(safePath(frame.url()));
+});
+page.on('response', response => {
+  const p = safePath(response.url());
+  if (p.startsWith('/api/mobile/')) apiStatuses.push({ path: p, status: response.status() });
+});
+page.on('pageerror', () => { jsErrors++; });
 try {
   await page.goto(fields.POCKET_FUE_LINK, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.getByRole('link', { name: /Continuer vers l.appairage/ }).click();
@@ -34,12 +51,17 @@ try {
   await page.getByRole('button', { name: "Valider le code d'appairage" }).click();
   await page.getByText('Appairage réussi', { exact: true }).waitFor({ state: 'visible', timeout: 20000 });
   evidence.pairingSuccess = true;
+  evidence.afterClaimPath = safePath(page.url());
+  evidence.secureContext = await page.evaluate(() => window.isSecureContext);
+  evidence.cookiePresent = (await context.cookies()).some(cookie => cookie.name === 'pocket_fue');
   // Observe whether React auto-navigation works. If not, exercise the native
   // iPhone fallback link exactly as the owner does.
   try {
     await page.waitForURL(/\/mobile\/dashboard\?tab=agenda/, { timeout: 4000 });
   } catch {
+    evidence.autoTimeoutPath = safePath(page.url());
     await page.getByRole('link', { name: 'Continuer vers Agenda' }).click();
+    evidence.afterClickPath = safePath(page.url());
     await page.waitForURL(/\/mobile\/dashboard\?tab=agenda/, { timeout: 15000 });
   }
   await page.locator('[data-dc-pocket-agenda]').waitFor({ state: 'visible', timeout: 20000 });
@@ -63,7 +85,16 @@ try {
 } catch (error) {
   await page.screenshot({ path: '/tmp/pocket-fue-webkit-failed.png', animations: 'disabled' }).catch(() => {});
   // Only publish a controlled error category, not the URL nor credentials.
-  console.error('FUE_REAL_WEBKIT_FAILURE=' + JSON.stringify(evidence));
+  const summary = {
+    ...evidence, currentPath: safePath(page.url()),
+    transitions: transitions.slice(-12),
+    apiStatuses: apiStatuses.slice(-20),
+    jsErrors,
+    stillOnSuccess: (await page.getByText('Appairage réussi', { exact: true }).count()) > 0,
+    hasAgenda: (await page.locator('[data-dc-pocket-agenda]').count()) > 0,
+    hasBiometricGate: (await page.getByText('Accès mobile protégé').count()) > 0,
+  };
+  console.error('FUE_REAL_WEBKIT_FAILURE=' + JSON.stringify(summary));
   process.exitCode = 1;
 } finally {
   await context.close();
