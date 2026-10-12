@@ -220,6 +220,26 @@ export const StationPatientIdentity = ({
     return () => { cancelled = true; };
   }, [status, purpose, session]);
 
+  // Do not leave a patient's identity or document choices visible on an unattended kiosk.
+  // The backend enforces expiry; the Station also clears the screen at that deadline.
+  useEffect(() => {
+    if (purpose !== 'documents' || status !== 'identified' || !session) return undefined;
+    const closeExpired = () => {
+      setDisplayName('');
+      setAvailableDocuments([]);
+      setDocumentsError('');
+      setStatus('expired');
+      requestPurge(session.sessionId);
+    };
+    const remaining = new Date(session.expiresAt).getTime() - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) {
+      closeExpired();
+      return undefined;
+    }
+    const timeout = window.setTimeout(closeExpired, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [purpose, status, session, requestPurge]);
+
   const downloadDocument = async (documentId: number) => {
     if (!session || documentsBusy) return;
     setDocumentsBusy(true);
