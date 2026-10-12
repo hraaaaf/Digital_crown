@@ -105,6 +105,14 @@ def test_real_srpose38_two_lateral_xrays_authenticated_upload_edit_sqlite_reload
             assert response.status_code == 200, response.text[:800]
             return response.json()
 
+        # Never leak real-model radiographic analysis across the auth boundary.
+        unauthenticated_read = client.get(f"/api/ia/analyses/{analysis_id}")
+        assert unauthenticated_read.status_code in (401, 403)
+        unauthenticated_write = client.put(
+            f"/api/ia/analyses/{analysis_id}",
+            json={"landmarks": result["landmarks"], "mm_per_pixel": None},
+        )
+        assert unauthenticated_write.status_code in (401, 403)
         baseline = authoritative_get()
         original = baseline["landmarks_data"]
         assert isinstance(original, list) and len(original) == 38
