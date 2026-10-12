@@ -112,13 +112,29 @@ async function browserCapture(viewport, mode) {
     const grab = await page.locator('[data-ceph03b-drag-handle="' + mode.landmark + '"]').evaluate(el => (el).style.cursor);
     if (grab !== 'grabbing') throw Error('PointerDown not captured for ' + mode.landmark + ': ' + JSON.stringify({ hit, grab, initialScreen }));
     await page.mouse.move(finalScreen.x, finalScreen.y, { steps: 5 });
-    await page.waitForFunction(({ landmark, x, y }) => {
-      const handle = document.querySelector('[data-ceph03b-drag-handle="' + landmark + '"]');
-      const ring = handle?.querySelector('circle');
-      if (!ring) return false;
-      return Math.abs(Number(ring.getAttribute('cx')) - x) < 0.3
-        && Math.abs(Number(ring.getAttribute('cy')) - y) < 0.3;
-    }, { landmark: mode.landmark, x: mode.dest[0], y: mode.dest[1] }, { timeout: 5000 });
+    try {
+      await page.waitForFunction(({ landmark, x, y }) => {
+        const handle = document.querySelector('[data-ceph03b-drag-handle="' + landmark + '"]');
+        const ring = handle?.querySelector('circle');
+        if (!ring) return false;
+        return Math.abs(Number(ring.getAttribute('cx')) - x) < 0.3
+          && Math.abs(Number(ring.getAttribute('cy')) - y) < 0.3;
+      }, { landmark: mode.landmark, x: mode.dest[0], y: mode.dest[1] }, { timeout: 5000 });
+    } catch (error) {
+      const live = await page.evaluate(landmark => {
+        const handle = document.querySelector('[data-ceph03b-drag-handle="' + landmark + '"]');
+        const ring = handle?.querySelector('circle');
+        const svg = handle?.ownerSVGElement;
+        return {
+          handleExists: Boolean(handle),
+          cursor: handle instanceof SVGElement ? handle.style.cursor : null,
+          ring: ring ? { x: ring.getAttribute('cx'), y: ring.getAttribute('cy') } : null,
+          svgRect: svg?.getBoundingClientRect().toJSON() ?? null,
+          activeElement: document.activeElement?.tagName ?? null,
+        };
+      }, mode.landmark);
+      throw Error('Pointer moved but reticle did not reach expected destination: ' + JSON.stringify({ live, mode, initialScreen, finalScreen, error: String(error) }));
+    }
     const during = await coordinates();
     const expectLive = phase === 'AFTER' ? mode.dest : mode.start;
     approximate(during.x,expectLive[0],'During overlay X');
