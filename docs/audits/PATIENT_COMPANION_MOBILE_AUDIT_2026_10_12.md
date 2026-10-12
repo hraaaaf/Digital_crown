@@ -117,3 +117,45 @@ Aucun test backend, build release, migration, seed ou accès aux données cabine
 Le serveur Vite isolé a démarré sur 127.0.0.1:5197. Deux tentatives d'ouverture dans le navigateur intégré ont échoué avant attachement de la vue ; l'alternative Chrome est indisponible. Aucune capture actuelle acceptée n'a donc été obtenue. L'audit Product Design visuel est bloqué par l'environnement, conformément à sa règle de preuve ; ce document est une revue technique, pas un audit UX visuel complet.
 
 Prochain lot recommandé : vérité patient (F01/F02/F05/F06), puis protection de l'effacement (F03) et installation (F04). Avant toute modification visuelle, obtenir BEFORE, Goal/Target, AFTER aux mêmes viewports et validation humaine suivant les règles du dépôt. Ne pas transformer cette liste en nouvelle roadmap concurrente : le propriétaire doit la réconcilier au lot courant dans l'autorité canonique.
+
+## Orientation issue du chantier Digital Crown Pocket — 12 octobre 2026
+
+Instruction propriétaire : s'inspirer du chantier Pocket actuellement en cours.
+Référence active inspectée : [PR #838 — iOS micro-polish et héritage des thèmes cabinet](https://github.com/hraaaaf/Digital_crown/pull/838), branche `fix/pocket-ios-micropolish-theme-20261011`, SHA lu `e8732b6e6a6ff4b140b736291d77f38cfbc2c281`. Cette candidature est DRAFT, non mergée ; ses résultats annoncés ne certifient pas le Companion.
+Les PR [#843](https://github.com/hraaaaf/Digital_crown/pull/843) et [#845](https://github.com/hraaaaf/Digital_crown/pull/845) décrivent les laboratoires Safari/PWA jetables. Leurs descriptions sont des références de scénario, pas des résultats terminaux vérifiés ici.
+
+### Principes à adapter au patient
+
+| Référence Pocket examinée | Adaptation proposée pour le Companion |
+| --- | --- |
+| `MobileDashboard.tsx`, `PocketTodayOverview.tsx` : accueil orienté première valeur | Accueil patient montrant prochain rendez-vous avec son vrai statut, éléments demandant une action et fraîcheur de chaque domaine ; éviter l'empilement initial de tous les modules |
+| `MobileBottomNav.tsx` : cinq zones, destinations secondaires dans Plus | Proposition à valider visuellement : **Accueil / Rendez-vous / Documents / Messages / Plus**. Le menu Plus regroupe questionnaires, consentements, photo, téléconsultation, finance et réglages selon les accès disponibles |
+| `MobileHeader.tsx` et surfaces P2 : densité et suppression des titres répétés | En-tête court avec identité du cabinet et contexte patient explicite ; changement de dossier visible ; priorité au contenu utile dans le premier écran |
+| Bottom nav, sheets et quick actions | Actions à une main, cibles ≥44 px, safe areas iOS, sheets courtes avec fermeture, focus piégé puis restitué et animations réduites selon préférence système |
+| `useMobileRuntimeTheme.ts`, `PocketMicroPolishTheme.contract.test.ts` | Héritage du thème cabinet et de la typographie ; surfaces et états via tokens sémantiques ; contraste des libellés vérifié sur les variantes de thème |
+| `useMobileDashboard.ts` : files hors connexion et auth expirée/révoquée | Différencier copie locale, demande en attente, ACK cabinet et données actualisées ; appliquer F01/F02/F05/F06 avant de présenter un succès global |
+| `mobilePocketPwaLifecycle.contract.test.ts` | L'appairage sert à enrôler une fois ; l'icône installée doit rouvrir le Companion déjà appairé. Tester fermeture, relance et reprise hors connexion |
+| Gate biométrique et onboarding Pocket | Étudier les états récupérables, origine stable et compatibilité Safari ; le coffre chiffré actuel du patient ne prouve pas à lui seul un verrou biométrique |
+
+Ce tableau décrit une direction et des composants de référence, pas un mockup approuvé. Le bouton central « + » professionnel ne constitue pas une obligation côté patient : les cinq destinations proposées correspondent aux tâches patient existantes. La téléconsultation et la photo doivent garder leurs avertissements, permissions et états explicites.
+
+### Deux compléments importants à l'audit initial
+
+**F04 doit couvrir la coexistence des deux PWA.** Dans le SHA Pocket inspecté, `manifest.json` passe déjà de `/?source=pwa` à `/mobile/dashboard` tout en gardant `id=/` pour les installations existantes. Reprendre ce changement tel quel ouvrirait le dashboard professionnel côté patient. Préparer une identité/entrée patient distincte et vérifier les deux installations sur le même appareil sans casser Pocket.
+
+**Installation iOS avant consommation du code : risque à investiguer en priorité.** Le test Pocket inspecté impose `mustInstallPocketFirst = isIOS && !isInstalled && !isPreviewDemo` pour tenir compte des stockages Safari/standalone isolés. Le Companion consomme actuellement l'invitation puis écrit le coffre dans le contexte courant. Tester le scénario « appairage Safari → Ajouter à l'écran d'accueil → ouverture de l'icône » : vérifier la présence réelle du coffre et la possibilité de reprise si le code unique est déjà consommé. Ce défaut n'est pas reproduit ici ; aucun transfert de token ou de clé en clair ne doit être ajouté pour contourner le problème.
+
+### Séquence proposée, à réconcilier au lot canonique
+
+1. Capturer le parcours patient actuel et définir le contrat de première valeur : trouver son prochain RDV, ouvrir un document partagé et contacter le cabinet.
+2. Corriger vérité des statuts/fraîcheur, erreurs et contexte, puis sécuriser l'effacement.
+3. Définir un Target patient inspiré des composants Pocket : accueil compact, navigation proposée et menu Plus. Conserver les services et leurs permissions existantes.
+4. Implémenter uniquement après choix du Target ; réutiliser les primitives visuelles pertinentes sans importer le stockage, les jetons, les rôles ou les APIs staff.
+5. Valider sur 390×844 et 430×932, puis 768×1024 et 1280×900 ; thèmes cabinet, texte agrandi, lecteur d'écran, focus, safe areas et réduction des animations.
+6. Exécuter un laboratoire patient jetable : invitation backend réelle, QR/code unique, coffre persistant, installation Safari/PWA, fermeture/relance, hors connexion, expiration/révocation et changement de dossier. Conserver une matrice PASS/FAIL/NON TESTÉ et les captures du même SHA.
+
+### Preuve de cette adaptation
+
+Revue des sources Pocket au SHA ci-dessus et confrontation avec les huit constats de la base Companion. Documentation seulement : aucune modification UI, auth, API, coffre, manifeste ou données.
+Aucun nouveau test produit nécessaire pour cet ajout documentaire ; les 13 tests précédents restent des preuves de la base examinée, pas de Pocket ni d'une adaptation implémentée.
+EXECUTION_SCORE : 7.5/10 ; ADVERSARIAL_SCORE : 7.5/10 ; RETAINED_SCORE : 7.5/10. Divergence : non. Les captures et la validation réelle du parcours restent manquantes.
