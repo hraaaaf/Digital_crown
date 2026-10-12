@@ -17,6 +17,43 @@ STATION_SESSION_SWEEP_INTERVAL_SECONDS = 30
 TTL_PURGE_ACTION = "STATION_DOCUMENT_SESSION_PURGED_TTL"
 
 
+def purge_expired_station_session_on_read(
+    db: Session,
+    *,
+    session_id: str,
+    employer_id: int,
+    now: datetime,
+    actor: str,
+) -> bool:
+    """Request-triggered TTL scrub, sharing the same conditional audit contract.
+
+    A concurrent periodic sweeper may win; then no second audit is written.
+    """
+    if actor not in {"ttl_station_read", "ttl_phone_read"}:
+        raise ValueError("STATION_SESSION_INVALID_TTL_ACTOR")
+    updated = db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.id == session_id,
+        models.WorkstationPatientSession.employer_id == employer_id,
+        models.WorkstationPatientSession.expires_at <= now,
+        models.WorkstationPatientSession.purged_at.is_(None),
+    ).update({
+        models.WorkstationPatientSession.patient_id: None,
+        models.WorkstationPatientSession.patient_access_id: None,
+        models.WorkstationPatientSession.purged_at: now,
+    }, synchronize_session=False)
+    if updated == 1:
+        db.add(models.AuditLog(
+            employer_id=employer_id,
+            user_id=None,
+            action=TTL_PURGE_ACTION,
+            resource_type="WorkstationPatientSession",
+            resource_id=session_id,
+            details=f"patient_binding_cleared=true;actor={actor}",
+        ))
+        db.commit()
+    return updated == 1
+
+
 def purge_expired_station_sessions(
     db: Session,
     *,
