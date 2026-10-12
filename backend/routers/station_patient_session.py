@@ -1042,5 +1042,14 @@ def purge_station_patient_session(
         synchronize_session=False,
     )
     if updated:
+        db.add(models.AuditLog(
+            user_id=current_user.id,
+            employer_id=workstation.employer_id,
+            action="STATION_DOCUMENT_SESSION_PURGED_STATION",
+            resource_type="WorkstationPatientSession",
+            resource_id=session_id,
+            details="patient_binding_cleared=true;actor=station_cookie",
+            ip_address=request.client.host if request.client else None,
+        ))
         db.commit()
     return Response(status_code=204)
