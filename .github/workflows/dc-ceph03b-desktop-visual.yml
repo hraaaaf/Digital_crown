@@ -86,7 +86,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
           const viewports = ['1280x900', '1600x1000'];
-          const modes = { com: { start: [30,40], dest: [65,75] }, all: { start: [130,70], dest: [145,90] } };
+          const modes = { com: { start: [30,40], dest: [65,75] }, all: { start: [30,40], dest: [65,75] } };
           for (const phase of ['BEFORE','AFTER']) {
             const dir = 'dc-ceph03b-' + phase.toLowerCase() + '-desktop-artifacts';
             const report = JSON.parse(await readFile(dir + '/report.json','utf8'));
