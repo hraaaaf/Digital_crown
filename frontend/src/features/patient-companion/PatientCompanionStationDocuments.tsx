@@ -1,0 +1,110 @@
+import { useEffect, useState } from 'react';
+import { API_BASE } from '../../services/api';
+import type { PatientPairing } from './PatientCompanionStorage';
+
+type StationCareSheet = { documentId: number; kind: 'care_sheet' };
+
+export const PatientCompanionStationDocuments = ({
+  sessionId,
+  pairing,
+  onClose,
+}: {
+  sessionId: string;
+  pairing: PatientPairing;
+  onClose: () => void;
+}) => {
+  const [documents, setDocuments] = useState<StationCareSheet[]>([]);
+  const [busy, setBusy] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const endpoint = `${API_BASE}/api/patient-companion/station-session/${encodeURIComponent(sessionId)}/documents`;
+  const access = `accessId=${encodeURIComponent(pairing.context.access_id)}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    setBusy(true);
+    setError('');
+    void fetch(`${endpoint}?${access}`, {
+      headers: { Authorization: `Bearer ${pairing.accessToken}` },
+      cache: 'no-store',
+    }).then(async response => {
+      if (!response.ok) throw new Error('SESSION_UNAVAILABLE');
+      return response.json() as Promise<{ documents: StationCareSheet[] }>;
+    }).then(result => {
+      if (!cancelled) setDocuments(result.documents);
+    }).catch(() => {
+      if (!cancelled) {
+        setDocuments([]);
+        setError('Session expirée ou indisponible. Réidentifiez-vous sur la borne.');
+      }
+    }).finally(() => {
+      if (!cancelled) setBusy(false);
+    });
+    return () => { cancelled = true; };
+  }, [sessionId, pairing.context.access_id, pairing.accessToken]);
+
+  const download = async (documentId: number) => {
+    if (downloadingId !== null) return;
+    setError('');
+    setDownloadingId(documentId);
+    try {
+      const response = await fetch(`${endpoint}/care-sheet/${documentId}?${access}`, {
+        headers: { Authorization: `Bearer ${pairing.accessToken}` },
+        cache: 'no-store',
+      });
+      if (!response.ok || !response.headers.get('content-type')?.startsWith('application/pdf')) {
+        throw new Error('PDF_NOT_AVAILABLE');
+      }
+      const payload = await response.blob();
+      if (!payload.size) throw new Error('PDF_EMPTY');
+      const url = URL.createObjectURL(payload);
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `care-sheet-${documentId}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } finally {
+        window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      }
+    } catch {
+      setError('Téléchargement refusé ou connexion interrompue. Recommencez l’identification si nécessaire.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  return (
+    <section data-pc-station-documents className="mb-4 rounded-2xl border border-primary/25 bg-card-bg p-5 shadow-sm">
+      <h2 className="text-lg font-black text-primary">Mes feuilles de soins à retirer</h2>
+      <p className="mt-2 text-sm font-semibold text-text-muted">
+        Les documents sont remis directement sur votre téléphone personnel, jamais téléchargés sur la borne du cabinet.
+      </p>
+      {busy && <p role="status" className="mt-3 text-sm">Recherche de documents autorisés…</p>}
+      {!busy && !error && documents.length === 0 && (
+        <p className="mt-3 text-sm">Aucun document disponible pour cette session.</p>
+      )}
+      {documents.map(({ documentId }) => (
+        <button
+          key={documentId}
+          type="button"
+          disabled={downloadingId !== null}
+          data-pc-care-sheet-download={documentId}
+          onClick={() => void download(documentId)}
+          className="mt-3 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-black text-white disabled:opacity-50"
+        >
+          {downloadingId === documentId ? 'Téléchargement sécurisé…' : 'Télécharger ma feuille de soins'}
+        </button>
+      ))}
+      {documents.length > 0 && (
+        <p className="mt-2 text-xs font-semibold text-text-muted">
+          Votre téléphone peut conserver le fichier dans Téléchargements. Protégez l’accès à votre appareil.
+        </p>
+      )}
+      {error && <p role="alert" className="mt-3 text-sm font-bold text-rose-700">{error}</p>}
+      <button type="button" className="mt-4 min-h-11 w-full rounded-xl border border-border-main text-sm font-bold"
+        onClick={onClose}>Fermer cette session de retrait</button>
+    </section>
+  );
+};
