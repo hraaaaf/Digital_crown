@@ -87,6 +87,9 @@ try:
     assert invitation.status_code == 201, invitation.text
     manual_code = invitation.json()["manual_code"]
     assert len(manual_code) >= 6
+    # Freeze primary keys before db.close(): SQLAlchemy may expire ORM attributes.
+    owner_id = int(owner.id)
+    document_id = int(document.id)
 finally:
     client.close()
 db.close()
@@ -157,12 +160,12 @@ def station_publish(
 ):
     # Only a synthetically authenticated owner can publish. Never accept
     # external URLs or a mismatched session ID.
-    if user.id != owner.id or not body.handoff_url.startswith(origin + "/companion?stationSession="):
+    if user.id != owner_id or not body.handoff_url.startswith(origin + "/companion?stationSession="):
         raise HTTPException(403, "FIELD_STATION_REJECTED")
     session = fixture._SessionLocal()
     try:
         row = session.get(models.WorkstationPatientSession, body.session_id)
-        if row is None or row.employer_id != owner.id or row.purged_at is not None:
+        if row is None or row.employer_id != owner_id or row.purged_at is not None:
             raise HTTPException(403, "FIELD_SESSION_REJECTED")
     finally:
         session.close()
@@ -173,7 +176,7 @@ def station_publish(
 
 @app.get("/field-lab/health", include_in_schema=False)
 def field_health():
-    return {"kind": "synthetic-gh-actions-cabinet", "run_id": run_id, "ready": True, "document_id": document.id, "cabinet_workstation_id": cabinet_workstation_id}
+    return {"kind": "synthetic-gh-actions-cabinet", "run_id": run_id, "ready": True, "document_id": document_id, "cabinet_workstation_id": cabinet_workstation_id}
 
 
 # Starlette uses first-match routing. The product may register a SPA catchall;
