@@ -269,6 +269,20 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     expect(screen.queryByRole('button', { name: /Télécharger/i })).not.toBeInTheDocument();
   });
 
+  it('04.7 clears document kiosk identity after Companion purges the session', async () => {
+    vi.mocked(stationPatientSessionService.status)
+      .mockResolvedValueOnce({
+        status: 'identified', sessionId: 'session-1',
+        displayName: 'Aya Audit', claimedAt: new Date().toISOString(), companionPaired: true,
+      })
+      .mockResolvedValue({ status: 'expired', sessionId: 'session-1' });
+    render(<StationPatientIdentity purpose="documents" onBack={vi.fn()} backLabel="Retour" />);
+    expect(await screen.findByText('Session expirée')).toBeInTheDocument();
+    expect(screen.queryByText('Aya Audit')).not.toBeInTheDocument();
+    expect(screen.queryByText(/disponible sur votre téléphone/i)).not.toBeInTheDocument();
+    expect(stationPatientSessionService.status).toHaveBeenCalledTimes(2);
+  });
+
   it('04.5 expires an unattended document kiosk and clears the patient name', async () => {
     vi.mocked(stationPatientSessionService.create).mockResolvedValue({
       sessionId: 'session-1',
