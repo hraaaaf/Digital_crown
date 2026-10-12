@@ -870,6 +870,51 @@ def authorize_station_care_sheet_withdrawal(
     return {"status": "AUTHORIZED", "documentId": document.id, "created": created}
 
 
+@router.get("/patient-session/{session_id}/documents")
+def station_available_documents(
+    session_id: str, request: Request, response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    workstation, row = _identified_station_session_or_error(
+        session_id, request, db, current_user,
+    )
+    now = datetime.utcnow()
+    context = StationEligibilityContext(
+        tenant_id=workstation.employer_id, patient_id=row.patient_id,
+        station_id=workstation.id, session_id=row.id,
+        session_tenant_id=row.employer_id, session_patient_id=row.patient_id,
+        session_station_id=row.workstation_id,
+        session_created_at=row.created_at, session_claimed_at=row.claimed_at,
+        session_expires_at=row.expires_at, session_purged_at=row.purged_at,
+        station_tenant_id=workstation.employer_id,
+        station_experience=workstation.default_experience,
+        station_revoked_at=workstation.revoked_at, now=now,
+    )
+    documents = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == row.patient_id,
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+        models.DocumentArchive.is_latest_version.is_(True),
+    ).order_by(models.DocumentArchive.id.desc()).limit(100).all()
+    available = []
+    for document in documents:
+        state = care_sheet_state(db, document, employer_id=workstation.employer_id)
+        decision = evaluate_document_eligibility(
+            context,
+            SelfServiceDocumentCandidate(
+                document_id=str(document.id), tenant_id=workstation.employer_id,
+                patient_id=document.patient_id, kind="care_sheet",
+                is_active=True, is_latest_version=True,
+                finalized=state.finalized,
+                withdrawal_authorized=state.withdrawal_authorized,
+            ),
+        )
+        if decision.eligible:
+            available.append({"documentId": document.id, "kind": "care_sheet"})
+    response.headers["Cache-Control"] = "no-store"
+    return {"documents": available}
+
+
 @router.get("/patient-session/{session_id}/documents/care-sheet/{document_id}")
 def station_care_sheet(
     session_id: str, document_id: int, request: Request,
