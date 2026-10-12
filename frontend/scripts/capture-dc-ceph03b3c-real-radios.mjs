@@ -161,6 +161,10 @@ try{
         &&await page.locator('[data-ceph03b-landmark-label="'+editId+'"]').count()===1,
         'Focused landmark label hidden or colliding with others');
       assert(focusRingCount===2,'Keyboard focus requires a double high-contrast ring');
+      assert(await page.locator('[data-ceph03b-label-background="'+editId+'"]').count()===1,
+        'Focused landmark label requires a readable bounded backdrop');
+      const labelFontSize=Number(await page.locator('[data-ceph03b-landmark-label="'+editId+'"]').getAttribute('font-size'));
+      assert(labelFontSize>=42&&labelFontSize<=64,'Label font must adapt to raster scale');
       await screenshot('focus');
       await page.keyboard.press('ArrowRight');
       await page.keyboard.press('Shift+ArrowRight');
@@ -223,6 +227,7 @@ try{
       record.initialLabelCount=initialLabelCount;
       record.duplicateOverlayLabels=duplicateOverlayLabels;
       record.focusedLabelCount=focusedLabelCount;
+      record.focusedLabelFontSize=labelFontSize;
       record.focusRingCount=focusRingCount;
       record.ghostOpacityMax=Math.max(...ghostOpacities);
       record.verifiedModelHandleCount=visibleModelPoints.length;

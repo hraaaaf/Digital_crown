@@ -13,7 +13,7 @@ export interface CephaloLabelPlacement {
 }
 
 export const cephaloLabelFontSize = (imageWidth: number, imageHeight: number): number =>
-  Math.max(18, Math.min(30, Math.max(imageWidth / 96, imageHeight / 96)));
+  Math.max(42, Math.min(64, Math.max(imageWidth / 35, imageHeight / 35)));
 
 export function layoutCephaloLandmarkLabels(
   landmarks: Pick<Landmark, 'id' | 'x' | 'y'>[],

@@ -72,7 +72,7 @@ export const CephaloLandmarkReticles = ({
   const isHoverActive = !!hoveredMetric;
   const hoveredIds = new Set(hoveredMetric?.points.map(p => p.toLowerCase()) ?? []);
   const isPointHovered = (ptId: string) =>
-    !isHoverActive || hoveredIds.has(ptId.toLowerCase());
+    hoveredPointId === ptId || (isHoverActive && hoveredIds.has(ptId.toLowerCase()));
   const priorityId = activeDragId ?? keyboardFocusedId ?? focusedPointId ?? hoveredPointId ?? activePointId ?? null;
   const shownLabels = new Set<string>();
   for (const point of landmarks) {
@@ -111,7 +111,7 @@ export const CephaloLandmarkReticles = ({
 
         const ptOp = activeDragId
           ? (isDragged ? 1 : P.isolationDim)
-          : (isFocused || isActive ? 1 : (isHovMetric ? baseOpacity * 0.75 : baseOpacity * 0.35));
+          : (isFocused || isActive ? 1 : (isHovMetric ? baseOpacity * 0.92 : baseOpacity * 0.50));
 
         const glowStyle = isPro && (isDragged || isFocused || isHovMetric)
           ? { filter: `drop-shadow(0 0 6px ${renderColor})` } : {};
@@ -274,6 +274,22 @@ export const CephaloLandmarkReticles = ({
               )}
 
               {labelPosition && (
+                <>
+                <rect
+                  data-ceph03b-label-background={pt.id}
+                  x={labelPosition.x - labelFontSize * 0.18}
+                  y={labelPosition.y - labelPosition.height}
+                  width={labelPosition.width + labelFontSize * 0.36}
+                  height={labelPosition.height + labelFontSize * 0.26}
+                  rx={labelFontSize * 0.18}
+                  fill="#07111f"
+                  fillOpacity="0.92"
+                  stroke="#e2e8f0"
+                  strokeOpacity="0.65"
+                  strokeWidth="1.25"
+                  vectorEffect="non-scaling-stroke"
+                  pointerEvents="none"
+                />
                 <text
                   data-ceph03b-landmark-label={pt.id}
                   x={labelPosition.x}
@@ -282,11 +298,12 @@ export const CephaloLandmarkReticles = ({
                   fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
                   fontWeight="900"
                   className="pointer-events-none select-none"
-                  fill={P.text}
-                  style={{ paintOrder: 'stroke', stroke: P.magnifierBg, strokeWidth: labelFontSize * 0.2 }}
+                  fill="#f8fafc"
+                  style={{ paintOrder: 'stroke', stroke: '#07111f', strokeWidth: labelFontSize * 0.1 }}
                 >
                   {pt.id}
                 </text>
+                </>
               )}
             </g>
           </motion.g>

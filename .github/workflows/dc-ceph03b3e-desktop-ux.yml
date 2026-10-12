@@ -174,7 +174,8 @@ jobs:
               if(!c ||!c.valid ||c.errors.length ||c.consoleErrors.length
                  ||c.navigationCount!==2 ||c.auditEvents!==4 ||c.images.length!==6 ||!c.reloadRehydrated
                  ||c.initialLabelCount!==0 ||c.duplicateOverlayLabels!==0 ||c.focusedLabelCount!==1
-                 ||c.focusRingCount!==2 ||c.ghostOpacityMax>0.380001
+                 ||c.focusRingCount!==2 ||c.focusedLabelFontSize<42 ||c.focusedLabelFontSize>64
+                 ||c.ghostOpacityMax>0.380001
                  ||c.verifiedModelHandleCount<1
                  ||c.decoded.width<=0 ||c.decoded.height<=0)throw Error('Bad case '+film+mode+vp);
               for(const name of c.images){

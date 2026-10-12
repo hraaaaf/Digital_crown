@@ -249,8 +249,11 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     fireEvent.pointerEnter(handle);
     expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(1);
     expect(document.querySelector('[data-ceph03b-landmark-label="N"]')).not.toBeNull();
+    expect(document.querySelectorAll('[data-ceph03b-label-background="N"]')).toHaveLength(1);
+    expect(Number(document.querySelector('[data-ceph03b-landmark-label="N"]')?.getAttribute('font-size'))).toBeGreaterThanOrEqual(42);
     fireEvent.pointerLeave(handle);
     expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(0);
+    expect(document.querySelectorAll('[data-ceph03b-label-background]')).toHaveLength(0);
     fireEvent.focus(handle);
     expect(handle.getAttribute('data-ceph03b-keyboard-focused')).toBe('true');
     expect(document.querySelectorAll('[data-ceph03b-focus-ring="N"] circle')).toHaveLength(2);
