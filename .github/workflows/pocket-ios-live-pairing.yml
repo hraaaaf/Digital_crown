@@ -1,3 +1,4 @@
+# FUE WebKit follow-up: distinguish lazy import/assets/navigation without leaking secrets
 # FUE WebKit regression diagnostic: route + status only, no cookies/JWT/URL logging
 # iOS Safari first-party session confirmation: 200 + HttpOnly cookie before navigation
 name: Pocket FUE iPhone — synthetic live pairing
