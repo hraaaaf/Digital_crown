@@ -1,0 +1,131 @@
+name: DC Cephalo 03B paired desktop Chromium visual
+on:
+  push:
+    branches:
+      - feat/dc-ceph03b-desktop-landmark-consistency-20261012
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired-desktop-drag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE_HEAD: d4df9211e94a4aeb9b2d522782666e389385bcca
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact source and preserved baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b-desktop-landmark-consistency-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          echo "DC_CEPH03B_HEAD=$GITHUB_SHA"
+          echo 'DC_CEPH03B_MOBILE_IN_SCOPE=false'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install synthetic desktop browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Run targeted landmark, overlay and layer regressions
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx \
+            src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx \
+            src/features/ortho/orthoLandmarkEditHistory.test.ts \
+            src/features/ortho/orthoLandmarkEditStore.test.ts \
+            src/features/ortho/orthoLayerRegistry.test.ts \
+            src/features/ortho/orthoLayerStore.test.ts
+      - name: BEFORE on pinned previous 03B stage, identical fixture
+        working-directory: frontend
+        shell: bash
+        env:
+          CEPH03B_PHASE: BEFORE
+          PRODUCT_HEAD: d4df9211e94a4aeb9b2d522782666e389385bcca
+        run: |
+          set -euo pipefail
+          git show "$BASE_HEAD:frontend/src/features/ortho/CephaloTracingLayer.tsx" > src/features/ortho/CephaloTracingLayer.tsx
+          git show "$BASE_HEAD:frontend/src/features/ortho/CephaloTracingLayerBase.tsx" > src/features/ortho/CephaloTracingLayerBase.tsx
+          git show "$BASE_HEAD:frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx" > src/features/ortho/components/CephaloLandmarkReticles.tsx
+          node scripts/capture-dc-ceph03b-desktop.mjs
+      - name: AFTER on exact candidate product source
+        working-directory: frontend
+        shell: bash
+        env:
+          CEPH03B_PHASE: AFTER
+        run: |
+          set -euo pipefail
+          git checkout "$GITHUB_SHA" -- \
+            src/features/ortho/CephaloTracingLayer.tsx \
+            src/features/ortho/CephaloTracingLayerBase.tsx \
+            src/features/ortho/components/CephaloLandmarkReticles.tsx
+          for file in \
+            src/features/ortho/CephaloTracingLayer.tsx \
+            src/features/ortho/CephaloTracingLayerBase.tsx \
+            src/features/ortho/components/CephaloLandmarkReticles.tsx; do
+            expected="$(git show "$GITHUB_SHA:frontend/$file" | sha256sum | cut -d' ' -f1)"
+            observed="$(sha256sum "$file" | cut -d' ' -f1)"
+            test "$expected" = "$observed"
+          done
+          PRODUCT_HEAD="$GITHUB_SHA" node scripts/capture-dc-ceph03b-desktop.mjs
+      - name: Certify paired screenshot geometry and exact desktop pixel size
+        working-directory: frontend
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const viewports = ['1280x900', '1600x1000'];
+          const modes = { com: { start: [30,40], dest: [65,75] }, all: { start: [130,70], dest: [145,90] } };
+          for (const phase of ['BEFORE','AFTER']) {
+            const dir = 'dc-ceph03b-' + phase.toLowerCase() + '-desktop-artifacts';
+            const report = JSON.parse(await readFile(dir + '/report.json','utf8'));
+            if(report.phase !== phase || report.invalidCount !== 0
+               || report.captures.length !== 4 || report.blockedExternalRequests.length
+               || JSON.stringify(report.viewports) !== JSON.stringify(viewports)) {
+              throw Error('Invalid ' + phase + ' evidence');
+            }
+            for (const capture of report.captures) {
+              if(!capture.valid || capture.errors?.length || capture.consoleErrors?.length
+                || capture.horizontalOverflow || capture.shots.length !== 4) {
+                throw Error('Invalid capture ' + phase + '/' + capture.mode);
+              }
+              for (const name of capture.shots) {
+                const png = await readFile(dir + '/' + name);
+                if (png.length < 300 || png.subarray(1,4).toString() !== 'PNG') throw Error('Invalid PNG ' + name);
+                const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
+                if (capture.viewport !== width + 'x' + height) throw Error('Unpaired screenshot viewport ' + name);
+              }
+              const expected = modes[capture.mode];
+              if (!expected) throw Error('Unexpected mode');
+              const near = (a,b) => Math.abs(a-b)<0.3;
+              for(const [field,point] of [
+                ['initial',expected.start],
+                ['cancelled',expected.start],
+                ['committed',expected.dest],
+                ['during',phase==='AFTER'?expected.dest:expected.start],
+              ]) if (!near(capture[field].x,point[0]) || !near(capture[field].y,point[1]))
+                   throw Error('Broken '+phase+' '+capture.mode+' '+field);
+            }
+          }
+          console.log('DC_CEPH03B_PAIRED_DESKTOP_GEOMETRY_VISUAL_PASS');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-ceph03b-desktop-before-after
+          path: |
+            frontend/dc-ceph03b-before-desktop-artifacts
+            frontend/dc-ceph03b-after-desktop-artifacts
+          retention-days: 10
+          if-no-files-found: warn
