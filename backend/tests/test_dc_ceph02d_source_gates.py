@@ -17,11 +17,12 @@ from backend.services.cephalo_canonical_method_bridge import (
     binding_for_method, canonical_measurement_id_for_method,
 )
 from backend.services.cephalo_engine import CephaloEngine
+from backend.services.cephalo_landmark_correction_evidence import rebuild_evidence_after_landmark_edit
 from backend.services.cephalo_ricketts_geometry import (
     ricketts_convexity_signed_distance_px_v1,
 )
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
-from backend.tests.test_cephalo_runtime_chain import _initial_graph, _points, _raw
+from backend.tests.test_cephalo_runtime_chain import _initial_graph, _points, _raw, LATER
 from backend.tests.test_dc_ceph02b_runtime_matrix import _matrix, _read
 from backend.tests.test_dc_ceph02c_steiner_calibration import _calibrate
 
@@ -39,12 +40,27 @@ CONVEXITY_METHOD = "RICKETTS_CONVEXITY_CANONICAL_MM_V2"
 
 
 def _calibrated_read(raw):
-    original = _initial_graph(raw)
+    # Recreate the exact 02B/02C provenance chain: original certified points,
+    # manual correction of A (+2 px), and only then explicit calibration.
+    baseline = _raw()
+    original = _initial_graph(baseline)
     graph = _canonicalize_evidence_projection({
         EVIDENCE_GRAPH_KEY: original
     })[EVIDENCE_GRAPH_KEY]
-    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points(raw))
-    after = _calibrate(graph, raw, result)
+    edited = [dict(p) for p in raw]
+    next(p for p in edited if p["id"] == "A")["x"] += 2.0
+    uncalibrated_result = CephaloEngine(mm_per_pixel=None).calculate_metrics(_points(edited))
+    second = rebuild_evidence_after_landmark_edit(
+        previous_payload=graph,
+        patient_id=7,
+        image_record_id="radio-r2.jpg",
+        result=uncalibrated_result,
+        runtime_landmarks=edited,
+        clinician_id="synthetic-operator",
+        validated_at=LATER,
+    )
+    result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_points(edited))
+    after = _calibrate(second, edited, result)
     path = _read(after, result)
     statuses, counts = _matrix(path)
     return after, path, statuses, counts
