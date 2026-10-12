@@ -156,7 +156,10 @@ try {
           await page.locator('[data-station-fallback-form]').waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'identified') {
           await page.locator('[data-station-documents-identity-confirmed]').waitFor({ timeout: 10000 });
-          await page.locator('[data-station-care-sheet-download="42"]').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-phone-delivery]').waitFor({ timeout: 10000 });
+          if (await page.locator('[data-station-care-sheet-download]').count()) {
+            throw new Error('Station exposes a patient PDF download control');
+          }
           if (discoveryRequests !== 1) throw new Error('04.5 discovery not single-bound to identified session');
         } else {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
@@ -170,7 +173,8 @@ try {
           fallbackVisible: Boolean(document.querySelector('[data-station-fallback-form]')),
           identifiedVisible: Boolean(document.querySelector('[data-station-documents-identity-confirmed]')),
           accidentalAppointmentFlow: Boolean(document.querySelector('[data-station-arrival-bridge], [data-station-staff-notified], [data-station-arrival-confirmed]')),
-          eligibleDocumentVisible: Boolean(document.querySelector('[data-station-care-sheet-download="42"]')),
+          eligibleDocumentVisible: Boolean(document.querySelector('[data-station-phone-delivery]')),
+          localPdfDownloadControl: Boolean(document.querySelector('[data-station-care-sheet-download]')),
           cameraInputs: document.querySelectorAll('input[accept*="image"], video').length,
           clinicalLinks: Array.from(document.querySelectorAll('a'))
             .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
@@ -180,18 +184,12 @@ try {
 
         const filename = `${phase}-${scenario.name}-${language}-${vp.label}-${scale.label}.png`;
         await page.screenshot({ path: path.join(out, filename), fullPage: true, animations: 'disabled' });
-        let downloadProof = null;
-        // Download a PDF through the actual Station click handler once on the mobile layout.
-        if (phase === 'after' && scenario.mode === 'identified' && language === 'fr' && vp.label === '390x844' && scale.label === 'normal') {
-          const [download] = await Promise.all([
-            page.waitForEvent('download', { timeout: 10000 }),
-            page.locator('[data-station-care-sheet-download="42"]').click(),
-          ]);
-          const payload = await fs.readFile(await download.path());
-          if (download.suggestedFilename() !== 'care-sheet-42.pdf' || !payload.subarray(0, 5).equals(Buffer.from('%PDF-')) || pdfRequests !== 1) {
-            throw new Error('04.5 Station PDF download did not reach the expected authorized endpoint and bytes');
-          }
-          downloadProof = { filename: download.suggestedFilename(), size: payload.length, requestedPdfOnce: true, synthetic: true };
+        // The Station kiosk MUST never issue or expose any PDF download.
+        // Personal phone receipt is checked by patient-credential browser tests
+        // and the real HTTPS sender/companion/receiver regression, separately.
+        const downloadProof = { kioskPdfRequests: pdfRequests, phoneOnly: true };
+        if (phase === 'after' && pdfRequests !== 0) {
+          throw new Error('Station contacted PDF endpoint (private phone required)');
         }
         if (phase === 'after' && scenario.mode === 'pending' && (discoveryRequests !== 0 || pdfRequests !== 0)) {
           throw new Error('04.5 Station requested documents before patient identity');
@@ -220,6 +218,7 @@ const failures = report.filter(item =>
   item.scrollWidth > item.width ||
   item.clinicalLinks.length > 0 ||
   item.cameraInputs > 0 ||
+  (phase === 'after' && (item.localPdfDownloadControl || item.pdfRequests !== 0)) ||
   item.errors.length > 0 ||
   item.accidentalAppointmentFlow ||
   (phase === 'after' && item.scenario === 'documents-pending' && !item.patientSessionVisible) ||
