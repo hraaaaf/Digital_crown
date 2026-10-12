@@ -1,0 +1,117 @@
+name: DC Cephalo 03A desktop-only paired visual
+on:
+  push:
+    branches:
+      - feat/dc-ceph03a-desktop-layer-metric-accessibility-20261012
+    paths:
+      - .github/workflows/dc-ceph03a-desktop-visual.yml
+      - frontend/src/features/ortho/components/Step1Cephalo.tsx
+      - frontend/src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx
+      - frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx
+      - frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx
+      - frontend/scripts/capture-dc-ceph03a-desktop.mjs
+permissions:
+  contents: read
+jobs:
+  desktop-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE_HEAD: 75f035107ec4aebaa4044d942ef209028662e331
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check exact head and base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03a-desktop-layer-metric-accessibility-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          echo "DC_CEPH03A_EXACT_HEAD=$GITHUB_SHA"
+          echo 'DC_CEPH03A_MOBILE_IN_SCOPE=false'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated frontend browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Source-safe UI and layer unit regressions
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npx vitest run \
+            src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx \
+            src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx \
+            src/features/ortho/orthoLayerRegistry.test.ts \
+            src/features/ortho/orthoLayerStore.test.ts \
+            src/features/ortho/cephaloVisualSemantics.test.ts \
+            src/features/ortho/cephaloVisualSemantics.audit.test.ts
+      - name: BEFORE render from pinned baseline source
+        working-directory: frontend
+        shell: bash
+        env:
+          CEPH03_PHASE: BEFORE
+          PRODUCT_HEAD: 75f035107ec4aebaa4044d942ef209028662e331
+        run: |
+          set -euo pipefail
+          git show "$BASE_HEAD:frontend/src/features/ortho/components/Step1Cephalo.tsx" > src/features/ortho/components/Step1Cephalo.tsx
+          git show "$BASE_HEAD:frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx" > src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx
+          node scripts/capture-dc-ceph03a-desktop.mjs
+      - name: Restore exact candidate and render AFTER
+        working-directory: frontend
+        shell: bash
+        env:
+          CEPH03_PHASE: AFTER
+        run: |
+          set -euo pipefail
+          git checkout "$GITHUB_SHA" -- src/features/ortho/components/Step1Cephalo.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx
+          test "$(git show "$GITHUB_SHA:frontend/src/features/ortho/components/Step1Cephalo.tsx" | sha256sum | cut -d' ' -f1)" = "$(sha256sum src/features/ortho/components/Step1Cephalo.tsx | cut -d' ' -f1)"
+          test "$(git show "$GITHUB_SHA:frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx" | sha256sum | cut -d' ' -f1)" = "$(sha256sum src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx | cut -d' ' -f1)"
+          PRODUCT_HEAD="$GITHUB_SHA" node scripts/capture-dc-ceph03a-desktop.mjs
+      - name: Certify exact matching desktop BEFORE and AFTER
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {readFile,stat} from 'node:fs/promises';
+          const desktop=['1280x900','1600x1000'];
+          for(const phase of ['BEFORE','AFTER']){
+            const dir='dc-ceph03a-'+phase.toLowerCase()+'-desktop-artifacts';
+            const r=JSON.parse(await readFile(dir+'/report.json','utf8'));
+            if(r.lot!=='DC-CEPH03A-DESKTOP-INTERACTION'||r.phase!==phase||r.invalidCount!==0)throw Error('Invalid '+phase);
+            if(JSON.stringify(r.viewports)!==JSON.stringify(desktop)||r.blockedExternalRequests.length)throw Error('Viewport/egress error');
+            if(r.captures.length!==2||r.captures.some(c=>!c.valid))throw Error('Capture failure');
+            for(const c of r.captures){
+              if(c.states.length!==6||c.states.some(s=>!s.valid))throw Error('Tracing regression');
+              const com=c.states.find(s=>s.mode==='com').metrics;
+              if(com.horizontalOverflow||com.panelRows!==10)throw Error('COM layout changed');
+              if(phase==='BEFORE'&&(com.desktopOpacityOutputs!==0||com.desktopMetricButtons!==0))throw Error('False BEFORE');
+              if(phase==='AFTER'&&(com.desktopOpacityOutputs<2||com.opacityLandmarksText!=='100 %'||com.desktopMetricButtons!==10))throw Error('Missing AFTER');
+              const files=[
+                phase.toLowerCase()+'-com-panel-'+c.viewport+'.png',
+                phase.toLowerCase()+'-layer-manager-'+c.viewport+'.png',
+                ...['all','steiner','tweed','mcnamara','com','ricketts'].map(m=>phase.toLowerCase()+'-reference-'+m+'-'+c.viewport+'.png')
+              ];
+              for(const file of files)if((await stat(dir+'/'+file)).size<=300)throw Error('Missing image '+file);
+            }
+          }
+          console.log('DC_CEPH03A_DESKTOP_PAIRED_VISUAL_PASS');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-ceph03a-desktop-before-after
+          path: |
+            frontend/dc-ceph03a-before-desktop-artifacts
+            frontend/dc-ceph03a-after-desktop-artifacts
+          if-no-files-found: warn
+          retention-days: 10
