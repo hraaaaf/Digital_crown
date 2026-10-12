@@ -88,8 +88,8 @@ class TestMappingDraft(unittest.TestCase):
         p = m.propose_mapping(s, t)
         self.assertIs(p.mapping_approved, False)
         self.assertIs(p.import_permitted, False)
-        self.assertIsNone(p.tables[0].suggested_target_table)
-        self.assertIsNone(next(c for c in p.tables[1].columns
+        self.assertEqual(p.tables[0].suggested_target_table, "patients")
+        self.assertIsNone(next(c for c in p.tables[0].columns
                                if c.source_column == "password_hash").suggested_target_column)
 
     def test_explicit_complete_draft_still_forbids_import(self):
