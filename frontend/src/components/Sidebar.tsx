@@ -13,9 +13,11 @@ import {
   Store,
   PanelLeftClose,
   PanelLeftOpen,
+  Database,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { hasAccess as userHasAccess } from '../utils/accessControl';
+import { canViewMigrationStudio } from '../features/admin/migration/MappingStudioPolicy';
 import { api } from '../services/api';
 import { authService } from '../services/auth';
 import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
@@ -361,6 +363,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Patients" />}
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque clinique" />
           {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Approvisionnement" />}
+          {canViewMigrationStudio(user) && <NavItem to="/settings/migration" icon={<Database size={20} />} label="Migration SQL · préparation" />}
 
           {/* SUPER ADMIN (Hidden for non-admin users) */}
           {user?.is_superadmin && (
