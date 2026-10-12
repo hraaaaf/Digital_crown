@@ -138,11 +138,11 @@ jobs:
         working-directory: frontend
         shell: bash
         env:
-          EVALUATED_BASE: ${{ github.event.pull_request.base.sha }}
+          EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'f32af204ecb8845008080afd5a49ed8d1582eb9b' }}
         run: |
           set -euo pipefail
           if [[ -z "${EVALUATED_BASE}" ]]; then
-            echo "No PR base SHA; baseline comparison not certified for push/dispatch."
+            echo "No pinned base SHA: visual BEFORE/AFTER comparison not certified."
             exit 0
           fi
           git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
@@ -160,11 +160,25 @@ jobs:
           EVIDENCE_PHASE=before EVALUATED_SHA="${EVALUATED_BASE}" node capture-04-4-baseline.mjs
           test -f artifacts/v15-04-4-documents-identity-before/evidence.json
           cp -r artifacts/v15-04-4-documents-identity-before "$GITHUB_WORKSPACE/frontend/artifacts/"
+          cd "$GITHUB_WORKSPACE/frontend"
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const a = JSON.parse(fs.readFileSync("artifacts/v15-04-4-documents-identity-before/evidence.json"));
+            const b = JSON.parse(fs.readFileSync("artifacts/v15-04-4-documents-identity-after/evidence.json"));
+            const key = r => [r.scenario, r.viewport, r.scale, r.filename.replace(/^(before|after)-/, "")].join("|");
+            const left = new Set(a.report.map(key));
+            const right = new Set(b.report.map(key));
+            if (left.size !== 48 || right.size !== 48 || [...left].some(k => !right.has(k))) {
+              console.error("04.5 matched BEFORE/AFTER viewport/scenario comparison missing");
+              process.exit(1);
+            }
+            console.log("04.5 paired 48 BEFORE and 48 AFTER synthetic captures on pinned base and current HEAD");
+          '
       - name: Declare evidence scope
         working-directory: frontend
         run: |
           echo "AFTER: synthetic 04.4 captures on candidate SHA"
-          echo "BEFORE: only certified if base checkout and baseline script succeed"
+          echo "BEFORE: pin f32af204ecb8845008080afd5a49ed8d1582eb9b as 04.4 baseline; matched scenario/viewport checks required"
           echo "Physical QR/NFC scanability and immediate offline purge are not certified"
       - uses: actions/upload-artifact@v4
         if: always()
