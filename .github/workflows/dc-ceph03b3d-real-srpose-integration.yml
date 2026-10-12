@@ -1,0 +1,204 @@
+name: DC Cephalo 03B3d required real SRPose38 HTTP and desktop E2E
+on:
+  push:
+    branches:
+      - feat/dc-ceph03b3d-srpose-to-http-desktop-20261012
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  isolated-real-radio-http-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BASE_HEAD: 2a748fceaad3701b83d8a7ccd6e0a57700b137f7
+      DC_CEPH03B3D_PREDICTIONS_DIR: /tmp/dc-ceph03b3d-srpose-predictions
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      DATABASE_URL: 'sqlite:///:memory:'
+      SECRET_KEY: 'test-only-ceph03b3c-exact-head-20261012'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify source HEAD and no production or mobile diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b3d-srpose-to-http-desktop-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          while IFS= read -r file; do
+            case "$file" in
+              backend/tests/test_ceph03b3c_two_real_cephalograms_e2e.py | \
+              backend/tests/test_ceph03b3d_real_srpose_http_sqlite.py | \
+              .github/workflows/dc-ceph03b3d-real-srpose-integration.yml | \
+              backend/scripts/certify_ceph03b3c_two_real_radio_inference.py | \
+              frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json | \
+              .github/workflows/dc-ceph03b3c-two-real-radios-e2e.yml | \
+              frontend/scripts/capture-dc-ceph03b3c-real-radios.mjs | \
+              frontend/src/features/ortho/CephaloTracingLayer.realRadioFixture.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayerBase.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx) ;;
+              *) echo "HORS SCOPE: $file" >&2; exit 1;;
+            esac
+          done < <(git diff --name-only "$BASE_HEAD" "$GITHUB_SHA")
+          echo "DC_CEPH03B3C_HEAD=$GITHUB_SHA"
+          echo "DC_CEPH03B3C_REAL_PATIENT_DATA=false"
+          echo "DC_CEPH03B3C_PROD_DATABASE=false"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download two Commons X-rays; verify publisher SHA-1 and JPEG metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dc-ceph03b3c-real-radios"
+          export DC_CEPH03B3C_RADIO_DIR="$RUNNER_TEMP/dc-ceph03b3c-real-radios"
+          echo "DC_CEPH03B3C_RADIO_DIR=$DC_CEPH03B3C_RADIO_DIR" >> "$GITHUB_ENV"
+          python - <<'PY'
+          import hashlib, json, os, pathlib, urllib.request
+          base=pathlib.Path(os.environ['DC_CEPH03B3C_RADIO_DIR'])
+          manifest=json.loads(pathlib.Path('frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json').read_text())
+          assert len(manifest['images'])==2
+          for item in manifest['images']:
+              assert item['license']=='CC BY-SA 4.0' and item['source_page'].startswith('https://commons.wikimedia.org/')
+              req=urllib.request.Request(item['url'],headers={
+                  'User-Agent':'DigitalCrown-Cephalo-CI/1.0 (testing openly licensed Wikimedia Commons radiographs)',
+                  'Accept':'image/jpeg',
+                  'Referer':item['source_page'],
+              })
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  assert response.status==200
+                  data=response.read(11*1024*1024)
+              assert len(data)==item['size_bytes'],(item['id'],'byte count',len(data))
+              assert hashlib.sha1(data).hexdigest()==item['sha1'],(item['id'],'source checksum')
+              assert data[:3]==b'\xff\xd8\xff' and data[-2:]==b'\xff\xd9',(item['id'],'JPEG')
+              (base/item['file_name']).write_bytes(data)
+              print('PUBLIC_RADIO_SOURCE_VERIFIED',item['id'],len(data),hashlib.sha256(data).hexdigest(),item['source_page'])
+          PY
+      - name: Install isolated backend test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt >/tmp/dc-ceph03b3c-python-requirements.txt
+          pip install -r /tmp/dc-ceph03b3c-python-requirements.txt
+      - name: Authenticated two-radio upload and committed SQLite read-after-write
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q -s \
+            backend/tests/test_ceph03b3c_two_real_cephalograms_e2e.py
+          echo "DC_CEPH03B3C_AUTHENTICATED_TWO_RADIO_SQLITE_PASS"
+      - name: REQUIRED real SRPose38 on both original radiographs (no accuracy claim)
+        id: required_srpose
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ceph03b3c-srpose backend/ai_models
+          gh run download 34281082926 --repo "$GITHUB_REPOSITORY" --name cephalo-srpose38-onnx-parity --dir /tmp/ceph03b3c-srpose
+          cp /tmp/ceph03b3c-srpose/srpose38-tta-1024.onnx backend/ai_models/srpose38-tta-1024.onnx
+          echo 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb  backend/ai_models/srpose38-tta-1024.onnx' | sha256sum -c -
+          test "$(stat -c%s backend/ai_models/srpose38-tta-1024.onnx)" = '267484931'
+          PYTHONPATH="$PWD" python backend/scripts/certify_ceph03b3c_two_real_radio_inference.py
+      - name: REQUIRED model-driven authenticated two-radio POST/PUT/GET SQLite readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC_CEPH03B3D_PREDICTIONS_DIR"
+          python -m pytest -q -s backend/tests/test_ceph03b3d_real_srpose_http_sqlite.py
+          test -s "$DC_CEPH03B3D_PREDICTIONS_DIR/cephalo-A-predictions.json"
+          test -s "$DC_CEPH03B3D_PREDICTIONS_DIR/cephalo-B-predictions.json"
+          echo "DC_CEPH03B3D_TWO_REAL_SRPOSE_HTTP_SQLITE_PASS"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install real-image desktop browser and stage verified source bytes
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+          mkdir -p public/dc-ceph03b3c
+          cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-A.jpg public/dc-ceph03b3c/cephalo-A.jpg
+          cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-B.jpg public/dc-ceph03b3c/cephalo-B.jpg
+          cp "$DC_CEPH03B3D_PREDICTIONS_DIR"/cephalo-A-predictions.json public/dc-ceph03b3c/cephalo-A-predictions.json
+          cp "$DC_CEPH03B3D_PREDICTIONS_DIR"/cephalo-B-predictions.json public/dc-ceph03b3c/cephalo-B-predictions.json
+      - name: Regression guard for T1/T2 COM and audited keyboard edits
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx \
+            src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx \
+            src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx
+      - name: Real SRPose38 predictions displayed in Chromium; keyboard T1 T2 undo redo and persisted API snapshot
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/capture-dc-ceph03b3c-real-radios.mjs
+      - name: Assert 2 real X-rays by 2 modes by 2 desktop viewports and screenshot dimensions
+        working-directory: frontend
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const out='dc-ceph03b3c-real-radio-proof/';
+          const report=JSON.parse(await readFile(out+'report.json','utf8'));
+          if(report.head!==process.env.GITHUB_SHA || report.invalidCount!==0
+             ||report.blockedExternal.length!==0 || report.cases.length!==8
+             ||report.provenance.length!==2)throw Error('Real X-ray browser gate failed');
+          for(const film of ['A','B']) for(const mode of ['com','all'])
+            for(const vp of ['1280x900','1600x1000']){
+              const c=report.cases.find(x=>x.film===film&&x.mode===mode&&x.viewport===vp);
+              if(!c ||!c.valid ||c.errors.length ||c.consoleErrors.length
+                 ||c.navigationCount!==2 ||c.auditEvents!==4 ||c.images.length!==5 ||!c.reloadRehydrated
+                 ||c.decoded.width<=0 ||c.decoded.height<=0)throw Error('Bad case '+film+mode+vp);
+              for(const name of c.images){
+                const data=await readFile(out+name);
+                if(data.length<300 ||data.subarray(1,4).toString()!=='PNG'
+                   ||vp!==data.readUInt32BE(16)+'x'+data.readUInt32BE(20))
+                  throw Error('Bad screenshot '+name);
+              }
+            }
+          console.log('DC_CEPH03B3D_REAL_SRPOSE38_TO_HTTP_DESKTOP_8_OF_8_PASS');
+          NODE
+      - name: Publish tested public image provenance metadata only
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dc-ceph03b3c-proof
+          cp frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json /tmp/dc-ceph03b3c-proof/source-manifest.json
+          mkdir -p /tmp/dc-ceph03b3c-proof/CC-BY-SA-originals
+          cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-A.jpg /tmp/dc-ceph03b3c-proof/CC-BY-SA-originals/cephalo-A.jpg
+          cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-B.jpg /tmp/dc-ceph03b3c-proof/CC-BY-SA-originals/cephalo-B.jpg
+          printf 'HEAD=%s\nSCOPE=isolated SQLite backend with actual pinned SRPose38 on authenticated upload route; separate browser fixture reads exported API GET snapshots\nIMAGES=two Wikimedia Commons CC BY-SA 4.0 originals with source attribution in manifest\nCLINICAL_ACCURACY=not assessed\n' "$GITHUB_SHA" > /tmp/dc-ceph03b3c-proof/scope.txt
+          echo 'REQUIRED_SRPOSE38_OUTCOME=${{ steps.required_srpose.outcome }}' >> /tmp/dc-ceph03b3c-proof/scope.txt
+          printf 'MODEL_BOUND_HTTP_E2E=TRUE\nBROWSER_INPUT=authenticated-API-export-JSON, not direct live backend\nCLINICAL_ACCURACY=NOT_TESTED\n' >> /tmp/dc-ceph03b3c-proof/scope.txt
+          mkdir -p /tmp/dc-ceph03b3c-proof/SRPose38-API-snapshots
+          if [ -d "$DC_CEPH03B3D_PREDICTIONS_DIR" ]; then
+            cp "$DC_CEPH03B3D_PREDICTIONS_DIR"/cephalo-*-predictions.json /tmp/dc-ceph03b3c-proof/SRPose38-API-snapshots/
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-ceph03b3d-srpose38-authenticated-api-desktop-proof
+          path: |
+            /tmp/dc-ceph03b3c-proof
+            frontend/dc-ceph03b3c-real-radio-proof
+          retention-days: 10
+          if-no-files-found: warn
