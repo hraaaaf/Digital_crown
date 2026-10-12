@@ -73,11 +73,6 @@ export const stationPatientSessionService = {
     return data;
   },
 
-  async downloadCareSheet(sessionId: string, documentId: number): Promise<Blob> {
-    const { data } = await api.get<Blob>(`/workstation/patient-session/${sessionId}/documents/care-sheet/${documentId}`, { responseType: 'blob' });
-    return data;
-  },
-
   async purge(sessionId: string): Promise<void> {
     await api.post(`/workstation/patient-session/${sessionId}/purge`);
   },
