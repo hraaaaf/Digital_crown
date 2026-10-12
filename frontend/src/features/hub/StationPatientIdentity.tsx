@@ -112,6 +112,9 @@ export const StationPatientIdentity = ({
   const [session, setSession] = useState<StationPatientSessionCreated | null>(null);
   const [status, setStatus] = useState<'loading' | 'pending' | 'identified' | 'expired' | 'error'>('loading');
   const [displayName, setDisplayName] = useState('');
+  const [availableDocuments, setAvailableDocuments] = useState<Array<{ documentId: number }>>([]);
+  const [documentsBusy, setDocumentsBusy] = useState(false);
+  const [documentsError, setDocumentsError] = useState('');
   const [error, setError] = useState('');
   const [fallbackOpen, setFallbackOpen] = useState(false);
   const [fallbackBusy, setFallbackBusy] = useState(false);
@@ -156,6 +159,8 @@ export const StationPatientIdentity = ({
     setStatus('loading');
     setError('');
     setDisplayName('');
+    setAvailableDocuments([]);
+    setDocumentsError('');
     setFallbackOpen(false);
     setBirthDate('');
     setPhone('');
@@ -203,6 +208,39 @@ export const StationPatientIdentity = ({
     };
   }, [session, status]);
 
+  useEffect(() => {
+    if (status !== 'identified' || purpose !== 'documents' || !session) return undefined;
+    let cancelled = false;
+    setDocumentsBusy(true);
+    setDocumentsError('');
+    void stationPatientSessionService.availableDocuments(session.sessionId)
+      .then((result) => { if (!cancelled) setAvailableDocuments(result.documents); })
+      .catch(() => { if (!cancelled) setDocumentsError(copy.unavailable); })
+      .finally(() => { if (!cancelled) setDocumentsBusy(false); });
+    return () => { cancelled = true; };
+  }, [status, purpose, session]);
+
+  const downloadDocument = async (documentId: number) => {
+    if (!session || documentsBusy) return;
+    setDocumentsBusy(true);
+    setDocumentsError('');
+    try {
+      const pdf = await stationPatientSessionService.downloadCareSheet(session.sessionId, documentId);
+      const url = URL.createObjectURL(pdf);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `care-sheet-${documentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setDocumentsError(copy.unavailable);
+    } finally {
+      setDocumentsBusy(false);
+    }
+  };
+
   const expiresLabel = useMemo(() => {
     if (!session) return '';
     return new Date(session.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -245,8 +283,19 @@ export const StationPatientIdentity = ({
         <ShieldCheck className="mx-auto text-success" size={38} aria-hidden="true" />
         <h2 className="mt-4 text-2xl font-black">{copy.documentsVerified}</h2>
         <p className="mt-2 text-base font-bold text-text-muted">{displayName}</p>
-        <p className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsConstruction}</p>
-        <p className="mt-3 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsStaff}</p>
+        {documentsBusy && <p className="mt-5 text-sm font-semibold" role="status">{copy.checking}</p>}
+        {!documentsBusy && availableDocuments.length === 0 && !documentsError && (
+          <p className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsStaff}</p>
+        )}
+        {availableDocuments.map(({ documentId }) => (
+          <button key={documentId} type="button" disabled={documentsBusy}
+            data-station-care-sheet-download={documentId}
+            onClick={() => void downloadDocument(documentId)}
+            className="mt-4 min-h-12 w-full rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary disabled:opacity-50">
+            {language === 'ar' ? 'تحميل ورقة العلاج' : language === 'en' ? 'Download care sheet' : 'Télécharger la feuille de soins'}
+          </button>
+        ))}
+        {documentsError && <p role="alert" className="mt-4 text-sm font-bold text-danger">{documentsError}</p>}
         <button type="button" onClick={() => void leave()} className="mt-6 min-h-12 w-full rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">
           {backLabel}
         </button>
