@@ -11,6 +11,7 @@ vi.mock('../../services/stationPatientSession', () => ({
     todayAppointments: vi.fn(),
     arrive: vi.fn(),
     purge: vi.fn(),
+    availableDocuments: vi.fn(),
     requestStaffAssistance: vi.fn(),
   },
 }));
@@ -32,6 +33,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       staffActionRequired: true,
     });
     vi.mocked(stationPatientSessionService.purge).mockResolvedValue(undefined);
+    vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({ documents: [] });
     vi.mocked(stationPatientSessionService.requestStaffAssistance).mockResolvedValue({ status: 'STAFF_NOTIFIED', alertId: 7 });
   });
 
@@ -189,7 +191,8 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
 
     expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
     expect(screen.getByText('Aya Audit')).toBeInTheDocument();
-    expect(screen.getByText(/retrait des documents est en cours de construction/)).toBeInTheDocument();
+    await waitFor(() => expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledWith('session-1'));
+    expect(await screen.findByText('Aucun document autorisé à retirer. Adressez-vous à l’accueil.')).toBeInTheDocument();
     expect(screen.queryByText('Confirmer mon arrivée')).toBeNull();
     expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
     expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
@@ -200,7 +203,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
   });
 
-  it('04.4 documents: FR/EN/AR identify text does not advertise printing or Pocket', async () => {
+  it('04.5 documents: FR/EN/AR empty eligible list does not advertise printing or Pocket', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'identified',
       sessionId: 'session-1',
@@ -208,15 +211,96 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       claimedAt: new Date().toISOString(),
     });
     for (const [lang, phrase] of [
-      ['fr', 'Le retrait des documents est en cours de construction sur cette station.'],
-      ['en', 'Document collection is under construction at this station.'],
-      ['ar', 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.'],
+      ['fr', 'Aucun document autorisé à retirer. Adressez-vous à l’accueil.'],
+      ['en', 'No document is available for collection. Please contact reception.'],
+      ['ar', 'لا توجد وثيقة مرخصة للاستلام. يرجى مراجعة الاستقبال.'],
     ] as const) {
       const rendered = render(<StationPatientIdentity purpose="documents" language={lang} onBack={vi.fn()} backLabel="Retour" />);
       expect(await screen.findByText(phrase)).toBeInTheDocument();
       expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
       rendered.unmount();
     }
+  });
+
+  it('04.5 signals eligible documents without ever downloading them to a shared Station', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(), companionPaired: true,
+    });
+    vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({
+      documents: [{ documentId: 42, kind: 'care_sheet' }],
+    });
+    const createObjectURL = vi.fn();
+    const originalCreate = URL.createObjectURL;
+    URL.createObjectURL = createObjectURL;
+    try {
+      render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
+      expect(await screen.findByText(/Document disponible sur votre téléphone dans Patient Companion/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Télécharger/i })).not.toBeInTheDocument();
+      expect(createObjectURL).not.toHaveBeenCalled();
+    } finally {
+      URL.createObjectURL = originalCreate;
+    }
+  });
+
+  it('04.5 never suggests a phone pickup after phone-less fallback', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(), companionPaired: false,
+    });
+    vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({
+      documents: [{ documentId: 42, kind: 'care_sheet' }],
+    });
+    render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
+    expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
+    await waitFor(() => expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledWith('session-1'));
+    expect(screen.queryByText(/disponible sur votre téléphone/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Télécharger/i })).not.toBeInTheDocument();
+  });
+
+  it('04.5 keeps the kiosk fail closed when document discovery fails', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    vi.mocked(stationPatientSessionService.availableDocuments).mockRejectedValue(new Error('403'));
+    render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Télécharger/i })).not.toBeInTheDocument();
+  });
+
+  it('04.7 clears document kiosk identity after Companion purges the session', async () => {
+    vi.mocked(stationPatientSessionService.status)
+      .mockResolvedValueOnce({
+        status: 'identified', sessionId: 'session-1',
+        displayName: 'Aya Audit', claimedAt: new Date().toISOString(), companionPaired: true,
+      })
+      .mockResolvedValue({ status: 'expired', sessionId: 'session-1' });
+    render(<StationPatientIdentity purpose="documents" onBack={vi.fn()} backLabel="Retour" />);
+    expect(await screen.findByText('Session expirée')).toBeInTheDocument();
+    expect(screen.queryByText('Aya Audit')).not.toBeInTheDocument();
+    expect(screen.queryByText(/disponible sur votre téléphone/i)).not.toBeInTheDocument();
+    expect(stationPatientSessionService.status).toHaveBeenCalledTimes(2);
+  });
+
+  it('04.5 expires an unattended document kiosk and clears the patient name', async () => {
+    vi.mocked(stationPatientSessionService.create).mockResolvedValue({
+      sessionId: 'session-1',
+      handoffUrl: 'https://cabinet.local/companion?stationSession=expired-token',
+      nfcPayload: 'https://cabinet.local/companion?stationSession=expired-token',
+      qrDataUrl: 'data:image/png;base64,AAAA',
+      expiresAt: '2000-01-01T00:00:00.000Z',
+      fallbackMode: 'disabled',
+    });
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
+    expect(await screen.findByText('Session expirée')).toBeInTheDocument();
+    expect(screen.queryByText('Aya Audit')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Télécharger la feuille de soins' })).not.toBeInTheDocument();
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
   });
 
   it('revokes a QR created after navigating away before create resolves', async () => {

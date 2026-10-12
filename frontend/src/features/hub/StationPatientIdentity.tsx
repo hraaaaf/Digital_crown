@@ -27,7 +27,9 @@ const COPY = {
     expired: 'Session expirée', newQr: 'Nouveau QR', retry: 'Réessayer',
     documentsVerified: 'Identité confirmée',
     documentsConstruction: 'Le retrait des documents est en cours de construction sur cette station.',
-    documentsStaff: 'Pour retirer un document aujourd’hui, adressez-vous à l’accueil.',
+    documentsStaff: 'Aucun document autorisé à retirer. Adressez-vous à l’accueil.',
+    documentsFallback: 'Pour retirer ce document, adressez-vous au personnel du cabinet. Le retrait sur téléphone nécessite Patient Companion appairé.',
+    documentsReady: 'Document disponible sur votre téléphone dans Patient Companion. Aucun PDF ne sera conservé sur cette borne.',
   },
   en: {
     tooMany: 'Too many attempts. Generate a new session or ask for help.',
@@ -49,7 +51,9 @@ const COPY = {
     expired: 'Session expired', newQr: 'New QR code', retry: 'Try again',
     documentsVerified: 'Identity confirmed',
     documentsConstruction: 'Document collection is under construction at this station.',
-    documentsStaff: 'To collect a document today, please contact reception.',
+    documentsStaff: 'No document is available for collection. Please contact reception.',
+    documentsFallback: 'Please contact reception to collect this document. Phone delivery requires a paired Patient Companion.',
+    documentsReady: 'Document available on your phone in Patient Companion. This station does not save PDF files.',
   },
   ar: {
     tooMany: 'محاولات كثيرة جداً. أنشئوا جلسة جديدة أو اطلبوا المساعدة.',
@@ -71,7 +75,9 @@ const COPY = {
     expired: 'انتهت صلاحية الجلسة', newQr: 'رمز QR جديد', retry: 'إعادة المحاولة',
     documentsVerified: 'تم تأكيد الهوية',
     documentsConstruction: 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.',
-    documentsStaff: 'لاستلام وثيقة اليوم، يرجى مراجعة موظفي الاستقبال.',
+    documentsStaff: 'لا توجد وثيقة مرخصة للاستلام. يرجى مراجعة الاستقبال.',
+    documentsFallback: 'يرجى مراجعة فريق العيادة لاستلام الوثيقة. يتطلب التسليم عبر الهاتف ربط Patient Companion.',
+    documentsReady: 'وثيقة متاحة على هاتفكم في Patient Companion. لن تحتفظ هذه المحطة بأي ملف PDF.',
   },
 } as const;
 
@@ -112,6 +118,10 @@ export const StationPatientIdentity = ({
   const [session, setSession] = useState<StationPatientSessionCreated | null>(null);
   const [status, setStatus] = useState<'loading' | 'pending' | 'identified' | 'expired' | 'error'>('loading');
   const [displayName, setDisplayName] = useState('');
+  const [companionPaired, setCompanionPaired] = useState(false);
+  const [availableDocuments, setAvailableDocuments] = useState<Array<{ documentId: number }>>([]);
+  const [documentsBusy, setDocumentsBusy] = useState(false);
+  const [documentsError, setDocumentsError] = useState('');
   const [error, setError] = useState('');
   const [fallbackOpen, setFallbackOpen] = useState(false);
   const [fallbackBusy, setFallbackBusy] = useState(false);
@@ -156,6 +166,9 @@ export const StationPatientIdentity = ({
     setStatus('loading');
     setError('');
     setDisplayName('');
+    setCompanionPaired(false);
+    setAvailableDocuments([]);
+    setDocumentsError('');
     setFallbackOpen(false);
     setBirthDate('');
     setPhone('');
@@ -176,18 +189,41 @@ export const StationPatientIdentity = ({
   }, []);
 
   useEffect(() => {
-    if (!session || status !== 'pending') return undefined;
+    // Once documents have been identified, continue observing server revocation:
+    // a phone-side purge must clear the shared Station without waiting for TTL.
+    if (!session || (status !== 'pending' && !(purpose === 'documents' && status === 'identified'))) return undefined;
     let cancelled = false;
     const poll = async () => {
       try {
         const next = await stationPatientSessionService.status(session.sessionId);
         if (cancelled) return;
+        // An already-expired server response must never resurrect patient data
+        // on a shared kiosk, even when a stale status reply says "identified".
+        if (purpose === 'documents' && (
+          !Number.isFinite(new Date(session.expiresAt).getTime())
+          || Date.now() >= new Date(session.expiresAt).getTime()
+        )) {
+          setDisplayName('');
+          setCompanionPaired(false);
+          setAvailableDocuments([]);
+          setDocumentsError('');
+          setStatus('expired');
+          requestPurge(session.sessionId);
+          return;
+        }
         if (next.status === 'identified') {
           setDisplayName(next.displayName);
+          setCompanionPaired(next.companionPaired === true);
           setStatus('identified');
           return;
         }
-        if (next.status === 'expired') setStatus('expired');
+        if (next.status === 'expired') {
+          setDisplayName('');
+          setCompanionPaired(false);
+          setAvailableDocuments([]);
+          setDocumentsError('');
+          setStatus('expired');
+        }
       } catch {
         if (!cancelled) {
           setStatus('error');
@@ -201,7 +237,40 @@ export const StationPatientIdentity = ({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [session, status]);
+  }, [session, status, purpose]);
+
+  useEffect(() => {
+    if (status !== 'identified' || purpose !== 'documents' || !session) return undefined;
+    let cancelled = false;
+    setDocumentsBusy(true);
+    setDocumentsError('');
+    void stationPatientSessionService.availableDocuments(session.sessionId)
+      .then((result) => { if (!cancelled) setAvailableDocuments(result.documents); })
+      .catch(() => { if (!cancelled) setDocumentsError(copy.unavailable); })
+      .finally(() => { if (!cancelled) setDocumentsBusy(false); });
+    return () => { cancelled = true; };
+  }, [status, purpose, session]);
+
+  // Do not leave a patient's identity or document choices visible on an unattended kiosk.
+  // The backend enforces expiry; the Station also clears the screen at that deadline.
+  useEffect(() => {
+    if (purpose !== 'documents' || status !== 'identified' || !session) return undefined;
+    const closeExpired = () => {
+      setDisplayName('');
+      setCompanionPaired(false);
+      setAvailableDocuments([]);
+      setDocumentsError('');
+      setStatus('expired');
+      requestPurge(session.sessionId);
+    };
+    const remaining = new Date(session.expiresAt).getTime() - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) {
+      closeExpired();
+      return undefined;
+    }
+    const timeout = window.setTimeout(closeExpired, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [purpose, status, session, requestPurge]);
 
   const expiresLabel = useMemo(() => {
     if (!session) return '';
@@ -223,6 +292,7 @@ export const StationPatientIdentity = ({
           : { birthDate, firstName, lastName },
       );
       setDisplayName(result.displayName);
+      setCompanionPaired(false);
       setStatus('identified');
       setFallbackOpen(false);
     } catch (fallbackError) {
@@ -245,8 +315,21 @@ export const StationPatientIdentity = ({
         <ShieldCheck className="mx-auto text-success" size={38} aria-hidden="true" />
         <h2 className="mt-4 text-2xl font-black">{copy.documentsVerified}</h2>
         <p className="mt-2 text-base font-bold text-text-muted">{displayName}</p>
-        <p className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsConstruction}</p>
-        <p className="mt-3 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsStaff}</p>
+        {documentsBusy && <p className="mt-5 text-sm font-semibold" role="status">{copy.checking}</p>}
+        {!documentsBusy && availableDocuments.length === 0 && !documentsError && (
+          <p className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsStaff}</p>
+        )}
+        {!documentsBusy && availableDocuments.length > 0 && !documentsError && !companionPaired && (
+          <p data-station-phone-fallback className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">
+            {copy.documentsFallback}
+          </p>
+        )}
+        {!documentsBusy && availableDocuments.length > 0 && !documentsError && companionPaired && (
+          <p data-station-phone-delivery className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">
+            {copy.documentsReady}
+          </p>
+        )}
+        {documentsError && <p role="alert" className="mt-4 text-sm font-bold text-danger">{documentsError}</p>}
         <button type="button" onClick={() => void leave()} className="mt-6 min-h-12 w-full rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">
           {backLabel}
         </button>

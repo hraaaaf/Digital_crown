@@ -3,9 +3,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const phase = process.env.EVIDENCE_PHASE === 'before' ? 'before' : 'after';
-const proofNow = new Date();
-const proofExpiresAt = new Date(proofNow.getTime() + 120_000).toISOString();
-const proofClaimedAt = proofNow.toISOString();
 const out = path.resolve(`artifacts/v15-04-4-documents-identity-${phase}`);
 await fs.mkdir(out, { recursive: true });
 
@@ -50,6 +47,10 @@ try {
     for (const language of languages) {
     for (const vp of viewports) {
       for (const scale of scales) {
+        // Do not expire later viewport fixtures because an earlier viewport was slow.
+        const caseNow = new Date();
+        const caseExpiresAt = new Date(caseNow.getTime() + 120_000).toISOString();
+        const caseClaimedAt = caseNow.toISOString();
         const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
         await context.route('**/api/workstation/bootstrap', route => route.fulfill({
           status: 200,
@@ -71,7 +72,7 @@ try {
               handoffUrl: 'https://cabinet.local/companion?stationSession=opaque-proof-token',
               qrDataUrl: onePixelPng,
               nfcPayload: 'https://cabinet.local/companion?stationSession=opaque-proof-token',
-              expiresAt: proofExpiresAt,
+              expiresAt: caseExpiresAt,
               fallbackMode: 'phone_dob',
             }),
           });
@@ -79,9 +80,31 @@ try {
         await context.route('**/api/workstation/patient-session/proof-session', route => {
           if (route.request().method() !== 'GET') return route.continue();
           const payload = scenario.mode === 'identified'
-            ? { status: 'identified', sessionId: 'proof-session', displayName: 'Aya Audit', claimedAt: proofClaimedAt }
-            : { status: 'pending', sessionId: 'proof-session', expiresAt: proofExpiresAt };
+            ? { status: 'identified', sessionId: 'proof-session', displayName: 'Aya Audit', claimedAt: caseClaimedAt, companionPaired: true }
+            : { status: 'pending', sessionId: 'proof-session', expiresAt: caseExpiresAt };
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
+        });
+        // 04.5 Station discovery is bound to an identified patient session.
+        // The synthetic candidate is already authorized; this is UI evidence only.
+        let discoveryRequests = 0;
+        let pdfRequests = 0;
+        await context.route('**/api/workstation/patient-session/proof-session/documents', route => {
+          discoveryRequests += 1;
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            headers: { 'Cache-Control': 'no-store' },
+            body: JSON.stringify({ documents: [{ documentId: 42, kind: 'care_sheet' }] }),
+          });
+        });
+        await context.route('**/api/workstation/patient-session/proof-session/documents/care-sheet/42', route => {
+          pdfRequests += 1;
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/pdf',
+            headers: { 'Cache-Control': 'no-store' },
+            body: '%PDF-1.4\\n%Synthetic 04.5 UI test only\\n%%EOF\\n',
+          });
         });
         await context.route('**/api/workstation/patient-session/proof-session/appointments/today', route => route.fulfill({
           status: 200,
@@ -120,15 +143,24 @@ try {
         await page.locator('[data-station-action="documents"]').click();
 
         if (phase === 'before') {
-          await page.waitForTimeout(250);
-          // Baseline is a distinct product revision: do not assert candidate-specific copy.
+          // Compare the *same business states* across the pinned V1.5-04.4
+          // baseline and the 04.5 candidate, without assuming that QR did not
+          // exist before 04.5 or asserting candidate-specific text on the base.
+          const selector = scenario.mode === 'identified'
+            ? '[data-station-documents-identity-confirmed]'
+            : '[data-station-patient-session]';
+          await page.locator(selector).waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'fallback') {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
           await page.locator('[data-station-fallback-toggle]').click();
           await page.locator('[data-station-fallback-form]').waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'identified') {
           await page.locator('[data-station-documents-identity-confirmed]').waitFor({ timeout: 10000 });
-          await page.getByText(language === 'fr' ? 'Le retrait des documents est en cours de construction sur cette station.' : language === 'en' ? 'Document collection is under construction at this station.' : 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-phone-delivery]').waitFor({ timeout: 10000 });
+          if (await page.locator('[data-station-care-sheet-download]').count()) {
+            throw new Error('Station exposes a patient PDF download control');
+          }
+          if (discoveryRequests !== 1) throw new Error('04.5 discovery not single-bound to identified session');
         } else {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
         }
@@ -141,6 +173,8 @@ try {
           fallbackVisible: Boolean(document.querySelector('[data-station-fallback-form]')),
           identifiedVisible: Boolean(document.querySelector('[data-station-documents-identity-confirmed]')),
           accidentalAppointmentFlow: Boolean(document.querySelector('[data-station-arrival-bridge], [data-station-staff-notified], [data-station-arrival-confirmed]')),
+          eligibleDocumentVisible: Boolean(document.querySelector('[data-station-phone-delivery]')),
+          localPdfDownloadControl: Boolean(document.querySelector('[data-station-care-sheet-download]')),
           cameraInputs: document.querySelectorAll('input[accept*="image"], video').length,
           clinicalLinks: Array.from(document.querySelectorAll('a'))
             .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
@@ -150,7 +184,17 @@ try {
 
         const filename = `${phase}-${scenario.name}-${language}-${vp.label}-${scale.label}.png`;
         await page.screenshot({ path: path.join(out, filename), fullPage: true, animations: 'disabled' });
-        report.push({ phase, scenario: scenario.name, viewport: vp.label, scale: scale.label, filename, ...meta, errors });
+        // The Station kiosk MUST never issue or expose any PDF download.
+        // Personal phone receipt is checked by patient-credential browser tests
+        // and the real HTTPS sender/companion/receiver regression, separately.
+        const downloadProof = { kioskPdfRequests: pdfRequests, phoneOnly: true };
+        if (phase === 'after' && pdfRequests !== 0) {
+          throw new Error('Station contacted PDF endpoint (private phone required)');
+        }
+        if (phase === 'after' && scenario.mode === 'pending' && (discoveryRequests !== 0 || pdfRequests !== 0)) {
+          throw new Error('04.5 Station requested documents before patient identity');
+        }
+        report.push({ phase, scenario: scenario.name, viewport: vp.label, scale: scale.label, filename, ...meta, discoveryRequests, pdfRequests, downloadProof, errors });
         await context.close();
       }
     }
@@ -174,11 +218,14 @@ const failures = report.filter(item =>
   item.scrollWidth > item.width ||
   item.clinicalLinks.length > 0 ||
   item.cameraInputs > 0 ||
+  (phase === 'after' && (item.localPdfDownloadControl || item.pdfRequests !== 0)) ||
   item.errors.length > 0 ||
   item.accidentalAppointmentFlow ||
   (phase === 'after' && item.scenario === 'documents-pending' && !item.patientSessionVisible) ||
-  (phase === 'after' && item.scenario === 'documents-identified' && !item.identifiedVisible) ||
-  (phase === 'before' && (item.patientSessionVisible || item.identifiedVisible))
+  (phase === 'after' && item.scenario === 'documents-identified' && (!item.identifiedVisible || !item.eligibleDocumentVisible || item.discoveryRequests !== 1)) ||
+  (phase === 'after' && item.scenario === 'documents-pending' && (item.discoveryRequests !== 0 || item.pdfRequests !== 0)) ||
+  (phase === 'before' && item.scenario === 'documents-pending' && !item.patientSessionVisible) ||
+  (phase === 'before' && item.scenario === 'documents-identified' && !item.identifiedVisible)
 );
 console.log(JSON.stringify(evidence, null, 2));
 if (failures.length > 0) {

@@ -210,6 +210,7 @@ async def lifespan(app: FastAPI):
 
     firebase_sync_task = None
     patient_relay_task = None
+    station_ttl_cleanup_task = None
     try:
         boot_policy = assert_runtime_startup_allowed(_cfg)
 
@@ -289,6 +290,15 @@ async def lifespan(app: FastAPI):
             )
             else None
         )
+        # 04.6: regular identity retention cleanup must not depend on a future
+        # patient/kiosk HTTP request. Test and migration-only boot never mutate
+        # fixture databases through a background observer.
+        station_ttl_cleanup_task = (
+            asyncio.create_task(_periodic_station_session_cleanup())
+            if boot_policy != REHEARSAL_MIGRATION_ONLY
+            and str(_cfg.ENVIRONMENT).lower() in {"cabinet", "production"}
+            else None
+        )
 
     except asyncio.CancelledError:
         raise
@@ -302,6 +312,8 @@ async def lifespan(app: FastAPI):
         firebase_sync_task.cancel()
     if patient_relay_task is not None:
         patient_relay_task.cancel()
+    if station_ttl_cleanup_task is not None:
+        station_ttl_cleanup_task.cancel()
     logger.info("Arret de l'API...")
 
 
@@ -388,6 +400,37 @@ async def _periodic_patient_companion_relay() -> None:
             break
         except Exception:
             logger.exception("Patient Companion relay poll failed; retry scheduled.")
+
+
+def _station_ttl_sweep_once() -> int:
+    from backend.services.station_session_cleanup import (
+        STATION_SESSION_SWEEP_BATCH_SIZE,
+        purge_expired_station_sessions,
+    )
+    total = 0
+    with database.SessionLocal() as cleanup_db:
+        # Bounded catch-up after startup, for sessions expired while power was off.
+        for _ in range(10):
+            cleaned = purge_expired_station_sessions(cleanup_db)
+            total += cleaned
+            if cleaned < STATION_SESSION_SWEEP_BATCH_SIZE:
+                break
+    return total
+
+
+async def _periodic_station_session_cleanup() -> None:
+    from backend.services.station_session_cleanup import STATION_SESSION_SWEEP_INTERVAL_SECONDS
+    while True:
+        try:
+            cleaned = await run_in_threadpool(_station_ttl_sweep_once)
+            if cleaned:
+                logger.info("Station TTL cleanup scrubbed %d expired session(s).", cleaned)
+            await asyncio.sleep(STATION_SESSION_SWEEP_INTERVAL_SECONDS)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Station TTL cleanup failed; will retry without granting access.")
+            await asyncio.sleep(STATION_SESSION_SWEEP_INTERVAL_SECONDS)
 
 
 async def _periodic_firebase_sync() -> None:

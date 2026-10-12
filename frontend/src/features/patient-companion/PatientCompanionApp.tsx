@@ -20,6 +20,7 @@ import { PatientCompanionMessages } from './PatientCompanionMessages';
 import { PatientCompanionEmergencyPhoto } from './PatientCompanionEmergencyPhoto';
 import { PatientCompanionFinance } from './PatientCompanionFinance';
 import { PatientCompanionTeleconsultation } from './PatientCompanionTeleconsultation';
+import { PatientCompanionStationDocuments } from './PatientCompanionStationDocuments';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
 
@@ -61,6 +62,7 @@ export const PatientCompanionApp = () => {
   const [agendaLoading, setAgendaLoading] = useState(false);
   const [stationHandoffToken, setStationHandoffToken] = useState<string | null>(null);
   const [stationHandoffMessage, setStationHandoffMessage] = useState('');
+  const [stationDocumentSession, setStationDocumentSession] = useState<{ sessionId: string; accessId: string } | null>(null);
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
@@ -294,6 +296,7 @@ export const PatientCompanionApp = () => {
 
   async function claimStationSession(token: string, pairing: PatientPairing) {
     setStationHandoffMessage('');
+    setStationDocumentSession(null);
     try {
       const response = await fetch(`${API_BASE}/api/workstation/patient-session/claim`, {
         method: 'POST',
@@ -309,7 +312,10 @@ export const PatientCompanionApp = () => {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || 'Session borne invalide ou expirée.');
       setStationHandoffToken(null);
-      setStationHandoffMessage('Identité confirmée sur la station. Vous pouvez revenir à la borne.');
+      if (typeof payload.sessionId === 'string') {
+        setStationDocumentSession({ sessionId: payload.sessionId, accessId: pairing.context.access_id });
+      }
+      setStationHandoffMessage('Identité confirmée sur la station. Vous pouvez consulter ci-dessous les feuilles de soins autorisées, si elles sont disponibles.');
       return true;
     } catch (err) {
       setStationHandoffMessage(err instanceof Error ? err.message : 'Session borne invalide ou expirée.');
@@ -682,6 +688,20 @@ export const PatientCompanionApp = () => {
 
         {phase === 'home' && activePairing && !selectingContext && (
           <>
+            {stationDocumentSession?.accessId === activePairing.context.access_id && (
+              <PatientCompanionStationDocuments
+                sessionId={stationDocumentSession.sessionId}
+                pairing={activePairing}
+                onClose={(serverRevoked) => {
+                  setStationDocumentSession(null);
+                  setStationHandoffMessage(
+                    serverRevoked
+                      ? 'Session de retrait révoquée. Vous pouvez fermer Patient Companion.'
+                      : 'L’écran de retrait est fermé. Connexion indisponible : la session sur le serveur expirera automatiquement.',
+                  );
+                }}
+              />
+            )}
             {stationHandoffMessage && (
               <div data-station-handoff-status role="status" className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-black text-primary">
                 {stationHandoffMessage}

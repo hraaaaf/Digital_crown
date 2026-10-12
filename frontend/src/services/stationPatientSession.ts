@@ -13,7 +13,7 @@ export type StationPatientSessionCreated = {
 
 export type StationPatientSessionStatus =
   | { status: 'pending'; sessionId: string; expiresAt: string }
-  | { status: 'identified'; sessionId: string; displayName: string; claimedAt: string }
+  | { status: 'identified'; sessionId: string; displayName: string; claimedAt: string; companionPaired?: boolean }
   | { status: 'expired'; sessionId: string };
 
 export type StationPatientFallbackPayload = {
@@ -65,6 +65,11 @@ export const stationPatientSessionService = {
 
   async arrive(sessionId: string, appointmentId: number): Promise<{ status: 'ARRIVED'; appointmentId: number }> {
     const { data } = await api.post(`/workstation/patient-session/${sessionId}/appointments/${appointmentId}/arrive`);
+    return data;
+  },
+
+  async availableDocuments(sessionId: string): Promise<{ documents: Array<{ documentId: number; kind: 'care_sheet' | 'presence_receipt' }> }> {
+    const { data } = await api.get(`/workstation/patient-session/${sessionId}/documents`);
     return data;
   },
 

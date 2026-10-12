@@ -24,7 +24,9 @@ from backend.routers.patient_companion_common import (
     patient_identity,
     principal_for_access,
 )
-from backend.routers.workstation_mode import _find_workstation, _require_pin
+from backend.routers.workstation_mode import (
+    WORKSTATION_COOKIE, _find_workstation, _require_pin, _token_hash,
+)
 from backend.services.qr_service import qr_service
 from backend.services.station_document_eligibility import (
     SelfServiceDocumentCandidate,
@@ -201,10 +203,11 @@ def _expire_and_purge(db: Session, row: models.WorkstationPatientSession, now: d
         return True
     if row.expires_at > now:
         return False
-    row.patient_access_id = None
-    row.patient_id = None
-    row.purged_at = now
-    db.commit()
+    from backend.services.station_session_cleanup import purge_expired_station_session_on_read
+    purge_expired_station_session_on_read(
+        db, session_id=row.id, employer_id=row.employer_id,
+        now=now, actor="ttl_station_read",
+    )
     return True
 
 
@@ -275,17 +278,31 @@ def create_station_patient_session(
     canonical_origin = _station_handoff_origin(request)
     now = datetime.utcnow()
 
-    db.query(models.WorkstationPatientSession).filter(
-        models.WorkstationPatientSession.workstation_id == workstation.id,
-        models.WorkstationPatientSession.purged_at.is_(None),
-    ).update(
-        {
+    existing_ids = [
+        sid for (sid,) in db.query(models.WorkstationPatientSession.id).filter(
+            models.WorkstationPatientSession.workstation_id == workstation.id,
+            models.WorkstationPatientSession.purged_at.is_(None),
+        ).all()
+    ]
+    for old_sid in existing_ids:
+        removed = db.query(models.WorkstationPatientSession).filter(
+            models.WorkstationPatientSession.id == old_sid,
+            models.WorkstationPatientSession.workstation_id == workstation.id,
+            models.WorkstationPatientSession.purged_at.is_(None),
+        ).update({
             models.WorkstationPatientSession.patient_access_id: None,
             models.WorkstationPatientSession.patient_id: None,
             models.WorkstationPatientSession.purged_at: now,
-        },
-        synchronize_session=False,
-    )
+        }, synchronize_session=False)
+        if removed == 1:
+            db.add(models.AuditLog(
+                employer_id=workstation.employer_id,
+                user_id=current_user.id,
+                action="STATION_DOCUMENT_SESSION_PURGED_REPLACED",
+                resource_type="WorkstationPatientSession",
+                resource_id=old_sid,
+                details="patient_binding_cleared=true;actor=new_station_session",
+            ))
 
     raw = secrets.token_urlsafe(32)
     row = models.WorkstationPatientSession(
@@ -868,64 +885,87 @@ def authorize_station_care_sheet_withdrawal(
     return {"status": "AUTHORIZED", "documentId": document.id, "created": created}
 
 
-@router.get("/patient-session/{session_id}/documents/care-sheet/{document_id}")
-def station_care_sheet(
-    session_id: str, document_id: int, request: Request,
+@router.get("/patient-session/{session_id}/documents")
+def station_available_documents(
+    session_id: str, request: Request, response: Response,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     workstation, row = _identified_station_session_or_error(
         session_id, request, db, current_user,
     )
-    document = db.query(models.DocumentArchive).filter(
-        models.DocumentArchive.id == document_id,
+    now = datetime.utcnow()
+    context = StationEligibilityContext(
+        tenant_id=workstation.employer_id, patient_id=row.patient_id,
+        station_id=workstation.id, session_id=row.id,
+        session_tenant_id=row.employer_id, session_patient_id=row.patient_id,
+        session_station_id=row.workstation_id,
+        session_created_at=row.created_at, session_claimed_at=row.claimed_at,
+        session_expires_at=row.expires_at, session_purged_at=row.purged_at,
+        station_tenant_id=workstation.employer_id,
+        station_experience=workstation.default_experience,
+        station_revoked_at=workstation.revoked_at, now=now,
+    )
+    documents = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == row.patient_id,
-    ).first()
-    if document is None:
-        raise HTTPException(status_code=404, detail="STATION_CARE_SHEET_NOT_FOUND")
-    state = care_sheet_state(db, document, employer_id=workstation.employer_id)
-    decision = evaluate_document_eligibility(
-        StationEligibilityContext(
-            tenant_id=workstation.employer_id, patient_id=row.patient_id,
-            station_id=workstation.id, session_id=row.id,
-            session_tenant_id=row.employer_id, session_patient_id=row.patient_id,
-            session_station_id=row.workstation_id,
-            session_created_at=row.created_at, session_claimed_at=row.claimed_at,
-            session_expires_at=row.expires_at, session_purged_at=row.purged_at,
-            station_tenant_id=workstation.employer_id,
-            station_experience=workstation.default_experience,
-            station_revoked_at=workstation.revoked_at, now=datetime.utcnow(),
-        ),
-        SelfServiceDocumentCandidate(
-            document_id=str(document.id), tenant_id=workstation.employer_id,
-            patient_id=document.patient_id, kind="care_sheet",
-            is_active=document.status == models.DocumentStatus.ACTIF,
-            is_latest_version=document.is_latest_version is True,
-            finalized=state.finalized, withdrawal_authorized=state.withdrawal_authorized,
-        ),
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+        models.DocumentArchive.is_latest_version.is_(True),
+    ).order_by(models.DocumentArchive.id.desc()).limit(100).all()
+    available = []
+    for document in documents:
+        state = care_sheet_state(db, document, employer_id=workstation.employer_id)
+        decision = evaluate_document_eligibility(
+            context,
+            SelfServiceDocumentCandidate(
+                document_id=str(document.id), tenant_id=workstation.employer_id,
+                patient_id=document.patient_id, kind="care_sheet",
+                is_active=True, is_latest_version=True,
+                finalized=state.finalized,
+                withdrawal_authorized=state.withdrawal_authorized,
+            ),
+        )
+        if decision.eligible:
+            available.append({"documentId": document.id, "kind": "care_sheet"})
+    appointments = list_station_patient_appointments_for_today(
+        db, employer_id=workstation.employer_id, patient_id=row.patient_id,
     )
-    if not decision.eligible:
-        raise HTTPException(status_code=409, detail="STATION_CARE_SHEET_NOT_ELIGIBLE")
-    try:
-        content = verified_care_sheet_bytes(document)
-    except (ValueError, OSError):
-        raise HTTPException(status_code=409, detail="STATION_CARE_SHEET_FILE_UNTRUSTED") from None
-    db.add(models.AuditLog(
-        user_id=current_user.id, employer_id=workstation.employer_id,
-        action=WITHDRAW_ACTION, resource_type="DocumentArchive",
-        resource_id=str(document.id),
-        details=f"Verified PDF delivered; sha256={document.file_hash}",
-        ip_address=request.client.host if request.client else None,
-    ))
-    db.commit()
-    return Response(
-        content=content, media_type="application/pdf",
-        headers={
-            "Cache-Control": "no-store",
-            "Content-Disposition": f"attachment; filename=care-sheet-{int(document.id)}.pdf",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
+    for appointment in appointments:
+        proof = reliable_presence_proof(
+            db, employer_id=workstation.employer_id,
+            patient_id=row.patient_id, appointment=appointment,
+        )
+        if proof is None:
+            continue
+        decision = evaluate_document_eligibility(
+            context,
+            SelfServiceDocumentCandidate(
+                document_id=f"presence-receipt:{appointment.id}:{proof.audit_id}",
+                tenant_id=appointment.employer_id,
+                patient_id=appointment.patient_id,
+                kind="presence_receipt",
+                is_active=appointment.deleted_at is None,
+                is_latest_version=True,
+                presence_confirmed=True,
+                presence_proof_source=proof.source,
+            ),
+        )
+        if decision.eligible:
+            available.append({"documentId": appointment.id, "kind": "presence_receipt"})
+    response.headers["Cache-Control"] = "no-store"
+    return {"documents": available}
+
+
+@router.get("/patient-session/{session_id}/documents/care-sheet/{document_id}")
+def station_care_sheet(
+    session_id: str, document_id: int, request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # A shared Station must never receive patient document bytes or write a
+    # clinical PDF to its local Downloads directory. Existing clients fail closed.
+    _identified_station_session_or_error(session_id, request, db, current_user)
+    raise HTTPException(status_code=423, detail="STATION_PDF_REQUIRES_PERSONAL_COMPANION")
+
 
 @router.get("/patient-session/{session_id}/documents/presence-receipt/{appointment_id}")
 def station_presence_receipt(
@@ -935,92 +975,10 @@ def station_presence_receipt(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    workstation, row = _identified_station_session_or_error(session_id, request, db, current_user)
-    appointment = station_appointment_for_today(
-        db,
-        appointment_id=appointment_id,
-        employer_id=workstation.employer_id,
-        patient_id=row.patient_id,
-    )
-    if appointment is None:
-        raise HTTPException(status_code=404, detail="STATION_APPOINTMENT_NOT_FOUND")
-
-    proof = reliable_presence_proof(
-        db,
-        employer_id=workstation.employer_id,
-        patient_id=row.patient_id,
-        appointment=appointment,
-    )
-    if proof is None:
-        raise HTTPException(status_code=409, detail="STATION_PRESENCE_NOT_PROVEN")
-
-    now = datetime.utcnow()
-    decision = evaluate_document_eligibility(
-        StationEligibilityContext(
-            tenant_id=workstation.employer_id,
-            patient_id=row.patient_id,
-            station_id=workstation.id,
-            session_id=row.id,
-            session_tenant_id=row.employer_id,
-            session_patient_id=row.patient_id,
-            session_station_id=row.workstation_id,
-            session_created_at=row.created_at,
-            session_claimed_at=row.claimed_at,
-            session_expires_at=row.expires_at,
-            session_purged_at=row.purged_at,
-            station_tenant_id=workstation.employer_id,
-            station_experience=workstation.default_experience,
-            station_revoked_at=workstation.revoked_at,
-            now=now,
-        ),
-        SelfServiceDocumentCandidate(
-            document_id=f"presence-receipt:{appointment.id}:{proof.audit_id}",
-            tenant_id=appointment.employer_id,
-            patient_id=appointment.patient_id,
-            kind="presence_receipt",
-            is_active=appointment.deleted_at is None,
-            is_latest_version=True,
-            presence_confirmed=True,
-            presence_proof_source=proof.source,
-        ),
-    )
-    if not decision.eligible:
-        raise HTTPException(status_code=409, detail="STATION_PRESENCE_RECEIPT_NOT_ELIGIBLE")
-
-    patient = db.query(models.Patient).filter(
-        models.Patient.id == row.patient_id,
-        models.Patient.employer_id == workstation.employer_id,
-        models.Patient.deleted_at.is_(None),
-    ).first()
-    if patient is None:
-        raise HTTPException(status_code=409, detail="STATION_SESSION_PATIENT_UNAVAILABLE")
-    config = db.query(models.CabinetConfig).filter(
-        models.CabinetConfig.owner_id == workstation.employer_id
-    ).first()
-
-    verification_code = presence_receipt_verification_code(
-        employer_id=workstation.employer_id,
-        patient_id=patient.id,
-        appointment_id=appointment.id,
-        appointment_start=appointment.datetime_start,
-        proof=proof,
-    )
-    payload = render_presence_receipt_pdf(
-        cabinet_name=(config.nom_cabinet if config else "") or "Cabinet dentaire",
-        practitioner_name=(config.nom_praticien if config else "") or "",
-        patient_name=f"{patient.prenom or ''} {patient.nom or ''}".strip(),
-        appointment_start=appointment.datetime_start,
-        verification_code=verification_code,
-    )
-    return Response(
-        content=payload,
-        media_type="application/pdf",
-        headers={
-            "Cache-Control": "no-store",
-            "Content-Disposition": f'attachment; filename="presence-receipt-{appointment.id}.pdf"',
-            "X-Digital-Crown-Verification": verification_code,
-        },
-    )
+    # Shared/kiosk Station must never receive clinical or attendance PDF bytes.
+    # Presence receipts are delivered by authenticated personal Companion only.
+    _identified_station_session_or_error(session_id, request, db, current_user)
+    raise HTTPException(status_code=423, detail="STATION_PDF_REQUIRES_PERSONAL_COMPANION")
 
 
 @router.get("/patient-session/{session_id}")
@@ -1057,6 +1015,7 @@ def station_patient_session_status(
             "sessionId": row.id,
             "displayName": f"{patient.prenom or ''} {patient.nom or ''}".strip(),
             "claimedAt": row.claimed_at,
+            "companionPaired": row.patient_access_id is not None,
         }
     response.headers["Cache-Control"] = "no-store"
     return payload
@@ -1069,7 +1028,20 @@ def purge_station_patient_session(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    workstation = _station_or_423(request, db, current_user)
+    # Cleanup must remain possible after Station -> Cabinet mode changes or revocation.
+    # Identity creation and document access still require active Station mode.
+    # A revoked workstation must not access documents, but its authenticated,
+    # device-bound session may still be scrubbed. The regular lookup excludes
+    # revoked rows, so resolve ONLY the matching cookie hash for cleanup.
+    raw_cookie = request.cookies.get(WORKSTATION_COOKIE)
+    if not raw_cookie:
+        raise HTTPException(status_code=404, detail="STATION_SESSION_NOT_FOUND")
+    workstation = db.query(models.WorkstationMode).filter(
+        models.WorkstationMode.token_hash == _token_hash(raw_cookie),
+        models.WorkstationMode.employer_id == int(current_user.get_employer_id()),
+    ).first()
+    if workstation is None:
+        raise HTTPException(status_code=404, detail="STATION_SESSION_NOT_FOUND")
     now = datetime.utcnow()
     updated = db.query(models.WorkstationPatientSession).filter(
         models.WorkstationPatientSession.id == session_id,
@@ -1085,5 +1057,14 @@ def purge_station_patient_session(
         synchronize_session=False,
     )
     if updated:
+        db.add(models.AuditLog(
+            user_id=current_user.id,
+            employer_id=workstation.employer_id,
+            action="STATION_DOCUMENT_SESSION_PURGED_STATION",
+            resource_type="WorkstationPatientSession",
+            resource_id=session_id,
+            details="patient_binding_cleared=true;actor=station_cookie",
+            ip_address=request.client.host if request.client else None,
+        ))
         db.commit()
     return Response(status_code=204)
