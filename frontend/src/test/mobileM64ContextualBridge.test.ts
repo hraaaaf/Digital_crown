@@ -74,7 +74,9 @@ describe('Digital Crown Pocket general QR bridge', () => {
     expect(onboardingSource).toContain('min-h-11 inline-flex items-center');
     expect(onboardingSource).toContain('min-w-0 flex-1 min-h-[52px]');
     expect(onboardingSource).toContain('shrink-0 min-h-[52px]');
-    expect(onboardingSource).toContain('disabled={manualToken.length !== 6}');
+    expect(onboardingSource).toContain('disabled={mustInstallPocketFirst || manualToken.length !== 6}');
+    expect(onboardingSource).toContain('disabled={mustInstallPocketFirst}');
+    expect(onboardingSource).toContain('data-dc-pocket-install-first');
     expect(securitySource).toContain('min-h-[52px]');
   });
 });
