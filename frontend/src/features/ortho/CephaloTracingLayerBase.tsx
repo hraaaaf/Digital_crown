@@ -235,7 +235,16 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       });
     };
 
-    const finalPts = applyVTO(pts);
+    // Apply the pointer preview BEFORE the visual-only VTO offset.
+    // The historical getPoint() preview only recognizes the original
+    // landmark array, whereas enabled VTO produces a mapped copy.
+    // Ghosts remain immutable. Commit still occurs exclusively on pointer-up.
+    const previewPts = !isGhost && activeDragPos
+      ? pts.map(pt => pt.id === activeDragPos.id
+        ? { ...pt, x: activeDragPos.x, y: activeDragPos.y }
+        : pt)
+      : pts;
+    const finalPts = applyVTO(previewPts);
     const po = getPoint(finalPts, 'Po');
     const poAnatomic = getPoint(finalPts, 'Po_anatomic') ?? (tweedPoAnatomicCertified ? po : undefined);
     const or_ = getPoint(finalPts, 'Or');
