@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
+
 class UnsafeSource(ValueError):
     """Non-PHI error code for refused inputs."""
 
@@ -62,11 +63,28 @@ _COL = re.compile(rf"^({_IDENT})\s+(.+)$", re.S)
 _CONSTRAINT = re.compile(r"^(?:CONSTRAINT\s+\S+\s+)?(?:PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK|KEY|INDEX|EXCLUDE)\b", re.I)
 
 
+# Only a bounded, non-sensitive type token is exported. Full DDL may include
+# patient-identifying DEFAULT strings and MUST NOT leave the offline staging area.
+# Unknown/vendor types are refused until an explicit dialect adapter is built.
+_TYPE = re.compile(
+    r"^(?:DOUBLE\s+PRECISION|TIMESTAMP(?:\s+WITH(?:OUT)?\s+TIME\s+ZONE)?|"
+    r"CHARACTER(?:\s+VARYING)?|VARCHAR|CHAR|DECIMAL|NUMERIC|"
+    r"SMALLINT|BIGINT|INTEGER|INT|TINYINT|MEDIUMINT|SERIAL|BIGSERIAL|"
+    r"BOOLEAN|BOOL|TEXT|TINYTEXT|MEDIUMTEXT|LONGTEXT|"
+    r"REAL|FLOAT|DATE|DATETIME|TIMESTAMPTZ|BLOB|BYTEA|UUID|"
+    r"JSONB|JSON|VARBINARY|BINARY)"
+    r"\b(?:\s*\(\s*\d{1,5}(?:\s*,\s*\d{1,5})?\s*\))?",
+    re.I,
+)
+
+
 def _copy_path(path: Path, root: Path, attested_offline_copy: bool) -> tuple[Path, int]:
     if attested_offline_copy is not True:
         raise UnsafeSource("OFFLINE_COPY_ATTESTATION_REQUIRED")
-    if root.is_symlink() or path.is_symlink():
-        raise UnsafeSource("SYMLINK_FORBIDDEN")
+    # Reject symlinks in every provided path component, not only the final file.
+    for component in (root, *root.parents, path, *path.parents):
+        if component.is_symlink():
+            raise UnsafeSource("SYMLINK_FORBIDDEN")
     try:
         base, resolved = root.resolve(strict=True), path.resolve(strict=True)
     except OSError as exc:
@@ -80,7 +98,11 @@ def _copy_path(path: Path, root: Path, attested_offline_copy: bool) -> tuple[Pat
         cursor = cursor / part
         if cursor.is_symlink():
             raise UnsafeSource("SYMLINK_FORBIDDEN")
-    size = resolved.stat().st_size
+    metadata = resolved.stat()
+    # A hardlink inside staging can alias an original living outside staging.
+    if metadata.st_nlink != 1:
+        raise UnsafeSource("HARDLINK_SOURCE_FORBIDDEN")
+    size = metadata.st_size
     if not 0 < size <= _MAX_BYTES:
         raise UnsafeSource("INPUT_SIZE_UNSUPPORTED")
     return resolved, size
@@ -96,7 +118,7 @@ def _hash(path: Path) -> str:
 
 def _sqlite(path: Path) -> tuple[TableInventory, ...]:
     try:
-        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=1)) as connection:
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro&immutable=1", uri=True, timeout=1)) as connection:
             connection.execute("PRAGMA query_only=ON")
             connection.execute("PRAGMA trusted_schema=OFF")
             names = connection.execute(
@@ -224,6 +246,8 @@ def _table_body(ddl: str) -> tuple[str, str]:
         elif ch == ")":
             depth -= 1
             if depth == 0:
+                if remainder[idx + 1:].strip():
+                    raise UnsafeSource("UNSUPPORTED_TABLE_OPTIONS")
                 return table, remainder[1:idx]
     raise UnsafeSource("UNSUPPORTED_TABLE_DDL")
 
@@ -248,8 +272,16 @@ def _sql(text: str) -> tuple[tuple[TableInventory, ...], tuple[str, ...]]:
             if not col:
                 raise UnsafeSource("UNSUPPORTED_COLUMN")
             declaration = col.group(2).strip()
-            # Preserve declared SQL text; do not infer target field types or defaults.
-            columns.append(ColumnInventory(_unquote(col.group(1)), declaration))
+            type_match = _TYPE.match(declaration)
+            if type_match is None:
+                raise UnsafeSource("UNSUPPORTED_COLUMN_TYPE")
+            suffix = declaration[type_match.end():]
+            if re.match(r"^\s+UNSIGNED\b", suffix, re.I):
+                declared_type = type_match.group(0) + " UNSIGNED"
+            else:
+                declared_type = type_match.group(0)
+            # Never export defaults, comments, CHECK text or source row values.
+            columns.append(ColumnInventory(_unquote(col.group(1)), declared_type))
         if not columns:
             raise UnsafeSource("EMPTY_OR_UNSUPPORTED_TABLE")
         if len(columns) > _MAX_COLUMNS or len(tables) >= _MAX_TABLES:
@@ -274,12 +306,17 @@ def inspect_staged_copy(
     if dialect not in _DIALECTS:
         raise UnsafeSource("DIALECT_MUST_BE_EXPLICIT")
     source, size = _copy_path(Path(source_path), Path(staging_root), attested_offline_copy)
-    before = (source.stat().st_size, source.stat().st_mtime_ns)
+    before_stat = source.stat()
+    before = (before_stat.st_dev, before_stat.st_ino, before_stat.st_size, before_stat.st_mtime_ns)
+    before_digest = _hash(source)
     with source.open("rb") as stream:
         magic = stream.read(32)
     if source.suffix.lower() in _SQLITE_EXT and dialect == "sqlite":
         if not magic.startswith(b"SQLite format 3\x00"):
             raise UnsafeSource("SQLITE_MAGIC_MISMATCH")
+        if any(source.with_name(source.name + suffix).exists()
+               for suffix in ("-wal", "-shm", "-journal")):
+            raise UnsafeSource("SQLITE_SIDECAR_REQUIRES_COLD_COPY")
         tables = _sqlite(source)
         warnings = ("SCHEMA_ONLY_NO_ROW_COUNTS",)
         fmt = "sqlite-copy"
@@ -299,7 +336,8 @@ def inspect_staged_copy(
     else:
         raise UnsafeSource("NATIVE_ADAPTER_NOT_IMPLEMENTED")
     checksum = _hash(source)
-    after = (source.stat().st_size, source.stat().st_mtime_ns)
-    if before != after or size != after[0]:
+    after_stat = source.stat()
+    after = (after_stat.st_dev, after_stat.st_ino, after_stat.st_size, after_stat.st_mtime_ns)
+    if before != after or checksum != before_digest or size != after_stat.st_size:
         raise UnsafeSource("SOURCE_CHANGED_DURING_INSPECTION")
     return InspectionReport(dialect, fmt, checksum, size, tables, warnings)
