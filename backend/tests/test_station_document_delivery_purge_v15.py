@@ -26,7 +26,8 @@ def _authorized_document_session(client, db, dentiste, dossier):
     created = created_response.json()
     claimed = _claim(client, created, patient_headers, access)
     assert claimed.status_code == 200, claimed.text
-    url = f"/api/workstation/patient-session/{created['sessionId']}/documents/care-sheet/{document.id}"
+    created["_phoneHeaders"] = patient_headers
+    url = f"/api/patient-companion/station-session/{created['sessionId']}/documents/care-sheet/{document.id}?accessId={access.public_id}"
     return staff, created, url
 
 
@@ -38,7 +39,7 @@ def test_046_expired_identified_session_cannot_download_authorized_pdf(client, d
     row.expires_at = datetime.utcnow() - timedelta(seconds=1)
     db.commit()
 
-    denied = client.get(url, headers=staff)
+    denied = client.get(url, headers=created['_phoneHeaders'])
     assert denied.status_code in (404, 409), denied.text
     assert denied.headers.get("content-type", "").split(";")[0] != "application/pdf"
     db.expire_all()
@@ -55,7 +56,7 @@ def test_046_purged_identified_session_cannot_download_authorized_pdf(client, db
     row.patient_access_id = None
     db.commit()
 
-    denied = client.get(url, headers=staff)
+    denied = client.get(url, headers=created['_phoneHeaders'])
     assert denied.status_code in (404, 409), denied.text
     assert denied.headers.get("content-type", "").split(";")[0] != "application/pdf"
 
@@ -143,13 +144,18 @@ def test_045_two_role_sender_receiver_pdf_bytes_and_purge(client, db, dentiste):
     assert _claim(client, created, companion_headers, access).status_code == 200
 
     url = (
-        f"/api/workstation/patient-session/{created['sessionId']}"
-        f"/documents/care-sheet/{document.id}"
+        f"/api/patient-companion/station-session/{created['sessionId']}"
+        f"/documents/care-sheet/{document.id}?accessId={access.public_id}"
     )
-    received = client.get(url, headers=staff)
+    station_refused = client.get(
+        f"/api/workstation/patient-session/{created['sessionId']}/documents/care-sheet/{document.id}",
+        headers=staff,
+    )
+    assert station_refused.status_code == 423
+    received = client.get(url, headers=companion_headers)
     assert received.status_code == 200, received.text
     assert received.headers["content-type"].startswith("application/pdf")
-    assert received.headers["cache-control"] == "no-store"
+    assert "no-store" in received.headers["cache-control"]
     assert received.content == expected_pdf
     assert hashlib.sha256(received.content).hexdigest() == expected_hash
 
@@ -159,7 +165,7 @@ def test_045_two_role_sender_receiver_pdf_bytes_and_purge(client, db, dentiste):
         headers=staff,
     )
     assert purge.status_code == 204, purge.text
-    denied = client.get(url, headers=staff)
+    denied = client.get(url, headers=companion_headers)
     assert denied.status_code in (404, 409), denied.text
     assert denied.headers.get("content-type", "").split(";")[0] != "application/pdf"
 
