@@ -263,12 +263,14 @@ try {
       const afterReload=await shot(page,film,'all','1600x1000','api-reload');
       // Allow non-fatal font fetch console messages, but never API 401/403
       // during authenticated product use (negative probes use anon context).
-      const relevantErrors=consoleErrors.filter(msg=>/\b(401|403|404|500)\b|uncaught|TypeError|ReferenceError|not defined/i.test(msg));
-      if(relevantErrors.length){
+      const relevantErrors=consoleErrors.filter(msg=>/uncaught|TypeError|ReferenceError|not defined/i.test(msg));
+      const criticalHttp=badResponses.filter(r=>r.url.startsWith('/api/') ||
+        (r.resourceType==='script' && r.status>=400));
+      if(relevantErrors.length || criticalHttp.length || badResponses.length){
         await writeFile(path.join(out,film+'-browser-http-diagnostic.json'),
-          JSON.stringify({film,relevantErrors,badResponses},null,2));
+          JSON.stringify({film,relevantErrors,criticalHttp,badResponses},null,2));
       }
-      assert(relevantErrors.length===0,'Browser errors '+film+': '+relevantErrors.join(' | ').slice(0,700)
+      assert(relevantErrors.length===0 && criticalHttp.length===0,'Browser errors '+film+': '+relevantErrors.join(' | ').slice(0,700)
         +' HTTP='+JSON.stringify(badResponses).slice(0,1800));
       const filmApi=reqs.filter(r=>r.film===film);
       assert(filmApi.some(r=>r.method==='POST'&&r.url==='/api/ia/upload-radio'),
