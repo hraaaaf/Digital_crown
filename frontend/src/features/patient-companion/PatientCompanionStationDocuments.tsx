@@ -11,11 +11,12 @@ export const PatientCompanionStationDocuments = ({
 }: {
   sessionId: string;
   pairing: PatientPairing;
-  onClose: () => void;
+  onClose: (serverRevoked: boolean) => void;
 }) => {
   const [documents, setDocuments] = useState<StationCareSheet[]>([]);
   const [busy, setBusy] = useState(true);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [closing, setClosing] = useState(false);
   const [error, setError] = useState('');
   const endpoint = `${API_BASE}/api/patient-companion/station-session/${encodeURIComponent(sessionId)}/documents`;
   const access = `accessId=${encodeURIComponent(pairing.context.access_id)}`;
@@ -75,6 +76,30 @@ export const PatientCompanionStationDocuments = ({
     }
   };
 
+  const closeSession = async () => {
+    if (closing || downloadingId !== null) return;
+    setClosing(true);
+    let revoked = false;
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/patient-companion/station-session/${encodeURIComponent(sessionId)}/purge?${access}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${pairing.accessToken}` },
+          cache: 'no-store',
+        },
+      );
+      revoked = response.status === 204;
+    } catch {
+      // The UI must still clear sensitive content locally if the LAN is down.
+      // Report a possible server-side pending expiry to the parent.
+    } finally {
+      setDocuments([]);
+      onClose(revoked);
+      setClosing(false);
+    }
+  };
+
   return (
     <section data-pc-station-documents className="mb-4 rounded-2xl border border-primary/25 bg-card-bg p-5 shadow-sm">
       <h2 className="text-lg font-black text-primary">Mes feuilles de soins à retirer</h2>
@@ -89,7 +114,7 @@ export const PatientCompanionStationDocuments = ({
         <button
           key={documentId}
           type="button"
-          disabled={downloadingId !== null}
+          disabled={downloadingId !== null || closing}
           data-pc-care-sheet-download={documentId}
           onClick={() => void download(documentId)}
           className="mt-3 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-black text-white disabled:opacity-50"
@@ -103,8 +128,11 @@ export const PatientCompanionStationDocuments = ({
         </p>
       )}
       {error && <p role="alert" className="mt-3 text-sm font-bold text-rose-700">{error}</p>}
-      <button type="button" className="mt-4 min-h-11 w-full rounded-xl border border-border-main text-sm font-bold"
-        onClick={onClose}>Fermer cette session de retrait</button>
+      <button type="button" disabled={closing || downloadingId !== null}
+        className="mt-4 min-h-11 w-full rounded-xl border border-border-main text-sm font-bold disabled:opacity-50"
+        onClick={() => void closeSession()}>
+        {closing ? 'Révocation de la session…' : 'Terminer et effacer ma session'}
+      </button>
     </section>
   );
 };
