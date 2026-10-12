@@ -136,7 +136,7 @@ code {{font-size:28px;letter-spacing:3px}} small {{color:#526176}} img {{display
 <p><code>{html.escape(manual_code)}</code></p>
 <p>Le code d'appairage n'est valable qu'une fois. Puis revenez sur cette page.</p>
 {qr}{button}
-<p>Le QR Station change environ toutes les 80 secondes s'il n'a pas ete reclame. Ouvrez sa destination depuis ce telephone.</p>
+<p>Le QR Station change environ toutes les 2 minutes s'il n'a pas ete reclame. Ouvrez sa destination depuis ce telephone.</p>
 <p><small>PDF fictif autorise, SHA-256 attendu : <code style="font-size:11px;letter-spacing:0">{expected_digest}</code></small></p>
 <p><small>Fin automatique du labo a l'arret des jobs GitHub. Ce n'est ni un Cabinet de production, ni une validation NFC ou d'impression physique.</small></p>
 </body></html>"""
