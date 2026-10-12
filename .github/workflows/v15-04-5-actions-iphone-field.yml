@@ -1,0 +1,127 @@
+name: V1.5-04.5 Hybrid Actions Cabinet Station iPhone Synthetic
+on:
+  push:
+    branches: [lab/v15-04-5-actions-server-station-iphone-20261012]
+    paths: [.github/workflows/v15-04-5-actions-iphone-field.yml, backend/tests/field_actions_cabinet_server.py, backend/tests/field_actions_station_actor.py, frontend/vite.field-actions.config.ts]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: field-iphone-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  cabinet-server:
+    name: Cabinet FastAPI and React - GitHub runner 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      FIELD_LAB_ACK: synthetic-only
+      FIELD_DEMO_PASSWORD: "TestPass123!"
+      ENVIRONMENT: test
+      DATABASE_URL: "sqlite:///:memory:"
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      SECRET_KEY: "actions-04-5-isolated-synthetic-secret-only-20261012"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated FastAPI and React
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/field-reqs.txt
+          pip install -r /tmp/field-reqs.txt
+          cd frontend && npm ci
+      - name: Python syntax and isolation checks
+        run: |
+          python -m py_compile backend/tests/field_actions_cabinet_server.py backend/tests/field_actions_station_actor.py
+          grep -Fq 'sqlite:///:memory:' backend/tests/field_actions_cabinet_server.py
+          test "$ENVIRONMENT" = test
+          test "$FIELD_LAB_ACK" = synthetic-only
+      - name: Start temporary public HTTPS + live iPhone pairing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --max-time 120 https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared
+          chmod 700 /tmp/cloudflared
+          /tmp/cloudflared --version
+          /tmp/cloudflared tunnel --url http://127.0.0.1:5173 --no-autoupdate >/tmp/field-tunnel.log 2>&1 &
+          tunnel_pid=$!
+          server_pid=""
+          vite_pid=""
+          trap '[[ -z "$vite_pid" ]] || kill "$vite_pid" 2>/dev/null || true; [[ -z "$server_pid" ]] || kill "$server_pid" 2>/dev/null || true; kill "$tunnel_pid" 2>/dev/null || true' EXIT
+          origin=""
+          for i in {1..70}; do
+            origin=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/field-tunnel.log | head -n1 || true)
+            [[ -n "$origin" ]] && break
+            kill -0 "$tunnel_pid" 2>/dev/null || { cat /tmp/field-tunnel.log; exit 1; }
+            sleep 2
+          done
+          [[ "$origin" =~ ^https://[a-z0-9-]+\.trycloudflare\.com$ ]] || { cat /tmp/field-tunnel.log; exit 1; }
+          FIELD_PUBLIC_ORIGIN="$origin" python -m backend.tests.field_actions_cabinet_server >/tmp/field-cabinet.log 2>&1 &
+          server_pid=$!
+          (cd frontend && VITE_API_URL="$origin" ./node_modules/.bin/vite --config vite.field-actions.config.ts --host 127.0.0.1 --port 5173) >/tmp/field-vite.log 2>&1 &
+          vite_pid=$!
+          healthy=false
+          for i in {1..90}; do
+            if curl -fsS --max-time 8 "$origin/field-lab/health" | python -c 'import json,sys; d=json.load(sys.stdin); assert d["kind"]=="synthetic-gh-actions-cabinet"' 2>/dev/null; then healthy=true; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null || ! kill -0 "$vite_pid" 2>/dev/null; then tail -80 /tmp/field-cabinet.log /tmp/field-vite.log; exit 1; fi
+            sleep 3
+          done
+          [[ "$healthy" == true ]] || { tail -80 /tmp/field-cabinet.log /tmp/field-vite.log; exit 1; }
+          landing=$(grep '^FIELD_LAB_LANDING=' /tmp/field-cabinet.log | tail -n1 | cut -d= -f2-)
+          [[ "$landing" == "$origin"/field-lab?k=* ]] || { echo "Field landing not emitted"; exit 1; }
+          {
+            echo '### LIVE — 2 GitHub runners + ton iPhone'
+            echo "- **iPhone : $landing**"
+            echo "- Le code appairage est affiche sur la page ; puis ouvrir le QR Station actif."
+            echo "- Donnees fictives uniquement. Le lien meurt avec les jobs."
+            echo "- Run https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/844/comments" -f body="FIELD_LAB_RUN_ID=$GITHUB_RUN_ID FIELD_LAB_HOST=$origin
+          HYBRID_IPHONE_LINK=$landing
+          EXPIRES_WHEN_GITHUB_RUN_STOPS. SYNTHETIC_ONLY." >/dev/null
+          echo "FIELD_LAB_PHONE_LINK=$landing"
+          for i in $(seq 1 850); do
+            kill -0 "$server_pid" 2>/dev/null || { tail -80 /tmp/field-cabinet.log; exit 1; }
+            kill -0 "$vite_pid" 2>/dev/null || { tail -80 /tmp/field-vite.log; exit 1; }
+            kill -0 "$tunnel_pid" 2>/dev/null || { tail -80 /tmp/field-tunnel.log; exit 1; }
+            sleep 1
+          done
+          echo "FIELD_LAB_AUTO_EXPIRED"
+  station-runner:
+    name: Station QR and independent API - GitHub runner 2
+    runs-on: ubuntu-latest
+    timeout-minutes: 33
+    env:
+      FIELD_DEMO_PASSWORD: "TestPass123!"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install independent station HTTP client
+        run: python -m pip install httpx==0.28.1
+      - name: Enroll separate station and create QR sessions
+        run: python backend/tests/field_actions_station_actor.py
