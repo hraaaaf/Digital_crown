@@ -83,7 +83,7 @@ def _copy_path(path: Path, root: Path, attested_offline_copy: bool) -> tuple[Pat
         raise UnsafeSource("OFFLINE_COPY_ATTESTATION_REQUIRED")
     # Reject symlinks in every provided path component, not only the final file.
     for component in (root, *root.parents, path, *path.parents):
-        if component.is_symlink():
+        if component.is_symlink() or (hasattr(component, "is_junction") and component.is_junction()):
             raise UnsafeSource("SYMLINK_FORBIDDEN")
     try:
         base, resolved = root.resolve(strict=True), path.resolve(strict=True)
