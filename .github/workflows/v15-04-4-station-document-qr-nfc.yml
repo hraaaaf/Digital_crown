@@ -26,6 +26,7 @@ on:
       - "frontend/src/features/hub/StationPatientIdentity.test.tsx"
       - "frontend/src/features/hub/StationKioskShell.test.tsx"
       - "frontend/scripts/capture-v15-04-4-documents-identity.mjs"
+      - "frontend/scripts/capture-v15-04-5-companion-phone.mjs"
       - "frontend/scripts/capture-v15-03-3-patient-session.mjs"
       # Shared station journey checks change the meaning of QR/NFC FUE proof.
       - "frontend/scripts/audit-v15-00-3-fue-journeys.mjs"
@@ -47,6 +48,7 @@ on:
       - 'frontend/src/features/hub/StationPatientIdentity.tsx'
       - 'frontend/src/features/hub/StationPatientIdentity.test.tsx'
       - 'frontend/scripts/capture-v15-04-4-documents-identity.mjs'
+      - 'frontend/scripts/capture-v15-04-5-companion-phone.mjs'
       - '.github/workflows/v15-04-4-station-document-qr-nfc.yml'
   workflow_dispatch:
 
@@ -145,6 +147,9 @@ jobs:
           test -f artifacts/v15-03-3-patient-session-after/evidence.json
           node scripts/capture-v15-04-4-documents-identity.mjs
           test -f artifacts/v15-04-4-documents-identity-after/evidence.json
+          node --check scripts/capture-v15-04-5-companion-phone.mjs
+          node scripts/capture-v15-04-5-companion-phone.mjs
+          test -f artifacts/v15-04-5-companion-phone-after/evidence.json
           node --input-type=module -e 'import fs from "node:fs"; const e=JSON.parse(fs.readFileSync("artifacts/v15-04-4-documents-identity-after/evidence.json")); if(e.report.length!==48 || e.report.some(r=>r.errors.length || r.scrollWidth>r.width)) process.exit(1); console.log("04.4: 48 synthetic captures verified; real scanability not certified")'
       - name: Capture genuine base revision BEFORE evidence
         working-directory: frontend
@@ -160,6 +165,7 @@ jobs:
           git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
           git worktree add --detach /tmp/v15-04-4-base "${EVALUATED_BASE}"
           cp scripts/capture-v15-04-4-documents-identity.mjs /tmp/v15-04-4-base/frontend/capture-04-4-baseline.mjs
+          cp scripts/capture-v15-04-5-companion-phone.mjs /tmp/v15-04-4-base/frontend/capture-04-5-companion-baseline.mjs
           cd /tmp/v15-04-4-base/frontend
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
@@ -170,8 +176,11 @@ jobs:
           for i in {1..90}; do if curl -fsS http://127.0.0.1:4197 >/dev/null; then ready=1; break; fi; sleep 1; done
           if [[ "$ready" != 1 ]]; then cat /tmp/v15-04-4-before-ui.log; exit 1; fi
           EVIDENCE_PHASE=before EVALUATED_SHA="${EVALUATED_BASE}" node capture-04-4-baseline.mjs
+          EVIDENCE_PHASE=before EVALUATED_SHA="${EVALUATED_BASE}" node capture-04-5-companion-baseline.mjs
+          test -f artifacts/v15-04-5-companion-phone-before/evidence.json
           test -f artifacts/v15-04-4-documents-identity-before/evidence.json
           cp -r artifacts/v15-04-4-documents-identity-before "$GITHUB_WORKSPACE/frontend/artifacts/"
+          cp -r artifacts/v15-04-5-companion-phone-before "$GITHUB_WORKSPACE/frontend/artifacts/"
           cd "$GITHUB_WORKSPACE/frontend"
           node --input-type=module -e '
             import fs from "node:fs";
@@ -184,7 +193,19 @@ jobs:
               console.error("04.5 matched BEFORE/AFTER viewport/scenario comparison missing");
               process.exit(1);
             }
-            console.log("04.5 paired 48 BEFORE and 48 AFTER synthetic captures on pinned base and current HEAD");
+            console.log("04.5 paired 48 BEFORE and 48 AFTER synthetic Station captures on pinned base and current HEAD");
+            const beforePhone = JSON.parse(fs.readFileSync("artifacts/v15-04-5-companion-phone-before/evidence.json"));
+            const afterPhone = JSON.parse(fs.readFileSync("artifacts/v15-04-5-companion-phone-after/evidence.json"));
+            const phoneKey = r => [r.viewport, r.scale, r.filename.replace(/^(before|after)-/, "")].join("|");
+            const pre = new Set(beforePhone.report.map(phoneKey));
+            const post = new Set(afterPhone.report.map(phoneKey));
+            if (pre.size !== 8 || post.size !== 8 || [...pre].some(k => !post.has(k)) ||
+                beforePhone.report.some(r => r.documentPickupVisible || r.phoneDownloadVisible || r.errors.length) ||
+                afterPhone.report.some(r => !r.documentPickupVisible || !r.phoneDownloadVisible || r.errors.length)) {
+              console.error("04.5 matched personal Companion phone BEFORE/AFTER validation failed");
+              process.exit(1);
+            }
+            console.log("04.5 paired 8 BEFORE and 8 AFTER Patient Companion captures");
           '
       - name: Declare evidence scope
         working-directory: frontend
@@ -200,5 +221,7 @@ jobs:
             frontend/artifacts/v15-03-3-patient-session-after
             frontend/artifacts/v15-04-4-documents-identity-after
             frontend/artifacts/v15-04-4-documents-identity-before
+            frontend/artifacts/v15-04-5-companion-phone-after
+            frontend/artifacts/v15-04-5-companion-phone-before
           if-no-files-found: warn
           retention-days: 21
