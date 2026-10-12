@@ -5,7 +5,18 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
-from backend.services.legacy_sql_inspector_v15 import UnsafeSource, inspect_staged_copy
+# File-level import isolates this stdlib-only inspector from backend.__init__,
+# which imports SQLAlchemy and product runtime. No database connection is created.
+import importlib.util
+import sys
+
+module_path = Path(__file__).resolve().parents[1] / "services" / "legacy_sql_inspector_v15.py"
+spec = importlib.util.spec_from_file_location("legacy_sql_inspector_v15", module_path)
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+UnsafeSource = module.UnsafeSource
+inspect_staged_copy = module.inspect_staged_copy
 
 
 class TestOfflineSqlInspector(unittest.TestCase):
