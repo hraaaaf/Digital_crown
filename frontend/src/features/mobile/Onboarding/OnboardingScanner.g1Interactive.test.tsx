@@ -95,7 +95,7 @@ describe('OnboardingScanner G1 interactive matrix', () => {
     expect(resolveBridgeRoute(null)).toBe('/mobile/dashboard?tab=agenda');
   });
 
-  it('claims a manual token, stores derived credentials and shows true pairing success', async () => {
+  it('activates a device and opens Pocket home instead of forcing a desktop bridge module', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response(true, 200, {
         publicId: 'a'.repeat(16),
@@ -114,7 +114,8 @@ describe('OnboardingScanner G1 interactive matrix', () => {
     fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
 
     expect(await screen.findByText('Appairage réussi')).toBeTruthy();
-    expect(screen.getByText('Finance')).toBeTruthy();
+    expect(screen.getByText('Digital Crown Pocket')).toBeTruthy();
+    expect(screen.queryByText('Finance')).toBeNull();
     expect(MobileStorage.saveCredentials).toHaveBeenCalledWith(expect.objectContaining({
       publicId: 'a'.repeat(16),
       masterKey: 'a'.repeat(64),
@@ -198,8 +199,8 @@ describe('OnboardingScanner G1 interactive matrix', () => {
     expect(screen.getByRole('button', { name: "Valider le code d'appairage" })).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
-    const link = await screen.findByRole('link', { name: 'Continuer vers Agenda' }) as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe('/mobile/dashboard?tab=agenda');
+    const link = await screen.findByRole('link', { name: 'Continuer vers Digital Crown Pocket' }) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/mobile/dashboard');
     expect(link.origin).toBe(window.location.origin);
     // JSDOM does not perform native anchor navigation. The separately tested
     // automatic React transition verifies the destination; this test verifies
