@@ -7,6 +7,10 @@ import path from 'node:path';
 const phase = process.env.CEPH03B_PHASE;
 if (!['BEFORE', 'AFTER'].includes(phase)) throw Error('CEPH03B_PHASE must be BEFORE or AFTER');
 const productHead = process.env.PRODUCT_HEAD || 'unknown';
+// An independent repeatability gate may request fresh Chromium contexts per
+// desktop viewport/mode; default 1 preserves paired BEFORE/AFTER artifacts.
+const repeatCount = Number(process.env.CEPH03B_REPEAT || 1);
+if (!Number.isInteger(repeatCount) || repeatCount < 1 || repeatCount > 5) throw Error('Invalid CEPH03B_REPEAT');
 const root = process.cwd();
 const out = path.join(root, 'dc-ceph03b-' + phase.toLowerCase() + '-desktop-artifacts');
 const port = 5196;
@@ -48,7 +52,7 @@ async function waitForServer() {
   throw Error('Vite did not start');
 }
 
-async function browserCapture(viewport, mode) {
+async function browserCapture(viewport, mode, trial = 1) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce', locale: 'fr-FR' });
   const page = await context.newPage();
@@ -62,7 +66,7 @@ async function browserCapture(viewport, mode) {
     blockedExternalRequests.push({ viewport: viewport.name, mode: mode.name, url: route.request().url() });
     return route.abort('blockedbyclient');
   });
-  const prefix = phase.toLowerCase() + '-' + mode.name + '-' + viewport.name + '-';
+  const prefix = phase.toLowerCase() + '-' + mode.name + '-' + viewport.name + (repeatCount > 1 ? '-trial' + trial : '') + '-';
   const take = async state => {
     const name = prefix + state + '.png';
     await page.screenshot({ path: path.join(out, name), fullPage: false });
@@ -178,10 +182,10 @@ async function browserCapture(viewport, mode) {
     assert(horizontalOverflow, false, 'No horizontal overflow');
     assert(errors.length, 0, 'No page errors');
     assert(consoleErrors.length, 0, 'No console errors');
-    return { viewport: viewport.name, mode: mode.name, valid: true, initial, during, cancelled, committed, shots, errors, consoleErrors, horizontalOverflow };
+    return { viewport: viewport.name, mode: mode.name, trial, valid: true, initial, during, cancelled, committed, shots, errors, consoleErrors, horizontalOverflow };
   } catch (error) {
     await take('failure').catch(() => {});
-    return { viewport: viewport.name, mode: mode.name, valid: false, shots, errors: [...errors, String(error)], consoleErrors };
+    return { viewport: viewport.name, mode: mode.name, trial, valid: false, shots, errors: [...errors, String(error)], consoleErrors };
   } finally {
     await context.close().catch(() => {});
     await browser.close().catch(() => {});
@@ -189,7 +193,11 @@ async function browserCapture(viewport, mode) {
 }
 try {
   await waitForServer();
-  for (const viewport of viewports) for (const mode of modes) captures.push(await browserCapture(viewport,mode));
+  for (const viewport of viewports) for (const mode of modes) {
+    for (let trial = 1; trial <= repeatCount; trial += 1) {
+      captures.push(await browserCapture(viewport,mode,trial));
+    }
+  }
 } finally {
   if (!server.killed) server.kill('SIGTERM');
   await Promise.race([once(server,'exit'),new Promise(resolve => setTimeout(resolve,3000))]).catch(() => {});
@@ -197,7 +205,7 @@ try {
 }
 const report = {
   lot: 'DC-CEPH03B-DESKTOP-PAIRED-OVERLAY-DRAG',
-  phase, productHead,
+  phase, productHead, repeatCount,
   viewports: viewports.map(v => v.name),
   modes: modes.map(m => m.name),
   fixture: 'synthetic-only/no-patient-data',
