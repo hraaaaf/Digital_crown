@@ -9,10 +9,19 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+// On iOS, the Home Screen web app can report navigator.standalone even when
+// display-mode media queries lag during initial bootstrap. It has its own
+// credential store and must complete pairing inside THIS container.
+export function isStandalonePocketRuntime(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches
+    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(isStandalonePocketRuntime);
   const [isIOS, setIsIOS] = useState(() => {
     if (typeof window === 'undefined') return false;
     return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
@@ -20,7 +29,7 @@ export function usePWAInstall() {
 
   useEffect(() => {
     setTimeout(() => {
-      if (window.matchMedia('(display-mode: standalone)').matches) {
+      if (isStandalonePocketRuntime()) {
         setIsInstalled(true);
       }
     }, 0);
