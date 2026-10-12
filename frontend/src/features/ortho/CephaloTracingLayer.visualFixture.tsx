@@ -15,7 +15,10 @@ const initial: Landmark[] = [
   { id: 'U1_apex', x: 128, y: 117 }, { id: 'U1_incisal', x: 147, y: 151 },
   { id: 'L1_apex', x: 114, y: 195 }, { id: 'L1_incisal', x: 139, y: 153 },
 ];
-const mode = new URLSearchParams(window.location.search).get('mode') === 'com' ? 'com' : 'all';
+const params = new URLSearchParams(window.location.search);
+const mode = params.get('mode') === 'com' ? 'com' : 'all';
+// Synthetic desktop zoom fixture only; standard mode defaults to scale 1.
+const zoom = params.get('zoom') === '125' ? 1.25 : 1;
 
 const Fixture: React.FC = () => {
   const [landmarks, setLandmarks] = useState<Landmark[]>(initial);
@@ -34,6 +37,7 @@ const Fixture: React.FC = () => {
         </div>
       </header>
       <section data-ceph03b-browser-fixture={mode} style={{ position: 'relative', height: 'calc(100vh - 115px)', maxWidth: 1240, margin: '10px auto 0', borderRadius: 16, overflow: 'hidden', background: 'radial-gradient(ellipse at 53% 38%, #334155, #020617 80%)' }}>
+        <div data-ceph03b-zoom={zoom} style={{ position: 'absolute', inset: 0, transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
         <CephaloTracingLayer
           imageWidth={240} imageHeight={240} landmarks={landmarks}
           ghosts={[{ layerId: 't1', opacity: 0.35, color: '#94a3b8', landmarks: initial.map(p => ({ ...p, x: p.x + 5 })) }]}
@@ -46,6 +50,7 @@ const Fixture: React.FC = () => {
             opacity: createDefaultLayerOpacity(),
           }}
         />
+        </div>
       </section>
     </main>
   );
