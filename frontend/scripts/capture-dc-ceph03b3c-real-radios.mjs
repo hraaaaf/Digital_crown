@@ -32,7 +32,7 @@ await writeFile(path.join(root,htmlFile),
 await writeFile(path.join(root,configFile),
   "import { defineConfig } from 'vite';\n"+
   "import react from '@vitejs/plugin-react';\n"+
-  "export default defineConfig({ plugins:[react()], server:{strictPort:true}, optimizeDeps:{noDiscovery:true, include:['react','react-dom/client','framer-motion']} });\n");
+  "export default defineConfig({ plugins:[react()], server:{strictPort:true}, optimizeDeps:{noDiscovery:true, include:['react','react-dom/client','framer-motion','localforage','zustand','zustand/middleware']} });\n");
 const server=spawn(path.join(root,'node_modules/.bin/vite'),
   ['--config',configFile,'--host','127.0.0.1','--port',String(port)],
   {cwd:root,env:{...process.env,BROWSER:'none'},stdio:['ignore','pipe','pipe']});
@@ -57,6 +57,7 @@ try{
       valid:false,images:[],errors:[],consoleErrors:[],navigationCount:0};
     const context=await browser.newContext({viewport,locale:'fr-FR',reducedMotion:'reduce'});
     const page=await context.newPage();
+    page.setDefaultTimeout(8000);
     page.on('pageerror',e=>record.consoleErrors.push(e.message));
     page.on('console',e=>{if(e.type()==='error')record.consoleErrors.push(e.text())});
     page.on('framenavigated',f=>{if(f===page.mainFrame())record.navigationCount++});
