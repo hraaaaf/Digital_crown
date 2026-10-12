@@ -32,6 +32,7 @@ jobs:
               backend/services/cephalo_service.py | \
               backend/tests/test_ceph03b4b_scale_source_resolver.py | \
               backend/tests/test_cephalo_service_calibration_candidate.py | \
+              backend/tests/ceph03b3f_live_http_server.py | \
               frontend/scripts/certify-ceph03b3f-live-step1.mjs | \
               .github/workflows/dc-ceph03b4b-scale-source.yml | \
               .github/workflows/dc-ceph03b4b-live-http.yml) ;;
