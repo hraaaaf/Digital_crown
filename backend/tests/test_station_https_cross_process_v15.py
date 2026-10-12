@@ -257,6 +257,8 @@ def test_045_tls_sender_companion_receiver_are_independent_os_processes(
         assert purged["purged"] and purged["listing_denied"] and purged["pdf_denied"]
         evidence = {
             "lot": "V1.5-04.5", "gate": "RPG-X",
+            "github_sha": os.getenv("GITHUB_SHA"),
+            "observed_utc": datetime.utcnow().isoformat() + "Z",
             "transport": "verified HTTPS localhost TCP socket with test-only ephemeral TLS certificate",
             "actors": {"sender_pid": sender["pid"], "station_create_pid": created["pid"],
                        "companion_pid": patient["pid"], "receiver_pid": received["pid"],
