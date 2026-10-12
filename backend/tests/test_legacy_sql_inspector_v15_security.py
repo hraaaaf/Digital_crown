@@ -101,6 +101,17 @@ class TestLegacyInspectorSecurity(unittest.TestCase):
         with self.assertRaisesRegex(inspector.UnsafeSource, "SYMLINK_FORBIDDEN"):
             self.inspect(alias / "copy.sql")
 
+    def test_windows_junction_alias_guard_is_fail_closed(self):
+        path = self.root / "junction" / "source.sql"
+        path.parent.mkdir()
+        path.write_bytes(b"CREATE TABLE x (id INT);")
+        # Portable test of the guard; NOT a real Windows NTFS junction field test.
+        if not hasattr(Path, "is_junction"):
+            self.skipTest("Python path junction check unavailable")
+        with patch.object(Path, "is_junction", lambda self: self.name == "junction"):
+            with self.assertRaisesRegex(inspector.UnsafeSource, "SYMLINK_FORBIDDEN"):
+                self.inspect(path)
+
     def test_sqlite_wal_sidecar_requires_cold_copy(self):
         db = self.root / "copy.sqlite"
         with sqlite3.connect(db) as cx:
