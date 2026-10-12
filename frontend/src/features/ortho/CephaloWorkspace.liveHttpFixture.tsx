@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import '../../index.css';
 import { CephaloWorkspace } from './CephaloWorkspace';
 import { Toaster } from 'react-hot-toast';
+import { BrowserRouter } from 'react-router-dom';
 
 // Harness-only entry: render the real Step1/Workspace + Zustand store + Axios
 // repository. No prediction JSON, endpoint mocking, fake data in frontend or
@@ -17,7 +18,9 @@ document.body.dataset.theme = 'light';
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter>
     <div data-ceph03b3f-live-http-step1 style={{ height: '100vh', minHeight: 900 }}>
+      <BrowserRouter>
       <CephaloWorkspace patientId={patientId} patientName="PUBLIC RADIO — TEST SYNTHÉTIQUE" />
+    </BrowserRouter>
       <Toaster />
     </div>
   </BrowserRouter>,
