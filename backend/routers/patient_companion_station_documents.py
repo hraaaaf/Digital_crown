@@ -183,11 +183,7 @@ def companion_station_care_sheet(
         action=WITHDRAW_ACTION,
         resource_type="DocumentArchive",
         resource_id=str(doc.id),
-        details=(
-            f"Verified PDF delivered to authenticated Patient Companion;"
-            f" patient_id={principal.patient_id};access_id={principal.access_id};"
-            f" sha256={doc.file_hash}"
-        ),
+        details=f"Verified PDF delivered to authenticated Patient Companion;sha256={doc.file_hash}",
         ip_address=request.client.host if request.client else None,
     ))
     db.commit()
@@ -253,7 +249,7 @@ def companion_station_presence_receipt(
         user_id=None, employer_id=principal.employer_id,
         action="STATION_PRESENCE_RECEIPT_WITHDRAWN_PHONE",
         resource_type="Appointment", resource_id=str(appointment.id),
-        details=f"patient_id={principal.patient_id};access_id={principal.access_id};proof={proof.audit_id}",
+        details=f"Authenticated Patient Companion;proof={proof.audit_id}",
         ip_address=request.client.host if request.client else None,
     ))
     db.commit()
@@ -273,6 +269,7 @@ def companion_station_presence_receipt(
 @router.post("/station-session/{session_id}/purge", status_code=204)
 def companion_purge_station_documents(
     session_id: str,
+    request: Request,
     access_id: str = Query(alias="accessId", min_length=36, max_length=36),
     db: Session = Depends(get_db),
     identity: PatientCompanionIdentity = Depends(patient_identity),
@@ -312,6 +309,15 @@ def companion_purge_station_documents(
     if updated != 1:
         db.rollback()
         raise HTTPException(status_code=404, detail="STATION_DOCUMENT_SESSION_NOT_FOUND")
+    db.add(models.AuditLog(
+        user_id=None,
+        employer_id=principal.employer_id,
+        action="STATION_DOCUMENT_SESSION_PURGED_PHONE",
+        resource_type="WorkstationPatientSession",
+        resource_id=session_id,
+        details="patient_binding_cleared=true;actor=authenticated_companion",
+        ip_address=request.client.host if request.client else None,
+    ))
     db.commit()
     return Response(
         status_code=204,
