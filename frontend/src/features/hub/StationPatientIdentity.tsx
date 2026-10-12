@@ -28,6 +28,7 @@ const COPY = {
     documentsVerified: 'Identité confirmée',
     documentsConstruction: 'Le retrait des documents est en cours de construction sur cette station.',
     documentsStaff: 'Aucune feuille de soins autorisée à retirer. Adressez-vous à l’accueil.',
+    documentsFallback: 'Pour retirer ce document, adressez-vous au personnel du cabinet. Le retrait sur téléphone nécessite Patient Companion appairé.',
     documentsReady: 'Feuille de soins disponible sur votre téléphone dans Patient Companion. Aucun PDF ne sera conservé sur cette borne.',
   },
   en: {
@@ -51,6 +52,7 @@ const COPY = {
     documentsVerified: 'Identity confirmed',
     documentsConstruction: 'Document collection is under construction at this station.',
     documentsStaff: 'No care sheet is available for collection. Please contact reception.',
+    documentsFallback: 'Please contact reception to collect this document. Phone delivery requires a paired Patient Companion.',
     documentsReady: 'Care sheet available on your phone in Patient Companion. This station does not save PDF files.',
   },
   ar: {
@@ -74,6 +76,7 @@ const COPY = {
     documentsVerified: 'تم تأكيد الهوية',
     documentsConstruction: 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.',
     documentsStaff: 'لا توجد ورقة علاج مرخصة للاستلام. يرجى مراجعة الاستقبال.',
+    documentsFallback: 'يرجى مراجعة فريق العيادة لاستلام الوثيقة. يتطلب التسليم عبر الهاتف ربط Patient Companion.',
     documentsReady: 'ورقة العلاج متاحة على هاتفكم في Patient Companion. لن تحتفظ هذه المحطة بأي ملف PDF.',
   },
 } as const;
@@ -296,7 +299,7 @@ export const StationPatientIdentity = ({
         )}
         {!documentsBusy && availableDocuments.length > 0 && !documentsError && !companionPaired && (
           <p data-station-phone-fallback className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">
-            {copy.documentsStaff}
+            {copy.documentsFallback}
           </p>
         )}
         {!documentsBusy && availableDocuments.length > 0 && !documentsError && companionPaired && (
