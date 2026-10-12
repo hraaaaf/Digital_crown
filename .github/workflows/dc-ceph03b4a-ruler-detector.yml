@@ -81,7 +81,12 @@ jobs:
           export DC_CEPH03B4A_PROOF="$RUNNER_TEMP/ceph03b4a-proof"
           echo "DC_CEPH03B4A_PROOF=$DC_CEPH03B4A_PROOF" >> "$GITHUB_ENV"
           python - <<'PY'
-          import cv2, json, os, pathlib, subprocess
+          import cv2, json, os, pathlib, subprocess, sys, types
+          # Avoid importing the full clinic ORM from backend/__init__.py:
+          # geometry-only certification runs the real module and public JPEGs.
+          pkg=types.ModuleType('backend')
+          pkg.__path__=[str(pathlib.Path.cwd()/'backend')]
+          sys.modules['backend']=pkg
           from backend.services.calibration_service import CalibrationService
           baseline=subprocess.check_output(['git','show',os.environ['BASE_HEAD']+':backend/services/calibration_service.py'],text=True)
           ns={'__name__':'baseline_calibration_service'}
@@ -127,12 +132,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pytest -q \
-            backend/tests/test_calibration_service_candidate.py \
-            backend/tests/test_ceph03b4a_ruler_detector.py \
-            backend/tests/test_cephalo_calibration_candidate.py \
-            backend/tests/test_cephalo_auto_calibration_gate.py
           python - <<'PY'
+          import pathlib,sys,types,pytest
+          pkg=types.ModuleType('backend')
+          pkg.__path__=[str(pathlib.Path.cwd()/'backend')]
+          sys.modules['backend']=pkg
+          outcome=pytest.main(['-q',
+            'backend/tests/test_calibration_service_candidate.py',
+            'backend/tests/test_ceph03b4a_ruler_detector.py',
+            'backend/tests/test_cephalo_calibration_candidate.py',
+            'backend/tests/test_cephalo_auto_calibration_gate.py'])
+          if outcome != 0:
+              raise SystemExit(outcome)
           from backend.services.cephalo_fiducial_profiles import validated_fiducial_profiles
           assert validated_fiducial_profiles.profile_count==0, 'Never enable physical profiles from geometry-only work'
           from backend.services.calibration_service import CalibrationService
