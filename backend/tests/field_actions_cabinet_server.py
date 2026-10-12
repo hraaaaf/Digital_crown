@@ -51,12 +51,13 @@ current: dict[str, str] = {}
 run_id = os.environ["GITHUB_RUN_ID"]
 email = f"field-{run_id}@example.com"
 password = os.environ["FIELD_DEMO_PASSWORD"]
-assert len(password) >= 16
+assert password == "TestPass123!", "Demo password must remain fixture-only"
 
 # Seed with the same real service paths as the proven FastAPI HTTPS test.
 db = fixture._SessionLocal()
 owner = fixture.make_user(db, email=email, password=password)
-with TestClient(app) as client:
+client = TestClient(app)
+try:
     staff, initial_station_id = _station(client, owner)
     client.cookies.delete(WORKSTATION_COOKIE)
     enrollment = client.post(
@@ -86,7 +87,10 @@ with TestClient(app) as client:
     assert invitation.status_code == 201, invitation.text
     manual_code = invitation.json()["manual_code"]
     assert len(manual_code) >= 6
+finally:
+    client.close()
 db.close()
+cabinet_workstation_id = enrollment.json()["workstationId"]
 
 
 class StationPublish(BaseModel):
@@ -98,6 +102,8 @@ def _require_field_key(key: str) -> None:
     if not secrets.compare_digest(key, field_key):
         raise HTTPException(404, "FIELD_NOT_FOUND")
 
+
+_existing_route_count = len(app.router.routes)
 
 @app.get("/field-lab", response_class=HTMLResponse, include_in_schema=False)
 def field_landing(k: str = ""):
@@ -167,8 +173,13 @@ def station_publish(
 
 @app.get("/field-lab/health", include_in_schema=False)
 def field_health():
-    return {"kind": "synthetic-gh-actions-cabinet", "run_id": run_id, "ready": True}
+    return {"kind": "synthetic-gh-actions-cabinet", "run_id": run_id, "ready": True, "document_id": document.id, "cabinet_workstation_id": cabinet_workstation_id}
 
+
+# Starlette uses first-match routing. The product may register a SPA catchall;
+# place temporary lab-only endpoints before any catchall in this isolated process.
+_lab_routes = app.router.routes[_existing_route_count:]
+app.router.routes[:] = _lab_routes + app.router.routes[:_existing_route_count]
 
 if __name__ == "__main__":
     import uvicorn
