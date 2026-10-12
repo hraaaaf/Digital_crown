@@ -6,7 +6,9 @@ on:
       - feat/v15-04-8-print-policy-bridge-20261012
     paths:
       - backend/services/station_document_print_policy.py
+      - backend/services/station_document_print_configuration.py
       - backend/tests/test_station_document_print_policy_v15.py
+      - backend/tests/test_station_document_print_configuration_v15.py
       - .github/workflows/v15-04-8-station-print-policy.yml
       - docs/quality/V15_04_8_POCKET_852_BOUNDARY_CONTRACT.md
   pull_request:
@@ -14,7 +16,9 @@ on:
       - feat/v15-04-4-station-bound-document-qr-nfc-20261011
     paths:
       - backend/services/station_document_print_policy.py
+      - backend/services/station_document_print_configuration.py
       - backend/tests/test_station_document_print_policy_v15.py
+      - backend/tests/test_station_document_print_configuration_v15.py
       - .github/workflows/v15-04-8-station-print-policy.yml
       - docs/quality/V15_04_8_POCKET_852_BOUNDARY_CONTRACT.md
   workflow_dispatch:
@@ -41,7 +45,7 @@ jobs:
       - name: Minimal pytest dependency
         run: python -m pip install pytest
       - name: Policy source syntax
-        run: python -m py_compile backend/services/station_document_print_policy.py
+        run: python -m py_compile backend/services/station_document_print_policy.py backend/services/station_document_print_configuration.py
       - name: Pure module unit tests without unrelated backend boot side effects
         run: |
           # backend/tests/conftest.py boots every SQLAlchemy model and FastAPI
@@ -50,6 +54,7 @@ jobs:
           # a separate REQUIRED gate before real print routes exist.
           mkdir -p /tmp/dc04-8-print-policy
           cp backend/tests/test_station_document_print_policy_v15.py /tmp/dc04-8-print-policy/test_print_policy.py
+          cp backend/tests/test_station_document_print_configuration_v15.py /tmp/dc04-8-print-policy/test_print_configuration.py
           python - <<'PY'
           import os
           import sys
