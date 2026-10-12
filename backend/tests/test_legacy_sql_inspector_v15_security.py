@@ -125,6 +125,20 @@ class TestLegacyInspectorSecurity(unittest.TestCase):
             self.inspect(db, "sqlite")
         self.assertEqual(db.read_bytes(), before)
 
+    def test_sqlite_wal_header_without_sidecar_refused(self):
+        db = self.root / "wal-mode.sqlite"
+        with sqlite3.connect(db) as cx:
+            cx.execute("PRAGMA journal_mode=WAL")
+            cx.execute("CREATE TABLE people (id INTEGER PRIMARY KEY)")
+            cx.commit()
+        # Closing the last connection checkpoints/removes WAL sidecars on
+        # typical SQLite builds, but WAL-mode page-header markers remain.
+        self.assertEqual(db.read_bytes()[18:20], b"\x02\x02")
+        with self.assertRaisesRegex(
+            inspector.UnsafeSource, "SQLITE_ROLLBACK_JOURNAL_COPY_REQUIRED"
+        ):
+            self.inspect(db, "sqlite")
+
     def test_sqlite_inspection_does_not_create_sidecars(self):
         db = self.root / "copy.sqlite"
         with sqlite3.connect(db) as cx:
