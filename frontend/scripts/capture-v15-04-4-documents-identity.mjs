@@ -204,7 +204,7 @@ const evidence = {
   phase,
   head: process.env.EVALUATED_SHA || process.env.GITHUB_SHA || null,
   base: process.env.EVALUATED_BASE || null,
-  limitations: [' 'Synthetic QR placeholder: scanability not certified', 'Mocked session status: real expiry and revocation require backend tests', 'Screenshots are AFTER only unless EVIDENCE_PHASE=before is explicitly run against the matching base'],
+  limitations: ['Synthetic QR placeholder: scanability not certified', 'Mocked session status: real expiry and revocation require backend tests', 'Screenshots are AFTER only unless EVIDENCE_PHASE=before is explicitly run against the matching base'],
   report,
 };
 await fs.writeFile(path.join(out, 'evidence.json'), JSON.stringify(evidence, null, 2));
