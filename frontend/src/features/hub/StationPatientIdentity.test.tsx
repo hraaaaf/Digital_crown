@@ -225,7 +225,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
   it('04.5 signals eligible documents without ever downloading them to a shared Station', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
-      claimedAt: new Date().toISOString(),
+      claimedAt: new Date().toISOString(), companionPaired: true,
     });
     vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({
       documents: [{ documentId: 42, kind: 'care_sheet' }],
@@ -241,6 +241,19 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     } finally {
       URL.createObjectURL = originalCreate;
     }
+  });
+
+  it('04.5 never suggests a phone pickup after phone-less fallback', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(), companionPaired: false,
+    });
+    vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({
+      documents: [{ documentId: 42, kind: 'care_sheet' }],
+    });
+    render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
+    expect(await screen.findByText(/Aucune feuille de soins autorisée à retirer/)).toBeInTheDocument();
+    expect(screen.queryByText(/disponible sur votre téléphone/i)).not.toBeInTheDocument();
   });
 
   it('04.5 keeps the kiosk fail closed when document discovery fails', async () => {
