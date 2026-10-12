@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Landmark } from '../cephaloShared';
 import { CephaloLandmarkReticles } from './CephaloLandmarkReticles';
+import { CephaloTracingLayer as CephaloTracingLayerBase } from '../CephaloTracingLayerBase';
 
 const baseline: Landmark[] = [{ id: 'N', x: 30, y: 40 }, { id: 'S', x: 60, y: 70 }];
 
@@ -60,6 +61,8 @@ const dispatchPointer = (
 };
 
 describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
+  const originalSvgPoint = SVGSVGElement.prototype.createSVGPoint;
+  const originalScreenCTM = SVGSVGElement.prototype.getScreenCTM;
   const originalCapture = Element.prototype.setPointerCapture;
   beforeEach(() => {
     Object.defineProperty(Element.prototype, 'setPointerCapture', {
@@ -77,6 +80,15 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
       });
     } else {
       delete (Element.prototype as Element & { setPointerCapture?: unknown }).setPointerCapture;
+    }
+    for (const [name, original] of [
+      ['createSVGPoint', originalSvgPoint],
+      ['getScreenCTM', originalScreenCTM],
+    ] as const) {
+      if (original) Object.defineProperty(SVGSVGElement.prototype, name, {
+        configurable: true, writable: true, value: original,
+      });
+      else delete (SVGSVGElement.prototype as unknown as Record<string, unknown>)[name];
     }
     vi.restoreAllMocks();
   });
@@ -122,4 +134,47 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     expect(state().getAttribute('data-active')).toBe('');
     expect(state().getAttribute('data-preview')).toBe('');
   });
+
+  it('renders an anatomical SN trace at the live preview position under enabled VTO, then restores it on cancel', () => {
+    // Identity CTM: the oracle does not depend on viewBox pixel scaling.
+    Object.defineProperty(SVGSVGElement.prototype, 'getScreenCTM', {
+      configurable: true, value: () => ({ inverse: () => ({}) }),
+    });
+    Object.defineProperty(SVGSVGElement.prototype, 'createSVGPoint', {
+      configurable: true, value: () => ({
+        x: 0, y: 0,
+        matrixTransform(this: { x: number; y: number }) {
+          return { x: this.x, y: this.y };
+        },
+      }),
+    });
+
+    const onUpdate = vi.fn();
+    render(
+      <CephaloTracingLayerBase
+        landmarks={[{ id: 'S', x: 30, y: 40 }, { id: 'N', x: 60, y: 50 }]}
+        imageWidth={300}
+        imageHeight={300}
+        onUpdateLandmarks={onUpdate}
+        magnifierEnabled={false}
+        activeAnalysis="steiner"
+        vto={{ enabled: true, showGhostFace: false, showSoftTissue: false }}
+      />,
+    );
+
+    const line = () => document.querySelector('[data-cephalo-line-key="sn"]');
+    expect(line()).not.toBeNull();
+    expect(line()?.getAttribute('x2')).toBe('60');
+    const handle = dragHandle();
+    dispatchPointer(handle, 'pointerdown', 8, 60, 50);
+    dispatchPointer(handle, 'pointermove', 8, 110, 95);
+    expect(line()?.getAttribute('x2')).toBe('110');
+    expect(line()?.getAttribute('y2')).toBe('95');
+    expect(onUpdate).not.toHaveBeenCalled();
+    dispatchPointer(handle, 'pointercancel', 8);
+    expect(line()?.getAttribute('x2')).toBe('60');
+    expect(line()?.getAttribute('y2')).toBe('50');
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
 });
