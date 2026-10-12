@@ -10,6 +10,7 @@ const out = path.join(root, 'dc-ceph03b3-keyboard-zoom-artifacts');
 // then publish evidence only after stopping the server.
 const scratch = path.join(root, 'node_modules', '.cache', 'dc-ceph03b3-browser-captures');
 const fileName = 'ceph03b3-keyboard-zoom.html';
+const viteConfigName = 'ceph03b3-isolated.vite.config.mjs';
 const port = 5197;
 const url = 'http://127.0.0.1:' + port + '/' + fileName;
 const sourceHead = process.env.GITHUB_SHA || process.env.PRODUCT_HEAD || 'unknown';
@@ -23,7 +24,15 @@ await rm(scratch,{recursive:true,force:true});
 await mkdir(scratch,{recursive:true});
 await mkdir(out,{recursive:true});
 await writeFile(path.join(root,fileName),html);
-const server=spawn(path.join(root,'node_modules','.bin','vite'),['--host','127.0.0.1','--port',String(port)],{cwd:root,env:{...process.env,BROWSER:'none'},stdio:['ignore','pipe','pipe']});
+// The app's standard VitePWA dev plugin optimizes workbox-window late and
+// emits a full-page reload while Chromium is dragging. No PWA is part of
+// this synthetic desktop proof: keep the same React/TSX transform and
+// opt out of dev service workers and unexpected dependency scans.
+await writeFile(path.join(root,viteConfigName),
+  "import { defineConfig } from 'vite';\n" +
+  "import react from '@vitejs/plugin-react';\n" +
+  "export default defineConfig({ plugins: [react()], server: { strictPort: true }, optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client', 'framer-motion'] } });\n");
+const server=spawn(path.join(root,'node_modules','.bin','vite'),['--config',viteConfigName,'--host','127.0.0.1','--port',String(port)],{cwd:root,env:{...process.env,BROWSER:'none'},stdio:['ignore','pipe','pipe']});
 let serverLog='';
 server.stdout.on('data',chunk=>serverLog+=chunk);
 server.stderr.on('data',chunk=>serverLog+=chunk);
