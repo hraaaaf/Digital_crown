@@ -801,6 +801,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         {isLayerVisible('landmarks') && <g opacity={layerOpacityFor('landmarks')} data-ortho-layer="landmarks">
         <CephaloLandmarkReticles
           landmarks={landmarks}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
           isCalibrating={isCalibrating}
           baseOpacity={baseOpacity}
           activeDragId={activeDragId}
