@@ -203,6 +203,12 @@ class TestMappingDraft(unittest.TestCase):
         with self.assertRaisesRegex(I, "DRAFT_TAMPERED"):
             m.revalidate_mapping_draft(altered, s, t)
 
+    def test_forged_approval_flags_refused_even_if_digest_matches(self):
+        s, t, _ = setup()
+        for flag in ("admin_approved", "import_permitted", "dry_run_completed"):
+            with self.subTest(flag=flag), self.assertRaisesRegex(I, "DRAFT_CANNOT_AUTHORIZE"):
+                m.revalidate_mapping_draft(replace(draft(), **{flag: True}), s, t)
+
     def test_invalid_profile_version_refused(self):
         s, t, ds = setup()
         with self.assertRaisesRegex(I, "INVALID_PROFILE_VERSION"):
