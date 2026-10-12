@@ -15,12 +15,19 @@ from typing import Any, Iterable
 
 from sqlalchemy import MetaData
 
-from backend.services.legacy_sql_mapping_v15 import TargetSnapshot, TargetTable
-from backend.core.schema_runtime import CURRENT_ALEMBIC_HEAD
+# Frozen from backend/core/schema_runtime.py; a source-only unit test must
+# reject drift. Never import backend.*: backend/__init__.py bootstraps services.
+DECLARED_EXPECTED_ALEMBIC_HEAD = "neo000000027"
 
 
 class TargetManifestRefused(ValueError):
     """Generic metadata-only rejection code; no source values in errors."""
+
+
+@dataclass(frozen=True)
+class DeclaredTable:
+    name: str
+    columns: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -29,7 +36,7 @@ class DeclaredTargetManifest:
 
     declared_revision: str
     schema_fingerprint: str
-    tables: tuple[TargetTable, ...]
+    tables: tuple[DeclaredTable, ...]
     filtered_column_count: int
     provenance: str = "SQLALCHEMY_DECLARED_METADATA_ONLY"
     physical_schema_verified: bool = False
@@ -38,10 +45,11 @@ class DeclaredTargetManifest:
     dry_run_completed: bool = False
     import_permitted: bool = False
 
-    def as_mapping_target(self) -> TargetSnapshot:
-        return TargetSnapshot(
+    def as_mapping_target(self, *, snapshot_type: type, table_type: type) -> Any:
+        """Bridge by explicit constructor injection; never import backend runtime."""
+        return snapshot_type(
             schema_revision="orm-declared:" + self.declared_revision,
-            tables=self.tables,
+            tables=tuple(table_type(t.name, t.columns) for t in self.tables),
         )
 
     def as_ui_json(self) -> dict[str, Any]:
@@ -127,7 +135,7 @@ def build_declared_target_manifest(
         raise TargetManifestRefused("DECLARATIVE_METADATA_REQUIRED")
     if not isinstance(declared_revision, str) or not _REVISION.fullmatch(declared_revision):
         raise TargetManifestRefused("INVALID_DECLARED_REVISION")
-    if declared_revision != CURRENT_ALEMBIC_HEAD:
+    if declared_revision != DECLARED_EXPECTED_ALEMBIC_HEAD:
         raise TargetManifestRefused("DECLARED_ALEMBIC_REVISION_MISMATCH")
     if (not isinstance(requested_tables, tuple)
             or not 0 < len(requested_tables) <= _MAX_TABLES):
@@ -148,7 +156,7 @@ def build_declared_target_manifest(
     if any(name not in lookup for name in requested_tables):
         raise TargetManifestRefused("REQUESTED_TARGET_TABLE_MISSING")
 
-    preview_tables: list[TargetTable] = []
+    preview_tables: list[DeclaredTable] = []
     excluded_columns = 0
     for name in sorted(requested_tables):
         table = lookup[name]
@@ -165,7 +173,7 @@ def build_declared_target_manifest(
         if not allowed:
             # Never silently omit an entire table because all columns are secrets.
             raise TargetManifestRefused("NO_SAFE_COLUMNS_IN_TARGET_TABLE")
-        preview_tables.append(TargetTable(name, tuple(sorted(allowed))))
+        preview_tables.append(DeclaredTable(name, tuple(sorted(allowed))))
 
     tables = tuple(preview_tables)
     metadata_digest = {
