@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ChangeEvent } from 'react';
+import { useId, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Database, LockKeyhole } from 'lucide-react';
 import {
   isCredentialName, isSupportedJsonSize, parseSourceInventory, parseTargetInventory,
@@ -15,6 +15,7 @@ const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 roun
 export function MigrationMappingStudio({ initialSource, initialTarget }: Props) {
   const sourceId = useId();
   const targetId = useId();
+  const uploadGeneration = useRef({ source: 0, target: 0 });
   const [source, setSource] = useState<SchemaInventory | null>(initialSource ?? null);
   const [target, setTarget] = useState<TargetInventory | null>(initialTarget ?? null);
   const [decisions, setDecisions] = useState<ReviewDecisions>({});
@@ -24,6 +25,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
 
   async function loadReport(event: ChangeEvent<HTMLInputElement>, kind: 'source' | 'target') {
     const file = event.currentTarget.files?.[0];
+    const generation = ++uploadGeneration.current[kind];
     event.currentTarget.value = '';
     setStage('load');
     setDecisions({});
@@ -33,9 +35,11 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
     try {
       if (!isSupportedJsonSize(file.size)) throw new Error('TAILLE_JSON_INVALIDE');
       const contents = await file.text();
+      if (uploadGeneration.current[kind] !== generation) return;
       if (kind === 'source') setSource(parseSourceInventory(contents));
       else setTarget(parseTargetInventory(contents));
     } catch (cause) {
+      if (uploadGeneration.current[kind] !== generation) return;
       setError(cause instanceof Error ? cause.message : 'RAPPORT_INVALIDE');
     }
   }
@@ -186,6 +190,17 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
           {([['Tables', source.tables.length],['Décisions', tally?.reviewed || 0],['Non mappées', tally?.unmapped || 0],['Collisions', tally?.collisions || 0]] as const).map(([name, val]) =>
             <div key={name} className="rounded-xl border border-border-main p-3"><dt className="text-xs text-text-muted">{name}</dt><dd className="text-2xl font-black">{val}</dd></div>)}
         </dl>
+        <h3 className="text-sm font-black">Détail des décisions examinées</h3>
+        <ul className="space-y-3" aria-label="Correspondances récapitulées">
+          {source.tables.map(table => <li key={table.name} className="rounded-xl border border-border-main p-3">
+            <p className="break-all text-sm font-bold">{table.name} → {decisions[table.name]?.target ?? 'Non importée'}</p>
+            <ul className="mt-2 space-y-1 pl-3 text-xs text-text-muted">
+              {table.columns.map(column => <li key={column.name} className="break-all">
+                {column.name} → {decisions[table.name]?.columns[column.name] ?? 'Non mappée'}
+              </li>)}
+            </ul>
+          </li>)}
+        </ul>
         <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-950">
           NON VALIDÉ : aucune approbation administrateur, signature de profil, dry-run ou sauvegarde. Aucun import possible.
         </p>
