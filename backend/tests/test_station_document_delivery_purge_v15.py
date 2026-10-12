@@ -174,7 +174,7 @@ def test_045_station_lists_only_authorized_patient_documents(client, db, dentist
     staff, created, url = _authorized_document_session(
         client, db, dentiste, "ST045-DISCOVERY",
     )
-    document_id = int(url.rsplit("/", 1)[1])
+    document_id = int(url.rsplit("/", 1)[1].split("?", 1)[0])
     endpoint = f"/api/workstation/patient-session/{created['sessionId']}/documents"
     result = client.get(endpoint, headers=staff)
     assert result.status_code == 200, result.text
