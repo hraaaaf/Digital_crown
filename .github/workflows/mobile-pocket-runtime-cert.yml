@@ -8,6 +8,9 @@ on:
       - frontend/src/services/zka/**
       - frontend/src/services/api.ts
       - frontend/src/App.tsx
+      - frontend/src/main.tsx
+      - frontend/public/manifest.json
+      - frontend/src/test/mobilePocketPwaLifecycle.contract.test.ts
       - frontend/scripts/capture-mobile-pocket-runtime-after.mjs
       - backend/routers/mobile.py
       - backend/tests/test_mobile_pocket_security_boundary.py
@@ -77,6 +80,7 @@ jobs:
           src/features/mobile/bridge.m5a.test.ts
           src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx
           src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx
+          src/test/mobilePocketPwaLifecycle.contract.test.ts
           src/features/mobile/Security/MobileBiometricGate.test.tsx
           src/services/zka/mobileBiometricLock.test.ts
           src/test/mobileM6IPasskey.test.ts
