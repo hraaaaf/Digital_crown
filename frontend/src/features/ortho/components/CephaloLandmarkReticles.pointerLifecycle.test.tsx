@@ -20,7 +20,8 @@ const palette = {
 
 const clientToSVG = (x: number, y: number) => ({ x, y });
 
-function Fixture({ onUpdate }: { onUpdate: (pts: Landmark[]) => void }) {
+function Fixture({ onUpdate, calibrating = false }: { onUpdate: (pts: Landmark[]) => void; calibrating?: boolean }) {
+  const [points, setPoints] = useState(baseline.map(point => ({ ...point })));
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [activeDragPos, setActiveDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const [, setMagnifier] = useState({ x: 0, y: 0, show: false });
@@ -28,8 +29,10 @@ function Fixture({ onUpdate }: { onUpdate: (pts: Landmark[]) => void }) {
     <svg>
       <g data-testid="drag-state" data-active={activeDragId ?? ''} data-preview={activeDragPos?.id ?? ''} />
       <CephaloLandmarkReticles
-        landmarks={baseline}
-        isCalibrating={false}
+        landmarks={points}
+        imageWidth={180}
+        imageHeight={180}
+        isCalibrating={calibrating}
         baseOpacity={1}
         activeDragId={activeDragId}
         activeDragPos={activeDragPos}
@@ -40,7 +43,7 @@ function Fixture({ onUpdate }: { onUpdate: (pts: Landmark[]) => void }) {
         magnifierEnabled={true}
         setMagnifier={setMagnifier}
         clientToSVG={clientToSVG}
-        onUpdateLandmarks={onUpdate}
+        onUpdateLandmarks={next => { onUpdate(next); setPoints(next); }}
       />
     </svg>
   );
@@ -174,6 +177,65 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     dispatchPointer(handle, 'pointercancel', 8);
     expect(line()?.getAttribute('x2')).toBe('60');
     expect(line()?.getAttribute('y2')).toBe('50');
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('exposes real keyboard focus and moves only the focused point one image pixel per arrow press', () => {
+    const onUpdate = vi.fn();
+    render(<Fixture onUpdate={onUpdate} />);
+    const handle = dragHandle();
+    expect(handle.getAttribute('tabindex')).toBe('0');
+    expect(handle.getAttribute('role')).toBe('button');
+    expect(handle.getAttribute('aria-label')).toContain('Point anatomique N');
+    handle.focus();
+    expect(document.activeElement).toBe(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenLastCalledWith([
+      { id: 'N', x: 31, y: 40 },
+      { id: 'S', x: 60, y: 70 },
+    ]);
+    fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenLastCalledWith([
+      { id: 'N', x: 31, y: 30 },
+      { id: 'S', x: 60, y: 70 },
+    ]);
+  });
+
+  it('never commits beyond anatomical bounds, and ignores unrelated keys and selection', () => {
+    const onUpdate = vi.fn();
+    render(<Fixture onUpdate={onUpdate} />);
+    const handle = dragHandle();
+    fireEvent.keyDown(handle, { key: 'Enter' });
+    fireEvent.keyDown(handle, { key: ' ' });
+    fireEvent.keyDown(handle, { key: 'Escape' });
+    fireEvent.keyDown(handle, { key: 'x' });
+    expect(onUpdate).not.toHaveBeenCalled();
+    for (let i = 0; i < 4; i++) fireEvent.keyDown(handle, { key: 'ArrowLeft', shiftKey: true });
+    expect(onUpdate).toHaveBeenLastCalledWith([
+      { id: 'N', x: 0, y: 40 },
+      { id: 'S', x: 60, y: 70 },
+    ]);
+    const calls = onUpdate.mock.calls.length;
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(onUpdate).toHaveBeenCalledTimes(calls);
+  });
+
+  it('does not edit points while calibrating or during an active pointer gesture', () => {
+    const onUpdate = vi.fn();
+    const view = render(<Fixture onUpdate={onUpdate} calibrating />);
+    fireEvent.keyDown(dragHandle(), { key: 'ArrowDown' });
+    expect(onUpdate).not.toHaveBeenCalled();
+    view.unmount();
+    render(<Fixture onUpdate={onUpdate} />);
+    const handle = dragHandle();
+    dispatchPointer(handle, 'pointerdown', 17, 30, 40);
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
+    expect(onUpdate).not.toHaveBeenCalled();
+    fireEvent.keyDown(handle, { key: 'Escape' });
+    expect(state().getAttribute('data-active')).toBe('');
+    expect(state().getAttribute('data-preview')).toBe('');
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
