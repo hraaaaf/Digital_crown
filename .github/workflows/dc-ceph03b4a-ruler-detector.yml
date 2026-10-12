@@ -137,7 +137,7 @@ jobs:
           pkg=types.ModuleType('backend')
           pkg.__path__=[str(pathlib.Path.cwd()/'backend')]
           sys.modules['backend']=pkg
-          outcome=pytest.main(['-q',
+          outcome=pytest.main(['--noconftest','-q',
             'backend/tests/test_calibration_service_candidate.py',
             'backend/tests/test_ceph03b4a_ruler_detector.py',
             'backend/tests/test_cephalo_calibration_candidate.py',
