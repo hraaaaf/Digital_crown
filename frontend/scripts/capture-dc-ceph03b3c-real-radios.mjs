@@ -89,8 +89,11 @@ try{
       record.images.push(f);
     };
     const stage=()=>page.locator('[data-film="'+radio.id+'"]');
-    const point=()=>page.locator('[data-ceph03b-drag-handle="N"]');
-    const pointX=async()=>Number(await stage().getAttribute('data-n-x'));
+    // COM intentionally excludes the N editing handle; Po is the COM-safe
+    // exposed reticle. In ALL, edit N exactly as the backend persisted edits.
+    const editId=mode==='com'?'Po':'N';
+    const point=()=>page.locator('[data-ceph03b-drag-handle="'+editId+'"]');
+    const pointX=async()=>Number(await stage().getAttribute(editId==='Po'?'data-po-x':'data-n-x'));
     const count=async attr=>Number(await stage().getAttribute(attr));
     // Attribute installed on each independently-keyed visual T1/T2 group;
     // stroke-dasharray is NOT a reliable proxy for landmark ghost identity.
@@ -111,8 +114,9 @@ try{
       },expectedSrc);
       assert(decoded.width===radio.width&&decoded.height===radio.height,'Original JPEG dimensions mismatch');
       const bridge=bridges.get(radio.id);
-      const initialX=bridge.baseline.find(p=>p.id==='N').x;
-      assert(near(await pointX(),initialX),'Original real SRPose38 N point differs from authenticated API');
+      const initialX=bridge.baseline.find(p=>p.id===editId)?.x;
+      assert(Number.isFinite(initialX),'Missing expected real SRPose38 edit handle '+editId);
+      assert(near(await pointX(),initialX),'Original real SRPose38 '+editId+' point differs from authenticated API');
       assert(await stage().getAttribute('data-predicted')==='true','Browser did not load real inference data');
       assert(await stage().getAttribute('data-model-sha256')===expectedModel,'Model provenance mismatch');
       assert(await stage().getAttribute('data-source-image-sha1')===radio.sha1,'Image provenance mismatch');
@@ -162,11 +166,19 @@ try{
       await point().waitFor({state:'attached'});
       assert(await stage().getAttribute('data-loaded-snapshot')==='after-redo',
         'Not showing persisted authenticated GET snapshot');
-      assert(near(await pointX(),initialX+11),'Read-after-write snapshot failed to survive navigation');
+      const expectedReloadX=initialX+(editId==='N'?11:0);
+      assert(near(await pointX(),expectedReloadX),
+        'Fresh page did not use the authoritative API snapshot for '+editId);
+      const persistedN=bridge.after_redo.find(p=>p.id==='N')?.x;
+      assert(Number.isFinite(persistedN)
+        &&near(Number(await stage().getAttribute('data-n-x')),persistedN),
+        'Persisted N correction missing on reloaded DOM in '+mode+' mode');
       assert(await count('data-audit')===0&&await count('data-undo')===0,
         'Fresh DOM should not reuse ephemeral edit timeline');
       await screenshot('api-readback');
       record.reloadRehydrated=true;
+      record.editedPointId=editId;
+      record.persistedN=bridge.after_redo.find(p=>p.id==='N')?.x;
       assert(record.consoleErrors.length===0,'Browser console errors');
       assert(record.navigationCount===2,'Unexpected dev-server reload');
       assert(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),'Horizontal overflow');
