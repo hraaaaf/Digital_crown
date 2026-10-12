@@ -15,9 +15,24 @@ try {
     const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
     const page = await context.newPage();
     const errors = [];
-    let apiCalls = 0;
+    const blockedFontRequests = [];
+    const unexpectedNetworkRequests = [];
     page.on('pageerror', err => errors.push(err.message));
-    page.on('request', req => { if (/\/api\/|https?:\/\/(?!127\.0\.0\.1)/i.test(req.url())) apiCalls++; });
+    // Existing global CSS imports public Google Fonts; intercept them rather than
+    // treating a stylesheet fetch as a backend PHI upload. Block ALL nonlocal
+    // requests, and fail if any endpoint other than known font hosts is attempted.
+    await context.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.hostname === '127.0.0.1' && !url.pathname.startsWith('/api/')) {
+        return route.continue();
+      }
+      if (['fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname)) {
+        blockedFontRequests.push(url.hostname);
+        return route.abort();
+      }
+      unexpectedNetworkRequests.push(url.origin + url.pathname.slice(0, 160));
+      return route.abort();
+    });
     await page.goto('http://127.0.0.1:4195/migration-preview.html?filled=0', { waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Mapping Studio' }).waitFor();
     const before = await page.evaluate(() => ({
@@ -48,9 +63,9 @@ try {
     }));
     await page.screenshot({ path: path.join(out, 'AFTER-'+vp.label+'.png'),
       fullPage: true, animations: 'disabled' });
-    const result = { viewport: vp.label, before, after, importDisabled, apiCalls, errors };
+    const result = { viewport: vp.label, before, after, importDisabled, blockedFontRequests, unexpectedNetworkRequests, errors };
     results.push(result);
-    if (!importDisabled || apiCalls > 0 || errors.length > 0 ||
+    if (!importDisabled || unexpectedNetworkRequests.length > 0 || errors.length > 0 ||
       before.scrollWidth > before.width + 1 || after.scrollWidth > after.width + 1 ||
       !after.summary || before.steps !== 1 || after.steps !== 1 || !before.noPatientData) {
       throw new Error('Visual proof failed closed: '+JSON.stringify(result));
