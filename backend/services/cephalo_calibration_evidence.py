@@ -1,9 +1,9 @@
 """Audited manual-calibration transition for persisted cephalometric evidence.
 
-This module changes calibration provenance and rebuilds every certified
-calibration-dependent measurement present in the current snapshot from its typed
-construction. Calibration-independent measurements, including Steiner, are preserved
-exactly. It never activates norms, diagnosis or treatment.
+This module changes calibration provenance and rebuilds the existing
+calibration-dependent measurements from source-locked typed constructions.
+Calibration-independent measurements are preserved exactly. It never invents
+missing measurements, activates norms, diagnosis or treatment.
 """
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from backend.services.cephalo_evidence_case_integrity import validate_case_evide
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_mcnamara_evidence import adapt_mcnamara_nperp_measurements
 from backend.services.cephalo_measurement_adapter import adapt_craniom_linear_measurements
+from backend.services.cephalo_steiner_protocol_evidence import materialize_steiner_protocol_evidence
 from backend.services.cephalo_canonical_analysis_v2 import materialize_canonical_analysis_v2_measurements
 from backend.services.cephalo_landmark_identity_bridge import project_canonical_landmark_identities
 from backend.services.cephalo_runtime_evidence import (
@@ -326,11 +327,74 @@ def rebuild_evidence_after_manual_calibration(
             )
             if item.requires_calibration
         ]
+    # Preserve *only* previously present calibration-dependent Steiner protocol
+    # methods. A calibration revision must never silently drop their identities,
+    # nor promote any protocol method that was absent from the prior snapshot.
+    old_steiner_linear = [
+        item for item in old_measurements
+        if item.analysis_id == "STEINER_PROTOCOL_V1" and item.requires_calibration
+    ]
+    rebuilt_steiner_linear = []
+    rebuilt_steiner_constructions = []
+    obsolete_steiner_construction_refs: set[str] = set()
+    if old_steiner_linear:
+        if explicit_current is None:
+            raise CephaloRuntimeEvidenceError(
+                "Steiner linear calibration requires explicit current landmark identities"
+            )
+        previous_methods = {item.method_id for item in old_steiner_linear}
+        if len(previous_methods) != len(old_steiner_linear):
+            raise CephaloRuntimeEvidenceError("Duplicate prior Steiner linear method")
+        generated_constructions, generated_measurements = materialize_steiner_protocol_evidence(
+            landmarks=scientific_current,
+            construction_namespace=f"construction:{case_id}:r{next_revision}:steiner:protocol-v1",
+            measurement_namespace=f"measurement:{case_id}:r{next_revision}:steiner:protocol-v1",
+            mm_per_pixel=ratio,
+            calibration_ref=calibration.evidence_id,
+        )
+        regenerated = {
+            item.method_id: item for item in generated_measurements
+            if item.requires_calibration
+        }
+        if not previous_methods.issubset(regenerated):
+            raise CephaloRuntimeEvidenceError("Unknown prior Steiner linear method")
+        old_construction_ids = {item.construction_id for item in constructions}
+        for old in old_steiner_linear:
+            if len(old.construction_refs) != 1 or old.construction_refs[0] not in old_construction_ids:
+                raise CephaloRuntimeEvidenceError("Prior Steiner linear construction unavailable")
+            obsolete_steiner_construction_refs.update(old.construction_refs)
+            new_item = regenerated[old.method_id]
+            if len(new_item.construction_refs) != 1:
+                raise CephaloRuntimeEvidenceError("Rebuilt Steiner linear construction unavailable")
+            construction_id = new_item.construction_refs[0]
+            match = next(
+                (item for item in generated_constructions.values()
+                 if item.construction_id == construction_id),
+                None,
+            )
+            if match is None:
+                raise CephaloRuntimeEvidenceError("Rebuilt Steiner linear construction not found")
+            rebuilt_steiner_linear.append(new_item)
+            rebuilt_steiner_constructions.append(match)
+
+        # Never delete a construction still used by an independent measurement.
+        still_used = {
+            ref for item in preserved_independent for ref in item.construction_refs
+        }
+        if obsolete_steiner_construction_refs & still_used:
+            raise CephaloRuntimeEvidenceError(
+                "Steiner linear construction shared with independent measurement"
+            )
+    constructions = [
+        item for item in constructions
+        if item.construction_id not in obsolete_steiner_construction_refs
+    ] + rebuilt_steiner_constructions
     measurements = [
         *preserved_independent,
         *rebuilt_calibrated,
         *rebuilt_mcnamara_nperp,
         *rebuilt_canonical_v2,
+        *rebuilt_steiner_linear,
     ]
 
     current_sources = [source for source in sources if source.kind != "calibration"] + [calibration]
