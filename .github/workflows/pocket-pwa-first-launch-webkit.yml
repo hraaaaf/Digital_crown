@@ -162,6 +162,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -F 'href={destinationRoute}' frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx
+          grep -F 'needsPairingFirstRun = true' frontend/scripts/certify-pocket-pwa-first-launch-webkit.mjs
           echo "FUE_SAFARI_NATIVE_LINK_PRESENT=true"
       - name: Install browser-based WebKit certification runner
         working-directory: frontend
