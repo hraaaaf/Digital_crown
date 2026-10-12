@@ -8,6 +8,9 @@ const SOFT_TISSUE_IDS = new Set([
 
 interface CephaloLandmarkReticlesProps {
   landmarks: Landmark[];
+  /** Anatomical image-space bounds, not CSS/viewBox viewport pixels. */
+  imageWidth: number;
+  imageHeight: number;
   isCalibrating: boolean;
   baseOpacity: number;
   activeDragId: string | null;
@@ -38,6 +41,8 @@ interface CephaloLandmarkReticlesProps {
 
 export const CephaloLandmarkReticles = ({
   landmarks,
+  imageWidth,
+  imageHeight,
   isCalibrating,
   baseOpacity,
   activeDragId,
@@ -96,6 +101,43 @@ export const CephaloLandmarkReticles = ({
           >
             <g
               data-ceph03b-drag-handle={pt.id}
+              tabIndex={0}
+              role="button"
+              aria-label={`Point anatomique ${pt.id}, flèches pour déplacer de 1 pixel image, Maj et flèches pour 10 pixels`}
+              aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight"
+              onKeyDown={e => {
+                const key = e.key;
+                if (key === 'Enter' || key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onPointMouseDown?.(pt.id);
+                  return;
+                }
+                if (key === 'Escape' && activeDragId === pt.id) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActiveDragId(null);
+                  setActiveDragPos(null);
+                  onLandmarkDragPreview?.(null);
+                  setMagnifier(m => ({ ...m, show: false }));
+                  return;
+                }
+                const step = e.shiftKey ? 10 : 1;
+                const delta = key === 'ArrowLeft' ? [-step, 0]
+                  : key === 'ArrowRight' ? [step, 0]
+                    : key === 'ArrowUp' ? [0, -step]
+                      : key === 'ArrowDown' ? [0, step] : null;
+                if (!delta || activeDragId || isCalibrating) return;
+                e.preventDefault();
+                e.stopPropagation();
+                // Keyboard adjustments are explicit audited landmark updates,
+                // one per keypress; never move ghosts or preview-only state.
+                const x = Math.max(0, Math.min(imageWidth, pt.x + delta[0]));
+                const y = Math.max(0, Math.min(imageHeight, pt.y + delta[1]));
+                if (x === pt.x && y === pt.y) return;
+                onUpdateLandmarks(landmarks.map(item => item.id === pt.id
+                  ? { ...item, x, y } : item));
+              }}
               style={{ pointerEvents: 'all', cursor: isDragged ? 'grabbing' : 'grab', ...glowStyle }}
               onPointerDown={e => {
                 e.stopPropagation();
