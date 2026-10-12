@@ -11,6 +11,7 @@ import {
   BookOpen,
   Shield,
   Store,
+  Database,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -361,6 +362,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Patients" />}
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque clinique" />
           {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Approvisionnement" />}
+          {hasAccess('admin') && <NavItem to="/migration-sql" icon={<Database size={20} />} label="Migration SQL · chantier" />}
 
           {/* SUPER ADMIN (Hidden for non-admin users) */}
           {user?.is_superadmin && (

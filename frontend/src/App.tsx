@@ -29,6 +29,7 @@ const PatientDocuments = lazy(() => import('./features/patients/PatientDocuments
 const AgendaPage      = lazy(() => import('./pages/AgendaPage').then(m => ({ default: m.AgendaPage })));
 const AccountingPage  = lazy(() => import('./pages/AccountingPage').then(m => ({ default: m.AccountingPage })));
 const Settings        = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const MappingStudio = lazy(() => import('./features/admin/MigrationWizard/MappingStudio').then(m => ({ default: m.MappingStudio })));
 const Analytics       = lazy(() => import('./pages/Analytics').then(m => ({ default: m.Analytics })));
 const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m => ({ default: m.SetupWizard })));
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
@@ -272,6 +273,7 @@ const ProtectedRoutes = () => {
           <Route path="/patients/:id/archives" element={<PermissionRoute permission="patients"><PatientDocuments /></PermissionRoute>} />
           <Route path="/patients/:id/edit" element={<PermissionRoute permission="patients"><EditPatientForm /></PermissionRoute>} />
           <Route path="/settings" element={<PermissionRoute permission="settings"><Settings /></PermissionRoute>} />
+          <Route path="/migration-sql" element={<PermissionRoute permission="admin"><MappingStudio /></PermissionRoute>} />
           <Route path="/analytics" element={<Analytics />} />
           <Route
             path="/labo"
