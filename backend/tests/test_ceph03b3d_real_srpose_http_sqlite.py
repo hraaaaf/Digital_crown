@@ -105,6 +105,11 @@ def test_real_srpose38_two_lateral_xrays_authenticated_upload_edit_sqlite_reload
             assert response.status_code == 200, response.text[:800]
             return response.json()
 
+        # TestClient retains the HttpOnly session cookie from the login fixture.
+        # Remove it before probing anonymous calls, otherwise a missing Bearer
+        # header DOES NOT make the request anonymous (cookie is still valid).
+        client.cookies.clear()
+        assert not client.cookies
         # Never leak real-model radiographic analysis across the auth boundary.
         unauthenticated_read = client.get(f"/api/ia/analyses/{analysis_id}")
         assert unauthenticated_read.status_code in (401, 403)
