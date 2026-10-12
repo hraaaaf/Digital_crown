@@ -310,7 +310,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
             return (
               <g key={`ricketts-${p.id}`} data-r18-point={p.id} opacity={layerOpacity('landmarks')}>
                 <circle cx={p.x} cy={p.y} r="3.4" fill={P.bgInput} stroke={CEPHALO_SCIENTIFIC_COLORS.skeletal} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
-                <text x={p.x + 10} y={p.y - 10} fill={P.text} fontSize="10" fontWeight="800">{p.id}</text>
+                {/* Ricketts identification appears on metric focus rather than overprinting every marker. */}
+                {metricFocus && focusedPointIds.has(p.id.toLowerCase()) && (
+                  <text x={p.x + 10} y={p.y - 10} fill={P.text} fontSize="10" fontWeight="800">{p.id}</text>
+                )}
               </g>
             );
           })}
@@ -373,7 +376,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
             return (
               <g key={`com-${p.id}`} data-r19-point={p.id} opacity={(hasCanonicalFocus ? 0.82 : 0.92) * layerOpacity('landmarks')}>
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
-                <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{p.id}</text>
+                {/* Keep COM reference coordinates; show names only for explicit canonical focus. */}
+                {hasCanonicalFocus && focusedPointIds.has(p.id.toLowerCase()) && (
+                  <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{p.id}</text>
+                )}
               </g>
             );
           })}
