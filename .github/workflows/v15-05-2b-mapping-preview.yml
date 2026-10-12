@@ -1,0 +1,103 @@
+name: V1.5-05.2-B Staff Mapping Preview Proof
+
+on:
+  pull_request:
+    paths:
+      - frontend/src/App.tsx
+      - frontend/src/components/Sidebar.tsx
+      - frontend/src/features/admin/MigrationWizard/**
+      - frontend/mapping-studio-proof.html
+      - scripts/capture-v15-05-2b-mapping-preview.mjs
+      - docs/quality/V15_05_2B_STAFF_MAPPING_PREVIEW.md
+      - .github/workflows/v15-05-2b-mapping-preview.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staff-preview-proof:
+    name: Inert mapping wizard UI and browser after-proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            package-lock.json
+      - name: Install frontend test dependencies
+        run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Compile full frontend types without emitting
+        run: cd frontend && npx tsc -p tsconfig.app.json --noEmit
+      - name: Verify explicit UI review, fail-closed and no runtime import
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend
+          npx vitest run src/features/admin/MigrationWizard/MappingStudio.test.tsx --reporter=verbose 2>&1 | tee /tmp/lot05-2b-vitest.log
+          grep -Eq '10 passed' /tmp/lot05-2b-vitest.log
+          if grep -E 'Tests .*failed|Test Files .*failed' /tmp/lot05-2b-vitest.log; then exit 1; fi
+          cd ..
+          grep -Fq 'permission="admin"><MappingStudio' frontend/src/App.tsx
+          grep -Fq 'hasAccess('\''admin'\'')' frontend/src/components/Sidebar.tsx
+          grep -Fq 'disabled data-testid="migration-import-disabled"' frontend/src/features/admin/MigrationWizard/MappingStudio.tsx
+      - name: Install isolated browser proof runner
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Capture responsive AFTER at 390, 768 and 1280 widths
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix frontend run dev -- --host 127.0.0.1 --port 4198 > /tmp/mapping-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" || true' EXIT
+          ready=0
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:4198/mapping-studio-proof.html > /dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then cat /tmp/mapping-vite.log; exit 1; fi
+          node scripts/capture-v15-05-2b-mapping-preview.mjs
+          test -f artifacts/v15-05-2b-mapping-studio/after-decisions-390x844.png
+          test -f artifacts/v15-05-2b-mapping-studio/after-decisions-768x1024.png
+          test -f artifacts/v15-05-2b-mapping-studio/after-decisions-1280x900.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-2b-mapping-ui-after
+          path: artifacts/v15-05-2b-mapping-studio/
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 05.1+05.2-A synthetic regression (never access clinic data)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/lot05-2a-regressions.log
+          grep -q 'Ran 25 tests' /tmp/lot05-2a-regressions.log
+          grep -q '^OK$' /tmp/lot05-2a-regressions.log
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/lot05-1-regressions.log
+          grep -q 'Ran 28 tests' /tmp/lot05-1-regressions.log
+          grep -q '^OK$' /tmp/lot05-1-regressions.log
+      - name: Exact SHA and honest NO-GO summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$expected"
+          {
+            echo 'LOT05.2-B/1 staff UI preview — exact PR SHA: '"$expected"
+            echo 'Source and target are fictional; 10 frontend interactive cases + 25 mapping + 28 inspector checks.'
+            echo 'Browser after proof uses 390x844 / 768x1024 / 1280x900 and no-horizontal-overflow assertions.'
+            echo 'NO real source, validated target adapter, backend admin authorization, saved profile, import or deployment.'
+            echo 'Before: no mapping feature existed at the parent HEAD; no false before screenshot is claimed.'
+          } >> "$GITHUB_STEP_SUMMARY"
