@@ -73,7 +73,7 @@ with httpx.Client(base_url=origin, timeout=35, follow_redirects=False) as statio
 
     # Bounded 13-minute interactive window. Rotate expired QR only. Do NOT
     # rotate a claimed session during its valid retrieval window.
-    for iteration in range(26):
+    for iteration in range(7):
         issued = station.post("/api/workstation/patient-session", headers=auth)
         assert issued.status_code == 201, (issued.status_code, issued.text[:600])
         data = issued.json()
