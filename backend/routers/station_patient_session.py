@@ -1057,6 +1057,7 @@ def station_patient_session_status(
             "sessionId": row.id,
             "displayName": f"{patient.prenom or ''} {patient.nom or ''}".strip(),
             "claimedAt": row.claimed_at,
+            "companionPaired": row.patient_access_id is not None,
         }
     response.headers["Cache-Control"] = "no-store"
     return payload
