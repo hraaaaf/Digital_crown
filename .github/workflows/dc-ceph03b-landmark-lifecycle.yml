@@ -30,6 +30,9 @@ jobs:
               frontend/src/features/ortho/CephaloTracingLayerBase.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayer.visualFixture.tsx | \
+              frontend/scripts/capture-dc-ceph03b-desktop.mjs | \
+              .github/workflows/dc-ceph03b-desktop-visual.yml | \
               frontend/src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx | \
               .github/workflows/dc-ceph03b-landmark-lifecycle.yml) ;;
               *) echo "Out-of-scope path: $file" >&2; exit 1 ;;
