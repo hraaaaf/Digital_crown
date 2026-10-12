@@ -157,6 +157,23 @@ describe('04.5 — Patient Companion private-phone withdrawal', () => {
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
+  it('04.7 ignores delayed document discovery after the patient closes the phone session', async () => {
+    let completeDiscovery: (value: unknown) => void = () => undefined;
+    const pendingDiscovery = new Promise(resolve => { completeDiscovery = resolve; });
+    const fetchMock = vi.fn().mockReturnValueOnce(pendingDiscovery).mockResolvedValueOnce({ status: 204 });
+    globalThis.fetch = fetchMock as typeof fetch;
+    const onClose = vi.fn();
+    render(<PatientCompanionStationDocuments sessionId="closing" pairing={pairing} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer et effacer ma session' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(true));
+    await act(async () => {
+      completeDiscovery({
+        ok: true, json: async () => ({ documents: [{ documentId: 42, kind: 'care_sheet' }] }),
+      });
+    });
+    expect(screen.queryByRole('button', { name: 'Télécharger ma feuille de soins' })).not.toBeInTheDocument();
+  });
+
   it('shows no document controls when the private phone session has expired', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as typeof fetch;
     render(<PatientCompanionStationDocuments sessionId="expired" pairing={pairing} onClose={vi.fn()} />);
