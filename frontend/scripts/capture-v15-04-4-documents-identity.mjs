@@ -143,8 +143,13 @@ try {
         await page.locator('[data-station-action="documents"]').click();
 
         if (phase === 'before') {
-          await page.waitForTimeout(250);
-          // Baseline is a distinct product revision: do not assert candidate-specific copy.
+          // Compare the *same business states* across the pinned V1.5-04.4
+          // baseline and the 04.5 candidate, without assuming that QR did not
+          // exist before 04.5 or asserting candidate-specific text on the base.
+          const selector = scenario.mode === 'identified'
+            ? '[data-station-documents-identity-confirmed]'
+            : '[data-station-patient-session]';
+          await page.locator(selector).waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'fallback') {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
           await page.locator('[data-station-fallback-toggle]').click();
@@ -220,7 +225,8 @@ const failures = report.filter(item =>
   (phase === 'after' && item.scenario === 'documents-pending' && !item.patientSessionVisible) ||
   (phase === 'after' && item.scenario === 'documents-identified' && (!item.identifiedVisible || !item.eligibleDocumentVisible || item.discoveryRequests !== 1)) ||
   (phase === 'after' && item.scenario === 'documents-pending' && (item.discoveryRequests !== 0 || item.pdfRequests !== 0)) ||
-  (phase === 'before' && (item.patientSessionVisible || item.identifiedVisible))
+  (phase === 'before' && item.scenario === 'documents-pending' && !item.patientSessionVisible) ||
+  (phase === 'before' && item.scenario === 'documents-identified' && !item.identifiedVisible)
 );
 console.log(JSON.stringify(evidence, null, 2));
 if (failures.length > 0) {
