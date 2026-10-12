@@ -11,6 +11,7 @@ const params = new URLSearchParams(window.location.search);
 const film = params.get('film') === 'B' ? 'B' : 'A';
 const mode = params.get('mode') === 'com' ? 'com' : 'all';
 const usePredictedPoints = params.get('predicted') === '1';
+const persistedSnapshot = params.get('snapshot') === 'after-redo';
 type RealInferenceBridge = {
   source: string; radio: string; model_sha256: string; source_image_sha1: string;
   inference_mode: string; baseline: Landmark[]; after_redo: Landmark[];
@@ -59,7 +60,7 @@ const syntheticInitial: Landmark[] = [
   { id: 'L1_incisal', x: w * 0.79, y: h * 0.68 },
 ];
 const initial: Landmark[] = bridge
-  ? bridge.baseline.map(point => ({ ...point }))
+  ? (persistedSnapshot ? bridge.after_redo : bridge.baseline).map(point => ({ ...point }))
   : syntheticInitial;
 const layers = { ...createDefaultLayerVisibility(), t1: true, t2: true };
 useOrthoStore.setState({
@@ -92,6 +93,7 @@ function TestWorkspace() {
   }));
 
   const po = landmarks.find(p => p.id === 'Po');
+  const nasion = landmarks.find(p => p.id === 'N');
   return (
     <main style={{ margin: 0, height: '100vh', width: '100vw', padding: 16,
       boxSizing: 'border-box', background: '#0b1322', color: '#e2e8f0',
@@ -119,6 +121,8 @@ function TestWorkspace() {
         data-original-po-x={initial.find(p => p.id === 'Po')?.x ?? -1}
         data-source-image-sha1={bridge?.source_image_sha1 ?? ''}
         data-po-x={po?.x ?? -1}
+        data-n-x={nasion?.x ?? -1}
+        data-loaded-snapshot={persistedSnapshot && Boolean(bridge) ? 'after-redo' : 'baseline'}
         data-undo={editTimeline.undoStack.length}
         data-redo={editTimeline.redoStack.length}
         data-audit={editTimeline.auditTrail.length}
