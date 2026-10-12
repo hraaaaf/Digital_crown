@@ -93,6 +93,7 @@ export const CephaloLandmarkReticles = ({
             transition={{ duration: 0.12 }}
           >
             <g
+              data-ceph03b-drag-handle={pt.id}
               style={{ pointerEvents: 'all', cursor: isDragged ? 'grabbing' : 'grab', ...glowStyle }}
               onPointerDown={e => {
                 e.stopPropagation();
@@ -120,6 +121,21 @@ export const CephaloLandmarkReticles = ({
                     landmarks.map(l => l.id === pt.id ? { ...l, x: coords.x, y: coords.y } : l)
                   );
                 }
+              }}
+              onPointerCancel={e => {
+                if (activeDragId !== pt.id) return;
+                e.stopPropagation();
+                // A cancelled gesture is not a clinical edit; never persist its preview.
+                setActiveDragId(null);
+                setActiveDragPos(null);
+                setMagnifier(m => ({ ...m, show: false }));
+              }}
+              onLostPointerCapture={() => {
+                if (activeDragId !== pt.id) return;
+                // OS/window interruption must not strand the point in dragging mode.
+                setActiveDragId(null);
+                setActiveDragPos(null);
+                setMagnifier(m => ({ ...m, show: false }));
               }}
               onPointerEnter={() => {
                 if (!activeDragId && magnifierEnabled) {
