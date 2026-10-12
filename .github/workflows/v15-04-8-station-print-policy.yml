@@ -68,5 +68,5 @@ jobs:
               module = types.ModuleType(module_name)
               module.__path__ = [os.path.abspath(directory)]
               sys.modules[module_name] = module
-          raise SystemExit(pytest.main(["-q", "/tmp/dc04-8-print-policy/test_print_policy.py"]))
+          raise SystemExit(pytest.main(["-q", "/tmp/dc04-8-print-policy/test_print_policy.py", "/tmp/dc04-8-print-policy/test_print_configuration.py"]))
           PY
