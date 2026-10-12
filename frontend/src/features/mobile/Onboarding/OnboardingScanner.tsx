@@ -62,8 +62,10 @@ export const OnboardingScanner = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [manualToken, setManualToken] = useState('');
   const [showIOSInstallHint, setShowIOSInstallHint] = useState(false);
-  const [destinationRoute, setDestinationRoute] = useState('/mobile/dashboard?tab=agenda');
-  const [destinationLabel, setDestinationLabel] = useState('Agenda');
+  // Pairing enrolls the device once; Pocket launches at its Today dashboard.
+  // A contextual bridge may still be saved securely and opened from Pocket later.
+  const [destinationRoute, setDestinationRoute] = useState('/mobile/dashboard');
+  const [destinationLabel, setDestinationLabel] = useState('Digital Crown Pocket');
   const { isIOS, isInstalled } = usePWAInstall();
   const isPreviewDemo = PREVIEW_DEMO_HOSTS.has(window.location.hostname) && searchParams.get('demo') === '1';
 
@@ -190,11 +192,15 @@ export const OnboardingScanner = () => {
       } else {
         await MobileStorage.clearBridgeContext().catch(() => {});
       }
-      setDestinationRoute(destination.route);
-      setDestinationLabel(destination.label);
+      // The desktop's bridge may describe a destination, but initial device
+      // enrollment is not a deep-link. Always enter the Pocket application
+      // shell, never a specific module selected at pairing time.
+      const pocketHome = '/mobile/dashboard';
+      setDestinationRoute(pocketHome);
+      setDestinationLabel('Digital Crown Pocket');
       try {
-        sessionStorage.setItem('dc_mobile_bridge_route', destination.route);
-        sessionStorage.setItem('dc_mobile_bridge_label', destination.label);
+        sessionStorage.setItem('dc_mobile_bridge_route', pocketHome);
+        sessionStorage.setItem('dc_mobile_bridge_label', 'Digital Crown Pocket');
       } catch { /* Safari may reject sessionStorage; destination stays in React state. */ }
       try {
         // Scrub the consumed one-time token even when sessionStorage is blocked.
