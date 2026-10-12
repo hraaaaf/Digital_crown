@@ -3,6 +3,7 @@
 # iOS Safari first-party session confirmation: 200 + HttpOnly cookie before navigation
 # Synthetic schedule proof: six demonstration appointments today, never production
 # Retry: seed script resolves repo root without changing product startup
+# Retry: seed uses same synthetic encrypted SQLite key as the backend
 name: Pocket PWA lifecycle — first launch real WebKit
 
 on:
