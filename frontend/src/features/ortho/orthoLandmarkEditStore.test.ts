@@ -140,4 +140,58 @@ describe('Orthodontic Studio LOT07 landmark edit store', () => {
     useOrthoStore.getState().undoLandmarkEdit();
     expect(useOrthoStore.getState().local.landmarks).toEqual(branch);
   });
+  it('audits two same-tick keyboard nudges as distinct ordered transactions and persists both snapshots', async () => {
+    const store = useOrthoStore.getState();
+    store.nudgeLandmarkFromKeyboard('N', 1, 0, 240, 240);
+    store.nudgeLandmarkFromKeyboard('N', 10, 0, 240, 240);
+    const timeline = useOrthoStore.getState().landmarkEditTimeline;
+    const current = useOrthoStore.getState().local.landmarks;
+    expect(current.find(point => point.id === 'N')).toEqual({ id: 'N', x: 41, y: 40 });
+    expect(timeline.undoStack).toHaveLength(2);
+    expect(timeline.undoStack.map(entry => entry.source)).toEqual(['KEYBOARD_NUDGE', 'KEYBOARD_NUDGE']);
+    expect(timeline.undoStack.map(entry => entry.changedLandmarkIds)).toEqual([['N'], ['N']]);
+    expect(timeline.auditTrail.map(entry => entry.action)).toEqual(['EDIT','EDIT']);
+    await flushSaveQueue(20);
+    expect(cephaloRepository.saveAnalysis).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(cephaloRepository.saveAnalysis).mock.calls.map(([,payload]) =>
+      (payload as {landmarks: typeof baseline}).landmarks.find(point => point.id === 'N')?.x
+    )).toEqual([31, 41]);
+  });
+
+  it('undoes and redoes a keyboard edit as distinct audited FIFO revisions, without moving other points', async () => {
+    const store = useOrthoStore.getState();
+    store.nudgeLandmarkFromKeyboard('N', 0, -10, 240, 240);
+    expect(useOrthoStore.getState().local.landmarks).toEqual([
+      baseline[0], { id: 'N', x: 30, y: 30 },
+    ]);
+    useOrthoStore.getState().undoLandmarkEdit();
+    expect(useOrthoStore.getState().local.landmarks).toEqual(baseline);
+    useOrthoStore.getState().redoLandmarkEdit();
+    expect(useOrthoStore.getState().local.landmarks).toEqual([
+      baseline[0], { id: 'N', x: 30, y: 30 },
+    ]);
+    const timeline = useOrthoStore.getState().landmarkEditTimeline;
+    expect(timeline.auditTrail.map(entry => entry.action)).toEqual(['EDIT','UNDO','REDO']);
+    expect(timeline.undoStack.at(-1)?.source).toBe('KEYBOARD_NUDGE');
+    await flushSaveQueue(24);
+    expect(cephaloRepository.saveAnalysis).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(cephaloRepository.saveAnalysis).mock.calls.map(([,payload]) =>
+      (payload as {landmarks: typeof baseline}).landmarks.find(point => point.id === 'N')?.y
+    )).toEqual([30,40,30]);
+  });
+
+  it('rejects missing or invalid keyboard coordinates and respects both image bounds', async () => {
+    const store = useOrthoStore.getState();
+    store.nudgeLandmarkFromKeyboard('no-such-point', 1, 0, 240, 240);
+    store.nudgeLandmarkFromKeyboard('N', Number.NaN, 0, 240, 240);
+    store.nudgeLandmarkFromKeyboard('N', 1, 0, 0, 240);
+    store.nudgeLandmarkFromKeyboard('N', 0, 0, 240, 240);
+    expect(useOrthoStore.getState().landmarkEditTimeline.undoStack).toHaveLength(0);
+    expect(cephaloRepository.saveAnalysis).not.toHaveBeenCalled();
+    store.nudgeLandmarkFromKeyboard('N', -100, 1000, 240, 240);
+    expect(useOrthoStore.getState().local.landmarks.find(point => point.id === 'N')).toEqual({id:'N',x:0,y:240});
+    await flushSaveQueue(20);
+    expect(cephaloRepository.saveAnalysis).toHaveBeenCalledTimes(1);
+  });
+
 });
