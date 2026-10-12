@@ -13,12 +13,21 @@ if (fields.POCKET_FUE_READY !== 'true'
 const origin = new URL(fields.POCKET_FUE_LINK).origin;
 
 const browser = await webkit.launch({ headless: true });
-const context = await browser.newContext({
+const mobileDevice = {
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 3, isMobile: true, hasTouch: true, locale: 'fr-FR',
+  userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+};
+// Two independent browser contexts model Safari and iOS Home Screen storage.
+// This is a WebKit simulation, NOT a physical Apple "Add to Home Screen" proof.
+const safariContext = await browser.newContext(mobileDevice);
+const context = await browser.newContext(mobileDevice);
+await context.addInitScript(() => {
+  Object.defineProperty(navigator, 'standalone', { configurable: true, value: true });
 });
 const page = await context.newPage();
 const evidence = {
+  safariClaimsBlocked: false, pwaSeparateStorage: false,
   needsPairingFirstRun: false, paired: false, todayBoot: false, fiveTabs: false,
   agendaTab: false, plusWorks: false, todayWorks: false,
   persistentRelaunch: false, pwaStandaloneManifest: false,
@@ -35,7 +44,21 @@ page.on('framenavigated', frame => {
 page.on('pageerror', () => { errors++; });
 
 try {
+  // In Safari, a one-time pairing code must be blocked so it is not consumed
+  // in the WRONG storage profile before Pocket has been installed.
+  const safari = await safariContext.newPage();
+  await safari.goto(fields.POCKET_FUE_LINK, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await safari.getByRole('link', { name: /Continuer vers l.appairage/ }).click();
+  await safari.locator('[data-dc-pocket-install-first]').waitFor({ state: 'visible', timeout: 12000 });
+  if (!(await safari.getByRole('button', { name: "Valider le code d'appairage" }).isDisabled())) {
+    throw Error('SAFARI_CONSUMES_ONE_USE_QR');
+  }
+  evidence.safariClaimsBlocked = true;
+  // An installed Pocket instance has its own IndexedDB AND cookie container;
+  // the test HTTPS gateway requires each context to open its capability entry.
+  await safariContext.close();
   await page.goto(fields.POCKET_FUE_LINK, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  evidence.pwaSeparateStorage = (await page.evaluate(() => (navigator).standalone)) === true;
   await page.getByRole('link', { name: /Continuer vers l.appairage/ }).click();
   const manifest = await page.evaluate(async () => {
     const response = await fetch('/manifest.json');
@@ -108,6 +131,7 @@ try {
   }));
   process.exitCode = 1;
 } finally {
+  await safariContext.close().catch(() => {});
   await context.close();
   await browser.close();
 }
