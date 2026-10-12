@@ -241,4 +241,24 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
+  it('03B.3e reveals only hovered or keyboard-focused labels and never persists a visual interaction', () => {
+    const onUpdate = vi.fn();
+    render(<Fixture onUpdate={onUpdate} />);
+    const handle = dragHandle();
+    expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(0);
+    fireEvent.pointerEnter(handle);
+    expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(1);
+    expect(document.querySelector('[data-ceph03b-landmark-label="N"]')).not.toBeNull();
+    fireEvent.pointerLeave(handle);
+    expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(0);
+    fireEvent.focus(handle);
+    expect(handle.getAttribute('data-ceph03b-keyboard-focused')).toBe('true');
+    expect(document.querySelectorAll('[data-ceph03b-focus-ring="N"] circle')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(1);
+    fireEvent.blur(handle);
+    expect(document.querySelectorAll('[data-ceph03b-focus-ring]')).toHaveLength(0);
+    expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(0);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
 });
