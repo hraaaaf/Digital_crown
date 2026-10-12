@@ -111,6 +111,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   const layerOpacity = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.opacity[id] ?? 1;
   const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
   const [metricFocus, setMetricFocus] = React.useState<CephaloMetricFocus | null>(props.hoveredMetric ?? null);
+  // Render-only preview for independent COM/Ricketts overlays. The canonical
+  // landmark array remains unchanged until a pointer-up commits the edit.
+  const [dragPreview, setDragPreview] = React.useState<{ id: string; x: number; y: number } | null>(null);
+  const overlayLandmarks = React.useMemo(
+    () => dragPreview
+      ? props.landmarks.map(point => point.id === dragPreview.id
+        ? { ...point, x: dragPreview.x, y: dragPreview.y }
+        : point)
+      : props.landmarks,
+    [props.landmarks, dragPreview],
+  );
 
   React.useEffect(() => {
     if (props.activeAnalysis) setMode(normalizeMode(props.activeAnalysis));
@@ -178,19 +189,19 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
 
   const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode === 'com' ? 'wits' : mode;
 
-  const po = findPointAny(props.landmarks, 'Po', 'Porion');
-  const orPoint = findPointAny(props.landmarks, 'Or', 'Orbitale');
-  const n = findPointAny(props.landmarks, 'N', 'Nasion');
-  const s = findPointAny(props.landmarks, 'S', 'Sella');
-  const pog = findPointAny(props.landmarks, 'Pog');
-  const a = findPointAny(props.landmarks, 'A', 'Point_A');
-  const b = findPointAny(props.landmarks, 'B', 'Point_B');
-  const go = findPointAny(props.landmarks, 'Go', 'Gonion');
-  const me = findPointAny(props.landmarks, 'Me', 'Menton');
-  const u1i = findPointAny(props.landmarks, 'U1_incisal', 'U1i');
-  const u1a = findPointAny(props.landmarks, 'U1_apex', 'U1a');
-  const l1i = findPointAny(props.landmarks, 'L1_incisal', 'L1i');
-  const l1a = findPointAny(props.landmarks, 'L1_apex', 'L1a');
+  const po = findPointAny(overlayLandmarks, 'Po', 'Porion');
+  const orPoint = findPointAny(overlayLandmarks, 'Or', 'Orbitale');
+  const n = findPointAny(overlayLandmarks, 'N', 'Nasion');
+  const s = findPointAny(overlayLandmarks, 'S', 'Sella');
+  const pog = findPointAny(overlayLandmarks, 'Pog');
+  const a = findPointAny(overlayLandmarks, 'A', 'Point_A');
+  const b = findPointAny(overlayLandmarks, 'B', 'Point_B');
+  const go = findPointAny(overlayLandmarks, 'Go', 'Gonion');
+  const me = findPointAny(overlayLandmarks, 'Me', 'Menton');
+  const u1i = findPointAny(overlayLandmarks, 'U1_incisal', 'U1i');
+  const u1a = findPointAny(overlayLandmarks, 'U1_apex', 'U1a');
+  const l1i = findPointAny(overlayLandmarks, 'L1_incisal', 'L1i');
+  const l1a = findPointAny(overlayLandmarks, 'L1_apex', 'L1a');
 
   const aOnNPog = a && n && pog
     ? projectPointOnLine(a.x, a.y, n.x, n.y, pog.x, pog.y)
@@ -258,6 +269,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
         landmarks={baseLandmarks}
         ghosts={baseGhosts}
         onUpdateLandmarks={mergeLandmarkUpdate}
+        onLandmarkDragPreview={setDragPreview}
         activeAnalysis={baseAnalysis}
         hoveredMetric={metricFocus ?? props.hoveredMetric ?? null}
       />
