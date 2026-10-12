@@ -1103,6 +1103,16 @@ def _claimed_station_session(client, db, owner, *, dossier):
     return headers, created["sessionId"], patient
 
 
+def _phone_receipt(client, db, sid, aid, patient):
+    access = db.query(PatientCompanionAccess).filter(PatientCompanionAccess.patient_id == patient.id).first()
+    assert access is not None
+    identity = db.get(PatientCompanionIdentity, access.identity_id)
+    return client.get(
+        f"/api/patient-companion/station-session/{sid}/documents/presence-receipt/{aid}?accessId={access.public_id}",
+        headers={"Authorization": f"Bearer {create_patient_device_token(identity, access)}"},
+    )
+
+
 def test_v15_04_2_station_arrival_alone_does_not_unlock_presence_receipt(client, db, dentiste):
     headers, session_id, patient = _claimed_station_session(
         client, db, dentiste, dossier="ST04-2-STATION"
