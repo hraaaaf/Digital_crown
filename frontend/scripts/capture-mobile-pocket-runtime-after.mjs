@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { createCipheriv, randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -109,8 +110,31 @@ const json = (route, payload, status = 200) => route.fulfill({
   body: JSON.stringify(payload),
 });
 
+// Explicit synthetic read policy for the two historical default-profile cases.
+// Keep the product's mandatory encrypted contract; never bypass its read guard.
+function encryptedReadFixture(role) {
+  const grants = {
+    'agenda.read': true,
+    'cabinet.patients.read': true,
+    'cabinet.clinical.read': role === 'DENTISTE',
+    'cabinet.finance.read': role === 'DENTISTE',
+    'shares.read': false,
+  };
+  const contract = { version: 1, principal_kind: 'staff', capabilities: Object.fromEntries(
+    Object.entries(grants).map(([action, allowed]) => [action, { allowed, scope: allowed ? 'cabinet' : null, reason: allowed ? null : 'not_authorized' }]),
+  ) };
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', Buffer.from(credentials.masterKey, 'hex'), iv);
+  const data = Buffer.concat([cipher.update(JSON.stringify(contract)), cipher.final()]);
+  return { payload: Buffer.concat([iv, data, cipher.getAuthTag()]).toString('base64') };
+}
+
 async function installRoutes(page, role, selectedTheme = { id: 'elite', primary: '#003380', secondary: '#1e40af', accent: '#60a5fa' }) {
-  const routeEvidence = { passkeyStatusHits: 0 };
+  const routeEvidence = { passkeyStatusHits: 0, readCapabilityHits: 0 };
+  await page.route('**/api/mobile/capabilities', route => {
+    routeEvidence.readCapabilityHits += 1;
+    return json(route, encryptedReadFixture(role));
+  });
   await page.route('**/api/mobile/passkey/status', route => {
     routeEvidence.passkeyStatusHits += 1;
     return json(route, {
@@ -295,6 +319,7 @@ async function assertTouchTarget(locator, label) {
 
 async function assertRuntime(page, role, viewport, runtimeErrors) {
   await page.locator('[data-dc-mobile-shell]').waitFor({ state: 'visible', timeout: 30000 });
+  await page.locator('[data-pocket-read-status="ready"]').waitFor({ state: 'visible' });
   if (await page.locator('[data-dc-preview-demo]').count()) throw new Error('Preview marker present in runtime proof');
   const today = page.locator('[data-dc-pocket-today]');
   await today.waitFor({ state: 'visible' });
@@ -563,7 +588,8 @@ try {
           throw new Error(`Pocket production assets failed: ${JSON.stringify(assetFailures)}`);
         }
         if (routes.passkeyStatusHits < 1) throw new Error('Pocket passkey/status fixture not observed: certification cannot assert paired UI');
-        evidence.push({ ...certified, passkeyStatusHits: routes.passkeyStatusHits, serviceWorkers: 'blocked-for-route-fixtures' });
+        if (routes.readCapabilityHits < 1) throw new Error('Pocket read-capability fixture not observed: no implicit role grants allowed');
+        evidence.push({ ...certified, passkeyStatusHits: routes.passkeyStatusHits, readCapabilityHits: routes.readCapabilityHits, serviceWorkers: 'blocked-for-route-fixtures' });
       } catch (error) {
         await captureRuntimeFailure(page, failStage, role, viewport, [
           ...runtimeErrors, ...assetFailures.map(failure => `asset:${failure.path}:${failure.reason}`),

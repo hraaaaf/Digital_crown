@@ -109,3 +109,11 @@ Prompts pour les deux nouvelles revues adversariales internes, à exécuter sép
 Trace des exécutions et confirmation : description de PR au SHA publié. Ces passes restent internes, pas indépendantes.
 
 EXECUTION_SCORE=7.9 ; ADVERSARIAL_SCORE=7.9 ; RETAINED_SCORE=7.9. Divergence >0.5 : non. Validation humaine des captures, CI ciblée finale et iPhone réel non acquis. Pas de VERIFIED ni de merge. Le transport distant, la coque patient commune et la gestion des appareils approuvés restent des étapes ultérieures du chantier autorisé.
+
+## Adaptation du runner CI historique
+
+Le run Pocket Real Runtime 38309112811 au HEAD 9a29724 a passé les contrats frontend, le build et le job backend Frontdesk, puis a échoué au début de capture : attente de data-dc-pocket-today dépassée. Le runner historique ne simulait pas /api/mobile/capabilities ; la nouvelle UI fermait correctement l'accès. Ce résultat rouge n'est pas présenté comme vert.
+
+Correction limitée au harness : fixture staff version 1 chiffrée AES-GCM avec sa clé fictive, attente de droits ready et assertion readCapabilityHits > 0. Aucun guard produit supprimé, aucun timeout augmenté. Le workflow conserve ses gates et ajoute les tests du hook de droits, du Dashboard, du Today et les tests backend du nouveau contrat aux jobs existants.
+
+La preuve des nouveaux parcours custom et révocation reste le runner capture-pocket-read-capabilities.mjs ; le runner historique couvre les deux profils par défaut et les sept thèmes. Les sources UI ne changent pas, les captures remises restent pertinentes. Les deux passes adversariales et la confirmation doivent être refaites sur ce nouveau HEAD (trace dans la PR), puisque la correction de harness invalide les revues précédentes au sens d'AGENTS.md. Score provisoire 7.9/7.9/min 7.9 : nouvelle CI et validation humaine en attente, aucun closeout.
