@@ -158,6 +158,8 @@ try{
       await page.locator('[data-t2]').click();
       assert(await ghostLines('t1')===initialT1&&await ghostLines('t2')===initialT2,'T1/T2 traces not restored');
 
+      const auditBeforeReload=await count('data-audit');
+      assert(auditBeforeReload===4,'Transient edit audit must contain EDIT EDIT UNDO REDO');
       // New top-level navigation: rehydrate the read-after-write response
       // exported from the isolated authenticated API's last GET. This remains
       // a fixture handoff, NOT live browser/backend authentication.
@@ -186,7 +188,8 @@ try{
       record.decoded=decoded;
       record.initialX=initialX;
       record.currentX=await pointX();
-      record.auditEvents=await count('data-audit');
+      record.auditEvents=auditBeforeReload;
+      record.reloadedAuditEvents=await count('data-audit');
       record.ghostLines={t1:initialT1,t2:initialT2};
     }catch(e){
       record.errors.push(String(e));
