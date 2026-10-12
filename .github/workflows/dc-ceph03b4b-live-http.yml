@@ -173,7 +173,8 @@ jobs:
               ||![401,403].includes(c.deniedAnonymousRead)
               ||![401,403].includes(c.deniedAnonymousMedia)
               ||![401,403].includes(c.deniedAnonymousUpload)
-              ||c.calibrationSourceState!==(c.film==='A'?'IMAGE_RULER_UNVERIFIED':'NO_PHYSICAL_SOURCE')
+              ||c.calibrationSourceState!=='NO_PHYSICAL_SOURCE'
+              ||c.detectorActiveInThisHarness!==false
               ||c.calibrationApplied!==false
               ||c.realHttpApi.filter(x=>x.method==='PUT'&&x.url==='/api/ia/analyses/'+c.analysisId).length<4)
               throw Error('Missing durable actual Step1 edit/auth proof '+c.film);
