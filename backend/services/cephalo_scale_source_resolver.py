@@ -196,7 +196,9 @@ def resolve_scale_sources(
             if dicom is not None and _spacing(dicom.pixel_spacing) is not None:
                 row, col = _spacing(dicom.pixel_spacing)
                 if (not math.isclose(row, col, rel_tol=1e-5)
-                    or not math.isclose(row, gate.mm_per_pixel, rel_tol=0.02)):
+                    # Numerical serialization tolerance only; no assumed
+                    # clinical 2%/5% tolerance without a validated source.
+                    or not math.isclose(row, gate.mm_per_pixel, rel_tol=1e-12)):
                     return ScaleSourceResolution(
                         ScaleSourceState.SOURCE_CONFLICT,
                         ScaleSourceReason.SOURCES_DISAGREE, "multiple",
