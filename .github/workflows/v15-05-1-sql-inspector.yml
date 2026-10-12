@@ -38,7 +38,7 @@ jobs:
           test -f backend/tests/test_legacy_sql_inspector_v15_security.py
           python -m compileall -q backend/services/legacy_sql_inspector_v15.py backend/tests/test_legacy_sql_inspector_v15*.py
           PYTHONWARNINGS=error::ResourceWarning python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/lot05-inspector-results.txt
-          grep -q 'Ran 25 tests' /tmp/lot05-inspector-results.txt
+          grep -q 'Ran 26 tests' /tmp/lot05-inspector-results.txt
           grep -q '^OK$' /tmp/lot05-inspector-results.txt
           if grep -Ei 'skipped|expected failure' /tmp/lot05-inspector-results.txt; then exit 1; fi
       - name: Exact SHA and honest gate claim
@@ -49,7 +49,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED"
           {
             echo "LOT05.1 schema-only inspector — exact SHA: $EXPECTED"
-            echo "Synthetic 25 unittest cases; no production data, migration, dry-run, mapping or UI."
+            echo "Synthetic 26 unittest cases; no production data, migration, dry-run, mapping or UI."
             echo "Native PostgreSQL dumps and comprehensive MySQL syntax: NOT IMPLEMENTED."
             echo "No shared database schema change, data import or deployment."
           } >> "$GITHUB_STEP_SUMMARY"
