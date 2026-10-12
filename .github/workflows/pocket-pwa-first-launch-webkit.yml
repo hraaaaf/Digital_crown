@@ -1,0 +1,257 @@
+# FUE WebKit follow-up: distinguish lazy import/assets/navigation without leaking secrets
+# FUE WebKit regression diagnostic: route + status only, no cookies/JWT/URL logging
+# iOS Safari first-party session confirmation: 200 + HttpOnly cookie before navigation
+name: Pocket PWA lifecycle — first launch real WebKit
+
+on:
+  push:
+    branches:
+      - test/pocket-pwa-first-launch-webkit-20261012
+    paths:
+      - .github/workflows/pocket-pwa-first-launch-webkit.yml
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - fix/pocket-ios-micropolish-theme-20261011
+    paths:
+      - .github/workflows/pocket-pwa-first-launch-webkit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pocket-pwa-first-launch-webkit-20261012
+  cancel-in-progress: true
+
+jobs:
+  disposable-pairing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      T2_USER: t2-browser@cabinet.ma
+    steps:
+      - name: Checkout exact synthetic Pocket candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Confirm isolated branch, never a production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            test "$GITHUB_HEAD_REF" = "test/pocket-pwa-first-launch-webkit-20261012"
+          else
+            test "$GITHUB_REF_NAME" = "test/pocket-pwa-first-launch-webkit-20261012"
+          fi
+          test -f scripts/ci/pocket_ios_fue_gateway.py
+          test -f scripts/ci/pocket_ios_fue_issue.py
+          echo "FUE_REPO_SHA=$(git rev-parse HEAD)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate disposable test-only local login
+        shell: bash
+        run: |
+          set -euo pipefail
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Install isolated backend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/pocket-fue-backend-requirements.txt
+          python -m pip install -r /tmp/pocket-fue-backend-requirements.txt
+      - name: Build Pocket frontend for safe same-origin test gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Runtime-only patch: do not commit or deploy any changed product code.
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx")
+          original = p.read_text()
+          anchor = "function resolveApiBase(): string {"
+          assert original.count(anchor) == 1, "Unexpected onboarding API boundary"
+          patched = original.replace(
+              anchor,
+              anchor + "\n  if (import.meta.env.VITE_POCKET_FUE_TUNNEL === '1') return window.location.origin;",
+          )
+          p.write_text(patched)
+          PY
+          cd frontend
+          npm ci
+          VITE_POCKET_FUE_TUNNEL=1 npm run build
+      - name: Start disposable backend with fake SQLite data
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/pocket-fue-backend.log 2>&1 &
+          echo $! >/tmp/pocket-fue-backend.pid
+          for i in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          tail -60 /tmp/pocket-fue-backend.log | sed -E 's/(token|secret|password)=[^ ]+/[REDACTED]/ig'
+          exit 1
+      - name: Start built frontend and isolated capability gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd frontend && ./node_modules/.bin/vite preview --host 127.0.0.1 --port 5173 --strictPort) >/tmp/pocket-fue-frontend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:5173/mobile/onboarding >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5173/mobile/onboarding >/dev/null
+          python scripts/ci/pocket_ios_fue_gateway.py >/tmp/pocket-fue-gateway.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5183/healthz >/dev/null; then break; fi
+            sleep 1
+          done
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:5183/mobile/onboarding)" = "403"
+          test "$(curl --silent http://127.0.0.1:5183/healthz)" = "ok"
+          echo "FUE_LOCAL_GATEWAY_PROTECTED=true"
+      - name: Establish temporary HTTPS tunnel
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+            --output /tmp/cloudflared
+          chmod 700 /tmp/cloudflared
+          /tmp/cloudflared --version
+          /tmp/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:5183 >/tmp/pocket-fue-cloudflare.log 2>&1 &
+          echo $! >/tmp/pocket-fue-tunnel.pid
+          origin=""
+          for i in $(seq 1 90); do
+            origin="$(python - <<'PY'
+          import re
+          from pathlib import Path
+          content = Path("/tmp/pocket-fue-cloudflare.log").read_text(errors="replace")
+          matches = re.findall(r"https://[a-z0-9-]+\.trycloudflare\.com", content)
+          print(matches[-1] if matches else "")
+          PY
+            )"
+            if [ -n "$origin" ]; then break; fi
+            sleep 2
+          done
+          test -n "$origin"
+          echo "FUE_TUNNEL_ORIGIN=$origin" >> "$GITHUB_ENV"
+          echo "FUE_HTTPS_TUNNEL_CREATED=true"
+      - name: Verify candidate actually includes native Safari continuation
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'href={destinationRoute}' frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx
+          echo "FUE_SAFARI_NATIVE_LINK_PRESENT=true"
+      - name: Install browser-based WebKit certification runner
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps webkit
+      - name: Require actual paired HTTPS Agenda and responsive nav in WebKit
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py > "$RUNNER_TEMP/fue-browser-private-code.txt"
+          (cd frontend && FUE_LIVE_BROWSER_CODE_FILE="$RUNNER_TEMP/fue-browser-private-code.txt" node scripts/certify-pocket-pwa-first-launch-webkit.mjs)
+          rm -f "$RUNNER_TEMP/fue-browser-private-code.txt"
+      - name: Store browser evidence only, never credentials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-pwa-first-launch-qa-${{ github.sha }}
+          path: |
+            /tmp/pocket-pwa-first-launch-after-webkit.png
+            /tmp/pocket-pwa-first-launch-failed-webkit.png
+          retention-days: 1
+          if-no-files-found: warn
+      - name: Issue real five-minute pairing code 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py | tee "$RUNNER_TEMP/pocket-fue-code-1.txt"
+      - name: Publish live pairing artifact 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-1
+          path: ${{ runner.temp }}/pocket-fue-code-1.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep test tunnel active during pairing window 1
+        shell: bash
+        run: |
+          test -n "$FUE_TUNNEL_ORIGIN"
+          sleep 215
+      - name: Issue real five-minute pairing code 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py | tee "$RUNNER_TEMP/pocket-fue-code-2.txt"
+      - name: Publish live pairing artifact 2
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-2
+          path: ${{ runner.temp }}/pocket-fue-code-2.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep test tunnel active during pairing window 2
+        shell: bash
+        run: |
+          test -n "$FUE_TUNNEL_ORIGIN"
+          sleep 215
+      - name: Issue real five-minute pairing code 3
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py | tee "$RUNNER_TEMP/pocket-fue-code-3.txt"
+      - name: Publish live pairing artifact 3
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-3
+          path: ${{ runner.temp }}/pocket-fue-code-3.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep test tunnel active during pairing window 3
+        shell: bash
+        run: |
+          test -n "$FUE_TUNNEL_ORIGIN"
+          sleep 215
+      - name: Issue real five-minute pairing code 4
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_ios_fue_issue.py | tee "$RUNNER_TEMP/pocket-fue-code-4.txt"
+      - name: Publish live pairing artifact 4
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-4
+          path: ${{ runner.temp }}/pocket-fue-code-4.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep final live code usable and close test session
+        shell: bash
+        run: |
+          sleep 250
+          echo "POCKET_FUE_SESSION_EXPIRED=true"
