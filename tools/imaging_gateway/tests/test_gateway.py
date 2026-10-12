@@ -1,4 +1,5 @@
 """Synthetic fixtures only; no device, patient or server access."""
+import base64
 import os
 from pathlib import Path
 import tempfile
@@ -7,7 +8,10 @@ import unittest
 from tools.imaging_gateway import Config, HotFolder, GatewayError
 
 
-SYNTHETIC = b"\x89PNG\r\n\x1a\nsynthetic-no-real-patient"
+SYNTHETIC = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
+    "AAAAFklEQVR4nGPkEpFjYGBgYmBgYGBgAAAC5gBAXKUgWwAAAABJRU5ErkJggg=="
+)
 
 
 class GatewayTests(unittest.TestCase):

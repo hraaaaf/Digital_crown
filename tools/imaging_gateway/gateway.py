@@ -69,8 +69,11 @@ class Config:
         w, p = Path(self.watch).absolute(), Path(self.private).absolute()
         if w == p or w in p.parents or p in w.parents:
             raise GatewayError("watch and private paths must be disjoint")
+        # Windows may canonicalize harmless 8.3 paths, drive casing and volume aliases.
+        # Check actual symbolic links instead of rejecting differing path spellings.
+        ancestors = (*w.parents, *p.parents)
         if (w.is_symlink() or not w.is_dir() or p.is_symlink() or
-                w.resolve(strict=True) != w or p.resolve(strict=False) != p):
+                any(parent.is_symlink() for parent in ancestors)):
             raise GatewayError("unsafe watch/private root or symlink ancestor")
         p.mkdir(parents=True, exist_ok=True)
 
