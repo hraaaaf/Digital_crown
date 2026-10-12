@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 
 from backend.core.runtime_safety import (
     DEV_BOOTSTRAP,
@@ -412,7 +413,7 @@ app = FastAPI(
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error(f"Validation Error: {str(exc.errors())}")
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors(), custom_encoder={ValueError: str})})
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
