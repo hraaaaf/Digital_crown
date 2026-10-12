@@ -2,7 +2,7 @@ name: V1.5-04.5 Hybrid Actions Cabinet Station iPhone Synthetic
 on:
   push:
     branches: [lab/v15-04-5-actions-server-station-iphone-20261012]
-    paths: [.github/workflows/v15-04-5-actions-iphone-field.yml, backend/tests/field_actions_cabinet_server.py, backend/tests/field_actions_station_actor.py, frontend/vite.field-actions.config.ts]
+    paths: [.github/workflows/v15-04-5-actions-iphone-field.yml, backend/tests/field_actions_cabinet_server.py, backend/tests/field_actions_station_actor.py, frontend/vite.field-actions.config.ts, frontend/src/features/patient-companion/PatientCompanionApp.tsx, frontend/src/features/patient-companion/fieldLabLocalPairing.ts, frontend/src/features/patient-companion/fieldLabLocalPairing.test.ts]
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 35
     env:
       FIELD_LAB_ACK: synthetic-only
+      VITE_FIELD_LAB_LOCAL_PAIRING: "true"
       FIELD_DEMO_PASSWORD: "TestPass123!"
       ENVIRONMENT: test
       DATABASE_URL: "sqlite:///:memory:"
@@ -48,6 +49,8 @@ jobs:
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/field-reqs.txt
           pip install -r /tmp/field-reqs.txt
           cd frontend && npm ci
+          npx vitest run src/features/patient-companion/fieldLabLocalPairing.test.ts --maxWorkers=1 --fileParallelism=false
+          npm run build
       - name: Python syntax and isolation checks
         run: |
           python -m py_compile backend/tests/field_actions_cabinet_server.py backend/tests/field_actions_station_actor.py
