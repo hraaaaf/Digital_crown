@@ -60,7 +60,7 @@ try {
           status: 200,
           contentType: 'application/json',
           headers: { 'Cache-Control': 'no-store' },
-          body: JSON.stringify({ documents: [{ documentId: 42, kind: 'care_sheet' }] }),
+          body: JSON.stringify({ documents: [{ documentId: 42, kind: 'care_sheet' }, { documentId: 71, kind: 'presence_receipt' }] }),
         });
       });
       const page = await context.newPage();
@@ -92,6 +92,7 @@ try {
       if (phase === 'after') {
         await page.locator('[data-pc-station-documents]').waitFor({ timeout: 12000 });
         await page.locator('[data-pc-care-sheet-download="42"]').waitFor({ timeout: 12000 });
+        await page.locator('[data-pc-presence-receipt-download="71"]').waitFor({ timeout: 12000 });
         if (seen.listings !== 1) throw new Error('Phone eligibility list was not claimed exactly once');
       } else {
         if (await page.locator('[data-pc-station-documents]').count()) {
@@ -100,10 +101,18 @@ try {
       }
       const filename = `${phase}-companion-phone-${viewport.label}-${scale.label}.png`;
       await page.screenshot({ path: path.join(out, filename), fullPage: false });
+      let componentFilename = null;
+      if (phase === 'after') {
+        componentFilename = `after-companion-document-card-${viewport.label}-${scale.label}.png`;
+        await page.locator('[data-pc-station-documents]').screenshot({
+          path: path.join(out, componentFilename),
+        });
+      }
       const layout = await page.evaluate(() => ({
         width: window.innerWidth,
         scrollWidth: document.documentElement.scrollWidth,
         documentPickupVisible: Boolean(document.querySelector('[data-pc-station-documents]')),
+        presenceReceiptVisible: Boolean(document.querySelector('[data-pc-presence-receipt-download="71"]')),
         phoneDownloadVisible: Boolean(document.querySelector('[data-pc-care-sheet-download="42"]')),
         rawSessionTokenInUrl: location.search.includes('stationSession'),
         text: document.body.innerText.slice(0, 1500),
@@ -116,7 +125,7 @@ try {
         throw new Error(`Phone UI baseline regression: ${JSON.stringify({ seen, errors })}`);
       }
       report.push({
-        phase, sha, filename, viewport: viewport.label, scale: scale.label,
+        phase, sha, filename, componentFilename, viewport: viewport.label, scale: scale.label,
         ...layout, claims: seen.claims, listings: seen.listings,
         downloads: seen.downloads, phonePurges: seen.phonePurges, errors,
         scope: 'synthetic app with encrypted local test-only pairing, mocked API responses; not physical phone',
