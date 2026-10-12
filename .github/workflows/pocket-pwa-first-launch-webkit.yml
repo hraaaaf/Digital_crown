@@ -2,6 +2,7 @@
 # FUE WebKit regression diagnostic: route + status only, no cookies/JWT/URL logging
 # iOS Safari first-party session confirmation: 200 + HttpOnly cookie before navigation
 # Synthetic schedule proof: six demonstration appointments today, never production
+# Retry: seed script resolves repo root without changing product startup
 name: Pocket PWA lifecycle — first launch real WebKit
 
 on:
