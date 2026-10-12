@@ -122,14 +122,43 @@ try{
       assert(await stage().getAttribute('data-source-image-sha1')===radio.sha1,'Image provenance mismatch');
       assert(await stage().getAttribute('data-predicted-count')==='38','Model point count not 38');
       assert(await count('data-audit')===0,'Unexpected initial audit');
+      // The visual overlay may move label glyphs but never model coordinates.
+      const visibleModelPoints=await page.locator('[data-ceph03b-drag-handle]').evaluateAll(nodes=>
+        nodes.map(node=>{
+          const marker=[...node.children].find(child=>child.tagName.toLowerCase()==='circle'&&child.getAttribute('fill')!=='transparent');
+          return {id:node.getAttribute('data-ceph03b-drag-handle'),
+            x:Number(marker?.getAttribute('cx')),y:Number(marker?.getAttribute('cy'))};
+        }));
+      assert(visibleModelPoints.length>0,'No visible editable landmarks');
+      if(mode==='all')assert(visibleModelPoints.length===38,'ALL mode must expose 38 model handles');
+      for(const pt of visibleModelPoints){
+        const source=bridge.baseline.find(p=>p.id===pt.id);
+        assert(source&&Math.abs(source.x-pt.x)<0.00001&&Math.abs(source.y-pt.y)<0.00001,
+          'Visual work changed a source model coordinate '+pt.id);
+      }
+      const initialLabelCount=await page.locator('[data-ceph03b-landmark-label]').count();
+      assert(initialLabelCount===0,'Ambient labels still crowd the radiograph');
       const initialT1=await ghostLines('t1');
       const initialT2=await ghostLines('t2');
+      const ghostOpacities=await page.locator('[data-ceph03b-ghost-layer] [data-cephalo-line-key]')
+        .evaluateAll(nodes=>nodes.map(node=>Number(node.getAttribute('opacity'))));
+      assert(ghostOpacities.length>0&&ghostOpacities.every(x=>x>0&&x<=0.380001),
+        'Ghost presentation opacity not explicitly bounded');
       record.initialGhostLines={t1:initialT1,t2:initialT2};
       assert(initialT1>0&&initialT2>0,'Expected independent T1 and T2 visual-only trace lines');
       await screenshot('initial');
 
       await point().focus();
       assert(await point().evaluate(node=>node===document.activeElement),'SVG keyboard focus failed');
+      assert(await point().getAttribute('data-ceph03b-keyboard-focused')==='true',
+        'DOM focus not reflected in reticle');
+      const focusedLabelCount=await page.locator('[data-ceph03b-landmark-label]').count();
+      const focusRingCount=await page.locator('[data-ceph03b-focus-ring="'+editId+'"] circle').count();
+      assert(focusedLabelCount===1
+        &&await page.locator('[data-ceph03b-landmark-label="'+editId+'"]').count()===1,
+        'Focused landmark label hidden or colliding with others');
+      assert(focusRingCount===2,'Keyboard focus requires a double high-contrast ring');
+      await screenshot('focus');
       await page.keyboard.press('ArrowRight');
       await page.keyboard.press('Shift+ArrowRight');
       assert(near(await pointX(),initialX+11),'Rapid keyboard moves lost state');
@@ -188,6 +217,11 @@ try{
       record.decoded=decoded;
       record.initialX=initialX;
       record.currentX=await pointX();
+      record.initialLabelCount=initialLabelCount;
+      record.focusedLabelCount=focusedLabelCount;
+      record.focusRingCount=focusRingCount;
+      record.ghostOpacityMax=Math.max(...ghostOpacities);
+      record.verifiedModelHandleCount=visibleModelPoints.length;
       record.auditEvents=auditBeforeReload;
       record.reloadedAuditEvents=await count('data-audit');
       record.ghostLines={t1:initialT1,t2:initialT2};
@@ -205,10 +239,10 @@ try{
   await cp(scratch,out,{recursive:true,force:true});
   await writeFile(path.join(out,'vite.log'),viteLog);
 }
-const report={suite:'DC-CEPH03B3D-TWO-REAL-SRPOSE38-API-READBACK-DESKTOP',head,
+const report={suite:'DC-CEPH03B3E-READABILITY-REAL-SRPOSE38-API-READBACK-DESKTOP',head,
   provenance:manifest.images.map(({id,author,source_page,license,sha1,width,height})=>({id,author,source_page,license,sha1,width,height})),
   cases,blockedExternal:requests,invalidCount:cases.filter(x=>!x.valid).length,
-  scope:'Actual pinned SRPose38 points sourced from authenticated isolated SQLite API GET, not validated anatomically. Browser rehydrates exported API snapshot in a fixture, not a live cabinet login. T1/T2 remain simulated only'};
+  scope:'03B.3e visual readability on 03B.3d pinned SRPose38 authenticated SQLite API GET exports. Original model coordinates compared against every visible handle. Not a live-browser/API session, not certified anatomy. T1/T2 simulated only'};
 await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
 console.log(JSON.stringify({head, cases:cases.map(x=>({name:x.name,valid:x.valid,errors:x.errors})),
   blockedExternal:requests,invalidCount:report.invalidCount},null,2));
