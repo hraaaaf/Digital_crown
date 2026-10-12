@@ -28,7 +28,10 @@ const page = await context.newPage();
 const evidence = { realHttps: false, pairingSuccess: false, dashboardAgenda: false, plusOpens: false, todayResponds: false };
 const transitions = [];
 const apiStatuses = [];
+const assetStatuses = [];
+const failedPaths = [];
 let jsErrors = 0;
+let consoleErrors = 0;
 const safePath = (url) => {
   try {
     const p = new URL(url).pathname;
@@ -41,8 +44,14 @@ page.on('framenavigated', frame => {
 page.on('response', response => {
   const p = safePath(response.url());
   if (p.startsWith('/api/mobile/')) apiStatuses.push({ path: p, status: response.status() });
+  if (p.startsWith('/assets/')) assetStatuses.push({ ext: p.endsWith('.js') ? 'js' : p.endsWith('.css') ? 'css' : 'other', status: response.status() });
+});
+page.on('requestfailed', request => {
+  const p = safePath(request.url());
+  failedPaths.push(p.startsWith('/assets/') ? '/assets/[REDACTED]' : p);
 });
 page.on('pageerror', () => { jsErrors++; });
+page.on('console', entry => { if (entry.type() === 'error') consoleErrors++; });
 try {
   await page.goto(fields.POCKET_FUE_LINK, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.getByRole('link', { name: /Continuer vers l.appairage/ }).click();
@@ -60,7 +69,7 @@ try {
     await page.waitForURL(/\/mobile\/dashboard\?tab=agenda/, { timeout: 4000 });
   } catch {
     evidence.autoTimeoutPath = safePath(page.url());
-    await page.getByRole('link', { name: 'Continuer vers Agenda' }).click();
+    await page.getByRole('link', { name: 'Continuer vers Agenda' }).click({ noWaitAfter: true });
     evidence.afterClickPath = safePath(page.url());
     await page.waitForURL(/\/mobile\/dashboard\?tab=agenda/, { timeout: 15000 });
   }
@@ -89,7 +98,16 @@ try {
     ...evidence, currentPath: safePath(page.url()),
     transitions: transitions.slice(-12),
     apiStatuses: apiStatuses.slice(-20),
-    jsErrors,
+    assets: { total: assetStatuses.length, jsLoaded: assetStatuses.filter(x => x.ext === 'js' && x.status === 200).length, failed: assetStatuses.filter(x => x.status >= 400).slice(-8) },
+    failedPaths: failedPaths.slice(-12),
+    jsErrors, consoleErrors,
+    document: await page.evaluate(() => ({
+      readyState: document.readyState,
+      hasAppModule: !!document.querySelector('script[type="module"]'),
+      hasReactRoot: !!document.getElementById('root'),
+      currentPath: window.location.pathname,
+      hasSessionStorage: !!window.sessionStorage,
+    })).catch(() => ({ error: true })),
     stillOnSuccess: (await page.getByText('Appairage réussi', { exact: true }).count()) > 0,
     hasAgenda: (await page.locator('[data-dc-pocket-agenda]').count()) > 0,
     hasBiometricGate: (await page.getByText('Accès mobile protégé').count()) > 0,
