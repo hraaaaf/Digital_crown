@@ -1,0 +1,16 @@
+# LOT05.2-B2a — Manifeste cible depuis modèles ORM déclarés (NO-GO import)
+
+Base empilée uniquement : [PR #854](https://github.com/hraaaaf/Digital_crown/pull/854) → [#853](https://github.com/hraaaaf/Digital_crown/pull/853) → [#850](https://github.com/hraaaaf/Digital_crown/pull/850). Décisions figées Notion 04–10, 47–52, 58–60. Aucune permission de merge, Vercel, production, DB source ou LOT04/LOT06.
+
+## Problème résolu, sans invention
+En 05.2-B1, le manifest cible doit être importé en JSON depuis une source technique non certifiée. 05.2-B2a introduit une **fonction pure de prévisualisation** lisant uniquement `sqlalchemy.MetaData` des déclarations ORM afin de proposer tables et colonnes existant **dans le code du modèle**. Elle ne fait AUCUNE connexion, reflection de base de données, changement Alembic ou lecture patient. Elle n'authentifie PAS l'identité utilisateur et n'est enregistrée sous aucune route.
+
+Le service `backend/services/legacy_sql_target_manifest_v15.py` exige une liste de tables cibles explicitement choisie, refuse les inconnues, doublons/collision de casse, noms dangereux, tables d'identité/credential telles que `users`, nombre ou taille exorbitants, retire des champs de secrets/privileges. Chaque exclusion est comptabilisée ; les tables sans aucun champ sûr sont refusées, non supprimées silencieusement. Fournit un hash déterministe du schéma ORM déclaré, un manifest JSON à 2 clés pour l'UI locale de B1 et une `TargetSnapshot` correspondant au moteur 05.2-A.
+
+**Distinction absolue** : `schema_revision = "orm-declared:" + declared_revision`. Cette valeur est le **label du schéma attendu dans le code**, pas l'Alembic réellement installé sur le poste. Tous les drapeaux `physical_schema_verified=false`, `tenant_verified=false`, `admin_approved=false`, `dry_run_completed=false`, `import_permitted=false`. Le hash n'est PAS une signature d'admin ni une preuve de tenant ; aucun profil ne peut être validé/importé sur sa seule base.
+
+## NEXT bloquant 05.2-B2b / 05.3
+Avant une API ou l'usage cabinet : implémenter endpoint lecture-seule **sous get_current_user et workstation policy existants**, dériver cabinet par `current_user.get_employer_id()`, confronter déclarations ORM à la **base cible physique** en lecture seule et Alembic actuel, obtenir le niveau d'autorisation propriétaire/administrateur et filtrer à la fois métadonnées et privilèges, puis lier manifest exact/tenant/revision à la revue humaine. Les modalités, la persistance chiffrée, les conflits de modèles concurrents et tout vrai chargement patient doivent être spécifiés/révisés avant de modifier router partagé. Nécessite essais desktop et PWA mobiles selon disponibilité et approbation visuelle humaine. LOT05.3 demeure obligatoire pour dry-run, anomalies, doublons, avant sauvegarde/import.
+
+## Validation spécifique
+GitHub Actions matrix Python 3.12/3.13 + SQLAlchemy 2.0.28 version de backend/requirements.txt ; unit tests sur MetaData entièrement synthétique et sur vraies **déclarations python** des modèles (sans importer backend.database), tests de type SQLite/PG schema-qualifié, restrictions credential, fingerprints et intégration non autorisante avec le moteur 05.2-A. Interdire toute affirmation de compatibilité entre ORM déclaré et schéma physique, toute certification Windows cabinet, migration patient ou approbation UI.
