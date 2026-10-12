@@ -259,3 +259,55 @@ def test_046_phone_purge_audit_and_download_log_minimize_identity(client, db, de
         models.AuditLog.action == "STATION_DOCUMENT_SESSION_PURGED_PHONE",
         models.AuditLog.resource_id == sid,
     ).count() == 1
+
+
+def test_046_ttl_sweep_scrubs_unattended_expired_session_and_audits_once(client, db, dentiste):
+    from backend.services.station_session_cleanup import (
+        TTL_PURGE_ACTION, purge_expired_station_sessions,
+    )
+    _staff, created, url = _authorized_document_session(
+        client, db, dentiste, "ST046-TTL-SWEEP",
+    )
+    session_id = created["sessionId"]
+    # Active sessions must never be purged by a retention cleanup.
+    assert purge_expired_station_sessions(db) == 0
+    assert client.get(url, headers=created["_phoneHeaders"]).status_code == 200
+
+    row = db.get(models.WorkstationPatientSession, session_id)
+    row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.commit()
+    assert purge_expired_station_sessions(db) == 1
+    db.expire_all()
+    row = db.get(models.WorkstationPatientSession, session_id)
+    assert row.patient_id is None and row.patient_access_id is None
+    assert row.purged_at is not None
+    assert client.get(url, headers=created["_phoneHeaders"]).status_code == 404
+    assert purge_expired_station_sessions(db) == 0
+    events = db.query(models.AuditLog).filter(
+        models.AuditLog.action == TTL_PURGE_ACTION,
+        models.AuditLog.resource_id == session_id,
+    ).all()
+    assert len(events) == 1
+    assert events[0].details == "patient_binding_cleared=true;actor=ttl_sweep"
+
+
+def test_046_periodic_worker_one_shot_catches_up_expiry_after_offline_restart(client, db, dentiste):
+    from backend.main import _station_ttl_sweep_once
+    from backend.services.station_session_cleanup import TTL_PURGE_ACTION
+    staff, created, _url = _authorized_document_session(
+        client, db, dentiste, "ST046-TTL-RESTART",
+    )
+    row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    row.expires_at = datetime.utcnow() - timedelta(minutes=1)
+    db.commit()
+    # The same one-shot function used by cabinet startup/periodic worker.
+    assert _station_ttl_sweep_once() == 1
+    db.expire_all()
+    row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    assert row.purged_at is not None
+    assert row.patient_id is None and row.patient_access_id is None
+    assert _station_ttl_sweep_once() == 0
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == TTL_PURGE_ACTION,
+        models.AuditLog.resource_id == created["sessionId"],
+    ).count() == 1
