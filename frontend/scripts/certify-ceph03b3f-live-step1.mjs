@@ -212,6 +212,10 @@ try {
         const data=await res.json();
         return Math.abs(persistedPoint(data,'N').x-(originalN.x+11))<0.0001?data:false;
       },'redo committed');
+      assert(redone.angles_data?.calibration_source_resolution?.state===expectedSourceState
+        && redone.angles_data?.calibration_source_resolution?.applied_to_analysis===false
+        && redone.mm_per_pixel===null && redone.is_calibrated===false,
+        'Refined SQLite record discarded immutable calibration source evidence');
       const anonRead=await anon.request.get(origin+pathForId(id));
       const anonMedia=await anon.request.get(origin+'/'+uploaded.image_path);
       assert([401,403].includes(anonRead.status()),'Anonymous GET leaked persisted landmark analysis');

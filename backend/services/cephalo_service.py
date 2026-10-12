@@ -212,6 +212,17 @@ class CephaloService:
             result.clinical_data = self._calculate_complex_ddm(result, clinical_data)
 
         final_data_dict = _remove_autonomous_treatment(result.model_dump())
+        # Preserve immutable source-acquisition evidence across landmark
+        # refinements. A correction changes coordinates, not the image's
+        # original calibration provenance; this metadata cannot itself
+        # authorize any mm measurement or promote an auto-calibration.
+        if isinstance(existing.angles_data, dict):
+            source_resolution = existing.angles_data.get("calibration_source_resolution")
+            if (
+                isinstance(source_resolution, dict)
+                and source_resolution.get("schema_version") == "CEPHALO_SOURCE_RESOLUTION_V1"
+            ):
+                final_data_dict["calibration_source_resolution"] = dict(source_resolution)
         if ai_diagnostic:
             final_data_dict["ai_diagnostic"] = ai_diagnostic
         else:
