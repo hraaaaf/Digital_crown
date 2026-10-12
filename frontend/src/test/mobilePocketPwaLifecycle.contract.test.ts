@@ -14,6 +14,7 @@ describe('Pocket is a persistent standalone app, not a pairing deep-link', () =>
     expect(manifest.id).toBe('/'); // existing installs must not split into a new PWA identity
     expect(manifest.display).toBe('standalone');
     expect(manifest.start_url).toBe('/mobile/dashboard');
+    expect(source('index.html')).toContain('apple-mobile-web-app-title\" content=\"Digital Crown Pocket');
     expect(manifest.shortcuts[0]?.url).toBe('/mobile/dashboard?tab=agenda');
     expect(resolveDashboardTab('')).toBe('today');
     expect(resolveDashboardTab('?tab=agenda')).toBe('agenda');
