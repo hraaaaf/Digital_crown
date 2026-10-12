@@ -41,6 +41,8 @@ try{
     await page.route('**/*',async route=>{
       const u=new URL(route.request().url());
       if(u.hostname==='127.0.0.1'&&u.port===String(port))return route.continue();
+      // Never fetch externally: neutralize the known optional stylesheet in-memory.
+      if(u.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:''});
       blockedExternal.push(route.request().url());
       return route.abort('blockedbyclient');
     });
