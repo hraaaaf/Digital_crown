@@ -71,3 +71,39 @@ def test_045_identity_token_is_not_a_document_download_credential(client, db, de
     unauthenticated = client.get(url, headers={"Authorization": f"Bearer {token}"})
     assert unauthenticated.status_code in (401, 403), unauthenticated.text
     assert unauthenticated.headers.get("content-type", "").split(";")[0] != "application/pdf"
+
+
+def test_046_purge_still_works_after_station_to_cabinet_mode_switch(client, db, dentiste):
+    staff, created, _url = _authorized_document_session(
+        client, db, dentiste, "ST046-MODE-PURGE",
+    )
+    _set_mode(client, staff, "cabinet")
+    purged = client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/purge",
+        headers=staff,
+    )
+    assert purged.status_code == 204, purged.text
+    db.expire_all()
+    row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    assert row.purged_at is not None
+    assert row.patient_id is None
+    assert row.patient_access_id is None
+
+
+def test_046_purge_still_works_after_station_revocation(client, db, dentiste):
+    staff, created, _url = _authorized_document_session(
+        client, db, dentiste, "ST046-REVOKED-PURGE",
+    )
+    row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    workstation = db.get(models.WorkstationMode, row.workstation_id)
+    workstation.revoked_at = datetime.utcnow()
+    db.commit()
+    purged = client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/purge",
+        headers=staff,
+    )
+    assert purged.status_code == 204, purged.text
+    db.expire_all()
+    row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    assert row.purged_at is not None
+    assert row.patient_id is None
