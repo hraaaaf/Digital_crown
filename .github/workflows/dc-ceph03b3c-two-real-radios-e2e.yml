@@ -40,7 +40,8 @@ jobs:
               .github/workflows/dc-ceph03b3c-two-real-radios-e2e.yml | \
               frontend/scripts/capture-dc-ceph03b3c-real-radios.mjs | \
               frontend/src/features/ortho/CephaloTracingLayer.realRadioFixture.tsx | \
-              frontend/src/features/ortho/CephaloTracingLayerBase.tsx) ;;
+              frontend/src/features/ortho/CephaloTracingLayerBase.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx) ;;
               *) echo "HORS SCOPE: $file" >&2; exit 1;;
             esac
           done < <(git diff --name-only "$BASE_HEAD" "$GITHUB_SHA")
@@ -123,6 +124,13 @@ jobs:
           mkdir -p public/dc-ceph03b3c
           cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-A.jpg public/dc-ceph03b3c/cephalo-A.jpg
           cp "$DC_CEPH03B3C_RADIO_DIR"/cephalo-B.jpg public/dc-ceph03b3c/cephalo-B.jpg
+      - name: Regression guard for T1/T2 COM and audited keyboard edits
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx \
+            src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx \
+            src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx
       - name: Real public X-ray visible in Chromium with real desktop store & undo redo
         working-directory: frontend
         shell: bash
