@@ -1,10 +1,14 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
 const out = path.join(root, 'dc-ceph03b3-keyboard-zoom-artifacts');
+// The active Vite dev server watches source-root writes and may full-reload a
+// scene while Playwright moves the pointer. Capture under ignored node_modules,
+// then publish evidence only after stopping the server.
+const scratch = path.join(root, 'node_modules', '.cache', 'dc-ceph03b3-browser-captures');
 const fileName = 'ceph03b3-keyboard-zoom.html';
 const port = 5197;
 const url = 'http://127.0.0.1:' + port + '/' + fileName;
@@ -15,6 +19,8 @@ const modes = [{ mode:'com', line:'com-frankfort' },{ mode:'all', line:'ricketts
 const captures = [];
 const blockedExternal = [];
 await rm(out,{recursive:true,force:true});
+await rm(scratch,{recursive:true,force:true});
+await mkdir(scratch,{recursive:true});
 await mkdir(out,{recursive:true});
 await writeFile(path.join(root,fileName),html);
 const server=spawn(path.join(root,'node_modules','.bin','vite'),['--host','127.0.0.1','--port',String(port)],{cwd:root,env:{...process.env,BROWSER:'none'},stdio:['ignore','pipe','pipe']});
@@ -36,6 +42,8 @@ try{
     const page=await context.newPage();
     const errors=[];
     const consoleErrors=[];
+    let mainFrameNavigations=0;
+    page.on('framenavigated',frame=>{if(frame===page.mainFrame())mainFrameNavigations+=1});
     page.on('pageerror',e=>errors.push(e.message));
     page.on('console',msg=>{if(msg.type()==='error')consoleErrors.push(msg.text())});
     await page.route('**/*',async route=>{
@@ -48,7 +56,7 @@ try{
     });
     const key=viewport.width+'x'+viewport.height+'-'+m.mode;
     const record={viewport:key.split('-')[0],mode:m.mode,valid:false,images:[],errors};
-    const screenshot=async state=>{const filename=key+'-'+state+'.png';await page.screenshot({path:path.join(out,filename)});record.images.push(filename)};
+    const screenshot=async state=>{const filename=key+'-'+state+'.png';await page.screenshot({path:path.join(scratch,filename)});record.images.push(filename)};
     const line=()=>page.locator('[data-r19-construction="'+m.line+'"],[data-r18-construction="'+m.line+'"]');
     const point=()=>page.locator('[data-ceph03b-drag-handle="Po"]');
     const xy=()=>line().evaluate(el=>({x:Number(el.getAttribute('x1')),y:Number(el.getAttribute('y1'))}));
@@ -121,6 +129,7 @@ try{
       await screenshot('commit');
       assert(!(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1)),'Horizontal overflow');
       assert(errors.length===0&&consoleErrors.length===0,'Browser console/page errors');
+      assert(mainFrameNavigations===1,'Unexpected document reload during pointer gesture: '+mainFrameNavigations);
       record.valid=true;
       record.focusState=focusState;
       record.matrixA=before.matrixA;
@@ -131,6 +140,7 @@ try{
       record.errors.push(String(e));
       await screenshot('failure').catch(()=>{});
     }finally{
+      record.mainFrameNavigations=mainFrameNavigations;
       captures.push(record);
       await context.close();
     }
@@ -138,6 +148,7 @@ try{
 }finally{
   await browser.close();
   server.kill('SIGTERM');
+  await cp(scratch,out,{recursive:true,force:true});
   await writeFile(path.join(out,'vite.log'),serverLog);
 }
 const report={suite:'DC-CEPH03B3-KEYBOARD-ZOOM',sourceHead,fixture:'synthetic',captures,blockedExternal,invalidCount:captures.filter(c=>!c.valid).length};
