@@ -112,6 +112,11 @@ jobs:
           done
           tail -60 /tmp/pocket-fue-backend.log | sed -E 's/(token|secret|password)=[^ ]+/[REDACTED]/ig'
           exit 1
+      - name: Seed an illustrative dental schedule in disposable test tenant
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/ci/seed_pocket_pwa_demo_agenda.py
       - name: Start built frontend and isolated capability gateway
         shell: bash
         run: |
