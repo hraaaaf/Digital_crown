@@ -97,7 +97,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     vtoSettings, setVtoSettings, setImageSrc, setLocal, setAnglesData, isStep1Fullscreen, setIsStep1Fullscreen,
     visionMetadata, autoCalibMessage, showCalibration, calibrationClickPoints,
     calibrationStep, calibrationDistance, applyCalibration, local, imgDim,
-    updateLandmarksOptimistic, activePointId, setActivePointId, anglesData,
+    updateLandmarksOptimistic, nudgeLandmarkFromKeyboard, activePointId, setActivePointId, anglesData,
     performanceMode, isUploading, uploadError,
     activeMorphing, setActiveMorphing, layerVisibility, layerOpacity, setLayerVisible, setLandmarkEditBaseline
   } = store;
@@ -289,6 +289,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           imageWidth={imgDim.w}
           imageHeight={imgDim.h}
           onUpdateLandmarks={updateLandmarksOptimistic}
+          onKeyboardNudgeLandmark={nudgeLandmarkFromKeyboard}
           activePointId={activePointId}
           focusedPointId={null}
           tweedPoAnatomicCertified={tweedPoAnatomicCertified}
