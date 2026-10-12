@@ -1,0 +1,60 @@
+name: V1.5-06B Imaging Preflight Safety
+
+on:
+  push:
+    branches:
+      - 'feat/v15-06-*'
+    paths:
+      - 'backend/services/imaging_acquisition_preflight_v15.py'
+      - 'backend/routers/imaging_acquisition_preflight_v15.py'
+      - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
+      - 'backend/main.py'
+      - '.github/workflows/v15-06b-preflight.yml'
+  pull_request:
+    paths:
+      - 'backend/services/imaging_acquisition_preflight_v15.py'
+      - 'backend/routers/imaging_acquisition_preflight_v15.py'
+      - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
+      - 'backend/main.py'
+      - '.github/workflows/v15-06b-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  imaging-preflight-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: v15-06b-synthetic-backend-secret-more-than-32
+      DATABASE_URL: sqlite:///./v15-06b-isolated.db
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC_V15_06_PREFLIGHT_LAB: '1'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install existing backend runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-v15-06b.txt
+          pip install -r /tmp/requirements-v15-06b.txt
+      - name: Compile contract and API
+        run: |
+          python -m py_compile backend/services/imaging_acquisition_preflight_v15.py
+          python -m py_compile backend/routers/imaging_acquisition_preflight_v15.py
+          python -m py_compile backend/tests/test_imaging_acquisition_preflight_v15.py
+          python -m py_compile backend/main.py
+      - name: Preflight negative scenarios and Media Core regressions
+        run: python -m pytest backend/tests/test_imaging_acquisition_preflight_v15.py backend/tests/test_media_core_ingestion_api.py -q
