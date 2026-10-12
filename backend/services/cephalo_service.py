@@ -223,6 +223,15 @@ class CephaloService:
                 and source_resolution.get("schema_version") == "CEPHALO_SOURCE_RESOLUTION_V1"
             ):
                 final_data_dict["calibration_source_resolution"] = dict(source_resolution)
+            candidate = existing.angles_data.get("calibration_candidate")
+            if (
+                isinstance(candidate, dict)
+                and candidate.get("status") == "CANDIDATE_UNVERIFIED"
+                and candidate.get("mm_per_pixel") is None
+                and candidate.get("distance_mm") is None
+                and candidate.get("clinician_validated") is False
+            ):
+                final_data_dict["calibration_candidate"] = dict(candidate)
         if ai_diagnostic:
             final_data_dict["ai_diagnostic"] = ai_diagnostic
         else:
@@ -233,7 +242,11 @@ class CephaloService:
                 sex=sex,
             )
 
-        final_data_dict["calibration_status"] = "verified" if existing.is_calibrated else "unverified"
+        final_data_dict["calibration_status"] = (
+            "verified" if existing.is_calibrated
+            else "candidate_unverified" if "calibration_candidate" in final_data_dict
+            else "unverified"
+        )
 
         persisted_data = dict(final_data_dict)
         if previous_payload is not None:
