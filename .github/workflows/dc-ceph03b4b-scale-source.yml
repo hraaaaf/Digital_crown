@@ -1,0 +1,82 @@
+name: DC Cephalo 03B4b source resolver safety and DICOM evidence
+on:
+  push:
+    branches:
+      - feat/dc-ceph03b4b-multisource-scale-evidence-20261012
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  multi-source-fail-closed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE_HEAD: 7ac8117b73f107c8035d90f1a328b4cb526ff1c9
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: REQUIRED exact HEAD and strict scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b4b-multisource-scale-evidence-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base "$GITHUB_SHA" "$BASE_HEAD")" = "$BASE_HEAD"
+          while IFS= read -r file; do
+            case "$file" in
+              backend/services/cephalo_scale_source_resolver.py | \
+              backend/services/cephalo_service.py | \
+              backend/tests/test_ceph03b4b_scale_source_resolver.py | \
+              backend/tests/test_cephalo_service_calibration_candidate.py | \
+              .github/workflows/dc-ceph03b4b-scale-source.yml | \
+              .github/workflows/dc-ceph03b4b-live-http.yml) ;;
+              *) echo "HORS SCOPE: $file" >&2; exit 1;;
+            esac
+          done < <(git diff --name-only "$BASE_HEAD" "$GITHUB_SHA")
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          echo "DC_CEPH03B4B_GATE_HEAD=$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal isolated runner
+        run: python -m pip install --disable-pip-version-check pytest==9.0.2
+      - name: REQUIRED 03B4b multi-device source policy, conflicts, and prior gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import pathlib,sys,types,pytest
+          # Geometry/provenance modules only; no SQLAlchemy clinic DB is loaded.
+          pkg=types.ModuleType('backend')
+          pkg.__path__=[str(pathlib.Path.cwd()/'backend')]
+          sys.modules['backend']=pkg
+          exit_code=pytest.main(['--noconftest','-q',
+            'backend/tests/test_ceph03b4b_scale_source_resolver.py',
+            'backend/tests/test_cephalo_auto_calibration_gate.py',
+            'backend/tests/test_cephalo_calibration_candidate.py'])
+          if exit_code:
+              raise SystemExit(exit_code)
+          from backend.services.cephalo_fiducial_profiles import validated_fiducial_profiles
+          assert validated_fiducial_profiles.profile_count == 0
+          from backend.services.cephalo_scale_source_resolver import resolve_scale_sources
+          assert resolve_scale_sources().eligible_mm_per_pixel is None
+          print('DC_CEPH03B4B_NO_UNTRUSTED_MM_AND_EMPTY_PRODUCTION_FIDUCIAL_REGISTRY_PASS')
+          PY
+          python -m py_compile backend/services/cephalo_scale_source_resolver.py backend/services/cephalo_service.py
+      - name: Emit exact source policy proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dc-ceph03b4b-evidence"
+          printf 'commit=%s\nprofile_registry=empty\ndicom_spacing=never_auto_promoted\nmodel_coordinates=untouched\nphysical_accuracy=not_validated\nreal_dicom_import=not_implemented_in_this_lot\n' "$GITHUB_SHA" > "$RUNNER_TEMP/dc-ceph03b4b-evidence/report.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-ceph03b4b-multisource-fail-closed-proof
+          path: ${{ runner.temp }}/dc-ceph03b4b-evidence
+          retention-days: 10
+          if-no-files-found: warn
