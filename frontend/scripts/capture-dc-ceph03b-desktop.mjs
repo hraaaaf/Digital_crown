@@ -13,7 +13,7 @@ const port = 5196;
 const baseUrl = 'http://127.0.0.1:' + port;
 const modes = [
   { name: 'com', landmark: 'Po', construction: 'com-frankfort', start: [30,40], dest: [65,75] },
-  { name: 'all', landmark: 'N', construction: 'ricketts-n-pog', start: [130,70], dest: [145,90] },
+  { name: 'all', landmark: 'Po', construction: 'ricketts-frankfort', start: [30,40], dest: [65,75] },
 ];
 const viewports = [{ name: '1280x900', width: 1280, height: 900 }, { name: '1600x1000', width: 1600, height: 1000 }];
 const htmlName = 'ceph03b-desktop-visual.html';
