@@ -7,6 +7,8 @@ import path from 'node:path';
 const root=process.cwd();
 const manifest=JSON.parse(await readFile(path.join(root,'scripts/fixtures/dc-ceph03b3c-public-cephalograms.json'),'utf8'));
 const publicDir=path.join(root,'public/dc-ceph03b3c');
+const expectedModel='a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb';
+const bridges=new Map();
 const out=path.join(root,'dc-ceph03b3c-real-radio-proof');
 const scratch=path.join(root,'node_modules/.cache/dc-ceph03b3c-screens');
 const htmlFile='dc-ceph03b3c-real-radio.html';
@@ -26,6 +28,19 @@ for(const radio of manifest.images){
   if(createHash('sha1').update(bytes).digest('hex')!==radio.sha1 || bytes.length!==radio.size_bytes){
     throw Error('Radio source bytes invalid '+radio.id);
   }
+  const b=JSON.parse(await readFile(path.join(publicDir,'cephalo-'+radio.id+'-predictions.json'),'utf8'));
+  const actualN=b.baseline?.find(p=>p.id==='N');
+  const savedN=b.after_redo?.find(p=>p.id==='N');
+  assert(b.source==='AUTHENTICATED_SQLITE_API_READ_AFTER_REAL_SRPOSE38_UPLOAD'
+    &&b.model_sha256===expectedModel
+    &&b.source_image_sha1===radio.sha1
+    &&b.radio===radio.id &&b.inference_mode==='SOTA_ONNX_38'
+    &&b.clinical_accuracy_evaluated===false
+    &&b.is_calibrated===false &&b.mm_per_pixel===null
+    &&b.baseline.length===38&&b.after_redo.length===38
+    &&actualN&&savedN&&near(actualN.x+11,savedN.x),
+    'Invalid authenticated real-model inference bridge '+radio.id);
+  bridges.set(radio.id,b);
 }
 await writeFile(path.join(root,htmlFile),
   '<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0"><div id="root"></div><script type="module" src="/src/features/ortho/CephaloTracingLayer.realRadioFixture.tsx"></script></body></html>');
@@ -73,14 +88,14 @@ try{
       record.images.push(f);
     };
     const stage=()=>page.locator('[data-film="'+radio.id+'"]');
-    const point=()=>page.locator('[data-ceph03b-drag-handle="Po"]');
-    const pointX=async()=>Number(await stage().getAttribute('data-po-x'));
+    const point=()=>page.locator('[data-ceph03b-drag-handle="N"]');
+    const pointX=async()=>Number(await stage().getAttribute('data-n-x'));
     const count=async attr=>Number(await stage().getAttribute(attr));
     // Attribute installed on each independently-keyed visual T1/T2 group;
     // stroke-dasharray is NOT a reliable proxy for landmark ghost identity.
     const ghostLines=async id=>page.locator('[data-ceph03b-ghost-layer="'+id+'"] line').count();
     try{
-      const response=await page.goto(base+'?film='+radio.id+'&mode='+mode,{waitUntil:'networkidle'});
+      const response=await page.goto(base+'?film='+radio.id+'&mode='+mode+'&predicted=1',{waitUntil:'networkidle'});
       assert(response?.status()===200,'Fixture HTTP not 200');
       await point().waitFor({state:'attached'});
       const expectedSrc='/dc-ceph03b3c/'+radio.file_name;
@@ -94,8 +109,13 @@ try{
         img.close();return dimensions;
       },expectedSrc);
       assert(decoded.width===radio.width&&decoded.height===radio.height,'Original JPEG dimensions mismatch');
-      const initialX=radio.width*0.35;
-      assert(near(await pointX(),initialX),'Initial synthetic point coordinate');
+      const bridge=bridges.get(radio.id);
+      const initialX=bridge.baseline.find(p=>p.id==='N').x;
+      assert(near(await pointX(),initialX),'Original real SRPose38 N point differs from authenticated API');
+      assert(await stage().getAttribute('data-predicted')==='true','Browser did not load real inference data');
+      assert(await stage().getAttribute('data-model-sha256')===expectedModel,'Model provenance mismatch');
+      assert(await stage().getAttribute('data-source-image-sha1')===radio.sha1,'Image provenance mismatch');
+      assert(await stage().getAttribute('data-predicted-count')==='38','Model point count not 38');
       assert(await count('data-audit')===0,'Unexpected initial audit');
       const initialT1=await ghostLines('t1');
       const initialT2=await ghostLines('t2');
@@ -133,8 +153,21 @@ try{
       await page.locator('[data-t2]').click();
       assert(await ghostLines('t1')===initialT1&&await ghostLines('t2')===initialT2,'T1/T2 traces not restored');
 
+      // New top-level navigation: rehydrate the read-after-write response
+      // exported from the isolated authenticated API's last GET. This remains
+      // a fixture handoff, NOT live browser/backend authentication.
+      await page.goto(base+'?film='+radio.id+'&mode='+mode+'&predicted=1&snapshot=after-redo',
+        {waitUntil:'networkidle'});
+      await point().waitFor({state:'attached'});
+      assert(await stage().getAttribute('data-loaded-snapshot')==='after-redo',
+        'Not showing persisted authenticated GET snapshot');
+      assert(near(await pointX(),initialX+11),'Read-after-write snapshot failed to survive navigation');
+      assert(await count('data-audit')===0&&await count('data-undo')===0,
+        'Fresh DOM should not reuse ephemeral edit timeline');
+      await screenshot('api-readback');
+      record.reloadRehydrated=true;
       assert(record.consoleErrors.length===0,'Browser console errors');
-      assert(record.navigationCount===1,'Unexpected Vite/PWA reload');
+      assert(record.navigationCount===2,'Unexpected dev-server reload');
       assert(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),'Horizontal overflow');
       record.valid=true;
       record.decoded=decoded;
@@ -156,10 +189,10 @@ try{
   await cp(scratch,out,{recursive:true,force:true});
   await writeFile(path.join(out,'vite.log'),viteLog);
 }
-const report={suite:'DC-CEPH03B3C-TWO-AUTHENTIC-RADIO-DESKTOP',head,
+const report={suite:'DC-CEPH03B3D-TWO-REAL-SRPOSE38-API-READBACK-DESKTOP',head,
   provenance:manifest.images.map(({id,author,source_page,license,sha1,width,height})=>({id,author,source_page,license,sha1,width,height})),
   cases,blockedExternal:requests,invalidCount:cases.filter(x=>!x.valid).length,
-  scope:'Two real CC-BY-SA radiographs, synthetic unverified anatomical point overlays; not a clinical test'};
+  scope:'Actual pinned SRPose38 points sourced from authenticated isolated SQLite API GET, not validated anatomically. Browser rehydrates exported API snapshot in a fixture, not a live cabinet login. T1/T2 remain simulated only'};
 await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
 console.log(JSON.stringify({head, cases:cases.map(x=>({name:x.name,valid:x.valid,errors:x.errors})),
   blockedExternal:requests,invalidCount:report.invalidCount},null,2));
