@@ -48,6 +48,17 @@ function Fixture({ onUpdate }: { onUpdate: (pts: Landmark[]) => void }) {
 const dragHandle = () => document.querySelector('[data-ceph03b-drag-handle="N"]') as SVGGElement;
 const state = () => screen.getByTestId('drag-state');
 
+// JSDOM does not populate PointerEvent.clientX/clientY with fireEvent.pointer*.
+// Dispatch a DOM pointer event with real MouseEvent coordinates so the commit
+// assertion exercises a meaningful, finite coordinate oracle.
+const dispatchPointer = (
+  handle: Element, type: string, pointerId: number, clientX = 0, clientY = 0,
+) => {
+  const event = new MouseEvent(type, { bubbles: true, clientX, clientY });
+  Object.defineProperty(event, 'pointerId', { value: pointerId });
+  fireEvent(handle, event);
+};
+
 describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
   const originalCapture = Element.prototype.setPointerCapture;
   beforeEach(() => {
@@ -74,11 +85,11 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     const onUpdate = vi.fn();
     render(<Fixture onUpdate={onUpdate} />);
     const handle = dragHandle();
-    fireEvent.pointerDown(handle, { pointerId: 5, clientX: 30, clientY: 40 });
-    fireEvent.pointerMove(handle, { pointerId: 5, clientX: 90, clientY: 100 });
+    dispatchPointer(handle, 'pointerdown', 5, 30, 40);
+    dispatchPointer(handle, 'pointermove', 5, 90, 100);
     expect(state().getAttribute('data-active')).toBe('N');
     expect(state().getAttribute('data-preview')).toBe('N');
-    fireEvent.pointerCancel(handle, { pointerId: 5 });
+    dispatchPointer(handle, 'pointercancel', 5);
     expect(state().getAttribute('data-active')).toBe('');
     expect(state().getAttribute('data-preview')).toBe('');
     expect(onUpdate).not.toHaveBeenCalled();
@@ -88,8 +99,8 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     const onUpdate = vi.fn();
     render(<Fixture onUpdate={onUpdate} />);
     const handle = dragHandle();
-    fireEvent.pointerDown(handle, { pointerId: 6, clientX: 30, clientY: 40 });
-    fireEvent.pointerMove(handle, { pointerId: 6, clientX: 100, clientY: 120 });
+    dispatchPointer(handle, 'pointerdown', 6, 30, 40);
+    dispatchPointer(handle, 'pointermove', 6, 100, 120);
     fireEvent(handle, new Event('lostpointercapture', { bubbles: true }));
     expect(state().getAttribute('data-active')).toBe('');
     expect(state().getAttribute('data-preview')).toBe('');
@@ -100,9 +111,9 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     const onUpdate = vi.fn();
     render(<Fixture onUpdate={onUpdate} />);
     const handle = dragHandle();
-    fireEvent.pointerDown(handle, { pointerId: 7, clientX: 30, clientY: 40 });
-    fireEvent.pointerMove(handle, { pointerId: 7, clientX: 75, clientY: 82 });
-    fireEvent.pointerUp(handle, { pointerId: 7, clientX: 75, clientY: 82 });
+    dispatchPointer(handle, 'pointerdown', 7, 30, 40);
+    dispatchPointer(handle, 'pointermove', 7, 75, 82);
+    dispatchPointer(handle, 'pointerup', 7, 75, 82);
     expect(onUpdate).toHaveBeenCalledTimes(1);
     expect(onUpdate).toHaveBeenCalledWith([
       { id: 'N', x: 75, y: 82 },
