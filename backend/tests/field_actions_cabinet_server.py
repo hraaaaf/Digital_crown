@@ -87,6 +87,25 @@ try:
     assert invitation.status_code == 201, invitation.text
     manual_code = invitation.json()["manual_code"]
     assert len(manual_code) >= 6
+
+    # Prove the existing local-only API contract over a real FastAPI route.
+    # This first disposable invitation is consumed by the synthetic self-test,
+    # then a new invitation is issued for the human iPhone, never logged here.
+    local_pair_probe = client.post(
+        "/api/patient-companion/pair", json={"manual_code": manual_code},
+    )
+    assert local_pair_probe.status_code == 201, (
+        local_pair_probe.status_code, local_pair_probe.text[:300],
+    )
+    assert local_pair_probe.json()["remote_transport"]["status"] == "not_enrolled"
+    invitation = client.post(
+        f"/api/patient-companion/admin/patients/{patient.id}/local-invitation",
+        headers=staff, json={"relationship_type": "SELF", "expires_in_minutes": 60},
+    )
+    assert invitation.status_code == 201, invitation.text[:300]
+    manual_code = invitation.json()["manual_code"]
+    assert len(manual_code) >= 6
+    print("FIELD_LAB_LOCAL_ONLY_PAIRING_201_REMOTE_NOT_ENROLLED", flush=True)
     # Freeze primary keys before db.close(): SQLAlchemy may expire ORM attributes.
     owner_id = int(owner.id)
     document_id = int(document.id)
