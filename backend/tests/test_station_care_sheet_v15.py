@@ -120,14 +120,25 @@ def _care_sheet(db, patient, *, status: str = "VALIDATED", emit_finalization_eve
     return document
 
 
+def _companion_pdf(client, db, session_id, document_id, patient):
+    """Read clinical PDF on authenticated patient device, never on shared Station."""
+    access = db.query(PatientCompanionAccess).filter(
+        PatientCompanionAccess.patient_id == patient.id,
+        PatientCompanionAccess.employer_id == patient.employer_id,
+    ).first()
+    assert access is not None
+    identity = db.get(PatientCompanionIdentity, access.identity_id)
+    return client.get(
+        f"/api/patient-companion/station-session/{session_id}/documents/care-sheet/{document_id}?accessId={access.public_id}",
+        headers={"Authorization": f"Bearer {create_patient_device_token(identity, access)}"},
+    )
+
+
 def test_station_care_sheet_requires_explicit_withdrawal_authorization(client, db, dentiste):
     headers, session_id, patient = _identified_session(client, db, dentiste)
     document = _care_sheet(db, patient)
 
-    denied = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
+    denied = _companion_pdf(client, db, session_id, document.id, patient)
     assert denied.status_code == 409
     assert denied.json()["detail"] == "STATION_CARE_SHEET_NOT_ELIGIBLE"
 
@@ -144,13 +155,10 @@ def test_station_care_sheet_requires_explicit_withdrawal_authorization(client, d
     }
     _set_mode(client, headers, "station")
 
-    downloaded = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
+    downloaded = _companion_pdf(client, db, session_id, document.id, patient)
     assert downloaded.status_code == 200, downloaded.text
     assert downloaded.headers["content-type"].startswith("application/pdf")
-    assert downloaded.headers["cache-control"] == "no-store"
+    assert "no-store" in downloaded.headers["cache-control"]
     assert downloaded.content.startswith(b"%PDF")
 
     actions = {
@@ -201,7 +209,7 @@ def test_station_care_sheet_refuses_non_finalized_archive(client, db, dentiste):
 
 
 def test_station_care_sheet_hides_other_patient_document(client, db, dentiste):
-    headers, session_id, _patient = _identified_session(
+    headers, session_id, patient = _identified_session(
         client, db, dentiste, dossier="ST043-A"
     )
     other = models.Patient(
@@ -223,10 +231,7 @@ def test_station_care_sheet_hides_other_patient_document(client, db, dentiste):
     ).status_code == 200
     _set_mode(client, headers, "station")
 
-    hidden = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
+    hidden = _companion_pdf(client, db, session_id, document.id, patient)
     assert hidden.status_code == 404
     assert hidden.json()["detail"] == "STATION_CARE_SHEET_NOT_FOUND"
 
@@ -271,10 +276,7 @@ def test_station_care_sheet_authorization_is_invalidated_by_file_replacement(cli
     db.refresh(document)
     assert document.file_hash != previous_hash
 
-    denied = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
+    denied = _companion_pdf(client, db, session_id, document.id, patient)
     assert denied.status_code == 409
     assert denied.json()["detail"] == "STATION_CARE_SHEET_NOT_ELIGIBLE"
 
@@ -358,7 +360,7 @@ def test_station_care_sheet_refuses_pdf_disk_tampering_after_authorization(clien
     file_path.write_bytes(bytes(altered))
     assert file_path.stat().st_size == document.file_size
     try:
-        denied = client.get(f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}", headers=headers)
+        denied = _companion_pdf(client, db, session_id, document.id, patient)
         assert denied.status_code == 409
         assert denied.json()["detail"] == "STATION_CARE_SHEET_FILE_UNTRUSTED"
     finally:
@@ -375,7 +377,7 @@ def test_station_care_sheet_refuses_storage_traversal_after_authorization(client
     document.file_path = "static/archives/../../external.pdf"
     db.commit()
     try:
-        denied = client.get(f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}", headers=headers)
+        denied = _companion_pdf(client, db, session_id, document.id, patient)
         assert denied.status_code == 409
         assert denied.json()["detail"] == "STATION_CARE_SHEET_FILE_UNTRUSTED"
     finally:
@@ -390,7 +392,7 @@ def test_station_care_sheet_verified_snapshot_equals_actual_response(client, db,
     _set_mode(client, headers, "cabinet")
     assert client.post(f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal", headers=headers).status_code == 200
     _set_mode(client, headers, "station")
-    delivered = client.get(f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}", headers=headers)
+    delivered = _companion_pdf(client, db, session_id, document.id, patient)
     assert delivered.status_code == 200
     assert delivered.content == expected
     assert hashlib.sha256(delivered.content).hexdigest() == document.file_hash
@@ -411,7 +413,7 @@ def test_station_care_sheet_rejects_symlinked_archive_even_to_same_pdf(client, d
         except (OSError, NotImplementedError):
             import pytest
             pytest.skip("Runner does not permit filesystem symlinks")
-        denied = client.get(f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}", headers=headers)
+        denied = _companion_pdf(client, db, session_id, document.id, patient)
         assert denied.status_code == 409
         assert denied.json()["detail"] == "STATION_CARE_SHEET_FILE_UNTRUSTED"
     finally:
@@ -437,12 +439,9 @@ def test_care_sheet_expired_identified_session_fails_closed(client, db, dentiste
     session.expires_at = datetime.utcnow() - timedelta(seconds=1)
     db.commit()
 
-    denied = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
-    assert denied.status_code == 409
-    assert denied.json()["detail"] == "STATION_SESSION_INVALID_OR_USED"
+    denied = _companion_pdf(client, db, session_id, document.id, patient)
+    assert denied.status_code == 404
+    assert denied.json()["detail"] == "STATION_DOCUMENT_SESSION_NOT_FOUND"
     db.refresh(session)
     assert session.purged_at is not None
     assert session.patient_id is None
@@ -462,10 +461,7 @@ def test_care_sheet_previous_version_fails_closed_after_authorization(client, db
     db.commit()
     _set_mode(client, headers, "station")
 
-    denied = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
+    denied = _companion_pdf(client, db, session_id, document.id, patient)
     assert denied.status_code == 409
     assert denied.json()["detail"] == "STATION_CARE_SHEET_NOT_ELIGIBLE"
 
@@ -527,10 +523,7 @@ def test_official_finalize_route_records_provenance_before_authorization(
         headers=headers,
     ).status_code == 200
     _set_mode(client, headers, "station")
-    retrieved = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
+    retrieved = _companion_pdf(client, db, session_id, document.id, patient)
     assert retrieved.status_code == 200
     assert hashlib.sha256(retrieved.content).hexdigest() == document.file_hash
 
@@ -593,10 +586,7 @@ def test_official_finalize_api_records_request_bound_provenance(client, db, dent
     )
     assert authorized.status_code == 200, authorized.text
     _set_mode(client, headers, "station")
-    delivered = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
+    delivered = _companion_pdf(client, db, session_id, document.id, patient)
     assert delivered.status_code == 200, delivered.text
     assert hashlib.sha256(delivered.content).hexdigest() == document.file_hash
 
@@ -703,11 +693,8 @@ def test_care_sheet_fue0_revoked_station_cannot_retrieve(client, db, dentiste):
     ).one()
     workstation.revoked_at = datetime.utcnow()
     db.commit()
-    denied = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
-        headers=headers,
-    )
-    assert denied.status_code == 423, denied.text
+    denied = _companion_pdf(client, db, session_id, document.id, patient)
+    assert denied.status_code == 404, denied.text
     assert db.query(models.AuditLog).filter(
         models.AuditLog.action == "STATION_CARE_SHEET_WITHDRAWN",
         models.AuditLog.resource_id == str(document.id),
