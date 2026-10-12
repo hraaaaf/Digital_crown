@@ -135,6 +135,28 @@ describe('04.5 — Patient Companion private-phone withdrawal', () => {
     }
   });
 
+  it('04.7 allows closing while PDF fetch stalls without creating a late blob', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, json: async () => ({ documents: [{ documentId: 42, kind: 'care_sheet' }] }),
+      })
+      .mockImplementationOnce((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new Error('download aborted')));
+      }))
+      .mockResolvedValueOnce({ status: 204 });
+    globalThis.fetch = fetchMock as typeof fetch;
+    const onClose = vi.fn();
+    render(<PatientCompanionStationDocuments sessionId="download-stalled" pairing={pairing} onClose={onClose} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Télécharger ma feuille de soins' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const close = screen.getByRole('button', { name: 'Terminer et effacer ma session' });
+    expect(close).not.toBeDisabled();
+    fireEvent.click(close);
+    expect(screen.queryByRole('button', { name: 'Télécharger ma feuille de soins' })).not.toBeInTheDocument();
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(true));
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
   it('shows no document controls when the private phone session has expired', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as typeof fetch;
     render(<PatientCompanionStationDocuments sessionId="expired" pairing={pairing} onClose={vi.fn()} />);
