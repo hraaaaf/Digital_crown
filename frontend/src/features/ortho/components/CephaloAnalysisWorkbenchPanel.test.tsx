@@ -34,6 +34,9 @@ describe('CephaloAnalysisWorkbenchPanel R19 contract', () => {
       expect(first.getAttribute('aria-pressed')).toBe('true');
       expect(second.getAttribute('aria-pressed')).toBe('false');
       expect(first.closest('tr')?.hasAttribute('tabindex')).toBe(false);
+      fireEvent.mouseEnter(first.closest('tr')!);
+      expect(first.getAttribute('aria-pressed')).toBe('true');
+      expect(second.getAttribute('aria-pressed')).toBe('false');
       fireEvent.focus(second);
       expect(second.getAttribute('aria-pressed')).toBe('true');
       expect(first.getAttribute('aria-pressed')).toBe('false');
