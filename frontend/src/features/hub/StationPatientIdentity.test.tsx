@@ -276,6 +276,26 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     }
   });
 
+  it('04.5 expires an unattended document kiosk and clears the patient name', async () => {
+    vi.mocked(stationPatientSessionService.create).mockResolvedValue({
+      sessionId: 'session-1',
+      handoffUrl: 'https://cabinet.local/companion?stationSession=expired-token',
+      nfcPayload: 'https://cabinet.local/companion?stationSession=expired-token',
+      qrDataUrl: 'data:image/png;base64,AAAA',
+      expiresAt: '2000-01-01T00:00:00.000Z',
+      fallbackMode: 'disabled',
+    });
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1', displayName: 'Aya Audit',
+      claimedAt: new Date().toISOString(),
+    });
+    render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
+    expect(await screen.findByText('Session expirée')).toBeInTheDocument();
+    expect(screen.queryByText('Aya Audit')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Télécharger la feuille de soins' })).not.toBeInTheDocument();
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
+  });
+
   it('revokes a QR created after navigating away before create resolves', async () => {
     let resolveCreate!: (value: Awaited<ReturnType<typeof stationPatientSessionService.create>>) => void;
     vi.mocked(stationPatientSessionService.create).mockReturnValue(
