@@ -118,7 +118,7 @@
       "literature": [
         {
           "url": "https://www.ncbi.nlm.nih.gov/sites/books/NBK594272/table/article-131913.table2/",
-          "scope": "ANATOMIC_PO_OR_FRANKFORT_ONLY__NO_INDEPENDENT_VALIDATION_OF_S_NPERP_DEPTH_TERM"
+          "scope": "ANATOMIC_PO_OR_FRANKFORT_ONLY__NOT_INDEPENDENT_VALIDATION_OF_S_NPERP_DEPTH_TERM"
         }
       ],
       "source_identity_proof": "SEMANTIC_UNVERIFIED_NON_STANDARD_NAME__NOT_RICKETTS_FACIAL_ANGLE",
