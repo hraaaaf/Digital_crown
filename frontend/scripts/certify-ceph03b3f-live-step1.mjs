@@ -120,7 +120,9 @@ try {
       assert(uploadResponse.status()===200,'Real product upload failed '+film+' '+uploadResponse.status());
       const uploaded=await uploadResponse.json();
       const source=uploaded.results?.calibration_source_resolution;
-      const expectedSourceState=film==='A'?'IMAGE_RULER_UNVERIFIED':'NO_PHYSICAL_SOURCE';
+      // The isolated 03B.3f server intentionally neutralizes ruler detection.
+      // V2 A+/B- evidence is an independent detector CI run, NOT this E2E.
+      const expectedSourceState='NO_PHYSICAL_SOURCE';
       assert(source?.schema_version==='CEPHALO_SOURCE_RESOLUTION_V1'
         && source.state===expectedSourceState
         && source.eligible_mm_per_pixel===null && source.applied_to_analysis===false,
@@ -249,7 +251,8 @@ try {
         'No actual GET from real Step1/history');
       errors.push(...relevantErrors.map(v=>film+': '+v));
       cases.push({film,stage:'reloaded',analysisId:id,model:'SOTA_ONNX_38',
-        calibrationSourceState:expectedSourceState,calibrationApplied:false,nInitial:originalN.x,
+        calibrationSourceState:expectedSourceState,
+        detectorActiveInThisHarness:false,calibrationApplied:false,nInitial:originalN.x,
         nPersisted:originalN.x+11,beforeReload,afterReload,authenticated:true,
         deniedAnonymousPatient:anonPatient.status(),deniedAnonymousUpload:anonUpload.status(),
         deniedAnonymousRead:anonRead.status(),deniedAnonymousMedia:anonMedia.status(),
