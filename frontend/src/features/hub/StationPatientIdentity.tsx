@@ -27,7 +27,8 @@ const COPY = {
     expired: 'Session expirée', newQr: 'Nouveau QR', retry: 'Réessayer',
     documentsVerified: 'Identité confirmée',
     documentsConstruction: 'Le retrait des documents est en cours de construction sur cette station.',
-    documentsStaff: 'Pour retirer un document aujourd’hui, adressez-vous à l’accueil.',
+    documentsStaff: 'Aucune feuille de soins autorisée à retirer. Adressez-vous à l’accueil.',
+    documentsReady: 'Feuille de soins disponible sur votre téléphone dans Patient Companion. Aucun PDF ne sera conservé sur cette borne.',
   },
   en: {
     tooMany: 'Too many attempts. Generate a new session or ask for help.',
@@ -49,7 +50,8 @@ const COPY = {
     expired: 'Session expired', newQr: 'New QR code', retry: 'Try again',
     documentsVerified: 'Identity confirmed',
     documentsConstruction: 'Document collection is under construction at this station.',
-    documentsStaff: 'To collect a document today, please contact reception.',
+    documentsStaff: 'No care sheet is available for collection. Please contact reception.',
+    documentsReady: 'Care sheet available on your phone in Patient Companion. This station does not save PDF files.',
   },
   ar: {
     tooMany: 'محاولات كثيرة جداً. أنشئوا جلسة جديدة أو اطلبوا المساعدة.',
@@ -71,7 +73,8 @@ const COPY = {
     expired: 'انتهت صلاحية الجلسة', newQr: 'رمز QR جديد', retry: 'إعادة المحاولة',
     documentsVerified: 'تم تأكيد الهوية',
     documentsConstruction: 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.',
-    documentsStaff: 'لاستلام وثيقة اليوم، يرجى مراجعة موظفي الاستقبال.',
+    documentsStaff: 'لا توجد ورقة علاج مرخصة للاستلام. يرجى مراجعة الاستقبال.',
+    documentsReady: 'ورقة العلاج متاحة على هاتفكم في Patient Companion. لن تحتفظ هذه المحطة بأي ملف PDF.',
   },
 } as const;
 
@@ -240,27 +243,6 @@ export const StationPatientIdentity = ({
     return () => window.clearTimeout(timeout);
   }, [purpose, status, session, requestPurge]);
 
-  const downloadDocument = async (documentId: number) => {
-    if (!session || documentsBusy) return;
-    setDocumentsBusy(true);
-    setDocumentsError('');
-    try {
-      const pdf = await stationPatientSessionService.downloadCareSheet(session.sessionId, documentId);
-      const url = URL.createObjectURL(pdf);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `care-sheet-${documentId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      setDocumentsError(copy.unavailable);
-    } finally {
-      setDocumentsBusy(false);
-    }
-  };
-
   const expiresLabel = useMemo(() => {
     if (!session) return '';
     return new Date(session.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -307,14 +289,11 @@ export const StationPatientIdentity = ({
         {!documentsBusy && availableDocuments.length === 0 && !documentsError && (
           <p className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsStaff}</p>
         )}
-        {availableDocuments.map(({ documentId }) => (
-          <button key={documentId} type="button" disabled={documentsBusy}
-            data-station-care-sheet-download={documentId}
-            onClick={() => void downloadDocument(documentId)}
-            className="mt-4 min-h-12 w-full rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary disabled:opacity-50">
-            {language === 'ar' ? 'تحميل ورقة العلاج' : language === 'en' ? 'Download care sheet' : 'Télécharger la feuille de soins'}
-          </button>
-        ))}
+        {!documentsBusy && availableDocuments.length > 0 && !documentsError && (
+          <p data-station-phone-delivery className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">
+            {copy.documentsReady}
+          </p>
+        )}
         {documentsError && <p role="alert" className="mt-4 text-sm font-bold text-danger">{documentsError}</p>}
         <button type="button" onClick={() => void leave()} className="mt-6 min-h-12 w-full rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">
           {backLabel}
