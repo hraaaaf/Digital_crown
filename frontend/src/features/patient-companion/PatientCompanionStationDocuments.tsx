@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { API_BASE } from '../../services/api';
 import type { PatientPairing } from './PatientCompanionStorage';
 
-type StationCareSheet = { documentId: number; kind: 'care_sheet' };
+type StationDocument = { documentId: number; kind: 'care_sheet' | 'presence_receipt' };
 
 export const PatientCompanionStationDocuments = ({
   sessionId,
@@ -13,9 +13,9 @@ export const PatientCompanionStationDocuments = ({
   pairing: PatientPairing;
   onClose: (serverRevoked: boolean) => void;
 }) => {
-  const [documents, setDocuments] = useState<StationCareSheet[]>([]);
+  const [documents, setDocuments] = useState<StationDocument[]>([]);
   const [busy, setBusy] = useState(true);
-  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const [error, setError] = useState('');
   const endpoint = `${API_BASE}/api/patient-companion/station-session/${encodeURIComponent(sessionId)}/documents`;
@@ -30,7 +30,7 @@ export const PatientCompanionStationDocuments = ({
       cache: 'no-store',
     }).then(async response => {
       if (!response.ok) throw new Error('SESSION_UNAVAILABLE');
-      return response.json() as Promise<{ documents: StationCareSheet[] }>;
+      return response.json() as Promise<{ documents: StationDocument[] }>;
     }).then(result => {
       if (!cancelled) setDocuments(result.documents);
     }).catch(() => {
@@ -44,12 +44,13 @@ export const PatientCompanionStationDocuments = ({
     return () => { cancelled = true; };
   }, [sessionId, pairing.context.access_id, pairing.accessToken]);
 
-  const download = async (documentId: number) => {
-    if (downloadingId !== null) return;
+  const download = async (document: StationDocument) => {
+    if (downloadingKey !== null) return;
     setError('');
-    setDownloadingId(documentId);
+    setDownloadingKey(`${document.kind}:${document.documentId}`);
+    const path = document.kind === 'care_sheet' ? 'care-sheet' : 'presence-receipt';
     try {
-      const response = await fetch(`${endpoint}/care-sheet/${documentId}?${access}`, {
+      const response = await fetch(`${endpoint}/${path}/${document.documentId}?${access}`, {
         headers: { Authorization: `Bearer ${pairing.accessToken}` },
         cache: 'no-store',
       });
@@ -62,7 +63,7 @@ export const PatientCompanionStationDocuments = ({
       try {
         const link = document.createElement('a');
         link.href = url;
-        link.download = `care-sheet-${documentId}.pdf`;
+        link.download = `${path}-${document.documentId}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -72,12 +73,12 @@ export const PatientCompanionStationDocuments = ({
     } catch {
       setError('Téléchargement refusé ou connexion interrompue. Recommencez l’identification si nécessaire.');
     } finally {
-      setDownloadingId(null);
+      setDownloadingKey(null);
     }
   };
 
   const closeSession = async () => {
-    if (closing || downloadingId !== null) return;
+    if (closing || downloadingKey !== null) return;
     setClosing(true);
     let revoked = false;
     try {
@@ -102,7 +103,7 @@ export const PatientCompanionStationDocuments = ({
 
   return (
     <section data-pc-station-documents className="mb-4 rounded-2xl border border-primary/25 bg-card-bg p-5 shadow-sm">
-      <h2 className="text-lg font-black text-primary">Mes feuilles de soins à retirer</h2>
+      <h2 className="text-lg font-black text-primary">Mes documents à retirer</h2>
       <p className="mt-2 text-sm font-semibold text-text-muted">
         Les documents sont remis directement sur votre téléphone personnel, jamais téléchargés sur la borne du cabinet.
       </p>
@@ -110,16 +111,19 @@ export const PatientCompanionStationDocuments = ({
       {!busy && !error && documents.length === 0 && (
         <p className="mt-3 text-sm">Aucun document disponible pour cette session.</p>
       )}
-      {documents.map(({ documentId }) => (
+      {documents.map((document) => (
         <button
-          key={documentId}
+          key={`${document.kind}:${document.documentId}`}
           type="button"
-          disabled={downloadingId !== null || closing}
-          data-pc-care-sheet-download={documentId}
-          onClick={() => void download(documentId)}
+          disabled={downloadingKey !== null || closing}
+          data-pc-care-sheet-download={document.kind === 'care_sheet' ? document.documentId : undefined}
+          data-pc-presence-receipt-download={document.kind === 'presence_receipt' ? document.documentId : undefined}
+          onClick={() => void download(document)}
           className="mt-3 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-black text-white disabled:opacity-50"
         >
-          {downloadingId === documentId ? 'Téléchargement sécurisé…' : 'Télécharger ma feuille de soins'}
+          {downloadingKey === `${document.kind}:${document.documentId}`
+            ? 'Téléchargement sécurisé…'
+            : document.kind === 'care_sheet' ? 'Télécharger ma feuille de soins' : 'Télécharger mon justificatif de présence'}
         </button>
       ))}
       {documents.length > 0 && (
@@ -128,7 +132,7 @@ export const PatientCompanionStationDocuments = ({
         </p>
       )}
       {error && <p role="alert" className="mt-3 text-sm font-bold text-rose-700">{error}</p>}
-      <button type="button" disabled={closing || downloadingId !== null}
+      <button type="button" disabled={closing || downloadingKey !== null}
         className="mt-4 min-h-11 w-full rounded-xl border border-border-main text-sm font-bold disabled:opacity-50"
         onClick={() => void closeSession()}>
         {closing ? 'Révocation de la session…' : 'Terminer et effacer ma session'}
