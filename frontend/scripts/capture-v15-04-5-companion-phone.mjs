@@ -121,9 +121,23 @@ try {
         phoneDownloadVisible: Boolean(document.querySelector('[data-pc-care-sheet-download="42"]')),
         rawSessionTokenInUrl: location.search.includes('stationSession'),
         text: document.body.innerText.slice(0, 1500),
+        overflowCandidates: Array.from(document.querySelectorAll('body *'))
+          .map(node => {
+            const rect = node.getBoundingClientRect();
+            return {
+              tag: node.tagName.toLowerCase(),
+              className: typeof node.className === 'string' ? node.className.slice(0, 180) : '',
+              text: (node.textContent || '').trim().slice(0, 80),
+              left: Math.round(rect.left * 10) / 10,
+              right: Math.round(rect.right * 10) / 10,
+              width: Math.round(rect.width * 10) / 10,
+            };
+          })
+          .filter(node => node.right > window.innerWidth + 1 && node.left < window.innerWidth)
+          .slice(0, 15),
       }));
       if (layout.scrollWidth > layout.width) {
-        throw new Error(`Phone horizontal overflow: ${layout.scrollWidth} > ${layout.width}`);
+        throw new Error(`Phone horizontal overflow: ${layout.scrollWidth} > ${layout.width}; offending DOM: ${JSON.stringify(layout.overflowCandidates)}`);
       }
       if (layout.rawSessionTokenInUrl) throw new Error('Raw station QR leaked into phone URL after claim');
       if (seen.claims !== 1 || seen.downloads !== 0 || seen.phonePurges !== 0 || errors.length) {
