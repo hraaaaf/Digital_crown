@@ -852,7 +852,7 @@ export const PatientCompanionApp = () => {
               <button onClick={() => void clearDevice()} className="min-h-[48px] rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black inline-flex items-center justify-center gap-2"><Trash2 size={15} /> Effacer ce téléphone</button>
             </div>
             </>}
-            <nav aria-label="Navigation patient" className="fixed inset-x-0 bottom-0 z-40 border-t border-border-main bg-card-bg px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
+            <nav aria-label="Navigation patient" className="fixed inset-x-0 bottom-0 z-40 border-t border-border-main bg-card px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
               <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
                 {PATIENT_TABS.map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-current={activeTab === id ? 'page' : undefined} onClick={() => { setActiveTab(id); window.scrollTo({ top: 0 }); }} className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-bold ${activeTab === id ? 'bg-primary/10 text-primary' : 'text-text-muted'}`}><Icon size={20} aria-hidden="true" /><span>{label}</span></button>)}
               </div>
@@ -880,3 +880,4 @@ const WalletSection = ({ title, empty, children }: { title: string; empty: strin
     </section>
   );
 };
+
