@@ -76,7 +76,9 @@ try{
     const point=()=>page.locator('[data-ceph03b-drag-handle="Po"]');
     const pointX=async()=>Number(await stage().getAttribute('data-po-x'));
     const count=async attr=>Number(await stage().getAttribute(attr));
-    const dashed=async()=>page.locator('line[stroke-dasharray="6,4"]').count();
+    // Attribute installed on each independently-keyed visual T1/T2 group;
+    // stroke-dasharray is NOT a reliable proxy for landmark ghost identity.
+    const ghostLines=async id=>page.locator('[data-ceph03b-ghost-layer="'+id+'"] line').count();
     try{
       const response=await page.goto(base+'?film='+radio.id+'&mode='+mode,{waitUntil:'networkidle'});
       assert(response?.status()===200,'Fixture HTTP not 200');
@@ -95,8 +97,10 @@ try{
       const initialX=radio.width*0.35;
       assert(near(await pointX(),initialX),'Initial synthetic point coordinate');
       assert(await count('data-audit')===0,'Unexpected initial audit');
-      let ghosts=await dashed();
-      assert(ghosts>0,'No visible visual-only T1/T2 ghosts');
+      const initialT1=await ghostLines('t1');
+      const initialT2=await ghostLines('t2');
+      record.initialGhostLines={t1:initialT1,t2:initialT2};
+      assert(initialT1>0&&initialT2>0,'Expected independent T1 and T2 visual-only trace lines');
       await screenshot('initial');
 
       await point().focus();
@@ -117,17 +121,17 @@ try{
 
       await page.locator('[data-t1]').click();
       assert(await stage().getAttribute('data-ghost-t1')==='false','T1 was not hidden');
-      const oneGhost=await dashed();
-      assert(oneGhost<ghosts&&oneGhost>0,'T1 independence failed');
+      assert(await ghostLines('t1')===0,'T1 ghost remained rendered after hide');
+      assert(await ghostLines('t2')===initialT2,'T1 toggle corrupted T2 ghost');
       await page.locator('[data-t2]').click();
       assert(await stage().getAttribute('data-ghost-t2')==='false','T2 was not hidden');
-      assert(await dashed()===0,'Hidden ghosts should have zero anatomical trace lines');
+      assert(await ghostLines('t1')===0&&await ghostLines('t2')===0,'Hidden ghosts should have no anatomical trace lines');
       assert(near(await pointX(),initialX+11),'T1/T2 toggle moved active point');
       assert(await count('data-audit')===4,'T1/T2 visibility persisted an anatomical edit');
       await screenshot('ghosts-off');
       await page.locator('[data-t1]').click();
       await page.locator('[data-t2]').click();
-      assert(await dashed()===ghosts,'T1/T2 traces not restored');
+      assert(await ghostLines('t1')===initialT1&&await ghostLines('t2')===initialT2,'T1/T2 traces not restored');
 
       assert(record.consoleErrors.length===0,'Browser console errors');
       assert(record.navigationCount===1,'Unexpected Vite/PWA reload');
@@ -137,7 +141,7 @@ try{
       record.initialX=initialX;
       record.currentX=await pointX();
       record.auditEvents=await count('data-audit');
-      record.ghostLines=ghosts;
+      record.ghostLines={t1:initialT1,t2:initialT2};
     }catch(e){
       record.errors.push(String(e));
       await screenshot('failure').catch(()=>{});
