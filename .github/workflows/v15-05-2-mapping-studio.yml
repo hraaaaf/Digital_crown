@@ -1,0 +1,61 @@
+name: V1.5-05.2 Mapping Studio Draft Contract
+
+on:
+  pull_request:
+    paths:
+      - backend/services/legacy_sql_mapping_v15.py
+      - backend/tests/test_legacy_sql_mapping_v15.py
+      - docs/quality/V15_05_2_MAPPING_STUDIO_DRAFT_CONTRACT.md
+      - .github/workflows/v15-05-2-mapping-studio.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mapping-draft-proof:
+    name: Offline Mapping Draft (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Compile mapping and inspector without runtime DB imports
+        run: |
+          set -euo pipefail
+          python -m compileall -q backend/services/legacy_sql_mapping_v15.py backend/services/legacy_sql_inspector_v15.py backend/tests/test_legacy_sql_mapping_v15.py
+      - name: 05.2 explicit mapping and negative contract cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/lot05-2-tests.log
+          grep -q 'Ran 24 tests' /tmp/lot05-2-tests.log
+          grep -q '^OK$' /tmp/lot05-2-tests.log
+          if grep -Ei 'skipped|expected failure' /tmp/lot05-2-tests.log; then exit 1; fi
+      - name: 05.1 inspector regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/lot05-1-tests.log
+          grep -q 'Ran 28 tests' /tmp/lot05-1-tests.log
+          grep -q '^OK$' /tmp/lot05-1-tests.log
+          if grep -Ei 'skipped|expected failure' /tmp/lot05-1-tests.log; then exit 1; fi
+      - name: Bind proof to exact PR HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$EXPECTED"
+          {
+            echo "05.2-A metadata Mapping Studio draft tests at SHA: $EXPECTED"
+            echo "24 synthetic mapping cases + 28 inspector regressions per Python version."
+            echo "NO authenticated admin approval, live data, data import, UI or migration."
+          } >> "$GITHUB_STEP_SUMMARY"
