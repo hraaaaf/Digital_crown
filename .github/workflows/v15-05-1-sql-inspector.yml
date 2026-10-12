@@ -35,7 +35,7 @@ jobs:
           test -f backend/services/legacy_sql_inspector_v15.py
           test -f backend/tests/test_legacy_sql_inspector_v15.py
           python -m compileall -q backend/services/legacy_sql_inspector_v15.py backend/tests/test_legacy_sql_inspector_v15.py
-          PYTHONWARNINGS=error::ResourceWarning python -m unittest backend.tests.test_legacy_sql_inspector_v15 -v 2>&1 | tee /tmp/lot05-inspector-results.txt
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_inspector_v15.py -v 2>&1 | tee /tmp/lot05-inspector-results.txt
           grep -q 'Ran 14 tests' /tmp/lot05-inspector-results.txt
           grep -q '^OK$' /tmp/lot05-inspector-results.txt
       - name: Exact SHA and honest gate claim
