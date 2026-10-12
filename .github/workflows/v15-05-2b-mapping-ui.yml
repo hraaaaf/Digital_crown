@@ -43,7 +43,7 @@ jobs:
           node --input-type=module -e "
             import fs from 'node:fs';
             const data = JSON.parse(fs.readFileSync('/tmp/lot05-2b-results.json','utf8'));
-            if (data.numTotalTests !== 24 || data.numPassedTests !== 24 ||
+            if (data.numTotalTests !== 25 || data.numPassedTests !== 25 ||
                 data.numFailedTests !== 0 || data.numPendingTests !== 0 ||
                 data.numTodoTests !== 0 || data.testResults?.length !== 2) {
               throw new Error('B1 TEST CONTRACT FAILED: '+JSON.stringify({
@@ -51,7 +51,7 @@ jobs:
                 pending:data.numPendingTests,todo:data.numTodoTests,files:data.testResults?.length
               }));
             }
-            console.log('PASS exactly 24/24 cases from 2 unique files, no skip');
+            console.log('PASS exactly 25/25 cases from 2 unique files, no skip');
           "
       - name: TypeScript app typecheck
         working-directory: frontend
