@@ -1,0 +1,72 @@
+name: DC Cephalo 02E independent geometry scientific NO-GO gate
+
+on:
+  push:
+    branches:
+      - research/dc-ceph02e-independent-oracles-20261012
+    paths:
+      - .github/workflows/dc-ceph02e-independent-oracles.yml
+      - docs/audits/DC_CEPH02E_INDEPENDENT_GEOMETRY_EVIDENCE_V1.json
+      - scripts/certify_dc_ceph02e_independent_geometry.py
+
+permissions:
+  contents: read
+
+jobs:
+  independent-synthetic-oracles:
+    name: Four independent geometry oracles, no clinical unlock
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    if: github.event_name == 'push' && github.ref == 'refs/heads/research/dc-ceph02e-independent-oracles-20261012'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact research branch head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/research/dc-ceph02e-independent-oracles-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "DC_CEPH02E_EXACT_HEAD=$GITHUB_SHA"
+          echo "FACAD_EXECUTED=false"
+          echo "PATIENT_DATA_ACCESSED=false"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/certify_dc_ceph02e_independent_geometry.py
+      - name: Independent numerical oracles with no clinical promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/certify_dc_ceph02e_independent_geometry.py | tee dc-ceph02e-safe-evidence.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path("dc-ceph02e-safe-evidence.json").read_text(encoding="utf-8"))
+          assert q["schema"]=="DC_CEPH02E_SAFE_SOURCE_ORACLE_REPORT_V1"
+          assert q["verdict"]=="FOUR_PRIMITIVES_CHECKED__FOUR_IDENTITY_GATES_STILL_BLOCKED"
+          assert q["contract_rows_verified"]==4
+          assert q["real_geometry_modules"]==2
+          assert q["independent_synthetic_oracles_executed"] >= 30
+          assert q["fail_closed_contract_mutations_rejected"]==13
+          assert q["clinical_unblocks"]==0
+          assert q["facad_executions"]==0
+          assert q["clinical_source_equivalence_proved"] is False
+          assert q["external_orthodontist_review_completed"] is False
+          assert q["numeric_same_trace_vendor_parity_proved"] is False
+          assert q["patient_data_accessed"] is False
+          assert q["production_modified"] is False
+          print("DC_CEPH02E=SOURCE_GEOMETRY_ONLY_NO_CLINICAL_PROMOTION")
+          PY
+      - name: Archive only anonymous aggregate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc-ceph02e-independent-oracles-safe
+          path: dc-ceph02e-safe-evidence.json
+          if-no-files-found: warn
+          retention-days: 7
