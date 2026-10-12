@@ -1,6 +1,6 @@
 import type { Landmark } from './cephaloShared';
 
-export type LandmarkEditSource = 'POINTER_DRAG' | 'RESET_CONTROL';
+export type LandmarkEditSource = 'POINTER_DRAG' | 'KEYBOARD_NUDGE' | 'RESET_CONTROL';
 export type LandmarkEditAuditAction = 'EDIT' | 'UNDO' | 'REDO' | 'RESET_TO_BASELINE';
 
 export interface LandmarkEditTransaction {
