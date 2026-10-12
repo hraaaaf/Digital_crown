@@ -195,3 +195,67 @@ def test_045_unidentified_station_cannot_discover_documents(client, db, dentiste
     denied = client.get(endpoint, headers=staff)
     assert denied.status_code == 409, denied.text
     assert denied.json()["detail"] == "STATION_PATIENT_NOT_IDENTIFIED"
+
+
+
+def test_046_station_purge_audit_is_atomic_and_idempotent(client, db, dentiste):
+    staff, created, url = _authorized_document_session(
+        client, db, dentiste, "ST046-STATION-AUDIT",
+    )
+    sid = created["sessionId"]
+    endpoint = f"/api/workstation/patient-session/{sid}/purge"
+    assert client.post(endpoint, headers=staff).status_code == 204
+    db.expire_all()
+    row = db.get(models.WorkstationPatientSession, sid)
+    assert row.purged_at is not None
+    assert row.patient_id is None and row.patient_access_id is None
+    audits = db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_DOCUMENT_SESSION_PURGED_STATION",
+        models.AuditLog.resource_id == sid,
+    ).all()
+    assert len(audits) == 1
+    assert audits[0].details == "patient_binding_cleared=true;actor=station_cookie"
+    assert client.get(url, headers=created["_phoneHeaders"]).status_code == 404
+    assert client.post(endpoint, headers=staff).status_code == 204
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_DOCUMENT_SESSION_PURGED_STATION",
+        models.AuditLog.resource_id == sid,
+    ).count() == 1
+
+
+def test_046_phone_purge_audit_and_download_log_minimize_identity(client, db, dentiste):
+    staff, created, url = _authorized_document_session(
+        client, db, dentiste, "ST046-PHONE-AUDIT",
+    )
+    sid = created["sessionId"]
+    document_id = url.split("/care-sheet/", 1)[1].split("?", 1)[0]
+    received = client.get(url, headers=created["_phoneHeaders"])
+    assert received.status_code == 200
+    withdrawal = db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_CARE_SHEET_WITHDRAWN",
+        models.AuditLog.resource_id == document_id,
+    ).one()
+    assert "Patient Companion" in withdrawal.details
+    assert "patient_id=" not in withdrawal.details
+    assert "access_id=" not in withdrawal.details
+    endpoint = (
+        f"/api/patient-companion/station-session/{sid}/purge?"
+        f"{url.split('?', 1)[1]}"
+    )
+    assert client.post(endpoint, headers=created["_phoneHeaders"]).status_code == 204
+    db.expire_all()
+    row = db.get(models.WorkstationPatientSession, sid)
+    assert row.purged_at is not None
+    assert row.patient_id is None and row.patient_access_id is None
+    audits = db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_DOCUMENT_SESSION_PURGED_PHONE",
+        models.AuditLog.resource_id == sid,
+    ).all()
+    assert len(audits) == 1
+    assert audits[0].details == "patient_binding_cleared=true;actor=authenticated_companion"
+    assert client.get(url, headers=created["_phoneHeaders"]).status_code == 404
+    assert client.post(endpoint, headers=created["_phoneHeaders"]).status_code == 404
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_DOCUMENT_SESSION_PURGED_PHONE",
+        models.AuditLog.resource_id == sid,
+    ).count() == 1
