@@ -140,6 +140,35 @@ def test_045_station_purge_immediately_revokes_phone_pdf(client, db, dentiste):
     assert client.get(_list(created, access), headers=phone).status_code == 404
 
 
+def test_046_phone_can_revoke_pickup_session_and_clear_personal_binding(client, db, dentiste):
+    _staff, _station_id, _patient, access, phone, doc, created = _ready(
+        client, db, dentiste, name="PHONE-REVOKE-SELF",
+    )
+    endpoint = f"/api/patient-companion/station-session/{created['sessionId']}/purge?accessId={access.public_id}"
+    removed = client.post(endpoint, headers=phone)
+    assert removed.status_code == 204, removed.text
+    assert removed.headers["cache-control"] == "no-store"
+    db.expire_all()
+    row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    assert row.purged_at is not None
+    assert row.patient_id is None and row.patient_access_id is None
+    assert client.get(_url(created, access, doc.id), headers=phone).status_code == 404
+    assert client.get(_list(created, access), headers=phone).status_code == 404
+    assert client.post(endpoint, headers=phone).status_code == 404
+
+
+def test_046_different_patient_cannot_revoke_phone_session(client, db, dentiste):
+    _staff, _station_id, _patient, access, phone, doc, created = _ready(
+        client, db, dentiste, name="PHONE-REVOKE-DENY",
+    )
+    _p2, access2, phone2 = _patient_context(db, dentiste, dossier="PHONE-REVOKE-ALIEN")
+    endpoint = f"/api/patient-companion/station-session/{created['sessionId']}/purge?accessId={access.public_id}"
+    assert client.post(endpoint, headers=phone2).status_code == 404
+    endpoint2 = f"/api/patient-companion/station-session/{created['sessionId']}/purge?accessId={access2.public_id}"
+    assert client.post(endpoint2, headers=phone2).status_code == 404
+    assert client.get(_url(created, access, doc.id), headers=phone).status_code == 200
+
+
 def test_045_unpaired_station_fallback_cannot_grant_phone_download(client, db, dentiste):
     staff, _station_id, _patient, access, phone, doc, created = _ready(
         client, db, dentiste, name="PHONE-FALLBACK",
