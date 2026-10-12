@@ -34,6 +34,19 @@ describe('Pocket is a persistent standalone app, not a pairing deep-link', () =>
     expect(app).toContain('<Navigate to="/mobile/dashboard" replace />');
   });
 
+  it('requires installed iOS Pocket before one-time QR consumption across isolated Safari stores', () => {
+    const scanner = source('src/features/mobile/Onboarding/OnboardingScanner.tsx');
+    const install = source('src/hooks/usePWAInstall.ts');
+    expect(scanner).toContain('mustInstallPocketFirst = isIOS && !isInstalled && !isPreviewDemo');
+    expect(scanner).toContain('disabled={mustInstallPocketFirst || manualToken.length !== 6}');
+    expect(scanner).toContain('data-dc-pocket-install-first');
+    expect(install).toContain('isStandalonePocketRuntime');
+    expect(install).toContain('standalone?: boolean');
+    expect(install).toContain("window.matchMedia('(display-mode: standalone)').matches");
+    // No cross-context transfer of tokens or cleartext master keys.
+    expect(scanner).not.toContain('window.opener.postMessage');
+  });
+
   it('uses pairing only for enrollment, then starts Pocket Today with revocable device credentials', () => {
     const scanner = source('src/features/mobile/Onboarding/OnboardingScanner.tsx');
     const store = source('src/services/zka/MobileStorage.ts');
