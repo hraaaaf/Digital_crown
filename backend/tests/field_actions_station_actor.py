@@ -21,28 +21,28 @@ email = f"field-{run_id}@example.com"
 
 
 def discover_origin() -> str:
-    # Bounded discovery of a link written only after the synthetic server
-    # successfully boots on a different runner. Never trust stale run IDs.
-    for _ in range(140):
-        request = subprocess.run(
-            ["gh", "api", f"repos/{repo}/issues/844/comments?per_page=100"],
-            capture_output=True, text=True, check=False, timeout=20,
-        )
-        if request.returncode == 0:
-            try:
-                comments = json.loads(request.stdout)
-                for item in reversed(comments):
-                    body = item.get("body", "")
-                    if f"FIELD_LAB_RUN_ID={run_id}" not in body:
-                        continue
-                    match = re.search(r"FIELD_LAB_HOST=(https://[a-z0-9-]+\.trycloudflare\.com)", body)
-                    if match:
-                        return match.group(1)
-            except (ValueError, TypeError):
-                pass
-        time.sleep(5)
-    raise RuntimeError("LAB_SERVER_NOT_DISCOVERABLE: separate Cabinet runner unavailable")
+    """Read a same-run artifact after upload by the independent Cabinet job.
 
+    Actions-only artifact exchange works while the server job remains alive.
+    No issue/PR comments, no write permissions, no shared runner filesystem.
+    """
+    folder = "/tmp/field-actions-live-link"
+    os.makedirs(folder, exist_ok=True)
+    for _ in range(135):
+        response = subprocess.run(
+            ["gh", "run", "download", run_id, "--repo", repo,
+             "--name", "v15-04-5-live-link", "--dir", folder],
+            capture_output=True, text=True, check=False, timeout=22,
+        )
+        path = os.path.join(folder, ".field-live.txt")
+        if response.returncode == 0 and os.path.exists(path):
+            values = open(path, encoding="utf-8").read().splitlines()
+            if len(values) >= 2 and values[0] == run_id:
+                origin = values[1].strip()
+                if re.fullmatch(r"https://[a-z0-9-]+\.trycloudflare\.com", origin):
+                    return origin
+        time.sleep(5)
+    raise RuntimeError("LAB_SERVER_ARTIFACT_UNAVAILABLE: separate Cabinet runner did not publish origin")
 
 origin = discover_origin()
 with httpx.Client(base_url=origin, timeout=35, follow_redirects=False) as station:
