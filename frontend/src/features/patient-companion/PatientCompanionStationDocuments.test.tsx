@@ -50,6 +50,26 @@ describe('04.5 — Patient Companion private-phone withdrawal', () => {
     expect(screen.getByText(/votre téléphone peut conserver le fichier/i)).toBeInTheDocument();
   });
 
+  it('04.5 downloads a staff-verified presence receipt only on the paired phone', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ documents: [{ documentId: 71, kind: 'presence_receipt' }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: (name: string) => name === 'content-type' ? 'application/pdf' : null },
+        blob: async () => new Blob(['%PDF-1.4'], { type: 'application/pdf' }),
+      });
+    globalThis.fetch = fetchMock as typeof fetch;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    render(<PatientCompanionStationDocuments sessionId="session-1" pairing={pairing} onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Télécharger mon justificatif de présence' }));
+    await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[1][0]).toContain('/documents/presence-receipt/71?accessId=');
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+  });
+
   it('never creates a PDF when the patient context or session is rejected', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
