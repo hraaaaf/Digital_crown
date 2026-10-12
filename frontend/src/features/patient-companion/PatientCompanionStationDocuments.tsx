@@ -19,6 +19,7 @@ export const PatientCompanionStationDocuments = ({
   const [closing, setClosing] = useState(false);
   const [error, setError] = useState('');
   const closingRef = useRef(false);
+  const downloadAbortRef = useRef<AbortController | null>(null);
   const endpoint = `${API_BASE}/api/patient-companion/station-session/${encodeURIComponent(sessionId)}/documents`;
   const access = `accessId=${encodeURIComponent(pairing.context.access_id)}`;
 
@@ -46,7 +47,9 @@ export const PatientCompanionStationDocuments = ({
   }, [sessionId, pairing.context.access_id, pairing.accessToken]);
 
   const download = async (item: StationDocument) => {
-    if (downloadingKey !== null) return;
+    if (closingRef.current || downloadingKey !== null) return;
+    const downloadController = new AbortController();
+    downloadAbortRef.current = downloadController;
     setError('');
     setDownloadingKey(`${item.kind}:${item.documentId}`);
     const path = item.kind === 'care_sheet' ? 'care-sheet' : 'presence-receipt';
@@ -54,11 +57,14 @@ export const PatientCompanionStationDocuments = ({
       const response = await fetch(`${endpoint}/${path}/${item.documentId}?${access}`, {
         headers: { Authorization: `Bearer ${pairing.accessToken}` },
         cache: 'no-store',
+        signal: downloadController.signal,
       });
+      if (closingRef.current) return;
       if (!response.ok || !response.headers.get('content-type')?.startsWith('application/pdf')) {
         throw new Error('PDF_NOT_AVAILABLE');
       }
       const payload = await response.blob();
+      if (closingRef.current) return;
       if (!payload.size) throw new Error('PDF_EMPTY');
       const url = URL.createObjectURL(payload);
       try {
@@ -72,18 +78,23 @@ export const PatientCompanionStationDocuments = ({
         window.setTimeout(() => URL.revokeObjectURL(url), 30000);
       }
     } catch {
-      setError('Téléchargement refusé ou connexion interrompue. Recommencez l’identification si nécessaire.');
+      if (!closingRef.current) {
+        setError('Téléchargement refusé ou connexion interrompue. Recommencez l’identification si nécessaire.');
+      }
     } finally {
+      if (downloadAbortRef.current === downloadController) downloadAbortRef.current = null;
       setDownloadingKey(null);
     }
   };
 
   const closeSession = async () => {
-    if (closing || downloadingKey !== null) return;
+    if (closing || closingRef.current) return;
     closingRef.current = true;
+    downloadAbortRef.current?.abort();
     setClosing(true);
     // Client-side privacy wipe must not wait for a stalled/offline network.
     setDocuments([]);
+    setDownloadingKey(null);
     setError('');
     setBusy(false);
     let revoked = false;
@@ -142,7 +153,7 @@ export const PatientCompanionStationDocuments = ({
         </p>
       )}
       {error && <p role="alert" className="mt-3 text-sm font-bold text-rose-700">{error}</p>}
-      <button type="button" disabled={closing || downloadingKey !== null}
+      <button type="button" disabled={closing}
         className="mt-4 min-h-11 w-full rounded-xl border border-border-main text-sm font-bold disabled:opacity-50"
         onClick={() => void closeSession()}>
         {closing ? 'Révocation de la session…' : 'Terminer et effacer ma session'}
