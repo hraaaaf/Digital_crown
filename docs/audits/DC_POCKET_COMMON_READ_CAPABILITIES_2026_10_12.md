@@ -66,3 +66,19 @@ Avant merge : CI pertinente au HEAD final et inspection de cette preuve runtime 
 EXECUTION_SCORE=7.9/10 ; ADVERSARIAL_SCORE=7.9/10 ; RETAINED_SCORE=7.9/10 ; divergence >0.5 : non.
 Plafond : validation CI/PR et validation humaine non acquises. Ni VERIFIED, ni merge-ready.
 Next : brancher progressivement la visibilité des destinations couvertes sur ce contrat ; étendre la matrice des routes avant d'ajouter d'autres capacités. Garder le projet commun ouvert jusqu'aux essais PWA réels et à l'autorisation du propriétaire.
+
+## Préparation du chargement frontend — 12 octobre 2026
+
+Le hook usePocketReadCapabilities et le parseur typé sont ajoutés, sans être encore branchés à un écran.
+Réponses staff chiffrées obligatoires ; version, population, booléens et scope cabinet contrôlés. Aucun droit déduit du rôle du snapshot ni conservé dans localStorage/IndexedDB.
+Refresh au retour au premier plan, au retour réseau et sur nouveau snapshot ; droits réinitialisés pendant la vérification. Une génération de requête et AbortController empêchent une réponse ancienne ou annulée de rétablir des permissions retirées. Timeout réseau 5 s, sans effacer les credentials.
+Une future UI devra expliquer les états loading/unavailable et définir l'accès offline autorisé avant de présenter un cache comme accessible.
+
+Tests ciblés : usePocketReadCapabilities.test.tsx, **16 PASS en 2.80 s**. Contrat inconnu/patient/incomplet, type ou scope invalide, échec de déchiffrement, réponse staff en clair, absence de pairing, HTTP 401/403/500, panne réseau, retour au premier plan et réponse ancienne couverts.
+Aucun changement backend depuis la preuve 30 tests ; ces preuves restent acquises pour les sources backend byte-identiques.
+TypeScript : vérification lancée ; résultat consigné dans la PR après achèvement.
+Revue interne A frontend : contrôle du contrat, refus de tout fallback par rôle et absence de consumer UI prématuré. Revue interne B frontend : contrôle des timers, cleanup, concurrence et réponse non chiffrée ; cette dernière a été rendue explicitement refusée, suite rerun verte. Confirmation : aucune capture AFTER ni intégration navigation revendiquée.
+Les deux revues sont internes, pas indépendantes ; preuve CI et integration UI manquantes maintiennent les trois scores à 7.9/10.
+
+BEFORE : navigateur intégré indisponible (échec d'attachement de vue). L'autorisation d'utiliser le runner de capture isolé Playwright a été demandée au propriétaire, conformément à la règle Product Design. Aucun runner de navigateur alternatif lancé sans sa réponse.
+Next : obtenir les captures BEFORE, verrouiller le Target sur la disposition Pocket existante puis brancher les destinations couvertes. Aucun merge.
