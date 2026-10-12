@@ -108,6 +108,12 @@ with httpx.Client(base_url=origin, verify=cert, trust_env=False, timeout=15, hea
         assert download.status_code in (404, 409)
         assert not download.headers.get("content-type", "").startswith("application/pdf")
         result = {"purged": True, "listing_denied": True, "pdf_denied": True}
+    elif action == "wrong_station":
+        listing = c.get(base + "/documents")
+        download = c.get(base + f"/documents/care-sheet/{p['document_id']}")
+        assert listing.status_code in (404, 423), (listing.status_code, listing.text)
+        assert download.status_code in (404, 423), (download.status_code, download.text)
+        result = {"wrong_station_denied": True}
     elif action == "token_only":
         response = c.get(base + f"/documents/care-sheet/{p['document_id']}", headers={"Authorization": "Bearer " + p["handoff"].split("stationSession=", 1)[1]})
         assert response.status_code in (401, 403), (response.status_code, response.text)
@@ -167,9 +173,20 @@ def test_045_tls_sender_companion_receiver_are_independent_os_processes(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     """HTTP+TLS only. Document bytes travel via FastAPI, not a copied fixture file."""
-    staff, workstation_id = _station(client, dentiste)
-    cookie = client.cookies.get(WORKSTATION_COOKIE)
-    assert cookie, "A separate station cannot authenticate without its workstation cookie."
+    staff, station_workstation_id = _station(client, dentiste)
+    station_cookie = client.cookies.get(WORKSTATION_COOKIE)
+    assert station_cookie, "Station must have its own authenticated workstation cookie."
+    # Independently enroll another real workstation for the Cabinet sender.
+    # It must not share the station credential, even when owned by one tenant.
+    client.cookies.delete(WORKSTATION_COOKIE)
+    cabinet_enroll = client.post(
+        "/api/workstation/enroll", headers=staff, json={"accountPassword": "TestPass123!"},
+    )
+    assert cabinet_enroll.status_code == 200, cabinet_enroll.text
+    cabinet_workstation_id = cabinet_enroll.json()["workstationId"]
+    cabinet_cookie = client.cookies.get(WORKSTATION_COOKIE)
+    assert cabinet_cookie and cabinet_cookie != station_cookie
+    assert cabinet_workstation_id != station_workstation_id
     patient_a, access_a, patient_auth = _patient_context(db, dentiste, dossier="ST045-HTTPS-A")
     patient_b, _access_b, _patient_b_auth = _patient_context(db, dentiste, dossier="ST045-HTTPS-B")
     document_a, digest = _valid_finalized_pdf(db, patient_a)
@@ -204,10 +221,10 @@ def test_045_tls_sender_companion_receiver_are_independent_os_processes(
         common = {
             "origin": origin, "port": port, "cert": str(cert),
             "authorization": staff["Authorization"],
-            "workstation_cookie": cookie, "document_id": document_a.id,
+            "workstation_cookie": station_cookie, "document_id": document_a.id,
             "other_document_id": document_b.id, "expected_sha256": digest,
         }
-        sender = _actor("sender", common)
+        sender = _actor("sender", {**common, "workstation_cookie": cabinet_cookie})
         created = _actor("create", common)
         bound = {**common, "session_id": created["session_id"], "handoff": created["handoff"]}
         before = _actor("before", bound)
@@ -220,6 +237,7 @@ def test_045_tls_sender_companion_receiver_are_independent_os_processes(
             "workstation_cookie": "", "access_id": access_a.public_id,
         })
         received = _actor("receive", bound)
+        wrong_station = _actor("wrong_station", {**bound, "workstation_cookie": cabinet_cookie})
         token_only = _actor("token_only", {
             **bound, "authorization": "", "workstation_cookie": "",
         })
@@ -235,15 +253,19 @@ def test_045_tls_sender_companion_receiver_are_independent_os_processes(
         assert before["denied_before_identity"] and replay["replay_denied"]
         assert received["sha256"] == digest and received["pdf_pages_rendered"] == 1
         assert received["alien_patient_denied"] and token_only["handoff_not_pdf_credential"]
+        assert wrong_station["wrong_station_denied"]
         assert purged["purged"] and purged["listing_denied"] and purged["pdf_denied"]
         evidence = {
             "lot": "V1.5-04.5", "gate": "RPG-X",
             "transport": "verified HTTPS localhost TCP socket with test-only ephemeral TLS certificate",
             "actors": {"sender_pid": sender["pid"], "station_create_pid": created["pid"],
-                       "companion_pid": patient["pid"], "receiver_pid": received["pid"]},
+                       "companion_pid": patient["pid"], "receiver_pid": received["pid"],
+                       "cabinet_workstation_id": cabinet_workstation_id,
+                       "station_workstation_id": station_workstation_id,
+                       "distinct_workstation_credentials": cabinet_cookie != station_cookie},
             "tls": received["tls"], "sha256": digest, "received_bytes": received["bytes"],
             "pdf_pages_rendered": received["pdf_pages_rendered"],
-            "denials": ["not_identified", "replay", "other_patient", "token_only", "post_purge"],
+            "denials": ["not_identified", "replay", "other_patient", "wrong_workstation", "token_only", "post_purge"],
             "scope": "isolated GitHub runner; separate OS client processes; no physical PCs, NFC or real printer",
         }
         artifact = Path("backend/artifacts/v15-04-5-https/evidence.json")
