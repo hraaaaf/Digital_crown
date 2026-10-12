@@ -16,6 +16,7 @@ from typing import Any, Iterable
 from sqlalchemy import MetaData
 
 from backend.services.legacy_sql_mapping_v15 import TargetSnapshot, TargetTable
+from backend.core.schema_runtime import CURRENT_ALEMBIC_HEAD
 
 
 class TargetManifestRefused(ValueError):
@@ -76,6 +77,7 @@ _RESTRICTED_FRAGMENTS = (
     "islicensed", "approvalstatus", "refresh", "recoverycode",
     "mfacode", "totp", "otpsecret", "securityquestion",
     "devicepair", "nonce", "challenge", "revokedtoken",
+    "userrole", "role", "isactive", "issuspended", "isarchived",
 )
 _RESTRICTED_TABLES = {
     "alembic_version", "users", "revoked_tokens", "auth_sessions",
@@ -125,11 +127,14 @@ def build_declared_target_manifest(
         raise TargetManifestRefused("DECLARATIVE_METADATA_REQUIRED")
     if not isinstance(declared_revision, str) or not _REVISION.fullmatch(declared_revision):
         raise TargetManifestRefused("INVALID_DECLARED_REVISION")
+    if declared_revision != CURRENT_ALEMBIC_HEAD:
+        raise TargetManifestRefused("DECLARED_ALEMBIC_REVISION_MISMATCH")
     if (not isinstance(requested_tables, tuple)
             or not 0 < len(requested_tables) <= _MAX_TABLES):
         raise TargetManifestRefused("EXPLICIT_TABLE_SCOPE_REQUIRED")
     _unique_casefold(requested_tables)
-    if any(name.casefold() in _RESTRICTED_TABLES or _restricted(name) for name in requested_tables):
+    if any(name.rsplit(".", 1)[-1].casefold() in _RESTRICTED_TABLES
+           or _restricted(name) for name in requested_tables):
         raise TargetManifestRefused("SENSITIVE_TARGET_TABLE_FORBIDDEN")
 
     declared_tables = tuple(metadata.tables.values())
