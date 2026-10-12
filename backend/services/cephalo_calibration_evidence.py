@@ -358,11 +358,10 @@ def rebuild_evidence_after_manual_calibration(
         }
         if not previous_methods.issubset(regenerated):
             raise CephaloRuntimeEvidenceError("Unknown prior Steiner linear method")
-        old_construction_ids = {item.construction_id for item in constructions}
+        old_by_construction = {item.construction_id: item for item in constructions}
         for old in old_steiner_linear:
-            if len(old.construction_refs) != 1 or old.construction_refs[0] not in old_construction_ids:
+            if len(old.construction_refs) != 1 or old.construction_refs[0] not in old_by_construction:
                 raise CephaloRuntimeEvidenceError("Prior Steiner linear construction unavailable")
-            obsolete_steiner_construction_refs.update(old.construction_refs)
             new_item = regenerated[old.method_id]
             if len(new_item.construction_refs) != 1:
                 raise CephaloRuntimeEvidenceError("Rebuilt Steiner linear construction unavailable")
@@ -374,6 +373,10 @@ def rebuild_evidence_after_manual_calibration(
             )
             if match is None:
                 raise CephaloRuntimeEvidenceError("Rebuilt Steiner linear construction not found")
+            prior_construction = old_by_construction[old.construction_refs[0]]
+            if prior_construction.definition_id != match.definition_id:
+                raise CephaloRuntimeEvidenceError("Steiner linear method/construction identity mismatch")
+            obsolete_steiner_construction_refs.update(old.construction_refs)
             rebuilt_steiner_linear.append(new_item)
             rebuilt_steiner_constructions.append(match)
 
