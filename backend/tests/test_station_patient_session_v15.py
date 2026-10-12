@@ -1173,13 +1173,18 @@ def test_v15_04_2_staff_presence_proof_unlocks_deterministic_receipt(client, db,
     ).all()
     assert len(staff_proofs) == 1
 
-    url = f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}"
-    first = client.get(url, headers=headers)
-    second = client.get(url, headers=headers)
+    kiosk = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
+        headers=headers,
+    )
+    assert kiosk.status_code == 423
+    assert not kiosk.headers["content-type"].startswith("application/pdf")
+    first = _phone_receipt(client, db, session_id, appointment.id, patient)
+    second = _phone_receipt(client, db, session_id, appointment.id, patient)
     assert first.status_code == 200, first.text
     assert second.status_code == 200, second.text
     assert first.headers["content-type"].startswith("application/pdf")
-    assert first.headers["cache-control"] == "no-store"
+    assert first.headers["cache-control"].startswith("no-store")
     assert first.content.startswith(b"%PDF")
     assert first.content == second.content
     assert first.headers["x-digital-crown-verification"] == second.headers["x-digital-crown-verification"]
