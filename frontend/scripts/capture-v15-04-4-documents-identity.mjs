@@ -3,9 +3,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const phase = process.env.EVIDENCE_PHASE === 'before' ? 'before' : 'after';
-const proofNow = new Date();
-const proofExpiresAt = new Date(proofNow.getTime() + 120_000).toISOString();
-const proofClaimedAt = proofNow.toISOString();
 const out = path.resolve(`artifacts/v15-04-4-documents-identity-${phase}`);
 await fs.mkdir(out, { recursive: true });
 
@@ -50,6 +47,10 @@ try {
     for (const language of languages) {
     for (const vp of viewports) {
       for (const scale of scales) {
+        // Do not expire later viewport fixtures because an earlier viewport was slow.
+        const caseNow = new Date();
+        const caseExpiresAt = new Date(caseNow.getTime() + 120_000).toISOString();
+        const caseClaimedAt = caseNow.toISOString();
         const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
         await context.route('**/api/workstation/bootstrap', route => route.fulfill({
           status: 200,
@@ -71,7 +72,7 @@ try {
               handoffUrl: 'https://cabinet.local/companion?stationSession=opaque-proof-token',
               qrDataUrl: onePixelPng,
               nfcPayload: 'https://cabinet.local/companion?stationSession=opaque-proof-token',
-              expiresAt: proofExpiresAt,
+              expiresAt: caseExpiresAt,
               fallbackMode: 'phone_dob',
             }),
           });
@@ -79,8 +80,8 @@ try {
         await context.route('**/api/workstation/patient-session/proof-session', route => {
           if (route.request().method() !== 'GET') return route.continue();
           const payload = scenario.mode === 'identified'
-            ? { status: 'identified', sessionId: 'proof-session', displayName: 'Aya Audit', claimedAt: proofClaimedAt }
-            : { status: 'pending', sessionId: 'proof-session', expiresAt: proofExpiresAt };
+            ? { status: 'identified', sessionId: 'proof-session', displayName: 'Aya Audit', claimedAt: caseClaimedAt }
+            : { status: 'pending', sessionId: 'proof-session', expiresAt: caseExpiresAt };
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
         });
         // 04.5 Station discovery is bound to an identified patient session.
