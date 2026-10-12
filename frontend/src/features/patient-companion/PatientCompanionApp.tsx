@@ -692,7 +692,14 @@ export const PatientCompanionApp = () => {
               <PatientCompanionStationDocuments
                 sessionId={stationDocumentSession.sessionId}
                 pairing={activePairing}
-                onClose={() => setStationDocumentSession(null)}
+                onClose={(serverRevoked) => {
+                  setStationDocumentSession(null);
+                  setStationHandoffMessage(
+                    serverRevoked
+                      ? 'Session de retrait révoquée. Vous pouvez fermer Patient Companion.'
+                      : 'L’écran de retrait est fermé. Connexion indisponible : la session sur le serveur expirera automatiquement.',
+                  );
+                }}
               />
             )}
             {stationHandoffMessage && (
