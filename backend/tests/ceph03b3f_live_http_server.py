@@ -3,7 +3,7 @@
 This is an ephemeral CI-only process. It never contacts or opens a cabinet DB.
 Test-only user/patients are seeded in shared in-memory SQLite; clinical service,
 SRPose38 ONNX inference and regular auth/routes are not mocked. Only external
-background synthesis and ruler candidate detection are neutralized.
+background synthesis is neutralized; real ruler detection remains active.
 """
 from __future__ import annotations
 import json
@@ -43,7 +43,7 @@ def isolated_db():
         yield db
 
 app.dependency_overrides[database.get_db] = isolated_db
-calibration_service.detect_candidate = lambda _path: None
+assert callable(calibration_service.detect_candidate), "Real calibration candidate detector required"
 cmo_agent.generate_global_synthesis = lambda *_args, **_kwargs: None
 
 with TemporaryDirectory(prefix="dc-ceph03b3f-") as scratch:
