@@ -107,3 +107,58 @@ def test_046_purge_still_works_after_station_revocation(client, db, dentiste):
     row = db.get(models.WorkstationPatientSession, created["sessionId"])
     assert row.purged_at is not None
     assert row.patient_id is None
+
+
+def test_045_two_role_sender_receiver_pdf_bytes_and_purge(client, db, dentiste):
+    """Two authenticated roles against one real FastAPI app: cabinet sender and station receiver.
+
+    This is a transport-level simulation, not yet two browser processes or physical workstations.
+    """
+    import hashlib
+    from backend.services.station_care_sheet import verified_care_sheet_bytes
+
+    staff, workstation_id = _station(client, dentiste)
+    patient, access, companion_headers = _patient_context(
+        db, dentiste, dossier="ST045-SENDER-RECEIVER",
+    )
+    document = _care_sheet(db, patient)
+    expected_pdf = verified_care_sheet_bytes(document)
+    expected_hash = hashlib.sha256(expected_pdf).hexdigest()
+    assert expected_pdf.startswith(b"%PDF")
+    assert expected_hash == document.file_hash
+
+    # Sender: cabinet explicitly authorizes the exact PDF.
+    _set_mode(client, staff, "cabinet")
+    authorized = client.post(
+        f"/api/workstation/documents/care-sheet/{document.id}/authorize-withdrawal",
+        headers=staff,
+    )
+    assert authorized.status_code == 200, authorized.text
+
+    # Receiver: station creates a session; companion independently claims it.
+    _set_mode(client, staff, "station")
+    created_response = client.post("/api/workstation/patient-session", headers=staff)
+    assert created_response.status_code == 201, created_response.text
+    created = created_response.json()
+    assert _claim(client, created, companion_headers, access).status_code == 200
+
+    url = (
+        f"/api/workstation/patient-session/{created['sessionId']}"
+        f"/documents/care-sheet/{document.id}"
+    )
+    received = client.get(url, headers=staff)
+    assert received.status_code == 200, received.text
+    assert received.headers["content-type"].startswith("application/pdf")
+    assert received.headers["cache-control"] == "no-store"
+    assert received.content == expected_pdf
+    assert hashlib.sha256(received.content).hexdigest() == expected_hash
+
+    # Receiver closes session: same document becomes inaccessible.
+    purge = client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/purge",
+        headers=staff,
+    )
+    assert purge.status_code == 204, purge.text
+    denied = client.get(url, headers=staff)
+    assert denied.status_code in (404, 409), denied.text
+    assert denied.headers.get("content-type", "").split(";")[0] != "application/pdf"
