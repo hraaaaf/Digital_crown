@@ -163,7 +163,9 @@ jobs:
         working-directory: frontend
         shell: bash
         env:
-          EVALUATED_BASE: ${{ github.event.pull_request.base.sha || 'f32af204ecb8845008080afd5a49ed8d1582eb9b' }}
+          # Reproduce the genuine pre-04.5 feature baseline, not the moving
+          # master PR base (which already contains newer Station implementations).
+          EVALUATED_BASE: f32af204ecb8845008080afd5a49ed8d1582eb9b
         run: |
           set -euo pipefail
           if [[ -z "${EVALUATED_BASE}" ]]; then
@@ -171,6 +173,10 @@ jobs:
             exit 0
           fi
           git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
+          git merge-base --is-ancestor "${EVALUATED_BASE}" HEAD || {
+            echo "Historical 04.4 BEFORE is not an ancestor of candidate; refuse comparison"
+            exit 1
+          }
           git worktree add --detach /tmp/v15-04-4-base "${EVALUATED_BASE}"
           cp scripts/capture-v15-04-4-documents-identity.mjs /tmp/v15-04-4-base/frontend/capture-04-4-baseline.mjs
           cp scripts/capture-v15-04-5-companion-phone.mjs /tmp/v15-04-4-base/frontend/capture-04-5-companion-baseline.mjs
@@ -222,7 +228,7 @@ jobs:
         working-directory: frontend
         run: |
           echo "AFTER: synthetic 04.4 captures on candidate SHA"
-          echo "BEFORE: pin f32af204ecb8845008080afd5a49ed8d1582eb9b as 04.4 baseline; matched scenario/viewport checks required"
+          echo "BEFORE: fixed original 04.4 feature baseline f32af204ecb8845008080afd5a49ed8d1582eb9b, NOT moving pull_request.base/master; all 48+8 matched scenario/viewport checks required"
           echo "Physical QR/NFC scanability and immediate offline purge are not certified"
       - uses: actions/upload-artifact@v4
         if: always()
