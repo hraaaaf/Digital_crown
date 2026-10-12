@@ -44,6 +44,7 @@ export interface CephaloTracingLayerProps {
   imageWidth: number;
   imageHeight: number;
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
+  onKeyboardNudgeLandmark?: (id: string, dx: number, dy: number, imageWidth: number, imageHeight: number) => void;
   /** Transient rendering-only drag preview; never stored or committed here. */
   onLandmarkDragPreview?: (preview: { id: string; x: number; y: number } | null) => void;
   activePointId?: string | null;
@@ -153,6 +154,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   imageWidth,
   imageHeight,
   onUpdateLandmarks,
+  onKeyboardNudgeLandmark,
   onLandmarkDragPreview,
   activePointId,
   focusedPointId,
@@ -819,6 +821,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           clientToSVG={clientToSVG}
           onPointMouseDown={onPointMouseDown}
           onUpdateLandmarks={onUpdateLandmarks}
+          onKeyboardNudgeLandmark={onKeyboardNudgeLandmark}
           onLandmarkDragPreview={onLandmarkDragPreview}
         />
         </g>}
