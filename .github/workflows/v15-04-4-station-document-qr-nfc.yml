@@ -11,6 +11,7 @@ on:
       - "backend/routers/patient_companion_station_documents.py"
       - "backend/tests/test_station_companion_delivery_v15.py"
       - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultation.tsx"
       - "frontend/src/features/patient-companion/PatientCompanionStationDocuments.tsx"
       - "frontend/src/features/patient-companion/PatientCompanionStationDocuments.test.tsx"
       - "backend/config.py"
@@ -39,6 +40,7 @@ on:
       - 'backend/routers/patient_companion_station_documents.py'
       - 'backend/tests/test_station_companion_delivery_v15.py'
       - 'frontend/src/features/patient-companion/PatientCompanionApp.tsx'
+      - 'frontend/src/features/patient-companion/PatientCompanionTeleconsultation.tsx'
       - 'frontend/src/features/patient-companion/PatientCompanionStationDocuments.tsx'
       - 'frontend/src/features/patient-companion/PatientCompanionStationDocuments.test.tsx'
       - 'backend/tests/test_station_document_handoff_v15.py'
