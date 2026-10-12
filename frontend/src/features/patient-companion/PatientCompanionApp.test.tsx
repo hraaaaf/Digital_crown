@@ -33,6 +33,7 @@ beforeEach(() => {
   storageMocks.saveWallet.mockReset();
   storageMocks.load.mockResolvedValue(emptyState);
   vi.stubGlobal('fetch', vi.fn());
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
   window.history.replaceState({}, '', '/companion');
 });
 
@@ -176,8 +177,16 @@ describe('PatientCompanionApp PC-00 local-first', () => {
     render(<PatientCompanionApp />);
 
     expect(await screen.findByText('Aya Wallet')).toBeInTheDocument();
+    expect(screen.getByText(/Dernière synchronisation/)).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navigation patient' }).querySelectorAll('button')).toHaveLength(5);
+    expect(screen.queryByText('Ordonnance')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Agenda' }));
     expect(screen.getByText('Contrôle · 30 min')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Effacer ce téléphone' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Documents' }));
     expect(screen.getByText('Ordonnance')).toBeInTheDocument();
+    expect(screen.queryByText('Contrôle · 30 min')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Aujourd’hui' }));
     expect(screen.getByText(/Dernière synchronisation/)).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
