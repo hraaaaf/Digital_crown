@@ -2,6 +2,7 @@
 # FUE WebKit regression diagnostic: route + status only, no cookies/JWT/URL logging
 # iOS Safari first-party session confirmation: 200 + HttpOnly cookie before navigation
 # Separate Safari/PWA WebKit contexts: require in-PWA pairing and no Safari QR consumption
+# Isolated from fast QR refresh concurrency so both test phases are independently observable
 # Synthetic schedule proof: six demonstration appointments today, never production
 # Retry: seed script resolves repo root without changing product startup
 # Retry: seed uses same synthetic encrypted SQLite key as the backend
