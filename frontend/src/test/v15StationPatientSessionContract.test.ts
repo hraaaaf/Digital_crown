@@ -6,6 +6,7 @@ const app = readFileSync(resolve(process.cwd(), 'src/features/patient-companion/
 const kiosk = readFileSync(resolve(process.cwd(), 'src/features/hub/StationPatientIdentity.tsx'), 'utf8');
 const arrival = readFileSync(resolve(process.cwd(), 'src/features/hub/StationAppointmentArrival.tsx'), 'utf8');
 const backend = readFileSync(resolve(process.cwd(), '../backend/routers/station_patient_session.py'), 'utf8');
+const ttlCleanup = readFileSync(resolve(process.cwd(), '../backend/services/station_session_cleanup.py'), 'utf8');
 const bridge = readFileSync(resolve(process.cwd(), '../backend/services/station_arrival_bridge.py'), 'utf8');
 
 describe('V1.5-03.3 / 03.4 station patient session contract', () => {
@@ -29,9 +30,14 @@ describe('V1.5-03.3 / 03.4 station patient session contract', () => {
   });
 
   it('purges patient references on expiry or explicit station cleanup', () => {
-    expect(backend).toContain('patient_access_id = None');
-    expect(backend).toContain('patient_id = None');
-    expect(backend).toContain('purged_at');
+    expect(backend).toContain('purge_expired_station_session_on_read');
+    expect(backend).toContain('models.WorkstationPatientSession.patient_access_id: None');
+    expect(backend).toContain('models.WorkstationPatientSession.patient_id: None');
+    expect(backend).toContain('STATION_DOCUMENT_SESSION_PURGED_REPLACED');
     expect(backend).toContain('STATION_SESSION_ALREADY_USED');
+    expect(ttlCleanup).toContain('models.WorkstationPatientSession.patient_access_id: None');
+    expect(ttlCleanup).toContain('models.WorkstationPatientSession.patient_id: None');
+    expect(ttlCleanup).toContain('models.WorkstationPatientSession.purged_at.is_(None)');
+    expect(ttlCleanup).toContain('TTL_PURGE_ACTION');
   });
 });
