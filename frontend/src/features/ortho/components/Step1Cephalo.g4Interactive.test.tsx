@@ -86,6 +86,20 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     expect(state.setLayerOpacity).toHaveBeenCalledWith('landmarks',0.35);
   });
 
+  it('displays desktop layer opacity numerically, with slider accessible percentage',()=>{
+    const view=render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const slider=screen.getByRole('slider',{name:'Opacité Landmarks'}) as HTMLInputElement;
+    expect(slider.getAttribute('aria-valuetext')).toBe('100 pour cent');
+    expect(document.querySelector('[data-ortho-layer-opacity-value="landmarks"]')?.textContent?.trim()).toBe('100 %');
+    fireEvent.change(slider,{target:{value:'35'}});
+    expect(state.setLayerOpacity).toHaveBeenCalledWith('landmarks',0.35);
+    state.layerOpacity={...state.layerOpacity,landmarks:0.35};
+    view.rerender(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    expect(screen.getByRole('slider',{name:'Opacité Landmarks'}).getAttribute('aria-valuetext')).toBe('35 pour cent');
+    expect(document.querySelector('[data-ortho-layer-opacity-value="landmarks"]')?.textContent?.trim()).toBe('35 %');
+    expect(screen.queryByText('Opacité Tissus durs')).toBeNull();
+  });
+
   it('exposes correction history controls with fail-closed disabled states',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
 
