@@ -297,7 +297,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       const color = overrideColor ?? defColor;
       const highlighted = !isGhost && isLineHovered(lineKey);
       const strokeWidth = highlighted ? 2.8 : 1.5;
-      const opacity = (opts?.op ?? 1) * layerOp * layerOpacityFor('plans');
+      const opacity = (opts?.op ?? 1) * layerOp * layerOpacityFor('plans') * (isGhost ? 0.34 : 1);
       return (
         <motion.line
           key={`${opts?.renderKey ?? lineKey}-${isGhost}`}
@@ -305,6 +305,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
           stroke={color}
           strokeDasharray={opts?.dash ?? ghostDash}
+          strokeWidth={strokeWidth}
+          opacity={opacity}
           vectorEffect="non-scaling-stroke"
           animate={performanceMode ? {} : { strokeWidth, opacity }}
           transition={{ duration: 0.14 }}
