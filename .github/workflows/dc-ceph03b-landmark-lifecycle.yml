@@ -1,0 +1,57 @@
+name: DC Cephalo 03B desktop landmark lifecycle (targeted)
+on:
+  push:
+    branches:
+      - feat/dc-ceph03b-desktop-landmark-consistency-20261012
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  landmark-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_HEAD: a62a86bbc3712dd6150c7f4553892cb640172858
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact branch, base and restricted paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b-desktop-landmark-consistency-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          while IFS= read -r file; do
+            case "$file" in
+              frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayerBase.tsx | \
+              frontend/src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx | \
+              .github/workflows/dc-ceph03b-landmark-lifecycle.yml) ;;
+              *) echo "Out-of-scope path: $file" >&2; exit 1 ;;
+            esac
+          done < <(git diff --name-only "$BASE_HEAD" "$GITHUB_SHA")
+          echo "DC_CEPH03B_TARGETED_DESKTOP_SOURCE_HEAD=$GITHUB_SHA"
+          echo "DC_CEPH03B_MOBILE_CHANGED=false"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps react-is@19.2.0 @testing-library/dom@10.4.1
+      - name: Execute anatomical edit, store, layer and workflow regression tests
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx \
+            src/features/ortho/orthoLandmarkEditHistory.test.ts \
+            src/features/ortho/orthoLandmarkEditStore.test.ts \
+            src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx \
+            src/features/ortho/orthoLayerRegistry.test.ts \
+            src/features/ortho/orthoLayerStore.test.ts
