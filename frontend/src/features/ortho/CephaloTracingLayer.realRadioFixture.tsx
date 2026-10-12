@@ -10,15 +10,40 @@ import type { Landmark } from './cephaloShared';
 const params = new URLSearchParams(window.location.search);
 const film = params.get('film') === 'B' ? 'B' : 'A';
 const mode = params.get('mode') === 'com' ? 'com' : 'all';
+const usePredictedPoints = params.get('predicted') === '1';
+type RealInferenceBridge = {
+  source: string; radio: string; model_sha256: string; source_image_sha1: string;
+  inference_mode: string; baseline: Landmark[]; after_redo: Landmark[];
+  clinical_accuracy_evaluated: false; mm_per_pixel: null; is_calibrated: false;
+};
 const info = film === 'B'
   ? { name: 'Challiyan (CC BY-SA 4.0)', width: 1000, height: 1255, file: '/dc-ceph03b3c/cephalo-B.jpg' }
   : { name: 'ANUG (CC BY-SA 4.0)', width: 2272, height: 1818, file: '/dc-ceph03b3c/cephalo-A.jpg' };
 const w = info.width;
 const h = info.height;
 
-// Synthetic test-only coordinates. These are NOT measured or expertly traced
-// anatomical landmarks for either public film; never use for diagnosis.
-const initial: Landmark[] = [
+// The 03B.3d proof consumes the exact model outputs observed in SQLite via
+// authenticated GET on CI, exported as verified JSON by the backend test.
+// It is NOT a live-browser login or a clinical accuracy certification.
+const bridge: RealInferenceBridge | null = usePredictedPoints
+  ? await fetch('/dc-ceph03b3c/cephalo-' + film + '-predictions.json')
+      .then(async response => {
+        if (!response.ok) throw Error('Missing real backend inference bridge');
+        return await response.json() as RealInferenceBridge;
+      })
+  : null;
+if (bridge && (
+  bridge.source !== 'AUTHENTICATED_SQLITE_API_READ_AFTER_REAL_SRPOSE38_UPLOAD'
+  || bridge.radio !== film
+  || bridge.inference_mode !== 'SOTA_ONNX_38'
+  || bridge.clinical_accuracy_evaluated !== false
+  || bridge.mm_per_pixel !== null || bridge.is_calibrated !== false
+  || bridge.baseline.length !== 38 || bridge.after_redo.length !== 38
+)) throw Error('Untrusted, missing or clinically misleading inference bridge');
+
+// Legacy synthetic reference is used only when ?predicted=1 is absent.
+// Never describe any of these points as clinician-verified landmarks.
+const syntheticInitial: Landmark[] = [
   { id: 'Po', x: w * 0.35, y: h * 0.48 },
   { id: 'Or', x: w * 0.63, y: h * 0.40 },
   { id: 'N', x: w * 0.73, y: h * 0.22 },
@@ -33,6 +58,9 @@ const initial: Landmark[] = [
   { id: 'L1_apex', x: w * 0.71, y: h * 0.79 },
   { id: 'L1_incisal', x: w * 0.79, y: h * 0.68 },
 ];
+const initial: Landmark[] = bridge
+  ? bridge.baseline.map(point => ({ ...point }))
+  : syntheticInitial;
 const layers = { ...createDefaultLayerVisibility(), t1: true, t2: true };
 useOrthoStore.setState({
   patientId: null,
@@ -71,9 +99,9 @@ function TestWorkspace() {
       <header style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
         gap:12, minHeight:66, flexWrap:'wrap' }}>
         <div>
-          <strong>DC-CEPH-03B.3c — radio réelle {film}, vérification technique</strong>
+          <strong>DC-CEPH-03B.3{bridge ? 'd' : 'c'} — radio réelle {film}, vérification technique</strong>
           <div style={{fontSize:12, opacity:.78}}>
-            {info.name} · {w}×{h} · {mode.toUpperCase()} · points fictifs, aucune mesure clinique
+            {info.name} · {w}×{h} · {mode.toUpperCase()} · {bridge ? 'SRPose38 non validé cliniquement' : 'points fictifs'} · aucune mesure clinique
           </div>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -84,6 +112,12 @@ function TestWorkspace() {
         </div>
       </header>
       <div data-film={film} data-mode={mode}
+        data-predicted={Boolean(bridge)}
+        data-predicted-count={bridge?.baseline.length ?? 0}
+        data-inference-mode={bridge?.inference_mode ?? 'SYNTHETIC'}
+        data-model-sha256={bridge?.model_sha256 ?? ''}
+        data-original-po-x={initial.find(p => p.id === 'Po')?.x ?? -1}
+        data-source-image-sha1={bridge?.source_image_sha1 ?? ''}
         data-po-x={po?.x ?? -1}
         data-undo={editTimeline.undoStack.length}
         data-redo={editTimeline.redoStack.length}
@@ -109,7 +143,8 @@ function TestWorkspace() {
       </div>
       <footer style={{fontSize:10,opacity:.75,paddingTop:5}}>
         Image publique sous CC BY-SA 4.0 — auteur : {info.name}. Les traces et
-        projections sont purement techniques et ne constituent pas un diagnostic.
+        projections T1/T2 sont uniquement des simulations visuelles ; les points
+        SRPose38 réels n'ont pas été comparés à une vérité terrain clinique.
       </footer>
     </main>
   );
