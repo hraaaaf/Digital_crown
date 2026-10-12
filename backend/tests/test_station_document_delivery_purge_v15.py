@@ -162,3 +162,30 @@ def test_045_two_role_sender_receiver_pdf_bytes_and_purge(client, db, dentiste):
     denied = client.get(url, headers=staff)
     assert denied.status_code in (404, 409), denied.text
     assert denied.headers.get("content-type", "").split(";")[0] != "application/pdf"
+
+
+def test_045_station_lists_only_authorized_patient_documents(client, db, dentiste):
+    staff, created, url = _authorized_document_session(
+        client, db, dentiste, "ST045-DISCOVERY",
+    )
+    document_id = int(url.rsplit("/", 1)[1])
+    endpoint = f"/api/workstation/patient-session/{created['sessionId']}/documents"
+    result = client.get(endpoint, headers=staff)
+    assert result.status_code == 200, result.text
+    assert result.headers["cache-control"] == "no-store"
+    assert result.json() == {"documents": [{"documentId": document_id, "kind": "care_sheet"}]}
+    assert client.post(
+        f"/api/workstation/patient-session/{created['sessionId']}/purge", headers=staff,
+    ).status_code == 204
+    denied = client.get(endpoint, headers=staff)
+    assert denied.status_code in (404, 409), denied.text
+
+
+def test_045_unidentified_station_cannot_discover_documents(client, db, dentiste):
+    staff, _ = _station(client, dentiste)
+    created = client.post("/api/workstation/patient-session", headers=staff)
+    assert created.status_code == 201, created.text
+    endpoint = f"/api/workstation/patient-session/{created.json()['sessionId']}/documents"
+    denied = client.get(endpoint, headers=staff)
+    assert denied.status_code == 409, denied.text
+    assert denied.json()["detail"] == "STATION_PATIENT_NOT_IDENTIFIED"
