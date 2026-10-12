@@ -44,13 +44,13 @@ export const PatientCompanionStationDocuments = ({
     return () => { cancelled = true; };
   }, [sessionId, pairing.context.access_id, pairing.accessToken]);
 
-  const download = async (document: StationDocument) => {
+  const download = async (item: StationDocument) => {
     if (downloadingKey !== null) return;
     setError('');
-    setDownloadingKey(`${document.kind}:${document.documentId}`);
-    const path = document.kind === 'care_sheet' ? 'care-sheet' : 'presence-receipt';
+    setDownloadingKey(`${item.kind}:${item.documentId}`);
+    const path = item.kind === 'care_sheet' ? 'care-sheet' : 'presence-receipt';
     try {
-      const response = await fetch(`${endpoint}/${path}/${document.documentId}?${access}`, {
+      const response = await fetch(`${endpoint}/${path}/${item.documentId}?${access}`, {
         headers: { Authorization: `Bearer ${pairing.accessToken}` },
         cache: 'no-store',
       });
@@ -63,7 +63,7 @@ export const PatientCompanionStationDocuments = ({
       try {
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${path}-${document.documentId}.pdf`;
+        link.download = `${path}-${item.documentId}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
