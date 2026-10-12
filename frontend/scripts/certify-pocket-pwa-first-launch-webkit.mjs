@@ -73,6 +73,11 @@ try {
 
   await nav.locator('[data-mobile-nav-item="agenda"]').click();
   await page.locator('[data-dc-pocket-agenda]').waitFor({ state: 'visible', timeout: 8000 });
+  await page.getByText('6 rendez-vous · vue rapide en lecture seule').waitFor({ state: 'visible', timeout: 12000 });
+  for (const treatment of ['Consultation initiale', 'Détartrage', 'Contrôle orthodontique', "Pose d'appareil orthodontique", 'Soin conservateur', 'Contrôle de suivi']) {
+    await page.getByText(treatment, { exact: true }).waitFor({ state: 'visible', timeout: 8000 });
+  }
+  evidence.agendaHasSixDemoActs = true;
   evidence.agendaTab = true;
 
   await nav.locator('[data-mobile-nav-item="more"]').click();
