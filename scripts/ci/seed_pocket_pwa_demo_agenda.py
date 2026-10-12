@@ -25,6 +25,11 @@ if not Path("t2-runtime-cert.db").is_file():
 if os.environ.get("T2_USER") != "t2-browser@cabinet.ma":
     raise SystemExit("Unknown synthetic tenant; refusing seed")
 
+# Match the exact test-only SQLCipher key set in scripts/t2_runtime_server.py.
+# The backend and the seed are separate processes against the same encrypted
+# disposable SQLite. Never derive this key from a real cabinet or GitHub secret.
+os.environ["SECRET_KEY"] = "t2-runtime-certification-secret-key-000001"
+
 from backend import database, models
 
 # Patient names, appointments and timestamps are invented demonstrations;
