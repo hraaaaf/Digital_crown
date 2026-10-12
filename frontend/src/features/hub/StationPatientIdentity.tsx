@@ -27,9 +27,9 @@ const COPY = {
     expired: 'Session expirée', newQr: 'Nouveau QR', retry: 'Réessayer',
     documentsVerified: 'Identité confirmée',
     documentsConstruction: 'Le retrait des documents est en cours de construction sur cette station.',
-    documentsStaff: 'Aucune feuille de soins autorisée à retirer. Adressez-vous à l’accueil.',
+    documentsStaff: 'Aucun document autorisé à retirer. Adressez-vous à l’accueil.',
     documentsFallback: 'Pour retirer ce document, adressez-vous au personnel du cabinet. Le retrait sur téléphone nécessite Patient Companion appairé.',
-    documentsReady: 'Feuille de soins disponible sur votre téléphone dans Patient Companion. Aucun PDF ne sera conservé sur cette borne.',
+    documentsReady: 'Document disponible sur votre téléphone dans Patient Companion. Aucun PDF ne sera conservé sur cette borne.',
   },
   en: {
     tooMany: 'Too many attempts. Generate a new session or ask for help.',
@@ -51,9 +51,9 @@ const COPY = {
     expired: 'Session expired', newQr: 'New QR code', retry: 'Try again',
     documentsVerified: 'Identity confirmed',
     documentsConstruction: 'Document collection is under construction at this station.',
-    documentsStaff: 'No care sheet is available for collection. Please contact reception.',
+    documentsStaff: 'No document is available for collection. Please contact reception.',
     documentsFallback: 'Please contact reception to collect this document. Phone delivery requires a paired Patient Companion.',
-    documentsReady: 'Care sheet available on your phone in Patient Companion. This station does not save PDF files.',
+    documentsReady: 'Document available on your phone in Patient Companion. This station does not save PDF files.',
   },
   ar: {
     tooMany: 'محاولات كثيرة جداً. أنشئوا جلسة جديدة أو اطلبوا المساعدة.',
@@ -75,9 +75,9 @@ const COPY = {
     expired: 'انتهت صلاحية الجلسة', newQr: 'رمز QR جديد', retry: 'إعادة المحاولة',
     documentsVerified: 'تم تأكيد الهوية',
     documentsConstruction: 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.',
-    documentsStaff: 'لا توجد ورقة علاج مرخصة للاستلام. يرجى مراجعة الاستقبال.',
+    documentsStaff: 'لا توجد وثيقة مرخصة للاستلام. يرجى مراجعة الاستقبال.',
     documentsFallback: 'يرجى مراجعة فريق العيادة لاستلام الوثيقة. يتطلب التسليم عبر الهاتف ربط Patient Companion.',
-    documentsReady: 'ورقة العلاج متاحة على هاتفكم في Patient Companion. لن تحتفظ هذه المحطة بأي ملف PDF.',
+    documentsReady: 'وثيقة متاحة على هاتفكم في Patient Companion. لن تحتفظ هذه المحطة بأي ملف PDF.',
   },
 } as const;
 
