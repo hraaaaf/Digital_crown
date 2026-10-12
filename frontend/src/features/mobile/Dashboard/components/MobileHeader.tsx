@@ -31,6 +31,7 @@ export function MobileHeader({
   queuedActionsCount,
   onOpenPatients,
   previewMode = false,
+  notificationsEnabled = true,
 }: {
   activeTab: Tab;
   syncStatus: SyncStatus;
@@ -43,6 +44,7 @@ export function MobileHeader({
   queuedActionsCount: number;
   onOpenPatients?: () => void;
   previewMode?: boolean;
+  notificationsEnabled?: boolean;
 }) {
   return (
     <div className="px-4 sm:px-6 pt-[max(18px,env(safe-area-inset-top))] pb-3 relative z-10">
@@ -66,11 +68,11 @@ export function MobileHeader({
               <Search size={18} aria-hidden="true" />
             </button>
           )}
-          {previewMode ? (
+          {previewMode || !notificationsEnabled ? (
             <button
               type="button"
               disabled
-              aria-label="Notifications désactivées dans la démonstration"
+              aria-label={previewMode ? 'Notifications désactivées dans la démonstration' : 'Notifications non autorisées ou droits à vérifier'}
               className="relative h-11 w-11 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary"
               style={{ backgroundColor: 'var(--glass-bg)' }}
             >

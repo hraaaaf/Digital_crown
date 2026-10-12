@@ -1,6 +1,6 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DENY_POCKET_READ, parsePocketReadAccess } from '../pocketReadCapabilities';
+import { canOpenPocketReadTab, DENY_POCKET_READ, parsePocketReadAccess } from '../pocketReadCapabilities';
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), credentials: vi.fn(), decrypt: vi.fn() }));
 vi.mock('../../../../services/zka/mobileApi', () => ({ mobileApiFetch: mocks.fetch }));
@@ -32,6 +32,15 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Pocket server read permissions', () => {
+  it('checks covered destinations by permission rather than assuming practitioner access', () => {
+    const access = { agenda: true, patients: false, clinical: false, finance: true };
+    expect(canOpenPocketReadTab('agenda', access)).toBe(true);
+    expect(canOpenPocketReadTab('patients', access)).toBe(false);
+    expect(canOpenPocketReadTab('notifications', access)).toBe(false);
+    expect(canOpenPocketReadTab('stock', access)).toBe(false);
+    expect(canOpenPocketReadTab('finance', access)).toBe(true);
+    expect(canOpenPocketReadTab('unknown', access)).toBe(false);
+  });
   it('starts denied and decrypts staff permissions before enabling destinations', async () => {
     mocks.fetch.mockResolvedValue(response({ payload: 'ciphertext' }));
     mocks.decrypt.mockResolvedValue(contract(true, true));
@@ -95,6 +104,17 @@ describe('Pocket server read permissions', () => {
     mocks.fetch.mockResolvedValue(response(contract(true)));
     act(() => window.dispatchEvent(new Event('focus')));
     await waitFor(() => expect(result.current.access.patients).toBe(true));
+  });
+
+  it('withdraws grants on going offline without destroying pairing credentials', async () => {
+    const { result } = renderHook(() => usePocketReadCapabilities());
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    act(() => window.dispatchEvent(new Event('offline')));
+    expect(result.current.status).toBe('unavailable');
+    expect(result.current.access).toEqual(DENY_POCKET_READ);
+    mocks.fetch.mockResolvedValue(response(contract()));
+    act(() => window.dispatchEvent(new Event('online')));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
   });
 
   it('ignores an older response that grants rights after a newer response denies them', async () => {

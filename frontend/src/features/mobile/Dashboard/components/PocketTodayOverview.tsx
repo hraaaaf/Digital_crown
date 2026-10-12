@@ -55,6 +55,7 @@ export function PocketTodayOverview({
   onOpenWaitingRoom,
   onOpenFrontdesk,
   onOpenAlerts,
+  canOpenPatient = true,
 }: {
   snapshot: Snapshot | null;
   selectedDate: string;
@@ -62,6 +63,7 @@ export function PocketTodayOverview({
   onOpenWaitingRoom: () => void;
   onOpenFrontdesk: () => void;
   onOpenAlerts: () => void;
+  canOpenPatient?: boolean;
 }) {
   const appointments = snapshot?.appointments ?? [];
   const role = snapshot?.role ?? 'DENTISTE';
@@ -159,7 +161,7 @@ export function PocketTodayOverview({
           </div>
           <button
             type="button"
-            disabled={!nextAppointment.patient_id}
+            disabled={!canOpenPatient || !nextAppointment.patient_id}
             onClick={() => nextAppointment.patient_id && onOpenPatient(nextAppointment.patient_id)}
             className="mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-primary px-4 text-[14px] font-semibold text-on-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -188,7 +190,8 @@ export function PocketTodayOverview({
         <button
           type="button"
           onClick={onOpenAlerts}
-          className="flex min-h-[52px] items-center justify-center gap-1.5 rounded-[16px] border border-glass-border bg-card px-3 text-[13px] font-semibold text-text-main shadow-sm active:scale-[0.98]"
+          disabled={!canOpenPatient}
+          className="flex min-h-[52px] items-center justify-center gap-1.5 rounded-[16px] border border-glass-border bg-card px-3 text-[13px] font-semibold text-text-main shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Bell size={13} /> Alertes
         </button>
@@ -229,11 +232,11 @@ export function PocketTodayOverview({
                       {appointment.motif || 'Rendez-vous'} · {(appointment.status || 'PLANIFIE').replace('_', ' ')}
                     </p>
                   </div>
-                  {!isAssistant && appointment.patient_id && <ChevronRight size={15} className="shrink-0 text-text-muted" />}
+                  {canOpenPatient && !isAssistant && appointment.patient_id && <ChevronRight size={15} className="shrink-0 text-text-muted" />}
                 </>
               );
 
-              return !isAssistant && appointment.patient_id ? (
+              return canOpenPatient && !isAssistant && appointment.patient_id ? (
                 <button
                   key={appointment.id}
                   type="button"

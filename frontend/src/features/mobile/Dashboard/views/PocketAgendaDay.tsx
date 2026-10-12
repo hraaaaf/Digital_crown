@@ -12,11 +12,13 @@ export function PocketAgendaDay({
   selectedDate,
   isOnline,
   onOpenPatient,
+  canOpenPatient = true,
 }: {
   snapshot: Snapshot | null;
   selectedDate: string;
   isOnline: boolean;
   onOpenPatient: (id: number) => void;
+  canOpenPatient?: boolean;
 }) {
   const appointments = (snapshot?.appointments ?? [])
     .filter(item => !item.date || item.date === selectedDate)
@@ -73,10 +75,10 @@ export function PocketAgendaDay({
                     </span>
                   )}
                 </div>
-                {appointment.patient_id && <ChevronRight size={17} className="shrink-0 text-primary" aria-hidden="true" />}
+                {canOpenPatient && appointment.patient_id && <ChevronRight size={17} className="shrink-0 text-primary" aria-hidden="true" />}
               </>
             );
-            return appointment.patient_id ? (
+            return canOpenPatient && appointment.patient_id ? (
               <button
                 type="button"
                 key={appointment.id}

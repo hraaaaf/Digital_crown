@@ -52,8 +52,15 @@ export function usePocketReadCapabilities(refreshKey?: string) {
     alive.current = true;
     void refresh();
     const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    const onOffline = () => {
+      generation.current += 1;
+      activeRequest.current?.abort();
+      setAccess(DENY_POCKET_READ);
+      setStatus('unavailable');
+    };
     window.addEventListener('focus', refresh);
     window.addEventListener('online', refresh);
+    window.addEventListener('offline', onOffline);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       alive.current = false;
@@ -61,6 +68,7 @@ export function usePocketReadCapabilities(refreshKey?: string) {
       activeRequest.current?.abort();
       window.removeEventListener('focus', refresh);
       window.removeEventListener('online', refresh);
+      window.removeEventListener('offline', onOffline);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [refresh, refreshKey]);

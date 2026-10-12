@@ -19,6 +19,11 @@ const snapshot: Snapshot = {
 afterEach(() => cleanup());
 
 describe('P1 Pocket Agenda safe day list', () => {
+  it('does not expose dossier controls when only the agenda is authorized', () => {
+    render(<PocketAgendaDay snapshot={snapshot} selectedDate="2026-10-11" isOnline canOpenPatient={false} onOpenPatient={vi.fn()} />);
+    expect(screen.getByText('Patient 1')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Ouvrir le dossier/i })).toBeNull();
+  });
   it('uses only a selected snapshot day and sorts by time without desktop API', () => {
     const onOpenPatient = vi.fn();
     render(<PocketAgendaDay snapshot={snapshot} selectedDate="2026-10-11" isOnline onOpenPatient={onOpenPatient} />);

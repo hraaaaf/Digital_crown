@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Bell, BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, LayoutDashboard, MoreHorizontal, Package, Plus, ShieldCheck, ShoppingCart, TrendingUp, UserRound, Users, UsersRound, X } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
+import { canOpenPocketReadTab, type PocketReadAccess } from '../pocketReadCapabilities';
 
 export function MobileBottomNav({
   activeTab,
@@ -9,6 +10,7 @@ export function MobileBottomNav({
   totalCount,
   termineCount,
   snapshot,
+  readAccess,
   quickActionsAvailable,
   quickActionsOpen,
   onToggleQuickActions,
@@ -18,6 +20,7 @@ export function MobileBottomNav({
   totalCount: number;
   termineCount: number;
   snapshot: Snapshot | null;
+  readAccess: PocketReadAccess;
   quickActionsAvailable: boolean;
   quickActionsOpen: boolean;
   onToggleQuickActions: () => void;
@@ -41,7 +44,7 @@ export function MobileBottomNav({
     { id: 'library' as Tab, icon: BookOpen, label: 'Bibliothèque', allowedRoles: ['DENTISTE', 'ADMIN'] },
     { id: 'marketplace' as Tab, icon: ShoppingCart, label: 'Approvisionnement', allowedRoles: ['DENTISTE', 'ADMIN'] },
     { id: 'dentists' as Tab, icon: Users, label: 'Équipe', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
-    { id: 'finance' as Tab, icon: TrendingUp, label: 'Trésorerie', allowedRoles: ['DENTISTE', 'ADMIN'] },
+    { id: 'finance' as Tab, icon: TrendingUp, label: 'Trésorerie', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
     { id: 'lab' as Tab, icon: FlaskConical, label: 'Envois Labo', allowedRoles: ['DENTISTE', 'ADMIN'] },
     { id: 'bot' as Tab, icon: Bot, label: 'Assistant · En cours de construction', allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'] },
     {
@@ -50,10 +53,10 @@ export function MobileBottomNav({
       label: 'Sécurité',
       allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE'],
     },
-  ].filter(tab => tab.allowedRoles.includes(role));
+  ].filter(tab => tab.allowedRoles.includes(role) && canOpenPocketReadTab(tab.id, readAccess));
 
   const isMoreActive = secondaryTabs.some(tab => tab.id === activeTab);
-  const agendaHasPending = totalCount > 0 && termineCount < totalCount;
+  const agendaHasPending = readAccess.agenda && totalCount > 0 && termineCount < totalCount;
   // Five equally sized targets. The active highlight glides between them;
   // quick actions and Plus retain their existing callbacks/permissions.
   const selectedNavIndex = quickActionsOpen ? 2
@@ -227,10 +230,12 @@ export function MobileBottomNav({
 
           <button
             data-mobile-nav-item="agenda"
+            disabled={!readAccess.agenda}
+            title={!readAccess.agenda ? 'Agenda non autorisé ou droits à vérifier' : undefined}
             type="button"
             aria-current={activeTab === 'agenda' ? 'page' : undefined}
             onClick={() => selectTab('agenda')}
-            className={cn(navItemClass, activeTab === 'agenda' ? 'text-primary' : 'text-text-muted')}
+            className={cn(navItemClass, 'disabled:cursor-not-allowed disabled:opacity-35', activeTab === 'agenda' ? 'text-primary' : 'text-text-muted')}
           >
             <span className="grid h-8 w-11 place-items-center"><CalendarDays size={21} strokeWidth={activeTab === 'agenda' ? 2.35 : 1.9} /></span>
             <span className={navLabelClass}>Agenda</span>
@@ -256,10 +261,12 @@ export function MobileBottomNav({
 
           <button
             data-mobile-nav-item="patients"
+            disabled={!readAccess.patients}
+            title={!readAccess.patients ? 'Dossiers non autorisés ou droits à vérifier' : undefined}
             type="button"
             aria-current={activeTab === 'patients' ? 'page' : undefined}
             onClick={() => selectTab('patients')}
-            className={cn(navItemClass, activeTab === 'patients' ? 'text-primary' : 'text-text-muted')}
+            className={cn(navItemClass, 'disabled:cursor-not-allowed disabled:opacity-35', activeTab === 'patients' ? 'text-primary' : 'text-text-muted')}
           >
             <span className="grid h-8 w-11 place-items-center"><UserRound size={21} strokeWidth={activeTab === 'patients' ? 2.35 : 1.9} /></span>
             <span className={navLabelClass}>Patients</span>

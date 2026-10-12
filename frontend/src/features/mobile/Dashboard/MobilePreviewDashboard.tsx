@@ -146,7 +146,7 @@ export function MobilePreviewDashboard() {
         </motion.div></AnimatePresence>
       </main>
       <MobileQuickActionHub capabilities={DEMO_QUICK_CAPABILITIES} isOnline open={quickActionsOpen} onOpenChange={setQuickActionsOpen} hideLauncher onNewAppointment={noop} onNewPatient={noop} onPatientAction={() => undefined} />
-      <MobileBottomNav activeTab={activeTab} setActiveTab={selectNavTab} totalCount={totalCount} termineCount={termineCount} snapshot={snapshot} quickActionsAvailable quickActionsOpen={quickActionsOpen} onToggleQuickActions={() => setQuickActionsOpen(value => !value)} />
+      <MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} activeTab={activeTab} setActiveTab={selectNavTab} totalCount={totalCount} termineCount={termineCount} snapshot={snapshot} quickActionsAvailable quickActionsOpen={quickActionsOpen} onToggleQuickActions={() => setQuickActionsOpen(value => !value)} />
     </div>
   );
 }

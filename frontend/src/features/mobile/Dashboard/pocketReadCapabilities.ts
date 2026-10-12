@@ -9,6 +9,14 @@ export const DENY_POCKET_READ: PocketReadAccess = {
   agenda: false, patients: false, clinical: false, finance: false,
 };
 
+/** Only destinations covered by the read contract; other guards remain intact. */
+export function canOpenPocketReadTab(tab: string, access: PocketReadAccess): boolean {
+  if (['today', 'agenda', 'waiting-room', 'frontdesk'].includes(tab)) return access.agenda;
+  if (['patients', 'notifications', 'stock', 'lab', 'marketplace'].includes(tab)) return access.patients;
+  if (tab === 'finance') return access.finance;
+  return ['securite', 'bot', 'dentists', 'library'].includes(tab);
+}
+
 const ACTIONS = {
   agenda: 'agenda.read',
   patients: 'cabinet.patients.read',
