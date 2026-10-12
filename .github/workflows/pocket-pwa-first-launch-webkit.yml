@@ -1,6 +1,7 @@
 # FUE WebKit follow-up: distinguish lazy import/assets/navigation without leaking secrets
 # FUE WebKit regression diagnostic: route + status only, no cookies/JWT/URL logging
 # iOS Safari first-party session confirmation: 200 + HttpOnly cookie before navigation
+# Synthetic schedule proof: six demonstration appointments today, never production
 name: Pocket PWA lifecycle — first launch real WebKit
 
 on:
