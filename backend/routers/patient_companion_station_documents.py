@@ -150,7 +150,11 @@ def companion_station_care_sheet(
         action=WITHDRAW_ACTION,
         resource_type="DocumentArchive",
         resource_id=str(doc.id),
-        details=f"Verified PDF delivered to authenticated Patient Companion; sha256={doc.file_hash}",
+        details=(
+            f"Verified PDF delivered to authenticated Patient Companion;"
+            f" patient_id={principal.patient_id};access_id={principal.access_id};"
+            f" sha256={doc.file_hash}"
+        ),
         ip_address=request.client.host if request.client else None,
     ))
     db.commit()
@@ -180,11 +184,22 @@ def companion_purge_station_documents(
     """
     principal, context = _authorized_session(db, identity, access_id, session_id)
     now = datetime.utcnow()
+    context_access = db.query(PatientCompanionAccess).filter(
+        PatientCompanionAccess.public_id == principal.access_id,
+        PatientCompanionAccess.identity_id == identity.id,
+        PatientCompanionAccess.employer_id == principal.employer_id,
+        PatientCompanionAccess.patient_id == principal.patient_id,
+        PatientCompanionAccess.revoked_at.is_(None),
+    ).first()
+    if context_access is None:
+        raise HTTPException(status_code=404, detail="STATION_DOCUMENT_SESSION_NOT_FOUND")
     # Conditional update prevents clearing an unrelated/replaced session.
     updated = db.query(models.WorkstationPatientSession).filter(
         models.WorkstationPatientSession.id == context.session_id,
         models.WorkstationPatientSession.employer_id == principal.employer_id,
         models.WorkstationPatientSession.patient_id == principal.patient_id,
+        models.WorkstationPatientSession.patient_access_id == context_access.id,
+        models.WorkstationPatientSession.expires_at > now,
         models.WorkstationPatientSession.purged_at.is_(None),
     ).update(
         {
