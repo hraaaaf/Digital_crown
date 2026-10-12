@@ -6,7 +6,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.services import legacy_sql_inspector_v15 as inspector
+# Load only the standalone stdlib module, never backend/__init__.py.
+import importlib.util
+import sys
+
+module_path = Path(__file__).resolve().parents[1] / "services" / "legacy_sql_inspector_v15.py"
+spec = importlib.util.spec_from_file_location("legacy_sql_inspector_v15", module_path)
+inspector = sys.modules.get(spec.name)
+if inspector is None:
+    inspector = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = inspector
+    spec.loader.exec_module(inspector)
 
 
 class TestLegacyInspectorSecurity(unittest.TestCase):
