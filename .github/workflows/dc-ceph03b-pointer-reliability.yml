@@ -1,0 +1,89 @@
+name: DC Cephalo 03B experimental desktop drag repeatability
+on:
+  push:
+    branches:
+      - feat/dc-ceph03b-desktop-landmark-consistency-20261012
+    paths:
+      - .github/workflows/dc-ceph03b-pointer-reliability.yml
+      - frontend/scripts/capture-dc-ceph03b-desktop.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  repeated-pointer-drag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE_HEAD: d4df9211e94a4aeb9b2d522782666e389385bcca
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Pin exact candidate and untouched baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b-desktop-landmark-consistency-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          echo "DC_CEPH03B_REPEAT_SHA=$GITHUB_SHA"
+          echo "GATE_TIER=EXPERIMENTAL"
+          echo "MOBILE_IN_SCOPE=false"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Execute four independent trials per view and tracing mode
+        working-directory: frontend
+        env:
+          CEPH03B_PHASE: AFTER
+          CEPH03B_REPEAT: '4'
+        run: |
+          PRODUCT_HEAD="$GITHUB_SHA" node scripts/capture-dc-ceph03b-desktop.mjs
+      - name: Assert 16 independent trials with no retry or external egress
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const dir='dc-ceph03b-after-desktop-artifacts';
+          const report=JSON.parse(await readFile(dir+'/report.json','utf8'));
+          if(report.phase!=='AFTER' || report.productHead!==process.env.GITHUB_SHA
+             || report.repeatCount!==4 || report.captures.length!==16
+             || report.invalidCount!==0 || report.blockedExternalRequests.length!==0) {
+            throw Error('Repeated landmark pointer gate RED');
+          }
+          const expectedViewports=['1280x900','1600x1000'];
+          const expectedModes=['com','all'];
+          if(JSON.stringify(report.viewports)!==JSON.stringify(expectedViewports)
+             || JSON.stringify(report.modes)!==JSON.stringify(expectedModes)) throw Error('Wrong desktop matrix');
+          for(const viewport of expectedViewports) for(const mode of expectedModes)
+            for(let trial=1;trial<=4;trial++){
+              const c=report.captures.find(item=>item.viewport===viewport&&item.mode===mode&&item.trial===trial);
+              if(!c||!c.valid||c.errors.length||c.consoleErrors.length||c.horizontalOverflow||c.shots.length!==4)
+                throw Error('Invalid trial '+viewport+'/'+mode+'/'+trial);
+              for(const name of c.shots){
+                const png=await readFile(dir+'/'+name);
+                if(png.length<300||png.subarray(1,4).toString()!=='PNG')throw Error('Invalid screenshot '+name);
+                if(viewport!==png.readUInt32BE(16)+'x'+png.readUInt32BE(20))throw Error('Wrong screenshot dimension '+name);
+              }
+            }
+          console.log('DC_CEPH03B_REPEATABILITY_16_OF_16_PASS');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-ceph03b-pointer-repeatability-evidence
+          path: |
+            frontend/dc-ceph03b-after-desktop-artifacts/report.json
+            frontend/dc-ceph03b-after-desktop-artifacts/vite.log
+            frontend/dc-ceph03b-after-desktop-artifacts/*-failure.png
+          if-no-files-found: warn
+          retention-days: 10
