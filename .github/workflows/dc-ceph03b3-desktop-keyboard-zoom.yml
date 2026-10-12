@@ -27,6 +27,11 @@ jobs:
           while IFS= read -r file; do
             case "$file" in
               frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx | \
+              frontend/src/features/ortho/components/Step1CephaloBase.tsx | \
+              frontend/src/features/ortho/orthoLandmarkEditHistory.ts | \
+              frontend/src/features/ortho/stores/useOrthoStore.ts | \
+              frontend/src/features/ortho/orthoLandmarkEditStore.test.ts | \
+              frontend/src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx | \
               frontend/src/features/ortho/CephaloTracingLayerBase.tsx | \
               frontend/src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.visualFixture.tsx | \
@@ -56,6 +61,7 @@ jobs:
             src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx \
             src/features/ortho/orthoLandmarkEditHistory.test.ts \
             src/features/ortho/orthoLandmarkEditStore.test.ts \
+            src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx \
             src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx \
             src/features/ortho/orthoLayerRegistry.test.ts \
             src/features/ortho/orthoLayerStore.test.ts
