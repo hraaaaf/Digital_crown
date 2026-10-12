@@ -76,7 +76,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       <AlertTriangle className="mt-1 shrink-0" size={20} />
       <div><strong>Ce parcours ne migre aucune donnée.</strong> Chargez uniquement des inventaires de schémas JSON,
         sans dossiers patients, dumps SQL, mots de passe ni données cliniques. Les fichiers sont analysés
-        en mémoire sans appel réseau ou sauvegarde. Le schéma cible fourni n’est pas certifié ;
+        en mémoire et leur contenu n’est pas envoyé au backend. Les styles globaux de Digital Crown peuvent toutefois charger des polices externes. Le schéma cible fourni n’est pas certifié ;
         aucune approbation administrateur ni dry-run réel n’existe ici.</div>
     </section>
 
