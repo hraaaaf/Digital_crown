@@ -9,6 +9,7 @@ on:
       - frontend/src/services/api.ts
       - frontend/src/App.tsx
       - frontend/src/main.tsx
+      - frontend/index.html
       - frontend/public/manifest.json
       - frontend/src/test/mobilePocketPwaLifecycle.contract.test.ts
       - frontend/scripts/capture-mobile-pocket-runtime-after.mjs
