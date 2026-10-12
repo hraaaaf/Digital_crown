@@ -118,6 +118,15 @@ def test_real_srpose38_two_lateral_xrays_authenticated_upload_edit_sqlite_reload
         )
         assert baseline["mm_per_pixel"] is None
         assert baseline["is_calibrated"] is False
+        initial_graph = baseline["angles_data"]["_evidence_graph_v1"]
+        revision = initial_graph["revision"]
+        assert revision == 1
+        auto_n = next(
+            p for p in initial_graph["landmarks"]
+            if p["landmark_id"] == "N" and p["origin"] == "SRPOSE38_AUTO"
+        )
+        original_auto_x = auto_n["x"]
+        original_auto_y = auto_n["y"]
 
         def correction(dx):
             # ONNX output has an inference-only confidence field. The strict
@@ -153,6 +162,23 @@ def test_real_srpose38_two_lateral_xrays_authenticated_upload_edit_sqlite_reload
             assert after["landmarks_data"] == landmarks, (meta["id"], step, "GET")
             assert after["mm_per_pixel"] is None
             assert after["is_calibrated"] is False
+            graph = after["angles_data"]["_evidence_graph_v1"]
+            assert graph["revision"] == revision + 1, (meta["id"], step, "revision")
+            assert graph["revision_reason"] == "LANDMARK_EDIT"
+            revision += 1
+            corrected = next(
+                p for p in graph["landmarks"]
+                if p["landmark_id"] == "N" and p["origin"] == "MANUAL_CORRECTED"
+            )
+            assert corrected["validated_by"] == str(dentiste.id)
+            assert corrected["evidence_status"] == "CLINICIAN_VALIDATED"
+            assert corrected["evidence_id"] in graph["current_landmark_refs"]
+            assert corrected["original_auto_x"] == original_auto_x
+            assert corrected["original_auto_y"] == original_auto_y
+            assert next(
+                p for p in graph["landmarks"]
+                if p["landmark_id"] == "N" and p["origin"] == "SRPOSE38_AUTO"
+            )["evidence_id"] not in graph["current_landmark_refs"]
         final_read = authoritative_get()
         assert final_read["landmarks_data"] == correction(11.0)
         # Independent visual fixture reads ACTUAL API-derived point snapshots.
