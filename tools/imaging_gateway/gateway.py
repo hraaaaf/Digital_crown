@@ -69,8 +69,9 @@ class Config:
         w, p = Path(self.watch).absolute(), Path(self.private).absolute()
         if w == p or w in p.parents or p in w.parents:
             raise GatewayError("watch and private paths must be disjoint")
-        if w.is_symlink() or not w.is_dir() or p.is_symlink():
-            raise GatewayError("unsafe watch/private root")
+        if (w.is_symlink() or not w.is_dir() or p.is_symlink() or
+                w.resolve(strict=True) != w or p.resolve(strict=False) != p):
+            raise GatewayError("unsafe watch/private root or symlink ancestor")
         p.mkdir(parents=True, exist_ok=True)
 
 
@@ -110,7 +111,21 @@ class HotFolder:
                 event TEXT NOT NULL,
                 at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS device_scope(
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                cabinet TEXT NOT NULL,
+                workstation TEXT NOT NULL
+            );
             """)
+            db.execute(
+                "INSERT OR IGNORE INTO device_scope(singleton,cabinet,workstation) VALUES(1,?,?)",
+                (config.cabinet, config.workstation),
+            )
+            active = db.execute(
+                "SELECT cabinet,workstation FROM device_scope WHERE singleton=1"
+            ).fetchone()
+            if active != (config.cabinet, config.workstation):
+                raise GatewayError("state directory belongs to another cabinet/workstation")
 
     @contextmanager
     def _db(self):
@@ -126,9 +141,13 @@ class HotFolder:
         finally:
             db.close()
 
-    def _identity(self, digest):
+    def _identity(self, digest, source_filename, modified_ns):
+        # Opaque per-capture metadata: never persist/display the source filename.
+        source_hash = hashlib.sha256(
+            source_filename.encode("utf-8", "surrogatepass")
+        ).hexdigest()
         parts = [self.config.cabinet, self.config.workstation,
-                 self.config.category, digest]
+                 self.config.category, digest, source_hash, modified_ns]
         return hashlib.sha256(json.dumps(parts, separators=(",", ":")).encode()).hexdigest()
 
     def _aad(self, identity):
@@ -217,7 +236,7 @@ class HotFolder:
                 outcome["unstable"] += 1
                 continue
             digest = hashlib.sha256(content).hexdigest()
-            identity = self._identity(digest)
+            identity = self._identity(digest, path.name, signature[1])
             mime = sniff(content)
             accepted = mime is not None and path.suffix.lower() in SUPPORTED[mime]
             state = "PENDING_CONFIRMATION" if accepted else "QUARANTINED"

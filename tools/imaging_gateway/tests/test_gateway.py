@@ -35,6 +35,15 @@ class GatewayTests(unittest.TestCase):
         self.assertNotIn("patient_id", item)
         self.assertNotIn("appointment_id", item)
 
+    def test_same_bytes_from_two_distinct_capture_files_stay_separate(self):
+        (self.watch / "capture-1.png").write_bytes(SYNTHETIC)
+        (self.watch / "capture-2.png").write_bytes(SYNTHETIC)
+        self.assertEqual(self.agent.scan_once()["unstable"], 2)
+        self.assertEqual(self.agent.scan_once()["staged"], 2)
+        self.assertEqual(len(self.agent.items()), 2)
+        self.assertNotEqual(self.agent.items()[0]["id"], self.agent.items()[1]["id"])
+        self.assertTrue(all(x["state"] == "PENDING_CONFIRMATION" for x in self.agent.items()))
+
     def test_deduplicated_after_restart_without_another_blob_or_row(self):
         self.stage()
         self.assertEqual(self.agent.scan_once()["duplicate"], 1)
@@ -82,9 +91,8 @@ class GatewayTests(unittest.TestCase):
 
     def test_cross_workstation_spool_read_fails(self):
         self.stage()
-        wrong = HotFolder(Config("cabinet1", "device2", self.watch, self.private, b"k" * 32))
         with self.assertRaises(GatewayError):
-            wrong.read_verified(1)
+            HotFolder(Config("cabinet1", "device2", self.watch, self.private, b"k" * 32))
 
     def test_configuration_and_symlink_rejection(self):
         with self.assertRaises(GatewayError):
