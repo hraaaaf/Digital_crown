@@ -44,6 +44,13 @@ def test_046_expired_identified_session_cannot_download_authorized_pdf(client, d
     assert denied.headers.get("content-type", "").split(";")[0] != "application/pdf"
     db.expire_all()
     assert db.get(models.WorkstationPatientSession, created["sessionId"]).patient_id is None
+    from backend.services.station_session_cleanup import TTL_PURGE_ACTION
+    records = db.query(models.AuditLog).filter(
+        models.AuditLog.action == TTL_PURGE_ACTION,
+        models.AuditLog.resource_id == created["sessionId"],
+    ).all()
+    assert len(records) == 1
+    assert records[0].details == "patient_binding_cleared=true;actor=ttl_phone_read"
 
 
 def test_046_purged_identified_session_cannot_download_authorized_pdf(client, db, dentiste):
@@ -311,3 +318,52 @@ def test_046_periodic_worker_one_shot_catches_up_expiry_after_offline_restart(cl
         models.AuditLog.action == TTL_PURGE_ACTION,
         models.AuditLog.resource_id == created["sessionId"],
     ).count() == 1
+
+
+def test_046_station_read_expiry_is_audited_exactly_once(client, db, dentiste):
+    from backend.services.station_session_cleanup import TTL_PURGE_ACTION
+    staff, created, _url = _authorized_document_session(
+        client, db, dentiste, "ST046-STATION-EXPIRY-AUDIT",
+    )
+    row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.commit()
+    result = client.get(
+        f"/api/workstation/patient-session/{created['sessionId']}",
+        headers=staff,
+    )
+    assert result.status_code == 200
+    assert result.json()["status"] == "expired"
+    assert client.get(
+        f"/api/workstation/patient-session/{created['sessionId']}",
+        headers=staff,
+    ).json()["status"] == "expired"
+    db.expire_all()
+    row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    assert row.patient_id is None and row.patient_access_id is None
+    audits = db.query(models.AuditLog).filter(
+        models.AuditLog.action == TTL_PURGE_ACTION,
+        models.AuditLog.resource_id == created["sessionId"],
+    ).all()
+    assert len(audits) == 1
+    assert audits[0].details == "patient_binding_cleared=true;actor=ttl_station_read"
+
+
+def test_046_new_qr_purges_old_patient_binding_with_audit(client, db, dentiste):
+    staff, created, old_url = _authorized_document_session(
+        client, db, dentiste, "ST046-NEW-QR-AUDIT",
+    )
+    second = client.post("/api/workstation/patient-session", headers=staff)
+    assert second.status_code == 201, second.text
+    assert second.json()["sessionId"] != created["sessionId"]
+    db.expire_all()
+    old_row = db.get(models.WorkstationPatientSession, created["sessionId"])
+    assert old_row.purged_at is not None
+    assert old_row.patient_id is None and old_row.patient_access_id is None
+    assert client.get(old_url, headers=created["_phoneHeaders"]).status_code == 404
+    audits = db.query(models.AuditLog).filter(
+        models.AuditLog.action == "STATION_DOCUMENT_SESSION_PURGED_REPLACED",
+        models.AuditLog.resource_id == created["sessionId"],
+    ).all()
+    assert len(audits) == 1
+    assert audits[0].details == "patient_binding_cleared=true;actor=new_station_session"
