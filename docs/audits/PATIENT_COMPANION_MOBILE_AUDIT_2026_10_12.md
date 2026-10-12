@@ -1,5 +1,7 @@
 # Patient Companion mobile — audit initial du 12 octobre 2026
 
+> Orientation propriétaire actualisée : base Pocket commune à tous les profils, droits configurés dans Réglages, accès LAN et distant, appareils approuvés séparément. Voir [LOT 01 Pocket commun](DC_POCKET_COMMON_PWA_LOT01_2026_10_12.md). Les propositions antérieures de navigation et de coexistence de PWA restent historiques ; elles ne fixent plus deux applications séparées. Les identités et périmètres patient/personnel restent distincts dans la base commune.
+
 Statut : AUDIT TECHNIQUE INITIAL TERMINÉ / AUDIT VISUEL ET FUE-G NON TESTÉS.
 Base examinée : `c0d47f4832e6da2211c6f94eb88f0db56fcaebb6` (origin/master).
 Branche : `codex/patient-companion-audit-20261012`.
