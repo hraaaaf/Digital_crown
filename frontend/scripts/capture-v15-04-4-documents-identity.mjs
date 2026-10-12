@@ -83,6 +83,28 @@ try {
             : { status: 'pending', sessionId: 'proof-session', expiresAt: proofExpiresAt };
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
         });
+        // 04.5 Station discovery is bound to an identified patient session.
+        // The synthetic candidate is already authorized; this is UI evidence only.
+        let discoveryRequests = 0;
+        let pdfRequests = 0;
+        await context.route('**/api/workstation/patient-session/proof-session/documents', route => {
+          discoveryRequests += 1;
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            headers: { 'Cache-Control': 'no-store' },
+            body: JSON.stringify({ documents: [{ documentId: 42, kind: 'care_sheet' }] }),
+          });
+        });
+        await context.route('**/api/workstation/patient-session/proof-session/documents/care-sheet/42', route => {
+          pdfRequests += 1;
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/pdf',
+            headers: { 'Cache-Control': 'no-store' },
+            body: '%PDF-1.4\\n%Synthetic 04.5 UI test only\\n%%EOF\\n',
+          });
+        });
         await context.route('**/api/workstation/patient-session/proof-session/appointments/today', route => route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -128,7 +150,8 @@ try {
           await page.locator('[data-station-fallback-form]').waitFor({ timeout: 10000 });
         } else if (scenario.mode === 'identified') {
           await page.locator('[data-station-documents-identity-confirmed]').waitFor({ timeout: 10000 });
-          await page.getByText(language === 'fr' ? 'Le retrait des documents est en cours de construction sur cette station.' : language === 'en' ? 'Document collection is under construction at this station.' : 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.').waitFor({ timeout: 10000 });
+          await page.locator('[data-station-care-sheet-download="42"]').waitFor({ timeout: 10000 });
+          if (discoveryRequests !== 1) throw new Error('04.5 discovery not single-bound to identified session');
         } else {
           await page.locator('[data-station-patient-session]').waitFor({ timeout: 10000 });
         }
@@ -141,6 +164,7 @@ try {
           fallbackVisible: Boolean(document.querySelector('[data-station-fallback-form]')),
           identifiedVisible: Boolean(document.querySelector('[data-station-documents-identity-confirmed]')),
           accidentalAppointmentFlow: Boolean(document.querySelector('[data-station-arrival-bridge], [data-station-staff-notified], [data-station-arrival-confirmed]')),
+          eligibleDocumentVisible: Boolean(document.querySelector('[data-station-care-sheet-download="42"]')),
           cameraInputs: document.querySelectorAll('input[accept*="image"], video').length,
           clinicalLinks: Array.from(document.querySelectorAll('a'))
             .filter(a => /patients|agenda|accounting|dashboard|settings/i.test(a.getAttribute('href') || ''))
@@ -150,7 +174,23 @@ try {
 
         const filename = `${phase}-${scenario.name}-${language}-${vp.label}-${scale.label}.png`;
         await page.screenshot({ path: path.join(out, filename), fullPage: true, animations: 'disabled' });
-        report.push({ phase, scenario: scenario.name, viewport: vp.label, scale: scale.label, filename, ...meta, errors });
+        let downloadProof = null;
+        // Download a PDF through the actual Station click handler once on the mobile layout.
+        if (phase === 'after' && scenario.mode === 'identified' && language === 'fr' && vp.label === '390x844' && scale.label === 'normal') {
+          const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 10000 }),
+            page.locator('[data-station-care-sheet-download="42"]').click(),
+          ]);
+          const payload = await fs.readFile(await download.path());
+          if (download.suggestedFilename() !== 'care-sheet-42.pdf' || !payload.subarray(0, 5).equals(Buffer.from('%PDF-')) || pdfRequests !== 1) {
+            throw new Error('04.5 Station PDF download did not reach the expected authorized endpoint and bytes');
+          }
+          downloadProof = { filename: download.suggestedFilename(), size: payload.length, requestedPdfOnce: true, synthetic: true };
+        }
+        if (phase === 'after' && scenario.mode === 'pending' && (discoveryRequests !== 0 || pdfRequests !== 0)) {
+          throw new Error('04.5 Station requested documents before patient identity');
+        }
+        report.push({ phase, scenario: scenario.name, viewport: vp.label, scale: scale.label, filename, ...meta, discoveryRequests, pdfRequests, downloadProof, errors });
         await context.close();
       }
     }
@@ -164,7 +204,7 @@ const evidence = {
   phase,
   head: process.env.EVALUATED_SHA || process.env.GITHUB_SHA || null,
   base: process.env.EVALUATED_BASE || null,
-  limitations: ['Synthetic QR placeholder: scanability not certified', 'Mocked session status: real expiry and revocation require backend tests', 'Screenshots are AFTER only unless EVIDENCE_PHASE=before is explicitly run against the matching base'],
+  limitations: [' 'Synthetic QR placeholder: scanability not certified', 'Mocked session status: real expiry and revocation require backend tests', 'Screenshots are AFTER only unless EVIDENCE_PHASE=before is explicitly run against the matching base'],
   report,
 };
 await fs.writeFile(path.join(out, 'evidence.json'), JSON.stringify(evidence, null, 2));
@@ -177,7 +217,8 @@ const failures = report.filter(item =>
   item.errors.length > 0 ||
   item.accidentalAppointmentFlow ||
   (phase === 'after' && item.scenario === 'documents-pending' && !item.patientSessionVisible) ||
-  (phase === 'after' && item.scenario === 'documents-identified' && !item.identifiedVisible) ||
+  (phase === 'after' && item.scenario === 'documents-identified' && (!item.identifiedVisible || !item.eligibleDocumentVisible || item.discoveryRequests !== 1)) ||
+  (phase === 'after' && item.scenario === 'documents-pending' && (item.discoveryRequests !== 0 || item.pdfRequests !== 0)) ||
   (phase === 'before' && (item.patientSessionVisible || item.identifiedVisible))
 );
 console.log(JSON.stringify(evidence, null, 2));
