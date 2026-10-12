@@ -37,7 +37,7 @@ jobs:
             case "$file" in
               backend/tests/test_ceph03b3c_two_real_cephalograms_e2e.py | \
               backend/tests/test_ceph03b3d_real_srpose_http_sqlite.py | \
-               .github/workflows/dc-ceph03b3e-desktop-ux.yml | \
+              .github/workflows/dc-ceph03b3e-desktop-ux.yml | \
               .github/workflows/dc-ceph03b3d-real-srpose-integration.yml | \
               backend/scripts/certify_ceph03b3c_two_real_radio_inference.py | \
               frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json | \
@@ -48,6 +48,7 @@ jobs:
               frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx | \
               frontend/src/features/ortho/components/cephaloLabelLayout.ts | \
               frontend/src/features/ortho/components/cephaloLabelLayout.test.ts | \
+              frontend/src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx) ;;
               *) echo "HORS SCOPE: $file" >&2; exit 1;;
             esac
