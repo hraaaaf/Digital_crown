@@ -12,7 +12,6 @@ vi.mock('../../services/stationPatientSession', () => ({
     arrive: vi.fn(),
     purge: vi.fn(),
     availableDocuments: vi.fn(),
-    downloadCareSheet: vi.fn(),
     requestStaffAssistance: vi.fn(),
   },
 }));
@@ -35,7 +34,6 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     });
     vi.mocked(stationPatientSessionService.purge).mockResolvedValue(undefined);
     vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({ documents: [] });
-    vi.mocked(stationPatientSessionService.downloadCareSheet).mockResolvedValue(new Blob(['%PDF-1.4'], { type: 'application/pdf' }));
     vi.mocked(stationPatientSessionService.requestStaffAssistance).mockResolvedValue({ status: 'STAFF_NOTIFIED', alertId: 7 });
   });
 
@@ -239,7 +237,6 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       render(<StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />);
       expect(await screen.findByText(/Feuille de soins disponible sur votre téléphone dans Patient Companion/)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Télécharger/i })).not.toBeInTheDocument();
-      expect(stationPatientSessionService.downloadCareSheet).not.toHaveBeenCalled();
       expect(createObjectURL).not.toHaveBeenCalled();
     } finally {
       URL.createObjectURL = originalCreate;
