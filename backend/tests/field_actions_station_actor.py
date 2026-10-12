@@ -85,7 +85,10 @@ with httpx.Client(base_url=origin, timeout=35, follow_redirects=False) as statio
             f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{doc_id}",
             headers=auth,
         )
-        assert denied.status_code == 423, (denied.status_code, denied.text[:400])
+        # Before phone identification, the real fail-closed contract is 409.
+        # After a successful Companion claim, the kiosk must still be PDF-denied (423).
+        assert denied.status_code == 409, (denied.status_code, denied.text[:400])
+        assert denied.json().get("detail") == "STATION_PATIENT_NOT_IDENTIFIED"
         assert not denied.headers.get("content-type", "").startswith("application/pdf")
 
         published = station.post(
@@ -113,7 +116,15 @@ with httpx.Client(base_url=origin, timeout=35, follow_redirects=False) as statio
             if state == "expired":
                 break
             if state == "identified":
-                print("STATION_PHONE_CLAIM_OBSERVED on separate runner", flush=True)
+                post_claim_denied = station.get(
+                    f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{doc_id}",
+                    headers=auth,
+                )
+                assert post_claim_denied.status_code == 423, (
+                    post_claim_denied.status_code, post_claim_denied.text[:400],
+                )
+                assert not post_claim_denied.headers.get("content-type", "").startswith("application/pdf")
+                print("STATION_PHONE_CLAIM_OBSERVED kiosk_pdf=423 on separate runner", flush=True)
                 # Let the person inspect/download their fictitious PDF.
                 time.sleep(65)
                 break
