@@ -166,7 +166,7 @@ def test_sources_disagree_and_fail_closed():
 def test_subpercent_dicom_fiducial_disagreement_is_still_blocked():
     # 0.1% is small, but no validated physical agreement tolerance exists yet.
     r=resolve_scale_sources(
-        dicom=_dicom(pixel_spacing="0.2002\\\\0.2002"),
+        dicom=_dicom(pixel_spacing="0.2002\\0.2002"),
         ruler=_ruler(),server_validated_profile=_profile(),
     )
     assert r.state is ScaleSourceState.SOURCE_CONFLICT
