@@ -64,6 +64,33 @@ describe('04.5 — Patient Companion private-phone withdrawal', () => {
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
+  it('04.6 revokes the server-side patient session when closing on the phone', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ documents: [] }) })
+      .mockResolvedValueOnce({ ok: true, status: 204 });
+    globalThis.fetch = fetchMock as typeof fetch;
+    const onClose = vi.fn();
+    render(<PatientCompanionStationDocuments sessionId="session-1" pairing={pairing} onClose={onClose} />);
+    await screen.findByText('Aucun document disponible pour cette session.');
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer et effacer ma session' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(true));
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringContaining('/station-session/session-1/purge?accessId='),
+      expect.objectContaining({ method: 'POST', headers: { Authorization: 'Bearer phone-private-token' }, cache: 'no-store' }),
+    );
+  });
+
+  it('04.6 hides the phone document UI even when server revocation fails offline', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ documents: [] }) })
+      .mockRejectedValueOnce(new Error('network unavailable')) as typeof fetch;
+    const onClose = vi.fn();
+    render(<PatientCompanionStationDocuments sessionId="session-1" pairing={pairing} onClose={onClose} />);
+    await screen.findByText('Aucun document disponible pour cette session.');
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer et effacer ma session' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(false));
+  });
+
   it('shows no document controls when the private phone session has expired', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as typeof fetch;
     render(<PatientCompanionStationDocuments sessionId="expired" pairing={pairing} onClose={vi.fn()} />);
