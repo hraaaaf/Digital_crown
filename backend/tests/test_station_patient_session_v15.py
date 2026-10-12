@@ -1125,10 +1125,7 @@ def test_v15_04_2_station_arrival_alone_does_not_unlock_presence_receipt(client,
     )
     assert arrived.status_code == 200, arrived.text
 
-    receipt = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
-        headers=headers,
-    )
+    receipt = _phone_receipt(client, db, session_id, appointment.id, patient)
     assert receipt.status_code == 409
     assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
 
@@ -1212,10 +1209,7 @@ def test_v15_04_2_generic_or_station_audit_cannot_forge_staff_presence(client, d
         ))
     db.commit()
 
-    receipt = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
-        headers=headers,
-    )
+    receipt = _phone_receipt(client, db, session_id, appointment.id, patient)
     assert receipt.status_code == 409
     assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
 
@@ -1265,10 +1259,7 @@ def test_v15_04_2_explicit_staff_confirmation_unlocks_station_arrival_receipt(cl
     )
     assert back_to_station.status_code == 200, back_to_station.text
 
-    receipt = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
-        headers=headers,
-    )
+    receipt = _phone_receipt(client, db, session_id, appointment.id, patient)
     assert receipt.status_code == 200, receipt.text
     assert receipt.content.startswith(b"%PDF")
 
@@ -1306,10 +1297,7 @@ def test_v15_04_2_presence_receipt_supports_arabic_patient_name(client, db, dent
     )
     assert back_to_station.status_code == 200, back_to_station.text
 
-    receipt = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
-        headers=headers,
-    )
+    receipt = _phone_receipt(client, db, session_id, appointment.id, patient)
     assert receipt.status_code == 200, receipt.text
     assert receipt.content.startswith(b"%PDF")
     assert len(receipt.content) > 1000
@@ -1353,10 +1341,7 @@ def test_v15_04_2_rescheduling_invalidates_old_presence_proof(client, db, dentis
     )
     assert back_to_station.status_code == 200, back_to_station.text
 
-    receipt = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
-        headers=headers,
-    )
+    receipt = _phone_receipt(client, db, session_id, appointment.id, patient)
     assert receipt.status_code == 409
     assert receipt.json()["detail"] == "STATION_PRESENCE_NOT_PROVEN"
 
@@ -1408,9 +1393,6 @@ def test_v15_04_2_staff_can_reconfirm_after_reschedule_with_new_proof(client, db
     )
     assert back_to_station.status_code == 200, back_to_station.text
 
-    receipt = client.get(
-        f"/api/workstation/patient-session/{session_id}/documents/presence-receipt/{appointment.id}",
-        headers=headers,
-    )
+    receipt = _phone_receipt(client, db, session_id, appointment.id, patient)
     assert receipt.status_code == 200, receipt.text
     assert receipt.content.startswith(b"%PDF")
