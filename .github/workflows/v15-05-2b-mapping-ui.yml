@@ -60,3 +60,45 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           echo "05.2-B1 reviewed UI (not backend approved/import-safe) HEAD: ${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+
+  mapping-visual-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install UI deps + isolated Chromium test harness
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Serve Vite preview fixture only, then capture BEFORE/AFTER
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --port 4195 --host 127.0.0.1 >/tmp/v15-05-2b-vite.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:4195/migration-preview.html -o /dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:4195/migration-preview.html -o /dev/null
+          GITHUB_SHA="$(git rev-parse HEAD)" node scripts/capture-v15-05-2b-mapping-preview.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-05-2b-staff-mapping-before-after
+          path: frontend/artifacts/v15-05-2b-mapping
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Exact SHA of visual source (not authenticated app certification)
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
