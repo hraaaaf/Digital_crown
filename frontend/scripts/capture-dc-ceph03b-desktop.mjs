@@ -95,8 +95,22 @@ async function browserCapture(viewport, mode) {
 
     const initialScreen = await screenCoords(...mode.start);
     const finalScreen = await screenCoords(...mode.dest);
+    const hit = await page.evaluate(({ x, y }) => {
+      const target = document.elementFromPoint(x, y);
+      const handle = target?.closest('[data-ceph03b-drag-handle]');
+      return {
+        tag: target?.tagName ?? null,
+        handle: handle?.getAttribute('data-ceph03b-drag-handle') ?? null,
+        blocker: target?.outerHTML?.slice(0, 300) ?? null,
+      };
+    }, initialScreen);
+    if (hit.handle !== mode.landmark) {
+      throw Error('Pointer hit-test blocked for ' + mode.landmark + ': ' + JSON.stringify({ hit, initialScreen }));
+    }
     await page.mouse.move(initialScreen.x, initialScreen.y);
     await page.mouse.down();
+    const grab = await page.locator('[data-ceph03b-drag-handle="' + mode.landmark + '"]').evaluate(el => (el).style.cursor);
+    if (grab !== 'grabbing') throw Error('PointerDown not captured for ' + mode.landmark + ': ' + JSON.stringify({ hit, grab, initialScreen }));
     await page.mouse.move(finalScreen.x, finalScreen.y, { steps: 5 });
     await page.waitForFunction(({ landmark, x, y }) => {
       const handle = document.querySelector('[data-ceph03b-drag-handle="' + landmark + '"]');
