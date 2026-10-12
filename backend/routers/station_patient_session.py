@@ -24,7 +24,9 @@ from backend.routers.patient_companion_common import (
     patient_identity,
     principal_for_access,
 )
-from backend.routers.workstation_mode import _find_workstation, _require_pin
+from backend.routers.workstation_mode import (
+    WORKSTATION_COOKIE, _find_workstation, _require_pin, _token_hash,
+)
 from backend.services.qr_service import qr_service
 from backend.services.station_document_eligibility import (
     SelfServiceDocumentCandidate,
@@ -1071,7 +1073,16 @@ def purge_station_patient_session(
 ):
     # Cleanup must remain possible after Station -> Cabinet mode changes or revocation.
     # Identity creation and document access still require active Station mode.
-    workstation = _find_workstation(request, db, int(current_user.get_employer_id()))
+    # A revoked workstation must not access documents, but its authenticated,
+    # device-bound session may still be scrubbed. The regular lookup excludes
+    # revoked rows, so resolve ONLY the matching cookie hash for cleanup.
+    raw_cookie = request.cookies.get(WORKSTATION_COOKIE)
+    if not raw_cookie:
+        raise HTTPException(status_code=404, detail="STATION_SESSION_NOT_FOUND")
+    workstation = db.query(models.WorkstationMode).filter(
+        models.WorkstationMode.token_hash == _token_hash(raw_cookie),
+        models.WorkstationMode.employer_id == int(current_user.get_employer_id()),
+    ).first()
     if workstation is None:
         raise HTTPException(status_code=404, detail="STATION_SESSION_NOT_FOUND")
     now = datetime.utcnow()
