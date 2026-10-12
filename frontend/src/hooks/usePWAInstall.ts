@@ -14,7 +14,8 @@ interface BeforeInstallPromptEvent extends Event {
 // credential store and must complete pairing inside THIS container.
 export function isStandalonePocketRuntime(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.matchMedia('(display-mode: standalone)').matches
+  return (typeof window.matchMedia === 'function'
+    && window.matchMedia('(display-mode: standalone)').matches)
     || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
