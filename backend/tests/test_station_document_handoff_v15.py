@@ -65,12 +65,18 @@ def test_044_qr_nfc_one_shot_identification_then_exact_document_withdrawal(clien
     replay = _claim(client, created, patient_headers, access)
     assert replay.status_code == 409
 
-    download = client.get(
+    # Shared kiosk must never receive patient PDF bytes.
+    station_refused = client.get(
         f"/api/workstation/patient-session/{created['sessionId']}/documents/care-sheet/{document.id}",
         headers=staff,
     )
+    assert station_refused.status_code == 423
+    download = client.get(
+        f"/api/patient-companion/station-session/{created['sessionId']}/documents/care-sheet/{document.id}?accessId={access.public_id}",
+        headers=patient_headers,
+    )
     assert download.status_code == 200, download.text
-    assert download.headers["cache-control"] == "no-store"
+    assert "no-store" in download.headers["cache-control"]
     assert hashlib.sha256(download.content).hexdigest() == document.file_hash
     event_count = db.query(models.AuditLog).filter(
         models.AuditLog.action == WITHDRAW_ACTION,
