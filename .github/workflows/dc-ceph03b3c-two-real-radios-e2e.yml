@@ -64,6 +64,7 @@ jobs:
               req=urllib.request.Request(item['url'],headers={
                   'User-Agent':'DigitalCrown-Cephalo-CI/1.0 (testing openly licensed Wikimedia Commons radiographs)',
                   'Accept':'image/jpeg',
+                  'Referer':item['source_page'],
               })
               with urllib.request.urlopen(req,timeout=60) as response:
                   assert response.status==200
