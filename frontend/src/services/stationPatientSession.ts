@@ -13,7 +13,7 @@ export type StationPatientSessionCreated = {
 
 export type StationPatientSessionStatus =
   | { status: 'pending'; sessionId: string; expiresAt: string }
-  | { status: 'identified'; sessionId: string; displayName: string; claimedAt: string }
+  | { status: 'identified'; sessionId: string; displayName: string; claimedAt: string; companionPaired?: boolean }
   | { status: 'expired'; sessionId: string };
 
 export type StationPatientFallbackPayload = {
