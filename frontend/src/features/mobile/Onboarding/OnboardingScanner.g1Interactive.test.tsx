@@ -13,8 +13,11 @@ vi.mock('html5-qrcode', () => ({
   })),
 }));
 
+// A unit test must distinguish iPhone Safari and the *independent*
+// Home Screen PWA credential container, not assume storage is shared.
+const pwaRuntime = vi.hoisted(() => ({ isIOS: false, isInstalled: true }));
 vi.mock('../../../hooks/usePWAInstall', () => ({
-  usePWAInstall: () => ({ isIOS: false, isInstalled: true }),
+  usePWAInstall: () => pwaRuntime,
 }));
 
 vi.mock('../../../services/zka/MobileStorage', () => ({
@@ -53,6 +56,8 @@ function response(ok: boolean, status: number, payload: unknown) {
 }
 
 beforeEach(() => {
+  pwaRuntime.isIOS = false;
+  pwaRuntime.isInstalled = true;
   vi.clearAllMocks();
   sessionStorage.clear();
   localStorage.clear();
@@ -76,6 +81,42 @@ afterEach(() => {
 });
 
 describe('OnboardingScanner G1 interactive matrix', () => {
+  it('blocks iOS Safari pairing before Home Screen install without consuming the one-time QR', async () => {
+    pwaRuntime.isIOS = true;
+    pwaRuntime.isInstalled = false;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    renderScanner('/mobile/onboarding?token=one-use-bridge-secret');
+    expect(await screen.findByText(/Installez Pocket et ouvrez son icône/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Scanner le QR Code' }).hasAttribute('disabled')).toBe(true);
+    expect((screen.getByLabelText("Code d'appairage à 6 chiffres") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: "Valider le code d'appairage" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(MobileStorage.saveCredentials).not.toHaveBeenCalled();
+  });
+
+  it('allows enrollment inside installed iOS Pocket, not the Safari origin profile', async () => {
+    pwaRuntime.isIOS = true;
+    pwaRuntime.isInstalled = true;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(true, 200, {
+        publicId: 'a'.repeat(16), access_token: 'access', refresh_token: 'refresh',
+        device_id: 'device', server_public_key_hex: 'server-key',
+        encrypted_master_key_hex: 'encrypted-key',
+      }))
+      .mockResolvedValueOnce(response(false, 404, {}))
+      .mockResolvedValueOnce(response(true, 200, { destination: 'agenda' }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderScanner();
+    expect(screen.queryByText(/Installez Pocket et ouvrez son icône/)).toBeNull();
+    expect((screen.getByLabelText("Code d'appairage à 6 chiffres") as HTMLInputElement).disabled).toBe(false);
+    fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
+    expect(await screen.findByText('Appairage réussi')).toBeTruthy();
+    expect(MobileStorage.saveCredentials).toHaveBeenCalledOnce();
+    expect(await screen.findByText('Mobile dashboard destination', {}, { timeout: 4000 })).toBeTruthy();
+  });
+
   it('keeps manual OK disabled until exactly six numeric digits and strips non-digits', () => {
     renderScanner();
 
