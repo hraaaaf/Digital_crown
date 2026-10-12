@@ -372,7 +372,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                       aria-label={`Sélectionner la mesure ${definition.label}`}
                       aria-pressed={selected}
                       onClick={() => setSelectedKey(definition.key)}
-                      onFocus={() => setSelectedKey(definition.key)}
+                      onFocus={() => { setHoverKey(null); setSelectedKey(definition.key); }}
                       className="flex min-h-9 w-full items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                       style={{ '--tw-ring-color': P.accent, '--tw-ring-offset-color': P.bgPanel } as React.CSSProperties}
                     >
