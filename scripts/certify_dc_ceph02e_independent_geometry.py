@@ -125,7 +125,7 @@ def validate(manifest: dict, registry: dict, bridge: dict) -> dict:
                      "facad_numeric_parity_certified"):
             check(rec.get(lock) is False, "NO_AUTHORITY_" + key + lock)
         check(isinstance(rec.get("missing_evidence"), list)
-              and "ORTHODONTIST_SIGNOFF" in rec["missing_evidence"]
+              and any(item.startswith("ORTHODONTIST_SIGNOFF") for item in rec["missing_evidence"])
               and "NUMERIC_SAME_TRACE_ADJUDICATION" in rec["missing_evidence"],
               "OPEN_EVIDENCE_" + key)
         check(isinstance(rec.get("source_internal"), list)
