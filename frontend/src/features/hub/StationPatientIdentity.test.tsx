@@ -11,6 +11,8 @@ vi.mock('../../services/stationPatientSession', () => ({
     todayAppointments: vi.fn(),
     arrive: vi.fn(),
     purge: vi.fn(),
+    availableDocuments: vi.fn(),
+    downloadCareSheet: vi.fn(),
     requestStaffAssistance: vi.fn(),
   },
 }));
@@ -32,6 +34,8 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       staffActionRequired: true,
     });
     vi.mocked(stationPatientSessionService.purge).mockResolvedValue(undefined);
+    vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({ documents: [] });
+    vi.mocked(stationPatientSessionService.downloadCareSheet).mockResolvedValue(new Blob(['%PDF-1.4'], { type: 'application/pdf' }));
     vi.mocked(stationPatientSessionService.requestStaffAssistance).mockResolvedValue({ status: 'STAFF_NOTIFIED', alertId: 7 });
   });
 
@@ -189,7 +193,8 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
 
     expect(await screen.findByText('Identité confirmée')).toBeInTheDocument();
     expect(screen.getByText('Aya Audit')).toBeInTheDocument();
-    expect(screen.getByText(/retrait des documents est en cours de construction/)).toBeInTheDocument();
+    await waitFor(() => expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledWith('session-1'));
+    expect(screen.getByText(/personnel du cabinet/i)).toBeInTheDocument();
     expect(screen.queryByText('Confirmer mon arrivée')).toBeNull();
     expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
     expect(stationPatientSessionService.arrive).not.toHaveBeenCalled();
@@ -200,7 +205,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
   });
 
-  it('04.4 documents: FR/EN/AR identify text does not advertise printing or Pocket', async () => {
+  it('04.5 documents: FR/EN/AR empty eligible list does not advertise printing or Pocket', async () => {
     vi.mocked(stationPatientSessionService.status).mockResolvedValue({
       status: 'identified',
       sessionId: 'session-1',
@@ -208,9 +213,9 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
       claimedAt: new Date().toISOString(),
     });
     for (const [lang, phrase] of [
-      ['fr', 'Le retrait des documents est en cours de construction sur cette station.'],
-      ['en', 'Document collection is under construction at this station.'],
-      ['ar', 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.'],
+      ['fr', 'Pour obtenir vos documents, adressez-vous au personnel du cabinet.'],
+      ['en', 'Please ask the practice staff for your documents.'],
+      ['ar', 'يرجى طلب الوثائق من فريق العيادة.'],
     ] as const) {
       const rendered = render(<StationPatientIdentity purpose="documents" language={lang} onBack={vi.fn()} backLabel="Retour" />);
       expect(await screen.findByText(phrase)).toBeInTheDocument();
