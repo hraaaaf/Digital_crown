@@ -1,11 +1,51 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useOrthoStore } from '../stores/useOrthoStore';
 import {
+  CephaloAnalysisWorkbenchPanel,
   cephaloAnalysisMetricKeys,
   formatCephaloNormText,
   readCephaloMetricValue,
 } from './CephaloAnalysisWorkbenchPanel';
 
+const P: any = {
+  bg: '#fff', bgPanel: '#fff', bgCard: '#f8fafc', bgInput: '#fff',
+  border: '#ddd', borderFocus: '#2255aa', text: '#111', textMuted: '#666',
+  textDim: '#999', accent: '#2255aa', accentSuccess: '#0a0',
+  accentWarning: '#b70', accentError: '#c00', shadow: 'none', shadowLg: 'none',
+};
+afterEach(cleanup);
+
 describe('CephaloAnalysisWorkbenchPanel R19 contract', () => {
+  it('keeps semantic measure selection inside native desktop keyboard-accessible buttons', () => {
+    const previous = useOrthoStore.getState().anglesData;
+    useOrthoStore.setState({
+      anglesData: {
+        metrics: { analyse_dentaire: {
+          Surplomb: { valeur: 2.2, status: 'N/A' },
+          Recouvrement: { valeur: 1.4, status: 'N/A' },
+        }},
+      } as any,
+    });
+    try {
+      render(<CephaloAnalysisWorkbenchPanel P={P} analysis="com" />);
+      const first = screen.getByRole('button', { name: 'Sélectionner la mesure Surplomb' });
+      const second = screen.getByRole('button', { name: 'Sélectionner la mesure Recouvrement' });
+      expect(first.getAttribute('aria-pressed')).toBe('true');
+      expect(second.getAttribute('aria-pressed')).toBe('false');
+      expect(first.closest('tr')?.hasAttribute('tabindex')).toBe(false);
+      fireEvent.focus(second);
+      expect(second.getAttribute('aria-pressed')).toBe('true');
+      expect(first.getAttribute('aria-pressed')).toBe('false');
+      expect(document.querySelector('[data-r19-measure-detail="Recouvrement"]')).toBeTruthy();
+      fireEvent.click(first);
+      expect(first.getAttribute('aria-pressed')).toBe('true');
+      expect(document.querySelector('[data-r19-measure-detail="Surplomb"]')).toBeTruthy();
+    } finally {
+      useOrthoStore.setState({ anglesData: previous });
+    }
+  });
+
   it('exposes the complete source-locked Steiner static profile rows', () => {
     expect(cephaloAnalysisMetricKeys.steiner).toEqual([
       'M_SNA_DEG_V1','M_SNB_DEG_V1','M_ANB_DEG_V1','M_U1_NA_DEG_V1','M_U1_NA_MM_V1',
