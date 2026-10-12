@@ -68,16 +68,18 @@ export const CephaloLandmarkReticles = ({
   const P = palette;
   // DOM focus must be rendered even when the parent does not control focusedPointId.
   const [keyboardFocusedId, setKeyboardFocusedId] = useState<string | null>(null);
+  const [hoveredPointId, setHoveredPointId] = useState<string | null>(null);
   const isHoverActive = !!hoveredMetric;
   const hoveredIds = new Set(hoveredMetric?.points.map(p => p.toLowerCase()) ?? []);
   const isPointHovered = (ptId: string) =>
     !isHoverActive || hoveredIds.has(ptId.toLowerCase());
-  const priorityId = activeDragId ?? keyboardFocusedId ?? focusedPointId ?? activePointId ?? null;
+  const priorityId = activeDragId ?? keyboardFocusedId ?? focusedPointId ?? hoveredPointId ?? activePointId ?? null;
   const shownLabels = new Set<string>();
   for (const point of landmarks) {
     if ((isHoverActive && hoveredIds.has(point.id.toLowerCase()))
       || point.id === keyboardFocusedId || point.id === focusedPointId
-      || point.id === activeDragId || point.id === activePointId) shownLabels.add(point.id);
+      || point.id === activeDragId || point.id === hoveredPointId
+      || point.id === activePointId) shownLabels.add(point.id);
   }
   const labelPositions = layoutCephaloLandmarkLabels(
     landmarks.map(point => activeDragPos?.id === point.id
@@ -216,11 +218,13 @@ export const CephaloLandmarkReticles = ({
                 setMagnifier(m => ({ ...m, show: false }));
               }}
               onPointerEnter={() => {
+                setHoveredPointId(pt.id);
                 if (!activeDragId && magnifierEnabled) {
                   setMagnifier({ x: pt.x, y: pt.y, show: true });
                 }
               }}
               onPointerLeave={() => {
+                setHoveredPointId(previous => previous === pt.id ? null : previous);
                 if (!activeDragId) setMagnifier(m => ({ ...m, show: false }));
               }}
             >
