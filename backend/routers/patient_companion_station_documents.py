@@ -45,9 +45,16 @@ def _authorized_session(
         models.WorkstationPatientSession.patient_access_id == access.id,
         models.WorkstationPatientSession.claimed_at.is_not(None),
         models.WorkstationPatientSession.purged_at.is_(None),
-        models.WorkstationPatientSession.expires_at > now,
     ).first()
     if row is None:
+        raise HTTPException(status_code=404, detail="STATION_DOCUMENT_SESSION_NOT_FOUND")
+    if row.expires_at <= now:
+        # Expired patient binding is physically erased even when only the
+        # personal phone, not the kiosk, initiates the first stale request.
+        row.patient_id = None
+        row.patient_access_id = None
+        row.purged_at = now
+        db.commit()
         raise HTTPException(status_code=404, detail="STATION_DOCUMENT_SESSION_NOT_FOUND")
     station = db.query(models.WorkstationMode).filter(
         models.WorkstationMode.id == row.workstation_id,
