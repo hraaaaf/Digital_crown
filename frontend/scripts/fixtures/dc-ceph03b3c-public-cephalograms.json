@@ -1,0 +1,34 @@
+{
+  "purpose": "DC-CEPH-03B.3c two publicly licensed lateral cephalometric radiographs for isolated technical certification only; no clinical ground truth",
+  "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "attribution_notice": "Credit original authors ANUG and Challiyan. No edits to radiographic pixels. Any downstream redistributed derivatives must comply with CC BY-SA 4.0.",
+  "images": [
+    {
+      "id": "A",
+      "title": "Cephalometric radiograph.JPG",
+      "author": "ANUG",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Cephalometric_radiograph.JPG",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG",
+      "license": "CC BY-SA 4.0",
+      "file_name": "cephalo-A.jpg",
+      "width": 2272,
+      "height": 1818,
+      "size_bytes": 399879,
+      "sha1": "2a284993c666790a72d0c004044b35a92534ce9d"
+    },
+    {
+      "id": "B",
+      "title": "A lateral cephalogram without true vertical.jpg",
+      "author": "Challiyan",
+      "source_page": "https://commons.wikimedia.org/wiki/File:A_lateral_cephalogram_without_true_vertical.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg",
+      "license": "CC BY-SA 4.0",
+      "file_name": "cephalo-B.jpg",
+      "width": 1000,
+      "height": 1255,
+      "size_bytes": 120130,
+      "sha1": "66c74c588af3c54dfc581f8a870c5276c3427498",
+      "constraint": "true_vertical_unavailable; never infer physical scale"
+    }
+  ]
+}
