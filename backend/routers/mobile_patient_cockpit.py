@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import os
 import secrets
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import func, insert, or_
 from sqlalchemy.orm import Session
@@ -30,6 +30,17 @@ from backend.routers.patient_financial_p6 import get_patient_financial_snapshot_
 from backend.services.zka_crypto import encrypt_payload
 
 router = APIRouter()
+
+
+@router.get('/capabilities', summary='Capacités de lecture Pocket du profil appairé')
+def get_pocket_capabilities(
+    response: Response,
+    mobile_user: models.User = Depends(_legacy.get_mobile_user),
+):
+    from backend.services.pocket_capabilities import staff_read_capabilities
+
+    response.headers['Cache-Control'] = 'no-store'
+    return encrypt_payload(staff_read_capabilities(mobile_user))
 
 
 class PatientCockpitContextRequest(BaseModel):
