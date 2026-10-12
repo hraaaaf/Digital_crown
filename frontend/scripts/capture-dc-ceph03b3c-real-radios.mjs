@@ -9,6 +9,8 @@ const manifest=JSON.parse(await readFile(path.join(root,'scripts/fixtures/dc-cep
 const publicDir=path.join(root,'public/dc-ceph03b3c');
 const expectedModel='a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb';
 const bridges=new Map();
+const assert=(cond,msg)=>{if(!cond)throw Error(msg)};
+const near=(a,b)=>Math.abs(Number(a)-b)<0.5;
 const out=path.join(root,'dc-ceph03b3c-real-radio-proof');
 const scratch=path.join(root,'node_modules/.cache/dc-ceph03b3c-screens');
 const htmlFile='dc-ceph03b3c-real-radio.html';
@@ -54,8 +56,7 @@ const server=spawn(path.join(root,'node_modules/.bin/vite'),
 let viteLog='';
 server.stdout.on('data',x=>{viteLog+=x});
 server.stderr.on('data',x=>{viteLog+=x});
-const assert=(cond,msg)=>{if(!cond)throw Error(msg)};
-const near=(a,b)=>Math.abs(Number(a)-b)<0.5;
+
 const browser=await chromium.launch({headless:true});
 try{
   let ready=false;
