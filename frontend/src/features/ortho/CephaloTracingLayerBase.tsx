@@ -297,13 +297,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       const color = overrideColor ?? defColor;
       const highlighted = !isGhost && isLineHovered(lineKey);
       const strokeWidth = highlighted ? 2.8 : 1.5;
-      const opacity = (opts?.op ?? 1) * layerOp * layerOpacityFor('plans');
+      // Visualization-only ghost density reduction. No line endpoints,
+      // landmark coordinates, measurements, or persistence values are changed.
+      const opacity = (opts?.op ?? 1) * layerOp * layerOpacityFor('plans') * (isGhost ? 0.38 : 1);
       return (
         <motion.line
           key={`${opts?.renderKey ?? lineKey}-${isGhost}`}
           data-cephalo-line-key={lineKey}
           x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
           stroke={color}
+          strokeWidth={strokeWidth}
+          opacity={opacity}
           strokeDasharray={opts?.dash ?? ghostDash}
           vectorEffect="non-scaling-stroke"
           animate={performanceMode ? {} : { strokeWidth, opacity }}
