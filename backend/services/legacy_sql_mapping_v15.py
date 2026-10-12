@@ -304,6 +304,9 @@ def revalidate_mapping_draft(draft: MappingDraft, source: Any, target: TargetSna
     """A match only means same fingerprints, never automatic profile approval."""
     if not isinstance(draft, MappingDraft):
         raise MappingRejected("MAPPING_DRAFT_REQUIRED")
+    # An offline draft cannot become an authorization by flipping flags.
+    if draft.admin_approved or draft.import_permitted or draft.dry_run_completed:
+        raise MappingRejected("DRAFT_CANNOT_AUTHORIZE")
     src, file_sha, src_sha, dst, revision, dst_sha = _metadata(source, target)
     payload = _payload(profile_version=draft.profile_version,
                        source_software=draft.source_software, source_version=draft.source_version,
