@@ -59,6 +59,16 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(len(restarted.items()), 1)
         self.assertEqual(len(list((self.private / "spool").iterdir())), 1)
 
+    def test_recapture_same_filename_and_bytes_is_not_dropped(self):
+        self.stage()
+        path = self.watch / "fixture.png"
+        previous = path.stat()
+        path.write_bytes(SYNTHETIC)
+        os.utime(path, ns=(previous.st_atime_ns, previous.st_mtime_ns + 2_000_000_000))
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+        self.assertEqual(len(self.agent.items()), 2)
+
     def test_wrong_extension_quarantined(self):
         self.assertEqual(self.stage("fixture.jpg")["quarantine"], 1)
         self.assertEqual(self.agent.items()[0]["state"], "QUARANTINED")

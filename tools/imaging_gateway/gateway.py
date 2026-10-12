@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -144,14 +145,17 @@ class HotFolder:
         finally:
             db.close()
 
-    def _identity(self, digest, source_filename, modified_ns):
-        # Opaque per-capture metadata: never persist/display the source filename.
-        source_hash = hashlib.sha256(
-            source_filename.encode("utf-8", "surrogatepass")
-        ).hexdigest()
+    @staticmethod
+    def _source_signature(st):
+        return (st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_dev, st.st_ino)
+
+    def _identity(self, digest, path, signature):
+        # Replayed captures retain identity; distinct file generations do not coalesce.
+        # Source path and file metadata never enter the local ledger in plaintext.
         parts = [self.config.cabinet, self.config.workstation,
-                 self.config.category, digest, source_hash, modified_ns]
-        return hashlib.sha256(json.dumps(parts, separators=(",", ":")).encode()).hexdigest()
+                 self.config.category, digest, str(path.absolute()), list(signature)]
+        raw = json.dumps(parts, separators=(",", ":")).encode()
+        return hmac.new(self.config.key, raw, hashlib.sha256).hexdigest()
 
     def _aad(self, identity):
         return ("DC06A|" + self.config.cabinet + "|" +
@@ -162,8 +166,7 @@ class HotFolder:
         fd = os.open(path, flags)
         try:
             opened = os.fstat(fd)
-            signature = lambda st: (st.st_size, st.st_mtime_ns, st.st_ctime_ns)
-            if not stat.S_ISREG(opened.st_mode) or signature(opened) != initial:
+            if not stat.S_ISREG(opened.st_mode) or self._source_signature(opened) != initial:
                 raise GatewayError("source changed")
             with os.fdopen(fd, "rb", closefd=False) as src:
                 data = src.read(self.config.max_bytes + 1)
@@ -171,7 +174,7 @@ class HotFolder:
         finally:
             os.close(fd)
         final = path.lstat()
-        if (signature(after) != initial or signature(final) != initial or
+        if (self._source_signature(after) != initial or self._source_signature(final) != initial or
                 not stat.S_ISREG(final.st_mode) or len(data) != initial[0]):
             raise GatewayError("source changed during read")
         return data
@@ -226,7 +229,7 @@ class HotFolder:
             if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= self.config.max_bytes:
                 outcome["rejected"] += 1
                 continue
-            signature = (info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+            signature = self._source_signature(info)
             token = str(path)
             if self._observed.get(token) != signature:
                 self._observed[token] = signature
@@ -239,7 +242,7 @@ class HotFolder:
                 outcome["unstable"] += 1
                 continue
             digest = hashlib.sha256(content).hexdigest()
-            identity = self._identity(digest, path.name, signature[1])
+            identity = self._identity(digest, path, signature)
             mime = sniff(content)
             accepted = mime is not None and path.suffix.lower() in SUPPORTED[mime]
             state = "PENDING_CONFIRMATION" if accepted else "QUARANTINED"
