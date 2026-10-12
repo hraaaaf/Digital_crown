@@ -252,17 +252,32 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
                     <span aria-hidden="true">{available ? (active ? '●' : '○') : '—'}</span>
                   </button>
                   {available && active && layer.opacityAdjustable && (
-                    <input
-                      aria-label={`Opacité ${layer.label}`}
-                      type="range"
-                      min={10}
-                      max={100}
-                      step={5}
-                      value={Math.round(layerOpacity[layer.id] * 100)}
-                      onChange={event => setLayerOpacity(layer.id as OrthoLayerId, Number(event.target.value) / 100)}
-                      className="mt-1 h-1 w-full cursor-pointer"
-                      style={{ accentColor: props.P.accent }}
-                    />
+                    <div className="px-2 pb-1">
+                      <div className="flex items-center justify-between gap-2 text-[10px]" style={{ color: props.P.textMuted }}>
+                        <label htmlFor={`ortho-layer-opacity-${layer.id}`}>Opacité</label>
+                        <output
+                          htmlFor={`ortho-layer-opacity-${layer.id}`}
+                          data-ortho-layer-opacity-value={layer.id}
+                          className="font-mono font-bold tabular-nums"
+                          style={{ color: props.P.text }}
+                        >
+                          {Math.round(layerOpacity[layer.id] * 100)} %
+                        </output>
+                      </div>
+                      <input
+                        id={`ortho-layer-opacity-${layer.id}`}
+                        aria-label={`Opacité ${layer.label}`}
+                        aria-valuetext={`${Math.round(layerOpacity[layer.id] * 100)} pour cent`}
+                        type="range"
+                        min={10}
+                        max={100}
+                        step={5}
+                        value={Math.round(layerOpacity[layer.id] * 100)}
+                        onChange={event => setLayerOpacity(layer.id as OrthoLayerId, Number(event.target.value) / 100)}
+                        className="mt-2 h-1.5 w-full cursor-pointer"
+                        style={{ accentColor: props.P.accent }}
+                      />
+                    </div>
                   )}
                 </div>
               );
