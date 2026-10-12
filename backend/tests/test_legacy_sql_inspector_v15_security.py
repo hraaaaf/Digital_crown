@@ -51,6 +51,13 @@ class TestLegacyInspectorSecurity(unittest.TestCase):
         path = self.source(b"CREATE TABLE users (hashed_password TEXT DEFAULT 'HASH_SYNTHETIC');")
         self.assertNotIn("HASH_SYNTHETIC", str(self.inspect(path).to_dict()))
 
+    def test_unsupported_array_or_precision_never_becomes_scalar_type(self):
+        for definition in (b"INTEGER[]", b"INTEGER ARRAY", b"VARCHAR(123456)"):
+            with self.subTest(definition=definition), self.assertRaisesRegex(
+                inspector.UnsafeSource, "UNSUPPORTED_COLUMN_TYPE_SUFFIX"
+            ):
+                self.inspect(self.source(b"CREATE TABLE t (value " + definition + b");"))
+
     def test_mysql_unsigned_is_not_invented_or_dropped(self):
         path = self.source(b"CREATE TABLE accounts (account_id BIGINT UNSIGNED NOT NULL);")
         self.assertEqual(self.inspect(path, "mysql").tables[0].columns[0].declared_type,
