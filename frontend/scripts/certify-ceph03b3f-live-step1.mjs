@@ -106,6 +106,13 @@ try {
       // inserted into localStorage or a mock network route.
       const page=await context.newPage();
       const consoleErrors=[];
+      const badResponses=[];
+      page.on('response',response=>{
+        if(response.status()>=400)badResponses.push({
+          status:response.status(),method:response.request().method(),
+          url:new URL(response.url()).pathname,resourceType:response.request().resourceType(),
+        });
+      });
       page.on('pageerror',err=>consoleErrors.push(String(err)));
       page.on('console',msg=>{if(msg.type()==='error')consoleErrors.push(msg.text())});
       page.on('request',r=>{if(r.url().includes('/api/'))reqs.push({film,url:new URL(r.url()).pathname,method:r.method()})});
@@ -241,7 +248,12 @@ try {
       // Allow non-fatal font fetch console messages, but never API 401/403
       // during authenticated product use (negative probes use anon context).
       const relevantErrors=consoleErrors.filter(msg=>/\b(401|403|404|500)\b|uncaught|TypeError|ReferenceError|not defined/i.test(msg));
-      assert(relevantErrors.length===0,'Browser errors '+film+': '+relevantErrors.join(' | ').slice(0,700));
+      if(relevantErrors.length){
+        await writeFile(path.join(out,film+'-browser-http-diagnostic.json'),
+          JSON.stringify({film,relevantErrors,badResponses},null,2));
+      }
+      assert(relevantErrors.length===0,'Browser errors '+film+': '+relevantErrors.join(' | ').slice(0,700)
+        +' HTTP='+JSON.stringify(badResponses).slice(0,1800));
       const filmApi=reqs.filter(r=>r.film===film);
       assert(filmApi.some(r=>r.method==='POST'&&r.url==='/api/ia/upload-radio'),
         'No live upload from actual browser');
