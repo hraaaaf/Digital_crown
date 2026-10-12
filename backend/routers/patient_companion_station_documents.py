@@ -164,3 +164,41 @@ def companion_station_care_sheet(
             "Referrer-Policy": "no-referrer",
         },
     )
+
+
+@router.post("/station-session/{session_id}/purge", status_code=204)
+def companion_purge_station_documents(
+    session_id: str,
+    access_id: str = Query(alias="accessId", min_length=36, max_length=36),
+    db: Session = Depends(get_db),
+    identity: PatientCompanionIdentity = Depends(patient_identity),
+):
+    """Revoke the phone-bound session immediately when a patient closes pickup.
+
+    Authorization must match the exact access that claimed this Station
+    session; a different patient, context, or handoff QR cannot purge it.
+    """
+    principal, context = _authorized_session(db, identity, access_id, session_id)
+    now = datetime.utcnow()
+    # Conditional update prevents clearing an unrelated/replaced session.
+    updated = db.query(models.WorkstationPatientSession).filter(
+        models.WorkstationPatientSession.id == context.session_id,
+        models.WorkstationPatientSession.employer_id == principal.employer_id,
+        models.WorkstationPatientSession.patient_id == principal.patient_id,
+        models.WorkstationPatientSession.purged_at.is_(None),
+    ).update(
+        {
+            models.WorkstationPatientSession.patient_id: None,
+            models.WorkstationPatientSession.patient_access_id: None,
+            models.WorkstationPatientSession.purged_at: now,
+        },
+        synchronize_session=False,
+    )
+    if updated != 1:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="STATION_DOCUMENT_SESSION_NOT_FOUND")
+    db.commit()
+    return Response(
+        status_code=204,
+        headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
+    )
