@@ -269,10 +269,10 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
     <aside
       data-r19-analysis-panel={analysis}
       data-lot08-protocol-profile={analysis === 'steiner' ? steinerProfile?.protocol_profile_id ?? 'UNAVAILABLE' : analysis === 'tweed' ? tweedMerrifieldProfile?.protocol_profile_id ?? 'UNAVAILABLE' : undefined}
-      className="flex min-h-0 flex-col overflow-hidden rounded-3xl border"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border"
       style={{ background: P.bgPanel, borderColor: P.border, boxShadow: P.shadowLg }}
     >
-      <div className="border-b px-4 py-4 sm:px-5" style={{ borderColor: P.border }}>
+      <div className="shrink-0 border-b px-3 py-3 sm:px-4" style={{ borderColor: P.border }}>
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: `${P.accent}18`, color: P.accent }}>
             <Crosshair size={17} />
@@ -282,11 +282,11 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
             <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : analysis === 'tweed' ? 'Triangle DC Po_anatomic-Or / Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" role="status" aria-live="polite">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" role="status" aria-live="polite">
           <span className="rounded-lg border px-2 py-1 font-bold" style={{ borderColor: P.border, color: P.accentSuccess }}>{availableCount}/{definitions.length} mesures calculées</span>
           {unavailableCount > 0 && <span className="rounded-lg border px-2 py-1" style={{ borderColor: P.border, color: P.textMuted }}>{unavailableCount} non calculables</span>}
         </div>
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5" aria-label="Code couleur céphalométrique">
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1" aria-label="Code couleur céphalométrique">
           {FAMILY_LEGEND.map(([family, label]) => (
             <span key={family} className="inline-flex items-center gap-1.5 text-[9px] font-bold" style={{ color: P.textMuted }}>
               <span className="h-2 w-2 rounded-full" style={{ background: CEPHALO_SCIENTIFIC_COLORS[family] }} />
@@ -340,14 +340,14 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
         <table className="w-full table-fixed border-collapse text-left" aria-label={`Mesures ${ANALYSIS_LABELS[analysis]}`}>
           <thead className="sticky top-0 z-10" style={{ background: P.bgPanel }}>
             <tr className="border-b text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: P.border, color: P.textDim }}>
-              <th className="w-[39%] px-4 py-3">Mesure</th>
-              <th className="w-[20%] px-2 py-3">Valeur</th>
-              <th className="w-[25%] px-2 py-3">{analysis === 'steiner' ? 'R\u00e9f. hist.' : analysis === 'tweed' ? 'Contexte' : 'Norme'}</th>
-              <th className="w-[16%] px-2 py-3 text-right">{analysis === 'steiner' ? '\u0394 r\u00e9f.' : analysis === 'tweed' ? 'Type' : '\u00c9cart'}</th>
+              <th className="w-[39%] px-3 py-2.5">Mesure</th>
+              <th className="w-[20%] px-2 py-2.5">Valeur</th>
+              <th className="w-[25%] px-2 py-2.5">{analysis === 'steiner' ? 'R\u00e9f. hist.' : analysis === 'tweed' ? 'Contexte' : 'Norme'}</th>
+              <th className="w-[16%] px-2 py-2.5 text-right">{analysis === 'steiner' ? '\u0394 r\u00e9f.' : analysis === 'tweed' ? 'Type' : '\u00c9cart'}</th>
             </tr>
           </thead>
           <tbody>
@@ -375,17 +375,17 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                   className="cursor-pointer border-b transition-colors outline-none"
                   style={{ borderColor: P.border, background: selected ? `${P.accent}12` : 'transparent' }}
                 >
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: familyTone }} />
                       <span className="break-words text-[11px] font-semibold leading-tight" style={{ color: selected ? P.text : P.textMuted }}>{definition.label}</span>
                     </div>
                   </td>
-                  <td className="px-2 py-3 font-mono text-[11px] font-black tabular-nums" style={{ color: value === null ? P.textDim : P.text }}>
+                  <td className="px-2 py-2.5 font-mono text-[11px] font-black tabular-nums" style={{ color: value === null ? P.textDim : P.text }}>
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
-                  <td className="px-2 py-3 text-[10px]" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield 1966' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
-                  <td className="px-2 py-3 text-right font-mono text-[10px]" style={{ color: analysis === 'tweed' ? P.textMuted : (deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone)) }}>
+                  <td className="px-2 py-2.5 text-[10px]" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield 1966' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
+                  <td className="px-2 py-2.5 text-right font-mono text-[10px]" style={{ color: analysis === 'tweed' ? P.textMuted : (deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone)) }}>
                     {analysis === 'tweed' ? 'brute' : (deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`)}
                   </td>
                 </tr>
@@ -396,7 +396,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
       </div>
 
       {activeDefinition && (
-        <div data-r19-measure-detail={activeDefinition.key} className="m-3 rounded-2xl border p-4 sm:m-4" style={{ background: P.bgCard, borderColor: P.border }}>
+        <div data-r19-measure-detail={activeDefinition.key} className="m-2 max-h-[190px] shrink-0 overflow-y-auto rounded-xl border p-3 sm:m-3" style={{ background: P.bgCard, borderColor: P.border }}>
           <div className="flex items-start gap-3">
             <Info size={16} className="mt-0.5 shrink-0" style={{ color: cephaloMetricColor(activeDefinition.key) }} />
             <div className="min-w-0">
@@ -406,7 +406,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                 {activeDefinition.label}
               </div>
               <p className="mt-2 text-[11px] leading-relaxed" style={{ color: P.textMuted }}>{describeCanonicalMetricFocus(activeFocus)}</p>
-              <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2" style={{ background: `${statusTone(activeMetric)}12`, color: statusTone(activeMetric) }}>
+              <div className="mt-2 flex items-start gap-2 rounded-xl px-3 py-2" style={{ background: `${statusTone(activeMetric)}12`, color: statusTone(activeMetric) }}>
                 {readValue(activeMetric) === null ? <AlertTriangle size={13} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={13} className="mt-0.5 shrink-0" />}
                 <span className="text-[10px] font-bold leading-relaxed">{statusLabel(activeMetric)}{activeMetric?.interpretation ? ` · ${activeMetric.interpretation}` : ''}</span>
               </div>
