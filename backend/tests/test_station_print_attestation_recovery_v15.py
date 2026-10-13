@@ -180,7 +180,7 @@ def test_review_denied_on_held_or_missing_claim(engine):
 def test_uncertain_review_rejects_untrusted_actor_and_completion(engine,change):
     claim=uncertain(engine)
     with pytest.raises(PrintReviewRejected):
-        review(engine,claim.delivery_key if "delivery_key" not in change else None,**change)
+        review(engine,**{**{"delivery_key":claim.delivery_key},**change})
     with engine.connect() as c:
         assert c.execute(select(uncertain_reviews)).all()==[]
 
