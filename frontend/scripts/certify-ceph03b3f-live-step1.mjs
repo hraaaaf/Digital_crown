@@ -173,6 +173,14 @@ try {
         console.error('DC_CEPH03B3F_LIVE_STEP1_BLOCKER',JSON.stringify(diagnostic).slice(0,6500));
         throw original;
       });
+      const workbenchLabel=await page.locator('[data-ortho-workspace-patient]').innerText();
+      assert(workbenchLabel.includes('RADIOGRAPHIE PUBLIQUE')
+        && workbenchLabel.includes('DOSSIER FICTIF')
+        && workbenchLabel.includes('AUCUN PATIENT RÉEL'),
+        'Public radiograph attribution and disposable patient status must be explicit');
+      const desktopStage=await page.locator('[data-r20-radiograph-stage]').boundingBox();
+      assert(desktopStage && desktopStage.width >= 625,
+        'Radiograph stage too narrow at desktop 1280: '+JSON.stringify(desktopStage));
       await page.locator('[data-ceph03b-drag-handle="N"]').waitFor({timeout:60000});
       await page.locator('svg[viewBox="0 0 '+radio.width+' '+radio.height+'"]').first().waitFor({timeout:45000});
       const initialGet=await context.request.get(origin+pathForId(id));

@@ -288,7 +288,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
         </div>
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1" aria-label="Code couleur céphalométrique">
           {FAMILY_LEGEND.map(([family, label]) => (
-            <span key={family} className="inline-flex items-center gap-1.5 text-[10px] font-semibold" style={{ color: P.textMuted }}>
+            <span key={family} className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: P.textMuted }}>
               <span className="h-2 w-2 rounded-full" style={{ background: CEPHALO_SCIENTIFIC_COLORS[family] }} />
               {label}
             </span>
@@ -307,10 +307,10 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
         {analysis === 'steiner' && (
           <div className="mt-3 space-y-2" data-lot08-steiner-contract>
             <div className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: P.border, background: `${P.accent}0d` }}>
-              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.1em]" style={{ color: steinerProfile?.source_lock_gate?.status === 'SATISFIED' ? P.accentSuccess : P.accentWarning }}>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.05em]" style={{ color: steinerProfile?.source_lock_gate?.status === 'SATISFIED' ? P.accentSuccess : P.accentWarning }}>
                 <ShieldCheck size={12} /> Source-lock {steinerProfile?.source_lock_gate?.status === 'SATISFIED' ? 'valid\u00e9' : 'non v\u00e9rifi\u00e9'}
               </span>
-              <span className="text-[10px] leading-snug" style={{ color: P.textMuted }}>R&eacute;f&eacute;rences historiques &middot; affichage sans classification universelle</span>
+              <span className="text-xs leading-snug" style={{ color: P.textMuted }}>R&eacute;f&eacute;rences historiques &middot; affichage sans classification universelle</span>
             </div>
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2" aria-label="Points explicites Steiner">
               {STEINER_EXPLICIT_IDENTITIES.map(identity => {
@@ -328,8 +328,8 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                     title={identity.help}
                   >
                     <span className="min-w-0">
-                      <span className="block break-words text-[10px] font-bold leading-tight" style={{ color: P.text }}>{identity.label}</span>
-                      <span className="mt-0.5 block break-words text-[10px] leading-tight" style={{ color: present ? P.accentSuccess : P.textMuted }}>{placing ? 'Cliquez sur la t\u00e9l\u00e9radio' : (present ? 'Plac\u00e9e \u00b7 cliquer pour replacer' : '\u00c0 placer')}</span>
+                      <span className="block break-words text-[11px] font-bold leading-tight" style={{ color: P.text }}>{identity.label}</span>
+                      <span className="mt-0.5 block break-words text-[11px] leading-tight" style={{ color: present ? P.accentSuccess : P.textMuted }}>{placing ? 'Cliquez sur la t\u00e9l\u00e9radio' : (present ? 'Plac\u00e9e \u00b7 cliquer pour replacer' : '\u00c0 placer')}</span>
                     </span>
                     <MapPin size={12} style={{ color: placing ? P.accent : (present ? P.accentSuccess : P.textMuted) }} />
                   </button>
@@ -343,7 +343,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
       <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
         <table className="w-full table-fixed border-collapse text-left" aria-label={`Mesures ${ANALYSIS_LABELS[analysis]}`}>
           <thead className="sticky top-0 z-10" style={{ background: P.bgPanel }}>
-            <tr className="border-b text-[10px] font-bold uppercase tracking-[0.06em]" style={{ borderColor: P.border, color: P.textMuted }}>
+            <tr className="border-b text-[11px] font-bold uppercase tracking-[0.03em]" style={{ borderColor: P.border, color: P.textMuted }}>
               <th className="w-[39%] px-3 py-2.5">Mesure</th>
               <th className="w-[20%] px-2 py-2.5">Valeur</th>
               <th className="w-[25%] px-2 py-2.5">{analysis === 'steiner' ? 'R\u00e9f. hist.' : analysis === 'tweed' ? 'Contexte' : 'Norme'}</th>
@@ -389,8 +389,8 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                   <td className="px-2 py-2.5 font-mono text-xs font-bold tabular-nums" style={{ color: value === null ? P.textMuted : P.text }}>
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
-                  <td className="px-2 py-2.5 text-[11px] leading-snug" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield 1966' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
-                  <td className="px-2 py-2.5 text-right font-mono text-[11px]" style={{ color: analysis === 'tweed' ? P.textMuted : (deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone)) }}>
+                  <td className="px-2 py-2.5 text-xs leading-snug" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield 1966' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
+                  <td className="px-2 py-2.5 text-right font-mono text-xs" style={{ color: analysis === 'tweed' ? P.textMuted : (deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone)) }}>
                     {analysis === 'tweed' ? 'brute' : (deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`)}
                   </td>
                 </tr>
@@ -405,7 +405,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
           <div className="flex items-start gap-3">
             <Info size={16} className="mt-0.5 shrink-0" style={{ color: cephaloMetricColor(activeDefinition.key) }} />
             <div className="min-w-0">
-              <div className="text-[11px] font-bold uppercase tracking-[0.05em]" style={{ color: P.accent }}>Détail de la mesure sélectionnée</div>
+              <div className="text-xs font-bold uppercase tracking-[0.03em]" style={{ color: P.accent }}>Détail de la mesure sélectionnée</div>
               <div className="mt-1 flex items-center gap-2 text-sm font-black" style={{ color: P.text }}>
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: cephaloMetricColor(activeDefinition.key) }} />
                 {activeDefinition.label}

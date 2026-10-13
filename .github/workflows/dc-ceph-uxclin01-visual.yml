@@ -34,7 +34,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Run focused R19 contract test
         working-directory: frontend
-        run: npx vitest run src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloVisualSemantics.test.ts src/features/ortho/cephaloVisualSemantics.audit.test.ts
+        run: npx vitest run src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloVisualSemantics.test.ts src/features/ortho/cephaloVisualSemantics.audit.test.ts src/features/ortho/cephaloConstructionViewport.test.ts
       - name: Capture exact-head R19 analysis AFTER
         working-directory: frontend
         env:

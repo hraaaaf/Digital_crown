@@ -54,6 +54,10 @@ jobs:
               frontend/src/features/ortho/CephaloTracingLayer.visualFixture.tsx | \
               frontend/src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayerBase.tsx | \
+              frontend/src/features/ortho/cephaloConstructionViewport.ts | \
+              frontend/src/features/ortho/cephaloConstructionViewport.test.ts | \
+              frontend/src/features/ortho/CephaloWorkspace.liveHttpFixture.tsx | \
               frontend/src/features/ortho/CephaloWorkspace.tsx | \
               frontend/src/features/ortho/cephaloAngleRecognition.ts | \
               frontend/src/features/ortho/cephaloImageUploadPolicy.ts | \
@@ -126,7 +130,7 @@ jobs:
           npm ci --prefer-offline --fetch-retries=3 --fetch-retry-mintimeout=10000
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
           npx tsc -p tsconfig.app.json --noEmit
-          npx vitest run src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloImageUploadPolicy.test.ts
+          npx vitest run src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloImageUploadPolicy.test.ts src/features/ortho/cephaloConstructionViewport.test.ts
           npx playwright install --with-deps chromium
           npx vitest run \
             src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx \

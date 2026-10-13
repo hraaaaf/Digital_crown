@@ -17,7 +17,7 @@ document.body.dataset.theme = 'light';
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter>
     <div data-ceph03b3f-live-http-step1 style={{ height: '100vh', minHeight: 900 }}>
-      <CephaloWorkspace patientId={patientId} patientName="PUBLIC RADIO — TEST SYNTHÉTIQUE" />
+      <CephaloWorkspace patientId={patientId} patientName="RADIOGRAPHIE PUBLIQUE · DOSSIER FICTIF, AUCUN PATIENT RÉEL" />
       <Toaster />
     </div>
   </BrowserRouter>,

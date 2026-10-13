@@ -23,6 +23,7 @@ import { CephaloCalibrationOverlay } from './components/CephaloCalibrationOverla
 import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
 import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';
 import { CephaloSvgDefs } from './components/CephaloSvgDefs';
+import { getCephaloConstructionViewport } from './cephaloConstructionViewport';
 import { useCephaloInteraction } from './hooks/useCephaloInteraction';
 import type { OrthoLayerId, OrthoLayerOpacity, OrthoLayerVisibility } from './orthoLayerRegistry';
 
@@ -174,6 +175,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   layerPresentation,
 }) => {
   const P = getTracingPalette(uiMode);
+  const extendedClipId = React.useId().replace(/:/g, '');
+  const extendedFrame = React.useMemo(
+    () => getCephaloConstructionViewport(landmarks, imageWidth, imageHeight),
+    [landmarks, imageWidth, imageHeight],
+  );
   const isLayerVisible = (id: OrthoLayerId) => layerPresentation?.visibility[id] ?? true;
   const layerOpacityFor = (id: OrthoLayerId) => layerPresentation?.opacity[id] ?? 1;
   const isPro = uiMode === 'pro';
@@ -635,6 +641,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         }}
       >
         <CephaloSvgDefs magX={magX} magY={magY} MAG_R={MAG_R} isPro={isPro} />
+        <defs>
+          <clipPath id={extendedClipId} data-cephalo-extended-clip="true" clipPathUnits="userSpaceOnUse">
+            <rect x={extendedFrame.x} y={extendedFrame.y} width={extendedFrame.width} height={extendedFrame.height} />
+          </clipPath>
+        </defs>
 
         {imageSrc && (
           <image
@@ -677,6 +688,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
             ))}
             {isLayerVisible('plans') && francfortLineExtended && (
               <line
+                data-cephalo-extended-line="frankfort"
+                clipPath={`url(#${extendedClipId})`}
                 x1={francfortLineExtended.x1} y1={francfortLineExtended.y1}
                 x2={francfortLineExtended.x2} y2={francfortLineExtended.y2}
                 stroke={cephaloGeometryColor('fh')}
@@ -692,6 +705,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         {isLayerVisible('plans') && mcNamaraLine && nPrime && nPrimeTick && (
           <g opacity={layerOpacityFor('plans')} data-ortho-layer="plans">
             <line
+              data-cephalo-extended-line="mcnamara"
+              clipPath={`url(#${extendedClipId})`}
               x1={mcNamaraLine.x1} y1={mcNamaraLine.y1}
               x2={mcNamaraLine.x2} y2={mcNamaraLine.y2}
               stroke={cephaloGeometryColor('mcnamara_perp')}

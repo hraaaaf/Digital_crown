@@ -3,6 +3,7 @@ import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracing
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
 import { projectPointOnLine } from './cephaloMath';
+import { getCephaloConstructionViewport } from './cephaloConstructionViewport';
 import { getCephaloPalette } from './cephaloTheme';
 import {
   CEPHALO_SCIENTIFIC_COLORS,
@@ -108,6 +109,11 @@ const unitAxis = (start?: Landmark, end?: Landmark) => {
  */
 export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) => {
   const P = getCephaloPalette();
+  const extendedClipId = React.useId().replace(/:/g, '');
+  const extendedFrame = React.useMemo(
+    () => getCephaloConstructionViewport(props.landmarks, props.imageWidth, props.imageHeight),
+    [props.landmarks, props.imageWidth, props.imageHeight],
+  );
   const layerVisible = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.visibility[id] ?? true;
   const layerOpacity = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.opacity[id] ?? 1;
   const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
@@ -293,6 +299,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
           className="pointer-events-none absolute inset-0 z-[28] h-full w-full"
           aria-hidden="true"
         >
+          <defs>
+            <clipPath id={extendedClipId} data-cephalo-extended-clip="true" clipPathUnits="userSpaceOnUse">
+              <rect x={extendedFrame.x} y={extendedFrame.y} width={extendedFrame.width} height={extendedFrame.height} />
+            </clipPath>
+          </defs>
           {layerVisible('plans') && showRickettsHard && po && orPoint && (
             <line
               data-r18-construction="ricketts-frankfort"
@@ -348,7 +359,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
           })()}
           {showCom && nVerticalStart && nVerticalEnd && (() => {
             const style = comStyle({ constructions: ['NASION_VERTICAL_FH_V1'] }, 'mcnamara_perp');
-            return <line data-r19-construction="com-nasion-vertical" x1={nVerticalStart.x} y1={nVerticalStart.y} x2={nVerticalEnd.x} y2={nVerticalEnd.y} strokeDasharray="7,5" {...style} vectorEffect="non-scaling-stroke" />;
+            return <line data-r19-construction="com-nasion-vertical" data-cephalo-extended-line="com-nasion" clipPath={`url(#${extendedClipId})`} x1={nVerticalStart.x} y1={nVerticalStart.y} x2={nVerticalEnd.x} y2={nVerticalEnd.y} strokeDasharray="7,5" {...style} vectorEffect="non-scaling-stroke" />;
           })()}
           {showCom && a && aOnNVertical && (() => {
             const style = comStyle({ constructions: ['NASION_VERTICAL_FH_V1'], points: ['A'] }, 'situation_a');
@@ -416,7 +427,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 data-analysis={option.id}
                 aria-pressed={selected}
                 onClick={() => setMode(option.id)}
-                className="shrink-0 rounded-xl border px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.04em] transition-all sm:px-2 sm:text-[9px] sm:tracking-[0.04em] 2xl:px-3 2xl:text-[10px]"
+                className="shrink-0 rounded-xl border px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.03em] transition-all sm:px-2 sm:text-[10px] sm:tracking-[0.03em] 2xl:px-3 2xl:text-xs"
                 style={{
                   background: selected ? `${P.accent}18` : 'transparent',
                   borderColor: selected ? P.borderFocus : 'transparent',

@@ -116,20 +116,20 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       }}
       data-r19-reference-layout
       data-r20-workbench-layout
-      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[220px_minmax(0,1fr)_minmax(350px,0.76fr)] xl:items-stretch"
+      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[188px_minmax(0,1fr)_350px] 2xl:grid-cols-[208px_minmax(0,1fr)_380px] xl:items-stretch"
     >
       <aside
         data-r20-workbench-sidebar
         aria-label="Contrôles du workbench céphalométrique"
-        className="min-w-0 rounded-2xl border p-2 xl:h-[80vh] xl:overflow-y-auto xl:p-3"
+        className="min-w-0 rounded-2xl border p-2 xl:h-[82vh] xl:overflow-y-auto xl:p-2.5"
         style={{ background: props.P.bgPanel, borderColor: props.P.border, boxShadow: props.P.shadow }}
       >
         <div className="hidden xl:block">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.10em]" style={{ color: props.P.textDim }}>Workbench</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.07em]" style={{ color: props.P.textMuted }}>Workbench</p>
             <h3 className="mt-1 break-words text-sm font-black leading-tight" style={{ color: props.P.text }}>{ANALYSIS_LABELS[analysis]}</h3>
           </div>
-          <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
+          <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
             Analyse active
           </span>
         </div>
@@ -150,7 +150,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             ))}
           </select>
           <p className="mt-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>
-            Méthode sélectionnée : tracés et mesures synchronisés. Aucune estimation des données manquantes.
+            Tracés et mesures synchronisés. Données manquantes non estimées.
           </p>
         </section>
 
@@ -224,7 +224,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           </div>
         </details>
 
-        <p className="mt-2 text-[11px] leading-snug" style={{ color: props.P.textMuted }}>VTO : aperçu expérimental, sans valeur prédictive clinique validée.</p>
+        <p className="mt-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>VTO : aperçu expérimental, sans valeur prédictive clinique validée.</p>
 
         <details className="mt-2 rounded-xl border p-2" style={{ borderColor: props.P.border }}>
           <summary className="cursor-pointer rounded-lg px-1 py-2 text-xs font-bold focus-visible:outline-2" style={{ color: props.P.text }}>Historique des corrections</summary>
@@ -375,7 +375,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         <Step1CephaloBase {...props} embedded />
       </div>
 
-      <div data-r20-measures-panel className="min-w-0 h-[68vh] xl:h-[80vh]">
+      <div data-r20-measures-panel className="min-w-0 h-[68vh] xl:h-[82vh]">
         <CephaloAnalysisWorkbenchPanel P={props.P} analysis={analysis} />
       </div>
     </div>

@@ -299,8 +299,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   };
 
   return (
-    <div ref={step1ContainerRef} className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[80vh] w-full'}`} style={{ ...themeVars, background: cbg, boxShadow: P.shadowLg, border: `1px solid ${P.border}` }}>
-      <div className="absolute inset-3 z-0 overflow-hidden rounded-[1.15rem] border border-[var(--ceph-ui-border)] bg-[var(--ceph-ui-panel)] shadow-lg sm:inset-4">
+    <div ref={step1ContainerRef} className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[82vh] w-full'}`} style={{ ...themeVars, background: cbg, boxShadow: P.shadowLg, border: `1px solid ${P.border}` }}>
+      <div className="absolute inset-2 z-0 overflow-hidden rounded-[1.15rem] border border-[var(--ceph-ui-border)] bg-[var(--ceph-ui-panel)] shadow-lg sm:inset-2">
         <CephaloTracingLayer
           imageSrc={imageSrc}
           imgFilters={imgFilters}
@@ -334,7 +334,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ceph-ui-panel)] border border-[var(--ceph-ui-border)] backdrop-blur-md">
             <Activity size={12} className="text-[var(--ceph-ui-success)]" />
-            <span className="text-[10px] font-bold text-[var(--ceph-ui-success)] tracking-widest uppercase">Édition Active</span>
+            <span className="text-[11px] font-bold text-[var(--ceph-ui-success)] tracking-wide uppercase">Édition Active</span>
           </div>
           <button
             type="button"
@@ -344,7 +344,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
             style={{ background: P.bgPanel, color: P.text, borderColor: calibrationTone === 'emerald' ? P.accentSuccess : calibrationTone === 'indigo' ? P.accent : P.accentWarning }}
           >
             {calibrationTone === 'emerald' ? <CheckCircle2 size={12} /> : <Target size={12} />}
-            <span className="truncate text-[10px] font-bold tracking-widest uppercase">
+            <span className="truncate text-[11px] font-bold tracking-wide uppercase">
               {calibrationLabel}{mmPerPixel ? ` · ${mmPerPixel.toFixed(3)} mm/px` : ''}
             </span>
           </button>
@@ -704,9 +704,9 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
         )}
       </AnimatePresence>
 
-      <div className="absolute bottom-3 right-3 flex items-center gap-4 text-[10px] font-mono z-20 pointer-events-none sm:bottom-6 sm:right-6">
+      <div className="absolute bottom-3 right-3 flex items-center gap-4 text-[11px] font-mono z-20 pointer-events-none sm:bottom-4 sm:right-4">
         <div className="px-3 py-1.5 rounded-full bg-[var(--ceph-ui-panel)] border border-[var(--ceph-ui-border)] backdrop-blur-md text-[var(--ceph-ui-text)]">
-          Landmarks: <span className="text-[var(--ceph-ui-text)] font-bold">{local.landmarks.length}</span>
+          Repères : <span className="text-[var(--ceph-ui-text)] font-bold">{local.landmarks.length}</span>
         </div>
       </div>
     </div>

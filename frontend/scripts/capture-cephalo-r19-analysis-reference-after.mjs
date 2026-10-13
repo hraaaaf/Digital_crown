@@ -48,12 +48,12 @@ const anglesData={
  visual_debug:{}, calibration_status:'verified'
 };
 useOrthoStore.setState({
- patientId: 919, patientName: 'Patient Démo R19', analysisId: 9919, imageSrc: fixture,
+ patientId: 919, patientName: 'SIMULATION R19 · IMAGE SVG ET VALEURS FICTIVES', analysisId: 9919, imageSrc: fixture,
  imgDim:{w:1200,h:1600}, local:{landmarks,version:1}, mmPerPixel:0.2, isCalibrated:true,
  completedSteps:new Set([1]), step:1, anglesData,
  etape3Data:{...useOrthoStore.getState().etape3Data,selectedAnalysis:'COM'}
 });
-ReactDOM.createRoot(document.getElementById('root')).render(<MemoryRouter><div style={{height:'100vh'}}><CephaloWorkspace patientId={919} patientName="Patient Démo R19" /></div></MemoryRouter>);
+ReactDOM.createRoot(document.getElementById('root')).render(<MemoryRouter><div style={{height:'100vh'}}><CephaloWorkspace patientId={919} patientName="SIMULATION R19 · IMAGE SVG ET VALEURS FICTIVES" /></div></MemoryRouter>);
 `;
 const htmlSource = `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Cephalo R19 AFTER</title><style>html,body,#root{width:100%;height:100%;margin:0}</style></head><body><div id="root"></div><script type="module" src="/src/cephalo-r19-analysis-reference-after-entry.tsx"></script></body></html>`;
 
@@ -61,14 +61,14 @@ function json(body,status=200){return{status,contentType:'application/json',body
 async function waitForServer(url,timeoutMs=30000){const start=Date.now();while(Date.now()-start<timeoutMs){try{const r=await fetch(url);if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,250))}throw new Error(`Vite unavailable ${url}`)}
 
 function modeContract(mode, metrics) {
-  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk) return false;
+  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk || !metrics.sourceDisclosureOk || !metrics.extendedRayClippingOk) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
-  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
+  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10 && (metrics.viewportWidth < 1280 || metrics.boundedClipCount >= 1);
   if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
-  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && ['Po','Or','S','N'].every(id => metrics.comReferencePointIds.includes(id));
+  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && ['Po','Or','S','N'].every(id => metrics.comReferencePointIds.includes(id)) && (metrics.viewportWidth < 1280 || metrics.boundedClipCount >= 1);
   if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   return false;
 }
@@ -133,6 +133,23 @@ async function captureViewport(viewport,attempt){
     const detailRect=detail?.getBoundingClientRect();
     const detailContained=Boolean(panelRect && detailRect && detailRect.top>=panelRect.top-1 && detailRect.bottom<=panelRect.bottom+1);
     const landmarkLabels=Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean);
+    const stage=document.querySelector('[data-r20-radiograph-stage]')?.getBoundingClientRect();
+    const evidenceLabel=document.querySelector('[data-ortho-workspace-patient]')?.textContent??'';
+    const extendedRays=Array.from(document.querySelectorAll('[data-cephalo-extended-line]'));
+    const clipNodes=Array.from(document.querySelectorAll('clipPath[data-cephalo-extended-clip]'));
+    const extendedRayClippingOk=extendedRays.every(ray=>{
+      const attr=ray.getAttribute('clip-path')??'';
+      const clipId=attr.startsWith('url(#')&&attr.endsWith(')')?attr.slice(5,-1):null;
+      return Boolean(clipId && clipNodes.some(node=>node.id===clipId));
+    });
+    const boundedClipCount=clipNodes.filter(node=>{
+      const rect=node.querySelector('rect');
+      const outer=node.ownerSVGElement?.viewBox?.baseVal;
+      return Boolean(rect && outer && (
+        Number(rect.getAttribute('width')) < outer.width - 1 ||
+        Number(rect.getAttribute('height')) < outer.height - 1
+      ));
+    }).length;
     const legacyMcNamaraLeakCount=landmarkLabels.filter(label=>label==='McNamara'||label==="A'"||label==="B'").length;
     return {
       analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
@@ -149,9 +166,14 @@ async function captureViewport(viewport,attempt){
       legacyMcNamaraLeakCount,
       selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
       horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+      viewportWidth:innerWidth,
+      imageStageWidth:stage?.width??0,
+      sourceDisclosureOk:evidenceLabel.includes('SIMULATION R19') && evidenceLabel.includes('VALEURS FICTIVES'),
+      extendedRayClippingOk,
+      boundedClipCount,
       tabsFullyVisible,
       detailContained,
-      desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && detailContained)
+      desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && detailContained && (stage?.width??0)>=625)
     };
    });
    const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort');

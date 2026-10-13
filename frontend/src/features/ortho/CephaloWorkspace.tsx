@@ -285,7 +285,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const workspaceWidthClass = viewMode === 'history'
     ? 'max-w-5xl'
     : step === 1
-      ? 'max-w-7xl'
+      ? 'max-w-[1480px]'
       : step >= 3
         ? 'max-w-6xl'
         : 'max-w-5xl';
