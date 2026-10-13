@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
+      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
+      - "frontend/src/features/admin/Settings/components/SharedUI.tsx"
       - "frontend/src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.tsx"
       - "frontend/scripts/capture-v15-04-8-blocked-readonly.mjs"
       - "frontend/src/features/admin/Security/MobileSecurity.tsx"
