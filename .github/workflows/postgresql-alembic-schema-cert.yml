@@ -189,6 +189,33 @@ jobs:
               assert {"ck_print_claim_state", "ck_print_claim_revision"} <= staged_claim_checks
               print("B/C tenant FKs and held-only print ledger verified on fresh baseline")
 
+              # neo30 evidence/recovery are *deny-only*: a stored digest is not
+              # a device certificate and an uncertain review is not a reprint.
+              review_tables = {"station_print_device_evidence", "station_print_uncertain_reviews"}
+              assert review_tables <= table_set, sorted(review_tables - table_set)
+              evidence_fks = inspector.get_foreign_keys("station_print_device_evidence", schema="public")
+              assert any(
+                  fk.get("constrained_columns") == ["tenant_id", "printer_id"]
+                  and fk.get("referred_table") == "station_print_printer_drafts"
+                  for fk in evidence_fks
+              ), evidence_fks
+              review_fks = inspector.get_foreign_keys("station_print_uncertain_reviews", schema="public")
+              assert any(
+                  fk.get("constrained_columns") == ["tenant_id", "delivery_key"]
+                  and fk.get("referred_table") == "station_print_held_claims"
+                  for fk in review_fks
+              ), review_fks
+              assert "ck_device_evidence_never_certified" in {
+                  c["name"] for c in inspector.get_check_constraints("station_print_device_evidence", schema="public")
+              }
+              assert "ck_uncertain_review_finding" in {
+                  c["name"] for c in inspector.get_check_constraints("station_print_uncertain_reviews", schema="public")
+              }
+              for table in review_tables:
+                  assert connection.execute(text(f'SELECT COUNT(*) FROM "{table}"')).scalar_one() == 0
+              print("neo30 pending-only device evidence and uncertain-only reviews verified on fresh baseline")
+
+
               # The rollback rehearsal must not silently hide a missing
               # audit index in the UP migration. Observe it on PostgreSQL.
               print_audit_indexes = {
@@ -392,6 +419,46 @@ jobs:
               assert conn.execute(text("SELECT COUNT(*) FROM station_print_held_claims")).scalar_one() == 0
               assert conn.execute(text("SELECT COUNT(*) FROM station_print_claim_events")).scalar_one() == 0
           print("neo28->neo29 migration preserves synthetic witness and remains inert")
+          PY
+
+
+      - name: Rehearse neo29 to neo30 with nonempty synthetic PostgreSQL witness
+        run: |
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, text
+          engine=create_engine(os.environ["DATABASE_URL"])
+          with engine.begin() as c:
+              c.execute(text("INSERT INTO dc_print_migration_witness (id,marker) VALUES (3,'neo29-to-30-synthetic')"))
+          PY
+          alembic downgrade neo000000029
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine,inspect,text
+          engine=create_engine(os.environ["DATABASE_URL"])
+          with engine.connect() as c:
+              assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one()=="neo000000029"
+              names=set(inspect(c).get_table_names())
+              assert "station_print_device_evidence" not in names
+              assert "station_print_uncertain_reviews" not in names
+              assert "station_print_held_claims" in names
+              assert c.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=3")).scalar_one()=="neo29-to-30-synthetic"
+          print("neo29 predecessor with synthetic witness preserved")
+          PY
+          alembic upgrade head
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine,inspect,text
+          from backend.core.schema_runtime import assert_database_at_current_head
+          engine=create_engine(os.environ["DATABASE_URL"])
+          assert_database_at_current_head(engine)
+          with engine.connect() as c:
+              names=set(inspect(c).get_table_names())
+              assert {"station_print_device_evidence","station_print_uncertain_reviews"} <= names
+              assert c.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=3")).scalar_one()=="neo29-to-30-synthetic"
+              for table in ("station_print_device_evidence","station_print_uncertain_reviews"):
+                  assert c.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one()==0
+          print("neo29->neo30 additive upgrade: pending evidence only, no printer cert, witness preserved")
           PY
 
       - name: Certify two independent PostgreSQL processes and atomic journal rollback
