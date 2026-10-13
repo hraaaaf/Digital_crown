@@ -150,7 +150,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             ))}
           </select>
           <p className="mt-2 text-[11px] leading-relaxed" style={{ color: props.P.textMuted }}>
-            Affiche les mesures et tracés disponibles de la méthode choisie. Les mesures non calculables restent indisponibles.
+            Choisis une méthode. Les mesures manquantes sont signalées sans estimation.
           </p>
         </section>
 
@@ -170,7 +170,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             ))}
           </div>
           <p className="mt-2 text-xs" style={{ color: props.P.textMuted }}>
-            Les mesures validées sont accessibles dans les analyses clé en main. Les outils libres sont en cours de construction.
+            Mesures libres en cours de construction. Les analyses calculées restent disponibles à droite.
           </p>
           <div className="mt-2 flex flex-wrap gap-2" aria-label="Accès rapide aux commandes existantes">
             <button type="button" aria-pressed={magnifierEnabled}
