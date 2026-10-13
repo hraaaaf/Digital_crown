@@ -165,13 +165,13 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               {landmarkEditTimeline.undoStack.length} modif.
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-1.5 xl:grid-cols-1">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-1">
             <button
               type="button"
               aria-label="Annuler dernière correction"
               disabled={landmarkEditTimeline.undoStack.length === 0}
               onClick={undoLandmarkEdit}
-              className="min-h-9 rounded-xl border px-2 py-2 text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
+              className="min-h-11 rounded-xl border px-2 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
               style={{ borderColor: props.P.border, background: props.P.bgInput, color: props.P.textMuted }}
             >
               Annuler
@@ -181,23 +181,23 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               aria-label="Rétablir correction"
               disabled={landmarkEditTimeline.redoStack.length === 0}
               onClick={redoLandmarkEdit}
-              className="min-h-9 rounded-xl border px-2 py-2 text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
+              className="min-h-11 rounded-xl border px-2 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
               style={{ borderColor: props.P.border, background: props.P.bgInput, color: props.P.textMuted }}
             >
               Rétablir
             </button>
             <button
               type="button"
-              aria-label="Réinitialiser les corrections de session"
+              aria-label="Revenir aux repères initialement chargés" title="Revenir aux repères initialement chargés"
               disabled={
                 landmarkEditTimeline.baseline.length === 0
                 || landmarkSnapshotsEqual(localLandmarks, landmarkEditTimeline.baseline)
               }
               onClick={resetLandmarkEdits}
-              className="min-h-9 rounded-xl border px-2 py-2 text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
+              className="min-h-11 rounded-xl border px-2 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 xl:text-left"
               style={{ borderColor: props.P.border, background: props.P.bgInput, color: props.P.textMuted }}
             >
-              État chargé
+              Revenir au départ
             </button>
           </div>
         </section>
