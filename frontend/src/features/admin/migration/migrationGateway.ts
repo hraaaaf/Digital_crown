@@ -104,7 +104,7 @@ export async function downloadOfficialSyntheticFile(): Promise<{ bytes: ArrayBuf
 }
 
 export async function dryrunOfficialSyntheticFile(file: File, expectedSha: string): Promise<SyntheticFileDryrun> {
-  if (!/\\.db$/i.test(file.name) || file.size <= 0 || file.size > MAX_OFFICIAL_SQLITE_BYTES ||
+  if (!/\.db$/i.test(file.name) || file.size <= 0 || file.size > MAX_OFFICIAL_SQLITE_BYTES ||
       !/^[a-f0-9]{64}$/.test(expectedSha)) throw new Error('ONLY_OFFICIAL_SYNTHETIC_FILE');
   const buffer = await file.arrayBuffer();
   const actualSha = await digestOfficialFixture(buffer);
