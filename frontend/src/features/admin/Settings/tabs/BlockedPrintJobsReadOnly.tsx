@@ -57,8 +57,8 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
 
   return (
     <section data-testid="blocked-print-jobs-read-only" aria-label="Impressions bloquées"
-      className="w-full min-w-0 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/50 p-4 sm:p-6">
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      className="w-full min-w-0 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/50 p-3 sm:p-4">
+      <div className="flex min-w-0 flex-col gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <ShieldCheck className="mt-0.5 shrink-0 text-amber-700" size={22} />
           <div className="min-w-0">
@@ -70,9 +70,9 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
           </div>
         </div>
         <button type="button" onClick={() => void refresh()} disabled={loading}
-          className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 disabled:opacity-50 sm:w-auto">
+          className="inline-flex w-full min-w-0 max-w-sm flex-wrap items-center justify-center gap-2 self-start rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 disabled:opacity-50">
           <RefreshCw size={16} aria-hidden="true" />
-          Actualiser les états
+          <span className="min-w-0 break-words text-center">Actualiser les états</span>
         </button>
       </div>
       <div role="status" aria-live="polite" className="mt-4 text-sm text-slate-700">
@@ -83,7 +83,7 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
           : 'Aucun état chargé.'}
       </div>
       {data && data.jobs.length > 0 && (
-        <ul className="mt-4 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
+        <ul className="mt-4 grid min-w-0 grid-cols-1 gap-3">
           {data.jobs.map((job) => (
             <li key={job.reference}
               className="min-w-0 rounded-xl border border-amber-200 bg-white p-4"
@@ -92,11 +92,11 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
                 <AlertTriangle size={17} className="shrink-0 text-amber-700" aria-hidden="true" />
                 <strong className="break-all text-sm text-slate-900">Réf. {job.reference}</strong>
               </div>
-              <p className="mt-2 text-sm font-semibold text-amber-800">À vérifier — ne pas réimprimer</p>
+              <p className="mt-2 break-words text-sm font-semibold text-amber-800">À vérifier — ne pas réimprimer</p>
               <p className="mt-1 break-words text-xs text-slate-600">
                 Dernier changement : {new Date(job.updatedAt).toLocaleString()}
               </p>
-              <p className="mt-1 text-xs text-slate-600">
+              <p className="mt-1 break-words text-xs text-slate-600">
                 Constat(s) d’investigation : {job.investigations}
               </p>
             </li>
