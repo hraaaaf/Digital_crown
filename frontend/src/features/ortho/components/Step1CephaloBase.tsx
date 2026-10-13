@@ -339,6 +339,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
             onClick={() => { setCalibrationActionError(null); setShowCalibrationAssistant(true); }}
             className={`flex max-w-[230px] items-center gap-2 rounded-full border px-3 py-1.5 backdrop-blur-md transition-colors sm:max-w-none ${toneClasses}`}
             title="État de calibration et provenance" aria-label={`Calibration : ${calibrationLabel}. Consulter les détails`}
+            style={{ background: P.bgPanel, color: P.text, borderColor: calibrationTone === 'emerald' ? P.accentSuccess : calibrationTone === 'indigo' ? P.accent : P.accentWarning }}
           >
             {calibrationTone === 'emerald' ? <CheckCircle2 size={12} /> : <Target size={12} />}
             <span className="truncate text-[10px] font-bold tracking-widest uppercase">
