@@ -744,7 +744,7 @@ export const PatientCompanionApp = () => {
               <button onClick={() => setActiveTab('agenda')} className="mt-3 min-h-[48px] w-full rounded-2xl border border-primary/20 text-sm font-bold text-primary">Voir mon agenda</button>
               <p className="mt-3 text-xs text-text-muted">{activeWallet?.shares.length || 0} document(s) et média(s) partagés dans votre coffre.</p>
             </section>}
-            {activeTab === 'plus' && <div key={activePairing.context.access_id}>
+            {activeTab === 'plus' && <div key={`plus-care-${activePairing.context.access_id}`}>
             <PatientCompanionEmergencyPhoto
               pairing={activePairing}
               enabled={Boolean(activePairing.remoteTransport) && !sessionExpired}
@@ -847,7 +847,7 @@ export const PatientCompanionApp = () => {
               ) : null}
             </section>
             </>}
-            {activeTab === 'plus' && <div key={activePairing.context.access_id}>
+            {activeTab === 'plus' && <div key={`plus-preferences-${activePairing.context.access_id}`}>
             <PatientCompanionNotifications pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <PatientCompanionTeleconsultation pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <PatientCompanionConsentVault pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
