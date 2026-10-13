@@ -4,6 +4,7 @@ import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import {
   CEPHALO_ANALYSIS_CHANGE_EVENT,
+  publishCephaloAnalysis,
   type CephaloAnalysisMode,
 } from '../cephaloAnalysisBridge';
 import { CEPHALO_SCIENTIFIC_COLORS } from '../cephaloVisualSemantics';
@@ -135,6 +136,26 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             Analyse active
           </span>
         </div>
+
+        <section aria-label="Analyses céphalométriques prêtes à l’emploi" className="mt-3 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
+          <label htmlFor="cephalo-ready-analysis" className="mb-2 block text-xs font-bold" style={{ color: props.P.text }}>
+            Analyse clé en main
+          </label>
+          <select
+            id="cephalo-ready-analysis"
+            value={analysis}
+            onChange={(event) => publishCephaloAnalysis(event.target.value as CephaloAnalysisMode)}
+            className="min-h-11 w-full rounded-lg border px-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+            style={{ borderColor: props.P.borderFocus, background: props.P.bgCard, color: props.P.text }}
+          >
+            {(Object.keys(ANALYSIS_LABELS) as CephaloAnalysisMode[]).map((mode) => (
+              <option key={mode} value={mode}>{ANALYSIS_LABELS[mode]}</option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs leading-relaxed" style={{ color: props.P.textMuted }}>
+            Affiche les mesures et tracés disponibles de la méthode choisie. Les mesures non calculables restent indisponibles.
+          </p>
+        </section>
 
         <div className="mt-3 hidden space-y-2 xl:block" aria-label="Familles scientifiques">
           {FAMILY_LEGEND.map(([family, label]) => (
