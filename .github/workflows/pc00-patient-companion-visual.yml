@@ -101,7 +101,7 @@ jobs:
           # a dedicated Digital Crown Pocket patient identity once paired.
           assert all(
               ("Patient Companion" in x["text"]) if x["scenario"] == "welcome"
-              else ("Digital Crown Pocket · patient" in x["text"])
+              else ("Pocket" in x["text"] and "Mon espace patient" in x["text"])
               for x in after
           )
           homes=[x for x in after if x["scenario"]=="home"]
