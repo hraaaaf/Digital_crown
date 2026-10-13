@@ -3,7 +3,8 @@
 No API, production migration, printer control, document reads or print dispatch.
 The caller MUST obtain actor identity and device certification inventory from
 trusted Cabinet server/DB state, not from untrusted browser request fields.
-Schema is declared for isolated in-memory lab tests; CREATE ALL is NOT called
+The four print tables are also cloned into Alembic's baseline metadata;
+CREATE ALL is NOT called
 by this module and never allowed against a live Cabinet database.
 """
 from __future__ import annotations
@@ -13,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Mapping
 
 from sqlalchemy import (
-    CheckConstraint, Column, DateTime, ForeignKey, Integer, MetaData,
+    CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, MetaData,
     String, Table, delete, insert, select, update,
 )
 from sqlalchemy.engine import Engine
@@ -29,9 +30,13 @@ from backend.services.station_document_print_policy import CabinetPrintPolicy
 # Separate from backend.models.Base.metadata until Alembic HEAD and the
 # production schema/tenant ownership constraints have been audited.
 schema = MetaData()
+# Laboratory-only users stub for FK resolution when the isolated schema is
+# created in synthetic SQLite. Alembic clones ONLY the four print tables into
+# the application's metadata, where the real users table already exists.
+Table("users", schema, Column("id", Integer, primary_key=True))
 configuration = Table(
     "station_print_configurations", schema,
-    Column("tenant_id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("mode", String(16), nullable=False, server_default="disabled"),
     Column("revision", Integer, nullable=False),
     Column("updated_by_user_id", Integer, nullable=False),
@@ -52,12 +57,13 @@ printers = Table(
 audit = Table(
     "station_print_config_audit", schema,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("tenant_id", Integer, nullable=False),
+    Column("tenant_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
     Column("revision", Integer, nullable=False),
     Column("actor_user_id", Integer, nullable=False),
     Column("mode", String(16), nullable=False),
     Column("changed_at", DateTime(timezone=True), nullable=False),
 )
+Index("ix_station_print_config_audit_tenant_revision", audit.c.tenant_id, audit.c.revision)
 
 
 class PrintConfigurationConflict(ValueError):
