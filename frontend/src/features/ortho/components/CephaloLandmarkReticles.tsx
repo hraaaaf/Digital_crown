@@ -227,8 +227,8 @@ export const CephaloLandmarkReticles = ({
               {displayLabel && (isHovMetric || isDragged || isFocused) && (
                 <text
                   data-cephalo-landmark-label={pt.id}
-                  x={dispX + (labelPosition?.dx ?? 0)}
-                  y={dispY + (labelPosition?.dy ?? 0)}
+                  x={dispX + (labelPosition?.dx ?? 0) * unitsPerPixel}
+                  y={dispY + (labelPosition?.dy ?? 0) * unitsPerPixel}
                   dx={labelPosition ? undefined : '13'}
                   dy={labelPosition ? undefined : '-13'}
                   textAnchor={labelPosition?.anchor}
