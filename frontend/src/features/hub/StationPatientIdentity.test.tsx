@@ -371,4 +371,53 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('obsolete-generation'));
   });
 
+  it.each([
+    ['fr', 'L’impression depuis cette Station est en cours de construction.'],
+    ['en', 'Printing from this Station is under construction.'],
+    ['ar', 'خدمة الطباعة من هذه المحطة قيد الإنشاء.'],
+  ] as const)('04.8-D mounts disabled print status on actual document journey, %s', async (language, message) => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1',
+      displayName: 'Aya Audit', claimedAt: new Date().toISOString(),
+    });
+    const rendered = render(
+      <StationPatientIdentity purpose='documents' language={language}
+        onBack={vi.fn()} backLabel='Back' />,
+    );
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    // The panel uses the stable test identifier, not an actionable print UI.
+    const statusPanel = screen.getByTestId('station-print-status-panel');
+    expect(statusPanel).toHaveAttribute('data-print-status', 'disabled');
+    expect(statusPanel).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
+    expect(statusPanel.querySelector('button, a, form, iframe, object, embed')).toBeNull();
+    expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledTimes(1);
+    expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
+    expect(rendered.container.querySelector('[data-station-care-sheet-download]')).toBeNull();
+    expect(rendered.container.querySelectorAll('a[href*=".pdf"]')).toHaveLength(0);
+    rendered.unmount();
+  });
+
+  it('04.8-D does NOT show print status before identification or on appointments', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'pending', sessionId: 'session-1',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+    const pending = render(
+      <StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Back' />,
+    );
+    await screen.findByAltText('QR d’identification Patient Companion');
+    expect(screen.queryByTestId('station-print-status-panel')).toBeNull();
+    pending.unmount();
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'identified', sessionId: 'session-1',
+      displayName: 'Aya Audit', claimedAt: new Date().toISOString(),
+    });
+    const appointment = render(
+      <StationPatientIdentity purpose='appointment' onBack={vi.fn()} backLabel='Back' />,
+    );
+    await screen.findByText('Aya Audit');
+    expect(screen.queryByTestId('station-print-status-panel')).toBeNull();
+    appointment.unmount();
+  });
+
 });
