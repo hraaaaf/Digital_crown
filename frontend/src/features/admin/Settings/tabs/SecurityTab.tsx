@@ -253,7 +253,7 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
               </div>
             </div>
 
-            <div className="w-full min-w-0 sm:w-auto sm:self-end">
+            <div className="mt-8 w-full min-w-0 sm:mt-0 sm:w-auto sm:self-end">
               <input
                 ref={restoreInputRef}
                 type="file"
