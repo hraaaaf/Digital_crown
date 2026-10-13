@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ruler, Angle, Crosshair, ZoomIn, Layers3, ScanFace } from 'lucide-react';
+import { Ruler, DraftingCompass, Crosshair, ZoomIn, Layers3, ScanFace } from 'lucide-react';
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -163,7 +163,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <div className="grid grid-cols-2 gap-2">
             {([
               { label: 'Distance', Icon: Ruler },
-              { label: 'Angle', Icon: Angle },
+              { label: 'Angle', Icon: DraftingCompass },
             ] as const).map(({ label, Icon }) => (
               <button key={label} type="button" disabled title={`${label} libre — en cours de construction`}
                 aria-label={`${label} libre — en cours de construction`}
@@ -338,7 +338,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       <div
         data-r20-radiograph-stage
         className="min-w-0"
-        style={{ '--cephalo-scientific-anchor': '#f8fafc' } as React.CSSProperties}
+        style={{ '--cephalo-scientific-anchor': props.P.text } as React.CSSProperties}
       >
         <Step1CephaloBase {...props} />
       </div>
