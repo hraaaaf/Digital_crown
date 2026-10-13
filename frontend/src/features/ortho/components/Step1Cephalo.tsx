@@ -298,7 +298,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             </button>
           </div>
           <div className="flex min-w-0 flex-wrap gap-2 pb-1 xl:grid xl:grid-cols-1 xl:overflow-visible">
-            {ORTHO_LAYER_REGISTRY.map(layer => {
+            {ORTHO_LAYER_REGISTRY.filter(layer => layer.id !== 't1' && layer.id !== 't2').map(layer => {
               const available = layer.availability === 'available';
               const active = layerVisibility[layer.id];
               const handleToggle = () => {
