@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ruler, Angle, Crosshair, ZoomIn, Layers3 } from 'lucide-react';
+import { Ruler, Angle, Crosshair, ZoomIn, Layers3, ScanFace } from 'lucide-react';
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -206,21 +206,12 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <div className="flex min-w-0 gap-2 overflow-x-auto pb-1 xl:grid xl:grid-cols-1 xl:overflow-visible">
             <button
               type="button"
-              aria-pressed={magnifierEnabled}
-              onClick={() => setMagnifierEnabled(!magnifierEnabled)}
-              className={toggleClass(magnifierEnabled)}
-              style={toggleStyle(magnifierEnabled)}
-            >
-              Loupe
-            </button>
-            <button
-              type="button"
               aria-pressed={vtoSettings.showGhostFace}
               onClick={() => setVtoSettings(value => ({ ...value, showGhostFace: !value.showGhostFace }))}
               className={toggleClass(vtoSettings.showGhostFace)}
               style={toggleStyle(vtoSettings.showGhostFace)}
             >
-              Face 3D
+              <span className="inline-flex items-center gap-2"><ScanFace size={16} aria-hidden="true" />Face 3D</span>
             </button>
           </div>
         </div>
