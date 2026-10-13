@@ -209,9 +209,9 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             <Layers3 size={15} aria-hidden="true" /> Projections et VTO
           </summary>
           <div className="grid grid-cols-2 gap-2 px-1 pb-2 pt-2">
-            <button type="button" aria-pressed={layerVisibility.t1} onClick={() => { setActiveMorphing('none'); setLayerVisible('t1', !layerVisibility.t1); }}
+            <button type="button" aria-label="Projection T1" aria-pressed={layerVisibility.t1} onClick={() => { setActiveMorphing('none'); setLayerVisible('t1', !layerVisibility.t1); }}
               className={toggleClass(layerVisibility.t1)} style={toggleStyle(layerVisibility.t1)}>T1</button>
-            <button type="button" aria-pressed={layerVisibility.t2} onClick={() => { setActiveMorphing('none'); setLayerVisible('t2', !layerVisibility.t2); }}
+            <button type="button" aria-label="Projection T2" aria-pressed={layerVisibility.t2} onClick={() => { setActiveMorphing('none'); setLayerVisible('t2', !layerVisibility.t2); }}
               className={toggleClass(layerVisibility.t2)} style={toggleStyle(layerVisibility.t2)}>T2</button>
             <button type="button" aria-pressed={vtoSettings.showGhostFace} onClick={() => setVtoSettings(value => ({ ...value, showGhostFace: !value.showGhostFace }))}
               className={toggleClass(vtoSettings.showGhostFace)} style={toggleStyle(vtoSettings.showGhostFace)}>
