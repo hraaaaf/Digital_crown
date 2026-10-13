@@ -238,7 +238,7 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
 
         <div className="mt-8 rounded-[2.25rem] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-[12px] sm:p-8 shadow-sm">
           <div className="flex min-w-0 flex-col items-stretch gap-5">
-            <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:gap-4">
+            <div className="flex min-w-0 flex-col items-start gap-3 lg:flex-row lg:gap-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                 <RotateCcw size={24} />
               </div>
