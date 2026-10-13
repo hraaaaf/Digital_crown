@@ -218,7 +218,7 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
         subtitle="Contrôlez vos données cliniques et vos accès mobiles."
         icon={<Shield size={32} />}
       >
-        <div className="bg-slate-50 border border-slate-200 rounded-[2.5rem] p-6 sm:p-10 flex flex-col items-center justify-center text-center gap-6">
+        <div className="bg-slate-50 border border-slate-200 rounded-[2.5rem] p-[12px] sm:p-10 flex flex-col items-center justify-center text-center gap-6">
           <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-full flex items-center justify-center shadow-xl text-slate-700 border border-slate-100">
             <Database size={40} />
           </div>
@@ -229,16 +229,16 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
           <button
             onClick={handleExportDB}
             disabled={isExporting}
-            className="w-full sm:w-auto px-6 sm:px-10 py-4 sm:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black transition-all shadow-2xl shadow-emerald-600/20 flex items-center justify-center gap-3 sm:gap-4 group hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            className="w-full min-w-0 sm:w-auto px-[12px] sm:px-10 py-4 sm:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black transition-all shadow-2xl shadow-emerald-600/20 flex flex-wrap items-center justify-center gap-2 sm:gap-4 group hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed"
           >
             {isExporting ? <Loader2 size={24} className="animate-spin shrink-0" /> : <Download size={24} className="group-hover:translate-y-1 transition-transform shrink-0" />}
             {isExporting ? 'Création et vérification...' : 'Créer et télécharger la sauvegarde'}
           </button>
         </div>
 
-        <div className="mt-8 rounded-[2.25rem] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-5 sm:p-8 shadow-sm">
+        <div className="mt-8 rounded-[2.25rem] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-[12px] sm:p-8 shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
-            <div className="flex items-start gap-4 min-w-0">
+            <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:gap-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                 <RotateCcw size={24} />
               </div>
@@ -266,7 +266,7 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
                 type="button"
                 onClick={() => restoreInputRef.current?.click()}
                 disabled={isAnalyzing || restoreInFlight}
-                className="w-full lg:w-auto px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black flex items-center justify-center gap-3 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full min-w-0 lg:w-auto px-[12px] sm:px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black flex flex-wrap items-center justify-center gap-2 sm:gap-3 break-words text-center transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? <Loader2 size={20} className="animate-spin" /> : <FileSearch size={20} />}
                 {isAnalyzing ? 'Analyse en cours...' : 'Analyser une sauvegarde'}
