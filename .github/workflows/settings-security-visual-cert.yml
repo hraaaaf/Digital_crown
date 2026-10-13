@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
+      - "frontend/src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.tsx"
+      - "frontend/scripts/capture-v15-04-8-blocked-readonly.mjs"
       - "frontend/src/features/admin/Security/MobileSecurity.tsx"
       - "frontend/src/features/mobile/Dashboard/MobileDashboard.tsx"
       - "frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx"
@@ -20,6 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact certified product HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
