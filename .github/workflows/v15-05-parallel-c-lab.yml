@@ -1,0 +1,46 @@
+name: V1.5-05 Parallel C Synthetic Lab
+
+on:
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_replay_restore_lab_v15.py
+      - docs/quality/V15_05_PARALLEL_C_LAB.md
+      - .github/workflows/v15-05-parallel-c-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: SQLAlchemy pinned
+        run: |
+          python -m pip install SQLAlchemy==2.0.28
+      - name: Track tests
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_sql_replay_restore_lab_v15.py
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_replay_restore_lab_v15.py -v 2>&1 | tee /tmp/track.log
+          grep -q 'Ran 8 tests' /tmp/track.log
+          grep -q '^OK$' /tmp/track.log
+          if grep -Ei 'skipped|expected failure' /tmp/track.log; then exit 1; fi
+      - name: Regressions on real ORM projection
+        run: |
+          set -euo pipefail
+          python backend/tests/test_legacy_sql_real_orm_scratch_v15.py -v 2>&1 | tee /tmp/orm.log
+          grep -q 'Ran 10 tests' /tmp/orm.log
+          grep -q '^OK$' /tmp/orm.log
+      - name: Confirm exact SHA and no real import
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          echo "Track C: 8 synthetic tests + 10 ORM regressions. NO REAL IMPORT." >> "$GITHUB_STEP_SUMMARY"

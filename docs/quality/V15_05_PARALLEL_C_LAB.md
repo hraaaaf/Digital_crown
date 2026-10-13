@@ -1,0 +1,3 @@
+# LOT05 C — Rejeu et sauvegarde uniquement synthétiques
+
+Piste indépendante issue du HEAD PR #863. Suite test-only `backend/tests/test_legacy_sql_replay_restore_lab_v15.py` : lots fictifs, collision et rejeu, transactions SQLite atomiques, sauvegarde par SQLite Backup API, restauration dans un autre fichier fictif temporaire puis comparaisons d'empreinte, FK et compteurs. Aucune donnée cabinet, aucun SQLCipher/PostgreSQL, aucun serveur/API ni sauvegarde clinique réelle. Pas de merge, déploiement, permission d'import ou prétention de restauration validée en environnement cabinet. CI et deux revues adversariales obligatoires.
