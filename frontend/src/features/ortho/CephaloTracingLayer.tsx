@@ -10,6 +10,7 @@ import {
 } from './cephaloVisualSemantics';
 import {
   CEPHALO_METRIC_FOCUS_EVENT,
+  CEPHALO_ANALYSIS_CHANGE_EVENT,
   publishCephaloAnalysis,
   type CephaloAnalysisMode,
   type CephaloMetricFocus,
@@ -130,6 +131,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   React.useEffect(() => {
     publishCephaloAnalysis(mode);
   }, [mode]);
+
+  // The ready-made analysis selector is a peer control of the overlay tabs.
+  // Both surfaces must update the same tracing mode without changing any geometry.
+  React.useEffect(() => {
+    const onAnalysisChange = (event: Event) => {
+      const requested = normalizeMode((event as CustomEvent<CephaloAnalysisMode>).detail);
+      setMode(current => current === requested ? current : requested);
+    };
+    window.addEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysisChange as EventListener);
+    return () => window.removeEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysisChange as EventListener);
+  }, []);
 
   React.useEffect(() => {
     const onMetric = (event: Event) => {
@@ -394,7 +406,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
           className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border p-1 shadow-2xl backdrop-blur-xl sm:gap-1"
           style={{ background: P.bgPanel, borderColor: P.border, boxShadow: P.shadowLg }}
         >
-          <span className="hidden shrink-0 px-2 text-[9px] font-black uppercase tracking-[0.18em] sm:inline" style={{ color: P.textDim }}>Tracé</span>
+          <span className="hidden shrink-0 px-2 text-[9px] font-black uppercase tracking-[0.18em] 2xl:inline" style={{ color: P.textDim }}>Tracé</span>
           {ANALYSIS_OPTIONS.map(option => {
             const selected = mode === option.id;
             return (
@@ -404,7 +416,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 data-analysis={option.id}
                 aria-pressed={selected}
                 onClick={() => setMode(option.id)}
-                className="shrink-0 rounded-xl border px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.04em] transition-all sm:px-3 sm:text-[10px] sm:tracking-[0.08em]"
+                className="shrink-0 rounded-xl border px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.04em] transition-all sm:px-2 sm:text-[9px] sm:tracking-[0.04em] 2xl:px-3 2xl:text-[10px]"
                 style={{
                   background: selected ? `${P.accent}18` : 'transparent',
                   borderColor: selected ? P.borderFocus : 'transparent',

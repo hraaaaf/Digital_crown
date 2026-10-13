@@ -61,7 +61,7 @@ function json(body,status=200){return{status,contentType:'application/json',body
 async function waitForServer(url,timeoutMs=30000){const start=Date.now();while(Date.now()-start<timeoutMs){try{const r=await fetch(url);if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,250))}throw new Error(`Vite unavailable ${url}`)}
 
 function modeContract(mode, metrics) {
-  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow) return false;
+  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
   if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
@@ -95,6 +95,24 @@ async function captureViewport(viewport,attempt){
   await page.getByRole('heading',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:30000});
   await page.locator('[aria-label="Analyse du tracé"]').waitFor({state:'visible',timeout:10000});
   await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:10000});
+  // Exercise the left-hand ready-made selector, not only the floating tracing tabs.
+  const selectorChecks=[];
+  for(const requested of ['steiner','com','all']){
+   await page.locator('#cephalo-ready-analysis').selectOption(requested);
+   await page.waitForFunction(mode=>{
+    const overlay=document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis');
+    const panel=document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel');
+    const select=document.querySelector('#cephalo-ready-analysis');
+    return overlay===mode && panel===mode && select?.value===mode;
+   },requested,{timeout:6000});
+   const result=await page.evaluate(()=>({
+    chosen:document.querySelector('#cephalo-ready-analysis')?.value,
+    overlay:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis'),
+    panel:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')
+   }));
+   selectorChecks.push({requested,...result,valid:result.chosen===requested&&result.overlay===requested&&result.panel===requested});
+   if(requested==='steiner') await page.screenshot({path:path.join(OUTPUT_DIR,`after-selector-steiner-${viewport.name}.png`),fullPage:false});
+  }
   const states=[];
   for(const mode of modes){
    await page.locator(`[data-analysis="${mode}"]`).click();
@@ -105,6 +123,15 @@ async function captureViewport(viewport,attempt){
    }
    await page.waitForTimeout(80);
    const metrics=await page.evaluate(()=>{
+    const tabs=Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button'));
+    const tabBar=document.querySelector('[aria-label="Analyse du tracé"]');
+    const barRect=tabBar?.getBoundingClientRect();
+    const tabsFullyVisible=Boolean(barRect && tabs.length===6 && tabs.every(tab=>{const rect=tab.getBoundingClientRect();return rect.left>=barRect.left-1 && rect.right<=barRect.right+1;}));
+    const panel=document.querySelector('[data-r19-analysis-panel]');
+    const detail=document.querySelector('[data-r19-measure-detail]');
+    const panelRect=panel?.getBoundingClientRect();
+    const detailRect=detail?.getBoundingClientRect();
+    const detailContained=Boolean(panelRect && detailRect && detailRect.top>=panelRect.top-1 && detailRect.bottom<=panelRect.bottom+1);
     const landmarkLabels=Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean);
     const legacyMcNamaraLeakCount=landmarkLabels.filter(label=>label==='McNamara'||label==="A'"||label==="B'").length;
     return {
@@ -119,7 +146,10 @@ async function captureViewport(viewport,attempt){
       comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
       legacyMcNamaraLeakCount,
       selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
-      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
+      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+      tabsFullyVisible,
+      detailContained,
+      desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && detailContained)
     };
    });
    const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort');
@@ -130,8 +160,8 @@ async function captureViewport(viewport,attempt){
    }
    states.push({mode,valid,metrics});
   }
-  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid);
-  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,states};
+  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)&&selectorChecks.length===3&&selectorChecks.every(s=>s.valid);
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }

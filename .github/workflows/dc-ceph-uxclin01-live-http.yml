@@ -1,0 +1,221 @@
+name: DC Cephalo UXCLIN01 Integrated Real Step1 and Full TypeScript
+on:
+  push:
+    branches:
+      - feat/dc-ceph-uxclin01-integration-20261013
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-step1-live-http-isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASE_HEAD: 80eb4a17e8676dc02e21af94412e173965caf1be
+      DC_CEPH03B3F_ACK: synthetic-only
+      DC_CEPH03B3F_METADATA: /tmp/dc-ceph03b3f-metadata.json
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+      DEBUG: 'false'
+      DATABASE_URL: 'sqlite:///:memory:'
+      BACKEND_URL: 'http://127.0.0.1:8005'
+      VITE_API_URL: 'http://127.0.0.1:4173'
+      SECRET_KEY: 'dc-ceph03b3f-disposable-only-not-production-20261012'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: REQUIRED scope lease and isolated runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b4b-multisource-scale-evidence-20261012"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test "$DATABASE_URL" = 'sqlite:///:memory:'
+          # Fail closed: this branch may combine only the approved UX/UI changes
+          # with the frozen 03B4b clinical baseline. Backend and science untouched.
+          while IFS= read -r file; do
+            case "$file" in
+              .github/workflows/cephalo-r19-analysis-reference-after.yml | \
+              .github/workflows/dc-ceph-uxclin01-live-http.yml | \
+              .github/workflows/dc-ceph-uxclin01-visual.yml | \
+              frontend/scripts/capture-cephalo-r1-after.mjs | \
+              frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs | \
+              frontend/src/features/ortho/CephaloTracingLayer.tsx | \
+              frontend/src/features/ortho/CephaloWorkspace.tsx | \
+              frontend/src/features/ortho/cephaloAngleRecognition.ts | \
+              frontend/src/features/ortho/cephaloImageUploadPolicy.ts | \
+              frontend/src/features/ortho/cephaloImageUploadPolicy.test.ts | \
+              frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx | \
+              frontend/src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx | \
+              frontend/src/features/ortho/components/Step1Cephalo.tsx | \
+              frontend/src/features/ortho/components/Step1CephaloBase.tsx) ;;
+              *) echo "HORS SCOPE (UXCLIN01): $file" >&2; exit 1;;
+            esac
+          done < <(git diff --name-only "$BASE_HEAD" "$GITHUB_SHA")
+          echo "DC_CEPH03B3F_HEAD=$GITHUB_SHA"
+          echo "DC_CEPH03B3F_RUNTIME=SYNTHETIC_ONLY_MEMORY_SQLITE"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download and pin 2 public radiographs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dc-ceph03b3f-radio"
+          echo "DC_CEPH03B3C_RADIO_DIR=$RUNNER_TEMP/dc-ceph03b3f-radio" >> "$GITHUB_ENV"
+          export DC_CEPH03B3C_RADIO_DIR="$RUNNER_TEMP/dc-ceph03b3f-radio"
+          python - <<'PY'
+          import hashlib,json,os,pathlib,urllib.request
+          manifest=json.loads(pathlib.Path('frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json').read_text())
+          assert len(manifest['images'])==2
+          for item in manifest['images']:
+              assert item['license']=='CC BY-SA 4.0'
+              req=urllib.request.Request(item['url'],headers={
+                  'User-Agent':'DigitalCrown-Isolated-03B3f-E2E/1.0 (CC BY-SA public films)',
+                  'Referer':item['source_page'], 'Accept':'image/jpeg'})
+              with urllib.request.urlopen(req,timeout=75) as res:
+                  assert res.status==200
+                  raw=res.read(11*1024*1024)
+              assert len(raw)==item['size_bytes'] and hashlib.sha1(raw).hexdigest()==item['sha1']
+              assert raw[:3]==b'\xff\xd8\xff' and raw[-2:]==b'\xff\xd9'
+              pathlib.Path(os.environ['DC_CEPH03B3C_RADIO_DIR'],item['file_name']).write_bytes(raw)
+              print('PINNED_CC_BY_SA_RADIO',item['id'],item['sha1'])
+          PY
+      - name: Install isolated FastAPI and SRPose38 dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt >/tmp/ceph03b3f-python-requirements.txt
+          pip install -r /tmp/ceph03b3f-python-requirements.txt
+      - name: Download pinned ONNX model and verify source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dc-ceph03b3f-model backend/ai_models
+          gh run download 34281082926 --repo "$GITHUB_REPOSITORY" --name cephalo-srpose38-onnx-parity --dir /tmp/dc-ceph03b3f-model
+          cp /tmp/dc-ceph03b3f-model/srpose38-tta-1024.onnx backend/ai_models/srpose38-tta-1024.onnx
+          echo 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb  backend/ai_models/srpose38-tta-1024.onnx' | sha256sum -c -
+          test "$(stat -c%s backend/ai_models/srpose38-tta-1024.onnx)" = '267484931'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install browser and clinical frontend tests
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefer-offline --fetch-retries=3 --fetch-retry-mintimeout=10000
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx tsc -p tsconfig.app.json --noEmit
+          npx vitest run src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloImageUploadPolicy.test.ts
+          npx playwright install --with-deps chromium
+          npx vitest run \
+            src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx \
+            src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx \
+            src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx \
+            src/features/ortho/components/cephaloLabelLayout.test.ts
+          node --check scripts/certify-ceph03b3f-live-step1.mjs
+      - name: REQUIRED source provenance retained in real CephaloService upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q backend/tests/test_cephalo_service_calibration_candidate.py
+      - name: Start real HTTP FastAPI with isolated test account, SQLite and SRPose38
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$PWD" python backend/tests/ceph03b3f_live_http_server.py >/tmp/dc-ceph03b3f-http.log 2>&1 &
+          echo $! >/tmp/dc-ceph03b3f-http.pid
+          ready=0
+          for i in $(seq 1 120); do
+            if curl -fsS --max-time 2 'http://127.0.0.1:8005/openapi.json' >/dev/null; then ready=1; break; fi
+            if ! kill -0 "$(cat /tmp/dc-ceph03b3f-http.pid)" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then
+            tail -n 100 /tmp/dc-ceph03b3f-http.log; exit 1
+          fi
+          test -s "$DC_CEPH03B3F_METADATA"
+          echo "DC_CEPH03B3F_REAL_HTTP_FASTAPI_READY"
+      - name: REQUIRED real product Step1 Chromium browser -> authenticated HTTP -> SQLite GET
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/certify-ceph03b3f-live-step1.mjs
+      - name: Exact-HEAD gate, 2 real model uploads, 8 desktop scenes, 8+ commits and auth denial
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {readFile} from 'node:fs/promises';
+          const dir='dc-ceph03b3f-live-http-proof/';
+          const r=JSON.parse(await readFile(dir+'report.json','utf8'));
+          if(r.head!==process.env.GITHUB_SHA || r.cases.length!==10 ||r.invalidCount!==0
+             ||r.errors.length!==0 ||r.browserEntry.indexOf('CephaloWorkspace')<0)
+            throw Error('Live Step1 exact-HEAD report incomplete');
+          const scenes=r.cases.filter(x=>x.screenshot);
+          const records=r.cases.filter(x=>x.stage==='reloaded');
+          if(scenes.length!==8 ||records.length!==2)throw Error('Insufficient real Step1 scenes');
+          for(const c of scenes){
+            const data=await readFile(dir+c.screenshot);
+            if(!c.valid ||data.length<300 ||data.subarray(1,4).toString()!=='PNG'
+              ||c.viewport!==data.readUInt32BE(16)+'x'+data.readUInt32BE(20))
+              throw Error('Invalid screenshot '+c.screenshot);
+          }
+          for(const c of records){
+            if(!c.authenticated || !c.valid
+              ||Math.abs(c.nPersisted-c.nInitial-11)>0.0001
+              ||![401,403].includes(c.deniedAnonymousRead)
+              ||![401,403].includes(c.deniedAnonymousMedia)
+              ||![401,403].includes(c.deniedAnonymousUpload)
+              ||!['NO_PHYSICAL_SOURCE','IMAGE_RULER_UNVERIFIED'].includes(c.calibrationSourceState)
+              ||c.detectorActiveInThisHarness!==true
+              ||c.calibrationApplied!==false
+              ||c.realHttpApi.filter(x=>x.method==='PUT'&&x.url==='/api/ia/analyses/'+c.analysisId).length<4)
+              throw Error('Missing durable actual Step1 edit/auth proof '+c.film);
+          }
+          console.log('DC_CEPH03B3F_REAL_STEP1_LIVE_HTTP_2_FILMS_8_VIEWS_PASS');
+          NODE
+      - name: Proof scope and public attribution
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dc-ceph03b3f-proof
+          cp frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json /tmp/dc-ceph03b3f-proof/CC-BY-SA-source-manifest.json
+          printf 'HEAD=%s\nBROWSER=actual CephaloWorkspace/Step1 with Axios and live FastAPI HTTP\nDB=ephemeral in-memory SQLite\nAUTH=real login HttpOnly cookie, isolated user/patients\nMODEL=actual pinned SRPose38 ONNX\nSCOPE=not real clinic login UI, no patient data, no anatomical accuracy, no physical calibration\n' "$GITHUB_SHA" >/tmp/dc-ceph03b3f-proof/scope.txt
+          if [ -f /tmp/dc-ceph03b3f-http.log ]; then
+            grep -E 'Traceback|ERROR|DC_CEPH03B3F_EPHEMERAL_HTTP_READY' /tmp/dc-ceph03b3f-http.log | tail -n 45 >/tmp/dc-ceph03b3f-proof/backend-sanitized.log || true
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-ceph-uxclin01-real-step1-http-proof
+          path: |
+            /tmp/dc-ceph03b3f-proof
+            frontend/dc-ceph03b3f-live-http-proof
+          retention-days: 10
+          if-no-files-found: warn
+      - name: Stop disposable server
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/dc-ceph03b3f-http.pid ]; then
+            kill "$(cat /tmp/dc-ceph03b3f-http.pid)" 2>/dev/null || true
+          fi
