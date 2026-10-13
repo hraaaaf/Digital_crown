@@ -47,9 +47,31 @@ def upgrade():
         sa.CheckConstraint("revision > 0", name="ck_print_claim_revision"),
     )
 
+    op.create_table(
+        "station_print_claim_events",
+        sa.Column("event_id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.Integer(), nullable=False),
+        sa.Column("delivery_key", sa.String(length=64), nullable=False),
+        sa.Column("revision", sa.Integer(), nullable=False),
+        sa.Column("transition", sa.String(length=24), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["tenant_id", "delivery_key"],
+            ["station_print_held_claims.tenant_id", "station_print_held_claims.delivery_key"],
+            ondelete="RESTRICT", name="fk_station_print_events_claim",
+        ),
+        sa.UniqueConstraint("tenant_id", "delivery_key", "revision", name="uq_station_print_event_revision"),
+        sa.CheckConstraint("revision > 0", name="ck_station_print_event_revision"),
+        sa.CheckConstraint(
+            "transition IN ('held_reserved','marked_uncertain')",
+            name="ck_station_print_event_transition",
+        ),
+    )
+
 
 def downgrade():
     # Destructive; only use on an approved backed-up test DB. No silent
     # replacement to a printer destination after a job is deleted.
+    op.drop_table("station_print_claim_events")
     op.drop_table("station_print_held_claims")
     op.drop_table("station_print_printer_drafts")
