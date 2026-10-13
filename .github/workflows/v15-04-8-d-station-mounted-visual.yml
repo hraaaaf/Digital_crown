@@ -1,0 +1,116 @@
+name: V1.5-04.8 D Station Mounted UI Before After
+
+on:
+  pull_request:
+    branches:
+      - feat/v15-04-8-integration-bcd-lab-20261013
+    paths:
+      - "frontend/src/features/hub/StationPatientIdentity.tsx"
+      - "frontend/src/features/hub/StationPatientIdentity.test.tsx"
+      - "frontend/src/features/hub/StationPrintStatusPanel.tsx"
+      - "frontend/scripts/capture-v15-04-8-print-status.mjs"
+      - ".github/workflows/v15-04-8-d-station-mounted-visual.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  before-after:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SOURCE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '7b08b189e7a4a703379dccccdc78f36ed1528cea' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact source HEAD
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact frontend dependencies and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: React tests on exact candidate source (no print action)
+        working-directory: frontend
+        run: npx vitest run src/features/hub/StationPatientIdentity.test.tsx src/features/hub/StationPrintStatusPanel.test.tsx --maxWorkers=1 --fileParallelism=false
+      - name: Validate capture harness and preserve candidate source
+        run: |
+          node --check frontend/scripts/capture-v15-04-8-print-status.mjs
+          cp frontend/scripts/capture-v15-04-8-print-status.mjs /tmp/capture-v15-04-8-print-status.mjs
+      - name: Capture BEFORE exact baseline with identical harness and viewports
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git checkout --force "$BASE_SHA"
+          cp /tmp/capture-v15-04-8-print-status.mjs frontend/scripts/capture-v15-04-8-print-status.mjs
+          cd frontend
+          ./node_modules/.bin/vite --host 127.0.0.1 --port 4197 >/tmp/station-048-d-before.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:4197 >/dev/null; then ready=1; break; fi; sleep 1; done
+          if [[ "$ready" != 1 ]]; then cat /tmp/station-048-d-before.log; exit 1; fi
+          EVIDENCE_PHASE=before EVALUATED_SHA="$BASE_SHA" EVALUATED_BASE="$BASE_SHA" node scripts/capture-v15-04-8-print-status.mjs >/tmp/station-048-d-before-capture.log
+          test -s artifacts/v15-04-8-print-status-before/evidence.json
+          kill "$pid" || true
+          wait "$pid" 2>/dev/null || true
+          trap - EXIT
+      - name: Capture AFTER exact candidate with identical harness and viewports
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --force "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          cd frontend
+          ./node_modules/.bin/vite --host 127.0.0.1 --port 4197 >/tmp/station-048-d-after.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:4197 >/dev/null; then ready=1; break; fi; sleep 1; done
+          if [[ "$ready" != 1 ]]; then cat /tmp/station-048-d-after.log; exit 1; fi
+          EVIDENCE_PHASE=after EVALUATED_SHA="$SOURCE_SHA" EVALUATED_BASE="$BASE_SHA" node scripts/capture-v15-04-8-print-status.mjs >/tmp/station-048-d-after-capture.log
+          test -s artifacts/v15-04-8-print-status-after/evidence.json
+      - name: Compare actual BEFORE and AFTER matching case keys, no Station print actions
+        working-directory: frontend
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const before=JSON.parse(fs.readFileSync('artifacts/v15-04-8-print-status-before/evidence.json','utf8'));
+          const after=JSON.parse(fs.readFileSync('artifacts/v15-04-8-print-status-after/evidence.json','utf8'));
+          assert.equal(before.phase,'before');assert.equal(after.phase,'after');
+          assert.equal(before.head,process.env.BASE_SHA);assert.equal(after.head,process.env.SOURCE_SHA);
+          const key=x=>[x.scenario,x.language,x.viewport,x.scale].join('|');
+          const a=new Map(before.report.map(x=>[key(x),x]));
+          const b=new Map(after.report.map(x=>[key(x),x]));
+          assert.equal(a.size,b.size); assert.equal(a.size,60);
+          for(const [k,item] of a){
+            const next=b.get(k); assert(next,k);
+            assert.equal(item.disabledPrintPanelPresent,false,k);
+            assert.equal(item.unexpectedPrintRequests,0,k);
+            assert.equal(next.unexpectedPrintRequests,0,k);
+            assert.equal(next.unsafePrintUiControls,0,k);
+            assert.equal(next.scrollWidth<=next.width,true,k);
+            assert.equal(next.disabledPrintPanelPresent,next.scenario==='documents-identified',k);
+          }
+          console.log('STATION_PRINT_BEFORE_AFTER_MATCHED_CASES='+a.size+' exact_base='+before.head+' exact_after='+after.head+' virtual_viewports_only=1');
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-04-8-d-station-print-before-after
+          path: |
+            frontend/artifacts/v15-04-8-print-status-before
+            frontend/artifacts/v15-04-8-print-status-after
+          if-no-files-found: warn
+          retention-days: 14
