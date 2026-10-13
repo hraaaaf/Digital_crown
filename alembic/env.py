@@ -45,6 +45,17 @@ for _table_name, _source_schema in (
     if _table_name not in Base.metadata.tables:
         _source_schema.tables[_table_name].to_metadata(Base.metadata)
 
+# neo30 evidence & ambiguous-job review: pending/investigation ONLY.
+# No printer certificate or print enablement is created by this metadata.
+from backend.services.station_print_attestation_recovery_v15 import (
+    device_evidence as _device_evidence_table,
+    uncertain_reviews as _uncertain_reviews_table,
+)
+for _evidence_table in (_device_evidence_table, _uncertain_reviews_table):
+    if _evidence_table.name not in Base.metadata.tables:
+        _evidence_table.to_metadata(Base.metadata)
+
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
