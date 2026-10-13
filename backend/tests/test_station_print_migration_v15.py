@@ -44,6 +44,7 @@ def migrated():
         conn.execute(insert(users), [{"id": 10}, {"id": 20}])
     conn = engine.connect()
     conn.exec_driver_sql("PRAGMA foreign_keys = ON")
+    conn.commit()
     module = migration_module()
     module.op = Operations(MigrationContext.configure(conn))
     with conn.begin():
@@ -84,6 +85,7 @@ def test_default_is_disabled_for_new_row_and_no_foreign_tenant(migrated):
             updated_at=datetime(2026, 10, 13, tzinfo=timezone.utc),
         ))
     assert conn.execute(select(configuration.c.mode)).scalar_one() == "disabled"
+    conn.rollback()  # read started an implicit SQLAlchemy transaction
     with pytest.raises(IntegrityError):
         with conn.begin():
             _configuration(conn, tenant=99)
