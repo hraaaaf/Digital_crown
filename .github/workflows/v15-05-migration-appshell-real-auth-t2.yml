@@ -95,7 +95,7 @@ jobs:
           with database.SessionLocal() as db:
               owner = db.query(models.User).filter(models.User.email == 't2-browser@cabinet.ma').one()
               assert owner.employer_id is None
-              email = 't2-migration-employed-admin@example.invalid'
+              email = 't2-migration-employed-admin@cabinet.ma'
               assert db.query(models.User).filter(models.User.email == email).first() is None
               employee = models.User(
                   email=email, hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
