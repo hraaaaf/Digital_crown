@@ -56,7 +56,27 @@ for (const viewport of viewports) {
     : `${appUrl}/patients/${patient.id}?tab=tracking`;
   const response = await page.goto(target, { waitUntil: 'networkidle', timeout: 90000 });
   const httpStatus = response?.status() ?? null;
-  await page.locator('[data-tour="patient-tabs"]').waitFor({ state: 'visible', timeout: 30000 });
+  // Preserve the real page-tabs gate; capture diagnostics if this exact viewport fails.
+  // Do not infer D2 passes from a prior 390px capture.
+  try {
+    await page.locator('[data-tour="patient-tabs"]').waitFor({ state: 'visible', timeout: 30000 });
+  } catch (error) {
+    const evidence = {
+      phase,
+      viewport,
+      httpStatus,
+      pathname: new URL(page.url()).pathname,
+      navCount: await page.locator('[data-tour="patient-tabs"]').count(),
+      flowCount: await page.locator('[data-flow-patient-surface]').count(),
+      loginFormCount: await page.locator('input[type="password"]').count(),
+      pageErrors,
+      consoleErrors,
+    };
+    const label = `diagnostic-patient-tabs-${phase.toLowerCase()}-${viewport.label}`;
+    await page.screenshot({ path: path.join(outDir, `${label}.png`), fullPage: false }).catch(() => undefined);
+    fs.writeFileSync(path.join(outDir, `${label}.json`), JSON.stringify(evidence, null, 2));
+    throw new Error(`D2 patient tab missing on real viewport: ${JSON.stringify(evidence)}; original: ${String(error)}`);
+  }
   await page.addStyleTag({ content: '*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important;caret-color:transparent!important}' });
 
   const hasCompanionTab = (await page.getByRole('button', { name: 'Companion', exact: true }).count()) > 0;
