@@ -73,7 +73,7 @@ try{
   await fileInput.setInputFiles({name:'digital-crown-synthetic-100x200.db',
     mimeType:'application/vnd.sqlite3',buffer:demo});
   try {
-    await page.getByText(/Fichier SQLite fictif vérifié : 100\\/100/).waitFor({timeout:12000});
+    await page.getByText(/Fichier SQLite fictif vérifié : 100\/100/).waitFor({timeout:12000});
   } catch (cause) {
     const status=await page.evaluate(()=>document.body.innerText.slice(0,1800));
     throw new Error('SYNTHETIC_FILE_UI_DEBUG:'+JSON.stringify({vp:vp.name,
