@@ -6,6 +6,9 @@ on:
       - "backend/scripts/certify_v15_04_8_virtual_print.py"
       - "backend/scripts/certify_print_ledger_to_virtual_spool_lab_v15.py"
       - "backend/services/station_print_held_claims_lab.py"
+      - "backend/services/station_print_virtual_outbox_lab_v15.py"
+      - "backend/tests/test_station_print_virtual_outbox_lab_v15.py"
+      - "backend/tests/certify_station_print_virtual_outbox_pg_v15.py"
       - ".github/workflows/v15-04-8-virtual-printer-lab.yml"
       - ".github/workflows/v15-04-8-e-integrated-software-gate.yml"
   workflow_dispatch:
