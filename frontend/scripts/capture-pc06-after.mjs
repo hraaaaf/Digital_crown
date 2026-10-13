@@ -89,6 +89,7 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
       await page.getByText('Appairer avec le code', { exact: true }).click();
       await page.getByText('Aya Finance', { exact: true }).waitFor();
       await page.locator('[data-pc01-sync]').click();
+      await page.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Plus', exact: true }).click();
       await page.locator('[data-pc06-finance]').waitFor();
       await page.getByText('Traitement orthodontique', { exact: true }).waitFor();
       await page.getByText("Note d'honoraires septembre", { exact: true }).waitFor();
