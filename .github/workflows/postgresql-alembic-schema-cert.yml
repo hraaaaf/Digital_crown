@@ -152,6 +152,25 @@ jobs:
                   missing = required - column_names(table)
                   assert not missing, (table, sorted(missing))
 
+              # LOT04.8 B/C staged tables MUST actually exist in the
+              # fresh-metadata baseline, not merely be stamped in Alembic.
+              staged_tables = {"station_print_printer_drafts", "station_print_held_claims"}
+              assert staged_tables <= table_set, sorted(staged_tables - table_set)
+              for staged in staged_tables:
+                  fks = inspector.get_foreign_keys(staged, schema="public")
+                  assert any(
+                      item.get("constrained_columns") == ["tenant_id"]
+                      and item.get("referred_table") == "users"
+                      for item in fks
+                  ), (staged, fks)
+                  assert connection.execute(text(f'SELECT COUNT(*) FROM "{staged}"')).scalar_one() == 0
+              staged_claim_checks = {
+                  item["name"]
+                  for item in inspector.get_check_constraints("station_print_held_claims", schema="public")
+              }
+              assert {"ck_print_claim_state", "ck_print_claim_revision"} <= staged_claim_checks
+              print("B/C tenant FKs and held-only print ledger verified on fresh baseline")
+
               # The rollback rehearsal must not silently hide a missing
               # audit index in the UP migration. Observe it on PostgreSQL.
               print_audit_indexes = {
@@ -308,4 +327,49 @@ jobs:
               } <= names
               assert connection.execute(text("SELECT COUNT(*) FROM station_print_configurations")).scalar_one() == 0
           print("neo000000027 -> 028 preserves nonempty synthetic witness; no active print configuration")
+          PY
+
+
+      - name: Rehearse 028 to 029 with nonempty synthetic PostgreSQL witness
+        run: |
+          # This tests a revision-chain upgrade, not a production migration.
+          # A client printer or a Station never executes DDL.
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, text
+          engine = create_engine(os.environ["DATABASE_URL"])
+          with engine.begin() as connection:
+              connection.execute(text(
+                  "INSERT INTO dc_print_migration_witness (id, marker) "
+                  "VALUES (2, 'neo28-to-29-synthetic')"
+              ))
+          PY
+          alembic downgrade neo000000028
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, inspect, text
+          engine = create_engine(os.environ["DATABASE_URL"])
+          with engine.connect() as conn:
+              assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "neo000000028"
+              tables = set(inspect(conn).get_table_names())
+              assert "station_print_printer_drafts" not in tables
+              assert "station_print_held_claims" not in tables
+              assert "station_print_configurations" in tables
+              assert conn.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=2")).scalar_one() == "neo28-to-29-synthetic"
+          print("neo28 predecessor preserved with synthetic witness")
+          PY
+          alembic upgrade head
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, inspect, text
+          from backend.core.schema_runtime import assert_database_at_current_head
+          engine = create_engine(os.environ["DATABASE_URL"])
+          assert_database_at_current_head(engine)
+          with engine.connect() as conn:
+              tables = set(inspect(conn).get_table_names())
+              assert {"station_print_printer_drafts", "station_print_held_claims"} <= tables
+              assert conn.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=2")).scalar_one() == "neo28-to-29-synthetic"
+              assert conn.execute(text("SELECT COUNT(*) FROM station_print_printer_drafts")).scalar_one() == 0
+              assert conn.execute(text("SELECT COUNT(*) FROM station_print_held_claims")).scalar_one() == 0
+          print("neo28->neo29 migration preserves synthetic witness and remains inert")
           PY
