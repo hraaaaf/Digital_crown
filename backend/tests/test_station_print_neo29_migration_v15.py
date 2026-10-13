@@ -55,8 +55,8 @@ def run(db, direction):
 def test_upgrade_creates_inert_staged_tables_without_seed_rows(db):
     run(db, "upgrade")
     inspector = inspect(db)
-    assert {"users", "station_print_configurations", "station_print_printer_drafts", "station_print_held_claims"} == set(inspector.get_table_names())
-    for name in ("station_print_printer_drafts", "station_print_held_claims"):
+    assert {"users", "station_print_configurations", "station_print_printer_drafts", "station_print_held_claims", "station_print_claim_events"} == set(inspector.get_table_names())
+    for name in ("station_print_printer_drafts", "station_print_held_claims", "station_print_claim_events"):
         keys = inspector.get_foreign_keys(name)
         assert any(key["constrained_columns"] == ["tenant_id"] and key["referred_table"] == "users" for key in keys)
         with db.connect() as conn:
