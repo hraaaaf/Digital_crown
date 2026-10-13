@@ -1,0 +1,75 @@
+name: Cephalo R20 Public Radiographs UX Experimental
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/scripts/capture-cephalo-r20-public-radios.mjs'
+      - '.github/workflows/cephalo-r20-public-radios-ux.yml'
+permissions:
+  contents: read
+jobs:
+  public-radiograph-ux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact product HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Download Wikimedia originals and verify hashes
+        working-directory: frontend
+        run: |
+          mkdir -p public-radio-input
+          curl -fL --retry 4 --retry-delay 2 --max-time 90 -A 'DigitalCrown-UXAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG' -o public-radio-input/anug.jpg
+          curl -fL --retry 4 --retry-delay 2 --max-time 90 -A 'DigitalCrown-UXAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg' -o public-radio-input/challiyan.jpg
+          echo '2a284993c666790a72d0c004044b35a92534ce9d  public-radio-input/anug.jpg' | sha1sum -c -
+          echo '66c74c588af3c54dfc581f8a870c5276c3427498  public-radio-input/challiyan.jpg' | sha1sum -c -
+      - name: Capture public radiograph UX desktop
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          CEPHALO_PUBLIC_CASE=anug node scripts/capture-cephalo-r20-public-radios.mjs
+          CEPHALO_PUBLIC_CASE=challiyan node scripts/capture-cephalo-r20-public-radios.mjs
+      - name: Verify evidence contracts and license
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFile,stat} from 'node:fs/promises';
+          for(const id of ['anug','challiyan']){
+            const b='cephalo-r20-public-radio-artifacts/'+id+'/';
+            const r=JSON.parse(await readFile(b+'report.json','utf8'));
+            const lic=JSON.parse(await readFile(b+'PUBLIC-SOURCE-LICENSE.json','utf8'));
+            if(r.productHead!==process.env.PRODUCT_HEAD||r.caseId!==id||r.invalidCount!==0||r.blockedExternalRequests.length||r.captures.length!==1||!r.captures[0].valid)throw Error(id+': invalid');
+            if(r.captures[0].decodedImage?.width!==lic.width||r.captures[0].decodedImage?.height!==lic.height)throw Error(id+': image');
+            if(r.captures[0].states.length!==2||r.captures[0].states.some(s=>!s.valid||!s.zoomCheck?.valid||s.metrics.landmarkTitleCount!==29))throw Error(id+': metrics');
+            if(lic.license!=='CC BY-SA 4.0'||lic.sha1!==lic.actualSha1)throw Error(id+': license');
+            for(const mode of ['all','com'])for(const zoom of ['reference','zoom','pan']){
+              if((await stat(b+'after-'+zoom+'-'+mode+'-1280x900.png')).size<20000)throw Error(id+': screenshot missing');
+            }
+            console.log('PUBLIC RADIO UX PASS',id,lic.width,lic.height);
+          }
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cephalo-r20-public-radiographs-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/cephalo-r20-public-radio-artifacts
+          if-no-files-found: warn
+          retention-days: 30
