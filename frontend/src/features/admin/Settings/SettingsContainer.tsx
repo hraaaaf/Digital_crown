@@ -308,7 +308,9 @@ const SettingsContainer: React.FC = () => {
                 {activeTab === 'catalogue' && access.canSettings && <CatalogTab />}
                 {activeTab === 'agenda' && access.canAgenda && <AgendaTab />}
                 {activeTab === 'ia' && access.canSettings && <IATab />}
-                {activeTab === 'securite' && access.canAdmin && <SecurityTab />}
+                {activeTab === 'securite' && access.canAdmin && (
+                  <SecurityTab ownerVerified={Boolean(user && Number.isInteger(user.id) && user.employer_id == null)} />
+                )}
                 {activeTab === 'equipe' && access.canAdmin && <TeamReadTruthGate />}
               </>
             )}
