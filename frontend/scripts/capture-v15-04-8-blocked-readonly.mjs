@@ -22,13 +22,38 @@ try {
       const context = await browser.newContext({viewport, deviceScaleFactor: 1});
       const page = await context.newPage();
       const forbiddenRequests = [];
+      const pageErrors = [];
+      page.on('pageerror', error => pageErrors.push(String(error)));
+      page.on('console', message => {
+        if (message.type() === 'error') pageErrors.push(message.text());
+      });
       page.on('request', request => {
         if (/\/print-jobs|\/print-request|\/documents\/.*\.pdf/i.test(request.url())) {
           forbiddenRequests.push(request.url());
         }
       });
-      await page.goto(base + '/visual-lab/blocked-jobs.html');
-      await page.locator('[data-print-job-status="uncertain"]').first().waitFor();
+      const response = await page.goto(base + '/visual-lab/blocked-jobs.html', {
+        waitUntil: 'networkidle', timeout: 45000,
+      });
+      try {
+        await page.locator('[data-print-job-status="uncertain"]').first().waitFor({ timeout: 30000 });
+      } catch (error) {
+        const diagnosis = {
+          viewport, zoom, responseStatus: response?.status() ?? null,
+          currentUrl: page.url(),
+          bodyExcerpt: (await page.locator('body').innerText().catch(() => '')).slice(0, 1200),
+          pageErrors, forbiddenRequests,
+          message: String(error),
+        };
+        fs.writeFileSync(path.join(outDir, `failure-${viewport.width}-text${zoom}.json`),
+          JSON.stringify(diagnosis, null, 2) + '\n');
+        await page.screenshot({
+          path: path.join(outDir, `failure-${viewport.width}-text${zoom}.png`),
+          fullPage: true,
+        }).catch(() => {});
+        throw new Error('BLOCKED_READONLY_RENDER_DIAGNOSTIC ' + JSON.stringify(diagnosis));
+      }
+      if (pageErrors.length) throw new Error('BLOCKED_READONLY_PAGE_ERRORS ' + JSON.stringify(pageErrors));
       if (zoom === 200) await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
       const measured = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
