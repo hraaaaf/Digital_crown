@@ -11,7 +11,7 @@ CREATE TABLE personas (
 CREATE TABLE citas (
   id SERIAL PRIMARY KEY,
   persona_id INTEGER,
-  fecha DATETIME,
+  fecha TIMESTAMP,
   estado VARCHAR(32)
 );
 INSERT INTO personas VALUES
