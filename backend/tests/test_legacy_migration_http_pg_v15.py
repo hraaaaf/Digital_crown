@@ -15,6 +15,18 @@ assert os.environ.get("DATABASE_URL", "").startswith("postgresql://"), "POSTGRES
 
 from backend import database, models
 from backend.core.schema_runtime import assert_database_at_current_head, CURRENT_ALEMBIC_HEAD
+
+# The real routers/__init__.py eagerly boots unrelated AI/vision engines.
+# Create a package namespace that loads the EXACT three runtime router modules
+# below; do not import or mock any auth, JWT, Workstation or migration dependency.
+import sys
+import types
+from pathlib import Path
+import backend
+real_routers = types.ModuleType("backend.routers")
+real_routers.__path__ = [str(Path(__file__).resolve().parents[1] / "routers")]
+sys.modules["backend.routers"] = real_routers
+backend.routers = real_routers
 from backend.routers import auth, workstation_mode, legacy_migration_v15
 from backend.security import get_password_hash
 
