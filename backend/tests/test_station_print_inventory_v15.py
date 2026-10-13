@@ -35,9 +35,9 @@ def cabinet():
     schema.create_all(engine)  # LAB ONLY: no real cabinet touched
     with engine.begin() as connection:
         connection.execute(insert(workstations), [
-            {"id": "station-1", "employer_id": 10, "default_experience": "station"},
-            {"id": "station-foreign", "employer_id": 20, "default_experience": "station"},
-            {"id": "cabinet-desk", "employer_id": 10, "default_experience": "cabinet"},
+            {"id": "station-1", "employer_id": 10, "default_experience": "station", "revoked_at": None},
+            {"id": "station-foreign", "employer_id": 20, "default_experience": "station", "revoked_at": None},
+            {"id": "cabinet-desk", "employer_id": 10, "default_experience": "cabinet", "revoked_at": None},
             {
                 "id": "station-revoked", "employer_id": 10,
                 "default_experience": "station", "revoked_at": datetime(2026, 10, 13),
