@@ -492,7 +492,7 @@ jobs:
           assert_database_at_current_head(engine)
           with engine.connect() as c:
               count=c.execute(text("SELECT COUNT(*) FROM pg_trigger WHERE tgname LIKE 'dc_immutable_%' AND NOT tgisinternal")).scalar_one()
-              assert count==8,count
+              assert count==12,count
               assert c.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=4")).scalar_one()=="neo30-to-31-audit-guards"
           print("neo30->neo31 audit triggers installed, witness intact, no clinical printing")
           PY
