@@ -42,7 +42,12 @@ jobs:
             backend/routers/station_print_config_admin.py \
             backend/services/station_document_print_inventory.py \
             backend/tests/test_station_print_04_8_e_cross_layer_gate_v15.py
-          python -m pytest backend/tests/test_station_print_04_8_e_cross_layer_gate_v15.py -q -o addopts=
+          # Only this contract harness runs here. Keep the actual app's
+          # conftest out of this small pinned-dependency job. The real backend
+          # JWT+clinical tests execute separately with full requirements.
+          mkdir -p /tmp/dc-v15-04-8-e-contract
+          cp backend/tests/test_station_print_04_8_e_cross_layer_gate_v15.py /tmp/dc-v15-04-8-e-contract/test_contract.py
+          python -m pytest /tmp/dc-v15-04-8-e-contract/test_contract.py -q -o addopts=
       - name: Confirm all staging files coexist at this exact SHA
         run: |
           set -euo pipefail
