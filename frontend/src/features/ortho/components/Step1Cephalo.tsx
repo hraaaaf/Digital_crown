@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ruler, DraftingCompass, Crosshair, ZoomIn, Layers3, ScanFace } from 'lucide-react';
+import { Ruler, DraftingCompass, ZoomIn, SlidersHorizontal, ScanFace, Wand2, Layers3 } from 'lucide-react';
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -8,7 +8,6 @@ import {
   publishCephaloAnalysis,
   type CephaloAnalysisMode,
 } from '../cephaloAnalysisBridge';
-import { CEPHALO_SCIENTIFIC_COLORS } from '../cephaloVisualSemantics';
 import { ORTHO_LAYER_REGISTRY, type OrthoLayerId } from '../orthoLayerRegistry';
 import { landmarkSnapshotsEqual } from '../orthoLandmarkEditHistory';
 
@@ -45,12 +44,6 @@ const ANALYSIS_LABELS: Record<CephaloAnalysisMode, string> = {
   ricketts: 'Ricketts',
 };
 
-const FAMILY_LEGEND = [
-  ['skeletal', 'Squelettique'],
-  ['dental', 'Dentaire'],
-  ['soft_tissue', 'Tissus mous'],
-  ['reference', 'Références'],
-] as const;
 
 /**
  * R20 workbench composition.
@@ -65,6 +58,9 @@ const FAMILY_LEGEND = [
 export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const hasImage = useOrthoStore(state => Boolean(state.imageSrc));
   const magnifierEnabled = useOrthoStore(state => state.magnifierEnabled);
+  const imgFilters = useOrthoStore(state => state.imgFilters);
+  const setImgFilters = useOrthoStore(state => state.setImgFilters);
+  const setActiveMorphing = useOrthoStore(state => state.setActiveMorphing);
   const setMagnifierEnabled = useOrthoStore(state => state.setMagnifierEnabled);
   const vtoSettings = useOrthoStore(state => state.vtoSettings);
   const setVtoSettings = useOrthoStore(state => state.setVtoSettings);
@@ -120,7 +116,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       }}
       data-r19-reference-layout
       data-r20-workbench-layout
-      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[208px_minmax(0,1fr)_minmax(332px,0.72fr)] xl:items-stretch"
+      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[220px_minmax(0,1fr)_minmax(350px,0.76fr)] xl:items-stretch"
     >
       <aside
         data-r20-workbench-sidebar
@@ -153,7 +149,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               <option key={mode} value={mode}>{ANALYSIS_LABELS[mode]}</option>
             ))}
           </select>
-          <p className="mt-2 text-xs leading-relaxed" style={{ color: props.P.textMuted }}>
+          <p className="mt-2 text-[11px] leading-relaxed" style={{ color: props.P.textMuted }}>
             Affiche les mesures et tracés disponibles de la méthode choisie. Les mesures non calculables restent indisponibles.
           </p>
         </section>
@@ -183,39 +179,53 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               style={{ borderColor: magnifierEnabled ? props.P.borderFocus : props.P.border, background: magnifierEnabled ? props.P.bgInput : props.P.bgCard, color: props.P.text }}>
               <ZoomIn size={16} aria-hidden="true" />Loupe
             </button>
-            <span className="inline-flex min-h-11 items-center gap-2 px-1 text-xs" style={{ color: props.P.textMuted }}>
-              <Crosshair size={16} aria-hidden="true" />Repères
-            </span>
-            <span className="inline-flex min-h-11 items-center gap-2 px-1 text-xs" style={{ color: props.P.textMuted }}>
-              <Layers3 size={16} aria-hidden="true" />Couches
-            </span>
+
           </div>
         </section>
 
-        <div className="mt-3 hidden space-y-2 xl:block" aria-label="Familles scientifiques">
-          {FAMILY_LEGEND.map(([family, label]) => (
-            <div key={family} className="flex items-center gap-2 text-[10px] font-bold" style={{ color: props.P.textMuted }}>
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: CEPHALO_SCIENTIFIC_COLORS[family] }} />
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
+        <details className="mt-3 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
+          <summary className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-2 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2" style={{ color: props.P.text }}>
+            <SlidersHorizontal size={15} aria-hidden="true" /> Réglages image
+          </summary>
+          <div className="space-y-3 px-1 pb-2 pt-2">
+            {([
+              { label: 'Luminosité', value: imgFilters.brightness, min: 50, max: 200, update: (value: number) => setImgFilters(filters => ({ ...filters, brightness: value })) },
+              { label: 'Contraste', value: imgFilters.contrast, min: 50, max: 300, update: (value: number) => setImgFilters(filters => ({ ...filters, contrast: value })) },
+            ] as const).map(filter => (
+              <label key={filter.label} className="block text-[11px]" style={{ color: props.P.textMuted }}>
+                <span className="mb-1 flex justify-between gap-2"><span>{filter.label}</span><span className="font-mono">{filter.value}%</span></span>
+                <input aria-label={filter.label} className="w-full" type="range" min={filter.min} max={filter.max} value={filter.value}
+                  onChange={event => filter.update(Number(event.target.value))} style={{ accentColor: props.P.accent }} />
+              </label>
+            ))}
+            <button type="button" aria-pressed={imgFilters.invert} onClick={() => setImgFilters(filters => ({ ...filters, invert: !filters.invert }))}
+              className="w-full rounded-lg border px-2 py-2 text-left text-xs font-semibold"
+              style={toggleStyle(imgFilters.invert)}>Inverser le contraste</button>
+          </div>
+        </details>
 
-        <div className="xl:mt-3 xl:border-t xl:pt-3" style={{ borderColor: props.P.border }}>
-          <p className="mb-2 hidden text-[9px] font-black uppercase tracking-[0.16em] xl:block" style={{ color: props.P.textDim }}>Outils</p>
-          <div className="flex min-w-0 gap-2 overflow-x-auto pb-1 xl:grid xl:grid-cols-1 xl:overflow-visible">
-            <button
-              type="button"
-              aria-pressed={vtoSettings.showGhostFace}
-              onClick={() => setVtoSettings(value => ({ ...value, showGhostFace: !value.showGhostFace }))}
-              className={toggleClass(vtoSettings.showGhostFace)}
-              style={toggleStyle(vtoSettings.showGhostFace)}
-            >
-              <span className="inline-flex items-center gap-2"><ScanFace size={16} aria-hidden="true" />Face 3D</span>
+        <details className="mt-2 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
+          <summary className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-2 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2" style={{ color: props.P.text }}>
+            <Layers3 size={15} aria-hidden="true" /> Projections et VTO
+          </summary>
+          <div className="grid grid-cols-2 gap-2 px-1 pb-2 pt-2">
+            <button type="button" aria-pressed={layerVisibility.t1} onClick={() => { setActiveMorphing('none'); setLayerVisible('t1', !layerVisibility.t1); }}
+              className={toggleClass(layerVisibility.t1)} style={toggleStyle(layerVisibility.t1)}>T1</button>
+            <button type="button" aria-pressed={layerVisibility.t2} onClick={() => { setActiveMorphing('none'); setLayerVisible('t2', !layerVisibility.t2); }}
+              className={toggleClass(layerVisibility.t2)} style={toggleStyle(layerVisibility.t2)}>T2</button>
+            <button type="button" aria-pressed={vtoSettings.showGhostFace} onClick={() => setVtoSettings(value => ({ ...value, showGhostFace: !value.showGhostFace }))}
+              className={toggleClass(vtoSettings.showGhostFace)} style={toggleStyle(vtoSettings.showGhostFace)}>
+              <span className="inline-flex items-center gap-1"><ScanFace size={14} aria-hidden="true" />Face 3D</span>
+            </button>
+            <button type="button" aria-pressed={vtoSettings.enabled} onClick={() => setVtoSettings(value => ({ ...value, enabled: !value.enabled }))}
+              className={toggleClass(vtoSettings.enabled)} style={toggleStyle(vtoSettings.enabled)}>
+              <span className="inline-flex items-center gap-1"><Wand2 size={14} aria-hidden="true" />VTO</span>
             </button>
           </div>
-        </div>
+        </details>
 
+        <details className="mt-2 rounded-xl border p-2" style={{ borderColor: props.P.border }}>
+          <summary className="cursor-pointer rounded-lg px-1 py-2 text-xs font-bold focus-visible:outline-2" style={{ color: props.P.text }}>Historique des corrections</summary>
         <section
           data-ortho-edit-history
           aria-label="Historique des corrections"
@@ -266,6 +276,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           </div>
         </section>
 
+        </details>
+
+        <details className="mt-2 rounded-xl border p-2" style={{ borderColor: props.P.border }}>
+          <summary className="cursor-pointer rounded-lg px-1 py-2 text-xs font-bold focus-visible:outline-2" style={{ color: props.P.text }}>Gestionnaire de couches</summary>
         <section
           data-ortho-layer-manager
           aria-label="Gestionnaire de couches"
@@ -333,6 +347,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             })}
           </div>
         </section>
+        </details>
       </aside>
 
       <div
@@ -340,7 +355,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         className="min-w-0"
         style={{ '--cephalo-scientific-anchor': props.P.text } as React.CSSProperties}
       >
-        <Step1CephaloBase {...props} />
+        <Step1CephaloBase {...props} embedded />
       </div>
 
       <div data-r20-measures-panel className="min-w-0 h-[68vh] xl:h-[80vh]">
