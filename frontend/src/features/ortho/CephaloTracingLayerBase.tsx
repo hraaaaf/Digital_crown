@@ -45,6 +45,7 @@ export interface CephaloTracingLayerProps {
   imageHeight: number;
   /** Read-only visual magnification; geometry and stored landmark coordinates stay unchanged. */
   viewZoom?: number;
+  compactLabels?: boolean;
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
   activePointId?: string | null;
   focusedPointId?: string | null;
@@ -161,6 +162,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   imageWidth,
   imageHeight,
   viewZoom = 1,
+  compactLabels = false,
   onUpdateLandmarks,
   activePointId,
   focusedPointId,
@@ -801,6 +803,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         {isLayerVisible('landmarks') && <g opacity={layerOpacityFor('landmarks')} data-ortho-layer="landmarks">
         <CephaloLandmarkReticles
           landmarks={landmarks}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
+          compactLabels={compactLabels}
           isCalibrating={isCalibrating}
           baseOpacity={baseOpacity}
           activeDragId={activeDragId}

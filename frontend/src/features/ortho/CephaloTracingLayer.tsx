@@ -374,7 +374,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
             return (
               <g key={`com-${p.id}`} data-r19-point={p.id} opacity={(hasCanonicalFocus ? 0.82 : 0.92) * layerOpacity('landmarks')}>
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
-                <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{p.id}</text>
+                {(!props.compactLabels || !baseLandmarks.some(base => base.id.toLowerCase() === p.id.toLowerCase())) && (
+                  <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize={props.compactLabels ? 16 : 9} fontWeight="800">{p.id}</text>
+                )}
               </g>
             );
           })}

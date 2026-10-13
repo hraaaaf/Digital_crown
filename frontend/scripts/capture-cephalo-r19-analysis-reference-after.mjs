@@ -64,7 +64,7 @@ function modeContract(mode, metrics) {
   if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
-  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
+  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10 && metrics.labelModeContract;
   if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
@@ -149,6 +149,11 @@ async function captureViewport(viewport,attempt){
     const detailContained=Boolean(panelRect && detailRect && detailRect.top>=panelRect.top-1 && detailRect.bottom<=panelRect.bottom+1);
     const landmarkLabels=Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean);
     const legacyMcNamaraLeakCount=landmarkLabels.filter(label=>label==='McNamara'||label==="A'"||label==="B'").length;
+    const incisal=document.querySelector('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label="U1_incisal"]');
+    const incisalFullId=incisal?.closest('g')?.querySelector('title')?.textContent;
+    const labelModeContract=innerWidth>=1280
+      ? incisal?.textContent==='U1i' && incisal?.getAttribute('font-size')==='18' && incisalFullId==='U1_incisal'
+      : incisal?.textContent==='U1_incisal' && incisal?.getAttribute('font-size')==='10';
     return {
       analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
       panelAnalysis:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')||null,
@@ -157,6 +162,7 @@ async function captureViewport(viewport,attempt){
       panelRows:document.querySelectorAll('[data-r19-metric]').length,
       svgLines:document.querySelectorAll('svg line').length,
       landmarkLabels,
+      labelModeContract,
       rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
       comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
       legacyMcNamaraLeakCount,

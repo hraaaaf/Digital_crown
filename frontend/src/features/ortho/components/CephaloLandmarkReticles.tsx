@@ -2,12 +2,54 @@ import type { Dispatch, SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import type { Landmark } from '../cephaloShared';
 
+// Only label presentation changes; full clinical IDs and point coordinates remain untouched.
+const compactName=(id:string)=>id.replace(/_incisal$/i,'i').replace(/_apex$/i,'a')
+ .replace(/_facial_surface$/i,'·f').replace(/_anatomic$/i,'·a')
+ .replace(/_soft$/i,'·s').replace(/_ant$/i,'·ant').replace(/_post$/i,'·post');
+type Candidate={dx:number;dy:number;anchor:'start'|'end'|'middle'};
+const candidates:Candidate[]=[
+ {dx:18,dy:-16,anchor:'start'},{dx:-18,dy:-16,anchor:'end'},
+ {dx:18,dy:24,anchor:'start'},{dx:-18,dy:24,anchor:'end'},
+ {dx:38,dy:2,anchor:'start'},{dx:-38,dy:2,anchor:'end'},
+ {dx:0,dy:-34,anchor:'middle'},{dx:0,dy:40,anchor:'middle'},
+ {dx:50,dy:-19,anchor:'start'},{dx:-50,dy:27,anchor:'end'},
+];
+type Rect={left:number;right:number;top:number;bottom:number};
+const labelLayout=(points:Landmark[],width:number,height:number):Map<string,Candidate>=>{
+ const placed:Rect[]=[], result=new Map<string,Candidate>();
+ const crowd=(p:Landmark)=>points.filter(q=>q!==p&&Math.hypot(p.x-q.x,p.y-q.y)<115).length;
+ const order=[...points].sort((a,b)=>crowd(b)-crowd(a)||a.id.localeCompare(b.id));
+ for(const point of order){
+  const w=compactName(point.id).length*10.8;
+  let best=candidates[0],bestBox:Rect|null=null,min=Infinity;
+  for(const [rank,c] of candidates.entries()){
+   const x=point.x+c.dx,y=point.y+c.dy;
+   const left=x-(c.anchor==='end'?w:c.anchor==='middle'?w/2:0);
+   const box={left,right:left+w,top:y-16,bottom:y+4};
+   let penalty=rank*2;
+   for(const p of placed){
+    const dx=Math.min(box.right,p.right)-Math.max(box.left,p.left);
+    const dy=Math.min(box.bottom,p.bottom)-Math.max(box.top,p.top);
+    if(dx>0&&dy>0)penalty+=500+dx*dy;
+   }
+   penalty+=220*points.filter(p=>p!==point&&p.x>=box.left-7&&p.x<=box.right+7&&p.y>=box.top-7&&p.y<=box.bottom+7).length;
+   if(box.left<4||box.top<4||box.right>width-4||box.bottom>height-4)penalty+=800;
+   if(penalty<min){min=penalty;best=c;bestBox=box;}
+  }
+  result.set(point.id,best);if(bestBox)placed.push(bestBox);
+ }
+ return result;
+};
+
 const SOFT_TISSUE_IDS = new Set([
   'ul', 'll', 'sn', 'stpog', 'ls', 'li', 'prn', 'cm', 'g_soft', 'n_soft', 'a_soft', 'st', 'b_soft', 'pog_soft', 'me_soft', 'g-soft', 'n-soft'
 ]);
 
 interface CephaloLandmarkReticlesProps {
   landmarks: Landmark[];
+  imageWidth: number;
+  imageHeight: number;
+  compactLabels?: boolean;
   isCalibrating: boolean;
   baseOpacity: number;
   activeDragId: string | null;
@@ -37,6 +79,9 @@ interface CephaloLandmarkReticlesProps {
 
 export const CephaloLandmarkReticles = ({
   landmarks,
+  imageWidth,
+  imageHeight,
+  compactLabels = false,
   isCalibrating,
   baseOpacity,
   activeDragId,
@@ -55,6 +100,7 @@ export const CephaloLandmarkReticles = ({
   onUpdateLandmarks,
 }: CephaloLandmarkReticlesProps) => {
   const P = palette;
+  const labelPositions = compactLabels ? labelLayout(landmarks, imageWidth, imageHeight) : null;
   const isHoverActive = !!hoveredMetric;
   const isPointHovered = (ptId: string) =>
     !isHoverActive || hoveredMetric!.points.map(p => p.toLowerCase()).includes(ptId.toLowerCase());
@@ -72,6 +118,7 @@ export const CephaloLandmarkReticles = ({
 
         const dispX = isDragged && activeDragPos ? activeDragPos.x : pt.x;
         const dispY = isDragged && activeDragPos ? activeDragPos.y : pt.y;
+        const labelPosition = labelPositions?.get(pt.id);
 
         const baseColor = isSoft ? P.ptSoft
           : pt.id.startsWith('U') ? P.ptU
@@ -130,6 +177,7 @@ export const CephaloLandmarkReticles = ({
                 if (!activeDragId) setMagnifier(m => ({ ...m, show: false }));
               }}
             >
+              {compactLabels && <title>{pt.id}</title>}
               <circle cx={dispX} cy={dispY} r={20} fill="transparent" stroke="transparent" />
               <circle
                 cx={dispX}
@@ -169,18 +217,20 @@ export const CephaloLandmarkReticles = ({
 
               {(isHovMetric || isDragged || isFocused) && (
                 <text
-                  x={dispX}
-                  y={dispY}
-                  dx="13"
-                  dy="-13"
-                  fontSize="10"
+                  data-cephalo-landmark-label={pt.id}
+                  x={dispX + (labelPosition?.dx ?? 0)}
+                  y={dispY + (labelPosition?.dy ?? 0)}
+                  dx={labelPosition ? undefined : '13'}
+                  dy={labelPosition ? undefined : '-13'}
+                  textAnchor={labelPosition?.anchor}
+                  fontSize={labelPosition ? 18 : 10}
                   fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
                   fontWeight="900"
                   className="pointer-events-none select-none"
                   fill={P.text}
                   style={{ paintOrder: 'stroke', stroke: P.magnifierBg, strokeWidth: isPro ? '2px' : '3.5px' }}
                 >
-                  {pt.id}
+                  {labelPosition ? compactName(pt.id) : pt.id}
                 </text>
               )}
             </g>

@@ -53,8 +53,12 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   const [desktopZoomAvailable, setDesktopZoomAvailable] = useState(false);
 
   React.useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
     const desktop = window.matchMedia('(min-width: 1280px)');
-    const sync = () => setDesktopZoomAvailable(desktop.matches);
+    const sync = () => {
+      setDesktopZoomAvailable(desktop.matches);
+      if (!desktop.matches) setZoomPercent(100);
+    };
     sync();
     desktop.addEventListener('change', sync);
     return () => desktop.removeEventListener('change', sync);
@@ -325,6 +329,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           imageWidth={imgDim.w}
           imageHeight={imgDim.h}
           viewZoom={activeViewZoom}
+          compactLabels={embedded && desktopZoomAvailable}
           onUpdateLandmarks={updateLandmarksOptimistic}
           activePointId={activePointId}
           focusedPointId={null}
