@@ -90,13 +90,6 @@ try {
         let discoveryRequests = 0;
         let pdfRequests = 0;
         let unexpectedPrintRequests = 0;
-        await context.route('**/api/**', async route => {
-          if (/\/station-print-config|\/print-jobs|\/print-request/i.test(route.request().url())) {
-            unexpectedPrintRequests += 1;
-            return route.fulfill({ status: 423, contentType: 'application/json', body: '{"detail":"PRINTING_DISABLED"}' });
-          }
-          return route.continue();
-        });
         await context.route('**/api/workstation/patient-session/proof-session/documents', route => {
           discoveryRequests += 1;
           return route.fulfill({
@@ -133,6 +126,13 @@ try {
         }));
 
         const page = await context.newPage();
+        // Observe requests without calling route.continue(), which would bypass
+        // the actual session-status mocks and create false visual failures.
+        page.on('request', request => {
+          if (/\/station-print-config|\/print-jobs|\/print-request/i.test(request.url())) {
+            unexpectedPrintRequests += 1;
+          }
+        });
         const errors = [];
         page.on('pageerror', error => errors.push(error.message));
         page.on('console', message => {
