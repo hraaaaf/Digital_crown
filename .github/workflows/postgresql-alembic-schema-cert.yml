@@ -152,6 +152,14 @@ jobs:
                   missing = required - column_names(table)
                   assert not missing, (table, sorted(missing))
 
+              # The rollback rehearsal must not silently hide a missing
+              # audit index in the UP migration. Observe it on PostgreSQL.
+              print_audit_indexes = {
+                  item["name"]
+                  for item in inspector.get_indexes("station_print_config_audit", schema="public")
+              }
+              assert "ix_station_print_config_audit_tenant_revision" in print_audit_indexes, print_audit_indexes
+
               actes_fks = inspector.get_foreign_keys("actes", schema="public")
               assert any(
                   (item.get("constrained_columns") or []) == ["catalog_act_id"]
