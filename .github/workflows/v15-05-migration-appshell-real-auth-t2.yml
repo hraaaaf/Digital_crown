@@ -77,6 +77,12 @@ jobs:
           tail -n 120 /tmp/lot05-real-backend.log
           exit 1
       - name: Seed a synthetic employed ADMIN in isolated test DB
+        # T2 runtime server sets this deterministic disposable SQLCipher test key
+        # before importing backend.database. The separate seeding process must
+        # open the same encrypted DB, not a new DB under this workflow's auth key.
+        # This override is scoped to seeding ONLY and never touches production.
+        env:
+          SECRET_KEY: t2-runtime-certification-secret-key-000001
         shell: bash
         run: |
           python - <<'PY'
