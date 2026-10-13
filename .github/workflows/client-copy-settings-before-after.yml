@@ -114,19 +114,20 @@ jobs:
                   if (url.pathname.includes('/audit-logs')) return route.fulfill(json({ total:0, logs:[] }));
                   return route.fulfill(json({}));
                 });
-                await page.goto(`http://127.0.0.1:4179/client-copy-settings.html?mode=${mode}`, { waitUntil:'networkidle', timeout:30000 });
+                await page.goto(`http://127.0.0.1:4179/client-copy-settings.html?mode=${mode}`, { waitUntil:'domcontentloaded', timeout:30000 });
                 const waitForSettings = async () => {
                   try {
                     await page.getByRole('heading', { name:'Paramètres' }).waitFor({ state:'visible', timeout:15000 });
                   } catch (error) {
-                    await page.waitForLoadState('networkidle').catch(() => {});
-                    await page.reload({ waitUntil:'networkidle', timeout:30000 });
+                    // Vite / PWA background activity may prevent networkidle on immutable BEFORE.
+                    // Never skip the actual visible Settings heading or mode-specific assertion.
+                    await page.reload({ waitUntil:'domcontentloaded', timeout:30000 });
                     await page.getByRole('heading', { name:'Paramètres' }).waitFor({ state:'visible', timeout:15000 });
                   }
                 };
                 await waitForSettings();
                 if (!viteWarmed) {
-                  await page.reload({ waitUntil:'networkidle', timeout:30000 });
+                  await page.reload({ waitUntil:'domcontentloaded', timeout:30000 });
                   await waitForSettings();
                   viteWarmed = true;
                 }
