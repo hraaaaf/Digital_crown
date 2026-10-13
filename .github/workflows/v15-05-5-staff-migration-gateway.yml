@@ -68,7 +68,7 @@ jobs:
       - run: npm ci --prefix frontend --no-audit --no-fund
       - name: Typecheck
         working-directory: frontend
-        run: npx tsc --noEmit
+        run: npx tsc -p tsconfig.app.json --noEmit
       - name: Real Migration Studio interaction tests
         working-directory: frontend
         run: npx vitest run src/features/admin/migration/MigrationGateway.test.tsx src/features/admin/migration/MigrationMappingStudio.test.tsx src/features/admin/migration/MappingStudioPolicy.test.ts
