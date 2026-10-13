@@ -177,3 +177,88 @@ def test_db_errors_do_not_fall_back_to_client_proofs():
                 document_id=30, expected_archive_sha256=SHA, now=NOW,
             )
     engine.dispose()
+
+
+def test_cabinet_clinical_gate_reuses_real_sql_and_denies_without_certification(cabinet, monkeypatch):
+    """Actual SQL ORM queries; ONLY clinical audit/file reader are test stubs.
+
+    Real care_sheet_state / verified_care_sheet_bytes have separate 04.3 tests.
+    The LAB mock cannot grant any print claim or authorize a Station route.
+    """
+    import hashlib
+    import importlib
+    import sys
+    import types
+    from sqlalchemy.orm import Session, registry
+
+    engine, tables = cabinet
+    payload = b"%PDF-1.4\n% synthetic only\n%%EOF\n"
+    digest = hashlib.sha256(payload).hexdigest()
+    with engine.begin() as conn:
+        conn.execute(update(tables[3]).where(tables[3].c.id == 30).values(
+            file_hash=digest, file_size=len(payload),
+        ))
+    mapping = registry()
+    class FakeStationSession: pass
+    class FakeDocumentArchive: pass
+    mapping.map_imperatively(FakeStationSession, tables[2])
+    mapping.map_imperatively(FakeDocumentArchive, tables[3])
+
+    models = types.ModuleType("backend.models")
+    models.WorkstationPatientSession = FakeStationSession
+    models.DocumentArchive = FakeDocumentArchive
+    models.DocumentStatus = types.SimpleNamespace(ACTIF="ACTIF")
+    care = types.ModuleType("backend.services.station_care_sheet")
+    audit = {"finalized": True, "withdrawal": True, "bytes": payload, "reads": 0}
+    care.care_sheet_state = lambda *args, **kwargs: types.SimpleNamespace(
+        finalized=audit["finalized"], withdrawal_authorized=audit["withdrawal"],
+    )
+    def read_verified_bytes(document):
+        audit["reads"] += 1
+        return audit["bytes"]
+    care.verified_care_sheet_bytes = read_verified_bytes
+
+    monkeypatch.setitem(sys.modules, "backend.models", models)
+    monkeypatch.setitem(sys.modules, "backend.services.station_care_sheet", care)
+    monkeypatch.delitem(sys.modules, "backend.services.station_print_cabinet_clinical_gate_v15", raising=False)
+    module = importlib.import_module("backend.services.station_print_cabinet_clinical_gate_v15")
+    user = types.SimpleNamespace(id=10, employer_id=None)
+    workstation = types.SimpleNamespace(
+        id="cabinet-10", employer_id=10,
+        revoked_at=None, default_experience="cabinet",
+    )
+
+    def check(**overrides):
+        kwargs = dict(
+            authenticated_user=user, authenticated_workstation=workstation,
+            session_id=SESSION_ID, document_id=30,
+            expected_sha256=digest, now=NOW,
+        )
+        kwargs.update(overrides)
+        with Session(engine) as db:
+            result = module.clinically_recheck_cabinet_print(db, **kwargs)
+            assert db.in_transaction()
+            db.rollback()
+        assert result.allowed is False
+        return result
+
+    assert check().reason == "TRUSTED_PRINTER_CERTIFICATION_REQUIRED"
+    assert audit["reads"] == 1
+    audit["withdrawal"] = False
+    assert check().reason == "WITHDRAWAL_NOT_AUTHORIZED"
+    audit["finalized"] = False
+    assert check().reason == "CARE_SHEET_NOT_FINALIZED"
+    assert audit["reads"] == 1
+
+    audit["finalized"] = audit["withdrawal"] = True
+    audit["bytes"] = b"%PDF-1.4\n% not the expected bytes\n%%EOF"
+    assert check().reason == "ARCHIVE_DIGEST_CHANGED"
+    assert check(authenticated_user=types.SimpleNamespace(
+        id=11, employer_id=10,
+    )).reason == "CABINET_OWNER_WORKSTATION_REQUIRED"
+    assert check(authenticated_workstation=types.SimpleNamespace(
+        id="station-10", employer_id=10, revoked_at=None,
+        default_experience="station",
+    )).reason == "CABINET_OWNER_WORKSTATION_REQUIRED"
+    assert check(session_id="00000000-0000-4000-8000-000000000999").reason == "SESSION_NOT_AVAILABLE"
+    monkeypatch.delitem(sys.modules, "backend.services.station_print_cabinet_clinical_gate_v15", raising=False)
