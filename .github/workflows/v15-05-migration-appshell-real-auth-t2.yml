@@ -1,0 +1,138 @@
+name: V1.5-05 Authenticated Migration App Shell T2
+on:
+  pull_request:
+    paths:
+      - frontend/src/App.tsx
+      - frontend/src/components/Sidebar.tsx
+      - frontend/src/features/admin/migration/**
+      - frontend/scripts/certify-v15-05-migration-appshell-t2.mjs
+      - .github/workflows/v15-05-migration-appshell-real-auth-t2.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-app-shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: v15-05-t2-isolated-appshell-secret-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate disposable credential
+        shell: bash
+        run: |
+          pw="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$pw"
+          echo "T2_PASSWORD=$pw" >> "$GITHUB_ENV"
+      - name: Install backend CPU-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/lot05-requirements.txt
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r /tmp/lot05-requirements.txt
+          python -m pip check
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Node syntax, existing owner policy and TypeScript
+        working-directory: frontend
+        run: |
+          node --check scripts/certify-v15-05-migration-appshell-t2.mjs
+          npx vitest run src/features/admin/migration/MappingStudioPolicy.test.ts
+          npx tsc --noEmit -p tsconfig.app.json
+      - name: Boot real backend.main on disposable T2
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/lot05-real-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 120 /tmp/lot05-real-backend.log
+          exit 1
+      - name: Seed a synthetic employed ADMIN in isolated test DB
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          assert os.environ.get('DIGITALCROWN_ISOLATED_RUNTIME') == '1'
+          assert os.environ.get('ENVIRONMENT') == 'test'
+          assert os.environ.get('DATABASE_URL') == 'sqlite:///./t2-runtime-cert.db'
+          from backend import database, models
+          from backend.security import get_password_hash
+          with database.SessionLocal() as db:
+              owner = db.query(models.User).filter(models.User.email == 't2-browser@cabinet.ma').one()
+              assert owner.employer_id is None
+              email = 't2-migration-employed-admin@example.invalid'
+              assert db.query(models.User).filter(models.User.email == email).first() is None
+              employee = models.User(
+                  email=email, hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
+                  role=models.UserRole.ADMIN, employer_id=owner.id,
+                  nom_complet='Synthetic Employed Admin', is_active=True, is_licensed=True,
+                  approval_status=models.ApprovalStatus.APPROVED.value,
+                  permissions={'settings': True, 'admin': True},
+              )
+              db.add(employee)
+              db.commit()
+              assert employee.employer_id == owner.id
+          print('LOT05_EMPLOYED_ADMIN_SYNTHETIC_ONLY')
+          PY
+      - name: Boot actual React app
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/lot05-real-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 120 /tmp/lot05-real-vite.log
+          exit 1
+      - name: Browser proof of real UI login and owner-only migration route
+        working-directory: frontend
+        run: node scripts/certify-v15-05-migration-appshell-t2.mjs
+      - name: Exact SHA and honest scope
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$EVALUATED_SHA"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          echo 'App shell real-auth only; not PostgreSQL/SQLCipher or real clinic import' >> "$GITHUB_STEP_SUMMARY"
+      - name: Bounded logs on failure
+        if: failure()
+        run: |
+          tail -n 100 /tmp/lot05-real-backend.log 2>/dev/null || true
+          tail -n 100 /tmp/lot05-real-vite.log 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-05-authenticated-appshell-t2
+          path: artifacts/v15-05-migration-appshell-t2
+          if-no-files-found: warn
+          retention-days: 14
