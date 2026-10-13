@@ -1,0 +1,84 @@
+name: V1.5-04.8 Owner Readonly Status and SQLite Audit Guard
+
+on:
+  pull_request:
+    branches:
+      - feat/v15-04-8-attestation-recovery-guard-20261013
+    paths:
+      - "frontend/src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.tsx"
+      - "frontend/src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.test.tsx"
+      - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
+      - "backend/core/print_audit_ddl.py"
+      - "alembic/versions/neo000000031_print_audit_append_only.py"
+      - ".github/workflows/v15-04-8-owner-readonly-ui-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-readonly-react:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Assert HEAD
+        env:
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Exact frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Render mobile-capable Settings security view and no-action status panel
+        working-directory: frontend
+        run: npx vitest run src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.test.tsx src/features/admin/Settings/tabs/SecurityTab.g5Interactive.test.tsx --maxWorkers=1 --fileParallelism=false
+      - name: Validate TypeScript project
+        working-directory: frontend
+        run: npx tsc --noEmit --pretty false
+
+  sqlite-trigger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin SQLAlchemy
+        run: python -m pip install SQLAlchemy==2.0.28
+      - name: Actual SQLite triggers block update/delete and permit insert
+        run: |
+          python - <<'PY'
+          from sqlalchemy import create_engine, text
+          from sqlalchemy.exc import DBAPIError
+          from backend.core.print_audit_ddl import (
+              PROTECTED_PRINT_AUDITS,install_append_only_print_audit_guards,
+          )
+          db=create_engine("sqlite+pysqlite:///:memory:")
+          with db.begin() as c:
+              for table in PROTECTED_PRINT_AUDITS:
+                  c.execute(text(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, value TEXT)'))
+              install_append_only_print_audit_guards(c)
+              for table in PROTECTED_PRINT_AUDITS:
+                  c.execute(text(f'INSERT INTO "{table}" (id,value) VALUES (1,\'original\')'))
+                  for op in ("UPDATE","DELETE"):
+                      sql=(f'UPDATE "{table}" SET value=\'tampered\' WHERE id=1' if op=="UPDATE" else f'DELETE FROM "{table}" WHERE id=1')
+                      try:
+                          with c.begin_nested():
+                              c.execute(text(sql))
+                      except DBAPIError as exc:
+                          assert "DC_PRINT_AUDIT_APPEND_ONLY" in str(exc)
+                      else:
+                          raise AssertionError(f"{op} was allowed on {table}")
+                  assert c.execute(text(f'SELECT value FROM "{table}" WHERE id=1')).scalar_one()=="original"
+          print("SQLITE_PRINT_APPEND_ONLY_PASS tables=4 update_denied=4 delete_denied=4 inserts_allowed=4")
+          PY
