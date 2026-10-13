@@ -27,7 +27,7 @@ claims = Table(
     Column("tenant_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("delivery_key", String(64), primary_key=True),
     Column("first_printer_id", String(80), nullable=False),
-    Column("state", String(16), nullable=False),
+    Column("state", String(16), nullable=False, server_default="held"),
     Column("revision", Integer, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
