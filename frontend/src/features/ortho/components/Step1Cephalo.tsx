@@ -116,7 +116,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       }}
       data-r19-reference-layout
       data-r20-workbench-layout
-      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[220px_minmax(0,1fr)_minmax(350px,0.76fr)] xl:items-stretch"
+      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[208px_minmax(0,1fr)_380px] xl:items-stretch"
     >
       <aside
         data-r20-workbench-sidebar
@@ -124,15 +124,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         className="min-w-0 rounded-2xl border p-2 xl:h-[80vh] xl:overflow-y-auto xl:p-3"
         style={{ background: props.P.bgPanel, borderColor: props.P.border, boxShadow: props.P.shadow }}
       >
-        <div className="hidden xl:block">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.10em]" style={{ color: props.P.textDim }}>Workbench</p>
-            <h3 className="mt-1 break-words text-sm font-black leading-tight" style={{ color: props.P.text }}>{ANALYSIS_LABELS[analysis]}</h3>
-          </div>
-          <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
-            Analyse active
-          </span>
-        </div>
+        <p className="hidden text-[10px] font-bold uppercase tracking-[0.10em] xl:block" style={{ color: props.P.textMuted }}>Contrôles</p>
 
         <section aria-label="Analyses céphalométriques prêtes à l’emploi" className="mt-3 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
           <label htmlFor="cephalo-ready-analysis" className="mb-2 block text-xs font-bold" style={{ color: props.P.text }}>
@@ -150,7 +142,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             ))}
           </select>
           <p className="mt-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>
-            Méthode sélectionnée : tracés et mesures synchronisés. Aucune estimation des données manquantes.
+            Tracés et mesures synchronisés. Données manquantes non estimées.
           </p>
         </section>
 
