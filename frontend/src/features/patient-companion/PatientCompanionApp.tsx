@@ -308,6 +308,7 @@ export const PatientCompanionApp = () => {
   }
 
   async function claimStationSession(token: string, pairing: PatientPairing) {
+    setStationDocumentSession(null);
     setStationHandoffMessage('');
     try {
       const response = await fetch(`${API_BASE}/api/workstation/patient-session/claim`, {
@@ -645,6 +646,9 @@ export const PatientCompanionApp = () => {
   };
 
   const clearDevice = async () => {
+    setStationDocumentSession(null);
+    setStationHandoffToken(null);
+    setStationHandoffMessage('');
     await PatientCompanionStorage.clear();
     setVault(emptyVault);
     setSelectingContext(false);
