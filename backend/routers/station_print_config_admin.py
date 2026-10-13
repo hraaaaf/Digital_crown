@@ -142,6 +142,56 @@ def check_cabinet_print_clinical_readiness(
     }
 
 
+@router.get("/station-print-config/blocked-jobs")
+def get_blocked_print_jobs(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Cabinet owner status, read-only. No jobs can be replayed from this API.
+
+    WorkstationModeGate + signed Cabinet workstation cookie required; the
+    request has no tenant selector, printer selector, PDF or session payload.
+    """
+    from backend.routers.workstation_mode import _find_workstation
+    from backend.services.station_print_attestation_recovery_v15 import (
+        list_blocked_print_jobs,
+    )
+
+    tenant_id = _owner(current_user)
+    workstation = _find_workstation(request, db, tenant_id)
+    if (
+        workstation is None
+        or workstation.default_experience != "cabinet"
+        or workstation.revoked_at is not None
+    ):
+        raise HTTPException(status_code=403, detail="CABINET_WORKSTATION_REQUIRED")
+
+    jobs, total = list_blocked_print_jobs(
+        db.connection(),
+        tenant_id=tenant_id,
+        actor_user_id=int(current_user.id),
+        actor_employer_id=current_user.employer_id,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "status": "review_only",
+        "printingAvailable": False,
+        "retrySupported": False,
+        "total": total,
+        "jobs": [
+            {
+                "reference": job.reference,
+                "status": job.status,
+                "updatedAt": job.updated_at,
+                "investigations": job.investigation_count,
+            }
+            for job in jobs
+        ],
+    }
+
+
 @router.get("/station-print-config")
 def get_station_print_config(
     response: Response,
