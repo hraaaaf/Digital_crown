@@ -232,7 +232,9 @@ class RealORMPhysicalSubset(unittest.TestCase):
                 )
                 self.assertEqual(con.exec_driver_sql("PRAGMA foreign_key_check").fetchall(), [])
                 ids = con.execute(select(app.c.patient_id)).scalars().all()
-                self.assertEqual(set(ids), set(new_ids.values()))
+                # Not every migrated patient necessarily has an appointment.
+                # Every appointment must nevertheless point to a generated ID.
+                self.assertTrue(set(ids).issubset(set(new_ids.values())))
                 self.assertEqual(con.execute(
                     select(func.count()).select_from(app.join(
                         patient_table, app.c.patient_id == patient_table.c.id
