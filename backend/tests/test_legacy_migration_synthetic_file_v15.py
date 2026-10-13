@@ -12,7 +12,9 @@ from sqlalchemy import MetaData
 from test_legacy_sql_migration_scenarios_v15 import _real_declared_model_only
 
 ROOT = Path(__file__).resolve().parents[1]
-# Load gateway as ordinary backend.services module, not backend database.
+# The single-file Python test runner places backend/tests, not the repo root,
+# on sys.path. We add the absolute repository root WITHOUT booting main.py.
+sys.path.insert(0, str(ROOT.parent))
 from backend.services import legacy_migration_synthetic_file_v15 as fixture
 
 
