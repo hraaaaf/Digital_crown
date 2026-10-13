@@ -1,0 +1,80 @@
+name: V1.5-05 Multiformat Synthetic Scenario Rehearsal
+
+on:
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_migration_scenarios_v15.py
+      - backend/tests/fixtures/lot05_scenarios/**
+      - docs/quality/V15_05_MULTIFORMAT_SYNTHETIC_SCENARIOS.md
+      - .github/workflows/v15-05-multiformat-synthetic-scenarios.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scenario-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install repo-pinned ORM (no backend runtime)
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check SQLAlchemy==2.0.28
+          python -c "import sqlalchemy; assert sqlalchemy.__version__ == '2.0.28'"
+      - name: Compile isolated tests and adapters
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_sql_migration_scenarios_v15.py backend/services/legacy_sql_inspector_v15.py backend/services/legacy_sql_mapping_v15.py backend/services/legacy_sql_target_manifest_v15.py
+      - name: S01 - English MySQL-compatible SQL to *unapproved* mapping draft
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_migration_scenarios_v15.py MigrationScenarios.test_s01_mysql_english_sql_schema_to_draft -v 2>&1 | tee /tmp/s01.log
+          grep -q '^Ran 1 test' /tmp/s01.log
+          grep -q '^OK$' /tmp/s01.log
+      - name: S02 - French SQLite cold .db to *unapproved* mapping draft
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_migration_scenarios_v15.py MigrationScenarios.test_s02_sqlite_french_cold_copy_to_draft -v 2>&1 | tee /tmp/s02.log
+          grep -q '^Ran 1 test' /tmp/s02.log
+          grep -q '^OK$' /tmp/s02.log
+      - name: S03 - Spanish PostgreSQL-compatible SQL to *unapproved* mapping draft
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_migration_scenarios_v15.py MigrationScenarios.test_s03_postgresql_spanish_sql_schema_to_draft -v 2>&1 | tee /tmp/s03.log
+          grep -q '^Ran 1 test' /tmp/s03.log
+          grep -q '^OK$' /tmp/s03.log
+      - name: S04-S12 - Negative format, auth and data safety scenarios
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_migration_scenarios_v15.py MigrationScenarioAdversarial -v 2>&1 | tee /tmp/negative.log
+          grep -q '^Ran 9 tests' /tmp/negative.log
+          grep -q '^OK$' /tmp/negative.log
+          if grep -Ei 'skipped|expected failure' /tmp/negative.log; then exit 1; fi
+      - name: 05.2-A, 05.2-B2a and 05.1 regressions
+        run: |
+          set -euo pipefail
+          python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/mapping.log
+          grep -q 'Ran 25 tests' /tmp/mapping.log
+          grep -q '^OK$' /tmp/mapping.log
+          python backend/tests/test_legacy_sql_target_manifest_v15.py -v 2>&1 | tee /tmp/orm.log
+          grep -q 'Ran 25 tests' /tmp/orm.log
+          grep -q '^OK$' /tmp/orm.log
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/inspector.log
+          grep -q 'Ran 28 tests' /tmp/inspector.log
+          grep -q '^OK$' /tmp/inspector.log
+      - name: Exact HEAD and NO-GO import evidence
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          {
+            echo "HEAD: ${{ github.event.pull_request.head.sha || github.sha }}"
+            echo "S01/S02/S03 sequentially executed + S04-S12 security rejections; 25 mapping + 25 declared ORM + 28 inspector regressions."
+            echo "SYNTHETIC ONLY. Metadata-to-mapping rehearsal; zero source row reads/import, zero production target access, zero permissions."
+          } >> "$GITHUB_STEP_SUMMARY"
