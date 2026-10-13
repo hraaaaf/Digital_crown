@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 # The single-file Python test runner places backend/tests, not the repo root,
 # on sys.path. We add the absolute repository root WITHOUT booting main.py.
 sys.path.insert(0, str(ROOT.parent))
+# Prevent backend/__init__.py from importing the entire clinical runtime
+# (including Pydantic, DB bootstrap and startup side effects).
+_REAL_META = _real_declared_model_only()
 from backend.services import legacy_migration_synthetic_file_v15 as fixture
 
 
