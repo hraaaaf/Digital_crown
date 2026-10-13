@@ -20,7 +20,7 @@ from backend.services.station_print_held_claims_lab import (
 from backend.services.station_print_attestation_recovery_v15 import (
     device_evidence, uncertain_reviews,
     record_pending_device_evidence, record_uncertain_investigation,
-    inspect_uncertain_reviews, PrintReviewRejected, PrintReviewConflict,
+    inspect_uncertain_reviews, list_blocked_print_jobs, PrintReviewRejected, PrintReviewConflict,
 )
 
 
@@ -210,3 +210,42 @@ def test_recovery_and_evidence_tables_have_no_patient_data_or_print_success_colu
         "printed","collected","allow_print","enable_print","release"
     }
     assert {c.name for c in uncertain_reviews.columns} >= {"tenant_id","delivery_key","finding","recorded_at"}
+
+
+def test_owner_reads_only_own_uncertain_jobs_without_full_claim_key_or_patient(engine):
+    claim_ten=uncertain(engine,tenant=10)
+    claim_twenty=uncertain(engine,tenant=20)
+    review(engine,claim_ten.delivery_key)
+    with engine.connect() as conn:
+        jobs,total=list_blocked_print_jobs(
+            conn,tenant_id=10,actor_user_id=10,actor_employer_id=None,
+        )
+        other,count=list_blocked_print_jobs(
+            conn,tenant_id=20,actor_user_id=20,actor_employer_id=None,
+        )
+    assert (total,count)==(1,1)
+    assert len(jobs)==len(other)==1
+    assert (jobs[0].status,jobs[0].investigation_count)==("uncertain",1)
+    assert jobs[0].reference==claim_ten.delivery_key[:12]
+    assert other[0].reference==claim_twenty.delivery_key[:12]
+    assert len(jobs[0].reference)==12
+    assert claim_ten.delivery_key!=jobs[0].reference
+    assert not hasattr(jobs[0],"patient_id")
+    assert not hasattr(jobs[0],"retry")
+
+
+def test_read_only_list_denies_delegate_and_bad_limit_without_fallback(engine):
+    uncertain(engine)
+    with engine.connect() as conn:
+        for params in (
+            {"tenant_id":10,"actor_user_id":11,"actor_employer_id":10},
+            {"tenant_id":10,"actor_user_id":10,"actor_employer_id":10},
+            {"tenant_id":True,"actor_user_id":True,"actor_employer_id":None},
+        ):
+            with pytest.raises(PrintReviewRejected):
+                list_blocked_print_jobs(conn,**params)
+        for limit in (0,26,True,"25"):
+            with pytest.raises(PrintReviewRejected,match="INVALID_PAGE_LIMIT"):
+                list_blocked_print_jobs(conn,**owner(),limit=limit)
+    with engine.connect() as conn:
+        assert conn.execute(select(claims.c.state)).scalar_one()=="uncertain"
