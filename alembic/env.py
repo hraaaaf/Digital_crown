@@ -15,6 +15,21 @@ from backend import models_patient_companion_notifications as _models_patient_co
 # model module. Importing the module registers metadata only; schema creation is
 # still performed solely by versioned Alembic operator actions.
 from backend.services import cabinet_catalog_store as _cabinet_catalog_store  # noqa: F401
+# LOT04.8: the empty-PostgreSQL/SQLite Alembic operator baseline uses
+# Base.metadata (not a replay of revision scripts). Register ONLY these
+# migration-defined printer configuration tables in that metadata so a fresh
+# baseline cannot claim neo000000028 while missing its tables and audit index.
+# No DDL here, and the isolated store's synthetic 'users' stub is NOT cloned.
+from backend.services.station_document_print_store import schema as _station_print_schema
+for _print_table_name in (
+    "station_print_configurations",
+    "station_print_config_stations",
+    "station_print_config_printers",
+    "station_print_config_audit",
+):
+    if _print_table_name not in Base.metadata.tables:
+        _station_print_schema.tables[_print_table_name].to_metadata(Base.metadata)
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
