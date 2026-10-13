@@ -6,6 +6,7 @@ SYNTHETIC records only. Physical witness/certification is exclusively LOT10.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine, event, insert, select, text
@@ -38,9 +39,9 @@ def engine(tmp_path):
         c.execute(insert(SCHEMA.tables["users"]), [{"id":10}, {"id":20}])
         c.execute(insert(SCHEMA.tables["station_print_printer_drafts"]), [
             {"tenant_id":10,"printer_id":"frontdesk","location":"reception",
-             "station_id":None,"revision":1,"updated_by":10,"updated_at":"2026-10-13"},
+             "station_id":None,"revision":1,"updated_by":10,"updated_at":datetime(2026,10,13,tzinfo=timezone.utc)},
             {"tenant_id":20,"printer_id":"frontdesk","location":"reception",
-             "station_id":None,"revision":1,"updated_by":20,"updated_at":"2026-10-13"},
+             "station_id":None,"revision":1,"updated_by":20,"updated_at":datetime(2026,10,13,tzinfo=timezone.utc)},
         ])
     yield eng
     eng.dispose()
