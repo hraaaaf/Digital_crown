@@ -82,7 +82,7 @@ def register_unverified_draft(
     _validate_owner(tenant_id, actor_user_id, actor_employer_id)
     if (
         type(printer_id) is not str or not IDENTIFIER.fullmatch(printer_id)
-        or location not in ("reception", "near_station")
+        or type(location) is not str or location not in ("reception", "near_station")
         or (location == "reception" and station_id is not None)
         or (location == "near_station" and (
             type(station_id) is not str or not IDENTIFIER.fullmatch(station_id)
