@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Upload, Loader2, AlertCircle, Sun, Target, RefreshCw, Maximize2, Minimize2, ZoomIn, ZoomOut, X, Activity, CheckCircle2, Info, Aperture, MousePointer2, Settings2, SlidersHorizontal, Wand2
+  Upload, Loader2, AlertCircle, Sun, Target, RefreshCw, Maximize2, Minimize2, ZoomIn, ZoomOut, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Activity, CheckCircle2, Info, Aperture, MousePointer2, Settings2, SlidersHorizontal, Wand2
 } from 'lucide-react';
 import { CephaloTracingLayer } from '../CephaloTracingLayer';
 import type { 
@@ -50,6 +50,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   const [calibrationBusy, setCalibrationBusy] = useState(false);
   const [calibrationActionError, setCalibrationActionError] = useState<string | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
+  const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
   const [desktopZoomAvailable, setDesktopZoomAvailable] = useState(false);
 
   React.useEffect(() => {
@@ -57,7 +58,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     const desktop = window.matchMedia('(min-width: 1280px)');
     const sync = () => {
       setDesktopZoomAvailable(desktop.matches);
-      if (!desktop.matches) setZoomPercent(100);
+      if (!desktop.matches) { setZoomPercent(100); setViewPan({ x: 0, y: 0 }); }
     };
     sync();
     desktop.addEventListener('change', sync);
@@ -66,6 +67,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
 
   React.useEffect(() => {
     setZoomPercent(100); // Every new radiograph starts fully visible; no hidden crop.
+    setViewPan({ x: 0, y: 0 });
   }, [store.imageSrc]);
 
   const activeViewZoom = embedded && desktopZoomAvailable ? zoomPercent / 100 : 1;
@@ -329,6 +331,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           imageWidth={imgDim.w}
           imageHeight={imgDim.h}
           viewZoom={activeViewZoom}
+          viewPan={activeViewZoom > 1 ? viewPan : { x: 0, y: 0 }}
           compactLabels={embedded && desktopZoomAvailable}
           onUpdateLandmarks={updateLandmarksOptimistic}
           activePointId={activePointId}
@@ -393,7 +396,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
             aria-label="Réduire la radiographie"
             title="Réduire la radiographie"
             disabled={zoomPercent <= 100}
-            onClick={() => setZoomPercent(percent => Math.max(100, percent - 25))}
+            onClick={() => { setZoomPercent(percent => Math.max(100, percent - 25)); if (zoomPercent <= 125) setViewPan({ x: 0, y: 0 }); }}
             className="flex h-9 w-9 items-center justify-center rounded-lg disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <ZoomOut size={16} aria-hidden="true" />
@@ -409,12 +412,31 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           >
             <ZoomIn size={16} aria-hidden="true" />
           </button>
+          {zoomPercent > 100 && (
+            <div data-cephalo-pan-controls role="group" aria-label="Déplacement de la radiographie" className="flex items-center gap-0.5 border-l pl-1" style={{ borderColor: P.border }}>
+              {([
+                ['left', ArrowLeft, -0.5, 0, 'Déplacer la radiographie à gauche'],
+                ['right', ArrowRight, 0.5, 0, 'Déplacer la radiographie à droite'],
+                ['up', ArrowUp, 0, -0.5, 'Déplacer la radiographie vers le haut'],
+                ['down', ArrowDown, 0, 0.5, 'Déplacer la radiographie vers le bas'],
+              ] as const).map(([direction, Icon, dx, dy, label]) => (
+                <button key={direction} type="button" aria-label={label} title={label}
+                  onClick={() => setViewPan(pan => ({
+                    x: Math.max(-1, Math.min(1, pan.x + dx)),
+                    y: Math.max(-1, Math.min(1, pan.y + dy)),
+                  }))}
+                  className="flex h-9 w-8 items-center justify-center rounded-lg hover:bg-[var(--ceph-ui-input)] focus-visible:outline-2 focus-visible:outline-offset-2">
+                  <Icon size={15} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          )}
           <button
             type="button"
             aria-label="Afficher toute la radiographie"
             title="Afficher toute la radiographie"
             disabled={zoomPercent === 100}
-            onClick={() => setZoomPercent(100)}
+            onClick={() => { setZoomPercent(100); setViewPan({ x: 0, y: 0 }); }}
             className="min-h-9 rounded-lg px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Ajuster

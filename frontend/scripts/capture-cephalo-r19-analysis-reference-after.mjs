@@ -183,6 +183,16 @@ async function captureViewport(viewport,attempt){
      const zoomBox=boxValues(enlarged.baseViewBox);
      const aligned=enlarged.overlayViewBox===null || enlarged.overlayViewBox===enlarged.baseViewBox;
      await page.screenshot({path:path.join(OUTPUT_DIR,`after-zoom-${mode}-${viewport.name}.png`),fullPage:false});
+     // Move the displayed crop, not stored points; keep base and COM aligned.
+     await page.getByRole('button',{name:'Déplacer la radiographie à droite'}).click();
+     await page.getByRole('button',{name:'Déplacer la radiographie vers le bas'}).click();
+     const panned=await readZoomState(page);
+     const panBox=boxValues(panned.baseViewBox);
+     const overlayPanAligned=panned.overlayViewBox===null || panned.overlayViewBox===panned.baseViewBox;
+     await page.screenshot({path:path.join(OUTPUT_DIR,`after-pan-${mode}-${viewport.name}.png`),fullPage:false});
+     await page.getByRole('button',{name:'Déplacer la radiographie à gauche'}).click();
+     await page.getByRole('button',{name:'Déplacer la radiographie vers le haut'}).click();
+     const panRestored=await readZoomState(page);
      await page.getByRole('button',{name:'Afficher toute la radiographie'}).click();
      await page.waitForFunction(()=>document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()==='100 %',{timeout:3000});
      const restored=await readZoomState(page);
@@ -191,8 +201,13 @@ async function captureViewport(viewport,attempt){
        && Math.abs(zoomBox[2]-800)<0.01 && Math.abs(zoomBox[3]-(1600/1.5))<0.01
        && aligned && (mode==='steiner'||enlarged.overlayViewBox!==null)
        && initial.imageGeometry===enlarged.imageGeometry && enlarged.imageGeometry===restored.imageGeometry
+       && panBox.length===4 && panBox[0]>zoomBox[0] && panBox[1]>zoomBox[1]
+       && panBox[0]>=0 && panBox[1]>=0
+       && panBox[0]+panBox[2]<=1200.001 && panBox[1]+panBox[3]<=1600.001
+       && overlayPanAligned && panned.imageGeometry===enlarged.imageGeometry
+       && panRestored.baseViewBox===enlarged.baseViewBox && panRestored.overlayViewBox===enlarged.overlayViewBox
        && restored.baseViewBox===initial.baseViewBox && restored.overlayViewBox===initial.overlayViewBox,
-       initial,enlarged,restored};
+       initial,enlarged,panned,panRestored,restored};
    }
    const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort') && (zoomCheck===null||zoomCheck.valid);
    await page.screenshot({path:path.join(OUTPUT_DIR,`after-reference-${mode}-${viewport.name}.png`),fullPage:false});
