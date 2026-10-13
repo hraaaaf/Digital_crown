@@ -58,6 +58,11 @@ jobs:
       - name: Actual SQLite triggers block update/delete and permit insert
         run: |
           python - <<'PY'
+          import os,sys,types
+          for name,folder in (("backend","backend"),("backend.core","backend/core")):
+              pkg=types.ModuleType(name)
+              pkg.__path__=[os.path.abspath(folder)]
+              sys.modules[name]=pkg
           from sqlalchemy import create_engine, text
           from sqlalchemy.exc import DBAPIError
           from backend.core.print_audit_ddl import (
