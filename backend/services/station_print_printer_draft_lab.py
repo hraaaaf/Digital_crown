@@ -23,7 +23,7 @@ SCHEMA = MetaData()
 # the print table against the real application's existing users metadata.
 Table("users", SCHEMA, Column("id", Integer, primary_key=True))
 draft_printers = Table(
-    "station_print_printer_drafts_lab", SCHEMA,
+    "station_print_printer_drafts", SCHEMA,
     Column("tenant_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("printer_id", String(80), primary_key=True),
     Column("location", String(16), nullable=False),
