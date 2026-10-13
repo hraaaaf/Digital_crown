@@ -131,7 +131,7 @@ jobs:
           async function assertGuidedRestoreReadable(page, width, variant) {
             const copy = await page.getByTestId('guided-restore-description').boundingBox();
             const action = await page.getByTestId('guided-restore-action').boundingBox();
-            const minimumCopyWidth = Math.min(260, width * 0.4);
+            const minimumCopyWidth = width >= 1536 ? 400 : Math.min(260, width * 0.4);
             const ok = copy && action
               && copy.width >= minimumCopyWidth
               && copy.x >= -1 && copy.x + copy.width <= width + 1
