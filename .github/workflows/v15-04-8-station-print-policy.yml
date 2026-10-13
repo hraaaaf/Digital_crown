@@ -9,11 +9,15 @@ on:
       - backend/services/station_document_print_configuration.py
       - backend/services/station_document_print_store.py
       - backend/services/station_document_print_inventory.py
+      - backend/services/station_print_admin_boundary.py
+      - backend/routers/station_print_config_admin.py
+      - backend/main.py
       - alembic/versions/neo000000028_station_print_owner_config.py
       - backend/tests/test_station_document_print_policy_v15.py
       - backend/tests/test_station_document_print_configuration_v15.py
       - backend/tests/test_station_document_print_store_v15.py
       - backend/tests/test_station_print_inventory_v15.py
+      - backend/tests/test_station_print_admin_boundary_v15.py
       - backend/tests/test_station_print_migration_v15.py
       - .github/workflows/v15-04-8-station-print-policy.yml
       - docs/quality/V15_04_8_POCKET_852_BOUNDARY_CONTRACT.md
@@ -26,11 +30,15 @@ on:
       - backend/services/station_document_print_configuration.py
       - backend/services/station_document_print_store.py
       - backend/services/station_document_print_inventory.py
+      - backend/services/station_print_admin_boundary.py
+      - backend/routers/station_print_config_admin.py
+      - backend/main.py
       - alembic/versions/neo000000028_station_print_owner_config.py
       - backend/tests/test_station_document_print_policy_v15.py
       - backend/tests/test_station_document_print_configuration_v15.py
       - backend/tests/test_station_document_print_store_v15.py
       - backend/tests/test_station_print_inventory_v15.py
+      - backend/tests/test_station_print_admin_boundary_v15.py
       - backend/tests/test_station_print_migration_v15.py
       - .github/workflows/v15-04-8-station-print-policy.yml
       - docs/quality/V15_04_8_POCKET_852_BOUNDARY_CONTRACT.md
@@ -59,7 +67,7 @@ jobs:
       - name: Minimal pytest dependency
         run: python -m pip install pytest SQLAlchemy==2.0.28 alembic==1.20.0
       - name: Policy source syntax
-        run: python -m py_compile backend/services/station_document_print_policy.py backend/services/station_document_print_configuration.py backend/services/station_document_print_store.py backend/services/station_document_print_inventory.py alembic/versions/neo000000028_station_print_owner_config.py
+        run: python -m py_compile backend/services/station_document_print_policy.py backend/services/station_document_print_configuration.py backend/services/station_document_print_store.py backend/services/station_document_print_inventory.py backend/services/station_print_admin_boundary.py backend/routers/station_print_config_admin.py backend/main.py alembic/versions/neo000000028_station_print_owner_config.py
       - name: Pure module unit tests without unrelated backend boot side effects
         run: |
           # backend/tests/conftest.py boots every SQLAlchemy model and FastAPI
@@ -72,6 +80,7 @@ jobs:
           cp backend/tests/test_station_document_print_store_v15.py /tmp/dc04-8-print-policy/test_print_store.py
           cp backend/tests/test_station_print_migration_v15.py /tmp/dc04-8-print-policy/test_print_migration.py
           cp backend/tests/test_station_print_inventory_v15.py /tmp/dc04-8-print-policy/test_print_inventory.py
+          cp backend/tests/test_station_print_admin_boundary_v15.py /tmp/dc04-8-print-policy/test_print_admin.py
           cp alembic/versions/neo000000028_station_print_owner_config.py /tmp/dc04-8-print-policy/migration_station_print_owner_config.py
           python - <<'PY'
           import os
@@ -86,5 +95,5 @@ jobs:
               module = types.ModuleType(module_name)
               module.__path__ = [os.path.abspath(directory)]
               sys.modules[module_name] = module
-          raise SystemExit(pytest.main(["-q", "/tmp/dc04-8-print-policy/test_print_policy.py", "/tmp/dc04-8-print-policy/test_print_configuration.py", "/tmp/dc04-8-print-policy/test_print_store.py", "/tmp/dc04-8-print-policy/test_print_migration.py", "/tmp/dc04-8-print-policy/test_print_inventory.py"]))
+          raise SystemExit(pytest.main(["-q", "/tmp/dc04-8-print-policy/test_print_policy.py", "/tmp/dc04-8-print-policy/test_print_configuration.py", "/tmp/dc04-8-print-policy/test_print_store.py", "/tmp/dc04-8-print-policy/test_print_migration.py", "/tmp/dc04-8-print-policy/test_print_inventory.py", "/tmp/dc04-8-print-policy/test_print_admin.py"]))
           PY
