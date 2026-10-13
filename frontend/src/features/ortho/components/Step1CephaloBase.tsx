@@ -205,19 +205,22 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           />
         )}
 
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileDrop(e.target.files)} />
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png" aria-label="Sélectionner une radiographie JPEG ou PNG" className="hidden" onChange={e => handleFileDrop(e.target.files)} />
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center gap-6 max-w-md w-full px-6"
         >
           <div
-            className="w-full flex flex-col items-center justify-center gap-6 rounded-2xl py-16 cursor-pointer transition-all duration-200"
+            className="w-full flex flex-col items-center justify-center gap-6 rounded-2xl px-4 py-12 sm:py-16 cursor-pointer transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+            role="button" tabIndex={isUploading ? -1 : 0} aria-disabled={isUploading} aria-busy={isUploading}
+            aria-label="Importer une radiographie JPEG ou PNG"
+            onKeyDown={e => { if (!isUploading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileRef.current?.click(); } }}
             onClick={() => !isUploading && fileRef.current?.click()}
             style={{ border: `2px dashed ${P.border}`, background: P.bgCard }}
             onDragOver={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = P.accent; }}
             onDragLeave={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = P.border; }}
-            onDrop={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = P.border; handleFileDrop(e.dataTransfer.files); }}
+            onDrop={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = P.border; if (!isUploading) handleFileDrop(e.dataTransfer.files); }}
           >
             {isUploading ? (
               <div className="flex flex-col items-center gap-3">
@@ -231,7 +234,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
                 </div>
                 <div className="text-center space-y-1">
                   <div className="font-semibold" style={{ color: P.text }}>Uploader une radiographie</div>
-                  <div className="text-xs" style={{ color: P.textMuted }}>Glissez-déposez ou cliquez pour parcourir</div>
+                  <div className="text-xs" style={{ color: P.textMuted }}>JPEG ou PNG · Glissez-déposez, cliquez ou appuyez sur Entrée</div>
                 </div>
               </>
             )}
@@ -245,7 +248,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           </div>
 
           {uploadError && (
-            <div className="flex items-center gap-2 text-sm" style={{ color: P.accentError }}>
+            <div role="alert" className="flex items-center gap-2 text-sm" style={{ color: P.accentError }}>
               <AlertCircle size={16} />
               {uploadError}
             </div>
@@ -318,7 +321,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
             type="button"
             onClick={() => { setCalibrationActionError(null); setShowCalibrationAssistant(true); }}
             className={`flex max-w-[230px] items-center gap-2 rounded-full border px-3 py-1.5 backdrop-blur-md transition-colors sm:max-w-none ${toneClasses}`}
-            title="État de calibration et provenance"
+            title="État de calibration et provenance" aria-label={`Calibration : ${calibrationLabel}. Consulter les détails`}
           >
             {calibrationTone === 'emerald' ? <CheckCircle2 size={12} /> : <Target size={12} />}
             <span className="truncate text-[10px] font-bold tracking-widest uppercase">
