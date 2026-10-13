@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 import re
 
 from sqlalchemy import (
-    CheckConstraint, Column, DateTime, ForeignKey, Integer, MetaData, String, Table,
+    CheckConstraint, Column, DateTime, ForeignKey, ForeignKeyConstraint, Integer, MetaData, String, Table, UniqueConstraint,
     insert, select, update,
 )
 from sqlalchemy.engine import Engine
@@ -33,6 +33,27 @@ claims = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False),
     CheckConstraint("state IN ('held','uncertain')", name="ck_print_claim_state"),
     CheckConstraint("revision > 0", name="ck_print_claim_revision"),
+)
+
+# A claim has a durable transition journal independent of any printer.
+# Events are committed in the SAME SQL transaction as the claim; no PDF,
+# raw session token, patient ID or medical content is ever recorded here.
+claim_events = Table(
+    "station_print_claim_events", SCHEMA,
+    Column("event_id", Integer, primary_key=True, autoincrement=True),
+    Column("tenant_id", Integer, nullable=False),
+    Column("delivery_key", String(64), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("transition", String(24), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["tenant_id", "delivery_key"],
+        ["station_print_held_claims.tenant_id", "station_print_held_claims.delivery_key"],
+        ondelete="RESTRICT", name="fk_station_print_events_claim",
+    ),
+    UniqueConstraint("tenant_id", "delivery_key", "revision", name="uq_station_print_event_revision"),
+    CheckConstraint("revision > 0", name="ck_station_print_event_revision"),
+    CheckConstraint("transition IN ('held_reserved','marked_uncertain')", name="ck_station_print_event_transition"),
 )
 
 
@@ -86,6 +107,10 @@ def reserve_held_claim(
                 first_printer_id=printer_id, state="held",
                 revision=1, created_at=now, updated_at=now,
             ))
+            conn.execute(insert(claim_events).values(
+                tenant_id=tenant_id, delivery_key=key, revision=1,
+                transition="held_reserved", created_at=now,
+            ))
     except IntegrityError as exc:
         raise PrintClaimDuplicate("ALREADY_CLAIMED_CROSS_DESTINATION") from exc
     return HeldClaim(tenant_id, key, printer_id, "held", 1)
@@ -122,6 +147,11 @@ def mark_uncertain(
         )
         if changed.rowcount != 1:
             raise PrintClaimRejected("INVALID_TRANSITION")
+        conn.execute(insert(claim_events).values(
+            tenant_id=tenant_id, delivery_key=delivery_key,
+            revision=expected_revision + 1,
+            transition="marked_uncertain", created_at=datetime.now(timezone.utc),
+        ))
         row = conn.execute(select(claims).where(
             claims.c.tenant_id == tenant_id, claims.c.delivery_key == delivery_key
         )).mappings().one()
