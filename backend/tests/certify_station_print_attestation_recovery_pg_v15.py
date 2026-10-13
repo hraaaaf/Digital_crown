@@ -102,7 +102,7 @@ def main():
     ).status=="uncertain"
     with restarted.connect() as conn:
         assert conn.execute(select(claims.c.revision)).scalar_one()==2
-        assert conn.execute(select(uncertain_reviews.c.finding)).scalars().all()==["investigating","escalated"]
+        assert conn.execute(select(uncertain_reviews.c.finding).order_by(uncertain_reviews.c.review_id)).scalars().all()==["investigating","escalated"]
     restarted.dispose()
     print(
         "PG_PRINT_REVIEW_PASS two_evidence_workers=2 evidence_winners=1 "
