@@ -57,6 +57,7 @@ for (const viewport of viewports) {
   const response = await page.goto(target, { waitUntil: 'networkidle', timeout: 90000 });
   const httpStatus = response?.status() ?? null;
   let workstationEnrollmentVerified = false;
+  let expectedPreEnrollment423Count = 0;
   if (phase === 'AFTER') {
     // Fresh Playwright contexts do not carry the server-issued workstation cookie.
     // If this test cabinet requires enrollment, exercise the real owner recovery UI.
@@ -81,6 +82,16 @@ for (const viewport of viewports) {
       if (!cookies.some(cookie => cookie.name === 'dc_workstation')) {
         throw new Error('D2 owner enrollment returned 200 but workstation identity cookie is missing');
       }
+      // Only the expected HTTP 423 browser console messages emitted by the
+      // protected first attempt may be moved to the pre-enrollment evidence.
+      // An unrelated error still fails immediately; any error AFTER this point
+      // is preserved and makes the post-enrollment screenshot fail closed.
+      const deniedBeforeEnrollment = 'Failed to load resource: the server responded with a status of 423 (Locked)';
+      if (pageErrors.length || consoleErrors.some(error => error !== deniedBeforeEnrollment)) {
+        throw new Error('D2 unexpected runtime error before owner workstation enrollment');
+      }
+      expectedPreEnrollment423Count = consoleErrors.length;
+      consoleErrors.length = 0;
       workstationEnrollmentVerified = true;
       const restored = await page.goto(target, { waitUntil: 'networkidle', timeout: 90000 });
       if (restored?.status() !== 200) throw new Error('D2 protected target did not load after real owner enrollment');
@@ -159,6 +170,7 @@ for (const viewport of viewports) {
     pageErrors,
     consoleErrors,
     workstationEnrollmentVerified,
+    expectedPreEnrollment423Count,
     shot,
     detailShot,
   };
