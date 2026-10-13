@@ -56,8 +56,28 @@ try{
     unexpected.push(u.origin+u.pathname);
     return route.abort();
   });
-  await page.goto('http://127.0.0.1:4197/migration-preview.html?filled=0',{waitUntil:'networkidle'});
-  await page.getByRole('heading',{name:'Mapping Studio'}).waitFor();
+  // Vite's isolated CI browser can see a transient module warm-up page.
+  // Fail closed after bounded navigation retries, preserving every page error
+  // and unexpected network request as an eventual hard failure.
+  let ready=false, loadIssue='';
+  for(let attempt=1;attempt<=3;attempt++){
+    try {
+      await page.goto('http://127.0.0.1:4197/migration-preview.html?filled=0',
+                      {waitUntil:'networkidle'});
+      await page.getByRole('heading',{name:'Mapping Studio'}).waitFor({timeout:10000});
+      ready=true;
+      break;
+    } catch (cause) {
+      loadIssue=String(cause);
+    }
+  }
+  if(!ready){
+    const visible=await page.locator('body').innerText().catch(()=>'unavailable');
+    throw new Error('MAPPING_PREVIEW_NOT_READY:'+JSON.stringify({
+      viewport:vp.name,url:page.url(),visible:visible.slice(0,900),
+      errors,unexpected,loadIssue,
+    }));
+  }
   const before=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
   await page.screenshot({path:path.join(dest,'BEFORE-'+vp.name+'.png'),fullPage:true,animations:'disabled'});
   await page.getByRole('button',{name:'Contrôler le backend sécurisé'}).click();
