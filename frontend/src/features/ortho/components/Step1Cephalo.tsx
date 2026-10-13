@@ -100,6 +100,22 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
 
   return (
     <div
+      onKeyDownCapture={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+        if (event.altKey || !(event.ctrlKey || event.metaKey)) return;
+        const key = event.key.toLowerCase();
+        if (key === 'z' && event.shiftKey && landmarkEditTimeline.redoStack.length > 0) {
+          event.preventDefault();
+          redoLandmarkEdit();
+        } else if (key === 'z' && !event.shiftKey && landmarkEditTimeline.undoStack.length > 0) {
+          event.preventDefault();
+          undoLandmarkEdit();
+        } else if (key === 'y' && !event.shiftKey && landmarkEditTimeline.redoStack.length > 0) {
+          event.preventDefault();
+          redoLandmarkEdit();
+        }
+      }}
       data-r19-reference-layout
       data-r20-workbench-layout
       className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[208px_minmax(0,1fr)_minmax(332px,0.72fr)] xl:items-stretch"
@@ -165,6 +181,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               {landmarkEditTimeline.undoStack.length} modif.
             </span>
           </div>
+          <p className="mb-2 text-xs" style={{ color: props.P.textMuted }}>Ctrl/⌘+Z : annuler · Ctrl/⌘+Maj+Z ou Ctrl+Y : rétablir</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-1">
             <button
               type="button"
