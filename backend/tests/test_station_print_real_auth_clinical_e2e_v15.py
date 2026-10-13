@@ -17,6 +17,7 @@ from backend.tests.test_station_care_sheet_v15 import (
 )
 from backend.services.station_print_held_claims_lab import claims, claim_events, reserve_held_claim, mark_uncertain
 from backend.services.station_print_attestation_recovery_v15 import uncertain_reviews
+from backend.services.station_print_attestation_recovery_v15 import uncertain_reviews
 
 
 @pytest.fixture(autouse=True)
@@ -32,10 +33,12 @@ def _require_real_staging_ledger_tables(db):
     claims.create(bind=db.get_bind(), checkfirst=True)
     claim_events.create(bind=db.get_bind(), checkfirst=True)
     uncertain_reviews.create(bind=db.get_bind(), checkfirst=True)
+    uncertain_reviews.create(bind=db.get_bind(), checkfirst=True)
     try:
         yield
     finally:
         db.rollback()
+        uncertain_reviews.drop(bind=db.get_bind(), checkfirst=True)
         uncertain_reviews.drop(bind=db.get_bind(), checkfirst=True)
         claim_events.drop(bind=db.get_bind(), checkfirst=True)
         claims.drop(bind=db.get_bind(), checkfirst=True)
