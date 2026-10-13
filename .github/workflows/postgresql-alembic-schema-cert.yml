@@ -6,6 +6,8 @@ on:
       - "alembic/**"
       - "backend/models*.py"
       - "backend/core/schema_runtime.py"
+      - "backend/core/print_audit_ddl.py"
+      - "backend/tests/certify_station_print_audit_guards_pg_v15.py"
       - "backend/core/runtime_safety.py"
       - "backend/core/sqlite_alembic_baseline.py"
       - "backend/core/postgresql_alembic_baseline.py"
@@ -460,6 +462,43 @@ jobs:
                   assert c.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one()==0
           print("neo29->neo30 additive upgrade: pending evidence only, no printer cert, witness preserved")
           PY
+
+      - name: Rehearse neo30 to neo31 audit trigger migration with preserved witness
+        run: |
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine,text
+          engine=create_engine(os.environ["DATABASE_URL"])
+          with engine.begin() as c:
+              c.execute(text("INSERT INTO dc_print_migration_witness (id,marker) VALUES (4,'neo30-to-31-audit-guards')"))
+          PY
+          alembic downgrade neo000000030
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine,text
+          engine=create_engine(os.environ["DATABASE_URL"])
+          with engine.connect() as c:
+              assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one()=="neo000000030"
+              assert c.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=4")).scalar_one()=="neo30-to-31-audit-guards"
+              num=c.execute(text("SELECT COUNT(*) FROM pg_trigger WHERE tgname LIKE 'dc_immutable_%' AND NOT tgisinternal")).scalar_one()
+              assert num==0,num
+          PY
+          alembic upgrade head
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine,text
+          from backend.core.schema_runtime import assert_database_at_current_head
+          engine=create_engine(os.environ["DATABASE_URL"])
+          assert_database_at_current_head(engine)
+          with engine.connect() as c:
+              count=c.execute(text("SELECT COUNT(*) FROM pg_trigger WHERE tgname LIKE 'dc_immutable_%' AND NOT tgisinternal")).scalar_one()
+              assert count==8,count
+              assert c.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=4")).scalar_one()=="neo30-to-31-audit-guards"
+          print("neo30->neo31 audit triggers installed, witness intact, no clinical printing")
+          PY
+
+      - name: Certify append-only print audit triggers using a genuine unprivileged PG role
+        run: python backend/tests/certify_station_print_audit_guards_pg_v15.py
 
       - name: Certify two independent PostgreSQL processes and atomic journal rollback
         run: |
