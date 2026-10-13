@@ -13,9 +13,9 @@ import {
 
 type Props = { initialSource?: SchemaInventory; initialTarget?: TargetInventory };
 type Stage = 'load' | 'review' | 'summary';
-const card = 'rounded-2xl border border-border-main bg-card-bg/80 p-4 shadow-sm sm:p-6';
+const card = 'min-w-0 rounded-2xl border border-border-main bg-card-bg/80 p-4 shadow-sm sm:p-6';
 const inputClass = 'w-full min-w-0 rounded-xl border border-border-main bg-card-bg p-3 text-sm font-semibold text-text-main';
-const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40';
+const buttonClass = 'inline-flex min-h-11 min-w-0 max-w-full items-center justify-center gap-2 whitespace-normal text-center [overflow-wrap:anywhere] rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40';
 
 export function MigrationMappingStudio({ initialSource, initialTarget }: Props) {
   const sourceId = useId();
@@ -249,7 +249,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
             (stage === id ? 'border-primary bg-primary/10 text-primary' : 'border-border-main bg-card-bg text-text-muted')}>{text}</div>)}
     </nav>
 
-    {stage === 'load' && <section aria-label="Choisir les inventaires" className="grid gap-4 lg:grid-cols-2">
+    {stage === 'load' && <section aria-label="Choisir les inventaires" className="grid min-w-0 gap-4 lg:grid-cols-2">
       <article className={card}>
         <h2 className="text-lg font-black">1. Schéma source</h2>
         <p className="my-3 text-sm text-text-muted">Rapport JSON de l’inspecteur 05.1, issu d’une copie hors-ligne.</p>
@@ -273,9 +273,9 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
         </p>
       </article>
       {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800 lg:col-span-2">Inventaire refusé : {error}</p>}
-      <div className="flex justify-end lg:col-span-2">
+      <div className="flex min-w-0 justify-end lg:col-span-2">
         <button type="button" disabled={!source || !target} onClick={() => setStage('review')}
-          className={buttonClass + ' bg-primary text-white'}>Examiner les correspondances <ArrowRight size={17} /></button>
+          className={buttonClass + ' w-full bg-primary text-white sm:w-auto'}>Examiner les correspondances <ArrowRight size={17} /></button>
       </div>
     </section>}
 
