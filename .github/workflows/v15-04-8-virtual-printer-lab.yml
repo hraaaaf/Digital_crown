@@ -7,6 +7,7 @@ on:
       - "backend/scripts/certify_print_ledger_to_virtual_spool_lab_v15.py"
       - "backend/services/station_print_held_claims_lab.py"
       - ".github/workflows/v15-04-8-virtual-printer-lab.yml"
+      - ".github/workflows/v15-04-8-e-integrated-software-gate.yml"
   workflow_dispatch:
 
 permissions:
