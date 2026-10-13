@@ -102,7 +102,7 @@ jobs:
           const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false, optimizeDeps: { include: ['workbox-window'] } });
           await server.listen();
           const browser = await chromium.launch();
-          const widths = [1280, 1024, 768, 430, 390];
+          const widths = [1600, 1280, 1024, 768, 430, 390];
           const proof = [];
           async function assertNoFullPageOverflow(page, width, variant) {
             const metrics = await page.evaluate(() => {
@@ -124,6 +124,25 @@ jobs:
               await fs.writeFile(`${output}/full-page-overflow-${variant}-${width}.json`, JSON.stringify(details, null, 2));
               await page.screenshot({ path: `${output}/full-page-overflow-${variant}-${width}.png`, fullPage: true });
               throw new Error('FULL_PAGE_HORIZONTAL_OVERFLOW ' + JSON.stringify(details));
+            }
+          }
+          // Accessibility proof must reject narrow columns even when nothing overflows.
+          // The restore action belongs below the copy at 200% text, not alongside it.
+          async function assertGuidedRestoreReadable(page, width, variant) {
+            const copy = await page.getByTestId('guided-restore-description').boundingBox();
+            const action = await page.getByTestId('guided-restore-action').boundingBox();
+            const minimumCopyWidth = Math.min(260, width * 0.4);
+            const ok = copy && action
+              && copy.width >= minimumCopyWidth
+              && copy.x >= -1 && copy.x + copy.width <= width + 1
+              && action.x >= -1 && action.x + action.width <= width + 1
+              && action.y >= copy.y + copy.height - 1
+              && action.height >= 44;
+            if (!ok) {
+              const proof = { width, variant, minimumCopyWidth, copy, action };
+              await fs.writeFile(`${output}/guided-restore-layout-${variant}-${width}.json`, JSON.stringify(proof, null, 2));
+              await page.screenshot({ path: `${output}/guided-restore-layout-${variant}-${width}.png`, fullPage: true, animations: 'disabled' });
+              throw new Error('GUIDED_RESTORE_200PCT_NOT_READABLE ' + JSON.stringify(proof));
             }
           }
           try {
@@ -214,6 +233,7 @@ jobs:
               await page.screenshot({ path: `${output}/owner-${width}-text100.png`, fullPage: true, animations: 'disabled' });
               await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
               await assertNoFullPageOverflow(page, width, 'owner-text200');
+              await assertGuidedRestoreReadable(page, width, 'owner-text200');
               const panelWidth = await panel.evaluate(el => ({
                 client: el.clientWidth,
                 scroll: el.scrollWidth,
@@ -267,13 +287,14 @@ jobs:
               await delegatedPage.screenshot({ path: `${output}/delegated-${width}-text100.png`, fullPage: true, animations: 'disabled' });
               await delegatedPage.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
               await assertNoFullPageOverflow(delegatedPage, width, 'delegated-text200');
+              await assertGuidedRestoreReadable(delegatedPage, width, 'delegated-text200');
               await delegatedPage.screenshot({ path: `${output}/delegated-${width}-text200.png`, fullPage: true, animations: 'disabled' });
               if (errors.length || unsafePrintRequests.length) {
                 throw new Error([...errors, ...unsafePrintRequests].join('\n'));
               }
               proof.push({ width, ownerReads: blockedReadCount, delegatedReads: blockedReadCount - readsBeforeDelegated,
                 ownerUncertainCount: 2, ownerHasOnlyRefresh: true, delegatedHidden: true,
-                panelNoOverflowAtText200: true, noPrintMutations: true });
+                panelNoOverflowAtText200: true, guidedRestoreReadableAtText200: true, noPrintMutations: true });
               await context.close();
             }
             await fs.writeFile(`${output}/integration-evidence.json`, JSON.stringify({
@@ -298,7 +319,7 @@ jobs:
       - name: Verify proof count
         working-directory: frontend
         run: |
-          test "$(find settings-security-artifacts -name '*.png' | wc -l)" -eq 25
+          test "$(find settings-security-artifacts -name '*.png' | wc -l)" -eq 30
           test -s settings-security-artifacts/integration-evidence.json
 
       - uses: actions/upload-artifact@v4
