@@ -144,6 +144,18 @@ async function captureViewport(viewport,attempt){
     return {width:img.naturalWidth,height:img.naturalHeight};
   });
   if(decodedImage.width!==radio.width||decodedImage.height!==radio.height)throw new Error('Public image natural resolution mismatch');
+  // Deliberately added by the isolated test harness, never by application runtime.
+  // Make the origin and synthetic measurements unambiguous on every evidence PNG.
+  await page.evaluate(({author})=>{
+    const label=document.createElement('div');
+    label.setAttribute('data-r20-audit-banner','true');
+    label.textContent='TEST UX SEUL — RADIO '+author+' (Wikimedia / CC BY-SA 4.0) — REPÈRES, CALIBRATION ET MESURES FICTIFS';
+    Object.assign(label.style,{position:'fixed',top:'8px',left:'300px',maxWidth:'570px',
+      padding:'5px 8px',borderRadius:'5px',fontFamily:'system-ui',fontSize:'10px',
+      fontWeight:'800',background:'#fff9dc',color:'#5e3600',border:'1px solid #b57b00',
+      zIndex:'9999',pointerEvents:'none'});
+    document.body.append(label);
+  },{author:radio.author});
 
   // Exercise the left-hand ready-made selector, not only the floating tracing tabs.
   const selectorChecks=[];
@@ -189,6 +201,9 @@ async function captureViewport(viewport,attempt){
     const compactTexts=Array.from(baseSvg?.querySelectorAll('[data-cephalo-landmark-label]')||[]);
     const comOnlyTexts=Array.from(document.querySelectorAll('svg[data-cephalo-viewport="analysis"] [data-cephalo-overlay-label]'));
     const allLabelNodes=[...compactTexts,...comOnlyTexts];
+    const labelHeights=compactTexts.map(n=>n.getBoundingClientRect().height);
+    const labelPxHeightMin=labelHeights.length?Math.round(Math.min(...labelHeights)*10)/10:null;
+    const labelPxHeightMax=labelHeights.length?Math.round(Math.max(...labelHeights)*10)/10:null;
     const overlayContrastContract=comOnlyTexts.every(text=>
       text.style.paintOrder==='stroke' && text.style.strokeWidth==='4px' && text.style.strokeLinejoin==='round'
     );
@@ -221,6 +236,8 @@ async function captureViewport(viewport,attempt){
       landmarkLabels,
       landmarkTitleCount:innerWidth>=1280 ? markerTitles.length : null,
       visibleCompactLabelCount:innerWidth>=1280 ? compactTexts.length : null,
+      labelPxHeightMin:innerWidth>=1280 ? labelPxHeightMin : null,
+      labelPxHeightMax:innerWidth>=1280 ? labelPxHeightMax : null,
       labelOverlapCount:innerWidth>=1280 ? overlapCount : null,
       overlayLabelCount:innerWidth>=1280 ? comOnlyTexts.length : null,
       overlayContrastContract:innerWidth>=1280 ? overlayContrastContract : null,

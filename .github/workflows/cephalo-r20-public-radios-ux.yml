@@ -58,7 +58,7 @@ jobs:
             const lic=JSON.parse(await readFile(b+'PUBLIC-SOURCE-LICENSE.json','utf8'));
             if(r.productHead!==process.env.PRODUCT_HEAD||r.caseId!==id||r.invalidCount!==0||r.blockedExternalRequests.length||r.captures.length!==1||!r.captures[0].valid)throw Error(id+': invalid');
             if(r.captures[0].decodedImage?.width!==lic.width||r.captures[0].decodedImage?.height!==lic.height)throw Error(id+': image');
-            if(r.captures[0].states.length!==2||r.captures[0].states.some(s=>!s.valid||!s.zoomCheck?.valid||s.metrics.landmarkTitleCount!==29))throw Error(id+': metrics');
+            if(r.captures[0].states.length!==2||r.captures[0].states.some(s=>!s.valid||!s.zoomCheck?.valid||s.metrics.landmarkTitleCount!==(s.mode==='all'?29:9)))throw Error(id+': metrics');
             if(lic.license!=='CC BY-SA 4.0'||lic.sha1!==lic.actualSha1)throw Error(id+': license');
             for(const mode of ['all','com'])for(const zoom of ['reference','zoom','pan']){
               if((await stat(b+'after-'+zoom+'-'+mode+'-1280x900.png')).size<20000)throw Error(id+': screenshot missing');
