@@ -46,6 +46,7 @@ jobs:
               .github/workflows/cephalo-r19-analysis-reference-after.yml | \
               .github/workflows/dc-ceph-uxclin01-live-http.yml | \
               .github/workflows/dc-ceph-uxclin01-visual.yml | \
+              frontend/scripts/certify-ceph03b3f-live-step1.mjs | \
               frontend/scripts/capture-cephalo-r1-after.mjs | \
               frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs | \
               frontend/src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx | \

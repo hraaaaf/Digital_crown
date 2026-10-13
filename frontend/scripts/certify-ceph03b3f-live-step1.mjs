@@ -219,6 +219,13 @@ try {
       await edit('ArrowRight',originalN.x+1,'arrow1');
       expected=(await edit('Shift+ArrowRight',originalN.x+11,'shift10')).landmarks_data;
       assert(Math.abs(await getPointX(page)-(originalN.x+11))<0.0001,'Keyboard store lost rapid edits');
+      // The integrated UX keeps history commands inside a semantic disclosure.
+      // Open it through the actual user-facing summary before exercising the
+      // real authenticated undo/redo PUT transactions.
+      const historyDisclosure=page.locator('details').filter({has:page.locator('[data-ortho-edit-history]')});
+      assert(await historyDisclosure.count()===1,'Expected one accessible correction history disclosure');
+      await historyDisclosure.locator('summary').click();
+      assert(await historyDisclosure.evaluate(el=>el.open),'Correction history not expanded');
       const undoWait=page.waitForResponse(resp=>resp.url().includes('/api/ia/analyses/'+id)
         &&resp.request().method()==='PUT',{timeout:60000});
       await page.getByRole('button',{name:'Annuler dernière correction'}).click();

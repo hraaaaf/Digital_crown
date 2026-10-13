@@ -68,7 +68,7 @@ function modeContract(mode, metrics) {
   if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
-  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && metrics.landmarkHandles >= 20;
+  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && ['Po','Or','S','N'].every(id => metrics.comReferencePointIds.includes(id));
   if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   return false;
 }
@@ -141,6 +141,7 @@ async function captureViewport(viewport,attempt){
       selectorButtons:Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button')).map(n=>n.getAttribute('data-analysis')),
       panelRows:document.querySelectorAll('[data-r19-metric]').length,
       landmarkHandles:document.querySelectorAll('[data-ceph03b-drag-handle]').length,
+      comReferencePointIds:Array.from(document.querySelectorAll('[data-r19-point]')).map(el=>el.getAttribute('data-r19-point')).filter(Boolean),
       svgLines:document.querySelectorAll('svg line').length,
       landmarkLabels,
       rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
