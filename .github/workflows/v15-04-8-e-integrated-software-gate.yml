@@ -6,8 +6,12 @@ on:
       - feat/v15-04-8-integration-bcd-lab-20261013
       - feat/v15-04-8-e-integrated-software-gate-20261013
       - feat/v15-04-8-c-transactional-virtual-outbox-lab-20261013
+      - feat/v15-04-8-attestation-recovery-guard-20261013
     paths:
       - "backend/tests/test_station_print_04_8_e_cross_layer_gate_v15.py"
+      - "backend/routers/station_print_config_admin.py"
+      - "backend/core/print_audit_ddl.py"
+      - "frontend/src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.tsx"
       - "backend/services/station_print_attestation_recovery_v15.py"
       - "alembic/versions/neo000000030_print_evidence_investigation.py"
       - "backend/services/station_print_virtual_outbox_lab_v15.py"
