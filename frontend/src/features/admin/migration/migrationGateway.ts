@@ -12,7 +12,7 @@ export type Preflight = Readonly<{
   dry_run_real_data_available: false;
   import_permitted: false;
   target_preview: unknown | null;
-  blockers: string[];
+  blockers: readonly string[];
 }>;
 export type Rehearsal = Readonly<{
   mode: 'SYNTHETIC_MEMORY_ONLY';
