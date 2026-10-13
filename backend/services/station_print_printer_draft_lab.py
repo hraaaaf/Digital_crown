@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 import re
 
 from sqlalchemy import (
-    CheckConstraint, Column, DateTime, Integer, MetaData, String, Table,
+    CheckConstraint, Column, DateTime, ForeignKey, Integer, MetaData, String, Table,
     insert, select, update,
 )
 from sqlalchemy.engine import Engine
@@ -19,9 +19,12 @@ from sqlalchemy.exc import IntegrityError
 from backend.services.station_document_print_configuration import TrustedPrinter
 
 SCHEMA = MetaData()
+# Synthetic users stub supports isolated SQLite LAB; Alembic registers only
+# the print table against the real application's existing users metadata.
+Table("users", SCHEMA, Column("id", Integer, primary_key=True))
 draft_printers = Table(
     "station_print_printer_drafts_lab", SCHEMA,
-    Column("tenant_id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("printer_id", String(80), primary_key=True),
     Column("location", String(16), nullable=False),
     Column("station_id", String(80), nullable=True),
