@@ -1,0 +1,55 @@
+name: V1.5-04.8 E Integrated Software NO-GO Gate
+
+on:
+  pull_request:
+    branches:
+      - feat/v15-04-8-integration-bcd-lab-20261013
+    paths:
+      - "backend/tests/test_station_print_04_8_e_cross_layer_gate_v15.py"
+      - "backend/tests/test_station_print_real_auth_clinical_e2e_v15.py"
+      - "frontend/src/features/hub/StationPatientIdentity.tsx"
+      - "frontend/src/features/hub/StationPatientIdentity.test.tsx"
+      - "frontend/scripts/capture-v15-04-8-print-status.mjs"
+      - ".github/workflows/v15-04-8-e-integrated-software-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-layer-deny:
+    name: 04.8-E source-contract checks only (not clinical authorization)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Exact PR source SHA, not GitHub synthetic merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned no-cloud isolated dependencies
+        run: python -m pip install pytest==8.3.3 SQLAlchemy==2.0.28 pydantic==2.6.3
+      - name: Python source syntax and cross-layer deny contracts
+        run: |
+          python -m py_compile \
+            backend/services/station_print_cabinet_clinical_gate_v15.py \
+            backend/routers/station_print_config_admin.py \
+            backend/services/station_document_print_inventory.py \
+            backend/tests/test_station_print_04_8_e_cross_layer_gate_v15.py
+          python -m pytest backend/tests/test_station_print_04_8_e_cross_layer_gate_v15.py -q -o addopts=
+      - name: Confirm all staging files coexist at this exact SHA
+        run: |
+          set -euo pipefail
+          test -f backend/tests/test_station_print_real_auth_clinical_e2e_v15.py
+          test -f backend/services/station_print_cabinet_clinical_gate_v15.py
+          test -f frontend/src/features/hub/StationPrintStatusPanel.tsx
+          test -f frontend/src/features/hub/StationPatientIdentity.tsx
+          test -f frontend/scripts/capture-v15-04-8-print-status.mjs
+          test -f alembic/versions/neo000000029_station_print_staged_registry_ledger.py
+          printf '04_8_E_INTEGRATED_SOURCE_PRESENT=%s; lab_only=1; clinical_permit=0; physical_printer=0\n' "$(git rev-parse HEAD)"
