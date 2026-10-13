@@ -22,6 +22,7 @@ import { WedgeZone } from './components/WedgeZone';
 import { CephaloCalibrationOverlay } from './components/CephaloCalibrationOverlay';
 import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
 import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';
+import { useCephaloUnitsPerPixel } from './components/useCephaloUnitsPerPixel';
 import { CephaloSvgDefs } from './components/CephaloSvgDefs';
 import { useCephaloInteraction } from './hooks/useCephaloInteraction';
 import type { OrthoLayerId, OrthoLayerOpacity, OrthoLayerVisibility } from './orthoLayerRegistry';
@@ -217,6 +218,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     onEmptyAreaClick,
   });
 
+  const unitsPerPixel = useCephaloUnitsPerPixel(svgRef, compactLabels, getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan));
   const isHoverActive = !!hoveredMetric;
   const isLineHovered = (lineId: string) =>
     isHoverActive && hoveredMetric!.lines.map(l => l.toLowerCase()).includes(lineId.toLowerCase());
@@ -816,6 +818,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           imageWidth={imageWidth}
           imageHeight={imageHeight}
           compactLabels={compactLabels}
+          unitsPerPixel={unitsPerPixel}
           isCalibrating={isCalibrating}
           baseOpacity={baseOpacity}
           activeDragId={activeDragId}

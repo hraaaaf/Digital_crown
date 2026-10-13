@@ -188,10 +188,12 @@ async function captureViewport(viewport,attempt){
         return Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1;
       }).length;
     },0);
+    const labelPxHeights=compactTexts.map(n=>n.getBoundingClientRect().height);
+    const minLabelPx=labelPxHeights.length?Math.min(...labelPxHeights):null;
     const incisal=baseSvg?.querySelector('[data-cephalo-landmark-label="U1_incisal"]');
     const incisalFullId=incisal?.closest('g')?.querySelector('title')?.textContent;
     const labelModeContract=innerWidth>=1280
-      ? incisal?.textContent==='U1i' && incisal?.getAttribute('font-size')==='24' && incisalFullId==='U1_incisal'
+      ? incisal?.textContent==='U1i' && Number(incisal?.getAttribute('font-size'))>0 && incisal.getBoundingClientRect().height>=12.5 && incisalFullId==='U1_incisal'
       : incisal?.textContent==='U1_incisal' && incisal?.getAttribute('font-size')==='10';
     return {
       analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
@@ -204,6 +206,7 @@ async function captureViewport(viewport,attempt){
       landmarkTitleCount:innerWidth>=1280 ? markerTitles.length : null,
       visibleCompactLabelCount:innerWidth>=1280 ? compactTexts.length : null,
       labelOverlapCount:innerWidth>=1280 ? overlapCount : null,
+      minLabelPx:innerWidth>=1280 ? minLabelPx : null,
       overlayLabelCount:innerWidth>=1280 ? comOnlyTexts.length : null,
       overlayContrastContract:innerWidth>=1280 ? overlayContrastContract : null,
       crossLayerOverlapCount:innerWidth>=1280 ? totalOverlapCount : null,
@@ -259,7 +262,7 @@ async function captureViewport(viewport,attempt){
        && restored.baseViewBox===initial.baseViewBox && restored.overlayViewBox===initial.overlayViewBox,
        initial,enlarged,panned,panRestored,restored};
    }
-   const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort') && (zoomCheck===null||zoomCheck.valid);
+   const valid=(metrics.minLabelPx===null||metrics.minLabelPx>=12.5) && modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort') && (zoomCheck===null||zoomCheck.valid);
    await page.screenshot({path:path.join(OUTPUT_DIR,`after-reference-${mode}-${viewport.name}.png`),fullPage:false});
    if(mode==='com'){
      await page.locator('[data-r19-analysis-panel="com"]').scrollIntoViewIfNeeded();

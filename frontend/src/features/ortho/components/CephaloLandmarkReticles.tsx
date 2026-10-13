@@ -18,23 +18,24 @@ const candidates:Candidate[]=[
  {dx:116,dy:62,anchor:'start'},{dx:-116,dy:-62,anchor:'end'},
 ];
 type Rect={left:number;right:number;top:number;bottom:number};
-const overlap=(a:Rect,b:Rect)=>a.left<b.right+6&&a.right>b.left-6&&a.top<b.bottom+6&&a.bottom>b.top-6;
+const overlap=(a:Rect,b:Rect,gap:number)=>a.left<b.right+gap&&a.right>b.left-gap&&a.top<b.bottom+gap&&a.bottom>b.top-gap;
 // Text-only collision avoidance. Never filters, reorders, or modifies any anatomical point.
 // If no safe position exists, keep the marker and full <title> for hover/focus.
-const labelLayout=(points:Landmark[],width:number,height:number):Map<string,Candidate>=>{
+const labelLayout=(points:Landmark[],width:number,height:number,units:number):Map<string,Candidate>=>{
+ const scale=Math.max(.1,Math.min(units,30));
  const placed:Rect[]=[], result=new Map<string,Candidate>();
- const crowd=(p:Landmark)=>points.filter(q=>q!==p&&Math.hypot(p.x-q.x,p.y-q.y)<120).length;
+ const crowd=(p:Landmark)=>points.filter(q=>q!==p&&Math.hypot(p.x-q.x,p.y-q.y)<42*scale).length;
  const order=[...points].sort((a,b)=>crowd(b)-crowd(a)||a.id.localeCompare(b.id));
  for(const point of order){
-  const labelWidth=compactName(point.id).length*15.2;
+  const labelWidth=compactName(point.id).length*14*.66*scale;
   let best:Candidate|null=null,bestBox:Rect|null=null,min=Infinity;
   for(const [rank,c] of candidates.entries()){
-   const x=point.x+c.dx,y=point.y+c.dy;
+   const x=point.x+c.dx*scale,y=point.y+c.dy*scale;
    const left=x-(c.anchor==='end'?labelWidth:c.anchor==='middle'?labelWidth/2:0);
-   const box={left,right:left+labelWidth,top:y-25,bottom:y+6};
-   if(box.left<6||box.top<6||box.right>width-6||box.bottom>height-6)continue;
-   if(placed.some(p=>overlap(p,box)))continue;
-   const pointIntersections=points.filter(p=>p!==point&&p.x>=box.left-9&&p.x<=box.right+9&&p.y>=box.top-9&&p.y<=box.bottom+9).length;
+   const box={left,right:left+labelWidth,top:y-14*scale,bottom:y+4*scale};
+   if(box.left<2*scale||box.top<2*scale||box.right>width-2*scale||box.bottom>height-2*scale)continue;
+   if(placed.some(p=>overlap(p,box,2*scale)))continue;
+   const pointIntersections=points.filter(p=>p!==point&&p.x>=box.left-5*scale&&p.x<=box.right+5*scale&&p.y>=box.top-5*scale&&p.y<=box.bottom+5*scale).length;
    const score=rank*2 + pointIntersections*170 + Math.hypot(c.dx,c.dy)*0.12;
    if(score<min){min=score;best=c;bestBox=box;}
   }
@@ -52,6 +53,7 @@ interface CephaloLandmarkReticlesProps {
   imageWidth: number;
   imageHeight: number;
   compactLabels?: boolean;
+  unitsPerPixel?: number;
   isCalibrating: boolean;
   baseOpacity: number;
   activeDragId: string | null;
@@ -84,6 +86,7 @@ export const CephaloLandmarkReticles = ({
   imageWidth,
   imageHeight,
   compactLabels = false,
+  unitsPerPixel = 1,
   isCalibrating,
   baseOpacity,
   activeDragId,
@@ -103,7 +106,7 @@ export const CephaloLandmarkReticles = ({
 }: CephaloLandmarkReticlesProps) => {
   const P = palette;
   const [hoveredPointId, setHoveredPointId] = useState<string | null>(null);
-  const labelPositions = compactLabels ? labelLayout(landmarks, imageWidth, imageHeight) : null;
+  const labelPositions = compactLabels ? labelLayout(landmarks, imageWidth, imageHeight, unitsPerPixel) : null;
   const isHoverActive = !!hoveredMetric;
   const isPointHovered = (ptId: string) =>
     !isHoverActive || hoveredMetric!.points.map(p => p.toLowerCase()).includes(ptId.toLowerCase());
@@ -229,7 +232,7 @@ export const CephaloLandmarkReticles = ({
                   dx={labelPosition ? undefined : '13'}
                   dy={labelPosition ? undefined : '-13'}
                   textAnchor={labelPosition?.anchor}
-                  fontSize={compactLabels ? 24 : 10}
+                  fontSize={compactLabels ? 14 * unitsPerPixel : 10}
                   fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
                   fontWeight="900"
                   className="pointer-events-none select-none"

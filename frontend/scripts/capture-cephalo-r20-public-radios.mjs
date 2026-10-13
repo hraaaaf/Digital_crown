@@ -204,6 +204,8 @@ async function captureViewport(viewport,attempt){
     const labelHeights=compactTexts.map(n=>n.getBoundingClientRect().height);
     const labelPxHeightMin=labelHeights.length?Math.round(Math.min(...labelHeights)*10)/10:null;
     const labelPxHeightMax=labelHeights.length?Math.round(Math.max(...labelHeights)*10)/10:null;
+     const overlayHeights=comOnlyTexts.map(n=>n.getBoundingClientRect().height);
+     const overlayPxHeightMin=overlayHeights.length?Math.round(Math.min(...overlayHeights)*10)/10:null;
     const overlayContrastContract=comOnlyTexts.every(text=>
       text.style.paintOrder==='stroke' && text.style.strokeWidth==='4px' && text.style.strokeLinejoin==='round'
     );
@@ -224,7 +226,7 @@ async function captureViewport(viewport,attempt){
     const incisal=baseSvg?.querySelector('[data-cephalo-landmark-label="U1_incisal"]');
     const incisalFullId=incisal?.closest('g')?.querySelector('title')?.textContent;
     const labelModeContract=innerWidth>=1280
-      ? incisal?.textContent==='U1i' && incisal?.getAttribute('font-size')==='24' && incisalFullId==='U1_incisal'
+      ? incisal?.textContent==='U1i' && Number(incisal?.getAttribute('font-size'))>0 && incisal.getBoundingClientRect().height>=12.5 && incisalFullId==='U1_incisal'
       : incisal?.textContent==='U1_incisal' && incisal?.getAttribute('font-size')==='10';
     return {
       analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
@@ -238,6 +240,7 @@ async function captureViewport(viewport,attempt){
       visibleCompactLabelCount:innerWidth>=1280 ? compactTexts.length : null,
       labelPxHeightMin:innerWidth>=1280 ? labelPxHeightMin : null,
       labelPxHeightMax:innerWidth>=1280 ? labelPxHeightMax : null,
+      overlayPxHeightMin:innerWidth>=1280 ? overlayPxHeightMin : null,
       labelOverlapCount:innerWidth>=1280 ? overlapCount : null,
       overlayLabelCount:innerWidth>=1280 ? comOnlyTexts.length : null,
       overlayContrastContract:innerWidth>=1280 ? overlayContrastContract : null,
@@ -294,7 +297,7 @@ async function captureViewport(viewport,attempt){
        && restored.baseViewBox===initial.baseViewBox && restored.overlayViewBox===initial.overlayViewBox,
        initial,enlarged,panned,panRestored,restored};
    }
-   const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort') && (zoomCheck===null||zoomCheck.valid);
+   const valid=(metrics.labelPxHeightMin===null||metrics.labelPxHeightMin>=12.5) && (metrics.overlayPxHeightMin===null||metrics.overlayPxHeightMin>=12.5) && modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort') && (zoomCheck===null||zoomCheck.valid);
    await page.screenshot({path:path.join(OUTPUT_DIR,`after-reference-${mode}-${viewport.name}.png`),fullPage:false});
    if(mode==='com'){
      await page.locator('[data-r19-analysis-panel="com"]').scrollIntoViewIfNeeded();

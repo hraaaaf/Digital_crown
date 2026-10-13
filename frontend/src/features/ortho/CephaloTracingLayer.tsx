@@ -1,4 +1,5 @@
 import React from 'react';
+import { useCephaloUnitsPerPixel } from './components/useCephaloUnitsPerPixel';
 import { CephaloTracingLayer as BaseCephaloTracingLayer, getCephaloZoomViewBox } from './CephaloTracingLayerBase';
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
@@ -108,6 +109,9 @@ const unitAxis = (start?: Landmark, end?: Landmark) => {
  */
 export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) => {
   const P = getCephaloPalette();
+  const overlaySvgRef = React.useRef<SVGSVGElement>(null);
+  const overlayViewBox = getCephaloZoomViewBox(props.imageWidth, props.imageHeight, props.viewZoom, props.viewPan);
+  const labelUnit = useCephaloUnitsPerPixel(overlaySvgRef, !!props.compactLabels, overlayViewBox);
   const layerVisible = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.visibility[id] ?? true;
   const layerOpacity = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.opacity[id] ?? 1;
   const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
@@ -276,8 +280,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
 
       {(showRickettsHard || showCom) && (layerVisible('plans') || layerVisible('landmarks') || layerVisible('measurements')) && props.imageWidth > 0 && props.imageHeight > 0 && (
         <svg
+          ref={overlaySvgRef}
           data-cephalo-viewport="analysis"
-          viewBox={getCephaloZoomViewBox(props.imageWidth, props.imageHeight, props.viewZoom, props.viewPan)}
+          viewBox={overlayViewBox}
           preserveAspectRatio="xMidYMid meet"
           className="pointer-events-none absolute inset-0 z-[28] h-full w-full"
           aria-hidden="true"
@@ -376,14 +381,14 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
             const desktopOffset = p.id.toLowerCase() === 'a' ? { x: 62, y: -38 }
               : p.id.toLowerCase() === 'b' ? { x: 60, y: 40 }
               : { x: 15, y: -18 };
-            const labelOffset = props.compactLabels && overlayOnly ? desktopOffset : { x: 8, y: -8 };
+            const labelOffset = props.compactLabels && overlayOnly ? { x: desktopOffset.x * labelUnit / 3, y: desktopOffset.y * labelUnit / 3 } : { x: 8, y: -8 };
             return (
               <g key={`com-${p.id}`} data-r19-point={p.id} opacity={(hasCanonicalFocus ? 0.82 : 0.92) * layerOpacity('landmarks')}>
                 {overlayOnly && <title>{p.id}</title>}
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
                 {(!props.compactLabels || overlayOnly) && (
                   <text data-cephalo-overlay-label={p.id} x={p.x + labelOffset.x} y={p.y + labelOffset.y}
-                    fill={P.text} fontSize={props.compactLabels ? 20 : 9} fontWeight="800"
+                    fill={P.text} fontSize={props.compactLabels ? 14 * labelUnit : 9} fontWeight="800"
                     style={props.compactLabels ? { paintOrder: 'stroke', stroke: P.bgInput, strokeWidth: '4px', strokeLinejoin: 'round' } : undefined}
                   >{p.id}</text>
                 )}
