@@ -16,7 +16,7 @@ Le rapport ne livre que des nombres, codes et drapeaux de non-autorisation. Il n
 
 ## Scénarios adversariaux
 
-S04 RDV orphelin, S05 candidat doublon (refus conservateur, **pas rapprochement clinique**), S06 identifiant source répété, S07 date impossible, S08 format absent, S09 statut inconnu, S10 nom qui ne porte pas le marqueur fictif, S11 flag approval forgé, S12 source hash différent, S13 colonne source absente, S14 date non canonique, S15 trop de lignes, S16 colonnes ORM attendues absentes, S17 statut sans traduction explicite. Chaque cas doit **échouer par code stable non-PHI**. Les tests ne prouvent pas l'exhaustivité des détections de doublons.
+S04 RDV orphelin, S05 candidat doublon (refus conservateur, **pas rapprochement clinique**), S06 identifiant source répété, S07 date impossible, S08 format absent, S09 statut inconnu, S10 nom qui ne porte pas le marqueur fictif, S11 flag approval forgé, S12 source hash différent, S13 colonne source absente, S14 date non canonique, S15 trop de lignes, S16 colonnes ORM attendues absentes, S17 statut sans traduction explicite, S18 candidat rendez-vous doublon (même patient/heure/statut, refus prudent sans fusion automatique), S19 heure invalide. Chaque cas doit **échouer par code stable non-PHI**. Les tests ne prouvent pas l'exhaustivité des détections de doublons.
 
 ## Limitations et NEXT
 
