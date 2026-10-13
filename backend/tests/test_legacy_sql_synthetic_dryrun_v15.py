@@ -285,6 +285,20 @@ class FailClosedSyntheticDataDryRun(unittest.TestCase):
         self._reject("S01", "EXPLICIT_STATUS_TRANSLATION_REQUIRED",
                      lambda opts: {"accepted_source_status":""})
 
+    def test_s18_duplicate_appointment_candidate_requires_human_review(self):
+        def change(opts):
+            appointments = list(opts["appointment_rows"])
+            appointments.append({**appointments[0], "appointment_id":"999"})
+            return {"appointment_rows":tuple(appointments)}
+        self._reject("S01", "POTENTIAL_DUPLICATE_APPOINTMENT_REQUIRES_HUMAN_REVIEW", change)
+
+    def test_s19_invalid_appointment_datetime_is_rejected(self):
+        def change(opts):
+            appointments = list(opts["appointment_rows"])
+            appointments[0] = {**appointments[0], "scheduled_at":"2026-10-14 25:30"}
+            return {"appointment_rows":tuple(appointments)}
+        self._reject("S01", "INVALID_DATE_VALUE", change)
+
 
 if __name__ == "__main__":
     unittest.main()
