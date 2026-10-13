@@ -62,6 +62,7 @@ async function pairPatient(browserType, relationshipType, viewport) {
 
   await page.locator('[data-pc00-cabinet-link]').click();
   await page.getByText('Cabinet joignable ✓', { exact: true }).waitFor({ timeout: 30000 });
+  await page.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Messages', exact: true }).click();
   const section = page.locator('[data-pc08-secure-messaging]');
   await section.waitFor({ state: 'visible', timeout: 30000 });
   await page.getByRole('button', { name: 'Ouvrir la conversation' }).click();
