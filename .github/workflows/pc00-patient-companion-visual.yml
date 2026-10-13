@@ -99,11 +99,21 @@ jobs:
           assert all(not x["horizontalOverflow"] for x in after)
           # New Pocket shell displays the Companion title before pairing and
           # a dedicated Digital Crown Pocket patient identity once paired.
-          assert all(
-              ("Patient Companion" in x["text"]) if x["scenario"] == "welcome"
-              else ("Pocket" in x["text"] and "Mon espace patient" in x["text"])
-              for x in after
-          )
+          # Report only non-sensitive booleans for each viewport: do not print the
+          # complete patient-screen text or any pairing material in CI logs.
+          for item in after:
+              expected = (
+                  ("Patient Companion" in item["text"]) if item["scenario"] == "welcome"
+                  else ("Pocket" in item["text"] and "Mon espace patient" in item["text"])
+              )
+              assert expected, {
+                  "browser": item["browser"],
+                  "scenario": item["scenario"],
+                  "viewport": item["viewport"],
+                  "welcomeTitleVisible": "Patient Companion" in item["text"],
+                  "pocketBadgeVisible": "Pocket" in item["text"],
+                  "patientSpaceVisible": "Mon espace patient" in item["text"],
+              }
           homes=[x for x in after if x["scenario"]=="home"]
           assert len(homes) == 4
           for item in homes:
@@ -131,6 +141,7 @@ jobs:
           cp /tmp/pc00-after-vite.log artifacts/pc00-patient-companion/after/vite.log
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: pc00-patient-companion-before-after
           path: artifacts/pc00-patient-companion
