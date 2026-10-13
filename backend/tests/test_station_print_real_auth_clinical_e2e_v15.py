@@ -17,6 +17,26 @@ from backend.tests.test_station_care_sheet_v15 import (
 )
 from backend.services.station_print_held_claims_lab import claims, claim_events
 
+
+@pytest.fixture(autouse=True)
+def _require_real_staging_ledger_tables(db):
+    """Make the absence of print claims observable, never vacuously true.
+
+    The application's full ORM fixture normally excludes these separately
+    staged Alembic tables. Add them in the isolated test SQLite before every
+    HTTP request, assert their existence, then drop only these test tables.
+    No production schema is changed, and a print claim cannot hide behind
+    "table absent" in the E2E assertion.
+    """
+    claims.create(bind=db.get_bind(), checkfirst=True)
+    claim_events.create(bind=db.get_bind(), checkfirst=True)
+    try:
+        yield
+    finally:
+        db.rollback()
+        claim_events.drop(bind=db.get_bind(), checkfirst=True)
+        claims.drop(bind=db.get_bind(), checkfirst=True)
+
 URL = "/api/admin/station-print-config/clinical-check"
 EXPECTED = {
     "status": "printing_unavailable",
@@ -45,12 +65,11 @@ def _headers(client, headers):
 
 def _assert_no_print_claims(db):
     names = set(inspect(db.get_bind()).get_table_names())
-    # The real app ORM may not attach staged Alembic-only tables during
-    # isolated unit fixtures; absent tables also prove no claim was created.
-    if claims.name in names:
-        assert db.execute(text(f"SELECT COUNT(*) FROM {claims.name}")).scalar_one() == 0
-    if claim_events.name in names:
-        assert db.execute(text(f"SELECT COUNT(*) FROM {claim_events.name}")).scalar_one() == 0
+    # FAIL if the test did not install the actual staging tables: silence
+    # caused by missing DDL is NOT a print deduplication proof.
+    assert claims.name in names and claim_events.name in names, names
+    assert db.execute(text(f"SELECT COUNT(*) FROM {claims.name}")).scalar_one() == 0
+    assert db.execute(text(f"SELECT COUNT(*) FROM {claim_events.name}")).scalar_one() == 0
 
 
 def test_real_jwt_station_cannot_clinical_check_or_print(client, db, dentiste):
@@ -66,6 +85,14 @@ def test_real_jwt_station_cannot_clinical_check_or_print(client, db, dentiste):
     # outside the Cabinet. Do NOT downgrade it to a generic 403.
     assert result.status_code == 423, result.text
     assert result.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+    # A real identified Station still MUST NOT fetch PDF bytes to its
+    # shared kiosk, even with a genuine login and document selector.
+    locked_pdf = client.get(
+        f"/api/workstation/patient-session/{session_id}/documents/care-sheet/{document.id}",
+        headers=owner_headers,
+    )
+    assert locked_pdf.status_code == 423, locked_pdf.text
+    assert "application/pdf" not in locked_pdf.headers.get("content-type", "")
     _assert_no_print_claims(db)
 
 
