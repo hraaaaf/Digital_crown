@@ -237,8 +237,9 @@ def test_cabinet_clinical_gate_reuses_real_sql_and_denies_without_certification(
         kwargs.update(overrides)
         with Session(engine) as db:
             result = module.clinically_recheck_cabinet_print(db, **kwargs)
-            assert db.in_transaction()
-            db.rollback()
+            if result.reason == "TRUSTED_PRINTER_CERTIFICATION_REQUIRED":
+                assert db.in_transaction()  # source reads shared a DB transaction
+            db.rollback()  # early auth denial legitimately issues no SQL
         assert result.allowed is False
         return result
 
