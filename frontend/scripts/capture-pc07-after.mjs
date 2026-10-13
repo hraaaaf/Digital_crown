@@ -203,6 +203,7 @@ async function pair(page) {
   await page.getByLabel('Code manuel').fill('ABCD-EFGH-JKLM');
   await page.getByText('Appairer avec le code', { exact: true }).click();
   await page.locator('[data-pc00-cabinet-link]').waitFor();
+  await page.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Plus', exact: true }).click();
   await page.locator('[data-pc07-emergency-photo]').waitFor();
 }
 
