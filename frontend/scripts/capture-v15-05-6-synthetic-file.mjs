@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 const dest=path.resolve('artifacts/v15-05-6-file');
@@ -18,7 +19,7 @@ const good={
 };
 const result={
  mode:'OFFICIAL_SYNTHETIC_SQLITE_FILE_ONLY',
- source_sha256:'NOT_USED_IN_THIS_MOCK',source_patients:100,source_appointments:200,
+ source_sha256:createHash('sha256').update(demo).digest('hex'),source_patients:100,source_appointments:200,
  verified_patients:100,verified_appointments:200,verified_patient_links:200,
  orphan_appointments:0,cross_tenant_links:0,
  after_rollback_patients:0,after_rollback_appointments:0,
