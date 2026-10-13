@@ -354,6 +354,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
             type="button"
             onClick={handleSave}
             disabled={!analysisId || isSaving}
+            aria-busy={isSaving}
+            aria-label={isSaving ? "Sauvegarde de l’analyse en cours" : "Sauvegarder l’analyse céphalométrique"}
             className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-all disabled:opacity-50 shadow-sm hover:shadow-md sm:px-4"
             style={{ background: P.bgCard, border: `1px solid ${P.border}`, color: P.text }}
           >
@@ -363,7 +365,12 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         </div>
       </div>
 
-      <div data-tour="cephalo-stepper" className="flex max-w-full flex-wrap items-center gap-2 px-4 py-3 sm:px-6" style={{ background: P.bg }}>
+      <p className="sr-only" id="cephalo-keyboard-help">
+        Navigation clavier : Tab et Maj Tab pour parcourir les commandes, Entrée ou Espace pour activer.
+        Dans les corrections de repères : Ctrl ou Commande plus Z pour annuler, Ctrl ou Commande plus Maj plus Z pour rétablir.
+        Échap quitte le plein écran.
+      </p>
+      <div data-tour="cephalo-stepper" aria-label="Étapes du chantier céphalométrique" aria-describedby="cephalo-keyboard-help" className="flex max-w-full flex-wrap items-center gap-2 px-4 py-3 sm:px-6" style={{ background: P.bg }}>
         <StepTab id={1} label="Céphalométrie" isActive={step === 1} isCompleted={completedSteps.has(1)} onClick={() => goToStep(1)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
         <StepTab id={2} label="Moulages" isActive={step === 2} isCompleted={completedSteps.has(2)} onClick={() => goToStep(2)} P={P} />
