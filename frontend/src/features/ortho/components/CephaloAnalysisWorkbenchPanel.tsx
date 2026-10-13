@@ -329,9 +329,9 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                   >
                     <span className="min-w-0">
                       <span className="block break-words text-[10px] font-bold leading-tight" style={{ color: P.text }}>{identity.label}</span>
-                      <span className="mt-0.5 block break-words text-[10px] leading-tight" style={{ color: present ? P.accentSuccess : P.textDim }}>{placing ? 'Cliquez sur la t\u00e9l\u00e9radio' : (present ? 'Plac\u00e9e \u00b7 cliquer pour replacer' : '\u00c0 placer')}</span>
+                      <span className="mt-0.5 block break-words text-[10px] leading-tight" style={{ color: present ? P.accentSuccess : P.textMuted }}>{placing ? 'Cliquez sur la t\u00e9l\u00e9radio' : (present ? 'Plac\u00e9e \u00b7 cliquer pour replacer' : '\u00c0 placer')}</span>
                     </span>
-                    <MapPin size={12} style={{ color: placing ? P.accent : (present ? P.accentSuccess : P.textDim) }} />
+                    <MapPin size={12} style={{ color: placing ? P.accent : (present ? P.accentSuccess : P.textMuted) }} />
                   </button>
                 );
               })}
@@ -343,7 +343,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
       <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
         <table className="w-full table-fixed border-collapse text-left" aria-label={`Mesures ${ANALYSIS_LABELS[analysis]}`}>
           <thead className="sticky top-0 z-10" style={{ background: P.bgPanel }}>
-            <tr className="border-b text-[10px] font-bold uppercase tracking-[0.06em]" style={{ borderColor: P.border, color: P.textDim }}>
+            <tr className="border-b text-[10px] font-bold uppercase tracking-[0.06em]" style={{ borderColor: P.border, color: P.textMuted }}>
               <th className="w-[39%] px-3 py-2.5">Mesure</th>
               <th className="w-[20%] px-2 py-2.5">Valeur</th>
               <th className="w-[25%] px-2 py-2.5">{analysis === 'steiner' ? 'R\u00e9f. hist.' : analysis === 'tweed' ? 'Contexte' : 'Norme'}</th>
@@ -381,7 +381,7 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                       <span className="break-words text-xs font-semibold leading-snug" style={{ color: selected ? P.text : P.textMuted }}>{definition.label}</span>
                     </div>
                   </td>
-                  <td className="px-2 py-2.5 font-mono text-xs font-bold tabular-nums" style={{ color: value === null ? P.textDim : P.text }}>
+                  <td className="px-2 py-2.5 font-mono text-xs font-bold tabular-nums" style={{ color: value === null ? P.textMuted : P.text }}>
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
                   <td className="px-2 py-2.5 text-[11px] leading-snug" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield 1966' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
