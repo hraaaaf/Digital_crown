@@ -107,9 +107,10 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     };
     cleanup();
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    fireEvent.click(screen.getByText('Historique des corrections'));
     fireEvent.click(screen.getByRole('button',{name:/Annuler/}));
     expect(state.undoLandmarkEdit).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button',{name:/Réinitialiser les corrections de session/}));
+    fireEvent.click(screen.getByRole('button',{name:/Revenir aux repères initialement chargés/}));
     expect(state.resetLandmarkEdits).toHaveBeenCalledTimes(1);
   });
 
