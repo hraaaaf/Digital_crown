@@ -613,7 +613,9 @@ from backend.routers import (
     bot, catalog, motifs, verification, analytics, agenda_settings, agenda_resources, medications, frontdesk, partner_orders, partner_catalog, workstation_mode, station_patient_session
 )
 from backend.routers import ai_feedback as ai_feedback_router
+from backend.routers import legacy_migration_v15 as legacy_migration_router
 
+app.include_router(legacy_migration_router.router, prefix="/api/migration", tags=["Migration — construction"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
 app.include_router(workstation_mode.router, prefix="/api/workstation", tags=["Workstation Mode"])
