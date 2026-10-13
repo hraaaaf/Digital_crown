@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - feat/v15-04-8-print-policy-bridge-20261012
+      - feat/v15-04-8-integration-bcd-lab-20261013
     paths:
       - "backend/services/station_print_printer_draft_lab.py"
       - "backend/services/station_print_held_claims_lab.py"
@@ -22,6 +23,7 @@ on:
       - "frontend/src/features/hub/StationPrintStatusPanel.tsx"
       - "frontend/src/features/hub/StationPrintStatusPanel.test.tsx"
       - ".github/workflows/v15-04-8-bcd-integration-lab.yml"
+      - ".github/workflows/v15-04-8-e-integrated-software-gate.yml"
   workflow_dispatch:
 
 permissions:
