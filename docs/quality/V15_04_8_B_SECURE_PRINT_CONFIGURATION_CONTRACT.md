@@ -1,6 +1,6 @@
 # Digital Crown — V1.5-04.8-B — Configuration de l'impression (contrat isolé)
 
-**Statut : B1 implémenté sur PR #849, B2 persistance/API/UI NON IMPLÉMENTÉS ; 04.8-B GLOBAL OUVERT / NO-GO impression.** Cette note est un contrat d'intégration et non une habilitation matérielle.
+**Statut : B1 et B2a testés en LAB ; B2b migration additive candidate testée en LAB/PostgreSQL ; B2c API/Settings/registre matériel NON IMPLÉMENTÉS. 04.8-B GLOBAL OUVERT / NO-GO impression.** Cette note est un contrat d'intégration et non une habilitation matérielle.
 
 ## Goal
 
@@ -49,3 +49,14 @@ Le module `backend/services/station_document_print_store.py` déclare quatre tab
 **Limites bloquantes B2b** : ce schéma de tests n'est **PAS** une migration. Les FK physiques tenant/station/user/imprimante et le catalogue des attestations matérielles ne sont pas encore appliqués au schéma existant ; aucun endpoint propriétaire avec identité réellement authentifiée, PIN/réauth/CSRF, snapshot d'inventaire transactionnel ni verrou multi-process n'est prouvé. Les propriétés CAS transactionnelles sont des contrats SQL isolés ; tests PostgreSQL de concurrence, restart/récupération, Alembic HEAD/upgrade/downgrade, API vraie et révocation live sont nécessaires avant un quelconque usage en production. Aucun code ne connecte ce store à Station, Desktop, Pocket ou un driver d'impression.
 
 **Gates B2a** : les suites Python LAB 04.8-A, B1, B2a doivent être *réellement exécutées* sur le SHA final, avec assert HEAD et logs relus ; le green de B1 antérieur ne valide pas B2a. Aucune certification matérielle ni impression n'est déclarée.
+
+
+## B2b — migration additive de schéma proposée (pas d'application cabinet)
+
+**HEAD certifié d'origine :** `17cb51378fe3dcda1f5b210036ef60b903c78250` avant la présente édition documentaire. Le [script `neo000000028`](https://github.com/hraaaaf/Digital_crown/blob/17cb51378fe3dcda1f5b210036ef60b903c78250/alembic/versions/neo000000028_station_print_owner_config.py) est relié à `neo000000027`, tête réelle du graphe Alembic de #849 lors de l'audit. Ajoute uniquement les quatre tables du store B2a, avec FK tenant → `users.id`, PK uniques, checks mode et révision, index audit ; ne crée aucune ligne configurée et ne déclenche aucun job.
+
+Le [gate central de schéma](https://github.com/hraaaaf/Digital_crown/blob/17cb51378fe3dcda1f5b210036ef60b903c78250/backend/core/schema_runtime.py) attend désormais `neo000000028` afin de **refuser le démarrage sur une base trop ancienne** : ce changement de constante est intentionnel, et nécessite un déploiement/migration explicite et sauvegardé si la PR est fusionnée un jour. Il n'exécute **jamais** une migration au démarrage.
+
+**Preuves CI du HEAD source précité** : [04.8 LAB #38367338889](https://github.com/hraaaaf/Digital_crown/actions/runs/38367338889) SUCCESS avec **115 tests** A/B1/B2a/B2b et assert SHA exact ; [Scope #38367338875](https://github.com/hraaaaf/Digital_crown/actions/runs/38367338875) SUCCESS ; [PostgreSQL 18 from scratch #38367338937](https://github.com/hraaaaf/Digital_crown/actions/runs/38367338937) SUCCESS avec tête Alembic unique, première migration intégrale et deuxième `upgrade head` sans changement du schéma. Les tests Alembic B2b exercent également `upgrade` et `downgrade` sur SQLite synthétique. Ils **ne prouvent pas** l'upgrade PostgreSQL d'une base réelle préexistante ni le rollback avec ses données : sauvegarde, dry-run from-existing et vérification d'empreintes restent obligatoires.
+
+**Défauts empêchant B2 GLOBAL CLOSED** : absence de FK composite tenant/Station au niveau DB (l'isolation B1 est logique/serveur), absence de registre de certification physique de l'imprimante, aucun modèle ORM intégré ou API privilégiée avec session/PIN/CSRF, aucune preuve multi-process PostgreSQL CAS, aucun AFTER Settings, aucune libération sécurisée attestée. L'activation du mode `both` en production reste **interdite**.
