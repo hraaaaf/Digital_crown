@@ -8,6 +8,18 @@ import {
 
 type Props = { initialSource?: SchemaInventory; initialTarget?: TargetInventory };
 type Stage = 'load' | 'review' | 'summary';
+// These are presentation messages only; the parser keeps stable machine-readable error codes.
+const fileErrorMessages: Record<string, string> = {
+  TAILLE_JSON_INVALIDE: 'Fichier JSON vide ou trop volumineux (maximum 1 Mo).',
+  SOURCE_REPORT_TOO_LARGE: 'Le rapport source dépasse la limite de 1 Mo.',
+  TARGET_REPORT_TOO_LARGE: 'Le rapport cible dépasse la limite de 1 Mo.',
+  UNEXPECTED_METADATA_FIELD: 'Ce rapport contient des champs non autorisés.',
+  UNSAFE_SOURCE_REPORT: 'Ce rapport contient des données ou autorisations interdites.',
+  INVALID_IDENTIFIER: 'Un nom de table ou de colonne est incorrect.',
+  INVALID_SOURCE_SHA256: 'L’empreinte du fichier source est invalide.',
+  AMBIGUOUS_TABLE: 'Le rapport contient des tables en double.',
+  AMBIGUOUS_COLUMN: 'Le rapport contient des colonnes en double.',
+};
 const card = 'rounded-2xl border border-border-main bg-card-bg/80 p-4 shadow-sm sm:p-6';
 const inputClass = 'w-full min-w-0 rounded-xl border border-border-main bg-card-bg p-3 text-sm font-semibold text-text-main';
 const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40';
@@ -40,7 +52,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       else setTarget(parseTargetInventory(contents));
     } catch (cause) {
       if (uploadGeneration.current[kind] !== generation) return;
-      setError(cause instanceof Error ? cause.message : 'RAPPORT_INVALIDE');
+      setError(cause instanceof Error ? (fileErrorMessages[cause.message] || 'Fichier JSON invalide ou mal formé.') : 'Fichier JSON invalide ou mal formé.');
     }
   }
   function chooseTable(name: string, selected: string) {
@@ -62,52 +74,60 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       <div className="flex gap-3">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Database size={25} /></span>
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-widest text-primary">Digital Crown · migration legacy</p>
-          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Mapping Studio</h1>
+          <p className="text-xs font-black uppercase tracking-widest text-primary">Digital Crown · préparation de migration</p>
+          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Correspondances de données</h1>
           <p className="mt-2 text-sm text-text-muted">Préparer les correspondances de colonnes sans toucher aux dossiers patients.</p>
         </div>
       </div>
       <span role="status" className="self-start rounded-full border border-amber-300 bg-amber-50 p-2 text-xs font-bold text-amber-900">
-        En construction · Import bloqué
+        Import en cours de construction
       </span>
     </header>
 
     <section role="note" aria-label="Limites de certification" className="flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
       <AlertTriangle className="mt-1 shrink-0" size={20} />
-      <div><strong>Ce parcours ne migre aucune donnée.</strong> Chargez uniquement des inventaires de schémas JSON,
-        sans dossiers patients, dumps SQL, mots de passe ni données cliniques. Les fichiers sont analysés
-        en mémoire et leur contenu n’est pas envoyé au backend. Les styles globaux de Digital Crown peuvent toutefois charger des polices externes. Le schéma cible fourni n’est pas certifié ;
-        aucune approbation administrateur ni dry-run réel n’existe ici.</div>
+      <div><strong>Ce parcours ne migre aucune donnée.</strong> Choisissez uniquement des inventaires de structures au format JSON,
+        sans dossiers patients, fichiers SQL, mots de passe ni données cliniques. L’analyse des fichiers se fait
+        en mémoire, sans en envoyer le contenu au serveur. L’application peut toutefois charger des polices depuis des services externes.
+        Le schéma cible fourni n’est pas certifié ; aucune approbation administrateur ni simulation d’import n’existe ici.</div>
     </section>
 
-    <nav aria-label="Étapes Mapping Studio" className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
+    <nav aria-label="Étapes de préparation" className="grid min-w-0 grid-cols-3 gap-1 text-center sm:gap-2">
       {([['load','1 · Inventaires'],['review','2 · Correspondances'],['summary','3 · Vérification']] as const).map(([id, text]) =>
         <div key={id} aria-current={stage === id ? 'step' : undefined}
-          className={'rounded-xl border p-3 font-bold ' +
+          className={'min-w-0 rounded-xl border px-1 py-3 text-[10px] font-bold leading-tight break-words sm:px-3 sm:text-sm ' +
             (stage === id ? 'border-primary bg-primary/10 text-primary' : 'border-border-main bg-card-bg text-text-muted')}>{text}</div>)}
     </nav>
 
     {stage === 'load' && <section aria-label="Choisir les inventaires" className="grid gap-4 lg:grid-cols-2">
       <article className={card}>
         <h2 className="text-lg font-black">1. Schéma source</h2>
-        <p className="my-3 text-sm text-text-muted">Rapport JSON de l’inspecteur 05.1, issu d’une copie hors-ligne.</p>
-        <label htmlFor={sourceId} className="mb-2 block text-sm font-bold">Rapport source JSON</label>
+        <p className="my-3 text-sm text-text-muted">Rapport JSON de l’inspecteur 05.1, issu d’une copie hors connexion.</p>
+        <p className="mb-2 text-sm font-bold">Rapport source JSON</p>
         <input id={sourceId} aria-label="Rapport source JSON" type="file" accept=".json,application/json"
           onChange={event => { void loadReport(event, 'source'); }}
-          className="block w-full min-w-0 text-sm file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:p-3 file:font-bold" />
+          className="peer sr-only" />
+        <label htmlFor={sourceId}
+          className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-border-main bg-card-bg px-4 py-3 text-sm font-bold text-text-main peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary">
+          Choisir un fichier JSON
+        </label>
         <p role="status" className="mt-3 text-xs text-text-muted">
-          {source ? source.tables.length + ' tables · SHA ' + source.sourceSha256.slice(0,12) + '…' : 'Aucune source chargée'}
+          {source ? source.tables.length + ' tables · empreinte SHA ' + source.sourceSha256.slice(0,12) + '…' : 'Aucune source chargée'}
         </p>
       </article>
       <article className={card}>
         <h2 className="text-lg font-black">2. Schéma cible</h2>
-        <p className="my-3 text-sm text-text-muted">Manifest de tables/colonnes fourni localement, non certifié par le backend.</p>
-        <label htmlFor={targetId} className="mb-2 block text-sm font-bold">Rapport cible JSON</label>
+        <p className="my-3 text-sm text-text-muted">Inventaire des tables et colonnes fourni localement, non certifié par le serveur.</p>
+        <p className="mb-2 text-sm font-bold">Rapport cible JSON</p>
         <input id={targetId} aria-label="Rapport cible JSON" type="file" accept=".json,application/json"
           onChange={event => { void loadReport(event, 'target'); }}
-          className="block w-full min-w-0 text-sm file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:p-3 file:font-bold" />
+          className="peer sr-only" />
+        <label htmlFor={targetId}
+          className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-border-main bg-card-bg px-4 py-3 text-sm font-bold text-text-main peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary">
+          Choisir un fichier JSON
+        </label>
         <p role="status" className="mt-3 text-xs text-text-muted">
-          {target ? target.tables.length + ' tables · revision ' + target.schemaRevision : 'Aucune cible chargée'}
+          {target ? target.tables.length + ' tables · version ' + target.schemaRevision : 'Aucune cible chargée'}
         </p>
       </article>
       {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800 lg:col-span-2">Inventaire refusé : {error}</p>}
@@ -121,14 +141,14 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       <section aria-label="Progression de revue" className={card + ' flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
         <div><h2 className="font-black">Décisions explicites</h2>
           <p role="status" className="mt-1 text-sm text-text-muted">
-            {tally?.reviewed} / {tally?.total} examinées · {tally?.unmapped} non mappées
+            {tally?.reviewed} / {tally?.total} examinées · {tally?.unmapped} sans correspondance
           </p></div>
         <div className="flex items-center gap-2 text-xs font-bold">{tally?.complete ?
           <CheckCircle2 className="text-emerald-600" size={18} /> : <LockKeyhole className="text-amber-600" size={18} />}
           {tally?.complete ? 'Revue structurelle complète' : 'Revue incomplète'}</div>
       </section>
 
-      {stage === 'review' && <section aria-label="Décisions de mapping" className="space-y-4">
+      {stage === 'review' && <section aria-label="Décisions de correspondance" className="space-y-4">
         {source.tables.map(table => {
           const reviewed = decisions[table.name];
           const selectedTable = target.tables.find(t => t.name === reviewed?.target);
@@ -156,7 +176,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
                 return <div key={column.name} className="grid min-w-0 gap-3 rounded-xl border border-border-main bg-card-bg/60 p-3 sm:grid-cols-2 sm:items-center">
                   <div className="min-w-0"><p className="break-all text-sm font-bold">{column.name}
                     <span className="ml-2 font-normal text-text-muted">{column.declared_type || ''}</span></p>
-                    <p className="mt-1 text-xs text-text-muted">{credential ? 'Secret : mapping interdit' :
+                    <p className="mt-1 text-xs text-text-muted">{credential ? 'Information secrète : correspondance interdite' :
                       'Suggestion : '+(proposeColumn(column.name, selectedTable) || 'Aucune')}</p></div>
                   <label className="text-xs font-bold">Décision sur la colonne
                     <select aria-label={'Colonne '+table.name+'.'+column.name} className={inputClass}
@@ -164,7 +184,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
                       value={chosen === null ? '__unmapped__' : chosen ?? ''}
                       onChange={event => chooseColumn(table.name, column.name, event.target.value)}>
                       <option value="">À décider</option>
-                      <option value="__unmapped__">Laisser non mappée</option>
+                      <option value="__unmapped__">Laisser sans correspondance</option>
                       {!credential && selectedTable?.columns.filter(c => !isCredentialName(c.name)).map(c =>
                         <option key={c.name} value={c.name}>{c.name}</option>)}
                     </select>
@@ -187,7 +207,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       {stage === 'summary' && <section aria-label="Synthèse de préparation" className={card + ' space-y-5'}>
         <h2 className="text-xl font-black">Correspondances examinées — non certifiées</h2>
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {([['Tables', source.tables.length],['Décisions', tally?.reviewed || 0],['Non mappées', tally?.unmapped || 0],['Collisions', tally?.collisions || 0]] as const).map(([name, val]) =>
+          {([['Tables', source.tables.length],['Décisions', tally?.reviewed || 0],['Sans correspondance', tally?.unmapped || 0],['Collisions', tally?.collisions || 0]] as const).map(([name, val]) =>
             <div key={name} className="rounded-xl border border-border-main p-3"><dt className="text-xs text-text-muted">{name}</dt><dd className="text-2xl font-black">{val}</dd></div>)}
         </dl>
         <h3 className="text-sm font-black">Détail des décisions examinées</h3>
@@ -196,24 +216,24 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
             <p className="break-all text-sm font-bold">{table.name} → {decisions[table.name]?.target ?? 'Non importée'}</p>
             <ul className="mt-2 space-y-1 pl-3 text-xs text-text-muted">
               {table.columns.map(column => <li key={column.name} className="break-all">
-                {column.name} → {decisions[table.name]?.columns[column.name] ?? 'Non mappée'}
+                {column.name} → {decisions[table.name]?.columns[column.name] ?? 'Sans correspondance'}
               </li>)}
             </ul>
           </li>)}
         </ul>
         <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-950">
-          NON VALIDÉ : aucune approbation administrateur, signature de profil, dry-run ou sauvegarde. Aucun import possible.
+          NON VALIDÉ : aucune approbation administrateur, signature du profil, simulation d’import ou sauvegarde. Aucun import possible.
         </p>
         <div className="flex flex-col justify-between gap-3 sm:flex-row">
           <button type="button" onClick={() => setStage('review')} className={buttonClass + ' border border-border-main'}><ArrowLeft size={17} /> Modifier</button>
-          <button type="button" disabled aria-label="Importer — indisponible" className={buttonClass + ' bg-slate-800 text-white'}>
-            <LockKeyhole size={17} /> Importer — indisponible
+          <button type="button" disabled aria-label="Import en cours de construction" className={buttonClass + ' bg-slate-800 text-white'}>
+            <LockKeyhole size={17} /> Import en cours de construction
           </button>
         </div>
       </section>}
     </>}
     <footer className="border-t border-border-main pt-4 text-xs leading-relaxed text-text-muted">
-      LOT05.2-B, prototype staff. Profils chiffrés, source SQL réelle, validation cible authentifiée, droits serveur et rollback : en cours de construction.
+      LOT05.2-B · Préparation destinée à l’équipe. Profils chiffrés, source SQL réelle, validation de la cible, autorisations du serveur et annulation des changements : en cours de construction.
     </footer>
   </div>;
 }

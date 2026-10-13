@@ -34,7 +34,7 @@ try {
       return route.abort();
     });
     await page.goto('http://127.0.0.1:4195/migration-preview.html?filled=0', { waitUntil: 'networkidle' });
-    await page.getByRole('heading', { name: 'Mapping Studio' }).waitFor();
+    await page.getByRole('heading', { name: 'Correspondances de données' }).waitFor();
     const before = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
@@ -53,7 +53,7 @@ try {
     await page.getByRole('combobox', { name: 'Destination table old_documents' }).selectOption('__unmapped__');
     await page.getByRole('combobox', { name: 'Colonne old_documents.legacy_ref' }).selectOption('__unmapped__');
     await page.getByRole('button', { name: 'Vérifier' }).click();
-    const importButton = page.getByRole('button', { name: 'Importer — indisponible' });
+    const importButton = page.getByRole('button', { name: 'Import en cours de construction' });
     const importDisabled = await importButton.isDisabled();
     const after = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,

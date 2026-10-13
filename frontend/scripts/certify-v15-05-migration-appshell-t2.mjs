@@ -17,7 +17,7 @@ const ui = 'http://127.0.0.1:5173';
 const dest = path.resolve('../artifacts/v15-05-migration-appshell-t2');
 const actors = [
   { name: 'owner', email: 't2-browser@cabinet.ma', allowed: true },
-  { name: 'employed-admin', email: 't2-migration-employed-admin@example.invalid', allowed: false },
+  { name: 'employed-admin', email: 't2-migration-employed-admin@cabinet.ma', allowed: false },
 ];
 const sizes = [{ width: 390, height: 844 }, { width: 1280, height: 900 }];
 const report = { sha, scope: 'real App.tsx + Sidebar + LoginPage and T2 backend.main',
@@ -68,8 +68,32 @@ try {
         if (!await page.getByRole('button', { name: /Examiner les correspondances/i }).isDisabled()) {
           throw new Error('Review action enabled without mapping files');
         }
+        const uploadLabels = page.locator('[data-testid="migration-studio"] label').filter({
+          hasText: 'Choisir un fichier JSON',
+        });
+        if (await uploadLabels.count() !== 2) {
+          throw new Error('Two French file selectors not rendered');
+        }
+        const firstLabel = uploadLabels.first();
+        const inputId = await firstLabel.getAttribute('for');
+        if (!inputId || await page.locator('input[type="file"]').first().getAttribute('id') !== inputId) {
+          throw new Error('File selector label missing accessible input association');
+        }
+        // Verify the real label opens the browser file chooser, without uploading data.
+        const chooser = page.waitForEvent('filechooser', { timeout: 10000 });
+        await firstLabel.click();
+        await chooser;
+        await firstLabel.scrollIntoViewIfNeeded();
+        await page.screenshot({
+          path: path.join(dest, actor.name + '-' + viewport.width + '-upload.png'),
+          animations: 'disabled',
+        });
       } else {
         await page.waitForURL(url => new URL(url).pathname === '/dashboard', { timeout: 45000 });
+        // A URL redirect alone can show PageLoader; require real dashboard before screenshot.
+        await page.getByRole('button', { name: 'Ajout rapide' }).waitFor({
+          state: 'visible', timeout: 45000,
+        });
         item.route = await page.locator('[data-testid="migration-studio"]').count() > 0;
       }
       if (item.route !== actor.allowed) throw new Error('Direct route owner mismatch');
