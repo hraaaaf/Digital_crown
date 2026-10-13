@@ -186,7 +186,8 @@ class WiringStaticSafetyContracts(unittest.TestCase):
                for d in n.decorator_list
                if isinstance(d,ast.Call) and isinstance(d.func,ast.Attribute)
                and d.args and isinstance(d.args[0],ast.Constant)}
-        self.assertEqual(paths,{"/preflight","/synthetic-rehearsal"})
+        self.assertEqual(paths,{"/preflight","/synthetic-rehearsal",
+                                "/synthetic-fixture","/synthetic-file-dryrun"})
 
     def test_main_mounts_owner_gated_api_and_not_mobile(self):
         main=(BACKEND/"main.py").read_text()
