@@ -5,6 +5,10 @@ import {
   progress, proposeColumn, proposeTable, type ReviewDecisions,
   type SchemaInventory, type TargetInventory,
 } from './MappingStudioPolicy';
+import {
+  fetchMigrationPreflight, runSyntheticStaffRehearsal,
+  type Preflight, type Rehearsal,
+} from './migrationGateway';
 
 type Props = { initialSource?: SchemaInventory; initialTarget?: TargetInventory };
 type Stage = 'load' | 'review' | 'summary';
@@ -21,6 +25,50 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
   const [decisions, setDecisions] = useState<ReviewDecisions>({});
   const [stage, setStage] = useState<Stage>('load');
   const [error, setError] = useState<string | null>(null);
+  const [preflight, setPreflight] = useState<Preflight | null>(null);
+  const [rehearsal, setRehearsal] = useState<Rehearsal | null>(null);
+  const [gatewayError, setGatewayError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [rehearsing, setRehearsing] = useState(false);
+
+  async function checkPreflight() {
+    setChecking(true);
+    setGatewayError(null);
+    setPreflight(null);
+    setRehearsal(null);
+    try {
+      setPreflight(await fetchMigrationPreflight());
+    } catch {
+      // 401, 403, 423, schema mismatch or transport errors are never treated as ready.
+      setGatewayError('Vérification serveur refusée ou indisponible. Aucune importation autorisée.');
+    } finally {
+      setChecking(false);
+    }
+  }
+  async function rehearseSynthetic() {
+    setRehearsing(true);
+    setGatewayError(null);
+    setRehearsal(null);
+    try {
+      setRehearsal(await runSyntheticStaffRehearsal());
+    } catch {
+      setGatewayError('Simulation fictive non certifiée. Aucun dossier patient modifié.');
+    } finally {
+      setRehearsing(false);
+    }
+  }
+  function useObservedTarget() {
+    if (!preflight?.physical_subset_checked || !preflight.target_preview) return;
+    try {
+      // Target schema is only an OBSERVED subset, never an authorized mapping.
+      setTarget(parseTargetInventory(JSON.stringify(preflight.target_preview)));
+      setDecisions({});
+      setStage('load');
+      setError(null);
+    } catch {
+      setGatewayError('Inventaire cible refusé : données serveur incohérentes.');
+    }
+  }
   const tally = useMemo(() => source && target ? progress(source, target, decisions) : null, [source, target, decisions]);
 
   async function loadReport(event: ChangeEvent<HTMLInputElement>, kind: 'source' | 'target') {
@@ -76,8 +124,42 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       <AlertTriangle className="mt-1 shrink-0" size={20} />
       <div><strong>Ce parcours ne migre aucune donnée.</strong> Chargez uniquement des inventaires de schémas JSON,
         sans dossiers patients, dumps SQL, mots de passe ni données cliniques. Les fichiers sont analysés
-        en mémoire et leur contenu n’est pas envoyé au backend. Les styles globaux de Digital Crown peuvent toutefois charger des polices externes. Le schéma cible fourni n’est pas certifié ;
+        en mémoire et leur contenu n’est pas envoyé au backend. Seuls un contrôle structurel du serveur et une simulation indépendante de données entièrement fictives peuvent être demandés.
+        Les styles globaux de Digital Crown peuvent toutefois charger des polices externes. Le schéma cible fourni n’est pas entièrement certifié ;
         aucune approbation administrateur ni dry-run réel n’existe ici.</div>
+    </section>
+
+    <section aria-label="Prévol sécurisé du cabinet" className={card + ' space-y-3'}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 className="font-black">Service de migration — en construction</h2>
+          <p className="mt-1 text-sm text-text-muted">Prévol en lecture seule, réservé au propriétaire connecté sur son poste autorisé.</p></div>
+        <button type="button" onClick={() => { void checkPreflight(); }} disabled={checking || rehearsing}
+          className={buttonClass + ' border border-border-main'}>
+          {checking ? 'Contrôle en cours…' : 'Contrôler le backend sécurisé'}
+        </button>
+      </div>
+      {preflight && <div role="status" className="space-y-2 text-sm">
+        <p className="font-bold">{preflight.physical_subset_checked ?
+          'Sous-ensemble de tables et révision vérifiés en lecture seule.' :
+          'Schéma physique ou révision non conforme : simulation bloquée.'}</p>
+        <p className="text-xs text-text-muted">Schéma clinique complet, migration Alembic et import réel : en cours de construction.</p>
+        <p className="text-xs text-text-muted">Import de fichiers réels : interdit. Aucun inventaire local n’est transmis.</p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button type="button" onClick={useObservedTarget}
+            disabled={!preflight.physical_subset_checked || !preflight.target_preview}
+            className={buttonClass + ' border border-border-main'}>Charger l’aperçu cible observé</button>
+          <button type="button" disabled={!preflight.physical_subset_checked || rehearsing || checking}
+            onClick={() => { void rehearseSynthetic(); }}
+            className={buttonClass + ' border border-border-main'}>
+            {rehearsing ? 'Simulation fictive en cours…' : 'Simuler 100 patients et 200 RDV fictifs'}</button>
+        </div>
+      </div>}
+      {rehearsal && <p role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
+        Simulation fictive : {rehearsal.verified_patients}/100 patients et {rehearsal.verified_patient_links}/200 liens vérifiés,
+        {rehearsal.after_rollback_patients} patient et {rehearsal.after_rollback_appointments} RDV conservés après rollback.
+        Aucun dossier du cabinet lu ou modifié. Import réel toujours bloqué.
+      </p>}
+      {gatewayError && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">{gatewayError}</p>}
     </section>
 
     <nav aria-label="Étapes Mapping Studio" className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
