@@ -7,6 +7,7 @@ import {
 } from './MappingStudioPolicy';
 import {
   fetchMigrationPreflight, runSyntheticStaffRehearsal,
+  downloadOfficialSyntheticFile, dryrunOfficialSyntheticFile, type SyntheticFileDryrun,
   type Preflight, type Rehearsal,
 } from './migrationGateway';
 
@@ -19,6 +20,7 @@ const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 roun
 export function MigrationMappingStudio({ initialSource, initialTarget }: Props) {
   const sourceId = useId();
   const targetId = useId();
+  const demoFileId = useId();
   const uploadGeneration = useRef({ source: 0, target: 0 });
   const [source, setSource] = useState<SchemaInventory | null>(initialSource ?? null);
   const [target, setTarget] = useState<TargetInventory | null>(initialTarget ?? null);
@@ -30,12 +32,61 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [rehearsing, setRehearsing] = useState(false);
+  const [officialDemoSha, setOfficialDemoSha] = useState<string | null>(null);
+  const [fileResult, setFileResult] = useState<SyntheticFileDryrun | null>(null);
+  const [downloadingDemo, setDownloadingDemo] = useState(false);
+  const [checkingDemoFile, setCheckingDemoFile] = useState(false);
+
+  async function downloadFixture() {
+    setDownloadingDemo(true);
+    setOfficialDemoSha(null);
+    setFileResult(null);
+    setGatewayError(null);
+    try {
+      const { bytes, sha } = await downloadOfficialSyntheticFile();
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.sqlite3' }));
+      try {
+        const element = document.createElement('a');
+        element.href = url;
+        element.download = 'digital-crown-synthetic-100x200.db';
+        document.body.append(element);
+        element.click();
+        element.remove();
+      } finally {
+        // The Blob contains only canonical fake fixture values.
+        URL.revokeObjectURL(url);
+      }
+      setOfficialDemoSha(sha);
+    } catch {
+      setGatewayError('Téléchargement fictif impossible. Aucun transfert de données autorisé.');
+    } finally {
+      setDownloadingDemo(false);
+    }
+  }
+
+  async function checkFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    setFileResult(null);
+    setGatewayError(null);
+    if (!file || !officialDemoSha || !preflight?.physical_subset_checked) return;
+    setCheckingDemoFile(true);
+    try {
+      setFileResult(await dryrunOfficialSyntheticFile(file, officialDemoSha));
+    } catch {
+      setGatewayError('Fichier refusé : seul le fichier fictif Digital Crown téléchargé ici est accepté. Aucune donnée clinique envoyée.');
+    } finally {
+      setCheckingDemoFile(false);
+    }
+  }
 
   async function checkPreflight() {
     setChecking(true);
     setGatewayError(null);
     setPreflight(null);
     setRehearsal(null);
+    setFileResult(null);
+    setOfficialDemoSha(null);
     try {
       setPreflight(await fetchMigrationPreflight());
     } catch {
@@ -125,7 +176,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       <div><strong>Ce parcours ne migre aucune donnée.</strong> Chargez uniquement des inventaires de schémas JSON,
         sans dossiers patients, dumps SQL, mots de passe ni données cliniques. Les fichiers sont analysés
         en mémoire et leur contenu n’est pas envoyé au backend. Seuls un contrôle structurel du serveur et une simulation indépendante de données entièrement fictives peuvent être demandés.
-        Les styles globaux de Digital Crown peuvent toutefois charger des polices externes. Le schéma cible fourni n’est pas entièrement certifié ;
+        Un essai de fichier SQLite est possible seulement avec la base **entièrement fictive fournie par Digital Crown**. Aucun véritable export de patient ne doit être sélectionné. Les styles globaux peuvent charger des polices externes. Le schéma cible fourni n’est pas entièrement certifié ;
         aucune approbation administrateur ni dry-run réel n’existe ici.</div>
     </section>
 
@@ -153,6 +204,24 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
             className={buttonClass + ' border border-border-main'}>
             {rehearsing ? 'Simulation fictive en cours…' : 'Simuler 100 patients et 200 RDV fictifs'}</button>
         </div>
+      </div>}
+      {preflight?.physical_subset_checked && <div className="space-y-3 rounded-xl border border-border-main p-3 sm:p-4" aria-label="Essai de fichier SQLite fictif">
+        <h3 className="text-sm font-black">Essai avec un véritable fichier .db fictif</h3>
+        <p className="text-xs text-text-muted">Téléchargez la base générée par Digital Crown (100 patients fictifs, 200 rendez-vous fictifs), puis sélectionnez exactement ce fichier. Le contrôle SHA local refuse tout autre fichier avant envoi au serveur.</p>
+        <button type="button" disabled={downloadingDemo || checkingDemoFile} onClick={() => { void downloadFixture(); }}
+          className={buttonClass + ' border border-border-main'}>
+          {downloadingDemo ? 'Fichier fictif en préparation…' : 'Télécharger la base SQLite fictive'}</button>
+        <label htmlFor={demoFileId} className="block text-sm font-bold">Sélectionner uniquement le fichier fictif téléchargé
+          <input id={demoFileId} aria-label="Fichier SQLite fictif Digital Crown" type="file" accept=".db,application/vnd.sqlite3"
+            disabled={!officialDemoSha || checkingDemoFile || downloadingDemo}
+            onChange={event => { void checkFile(event); }}
+            className="mt-2 block w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:p-3 file:font-bold" />
+        </label>
+        {officialDemoSha && <p role="status" className="text-xs text-text-muted">Fichier fictif préparé · contrôle SHA local activé.</p>}
+        {checkingDemoFile && <p role="status" className="text-sm font-bold">Vérification et simulation du fichier fictif en cours…</p>}
+        {fileResult && <p role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
+          Fichier SQLite fictif vérifié : {fileResult.verified_patients}/100 patients et {fileResult.verified_patient_links}/200 relations contrôlées. Après rollback : {fileResult.after_rollback_patients} patient, {fileResult.after_rollback_appointments} rendez-vous. Aucune écriture dans le cabinet.
+        </p>}
       </div>}
       {rehearsal && <p role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
         Simulation fictive : {rehearsal.verified_patients}/100 patients et {rehearsal.verified_patient_links}/200 liens vérifiés,
