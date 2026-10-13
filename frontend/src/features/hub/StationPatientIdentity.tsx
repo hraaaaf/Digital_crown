@@ -5,6 +5,7 @@ import {
   type StationPatientSessionCreated,
 } from '../../services/stationPatientSession';
 import { StationAppointmentArrival, type StationFlowLanguage } from './StationAppointmentArrival';
+import { StationPrintStatusPanel } from './StationPrintStatusPanel';
 
 const COPY = {
   fr: {
@@ -329,6 +330,11 @@ export const StationPatientIdentity = ({
             {copy.documentsReady}
           </p>
         )}
+        {/* 04.8-D only renders on identified document sessions. No print action,
+            destinations, API call, PDF, or hidden client opt-in exists yet. */}
+        <div data-station-print-status-slot className="mt-5 w-full min-w-0">
+          <StationPrintStatusPanel language={language} status="disabled" />
+        </div>
         {documentsError && <p role="alert" className="mt-4 text-sm font-bold text-danger">{documentsError}</p>}
         <button type="button" onClick={() => void leave()} className="mt-6 min-h-12 w-full rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">
           {backLabel}
