@@ -86,9 +86,9 @@ def test_evidence_is_pending_only_and_does_not_certify_a_destination(engine):
 
 
 def test_evidence_fk_rejects_unknown_printer_or_cross_tenant_provenance(engine):
-    with pytest.raises(IntegrityError):
+    with pytest.raises(PrintReviewConflict):
         pending(engine,printer_id="unregistered")
-    with pytest.raises(IntegrityError):
+    with pytest.raises(PrintReviewConflict):
         pending(engine,tenant_id=21,actor_user_id=21)
     assert pending(engine,tenant_id=20,actor_user_id=20).status=="pending_field_verification"
     with engine.connect() as c:
@@ -180,7 +180,7 @@ def test_review_denied_on_held_or_missing_claim(engine):
 def test_uncertain_review_rejects_untrusted_actor_and_completion(engine,change):
     claim=uncertain(engine)
     with pytest.raises(PrintReviewRejected):
-        review(engine,claim.delivery_key,**change)
+        review(engine,claim.delivery_key if "delivery_key" not in change else None,**change)
     with engine.connect() as c:
         assert c.execute(select(uncertain_reviews)).all()==[]
 
