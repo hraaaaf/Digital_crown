@@ -61,7 +61,7 @@ function json(body,status=200){return{status,contentType:'application/json',body
 async function waitForServer(url,timeoutMs=30000){const start=Date.now();while(Date.now()-start<timeoutMs){try{const r=await fetch(url);if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,250))}throw new Error(`Vite unavailable ${url}`)}
 
 function modeContract(mode, metrics) {
-  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow) return false;
+  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
   if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
@@ -105,6 +105,15 @@ async function captureViewport(viewport,attempt){
    }
    await page.waitForTimeout(80);
    const metrics=await page.evaluate(()=>{
+    const tabs=Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button'));
+    const tabBar=document.querySelector('[aria-label="Analyse du tracé"]');
+    const barRect=tabBar?.getBoundingClientRect();
+    const tabsFullyVisible=Boolean(barRect && tabs.length===6 && tabs.every(tab=>{const rect=tab.getBoundingClientRect();return rect.left>=barRect.left-1 && rect.right<=barRect.right+1;}));
+    const panel=document.querySelector('[data-r19-analysis-panel]');
+    const detail=document.querySelector('[data-r19-measure-detail]');
+    const panelRect=panel?.getBoundingClientRect();
+    const detailRect=detail?.getBoundingClientRect();
+    const detailContained=Boolean(panelRect && detailRect && detailRect.top>=panelRect.top-1 && detailRect.bottom<=panelRect.bottom+1);
     const landmarkLabels=Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean);
     const legacyMcNamaraLeakCount=landmarkLabels.filter(label=>label==='McNamara'||label==="A'"||label==="B'").length;
     return {
@@ -119,7 +128,10 @@ async function captureViewport(viewport,attempt){
       comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
       legacyMcNamaraLeakCount,
       selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
-      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
+      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+      tabsFullyVisible,
+      detailContained,
+      desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && detailContained)
     };
    });
    const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort');
