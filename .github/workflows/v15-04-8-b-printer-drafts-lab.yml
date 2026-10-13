@@ -1,0 +1,47 @@
+name: V1.5-04.8 B Printer Draft Registry (ISOLATED LAB)
+
+on:
+  pull_request:
+    branches:
+      - feat/v15-04-8-print-policy-bridge-20261012
+    paths:
+      - backend/services/station_print_printer_draft_lab.py
+      - backend/tests/test_station_print_printer_draft_lab.py
+      - .github/workflows/v15-04-8-b-printer-drafts-lab.yml
+      - docs/quality/V15_04_8_B_PARALLEL_PRINTER_REGISTRY_LAB.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scoped-lab:
+    name: B Printer Draft Registry exact-HEAD negative tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Prove exact source HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal deterministic LAB dependencies
+        run: python -m pip install pytest==8.3.3 SQLAlchemy==2.0.28
+      - name: Source syntax and dedicated test execution
+        run: |
+          python -m py_compile backend/services/station_print_printer_draft_lab.py backend/tests/test_station_print_printer_draft_lab.py
+          mkdir -p /tmp/dc04-8-station_print_printer_draft_lab
+          cp backend/tests/test_station_print_printer_draft_lab.py /tmp/dc04-8-station_print_printer_draft_lab/test_lab.py
+          python - <<'PY'
+          import os, sys, types, pytest
+          for name, path in (("backend", "backend"), ("backend.services", "backend/services")):
+              module = types.ModuleType(name)
+              module.__path__ = [os.path.abspath(path)]
+              sys.modules[name] = module
+          raise SystemExit(pytest.main(["-q", "/tmp/dc04-8-station_print_printer_draft_lab/test_lab.py"]))
+          PY
