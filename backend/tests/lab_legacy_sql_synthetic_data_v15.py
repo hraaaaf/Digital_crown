@@ -177,7 +177,7 @@ def run_synthetic_dryrun(
             if set(row) != inventory[table_name]:
                 raise LabRejected("SOURCE_ROW_SCHEMA_MISMATCH")
 
-    normalized_patients: list[tuple[str, str, str, str, str | None, str | None, str | None]] = []
+    normalized_patients: list[tuple[str, str, str, str, str, str | None, str | None, str | None]] = []
     normalized_appointments: list[tuple[str, str, str]] = []
     source_ids: set[str] = set()
     similarity_keys: set[tuple[str, str, str]] = set()
@@ -202,6 +202,7 @@ def run_synthetic_dryrun(
         dossier = row.get(patients["numero_dossier"]) if "numero_dossier" in patients else None
         normalized_patients.append((src_id, nom, prenom, dob, sexe, email, telephone, dossier))
 
+    seen_appointments: set[tuple[str, str, str]] = set()
     for row in appointment_rows:
         ref = _extract(row, appointments, "patient_id")
         if ref not in source_ids:
@@ -209,7 +210,12 @@ def run_synthetic_dryrun(
         when = _date(_extract(row, appointments, "datetime_start"), datetime_format, timestamp=True)
         if _extract(row, appointments, "status") != accepted_source_status:
             raise LabRejected("UNKNOWN_APPOINTMENT_STATUS_REQUIRES_REVIEW")
-        normalized_appointments.append((ref, when, "PREVU"))
+        # Conservative *candidate* collision only. Do not auto-merge real RDV.
+        identity = (ref, when, "PREVU")
+        if identity in seen_appointments:
+            raise LabRejected("POTENTIAL_DUPLICATE_APPOINTMENT_REQUIRES_HUMAN_REVIEW")
+        seen_appointments.add(identity)
+        normalized_appointments.append(identity)
 
     # ONLY in-memory SQLite; never accept connections/paths provided by caller.
     db = sqlite3.connect(":memory:")
