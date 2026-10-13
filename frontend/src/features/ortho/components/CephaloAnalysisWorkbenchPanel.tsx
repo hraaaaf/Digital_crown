@@ -217,6 +217,8 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
   const steinerProfile = React.useMemo(() => readSteinerProtocolProjection(anglesData), [anglesData]);
   const tweedMerrifieldProfile = React.useMemo(() => readTweedMerrifieldProtocolProjection(anglesData), [anglesData]);
   const definitions = React.useMemo(() => ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]), [analysis]);
+  const availableCount = definitions.filter(definition => readValue(metricFromResults(anglesData, definition)) !== null).length;
+  const unavailableCount = definitions.length - availableCount;
   const [selectedKey, setSelectedKey] = React.useState(definitions[0]?.key ?? '');
   const [hoverKey, setHoverKey] = React.useState<string | null>(null);
 
@@ -279,6 +281,10 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
             <h3 className="break-words text-sm font-black leading-tight" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
             <p className="mt-0.5 text-[11px]" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : analysis === 'tweed' ? 'Triangle DC Po_anatomic-Or / Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" role="status" aria-live="polite">
+          <span className="rounded-lg border px-2 py-1 font-bold" style={{ borderColor: P.border, color: P.accentSuccess }}>{availableCount}/{definitions.length} mesures calculées</span>
+          {unavailableCount > 0 && <span className="rounded-lg border px-2 py-1" style={{ borderColor: P.border, color: P.textMuted }}>{unavailableCount} non calculables</span>}
         </div>
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5" aria-label="Code couleur céphalométrique">
           {FAMILY_LEGEND.map(([family, label]) => (
@@ -361,6 +367,8 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
                   aria-selected={selected}
                   tabIndex={0}
                   onClick={() => setSelectedKey(definition.key)}
+                  onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedKey(definition.key); } }}
+                  aria-label={`Afficher le tracé de ${definition.label}`}
                   onFocus={() => setSelectedKey(definition.key)}
                   onMouseEnter={() => setHoverKey(definition.key)}
                   onMouseLeave={() => setHoverKey(null)}
