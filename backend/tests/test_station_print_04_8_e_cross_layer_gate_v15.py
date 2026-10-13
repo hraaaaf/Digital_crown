@@ -145,3 +145,22 @@ def test_synthetic_lab_is_not_a_prod_print_dispatch_endpoint():
     assert 'os.environ.get("GITHUB_ACTIONS") != "true"' in outbox
     assert 'os.environ.get("DC_SYNTHETIC_VIRTUAL_SPOOL_LAB") != "1"' in outbox
     assert "allowed=True" not in outbox
+
+
+def test_pending_evidence_and_uncertain_review_can_never_become_print_permits():
+    """04.8 software gate: evidence intake is not field certification."""
+    src = source("backend/services/station_print_attestation_recovery_v15.py")
+    inventory = source("backend/services/station_document_print_inventory.py")
+    assert '"pending_field_verification"' in src
+    assert "status = 'pending_field_verification'" in src
+    assert '"investigating", "evidence_checked", "escalated"' in src
+    assert "reserve_held_claim(" not in src
+    assert "mark_uncertain(" not in src
+    assert "def enable_print" not in src
+    assert "def certify_printer" not in src
+    assert "def release_print" not in src
+    assert "return {}" in inventory  # no independently field-certified printer source yet
+    migration = source("alembic/versions/neo000000030_print_evidence_investigation.py")
+    assert "pending_field_verification" in migration
+    assert "fk_device_evidence_unverified_draft" in migration
+    assert "fk_uncertain_review_claim" in migration
