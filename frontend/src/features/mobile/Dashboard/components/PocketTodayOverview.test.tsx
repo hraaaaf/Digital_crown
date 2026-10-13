@@ -58,6 +58,16 @@ const snapshot = (role: string): Snapshot => ({
 });
 
 describe('PocketTodayOverview', () => {
+  it('keeps authorized agenda readable but disables every patient entry when dossiers are denied', () => {
+    const onOpenPatient = vi.fn();
+    render(<PocketTodayOverview snapshot={snapshot('DENTISTE')} selectedDate={localToday()} canOpenPatient={false} onOpenPatient={onOpenPatient} onOpenWaitingRoom={vi.fn()} onOpenFrontdesk={vi.fn()} onOpenAlerts={vi.fn()} />);
+    const dossier = screen.getByRole('button', { name: /Ouvrir le dossier/ });
+    expect(dossier.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(dossier);
+    expect(onOpenPatient).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Ouvrir Omar Alami' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Alertes' }).hasAttribute('disabled')).toBe(true);
+  });
   it('shows the practitioner priority and opens the waiting patient cockpit directly', () => {
     const onOpenPatient = vi.fn();
     const { container } = render(

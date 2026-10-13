@@ -15,9 +15,9 @@ const DIFFICULTY_LABELS: Record<ClinicalProtocol['difficulty'], string> = {
 };
 
 const DIFFICULTY_CLASSES: Record<ClinicalProtocol['difficulty'], string> = {
-  routine: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700',
-  complex: 'border-amber-500/20 bg-amber-500/10 text-amber-700',
-  specialist: 'border-rose-500/20 bg-rose-500/10 text-rose-700',
+  routine: 'border-success-border bg-success-surface text-success',
+  complex: 'border-warning-border bg-warning-surface text-warning',
+  specialist: 'border-danger-border bg-danger-surface text-danger',
 };
 
 function readStoredCodes(key: string): string[] {
@@ -133,7 +133,7 @@ export function LibraryView({ role }: { role?: string }) {
               className={cn(
                 'grid h-11 w-11 shrink-0 place-items-center rounded-full border transition-colors',
                 favorites.includes(selected.act_code)
-                  ? 'border-amber-400/30 bg-amber-400/10 text-amber-600'
+                  ? 'border-warning-border bg-warning-surface text-warning'
                   : 'border-glass-border bg-background text-text-muted',
               )}
             >
@@ -175,7 +175,7 @@ export function LibraryView({ role }: { role?: string }) {
           onClick={() => setFavoritesOnly(value => !value)}
           className={cn(
             'inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-[10px] font-black transition-colors',
-            favoritesOnly ? 'border-amber-400/30 bg-amber-400/10 text-amber-700' : 'border-glass-border bg-card text-text-muted',
+            favoritesOnly ? 'border-warning-border bg-warning-surface text-warning' : 'border-glass-border bg-card text-text-muted',
           )}
         >
           <Star size={14} fill={favoritesOnly ? 'currentColor' : 'none'} /> Favoris {favorites.length > 0 ? `(${favorites.length})` : ''}
@@ -209,7 +209,7 @@ export function LibraryView({ role }: { role?: string }) {
                 onClick={() => toggleFavorite(protocol)}
                 className={cn(
                   'absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full border',
-                  isFavorite ? 'border-amber-400/30 bg-amber-400/10 text-amber-600' : 'border-glass-border bg-background text-text-muted',
+                  isFavorite ? 'border-warning-border bg-warning-surface text-warning' : 'border-glass-border bg-background text-text-muted',
                 )}
               >
                 <Star size={17} fill={isFavorite ? 'currentColor' : 'none'} />

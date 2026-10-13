@@ -2,11 +2,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FrontdeskView } from './FrontdeskView';
 
-vi.mock('../../../../services/api', () => ({
-  api: {
-    get: vi.fn().mockResolvedValue({ data: [] }),
-    post: vi.fn(),
-  },
+vi.mock('../../../../services/zka/mobileApi', () => ({
+  mobileApiJson: vi.fn().mockResolvedValue([]),
 }));
 
 afterEach(() => cleanup());

@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { MobileStorage } from '../../../../services/zka/MobileStorage';
+import { MobileStorage, isReplayablePocketAction } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { mobileApiJson } from '../../../../services/zka/mobileApi';
 import type { LabJob } from '../../../../types/labJob';
-import { LabJobStatus } from '../../../../types/labJob';
 import { formatLabJobMessage } from '../../../../services/whatsappService';
 import type { Tab, SyncStatus, Snapshot, Appointment, ApptStatus } from '../types';
 
@@ -35,7 +34,7 @@ function isQueueableNetworkError(error: unknown): boolean {
 }
 
 export function useMobileDashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('agenda');
+  const [activeTab, setActiveTab] = useState<Tab>('today');
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -156,6 +155,12 @@ export function useMobileDashboard() {
     let hasError = false;
 
     for (const action of queue) {
+      // Defense in depth: never replay legacy destructive or foreign-origin actions.
+      if (!isReplayablePocketAction(action, creds.api_base_url)) {
+        await MobileStorage.removeActionFromQueue(action.id);
+        toast.error('Action hors ligne non autorisée annulée.');
+        continue;
+      }
       try {
         const res = await mobileFetch(action.url, {
           method: action.method,
@@ -256,9 +261,17 @@ export function useMobileDashboard() {
   };
 
   const handleDeleteAppt = async (id: number) => {
+    // A destructive action must be confirmed by the cabinet now, never replayed later.
+    if (!navigator.onLine) {
+      toast.error('Suppression impossible hors ligne. Reconnectez-vous au cabinet.');
+      return;
+    }
     if (!window.confirm("Supprimer ce rendez-vous ?")) return;
     const creds = credsRef.current || await MobileStorage.getCredentials();
-    if (!creds) return;
+    if (!creds) {
+      toast.error('Session mobile expirée ou révoquée');
+      return;
+    }
     const actionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${id}-delete`;
     try {
       const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
@@ -269,22 +282,12 @@ export function useMobileDashboard() {
         toast.error(`Suppression refusée (${res.status})`);
         return;
       }
-      fetchSnapshot();
+      void fetchSnapshot();
       toast.success("Rendez-vous supprimé");
     } catch (err) {
-      if (!isQueueableNetworkError(err)) {
-        toast.error(err instanceof Error && err.message === 'Non appairé'
-          ? 'Session mobile expirée ou révoquée'
-          : 'Erreur lors de la suppression');
-        return;
-      }
-      await MobileStorage.enqueueAction(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, 'DELETE', undefined, actionId);
-      setQueuedActionsCount((await MobileStorage.getActionQueue()).length);
-      toast('Suppression mise en attente (hors ligne)', { icon: '🔄' });
-      setSnapshot(prev => prev ? {
-        ...prev,
-        appointments: prev.appointments.filter(a => a.id !== id),
-      } : prev);
+      toast.error(err instanceof Error && err.message === 'Non appairé'
+        ? 'Session mobile expirée ou révoquée'
+        : 'Suppression non confirmée par le cabinet. Réessayez en ligne.');
     }
   };
 
@@ -322,24 +325,12 @@ export function useMobileDashboard() {
 
   useEffect(() => {
     if (!whatsappApt) return;
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dateFormatted = tomorrow.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    
-    const motifLower = (whatsappApt.motif || "").toLowerCase();
-    let motifStr = "votre consultation";
-    if (motifLower) {
-      if (motifLower.includes("empreinte") || motifLower.includes("taille") || motifLower.includes("armature") || motifLower.includes("biscuit") || motifLower.includes("prothèse")) {
-        motifStr = `l'essayage / l'étape ${motifLower}`;
-      } else {
-        motifStr = `votre séance de ${motifLower}`;
-      }
-    }
-    
+    // The externally shared default intentionally avoids patient identity,
+    // treatment details and assumptions such as "tomorrow" for an arbitrary RDV.
     if (whatsappTemplate === 'rappel') {
-      setCustomMessage(`Bonjour, n'oubliez pas votre rdv de demain à ${whatsappApt.time} pour ${motifStr}.`);
+      setCustomMessage('Bonjour, ceci est un rappel de votre rendez-vous au cabinet. Merci de nous contacter pour toute question.');
     } else {
-      setCustomMessage(`Bonjour ${whatsappApt.patient_name}, nous vous confirmons votre rendez-vous du ${dateFormatted} à ${whatsappApt.time} pour ${whatsappApt.motif || 'votre consultation'}.`);
+      setCustomMessage('Bonjour, votre rendez-vous au cabinet est confirmé. Contactez-nous si vous souhaitez le modifier.');
     }
   }, [whatsappApt, whatsappTemplate]);
 
@@ -351,23 +342,18 @@ export function useMobileDashboard() {
   };
 
   const handleWhatsAppSend = async (job: LabJob) => {
-    const plainText = formatLabJobMessage(job);
-    try {
-      await navigator.clipboard.writeText(plainText);
-    } catch (error) {
-      console.warn('[MobileDashboard] clipboard unavailable', error);
+    // Preparing a draft is not evidence that the lab received it. The status
+    // must never flip to SENT merely because WhatsApp/clipboard was opened.
+    if (!navigator.onLine) {
+      toast.error('Connexion cabinet requise avant de préparer un envoi Labo.');
+      return;
     }
     try {
-      window.location.href = `whatsapp://send?text=${encodeURIComponent(plainText)}`;
-      const updated = await mobileApiJson<LabJob>(`/lab-jobs/${job.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: LabJobStatus.SENT }),
-      });
-      setLabJobs(current => current.map(item => item.id === job.id ? updated : item));
+      await navigator.clipboard.writeText(formatLabJobMessage(job));
+      toast.success('Brouillon Labo copié. Vérifiez le destinataire avant tout envoi.');
     } catch (error) {
-      console.error('[MobileDashboard] lab WhatsApp failed:', error);
-      toast.error('WhatsApp ouvert, mais statut Labo non confirmé.');
+      console.warn('[MobileDashboard] lab clipboard unavailable', error);
+      toast.error('Copie impossible. Aucun statut Labo modifié.');
     }
   };
 

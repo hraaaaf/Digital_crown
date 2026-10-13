@@ -9,6 +9,7 @@
   
   /* VARIABLES DYNAMIQUES */
   --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
   --color-on-primary: var(--text-on-primary);
@@ -75,6 +76,7 @@
 
   /* Couleurs par défaut (Elite Blue) */
   --primary: #003380;
+  --primary-ink: var(--primary);
   --secondary: #1e40af;
   --accent: #60a5fa;
   --text-on-primary: #ffffff;
@@ -231,8 +233,37 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --accent: #6366f1;
 }
 
+/* Pocket semantic states retain a readable contrast on selected dark themes.
+   Components consume role/meaning tokens, never their own fixed palettes. */
+[data-theme='dark'], [data-theme='prestige'] {
+  --status-success: #6ee7b7;
+  --status-success-surface: #064e3b;
+  --status-success-border: #047857;
+  --status-warning: #fde68a;
+  --status-warning-surface: #451a03;
+  --status-warning-border: #92400e;
+  --status-danger: #fda4af;
+  --status-danger-surface: #4c0519;
+  --status-danger-border: #9f1239;
+  --status-info: #93c5fd;
+  --status-info-surface: #172554;
+  --status-info-border: #1d4ed8;
+}
+
 [data-theme='high-contrast'] {
   /* HAUT CONTRASTE CLINIQUE */
+  --status-success: #000000;
+  --status-success-surface: #ffffff;
+  --status-success-border: #000000;
+  --status-warning: #000000;
+  --status-warning-surface: #ffffff;
+  --status-warning-border: #000000;
+  --status-danger: #000000;
+  --status-danger-surface: #ffffff;
+  --status-danger-border: #000000;
+  --status-info: #000000;
+  --status-info-surface: #ffffff;
+  --status-info-border: #000000;
   --bg-medical-pearl: #ffffff;
   --bg-gradient-start: #ffffff;
   --bg-gradient-end: #ffffff;

@@ -1,4 +1,5 @@
 import { MobileStorage } from './MobileStorage';
+import { isExplicitMobileBiometricLock } from './mobileBiometricLock';
 
 function withMobileAuth(init: RequestInit, token: string): RequestInit {
   const headers = new Headers(init.headers ?? {});
@@ -6,11 +7,16 @@ function withMobileAuth(init: RequestInit, token: string): RequestInit {
   return { ...init, headers };
 }
 
-function propagateBiometricLock(response: Response): Response {
+async function propagateBiometricLock(response: Response): Promise<Response> {
   if (response.status === 423) {
-    MobileStorage.lockBiometricVault();
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('digitalcrown:mobile-biometric-locked'));
+    // Keep the response body available to the caller; a generic 423 must never
+    // impersonate a WebAuthn lock after a fresh, successful pairing.
+    const payload: unknown = await response.clone().json().catch(() => null);
+    if (isExplicitMobileBiometricLock(response.status, payload)) {
+      MobileStorage.lockBiometricVault();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('digitalcrown:mobile-biometric-locked'));
+      }
     }
   }
   return response;

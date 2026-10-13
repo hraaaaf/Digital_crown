@@ -348,6 +348,20 @@ def get_patient_companion_me(
     return {"provider": identity.provider, "contexts": [safe_patient_context(a, p) for a, p in rows]}
 
 
+@router.get("/contexts/{access_id}/capabilities")
+def get_patient_pocket_capabilities(
+    access_id: str,
+    response: Response,
+    identity: PatientCompanionIdentity = Depends(patient_identity),
+    db: Session = Depends(get_db),
+):
+    from backend.services.pocket_capabilities import patient_read_capabilities
+
+    principal_for_access(db, identity, access_id)
+    response.headers["Cache-Control"] = "no-store"
+    return patient_read_capabilities()
+
+
 @router.get("/contexts/{access_id}/appointments")
 def get_patient_appointments(
     access_id: str,

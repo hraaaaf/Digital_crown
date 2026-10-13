@@ -3,7 +3,7 @@
   "short_name": "Pocket",
   "id": "/",
   "description": "Digital Crown Pocket — compagnon mobile du cabinet dentaire",
-  "start_url": "/?source=pwa",
+  "start_url": "/mobile/dashboard",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f8fafc",
@@ -29,11 +29,14 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["medical", "productivity"],
+  "categories": [
+    "medical",
+    "productivity"
+  ],
   "shortcuts": [
     {
       "name": "Agenda du jour",
-      "url": "/?source=pwa",
+      "url": "/mobile/dashboard?tab=agenda",
       "description": "Voir les rendez-vous du jour"
     }
   ]
