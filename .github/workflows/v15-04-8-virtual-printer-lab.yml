@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "backend/scripts/certify_v15_04_8_virtual_print.py"
+      - "backend/scripts/certify_print_ledger_to_virtual_spool_lab_v15.py"
+      - "backend/services/station_print_held_claims_lab.py"
       - ".github/workflows/v15-04-8-virtual-printer-lab.yml"
   workflow_dispatch:
 
@@ -28,6 +30,11 @@ jobs:
           EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned SQLAlchemy for synthetic held-claim laboratory
+        run: python -m pip install SQLAlchemy==2.0.28
       - name: Install CUPS and a PDF-backed virtual printer (no physical device)
         run: |
           sudo apt-get update -qq
@@ -49,11 +56,13 @@ jobs:
           lpstat -p DC_VIRTUAL_PDF
           dpkg-query -W -f='${Package} ${Version}\n' printer-driver-cups-pdf
 
-      - name: Submit real lp job and inspect spool-produced PDF
+      - name: Submit SYNTHETIC HELD ledger and virtual lp job
+        env:
+          DC_SYNTHETIC_VIRTUAL_SPOOL_LAB: '1'
         env:
           GITHUB_SHA_SOURCE: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
-          python3 backend/scripts/certify_v15_04_8_virtual_print.py
+          python3 backend/scripts/certify_print_ledger_to_virtual_spool_lab_v15.py
           test -s print-lab-artifacts/spooler-output.pdf
           test -s print-lab-artifacts/evidence.json
 
