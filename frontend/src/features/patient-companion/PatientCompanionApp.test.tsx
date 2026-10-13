@@ -191,4 +191,25 @@ describe('PatientCompanionApp PC-00 local-first', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('renders separate Pocket Plus panels without duplicate React sibling keys', async () => {
+    const context = {
+      access_id: 'f472717c-d062-4f8b-9a5b-b010e29f2307',
+      relationship_type: 'SELF',
+      patient: { display_name: 'Pocket Test' },
+    };
+    storageMocks.load.mockResolvedValue({
+      version: 1,
+      activeAccessId: context.access_id,
+      pairings: [{ accessToken: 'synthetic-local-token', context, pairedAt: '2026-10-13T19:00:00Z' }],
+      cache: {},
+    });
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<PatientCompanionApp />);
+    expect(await screen.findByText('Pocket Test')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Plus' }));
+    expect(screen.getByRole('button', { name: 'Effacer ce téléphone' })).toBeInTheDocument();
+    const diagnostic = errors.mock.calls.map(args => args.map(String).join(' ')).join('\\n');
+    expect(diagnostic).not.toMatch(/same key|unique key|non-unique keys/i);
+  });
+
 });
