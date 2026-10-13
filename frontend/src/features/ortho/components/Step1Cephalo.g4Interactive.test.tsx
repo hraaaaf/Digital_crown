@@ -75,6 +75,16 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     expect(screen.queryByRole('button',{name:'Loupe'})).toBeNull();
   });
 
+  it('reserves a readable desktop analysis selector without shrinking the clinical measurement panel',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const grid=document.querySelector('[data-r20-workbench-layout]') as HTMLElement;
+    expect(grid.className).toContain('xl:grid-cols-[200px_minmax(0,1fr)_350px]');
+    const selector=screen.getByRole('combobox',{name:'Analyse clé en main'}) as HTMLSelectElement;
+    expect(selector.className).toContain('text-[13px]');
+    expect(Array.from(selector.options).find(o=>o.value==='all')?.textContent).toBe('Toutes analyses');
+    expect(document.querySelector('[data-r20-radiograph-stage]')).toBeTruthy();
+  });
+
   it('renders the registry-driven layer manager and keeps planned anatomy fail-closed',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
 
