@@ -249,3 +249,53 @@ def test_read_only_list_denies_delegate_and_bad_limit_without_fallback(engine):
                 list_blocked_print_jobs(conn,**owner(),limit=limit)
     with engine.connect() as conn:
         assert conn.execute(select(claims.c.state)).scalar_one()=="uncertain"
+
+
+def test_owner_sees_only_own_uncertain_jobs_with_opaque_reference(engine):
+    one=uncertain(engine,tenant=10)
+    other=uncertain(engine,tenant=20)
+    review(engine,one.delivery_key)
+    with engine.connect() as conn:
+        rows,total=list_blocked_print_jobs(
+            conn,tenant_id=10,actor_user_id=10,actor_employer_id=None,
+        )
+        foreign,count=list_blocked_print_jobs(
+            conn,tenant_id=20,actor_user_id=20,actor_employer_id=None,
+        )
+    assert total == count == 1
+    assert len(rows)==len(foreign)==1
+    assert rows[0].reference == one.delivery_key[:12]
+    assert foreign[0].reference == other.delivery_key[:12]
+    assert rows[0].investigation_count == 1
+    assert rows[0].status == "uncertain"
+    assert not hasattr(rows[0],"patient_id")
+    assert not hasattr(rows[0],"printer_id")
+    assert not hasattr(rows[0],"delivery_key")
+
+
+@pytest.mark.parametrize("change",[
+    {"actor_user_id":11},
+    {"actor_employer_id":10},
+    {"tenant_id":True,"actor_user_id":True},
+    {"limit":0},
+    {"limit":26},
+    {"limit":"25"},
+])
+def test_readonly_list_rejects_cross_user_and_unbounded_scope(engine,change):
+    uncertain(engine)
+    with engine.connect() as conn,pytest.raises(PrintReviewRejected):
+        list_blocked_print_jobs(conn,**{**owner(),**change})
+
+
+def test_readonly_list_excludes_held_claims_and_has_strict_cap(engine):
+    uncertain(engine)
+    reserve_held_claim(
+        engine, tenant_id=10,session_id="held-other",document_kind="care_sheet",
+        document_id="held-only",document_sha256="d"*64,printer_id="frontdesk",
+    )
+    with engine.connect() as conn:
+        rows,total=list_blocked_print_jobs(
+            conn,tenant_id=10,actor_user_id=10,actor_employer_id=None,limit=1,
+        )
+    assert total == 1 and len(rows) == 1
+    assert rows[0].status == "uncertain"
