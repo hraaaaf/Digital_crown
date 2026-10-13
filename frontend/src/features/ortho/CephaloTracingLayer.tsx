@@ -168,6 +168,77 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     [filteredLandmarks, mode],
   );
 
+  // COM overlays live in a separate SVG. Resolve text-only collisions against
+  // the ACTUAL rendered base labels in CSS pixels, so landscape radiographs and
+  // 100/150% zoom use the same legibility contract. This never moves landmarks.
+  const [comLabelOffsets, setComLabelOffsets] = React.useState<Record<string, { x: number; y: number }>>({});
+  React.useLayoutEffect(() => {
+    if (!props.compactLabels || mode !== 'com') return;
+    const svg = overlaySvgRef.current;
+    const base = svg?.parentElement?.querySelector('svg[data-cephalo-viewport="base"]');
+    const matrix = svg?.getScreenCTM();
+    if (!svg || !base || !matrix) return;
+    type Box = { left: number; right: number; top: number; bottom: number };
+    const labels = Array.from(svg.querySelectorAll<SVGTextElement>('[data-cephalo-overlay-label]'));
+    const baseBoxes = Array.from(base.querySelectorAll<SVGTextElement>('[data-cephalo-landmark-label]'))
+      .map(node => node.getBoundingClientRect());
+    const placed: Box[] = [];
+    const next: Record<string, { x: number; y: number }> = {};
+    const screen = svg.getBoundingClientRect();
+    const intersects = (a: Box, b: Box) =>
+      Math.min(a.right,b.right)-Math.max(a.left,b.left) > -2
+      && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top) > -2;
+    const alternatives = [
+      { x: 50, y: -34 }, { x: -50, y: -34 },
+      { x: 40, y: 34 }, { x: -50, y: 34 },
+      { x: 5, y: -52 }, { x: 5, y: 55 },
+      { x: 75, y: -45 }, { x: -75, y: -45 },
+      { x: 75, y: 44 }, { x: -75, y: 44 },
+      { x: 105, y: -5 }, { x: -105, y: -5 },
+      { x: 105, y: 57 }, { x: -105, y: 57 },
+      { x: 0, y: -82 }, { x: 0, y: 85 },
+    ];
+    for (const text of labels) {
+      const id = (text.getAttribute('data-cephalo-overlay-label') || '').toLowerCase();
+      const marker = text.parentElement?.querySelector('circle[cx][cy]');
+      if (!marker || !id) continue;
+      const x = Number(marker.getAttribute('cx'));
+      const y = Number(marker.getAttribute('cy'));
+      const currentX = Number(text.getAttribute('x'));
+      const currentY = Number(text.getAttribute('y'));
+      if (![x,y,currentX,currentY].every(Number.isFinite)) continue;
+      const rendered = text.getBoundingClientRect();
+      const preferred = id === 'a' ? { x: 62/3, y: -38/3 }
+        : id === 'b' ? { x: 60/3, y: 40/3 } : { x: 5, y: -6 };
+      const possibilities = [preferred, ...alternatives];
+      let choice = possibilities[0];
+      let chosenBox: Box | null = null;
+      for (const offset of possibilities) {
+        const dx = x + offset.x * labelUnit - currentX;
+        const dy = y + offset.y * labelUnit - currentY;
+        const pixelX = matrix.a * dx + matrix.c * dy;
+        const pixelY = matrix.b * dx + matrix.d * dy;
+        const candidate: Box = { left: rendered.left+pixelX, right: rendered.right+pixelX,
+          top: rendered.top+pixelY, bottom: rendered.bottom+pixelY };
+        if (candidate.left < screen.left+2 || candidate.right > screen.right-2
+          || candidate.top < screen.top+2 || candidate.bottom > screen.bottom-2) continue;
+        if (baseBoxes.some(box => intersects(candidate,box)) || placed.some(box => intersects(candidate,box))) continue;
+        choice = offset;
+        chosenBox = candidate;
+        break;
+      }
+      next[id] = choice;
+      if (chosenBox) placed.push(chosenBox);
+    }
+    setComLabelOffsets(previous => {
+      const same = Object.keys(previous).length === Object.keys(next).length
+        && Object.entries(next).every(([id,p]) =>
+          previous[id]?.x === p.x && previous[id]?.y === p.y);
+      return same ? previous : next;
+    });
+  }, [mode, props.compactLabels, props.landmarks, props.imageWidth, props.imageHeight,
+      props.viewZoom, props.viewPan?.x, props.viewPan?.y, labelUnit, comLabelOffsets]);
+
   const baseGhosts = React.useMemo<GhostData[]>(
     () => mode === 'com'
       ? filteredGhosts.map(ghost => ({
@@ -381,7 +452,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
             const desktopOffset = p.id.toLowerCase() === 'a' ? { x: 62, y: -38 }
               : p.id.toLowerCase() === 'b' ? { x: 60, y: 40 }
               : { x: 15, y: -18 };
-            const labelOffset = props.compactLabels && overlayOnly ? { x: desktopOffset.x * labelUnit / 3, y: desktopOffset.y * labelUnit / 3 } : { x: 8, y: -8 };
+            const offsetPx = comLabelOffsets[p.id.toLowerCase()] ?? { x: desktopOffset.x/3, y: desktopOffset.y/3 };
+            const labelOffset = props.compactLabels && overlayOnly
+              ? { x: offsetPx.x * labelUnit, y: offsetPx.y * labelUnit }
+              : { x: 8, y: -8 };
             return (
               <g key={`com-${p.id}`} data-r19-point={p.id} opacity={(hasCanonicalFocus ? 0.82 : 0.92) * layerOpacity('landmarks')}>
                 {overlayOnly && <title>{p.id}</title>}
