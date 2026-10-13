@@ -10,6 +10,8 @@ on:
       - "backend/core/sqlite_alembic_baseline.py"
       - "backend/core/postgresql_alembic_baseline.py"
       - "backend/tests/test_schema_runtime_head_sync.py"
+      - "backend/tests/certify_station_print_claim_pg_v15.py"
+      - "backend/services/station_print_held_claims_lab.py"
       - ".github/workflows/postgresql-alembic-schema-cert.yml"
   workflow_dispatch:
 
@@ -390,3 +392,7 @@ jobs:
               assert conn.execute(text("SELECT COUNT(*) FROM station_print_claim_events")).scalar_one() == 0
           print("neo28->neo29 migration preserves synthetic witness and remains inert")
           PY
+
+      - name: Certify two independent PostgreSQL processes and atomic journal rollback
+        run: |
+          python backend/tests/certify_station_print_claim_pg_v15.py
