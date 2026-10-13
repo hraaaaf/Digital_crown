@@ -65,6 +65,10 @@ def bootstrap_empty_postgresql_to_head(
 
     # Explicit Alembic operator action only. Application startup never calls this.
     metadata.create_all(bind=connection, checkfirst=False)
+    # neo31 is a zero-table migration. The empty-baseline path skips
+    # revision scripts, so install its guards explicitly before stamping.
+    from backend.core.print_audit_ddl import install_append_only_print_audit_guards
+    install_append_only_print_audit_guards(connection)
 
     actual_tables = set(sa.inspect(connection).get_table_names(schema="public"))
     expected_tables = {
