@@ -95,6 +95,24 @@ async function captureViewport(viewport,attempt){
   await page.getByRole('heading',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:30000});
   await page.locator('[aria-label="Analyse du tracé"]').waitFor({state:'visible',timeout:10000});
   await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:10000});
+  // Exercise the left-hand ready-made selector, not only the floating tracing tabs.
+  const selectorChecks=[];
+  for(const requested of ['steiner','com','all']){
+   await page.locator('#cephalo-ready-analysis').selectOption(requested);
+   await page.waitForFunction(mode=>{
+    const overlay=document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis');
+    const panel=document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel');
+    const select=document.querySelector('#cephalo-ready-analysis');
+    return overlay===mode && panel===mode && select?.value===mode;
+   },requested,{timeout:6000});
+   const result=await page.evaluate(()=>({
+    chosen:document.querySelector('#cephalo-ready-analysis')?.value,
+    overlay:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis'),
+    panel:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')
+   }));
+   selectorChecks.push({requested,...result,valid:result.chosen===requested&&result.overlay===requested&&result.panel===requested});
+   if(requested==='steiner') await page.screenshot({path:path.join(OUTPUT_DIR,`after-selector-steiner-${viewport.name}.png`),fullPage:false});
+  }
   const states=[];
   for(const mode of modes){
    await page.locator(`[data-analysis="${mode}"]`).click();
@@ -142,8 +160,8 @@ async function captureViewport(viewport,attempt){
    }
    states.push({mode,valid,metrics});
   }
-  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid);
-  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,states};
+  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)&&selectorChecks.length===3&&selectorChecks.every(s=>s.valid);
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }
