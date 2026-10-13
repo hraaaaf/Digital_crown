@@ -66,7 +66,15 @@ def upgrade():
 
 def downgrade():
     # Explicit destructive downgrade: only on backed-up synthetic/approved DB.
-    op.drop_index("ix_station_print_config_audit_tenant_revision", table_name="station_print_config_audit")
+    # Defensive rollback for partially-upgraded/legacy installations.
+    # PostgreSQL drops any remaining table-owned index with DROP TABLE; only
+    # remove it explicitly when the actual catalog still lists it.
+    audit_indexes = {
+        entry["name"]
+        for entry in sa.inspect(op.get_bind()).get_indexes("station_print_config_audit")
+    }
+    if "ix_station_print_config_audit_tenant_revision" in audit_indexes:
+        op.drop_index("ix_station_print_config_audit_tenant_revision", table_name="station_print_config_audit")
     op.drop_table("station_print_config_audit")
     op.drop_table("station_print_config_printers")
     op.drop_table("station_print_config_stations")
