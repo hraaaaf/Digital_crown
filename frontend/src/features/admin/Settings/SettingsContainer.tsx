@@ -189,7 +189,7 @@ const SettingsContainer: React.FC = () => {
   const showPendingNotice = access.canSettings && !profileReadError && shouldShowPendingConfigNotice(activeTab, isDirty);
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8 animate-in fade-in duration-700">
+    <div className="max-w-[1600px] mx-auto px-[12px] sm:px-8 py-8 animate-in fade-in duration-700">
       {activeTab === 'profil' && (
         <style>{`
           /* R1: the Settings shell is now the only visible owner of staged saves. */
@@ -286,7 +286,7 @@ const SettingsContainer: React.FC = () => {
           activeTab === 'profil' && 'settings-profile-surface',
           activeTab === 'equipe' && 'settings-team-surface'
         )}>
-          <div className="min-w-0 p-5 sm:p-12">
+          <div className="min-w-0 p-[12px] sm:p-12">
             {showSharedSaveBar && (
               <SettingsSaveBar
                 saving={saving}
