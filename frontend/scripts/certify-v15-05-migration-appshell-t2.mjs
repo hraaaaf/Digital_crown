@@ -17,7 +17,7 @@ const ui = 'http://127.0.0.1:5173';
 const dest = path.resolve('../artifacts/v15-05-migration-appshell-t2');
 const actors = [
   { name: 'owner', email: 't2-browser@cabinet.ma', allowed: true },
-  { name: 'employed-admin', email: 't2-migration-employed-admin@example.invalid', allowed: false },
+  { name: 'employed-admin', email: 't2-migration-employed-admin@cabinet.ma', allowed: false },
 ];
 const sizes = [{ width: 390, height: 844 }, { width: 1280, height: 900 }];
 const report = { sha, scope: 'real App.tsx + Sidebar + LoginPage and T2 backend.main',
