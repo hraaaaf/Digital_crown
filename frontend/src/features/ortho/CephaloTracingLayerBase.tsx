@@ -43,6 +43,8 @@ export interface CephaloTracingLayerProps {
   ghosts?: GhostData[];
   imageWidth: number;
   imageHeight: number;
+  /** Read-only visual magnification; geometry and stored landmark coordinates stay unchanged. */
+  viewZoom?: number;
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
   activePointId?: string | null;
   focusedPointId?: string | null;
@@ -142,6 +144,14 @@ const IF_COMP_LOW = 97;
 const IF_COMP_HIGH = 120;
 const IF_COMP_HALF = Math.max(IF_MEAN - IF_COMP_LOW, IF_COMP_HIGH - IF_MEAN);
 
+/** Same centered image crop must be shared by the base tracing and R19 overlays. */
+export const getCephaloZoomViewBox = (imageWidth: number, imageHeight: number, viewZoom = 1): string => {
+  const zoom = Number.isFinite(viewZoom) ? Math.max(1, Math.min(2, viewZoom)) : 1;
+  const width = imageWidth / zoom;
+  const height = imageHeight / zoom;
+  return `${(imageWidth - width) / 2} ${(imageHeight - height) / 2} ${width} ${height}`;
+};
+
 export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   imageSrc,
   imgFilters,
@@ -150,6 +160,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   ghosts = [],
   imageWidth,
   imageHeight,
+  viewZoom = 1,
   onUpdateLandmarks,
   activePointId,
   focusedPointId,
@@ -594,7 +605,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     <div className="absolute inset-0 w-full h-full z-20">
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${imageWidth} ${imageHeight}`}
+        data-cephalo-viewport="base"
+        viewBox={getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom)}
         preserveAspectRatio="xMidYMid meet"
         className={cn('w-full h-full', isCalibrating ? 'cursor-crosshair' : 'cursor-default')}
         onClick={handleSvgClick}

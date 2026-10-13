@@ -81,6 +81,21 @@ const server=spawn(viteBin,['--host','127.0.0.1','--port',String(PORT)],{cwd:FRO
 let serverLog=''; server.stdout.on('data',c=>serverLog+=c); server.stderr.on('data',c=>serverLog+=c);
 const captures=[]; const blockedExternalRequests=[];
 
+async function readZoomState(page) {
+ return page.evaluate(() => {
+  const base=document.querySelector('svg[data-cephalo-viewport="base"]');
+  const overlay=document.querySelector('svg[data-cephalo-viewport="analysis"]');
+  const image=base?.querySelector('image');
+  return {
+   percent:document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()??null,
+   baseViewBox:base?.getAttribute('viewBox')??null,
+   overlayViewBox:overlay?.getAttribute('viewBox')??null,
+   imageGeometry:image?['x','y','width','height'].map(a=>image.getAttribute(a)).join(','):null,
+  };
+ });
+}
+const boxValues = value => typeof value==='string' ? value.split(' ').map(Number) : [];
+
 async function captureViewport(viewport,attempt){
  const browser=await chromium.launch({headless:true});
  const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},reducedMotion:'reduce',locale:'fr-FR'});
@@ -152,13 +167,34 @@ async function captureViewport(viewport,attempt){
       desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && detailContained)
     };
    });
-   const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort');
+   let zoomCheck=null;
+   if (viewport.width>=1280 && ['all','steiner','com'].includes(mode)) {
+     const initial=await readZoomState(page);
+     await page.getByRole('button',{name:'Agrandir la radiographie'}).click();
+     await page.getByRole('button',{name:'Agrandir la radiographie'}).click();
+     await page.waitForFunction(()=>document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()==='150 %',{timeout:3000});
+     const enlarged=await readZoomState(page);
+     const zoomBox=boxValues(enlarged.baseViewBox);
+     const aligned=enlarged.overlayViewBox===null || enlarged.overlayViewBox===enlarged.baseViewBox;
+     await page.screenshot({path:path.join(OUTPUT_DIR,`after-zoom-${mode}-${viewport.name}.png`),fullPage:false});
+     await page.getByRole('button',{name:'Afficher toute la radiographie'}).click();
+     await page.waitForFunction(()=>document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()==='100 %',{timeout:3000});
+     const restored=await readZoomState(page);
+     zoomCheck={valid:initial.percent==='100 %' && initial.baseViewBox==='0 0 1200 1600'
+       && enlarged.percent==='150 %' && zoomBox.length===4 && zoomBox.every(Number.isFinite)
+       && Math.abs(zoomBox[2]-800)<0.01 && Math.abs(zoomBox[3]-(1600/1.5))<0.01
+       && aligned && (mode==='steiner'||enlarged.overlayViewBox!==null)
+       && initial.imageGeometry===enlarged.imageGeometry && enlarged.imageGeometry===restored.imageGeometry
+       && restored.baseViewBox===initial.baseViewBox && restored.overlayViewBox===initial.overlayViewBox,
+       initial,enlarged,restored};
+   }
+   const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort') && (zoomCheck===null||zoomCheck.valid);
    await page.screenshot({path:path.join(OUTPUT_DIR,`after-reference-${mode}-${viewport.name}.png`),fullPage:false});
    if(mode==='com'){
      await page.locator('[data-r19-analysis-panel="com"]').scrollIntoViewIfNeeded();
      await page.screenshot({path:path.join(OUTPUT_DIR,`after-com-panel-${viewport.name}.png`),fullPage:false});
    }
-   states.push({mode,valid,metrics});
+   states.push({mode,valid,metrics,zoomCheck});
   }
   const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)&&selectorChecks.length===3&&selectorChecks.every(s=>s.valid);
   return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states};

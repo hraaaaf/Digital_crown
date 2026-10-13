@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Upload, Loader2, AlertCircle, Sun, Target, RefreshCw, Maximize2, Minimize2, X, Activity, CheckCircle2, Info, Aperture, MousePointer2, Settings2, SlidersHorizontal, Wand2
+  Upload, Loader2, AlertCircle, Sun, Target, RefreshCw, Maximize2, Minimize2, ZoomIn, ZoomOut, X, Activity, CheckCircle2, Info, Aperture, MousePointer2, Settings2, SlidersHorizontal, Wand2
 } from 'lucide-react';
 import { CephaloTracingLayer } from '../CephaloTracingLayer';
 import type { 
@@ -49,6 +49,22 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   const [showCalibrationAssistant, setShowCalibrationAssistant] = useState(false);
   const [calibrationBusy, setCalibrationBusy] = useState(false);
   const [calibrationActionError, setCalibrationActionError] = useState<string | null>(null);
+  const [zoomPercent, setZoomPercent] = useState(100);
+  const [desktopZoomAvailable, setDesktopZoomAvailable] = useState(false);
+
+  React.useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1280px)');
+    const sync = () => setDesktopZoomAvailable(desktop.matches);
+    sync();
+    desktop.addEventListener('change', sync);
+    return () => desktop.removeEventListener('change', sync);
+  }, []);
+
+  React.useEffect(() => {
+    setZoomPercent(100); // Every new radiograph starts fully visible; no hidden crop.
+  }, [store.imageSrc]);
+
+  const activeViewZoom = embedded && desktopZoomAvailable ? zoomPercent / 100 : 1;
 
   React.useEffect(() => {
     if (!store.imageSrc) {
@@ -308,6 +324,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           ghosts={computedGhosts}
           imageWidth={imgDim.w}
           imageHeight={imgDim.h}
+          viewZoom={activeViewZoom}
           onUpdateLandmarks={updateLandmarksOptimistic}
           activePointId={activePointId}
           focusedPointId={null}
@@ -357,6 +374,48 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           </button>
         </div>
       </div>
+
+      {embedded && desktopZoomAvailable && (
+        <div
+          data-cephalo-zoom-controls
+          aria-label="Grossissement de la radiographie"
+          role="group"
+          className="absolute bottom-3 left-3 z-40 flex items-center gap-1 rounded-xl border px-1.5 py-1 shadow-lg backdrop-blur-md sm:bottom-6 sm:left-6"
+          style={{ borderColor: P.border, background: P.bgPanel, color: P.text }}
+        >
+          <button
+            type="button"
+            aria-label="Réduire la radiographie"
+            title="Réduire la radiographie"
+            disabled={zoomPercent <= 100}
+            onClick={() => setZoomPercent(percent => Math.max(100, percent - 25))}
+            className="flex h-9 w-9 items-center justify-center rounded-lg disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <ZoomOut size={16} aria-hidden="true" />
+          </button>
+          <span data-cephalo-zoom-level aria-live="polite" className="w-14 text-center font-mono text-xs font-bold tabular-nums">{zoomPercent} %</span>
+          <button
+            type="button"
+            aria-label="Agrandir la radiographie"
+            title="Agrandir la radiographie"
+            disabled={zoomPercent >= 200}
+            onClick={() => setZoomPercent(percent => Math.min(200, percent + 25))}
+            className="flex h-9 w-9 items-center justify-center rounded-lg disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <ZoomIn size={16} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="Afficher toute la radiographie"
+            title="Afficher toute la radiographie"
+            disabled={zoomPercent === 100}
+            onClick={() => setZoomPercent(100)}
+            className="min-h-9 rounded-lg px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            Ajuster
+          </button>
+        </div>
+      )}
 
       <AnimatePresence>
         {showCalibrationAssistant && !showCalibration && (
