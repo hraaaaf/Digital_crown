@@ -348,8 +348,11 @@ def _import_to_temporary_target(*, source, report, target, draft, engine, md,
                 "ORDER BY numero_dossier"
             ), {"owner":_OWNER}).fetchall()
             expected_patients.sort(key=lambda row: row[0])
-            if [(x[0],x[1],x[2],str(x[3]),x[4],x[5]) for x in actual_patients] != [
-                (x[0],x[1],x[2],str(x[3]),x[4],x[5]) for x in expected_patients
+            # SQLAlchemy SQLite stores DateTime with six fractional digits;
+            # compare parsed instants, never textual serialization precision.
+            if [(x[0],x[1],x[2],datetime.fromisoformat(str(x[3])),x[4],x[5])
+                for x in actual_patients] != [
+                (x[0],x[1],x[2],x[3],x[4],x[5]) for x in expected_patients
             ]:
                 raise SyntheticE2ERefused("PATIENT_ROW_PARITY_FAILURE")
             actual_appointments = con.execute(text(
@@ -357,9 +360,8 @@ def _import_to_temporary_target(*, source, report, target, draft, engine, md,
                 "FROM appointments a JOIN patients p ON p.id=a.patient_id "
                 "WHERE a.employer_id=:owner ORDER BY p.numero_dossier,a.datetime_start"
             ), {"owner":_OWNER}).fetchall()
-            if sorted((x[0],str(x[1])) for x in actual_appointments) != sorted(
-                (x[0],str(x[1])) for x in expected_appointments
-            ):
+            if sorted((x[0],datetime.fromisoformat(str(x[1])))
+                      for x in actual_appointments) != sorted(expected_appointments):
                 raise SyntheticE2ERefused("APPOINTMENT_ROW_PARITY_FAILURE")
             if dry_run:
                 trans.rollback()
