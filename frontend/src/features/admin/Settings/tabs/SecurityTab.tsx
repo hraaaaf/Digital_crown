@@ -237,23 +237,23 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
         </div>
 
         <div className="mt-8 rounded-[2.25rem] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-[12px] sm:p-8 shadow-sm">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+          <div className="flex min-w-0 flex-col items-stretch gap-5">
             <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:gap-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                 <RotateCcw size={24} />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-black text-xl text-slate-900">Restauration guidée</h4>
+                  <h4 className="break-words text-xl font-black text-slate-900">Restauration guidée</h4>
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide uppercase bg-amber-100 text-amber-800">Action sensible</span>
                 </div>
-                <p className="text-sm text-slate-600 mt-2 font-medium max-w-2xl">
+                <p data-testid="guided-restore-description" className="mt-2 max-w-2xl break-words text-sm font-medium text-slate-600">
                   Analyse la sauvegarde, prépare un point de secours vérifié, puis exige une confirmation forte avant le redémarrage. La bascule destructive reste hors du processus actif et rollback automatiquement si le smoke check échoue.
                 </p>
               </div>
             </div>
 
-            <div className="w-full lg:w-auto shrink-0">
+            <div className="w-full min-w-0 sm:w-auto sm:self-end">
               <input
                 ref={restoreInputRef}
                 type="file"
@@ -266,7 +266,8 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
                 type="button"
                 onClick={() => restoreInputRef.current?.click()}
                 disabled={isAnalyzing || restoreInFlight}
-                className="w-full min-w-0 lg:w-auto px-[12px] sm:px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black flex flex-wrap items-center justify-center gap-2 sm:gap-3 break-words text-center transition disabled:opacity-60 disabled:cursor-not-allowed"
+                data-testid="guided-restore-action"
+                className="w-full min-w-0 sm:w-auto px-[12px] sm:px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black flex flex-wrap items-center justify-center gap-2 sm:gap-3 break-words text-center transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? <Loader2 size={20} className="animate-spin" /> : <FileSearch size={20} />}
                 {isAnalyzing ? 'Analyse en cours...' : 'Analyser une sauvegarde'}
