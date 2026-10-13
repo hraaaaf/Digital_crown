@@ -1,0 +1,83 @@
+name: V1.5-05.3 Synthetic Data Dry-Run Rehearsal
+
+on:
+  pull_request:
+    paths:
+      - backend/tests/lab_legacy_sql_synthetic_data_v15.py
+      - backend/tests/test_legacy_sql_synthetic_dryrun_v15.py
+      - docs/quality/V15_05_3_SYNTHETIC_DATA_DRYRUN.md
+      - .github/workflows/v15-05-3-synthetic-data-dryrun.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-data-dryrun:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only pinned ORM dependency for declared model checks
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check SQLAlchemy==2.0.28
+          python -c "import sqlalchemy; assert sqlalchemy.__version__ == '2.0.28'"
+      - name: Compile test-only dry-run and existing contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/lab_legacy_sql_synthetic_data_v15.py backend/tests/test_legacy_sql_synthetic_dryrun_v15.py backend/tests/test_legacy_sql_migration_scenarios_v15.py
+      - name: S01 EN synthetic values - scratch patient and appointment FK + rollback
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_synthetic_dryrun_v15.py ValidSyntheticDataDryRun.test_s01_english_sql_fixture_values_into_rollback_only_scratch -v 2>&1 | tee /tmp/s01-data.log
+          grep -q '^Ran 1 test' /tmp/s01-data.log
+          grep -q '^OK$' /tmp/s01-data.log
+      - name: S02 FR read REAL fictitious SQLite records - scratch FK + rollback
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_synthetic_dryrun_v15.py ValidSyntheticDataDryRun.test_s02_read_actual_fictitious_sqlite_rows_and_rollback_target -v 2>&1 | tee /tmp/s02-data.log
+          grep -q '^Ran 1 test' /tmp/s02-data.log
+          grep -q '^OK$' /tmp/s02-data.log
+      - name: S03 ES synthetic values - scratch FK + rollback
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_synthetic_dryrun_v15.py ValidSyntheticDataDryRun.test_s03_spanish_sql_fixture_values_into_rollback_only_scratch -v 2>&1 | tee /tmp/s03-data.log
+          grep -q '^Ran 1 test' /tmp/s03-data.log
+          grep -q '^OK$' /tmp/s03-data.log
+      - name: S04-S17 - 14 negative data validation and authorization tests
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_synthetic_dryrun_v15.py FailClosedSyntheticDataDryRun -v 2>&1 | tee /tmp/s04-17-data.log
+          grep -q '^Ran 14 tests' /tmp/s04-17-data.log
+          grep -q '^OK$' /tmp/s04-17-data.log
+          if grep -Ei 'skipped|expected failure' /tmp/s04-17-data.log; then exit 1; fi
+      - name: Previous 12 scenario tests and 78 core regressions
+        run: |
+          set -euo pipefail
+          python backend/tests/test_legacy_sql_migration_scenarios_v15.py -v 2>&1 | tee /tmp/previous-scenarios.log
+          grep -q 'Ran 12 tests' /tmp/previous-scenarios.log
+          grep -q '^OK$' /tmp/previous-scenarios.log
+          python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/mapping.log
+          grep -q 'Ran 25 tests' /tmp/mapping.log
+          grep -q '^OK$' /tmp/mapping.log
+          python backend/tests/test_legacy_sql_target_manifest_v15.py -v 2>&1 | tee /tmp/manifest.log
+          grep -q 'Ran 25 tests' /tmp/manifest.log
+          grep -q '^OK$' /tmp/manifest.log
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/inspector.log
+          grep -q 'Ran 28 tests' /tmp/inspector.log
+          grep -q '^OK$' /tmp/inspector.log
+      - name: Attest exact HEAD and isolated non-clinical lab
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          {
+            echo "HEAD: ${{ github.event.pull_request.head.sha || github.sha }}"
+            echo "17 synthetic VALUES dry-run cases (S01-S17) + 12 previous fixtures + 25 mapping + 25 ORM + 28 inspector = 107 tests. ZERO imported real patient rows."
+            echo "Only lab/sqlite3 ':memory:' target with rollback; no runtime code/API, no physical target, no real tenant/auth, NO-GO import."
+          } >> "$GITHUB_STEP_SUMMARY"
