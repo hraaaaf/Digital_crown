@@ -1,0 +1,38 @@
+name: V1.5-04.8 D Station Print Safe Status (LAB)
+
+on:
+  pull_request:
+    branches:
+      - feat/v15-04-8-print-policy-bridge-20261012
+    paths:
+      - frontend/src/features/hub/StationPrintStatusPanel.tsx
+      - frontend/src/features/hub/StationPrintStatusPanel.test.tsx
+      - .github/workflows/v15-04-8-d-station-status-ui-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  station-print-presentational:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact source HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend deps (no native scripts)
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Test responsive-capable localized UI status without network or print APIs
+        working-directory: frontend
+        run: npx vitest run src/features/hub/StationPrintStatusPanel.test.tsx
