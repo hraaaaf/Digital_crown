@@ -102,6 +102,28 @@ jobs:
           const browser = await chromium.launch();
           const widths = [1280, 1024, 768, 430, 390];
           const proof = [];
+          async function assertNoFullPageOverflow(page, width, variant) {
+            const metrics = await page.evaluate(() => {
+              const viewport = document.documentElement.clientWidth;
+              const scrollWidth = document.documentElement.scrollWidth;
+              const offending = [...document.body.querySelectorAll('*')].map(element => {
+                const rect = element.getBoundingClientRect();
+                return {
+                  tag: element.tagName,
+                  className: typeof element.className === 'string' ? element.className.slice(0, 170) : '',
+                  text: element.textContent?.trim().slice(0, 50) || '',
+                  right: Math.round(rect.right), left: Math.round(rect.left),
+                };
+              }).filter(item => item.right > viewport + 1 || item.left < -1).slice(0, 20);
+              return { viewport, scrollWidth, offending };
+            });
+            if (metrics.scrollWidth > metrics.viewport) {
+              const details = { width, variant, ...metrics };
+              await fs.writeFile(`${output}/full-page-overflow-${variant}-${width}.json`, JSON.stringify(details, null, 2));
+              await page.screenshot({ path: `${output}/full-page-overflow-${variant}-${width}.png`, fullPage: true });
+              throw new Error('FULL_PAGE_HORIZONTAL_OVERFLOW ' + JSON.stringify(details));
+            }
+          }
           try {
             for (const width of widths) {
               const context = await browser.newContext({ viewport: { width, height: 1200 } });
@@ -189,6 +211,7 @@ jobs:
               }
               await page.screenshot({ path: `${output}/owner-${width}-text100.png`, fullPage: true, animations: 'disabled' });
               await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+              await assertNoFullPageOverflow(page, width, 'owner-text200');
               const panelWidth = await panel.evaluate(el => ({
                 client: el.clientWidth,
                 scroll: el.scrollWidth,
@@ -241,6 +264,7 @@ jobs:
               }
               await delegatedPage.screenshot({ path: `${output}/delegated-${width}-text100.png`, fullPage: true, animations: 'disabled' });
               await delegatedPage.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+              await assertNoFullPageOverflow(delegatedPage, width, 'delegated-text200');
               await delegatedPage.screenshot({ path: `${output}/delegated-${width}-text200.png`, fullPage: true, animations: 'disabled' });
               if (errors.length || unsafePrintRequests.length) {
                 throw new Error([...errors, ...unsafePrintRequests].join('\n'));
