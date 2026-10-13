@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
-          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph03b4b-multisource-scale-evidence-20261012"
+          test "$GITHUB_REF" = "refs/heads/feat/dc-ceph-uxclin01-integration-20261013"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
           test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
