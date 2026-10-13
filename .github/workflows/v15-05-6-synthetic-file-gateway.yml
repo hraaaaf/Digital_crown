@@ -68,7 +68,7 @@ jobs:
         run: npx tsc --noEmit -p tsconfig.app.json
       - name: Staff mapping plus selected file path
         working-directory: frontend
-        run: npx vitest run src/features/admin/migration/MigrationFileRoundtrip.test.tsx src/features/admin/migration/MigrationGateway.test.tsx src/features/admin/migration/MigrationMappingStudio.test.tsx src/features/admin/migration/MappingStudioPolicy.test.ts
+        run: npx vitest run src/features/admin/migration/MigrationFileClientSafety.test.ts src/features/admin/migration/MigrationFileRoundtrip.test.tsx src/features/admin/migration/MigrationGateway.test.tsx src/features/admin/migration/MigrationMappingStudio.test.tsx src/features/admin/migration/MappingStudioPolicy.test.ts
       - name: Exact SHA
         run: |
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
