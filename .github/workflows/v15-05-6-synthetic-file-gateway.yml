@@ -1,0 +1,74 @@
+name: V1.5-05.6 Official Synthetic SQLite File Roundtrip
+on:
+  pull_request:
+    paths:
+      - backend/services/legacy_migration_synthetic_file_v15.py
+      - backend/routers/legacy_migration_v15.py
+      - backend/tests/test_legacy_migration_synthetic_file_v15.py
+      - frontend/src/features/admin/migration/**
+      - docs/quality/V15_05_6_SYNTHETIC_SQLITE_FILE_ROUNDTRIP.md
+      - .github/workflows/v15-05-6-synthetic-file-gateway.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install SQLAlchemy==2.0.28
+      - name: Compile new data-file backend
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/services/legacy_migration_synthetic_file_v15.py backend/routers/legacy_migration_v15.py backend/tests/test_legacy_migration_synthetic_file_v15.py
+      - name: Test real fake SQLite bytes including adversarial rejection
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_synthetic_file_v15.py -v 2>&1 | tee /tmp/file.log
+          grep -q 'Ran 12 tests' /tmp/file.log
+          grep -q '^OK$' /tmp/file.log
+      - name: Gateway and predecessor regressions
+        run: |
+          set -euo pipefail
+          for item in "test_legacy_migration_staff_gateway_v15.py:14" "test_legacy_sql_sqlite_e2e_100x200_v15.py:11" "test_legacy_sql_tenant_link_guard_lab_v15.py:7" "test_legacy_sql_physical_schema_gate_lab_v15.py:6" "test_legacy_sql_replay_restore_lab_v15.py:8" "test_legacy_sql_real_orm_scratch_v15.py:10" "test_legacy_sql_synthetic_dryrun_v15.py:19" "test_legacy_sql_migration_scenarios_v15.py:12" "test_legacy_sql_mapping_v15.py:25" "test_legacy_sql_target_manifest_v15.py:25"; do
+            name="${item%%:*}"
+            count="${item##*:}"
+            python "backend/tests/${name}" -v 2>&1 | tee "/tmp/${name}.log"
+            grep -q "Ran ${count} tests" "/tmp/${name}.log"
+            grep -q '^OK$' "/tmp/${name}.log"
+          done
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/inspect.log
+          grep -q 'Ran 28 tests' /tmp/inspect.log
+          grep -q '^OK$' /tmp/inspect.log
+      - name: Exact SHA
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          echo 'LOT05.6: 12 new file cases plus 165 earlier cases; strict official demo file only, no clinic import.' >> "$GITHUB_STEP_SUMMARY"
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Strict app TypeScript
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Staff mapping plus selected file path
+        working-directory: frontend
+        run: npx vitest run src/features/admin/migration/MigrationFileRoundtrip.test.tsx src/features/admin/migration/MigrationGateway.test.tsx src/features/admin/migration/MigrationMappingStudio.test.tsx src/features/admin/migration/MappingStudioPolicy.test.ts
+      - name: Exact SHA
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
