@@ -68,7 +68,7 @@ function modeContract(mode, metrics) {
   if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
-  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N');
+  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && metrics.landmarkHandles >= 20;
   if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   return false;
 }
@@ -140,6 +140,7 @@ async function captureViewport(viewport,attempt){
       hasAnalysisSelector:Boolean(document.querySelector('[aria-label="Analyse du tracé"]')),
       selectorButtons:Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button')).map(n=>n.getAttribute('data-analysis')),
       panelRows:document.querySelectorAll('[data-r19-metric]').length,
+      landmarkHandles:document.querySelectorAll('[data-ceph03b-drag-handle]').length,
       svgLines:document.querySelectorAll('svg line').length,
       landmarkLabels,
       rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
@@ -166,8 +167,47 @@ async function captureViewport(viewport,attempt){
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }
 
+async function prewarmViteDependencies() {
+  // The isolated Vite dev server can add late Workbox optimizations, causing
+  // HTTP 504 (Outdated Optimize Dep) in its initial browsing session.
+  // Preheat outside evidence collection; certified runs still reject errors.
+  let browser;
+  try {
+    browser=await chromium.launch({headless:true});
+    const page=await browser.newPage({viewport:{width:1280,height:900}});
+    await page.route('**/*',route=>{
+      const u=new URL(route.request().url());
+      if(u.hostname==='127.0.0.1'&&u.port===String(PORT))return route.continue();
+      if(u.hostname==='127.0.0.1'&&u.port==='8005'&&u.pathname==='/api/patients/919')return route.fulfill(json({id:919,age:34,sexe:'M'}));
+      if(u.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:''});
+      return route.abort('blockedbyclient');
+    });
+    for(let attempt=1;attempt<=3;attempt++){
+      const errors=[];
+      const listener=msg=>{if(msg.type()==='error')errors.push(msg.text())};
+      page.on('console',listener);
+      try{
+        const response=await page.goto(`${BASE_URL}/cephalo-r19-analysis-reference-after.html`,{waitUntil:'domcontentloaded',timeout:30000});
+        await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:20000});
+        await page.waitForLoadState('networkidle',{timeout:15000});
+        const optimizeErrors=errors.filter(e=>e.includes('Outdated Optimize Dep'));
+        if(response?.status()===200 && optimizeErrors.length===0){
+          console.log('VITE_DEP_PREWARM_STABLE',attempt);
+          return;
+        }
+        console.log('VITE_DEP_PREWARM_RETRY',attempt,optimizeErrors.length);
+      }catch(e){
+        if(attempt===3)throw e;
+        console.log('VITE_DEP_PREWARM_RETRY',attempt,String(e).slice(0,200));
+      }finally{page.off('console',listener)}
+    }
+    throw new Error('Vite optimizer did not stabilize before exact-head screenshot capture');
+  }finally{if(browser)await browser.close().catch(()=>{})}
+}
+
 try{
  await waitForServer(`${BASE_URL}/cephalo-r19-analysis-reference-after.html`);
+ await prewarmViteDependencies();
  for(const viewport of viewports){
   const attempts=[await captureViewport(viewport,1)];
   if(!attempts[0].valid)attempts.push(await captureViewport(viewport,2));

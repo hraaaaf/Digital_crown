@@ -32,7 +32,7 @@ function Fixture({ mode }: { mode: 'com' | 'all' }) {
         onUpdateLandmarks={next => { commit(next); setLandmarks(next); }}
         activeAnalysis={mode}
         magnifierEnabled={false}
-        vto={{ enabled: false, showGhostFace: false, showSoftTissue: false }}
+        vto={{ enabled: false, showGhostFace: false, showSoftTissue: false, u1_offset: { x: 0, y: 0 }, l1_offset: { x: 0, y: 0 }, mand_offset: { x: 0, y: 0 } }}
       />
     </div>
   );
@@ -56,9 +56,9 @@ const pointer = (element: Element, eventType: string, x = 0, y = 0) => {
 
 describe('DC-CEPH03B independent tracing overlays — render only drag preview', () => {
   const original = {
-    capture: Element.prototype.setPointerCapture,
-    point: SVGSVGElement.prototype.createSVGPoint,
-    ctm: SVGSVGElement.prototype.getScreenCTM,
+    capture: Object.getOwnPropertyDescriptor(Element.prototype, 'setPointerCapture'),
+    point: Object.getOwnPropertyDescriptor(SVGSVGElement.prototype, 'createSVGPoint'),
+    ctm: Object.getOwnPropertyDescriptor(SVGSVGElement.prototype, 'getScreenCTM'),
   };
   beforeEach(() => {
     commit.mockReset();
@@ -82,8 +82,8 @@ describe('DC-CEPH03B independent tracing overlays — render only drag preview',
       [SVGSVGElement.prototype, 'createSVGPoint', original.point],
       [SVGSVGElement.prototype, 'getScreenCTM', original.ctm],
     ] as const) {
-      if (value) Object.defineProperty(target, key, { configurable: true, value });
-      else delete (target as unknown as Record<string, unknown>)[key];
+      if (value) Object.defineProperty(target, key, value);
+      else Reflect.deleteProperty(target, key);
     }
     vi.restoreAllMocks();
   });

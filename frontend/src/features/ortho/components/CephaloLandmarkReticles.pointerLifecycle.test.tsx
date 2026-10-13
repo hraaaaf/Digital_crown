@@ -82,7 +82,7 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
         configurable: true, writable: true, value: originalCapture,
       });
     } else {
-      delete (Element.prototype as Element & { setPointerCapture?: unknown }).setPointerCapture;
+      Reflect.deleteProperty(Element.prototype, 'setPointerCapture');
     }
     for (const [name, original] of [
       ['createSVGPoint', originalSvgPoint],
@@ -161,7 +161,7 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
         onUpdateLandmarks={onUpdate}
         magnifierEnabled={false}
         activeAnalysis="steiner"
-        vto={{ enabled: true, showGhostFace: false, showSoftTissue: false }}
+        vto={{ enabled: true, showGhostFace: false, showSoftTissue: false, u1_offset: { x: 0, y: 0 }, l1_offset: { x: 0, y: 0 }, mand_offset: { x: 0, y: 0 } }}
       />,
     );
 

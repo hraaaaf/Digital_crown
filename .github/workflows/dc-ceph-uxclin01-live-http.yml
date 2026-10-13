@@ -48,6 +48,10 @@ jobs:
               .github/workflows/dc-ceph-uxclin01-visual.yml | \
               frontend/scripts/capture-cephalo-r1-after.mjs | \
               frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs | \
+              frontend/src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayer.realRadioFixture.tsx | \
+              frontend/src/features/ortho/CephaloTracingLayer.visualFixture.tsx | \
+              frontend/src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.tsx | \
               frontend/src/features/ortho/CephaloWorkspace.tsx | \
               frontend/src/features/ortho/cephaloAngleRecognition.ts | \
