@@ -241,8 +241,8 @@ const SettingsContainer: React.FC = () => {
           }
         `}</style>
       )}
-      <div className="flex flex-col gap-6 2xl:flex-row 2xl:gap-12 items-start min-w-0">
-        <div className="w-full 2xl:w-80 space-y-4 2xl:space-y-8 min-w-0 2xl:sticky 2xl:top-24">
+      <div className="flex flex-col gap-6 2xl:flex-row 2xl:gap-6 items-start min-w-0">
+        <div className="w-full 2xl:w-72 space-y-4 2xl:space-y-8 min-w-0 2xl:sticky 2xl:top-24">
           <div className="flex min-w-0 flex-col items-start gap-3 mb-2 sm:flex-row sm:items-center sm:gap-4 2xl:mb-10">
             <div className="w-14 h-14 shrink-0 bg-primary text-white rounded-[1.25rem] flex items-center justify-center shadow-2xl shadow-primary/30">
               <SettingsIcon size={28} />
@@ -286,7 +286,7 @@ const SettingsContainer: React.FC = () => {
           activeTab === 'profil' && 'settings-profile-surface',
           activeTab === 'equipe' && 'settings-team-surface'
         )}>
-          <div className="min-w-0 p-[12px] sm:p-12">
+          <div className="min-w-0 p-[12px] sm:p-12 2xl:p-8">
             {showSharedSaveBar && (
               <SettingsSaveBar
                 saving={saving}
