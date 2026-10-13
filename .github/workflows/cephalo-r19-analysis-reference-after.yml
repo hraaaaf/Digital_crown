@@ -68,6 +68,7 @@ jobs:
           for(const c of r.captures){
             if(!c.valid) throw new Error(`Invalid ${c.viewport}`);
             if(c.states.length!==6||c.states.some(s=>!s.valid)) throw new Error(`Analysis contract failure ${c.viewport}`);
+            if(c.selectorChecks?.length!==3||c.selectorChecks.some(s=>!s.valid)) throw new Error(`Dropdown bridge failure ${c.viewport}`);
           }
           NODE
           for viewport in 390x844 768x1024 1280x900; do
@@ -75,6 +76,7 @@ jobs:
               test -s "cephalo-r19-analysis-reference-after-artifacts/after-reference-${mode}-${viewport}.png"
             done
             test -s "cephalo-r19-analysis-reference-after-artifacts/after-com-panel-${viewport}.png"
+            test -s "cephalo-r19-analysis-reference-after-artifacts/after-selector-steiner-${viewport}.png"
           done
       - uses: actions/upload-artifact@v4
         if: always()
