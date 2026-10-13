@@ -88,6 +88,12 @@ describe('DC-CEPH03B independent tracing overlays — render only drag preview',
     vi.restoreAllMocks();
   });
 
+  it('keeps infinitely extended guides out of the all-analyses overview', () => {
+    render(<Fixture mode="all" />);
+    expect(document.querySelectorAll('[data-cephalo-extended-line]')).toHaveLength(0);
+    expect(document.querySelectorAll('[data-cephalo-line-key]')).not.toHaveLength(0);
+  });
+
   it('COM Frankfort uses the live Porion position without committing and returns to baseline on cancel', () => {
     render(<Fixture mode="com" />);
     const fh = () => line('com-frankfort');

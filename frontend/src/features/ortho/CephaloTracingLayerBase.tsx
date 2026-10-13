@@ -686,7 +686,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
                 className="pointer-events-none"
               />
             ))}
-            {isLayerVisible('plans') && francfortLineExtended && (
+            {isLayerVisible('plans') && ['tweed', 'mcnamara'].includes(activeAnalysis.toLowerCase()) && francfortLineExtended && (
               <line
                 data-cephalo-extended-line="frankfort"
                 clipPath={`url(#${extendedClipId})`}
@@ -702,7 +702,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         </motion.g>
 
-        {isLayerVisible('plans') && mcNamaraLine && nPrime && nPrimeTick && (
+        {isLayerVisible('plans') && activeAnalysis.toLowerCase() === 'mcnamara' && mcNamaraLine && nPrime && nPrimeTick && (
           <g opacity={layerOpacityFor('plans')} data-ortho-layer="plans">
             <line
               data-cephalo-extended-line="mcnamara"
