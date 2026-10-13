@@ -23,6 +23,11 @@ def upgrade():
         sa.Column("recorded_by", sa.Integer(), nullable=False),
         sa.Column("status", sa.String(32), nullable=False, server_default="pending_field_verification"),
         sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["tenant_id", "printer_id"],
+            ["station_print_printer_drafts.tenant_id", "station_print_printer_drafts.printer_id"],
+            ondelete="RESTRICT", name="fk_device_evidence_unverified_draft",
+        ),
         sa.CheckConstraint(
             "status = 'pending_field_verification'",
             name="ck_device_evidence_never_certified",
