@@ -1,0 +1,69 @@
+name: V1.5-05 Parallel A tenant-link Synthetic LAB
+
+on:
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_tenant_link_guard_lab_v15.py
+      - docs/quality/V15_05_PARALLEL_A_LAB.md
+      - .github/workflows/v15-05-parallel-a-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-tenant-link:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only repo-pinned ORM
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check SQLAlchemy==2.0.28
+          python -c "import sqlalchemy; assert sqlalchemy.__version__ == '2.0.28'"
+      - name: Compile isolated track
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_sql_tenant_link_guard_lab_v15.py
+      - name: Run track A independently
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_tenant_link_guard_lab_v15.py -v 2>&1 | tee /tmp/lot05-track.log
+          grep -q 'Ran 7 tests' /tmp/lot05-track.log
+          grep -q '^OK$' /tmp/lot05-track.log
+          if grep -Ei 'skipped|expected failure' /tmp/lot05-track.log; then exit 1; fi
+      - name: Shared predecessor real-ORM and mapping tests
+        run: |
+          set -euo pipefail
+          python backend/tests/test_legacy_sql_real_orm_scratch_v15.py -v 2>&1 | tee /tmp/orm-real.log
+          grep -q 'Ran 10 tests' /tmp/orm-real.log
+          grep -q '^OK$' /tmp/orm-real.log
+          python backend/tests/test_legacy_sql_synthetic_dryrun_v15.py -v 2>&1 | tee /tmp/synthetic.log
+          grep -q 'Ran 19 tests' /tmp/synthetic.log
+          grep -q '^OK$' /tmp/synthetic.log
+          python backend/tests/test_legacy_sql_migration_scenarios_v15.py -v 2>&1 | tee /tmp/scenarios.log
+          grep -q 'Ran 12 tests' /tmp/scenarios.log
+          grep -q '^OK$' /tmp/scenarios.log
+          python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/mapping.log
+          grep -q 'Ran 25 tests' /tmp/mapping.log
+          grep -q '^OK$' /tmp/mapping.log
+          python backend/tests/test_legacy_sql_target_manifest_v15.py -v 2>&1 | tee /tmp/manifest.log
+          grep -q 'Ran 25 tests' /tmp/manifest.log
+          grep -q '^OK$' /tmp/manifest.log
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/inspector.log
+          grep -q 'Ran 28 tests' /tmp/inspector.log
+          grep -q '^OK$' /tmp/inspector.log
+      - name: Exact HEAD and refusal of import authority
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          {
+            echo "Track A HEAD: ${{ github.event.pull_request.head.sha || github.sha }}"
+            echo "7 track cases + 119 preceding cases; test-only. No real patient, no client DB connection, NO-GO import."
+          } >> "$GITHUB_STEP_SUMMARY"
