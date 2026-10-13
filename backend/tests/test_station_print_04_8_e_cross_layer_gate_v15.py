@@ -164,3 +164,40 @@ def test_pending_evidence_and_uncertain_review_can_never_become_print_permits():
     assert "pending_field_verification" in migration
     assert "fk_device_evidence_unverified_draft" in migration
     assert "fk_uncertain_review_claim" in migration
+
+
+def test_owner_blocked_print_view_cannot_dispatch_or_expose_clinical_data():
+    backend = source("backend/routers/station_print_config_admin.py")
+    service = source("backend/services/station_print_attestation_recovery_v15.py")
+    ui = source("frontend/src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.tsx")
+    assert '@router.get("/station-print-config/blocked-jobs")' in backend
+    assert '@router.post("/station-print-config/blocked-jobs")' not in backend
+    assert 'Depends(get_current_user)' in backend
+    assert '_find_workstation(request, db, tenant_id)' in backend
+    assert 'retrySupported": False' in backend
+    assert '"Cache-Control"] = "no-store"' in backend
+    assert 'list_blocked_print_jobs' in service
+    assert 'claims.c.state == "uncertain"' in service
+    assert "claims.c.tenant_id == tenant_id" in service
+    assert "delivery_key[:12]" in service
+    assert "retry_print(" not in backend
+    assert "reserve_held_claim(" not in backend
+    assert "post(" not in ui and "put(" not in ui
+    assert "/admin/station-print-config/blocked-jobs" in ui
+    assert "Réimprimer</button>" not in ui
+    assert "pdfBytes" not in ui
+
+
+def test_print_audit_ddl_is_installed_by_both_operator_baselines():
+    guard = source("backend/core/print_audit_ddl.py")
+    migration = source("alembic/versions/neo000000031_print_audit_append_only.py")
+    pg = source("backend/core/postgresql_alembic_baseline.py")
+    sqlite = source("backend/core/sqlite_alembic_baseline.py")
+    assert '"station_print_uncertain_reviews"' in guard
+    assert '"station_print_claim_events"' in guard
+    assert "CREATE OR REPLACE TRIGGER" in guard
+    assert "RAISE(ABORT" in guard
+    assert "install_append_only_print_audit_guards(op.get_bind())" in migration
+    assert "install_append_only_print_audit_guards(connection)" in pg
+    assert "install_append_only_print_audit_guards(connection)" in sqlite
+    assert '"neo000000031"' in source("backend/core/schema_runtime.py")
