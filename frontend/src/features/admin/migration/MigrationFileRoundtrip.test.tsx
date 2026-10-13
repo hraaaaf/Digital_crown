@@ -22,6 +22,18 @@ async function mounted() {
   await waitFor(()=>expect(screen.getByRole('button',{name:'Télécharger la base SQLite fictive'})).toBeTruthy());
 }
 describe('LOT05.6 synthetic-only SQLite file staff workflow', () => {
+  it('keeps the real-import ban immediately visible and formats the fake-only warning', () => {
+    render(<MigrationMappingStudio />);
+    const note=screen.getByRole('note',{name:'Limites de certification'});
+    expect(note.textContent).toContain('Import réel interdit.');
+    expect(note.textContent).toContain('base entièrement fictive fournie par Digital Crown');
+    expect(note.textContent).not.toContain('**entièrement fictive');
+    const warningDetail=screen.getByText('Précautions et limites de la simulation');
+    expect(warningDetail.closest('details')?.open).toBe(false);
+    fireEvent.click(warningDetail);
+    expect(warningDetail.closest('details')?.open).toBe(true);
+    expect(note.textContent).toContain('Ne sélectionnez jamais de véritable export patient');
+  });
   it('never exposes file input before preflight and never uploads automatically', () => {
     render(<MigrationMappingStudio />);
     expect(screen.queryByLabelText('Fichier SQLite fictif Digital Crown')).toBeNull();

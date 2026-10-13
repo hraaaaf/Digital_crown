@@ -1,4 +1,4 @@
-name: V1.5-05.6 Synthetic File Upload Visual 390 768 1280
+name: V1.5-05.6 Synthetic File Upload Visual 390 430 768 1280 text200
 on:
   pull_request:
     paths:
@@ -28,7 +28,7 @@ jobs:
           npm ci --no-audit --no-fund
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
-      - name: Synthetic no-network BEFORE and AFTER at three viewports
+      - name: Synthetic no-network BEFORE and AFTER at four viewports and 200 percent text scale
         working-directory: frontend
         shell: bash
         run: |
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v15-05-6-file-before-after-three-viewports
+          name: v15-05-6-file-before-after-responsive
           path: frontend/artifacts/v15-05-6-file
           if-no-files-found: error
           retention-days: 14

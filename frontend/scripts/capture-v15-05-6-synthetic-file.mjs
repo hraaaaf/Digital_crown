@@ -29,9 +29,14 @@ const result={
 const cases=[];
 try{
  for(const vp of [
-   {name:'390x844',width:390,height:844},
-   {name:'768x1024',width:768,height:1024},
-   {name:'1280x900',width:1280,height:900},
+   {name:'390x844',width:390,height:844,scale:100},
+   {name:'430x932',width:430,height:932,scale:100},
+   {name:'768x1024',width:768,height:1024,scale:100},
+   {name:'1280x900',width:1280,height:900,scale:100},
+   {name:'390x844-text200',width:390,height:844,scale:200},
+   {name:'430x932-text200',width:430,height:932,scale:200},
+   {name:'768x1024-text200',width:768,height:1024,scale:200},
+   {name:'1280x900-text200',width:1280,height:900,scale:200},
  ]){
   const ctx=await browser.newContext({viewport:{width:vp.width,height:vp.height},acceptDownloads:true});
   const page=await ctx.newPage();
@@ -78,6 +83,15 @@ try{
       errors,unexpected,loadIssue,
     }));
   }
+  // CSS root text scaling (not a claim of native browser zoom or physical device testing).
+  if(vp.scale===200) await page.evaluate(()=>{document.documentElement.style.fontSize='200%';});
+  const alert=page.getByRole('note',{name:'Limites de certification'});
+  await alert.getByText('Import réel interdit.').waitFor();
+  if(await alert.innerText().then(t=>t.includes('**entièrement fictive'))) {
+    throw new Error('UNRENDERED_MARKDOWN_IN_WARNING:'+vp.name);
+  }
+  const details=alert.locator('details');
+  if(!await details.count()) throw new Error('WARNING_DETAILS_MISSING:'+vp.name);
   const before=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
   await page.screenshot({path:path.join(dest,'BEFORE-'+vp.name+'.png'),fullPage:true,animations:'disabled'});
   await page.getByRole('button',{name:'Contrôler le backend sécurisé'}).click();
@@ -107,13 +121,13 @@ try{
     serverRequests.join(',')!=='preflight,fixture,dryrun'){
     throw new Error('FAIL_CLOSED_SYNTHETIC_UI:'+JSON.stringify({vp,before,after,errors,unexpected,serverRequests}));
   }
-  cases.push({viewport:vp.name,before,after,serverRequests,errors,unexpected});
+  cases.push({viewport:vp.name,textScalePercent:vp.scale,before,after,serverRequests,errors,unexpected});
   await ctx.close();
  }
 }finally{await browser.close();}
 await fs.writeFile(path.join(dest,'manifest.json'),JSON.stringify({
  head:process.env.GITHUB_SHA||null,
- note:'Fixture and API mocked in browser; not live staff JWT or real SQLite parsing proof',
+ note:'Fixture and API mocked in browser; 200% cases use CSS root font scaling, not browser zoom; not live staff JWT or actual SQLite parsing proof',
  cases,
 },null,2));
 console.log(JSON.stringify(cases,null,2));

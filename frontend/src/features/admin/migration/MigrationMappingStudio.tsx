@@ -171,19 +171,30 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       </span>
     </header>
 
-    <section role="note" aria-label="Limites de certification" className="flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
-      <AlertTriangle className="mt-1 shrink-0" size={20} />
-      <div><strong>Ce parcours ne migre aucune donnée.</strong> Chargez uniquement des inventaires de schémas JSON,
-        sans dossiers patients, dumps SQL, mots de passe ni données cliniques. Les fichiers sont analysés
-        en mémoire et leur contenu n’est pas envoyé au backend. Seuls un contrôle structurel du serveur et une simulation indépendante de données entièrement fictives peuvent être demandés.
-        Un essai de fichier SQLite est possible seulement avec la base **entièrement fictive fournie par Digital Crown**. Aucun véritable export de patient ne doit être sélectionné. Les styles globaux peuvent charger des polices externes. Le schéma cible fourni n’est pas entièrement certifié ;
-        aucune approbation administrateur ni dry-run réel n’existe ici.</div>
+    <section role="note" aria-label="Limites de certification" className="flex min-w-0 gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950 sm:p-4">
+      <AlertTriangle className="mt-0.5 shrink-0" size={20} aria-hidden="true" />
+      <div className="min-w-0 space-y-2">
+        <p><strong>Import réel interdit.</strong> Aucun dossier patient n’est lu ni modifié.
+          L’essai SQLite accepte uniquement la <strong>base entièrement fictive fournie par Digital Crown</strong>,
+          après contrôle du propriétaire connecté.</p>
+        <details className="text-xs leading-5">
+          <summary className="cursor-pointer font-bold underline underline-offset-2">Précautions et limites de la simulation</summary>
+          <p className="mt-2">
+            Ne sélectionnez jamais de véritable export patient, dump SQL, mot de passe ou donnée clinique.
+            Les inventaires JSON sont examinés localement en mémoire sans transmission de leur contenu.
+            Seuls le contrôle structurel et la simulation fictive interrogent le backend.
+            Le schéma cible n’est pas entièrement certifié ; aucune approbation administrateur,
+            aucun dry-run réel ni import clinique n’est autorisé. Les styles globaux peuvent charger
+            des polices externes.
+          </p>
+        </details>
+      </div>
     </section>
 
     <section aria-label="Prévol sécurisé du cabinet" className={card + ' space-y-3'}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 className="font-black">Service de migration — en construction</h2>
-          <p className="mt-1 text-sm text-text-muted">Prévol en lecture seule, réservé au propriétaire connecté sur son poste autorisé.</p></div>
+          <p className="mt-1 text-sm text-text-muted">Étape 1 : prévol en lecture seule du propriétaire sur son poste autorisé. Étape 2 : téléchargement du fichier fictif.</p></div>
         <button type="button" onClick={() => { void checkPreflight(); }} disabled={checking || rehearsing}
           className={buttonClass + ' border border-border-main'}>
           {checking ? 'Contrôle en cours…' : 'Contrôler le backend sécurisé'}
