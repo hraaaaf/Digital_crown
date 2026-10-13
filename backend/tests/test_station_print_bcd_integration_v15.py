@@ -73,6 +73,11 @@ def test_shared_database_draft_and_claim_remain_separately_inert(tmp_path):
         document_id="synthetic1", document_sha256="a" * 64, printer_id="desk1",
     )
     assert held.state == "held"
+    with engine.connect() as connection:
+        entries = connection.execute(select(
+            claim_events.c.revision, claim_events.c.transition
+        ).where(claim_events.c.tenant_id == 10)).all()
+    assert entries == [(1, "held_reserved")]
     with pytest.raises(PrintClaimDuplicate):
         reserve_held_claim(
             engine, tenant_id=10, session_id="session1", document_kind="care_sheet",
@@ -99,6 +104,14 @@ def test_claim_survives_engine_restart_and_uncertain_cannot_be_replayed(tmp_path
         restart, tenant_id=10, delivery_key=held.delivery_key, expected_revision=1,
     )
     assert uncertain.state == "uncertain"
+    with restart.connect() as connection:
+        events = connection.execute(select(
+            claim_events.c.revision, claim_events.c.transition
+        ).where(
+            claim_events.c.tenant_id == 10,
+            claim_events.c.delivery_key == held.delivery_key,
+        ).order_by(claim_events.c.revision)).all()
+    assert events == [(1, "held_reserved"), (2, "marked_uncertain")]
     with pytest.raises(PrintClaimDuplicate):
         reserve_held_claim(
             restart, tenant_id=10, session_id="session1", document_kind="care_sheet",
@@ -148,3 +161,33 @@ def test_no_valid_public_print_destination_is_possible_from_combined_lab(tmp_pat
             trusted_printers=inventory,
         )
     engine.dispose()
+
+
+def test_claim_write_rolls_back_if_audit_journal_is_unavailable(tmp_path):
+    # Broken audit table MUST fail closed: never reserve a claim without an
+    # auditable event. Ephemeral SQLite, not a Cabinet database.
+    from sqlalchemy.exc import OperationalError
+
+    engine = make_engine(tmp_path / "journal-failure.sqlite")
+    tables_on_engine(engine)
+    with engine.begin() as connection:
+        connection.exec_driver_sql("DROP TABLE station_print_claim_events")
+    with pytest.raises(OperationalError):
+        reserve_held_claim(
+            engine, tenant_id=10, session_id="synthetic", document_kind="care_sheet",
+            document_id="document1", document_sha256="f" * 64, printer_id="desk",
+        )
+    with engine.connect() as connection:
+        assert connection.execute(select(claims.c.tenant_id)).all() == []
+    engine.dispose()
+
+
+def test_no_patient_data_in_claim_journal_or_print_ledger_schema():
+    journal_cols = {column.name for column in claim_events.columns}
+    assert journal_cols == {
+        "event_id", "tenant_id", "delivery_key", "revision", "transition", "created_at",
+    }
+    assert not journal_cols.intersection({
+        "patient_id", "session_id", "medical_record", "pdf", "token",
+        "document_bytes", "patient_name",
+    })
