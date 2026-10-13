@@ -88,7 +88,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   if (!hasImage) return <Step1CephaloBase {...props} />;
 
   const toggleClass = (active: boolean) =>
-    `min-h-9 shrink-0 whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold transition-all xl:min-h-10 xl:w-full xl:text-left xl:text-[11px] ${active ? 'shadow-sm' : ''}`;
+    `min-h-9 shrink-0 whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold transition-all xl:min-h-10 xl:w-full xl:text-left xl:text-xs ${active ? 'shadow-sm' : ''}`;
 
   const toggleStyle = (active: boolean): React.CSSProperties => ({
     background: active ? props.P.bgCard : props.P.bgInput,
@@ -126,10 +126,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       >
         <div className="hidden xl:block">
           <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Workbench</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.10em]" style={{ color: props.P.textDim }}>Workbench</p>
             <h3 className="mt-1 break-words text-sm font-black leading-tight" style={{ color: props.P.text }}>{ANALYSIS_LABELS[analysis]}</h3>
           </div>
-          <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
+          <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
             Analyse active
           </span>
         </div>
@@ -149,8 +149,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               <option key={mode} value={mode}>{ANALYSIS_LABELS[mode]}</option>
             ))}
           </select>
-          <p className="mt-2 text-[11px] leading-relaxed" style={{ color: props.P.textMuted }}>
-            Choisis une méthode. Les mesures manquantes sont signalées sans estimation.
+          <p className="mt-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>
+            Méthode sélectionnée : tracés et mesures synchronisés. Aucune estimation des données manquantes.
           </p>
         </section>
 
@@ -170,7 +170,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             ))}
           </div>
           <p className="mt-2 text-xs" style={{ color: props.P.textMuted }}>
-            Mesures libres en cours de construction. Les analyses calculées restent disponibles à droite.
+            Distance et angle libres : en cours de construction.
           </p>
           <div className="mt-2 flex flex-wrap gap-2" aria-label="Accès rapide aux commandes existantes">
             <button type="button" aria-pressed={magnifierEnabled}
@@ -192,7 +192,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               { label: 'Luminosité', value: imgFilters.brightness, min: 50, max: 200, update: (value: number) => setImgFilters(filters => ({ ...filters, brightness: value })) },
               { label: 'Contraste', value: imgFilters.contrast, min: 50, max: 300, update: (value: number) => setImgFilters(filters => ({ ...filters, contrast: value })) },
             ] as const).map(filter => (
-              <label key={filter.label} className="block text-[11px]" style={{ color: props.P.textMuted }}>
+              <label key={filter.label} className="block text-xs" style={{ color: props.P.textMuted }}>
                 <span className="mb-1 flex justify-between gap-2"><span>{filter.label}</span><span className="font-mono">{filter.value}%</span></span>
                 <input aria-label={filter.label} className="w-full" type="range" min={filter.min} max={filter.max} value={filter.value}
                   onChange={event => filter.update(Number(event.target.value))} style={{ accentColor: props.P.accent }} />
@@ -233,8 +233,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           style={{ borderColor: props.P.border }}
         >
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Corrections</p>
-            <span className="text-[9px] font-bold" style={{ color: props.P.textMuted }}>
+            <p className="text-[10px] font-bold uppercase tracking-[0.10em]" style={{ color: props.P.textDim }}>Corrections</p>
+            <span className="text-[10px] font-semibold" style={{ color: props.P.textMuted }}>
               {landmarkEditTimeline.undoStack.length} modif.
             </span>
           </div>
@@ -287,11 +287,11 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           style={{ borderColor: props.P.border }}
         >
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: props.P.textDim }}>Couches</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.10em]" style={{ color: props.P.textDim }}>Couches</p>
             <button
               type="button"
               onClick={resetLayers}
-              className="rounded-lg px-2 py-1 text-[9px] font-bold"
+              className="rounded-lg px-2 py-1 text-[10px] font-semibold"
               style={{ color: props.P.textMuted }}
             >
               Réinitialiser
@@ -323,7 +323,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
                     aria-label={available ? layer.label : `${layer.label} — en construction`}
                     title={available ? layer.label : layer.unavailableReason}
                     onClick={handleToggle}
-                    className="flex min-h-8 w-full items-center justify-between gap-2 rounded-lg px-2 text-left text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex min-h-10 w-full items-center justify-between gap-2 rounded-lg px-2 text-left text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ color: active && available ? props.P.text : props.P.textMuted }}
                   >
                     <span>{layer.shortLabel}</span>
