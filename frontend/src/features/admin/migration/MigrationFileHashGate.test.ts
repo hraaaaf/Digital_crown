@@ -19,8 +19,11 @@ function fakeSQLiteBytes() {
   return bytes.buffer;
 }
 function fileOf(bytes: ArrayBuffer) {
-  return new File([bytes], 'digital-crown-synthetic-100x200.db',
-                  { type: 'application/vnd.sqlite3' });
+  const file = new File([bytes], 'digital-crown-synthetic-100x200.db',
+                        { type: 'application/vnd.sqlite3' });
+  // jsdom File lacks arrayBuffer(): supply exactly the bytes under test.
+  Object.defineProperty(file, 'arrayBuffer', { value: async () => bytes });
+  return file;
 }
 const goodResult = {
   mode: 'OFFICIAL_SYNTHETIC_SQLITE_FILE_ONLY',
