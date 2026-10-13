@@ -17,7 +17,7 @@ from backend.services.station_print_printer_draft_lab import (
     unverified_drafts_are_never_trusted, PrinterDraftConflict,
 )
 from backend.services.station_print_held_claims_lab import (
-    claims, reserve_held_claim, get_claim, mark_uncertain,
+    claims, claim_events, reserve_held_claim, get_claim, mark_uncertain,
     PrintClaimDuplicate, PrintClaimRejected,
 )
 from backend.services.station_document_print_configuration import (
@@ -41,6 +41,7 @@ def tables_on_engine(engine):
     Table("users", metadata, Column("id", Integer, primary_key=True))
     draft_printers.to_metadata(metadata)
     claims.to_metadata(metadata)
+    claim_events.to_metadata(metadata)
     metadata.create_all(engine)  # isolated SQLite, never Cabinet DDL
     with engine.begin() as connection:
         connection.execute(insert(metadata.tables["users"]), [{"id": 10}, {"id": 20}])
