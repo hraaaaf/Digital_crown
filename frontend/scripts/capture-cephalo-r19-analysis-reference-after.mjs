@@ -71,7 +71,7 @@ function modeContract(mode, metrics) {
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
   if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N')
-    && (metrics.crossLayerOverlapCount===null || (metrics.overlayLabelCount===3 && metrics.crossLayerOverlapCount===0));
+    && (metrics.crossLayerOverlapCount===null || (metrics.overlayLabelCount===3 && metrics.crossLayerOverlapCount===0 && metrics.overlayContrastContract));
   if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   return false;
 }
@@ -171,6 +171,9 @@ async function captureViewport(viewport,attempt){
     const compactTexts=Array.from(baseSvg?.querySelectorAll('[data-cephalo-landmark-label]')||[]);
     const comOnlyTexts=Array.from(document.querySelectorAll('svg[data-cephalo-viewport="analysis"] [data-cephalo-overlay-label]'));
     const allLabelNodes=[...compactTexts,...comOnlyTexts];
+    const overlayContrastContract=comOnlyTexts.every(text=>
+      text.style.paintOrder==='stroke' && text.style.strokeWidth==='4px' && text.style.strokeLinejoin==='round'
+    );
     const overlapCount=compactTexts.reduce((count,a,i)=>{
       const x=a.getBoundingClientRect();
       return count+compactTexts.slice(i+1).filter(b=>{
@@ -202,6 +205,7 @@ async function captureViewport(viewport,attempt){
       visibleCompactLabelCount:innerWidth>=1280 ? compactTexts.length : null,
       labelOverlapCount:innerWidth>=1280 ? overlapCount : null,
       overlayLabelCount:innerWidth>=1280 ? comOnlyTexts.length : null,
+      overlayContrastContract:innerWidth>=1280 ? overlayContrastContract : null,
       crossLayerOverlapCount:innerWidth>=1280 ? totalOverlapCount : null,
       labelModeContract,
       rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,

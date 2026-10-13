@@ -382,7 +382,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 {overlayOnly && <title>{p.id}</title>}
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
                 {(!props.compactLabels || overlayOnly) && (
-                  <text data-cephalo-overlay-label={p.id} x={p.x + labelOffset.x} y={p.y + labelOffset.y} fill={P.text} fontSize={props.compactLabels ? 20 : 9} fontWeight="800">{p.id}</text>
+                  <text data-cephalo-overlay-label={p.id} x={p.x + labelOffset.x} y={p.y + labelOffset.y}
+                    fill={P.text} fontSize={props.compactLabels ? 20 : 9} fontWeight="800"
+                    style={props.compactLabels ? { paintOrder: 'stroke', stroke: P.bgInput, strokeWidth: '4px', strokeLinejoin: 'round' } : undefined}
+                  >{p.id}</text>
                 )}
               </g>
             );
