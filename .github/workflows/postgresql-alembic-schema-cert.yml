@@ -154,15 +154,30 @@ jobs:
 
               # LOT04.8 B/C staged tables MUST actually exist in the
               # fresh-metadata baseline, not merely be stamped in Alembic.
-              staged_tables = {"station_print_printer_drafts", "station_print_held_claims"}
+              staged_tables = {
+                  "station_print_printer_drafts", "station_print_held_claims",
+                  "station_print_claim_events",
+              }
               assert staged_tables <= table_set, sorted(staged_tables - table_set)
-              for staged in staged_tables:
+              for staged in ("station_print_printer_drafts", "station_print_held_claims"):
                   fks = inspector.get_foreign_keys(staged, schema="public")
                   assert any(
                       item.get("constrained_columns") == ["tenant_id"]
                       and item.get("referred_table") == "users"
                       for item in fks
                   ), (staged, fks)
+              journal_fks = inspector.get_foreign_keys("station_print_claim_events", schema="public")
+              assert any(
+                  item.get("constrained_columns") == ["tenant_id", "delivery_key"]
+                  and item.get("referred_table") == "station_print_held_claims"
+                  for item in journal_fks
+              ), journal_fks
+              journal_checks = {
+                  item["name"]
+                  for item in inspector.get_check_constraints("station_print_claim_events", schema="public")
+              }
+              assert {"ck_station_print_event_revision", "ck_station_print_event_transition"} <= journal_checks
+              for staged in staged_tables:
                   assert connection.execute(text(f'SELECT COUNT(*) FROM "{staged}"')).scalar_one() == 0
               staged_claim_checks = {
                   item["name"]
@@ -354,6 +369,7 @@ jobs:
               tables = set(inspect(conn).get_table_names())
               assert "station_print_printer_drafts" not in tables
               assert "station_print_held_claims" not in tables
+              assert "station_print_claim_events" not in tables
               assert "station_print_configurations" in tables
               assert conn.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=2")).scalar_one() == "neo28-to-29-synthetic"
           print("neo28 predecessor preserved with synthetic witness")
@@ -367,9 +383,10 @@ jobs:
           assert_database_at_current_head(engine)
           with engine.connect() as conn:
               tables = set(inspect(conn).get_table_names())
-              assert {"station_print_printer_drafts", "station_print_held_claims"} <= tables
+              assert {"station_print_printer_drafts", "station_print_held_claims", "station_print_claim_events"} <= tables
               assert conn.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=2")).scalar_one() == "neo28-to-29-synthetic"
               assert conn.execute(text("SELECT COUNT(*) FROM station_print_printer_drafts")).scalar_one() == 0
               assert conn.execute(text("SELECT COUNT(*) FROM station_print_held_claims")).scalar_one() == 0
+              assert conn.execute(text("SELECT COUNT(*) FROM station_print_claim_events")).scalar_one() == 0
           print("neo28->neo29 migration preserves synthetic witness and remains inert")
           PY
