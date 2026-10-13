@@ -19,7 +19,7 @@ import re
 
 from sqlalchemy import (
     CheckConstraint, Column, DateTime, ForeignKey, ForeignKeyConstraint,
-    Integer, String, Table, UniqueConstraint, insert, select,
+    Integer, String, Table, UniqueConstraint, func, insert, select,
 )
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
@@ -200,3 +200,61 @@ def inspect_uncertain_reviews(engine: Engine, *, tenant_id: int, actor_user_id: 
             ).order_by(uncertain_reviews.c.review_id)
         ).scalars().all()
     return tuple(UncertainReviewReceipt(tenant_id, delivery_key, finding) for finding in rows)
+
+
+@dataclass(frozen=True)
+class BlockedPrintJob:
+    """Opaque read-only investigation summary; never a printer action token."""
+    reference: str
+    status: str
+    updated_at: str
+    investigation_count: int
+
+
+def list_blocked_print_jobs(
+    connection, *,
+    tenant_id: int,
+    actor_user_id: int,
+    actor_employer_id: int | None,
+    limit: int = 25,
+) -> tuple[tuple[BlockedPrintJob, ...], int]:
+    """Bounded owner-only read; no raw delivery key/PHI, PDF, print, or retry.
+
+    Must only be called from an authenticated CABINET-bound handler. The
+    DB query independently filters by tenant; never trust client tenant IDs.
+    """
+    _owner(tenant_id, actor_user_id, actor_employer_id)
+    if type(limit) is not int or not 1 <= limit <= 25:
+        raise PrintReviewRejected("INVALID_PAGE_LIMIT")
+    total = connection.execute(
+        select(func.count()).select_from(claims).where(
+            claims.c.tenant_id == tenant_id, claims.c.state == "uncertain",
+        )
+    ).scalar_one()
+    reviews_count = (
+        select(func.count())
+        .select_from(uncertain_reviews)
+        .where(
+            uncertain_reviews.c.tenant_id == claims.c.tenant_id,
+            uncertain_reviews.c.delivery_key == claims.c.delivery_key,
+        ).correlate(claims).scalar_subquery()
+    )
+    rows = connection.execute(
+        select(
+            claims.c.delivery_key, claims.c.updated_at,
+            reviews_count.label("investigation_count"),
+        )
+        .where(claims.c.tenant_id == tenant_id, claims.c.state == "uncertain")
+        .order_by(claims.c.updated_at.desc(), claims.c.delivery_key.asc())
+        .limit(limit)
+    ).all()
+    items = tuple(
+        BlockedPrintJob(
+            reference=row.delivery_key[:12],
+            status="uncertain",
+            updated_at=row.updated_at.isoformat(),
+            investigation_count=int(row.investigation_count),
+        )
+        for row in rows
+    )
+    return items, total
