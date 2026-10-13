@@ -7,18 +7,20 @@ import {
 } from './MappingStudioPolicy';
 import {
   fetchMigrationPreflight, runSyntheticStaffRehearsal,
+  downloadOfficialSyntheticFile, dryrunOfficialSyntheticFile, type SyntheticFileDryrun,
   type Preflight, type Rehearsal,
 } from './migrationGateway';
 
 type Props = { initialSource?: SchemaInventory; initialTarget?: TargetInventory };
 type Stage = 'load' | 'review' | 'summary';
-const card = 'rounded-2xl border border-border-main bg-card-bg/80 p-4 shadow-sm sm:p-6';
+const card = 'min-w-0 rounded-2xl border border-border-main bg-card-bg/80 p-4 shadow-sm sm:p-6';
 const inputClass = 'w-full min-w-0 rounded-xl border border-border-main bg-card-bg p-3 text-sm font-semibold text-text-main';
-const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40';
+const buttonClass = 'inline-flex min-h-11 min-w-0 max-w-full items-center justify-center gap-2 whitespace-normal text-center [overflow-wrap:anywhere] rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40';
 
 export function MigrationMappingStudio({ initialSource, initialTarget }: Props) {
   const sourceId = useId();
   const targetId = useId();
+  const demoFileId = useId();
   const uploadGeneration = useRef({ source: 0, target: 0 });
   const [source, setSource] = useState<SchemaInventory | null>(initialSource ?? null);
   const [target, setTarget] = useState<TargetInventory | null>(initialTarget ?? null);
@@ -30,12 +32,61 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [rehearsing, setRehearsing] = useState(false);
+  const [officialDemoSha, setOfficialDemoSha] = useState<string | null>(null);
+  const [fileResult, setFileResult] = useState<SyntheticFileDryrun | null>(null);
+  const [downloadingDemo, setDownloadingDemo] = useState(false);
+  const [checkingDemoFile, setCheckingDemoFile] = useState(false);
+
+  async function downloadFixture() {
+    setDownloadingDemo(true);
+    setOfficialDemoSha(null);
+    setFileResult(null);
+    setGatewayError(null);
+    try {
+      const { bytes, sha } = await downloadOfficialSyntheticFile();
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.sqlite3' }));
+      try {
+        const element = document.createElement('a');
+        element.href = url;
+        element.download = 'digital-crown-synthetic-100x200.db';
+        document.body.append(element);
+        element.click();
+        element.remove();
+      } finally {
+        // The Blob contains only canonical fake fixture values.
+        URL.revokeObjectURL(url);
+      }
+      setOfficialDemoSha(sha);
+    } catch {
+      setGatewayError('Téléchargement fictif impossible. Aucun transfert de données autorisé.');
+    } finally {
+      setDownloadingDemo(false);
+    }
+  }
+
+  async function checkFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    setFileResult(null);
+    setGatewayError(null);
+    if (!file || !officialDemoSha || !preflight?.physical_subset_checked) return;
+    setCheckingDemoFile(true);
+    try {
+      setFileResult(await dryrunOfficialSyntheticFile(file, officialDemoSha));
+    } catch {
+      setGatewayError('Fichier refusé : seul le fichier fictif Digital Crown téléchargé ici est accepté. Aucune donnée clinique envoyée.');
+    } finally {
+      setCheckingDemoFile(false);
+    }
+  }
 
   async function checkPreflight() {
     setChecking(true);
     setGatewayError(null);
     setPreflight(null);
     setRehearsal(null);
+    setFileResult(null);
+    setOfficialDemoSha(null);
     try {
       setPreflight(await fetchMigrationPreflight());
     } catch {
@@ -120,19 +171,30 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
       </span>
     </header>
 
-    <section role="note" aria-label="Limites de certification" className="flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
-      <AlertTriangle className="mt-1 shrink-0" size={20} />
-      <div><strong>Ce parcours ne migre aucune donnée.</strong> Chargez uniquement des inventaires de schémas JSON,
-        sans dossiers patients, dumps SQL, mots de passe ni données cliniques. Les fichiers sont analysés
-        en mémoire et leur contenu n’est pas envoyé au backend. Seuls un contrôle structurel du serveur et une simulation indépendante de données entièrement fictives peuvent être demandés.
-        Les styles globaux de Digital Crown peuvent toutefois charger des polices externes. Le schéma cible fourni n’est pas entièrement certifié ;
-        aucune approbation administrateur ni dry-run réel n’existe ici.</div>
+    <section role="note" aria-label="Limites de certification" className="flex min-w-0 gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950 sm:p-4">
+      <AlertTriangle className="mt-0.5 shrink-0" size={20} aria-hidden="true" />
+      <div className="min-w-0 space-y-2">
+        <p><strong>Import réel interdit.</strong> Aucun dossier patient n’est lu ni modifié.
+          L’essai SQLite accepte uniquement la <strong>base entièrement fictive fournie par Digital Crown</strong>,
+          après contrôle du propriétaire connecté.</p>
+        <details className="text-xs leading-5">
+          <summary className="cursor-pointer font-bold underline underline-offset-2">Précautions et limites de la simulation</summary>
+          <p className="mt-2">
+            Ne sélectionnez jamais de véritable export patient, dump SQL, mot de passe ou donnée clinique.
+            Les inventaires JSON sont examinés localement en mémoire sans transmission de leur contenu.
+            Seuls le contrôle structurel et la simulation fictive interrogent le backend.
+            Le schéma cible n’est pas entièrement certifié ; aucune approbation administrateur ni dry-run réel
+            n’existe ici. Aucun import clinique n’est autorisé. Les styles globaux peuvent charger
+            des polices externes.
+          </p>
+        </details>
+      </div>
     </section>
 
     <section aria-label="Prévol sécurisé du cabinet" className={card + ' space-y-3'}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 className="font-black">Service de migration — en construction</h2>
-          <p className="mt-1 text-sm text-text-muted">Prévol en lecture seule, réservé au propriétaire connecté sur son poste autorisé.</p></div>
+          <p className="mt-1 text-sm text-text-muted">Étape 1 : prévol en lecture seule du propriétaire sur son poste autorisé. Étape 2 : téléchargement du fichier fictif.</p></div>
         <button type="button" onClick={() => { void checkPreflight(); }} disabled={checking || rehearsing}
           className={buttonClass + ' border border-border-main'}>
           {checking ? 'Contrôle en cours…' : 'Contrôler le backend sécurisé'}
@@ -154,6 +216,24 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
             {rehearsing ? 'Simulation fictive en cours…' : 'Simuler 100 patients et 200 RDV fictifs'}</button>
         </div>
       </div>}
+      {preflight?.physical_subset_checked && <div className="space-y-3 rounded-xl border border-border-main p-3 sm:p-4" aria-label="Essai de fichier SQLite fictif">
+        <h3 className="text-sm font-black">Essai avec un véritable fichier .db fictif</h3>
+        <p className="text-xs text-text-muted">Téléchargez la base générée par Digital Crown (100 patients fictifs, 200 rendez-vous fictifs), puis sélectionnez exactement ce fichier. Le contrôle SHA local refuse tout autre fichier avant envoi au serveur.</p>
+        <button type="button" disabled={downloadingDemo || checkingDemoFile} onClick={() => { void downloadFixture(); }}
+          className={buttonClass + ' border border-border-main'}>
+          {downloadingDemo ? 'Fichier fictif en préparation…' : 'Télécharger la base SQLite fictive'}</button>
+        <label htmlFor={demoFileId} className="block text-sm font-bold">Sélectionner uniquement le fichier fictif téléchargé
+          <input id={demoFileId} aria-label="Fichier SQLite fictif Digital Crown" type="file" accept=".db,application/vnd.sqlite3"
+            disabled={!officialDemoSha || checkingDemoFile || downloadingDemo}
+            onChange={event => { void checkFile(event); }}
+            className="mt-2 block w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:p-3 file:font-bold" />
+        </label>
+        {officialDemoSha && <p role="status" className="text-xs text-text-muted">Fichier fictif préparé · contrôle SHA local activé.</p>}
+        {checkingDemoFile && <p role="status" className="text-sm font-bold">Vérification et simulation du fichier fictif en cours…</p>}
+        {fileResult && <p role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
+          Fichier SQLite fictif vérifié : {fileResult.verified_patients}/100 patients et {fileResult.verified_patient_links}/200 relations contrôlées. Après rollback : {fileResult.after_rollback_patients} patient, {fileResult.after_rollback_appointments} rendez-vous. Aucune écriture dans le cabinet.
+        </p>}
+      </div>}
       {rehearsal && <p role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
         Simulation fictive : {rehearsal.verified_patients}/100 patients et {rehearsal.verified_patient_links}/200 liens vérifiés,
         {rehearsal.after_rollback_patients} patient et {rehearsal.after_rollback_appointments} RDV conservés après rollback.
@@ -165,11 +245,11 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
     <nav aria-label="Étapes Mapping Studio" className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
       {([['load','1 · Inventaires'],['review','2 · Correspondances'],['summary','3 · Vérification']] as const).map(([id, text]) =>
         <div key={id} aria-current={stage === id ? 'step' : undefined}
-          className={'rounded-xl border p-3 font-bold ' +
+          className={'min-w-0 [overflow-wrap:anywhere] rounded-xl border p-3 font-bold ' +
             (stage === id ? 'border-primary bg-primary/10 text-primary' : 'border-border-main bg-card-bg text-text-muted')}>{text}</div>)}
     </nav>
 
-    {stage === 'load' && <section aria-label="Choisir les inventaires" className="grid gap-4 lg:grid-cols-2">
+    {stage === 'load' && <section aria-label="Choisir les inventaires" className="grid min-w-0 gap-4 lg:grid-cols-2">
       <article className={card}>
         <h2 className="text-lg font-black">1. Schéma source</h2>
         <p className="my-3 text-sm text-text-muted">Rapport JSON de l’inspecteur 05.1, issu d’une copie hors-ligne.</p>
@@ -193,9 +273,9 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
         </p>
       </article>
       {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800 lg:col-span-2">Inventaire refusé : {error}</p>}
-      <div className="flex justify-end lg:col-span-2">
+      <div className="flex min-w-0 justify-end lg:col-span-2">
         <button type="button" disabled={!source || !target} onClick={() => setStage('review')}
-          className={buttonClass + ' bg-primary text-white'}>Examiner les correspondances <ArrowRight size={17} /></button>
+          className={buttonClass + ' w-full bg-primary text-white sm:w-auto'}>Examiner les correspondances <ArrowRight size={17} /></button>
       </div>
     </section>}
 
