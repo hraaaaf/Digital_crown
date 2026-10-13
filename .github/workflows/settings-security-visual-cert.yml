@@ -191,7 +191,22 @@ jobs:
               await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
               const panelWidth = await panel.evaluate(el => ({ client: el.clientWidth, scroll: el.scrollWidth }));
               if (panelWidth.scroll > panelWidth.client) {
-                throw new Error(`Blocked print monitor overflows at 200%: ${width} ${JSON.stringify(panelWidth)}`);
+                const offending = await panel.evaluate(root => {
+                  const outer = root.getBoundingClientRect();
+                  return [...root.querySelectorAll('*')].map(node => {
+                    const rect = node.getBoundingClientRect();
+                    return {
+                      tag: node.tagName, className: typeof node.className === 'string' ? node.className : '',
+                      snippet: node.textContent?.trim().slice(0, 65) || '',
+                      rightBeyondPanel: Math.round(rect.right - outer.right),
+                      scrollWidth: node.scrollWidth, clientWidth: node.clientWidth,
+                    };
+                  }).filter(n => n.rightBeyondPanel > 1 || n.scrollWidth > n.clientWidth + 1).slice(0, 20);
+                });
+                const failure = { width, zoom: 200, panelWidth, offending };
+                await fs.writeFile(`${output}/overflow-${width}-text200.json`, JSON.stringify(failure, null, 2));
+                await page.screenshot({ path: `${output}/overflow-${width}-text200.png`, fullPage: true, animations: 'disabled' });
+                throw new Error(`Blocked print monitor overflows at 200%: ${JSON.stringify(failure)}`);
               }
               await refresh.focus();
               if (!(await refresh.evaluate(el => document.activeElement === el))) {
@@ -247,6 +262,7 @@ jobs:
           test -s settings-security-artifacts/integration-evidence.json
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: settings-security-visual-cert
           path: frontend/settings-security-artifacts/
