@@ -25,6 +25,13 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
 from backend.services.station_print_held_claims_lab import SCHEMA, claims
+from backend.services.station_print_printer_draft_lab import draft_printers
+
+# Reuse the real staged unverified catalog's composite identity; evidence
+# cannot be attached to a made-up/other-tenant printer.
+if draft_printers.name not in SCHEMA.tables:
+    draft_printers.to_metadata(SCHEMA)
+
 
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")
@@ -40,6 +47,11 @@ device_evidence = Table(
     Column("recorded_by", Integer, nullable=False),
     Column("status", String(32), nullable=False, server_default=_PENDING_STATUS),
     Column("recorded_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["tenant_id", "printer_id"],
+        ["station_print_printer_drafts.tenant_id", "station_print_printer_drafts.printer_id"],
+        ondelete="RESTRICT", name="fk_device_evidence_unverified_draft",
+    ),
     CheckConstraint(
         "status = 'pending_field_verification'",
         name="ck_device_evidence_never_certified",
