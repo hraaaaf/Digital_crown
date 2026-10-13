@@ -23,6 +23,16 @@ export const PatientCompanionStationDocuments = ({
   const endpoint = `${API_BASE}/api/patient-companion/station-session/${encodeURIComponent(sessionId)}/documents`;
   const access = `accessId=${encodeURIComponent(pairing.context.access_id)}`;
 
+  // Pocket's five-tab shell unmounts the Station view when navigating away.
+  // Abort pending phone PDF bytes before a background request can create a late download.
+  useEffect(() => {
+    closingRef.current = false;
+    return () => {
+      closingRef.current = true;
+      downloadAbortRef.current?.abort();
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setBusy(true);
