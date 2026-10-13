@@ -52,7 +52,7 @@ class CabinetClinicalPreflightRequest(BaseModel):
     sessionId: str = Field(min_length=36, max_length=36)
     documentId: int = Field(gt=0)
     archiveSha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    ownerPin: str = Field(pattern=r"^\\d{4,8}$")
+    ownerPin: str = Field(pattern=r"^\d{4,8}$")
 
 
 
