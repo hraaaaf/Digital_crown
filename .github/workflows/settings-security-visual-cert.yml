@@ -189,7 +189,21 @@ jobs:
               }
               await page.screenshot({ path: `${output}/owner-${width}-text100.png`, fullPage: true, animations: 'disabled' });
               await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
-              const panelWidth = await panel.evaluate(el => ({ client: el.clientWidth, scroll: el.scrollWidth }));
+              const panelWidth = await panel.evaluate(el => ({
+                client: el.clientWidth,
+                scroll: el.scrollWidth,
+                left: el.getBoundingClientRect().left,
+                right: el.getBoundingClientRect().right,
+              }));
+              const minimumUsableWidth = Math.min(300, width / 2);
+              if (panelWidth.client < minimumUsableWidth
+                  || panelWidth.left < -1 || panelWidth.right > width + 1) {
+                const failure = { width, zoom: 200, minimumUsableWidth, panelWidth,
+                  reason: 'SETTINGS_SHELL_CRUSHED_OR_OFFSCREEN' };
+                await fs.writeFile(`${output}/shell-width-${width}-text200.json`, JSON.stringify(failure, null, 2));
+                await page.screenshot({ path: `${output}/shell-width-${width}-text200.png`, fullPage: true, animations: 'disabled' });
+                throw new Error(`Settings shell unusable at 200%: ${JSON.stringify(failure)}`);
+              }
               if (panelWidth.scroll > panelWidth.client) {
                 const offending = await panel.evaluate(root => {
                   const outer = root.getBoundingClientRect();
