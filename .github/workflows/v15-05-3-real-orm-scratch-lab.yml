@@ -1,0 +1,85 @@
+name: V1.5-05.3 Real Declared ORM Synthetic Scratch Lab
+
+on:
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_real_orm_scratch_v15.py
+      - docs/quality/V15_05_3_REAL_ORM_SCRATCH_LAB.md
+      - .github/workflows/v15-05-3-real-orm-scratch-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-orm-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install repo-pinned SQLAlchemy ORM dependency only
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check SQLAlchemy==2.0.28
+          python -c "import sqlalchemy; assert sqlalchemy.__version__ == '2.0.28'"
+      - name: Compile isolated real ORM model tests
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_sql_real_orm_scratch_v15.py
+      - name: S01 English fake values through real ORM tables and rollback
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_real_orm_scratch_v15.py RealORMPhysicalSubset.test_s01_english_two_patients_two_appointments_real_orm -v 2>&1 | tee /tmp/s01-real-orm.log
+          grep -q '^Ran 1 test' /tmp/s01-real-orm.log
+          grep -q '^OK$' /tmp/s01-real-orm.log
+      - name: S02 French fake SQLite actual values through real ORM tables and rollback
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_real_orm_scratch_v15.py RealORMPhysicalSubset.test_s02_french_real_synthetic_sqlite_source_to_real_orm -v 2>&1 | tee /tmp/s02-real-orm.log
+          grep -q '^Ran 1 test' /tmp/s02-real-orm.log
+          grep -q '^OK$' /tmp/s02-real-orm.log
+      - name: S03 Spanish fake values through real ORM tables and rollback
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_real_orm_scratch_v15.py RealORMPhysicalSubset.test_s03_spanish_two_patients_one_appointment_real_orm -v 2>&1 | tee /tmp/s03-real-orm.log
+          grep -q '^Ran 1 test' /tmp/s03-real-orm.log
+          grep -q '^OK$' /tmp/s03-real-orm.log
+      - name: Seven adversarial real schema assertions incl. tenant gap
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python -m unittest discover -s backend/tests -p 'test_legacy_sql_real_orm_scratch_v15.py' -v 2>&1 | tee /tmp/real-orm-all.log
+          grep -q '^Ran 10 tests' /tmp/real-orm-all.log
+          grep -q '^OK$' /tmp/real-orm-all.log
+          if grep -Ei 'skipped|expected failure' /tmp/real-orm-all.log; then exit 1; fi
+      - name: Previous scenario and 05.3-A regressions
+        run: |
+          set -euo pipefail
+          python backend/tests/test_legacy_sql_synthetic_dryrun_v15.py -v 2>&1 | tee /tmp/synthetic-dryrun.log
+          grep -q 'Ran 19 tests' /tmp/synthetic-dryrun.log
+          grep -q '^OK$' /tmp/synthetic-dryrun.log
+          python backend/tests/test_legacy_sql_migration_scenarios_v15.py -v 2>&1 | tee /tmp/scenarios.log
+          grep -q 'Ran 12 tests' /tmp/scenarios.log
+          grep -q '^OK$' /tmp/scenarios.log
+          python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/mapping.log
+          grep -q 'Ran 25 tests' /tmp/mapping.log
+          grep -q '^OK$' /tmp/mapping.log
+          python backend/tests/test_legacy_sql_target_manifest_v15.py -v 2>&1 | tee /tmp/target.log
+          grep -q 'Ran 25 tests' /tmp/target.log
+          grep -q '^OK$' /tmp/target.log
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/inspect.log
+          grep -q 'Ran 28 tests' /tmp/inspect.log
+          grep -q '^OK$' /tmp/inspect.log
+      - name: Assert exact Git HEAD and no real tenant claims
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          {
+            echo "LOT05.3-B exact HEAD: ${{ github.event.pull_request.head.sha || github.sha }}"
+            echo "New tests 10 unique (3 run independently and repeated in suite) + 109 preceding distinct = 119 unique, 122 total executions."
+            echo "Model 4-table subset only, ephemeral SQLite :memory:, deliberate tenant composite-FK GAP documented. Never a real import or authorization."
+          } >> "$GITHUB_STEP_SUMMARY"
