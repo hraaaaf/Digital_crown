@@ -62,7 +62,10 @@ def test_real_jwt_station_cannot_clinical_check_or_print(client, db, dentiste):
         URL, json=_payload(session_id, document),
         headers=_headers(client, owner_headers),
     )
-    assert result.status_code == 403, result.text
+    # WorkstationModeGate returns 423 for an authenticated Station locked
+    # outside the Cabinet. Do NOT downgrade it to a generic 403.
+    assert result.status_code == 423, result.text
+    assert result.json()["detail"] == "WORKSTATION_STATION_LOCKED"
     _assert_no_print_claims(db)
 
 
