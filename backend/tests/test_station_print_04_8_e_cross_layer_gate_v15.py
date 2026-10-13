@@ -73,7 +73,14 @@ def test_cabinet_clinical_source_has_no_positive_print_permit_or_ledger_write():
     assert 'reason="TRUSTED_PRINTER_CERTIFICATION_REQUIRED"' in s
     assert "allowed=False" in s
     assert "allowed=True" not in s
-    assert "db.commit(" not in s
+    assert not any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "commit"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "db"
+        for node in ast.walk(fn)
+    )  # inspect executable calls, not safe mentions in docstrings
 
 
 @pytest.mark.parametrize("name", ["station_care_sheet", "station_presence_receipt"])
@@ -87,6 +94,15 @@ def test_both_station_document_bytes_routes_fail_closed_423(name: str):
 
 
 def test_trusted_printer_inventory_is_empty_pending_lot10():
+    # Minimal-source LAB intentionally avoids app-wide ORM imports. The real
+    # authenticated FastAPI path is covered by a different full-deps job.
+    import sys
+    import types
+    for name, folder in (("backend", "backend"), ("backend.services", "backend/services")):
+        if name not in sys.modules:
+            package = types.ModuleType(name)
+            package.__path__ = [str(ROOT / folder)]
+            sys.modules[name] = package
     from backend.services.station_document_print_inventory import (
         independently_certified_printers_for_tenant,
     )
