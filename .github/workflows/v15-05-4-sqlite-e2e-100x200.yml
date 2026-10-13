@@ -1,0 +1,63 @@
+name: V1.5-05.4 SQLite 100x200 Synthetic Real-Row E2E
+
+on:
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_sqlite_e2e_100x200_v15.py
+      - docs/quality/V15_05_4_SQLITE_E2E_100X200.md
+      - .github/workflows/v15-05-4-sqlite-e2e-100x200.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sqlite-e2e-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install ORM pinned to repo
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check SQLAlchemy==2.0.28
+          python -c "import sqlalchemy; assert sqlalchemy.__version__ == '2.0.28'"
+      - name: Compile explicit 100x200 data E2E
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_sql_sqlite_e2e_100x200_v15.py
+      - name: Run 11 real-row synthetic SQLite→ORM E2E cases
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_sqlite_e2e_100x200_v15.py -v 2>&1 | tee /tmp/lot05-4-e2e.log
+          grep -q '^Ran 11 tests' /tmp/lot05-4-e2e.log
+          grep -q '^OK$' /tmp/lot05-4-e2e.log
+          if grep -Ei 'skipped|expected failure' /tmp/lot05-4-e2e.log; then exit 1; fi
+      - name: Regress all 140 unique prior scenarios A B C and ORM
+        run: |
+          set -euo pipefail
+          for item in "test_legacy_sql_tenant_link_guard_lab_v15.py:7" "test_legacy_sql_physical_schema_gate_lab_v15.py:6" "test_legacy_sql_replay_restore_lab_v15.py:8" "test_legacy_sql_real_orm_scratch_v15.py:10" "test_legacy_sql_synthetic_dryrun_v15.py:19" "test_legacy_sql_migration_scenarios_v15.py:12" "test_legacy_sql_mapping_v15.py:25" "test_legacy_sql_target_manifest_v15.py:25"; do
+            name="${item%%:*}"
+            count="${item##*:}"
+            python "backend/tests/${name}" -v 2>&1 | tee "/tmp/lot05-reg-${name}.log"
+            grep -q "Ran ${count} tests" "/tmp/lot05-reg-${name}.log"
+            grep -q '^OK$' "/tmp/lot05-reg-${name}.log"
+          done
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/lot05-reg-inspector.log
+          grep -q 'Ran 28 tests' /tmp/lot05-reg-inspector.log
+          grep -q '^OK$' /tmp/lot05-reg-inspector.log
+      - name: Verify exact HEAD and strict NO-GO claims
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          {
+            echo "Exact head: ${{ github.event.pull_request.head.sha || github.sha }}"
+            echo "11 new + 140 predecessor = 151 unique test-only synthetic cases."
+            echo "Real SQLite fake source rows -> TEMP SQLite physical 4 real ORM tables; 100 patients + 200 RDV; rollback and backup/restore."
+            echo "No real auth, no migrated target Alembic, no live DB, no clinic import, no runtime API."
+          } >> "$GITHUB_STEP_SUMMARY"
