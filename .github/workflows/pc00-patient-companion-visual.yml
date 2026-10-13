@@ -97,21 +97,21 @@ jobs:
                           assert (browser,phase,scenario,width,height) in keys
           after=[x for x in items if x["phase"]=="after"]
           assert all(not x["horizontalOverflow"] for x in after)
-          # New Pocket shell displays the Companion title before pairing and
-          # a dedicated Digital Crown Pocket patient identity once paired.
+          # Welcome renders Companion and each paired home renders the explicit uppercase
+          # identity 'DIGITAL CROWN POCKET · PATIENT' plus the patient-space title.
           # Report only non-sensitive booleans for each viewport: do not print the
           # complete patient-screen text or any pairing material in CI logs.
           for item in after:
               expected = (
                   ("Patient Companion" in item["text"]) if item["scenario"] == "welcome"
-                  else ("Pocket" in item["text"] and "Mon espace patient" in item["text"])
+                  else ("DIGITAL CROWN POCKET · PATIENT" in item["text"] and "Mon espace patient" in item["text"])
               )
               assert expected, {
                   "browser": item["browser"],
                   "scenario": item["scenario"],
                   "viewport": item["viewport"],
                   "welcomeTitleVisible": "Patient Companion" in item["text"],
-                  "pocketBadgeVisible": "Pocket" in item["text"],
+                  "patientIdentityVisible": "DIGITAL CROWN POCKET · PATIENT" in item["text"],
                   "patientSpaceVisible": "Mon espace patient" in item["text"],
               }
           homes=[x for x in after if x["scenario"]=="home"]
