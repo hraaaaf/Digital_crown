@@ -54,8 +54,14 @@ async def synthetic_only_migration_rehearsal(
                 raise HTTPException(status_code=400, detail="BODY_NOT_ALLOWED")
         except ValueError:
             raise HTTPException(status_code=400, detail="BODY_NOT_ALLOWED")
-    body = await request.body()
-    if body not in (b"", b"{}"):
+    body = bytearray()
+    # ASGI streaming may omit Content-Length; cap while consuming to avoid
+    # a memory denial of service from a chunked file masquerading as JSON.
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > 2:
+            raise HTTPException(status_code=400, detail="BODY_NOT_ALLOWED")
+        body.extend(chunk)
+    if bytes(body) not in (b"", b"{}"):
         raise HTTPException(status_code=400, detail="BODY_NOT_ALLOWED")
     preflight = inspect_cabinet_schema_read_only(
         db.connection(), models.Base.metadata
