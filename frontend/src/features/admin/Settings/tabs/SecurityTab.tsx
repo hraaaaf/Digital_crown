@@ -16,7 +16,6 @@ import { MobileSecurity } from '../../Security/MobileSecurity';
 import { AuditLogViewer } from '../../Security/AuditLogViewer';
 import { api } from '../../../../services/api';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '../../../../stores/useAuthStore';
 import { BlockedPrintJobsReadOnly } from './BlockedPrintJobsReadOnly';
 
 const backupFilename = (contentDisposition?: string): string => {
@@ -63,9 +62,8 @@ const apiErrorMessage = (error: unknown, fallback: string): string => {
   return response.response?.data?.detail || fallback;
 };
 
-export const SecurityTab: React.FC = () => {
-  const printOwner = useAuthStore((state) => state.user);
-  const mayViewBlockedPrints = Boolean(printOwner && Number.isInteger(printOwner.id) && printOwner.employer_id == null);
+export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerified = false }) => {
+  const mayViewBlockedPrints = ownerVerified;
   const [isExporting, setIsExporting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
