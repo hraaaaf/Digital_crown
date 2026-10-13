@@ -187,6 +187,18 @@ class MigrationScenarios(unittest.TestCase):
             )
             # Clinic ownership and imported credentials MUST NOT be copied.
             selected = next(d for d in draft.decisions if d.source_table == patient_table)
+            # Assert every explicit EN/FR/ES synonym is mapped to the correct
+            # REAL declared Digital Crown patient field, not merely a table.
+            actual_columns = {c.source_column: c.target_column for c in selected.columns}
+            expected_columns = _SCENARIOS[scenario][3]
+            for source_field, expected_target_field in expected_columns.items():
+                self.assertIn(source_field, actual_columns)
+                self.assertEqual(actual_columns[source_field], expected_target_field)
+            self.assertEqual(
+                {target_field for target_field in actual_columns.values()
+                 if target_field is not None},
+                set(expected_columns.values()),
+            )
             self.assertNotIn("employer_id", [
                 c.target_column for c in selected.columns if c.target_column
             ])
