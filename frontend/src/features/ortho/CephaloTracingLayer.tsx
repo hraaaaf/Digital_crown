@@ -1,5 +1,6 @@
 import React from 'react';
-import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracingLayerBase';
+import { useCephaloUnitsPerPixel } from './components/useCephaloUnitsPerPixel';
+import { CephaloTracingLayer as BaseCephaloTracingLayer, getCephaloZoomViewBox } from './CephaloTracingLayerBase';
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
 import { projectPointOnLine } from './cephaloMath';
@@ -10,6 +11,7 @@ import {
 } from './cephaloVisualSemantics';
 import {
   CEPHALO_METRIC_FOCUS_EVENT,
+  CEPHALO_ANALYSIS_CHANGE_EVENT,
   publishCephaloAnalysis,
   type CephaloAnalysisMode,
   type CephaloMetricFocus,
@@ -107,6 +109,9 @@ const unitAxis = (start?: Landmark, end?: Landmark) => {
  */
 export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) => {
   const P = getCephaloPalette();
+  const overlaySvgRef = React.useRef<SVGSVGElement>(null);
+  const overlayViewBox = getCephaloZoomViewBox(props.imageWidth, props.imageHeight, props.viewZoom, props.viewPan);
+  const labelUnit = useCephaloUnitsPerPixel(overlaySvgRef, !!props.compactLabels, overlayViewBox);
   const layerVisible = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.visibility[id] ?? true;
   const layerOpacity = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.opacity[id] ?? 1;
   const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
@@ -119,6 +124,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   React.useEffect(() => {
     publishCephaloAnalysis(mode);
   }, [mode]);
+
+  // The ready-made analysis selector is a peer control of the overlay tabs.
+  // Both surfaces must update the same tracing mode without changing any geometry.
+  React.useEffect(() => {
+    const onAnalysisChange = (event: Event) => {
+      const requested = normalizeMode((event as CustomEvent<CephaloAnalysisMode>).detail);
+      setMode(current => current === requested ? current : requested);
+    };
+    window.addEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysisChange as EventListener);
+    return () => window.removeEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysisChange as EventListener);
+  }, []);
 
   React.useEffect(() => {
     const onMetric = (event: Event) => {
@@ -151,6 +167,77 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
       : filteredLandmarks,
     [filteredLandmarks, mode],
   );
+
+  // COM overlays live in a separate SVG. Resolve text-only collisions against
+  // the ACTUAL rendered base labels in CSS pixels, so landscape radiographs and
+  // 100/150% zoom use the same legibility contract. This never moves landmarks.
+  const [comLabelOffsets, setComLabelOffsets] = React.useState<Record<string, { x: number; y: number }>>({});
+  React.useLayoutEffect(() => {
+    if (!props.compactLabels || mode !== 'com') return;
+    const svg = overlaySvgRef.current;
+    const base = svg?.parentElement?.querySelector('svg[data-cephalo-viewport="base"]');
+    const matrix = svg?.getScreenCTM();
+    if (!svg || !base || !matrix) return;
+    type Box = { left: number; right: number; top: number; bottom: number };
+    const labels = Array.from(svg.querySelectorAll<SVGTextElement>('[data-cephalo-overlay-label]'));
+    const baseBoxes = Array.from(base.querySelectorAll<SVGTextElement>('[data-cephalo-landmark-label]'))
+      .map(node => node.getBoundingClientRect());
+    const placed: Box[] = [];
+    const next: Record<string, { x: number; y: number }> = {};
+    const screen = svg.getBoundingClientRect();
+    const intersects = (a: Box, b: Box) =>
+      Math.min(a.right,b.right)-Math.max(a.left,b.left) > -2
+      && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top) > -2;
+    const alternatives = [
+      { x: 50, y: -34 }, { x: -50, y: -34 },
+      { x: 40, y: 34 }, { x: -50, y: 34 },
+      { x: 5, y: -52 }, { x: 5, y: 55 },
+      { x: 75, y: -45 }, { x: -75, y: -45 },
+      { x: 75, y: 44 }, { x: -75, y: 44 },
+      { x: 105, y: -5 }, { x: -105, y: -5 },
+      { x: 105, y: 57 }, { x: -105, y: 57 },
+      { x: 0, y: -82 }, { x: 0, y: 85 },
+    ];
+    for (const text of labels) {
+      const id = (text.getAttribute('data-cephalo-overlay-label') || '').toLowerCase();
+      const marker = text.parentElement?.querySelector('circle[cx][cy]');
+      if (!marker || !id) continue;
+      const x = Number(marker.getAttribute('cx'));
+      const y = Number(marker.getAttribute('cy'));
+      const currentX = Number(text.getAttribute('x'));
+      const currentY = Number(text.getAttribute('y'));
+      if (![x,y,currentX,currentY].every(Number.isFinite)) continue;
+      const rendered = text.getBoundingClientRect();
+      const preferred = id === 'a' ? { x: 62/3, y: -38/3 }
+        : id === 'b' ? { x: 60/3, y: 40/3 } : { x: 5, y: -6 };
+      const possibilities = [preferred, ...alternatives];
+      let choice = possibilities[0];
+      let chosenBox: Box | null = null;
+      for (const offset of possibilities) {
+        const dx = x + offset.x * labelUnit - currentX;
+        const dy = y + offset.y * labelUnit - currentY;
+        const pixelX = matrix.a * dx + matrix.c * dy;
+        const pixelY = matrix.b * dx + matrix.d * dy;
+        const candidate: Box = { left: rendered.left+pixelX, right: rendered.right+pixelX,
+          top: rendered.top+pixelY, bottom: rendered.bottom+pixelY };
+        if (candidate.left < screen.left+2 || candidate.right > screen.right-2
+          || candidate.top < screen.top+2 || candidate.bottom > screen.bottom-2) continue;
+        if (baseBoxes.some(box => intersects(candidate,box)) || placed.some(box => intersects(candidate,box))) continue;
+        choice = offset;
+        chosenBox = candidate;
+        break;
+      }
+      next[id] = choice;
+      if (chosenBox) placed.push(chosenBox);
+    }
+    setComLabelOffsets(previous => {
+      const same = Object.keys(previous).length === Object.keys(next).length
+        && Object.entries(next).every(([id,p]) =>
+          previous[id]?.x === p.x && previous[id]?.y === p.y);
+      return same ? previous : next;
+    });
+  }, [mode, props.compactLabels, props.landmarks, props.imageWidth, props.imageHeight,
+      props.viewZoom, props.viewPan?.x, props.viewPan?.y, labelUnit, comLabelOffsets]);
 
   const baseGhosts = React.useMemo<GhostData[]>(
     () => mode === 'com'
@@ -264,7 +351,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
 
       {(showRickettsHard || showCom) && (layerVisible('plans') || layerVisible('landmarks') || layerVisible('measurements')) && props.imageWidth > 0 && props.imageHeight > 0 && (
         <svg
-          viewBox={`0 0 ${props.imageWidth} ${props.imageHeight}`}
+          ref={overlaySvgRef}
+          data-cephalo-viewport="analysis"
+          viewBox={overlayViewBox}
           preserveAspectRatio="xMidYMid meet"
           className="pointer-events-none absolute inset-0 z-[28] h-full w-full"
           aria-hidden="true"
@@ -358,10 +447,25 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
 
           {layerVisible('landmarks') && showCom && [po, orPoint, n, s, a, b, go, me, u1i, u1a, l1i, l1a].filter(Boolean).map(point => {
             const p = point as Landmark;
+            const overlayOnly = !baseLandmarks.some(base => base.id.toLowerCase() === p.id.toLowerCase());
+            // Label-only separation from the main SVG reticles. Never move the COM marker or geometry.
+            const desktopOffset = p.id.toLowerCase() === 'a' ? { x: 62, y: -38 }
+              : p.id.toLowerCase() === 'b' ? { x: 60, y: 40 }
+              : { x: 15, y: -18 };
+            const offsetPx = comLabelOffsets[p.id.toLowerCase()] ?? { x: desktopOffset.x/3, y: desktopOffset.y/3 };
+            const labelOffset = props.compactLabels && overlayOnly
+              ? { x: offsetPx.x * labelUnit, y: offsetPx.y * labelUnit }
+              : { x: 8, y: -8 };
             return (
               <g key={`com-${p.id}`} data-r19-point={p.id} opacity={(hasCanonicalFocus ? 0.82 : 0.92) * layerOpacity('landmarks')}>
+                {overlayOnly && <title>{p.id}</title>}
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
-                <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{p.id}</text>
+                {(!props.compactLabels || overlayOnly) && (
+                  <text data-cephalo-overlay-label={p.id} x={p.x + labelOffset.x} y={p.y + labelOffset.y}
+                    fill={P.text} fontSize={props.compactLabels ? 14 * labelUnit : 9} fontWeight="800"
+                    style={props.compactLabels ? { paintOrder: 'stroke', stroke: P.bgInput, strokeWidth: '4px', strokeLinejoin: 'round' } : undefined}
+                  >{p.id}</text>
+                )}
               </g>
             );
           })}
@@ -376,7 +480,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
           className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border p-1 shadow-2xl backdrop-blur-xl sm:gap-1"
           style={{ background: P.bgPanel, borderColor: P.border, boxShadow: P.shadowLg }}
         >
-          <span className="hidden shrink-0 px-2 text-[9px] font-black uppercase tracking-[0.18em] sm:inline" style={{ color: P.textDim }}>Tracé</span>
+          <span className="hidden shrink-0 px-2 text-[9px] font-black uppercase tracking-[0.18em] 2xl:inline" style={{ color: P.textDim }}>Tracé</span>
           {ANALYSIS_OPTIONS.map(option => {
             const selected = mode === option.id;
             return (
@@ -386,7 +490,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 data-analysis={option.id}
                 aria-pressed={selected}
                 onClick={() => setMode(option.id)}
-                className="shrink-0 rounded-xl border px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.04em] transition-all sm:px-3 sm:text-[10px] sm:tracking-[0.08em]"
+                className="shrink-0 rounded-xl border px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.04em] transition-all sm:px-2 sm:text-[9px] sm:tracking-[0.04em] 2xl:px-3 2xl:text-[10px]"
                 style={{
                   background: selected ? `${P.accent}18` : 'transparent',
                   borderColor: selected ? P.borderFocus : 'transparent',

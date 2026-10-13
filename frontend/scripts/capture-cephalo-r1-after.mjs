@@ -169,7 +169,7 @@ async function captureViewport(viewport, attempt) {
       const body = document.body;
       const text = (body.textContent || '').toLowerCase();
       const assistantButton = Array.from(document.querySelectorAll('button')).find(node => node.textContent?.toLowerCase().includes('vérifier automatiquement'));
-      const assistant = assistantButton?.closest('div.absolute');
+      const assistant = assistantButton?.closest('[data-cephalo-calibration-assistant]');
       const assistantRect = assistant?.getBoundingClientRect();
       const topHeader = Array.from(document.querySelectorAll('h2')).find(node => node.textContent?.includes('Céphalométrie'))?.parentElement?.parentElement;
       const headerRect = topHeader?.getBoundingClientRect();
@@ -178,7 +178,7 @@ async function captureViewport(viewport, attempt) {
         scrollWidth: Math.max(doc.scrollWidth, body.scrollWidth),
         horizontalDocumentOverflow: Math.max(doc.scrollWidth, body.scrollWidth) > innerWidth + 1,
         assistantRect: assistantRect ? { left: assistantRect.left, right: assistantRect.right, top: assistantRect.top, bottom: assistantRect.bottom, width: assistantRect.width } : null,
-        assistantClipped: Boolean(assistantRect && (assistantRect.left < -1 || assistantRect.right > innerWidth + 1 || assistantRect.top < -1 || assistantRect.bottom > innerHeight + 1)),
+        assistantClipped: !assistantRect || Boolean(assistantRect && (assistantRect.left < -1 || assistantRect.right > innerWidth + 1 || assistantRect.top < -1 || assistantRect.bottom > innerHeight + 1)),
         headerRect: headerRect ? { left: headerRect.left, right: headerRect.right, width: headerRect.width } : null,
         headerClipped: Boolean(headerRect && (headerRect.left < -1 || headerRect.right > innerWidth + 1)),
         hasCandidateLabel: text.includes('réglette à vérifier'),

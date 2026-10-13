@@ -61,14 +61,17 @@ function json(body,status=200){return{status,contentType:'application/json',body
 async function waitForServer(url,timeoutMs=30000){const start=Date.now();while(Date.now()-start<timeoutMs){try{const r=await fetch(url);if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,250))}throw new Error(`Vite unavailable ${url}`)}
 
 function modeContract(mode, metrics) {
-  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow) return false;
+  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
-  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
+  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10 && metrics.labelModeContract
+    && (metrics.landmarkTitleCount===null || metrics.landmarkTitleCount===29)
+    && (metrics.labelOverlapCount===null || metrics.labelOverlapCount===0);
   if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
-  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N');
+  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N')
+    && (metrics.crossLayerOverlapCount===null || (metrics.overlayLabelCount===3 && metrics.crossLayerOverlapCount===0 && metrics.overlayContrastContract));
   if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   return false;
 }
@@ -80,6 +83,35 @@ const viteBin=path.join(FRONTEND_DIR,'node_modules','.bin',process.platform==='w
 const server=spawn(viteBin,['--host','127.0.0.1','--port',String(PORT)],{cwd:FRONTEND_DIR,env:{...process.env,BROWSER:'none',VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
 let serverLog=''; server.stdout.on('data',c=>serverLog+=c); server.stderr.on('data',c=>serverLog+=c);
 const captures=[]; const blockedExternalRequests=[];
+
+async function readZoomState(page) {
+ return page.evaluate(() => {
+  const base=document.querySelector('svg[data-cephalo-viewport="base"]');
+  const overlay=document.querySelector('svg[data-cephalo-viewport="analysis"]');
+  const image=base?.querySelector('image');
+  return {
+   percent:document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()??null,
+   baseViewBox:base?.getAttribute('viewBox')??null,
+   overlayViewBox:overlay?.getAttribute('viewBox')??null,
+   imageGeometry:image?['x','y','width','height'].map(a=>image.getAttribute(a)).join(','):null,
+   crossLayerOverlapCount:(()=>{
+     const labels=Array.from(document.querySelectorAll('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label],svg[data-cephalo-viewport="analysis"] [data-cephalo-overlay-label]'));
+     return labels.reduce((count,a,i)=>{
+       const x=a.getBoundingClientRect();
+       return count+labels.slice(i+1).filter(b=>{
+         const y=b.getBoundingClientRect();
+         return Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1;
+       }).length;
+     },0);
+   })(),
+   landmarkCoordinates:Array.from(base?.querySelectorAll('g > title')||[]).map(t=>{
+     const marker=t.parentElement?.querySelector('circle[cx][cy]');
+     return marker ? [t.textContent,marker.getAttribute('cx'),marker.getAttribute('cy')].join(':') : null;
+   }).filter(Boolean).sort().join('|'),
+  };
+ });
+}
+const boxValues = value => typeof value==='string' ? value.split(' ').map(Number) : [];
 
 async function captureViewport(viewport,attempt){
  const browser=await chromium.launch({headless:true});
@@ -95,6 +127,24 @@ async function captureViewport(viewport,attempt){
   await page.getByRole('heading',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:30000});
   await page.locator('[aria-label="Analyse du tracé"]').waitFor({state:'visible',timeout:10000});
   await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:10000});
+  // Exercise the left-hand ready-made selector, not only the floating tracing tabs.
+  const selectorChecks=[];
+  for(const requested of ['steiner','com','all']){
+   await page.locator('#cephalo-ready-analysis').selectOption(requested);
+   await page.waitForFunction(mode=>{
+    const overlay=document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis');
+    const panel=document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel');
+    const select=document.querySelector('#cephalo-ready-analysis');
+    return overlay===mode && panel===mode && select?.value===mode;
+   },requested,{timeout:6000});
+   const result=await page.evaluate(()=>({
+    chosen:document.querySelector('#cephalo-ready-analysis')?.value,
+    overlay:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis'),
+    panel:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')
+   }));
+   selectorChecks.push({requested,...result,valid:result.chosen===requested&&result.overlay===requested&&result.panel===requested});
+   if(requested==='steiner') await page.screenshot({path:path.join(OUTPUT_DIR,`after-selector-steiner-${viewport.name}.png`),fullPage:false});
+  }
   const states=[];
   for(const mode of modes){
    await page.locator(`[data-analysis="${mode}"]`).click();
@@ -105,8 +155,46 @@ async function captureViewport(viewport,attempt){
    }
    await page.waitForTimeout(80);
    const metrics=await page.evaluate(()=>{
+    const tabs=Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button'));
+    const tabBar=document.querySelector('[aria-label="Analyse du tracé"]');
+    const barRect=tabBar?.getBoundingClientRect();
+    const tabsFullyVisible=Boolean(barRect && tabs.length===6 && tabs.every(tab=>{const rect=tab.getBoundingClientRect();return rect.left>=barRect.left-1 && rect.right<=barRect.right+1;}));
+    const panel=document.querySelector('[data-r19-analysis-panel]');
+    const detail=document.querySelector('[data-r19-measure-detail]');
+    const panelRect=panel?.getBoundingClientRect();
+    const detailRect=detail?.getBoundingClientRect();
+    const detailContained=Boolean(panelRect && detailRect && detailRect.top>=panelRect.top-1 && detailRect.bottom<=panelRect.bottom+1);
     const landmarkLabels=Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean);
     const legacyMcNamaraLeakCount=landmarkLabels.filter(label=>label==='McNamara'||label==="A'"||label==="B'").length;
+    const baseSvg=document.querySelector('svg[data-cephalo-viewport="base"]');
+    const markerTitles=Array.from(baseSvg?.querySelectorAll('g > title')||[]).filter(t=>t.parentElement?.querySelector('circle[cx][cy]'));
+    const compactTexts=Array.from(baseSvg?.querySelectorAll('[data-cephalo-landmark-label]')||[]);
+    const comOnlyTexts=Array.from(document.querySelectorAll('svg[data-cephalo-viewport="analysis"] [data-cephalo-overlay-label]'));
+    const allLabelNodes=[...compactTexts,...comOnlyTexts];
+    const overlayContrastContract=comOnlyTexts.every(text=>
+      text.style.paintOrder==='stroke' && text.style.strokeWidth==='4px' && text.style.strokeLinejoin==='round'
+    );
+    const overlapCount=compactTexts.reduce((count,a,i)=>{
+      const x=a.getBoundingClientRect();
+      return count+compactTexts.slice(i+1).filter(b=>{
+        const y=b.getBoundingClientRect();
+        return Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1;
+      }).length;
+    },0);
+    const totalOverlapCount=allLabelNodes.reduce((count,a,i)=>{
+      const x=a.getBoundingClientRect();
+      return count+allLabelNodes.slice(i+1).filter(b=>{
+        const y=b.getBoundingClientRect();
+        return Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1;
+      }).length;
+    },0);
+    const labelPxHeights=compactTexts.map(n=>n.getBoundingClientRect().height);
+    const minLabelPx=labelPxHeights.length?Math.min(...labelPxHeights):null;
+    const incisal=baseSvg?.querySelector('[data-cephalo-landmark-label="U1_incisal"]');
+    const incisalFullId=incisal?.closest('g')?.querySelector('title')?.textContent;
+    const labelModeContract=innerWidth>=1280
+      ? incisal?.textContent==='U1i' && Number(incisal?.getAttribute('font-size'))>0 && incisal.getBoundingClientRect().height>=12.5 && incisalFullId==='U1_incisal'
+      : incisal?.textContent==='U1_incisal' && incisal?.getAttribute('font-size')==='10';
     return {
       analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
       panelAnalysis:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')||null,
@@ -115,23 +203,75 @@ async function captureViewport(viewport,attempt){
       panelRows:document.querySelectorAll('[data-r19-metric]').length,
       svgLines:document.querySelectorAll('svg line').length,
       landmarkLabels,
+      landmarkTitleCount:innerWidth>=1280 ? markerTitles.length : null,
+      visibleCompactLabelCount:innerWidth>=1280 ? compactTexts.length : null,
+      labelOverlapCount:innerWidth>=1280 ? overlapCount : null,
+      minLabelPx:innerWidth>=1280 ? minLabelPx : null,
+      overlayLabelCount:innerWidth>=1280 ? comOnlyTexts.length : null,
+      overlayContrastContract:innerWidth>=1280 ? overlayContrastContract : null,
+      crossLayerOverlapCount:innerWidth>=1280 ? totalOverlapCount : null,
+      labelModeContract,
       rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
       comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
       legacyMcNamaraLeakCount,
       selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
-      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
+      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+      tabsFullyVisible,
+      detailContained,
+      desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && detailContained)
     };
    });
-   const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort');
+   let zoomCheck=null;
+   if (viewport.width>=1280 && ['all','steiner','com'].includes(mode)) {
+     const initial=await readZoomState(page);
+     await page.getByRole('button',{name:'Agrandir la radiographie'}).click();
+     await page.getByRole('button',{name:'Agrandir la radiographie'}).click();
+     await page.waitForFunction(()=>document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()==='150 %',{timeout:3000});
+     const enlarged=await readZoomState(page);
+     const zoomBox=boxValues(enlarged.baseViewBox);
+     const aligned=enlarged.overlayViewBox===null || enlarged.overlayViewBox===enlarged.baseViewBox;
+     await page.screenshot({path:path.join(OUTPUT_DIR,`after-zoom-${mode}-${viewport.name}.png`),fullPage:false});
+     // Move the displayed crop, not stored points; keep base and COM aligned.
+     await page.getByRole('button',{name:'Déplacer la radiographie à droite'}).click();
+     await page.getByRole('button',{name:'Déplacer la radiographie vers le bas'}).click();
+     const panned=await readZoomState(page);
+     const panBox=boxValues(panned.baseViewBox);
+     const overlayPanAligned=panned.overlayViewBox===null || panned.overlayViewBox===panned.baseViewBox;
+     await page.screenshot({path:path.join(OUTPUT_DIR,`after-pan-${mode}-${viewport.name}.png`),fullPage:false});
+     await page.getByRole('button',{name:'Déplacer la radiographie à gauche'}).click();
+     await page.getByRole('button',{name:'Déplacer la radiographie vers le haut'}).click();
+     const panRestored=await readZoomState(page);
+     await page.getByRole('button',{name:'Afficher toute la radiographie'}).click();
+     await page.waitForFunction(()=>document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()==='100 %',{timeout:3000});
+     const restored=await readZoomState(page);
+     zoomCheck={valid:initial.percent==='100 %' && initial.baseViewBox==='0 0 1200 1600'
+       && enlarged.percent==='150 %' && zoomBox.length===4 && zoomBox.every(Number.isFinite)
+       && Math.abs(zoomBox[2]-800)<0.01 && Math.abs(zoomBox[3]-(1600/1.5))<0.01
+       && aligned && (mode==='steiner'||enlarged.overlayViewBox!==null)
+       && (mode!=='com' || (enlarged.crossLayerOverlapCount===0 && panned.crossLayerOverlapCount===0))
+       && initial.imageGeometry===enlarged.imageGeometry && enlarged.imageGeometry===restored.imageGeometry
+       && panBox.length===4 && panBox[0]>zoomBox[0] && panBox[1]>zoomBox[1]
+       && panBox[0]>=0 && panBox[1]>=0
+       && panBox[0]+panBox[2]<=1200.001 && panBox[1]+panBox[3]<=1600.001
+       && overlayPanAligned && panned.imageGeometry===enlarged.imageGeometry
+       && initial.landmarkCoordinates===enlarged.landmarkCoordinates
+       && initial.landmarkCoordinates===panned.landmarkCoordinates
+       && initial.landmarkCoordinates===panRestored.landmarkCoordinates
+       && initial.landmarkCoordinates===restored.landmarkCoordinates
+       && panRestored.baseViewBox===enlarged.baseViewBox && panRestored.overlayViewBox===enlarged.overlayViewBox
+       && restored.baseViewBox===initial.baseViewBox && restored.overlayViewBox===initial.overlayViewBox,
+       initial,enlarged,panned,panRestored,restored};
+   }
+   const valid=(metrics.minLabelPx===null||metrics.minLabelPx>=12.5) && modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort') && (zoomCheck===null||zoomCheck.valid);
    await page.screenshot({path:path.join(OUTPUT_DIR,`after-reference-${mode}-${viewport.name}.png`),fullPage:false});
    if(mode==='com'){
      await page.locator('[data-r19-analysis-panel="com"]').scrollIntoViewIfNeeded();
      await page.screenshot({path:path.join(OUTPUT_DIR,`after-com-panel-${viewport.name}.png`),fullPage:false});
    }
-   states.push({mode,valid,metrics});
+   states.push({mode,valid,metrics,zoomCheck});
   }
-  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid);
-  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,states};
+  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)&&selectorChecks.length===3&&selectorChecks.every(s=>s.valid);
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }

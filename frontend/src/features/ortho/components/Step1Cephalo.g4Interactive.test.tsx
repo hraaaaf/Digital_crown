@@ -6,6 +6,8 @@ import { CEPHALO_ANALYSIS_CHANGE_EVENT } from '../cephaloAnalysisBridge';
 const state = vi.hoisted(() => ({
   imageSrc:'blob:cephalo' as string|undefined,
   magnifierEnabled:false,
+  imgFilters:{brightness:100,contrast:110,invert:false},
+  setImgFilters:vi.fn(),
   vtoSettings:{
     enabled:false,
     showGhostFace:true,
@@ -35,7 +37,7 @@ vi.mock('../stores/useOrthoStore',()=>({
   useOrthoStore:(selector:any)=>selector(state),
 }));
 vi.mock('./Step1CephaloBase',()=>({
-  Step1Cephalo:()=> <div>Cephalo base stage</div>,
+  Step1Cephalo:({ embedded }: { embedded?: boolean }) => <div data-embedded={embedded ? 'true' : 'false'}>Cephalo base stage</div>,
 }));
 vi.mock('./CephaloAnalysisWorkbenchPanel',()=>({
   CephaloAnalysisWorkbenchPanel:({analysis}:any)=><div>Workbench analysis: {analysis}</div>,
@@ -51,6 +53,7 @@ beforeEach(()=>{
   vi.clearAllMocks();
   state.imageSrc='blob:cephalo';
   state.magnifierEnabled=false;
+  state.imgFilters={brightness:100,contrast:110,invert:false};
   state.activeMorphing='none';
   state.layerVisibility={landmarks:true,plans:true,hard_tissue:false,teeth:true,soft_tissue:true,measurements:true,t1:false,t2:false};
   state.layerOpacity={landmarks:1,plans:1,hard_tissue:0.85,teeth:1,soft_tissue:0.9,measurements:1,t1:0.5,t2:0.5};
@@ -75,6 +78,7 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
   it('renders the registry-driven layer manager and keeps planned anatomy fail-closed',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
 
+    fireEvent.click(screen.getByText('Gestionnaire de couches'));
     expect(screen.getByRole('region',{name:'Gestionnaire de couches'})).toBeTruthy();
     const hardTissue=screen.getByRole('button',{name:/Tissus durs/}) as HTMLButtonElement;
     expect(hardTissue.disabled).toBe(true);
@@ -89,10 +93,11 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
   it('exposes correction history controls with fail-closed disabled states',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
 
+    fireEvent.click(screen.getByText('Historique des corrections'));
     expect(screen.getByRole('region',{name:'Historique des corrections'})).toBeTruthy();
     expect((screen.getByRole('button',{name:/Annuler/}) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button',{name:/Rétablir/}) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button',{name:/Réinitialiser les corrections de session/}) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button',{name:/Revenir aux repères initialement chargés/}) as HTMLButtonElement).disabled).toBe(true);
 
     state.local={landmarks:[{id:'S',x:14,y:20}],version:2};
     state.landmarkEditTimeline={
@@ -102,9 +107,10 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     };
     cleanup();
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    fireEvent.click(screen.getByText('Historique des corrections'));
     fireEvent.click(screen.getByRole('button',{name:/Annuler/}));
     expect(state.undoLandmarkEdit).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button',{name:/Réinitialiser les corrections de session/}));
+    fireEvent.click(screen.getByRole('button',{name:/Revenir aux repères initialement chargés/}));
     expect(state.resetLandmarkEdits).toHaveBeenCalledTimes(1);
   });
 
@@ -114,10 +120,12 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Loupe'}));
     expect(state.setMagnifierEnabled).toHaveBeenCalledWith(true);
 
+    fireEvent.click(screen.getByText('Gestionnaire de couches'));
     fireEvent.click(screen.getByRole('button',{name:'Tissus mous'}));
     const softUpdater=state.setVtoSettings.mock.calls.at(-1)?.[0];
     expect(softUpdater(state.vtoSettings).showSoftTissue).toBe(false);
 
+    fireEvent.click(screen.getByText('Projections et VTO'));
     fireEvent.click(screen.getByRole('button',{name:'Face 3D'}));
     const faceUpdater=state.setVtoSettings.mock.calls.at(-1)?.[0];
     expect(faceUpdater(state.vtoSettings).showGhostFace).toBe(false);
@@ -126,6 +134,7 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
   it('toggles T1/T2 as independent registry-driven layers',()=>{
     const first=render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
 
+    fireEvent.click(screen.getByText('Projections et VTO'));
     fireEvent.click(screen.getByRole('button',{name:'Projection T1'}));
     expect(state.setLayerVisible).toHaveBeenCalledWith('t1',true);
 
@@ -135,8 +144,29 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     first.unmount();
     state.layerVisibility={...state.layerVisibility,t1:true};
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    fireEvent.click(screen.getByText('Projections et VTO'));
     fireEvent.click(screen.getByRole('button',{name:'Projection T1'}));
     expect(state.setLayerVisible).toHaveBeenLastCalledWith('t1',false);
+  });
+
+  it('keeps image filter actions available inside the dedicated disclosure',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    expect(screen.getByText('Cephalo base stage').getAttribute('data-embedded')).toBe('true');
+    fireEvent.click(screen.getByText('Réglages image'));
+    fireEvent.change(screen.getByRole('slider',{name:'Luminosité'}),{target:{value:'125'}});
+    const brightnessUpdate=state.setImgFilters.mock.calls.at(-1)?.[0];
+    expect(brightnessUpdate(state.imgFilters)).toEqual({brightness:125,contrast:110,invert:false});
+    fireEvent.click(screen.getByRole('button',{name:'Inverser le contraste'}));
+    const invertUpdate=state.setImgFilters.mock.calls.at(-1)?.[0];
+    expect(invertUpdate(state.imgFilters)).toEqual({brightness:100,contrast:110,invert:true});
+  });
+
+  it('keeps VTO accessible after removing the duplicate floating toolbar',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    fireEvent.click(screen.getByText('Projections et VTO'));
+    fireEvent.click(screen.getByRole('button',{name:'VTO'}));
+    const updater=state.setVtoSettings.mock.calls.at(-1)?.[0];
+    expect(updater(state.vtoSettings).enabled).toBe(true);
   });
 
   it('updates the active scientific analysis label from the canonical analysis event',()=>{
