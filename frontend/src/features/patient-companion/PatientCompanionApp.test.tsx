@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const storageMocks = vi.hoisted(() => ({
@@ -206,7 +206,7 @@ describe('PatientCompanionApp PC-00 local-first', () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     render(<PatientCompanionApp />);
     expect(await screen.findByText('Pocket Test')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Plus' }));
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Navigation patient' })).getByRole('button', { name: 'Plus' }));
     expect(screen.getByRole('button', { name: 'Effacer ce téléphone' })).toBeInTheDocument();
     const diagnostic = errors.mock.calls.map(args => args.map(String).join(' ')).join('\\n');
     expect(diagnostic).not.toMatch(/same key|unique key|non-unique keys/i);
