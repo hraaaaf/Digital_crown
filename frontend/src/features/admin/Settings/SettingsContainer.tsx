@@ -243,13 +243,13 @@ const SettingsContainer: React.FC = () => {
       )}
       <div className="flex flex-col gap-6 2xl:flex-row 2xl:gap-12 items-start min-w-0">
         <div className="w-full 2xl:w-80 space-y-4 2xl:space-y-8 min-w-0 2xl:sticky 2xl:top-24">
-          <div className="flex items-center gap-4 mb-2 2xl:mb-10 min-w-0">
+          <div className="flex min-w-0 flex-col items-start gap-3 mb-2 sm:flex-row sm:items-center sm:gap-4 2xl:mb-10">
             <div className="w-14 h-14 shrink-0 bg-primary text-white rounded-[1.25rem] flex items-center justify-center shadow-2xl shadow-primary/30">
               <SettingsIcon size={28} />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Paramètres</h1>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Paramètres du cabinet</p>
+              <h1 className="break-words [overflow-wrap:anywhere] text-2xl font-black text-slate-900 tracking-tight">Paramètres</h1>
+              <p className="break-words [overflow-wrap:anywhere] text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Paramètres du cabinet</p>
             </div>
           </div>
 
