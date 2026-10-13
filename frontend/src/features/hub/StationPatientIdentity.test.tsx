@@ -390,7 +390,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     expect(statusPanel).toHaveAttribute('data-print-status', 'disabled');
     expect(statusPanel).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
     expect(statusPanel.querySelector('button, a, form, iframe, object, embed')).toBeNull();
-    expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(stationPatientSessionService.availableDocuments).toHaveBeenCalledTimes(1));
     expect(stationPatientSessionService.todayAppointments).not.toHaveBeenCalled();
     expect(rendered.container.querySelector('[data-station-care-sheet-download]')).toBeNull();
     expect(rendered.container.querySelectorAll('a[href*=".pdf"]')).toHaveLength(0);
