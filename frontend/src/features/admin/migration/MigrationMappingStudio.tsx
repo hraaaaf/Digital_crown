@@ -183,8 +183,8 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
             Ne sélectionnez jamais de véritable export patient, dump SQL, mot de passe ou donnée clinique.
             Les inventaires JSON sont examinés localement en mémoire sans transmission de leur contenu.
             Seuls le contrôle structurel et la simulation fictive interrogent le backend.
-            Le schéma cible n’est pas entièrement certifié ; aucune approbation administrateur,
-            aucun dry-run réel ni import clinique n’est autorisé. Les styles globaux peuvent charger
+            Le schéma cible n’est pas entièrement certifié ; aucune approbation administrateur ni dry-run réel
+            n’existe ici. Aucun import clinique n’est autorisé. Les styles globaux peuvent charger
             des polices externes.
           </p>
         </details>
@@ -245,7 +245,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
     <nav aria-label="Étapes Mapping Studio" className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
       {([['load','1 · Inventaires'],['review','2 · Correspondances'],['summary','3 · Vérification']] as const).map(([id, text]) =>
         <div key={id} aria-current={stage === id ? 'step' : undefined}
-          className={'rounded-xl border p-3 font-bold ' +
+          className={'min-w-0 [overflow-wrap:anywhere] rounded-xl border p-3 font-bold ' +
             (stage === id ? 'border-primary bg-primary/10 text-primary' : 'border-border-main bg-card-bg text-text-muted')}>{text}</div>)}
     </nav>
 

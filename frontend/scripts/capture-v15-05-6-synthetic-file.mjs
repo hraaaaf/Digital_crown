@@ -114,7 +114,12 @@ try{
       serverRequests,errors,unexpected,status,cause:String(cause)}));
   }
   const after=await page.evaluate(()=>({width:document.documentElement.clientWidth,
-    scroll:document.documentElement.scrollWidth,importLocked:document.body.textContent?.includes('Import bloqué')}));
+    scroll:document.documentElement.scrollWidth,importLocked:document.body.textContent?.includes('Import bloqué'),
+    overflowNodes:[...document.querySelectorAll('body *')].filter(el=>{
+      const r=el.getBoundingClientRect(); return r.width && r.right>innerWidth+1;
+    }).slice(0,12).map(el=>({tag:el.tagName,className:typeof el.className==='string'?el.className.slice(0,100):'',
+      text:(el.textContent||'').trim().slice(0,80),right:Math.round(el.getBoundingClientRect().right)}))
+  }));
   await page.screenshot({path:path.join(dest,'AFTER-'+vp.name+'.png'),fullPage:true,animations:'disabled'});
   if(before.scroll>before.width+1||after.scroll>after.width+1||
     !after.importLocked||errors.length||unexpected.length||
