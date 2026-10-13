@@ -40,6 +40,7 @@ from backend.services.station_print_held_claims_lab import SCHEMA as _held_claim
 for _table_name, _source_schema in (
     ("station_print_printer_drafts", _printer_draft_schema),
     ("station_print_held_claims", _held_claim_schema),
+    ("station_print_claim_events", _held_claim_schema),
 ):
     if _table_name not in Base.metadata.tables:
         _source_schema.tables[_table_name].to_metadata(Base.metadata)
