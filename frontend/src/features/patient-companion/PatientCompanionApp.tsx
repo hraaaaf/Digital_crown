@@ -21,6 +21,7 @@ import { PatientCompanionEmergencyPhoto } from './PatientCompanionEmergencyPhoto
 import { PatientCompanionFinance } from './PatientCompanionFinance';
 import { PatientCompanionTeleconsultation } from './PatientCompanionTeleconsultation';
 import { PatientPocketHeader } from './PatientPocketHeader';
+import { PatientCompanionStationDocuments } from './PatientCompanionStationDocuments';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
 type PatientTab = 'today' | 'agenda' | 'documents' | 'messages' | 'plus';
@@ -71,6 +72,7 @@ export const PatientCompanionApp = () => {
   const [agendaLoading, setAgendaLoading] = useState(false);
   const [stationHandoffToken, setStationHandoffToken] = useState<string | null>(null);
   const [stationHandoffMessage, setStationHandoffMessage] = useState('');
+  const [stationDocumentSession, setStationDocumentSession] = useState<{ sessionId: string; accessId: string } | null>(null);
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
@@ -322,7 +324,14 @@ export const PatientCompanionApp = () => {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || 'Session borne invalide ou expirée.');
       setStationHandoffToken(null);
-      setStationHandoffMessage('Identité confirmée sur la station. Vous pouvez revenir à la borne.');
+      if (typeof payload.sessionId === 'string' && payload.sessionId.trim()) {
+        setStationDocumentSession({ sessionId: payload.sessionId, accessId: pairing.context.access_id });
+        setActiveTab('documents');
+        setStationHandoffMessage('Identité confirmée sur la station. Vos documents autorisés pour ce retrait sont disponibles dans l’onglet Documents.');
+      } else {
+        setStationDocumentSession(null);
+        setStationHandoffMessage('Identité confirmée sur la station. Vous pouvez revenir à la borne.');
+      }
       return true;
     } catch (err) {
       setStationHandoffMessage(err instanceof Error ? err.message : 'Session borne invalide ou expirée.');
@@ -471,6 +480,7 @@ export const PatientCompanionApp = () => {
   };
 
   const selectContext = async (accessId: string) => {
+    setStationDocumentSession(null);
     setActiveTab('today');
     setAgendaOpen(false);
     setCancelAppointmentRef(null);
@@ -841,6 +851,20 @@ export const PatientCompanionApp = () => {
             {activeTab === 'messages' && <PatientCompanionMessages key={activePairing.context.access_id} pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />}
             {activeTab === 'documents' &&
             <section className="mt-3 grid gap-3" aria-label="Portefeuille Patient Companion">
+              {stationDocumentSession?.accessId === activePairing.context.access_id && !sessionExpired && (
+                <PatientCompanionStationDocuments
+                  sessionId={stationDocumentSession.sessionId}
+                  pairing={activePairing}
+                  onClose={(serverRevoked) => {
+                    setStationDocumentSession(null);
+                    setStationHandoffMessage(
+                      serverRevoked
+                        ? 'Session de retrait révoquée. Vous pouvez fermer Patient Companion.'
+                        : 'L’écran de retrait est fermé. Connexion indisponible : la session serveur expirera automatiquement.',
+                    );
+                  }}
+                />
+              )}
               <WalletSection title="Mes documents & médias" empty="Aucun document ou média partagé.">
                 {activeWallet?.shares.map(item => (
                   <div key={item.share_id} className="rounded-2xl border border-border-main bg-card-bg p-4">
