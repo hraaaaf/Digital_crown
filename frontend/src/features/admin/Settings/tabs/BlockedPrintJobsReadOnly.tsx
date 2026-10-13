@@ -57,12 +57,12 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
 
   return (
     <section data-testid="blocked-print-jobs-read-only" aria-label="Impressions bloquées"
-      className="w-full min-w-0 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/50 p-3 sm:p-4">
+      className="w-full min-w-0 overflow-hidden [overflow-wrap:anywhere] rounded-2xl border border-amber-200 bg-amber-50/50 p-3 sm:p-4">
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <ShieldCheck className="mt-0.5 shrink-0 text-amber-700" size={22} />
           <div className="min-w-0">
-            <h3 className="text-lg font-black text-slate-900">Impressions à vérifier</h3>
+            <h3 className="min-w-0 break-words text-lg font-black text-slate-900">Impressions à vérifier</h3>
             <p className="mt-1 text-sm leading-relaxed text-slate-700">
               Suivi réservé au propriétaire du Cabinet. Une impression incertaine exige une vérification humaine.
               Aucune relance n’est possible depuis cet écran.
@@ -75,7 +75,7 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
           <span className="min-w-0 break-words text-center">Actualiser les états</span>
         </button>
       </div>
-      <div role="status" aria-live="polite" className="mt-4 text-sm text-slate-700">
+      <div role="status" aria-live="polite" className="mt-4 min-w-0 break-words text-sm text-slate-700">
         {loading ? 'Lecture des états…' : failed
           ? 'États indisponibles. Aucun résultat précédent n’est affiché.'
           : data && data.total === 0 ? 'Aucune impression bloquée répertoriée.'
@@ -86,7 +86,7 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
         <ul className="mt-4 grid min-w-0 grid-cols-1 gap-3">
           {data.jobs.map((job) => (
             <li key={job.reference}
-              className="min-w-0 rounded-xl border border-amber-200 bg-white p-4"
+              className="min-w-0 [overflow-wrap:anywhere] rounded-xl border border-amber-200 bg-white p-3 sm:p-4"
               data-print-job-status="uncertain">
               <div className="flex min-w-0 items-center gap-2">
                 <AlertTriangle size={17} className="shrink-0 text-amber-700" aria-hidden="true" />
