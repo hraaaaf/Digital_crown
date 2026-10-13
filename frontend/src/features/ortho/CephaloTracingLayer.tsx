@@ -10,6 +10,7 @@ import {
 } from './cephaloVisualSemantics';
 import {
   CEPHALO_METRIC_FOCUS_EVENT,
+  CEPHALO_ANALYSIS_CHANGE_EVENT,
   publishCephaloAnalysis,
   type CephaloAnalysisMode,
   type CephaloMetricFocus,
@@ -119,6 +120,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   React.useEffect(() => {
     publishCephaloAnalysis(mode);
   }, [mode]);
+
+  // The ready-made analysis selector is a peer control of the overlay tabs.
+  // Both surfaces must update the same tracing mode without changing any geometry.
+  React.useEffect(() => {
+    const onAnalysisChange = (event: Event) => {
+      const requested = normalizeMode((event as CustomEvent<CephaloAnalysisMode>).detail);
+      setMode(current => current === requested ? current : requested);
+    };
+    window.addEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysisChange as EventListener);
+    return () => window.removeEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysisChange as EventListener);
+  }, []);
 
   React.useEffect(() => {
     const onMetric = (event: Event) => {
