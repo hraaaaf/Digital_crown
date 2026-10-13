@@ -51,12 +51,6 @@ def check_lab_physical_schema(*, connection, declared_metadata, expected_revisio
         if expected != actual:
             raise SchemaAttestationRefused("COLUMN_OR_NULLABILITY_DRIFT")
         total_columns += len(actual)
-        def fks_declared():
-            return sorted((tuple(c.parent.name for c in fk.constraint.elements),
-                           fk.column.table.name,
-                           tuple(c.name for c in fk.constraint.referred_table.primary_key.columns))
-                          for fk in declared.foreign_keys
-                          if False)
         # Multi-column constraints are compared as sets; no auto-trust of strings.
         expected_fk = sorted(
             (tuple(col.name for col in fk.columns),
@@ -121,21 +115,25 @@ class SyntheticPhysicalSchemaTests(unittest.TestCase):
             with self.assertRaisesRegex(SchemaAttestationRefused, "UNEXPECTED_PHYSICAL_TABLES"):
                 check_lab_physical_schema(connection=con, declared_metadata=md, expected_revision=_REVISION)
 
-    def test_05_dropped_fk_detected_even_if_columns_same(self):
-        # An adversary can remove one FK while keeping column names/nullable.
-        from sqlalchemy import Column, ForeignKey, Integer, MetaData, Table
+    def test_05_fk_drift_detected_even_if_column_names_same(self):
+        # A declared extra FK is not physically present; names/nullable are
+        # unchanged. Detect it without attempting SQLite DDL rewriting.
+        from sqlalchemy import MetaData, ForeignKeyConstraint
         with _physical_scratch() as (md, con):
             _fake_version(con, _REVISION)
             clone = MetaData()
-            for t in md.tables.values():
-                t.to_metadata(clone)
+            for table in md.tables.values():
+                table.to_metadata(clone)
             cloned = clone.tables["appointments"]
-            # Tamper source metadata only; compare to the *physical* original.
-            fkc = next(f for f in cloned.foreign_key_constraints
-                       if any(col.name == "patient_id" for col in f.columns))
-            cloned.constraints.remove(fkc)
+            cloned.append_constraint(
+                ForeignKeyConstraint(["datetime_start"], ["patients.id"],
+                                     name="synthetic_declared_fk_drift")
+            )
             with self.assertRaisesRegex(SchemaAttestationRefused, "FOREIGN_KEY_DRIFT"):
-                check_lab_physical_schema(connection=con, declared_metadata=clone, expected_revision=_REVISION)
+                check_lab_physical_schema(
+                    connection=con, declared_metadata=clone,
+                    expected_revision=_REVISION
+                )
 
     def test_06_no_auto_approval_when_version_matches(self):
         with _physical_scratch() as (md, con):
