@@ -174,6 +174,29 @@ describe('04.5 — Patient Companion private-phone withdrawal', () => {
     expect(screen.queryByRole('button', { name: 'Télécharger ma feuille de soins' })).not.toBeInTheDocument();
   });
 
+  it('04.8 × Pocket aborts in-flight private PDF on tab unmount without a late browser download', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ documents: [{ documentId: 42, kind: 'care_sheet' }] }),
+      })
+      .mockImplementationOnce((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new Error('tab navigation aborted PDF')));
+      }));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const mounted = render(<PatientCompanionStationDocuments sessionId="pocket-tab" pairing={pairing} onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Télécharger ma feuille de soins' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const options = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(options.signal?.aborted).toBe(false);
+    mounted.unmount(); // user navigates from Pocket Documents to another tab
+    expect(options.signal?.aborted).toBe(true);
+    await act(async () => { await Promise.resolve(); });
+    expect(click).not.toHaveBeenCalled();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
   it('shows no document controls when the private phone session has expired', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as typeof fetch;
     render(<PatientCompanionStationDocuments sessionId="expired" pairing={pairing} onClose={vi.fn()} />);
