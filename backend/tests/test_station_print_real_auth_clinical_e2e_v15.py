@@ -207,7 +207,6 @@ def test_real_owner_blocked_jobs_fails_closed_with_missing_registered_cabinet(cl
     _set_mode(client, headers, "cabinet")
     # Signed workstation cookie absent => GET not delegated to caller's
     # claims / tenant selector and must fail with 403, not empty success.
-    for cookie_name in ("workstation_mode", "workstation_id"):
-        client.cookies.pop(cookie_name, None)
+    client.cookies.delete("dc_workstation")
     result = client.get("/api/admin/station-print-config/blocked-jobs", headers=headers)
     assert result.status_code in (403, 423), result.text
