@@ -66,7 +66,13 @@ try{
   await fileInput.waitFor();
   await fileInput.setInputFiles({name:'digital-crown-synthetic-100x200.db',
     mimeType:'application/vnd.sqlite3',buffer:demo});
-  await page.getByText(/Fichier SQLite fictif vérifié : 100\/100/).waitFor();
+  try {
+    await page.getByText(/Fichier SQLite fictif vérifié : 100\\/100/).waitFor({timeout:12000});
+  } catch (cause) {
+    const status=await page.evaluate(()=>document.body.innerText.slice(0,1800));
+    throw new Error('SYNTHETIC_FILE_UI_DEBUG:'+JSON.stringify({vp:vp.name,
+      serverRequests,errors,unexpected,status,cause:String(cause)}));
+  }
   const after=await page.evaluate(()=>({width:document.documentElement.clientWidth,
     scroll:document.documentElement.scrollWidth,importLocked:document.body.textContent?.includes('Import bloqué')}));
   await page.screenshot({path:path.join(dest,'AFTER-'+vp.name+'.png'),fullPage:true,animations:'disabled'});
