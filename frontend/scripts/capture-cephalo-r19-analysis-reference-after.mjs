@@ -64,7 +64,9 @@ function modeContract(mode, metrics) {
   if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
-  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10 && metrics.labelModeContract;
+  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10 && metrics.labelModeContract
+    && (metrics.landmarkTitleCount===null || metrics.landmarkTitleCount===29)
+    && (metrics.labelOverlapCount===null || metrics.labelOverlapCount===0);
   if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
@@ -91,6 +93,10 @@ async function readZoomState(page) {
    baseViewBox:base?.getAttribute('viewBox')??null,
    overlayViewBox:overlay?.getAttribute('viewBox')??null,
    imageGeometry:image?['x','y','width','height'].map(a=>image.getAttribute(a)).join(','):null,
+   landmarkCoordinates:Array.from(base?.querySelectorAll('g > title')||[]).map(t=>{
+     const marker=t.parentElement?.querySelector('circle[cx][cy]');
+     return marker ? [t.textContent,marker.getAttribute('cx'),marker.getAttribute('cy')].join(':') : null;
+   }).filter(Boolean).sort().join('|'),
   };
  });
 }
@@ -149,10 +155,20 @@ async function captureViewport(viewport,attempt){
     const detailContained=Boolean(panelRect && detailRect && detailRect.top>=panelRect.top-1 && detailRect.bottom<=panelRect.bottom+1);
     const landmarkLabels=Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean);
     const legacyMcNamaraLeakCount=landmarkLabels.filter(label=>label==='McNamara'||label==="A'"||label==="B'").length;
-    const incisal=document.querySelector('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label="U1_incisal"]');
+    const baseSvg=document.querySelector('svg[data-cephalo-viewport="base"]');
+    const markerTitles=Array.from(baseSvg?.querySelectorAll('g > title')||[]).filter(t=>t.parentElement?.querySelector('circle[cx][cy]'));
+    const compactTexts=Array.from(baseSvg?.querySelectorAll('[data-cephalo-landmark-label]')||[]);
+    const overlapCount=compactTexts.reduce((count,a,i)=>{
+      const x=a.getBoundingClientRect();
+      return count+compactTexts.slice(i+1).filter(b=>{
+        const y=b.getBoundingClientRect();
+        return Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1;
+      }).length;
+    },0);
+    const incisal=baseSvg?.querySelector('[data-cephalo-landmark-label="U1_incisal"]');
     const incisalFullId=incisal?.closest('g')?.querySelector('title')?.textContent;
     const labelModeContract=innerWidth>=1280
-      ? incisal?.textContent==='U1i' && incisal?.getAttribute('font-size')==='18' && incisalFullId==='U1_incisal'
+      ? incisal?.textContent==='U1i' && incisal?.getAttribute('font-size')==='24' && incisalFullId==='U1_incisal'
       : incisal?.textContent==='U1_incisal' && incisal?.getAttribute('font-size')==='10';
     return {
       analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
@@ -162,6 +178,9 @@ async function captureViewport(viewport,attempt){
       panelRows:document.querySelectorAll('[data-r19-metric]').length,
       svgLines:document.querySelectorAll('svg line').length,
       landmarkLabels,
+      landmarkTitleCount:innerWidth>=1280 ? markerTitles.length : null,
+      visibleCompactLabelCount:innerWidth>=1280 ? compactTexts.length : null,
+      labelOverlapCount:innerWidth>=1280 ? overlapCount : null,
       labelModeContract,
       rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
       comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
@@ -205,6 +224,10 @@ async function captureViewport(viewport,attempt){
        && panBox[0]>=0 && panBox[1]>=0
        && panBox[0]+panBox[2]<=1200.001 && panBox[1]+panBox[3]<=1600.001
        && overlayPanAligned && panned.imageGeometry===enlarged.imageGeometry
+       && initial.landmarkCoordinates===enlarged.landmarkCoordinates
+       && initial.landmarkCoordinates===panned.landmarkCoordinates
+       && initial.landmarkCoordinates===panRestored.landmarkCoordinates
+       && initial.landmarkCoordinates===restored.landmarkCoordinates
        && panRestored.baseViewBox===enlarged.baseViewBox && panRestored.overlayViewBox===enlarged.overlayViewBox
        && restored.baseViewBox===initial.baseViewBox && restored.overlayViewBox===initial.overlayViewBox,
        initial,enlarged,panned,panRestored,restored};
