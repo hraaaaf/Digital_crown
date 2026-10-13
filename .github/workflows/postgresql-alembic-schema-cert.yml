@@ -13,6 +13,7 @@ on:
       - "backend/tests/certify_station_print_claim_pg_v15.py"
       - "backend/services/station_print_held_claims_lab.py"
       - ".github/workflows/postgresql-alembic-schema-cert.yml"
+      - ".github/workflows/v15-04-8-e-integrated-software-gate.yml"
   workflow_dispatch:
 
 permissions:
