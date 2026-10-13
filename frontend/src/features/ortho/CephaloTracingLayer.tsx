@@ -371,11 +371,18 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
 
           {layerVisible('landmarks') && showCom && [po, orPoint, n, s, a, b, go, me, u1i, u1a, l1i, l1a].filter(Boolean).map(point => {
             const p = point as Landmark;
+            const overlayOnly = !baseLandmarks.some(base => base.id.toLowerCase() === p.id.toLowerCase());
+            // Label-only separation from the main SVG reticles. Never move the COM marker or geometry.
+            const desktopOffset = p.id.toLowerCase() === 'a' ? { x: 62, y: -38 }
+              : p.id.toLowerCase() === 'b' ? { x: 60, y: 40 }
+              : { x: 15, y: -18 };
+            const labelOffset = props.compactLabels && overlayOnly ? desktopOffset : { x: 8, y: -8 };
             return (
               <g key={`com-${p.id}`} data-r19-point={p.id} opacity={(hasCanonicalFocus ? 0.82 : 0.92) * layerOpacity('landmarks')}>
+                {overlayOnly && <title>{p.id}</title>}
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
-                {(!props.compactLabels || !baseLandmarks.some(base => base.id.toLowerCase() === p.id.toLowerCase())) && (
-                  <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize={props.compactLabels ? 16 : 9} fontWeight="800">{p.id}</text>
+                {(!props.compactLabels || overlayOnly) && (
+                  <text data-cephalo-overlay-label={p.id} x={p.x + labelOffset.x} y={p.y + labelOffset.y} fill={P.text} fontSize={props.compactLabels ? 20 : 9} fontWeight="800">{p.id}</text>
                 )}
               </g>
             );

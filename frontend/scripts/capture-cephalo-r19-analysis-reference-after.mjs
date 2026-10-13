@@ -70,7 +70,8 @@ function modeContract(mode, metrics) {
   if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
-  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N');
+  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N')
+    && (metrics.crossLayerOverlapCount===null || (metrics.overlayLabelCount===3 && metrics.crossLayerOverlapCount===0));
   if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   return false;
 }
@@ -93,6 +94,16 @@ async function readZoomState(page) {
    baseViewBox:base?.getAttribute('viewBox')??null,
    overlayViewBox:overlay?.getAttribute('viewBox')??null,
    imageGeometry:image?['x','y','width','height'].map(a=>image.getAttribute(a)).join(','):null,
+   crossLayerOverlapCount:(()=>{
+     const labels=Array.from(document.querySelectorAll('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label],svg[data-cephalo-viewport="analysis"] [data-cephalo-overlay-label]'));
+     return labels.reduce((count,a,i)=>{
+       const x=a.getBoundingClientRect();
+       return count+labels.slice(i+1).filter(b=>{
+         const y=b.getBoundingClientRect();
+         return Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1;
+       }).length;
+     },0);
+   })(),
    landmarkCoordinates:Array.from(base?.querySelectorAll('g > title')||[]).map(t=>{
      const marker=t.parentElement?.querySelector('circle[cx][cy]');
      return marker ? [t.textContent,marker.getAttribute('cx'),marker.getAttribute('cy')].join(':') : null;
@@ -158,9 +169,18 @@ async function captureViewport(viewport,attempt){
     const baseSvg=document.querySelector('svg[data-cephalo-viewport="base"]');
     const markerTitles=Array.from(baseSvg?.querySelectorAll('g > title')||[]).filter(t=>t.parentElement?.querySelector('circle[cx][cy]'));
     const compactTexts=Array.from(baseSvg?.querySelectorAll('[data-cephalo-landmark-label]')||[]);
+    const comOnlyTexts=Array.from(document.querySelectorAll('svg[data-cephalo-viewport="analysis"] [data-cephalo-overlay-label]'));
+    const allLabelNodes=[...compactTexts,...comOnlyTexts];
     const overlapCount=compactTexts.reduce((count,a,i)=>{
       const x=a.getBoundingClientRect();
       return count+compactTexts.slice(i+1).filter(b=>{
+        const y=b.getBoundingClientRect();
+        return Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1;
+      }).length;
+    },0);
+    const totalOverlapCount=allLabelNodes.reduce((count,a,i)=>{
+      const x=a.getBoundingClientRect();
+      return count+allLabelNodes.slice(i+1).filter(b=>{
         const y=b.getBoundingClientRect();
         return Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1;
       }).length;
@@ -181,6 +201,8 @@ async function captureViewport(viewport,attempt){
       landmarkTitleCount:innerWidth>=1280 ? markerTitles.length : null,
       visibleCompactLabelCount:innerWidth>=1280 ? compactTexts.length : null,
       labelOverlapCount:innerWidth>=1280 ? overlapCount : null,
+      overlayLabelCount:innerWidth>=1280 ? comOnlyTexts.length : null,
+      crossLayerOverlapCount:innerWidth>=1280 ? totalOverlapCount : null,
       labelModeContract,
       rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
       comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
@@ -219,6 +241,7 @@ async function captureViewport(viewport,attempt){
        && enlarged.percent==='150 %' && zoomBox.length===4 && zoomBox.every(Number.isFinite)
        && Math.abs(zoomBox[2]-800)<0.01 && Math.abs(zoomBox[3]-(1600/1.5))<0.01
        && aligned && (mode==='steiner'||enlarged.overlayViewBox!==null)
+       && (mode!=='com' || (enlarged.crossLayerOverlapCount===0 && panned.crossLayerOverlapCount===0))
        && initial.imageGeometry===enlarged.imageGeometry && enlarged.imageGeometry===restored.imageGeometry
        && panBox.length===4 && panBox[0]>zoomBox[0] && panBox[1]>zoomBox[1]
        && panBox[0]>=0 && panBox[1]>=0
