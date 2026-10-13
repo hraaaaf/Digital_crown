@@ -137,4 +137,11 @@ def test_synthetic_lab_is_not_a_prod_print_dispatch_endpoint():
     assert 'os.environ.get("DC_SYNTHETIC_VIRTUAL_SPOOL_LAB") != "1"' in lab
     assert '"clinical_cabinet_permission_proven": False' in lab
     assert '"production_path_dispatch_enabled": False' in lab
-    assert '"claim_still_held_after_virtual_spool": True' in lab
+    assert '"claim_marked_uncertain_before_virtual_spool": True' in lab
+    assert '"virtual_outbox_single_attempt_fenced": True' in lab
+    assert '"clinical_print_permit_issued": False' in lab
+    outbox = source("backend/services/station_print_virtual_outbox_lab_v15.py")
+    assert '"station_print_virtual_outbox_lab"' in outbox
+    assert 'os.environ.get("GITHUB_ACTIONS") != "true"' in outbox
+    assert 'os.environ.get("DC_SYNTHETIC_VIRTUAL_SPOOL_LAB") != "1"' in outbox
+    assert "allowed=True" not in outbox
