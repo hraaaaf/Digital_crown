@@ -15,7 +15,7 @@ from backend.tests.test_station_care_sheet_v15 import (
     _care_sheet,
     _set_mode,
 )
-from backend.services.station_print_held_claims_lab import claims, claim_events
+from backend.services.station_print_held_claims_lab import claims, claim_events, reserve_held_claim, mark_uncertain
 
 
 @pytest.fixture(autouse=True)
@@ -154,3 +154,60 @@ def test_real_owner_wrong_pin_origin_and_sha_fail_closed(client, db, dentiste):
     assert digest_denied.status_code == 200
     assert digest_denied.json() == EXPECTED
     _assert_no_print_claims(db)
+
+
+def test_real_owner_cabinet_blocked_jobs_readonly_and_station_denied(client, db, dentiste):
+    """Full JWT/real cookie and real tenant-scoped SQL, no PHI or print paths."""
+    headers, session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST048-READONLY-1",
+    )
+    # The existing Station-authenticated browser must NOT read Cabinet jobs.
+    locked = client.get("/api/admin/station-print-config/blocked-jobs", headers=headers)
+    assert locked.status_code == 423
+    assert locked.json()["detail"] == "WORKSTATION_STATION_LOCKED"
+
+    _set_mode(client, headers, "cabinet")
+    claim = reserve_held_claim(
+        db.get_bind(), tenant_id=dentiste.id, session_id="synthetic-review-session",
+        document_kind="care_sheet", document_id="test-synthetic-only",
+        document_sha256="e"*64, printer_id="synthetic-only",
+    )
+    mark_uncertain(db.get_bind(), tenant_id=dentiste.id,
+                   delivery_key=claim.delivery_key, expected_revision=1)
+    response = client.get("/api/admin/station-print-config/blocked-jobs", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+    data = response.json()
+    assert data["status"] == "review_only"
+    assert data["printingAvailable"] is False
+    assert data["retrySupported"] is False
+    assert data["total"] == 1
+    assert len(data["jobs"]) == 1
+    job = data["jobs"][0]
+    assert job["status"] == "uncertain"
+    assert job["reference"] == claim.delivery_key[:12]
+    assert job["investigations"] == 0
+    assert claim.delivery_key not in response.text  # truncated opaque token only
+    assert patient.nom not in response.text and patient.prenom not in response.text
+    assert "pdfBytes" not in response.text and "printerId" not in response.text
+    assert "retry" not in str(response.request.url).lower()
+    method_denied = client.post(
+        "/api/admin/station-print-config/blocked-jobs",
+        json={"retry": True}, headers=headers,
+    )
+    assert method_denied.status_code == 405
+    assert db.execute(text("SELECT state FROM station_print_held_claims")).scalar_one() == "uncertain"
+    assert db.execute(text("SELECT COUNT(*) FROM station_print_claim_events")).scalar_one() == 2
+
+
+def test_real_owner_blocked_jobs_fails_closed_with_missing_registered_cabinet(client, db, dentiste):
+    headers, session_id, patient = _identified_session(
+        client, db, dentiste, dossier="ST048-READONLY-2",
+    )
+    _set_mode(client, headers, "cabinet")
+    # Signed workstation cookie absent => GET not delegated to caller's
+    # claims / tenant selector and must fail with 403, not empty success.
+    for cookie_name in ("workstation_mode", "workstation_id"):
+        client.cookies.pop(cookie_name, None)
+    result = client.get("/api/admin/station-print-config/blocked-jobs", headers=headers)
+    assert result.status_code in (403, 423), result.text
