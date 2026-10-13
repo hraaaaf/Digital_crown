@@ -250,3 +250,54 @@ jobs:
           assert len(tables) == first_count, (first_count, len(tables))
           print(f"second upgrade no-op: head={version} tables={len(tables)} schema_sha256={digest}")
           PY
+
+
+      - name: Rehearse 027 to 028 on nonempty synthetic PostgreSQL and preserve witness
+        run: |
+          # Keep this after the full head+second-upgrade certification above.
+          # Disposable CI-only PG. No real patient data, no production rollback.
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, text
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          with engine.begin() as connection:
+              connection.execute(text(
+                  "CREATE TABLE dc_print_migration_witness "
+                  "(id INTEGER PRIMARY KEY, marker VARCHAR(80) NOT NULL)"
+              ))
+              connection.execute(text(
+                  "INSERT INTO dc_print_migration_witness (id, marker) "
+                  "VALUES (1, 'synthetic-do-not-delete')"
+              ))
+          PY
+          alembic downgrade neo000000027
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, inspect, text
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          with engine.connect() as connection:
+              assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "neo000000027"
+              assert connection.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=1")).scalar_one() == "synthetic-do-not-delete"
+              assert "station_print_configurations" not in inspect(connection).get_table_names()
+          print("nonempty synthetic predecessor preserved after 028 downgrade")
+          PY
+          alembic upgrade head
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, inspect, text
+          from backend.core.schema_runtime import assert_database_at_current_head
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          assert_database_at_current_head(engine)
+          with engine.connect() as connection:
+              assert connection.execute(text("SELECT marker FROM dc_print_migration_witness WHERE id=1")).scalar_one() == "synthetic-do-not-delete"
+              names = set(inspect(connection).get_table_names())
+              assert {
+                  "station_print_configurations", "station_print_config_stations",
+                  "station_print_config_printers", "station_print_config_audit"
+              } <= names
+              assert connection.execute(text("SELECT COUNT(*) FROM station_print_configurations")).scalar_one() == 0
+          print("neo000000027 -> 028 preserves nonempty synthetic witness; no active print configuration")
+          PY
