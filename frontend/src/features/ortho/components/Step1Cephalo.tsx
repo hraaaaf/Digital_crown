@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ruler, Angle, Crosshair, ZoomIn, Layers3 } from 'lucide-react';
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -155,6 +156,40 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <p className="mt-2 text-xs leading-relaxed" style={{ color: props.P.textMuted }}>
             Affiche les mesures et tracés disponibles de la méthode choisie. Les mesures non calculables restent indisponibles.
           </p>
+        </section>
+
+        <section className="mt-3 rounded-xl border p-2" aria-label="Outils de mesure clinique" style={{ borderColor: props.P.border, background: props.P.bgCard }}>
+          <h4 className="mb-2 text-xs font-bold" style={{ color: props.P.text }}>Outils cliniques</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { label: 'Distance', Icon: Ruler },
+              { label: 'Angle', Icon: Angle },
+            ] as const).map(({ label, Icon }) => (
+              <button key={label} type="button" disabled title={`${label} libre — en cours de construction`}
+                aria-label={`${label} libre — en cours de construction`}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ borderColor: props.P.border, color: props.P.textMuted, background: props.P.bgInput }}>
+                <Icon size={16} aria-hidden="true" />{label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs" style={{ color: props.P.textMuted }}>
+            Les mesures validées sont accessibles dans les analyses clé en main. Les outils libres sont en cours de construction.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2" aria-label="Accès rapide aux commandes existantes">
+            <button type="button" aria-pressed={magnifierEnabled}
+              onClick={() => setMagnifierEnabled(!magnifierEnabled)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-xs font-bold"
+              style={{ borderColor: magnifierEnabled ? props.P.borderFocus : props.P.border, background: magnifierEnabled ? props.P.bgInput : props.P.bgCard, color: props.P.text }}>
+              <ZoomIn size={16} aria-hidden="true" />Loupe
+            </button>
+            <span className="inline-flex min-h-11 items-center gap-2 px-1 text-xs" style={{ color: props.P.textMuted }}>
+              <Crosshair size={16} aria-hidden="true" />Repères
+            </span>
+            <span className="inline-flex min-h-11 items-center gap-2 px-1 text-xs" style={{ color: props.P.textMuted }}>
+              <Layers3 size={16} aria-hidden="true" />Couches
+            </span>
+          </div>
         </section>
 
         <div className="mt-3 hidden space-y-2 xl:block" aria-label="Familles scientifiques">
