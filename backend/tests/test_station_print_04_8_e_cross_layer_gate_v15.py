@@ -14,7 +14,7 @@ import re
 import pytest
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path.cwd()  # GitHub job executes from checkout root; test copied outside backend conftest
 
 
 def source(path: str) -> str:
