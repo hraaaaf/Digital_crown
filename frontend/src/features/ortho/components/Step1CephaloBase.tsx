@@ -363,7 +363,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
             initial={{ opacity: 0, y: -12, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -12, scale: 0.97 }}
-            className="absolute top-24 left-1/2 z-50 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 flex-col gap-4 rounded-2xl border border-[var(--ceph-ui-border)] bg-[var(--ceph-ui-panel)] p-4 shadow-2xl backdrop-blur-2xl sm:top-20 sm:p-5"
+            data-cephalo-calibration-assistant className="fixed left-1/2 top-[min(24vh,16rem)] z-[100] flex max-h-[68vh] w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 flex-col gap-4 overflow-y-auto rounded-2xl border border-[var(--ceph-ui-border)] bg-[var(--ceph-ui-panel)] p-4 shadow-2xl backdrop-blur-2xl sm:p-5"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
