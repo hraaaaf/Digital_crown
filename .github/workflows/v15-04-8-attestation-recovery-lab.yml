@@ -4,9 +4,11 @@ on:
   pull_request:
     branches:
       - feat/v15-04-8-c-transactional-virtual-outbox-lab-20261013
+      - feat/v15-04-8-attestation-recovery-guard-20261013
     paths:
       - "backend/services/station_print_attestation_recovery_v15.py"
       - "backend/tests/test_station_print_attestation_recovery_v15.py"
+      - "backend/routers/station_print_config_admin.py"
       - "backend/tests/certify_station_print_attestation_recovery_pg_v15.py"
       - "alembic/versions/neo000000030_print_evidence_investigation.py"
       - ".github/workflows/v15-04-8-attestation-recovery-lab.yml"
