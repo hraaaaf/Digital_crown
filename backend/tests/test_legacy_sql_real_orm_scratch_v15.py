@@ -73,6 +73,9 @@ def _physical_scratch():
                     raise AssertionError("REAL_ORM_PHYSICAL_COLUMN_DRIFT")
             if i.has_table("alembic_version"):
                 raise AssertionError("NOT_A_CABINET_ALEMBIC_DB")
+            # SQLAlchemy reflection starts an implicit transaction; close it
+            # explicitly BEFORE opening the rollback-only rehearsal transaction.
+            con.commit()
             tx = con.begin()
             try:
                 yield metadata, con
