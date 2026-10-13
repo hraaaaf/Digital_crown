@@ -30,6 +30,20 @@ for _print_table_name in (
     if _print_table_name not in Base.metadata.tables:
         _station_print_schema.tables[_print_table_name].to_metadata(Base.metadata)
 
+# LOT04.8 staged B/C schemas. Real PostgreSQL/SQLite empty-baseline
+# initialization STAMPS the current head from Base.metadata instead of
+# replaying revisions. Clone both unprivileged, default-inert tables here
+# so neither a new DB nor an existing neo28->29 upgrade can falsely report
+# current schema while missing a table. The synthetic users stub is excluded.
+from backend.services.station_print_printer_draft_lab import SCHEMA as _printer_draft_schema
+from backend.services.station_print_held_claims_lab import SCHEMA as _held_claim_schema
+for _table_name, _source_schema in (
+    ("station_print_printer_drafts", _printer_draft_schema),
+    ("station_print_held_claims", _held_claim_schema),
+):
+    if _table_name not in Base.metadata.tables:
+        _source_schema.tables[_table_name].to_metadata(Base.metadata)
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
