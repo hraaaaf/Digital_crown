@@ -64,6 +64,12 @@ try{
   await page.getByRole('button',{name:'Télécharger la base SQLite fictive'}).click();
   const fileInput=page.getByLabel('Fichier SQLite fictif Digital Crown');
   await fileInput.waitFor();
+  // The file input is visible but DISABLED until the async fixture download
+  // finishes and the local expected SHA is stored in React state.
+  await page.waitForFunction(() => {
+    const field=document.querySelector('input[aria-label="Fichier SQLite fictif Digital Crown"]');
+    return field instanceof HTMLInputElement && !field.disabled;
+  });
   await fileInput.setInputFiles({name:'digital-crown-synthetic-100x200.db',
     mimeType:'application/vnd.sqlite3',buffer:demo});
   try {
