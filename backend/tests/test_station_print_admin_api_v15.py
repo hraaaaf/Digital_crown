@@ -70,6 +70,22 @@ def api(tmp_path, monkeypatch):
         if pin != "1234":
             raise HTTPException(status_code=403, detail="Invalid owner PIN")
     fake_workstation._require_pin = check_pin
+    fake_workstation._find_workstation = lambda request, db, tenant: types.SimpleNamespace(
+        id="cabinet-10", employer_id=10, default_experience="cabinet",
+        revoked_at=None,
+    )
+    # HTTP fixture deliberately stubs clinical audit/bytes; service tests
+    # cover the separate SQL/clinical gate, not real production auth.
+    fake_clinical_gate = types.ModuleType(
+        "backend.services.station_print_cabinet_clinical_gate_v15"
+    )
+    fake_clinical_gate.clinically_recheck_cabinet_print = (
+        lambda *args, **kwargs: types.SimpleNamespace(allowed=False)
+    )
+    monkeypatch.setitem(
+        sys.modules, "backend.services.station_print_cabinet_clinical_gate_v15",
+        fake_clinical_gate,
+    )
 
     utils = types.ModuleType("backend.utils")
     utils.__path__ = ["backend/utils"]
@@ -203,5 +219,59 @@ def test_wrong_pin_denied_before_save(api):
         json=disable_payload(pin="9999"), headers=safe_headers(),
     )
     assert r.status_code == 403
+    with engine.connect() as conn:
+        assert conn.execute(select(configuration.c.tenant_id)).all() == []
+
+
+def test_clinical_check_requires_cabinet_owner_pin_and_csrf(api, monkeypatch):
+    client, current, engine = api
+    payload = {
+        "sessionId": "00000000-0000-4000-8000-000000000001",
+        "documentId": 30, "archiveSha256": "c"*64, "ownerPin": "1234",
+    }
+    url = "/api/admin/station-print-config/clinical-check"
+    r = client.post(url, json=payload, headers=safe_headers())
+    assert r.status_code == 200, r.text
+    assert r.json() == {
+        "status": "printing_unavailable",
+        "printingAvailable": False, "claimCreated": False,
+        "archiveVerified": False,
+    }
+    assert r.headers["cache-control"] == "no-store"
+    assert not any(k in r.text for k in ("patientId", "pdf", "filePath"))
+
+    for bad in (
+        {**payload, "ownerPin": "9999"},
+        {**payload, "printerCertified": True},
+        {**payload, "pdfBytes": "%PDF"},
+        {**payload, "documentId": -1},
+    ):
+        result = client.post(url, json=bad, headers=safe_headers())
+        assert result.status_code in (403, 422)
+
+    assert client.post(
+        url, json=payload, headers={"origin": "https://evil.example"},
+    ).status_code == 403
+    current["user"] = FakeUser(11, 10)
+    assert client.post(url, json=payload, headers=safe_headers()).status_code == 403
+    with engine.connect() as conn:
+        assert conn.execute(select(configuration.c.tenant_id)).all() == []
+
+
+def test_clinical_check_blocks_station_or_missing_registered_cabinet(api, monkeypatch):
+    client, _, engine = api
+    fake_workstation = sys.modules["backend.routers.workstation_mode"]
+    fake_workstation._find_workstation = lambda *_args: types.SimpleNamespace(
+        id="station-10", employer_id=10,
+        default_experience="station", revoked_at=None,
+    )
+    payload = {
+        "sessionId": "00000000-0000-4000-8000-000000000001",
+        "documentId": 30, "archiveSha256": "c"*64, "ownerPin": "1234",
+    }
+    url = "/api/admin/station-print-config/clinical-check"
+    assert client.post(url, json=payload, headers=safe_headers()).status_code == 403
+    fake_workstation._find_workstation = lambda *_args: None
+    assert client.post(url, json=payload, headers=safe_headers()).status_code == 403
     with engine.connect() as conn:
         assert conn.execute(select(configuration.c.tenant_id)).all() == []
