@@ -28,9 +28,6 @@ from backend.services.station_print_admin_boundary import (
     StationPrintAdminDenied, require_cabinet_root_owner,
     require_same_origin_mutation,
 )
-from backend.services.station_print_cabinet_clinical_gate_v15 import (
-    clinically_recheck_cabinet_print,
-)
 from backend.utils.rate_limit import (
     enforce_failure_rate_limit, record_rate_limit_failure,
 )
@@ -96,6 +93,9 @@ def check_cabinet_print_clinical_readiness(
     workstation gate AND explicit registered Cabinet cookie resolution.
     """
     from backend.routers.workstation_mode import _find_workstation
+    from backend.services.station_print_cabinet_clinical_gate_v15 import (
+        clinically_recheck_cabinet_print,
+    )
 
     tenant_id = _owner(current_user)
     try:
