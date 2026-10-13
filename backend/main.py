@@ -667,6 +667,8 @@ app.include_router(documents.router, prefix="/api/documents", tags=["Documents"]
 app.include_router(verification.router, prefix="/api/documents", tags=["Vérification publique"])
 app.include_router(stats.router, prefix="/api/stats", tags=["Statistiques"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics & Finance"])
+from backend.routers import station_print_config_admin as station_print_config_admin
+app.include_router(station_print_config_admin.router, prefix="/api/admin", tags=["Station Print Configuration"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(appointments.router, prefix="/api/appointments", tags=["Agenda"])
 app.include_router(frontdesk.router, prefix="/api", tags=["Frontdesk"])
