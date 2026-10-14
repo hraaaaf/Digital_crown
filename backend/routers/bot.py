@@ -13,6 +13,7 @@ from backend import models, schemas
 from backend.routers.auth import get_current_user, has_permission
 from backend.services.audit_service import audit_service
 from backend.services.bot.intent_parser import intent_parser as regex_parser, ParsedIntent
+from backend.services.bot.atomic_action_claim import claim_pending_action
 from backend.services.bot.action_dispatcher import (
     ActionDispatcher,
 )
@@ -396,14 +397,11 @@ async def bot_execute(
 
     # Atomic compare-and-swap claim, persisted BEFORE any dispatcher side effect.
     # No second worker can claim a row unless it remains pending and unexpired.
-    claimed = db.query(models.BotPendingAction).filter(
-        models.BotPendingAction.id == action_id,
-        models.BotPendingAction.user_id == current_user.id,
-        models.BotPendingAction.employer_id == employer_id,
-        models.BotPendingAction.status == "pending",
-        models.BotPendingAction.expires_at > datetime.utcnow(),
-    ).update({"status": "executing"}, synchronize_session=False)
-    if claimed != 1:
+    claimed = claim_pending_action(
+        db, models.BotPendingAction, action_id,
+        current_user.id, employer_id, datetime.utcnow(),
+    )
+    if not claimed:
         db.rollback()
         _log_rejected("prise en charge concurrente ou expiration")
         raise HTTPException(status_code=409, detail="Action déjà prise en charge ou expirée.")
