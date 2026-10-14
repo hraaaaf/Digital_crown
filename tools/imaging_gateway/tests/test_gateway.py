@@ -1,5 +1,7 @@
 """Synthetic fixtures only; no device, patient or server access."""
 import base64
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -149,6 +151,159 @@ class GatewayTests(unittest.TestCase):
     def test_original_is_unchanged(self):
         self.stage()
         self.assertEqual((self.watch / "fixture.png").read_bytes(), SYNTHETIC)
+
+    # LOT06-C: optional producer completion handshake (not an auth receipt).
+    def enable_ready_mode(self):
+        self.agent = HotFolder(Config(
+            "cabinet1", "device1", self.watch, self.private, b"k" * 32,
+            require_ready_manifest=True,
+        ))
+
+    def ready_marker(self, filename="fixture.png", payload=SYNTHETIC,
+                     *, sha=None, size=None, extra=None):
+        obj = {
+            "version": 1,
+            "sha256": sha if sha is not None else hashlib.sha256(payload).hexdigest(),
+            "size": len(payload) if size is None else size,
+        }
+        if extra:
+            obj.update(extra)
+        marker = self.watch / (filename + ".ready")
+        marker.write_text(json.dumps(obj), encoding="utf-8")
+        return marker
+
+    def test_ready_mode_requires_explicit_completion_marker(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.items(), [])
+        marker = self.ready_marker()
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+        self.assertEqual(self.agent.scan_once()["duplicate"], 1)
+        self.assertEqual(len(self.agent.items()), 1)
+        self.assertEqual(self.agent.read_verified(1), SYNTHETIC)
+        self.assertTrue(marker.exists())
+        self.assertEqual((self.watch / "fixture.png").read_bytes(), SYNTHETIC)
+
+    def test_ready_mode_does_not_quarantine_marker_as_media(self):
+        self.enable_ready_mode()
+        self.ready_marker()
+        result = self.agent.scan_once()
+        self.assertEqual(result, dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0))
+        self.assertEqual(self.agent.items(), [])
+
+    def test_incomplete_file_with_future_digest_never_staged(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC[:16])
+        self.ready_marker()
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.items(), [])
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+
+    def test_incorrect_ready_sha_or_size_never_staged(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        marker = self.ready_marker(sha="0" * 64)
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.items(), [])
+        self.ready_marker(size=len(SYNTHETIC) + 1)
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.items(), [])
+        self.ready_marker()
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+        self.assertTrue(marker.exists())
+
+    def test_malformed_ready_json_and_unknown_fields_rejected(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        marker = self.ready_marker()
+        marker.write_text("{bad-json", encoding="utf-8")
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.ready_marker(extra={"patient_id": 111})
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.items(), [])
+        self.ready_marker()
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+
+    def test_manifest_replacement_during_capture_read_fails_closed(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        marker = self.ready_marker()
+        self.agent.scan_once()
+        original_read = self.agent._read
+
+        def replace_ready(path, initial):
+            result = original_read(path, initial)
+            marker.write_text(json.dumps({
+                "version": 1, "sha256": "0" * 64, "size": len(result),
+            }), encoding="utf-8")
+            return result
+
+        self.agent._read = replace_ready
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.items(), [])
+        self.agent._read = original_read
+        self.ready_marker()
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+
+    def test_ready_marker_symlink_fails_closed(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        valid = self.ready_marker("safe.png")
+        link = self.watch / "fixture.png.ready"
+        try:
+            link.symlink_to(valid)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlink unavailable on this Windows host")
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_ready_mode_restart_and_replay_stays_local(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.ready_marker()
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+        restarted = HotFolder(Config(
+            "cabinet1", "device1", self.watch, self.private, b"k" * 32,
+            require_ready_manifest=True,
+        ))
+        self.assertEqual(restarted.scan_once()["unstable"], 1)
+        self.assertEqual(restarted.scan_once()["duplicate"], 1)
+        self.assertEqual(len(restarted.items()), 1)
+        self.assertEqual(restarted.items()[0]["state"], "PENDING_CONFIRMATION")
+
+    def test_ready_mode_rejects_oversized_or_hardlinked_manifest(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        marker = self.ready_marker()
+        marker.write_bytes(b"X" * 300)
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        marker.unlink()
+        outside = self.watch.parent / "outside-ready"
+        self.ready_marker().replace(outside)
+        try:
+            os.link(outside, marker)
+        except OSError:
+            self.skipTest("hard links unavailable")
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_untrusted_spool_size_rejected_before_read(self):
+        self.stage()
+        blob = next((self.private / "spool").glob("*.dc6"))
+        with blob.open("wb") as output:
+            output.truncate(self.config.max_bytes + 33)
+        with self.assertRaises(GatewayError):
+            self.agent.read_verified(1)
 
 
 if __name__ == "__main__":

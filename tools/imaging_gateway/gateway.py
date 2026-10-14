@@ -57,12 +57,15 @@ class Config:
     key: bytes
     category: str = "PHOTO"
     max_bytes: int = MAX_BYTES
+    require_ready_manifest: bool = False
 
     def __post_init__(self):
         if not ID.fullmatch(self.cabinet) or not ID.fullmatch(self.workstation):
             raise GatewayError("invalid cabinet/workstation")
         if self.category not in {"PHOTO", "RADIOGRAPH"}:
             raise GatewayError("explicit category required")
+        if type(self.require_ready_manifest) is not bool:
+            raise GatewayError("invalid ready-manifest mode")
         if len(self.key) != 32:
             raise GatewayError("a 256-bit spool key is mandatory")
         if not 0 < self.max_bytes <= MAX_BYTES:
@@ -179,11 +182,62 @@ class HotFolder:
             raise GatewayError("source changed during read")
         return data
 
+    def _ready_manifest(self, path):
+        """Optional *producer* completion claim. Not a device authorization.
+
+        A .ready sidecar must be a plain, stable, small JSON file with exactly
+        version/size/sha256. No symlinks or arbitrary directories are followed.
+        Missing, malformed or racing manifests simply prevent staging.
+        """
+        marker = path.with_name(path.name + ".ready")
+        try:
+            before = marker.lstat()
+            if (not stat.S_ISREG(before.st_mode) or
+                    not 0 < before.st_size <= 256 or
+                    before.st_nlink != 1):
+                return None
+            flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(marker, flags)
+            try:
+                opened = os.fstat(fd)
+                if (not stat.S_ISREG(opened.st_mode) or
+                        opened.st_nlink != 1 or
+                        self._source_signature(opened) != self._source_signature(before)):
+                    return None
+                with os.fdopen(fd, "rb", closefd=False) as reader:
+                    raw = reader.read(257)
+                after = os.fstat(fd)
+            finally:
+                os.close(fd)
+            final = marker.lstat()
+            if (self._source_signature(after) != self._source_signature(before) or
+                    self._source_signature(final) != self._source_signature(before) or
+                    not stat.S_ISREG(final.st_mode) or len(raw) != before.st_size):
+                return None
+            obj = json.loads(raw.decode("utf-8"))
+            if not isinstance(obj, dict) or set(obj) != {"version", "size", "sha256"}:
+                return None
+            if type(obj["version"]) is not int or obj["version"] != 1:
+                return None
+            if type(obj["size"]) is not int or not 0 < obj["size"] <= self.config.max_bytes:
+                return None
+            digest = obj["sha256"]
+            if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                return None
+            return (digest, obj["size"], self._source_signature(before))
+        except (OSError, ValueError, UnicodeError, TypeError):
+            return None
+
     def _decrypt(self, blob, identity, digest):
         target = self.spool / blob
         if target.is_symlink() or not target.is_file():
             raise GatewayError("spool missing or symlink")
+        # No unbounded allocation if a local actor plants a huge spool file.
+        if not 33 <= target.stat().st_size <= self.config.max_bytes + 32:
+            raise GatewayError("spool size invalid")
         data = target.read_bytes()
+        if len(data) > self.config.max_bytes + 32:
+            raise GatewayError("spool size changed")
         if not data.startswith(b"DC6A") or len(data) < 33:
             raise GatewayError("spool corrupted")
         try:
@@ -222,6 +276,8 @@ class HotFolder:
     def scan_once(self):
         outcome = dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0)
         for path in sorted(Path(self.config.watch).iterdir()):
+            if self.config.require_ready_manifest and path.name.endswith(".ready"):
+                continue  # Completion metadata is not an acquisition.
             if path.is_symlink() or path.name.startswith("."):
                 outcome["rejected"] += 1
                 continue
@@ -235,6 +291,10 @@ class HotFolder:
                 self._observed[token] = signature
                 outcome["unstable"] += 1
                 continue
+            ready_before = self._ready_manifest(path) if self.config.require_ready_manifest else None
+            if self.config.require_ready_manifest and ready_before is None:
+                outcome["unstable"] += 1
+                continue
             try:
                 content = self._read(path, signature)
             except (GatewayError, OSError):
@@ -242,6 +302,12 @@ class HotFolder:
                 outcome["unstable"] += 1
                 continue
             digest = hashlib.sha256(content).hexdigest()
+            if self.config.require_ready_manifest:
+                ready_after = self._ready_manifest(path)
+                if (ready_before != ready_after or
+                        ready_before[0] != digest or ready_before[1] != len(content)):
+                    outcome["unstable"] += 1
+                    continue
             identity = self._identity(digest, path, signature)
             mime = sniff(content)
             accepted = mime is not None and path.suffix.lower() in SUPPORTED[mime]

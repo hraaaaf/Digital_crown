@@ -34,3 +34,18 @@ BLOCKER: no Windows runtime/NTFS ACL/key recovery/locked-file race tests, no act
 Never mark full LOT06, cabinet release, or acquisition device certified based on the synthetic CI.
 Do not touch LOT04.7/04.8, LOT05, station/printing, SQL migrations or master. No Vercel deployment.
 Synthetic suite: python -m unittest discover -s tools/imaging_gateway/tests -v.
+
+
+## LOT06-C — Optional producer-ready handshake (lab hardening, independent of schema)
+
+A producer can close/flush an image and then atomically rename a complete sidecar to the exact sibling name **`photo.png.ready`**. Start the opt-in local agent with **`--require-ready-manifest`**. The manifest must be UTF-8 JSON with **exactly** these fields (lowercase 64-hex SHA-256; no patient name or identifier):
+
+```json
+{"version":1,"sha256":"<sha256 of image bytes>","size":123456}
+```
+
+The sidecar must be a distinct regular file with a single hard-link, at most 256 bytes, not a symlink. It must remain unchanged across the media read. The agent verifies both the original source file signature before/after bounded read and the sidecar's immutable fingerprint and SHA/size, before encrypting/spooling the original. Missing, premature, invalid, replaced, large or linked sidecars do not stage any media, nor do sidecar files themselves create quarantined items. A mismatched digest is not a clinical event. The original and sidecar are never deleted or renamed by the agent.
+
+**Important safety limits:** This is a **producer file-completion handshake**, not a signed trusted manufacturer event, not evidence that the device is medically certified, and not a human identity or patient confirmation. A malicious actor who can write the watched folder can fabricate both image and manifest. Default legacy two-stable-stat observation remains unchanged when opt-in is off; that mode can still read a briefly stable partial image and MUST NOT be called completion-safe. The strict flag is deployment configuration, not an irreversible persisted policy; operators must consistently enforce it. Hard-link/reparse-point behavior under a real Windows cabinet remains unverified. The spool decryption path also bounds ciphertext size to max_bytes + AES-GCM header/tag overhead to avoid allocation from an oversized local file.
+
+**Contract tests** execute on Linux/Windows GitHub-hosted runners. No SQL model, backend, frontend/mobile, driver, patient upload or receipt was changed. The global LOT06 end-to-end success criteria remain unfulfilled.
