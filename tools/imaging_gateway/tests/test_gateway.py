@@ -474,6 +474,21 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(len(self.agent.items()), 0)
         self.assertTrue(link.is_symlink())
 
+    def test_spool_hardlink_entry_rejected_where_link_count_reported(self):
+        self.agent = self.limited_agent()
+        self.stage()
+        original = next((self.private / "spool").glob("*.dc6"))
+        alias = self.private / "spool" / "alias.dc6"
+        try:
+            os.link(original, alias)
+        except (OSError, NotImplementedError):
+            self.skipTest("hardlinks unavailable")
+        if original.stat().st_nlink <= 1:
+            self.skipTest("this filesystem does not report hardlink count")
+        with self.assertRaises(GatewayError):
+            self.agent.storage_health()
+        self.assertEqual((self.watch / "fixture.png").read_bytes(), SYNTHETIC)
+
 
 if __name__ == "__main__":
     unittest.main()
