@@ -43,6 +43,13 @@ STATIC_DIR = str(AppPaths.get_static_dir())
 os.makedirs(DOCS_DIR, exist_ok=True)
 doc_factory = DocumentFactory(output_dir=DOCS_DIR, static_dir=STATIC_DIR)
 
+
+def _archive_storage_path(file_path: str) -> pathlib.Path:
+    """Resolve archive file paths against the active runtime, not import-time media state."""
+    if file_path.startswith(("static/archives/", "static/documents/")):
+        return get_media_root() / file_path.removeprefix("static/")
+    return BASE_DIR / file_path
+
 # Logic moved to backend.utils.accounting_utils
 
 
@@ -175,14 +182,11 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         ).first()
         if target is None:
             return
-        if target.file_path.startswith("static/archives/") or target.file_path.startswith("static/documents/"):
-            canonical = MEDIA_DIR / target.file_path.replace("static/", "", 1)
-        else:
-            canonical = BASE_DIR / target.file_path
+        canonical = _archive_storage_path(target.file_path)
         candidates = [canonical]
         if target.created_at:
             candidates.append(
-                MEDIA_DIR / "documents" / str(target.created_at.year) / f"{target.created_at.month:02d}" / canonical.name
+                get_media_root() / "documents" / str(target.created_at.year) / f"{target.created_at.month:02d}" / canonical.name
             )
         seen = set()
         for index, candidate in enumerate(candidates):
@@ -273,10 +277,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             # Le miroir historique éventuel doit évoluer dans le même lot que le
             # PDF canonique. En cas d'échec comptable, les deux seront restaurés.
             if req.type in ["honoraires", "note"]:
-                if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
-                    canonical_after = (MEDIA_DIR / doc.file_path.replace("static/", "", 1)).resolve()
-                else:
-                    canonical_after = (BASE_DIR / doc.file_path).resolve()
+                canonical_after = _archive_storage_path(doc.file_path).resolve()
                 for backup_path, _ in replacement_file_backups:
                     if backup_path != canonical_after:
                         backup_path.write_bytes(pdf_content)
@@ -336,7 +337,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             pdf_url = pdf_path.replace("\\", "/")
             
             # Si le chemin contient MEDIA_DIR, on le rend relatif à MEDIA_DIR et on préfixe par 'static/'
-            media_path_str = str(MEDIA_DIR).replace("\\", "/")
+            media_path_str = str(get_media_root()).replace("\\", "/")
             if media_path_str in pdf_url:
                 pdf_url = "static" + pdf_url.split(media_path_str)[1]
             elif "static/" in pdf_url:
@@ -457,7 +458,7 @@ async def generate_sample_preview(
         pdf_path = doc_factory.create_ordonnance(mock_patient, mock_data, db, current_user.id, custom_config=custom_config)
         
         pdf_url = pdf_path.replace("\\", "/")
-        media_path_str = str(MEDIA_DIR).replace("\\", "/")
+        media_path_str = str(get_media_root()).replace("\\", "/")
         if media_path_str in pdf_url:
             pdf_url = "static" + pdf_url.split(media_path_str)[1]
         elif "static/" in pdf_url:
@@ -486,7 +487,7 @@ async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file
     archive_service = get_archive_service(db)
     doc, is_new = archive_service.archive_document(patient_id=patient_id, file_content=content, filename=file.filename, doc_type=doc_type, uploaded_by_id=current_user.id, title=title, on_conflict=on_conflict)
     doc_dict = {c.key: getattr(doc, c.key) for c in doc.__table__.columns}
-    doc_dict["file_exists"] = bool(doc.file_path and os.path.exists(os.path.join(BASE_DIR, doc.file_path)))
+    doc_dict["file_exists"] = bool(doc.file_path and _archive_storage_path(doc.file_path).is_file())
     doc_dict["download_url"] = f"/api/documents/{doc.id}/download"
     audit_service.log(
         db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
@@ -513,15 +514,11 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
     )
 
     # Enrichir chaque doc avec file_exists pour que le frontend sache quoi afficher
-    def _resolve_abs(file_path: str) -> str:
-        if file_path.startswith("static/archives/") or file_path.startswith("static/documents/"):
-            return str(MEDIA_DIR / file_path.replace("static/", "", 1))
-        return os.path.join(BASE_DIR, file_path)
 
     docs_out = []
     for d in docs:
         d_dict = {c.key: getattr(d, c.key) for c in d.__table__.columns}
-        d_dict["file_exists"] = bool(d.file_path and os.path.exists(_resolve_abs(d.file_path)))
+        d_dict["file_exists"] = bool(d.file_path and _archive_storage_path(d.file_path).is_file())
         d_dict["download_url"] = f"/api/documents/{d.id}/download"
         docs_out.append(d_dict)
 
@@ -567,11 +564,8 @@ def download_document(
     )
     assert_patient_access(doc.patient_id, current_user, db)
 
-    # Résolution du chemin absolu
-    if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
-        abs_path = str(MEDIA_DIR / doc.file_path.replace("static/", "", 1))
-    else:
-        abs_path = os.path.join(BASE_DIR, doc.file_path)
+    # Resolve against the runtime-selected storage root for downloads.
+    abs_path = str(_archive_storage_path(doc.file_path))
 
     if not os.path.exists(abs_path):
         raise HTTPException(
