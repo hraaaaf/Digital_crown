@@ -95,12 +95,21 @@ class PocConversation:
             if message not in DURATIONS:
                 return PocTurn("clarification", "Choisissez 15, 30, 45 ou 60 minutes.")
             self.slots["duration_minutes"] = int(message)
+            self.state = "motif"
+            return PocTurn("clarification", "Motif : consultation, détartrage ou couronne ?")
+
+        if self.state == "motif":
+            code = PROCEDURES.get(normalized)
+            if code is None:
+                return PocTurn("clarification", "Motif requis : consultation, détartrage ou couronne.")
+            self.slots["motif"] = code
             self.state = "confirm"
             return PocTurn(
                 "confirmation_required",
                 "Proposition : patient #"
                 f"{self.slots['patient_id']}, {self.slots['target_date']} "
-                f"{self.slots['time']} ({message} min). Tapez CONFIRMER ou /annuler.",
+                f"{self.slots['time']} ({self.slots['duration_minutes']} min), "
+                f"motif {code}. Tapez CONFIRMER ou /annuler.",
             )
 
         if self.state == "procedure":
@@ -127,6 +136,7 @@ class PocConversation:
                             f"{self.slots['target_date']}T{self.slots['time']}:00"
                         ),
                         "duration_minutes": self.slots["duration_minutes"],
+                        "motif": self.slots["motif"],
                     },
                 }
             else:
