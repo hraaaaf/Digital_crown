@@ -4,10 +4,10 @@ Scope : modèle **en mémoire** pour des images et des clés **synthétiques** ;
 
 ## Contrat de la machine d'états
 
-- SOURCE : blob DC6A préalablement authentifié avec clé legacy explicite, empreinte SHA-256 de ce blob et SHA-256 du clair attendu. Source et clé legacy conservées.
+- SOURCE : blob DC6A préalablement authentifié avec clé legacy explicite, empreinte SHA-256 de ce blob et SHA-256 du clair attendu. Source conservée **en mémoire** ; clé legacy exigée à chaque appel et **non sauvegardée** par le prototype.
 - PREPARED : rewrap DC6A vers un candidat DC6B avec key_id opaque, clés différentes, authentification AES-GCM AAD de cabinet/poste/capture, intégrité du clair et empreinte du candidat. **Seule la copie candidate existe** ; lecture active reste DC6A.
 - VERIFIED : le candidat et l'original sont relus, authentifiés et comparés avant éligibilité à COMMIT. Lecture active reste DC6A.
-- COMMITTED : le marqueur **simulé** rend DC6B actif ; le blob DC6A, la clé legacy et la possibilité de rollback sont retenus. Pas de bascule avant VERIFIED.
+- COMMITTED : le marqueur **simulé** rend DC6B actif ; le blob DC6A et la possibilité de rollback sont conservés **si la clé legacy externe demeure disponible**. Pas de bascule avant VERIFIED.
 - ROLLED_BACK : action explicite de l'opérateur (booléen de test, pas vraie authentification), source DC6A authentifiée, candidat retiré du *snapshot*, revision incrémentée. Ce prototype ne supprime **jamais** un fichier ni une clé réels.
 
 Les transitions exigent une révision attendue correspondant au snapshot, et les readers revalident la source et le candidat lorsqu'il existe. Un checkpoint PREPARED ou VERIFIED ne devient **jamais COMMITTED automatiquement** au redémarrage. La simulation injecte une interruption après SOURCE/PREPARED/VERIFIED/COMMITTED et teste l'inspection/reprise/rollback. Une copie chiffrée candidate corrompue interdit le redémarrage/commit mais n'empêche pas un rollback *explicitement autorisé* si la source est authentique. Aucune lecture ne retombe automatiquement de DC6B à DC6A en cas de perte de la clé cible.

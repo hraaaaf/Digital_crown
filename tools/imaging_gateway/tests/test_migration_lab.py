@@ -233,6 +233,8 @@ class MigrationStateMachineTests(unittest.TestCase):
     def test_checkpoint_invalid_shapes_and_phase_forgery(self):
         for invalid in (
             replace(self.s0, phase="UNRECOGNIZED"),
+            replace(self.s0, phase=["COMMITTED"]),
+            replace(self.s0, phase={"COMMITTED": True}),
             replace(self.s0, phase="COMMITTED"),
             replace(self.s0, revision=True),
             replace(self.s0, revision=-1),

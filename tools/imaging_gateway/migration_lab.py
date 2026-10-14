@@ -53,7 +53,8 @@ def _reject(error: str) -> None:
 def _source_clear(state: Snapshot, legacy_key: bytes) -> bytes:
     if type(state) is not Snapshot:
         _reject("SNAPSHOT_INVALID")
-    if state.phase not in _PHASES or type(state.revision) is not int or state.revision < 0:
+    if (type(state.phase) is not str or state.phase not in _PHASES
+            or type(state.revision) is not int or state.revision < 0):
         _reject("CHECKPOINT_INVALID")
     if type(state.source) is not bytes or type(state.source_sha256) is not str:
         _reject("SOURCE_CHECKPOINT_INVALID")
