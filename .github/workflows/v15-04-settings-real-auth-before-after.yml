@@ -106,7 +106,7 @@ jobs:
           exit 1
       - name: Provision synthetic delegated admin and staged empty audit schema
         working-directory: after
-        run: python backend/scripts/seed_v15_04_settings_lab.py
+        run: python -m backend.scripts.seed_v15_04_settings_lab
       - name: Start immutable BEFORE real UI
         working-directory: before/frontend
         run: |
