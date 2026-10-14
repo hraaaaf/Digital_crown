@@ -51,8 +51,21 @@ def test_flag_off_default_and_user_gate(client, auth_headers):
         r = client.post(URL, headers=auth_headers, json={"messages": ["/patient", "1"]})
         assert r.status_code == 404
         assert "patient" not in r.text.lower()
+        # auth_headers fixture logged in through this TestClient. Login also
+        # set an HttpOnly access_token cookie: omitting Authorization alone
+        # does not make this request anonymous.
+        assert client.cookies.get("access_token")
+        client.cookies.clear()
         anonymous = client.post(URL, json={"messages": ["/patient", "1"]})
         assert anonymous.status_code == 401
+
+    # The same anonymous client must also be rejected when the feature flag
+    # is enabled, without ever reaching patient resolution.
+    with patch.object(settings, "CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED", True):
+        anonymous_enabled = client.post(
+            URL, json={"messages": ["/patient", "1"]}
+        )
+        assert anonymous_enabled.status_code == 401
 
 
 def test_feature_flag_true_patient_lookup_is_tenant_scoped(client, db, dentiste, auth_headers):
