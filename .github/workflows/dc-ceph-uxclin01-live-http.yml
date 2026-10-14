@@ -181,6 +181,19 @@ jobs:
           const scenes=r.cases.filter(x=>x.screenshot);
           const records=r.cases.filter(x=>x.stage==='reloaded');
           if(scenes.length!==8 ||records.length!==2)throw Error('Insufficient real Step1 scenes');
+          if(r.zoomProof?.length!==2||r.zoomProof.some(z=>
+            !z.valid ||z.originalZoom.base!==z.originalZoom.overlay
+            ||z.magnified.base!==z.magnified.overlay
+            ||z.panned.base!==z.panned.overlay
+            ||z.reset.base!==z.reset.overlay
+            ||!z.magnified.level?.includes('150')||!z.reset.level?.includes('100')))
+            throw Error('Missing browser-proven clinical/base synchronized 150% zoom and pan');
+          for(const z of r.zoomProof){
+            const data=await readFile(dir+z.screenshot);
+            if(data.length<300||data.subarray(1,4).toString()!=='PNG'
+              ||data.readUInt32BE(16)+'x'+data.readUInt32BE(20)!=='1280x900')
+              throw Error('Invalid zoom proof screenshot '+z.screenshot);
+          }
           for(const c of scenes){
             const data=await readFile(dir+c.screenshot);
             if(!c.valid ||data.length<300 ||data.subarray(1,4).toString()!=='PNG'

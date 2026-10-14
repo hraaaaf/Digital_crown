@@ -294,6 +294,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
 
       {(showRickettsHard || showCom) && (layerVisible('plans') || layerVisible('landmarks') || layerVisible('measurements')) && props.imageWidth > 0 && props.imageHeight > 0 && (
         <svg
+          data-cephalo-viewport="overlay"
           viewBox={getCephaloZoomViewBox(props.imageWidth, props.imageHeight, props.viewZoom, props.viewPan)}
           preserveAspectRatio="xMidYMid meet"
           className="pointer-events-none absolute inset-0 z-[28] h-full w-full"

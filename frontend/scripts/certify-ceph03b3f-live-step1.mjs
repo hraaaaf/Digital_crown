@@ -31,7 +31,7 @@ const server=await createServer({
     proxy:{'/api':{target:'http://127.0.0.1:8005',changeOrigin:true,secure:false}} },
 });
 let browser;
-const cases=[];const errors=[];
+const cases=[];const zoomProof=[];const errors=[];
 const reqs=[];
 const waitFor=async(fn,label,timeoutMs=30000)=>{
   const start=Date.now();
@@ -196,6 +196,49 @@ try {
       assert(originalN,'N absent from SRPose38 output');
       assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
         'Live Step1 browser N not equal to authenticated GET');
+
+      // Cross-layer zoom regression witness on the ACTUAL public film, clinical
+      // browser and authenticated session. View-only: no analysis PUT is issued.
+      await setMode(page,'com');
+      const readZoom=()=>page.evaluate(()=>{
+        const base=document.querySelector('svg[data-cephalo-viewport="base"]');
+        const overlay=document.querySelector('svg[data-cephalo-viewport="overlay"]');
+        return {
+          base:base?.getAttribute('viewBox')??null,
+          overlay:overlay?.getAttribute('viewBox')??null,
+          level:document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()??null,
+        };
+      });
+      const originalZoom=await readZoom();
+      const imageView='0 0 '+radio.width+' '+radio.height;
+      assert(originalZoom.base===imageView && originalZoom.overlay===imageView && originalZoom.level?.includes('100'),
+        'Base and overlay must both start at the full image on '+film+': '+JSON.stringify(originalZoom));
+      const zoomIn=page.getByRole('button',{name:'Agrandir la radiographie'});
+      await zoomIn.click(); await zoomIn.click();
+      const magnified=await readZoom();
+      const crop=(value)=>String(value||'').split(' ').map(Number);
+      const crop150=crop(magnified.base);
+      assert(magnified.base===magnified.overlay && magnified.level?.includes('150')
+        && crop150.length===4 && crop150.every(Number.isFinite)
+        && Math.abs(crop150[2]-radio.width/1.5)<0.001
+        && Math.abs(crop150[3]-radio.height/1.5)<0.001,
+        '150% overlay/base crop mismatch on '+film+': '+JSON.stringify(magnified));
+      assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
+        'Zoom unexpectedly changed landmark X on '+film);
+      await page.getByRole('button',{name:'Déplacer la radiographie à droite'}).click();
+      const panned=await readZoom();
+      const shifted=crop(panned.base);
+      assert(panned.base===panned.overlay && shifted[0]>crop150[0],
+        'Pan must move both viewBoxes without skew on '+film+': '+JSON.stringify(panned));
+      const zoomShot=await shot(page,film,'com','1280x900','zoom150-pan');
+      await page.getByRole('button',{name:'Afficher toute la radiographie'}).click();
+      const reset=await readZoom();
+      assert(reset.base===imageView && reset.overlay===imageView && reset.level?.includes('100'),
+        'Zoom reset did not restore complete image on '+film);
+      assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
+        'View-only pan/reset mutated anatomical N on '+film);
+      zoomProof.push({film,viewport:'1280x900',originalZoom,magnified,panned,reset,
+        screenshot:zoomShot,valid:true});
       for(const viewport of [{width:1280,height:900},{width:1600,height:1000}]){
         await page.setViewportSize(viewport);
         const size=viewport.width+'x'+viewport.height;
@@ -318,8 +361,8 @@ const report={
   browserEntry:'CephaloWorkspace -> Step1Cephalo -> useOrthoStore -> cephaloRepository -> Axios',
   backend:'FastAPI app real HTTP /api, authenticated HttpOnly cookie, in-memory SQLite',
   untested:'Product /login visual screen, mobile UI, clinical anatomical accuracy, physical calibration',
-  cases,errors,invalidCount:cases.filter(x=>!x.valid).length,
+  cases,zoomProof,errors,invalidCount:cases.filter(x=>!x.valid).length,
 };
 await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
-assert(cases.length===10&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
+assert(cases.length===10&&zoomProof.length===2&&zoomProof.every(x=>x.valid)&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
 console.log('DC_CEPH03B3F_REAL_STEP1_HTTP_TWO_RADIOS_8_SCENES_4_EDIT_TRANSACTIONS_PER_FILM_PASS');

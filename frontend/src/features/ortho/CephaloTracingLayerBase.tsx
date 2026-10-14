@@ -632,6 +632,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     <div className="absolute inset-0 w-full h-full z-20">
       <svg
         ref={svgRef}
+        data-cephalo-viewport="base"
         viewBox={getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan)}
         preserveAspectRatio="xMidYMid meet"
         className={cn('w-full h-full', isCalibrating ? 'cursor-crosshair' : 'cursor-default')}
