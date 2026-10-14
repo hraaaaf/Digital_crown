@@ -72,7 +72,7 @@ def build(metadata=None, scope=("appointments", "patients")):
     return build_declared_target_manifest(
         metadata if metadata is not None else clinical_metadata(),
         requested_tables=scope,
-        declared_revision="neo000000027",
+        declared_revision="neo000000031",
     )
 
 
@@ -81,7 +81,7 @@ class TargetManifestAdapterTest(unittest.TestCase):
         out = build()
         self.assertEqual([t.name for t in out.tables], ["appointments", "patients"])
         self.assertEqual(out.provenance, "SQLALCHEMY_DECLARED_METADATA_ONLY")
-        self.assertEqual(out.as_ui_json()["schema_revision"], "orm-declared:neo000000027")
+        self.assertEqual(out.as_ui_json()["schema_revision"], "orm-declared:neo000000031")
         self.assertEqual(
             [t.name for t in out.as_mapping_target(
                 snapshot_type=mapping.TargetSnapshot, table_type=mapping.TargetTable
@@ -136,7 +136,7 @@ class TargetManifestAdapterTest(unittest.TestCase):
         with self.assertRaisesRegex(TargetManifestRefused, "INVALID_DECLARED_REVISION"):
             build_declared_target_manifest(
                 clinical_metadata(), requested_tables=("patients",),
-                declared_revision="neo000000027; DROP TABLE patients",
+                declared_revision="neo000000031; DROP TABLE patients",
             )
 
     def test_deterministic_fingerprint_ignores_table_declaration_order(self):

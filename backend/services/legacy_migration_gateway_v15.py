@@ -14,7 +14,7 @@ from sqlalchemy import MetaData, create_engine, event, inspect, select, func, te
 from sqlalchemy.exc import SQLAlchemyError
 
 _TABLES = ("users", "patients", "agenda_resources", "appointments")
-_EXPECTED = "neo000000027"
+_EXPECTED = "neo000000031"
 _PREVIEW = ("patients", "appointments")
 _DENIED_COLUMNS = {
     "id", "employer_id", "deleted_by", "deleted_at",
