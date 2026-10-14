@@ -82,9 +82,38 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
       const context = await browser.newContext({ viewport });
       await installHarness(context);
       const page = await context.newPage();
+      const pageErrors = [];
+      page.on('pageerror', error => pageErrors.push(error.message.slice(0, 400)));
+      page.on('console', message => {
+        if (message.type() === 'error') pageErrors.push(message.text().slice(0, 400));
+      });
       await clearVault(page);
       await page.goto(`${baseUrl}/companion`, { waitUntil: 'domcontentloaded' });
-      await page.getByText('Appairer ce téléphone', { exact: true }).waitFor();
+      try {
+        // Keep the real pairing-screen assertion; do not substitute a mock.
+        await page.getByText('Appairer ce téléphone', { exact: true }).waitFor();
+      } catch (error) {
+        // A failed UI gate must leave inspectable evidence, not only a timeout.
+        const diagnosticsDir = path.join(outputRoot, 'diagnostics');
+        await fs.mkdir(diagnosticsDir, { recursive: true });
+        const name = `${browserName}-${viewport.width}x${viewport.height}`;
+        const diagnostic = {
+          browser: browserName,
+          viewport,
+          pathname: new URL(page.url()).pathname,
+          pageTitle: await page.title().catch(() => ''),
+          shellCount: await page.locator('[data-pc00-shell]').count().catch(() => -1),
+          visibleText: (await page.locator('main, [role="alert"]').allTextContents().catch(() => []))
+            .map(text => text.trim().slice(0, 500)).slice(0, 4),
+          pageErrors,
+          error: String(error),
+        };
+        await page.screenshot({ path: path.join(diagnosticsDir, name + '.png'), fullPage: false })
+          .catch(() => undefined);
+        await fs.writeFile(path.join(diagnosticsDir, name + '.json'), JSON.stringify(diagnostic, null, 2));
+        console.error('PC06_PAIRING_SCREEN_DIAGNOSTIC', JSON.stringify(diagnostic));
+        throw error;
+      }
       await page.getByLabel('Code manuel').fill('ABCD-EFGH-JKLM');
       await page.getByText('Appairer avec le code', { exact: true }).click();
       await page.getByText('Aya Finance', { exact: true }).waitFor();
