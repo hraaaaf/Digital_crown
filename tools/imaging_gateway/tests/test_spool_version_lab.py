@@ -1,7 +1,8 @@
 """LOT06-I isolated versioned envelope, failure/replay abuse fixtures."""
 import hashlib
 from pathlib import Path
-import secrets
+import sqlite3
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -148,6 +149,46 @@ class VersionedEnvelopeTests(unittest.TestCase):
             with self.assertRaisesRegex(v.SpoolCodecError, "REWRAP_VERIFICATION_FAILED"):
                 v.rewrap_legacy_v1(legacy, legacy_key=self.key1,
                                    target_key_id=self.kid2, keys=self.keys, **self.a)
+
+    def test_rotation_rejects_same_key_material_or_alias(self):
+        legacy = self.old()
+        with self.assertRaisesRegex(v.SpoolCodecError, "ROTATION_TARGET_KEY_REUSED"):
+            v.rewrap_legacy_v1(legacy, legacy_key=self.key1,
+                               target_key_id=self.kid1, keys=self.keys, **self.a)
+        with self.assertRaisesRegex(v.SpoolCodecError, "KEY_MATERIAL_REUSED_ACROSS_IDS"):
+            v.encode_v2(self.clear, key_id=self.kid2,
+                        keys={self.kid1: self.key1, self.kid2: self.key1}, **self.a)
+
+    def test_real_hotfolder_v1_ciphertext_compatibility_and_no_mutation(self):
+        # Independent oracle: the actual LOT06-A HotFolder writes the DC6A blob.
+        from tools.imaging_gateway import Config, HotFolder
+        with tempfile.TemporaryDirectory(prefix="dc06i-synthetic-") as tmp:
+            watch = Path(tmp) / "watch"
+            private = Path(tmp) / "private"
+            watch.mkdir()
+            collector = HotFolder(Config(
+                "cabinet-test", "station1", watch, private, self.key1,
+                min_free_bytes=0
+            ))
+            (watch / "synthetic.png").write_bytes(self.clear)
+            self.assertEqual(collector.scan_once()["unstable"], 1)
+            self.assertEqual(collector.scan_once()["staged"], 1)
+            with sqlite3.connect(private / "acquisitions.sqlite3") as db:
+                row = db.execute("SELECT dedup_key,blob,digest FROM items").fetchone()
+            self.assertIsNotNone(row)
+            identity, filename, digest = row
+            original_file = private / "spool" / filename
+            original_bytes = original_file.read_bytes()
+            self.assertTrue(original_bytes.startswith(b"DC6A"))
+            attrs = dict(cabinet="cabinet-test", workstation="station1",
+                         identity=identity, digest=digest)
+            candidate = v.rewrap_legacy_v1(
+                original_bytes, legacy_key=self.key1,
+                target_key_id=self.kid2, keys=self.keys, **attrs
+            )
+            self.assertEqual(v.decode_v2(candidate, keys=self.keys, **attrs), self.clear)
+            self.assertEqual(original_file.read_bytes(), original_bytes)
+            self.assertEqual(collector.read_verified(1), self.clear)
 
     def test_no_production_wiring_or_sql_mutation(self):
         folder = Path(__file__).resolve().parents[1]

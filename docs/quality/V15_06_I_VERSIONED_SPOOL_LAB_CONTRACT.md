@@ -25,3 +25,7 @@ Before adopting v2, **new human approvals / independent work** must establish: s
 There is deliberately no CLI switch, no existing ciphertext modified, no SQL migration, no master merge, no LOT04/05, no Vercel or hardware installation. The 06-G Windows preflight remains BLOCKED. LOT06 remains NO-GO clinical regardless of laboratory green CI.
 
 Reproducible synthetic suite: \`python -m unittest discover -s tools/imaging_gateway/tests -v\`; require exact SHA Linux/Windows logs and two internal adversarial perspectives, with no claim of independent external convergence.
+
+## Adversarial regression addition
+
+Keyrings with the same AES-256 material under distinct version identifiers are explicitly rejected. Rewrapping to an identical old/new key is rejected, not advertised as rotation. A separate test constructs an authentic DC6A encrypted backlog row using the unchanged existing HotFolder, verifies real v1 to candidate v2 decoding and confirms original spool bytes and the existing HotFolder reader remain unchanged.

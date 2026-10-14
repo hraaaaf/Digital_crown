@@ -52,6 +52,8 @@ def _keyring(keys: dict) -> None:
     for key_id, material in keys.items():
         _key_id(key_id)
         _key(material)
+    if len(set(keys.values())) != len(keys):
+        raise SpoolCodecError("KEY_MATERIAL_REUSED_ACROSS_IDS")
 
 
 def _v2_aad(cabinet: str, workstation: str, identity: str,
@@ -138,6 +140,12 @@ def rewrap_legacy_v1(blob: bytes, *, cabinet: str, workstation: str,
         blob, cabinet=cabinet, workstation=workstation, identity=identity,
         digest=digest, legacy_key=legacy_key
     )
+    _key_id(target_key_id)
+    _keyring(keys)
+    if target_key_id not in keys:
+        raise SpoolCodecError("KEY_ID_UNAVAILABLE")
+    if keys[target_key_id] == legacy_key:
+        raise SpoolCodecError("ROTATION_TARGET_KEY_REUSED")
     candidate = encode_v2(
         clear, cabinet=cabinet, workstation=workstation, identity=identity,
         digest=digest, key_id=target_key_id, keys=keys
