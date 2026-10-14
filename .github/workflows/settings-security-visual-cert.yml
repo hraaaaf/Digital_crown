@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx"
+      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
+      - "frontend/src/features/admin/Settings/components/SharedUI.tsx"
+      - "frontend/src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.tsx"
+      - "frontend/scripts/capture-v15-04-8-blocked-readonly.mjs"
       - "frontend/src/features/admin/Security/MobileSecurity.tsx"
       - "frontend/src/features/mobile/Dashboard/MobileDashboard.tsx"
       - "frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx"
@@ -20,6 +24,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact certified product HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -48,8 +58,9 @@ jobs:
           import Settings from './pages/Settings';
           import { useAuthStore } from './stores/useAuthStore';
 
+          const delegated = new URLSearchParams(window.location.search).has('delegated');
           useAuthStore.setState({
-            user: ({ id: 1, email: 'admin@security-cert.local', nom_complet: 'Dr Security', role: 'ADMIN', is_superadmin: false, permissions: {} } as any),
+            user: ({ id: delegated ? 2 : 1, employer_id: delegated ? 1 : null, email: 'admin@security-cert.local', nom_complet: 'Dr Security', role: 'ADMIN', is_superadmin: false, permissions: {} } as any),
             isAuthenticated: true,
             isLoading: false,
             error: null,
@@ -91,20 +102,79 @@ jobs:
           const server = await createServer({ server: { host: '127.0.0.1', port: 4178, strictPort: true }, clearScreen: false, optimizeDeps: { include: ['workbox-window'] } });
           await server.listen();
           const browser = await chromium.launch();
-          const widths = [1440, 1024, 768, 430, 390];
+          const widths = [1600, 1280, 1024, 768, 430, 390];
+          const proof = [];
+          async function assertNoFullPageOverflow(page, width, variant) {
+            const metrics = await page.evaluate(() => {
+              const viewport = document.documentElement.clientWidth;
+              const scrollWidth = document.documentElement.scrollWidth;
+              const offending = [...document.body.querySelectorAll('*')].map(element => {
+                const rect = element.getBoundingClientRect();
+                return {
+                  tag: element.tagName,
+                  className: typeof element.className === 'string' ? element.className.slice(0, 170) : '',
+                  text: element.textContent?.trim().slice(0, 50) || '',
+                  right: Math.round(rect.right), left: Math.round(rect.left),
+                };
+              }).filter(item => item.right > viewport + 1 || item.left < -1).slice(0, 20);
+              return { viewport, scrollWidth, offending };
+            });
+            if (metrics.scrollWidth > metrics.viewport) {
+              const details = { width, variant, ...metrics };
+              await fs.writeFile(`${output}/full-page-overflow-${variant}-${width}.json`, JSON.stringify(details, null, 2));
+              await page.screenshot({ path: `${output}/full-page-overflow-${variant}-${width}.png`, fullPage: true });
+              throw new Error('FULL_PAGE_HORIZONTAL_OVERFLOW ' + JSON.stringify(details));
+            }
+          }
+          // Accessibility proof must reject narrow columns even when nothing overflows.
+          // The restore action belongs below the copy at 200% text, not alongside it.
+          async function assertGuidedRestoreReadable(page, width, variant) {
+            const copy = await page.getByTestId('guided-restore-description').boundingBox();
+            const action = await page.getByTestId('guided-restore-action').boundingBox();
+            const minimumCopyWidth = width >= 1536 ? 400 : Math.min(260, width * 0.4);
+            const ok = copy && action
+              && copy.width >= minimumCopyWidth
+              && copy.x >= -1 && copy.x + copy.width <= width + 1
+              && action.x >= -1 && action.x + action.width <= width + 1
+              && action.y >= copy.y + copy.height - 1
+              && action.height >= 44;
+            if (!ok) {
+              const proof = { width, variant, minimumCopyWidth, copy, action };
+              await fs.writeFile(`${output}/guided-restore-layout-${variant}-${width}.json`, JSON.stringify(proof, null, 2));
+              await page.screenshot({ path: `${output}/guided-restore-layout-${variant}-${width}.png`, fullPage: true, animations: 'disabled' });
+              throw new Error('GUIDED_RESTORE_200PCT_NOT_READABLE ' + JSON.stringify(proof));
+            }
+          }
           try {
             for (const width of widths) {
               const context = await browser.newContext({ viewport: { width, height: 1200 } });
               const page = await context.newPage();
               const errors = [];
+              let blockedReadCount = 0;
+              const unsafePrintRequests = [];
+              page.on('request', request => {
+                if (request.method() !== 'GET' && /\/print(?:-request|-job|\/dispatch)/i.test(new URL(request.url()).pathname)) {
+                  unsafePrintRequests.push(request.url());
+                }
+              });
               page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
               page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
-              await page.route('**/*', async route => {
+              await context.route('**/*', async route => {
                 const request = route.request();
                 const url = new URL(request.url());
                 if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
                 if (request.method() !== 'GET') return route.fulfill(json({}));
+                if (url.pathname === '/api/admin/station-print-config/blocked-jobs') {
+                  blockedReadCount += 1;
+                  return route.fulfill(json({
+                    status: 'review_only', printingAvailable: false, retrySupported: false,
+                    total: 2, jobs: [
+                      { reference: 'e7c389ab23de', status: 'uncertain', updatedAt: '2026-10-13T11:00:00Z', investigations: 2 },
+                      { reference: '194aadd510bd', status: 'uncertain', updatedAt: '2026-10-13T10:00:00Z', investigations: 0 },
+                    ],
+                  }));
+                }
                 if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
                 if (url.pathname === '/api/mobile/bridge-options') return route.fulfill(json(bridgeOptions));
                 if (url.pathname.includes('/audit-logs')) return route.fulfill(json({ total: 0, logs: [] }));
@@ -140,23 +210,120 @@ jobs:
               if (errors.length) throw new Error(errors.join('\n'));
 
               await page.screenshot({ path: `${output}/admin-securite-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+
+              // Integrated Settings screen (not the standalone component fixture),
+              // with an explicitly synthetic API and client-side owner session.
+              const panel = page.getByTestId('blocked-print-jobs-read-only');
+              await panel.waitFor({ state: 'visible' });
+              await page.locator('[data-print-job-status="uncertain"]').first().waitFor();
+              if (await page.locator('[data-print-job-status="uncertain"]').count() !== 2
+                  || await panel.locator('button').count() !== 1
+                  || await panel.locator('a,form,iframe,object,embed').count()
+                  || blockedReadCount !== 1) {
+                throw new Error(`Owner monitor contract failed ${width}: reads=${blockedReadCount}`);
+              }
+              const refresh = page.getByRole('button', { name: 'Actualiser les états' });
+              await Promise.all([
+                page.waitForResponse(response => response.url().includes('/station-print-config/blocked-jobs') && response.request().method() === 'GET'),
+                refresh.click(),
+              ]);
+              if (blockedReadCount !== 2 || unsafePrintRequests.length) {
+                throw new Error(`Unexpected owner read/print request: reads=${blockedReadCount}, unsafe=${unsafePrintRequests}`);
+              }
+              await page.screenshot({ path: `${output}/owner-${width}-text100.png`, fullPage: true, animations: 'disabled' });
+              await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+              await assertNoFullPageOverflow(page, width, 'owner-text200');
+              await assertGuidedRestoreReadable(page, width, 'owner-text200');
+              const panelWidth = await panel.evaluate(el => ({
+                client: el.clientWidth,
+                scroll: el.scrollWidth,
+                left: el.getBoundingClientRect().left,
+                right: el.getBoundingClientRect().right,
+              }));
+              const minimumUsableWidth = Math.min(300, width / 2);
+              if (panelWidth.client < minimumUsableWidth
+                  || panelWidth.left < -1 || panelWidth.right > width + 1) {
+                const failure = { width, zoom: 200, minimumUsableWidth, panelWidth,
+                  reason: 'SETTINGS_SHELL_CRUSHED_OR_OFFSCREEN' };
+                await fs.writeFile(`${output}/shell-width-${width}-text200.json`, JSON.stringify(failure, null, 2));
+                await page.screenshot({ path: `${output}/shell-width-${width}-text200.png`, fullPage: true, animations: 'disabled' });
+                throw new Error(`Settings shell unusable at 200%: ${JSON.stringify(failure)}`);
+              }
+              if (panelWidth.scroll > panelWidth.client) {
+                const offending = await panel.evaluate(root => {
+                  const outer = root.getBoundingClientRect();
+                  return [...root.querySelectorAll('*')].map(node => {
+                    const rect = node.getBoundingClientRect();
+                    return {
+                      tag: node.tagName, className: typeof node.className === 'string' ? node.className : '',
+                      snippet: node.textContent?.trim().slice(0, 65) || '',
+                      rightBeyondPanel: Math.round(rect.right - outer.right),
+                      scrollWidth: node.scrollWidth, clientWidth: node.clientWidth,
+                    };
+                  }).filter(n => n.rightBeyondPanel > 1 || n.scrollWidth > n.clientWidth + 1).slice(0, 20);
+                });
+                const failure = { width, zoom: 200, panelWidth, offending };
+                await fs.writeFile(`${output}/overflow-${width}-text200.json`, JSON.stringify(failure, null, 2));
+                await page.screenshot({ path: `${output}/overflow-${width}-text200.png`, fullPage: true, animations: 'disabled' });
+                throw new Error(`Blocked print monitor overflows at 200%: ${JSON.stringify(failure)}`);
+              }
+              await refresh.focus();
+              if (!(await refresh.evaluate(el => document.activeElement === el))) {
+                throw new Error(`Refresh button not keyboard-focusable: ${width}`);
+              }
+              await page.screenshot({ path: `${output}/owner-${width}-text200.png`, fullPage: true, animations: 'disabled' });
+
+              // Delegated ADMIN may open Security, but must never see/fetch owner print status.
+              const readsBeforeDelegated = blockedReadCount;
+              const delegatedPage = await context.newPage();
+              delegatedPage.on('pageerror', e => errors.push(`delegated pageerror: ${e.message}`));
+              await delegatedPage.goto('http://127.0.0.1:4178/settings-security-cert.html?delegated=1', { waitUntil: 'networkidle' });
+              await delegatedPage.getByRole('button', { name: 'Sécurité & Backup', exact: true }).click();
+              await delegatedPage.getByRole('heading', { name: 'Sécurité & Souveraineté', exact: true }).waitFor();
+              if (await delegatedPage.getByTestId('blocked-print-jobs-read-only').count()
+                  || blockedReadCount !== readsBeforeDelegated) {
+                throw new Error(`Delegated print monitor visible/fetched at width=${width}`);
+              }
+              await delegatedPage.screenshot({ path: `${output}/delegated-${width}-text100.png`, fullPage: true, animations: 'disabled' });
+              await delegatedPage.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+              await assertNoFullPageOverflow(delegatedPage, width, 'delegated-text200');
+              await assertGuidedRestoreReadable(delegatedPage, width, 'delegated-text200');
+              await delegatedPage.screenshot({ path: `${output}/delegated-${width}-text200.png`, fullPage: true, animations: 'disabled' });
+              if (errors.length || unsafePrintRequests.length) {
+                throw new Error([...errors, ...unsafePrintRequests].join('\n'));
+              }
+              proof.push({ width, ownerReads: blockedReadCount, delegatedReads: blockedReadCount - readsBeforeDelegated,
+                ownerUncertainCount: 2, ownerHasOnlyRefresh: true, delegatedHidden: true,
+                panelNoOverflowAtText200: true, guidedRestoreReadableAtText200: true, noPrintMutations: true });
               await context.close();
             }
+            await fs.writeFile(`${output}/integration-evidence.json`, JSON.stringify({
+              productHead: process.env.GITHUB_SHA_SOURCE || 'unknown',
+              captureType: 'INTEGRATED_SETTINGS_UI_SYNTHETIC_API_AND_AUTH',
+              realCabinetAuthentication: false, realWindowsDeviceTested: false,
+              clinicalPrintActivated: false, baselineBeforeAfterCertified: false,
+              proof,
+            }, null, 2));
           } finally {
             await browser.close();
             await server.close();
           }
           EOF
 
-      - name: Capture and assert Security views
+      - name: Capture and assert integrated Security owner/delegated views
         working-directory: frontend
+        env:
+          GITHUB_SHA_SOURCE: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: node settings-security-cert.mjs
 
       - name: Verify proof count
         working-directory: frontend
-        run: test "$(find settings-security-artifacts -name '*.png' | wc -l)" -eq 5
+        run: |
+          test "$(find settings-security-artifacts -name '*.png' | wc -l)" -eq 30
+          test -s settings-security-artifacts/integration-evidence.json
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: settings-security-visual-cert
           path: frontend/settings-security-artifacts/

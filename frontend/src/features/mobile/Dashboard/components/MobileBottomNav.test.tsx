@@ -23,17 +23,33 @@ const SNAPSHOT: Snapshot = {
 afterEach(() => cleanup());
 
 describe('Digital Crown Pocket canonical navigation', () => {
+  it('uses granted finance for secretary and withdraws denied read destinations without moving the five buttons', () => {
+    const setActiveTab = vi.fn();
+    const props = { activeTab: 'today' as const, setActiveTab, totalCount: 3, termineCount: 1, snapshot: { ...SNAPSHOT, role: 'SECRETAIRE' }, quickActionsAvailable: false, quickActionsOpen: false, onToggleQuickActions: vi.fn() };
+    const { rerender } = render(<MobileBottomNav {...props} readAccess={{ agenda: true, patients: true, clinical: false, finance: true }} />);
+    fireEvent.click(screen.getByText('Plus'));
+    fireEvent.click(screen.getByText('Trésorerie'));
+    expect(setActiveTab).toHaveBeenCalledWith('finance');
+    rerender(<MobileBottomNav {...props} snapshot={SNAPSHOT} readAccess={{ agenda: false, patients: false, clinical: false, finance: false }} />);
+    expect(screen.getByRole('button', { name: 'Patients' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Agenda' }).hasAttribute('disabled')).toBe(true);
+    expect(document.querySelectorAll('[data-mobile-nav-item]')).toHaveLength(5);
+    fireEvent.click(screen.getByText('Plus'));
+    for (const label of ['Trésorerie', 'Stock', 'Notifications', 'Salle d’attente', 'Envois Labo']) expect(screen.queryByText(label)).toBeNull();
+    expect(screen.getByText('Sécurité')).toBeTruthy();
+  });
   it('renders the five-entry Pocket navigation and opens Patients directly', () => {
     const setActiveTab = vi.fn();
     const onToggleQuickActions = vi.fn();
 
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={setActiveTab} totalCount={4} termineCount={1} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={onToggleQuickActions} />,
+      <MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} activeTab="today" setActiveTab={setActiveTab} totalCount={4} termineCount={1} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={onToggleQuickActions} />,
     );
 
     expect(screen.getByText('Aujourd’hui')).toBeTruthy();
+    expect(screen.getByText('Agenda')).toBeTruthy();
     expect(screen.getByText('Patients')).toBeTruthy();
-    expect(screen.getByText('Assistant')).toBeTruthy();
+    expect(screen.queryByText('Assistant')).toBeNull();
     expect(screen.getByText('Plus')).toBeTruthy();
     expect(screen.queryByText('Alertes')).toBeNull();
 
@@ -43,14 +59,43 @@ describe('Digital Crown Pocket canonical navigation', () => {
     fireEvent.click(screen.getByText('Patients'));
     expect(setActiveTab).toHaveBeenCalledWith('patients');
 
-    fireEvent.click(screen.getByText('Assistant'));
-    expect(setActiveTab).toHaveBeenCalledWith('bot');
+    fireEvent.click(screen.getByText('Agenda'));
+    expect(setActiveTab).toHaveBeenCalledWith('agenda');
+  });
+
+  it('renders one aligned WhatsApp-inspired glass row and slides the selection between tabs', () => {
+    const props = {
+      setActiveTab: vi.fn(), totalCount: 1, termineCount: 0, snapshot: SNAPSHOT,
+      quickActionsAvailable: true, onToggleQuickActions: vi.fn(),
+    };
+    const { rerender } = render(<MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} {...props} activeTab="today" quickActionsOpen={false} />);
+    const nav = document.querySelector('[data-mobile-bottom-nav]') as HTMLElement;
+    const targets = [...nav.querySelectorAll<HTMLButtonElement>('[data-mobile-nav-item]')];
+    const indicator = nav.querySelector<HTMLElement>('[data-mobile-nav-indicator]');
+
+    expect(nav.hasAttribute('data-pocket-glass-nav')).toBe(true);
+    expect(nav.getAttribute('style')).toContain('var(--card-bg)');
+    expect(targets.map(target => target.dataset.mobileNavItem)).toEqual([
+      'today', 'agenda', 'actions', 'patients', 'more',
+    ]);
+    expect(targets.every(target => target.className.includes('min-h-[54px]'))).toBe(true);
+    expect(targets[2].className).not.toContain('absolute');
+    expect(targets[2].className).not.toContain('-top-2.5');
+    expect(targets[2].textContent).toContain('Actions');
+    expect(indicator?.style.transform).toBe('translate(0%, -50%)');
+
+    rerender(<MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} {...props} activeTab="patients" quickActionsOpen={false} />);
+    expect(indicator?.style.transform).toBe('translate(300%, -50%)');
+
+    rerender(<MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} {...props} activeTab="patients" quickActionsOpen />);
+    expect(indicator?.style.transform).toBe('translate(200%, -50%)');
+    expect(screen.getByRole('button', { name: 'Fermer les actions rapides' })).toBeTruthy();
   });
 
   it('restores merged Pocket V1 secondary destinations for practitioners', () => {
     const setActiveTab = vi.fn();
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={setActiveTab} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+      <MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} activeTab="today" setActiveTab={setActiveTab} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     fireEvent.click(screen.getByText('Plus'));
@@ -64,7 +109,17 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(screen.getByText('Trésorerie')).toBeTruthy();
     expect(screen.getByText('Envois Labo')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
-    expect(screen.getByText('Assistant')).toBeTruthy();
+    expect(screen.getByText('Assistant · En cours de construction')).toBeTruthy();
+
+    // The Safari sheet must be solid, readable and touch-friendly over clinical content.
+    const dialog = screen.getByRole('dialog', { name: 'Plus' });
+    expect(dialog.getAttribute('style')).toContain('var(--card-bg)');
+    expect(dialog.className).toContain('bg-card');
+    const stockItem = screen.getByRole('button', { name: 'Stock' });
+    expect(stockItem.className).toContain('min-h-[54px]');
+    expect(stockItem.querySelector('span.flex-1')?.className).toContain('text-[14px]');
+    const nav = document.querySelector('[data-mobile-bottom-nav]') as HTMLElement;
+    expect(nav.getAttribute('style')).toContain('var(--card-bg)');
 
     fireEvent.click(screen.getByText('Salle d’attente'));
     expect(setActiveTab).toHaveBeenCalledWith('waiting-room');
@@ -73,11 +128,15 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
   it('traps focus inside Plus and restores it to the trigger on Escape', () => {
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+      <MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} activeTab="today" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={SNAPSHOT} quickActionsAvailable quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     const trigger = screen.getByText('Plus').closest('button') as HTMLButtonElement;
+    const nav = document.querySelector('[data-mobile-bottom-nav]') as HTMLElement;
+    expect(nav.hasAttribute('inert')).toBe(false);
     fireEvent.click(trigger);
+    // A modal cannot leave the higher z-index bottom bar pointer/keyboard active.
+    expect(nav.hasAttribute('inert')).toBe(true);
 
     const close = screen.getByRole('button', { name: 'Fermer Plus' });
     expect(document.activeElement).toBe(close);
@@ -95,12 +154,13 @@ describe('Digital Crown Pocket canonical navigation', () => {
     firstItem.focus();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByText('Accès secondaires')).toBeNull();
+    expect(nav.hasAttribute('inert')).toBe(false);
     expect(document.activeElement).toBe(trigger);
   });
 
   it('gives secretary the same bounded Pocket secondary shell', () => {
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={{ ...SNAPSHOT, role: 'SECRETAIRE' }} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+      <MobileBottomNav activeTab="today" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={{ ...SNAPSHOT, role: 'SECRETAIRE' }} readAccess={{ agenda: true, patients: true, clinical: false, finance: false }} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     expect(screen.getByRole('button', { name: 'Ouvrir les actions rapides' }).hasAttribute('disabled')).toBe(true);
@@ -111,7 +171,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(screen.getByText('Sécurité')).toBeTruthy();
     expect(screen.getByText('Stock')).toBeTruthy();
     expect(screen.getByText('Équipe')).toBeTruthy();
-    expect(screen.getByText('Assistant')).toBeTruthy();
+    expect(screen.getByText('Assistant · En cours de construction')).toBeTruthy();
     expect(screen.queryByText('Bibliothèque')).toBeNull();
     expect(screen.queryByText('Approvisionnement')).toBeNull();
     expect(screen.queryByText('Trésorerie')).toBeNull();
@@ -120,7 +180,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
   it('fails closed when role is not loaded yet', () => {
     render(
-      <MobileBottomNav activeTab="agenda" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={null} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
+      <MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} activeTab="today" setActiveTab={() => undefined} totalCount={0} termineCount={0} snapshot={null} quickActionsAvailable={false} quickActionsOpen={false} onToggleQuickActions={() => undefined} />,
     );
 
     fireEvent.click(screen.getByText('Plus'));

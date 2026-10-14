@@ -15,15 +15,15 @@ interface SettingsSectionProps {
 
 export const SettingsSection: React.FC<SettingsSectionProps> = ({ title, subtitle, icon, children, className }) => (
   <div className={cn("space-y-6 animate-in slide-in-from-right-4 duration-500", className)}>
-    <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+    <div className="flex min-w-0 flex-col items-start gap-3 mb-8 pb-6 border-b border-slate-100 sm:flex-row sm:items-center sm:gap-4">
       {icon && (
-        <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
+        <div className="w-16 h-16 shrink-0 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
           {icon}
         </div>
       )}
-      <div>
-        <h3 className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{title}</h3>
-        {subtitle && <p className="text-slate-500 text-sm font-medium mt-1">{subtitle}</p>}
+      <div className="min-w-0 max-w-full">
+        <h3 className="break-words [overflow-wrap:anywhere] text-2xl font-black" style={{ color: 'var(--primary)' }}>{title}</h3>
+        {subtitle && <p className="break-words [overflow-wrap:anywhere] text-slate-500 text-sm font-medium mt-1">{subtitle}</p>}
       </div>
     </div>
     {children}
@@ -60,8 +60,8 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
   <button 
     onClick={onClick} 
     className={cn(
-      "flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 w-auto text-left lg:w-full lg:gap-4 lg:px-6 lg:py-4 lg:rounded-2xl lg:text-base",
-      active ? "text-white shadow-lg lg:scale-[1.02]" : "text-slate-500 hover:bg-slate-50 hover:text-primary"
+      "flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 w-auto text-left 2xl:w-full 2xl:gap-4 2xl:px-6 2xl:py-4 2xl:rounded-2xl 2xl:text-base",
+      active ? "text-white shadow-lg 2xl:scale-[1.02]" : "text-slate-500 hover:bg-slate-50 hover:text-primary"
     )}
     style={{ backgroundColor: active ? 'var(--primary)' : 'transparent', boxShadow: active ? '0 10px 30px -10px var(--primary)' : 'none', color: active ? 'white' : undefined }}
   >

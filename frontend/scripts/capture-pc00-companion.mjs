@@ -146,12 +146,24 @@ async function capture(browserName, browser, phase, scenario, viewport) {
 }
 
 for (const [browserName, browserType] of Object.entries(browserTypes)) {
-  const browser = await browserType.launch({ headless: true });
+  let browser = await browserType.launch({ headless: true });
   try {
     for (const viewport of viewports) {
       for (const scenario of ['welcome', 'home']) {
-        await capture(browserName, browser, 'before', scenario, viewport);
-        await capture(browserName, browser, 'after', scenario, viewport);
+        for (const phase of ['before', 'after']) {
+          try {
+            await capture(browserName, browser, phase, scenario, viewport);
+          } catch (error) {
+            // One bounded retry only for a genuine WebKit browser-internal
+            // navigation crash. A fresh process is required; assertions and
+            // evidence must still pass on the second attempt or CI stays red.
+            if (browserName !== 'webkit' ||
+                !/WebKit encountered an internal error/.test(String(error))) throw error;
+            await browser.close();
+            browser = await browserType.launch({ headless: true });
+            await capture(browserName, browser, phase, scenario, viewport);
+          }
+        }
       }
     }
   } finally {

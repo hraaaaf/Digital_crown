@@ -154,11 +154,10 @@ async function resolveApplication(): Promise<React.ReactNode> {
     return null
   }
 
-  if (previewPath === '/mobile/onboarding') {
-    const { OnboardingScanner } = await import('./features/mobile/Onboarding/OnboardingScanner.tsx')
-    return <BrowserRouter><OnboardingScanner /></BrowserRouter>
-  }
-
+  // The pairing screen must share App's full router with Pocket. Rendering
+  // OnboardingScanner alone in its own BrowserRouter changes the URL after a
+  // successful claim without ever mounting MobileDashboard (real WebKit FUE).
+  // Do not optimize this route into a standalone component without Routes.
   const { default: App } = await import('./App.tsx')
   return <App />
 }

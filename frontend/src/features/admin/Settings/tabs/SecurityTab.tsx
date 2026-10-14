@@ -16,6 +16,7 @@ import { MobileSecurity } from '../../Security/MobileSecurity';
 import { AuditLogViewer } from '../../Security/AuditLogViewer';
 import { api } from '../../../../services/api';
 import toast from 'react-hot-toast';
+import { BlockedPrintJobsReadOnly } from './BlockedPrintJobsReadOnly';
 
 const backupFilename = (contentDisposition?: string): string => {
   const match = contentDisposition?.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
@@ -61,7 +62,8 @@ const apiErrorMessage = (error: unknown, fallback: string): string => {
   return response.response?.data?.detail || fallback;
 };
 
-export const SecurityTab: React.FC = () => {
+export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerified = false }) => {
+  const mayViewBlockedPrints = ownerVerified;
   const [isExporting, setIsExporting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -216,7 +218,7 @@ export const SecurityTab: React.FC = () => {
         subtitle="Contrôlez vos données cliniques et vos accès mobiles."
         icon={<Shield size={32} />}
       >
-        <div className="bg-slate-50 border border-slate-200 rounded-[2.5rem] p-6 sm:p-10 flex flex-col items-center justify-center text-center gap-6">
+        <div className="bg-slate-50 border border-slate-200 rounded-[2.5rem] p-[12px] sm:p-10 flex flex-col items-center justify-center text-center gap-6">
           <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-full flex items-center justify-center shadow-xl text-slate-700 border border-slate-100">
             <Database size={40} />
           </div>
@@ -227,31 +229,31 @@ export const SecurityTab: React.FC = () => {
           <button
             onClick={handleExportDB}
             disabled={isExporting}
-            className="w-full sm:w-auto px-6 sm:px-10 py-4 sm:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black transition-all shadow-2xl shadow-emerald-600/20 flex items-center justify-center gap-3 sm:gap-4 group hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            className="w-full min-w-0 sm:w-auto px-[12px] sm:px-10 py-4 sm:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black transition-all shadow-2xl shadow-emerald-600/20 flex flex-wrap items-center justify-center gap-2 sm:gap-4 group hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed"
           >
             {isExporting ? <Loader2 size={24} className="animate-spin shrink-0" /> : <Download size={24} className="group-hover:translate-y-1 transition-transform shrink-0" />}
             {isExporting ? 'Création et vérification...' : 'Créer et télécharger la sauvegarde'}
           </button>
         </div>
 
-        <div className="mt-8 rounded-[2.25rem] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-5 sm:p-8 shadow-sm">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
-            <div className="flex items-start gap-4 min-w-0">
+        <div className="mt-8 rounded-[2.25rem] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-[12px] sm:p-8 shadow-sm">
+          <div className="flex min-w-0 flex-col items-stretch gap-5">
+            <div className="flex min-w-0 flex-col items-start gap-3 lg:flex-row lg:gap-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                 <RotateCcw size={24} />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-black text-xl text-slate-900">Restauration guidée</h4>
+                  <h4 className="break-words text-xl font-black text-slate-900">Restauration guidée</h4>
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide uppercase bg-amber-100 text-amber-800">Action sensible</span>
                 </div>
-                <p className="text-sm text-slate-600 mt-2 font-medium max-w-2xl">
+                <p data-testid="guided-restore-description" className="mt-2 max-w-2xl break-words text-sm font-medium text-slate-600">
                   Analyse la sauvegarde, prépare un point de secours vérifié, puis exige une confirmation forte avant le redémarrage. La bascule destructive reste hors du processus actif et rollback automatiquement si le smoke check échoue.
                 </p>
               </div>
             </div>
 
-            <div className="w-full lg:w-auto shrink-0">
+            <div className="mt-8 w-full min-w-0 sm:mt-0 sm:w-auto sm:self-end">
               <input
                 ref={restoreInputRef}
                 type="file"
@@ -264,7 +266,8 @@ export const SecurityTab: React.FC = () => {
                 type="button"
                 onClick={() => restoreInputRef.current?.click()}
                 disabled={isAnalyzing || restoreInFlight}
-                className="w-full lg:w-auto px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black flex items-center justify-center gap-3 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                data-testid="guided-restore-action"
+                className="w-full min-w-0 sm:w-auto px-[12px] sm:px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black flex flex-wrap items-center justify-center gap-2 sm:gap-3 break-words text-center transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? <Loader2 size={20} className="animate-spin" /> : <FileSearch size={20} />}
                 {isAnalyzing ? 'Analyse en cours...' : 'Analyser une sauvegarde'}
@@ -397,6 +400,12 @@ export const SecurityTab: React.FC = () => {
             </div>
           )}
         </div>
+
+        {mayViewBlockedPrints && (
+          <div className="min-w-0 border-t border-slate-100 pt-10">
+            <BlockedPrintJobsReadOnly ownerVerified />
+          </div>
+        )}
 
         <div className="pt-10 border-t border-slate-100">
           <MobileSecurity />

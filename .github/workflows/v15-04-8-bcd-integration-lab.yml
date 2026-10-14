@@ -1,0 +1,109 @@
+name: V1.5-04.8 BCD Integration (LAB)
+
+on:
+  pull_request:
+    branches:
+      - feat/v15-04-8-print-policy-bridge-20261012
+      - feat/v15-04-8-integration-bcd-lab-20261013
+    paths:
+      - "backend/services/station_print_printer_draft_lab.py"
+      - "backend/services/station_print_held_claims_lab.py"
+      - "backend/tests/test_station_print_printer_draft_lab.py"
+      - "backend/tests/test_station_print_held_claims_lab.py"
+      - "backend/tests/test_station_print_bcd_integration_v15.py"
+      - "backend/services/station_print_cabinet_preflight_v15.py"
+      - "backend/services/station_print_cabinet_clinical_gate_v15.py"
+      - "backend/routers/station_print_config_admin.py"
+      - "backend/tests/test_station_print_admin_api_v15.py"
+      - "backend/tests/test_station_print_cabinet_preflight_v15.py"
+      - "backend/tests/test_station_print_neo29_migration_v15.py"
+      - "alembic/versions/neo000000029_station_print_staged_registry_ledger.py"
+      - "alembic/env.py"
+      - "backend/core/schema_runtime.py"
+      - "frontend/src/features/hub/StationPrintStatusPanel.tsx"
+      - "frontend/src/features/hub/StationPrintStatusPanel.test.tsx"
+      - ".github/workflows/v15-04-8-bcd-integration-lab.yml"
+      - ".github/workflows/v15-04-8-e-integrated-software-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  joint-sql-lab:
+    name: B/C shared DB and neo29 migration synthetic tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact checkout HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned test dependencies
+        run: python -m pip install pytest==8.3.3 SQLAlchemy==2.0.28 alembic==1.13.3 fastapi==0.110.0 pydantic==2.6.3 httpx==0.27.0
+      - name: Compile staged code and migration
+        run: |
+          python -m py_compile \
+            backend/services/station_print_printer_draft_lab.py \
+            backend/services/station_print_held_claims_lab.py \
+            backend/services/station_print_cabinet_preflight_v15.py \
+            backend/services/station_print_cabinet_clinical_gate_v15.py \
+            backend/routers/station_print_config_admin.py \
+            alembic/versions/neo000000029_station_print_staged_registry_ledger.py \
+            backend/core/schema_runtime.py
+      - name: Execute all B, C, shared-engine and neo29 tests
+        run: |
+          mkdir -p /tmp/dc04-8-bcd-integration
+          cp backend/tests/test_station_print_printer_draft_lab.py /tmp/dc04-8-bcd-integration/test_b.py
+          cp backend/tests/test_station_print_held_claims_lab.py /tmp/dc04-8-bcd-integration/test_c.py
+          cp backend/tests/test_station_print_bcd_integration_v15.py /tmp/dc04-8-bcd-integration/test_joint.py
+          cp backend/tests/test_station_print_cabinet_preflight_v15.py /tmp/dc04-8-bcd-integration/test_preflight.py
+          cp backend/tests/test_station_print_admin_api_v15.py /tmp/dc04-8-bcd-integration/test_admin_api.py
+          cp backend/tests/test_station_print_neo29_migration_v15.py /tmp/dc04-8-bcd-integration/test_neo29.py
+          cp alembic/versions/neo000000029_station_print_staged_registry_ledger.py /tmp/dc04-8-bcd-integration/migration_station_print_neo29.py
+          python - <<'PY'
+          import os, sys, types, pytest
+          for name, path in (("backend", "backend"), ("backend.services", "backend/services")):
+              module = types.ModuleType(name)
+              module.__path__ = [os.path.abspath(path)]
+              sys.modules[name] = module
+          raise SystemExit(pytest.main([
+              "-q",
+              "/tmp/dc04-8-bcd-integration/test_b.py",
+              "/tmp/dc04-8-bcd-integration/test_c.py",
+              "/tmp/dc04-8-bcd-integration/test_joint.py",
+              "/tmp/dc04-8-bcd-integration/test_neo29.py",
+              "/tmp/dc04-8-bcd-integration/test_admin_api.py",
+              "/tmp/dc04-8-bcd-integration/test_preflight.py",
+          ]))
+          PY
+
+  station-ui-unit:
+    name: D React status panel no-dispatch tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact checkout HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run status only UI test
+        working-directory: frontend
+        run: npx vitest run src/features/hub/StationPrintStatusPanel.test.tsx

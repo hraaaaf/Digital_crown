@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const storageMocks = vi.hoisted(() => ({
@@ -33,6 +33,7 @@ beforeEach(() => {
   storageMocks.saveWallet.mockReset();
   storageMocks.load.mockResolvedValue(emptyState);
   vi.stubGlobal('fetch', vi.fn());
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
   window.history.replaceState({}, '', '/companion');
 });
 
@@ -176,10 +177,39 @@ describe('PatientCompanionApp PC-00 local-first', () => {
     render(<PatientCompanionApp />);
 
     expect(await screen.findByText('Aya Wallet')).toBeInTheDocument();
+    expect(screen.getByText(/Dernière synchronisation/)).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navigation patient' }).querySelectorAll('button')).toHaveLength(5);
+    expect(screen.queryByText('Ordonnance')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Agenda' }));
     expect(screen.getByText('Contrôle · 30 min')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Effacer ce téléphone' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Documents' }));
     expect(screen.getByText('Ordonnance')).toBeInTheDocument();
+    expect(screen.queryByText('Contrôle · 30 min')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Aujourd’hui' }));
     expect(screen.getByText(/Dernière synchronisation/)).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('renders separate Pocket Plus panels without duplicate React sibling keys', async () => {
+    const context = {
+      access_id: 'f472717c-d062-4f8b-9a5b-b010e29f2307',
+      relationship_type: 'SELF',
+      patient: { display_name: 'Pocket Test' },
+    };
+    storageMocks.load.mockResolvedValue({
+      version: 1,
+      activeAccessId: context.access_id,
+      pairings: [{ accessToken: 'synthetic-local-token', context, pairedAt: '2026-10-13T19:00:00Z' }],
+      cache: {},
+    });
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<PatientCompanionApp />);
+    expect(await screen.findByText('Pocket Test')).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Navigation patient' })).getByRole('button', { name: 'Plus' }));
+    expect(screen.getByRole('button', { name: 'Effacer ce téléphone' })).toBeInTheDocument();
+    const diagnostic = errors.mock.calls.map(args => args.map(String).join(' ')).join('\\n');
+    expect(diagnostic).not.toMatch(/same key|unique key|non-unique keys/i);
   });
 
 });

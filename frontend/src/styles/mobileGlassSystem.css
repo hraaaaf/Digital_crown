@@ -7,9 +7,8 @@
   --dc-mobile-glass-surface: color-mix(in srgb, var(--glass-bg) 88%, transparent);
   --dc-mobile-glass-border: color-mix(in srgb, var(--glass-border) 82%, var(--primary) 18%);
   --dc-mobile-glass-shadow:
-    0 18px 48px rgba(15, 23, 42, 0.10),
-    0 4px 14px rgba(15, 23, 42, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+    0 8px 24px color-mix(in srgb, var(--text-main) 9%, transparent),
+    0 2px 8px color-mix(in srgb, var(--text-main) 5%, transparent);
 }
 
 :is(
@@ -39,6 +38,69 @@
   -webkit-backdrop-filter: blur(18px) saturate(142%);
   backdrop-filter: blur(18px) saturate(142%);
   box-shadow: var(--dc-mobile-glass-shadow);
+}
+
+/* Pocket's modal navigation must remain solid. The global glass rule above
+   targets every .bg-card with !important and otherwise overrides the
+   menu's inline var(--card-bg) surface (observed alpha ~0.75 in CI).
+   This exception is limited to the paired Pocket navigation dialog:
+   clinical content must never bleed through a decision/action menu. */
+[data-dc-mobile-shell] [data-mobile-more-menu] [role="dialog"] {
+  background-color: var(--card-bg) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Pocket Liquid Glass navigation: only the navigation floats/translucent.
+   Decision dialogs remain fully opaque above clinical content. The moving
+   selection capsule is driven by React's five equal-size nav positions. */
+[data-dc-mobile-shell] [data-mobile-bottom-nav][data-pocket-glass-nav] {
+  background-color: color-mix(in srgb, var(--card-bg) 99%, transparent) !important;
+  box-shadow:
+    0 16px 36px color-mix(in srgb, var(--text-main) 14%, transparent),
+    0 2px 10px color-mix(in srgb, var(--text-main) 7%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--card-bg) 75%, transparent);
+}
+[data-dc-mobile-shell] [data-mobile-bottom-nav][data-pocket-glass-nav]::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(155deg,
+    color-mix(in srgb, var(--card-bg) 28%, transparent),
+    transparent 44%,
+    color-mix(in srgb, var(--accent) 5%, transparent));
+  z-index: 0;
+}
+[data-theme='high-contrast'] [data-mobile-bottom-nav][data-pocket-glass-nav],
+[data-theme='high-contrast'] [data-mobile-bottom-nav][data-pocket-glass-nav]::before {
+  box-shadow: none !important;
+  background-color: var(--card-bg) !important;
+  background-image: none !important;
+  border-color: var(--border-color) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-dc-mobile-shell] [data-mobile-bottom-nav][data-pocket-glass-nav] {
+    background-color: var(--card-bg) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  [data-mobile-bottom-nav][data-pocket-glass-nav]::before {
+    display: none;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-dc-mobile-shell] [data-mobile-bottom-nav][data-pocket-glass-nav] {
+    background-color: var(--card-bg) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-mobile-bottom-nav][data-pocket-glass-nav] [data-mobile-nav-indicator] {
+    transition: none !important;
+  }
 }
 
 /* Explicit glass surfaces are safe to enhance wherever the design system calls them glass. */
@@ -161,6 +223,12 @@
   [data-m4d-context]
 )::before {
   opacity: 0.20;
+}
+
+/* Pocket foreground stays quiet enough for small clinical labels;
+   the shared decorative motif keeps the selected clinic palette. */
+[data-dc-mobile-shell]::before {
+  opacity: 0.12;
 }
 
 [data-theme='high-contrast'] :is(

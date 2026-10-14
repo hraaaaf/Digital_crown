@@ -53,6 +53,7 @@ async function pair(browserType, relationshipType, viewport) {
   await page.locator('[data-pc00-cabinet-link]').click();
   await page.getByText('Cabinet joignable ✓', { exact: true }).waitFor({ timeout: 30000 });
 
+  await page.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Plus', exact: true }).click();
   const panel = page.locator('[data-pc09-patient]');
   await panel.waitFor({ state: 'visible', timeout: 30000 });
   return { browser, context, page, panel, pageErrors, consoleErrors, relationshipType };

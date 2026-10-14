@@ -117,6 +117,42 @@ const installRoutes = async (context, state, unexpected, requests) => {
     : json(route, state.value));
   await context.route('**/api/workstation/registry', route => json(route, []));
   await context.route('**/api/workstation/patient-session/config', route => json(route, { fallbackMode: 'disabled' }));
+  // 04.4: model only an opaque pending QR/NFC session, never an identified
+  // patient or an arrival. Any unmodelled clinical request still fails closed.
+  let documentSessionSequence = 0;
+  const createdSessionIds = new Set();
+  const purgedSessionIds = new Set();
+  await context.route('**/api/workstation/patient-session', route => {
+    if (route.request().method() !== 'POST') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
+    const sessionId = 'fue-documents-session-' + (++documentSessionSequence);
+    createdSessionIds.add(sessionId);
+    requests.push({ action: 'document-session-create', method: 'POST', sessionId });
+    const expiresAt = new Date(Date.now() + 120_000).toISOString();
+    return json(route, {
+      sessionId,
+      handoffUrl: 'https://cabinet.local/companion?stationSession=opaque-fue-lab-' + documentSessionSequence,
+      nfcPayload: 'https://cabinet.local/companion?stationSession=opaque-fue-lab-' + documentSessionSequence,
+      qrDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      expiresAt, fallbackMode: 'disabled',
+    }, 201);
+  });
+  await context.route(new RegExp('/api/workstation/patient-session/fue-documents-session-[0-9]+(/purge)?' + String.fromCharCode(36)), route => {
+    const url = new URL(route.request().url());
+    const sessionId = url.pathname.split('/').at(-1) === 'purge'
+      ? url.pathname.split('/').at(-2) : url.pathname.split('/').at(-1);
+    const isPurge = url.pathname.endsWith('/purge');
+    requests.push({ action: isPurge ? 'document-session-purge' : 'document-session-status',
+      method: route.request().method(), sessionId });
+    if (!createdSessionIds.has(sessionId)) return json(route, { detail: 'UNKNOWN_SESSION' }, 404);
+    if (isPurge) {
+      if (route.request().method() !== 'POST') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
+      purgedSessionIds.add(sessionId);
+      return route.fulfill({ status: 204, body: '' });
+    }
+    if (route.request().method() !== 'GET') return json(route, { detail: 'METHOD_NOT_ALLOWED' }, 405);
+    return json(route, { status: purgedSessionIds.has(sessionId) ? 'expired' : 'pending',
+      sessionId, expiresAt: new Date(Date.now() + 120_000).toISOString() });
+  });
   await context.route('**/api/workstation/mode', route => {
     const data = route.request().postDataJSON();
     requests.push({ action: 'change-mode', mode: data.mode, pinLength: String(data.ownerPin || '').length });
@@ -192,11 +228,37 @@ const run = async (journey, viewport) => {
 
       await page.locator('[data-station-action="documents"]').click();
       await page.locator('[data-station-screen="documents"]').waitFor();
-      record(journey + '/' + viewport.label + '/documents-building',
-        await page.getByText('Cette étape est en cours de construction.').count() > 0);
-      await inspect(page, '03-documents-after-click', journey, viewport, issues);
+      await page.locator('[data-station-patient-session]').waitFor();
+      await page.getByRole('img', { name: 'QR d’identification Patient Companion' }).waitFor();
+      record(journey + '/' + viewport.label + '/documents-qr-nfc-identity',
+        await page.getByText('NFC utilise le même lien sécurisé, sans donnée patient.').count() === 1);
+      record(journey + '/' + viewport.label + '/documents-session-created-once',
+        requests.filter(r => r.action === 'document-session-create' && r.method === 'POST').length >= 1,
+        JSON.stringify(requests));
+      record(journey + '/' + viewport.label + '/documents-no-arrival-ui',
+        await page.locator('[data-station-arrival-bridge], [data-station-staff-notified], [data-station-arrival-confirmed]').count() === 0);
+      await inspect(page, '03-documents-qr-nfc-after-click', journey, viewport, issues);
       await page.getByRole('button', { name: 'Retour à l’accueil' }).click();
       await page.locator('[data-station-screen="home"]').waitFor();
+      // Every distinct session minted by StrictMode must receive its own purge.
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const createdSoFar = requests.filter(r => r.action === 'document-session-create' && r.method === 'POST');
+        const purgedSoFar = requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST');
+        if (createdSoFar.length > 0 && createdSoFar.every(r => purgedSoFar.some(p => p.sessionId === r.sessionId))) break;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      const created = requests.filter(r => r.action === 'document-session-create' && r.method === 'POST');
+      const purged = requests.filter(r => r.action === 'document-session-purge' && r.method === 'POST');
+      record(journey + '/' + viewport.label + '/documents-all-created-ids-purged',
+        created.length >= 1 &&
+        new Set(created.map(r => r.sessionId)).size === created.length &&
+        created.every(r => purged.some(p => p.sessionId === r.sessionId)) &&
+        purged.every(r => created.some(p => p.sessionId === r.sessionId)),
+        JSON.stringify(requests));
+      record(journey + '/' + viewport.label + '/documents-no-clinical-requests',
+        unexpected.every(url => !/\/appointments(?:\/|$)|\/arrive(?:\/|$)|\/staff-assistance(?:\/|$)/i.test(url)),
+        JSON.stringify(unexpected));
       await inspect(page, '04-back-home', journey, viewport, issues);
 
       await page.locator('[data-station-action="help"]').click();

@@ -1,0 +1,200 @@
+name: V1.5-04 Settings Real-Auth Cabinet BEFORE AFTER
+
+on:
+  push:
+    branches:
+      - integration/v15-lot04-pocket-20261013
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-04-settings-real-auth-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-settings:
+    name: Real Cabinet browser login + owner/delegated API + visual BEFORE AFTER
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      SECRET_KEY: settings-v15-04-lab-synthetic-only-key-000001
+      # Same isolated SQLCipher key for the T2 server and the separate seed process.
+      # Dedicated to this disposable CI DB; independent from both JWT secrets.
+      SQLCIPHER_KEY_HEX: "3333333333333333333333333333333333333333333333333333333333333333"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      T2_USER: t2-browser@cabinet.ma
+      PRODUCT_HEAD: ${{ github.sha }}
+      BASE_HEAD: c0d47f4832e6da2211c6f94eb88f0db56fcaebb6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: after
+      - uses: actions/checkout@v4
+        with:
+          ref: c0d47f4832e6da2211c6f94eb88f0db56fcaebb6
+          path: before
+      - name: Verify immutable source identities and isolated environment
+        run: |
+          test "$(git -C after rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test "$(git -C before rev-parse HEAD)" = "$BASE_HEAD"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = "1"
+          test "$ENVIRONMENT" = "test"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: after/frontend/package-lock.json
+      - name: Generate ephemeral test login password
+        shell: bash
+        run: |
+          credential="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$credential"
+          echo "T2_PASSWORD=$credential" >> "$GITHUB_ENV"
+          pin="$(python -c 'import secrets; print(f"{secrets.randbelow(900000) + 100000:06d}")')"
+          echo "::add-mask::$pin"
+          echo "T2_OWNER_PIN=$pin" >> "$GITHUB_ENV"
+      - name: Install actual FastAPI runtime dependencies
+        working-directory: after
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-settings-real-auth.txt
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r /tmp/requirements-settings-real-auth.txt
+      - name: Install real app browsers
+        working-directory: after/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Install immutable BEFORE frontend
+        working-directory: before/frontend
+        run: npm ci
+      - name: Syntax-check unmodified product + new isolated cert harness
+        working-directory: after
+        run: |
+          node --check frontend/scripts/certify-v15-04-settings-real-auth.mjs
+          python -m py_compile backend/scripts/seed_v15_04_settings_lab.py
+      - name: Attest disposable database fingerprint required by startup safety
+        working-directory: after
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint, is_known_cabinet_database
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["ENVIRONMENT"] == "test"
+          assert os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] == "1"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target)
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(target))
+          PY
+      - name: Start disposable true FastAPI runtime
+        working-directory: after
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/settings-real-backend.log 2>&1 &
+          echo $! > /tmp/settings-real-backend.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/settings-real-backend.log
+          exit 1
+      - name: Provision synthetic delegated admin and staged empty audit schema
+        working-directory: after
+        run: python -m backend.scripts.seed_v15_04_settings_lab
+      - name: Start immutable BEFORE real UI
+        working-directory: before/frontend
+        run: |
+          node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 > /tmp/settings-real-before.log 2>&1 &
+          echo $! > /tmp/settings-real-before.pid
+          for i in {1..50}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/settings-real-before.log
+          exit 1
+      - name: Real Cabinet BEFORE user login and role boundaries
+        working-directory: after/frontend
+        env:
+          SETTINGS_REAL_PHASE: before
+        run: node scripts/certify-v15-04-settings-real-auth.mjs
+      - name: Stop BEFORE and free the same Vite port
+        run: |
+          kill "$(cat /tmp/settings-real-before.pid)" || true
+          for i in {1..30}; do
+            if ! curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1; then exit 0; fi
+            sleep 0.3
+          done
+          echo "BEFORE server did not stop"
+          exit 1
+      - name: Start AFTER frontend on same port and real API
+        working-directory: after/frontend
+        run: |
+          node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 > /tmp/settings-real-after.log 2>&1 &
+          echo $! > /tmp/settings-real-after.pid
+          for i in {1..50}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/settings-real-after.log
+          exit 1
+      - name: Real Cabinet AFTER user login, delegated denial and screenshots
+        working-directory: after/frontend
+        env:
+          SETTINGS_REAL_PHASE: after
+        run: node scripts/certify-v15-04-settings-real-auth.mjs
+      - name: Assert paired exact-viewports and no synthetic auth shortcuts
+        working-directory: after
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          expected = {(who, w) for who in ('owner', 'delegated') for w in (390, 768, 1280)}
+          results = {}
+          for phase in ('before', 'after'):
+              p = Path(f'artifacts/v15-04-settings-real-auth/{phase}/evidence.json')
+              proof = json.loads(p.read_text())
+              assert proof['complete'] and not proof['failures'], phase
+              assert proof['productHead'] == os.environ['PRODUCT_HEAD']
+              assert proof['baseHead'] == os.environ['BASE_HEAD']
+              assert proof['backendHead'] == os.environ['PRODUCT_HEAD']
+              assert proof['actualFrontendHead'] == os.environ['BASE_HEAD' if phase == 'before' else 'PRODUCT_HEAD']
+              assert proof['realCabinetAuthentication'] and not proof['syntheticApiAuth']
+              samples = proof['samples']
+              assert {(s['role'], s['viewport']['width']) for s in samples} == expected
+              for s in samples:
+                  assert s['complete'] and s['checks']['realBrowserLogin']
+                  assert s['checks']['realWorkstationCookie'] and s['checks']['realSettingsNavigation']
+                  assert s['checks']['realCabinetMode']
+                  assert s['checks']['roleBoundary']
+                  assert len(s['shots']) == (4 if phase == 'after' and s['role'] == 'owner' else 2)
+                  for name in s['shots']:
+                      assert (p.parent / name).is_file()
+                  assert s['checks']['realBackendOwnerBoundaryStatus'] == (200 if s['role'] == 'owner' else 403)
+              results[phase] = samples
+          print('REAL_AUTH_SETTINGS_BEFORE_AFTER_12_SESSIONS_PASS viewport=390,768,1280 text=100,200; real UI login; owner 200/delegated 403')
+          PY
+      - name: Diagnostics on failure (never print credentials)
+        if: failure()
+        run: |
+          for f in /tmp/settings-real-backend.log /tmp/settings-real-before.log /tmp/settings-real-after.log; do
+            test -f "$f" && tail -70 "$f" || true
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-04-settings-real-auth-before-after-${{ github.sha }}
+          path: after/artifacts/v15-04-settings-real-auth/
+          if-no-files-found: warn
+          retention-days: 21

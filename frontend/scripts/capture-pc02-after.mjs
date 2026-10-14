@@ -133,11 +133,14 @@ async function capture(browserName, browser, phase, viewport) {
   await page.goto(`${base}/companion`, { waitUntil: 'domcontentloaded' });
   await pair(page);
 
-  if (true) {
-    await page.locator('[data-pc01-sync]').click();
-    await page.getByText('Contrôle orthodontique · 30 min', { exact: true }).waitFor();
-    await page.getByText('Ordonnance septembre', { exact: true }).waitFor();
-  }
+  // Pocket PWA 2.0 mounts Agenda and Documents only on their explicit destinations.
+  const pocketNav = page.getByRole('navigation', { name: 'Navigation patient' });
+  await page.locator('[data-pc01-sync]').click();
+  await pocketNav.getByRole('button', { name: 'Agenda', exact: true }).click();
+  await page.getByText('Contrôle orthodontique · 30 min', { exact: true }).waitFor();
+  await pocketNav.getByRole('button', { name: 'Documents', exact: true }).click();
+  await page.getByText('Ordonnance septembre', { exact: true }).waitFor();
+  await pocketNav.getByRole('button', { name: 'Agenda', exact: true }).click();
 
   await page.locator('[data-pc02-agenda]').waitFor();
   await page.locator('[data-pc02-book]').click();

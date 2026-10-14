@@ -4,7 +4,8 @@ import { MobileHeader } from './components/MobileHeader';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { MobileQuickActionHub } from './components/MobileQuickActionHub';
 import './components/mobileQuickActionHub.css';
-import { AgendaView } from './views/AgendaView';
+import { PocketAgendaDay } from './views/PocketAgendaDay';
+import { PocketTodayOverview } from './components/PocketTodayOverview';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { FinanceView } from './views/FinanceView';
 import { LabView } from './views/LabView';
@@ -19,14 +20,7 @@ import { MobilePreviewSecurityView } from './MobilePreviewSecurityView';
 import { applyMobileRuntimeTheme } from './hooks/useMobileRuntimeTheme';
 import { LabJobStatus, type LabJob } from '../../../types/labJob';
 import type { MarketplacePreviewData } from '../../partnerMarketplace/usePartnerMarketplace';
-import type { Appointment, Snapshot, Tab } from './types';
-
-const DEMO_PATIENTS = [
-  { id: 101, name: 'Patient 01', phone: '+212600000001' },
-  { id: 102, name: 'Patient 02', phone: '+212600000002' },
-  { id: 103, name: 'Patient 03', phone: null },
-  { id: 104, name: 'Patient 04', phone: null },
-];
+import type { Snapshot, Tab } from './types';
 
 const DEMO_QUICK_CAPABILITIES = {
   can_create_appointment: true,
@@ -106,7 +100,7 @@ const noop = () => undefined;
 
 function requestedPreviewTab(): Tab {
   const tab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
-  return tab && ['agenda', 'waiting-room', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace'].includes(tab) ? tab : 'agenda';
+  return tab && ['today', 'agenda', 'waiting-room', 'patients', 'finance', 'lab', 'bot', 'securite', 'dentists', 'frontdesk', 'notifications', 'stock', 'library', 'marketplace'].includes(tab) ? tab : 'today';
 }
 
 function requestedQuickOpen(): boolean { return new URLSearchParams(window.location.search).get('quick') === '1'; }
@@ -120,7 +114,12 @@ export function MobilePreviewDashboard() {
   const totalCount = snapshot.appointments.length;
   const termineCount = snapshot.appointments.filter(appointment => appointment.status === 'TERMINE').length;
 
-  useEffect(() => { applyMobileRuntimeTheme({ selected_theme: 'elite', primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa', app_accent_color: null, font_fr: 'inter' }); }, []);
+  useEffect(() => {
+    // Demo-only switch for visual/theme certification; no cabinet palette is baked in.
+    const requested = new URLSearchParams(window.location.search).get('theme') || 'elite';
+    const supported = ['elite', 'emerald', 'rose', 'prestige', 'ocean', 'graphite', 'dark', 'high-contrast'];
+    applyMobileRuntimeTheme({ selected_theme: supported.includes(requested) ? requested : 'elite', font_fr: 'inter' });
+  }, []);
   useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [activeTab]);
   const selectNavTab = (tab: Tab) => { setQuickActionsOpen(false); setActiveTab(tab); };
 
@@ -129,16 +128,17 @@ export function MobilePreviewDashboard() {
       <div className="document-watermark absolute inset-0 z-0 pointer-events-none opacity-50" />
       <MobileHeader activeTab={activeTab} syncStatus="error" snapshot={snapshot} selectedDate={selectedDate} setSelectedDate={setSelectedDate} fetchSnapshot={noop} totalCount={totalCount} termineCount={termineCount} queuedActionsCount={0} onOpenPatients={() => selectNavTab('patients')} previewMode />
       <div className="mx-6 mb-4 px-4 py-3 rounded-[18px] border border-primary/15 bg-primary/5 relative z-10 shadow-sm"><p className="text-[9px] font-black text-primary uppercase tracking-[0.16em]">MODE DÉMO — DONNÉES FICTIVES</p><p className="mt-1 text-[10px] font-bold text-text-muted">Aucune donnée cabinet • aucune session réelle</p></div>
-      <main ref={mainRef} className="flex-1 px-6 overflow-x-hidden overflow-y-auto">
+      <main ref={mainRef} className="min-w-0 flex-1 px-4 sm:px-6 overflow-x-hidden overflow-y-auto pb-[calc(108px+env(safe-area-inset-bottom))]">
         <AnimatePresence mode="wait"><motion.div key={activeTab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="h-full">
-          {activeTab === 'agenda' && <div className="pointer-events-none" aria-label="Agenda de démonstration en lecture seule"><AgendaView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} setSelectedDate={setSelectedDate} patients={DEMO_PATIENTS} onStatusChange={noop} onRescheduleAppt={noop} openApptWhatsApp={noop as (appointment: Appointment) => void} handleDeleteAppt={noop} handleOpenSignature={noop} onRefresh={noop} onPatientCreated={noop} /></div>}
+          {activeTab === 'today' && <PocketTodayOverview snapshot={snapshot} selectedDate={selectedDate} onOpenPatient={noop} onOpenWaitingRoom={() => selectNavTab('waiting-room')} onOpenFrontdesk={() => selectNavTab('frontdesk')} onOpenAlerts={() => selectNavTab('notifications')} />}
+          {activeTab === 'agenda' && <PocketAgendaDay snapshot={snapshot} selectedDate={selectedDate} isOnline onOpenPatient={noop} />}
           {activeTab === 'waiting-room' && <WaitingRoomView snapshot={snapshot} onStatusChange={noop} />}
-          {activeTab === 'patients' && <MobilePatientsView onClose={() => selectNavTab('agenda')} previewData={DEMO_PATIENT_COCKPIT} />}
-          {activeTab === 'finance' && <FinanceView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} openWhatsApp={noop} handleExportPDF={noop} />}
-          {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} />}
+          {activeTab === 'patients' && <MobilePatientsView onClose={() => selectNavTab('today')} previewData={DEMO_PATIENT_COCKPIT} />}
+          {activeTab === 'finance' && <FinanceView snapshot={snapshot} syncStatus="success" selectedDate={selectedDate} openWhatsApp={noop} handleExportPDF={noop} pocketSummaryOnly />}
+          {activeTab === 'lab' && <LabView labJobs={DEMO_LAB_JOBS} handleWhatsAppSend={noop} isOnline />}
           {activeTab === 'frontdesk' && <FrontdeskView previewData={DEMO_FRONTDESK} />}
           {activeTab === 'notifications' && <NotificationsView onNavigate={selectNavTab} previewData={DEMO_NOTIFICATIONS} />}
-          {activeTab === 'stock' && <StockView previewData={DEMO_STOCK} />}
+          {activeTab === 'stock' && <StockView previewData={DEMO_STOCK} quickMode />}
           {activeTab === 'library' && <LibraryView role="DENTISTE" />}
           {activeTab === 'marketplace' && <MarketplaceView previewData={DEMO_MARKETPLACE} />}
           {activeTab === 'bot' && <MobilePreviewBotView />}
@@ -146,7 +146,7 @@ export function MobilePreviewDashboard() {
         </motion.div></AnimatePresence>
       </main>
       <MobileQuickActionHub capabilities={DEMO_QUICK_CAPABILITIES} isOnline open={quickActionsOpen} onOpenChange={setQuickActionsOpen} hideLauncher onNewAppointment={noop} onNewPatient={noop} onPatientAction={() => undefined} />
-      <MobileBottomNav activeTab={activeTab} setActiveTab={selectNavTab} totalCount={totalCount} termineCount={termineCount} snapshot={snapshot} quickActionsAvailable quickActionsOpen={quickActionsOpen} onToggleQuickActions={() => setQuickActionsOpen(value => !value)} />
+      <MobileBottomNav readAccess={{ agenda: true, patients: true, clinical: true, finance: true }} activeTab={activeTab} setActiveTab={selectNavTab} totalCount={totalCount} termineCount={termineCount} snapshot={snapshot} quickActionsAvailable quickActionsOpen={quickActionsOpen} onToggleQuickActions={() => setQuickActionsOpen(value => !value)} />
     </div>
   );
 }

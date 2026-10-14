@@ -93,6 +93,7 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
       await page.getByText('Appairer avec le code', { exact: true }).click();
       await page.getByText('Aya Audit', { exact: true }).waitFor();
       await page.locator('[data-pc01-sync]').click();
+      await page.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Plus', exact: true }).click();
       await page.locator('[data-pc05-notifications]').waitFor();
       await page.getByText('Signature en attente', { exact: true }).waitFor();
       await page.getByText('Rendez-vous à venir', { exact: true }).waitFor();

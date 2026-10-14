@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Camera, CheckCircle2, KeyRound, Loader2, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
+import { CalendarDays, Camera, CheckCircle2, FileText, Home, KeyRound, Loader2, MessageSquareText, MoreHorizontal, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { API_BASE } from '../../services/api';
 import {
   PatientCompanionStorage,
@@ -20,8 +20,18 @@ import { PatientCompanionMessages } from './PatientCompanionMessages';
 import { PatientCompanionEmergencyPhoto } from './PatientCompanionEmergencyPhoto';
 import { PatientCompanionFinance } from './PatientCompanionFinance';
 import { PatientCompanionTeleconsultation } from './PatientCompanionTeleconsultation';
+import { PatientPocketHeader } from './PatientPocketHeader';
+import { PatientCompanionStationDocuments } from './PatientCompanionStationDocuments';
 
 type Phase = 'loading' | 'welcome' | 'scanning' | 'pairing' | 'home' | 'error';
+type PatientTab = 'today' | 'agenda' | 'documents' | 'messages' | 'plus';
+const PATIENT_TABS = [
+  { id: 'today', label: 'Aujourd’hui', icon: Home },
+  { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+  { id: 'documents', label: 'Documents', icon: FileText },
+  { id: 'messages', label: 'Messages', icon: MessageSquareText },
+  { id: 'plus', label: 'Plus', icon: MoreHorizontal },
+] as const;
 
 const emptyVault: PatientCompanionVaultState = {
   version: 1,
@@ -42,6 +52,7 @@ const relationshipLabel = (value: string) => RELATIONSHIP_LABELS[value] || value
 export const PatientCompanionApp = () => {
   const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
+  const [activeTab, setActiveTab] = useState<PatientTab>('today');
   const [vault, setVault] = useState<PatientCompanionVaultState>(emptyVault);
   const [manualCode, setManualCode] = useState('');
   const [error, setError] = useState('');
@@ -61,6 +72,7 @@ export const PatientCompanionApp = () => {
   const [agendaLoading, setAgendaLoading] = useState(false);
   const [stationHandoffToken, setStationHandoffToken] = useState<string | null>(null);
   const [stationHandoffMessage, setStationHandoffMessage] = useState('');
+  const [stationDocumentSession, setStationDocumentSession] = useState<{ sessionId: string; accessId: string } | null>(null);
 
   const activePairing = useMemo(
     () => vault.pairings.find(item => item.context.access_id === vault.activeAccessId) || null,
@@ -71,6 +83,9 @@ export const PatientCompanionApp = () => {
     () => (vault.activeAccessId ? vault.cache[vault.activeAccessId] as PatientWalletSnapshot | undefined : undefined),
     [vault],
   );
+  const nextAppointment = activeWallet?.appointments
+    .filter(item => new Date(item.datetime_start).getTime() >= Date.now())
+    .sort((a, b) => new Date(a.datetime_start).getTime() - new Date(b.datetime_start).getTime())[0];
 
   const sessionExpired = useMemo(
     () => Boolean(activePairing?.expiresAt && new Date(activePairing.expiresAt).getTime() <= Date.now()),
@@ -293,6 +308,7 @@ export const PatientCompanionApp = () => {
   }
 
   async function claimStationSession(token: string, pairing: PatientPairing) {
+    setStationDocumentSession(null);
     setStationHandoffMessage('');
     try {
       const response = await fetch(`${API_BASE}/api/workstation/patient-session/claim`, {
@@ -309,7 +325,14 @@ export const PatientCompanionApp = () => {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || 'Session borne invalide ou expirée.');
       setStationHandoffToken(null);
-      setStationHandoffMessage('Identité confirmée sur la station. Vous pouvez revenir à la borne.');
+      if (typeof payload.sessionId === 'string' && payload.sessionId.trim()) {
+        setStationDocumentSession({ sessionId: payload.sessionId, accessId: pairing.context.access_id });
+        setActiveTab('documents');
+        setStationHandoffMessage('Identité confirmée sur la station. Vos documents autorisés pour ce retrait sont disponibles dans l’onglet Documents.');
+      } else {
+        setStationDocumentSession(null);
+        setStationHandoffMessage('Identité confirmée sur la station. Vous pouvez revenir à la borne.');
+      }
       return true;
     } catch (err) {
       setStationHandoffMessage(err instanceof Error ? err.message : 'Session borne invalide ou expirée.');
@@ -458,6 +481,11 @@ export const PatientCompanionApp = () => {
   };
 
   const selectContext = async (accessId: string) => {
+    setStationDocumentSession(null);
+    setActiveTab('today');
+    setAgendaOpen(false);
+    setCancelAppointmentRef(null);
+    setAgendaMessage('');
     try {
       const next = await PatientCompanionStorage.setActive(accessId);
       setVault(next);
@@ -618,6 +646,9 @@ export const PatientCompanionApp = () => {
   };
 
   const clearDevice = async () => {
+    setStationDocumentSession(null);
+    setStationHandoffToken(null);
+    setStationHandoffMessage('');
     await PatientCompanionStorage.clear();
     setVault(emptyVault);
     setSelectingContext(false);
@@ -626,16 +657,15 @@ export const PatientCompanionApp = () => {
   };
 
   return (
-    <main data-pc00-shell className="min-h-[100dvh] bg-background text-text-main font-outfit px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto max-w-md">
-        <header className="pt-5 pb-6">
-          <div className="flex items-center gap-2 text-primary">
-            <ShieldCheck size={19} />
-            <span className="text-[10px] font-black uppercase tracking-[0.18em]">Digital Crown</span>
-          </div>
-          <h1 className="mt-2 text-3xl font-black tracking-tight">Patient Companion</h1>
-          <p className="mt-2 text-sm font-bold text-text-muted">Vos informations restent dans votre cabinet et sur cet appareil.</p>
-        </header>
+    <main data-pc00-shell data-dc-mobile-shell className="relative min-h-[100dvh] bg-background px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] text-text-main sm:px-6" style={{ backgroundColor: 'var(--bg-medical-pearl)', fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)' }}>
+      <div className="document-watermark pointer-events-none absolute inset-0 z-0 opacity-50" />
+      <div className="relative z-10 mx-auto max-w-[720px]">
+        <PatientPocketHeader
+          title={phase !== 'home' || selectingContext ? 'Patient Companion' : activeTab === 'today' ? undefined : PATIENT_TABS.find(item => item.id === activeTab)?.label}
+          subtitle={phase === 'home' && activePairing && !selectingContext ? `Mon espace patient · ${activePairing.context.patient.display_name || activePairing.context.patient.prenom || 'Mon dossier'}` : 'Votre cabinet, vos rendez-vous et vos échanges.'}
+          busy={syncState === 'syncing'} paired={phase === 'home' && Boolean(activePairing) && !selectingContext}
+          onSync={() => void syncWallet()} onMore={() => setActiveTab('plus')}
+        />
 
         {phase === 'loading' && <Card title="Ouverture du coffre" icon={<Loader2 className="animate-spin" size={20} />}><p className="text-sm font-bold text-text-muted">Lecture locale sécurisée…</p></Card>}
 
@@ -682,15 +712,20 @@ export const PatientCompanionApp = () => {
 
         {phase === 'home' && activePairing && !selectingContext && (
           <>
+            {activeTab !== 'today' && <p className="mb-4 text-sm font-bold text-text-muted">Dossier : {activePairing.context.patient.display_name || activePairing.context.patient.prenom || 'Patient'}</p>}
             {stationHandoffMessage && (
               <div data-station-handoff-status role="status" className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-black text-primary">
                 {stationHandoffMessage}
               </div>
             )}
-            <Card title="Mon espace" icon={<CheckCircle2 size={20} />}>
-              <p className="text-xl font-black">{activePairing.context.patient.display_name || `${activePairing.context.patient.prenom || ''} ${activePairing.context.patient.nom || ''}`.trim()}</p>
+            {activeTab === 'today' && <Card title="Mon espace" icon={<CheckCircle2 size={20} />}>
+              <p className="text-[11px] font-bold uppercase tracking-[0.11em] text-primary">Digital Crown Pocket · patient</p>
+              <p className="mt-1 text-[24px] font-bold tracking-tight">{activePairing.context.patient.display_name || `${activePairing.context.patient.prenom || ''} ${activePairing.context.patient.nom || ''}`.trim()}</p>
               <p className="mt-1 text-xs font-bold text-text-muted">{relationshipLabel(activePairing.context.relationship_type)}</p>
-              <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[11px] font-black text-emerald-800">Coffre local actif · utilisable même si le cabinet est momentanément hors ligne</div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {[{label:'RDV',value:activeWallet?.appointments.length || 0,icon:CalendarDays},{label:'Partages',value:activeWallet?.shares.length || 0,icon:FileText},{label:'Messages',value:activeWallet?.secureMessages?.length || 0,icon:MessageSquareText}].map(({label,value,icon:Icon}) => <div key={label} className="rounded-[17px] border border-border-main bg-background px-3 py-3"><Icon size={14} className="text-primary" aria-hidden="true" /><p className="mt-2 text-[20px] font-bold">{value}</p><p className="text-[11px] font-bold uppercase tracking-wide text-text-muted">{label}</p></div>)}
+              </div>
+              <div className="mt-3 rounded-[16px] border border-success-border bg-success-surface px-3 py-2.5 text-[11px] font-semibold text-success">Coffre local actif · utilisable même si le cabinet est momentanément hors ligne</div>
               <button data-pc00-cabinet-link onClick={() => void checkCabinet()} className="mt-3 min-h-[48px] w-full rounded-2xl border border-border-main bg-background px-3 text-xs font-black">
                 {cabinetReachability === 'checking' ? 'Vérification du cabinet…' : cabinetReachability === 'online' ? 'Cabinet joignable ✓' : cabinetReachability === 'offline' ? 'Cabinet hors ligne · coffre local disponible' : 'Vérifier la connexion au cabinet'}
               </button>
@@ -700,7 +735,16 @@ export const PatientCompanionApp = () => {
               {activeWallet?.syncedAt && <p className="mt-2 text-[10px] font-bold text-text-muted">Dernière synchronisation : {new Date(activeWallet.syncedAt).toLocaleString()}</p>}
               {syncState === 'offline' && <p className="mt-2 text-[11px] font-black text-amber-700">Cabinet non joignable · dernière copie locale conservée.</p>}
               {(syncState === 'expired' || sessionExpired) && <p className="mt-2 text-[11px] font-black text-rose-700">Connexion au cabinet expirée · votre copie locale reste disponible. Un nouvel appairage sera nécessaire pour synchroniser.</p>}
-            </Card>
+            </Card>}
+            {activeTab === 'today' && <section className="mt-3.5 rounded-[24px] border border-primary/15 bg-card p-4 shadow-sm" aria-label="Votre suivi">
+              <p className="text-[11px] font-bold uppercase tracking-[0.11em] text-primary">Prochain rendez-vous</p>
+              <h2 className="mt-1 text-[18px] font-bold">Votre suivi au cabinet</h2>
+              <p className="mt-2 text-sm font-bold">{nextAppointment ? new Date(nextAppointment.datetime_start).toLocaleString('fr-FR', {weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}) : 'Aucun rendez-vous à venir synchronisé.'}</p>
+              {nextAppointment && <p className="mt-1 text-xs text-text-muted">{nextAppointment.motif}</p>}
+              <button onClick={() => setActiveTab('agenda')} className="mt-3 min-h-[48px] w-full rounded-2xl border border-primary/20 text-sm font-bold text-primary">Voir mon agenda</button>
+              <p className="mt-3 text-xs text-text-muted">{activeWallet?.shares.length || 0} document(s) et média(s) partagés dans votre coffre.</p>
+            </section>}
+            {activeTab === 'plus' && <div key={`plus-care-${activePairing.context.access_id}`}>
             <PatientCompanionEmergencyPhoto
               pairing={activePairing}
               enabled={Boolean(activePairing.remoteTransport) && !sessionExpired}
@@ -709,6 +753,8 @@ export const PatientCompanionApp = () => {
               <PatientCompanionFinance pairing={activePairing} enabled={cabinetReachability !== 'offline' && (cabinetReachability === 'online' || syncState === 'synced')} />
             </div>
             <PatientCompanionQuestionnaires pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
+            </div>}
+            {activeTab === 'agenda' && <>
             <section data-pc02-agenda className="mt-4 rounded-[1.5rem] border border-border-main bg-card-bg p-4" aria-label="Mes rendez-vous">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -800,11 +846,29 @@ export const PatientCompanionApp = () => {
                 </div>
               ) : null}
             </section>
+            </>}
+            {activeTab === 'plus' && <div key={`plus-preferences-${activePairing.context.access_id}`}>
             <PatientCompanionNotifications pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <PatientCompanionTeleconsultation pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
-            <PatientCompanionMessages pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
             <PatientCompanionConsentVault pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />
+            </div>}
+            {activeTab === 'messages' && <PatientCompanionMessages key={activePairing.context.access_id} pairing={activePairing} enabled={cabinetReachability === 'online' || syncState === 'synced'} />}
+            {activeTab === 'documents' &&
             <section className="mt-3 grid gap-3" aria-label="Portefeuille Patient Companion">
+              {stationDocumentSession?.accessId === activePairing.context.access_id && !sessionExpired && (
+                <PatientCompanionStationDocuments
+                  sessionId={stationDocumentSession.sessionId}
+                  pairing={activePairing}
+                  onClose={(serverRevoked) => {
+                    setStationDocumentSession(null);
+                    setStationHandoffMessage(
+                      serverRevoked
+                        ? 'Session de retrait révoquée. Vous pouvez fermer Patient Companion.'
+                        : 'L’écran de retrait est fermé. Connexion indisponible : la session serveur expirera automatiquement.',
+                    );
+                  }}
+                />
+              )}
               <WalletSection title="Mes documents & médias" empty="Aucun document ou média partagé.">
                 {activeWallet?.shares.map(item => (
                   <div key={item.share_id} className="rounded-2xl border border-border-main bg-card-bg p-4">
@@ -813,12 +877,20 @@ export const PatientCompanionApp = () => {
                   </div>
                 ))}
               </WalletSection>
-            </section>
+            </section>}
+            {activeTab === 'plus' && <>
             {vault.pairings.length > 1 && <button onClick={() => setSelectingContext(true)} className="mt-4 min-h-[48px] w-full rounded-2xl border border-primary/20 bg-primary/5 text-primary text-xs font-black">Changer de dossier</button>}
             <div className="mt-3 grid grid-cols-2 gap-3">
               <button onClick={() => setPhase('welcome')} className="min-h-[48px] rounded-2xl border border-border-main text-xs font-black">Ajouter un dossier</button>
               <button onClick={() => void clearDevice()} className="min-h-[48px] rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black inline-flex items-center justify-center gap-2"><Trash2 size={15} /> Effacer ce téléphone</button>
             </div>
+            </>}
+            <nav aria-label="Navigation patient" data-mobile-bottom-nav data-pocket-glass-nav className="fixed left-3 right-3 z-[65] mx-auto h-[76px] max-w-[720px] overflow-hidden rounded-[30px] border shadow-elite isolate" style={{ backgroundColor:'var(--card-bg)',borderColor:'color-mix(in srgb, var(--primary) 14%, var(--glass-border) 86%)',WebkitBackdropFilter:'blur(24px) saturate(165%)',backdropFilter:'blur(24px) saturate(165%)',bottom:'max(12px, env(safe-area-inset-bottom))' }}>
+              <div className="relative grid h-full grid-cols-5 items-center px-1.5">
+                <span aria-hidden="true" className="pointer-events-none absolute z-0 h-[56px] rounded-[24px] border transition-transform duration-300 motion-reduce:transition-none" style={{left:'6px',top:'50%',width:'calc((100% - 12px) / 5)',transform:`translate(${PATIENT_TABS.findIndex(item => item.id === activeTab) * 100}%, -50%)`,backgroundColor:'color-mix(in srgb, var(--primary) 11%, transparent)',borderColor:'color-mix(in srgb, var(--primary) 14%, transparent)'}} />
+                {PATIENT_TABS.map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-current={activeTab === id ? 'page' : undefined} onClick={() => { setActiveTab(id); window.scrollTo({ top: 0 }); }} className={`relative z-10 flex min-h-[54px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[23px] text-[11px] font-semibold transition-[color,transform] duration-200 active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none ${activeTab === id ? 'text-primary' : 'text-text-muted'}`}><span className="grid h-8 w-11 place-items-center"><Icon size={21} strokeWidth={activeTab === id ? 2.35 : 1.9} aria-hidden="true" /></span><span className="max-w-full truncate">{label}</span></button>)}
+              </div>
+            </nav>
           </>
         )}
       </div>
@@ -827,9 +899,9 @@ export const PatientCompanionApp = () => {
 };
 
 const Card = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
-  <section className="rounded-[1.75rem] border border-border-main bg-card-bg p-5 shadow-elite">
-    <div className="flex items-center gap-2 text-primary">{icon}<h2 className="font-black text-text-main">{title}</h2></div>
-    <div className="mt-4">{children}</div>
+  <section className="rounded-[24px] border border-border-main bg-card p-4 shadow-sm">
+    <div className="flex items-center gap-2 text-primary">{icon}<h2 className="font-bold text-text-main">{title}</h2></div>
+    <div className="mt-3">{children}</div>
   </section>
 );
 
@@ -842,3 +914,4 @@ const WalletSection = ({ title, empty, children }: { title: string; empty: strin
     </section>
   );
 };
+

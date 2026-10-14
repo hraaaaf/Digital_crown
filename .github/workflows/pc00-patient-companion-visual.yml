@@ -97,7 +97,23 @@ jobs:
                           assert (browser,phase,scenario,width,height) in keys
           after=[x for x in items if x["phase"]=="after"]
           assert all(not x["horizontalOverflow"] for x in after)
-          assert all("Patient Companion" in x["text"] for x in after)
+          # Welcome renders Companion and each paired home renders the explicit uppercase
+          # identity 'DIGITAL CROWN POCKET · PATIENT' plus the patient-space title.
+          # Report only non-sensitive booleans for each viewport: do not print the
+          # complete patient-screen text or any pairing material in CI logs.
+          for item in after:
+              expected = (
+                  ("Patient Companion" in item["text"]) if item["scenario"] == "welcome"
+                  else ("DIGITAL CROWN POCKET · PATIENT" in item["text"] and "Mon espace patient" in item["text"])
+              )
+              assert expected, {
+                  "browser": item["browser"],
+                  "scenario": item["scenario"],
+                  "viewport": item["viewport"],
+                  "welcomeTitleVisible": "Patient Companion" in item["text"],
+                  "patientIdentityVisible": "DIGITAL CROWN POCKET · PATIENT" in item["text"],
+                  "patientSpaceVisible": "Mon espace patient" in item["text"],
+              }
           homes=[x for x in after if x["scenario"]=="home"]
           assert len(homes) == 4
           for item in homes:
@@ -125,6 +141,7 @@ jobs:
           cp /tmp/pc00-after-vite.log artifacts/pc00-patient-companion/after/vite.log
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: pc00-patient-companion-before-after
           path: artifacts/pc00-patient-companion

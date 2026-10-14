@@ -48,7 +48,9 @@ describe('Mobile M6.2 offline truth', () => {
     const mobileApi = read('src/services/zka/mobileApi.ts');
     expect(hook).toContain('handleWhatsAppSend');
     expect(hook).toContain("mobileApiJson<LabJob[]>('/lab-jobs')");
-    expect(hook).toContain("mobileApiJson<LabJob>(`/lab-jobs/${job.id}`");
+    expect(hook).toContain('navigator.clipboard.writeText(formatLabJobMessage(job))');
+    expect(hook).not.toContain('LabJobStatus.SENT');
+    expect(hook).not.toContain('whatsapp://send?text=');
     expect(hook).not.toContain('patchLabJobStatus');
     expect(hook).not.toContain('labJobService');
     expect(mobileApi).toContain('/api/mobile');

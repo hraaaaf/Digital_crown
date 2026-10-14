@@ -75,15 +75,67 @@ describe('Mobile M6.2 behavior', () => {
   it('purges the queue when the paired device changes', async () => {
     await MobileStorage.saveCredentials(credentials());
     await MobileStorage.enqueueAction(
-      'http://127.0.0.1:8005/api/mobile/appointments/7',
-      'DELETE',
-      undefined,
-      'action-delete',
+      'http://127.0.0.1:8005/api/mobile/appointments/7/status',
+      'PATCH',
+      { status: 'EN_ATTENTE' },
+      'action-status',
     );
     expect(await MobileStorage.getActionQueue()).toHaveLength(1);
 
     await MobileStorage.saveCredentials(credentials({ device_id: 'device-b' }));
     expect(await MobileStorage.getActionQueue()).toEqual([]);
+  });
+
+  it('refuses destructive queued actions and never persists a deferred appointment deletion', async () => {
+    await MobileStorage.saveCredentials(credentials());
+    await expect(MobileStorage.enqueueAction(
+      'http://127.0.0.1:8005/api/mobile/appointments/7',
+      'DELETE',
+      undefined,
+      'unsafe-delete',
+    )).rejects.toThrow('ne peut pas être mise en attente');
+    expect(await MobileStorage.getActionQueue()).toEqual([]);
+    expect(memory.store.get('zka_action_queue_v2')).toBeUndefined();
+  });
+
+  it('purges previously stored DELETE requests without losing legitimate status updates', async () => {
+    await MobileStorage.saveCredentials(credentials());
+    const scope = { cabinetPublicId: 'abcdef1234567890', deviceId: 'device-a', timestamp: 123 };
+    const valid = { ...scope, id: 'status', url: 'http://127.0.0.1:8005/api/mobile/appointments/7/status', method: 'PATCH', body: { status: 'EN_ATTENTE' } };
+    const oldDelete = { ...scope, id: 'destructive', url: 'http://127.0.0.1:8005/api/mobile/appointments/7', method: 'DELETE' };
+    const foreignOrigin = { ...scope, id: 'foreign-origin', url: 'https://other.example/api/mobile/appointments/7/status', method: 'PATCH' };
+    memory.store.set('zka_action_queue_v2', [oldDelete, valid, foreignOrigin]);
+
+    expect(await MobileStorage.getActionQueue()).toEqual([valid]);
+    expect(memory.store.get('zka_action_queue_v2')).toEqual([valid]);
+
+    await expect(MobileStorage.enqueueAction(
+      'https://other.example/api/mobile/appointments/7/status',
+      'PATCH',
+      { status: 'EN_ATTENTE' },
+      'unsafe-origin',
+    )).rejects.toThrow('ne peut pas être mise en attente');
+    expect(await MobileStorage.getActionQueue()).toEqual([valid]);
+  });
+
+  it('invalidates an optimistic cached snapshot when abandoning a legacy DELETE', async () => {
+    await MobileStorage.saveCredentials(credentials());
+    await MobileStorage.saveLastSnapshot({ appointments: [] }, '2026-10-11');
+    expect(await MobileStorage.getLastSnapshot('2026-10-11')).not.toBeNull();
+
+    memory.store.set('zka_action_queue_v2', [{
+      id: 'old-delete',
+      url: 'http://127.0.0.1:8005/api/mobile/appointments/41',
+      method: 'DELETE',
+      timestamp: Date.now(),
+      cabinetPublicId: 'abcdef1234567890',
+      deviceId: 'device-a',
+    }]);
+
+    // The abandoned operation must not make a stale cached absence look official.
+    expect(await MobileStorage.getLastSnapshot('2026-10-11')).toBeNull();
+    expect(await MobileStorage.getActionQueue()).toEqual([]);
+    expect(memory.store.has('zka_last_snapshot')).toBe(false);
   });
 
   it('rotates the mobile refresh token and retries one 401 with the new access token', async () => {

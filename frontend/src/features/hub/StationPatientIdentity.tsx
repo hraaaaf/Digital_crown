@@ -5,6 +5,7 @@ import {
   type StationPatientSessionCreated,
 } from '../../services/stationPatientSession';
 import { StationAppointmentArrival, type StationFlowLanguage } from './StationAppointmentArrival';
+import { StationPrintStatusPanel } from './StationPrintStatusPanel';
 
 const COPY = {
   fr: {
@@ -25,6 +26,11 @@ const COPY = {
     checking: 'Vérification…', confirm: 'Confirmer mon identité',
     privacy: 'Les informations servent uniquement à cette vérification et ne sont pas affichées dans la file d’attente.',
     expired: 'Session expirée', newQr: 'Nouveau QR', retry: 'Réessayer',
+    documentsVerified: 'Identité confirmée',
+    documentsConstruction: 'Le retrait des documents est en cours de construction sur cette station.',
+    documentsStaff: 'Aucun document autorisé à retirer. Adressez-vous à l’accueil.',
+    documentsFallback: 'Pour retirer ce document, adressez-vous au personnel du cabinet. Le retrait sur téléphone nécessite Patient Companion appairé.',
+    documentsReady: 'Document disponible sur votre téléphone dans Patient Companion. Aucun PDF ne sera conservé sur cette borne.',
   },
   en: {
     tooMany: 'Too many attempts. Generate a new session or ask for help.',
@@ -44,6 +50,11 @@ const COPY = {
     checking: 'Checking…', confirm: 'Confirm my identity',
     privacy: 'This information is used only for this verification and is not displayed in the waiting queue.',
     expired: 'Session expired', newQr: 'New QR code', retry: 'Try again',
+    documentsVerified: 'Identity confirmed',
+    documentsConstruction: 'Document collection is under construction at this station.',
+    documentsStaff: 'No document is available for collection. Please contact reception.',
+    documentsFallback: 'Please contact reception to collect this document. Phone delivery requires a paired Patient Companion.',
+    documentsReady: 'Document available on your phone in Patient Companion. This station does not save PDF files.',
   },
   ar: {
     tooMany: 'محاولات كثيرة جداً. أنشئوا جلسة جديدة أو اطلبوا المساعدة.',
@@ -63,6 +74,11 @@ const COPY = {
     checking: 'جارٍ التحقق…', confirm: 'تأكيد هويتي',
     privacy: 'تُستخدم هذه المعلومات لهذا التحقق فقط ولا تظهر في قائمة الانتظار.',
     expired: 'انتهت صلاحية الجلسة', newQr: 'رمز QR جديد', retry: 'إعادة المحاولة',
+    documentsVerified: 'تم تأكيد الهوية',
+    documentsConstruction: 'خدمة استلام الوثائق قيد الإنشاء في هذه المحطة.',
+    documentsStaff: 'لا توجد وثيقة مرخصة للاستلام. يرجى مراجعة الاستقبال.',
+    documentsFallback: 'يرجى مراجعة فريق العيادة لاستلام الوثيقة. يتطلب التسليم عبر الهاتف ربط Patient Companion.',
+    documentsReady: 'وثيقة متاحة على هاتفكم في Patient Companion. لن تحتفظ هذه المحطة بأي ملف PDF.',
   },
 } as const;
 
@@ -92,15 +108,21 @@ export const StationPatientIdentity = ({
   onBack,
   backLabel,
   language = 'fr',
+  purpose = 'appointment',
 }: {
   onBack: () => void;
   backLabel: string;
   language?: StationFlowLanguage;
+  purpose?: 'appointment' | 'documents';
 }) => {
   const copy = COPY[language];
   const [session, setSession] = useState<StationPatientSessionCreated | null>(null);
   const [status, setStatus] = useState<'loading' | 'pending' | 'identified' | 'expired' | 'error'>('loading');
   const [displayName, setDisplayName] = useState('');
+  const [companionPaired, setCompanionPaired] = useState(false);
+  const [availableDocuments, setAvailableDocuments] = useState<Array<{ documentId: number }>>([]);
+  const [documentsBusy, setDocumentsBusy] = useState(false);
+  const [documentsError, setDocumentsError] = useState('');
   const [error, setError] = useState('');
   const [fallbackOpen, setFallbackOpen] = useState(false);
   const [fallbackBusy, setFallbackBusy] = useState(false);
@@ -109,6 +131,9 @@ export const StationPatientIdentity = ({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const purgeStartedRef = useRef<Set<string>>(new Set());
+  const mountedRef = useRef(false);
+  const generationRef = useRef(0);
+  const sessionRef = useRef<string | null>(null);
 
   const requestPurge = useCallback((sessionId: string) => {
     if (purgeStartedRef.current.has(sessionId)) return;
@@ -116,43 +141,90 @@ export const StationPatientIdentity = ({
     void purgeSessionBestEffort(sessionId);
   }, []);
 
-  const start = async () => {
+  const createSession = async (generation: number) => {
+    try {
+      const created = await stationPatientSessionService.create();
+      if (!mountedRef.current || generation !== generationRef.current) {
+        requestPurge(created.sessionId);
+        return;
+      }
+      sessionRef.current = created.sessionId;
+      setSession(created);
+      setStatus('pending');
+    } catch {
+      if (!mountedRef.current || generation !== generationRef.current) return;
+      setSession(null);
+      setStatus('error');
+      setError(COPY[language].unavailable);
+    }
+  };
+
+  const start = () => {
+    const generation = ++generationRef.current;
+    if (sessionRef.current) requestPurge(sessionRef.current);
+    sessionRef.current = null;
+    setSession(null);
     setStatus('loading');
     setError('');
     setDisplayName('');
+    setCompanionPaired(false);
+    setAvailableDocuments([]);
+    setDocumentsError('');
     setFallbackOpen(false);
     setBirthDate('');
     setPhone('');
     setFirstName('');
     setLastName('');
-    try {
-      const created = await stationPatientSessionService.create();
-      setSession(created);
-      setStatus('pending');
-    } catch {
-      setSession(null);
-      setStatus('error');
-      setError(copy.unavailable);
-    }
+    void createSession(generation);
   };
 
   useEffect(() => {
-    void start();
+    mountedRef.current = true;
+    const generation = ++generationRef.current;
+    void createSession(generation);
+    return () => {
+      mountedRef.current = false;
+      ++generationRef.current;
+      if (sessionRef.current) requestPurge(sessionRef.current);
+    };
   }, []);
 
   useEffect(() => {
-    if (!session || status !== 'pending') return undefined;
+    // Once documents have been identified, continue observing server revocation:
+    // a phone-side purge must clear the shared Station without waiting for TTL.
+    if (!session || (status !== 'pending' && !(purpose === 'documents' && status === 'identified'))) return undefined;
     let cancelled = false;
     const poll = async () => {
       try {
         const next = await stationPatientSessionService.status(session.sessionId);
         if (cancelled) return;
+        // An already-expired server response must never resurrect patient data
+        // on a shared kiosk, even when a stale status reply says "identified".
+        if (purpose === 'documents' && (
+          !Number.isFinite(new Date(session.expiresAt).getTime())
+          || Date.now() >= new Date(session.expiresAt).getTime()
+        )) {
+          setDisplayName('');
+          setCompanionPaired(false);
+          setAvailableDocuments([]);
+          setDocumentsError('');
+          setStatus('expired');
+          requestPurge(session.sessionId);
+          return;
+        }
         if (next.status === 'identified') {
           setDisplayName(next.displayName);
+          setCompanionPaired(next.companionPaired === true);
           setStatus('identified');
           return;
         }
-        if (next.status === 'expired') setStatus('expired');
+        if (next.status === 'expired') {
+          setDisplayName('');
+          setCompanionPaired(false);
+          setAvailableDocuments([]);
+          setDocumentsError('');
+          setStatus('expired');
+        }
       } catch {
         if (!cancelled) {
           setStatus('error');
@@ -166,11 +238,40 @@ export const StationPatientIdentity = ({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [session, status]);
+  }, [session, status, purpose]);
 
-  useEffect(() => () => {
-    if (session) requestPurge(session.sessionId);
-  }, [requestPurge, session]);
+  useEffect(() => {
+    if (status !== 'identified' || purpose !== 'documents' || !session) return undefined;
+    let cancelled = false;
+    setDocumentsBusy(true);
+    setDocumentsError('');
+    void stationPatientSessionService.availableDocuments(session.sessionId)
+      .then((result) => { if (!cancelled) setAvailableDocuments(result.documents); })
+      .catch(() => { if (!cancelled) setDocumentsError(copy.unavailable); })
+      .finally(() => { if (!cancelled) setDocumentsBusy(false); });
+    return () => { cancelled = true; };
+  }, [status, purpose, session]);
+
+  // Do not leave a patient's identity or document choices visible on an unattended kiosk.
+  // The backend enforces expiry; the Station also clears the screen at that deadline.
+  useEffect(() => {
+    if (purpose !== 'documents' || status !== 'identified' || !session) return undefined;
+    const closeExpired = () => {
+      setDisplayName('');
+      setCompanionPaired(false);
+      setAvailableDocuments([]);
+      setDocumentsError('');
+      setStatus('expired');
+      requestPurge(session.sessionId);
+    };
+    const remaining = new Date(session.expiresAt).getTime() - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) {
+      closeExpired();
+      return undefined;
+    }
+    const timeout = window.setTimeout(closeExpired, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [purpose, status, session, requestPurge]);
 
   const expiresLabel = useMemo(() => {
     if (!session) return '';
@@ -192,6 +293,7 @@ export const StationPatientIdentity = ({
           : { birthDate, firstName, lastName },
       );
       setDisplayName(result.displayName);
+      setCompanionPaired(false);
       setStatus('identified');
       setFallbackOpen(false);
     } catch (fallbackError) {
@@ -202,10 +304,44 @@ export const StationPatientIdentity = ({
   };
 
   const leave = async () => {
-    const sessionId = session?.sessionId;
-    onBack();
+    ++generationRef.current;
+    const sessionId = sessionRef.current || session?.sessionId;
     if (sessionId) requestPurge(sessionId);
+    onBack();
   };
+
+  if (status === 'identified' && session && purpose === 'documents') {
+    return (
+      <section data-station-documents-identity-confirmed className="mx-auto mt-9 w-full max-w-xl rounded-elite-lg border border-border-main bg-card-bg p-6 text-center shadow-elite sm:p-8">
+        <ShieldCheck className="mx-auto text-success" size={38} aria-hidden="true" />
+        <h2 className="mt-4 text-2xl font-black">{copy.documentsVerified}</h2>
+        <p className="mt-2 text-base font-bold text-text-muted">{displayName}</p>
+        {documentsBusy && <p className="mt-5 text-sm font-semibold" role="status">{copy.checking}</p>}
+        {!documentsBusy && availableDocuments.length === 0 && !documentsError && (
+          <p className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">{copy.documentsStaff}</p>
+        )}
+        {!documentsBusy && availableDocuments.length > 0 && !documentsError && !companionPaired && (
+          <p data-station-phone-fallback className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">
+            {copy.documentsFallback}
+          </p>
+        )}
+        {!documentsBusy && availableDocuments.length > 0 && !documentsError && companionPaired && (
+          <p data-station-phone-delivery className="mt-5 text-sm font-semibold leading-relaxed text-text-muted">
+            {copy.documentsReady}
+          </p>
+        )}
+        {/* 04.8-D only renders on identified document sessions. No print action,
+            destinations, API call, PDF, or hidden client opt-in exists yet. */}
+        <div data-station-print-status-slot className="mt-5 w-full min-w-0">
+          <StationPrintStatusPanel language={language} status="disabled" />
+        </div>
+        {documentsError && <p role="alert" className="mt-4 text-sm font-bold text-danger">{documentsError}</p>}
+        <button type="button" onClick={() => void leave()} className="mt-6 min-h-12 w-full rounded-elite-sm bg-primary px-5 text-sm font-black text-on-primary">
+          {backLabel}
+        </button>
+      </section>
+    );
+  }
 
   if (status === 'identified' && session) {
     return (

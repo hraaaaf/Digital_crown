@@ -1,0 +1,91 @@
+name: LOT04 x Pocket Reconciliation Gate
+
+on:
+  push:
+    branches:
+      - integration/v15-lot04-pocket-20261013
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot04-pocket-reconciliation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  combined-frontend:
+    name: Pocket + Station combined TypeScript, React and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify exact integrated SHA
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Test Pocket permissions, patient wallet, Station handoff and readonly owner panel
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/patient-companion/PatientCompanionPocketStation.integration.test.tsx \
+            src/features/patient-companion/PatientCompanionApp.test.tsx \
+            src/features/patient-companion/PatientCompanionStationDocuments.test.tsx \
+            src/features/mobile/Dashboard/MobileDashboard.readAccess.test.tsx \
+            src/features/mobile/Dashboard/hooks/usePocketReadCapabilities.test.tsx \
+            src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.test.tsx \
+            src/features/hub/StationKioskShell.test.tsx \
+            src/features/hub/StationPrintStatusPanel.test.tsx \
+            --maxWorkers=2 --fileParallelism=false
+      - name: TypeScript combined source
+        working-directory: frontend
+        run: npx tsc -b
+      - name: Build real frontend bundle without deployment
+        working-directory: frontend
+        run: npm run build
+
+  combined-backend:
+    name: Real JWT, tenant, Pocket/Station and clinical deny E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      SECRET_KEY: integration-lot04-pocket-synthetic-secret-key-only
+      DATABASE_URL: sqlite:///./synthetic-only.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify exact integrated SHA
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install isolated dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/lot04-pocket-requirements.txt
+          pip install -r /tmp/lot04-pocket-requirements.txt
+      - name: Execute real backend contracts against combined code
+        run: |
+          python -m pytest -q --maxfail=1 \
+            backend/tests/test_station_companion_delivery_v15.py \
+            backend/tests/test_station_print_real_auth_clinical_e2e_v15.py \
+            backend/tests/test_station_print_04_8_e_cross_layer_gate_v15.py \
+            backend/tests/test_mobile_frontdesk.py \
+            backend/tests/test_pocket_common_capabilities.py

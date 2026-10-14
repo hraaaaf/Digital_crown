@@ -189,7 +189,7 @@ const SettingsContainer: React.FC = () => {
   const showPendingNotice = access.canSettings && !profileReadError && shouldShowPendingConfigNotice(activeTab, isDirty);
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8 animate-in fade-in duration-700">
+    <div className="max-w-[1600px] mx-auto px-[12px] sm:px-8 py-8 animate-in fade-in duration-700">
       {activeTab === 'profil' && (
         <style>{`
           /* R1: the Settings shell is now the only visible owner of staged saves. */
@@ -241,19 +241,19 @@ const SettingsContainer: React.FC = () => {
           }
         `}</style>
       )}
-      <div className="flex flex-col gap-6 lg:flex-row lg:gap-12 items-start min-w-0">
-        <div className="w-full lg:w-80 space-y-4 lg:space-y-8 min-w-0 lg:sticky lg:top-24">
-          <div className="flex items-center gap-4 mb-2 lg:mb-10 min-w-0">
+      <div className="flex flex-col gap-6 2xl:flex-row 2xl:gap-6 items-start min-w-0">
+        <div className="w-full 2xl:w-72 space-y-4 2xl:space-y-8 min-w-0 2xl:sticky 2xl:top-24">
+          <div className="flex min-w-0 flex-col items-start gap-3 mb-2 sm:flex-row sm:items-center sm:gap-4 2xl:mb-10">
             <div className="w-14 h-14 shrink-0 bg-primary text-white rounded-[1.25rem] flex items-center justify-center shadow-2xl shadow-primary/30">
               <SettingsIcon size={28} />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Paramètres</h1>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Paramètres du cabinet</p>
+              <h1 className="break-words [overflow-wrap:anywhere] text-2xl font-black text-slate-900 tracking-tight">Paramètres</h1>
+              <p className="break-words [overflow-wrap:anywhere] text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Paramètres du cabinet</p>
             </div>
           </div>
 
-          <nav data-tour="settings-navigation" aria-label="Navigation des paramètres" className="flex w-full gap-2 overflow-x-auto bg-white/70 backdrop-blur-md p-2 rounded-2xl border border-slate-100 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:block lg:space-y-2 lg:p-3 lg:rounded-[2rem]">
+          <nav data-tour="settings-navigation" aria-label="Navigation des paramètres" className="flex w-full gap-2 overflow-x-auto bg-white/70 backdrop-blur-md p-2 rounded-2xl border border-slate-100 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden 2xl:block 2xl:space-y-2 2xl:p-3 2xl:rounded-[2rem]">
             {tabs.map((tab) => (
               <TabButton
                 key={tab.id}
@@ -286,7 +286,7 @@ const SettingsContainer: React.FC = () => {
           activeTab === 'profil' && 'settings-profile-surface',
           activeTab === 'equipe' && 'settings-team-surface'
         )}>
-          <div className="min-w-0 p-5 sm:p-12">
+          <div className="min-w-0 p-[12px] sm:p-12 2xl:p-8">
             {showSharedSaveBar && (
               <SettingsSaveBar
                 saving={saving}
@@ -308,7 +308,9 @@ const SettingsContainer: React.FC = () => {
                 {activeTab === 'catalogue' && access.canSettings && <CatalogTab />}
                 {activeTab === 'agenda' && access.canAgenda && <AgendaTab />}
                 {activeTab === 'ia' && access.canSettings && <IATab />}
-                {activeTab === 'securite' && access.canAdmin && <SecurityTab />}
+                {activeTab === 'securite' && access.canAdmin && (
+                  <SecurityTab ownerVerified={Boolean(user && Number.isInteger(user.id) && user.employer_id == null)} />
+                )}
                 {activeTab === 'equipe' && access.canAdmin && <TeamReadTruthGate />}
               </>
             )}

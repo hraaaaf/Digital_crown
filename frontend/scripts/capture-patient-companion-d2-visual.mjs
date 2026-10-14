@@ -56,7 +56,68 @@ for (const viewport of viewports) {
     : `${appUrl}/patients/${patient.id}?tab=tracking`;
   const response = await page.goto(target, { waitUntil: 'networkidle', timeout: 90000 });
   const httpStatus = response?.status() ?? null;
-  await page.locator('[data-tour="patient-tabs"]').waitFor({ state: 'visible', timeout: 30000 });
+  let workstationEnrollmentVerified = false;
+  let expectedPreEnrollment423Count = 0;
+  if (phase === 'AFTER') {
+    // Fresh Playwright contexts do not carry the server-issued workstation cookie.
+    // If this test cabinet requires enrollment, exercise the real owner recovery UI.
+    // Never inject a cookie or bypass the production WorkstationModeGate.
+    await page.locator('[data-tour="patient-tabs"], [data-workstation-enrollment]').first()
+      .waitFor({ state: 'visible', timeout: 30000 });
+    const enrollment = page.locator('[data-workstation-enrollment]');
+    if (await enrollment.isVisible()) {
+      await enrollment.locator('summary').filter({ hasText: 'Récupération propriétaire sans code' }).click();
+      await enrollment.getByLabel('Mot de passe du compte propriétaire', { exact: true }).fill(pass);
+      const ownerEnrollmentResponse = page.waitForResponse(
+        value => new URL(value.url()).pathname === '/api/workstation/enroll'
+          && value.request().method() === 'POST',
+        { timeout: 30000 },
+      );
+      await enrollment.getByRole('button', { name: 'Réenregistrer le poste' }).click();
+      const enrollmentResult = await ownerEnrollmentResponse;
+      if (enrollmentResult.status() !== 200) {
+        throw new Error(`D2 authentic owner workstation enrollment denied: HTTP ${enrollmentResult.status()}`);
+      }
+      const cookies = await context.cookies(apiUrl);
+      if (!cookies.some(cookie => cookie.name === 'dc_workstation')) {
+        throw new Error('D2 owner enrollment returned 200 but workstation identity cookie is missing');
+      }
+      // Only the expected HTTP 423 browser console messages emitted by the
+      // protected first attempt may be moved to the pre-enrollment evidence.
+      // An unrelated error still fails immediately; any error AFTER this point
+      // is preserved and makes the post-enrollment screenshot fail closed.
+      const deniedBeforeEnrollment = 'Failed to load resource: the server responded with a status of 423 (Locked)';
+      if (pageErrors.length || consoleErrors.some(error => error !== deniedBeforeEnrollment)) {
+        throw new Error('D2 unexpected runtime error before owner workstation enrollment');
+      }
+      expectedPreEnrollment423Count = consoleErrors.length;
+      consoleErrors.length = 0;
+      workstationEnrollmentVerified = true;
+      const restored = await page.goto(target, { waitUntil: 'networkidle', timeout: 90000 });
+      if (restored?.status() !== 200) throw new Error('D2 protected target did not load after real owner enrollment');
+    }
+  }
+  // Preserve the real page-tabs gate; capture diagnostics if this exact viewport fails.
+  // Do not infer D2 passes from a prior 390px capture.
+  try {
+    await page.locator('[data-tour="patient-tabs"]').waitFor({ state: 'visible', timeout: 30000 });
+  } catch (error) {
+    const evidence = {
+      phase,
+      viewport,
+      httpStatus,
+      pathname: new URL(page.url()).pathname,
+      navCount: await page.locator('[data-tour="patient-tabs"]').count(),
+      flowCount: await page.locator('[data-flow-patient-surface]').count(),
+      loginFormCount: await page.locator('input[type="password"]').count(),
+      pageErrors,
+      consoleErrors,
+    };
+    const label = `diagnostic-patient-tabs-${phase.toLowerCase()}-${viewport.label}`;
+    await page.screenshot({ path: path.join(outDir, `${label}.png`), fullPage: false }).catch(() => undefined);
+    fs.writeFileSync(path.join(outDir, `${label}.json`), JSON.stringify(evidence, null, 2));
+    throw new Error(`D2 patient tab missing on real viewport: ${JSON.stringify(evidence)}; original: ${String(error)}`);
+  }
   await page.addStyleTag({ content: '*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important;caret-color:transparent!important}' });
 
   const hasCompanionTab = (await page.getByRole('button', { name: 'Companion', exact: true }).count()) > 0;
@@ -108,6 +169,8 @@ for (const viewport of viewports) {
     ephemeralVisible,
     pageErrors,
     consoleErrors,
+    workstationEnrollmentVerified,
+    expectedPreEnrollment423Count,
     shot,
     detailShot,
   };

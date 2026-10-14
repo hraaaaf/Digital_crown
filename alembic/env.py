@@ -15,6 +15,47 @@ from backend import models_patient_companion_notifications as _models_patient_co
 # model module. Importing the module registers metadata only; schema creation is
 # still performed solely by versioned Alembic operator actions.
 from backend.services import cabinet_catalog_store as _cabinet_catalog_store  # noqa: F401
+# LOT04.8: the empty-PostgreSQL/SQLite Alembic operator baseline uses
+# Base.metadata (not a replay of revision scripts). Register ONLY these
+# migration-defined printer configuration tables in that metadata so a fresh
+# baseline cannot claim neo000000028 while missing its tables and audit index.
+# No DDL here, and the isolated store's synthetic 'users' stub is NOT cloned.
+from backend.services.station_document_print_store import schema as _station_print_schema
+for _print_table_name in (
+    "station_print_configurations",
+    "station_print_config_stations",
+    "station_print_config_printers",
+    "station_print_config_audit",
+):
+    if _print_table_name not in Base.metadata.tables:
+        _station_print_schema.tables[_print_table_name].to_metadata(Base.metadata)
+
+# LOT04.8 staged B/C schemas. Real PostgreSQL/SQLite empty-baseline
+# initialization STAMPS the current head from Base.metadata instead of
+# replaying revisions. Clone both unprivileged, default-inert tables here
+# so neither a new DB nor an existing neo28->29 upgrade can falsely report
+# current schema while missing a table. The synthetic users stub is excluded.
+from backend.services.station_print_printer_draft_lab import SCHEMA as _printer_draft_schema
+from backend.services.station_print_held_claims_lab import SCHEMA as _held_claim_schema
+for _table_name, _source_schema in (
+    ("station_print_printer_drafts", _printer_draft_schema),
+    ("station_print_held_claims", _held_claim_schema),
+    ("station_print_claim_events", _held_claim_schema),
+):
+    if _table_name not in Base.metadata.tables:
+        _source_schema.tables[_table_name].to_metadata(Base.metadata)
+
+# neo30 evidence & ambiguous-job review: pending/investigation ONLY.
+# No printer certificate or print enablement is created by this metadata.
+from backend.services.station_print_attestation_recovery_v15 import (
+    device_evidence as _device_evidence_table,
+    uncertain_reviews as _uncertain_reviews_table,
+)
+for _evidence_table in (_device_evidence_table, _uncertain_reviews_table):
+    if _evidence_table.name not in Base.metadata.tables:
+        _evidence_table.to_metadata(Base.metadata)
+
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

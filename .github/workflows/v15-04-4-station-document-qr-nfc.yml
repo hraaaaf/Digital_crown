@@ -1,0 +1,243 @@
+name: V1.5-04.4-04.6 Station Document Security Regression (CANDIDATE)
+
+on:
+  push:
+    branches:
+      - feat/v15-04-4-station-bound-document-qr-nfc-20261011
+      - feat/v15-04-5-04-6-document-delivery-purge-20261011
+    paths:
+      - "backend/routers/station_patient_session.py"
+      - "backend/services/station_session_cleanup.py"
+      - "backend/main.py"
+      - "backend/routers/patient_companion.py"
+      - "backend/routers/patient_companion_station_documents.py"
+      - "backend/tests/test_station_companion_delivery_v15.py"
+      - "frontend/src/features/patient-companion/PatientCompanionApp.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionTeleconsultation.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionStationDocuments.tsx"
+      - "frontend/src/features/patient-companion/PatientCompanionStationDocuments.test.tsx"
+      - "backend/config.py"
+      - "backend/.env.example"
+      - "docs/v1.5/V15_04_4_STATION_DOCUMENT_QR_NFC_HANDOFF_20261011.md"
+      - "backend/tests/test_station_document_handoff_v15.py"
+      - "backend/tests/test_station_document_delivery_purge_v15.py"
+      - "frontend/src/test/v15StationPatientSessionContract.test.ts"
+      - "backend/tests/test_station_https_cross_process_v15.py"
+      - "docs/quality/V15_04_5_RPG_ADVERSARIAL_REVIEW_20261012.md"
+      - ".github/workflows/v15-04-4-station-document-qr-nfc.yml"
+      - "frontend/src/features/hub/StationPatientIdentity.tsx"
+      - "frontend/src/features/hub/StationKioskShell.tsx"
+      - "frontend/src/features/hub/StationPatientIdentity.test.tsx"
+      - "frontend/src/features/hub/StationKioskShell.test.tsx"
+      - "frontend/scripts/capture-v15-04-4-documents-identity.mjs"
+      - "frontend/scripts/capture-v15-04-5-companion-phone.mjs"
+      - "frontend/scripts/capture-v15-03-3-patient-session.mjs"
+      # Shared station journey checks change the meaning of QR/NFC FUE proof.
+      - "frontend/scripts/audit-v15-00-3-fue-journeys.mjs"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'backend/routers/station_patient_session.py'
+      - 'backend/services/station_session_cleanup.py'
+      - 'backend/main.py'
+      - 'backend/routers/patient_companion.py'
+      - 'backend/routers/patient_companion_station_documents.py'
+      - 'backend/tests/test_station_companion_delivery_v15.py'
+      - 'frontend/src/features/patient-companion/PatientCompanionApp.tsx'
+      - 'frontend/src/features/patient-companion/PatientCompanionTeleconsultation.tsx'
+      - 'frontend/src/features/patient-companion/PatientCompanionStationDocuments.tsx'
+      - 'frontend/src/features/patient-companion/PatientCompanionStationDocuments.test.tsx'
+      - 'backend/tests/test_station_document_handoff_v15.py'
+      - 'backend/tests/test_station_document_delivery_purge_v15.py'
+      - 'frontend/src/test/v15StationPatientSessionContract.test.ts'
+      - 'backend/tests/test_station_https_cross_process_v15.py'
+      - 'docs/quality/V15_04_5_RPG_ADVERSARIAL_REVIEW_20261012.md'
+      - 'frontend/src/features/hub/StationPatientIdentity.tsx'
+      - 'frontend/src/features/hub/StationPatientIdentity.test.tsx'
+      - 'frontend/scripts/capture-v15-04-4-documents-identity.mjs'
+      - 'frontend/scripts/capture-v15-04-5-companion-phone.mjs'
+      - '.github/workflows/v15-04-4-station-document-qr-nfc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-04-4-fuei-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  station-document-handoff:
+    name: 04.4 Backend QR NFC document binding + denial regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      SECRET_KEY: v15-04-4-isolated-test-handoff-qr-nfc-secret
+      DATABASE_URL: sqlite:///./v15-04-4-station-test.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/requirements-v15-04-4.txt
+          pip install -r /tmp/requirements-v15-04-4.txt
+      - name: Python syntax and deterministic collection
+        run: |
+          python -m py_compile backend/main.py backend/services/station_session_cleanup.py backend/routers/station_patient_session.py backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/routers/patient_companion_station_documents.py backend/tests/test_station_companion_delivery_v15.py
+          python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/tests/test_station_companion_delivery_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py --collect-only -q | tee /tmp/v15-04-4-collect.txt
+          grep -Eq '[0-9]+ tests? collected' /tmp/v15-04-4-collect.txt
+      - name: Execute 04.4 + 04.3 + 04.1 + 03.3/04.2 real FastAPI regressions
+        run: python -m pytest backend/tests/test_station_document_handoff_v15.py backend/tests/test_station_document_delivery_purge_v15.py backend/tests/test_station_companion_delivery_v15.py backend/tests/test_station_care_sheet_v15.py backend/tests/test_station_document_eligibility_v15.py backend/tests/test_station_patient_session_v15.py -q
+      - name: RPG-X HTTPS sender/companion/receiver in separate OS processes
+        run: |
+          python -m py_compile backend/tests/test_station_https_cross_process_v15.py
+          python -m pytest backend/tests/test_station_https_cross_process_v15.py -q -s
+      - name: Upload cross-process HTTPS evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-04-5-real-https-two-process-evidence
+          path: backend/artifacts/v15-04-5-https/evidence.json
+          if-no-files-found: warn
+          retention-days: 21
+
+  station-fuei-visual-baseline:
+    name: FUE-I LAB patient QR NFC station mobile desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Targeted existing QR/NFC frontend contracts
+        working-directory: frontend
+        run: npx vitest run src/test/v15StationPatientSessionContract.test.ts src/features/hub/StationPatientIdentity.test.tsx src/features/hub/StationKioskShell.test.tsx src/features/patient-companion/PatientCompanionStationDocuments.test.tsx --maxWorkers=1 --fileParallelism=false
+      - name: Run station FUE-I LAB matrix (simulated station backend)
+        working-directory: frontend
+        shell: bash
+        env:
+          V15_03_3_PHASE: after
+          EVALUATED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/vite --host 127.0.0.1 --port 4197 >/tmp/v15-04-4-ui.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:4197 >/dev/null; then ready=1; break; fi; sleep 1; done
+          if [[ "$ready" != 1 ]]; then cat /tmp/v15-04-4-ui.log; exit 1; fi
+          node scripts/capture-v15-03-3-patient-session.mjs
+          test -f artifacts/v15-03-3-patient-session-after/evidence.json
+          node scripts/capture-v15-04-4-documents-identity.mjs
+          test -f artifacts/v15-04-4-documents-identity-after/evidence.json
+          node --check scripts/capture-v15-04-5-companion-phone.mjs
+          node scripts/capture-v15-04-5-companion-phone.mjs
+          test -f artifacts/v15-04-5-companion-phone-after/evidence.json
+          node --input-type=module -e 'import fs from "node:fs"; const e=JSON.parse(fs.readFileSync("artifacts/v15-04-4-documents-identity-after/evidence.json")); if(e.report.length!==48 || e.report.some(r=>r.errors.length || r.scrollWidth>r.width)) process.exit(1); console.log("04.4: 48 synthetic captures verified; real scanability not certified")'
+      - name: Capture genuine base revision BEFORE evidence
+        working-directory: frontend
+        shell: bash
+        env:
+          # Reproduce the genuine pre-04.5 feature baseline, not the moving
+          # master PR base (which already contains newer Station implementations).
+          EVALUATED_BASE: f32af204ecb8845008080afd5a49ed8d1582eb9b
+        run: |
+          set -euo pipefail
+          if [[ -z "${EVALUATED_BASE}" ]]; then
+            echo "No pinned base SHA: visual BEFORE/AFTER comparison not certified."
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "${EVALUATED_BASE}"
+          git worktree add --detach /tmp/v15-04-4-base "${EVALUATED_BASE}"
+          # Checkout is shallow by default: verify the exact immutable SHA,
+          # not ancestry, which cannot be evaluated with a depth-one graph.
+          test "$(git -C /tmp/v15-04-4-base rev-parse HEAD)" = "${EVALUATED_BASE}"
+          cp scripts/capture-v15-04-4-documents-identity.mjs /tmp/v15-04-4-base/frontend/capture-04-4-baseline.mjs
+          cp scripts/capture-v15-04-5-companion-phone.mjs /tmp/v15-04-4-base/frontend/capture-04-5-companion-baseline.mjs
+          cd /tmp/v15-04-4-base/frontend
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          ./node_modules/.bin/vite --host 127.0.0.1 --port 4197 >/tmp/v15-04-4-before-ui.log 2>&1 &
+          baseline_pid=$!
+          trap 'kill "$baseline_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:4197 >/dev/null; then ready=1; break; fi; sleep 1; done
+          if [[ "$ready" != 1 ]]; then cat /tmp/v15-04-4-before-ui.log; exit 1; fi
+          EVIDENCE_PHASE=before EVALUATED_SHA="${EVALUATED_BASE}" node capture-04-4-baseline.mjs
+          EVIDENCE_PHASE=before EVALUATED_SHA="${EVALUATED_BASE}" node capture-04-5-companion-baseline.mjs
+          test -f artifacts/v15-04-5-companion-phone-before/evidence.json
+          test -f artifacts/v15-04-4-documents-identity-before/evidence.json
+          cp -r artifacts/v15-04-4-documents-identity-before "$GITHUB_WORKSPACE/frontend/artifacts/"
+          cp -r artifacts/v15-04-5-companion-phone-before "$GITHUB_WORKSPACE/frontend/artifacts/"
+          cd "$GITHUB_WORKSPACE/frontend"
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const a = JSON.parse(fs.readFileSync("artifacts/v15-04-4-documents-identity-before/evidence.json"));
+            const b = JSON.parse(fs.readFileSync("artifacts/v15-04-4-documents-identity-after/evidence.json"));
+            const key = r => [r.scenario, r.viewport, r.scale, r.filename.replace(/^(before|after)-/, "")].join("|");
+            const left = new Set(a.report.map(key));
+            const right = new Set(b.report.map(key));
+            if (left.size !== 48 || right.size !== 48 || [...left].some(k => !right.has(k))) {
+              console.error("04.5 matched BEFORE/AFTER viewport/scenario comparison missing");
+              process.exit(1);
+            }
+            console.log("04.5 paired 48 BEFORE and 48 AFTER synthetic Station captures on pinned base and current HEAD");
+            const beforePhone = JSON.parse(fs.readFileSync("artifacts/v15-04-5-companion-phone-before/evidence.json"));
+            const afterPhone = JSON.parse(fs.readFileSync("artifacts/v15-04-5-companion-phone-after/evidence.json"));
+            const phoneKey = r => [r.viewport, r.scale, r.filename.replace(/^(before|after)-/, "")].join("|");
+            const pre = new Set(beforePhone.report.map(phoneKey));
+            const post = new Set(afterPhone.report.map(phoneKey));
+            if (pre.size !== 8 || post.size !== 8 || [...pre].some(k => !post.has(k)) ||
+                beforePhone.report.some(r => r.documentPickupVisible || r.phoneDownloadVisible || r.errors.length) ||
+                afterPhone.report.some(r => !r.documentPickupVisible || !r.phoneDownloadVisible ||
+                  !r.presenceReceiptVisible || r.errors.length || r.scrollWidth > r.width)) {
+              console.error("04.5 matched personal Companion phone BEFORE/AFTER validation failed");
+              process.exit(1);
+            }
+            const baselineOverflows = beforePhone.report.filter(r => r.scrollWidth > r.width);
+            console.log("04.5 paired 8 BEFORE and 8 AFTER Patient Companion captures; historical base overflows:", baselineOverflows.map(r => ({ viewport: r.viewport, scale: r.scale, overflowPx: r.overflowPx })));
+            console.log("04.5 candidate AFTER overflow count: 0, verified on every viewport/scale");
+          '
+      - name: Declare evidence scope
+        working-directory: frontend
+        run: |
+          echo "AFTER: synthetic 04.4 captures on candidate SHA"
+          echo "BEFORE: fixed original 04.4 feature baseline f32af204ecb8845008080afd5a49ed8d1582eb9b, NOT moving pull_request.base/master; all 48+8 matched scenario/viewport checks required"
+          echo "Physical QR/NFC scanability and immediate offline purge are not certified"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-04-4-fuei-lab-synthetic-station-captures
+          path: |
+            frontend/artifacts/v15-03-3-patient-session-after
+            frontend/artifacts/v15-04-4-documents-identity-after
+            frontend/artifacts/v15-04-4-documents-identity-before
+            frontend/artifacts/v15-04-5-companion-phone-after
+            frontend/artifacts/v15-04-5-companion-phone-before
+          if-no-files-found: warn
+          retention-days: 21

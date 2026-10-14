@@ -46,6 +46,10 @@ En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
 Source : `backend/main.py::validate_environment_invariants()`.
 
+## Reality Proof Gate (RPG) — preuve observable obligatoire
+
+Lire `docs/quality/REALITY_PROOF_GATE.md` pour chaque lot/sous-lot V1.5. Choisir le niveau selon le risque (contrat, parcours, multi-acteurs, défaillance/privacy, matériel). Le FUE-0/I/G et les deux revues adversariales restent requis selon leur scope ; ils ne remplacent pas une simulation réelle de l'issue métier. Exiger SHA exact, tests réellement exécutés, preuves émetteur/récepteur et affichage si applicable, tests négatifs et artefacts inspectables. Une CI verte sans scénario exécuté ou un TestClient partagé présenté comme deux postes ne certifie pas le RPG. Un gate matériel/physique non exécuté reste OPEN. Ne jamais utiliser de données patient réelles en CI.
+
 ## Règles absolues
 
 ### Scoring d'exécution et vérification

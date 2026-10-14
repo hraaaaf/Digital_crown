@@ -38,8 +38,8 @@ describe('Digital Crown Pocket general QR bridge', () => {
     expect(resolveDashboardTab('?tab=stock')).toBe('stock');
     expect(resolveDashboardTab('?tab=library')).toBe('library');
     expect(resolveDashboardTab('?tab=marketplace')).toBe('marketplace');
-    expect(resolveDashboardTab('?tab=unknown')).toBe('agenda');
-    expect(resolveDashboardTab('')).toBe('agenda');
+    expect(resolveDashboardTab('?tab=unknown')).toBe('today');
+    expect(resolveDashboardTab('')).toBe('today');
     expect(dashboardSource).toContain("import { useLocation } from 'react-router-dom'");
     expect(dashboardSource).toContain('const location = useLocation()');
     expect(dashboardSource).toContain('resolveDashboardTab(location.search)');
@@ -63,7 +63,9 @@ describe('Digital Crown Pocket general QR bridge', () => {
     expect(onboardingSource).toContain('/api/mobile/bridge-destination');
     expect(onboardingSource).toContain('Authorization: `Bearer ${accessToken}`');
     expect(onboardingSource).toContain('body: JSON.stringify({ credential })');
-    expect(onboardingSource).toContain("window.history.replaceState({}, '', '/mobile/onboarding')");
+    // Keep the React Router history state while scrubbing the one-time QR token.
+    expect(onboardingSource).toContain("window.history.replaceState(window.history.state, '', '/mobile/onboarding')");
+    expect(onboardingSource).not.toContain("window.history.replaceState({}, '', '/mobile/onboarding')");
     expect(onboardingSource).toContain('Ouverture :');
     expect(onboardingSource).not.toContain("navigate('/mobile/dashboard', { replace: true })");
   });
@@ -72,7 +74,9 @@ describe('Digital Crown Pocket general QR bridge', () => {
     expect(onboardingSource).toContain('min-h-11 inline-flex items-center');
     expect(onboardingSource).toContain('min-w-0 flex-1 min-h-[52px]');
     expect(onboardingSource).toContain('shrink-0 min-h-[52px]');
-    expect(onboardingSource).toContain('disabled={manualToken.length !== 6}');
+    expect(onboardingSource).toContain('disabled={mustInstallPocketFirst || manualToken.length !== 6}');
+    expect(onboardingSource).toContain('disabled={mustInstallPocketFirst}');
+    expect(onboardingSource).toContain('data-dc-pocket-install-first');
     expect(securitySource).toContain('min-h-[52px]');
   });
 });

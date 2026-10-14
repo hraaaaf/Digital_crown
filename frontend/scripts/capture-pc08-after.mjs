@@ -43,6 +43,7 @@ for (const [browserName, browserType] of Object.entries({ chromium, webkit })) {
       await page.goto(`${baseUrl}/companion`, { waitUntil: 'domcontentloaded' });
       await page.getByLabel('Code manuel').fill('ABCD-EFGH-JKLM');
       await page.getByText('Appairer avec le code', { exact: true }).click();
+      await page.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Messages', exact: true }).click();
       const section = page.locator('[data-pc08-secure-messaging]');
       await section.waitFor();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);

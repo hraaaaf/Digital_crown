@@ -89,6 +89,7 @@ for (const [browserName, browserType] of Object.entries(browsers)) {
       await clearVault(page);
       await pair(page);
       await page.locator('[data-pc01-sync]').click();
+      await page.getByRole('navigation', { name: 'Navigation patient' }).getByRole('button', { name: 'Plus', exact: true }).click();
       await page.locator('[data-pc03-questionnaires]').waitFor();
       await page.getByText('Questionnaire médical du cabinet', { exact: true }).waitFor();
       await page.getByText('Remplir', { exact: true }).click();
