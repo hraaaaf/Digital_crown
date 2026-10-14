@@ -293,6 +293,16 @@ class VolatileDecisionWitness:
             self._audit_cache_state = state
         return True
 
+    def _preflight_draft(self, draft: fork.Draft) -> None:
+        """Cheap shape + byte budget check BEFORE request digest hashing."""
+        if type(draft) is not fork.Draft:
+            _fail("PROPOSAL_INVALID")
+        status = self._audit_budget_status(draft.candidate)
+        if status == "EXCEEDED":
+            _fail("AUDIT_WORK_BUDGET_EXCEEDED")
+        if status != "OK":
+            _fail("PROPOSAL_INVALID")
+
     def observe(self, *, epoch: str) -> journal.TrustedAnchor:
         self._identity(epoch)
         state = self._state
@@ -313,6 +323,7 @@ class VolatileDecisionWitness:
         _operation(operation_id)
         if failpoint not in (None, "BEFORE_INSTALL", "AFTER_INSTALL"):
             _fail("FAILPOINT_INVALID")
+        self._preflight_draft(draft)
         digest = self._digest(draft, operation_id)
         with self._lock:
             old = self._state
@@ -363,6 +374,7 @@ class VolatileDecisionWitness:
         """Absence is UNKNOWN: an in-flight identical request can still arrive."""
         self._identity(epoch)
         _operation(operation_id)
+        self._preflight_draft(draft)
         digest = self._digest(draft, operation_id)
         state = self._state
         if self._audit_budget_status(state.history) == "EXCEEDED":
@@ -389,6 +401,7 @@ class VolatileDecisionWitness:
             return Assessment("AUDIT_WORK_BUDGET_REFUSE")
         if not self._ledger_complete(current):
             return Assessment("WITNESS_LEDGER_INCONSISTENT_REFUSE")
+        self._preflight_draft(draft)
         digest = self._digest(draft, operation_id)
         previous = next((r for r in current.decisions
                          if r.operation_id == operation_id), None)
@@ -403,6 +416,8 @@ class VolatileDecisionWitness:
             return Assessment("UNDECIDED_STALE_HEAD_REFUSE")
         if not _same(previous.after, current.head):
             return Assessment("OLD_DECISION_RECHECK_CURRENT_HEAD")
+        if local is not None and self._audit_budget_status(local) == "EXCEEDED":
+            return Assessment("LOCAL_AUDIT_BUDGET_REFUSE")
         if not self._valid_prefix(local):
             return Assessment("LOCAL_EVIDENCE_MISSING" if local is None
                               else "LOCAL_INVALID_REFUSE")
@@ -427,6 +442,8 @@ class VolatileDecisionWitness:
             return Assessment("WITNESS_LEDGER_INCOMPLETE_REFUSE")
         if local is None:
             return Assessment("LOCAL_EVIDENCE_MISSING")
+        if self._audit_budget_status(local) == "EXCEEDED":
+            return Assessment("LOCAL_AUDIT_BUDGET_REFUSE")
         if not self._valid_prefix(local):
             return Assessment("LOCAL_INVALID_REFUSE")
         if len(local.records) > state.head.sequence:
@@ -439,6 +456,8 @@ class VolatileDecisionWitness:
             return Assessment("LOCAL_PREFIX_FORK_REFUSE")
         if type(archive) is not journal.Journal:
             return Assessment("INDEPENDENT_ARCHIVE_REQUIRED")
+        if self._audit_budget_status(archive) == "EXCEEDED":
+            return Assessment("ARCHIVE_AUDIT_BUDGET_REFUSE")
         if archive != state.history or not self._valid_history(archive, state.head):
             return Assessment("ARCHIVE_UNTRUSTED_REFUSE")
         return Assessment("CHAIN_VALID_PROVENANCE_UNVERIFIED_HUMAN_GATE")

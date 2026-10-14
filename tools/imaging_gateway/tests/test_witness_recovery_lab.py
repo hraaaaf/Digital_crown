@@ -599,6 +599,54 @@ class DecisionAndRestoreTests(unittest.TestCase):
         self.assertIsNotNone(self.witness.lookup(
             draft,operation_id=self.op1,epoch="e1"))
 
+
+    def test_loop_oversize_proposal_refused_before_manifest_hashed(self):
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        draft=self.proposal()
+        source_bytes=sum(len(r.snapshot.source)+(len(r.snapshot.candidate)
+                    if r.snapshot.candidate is not None else 0)
+                    for r in self.j0.records)
+        with patch.object(w,"_MAX_LAB_AUDIT_BYTES",source_bytes):
+            with patch.object(journal_lab,"_manifest",
+                              side_effect=AssertionError("should not hash")):
+                for api in (self.witness.decide,self.witness.lookup):
+                    with self.assertRaisesRegex(
+                        w.WitnessLabError,"AUDIT_WORK_BUDGET_EXCEEDED"):
+                        api(draft,operation_id=self.op1,epoch="e1")
+                with self.assertRaisesRegex(
+                    w.WitnessLabError,"AUDIT_WORK_BUDGET_EXCEEDED"):
+                    self.witness.lost_reply(
+                        self.j0,draft,operation_id=self.op1,epoch="e1")
+        self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
+
+    def test_loop_untrusted_local_oversize_refused_before_cryptography(self):
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        d=self.proposal()
+        self.decide(d)
+        # Only tiny real ciphertext; shrink LAB budget in a strict subtest,
+        # then call with over-budget valid local media.
+        old=self.j0
+        minimum=sum(len(r.snapshot.source)+(len(r.snapshot.candidate)
+                    if r.snapshot.candidate is not None else 0)
+                    for r in old.records)
+        state=self.witness._state
+        # This patch would also make current witness over-budget; distinguish
+        # third-party media by adding duplicate valid records only.
+        extended=j.Journal(d.candidate.records+d.candidate.records)
+        with patch.object(w,"_MAX_LAB_AUDIT_BYTES",
+                          sum(len(r.snapshot.source)+
+                              (len(r.snapshot.candidate)
+                               if r.snapshot.candidate is not None else 0)
+                              for r in state.history.records)):
+            self.assertEqual(self.witness.assess_archive(
+                extended,None,epoch="e1").code,
+                "LOCAL_AUDIT_BUDGET_REFUSE")
+            self.assertEqual(self.witness.lost_reply(
+                extended,d,operation_id=self.op1,epoch="e1").code,
+                "LOCAL_AUDIT_BUDGET_REFUSE")
+
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
         source=(root/"witness_recovery_lab.py").read_text(encoding="utf-8")
