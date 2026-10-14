@@ -20,3 +20,20 @@ def test_d7_preserves_explicit_quantity_ns_and_catalog_identity():
     data = MedicationItem.model_validate(source).model_dump()
     for key, expected in source.items():
         assert data[key] == expected
+
+
+def test_d7_document_route_resolves_active_media_root(tmp_path, monkeypatch):
+    import backend.routers.documents as documents
+
+    active_root = tmp_path / "neo-d7-rehearsal-media"
+    stale_root = tmp_path / "previous-media"
+    monkeypatch.setattr(documents, "MEDIA_DIR", stale_root)
+    monkeypatch.setattr(documents, "get_media_root", lambda: active_root)
+
+    relative_key = "static/archives/1/ordonnance/2026/10/ordonnance.pdf"
+    resolved = documents._archive_storage_path(relative_key)
+    assert resolved == active_root / "archives/1/ordonnance/2026/10/ordonnance.pdf"
+    assert not resolved.is_relative_to(stale_root)
+    resolved.parent.mkdir(parents=True)
+    resolved.write_bytes(b"%PDF-synthetic-test")
+    assert documents._archive_storage_path(relative_key).is_file()
