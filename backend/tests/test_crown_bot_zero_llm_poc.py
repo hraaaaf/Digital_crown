@@ -1,9 +1,20 @@
 """Deterministic Crown Bot POC tests. Synthetic IDs only; no DB or network."""
 
 from datetime import date
+from pathlib import Path
+import importlib.util
+import sys
 import unittest
 
-from backend.services.bot.workflow_poc import PocConversation
+# Isolated POC: importing backend's package initializer would also import
+# production models/SQLAlchemy. Load the pure module by its exact file path.
+SOURCE = Path(__file__).resolve().parents[1] / "services" / "bot" / "workflow_poc.py"
+SPEC = importlib.util.spec_from_file_location("standalone_crown_bot_workflow_poc", SOURCE)
+assert SPEC is not None and SPEC.loader is not None
+MODULE = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = MODULE
+SPEC.loader.exec_module(MODULE)
+PocConversation = MODULE.PocConversation
 
 
 TODAY = date(2026, 10, 14)
@@ -45,7 +56,7 @@ class TestCrownBotZeroLlmPoc(unittest.TestCase):
     def test_complete_appointment_proposal_requires_explicit_confirmation(self):
         turns = [
             self.bot.handle(x)
-            for x in ["/rdv", "12", "2026-10-15", "14:30", "30"]
+            for x in ["/rdv", "12", "2026-10-15", "14:30", "30", "consultation"]
         ]
         self.assertTrue(all(t.proposal is None for t in turns))
         self.assertEqual(turns[-1].status, "confirmation_required")
@@ -59,6 +70,7 @@ class TestCrownBotZeroLlmPoc(unittest.TestCase):
                     "patient_id": 12,
                     "datetime_start": "2026-10-15T14:30:00",
                     "duration_minutes": 30,
+                    "motif": "CONSULTATION",
                 },
             },
         )
@@ -92,6 +104,13 @@ class TestCrownBotZeroLlmPoc(unittest.TestCase):
         for value in ["0", "180", "30min", "60.5"]:
             self.assertEqual(self.send(value).status, "clarification", value)
             self.assertEqual(self.bot.state, "duration")
+
+    def test_appointment_motif_is_mandatory(self):
+        self.send("/rdv", "2", "2026-10-14", "09:05", "30")
+        self.assertEqual(self.bot.state, "motif")
+        self.assertEqual(self.send("réparation dentaire").status, "clarification")
+        self.assertNotIn("motif", self.bot.slots)
+        self.assertEqual(self.send("consultation").status, "confirmation_required")
 
     def test_quote_draft_is_editor_navigation_only(self):
         turn = self.send("/devis", "9", "couronne")
@@ -128,7 +147,7 @@ class TestCrownBotZeroLlmPoc(unittest.TestCase):
             )
 
     def test_cancellation_clears_all_sensitive_slots(self):
-        self.send("/rdv", "52", "2026-10-15", "15:00", "30")
+        self.send("/rdv", "52", "2026-10-15", "15:00", "30", "consultation")
         cancelled = self.send("/annuler")
         self.assertEqual(cancelled.status, "cancelled")
         self.assertEqual(self.bot.slots, {})
