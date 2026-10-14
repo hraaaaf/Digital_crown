@@ -492,7 +492,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                           <span className="mt-0.5 block truncate text-[9px] font-semibold text-text-muted">
                             {presentation.dci || 'DCI non renseignée'}
                           </span>
-
+                          <span className="mt-0.5 block truncate text-[8px] font-semibold text-text-muted/90">
+                            {presentation.source.label} · {presentation.source.snapshot_date}
+                          </span>
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
                           <span className="text-right">
