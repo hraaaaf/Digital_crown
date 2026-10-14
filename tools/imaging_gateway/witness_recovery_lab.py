@@ -16,6 +16,10 @@ import threading
 from . import fork_lab as fork
 from . import journal_lab as journal
 
+# Logical audit budget, not a filesystem or production media limit.
+# Bounds aggregate re-authenticated ciphertext on any one full audit.
+_MAX_LAB_AUDIT_BYTES = 128 * 1024 * 1024
+
 
 class WitnessLabError(RuntimeError):
     """Fixed codes only; no image/key/scope leaks."""
@@ -49,7 +53,7 @@ class _State:
 
 
 class VolatileEnrollmentRegistry:
-    """LAB-only shared capture registry. Creating another defeats uniqueness."""
+    """LAB-only shared LOGICAL capture registry; still caller-controlled."""
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -140,7 +144,10 @@ class VolatileDecisionWitness:
             genesis, anchor, journal_key=journal_key,
             legacy_key=legacy_key, keys=keys)
         capture_scope = self._scope_for(genesis.records[0].snapshot)
-        registry.claim(capture_scope, authority_id, epoch, opaque_scope)
+        # Logical capture identity is invariant under legitimate AES-GCM nonce
+        # changes. Ciphertext hash remains in the per-witness chain scope.
+        registration_key = capture_scope[:4]
+        registry.claim(registration_key, authority_id, epoch, opaque_scope)
         self._registry = registry
         self._authority_id = authority_id
         self._epoch = epoch
@@ -187,6 +194,29 @@ class VolatileDecisionWitness:
         return self._valid_history(
             local, journal.TrustedAnchor(last.sequence, last.mac))
 
+    @staticmethod
+    def _within_audit_budget(history: journal.Journal) -> bool:
+        """Fail closed before crypto work if retained media exceeds LAB budget."""
+        if (type(history) is not journal.Journal
+                or type(history.records) is not tuple):
+            return False
+        total = 0
+        for record in history.records:
+            if type(record) is not journal.Record:
+                return False
+            snapshot = record.snapshot
+            if (type(snapshot) is not journal.migration.Snapshot
+                    or type(snapshot.source) is not bytes
+                    or (snapshot.candidate is not None
+                        and type(snapshot.candidate) is not bytes)):
+                return False
+            total += len(snapshot.source)
+            if snapshot.candidate is not None:
+                total += len(snapshot.candidate)
+            if total > _MAX_LAB_AUDIT_BYTES:
+                return False
+        return True
+
     def _ledger_complete(self, state: _State) -> bool:
         """Entire history, every receipt field, ID, digest and order must match.
 
@@ -194,6 +224,7 @@ class VolatileDecisionWitness:
         NOT independent archive custody, witness authenticity or freshness.
         """
         if (type(state) is not _State
+                or not self._within_audit_budget(state.history)
                 or not self._valid_history(state.history, state.head)
                 or type(state.decisions) is not tuple
                 or len(state.decisions) != state.head.sequence - 1):
@@ -269,6 +300,8 @@ class VolatileDecisionWitness:
                     or draft.next_anchor.sequence != old.head.sequence + 1
                     or draft.candidate.records[:-1] != old.history.records):
                 _fail("FORK_PARENT_MISMATCH")
+            if not self._within_audit_budget(draft.candidate):
+                _fail("AUDIT_WORK_BUDGET_EXCEEDED")
             if not self._valid_history(draft.candidate, draft.next_anchor):
                 _fail("PROPOSAL_REFUSED")
             receipt = Receipt(operation_id, digest, self._authority_id,
@@ -340,6 +373,10 @@ class VolatileDecisionWitness:
         """Read-only consistency classification, NEVER authorization to restore."""
         self._identity(epoch)
         state = self._state
+        # Witness integrity takes precedence over missing/invalid local media,
+        # backup unavailability and all directional classifications.
+        if not self._ledger_complete(state):
+            return Assessment("WITNESS_LEDGER_INCOMPLETE_REFUSE")
         if local is None:
             return Assessment("LOCAL_EVIDENCE_MISSING")
         if not self._valid_prefix(local):
@@ -349,8 +386,6 @@ class VolatileDecisionWitness:
         if len(local.records) == state.head.sequence:
             if local != state.history:
                 return Assessment("LOCAL_DIVERGENCE_REFUSE")
-            if not self._ledger_complete(state):
-                return Assessment("WITNESS_LEDGER_INCOMPLETE_REFUSE")
             return Assessment("ALIGNED_NO_CLINICAL_ACK")
         if local.records != state.history.records[:len(local.records)]:
             return Assessment("LOCAL_PREFIX_FORK_REFUSE")
@@ -358,6 +393,4 @@ class VolatileDecisionWitness:
             return Assessment("INDEPENDENT_ARCHIVE_REQUIRED")
         if archive != state.history or not self._valid_history(archive, state.head):
             return Assessment("ARCHIVE_UNTRUSTED_REFUSE")
-        if not self._ledger_complete(state):
-            return Assessment("DECISION_LEDGER_INCOMPLETE_REFUSE")
         return Assessment("CHAIN_VALID_PROVENANCE_UNVERIFIED_HUMAN_GATE")

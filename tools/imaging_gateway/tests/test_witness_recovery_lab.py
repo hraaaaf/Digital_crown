@@ -454,6 +454,78 @@ class DecisionAndRestoreTests(unittest.TestCase):
             self.witness.lookup(draft,operation_id=format(16,"032x"),epoch="e1")
         self.assertLessEqual(count[0],3*len(history.records)+2)
 
+
+    def test_loop_nonce_reencryption_same_capture_denied(self):
+        # Fresh AES-GCM nonce changes ciphertext SHA, NOT capture identity.
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        identity="e"*64
+        nonce=b"freshnonce12"  # 12 bytes
+        aad=("DC06A|lab_m|workstation_m|"+identity).encode("ascii")
+        changed=b"DC6A"+nonce+AESGCM(self.legacy_key).encrypt(
+            nonce,self.clear,aad)
+        new_genesis=m.begin(
+            changed,cabinet="lab_m",workstation="workstation_m",
+            identity=identity,digest=hashlib.sha256(self.clear).hexdigest(),
+            legacy_key=self.legacy_key)
+        self.assertNotEqual(new_genesis.source_sha256,self.genesis.source_sha256)
+        j2,a2=j.initialize(
+            new_genesis,journal_key=self.journal_key,
+            legacy_key=self.legacy_key,keys=self.keys)
+        with self.assertRaisesRegex(w.WitnessLabError,"ENROLLMENT_CONFLICT"):
+            w.VolatileDecisionWitness(j2,a2,authority_id="lab-authority",
+                epoch="e1",opaque_scope="b"*32,registry=self.registry,
+                journal_key=self.journal_key,legacy_key=self.legacy_key,
+                keys=self.keys)
+
+    def test_loop_corrupt_ledger_precedes_every_archive_early_exit(self):
+        d=self.proposal()
+        self.decide(d)
+        good=self.witness._state
+        self.witness._state=replace(good,decisions=())
+        corrupted=j.Journal((replace(self.j0.records[0],mac="0"*64),))
+        for local,archive in (
+                (None,None),(self.j0,None),(d.candidate,None),
+                (corrupted,None),(self.j0,d.candidate)):
+            with self.subTest(local=local is not None,
+                              archive=archive is not None):
+                self.assertEqual(self.witness.assess_archive(
+                    local,archive,epoch="e1").code,
+                    "WITNESS_LEDGER_INCOMPLETE_REFUSE")
+        self.witness._state=good
+
+    def test_loop_audit_work_budget_fail_closed_on_proposal(self):
+        from unittest.mock import patch
+        d=self.proposal()
+        current=self.witness._state
+        # Set a small budget to model a multi-GB chain without allocating it.
+        minimum=sum(len(r.snapshot.source)+(len(r.snapshot.candidate)
+                    if r.snapshot.candidate is not None else 0)
+                    for r in self.j0.records)
+        with patch.object(w,"_MAX_LAB_AUDIT_BYTES",minimum):
+            self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
+            with self.assertRaisesRegex(
+                    w.WitnessLabError,"AUDIT_WORK_BUDGET_EXCEEDED"):
+                self.decide(d)
+            self.assertEqual(self.witness._state,current)
+        self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
+
+    def test_loop_audit_over_budget_untrusted_read_refuses(self):
+        from unittest.mock import patch
+        d=self.proposal()
+        self.decide(d)
+        full=self.witness._state
+        minimum=sum(len(r.snapshot.source)+(len(r.snapshot.candidate)
+                    if r.snapshot.candidate is not None else 0)
+                    for r in self.j0.records)
+        with patch.object(w,"_MAX_LAB_AUDIT_BYTES",minimum):
+            with self.assertRaisesRegex(
+                    w.WitnessLabError,"WITNESS_LEDGER_INCONSISTENT"):
+                self.witness.observe(epoch="e1")
+            self.assertEqual(self.witness.assess_archive(
+                d.candidate,None,epoch="e1").code,
+                "WITNESS_LEDGER_INCOMPLETE_REFUSE")
+        self.assertEqual(self.witness._state,full)
+
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
         source=(root/"witness_recovery_lab.py").read_text(encoding="utf-8")
