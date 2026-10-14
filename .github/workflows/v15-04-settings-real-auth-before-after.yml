@@ -23,6 +23,9 @@ jobs:
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
       SECRET_KEY: settings-v15-04-lab-synthetic-only-key-000001
+      # Same isolated SQLCipher key for the T2 server and the separate seed process.
+      # Dedicated to this disposable CI DB; independent from both JWT secrets.
+      SQLCIPHER_KEY_HEX: "3333333333333333333333333333333333333333333333333333333333333333"
       TELEMETRY_ENABLED: "false"
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"
