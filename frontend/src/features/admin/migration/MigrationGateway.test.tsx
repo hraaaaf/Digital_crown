@@ -25,7 +25,7 @@ const good = {
   },
 } as const;
 
-describe('LOT05.5 Mapping Studio / authenticated backend readiness', () => {
+describe('LOT05.5 Correspondances de données / authenticated backend readiness', () => {
   it('does not contact backend automatically or submit source inventory data', () => {
     render(<MigrationMappingStudio />);
     expect(fetchMigrationPreflight).not.toHaveBeenCalled();
@@ -40,7 +40,7 @@ describe('LOT05.5 Mapping Studio / authenticated backend readiness', () => {
       blockers: ['PHYSICAL_SCHEMA_OR_ALEMBIC_HEAD_MISMATCH'],
     });
     render(<MigrationMappingStudio />);
-    fireEvent.click(screen.getByRole('button', { name: 'Contrôler le backend sécurisé' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Contrôler le serveur sécurisé' }));
     await waitFor(() => expect(screen.getByText(/simulation bloquée/)).toBeTruthy());
     expect((screen.getByRole('button', { name: /Simuler 100 patients/ }) as HTMLButtonElement).disabled).toBe(true);
     expect(runSyntheticStaffRehearsal).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe('LOT05.5 Mapping Studio / authenticated backend readiness', () => {
       schema_migrated_by_alembic: false, import_permitted: false,
     });
     render(<MigrationMappingStudio />);
-    fireEvent.click(screen.getByRole('button', { name: 'Contrôler le backend sécurisé' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Contrôler le serveur sécurisé' }));
     await waitFor(() => expect(screen.getByRole('button', { name: /Simuler 100 patients/ })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /Simuler 100 patients/ }));
     await waitFor(() => expect(screen.getByText(/Simulation fictive : 100\/100/)).toBeTruthy());
@@ -67,7 +67,7 @@ describe('LOT05.5 Mapping Studio / authenticated backend readiness', () => {
   it('loads only the sanitized target preview and does not approve a mapping', async () => {
     vi.mocked(fetchMigrationPreflight).mockResolvedValue(good);
     render(<MigrationMappingStudio />);
-    fireEvent.click(screen.getByRole('button', { name: 'Contrôler le backend sécurisé' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Contrôler le serveur sécurisé' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Charger l’aperçu cible observé' })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Charger l’aperçu cible observé' }));
     expect(screen.getByText(/1 tables · revision observed-read-only/)).toBeTruthy();
@@ -76,7 +76,7 @@ describe('LOT05.5 Mapping Studio / authenticated backend readiness', () => {
   it('fails closed on backend denied or unavailable', async () => {
     vi.mocked(fetchMigrationPreflight).mockRejectedValue(new Error('403'));
     render(<MigrationMappingStudio />);
-    fireEvent.click(screen.getByRole('button', { name: 'Contrôler le backend sécurisé' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Contrôler le serveur sécurisé' }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(screen.queryByRole('button', { name: /Simuler 100 patients/ })).toBeNull();
   });
