@@ -69,7 +69,7 @@ try{
     try {
       await page.goto('http://127.0.0.1:4197/migration-preview.html?filled=0',
                       {waitUntil:'networkidle'});
-      await page.getByRole('heading',{name:'Mapping Studio'}).waitFor({timeout:10000});
+      await page.getByRole('heading',{name:'Correspondances de données'}).waitFor({timeout:10000});
       ready=true;
       break;
     } catch (cause) {
@@ -94,7 +94,7 @@ try{
   if(!await details.count()) throw new Error('WARNING_DETAILS_MISSING:'+vp.name);
   const before=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
   await page.screenshot({path:path.join(dest,'BEFORE-'+vp.name+'.png'),fullPage:true,animations:'disabled'});
-  await page.getByRole('button',{name:'Contrôler le backend sécurisé'}).click();
+  await page.getByRole('button',{name:'Contrôler le serveur sécurisé'}).click();
   await page.getByRole('button',{name:'Télécharger la base SQLite fictive'}).click();
   const fileInput=page.getByLabel('Fichier SQLite fictif Digital Crown');
   await fileInput.waitFor();
