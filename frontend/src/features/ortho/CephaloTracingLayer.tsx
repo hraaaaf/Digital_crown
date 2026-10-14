@@ -3,7 +3,7 @@ import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracing
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
 import { projectPointOnLine } from './cephaloMath';
-import { getCephaloConstructionViewport } from './cephaloConstructionViewport';
+import { getCephaloConstructionViewport, getCephaloZoomViewBox } from './cephaloConstructionViewport';
 import { getCephaloPalette } from './cephaloTheme';
 import {
   CEPHALO_SCIENTIFIC_COLORS,
@@ -294,7 +294,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
 
       {(showRickettsHard || showCom) && (layerVisible('plans') || layerVisible('landmarks') || layerVisible('measurements')) && props.imageWidth > 0 && props.imageHeight > 0 && (
         <svg
-          viewBox={`0 0 ${props.imageWidth} ${props.imageHeight}`}
+          viewBox={getCephaloZoomViewBox(props.imageWidth, props.imageHeight, props.viewZoom, props.viewPan)}
           preserveAspectRatio="xMidYMid meet"
           className="pointer-events-none absolute inset-0 z-[28] h-full w-full"
           aria-hidden="true"

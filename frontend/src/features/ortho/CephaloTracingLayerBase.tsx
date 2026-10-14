@@ -23,7 +23,7 @@ import { CephaloCalibrationOverlay } from './components/CephaloCalibrationOverla
 import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
 import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';
 import { CephaloSvgDefs } from './components/CephaloSvgDefs';
-import { getCephaloConstructionViewport } from './cephaloConstructionViewport';
+import { getCephaloConstructionViewport, getCephaloZoomViewBox } from './cephaloConstructionViewport';
 import { useCephaloInteraction } from './hooks/useCephaloInteraction';
 import type { OrthoLayerId, OrthoLayerOpacity, OrthoLayerVisibility } from './orthoLayerRegistry';
 
@@ -44,6 +44,9 @@ export interface CephaloTracingLayerProps {
   ghosts?: GhostData[];
   imageWidth: number;
   imageHeight: number;
+  /** Visual crop only. Clinical coordinates are never scaled or rewritten. */
+  viewZoom?: number;
+  viewPan?: { x: number; y: number };
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
   onKeyboardNudgeLandmark?: (id: string, dx: number, dy: number, imageWidth: number, imageHeight: number) => void;
   /** Transient rendering-only drag preview; never stored or committed here. */
@@ -154,6 +157,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   ghosts = [],
   imageWidth,
   imageHeight,
+  viewZoom = 1,
+  viewPan,
   onUpdateLandmarks,
   onKeyboardNudgeLandmark,
   onLandmarkDragPreview,
@@ -627,7 +632,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     <div className="absolute inset-0 w-full h-full z-20">
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${imageWidth} ${imageHeight}`}
+        viewBox={getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan)}
         preserveAspectRatio="xMidYMid meet"
         className={cn('w-full h-full', isCalibrating ? 'cursor-crosshair' : 'cursor-default')}
         onClick={handleSvgClick}

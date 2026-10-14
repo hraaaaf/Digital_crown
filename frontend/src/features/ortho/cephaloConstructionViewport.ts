@@ -42,3 +42,19 @@ export function getCephaloConstructionViewport(
   if (!(width > 0 && height > 0)) return full;
   return { x, y, width, height, limited: x > 0 || y > 0 || maxX < imageWidth || maxY < imageHeight };
 }
+
+// A display-only crop shared by base tracing and COM/Ricketts overlays.
+// No landmark coordinate, calibration source, or persisted measurement is changed.
+export function getCephaloZoomViewBox(
+  imageWidth: number, imageHeight: number, viewZoom = 1,
+  viewPan: { x: number; y: number } = { x: 0, y: 0 },
+): string {
+  const zoom = Number.isFinite(viewZoom) ? Math.max(1, Math.min(2, viewZoom)) : 1;
+  const width = imageWidth / zoom;
+  const height = imageHeight / zoom;
+  const safePan = (value: number) =>
+    Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
+  const left = ((imageWidth - width) / 2) * (1 + safePan(viewPan.x));
+  const top = ((imageHeight - height) / 2) * (1 + safePan(viewPan.y));
+  return `${left} ${top} ${width} ${height}`;
+}

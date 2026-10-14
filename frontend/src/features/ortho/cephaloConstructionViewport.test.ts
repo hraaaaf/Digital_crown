@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCephaloConstructionViewport } from './cephaloConstructionViewport';
+import { getCephaloConstructionViewport, getCephaloZoomViewBox } from './cephaloConstructionViewport';
 
 describe('visual-only cephalometric extended-line viewport', () => {
   const points = [
@@ -34,5 +34,20 @@ describe('visual-only cephalometric extended-line viewport', () => {
       { x: 0, y: 0 }, { x: 990, y: 0 }, { x: 1000, y: 1400 }, { x: 0, y: 1399 },
     ], 1000, 1400);
     expect(edge).toEqual({ x: 0, y: 0, width: 1000, height: 1400, limited: false });
+  });
+});
+
+describe('read-only zoom: identical base and overlay image coordinates', () => {
+  it('uses the full image at 100% and a centered crop at 150% without modifying inputs', () => {
+    const pan = { x: 0, y: 0 };
+    expect(getCephaloZoomViewBox(1200, 900)).toBe('0 0 1200 900');
+    expect(getCephaloZoomViewBox(1200, 900, 1.5, pan)).toBe('200 150 800 600');
+    expect(pan).toEqual({ x: 0, y: 0 });
+  });
+  it('bounds 200% pan to the image and rejects invalid zoom/pan values', () => {
+    expect(getCephaloZoomViewBox(1200, 900, 2, { x: -1, y: -1 })).toBe('0 0 600 450');
+    expect(getCephaloZoomViewBox(1200, 900, 2, { x: 1, y: 1 })).toBe('600 450 600 450');
+    expect(getCephaloZoomViewBox(1200, 900, 99, { x: 9, y: -9 })).toBe('600 0 600 450');
+    expect(getCephaloZoomViewBox(1200, 900, NaN, { x: NaN, y: NaN })).toBe('0 0 1200 900');
   });
 });
