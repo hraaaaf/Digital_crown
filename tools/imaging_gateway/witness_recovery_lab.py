@@ -24,6 +24,8 @@ class WitnessLabError(RuntimeError):
 class Receipt:
     operation_id: str
     request_digest: str
+    authority_id: str
+    opaque_scope: str
     epoch: str
     before: journal.TrustedAnchor
     after: journal.TrustedAnchor
@@ -64,7 +66,8 @@ def _request_digest(draft: fork.Draft) -> str:
             manifest = journal._manifest(record.snapshot)
             for part in (data, manifest):
                 h.update(len(part).to_bytes(4, "big") + part)
-    except (ValueError, TypeError, AttributeError, OverflowError):
+    except (journal.JournalLabError, ValueError, TypeError,
+            AttributeError, OverflowError, UnicodeError):
         _fail("PROPOSAL_INVALID")
     return h.hexdigest()
 
@@ -84,10 +87,13 @@ class VolatileDecisionWitness:
     """
 
     def __init__(self, genesis: journal.Journal,
-                 anchor: journal.TrustedAnchor, *, epoch: str,
-                 opaque_scope: str, journal_key: bytes,
+                 anchor: journal.TrustedAnchor, *, authority_id: str,
+                 epoch: str, opaque_scope: str, journal_key: bytes,
                  legacy_key: bytes, keys: dict):
-        if (type(epoch) is not str or not re.fullmatch(r"[a-zA-Z0-9._-]{1,64}", epoch)
+        if (type(authority_id) is not str
+                or not re.fullmatch(r"[a-zA-Z0-9._-]{1,64}", authority_id)
+                or type(epoch) is not str
+                or not re.fullmatch(r"[a-zA-Z0-9._-]{1,64}", epoch)
                 or type(opaque_scope) is not str
                 or not re.fullmatch(r"[0-9a-f]{32}", opaque_scope)):
             _fail("IDENTITY_INVALID")
@@ -95,6 +101,7 @@ class VolatileDecisionWitness:
             genesis, anchor, journal_key=journal_key, legacy_key=legacy_key,
             keys=keys
         )
+        self._authority_id = authority_id
         self._epoch = epoch
         self._opaque_scope = opaque_scope
         self._decisions: dict[str, Receipt] = {}
@@ -135,7 +142,8 @@ class VolatileDecisionWitness:
             if str(exc) in {"STALE_FORK", "FORK_PARENT_MISMATCH"}:
                 _fail("STALE_FORK")
             _fail("PROPOSAL_REFUSED")
-        receipt = Receipt(operation_id, digest, self._epoch,
+        receipt = Receipt(operation_id, digest, self._authority_id,
+                          self._opaque_scope, self._epoch,
                           draft.expected, head)
         self._decisions[operation_id] = receipt
         return receipt
@@ -222,4 +230,5 @@ class VolatileDecisionWitness:
             ]
             if len(matching) != 1:
                 return Assessment("DECISION_LEDGER_INCOMPLETE_REFUSE")
-        return Assessment("COMPLETE_EVIDENCE_HUMAN_GATE_REQUIRED")
+        # The caller-provided archive has NO independent provenance proof.
+        return Assessment("CHAIN_VALID_PROVENANCE_UNVERIFIED_HUMAN_GATE")

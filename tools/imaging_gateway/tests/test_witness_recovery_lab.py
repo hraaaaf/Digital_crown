@@ -33,7 +33,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
             legacy_key=self.legacy_key,keys=self.keys
         )
         self.witness=w.VolatileDecisionWitness(
-            self.j0,self.a0,epoch="e1",opaque_scope="a"*32,
+            self.j0,self.a0,authority_id="lab-authority",epoch="e1",opaque_scope="a"*32,
             journal_key=self.journal_key,legacy_key=self.legacy_key,keys=self.keys
         )
         self.op1="1"*32
@@ -56,6 +56,8 @@ class DecisionAndRestoreTests(unittest.TestCase):
     def test_lost_ack_lookup_does_not_second_cas(self):
         draft=self.proposal()
         received=self.decide(draft)
+        self.assertEqual((received.authority_id,received.opaque_scope),
+                         ("lab-authority","a"*32))
         self.assertEqual(self.witness.lookup(draft,operation_id=self.op1,epoch="e1"),
                          received)
         self.assertEqual(self.decide(draft),received)
@@ -107,7 +109,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
         first=self.proposal()
         self.decide(first)
         result=self.witness.assess_archive(self.j0,first.candidate,epoch="e1")
-        self.assertEqual(result.code,"COMPLETE_EVIDENCE_HUMAN_GATE_REQUIRED")
+        self.assertEqual(result.code,"CHAIN_VALID_PROVENANCE_UNVERIFIED_HUMAN_GATE")
         self.assertEqual(self.witness.observe(epoch="e1"),first.next_anchor)
 
     def test_archived_fork_refused_even_if_valid_other_candidate(self):
@@ -153,7 +155,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
                              state=state)
         self.decide(second,operation_id=self.op2)
         self.assertEqual(self.witness.assess_archive(self.j0,second.candidate,
-                         epoch="e1").code,"COMPLETE_EVIDENCE_HUMAN_GATE_REQUIRED")
+                         epoch="e1").code,"CHAIN_VALID_PROVENANCE_UNVERIFIED_HUMAN_GATE")
         self.witness._decisions.pop(self.op1)
         self.assertEqual(self.witness.assess_archive(self.j0,second.candidate,
                          epoch="e1").code,"DECISION_LEDGER_INCOMPLETE_REFUSE")
@@ -189,7 +191,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
         first=self.proposal()
         self.decide(first)
         reset=w.VolatileDecisionWitness(
-            self.j0,self.a0,epoch="e1",opaque_scope="a"*32,
+            self.j0,self.a0,authority_id="lab-authority",epoch="e1",opaque_scope="a"*32,
             journal_key=self.journal_key,legacy_key=self.legacy_key,keys=self.keys
         )
         self.assertEqual(reset.assess_archive(self.j0,None,epoch="e1").code,
@@ -207,6 +209,16 @@ class DecisionAndRestoreTests(unittest.TestCase):
         other=self.proposal(kid="cd"*16)
         self.assertEqual(self.witness.assess_archive(other.candidate,None,
                          epoch="e1").code,"LOCAL_DIVERGENCE_REFUSE")
+
+    def test_malformed_manifest_returns_fixed_error_and_no_advance(self):
+        draft=self.proposal()
+        record=draft.candidate.records[-1]
+        bad=replace(record,snapshot=replace(record.snapshot,cabinet=99))
+        forged=replace(draft,candidate=j.Journal(
+            draft.candidate.records[:-1]+(bad,)))
+        with self.assertRaisesRegex(w.WitnessLabError,"PROPOSAL_INVALID"):
+            self.decide(forged)
+        self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
 
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
