@@ -80,6 +80,19 @@ jobs:
         run: |
           node --check frontend/scripts/certify-v15-04-settings-real-auth.mjs
           python -m py_compile backend/scripts/seed_v15_04_settings_lab.py
+      - name: Attest disposable database fingerprint required by startup safety
+        working-directory: after
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint, is_known_cabinet_database
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["ENVIRONMENT"] == "test"
+          assert os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] == "1"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target)
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(target))
+          PY
       - name: Start disposable true FastAPI runtime
         working-directory: after
         run: |
