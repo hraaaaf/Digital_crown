@@ -33,7 +33,7 @@ jobs:
         env:
           PYTHONPATH: .
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python -m unittest backend.tests.test_crown_bot_zero_llm_poc -v
+        run: python -m unittest discover -s backend/tests -p 'test_crown_bot_zero_llm_poc.py' -v
       - name: Summarize exact evaluated ref
         if: always()
         shell: bash
