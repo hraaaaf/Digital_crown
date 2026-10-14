@@ -1,0 +1,67 @@
+name: V1.5-05.2-B2a ORM Declared Target Manifest Proof
+
+on:
+  pull_request:
+    paths:
+      - backend/services/legacy_sql_target_manifest_v15.py
+      - backend/tests/test_legacy_sql_target_manifest_v15.py
+      - docs/quality/V15_05_2B2_DECLARED_TARGET_MANIFEST.md
+      - .github/workflows/v15-05-2b2-declared-target.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  declared-target-manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install ONLY repo-pinned ORM dependency
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check SQLAlchemy==2.0.28
+          python -c "import sqlalchemy; assert sqlalchemy.__version__ == '2.0.28'"
+      - name: Compile target manifest (zero imports of runtime database)
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/services/legacy_sql_target_manifest_v15.py backend/tests/test_legacy_sql_target_manifest_v15.py
+      - name: Pure ORM declared adapter incl. real model declarations
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python -m unittest discover -s backend/tests -p 'test_legacy_sql_target_manifest_v15.py' -v 2>&1 | tee /tmp/lot05-b2a.log
+          grep -q 'Ran 25 tests' /tmp/lot05-b2a.log
+          grep -q '^OK$' /tmp/lot05-b2a.log
+          if grep -Ei 'skipped|expected failure' /tmp/lot05-b2a.log; then exit 1; fi
+      - name: 05.2-A mapping engine regressions
+        run: |
+          set -euo pipefail
+          python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/lot05-b2a-mapping.log
+          grep -q 'Ran 25 tests' /tmp/lot05-b2a-mapping.log
+          grep -q '^OK$' /tmp/lot05-b2a-mapping.log
+      - name: 05.1 inspector regressions (Python 3.12 has Path.is_junction)
+        if: matrix.python == '3.12'
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/lot05-b2a-inspector.log
+          grep -q 'Ran 28 tests' /tmp/lot05-b2a-inspector.log
+          grep -q '^OK$' /tmp/lot05-b2a-inspector.log
+      - name: Certify exact git SHA and NON physical preview
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          {
+            echo "LOT05.2-B2a HEAD: ${{ github.event.pull_request.head.sha || github.sha }}"
+            echo "25 ORM preview + 25 mapping per Python job; 28 inspector cases ONLY on Python 3.12 (junction API unavailable in 3.11)."
+            echo "No DATABASE import/connection/physical Alembic check, admin validation or import."
+          } >> "$GITHUB_STEP_SUMMARY"

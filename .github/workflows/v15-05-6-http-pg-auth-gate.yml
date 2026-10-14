@@ -1,0 +1,68 @@
+name: V1.5-05.6 HTTP JWT Workstation PostgreSQL Alembic LAB
+on:
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_migration_http_pg_v15.py
+      - backend/routers/legacy_migration_v15.py
+      - backend/services/legacy_migration_synthetic_file_v15.py
+      - backend/services/legacy_migration_gateway_v15.py
+      - .github/workflows/v15-05-6-http-pg-auth-gate.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-http-pg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dc_05_6_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dc_05_6_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dc_05_6_lab
+      ENVIRONMENT: rehearsal
+      SECRET_KEY: lab-05-6-jwt-secret-long-randomized-for-ci-only
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+    steps:
+      - name: Exact SHA checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated migration HTTP dependencies (no ML runtime)
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            alembic==1.20.0 sqlalchemy==2.0.28 psycopg2-binary==2.9.9 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3
+      - name: Explicit Alembic upgrade of empty isolated PostgreSQL 18
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_migration_http_pg_v15.py
+          alembic upgrade head
+      - name: Real HTTP authorization, workstation, fake-only SQLite dryrun
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python backend/tests/test_legacy_migration_http_pg_v15.py 2>&1 | tee /tmp/lot05-6-http-pg.log
+          grep -q '^LOT05_6_HTTP_PG_PASS ' /tmp/lot05-6-http-pg.log
+      - name: Exact SHA proof
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
