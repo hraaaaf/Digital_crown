@@ -62,15 +62,35 @@ class TestArchiveServiceHelpers:
 
     def test_get_storage_path_creates_dir(self, db, tmp_path, monkeypatch):
         import backend.services.archive_service as archive_mod
-        monkeypatch.setattr(archive_mod, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: tmp_path)
         svc = ArchiveService(db)
         path = svc._get_storage_path(1, DocumentType.ORDONNANCE, "test.pdf", version=1)
         assert path.parent.exists()
         assert path.name == "test.pdf"
 
+    def test_archive_root_isolation_between_runtime_instances(self, db, tmp_path, monkeypatch):
+        import backend.services.archive_service as archive_mod
+
+        first_root = tmp_path / "d7-first"
+        second_root = tmp_path / "d7-second"
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: first_root)
+        first_service = ArchiveService(db)
+        first_path = first_service._get_storage_path(1, DocumentType.ORDONNANCE, "one.pdf")
+
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: second_root)
+        second_service = ArchiveService(db)
+        second_path = second_service._get_storage_path(1, DocumentType.ORDONNANCE, "two.pdf")
+
+        assert first_path.is_relative_to(first_root)
+        assert second_path.is_relative_to(second_root)
+        assert not first_path.is_relative_to(second_root)
+        assert not second_path.is_relative_to(first_root)
+        assert first_path.parent.is_dir()
+        assert second_path.parent.is_dir()
+
     def test_get_storage_path_version_suffix(self, db, tmp_path, monkeypatch):
         import backend.services.archive_service as archive_mod
-        monkeypatch.setattr(archive_mod, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: tmp_path)
         svc = ArchiveService(db)
         path = svc._get_storage_path(1, DocumentType.ORDONNANCE, "test.pdf", version=2)
         assert "_v2" in path.name
@@ -139,8 +159,7 @@ class TestCheckConflicts:
 class TestArchiveDocument:
     def test_archive_document_creates_db_record(self, db, dentiste, tmp_path, monkeypatch):
         import backend.services.archive_service as archive_mod
-        monkeypatch.setattr(archive_mod, "ARCHIVE_BASE_DIR", tmp_path / "archives")
-        monkeypatch.setattr(archive_mod, "LEGACY_DOCS_DIR", tmp_path / "docs")
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: tmp_path)
         pat = _make_patient(db, dentiste, "ARCHCREATE")
         svc = ArchiveService(db)
         content = b"PDF content here"
@@ -154,11 +173,12 @@ class TestArchiveDocument:
         assert doc.id is not None
         assert doc.patient_id == pat.id
         assert is_new_version is False
+        assert doc.file_path.startswith("static/archives/")
+        assert (tmp_path / doc.file_path.replace("static/", "", 1)).is_file()
 
     def test_archive_document_duplicate_cancel_raises(self, db, dentiste, tmp_path, monkeypatch):
         import backend.services.archive_service as archive_mod
-        monkeypatch.setattr(archive_mod, "ARCHIVE_BASE_DIR", tmp_path / "archives")
-        monkeypatch.setattr(archive_mod, "LEGACY_DOCS_DIR", tmp_path / "docs")
+        monkeypatch.setattr(archive_mod, "get_media_root", lambda: tmp_path)
         pat = _make_patient(db, dentiste, "ARCHDUP")
         content = b"Same PDF content"
         file_hash = hashlib.sha256(content).hexdigest()
