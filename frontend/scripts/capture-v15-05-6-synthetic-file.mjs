@@ -14,7 +14,7 @@ const good={
  full_schema_certified:false,authenticated_cabinet_scope:true,
  dry_run_real_data_available:false,import_permitted:false,
  blockers:['REAL_IMPORT_NOT_IMPLEMENTED'],
- target_preview:{schema_revision:'observed-read-only:neo000000027',
+ target_preview:{schema_revision:'observed-read-only:neo000000031',
  tables:[{name:'patients',columns:[{name:'nom'}]}]},
 };
 const result={
@@ -114,7 +114,8 @@ try{
       serverRequests,errors,unexpected,status,cause:String(cause)}));
   }
   const after=await page.evaluate(()=>({width:document.documentElement.clientWidth,
-    scroll:document.documentElement.scrollWidth,importLocked:document.body.textContent?.includes('Import bloqué'),
+    scroll:document.documentElement.scrollWidth,importLocked:document.body.textContent?.includes('Import réel en cours de construction') &&
+       !document.querySelector('button:not([disabled])[aria-label*="Import"]'),
     overflowNodes:[...document.querySelectorAll('body *')].filter(el=>{
       const r=el.getBoundingClientRect(); return r.width && r.right>innerWidth+1;
     }).slice(0,12).map(el=>({tag:el.tagName,className:typeof el.className==='string'?el.className.slice(0,100):'',
