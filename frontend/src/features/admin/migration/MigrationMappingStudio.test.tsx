@@ -39,9 +39,10 @@ function completed() {
 describe('LOT05.2-B1 Mapping Studio staff wizard', () => {
   it('has a real accessible three-step interface with no data transmission or import control', () => {
     launch();
-    expect(screen.getByRole('heading', { name: 'Mapping Studio' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Correspondances de données' })).toBeTruthy();
     expect(screen.getByRole('note', { name: 'Limites de certification' })).toBeTruthy();
-    expect(screen.getByText(/aucune approbation administrateur ni dry-run réel/i)).toBeTruthy();
+    expect(screen.getAllByText('Choisir un fichier JSON')).toHaveLength(2);
+    expect(screen.getByText(/aucune approbation administrateur ni simulation d’import/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /Examiner les correspondances/i })).not.toHaveProperty('disabled', true);
     expect(screen.queryByRole('button', { name: /Importer/i })).toBeNull();
   });
@@ -58,13 +59,13 @@ describe('LOT05.2-B1 Mapping Studio staff wizard', () => {
     expect(verify.disabled).toBe(false);
     fireEvent.click(verify);
     expect(screen.getByText(/NON VALIDÉ : aucune approbation/i)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Importer — indisponible' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Import en cours de construction' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('6')).toBeTruthy();
   });
   it('does not silently select destination for sensitive legacy credentials', () => {
     launch(); review();
     choose('Destination table patients', 'patients');
-    expect(screen.getByText(/Secret : mapping interdit/)).toBeTruthy();
+    expect(screen.getByText(/Information secrète : correspondance interdite/)).toBeTruthy();
     const select = screen.getByRole('combobox', { name: 'Colonne patients.password_hash' }) as HTMLSelectElement;
     expect([...select.options].map(item => item.value)).toEqual(['', '__unmapped__']);
   });
@@ -105,7 +106,7 @@ describe('LOT05.2-B1 Mapping Studio staff wizard', () => {
     const file = new File(['{"rows":[{"patient":"PRIVATE"}]}'], 'unsafe.json', { type: 'application/json' });
     Object.defineProperty(file, 'text', { value: async () => '{"rows":[{"patient":"PRIVATE"}]}' });
     fireEvent.change(screen.getByLabelText('Rapport source JSON'), { target: { files: [file] } });
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('UNEXPECTED_METADATA_FIELD'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Ce rapport contient des champs non autorisés.'));
     expect(screen.getByText('Aucune source chargée')).toBeTruthy();
     expect((screen.getByRole('button', { name: /Examiner les correspondances/i }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByText('PRIVATE')).toBeNull();
