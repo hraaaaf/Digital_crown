@@ -196,8 +196,17 @@ try {
     }
   }
 } catch {
-  # Avoid exception details; they may contain absolute paths, account names, etc.
-  Add-Check $checks ('INSPECTION_FAILED_' + $phase) $false
+  # Log only the exception CLASS, not message, paths, identities or account.
+  $kind = $_.Exception.GetType().Name
+  if ($kind -notmatch '^[A-Za-z]{1,80}
+Add-Check $checks 'DPAPI_DEVICE_KEY_AND_RECOVERY_VERIFIED' $false
+Add-Check $checks 'PHYSICAL_NTFS_ACL_FIELD_CERTIFIED' $false
+$report.checks=@($checks.ToArray())
+$report | ConvertTo-Json -Compress -Depth 6
+# Status BLOCKED is a valid read-only finding, not a script execution failure.
+exit 0
+) { $kind = 'UNKNOWN' }
+  Add-Check $checks ('INSPECTION_FAILED_' + $phase + '_' + $kind) $false
 }
 Add-Check $checks 'DPAPI_DEVICE_KEY_AND_RECOVERY_VERIFIED' $false
 Add-Check $checks 'PHYSICAL_NTFS_ACL_FIELD_CERTIFIED' $false
