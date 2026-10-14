@@ -65,8 +65,18 @@ try {
           state: 'visible', timeout: 45000,
         });
         item.route = new URL(page.url()).pathname === '/settings/migration';
-        if (!await page.getByRole('button', { name: /Examiner les correspondances/i }).isDisabled()) {
+        const reviewAction = page.getByRole('button', { name: /Examiner les correspondances/i });
+        if (!await reviewAction.isDisabled()) {
           throw new Error('Review action enabled without mapping files');
+        }
+        if (viewport.width === 390) {
+          // A fixed chatbot button occupies the lower-right corner.
+          // Require physical clearance; horizontal-scroll checks miss this overlap.
+          const bounds = await reviewAction.boundingBox();
+          if (!bounds || bounds.x + bounds.width > viewport.width - 64) {
+            throw new Error('Mobile migration CTA overlaps chatbot safe zone: ' + JSON.stringify(bounds));
+          }
+          item.actionRightSafeGap = Math.round(viewport.width - bounds.x - bounds.width);
         }
         const uploadLabels = page.locator('[data-testid="migration-studio"] label').filter({
           hasText: 'Choisir un fichier JSON',
