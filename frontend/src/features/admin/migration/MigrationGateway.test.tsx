@@ -30,7 +30,7 @@ describe('LOT05.5 Correspondances de données / authenticated backend readiness'
     render(<MigrationMappingStudio />);
     expect(fetchMigrationPreflight).not.toHaveBeenCalled();
     expect(runSyntheticStaffRehearsal).not.toHaveBeenCalled();
-    expect(screen.getByText(/Import bloqué/)).toBeTruthy();
+    expect(screen.getByText('Import réel en cours de construction')).toBeTruthy();
   });
   it('blocks the synthetic button for stale physical or Alembic schema', async () => {
     vi.mocked(fetchMigrationPreflight).mockResolvedValue({
@@ -70,7 +70,7 @@ describe('LOT05.5 Correspondances de données / authenticated backend readiness'
     fireEvent.click(screen.getByRole('button', { name: 'Contrôler le serveur sécurisé' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Charger l’aperçu cible observé' })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Charger l’aperçu cible observé' }));
-    expect(screen.getByText(/1 tables · revision observed-read-only/)).toBeTruthy();
+    expect(screen.getByText(/1 tables · version observed-read-only/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Importer/ })).toBeNull();
   });
   it('fails closed on backend denied or unavailable', async () => {
