@@ -21,7 +21,7 @@ Record: lot ID, requirement, risk, actors, isolated fixtures, producer and consu
 5. Close only with exact-HEAD evidence, documented residual risk and human approval when required. GREEN is not CONVERGED, and CONVERGED is not deployed.
 
 ## V1.5 mapping (minimum)
-00 Hub: RPG-C/J; 01 topology: RPG-C/J/X/F/P for real multi-PC; 02 photo: RPG-C/J/F; 03 Station: RPG-C/J/F/P for physical NFC; 04 documents: RPG-C/J/X/F/P for physical print/NFC; 05 SQL migration: RPG-C/X/F on isolated database copies; 06–10: determine exact RPG level from canonical lot contract, without inventing new product scope.
+00 Hub: RPG-C/J; 01 topology: RPG-C/J/X/F (RPG-P deferred); 02 photo: RPG-C/J/F; 03 Station: RPG-C/J/F (RPG-P deferred); 04 documents: RPG-C/J/X/F (RPG-P deferred); 05 SQL migration: RPG-C/X/F on isolated database copies; 06–09: laboratory gates per canonical lot; **10: RPG-P physical certification** of real multi-PC, camera/NFC, Station/phone LAN/TLS and printing as applicable. **RPG-P OPEN does not automatically block a previous lot's software-only merge, but always blocks PHYSICAL PASS and hardware/clinical activation.**
 
 ## Reference: 04.5 sender→receiver
 Sender cabinet authorizes fictitious patient A's PDF A; separate receiver Workstation identifies A, receives PDF over HTTPS and renders it; compare SHA-256 to producer. Patient B and revoked/expired station must not access A. Two distinct runs need a secure, immutable artifact handoff and evidence that the receiver fetched from a running HTTPS endpoint, not a copied local file. Until both processes/runs and browser rendering are observed, mark RPG-X/J OPEN.
