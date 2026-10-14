@@ -1,5 +1,6 @@
 """LOT06-M corrective adversarial LAB: idempotence, lost ACK, archive proof."""
 from dataclasses import FrozenInstanceError, replace
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from pathlib import Path
 import unittest
@@ -64,7 +65,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
         self.assertEqual(self.witness.observe(epoch="e1"),draft.next_anchor)
         self.assertEqual(self.witness.lost_reply(self.j0,draft,
                          operation_id=self.op1,epoch="e1").code,
-                         "DECIDED_NOT_FINALIZED")
+                         "DECIDED_NOT_FINALIZED_LOCAL_STALE")
 
     def test_already_finalized_lab_is_not_clinical_ack(self):
         draft=self.proposal()
@@ -125,7 +126,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
         corrupted_record=replace(self.j0.records[0],mac="0"*64)
         local=j.Journal((corrupted_record,))
         self.assertEqual(self.witness.assess_archive(local,first.candidate,
-                         epoch="e1").code,"LOCAL_PREFIX_FORK_REFUSE")
+                         epoch="e1").code,"LOCAL_INVALID_REFUSE")
 
     def test_authentic_archive_but_missing_journal_key_refused(self):
         first=self.proposal()
@@ -141,7 +142,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
     def test_missing_decision_ledger_blocks_even_valid_archive(self):
         first=self.proposal()
         self.decide(first)
-        self.witness._decisions.clear()  # adversarial in-memory state loss
+        self.witness._state=replace(self.witness._state, decisions=())  # synthetic ledger loss
         self.assertEqual(self.witness.assess_archive(self.j0,first.candidate,
                          epoch="e1").code,"DECISION_LEDGER_INCOMPLETE_REFUSE")
 
@@ -156,7 +157,8 @@ class DecisionAndRestoreTests(unittest.TestCase):
         self.decide(second,operation_id=self.op2)
         self.assertEqual(self.witness.assess_archive(self.j0,second.candidate,
                          epoch="e1").code,"CHAIN_VALID_PROVENANCE_UNVERIFIED_HUMAN_GATE")
-        self.witness._decisions.pop(self.op1)
+        self.witness._state=replace(self.witness._state,
+                                     decisions=self.witness._state.decisions[1:])
         self.assertEqual(self.witness.assess_archive(self.j0,second.candidate,
                          epoch="e1").code,"DECISION_LEDGER_INCOMPLETE_REFUSE")
 
@@ -219,6 +221,142 @@ class DecisionAndRestoreTests(unittest.TestCase):
         with self.assertRaisesRegex(w.WitnessLabError,"PROPOSAL_INVALID"):
             self.decide(forged)
         self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
+
+
+    def test_security_receipt_all_fields_audited(self):
+        draft=self.proposal()
+        self.decide(draft)
+        good=self.witness._state.decisions[0]
+        mutations=[
+            {"request_digest":"0"*64},
+            {"authority_id":"another"},
+            {"opaque_scope":"b"*32},
+            {"epoch":"old"},
+            {"operation_id":"4"*32},
+            {"before":replace(good.before,mac="0"*64)},
+            {"after":replace(good.after,mac="0"*64)},
+        ]
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                bad=replace(good,**mutation)
+                self.witness._state=replace(
+                    self.witness._state,decisions=(bad,))
+                self.assertEqual(
+                    self.witness.assess_archive(self.j0,draft.candidate,
+                                                epoch="e1").code,
+                    "DECISION_LEDGER_INCOMPLETE_REFUSE")
+        self.witness._state=replace(self.witness._state,decisions=(good,))
+
+    def test_security_digest_separates_identity_scope_epoch_and_op(self):
+        draft=self.proposal()
+        receipt=self.decide(draft)
+        for authority_id,scope,epoch,op in (
+                ("other-authority","a"*32,"e1",self.op1),
+                ("lab-authority","b"*32,"e1",self.op1),
+                ("lab-authority","a"*32,"e2",self.op1),
+                ("lab-authority","a"*32,"e1",self.op2)):
+            other=w.VolatileDecisionWitness(
+                self.j0,self.a0,authority_id=authority_id,
+                epoch=epoch,opaque_scope=scope,
+                journal_key=self.journal_key,
+                legacy_key=self.legacy_key,keys=self.keys)
+            different=other.decide(draft,operation_id=op,epoch=epoch)
+            self.assertNotEqual(receipt.request_digest,
+                                different.request_digest)
+
+    def test_reliability_equal_head_missing_ledger_refused(self):
+        draft=self.proposal()
+        self.decide(draft)
+        self.witness._state=replace(self.witness._state,decisions=())
+        self.assertEqual(
+            self.witness.assess_archive(draft.candidate,None,epoch="e1").code,
+            "WITNESS_LEDGER_INCOMPLETE_REFUSE")
+        self.assertEqual(
+            self.witness.lost_reply(draft.candidate,draft,
+                         operation_id=self.op1,epoch="e1").code,
+            "WITNESS_LEDGER_INCONSISTENT_REFUSE")
+
+    def test_reliability_fault_injection_atomic_before_after(self):
+        draft=self.proposal()
+        with self.assertRaisesRegex(w.SimulatedLabCrash,"BEFORE_INSTALL"):
+            self.witness.decide(draft,operation_id=self.op1,
+                                epoch="e1",failpoint="BEFORE_INSTALL")
+        self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
+        self.assertIsNone(self.witness.lookup(draft,operation_id=self.op1,
+                                              epoch="e1"))
+        with self.assertRaisesRegex(w.SimulatedLabCrash,"AFTER_INSTALL"):
+            self.witness.decide(draft,operation_id=self.op1,
+                                epoch="e1",failpoint="AFTER_INSTALL")
+        self.assertEqual(self.witness.observe(epoch="e1"),draft.next_anchor)
+        receipt=self.witness.lookup(draft,operation_id=self.op1,epoch="e1")
+        self.assertIsNotNone(receipt)
+        self.assertEqual(self.decide(draft),receipt)
+        self.assertEqual(len(self.witness._state.decisions),1)
+
+    def test_reliability_missing_local_and_stale_are_distinct(self):
+        draft=self.proposal()
+        self.decide(draft)
+        self.assertEqual(
+            self.witness.lost_reply(None,draft,
+                        operation_id=self.op1,epoch="e1").code,
+            "LOCAL_EVIDENCE_MISSING")
+        self.assertEqual(
+            self.witness.lost_reply(self.j0,draft,
+                        operation_id=self.op1,epoch="e1").code,
+            "DECIDED_NOT_FINALIZED_LOCAL_STALE")
+        corrupted=j.Journal((replace(self.j0.records[0],mac="0"*64),))
+        self.assertEqual(
+            self.witness.lost_reply(corrupted,draft,
+                        operation_id=self.op1,epoch="e1").code,
+            "LOCAL_INVALID_REFUSE")
+
+    def test_reliability_concurrent_forks_one_winner(self):
+        a=self.proposal()
+        b=self.proposal(kid="cd"*16)
+        tasks=[(a if i%2==0 else b,format(i+1,"032x"))
+               for i in range(12)]
+        def submit(item):
+            draft,op=item
+            try:
+                return self.witness.decide(draft,operation_id=op,epoch="e1")
+            except w.WitnessLabError as error:
+                return str(error)
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            answers=list(pool.map(submit,tasks))
+        winners=[answer for answer in answers if isinstance(answer,w.Receipt)]
+        self.assertEqual(len(winners),1)
+        self.assertEqual(len(self.witness._state.decisions),1)
+        self.assertTrue(all(answer=="STALE_FORK"
+                            for answer in answers if not isinstance(answer,w.Receipt)))
+
+    def test_reliability_fault_matrix_and_extra_events_refused(self):
+        first=self.proposal()
+        self.decide(first)
+        state=m.verify(first.candidate.records[-1].snapshot,
+                       expected_revision=1,legacy_key=self.legacy_key,
+                       keys=self.keys)
+        second=self.proposal(base=first.candidate,anchor=first.next_anchor,
+                             state=state)
+        self.decide(second,operation_id=self.op2)
+        self.assertEqual(len(self.witness._state.decisions),2)
+        self.assertEqual(
+            self.witness.assess_archive(self.j0,second.candidate,
+                                        epoch="e1").code,
+            "CHAIN_VALID_PROVENANCE_UNVERIFIED_HUMAN_GATE")
+        self.witness._state=replace(
+            self.witness._state,decisions=self.witness._state.decisions[:1])
+        self.assertEqual(
+            self.witness.assess_archive(second.candidate,None,
+                                        epoch="e1").code,
+            "WITNESS_LEDGER_INCOMPLETE_REFUSE")
+
+    def test_reliability_rejected_invalid_failpoint_is_unchanged(self):
+        draft=self.proposal()
+        with self.assertRaisesRegex(w.WitnessLabError,"FAILPOINT_INVALID"):
+            self.witness.decide(draft,operation_id=self.op1,
+                                epoch="e1",failpoint="MID_CAS")
+        self.assertEqual(self.witness._state.head,self.a0)
+        self.assertEqual(self.witness._state.decisions,())
 
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]

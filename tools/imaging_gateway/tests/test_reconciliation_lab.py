@@ -74,6 +74,16 @@ class RecoveryMatrixTests(unittest.TestCase):
         self.assertEqual(self.inspect(self.j0,self.a0).code,"VERIFIED_MATCH")
         self.assertEqual(self.inspect(self.j0,self.a1).code,"AUTHORITY_AHEAD")
 
+
+    def test_unverified_length_must_not_claim_direction(self):
+        bad=j.Journal((replace(self.j0.records[0],mac="0"*64),))
+        self.assertEqual(self.inspect(bad,self.a1).code,
+                         "INTEGRITY_OR_KEY_FAILURE")
+        rec=self.j1.records[-1]
+        badlong=j.Journal(self.j1.records+(replace(rec,sequence=3),))
+        self.assertEqual(self.inspect(badlong,self.a0).code,
+                         "INTEGRITY_OR_KEY_FAILURE")
+
     def test_no_live_wiring(self):
         root=Path(__file__).resolve().parents[1]
         source=(root/"reconciliation_lab.py").read_text(encoding="utf-8")

@@ -34,20 +34,23 @@ def inspect(local: journal.Journal | None,
     if (type(local) is not journal.Journal or type(local.records) is not tuple
             or not 1 <= len(local.records) <= 256):
         return Finding("LOCAL_INVALID")
+    # Verify local HMAC chain and media AEAD BEFORE attributing divergence
+    # to an authority that remains caller-supplied and NOT authenticated.
+    last = local.records[-1]
+    if type(last) is not journal.Record:
+        return Finding("LOCAL_INVALID")
+    try:
+        local_anchor = journal.TrustedAnchor(last.sequence, last.mac)
+        state = journal.verify_chain(
+            local, local_anchor, journal_key=journal_key,
+            legacy_key=legacy_key, keys=keys)
+    except (journal.JournalLabError, TypeError, ValueError, AttributeError):
+        return Finding("INTEGRITY_OR_KEY_FAILURE")
     count = len(local.records)
     if count < head.sequence:
         return Finding("AUTHORITY_AHEAD")
     if count > head.sequence:
         return Finding("LOCAL_AHEAD")
-    last = local.records[-1]
-    if (type(last) is not journal.Record or type(last.mac) is not str
-            or len(last.mac) != 64):
-        return Finding("LOCAL_INVALID")
     if not hmac.compare_digest(last.mac, head.mac):
         return Finding("HEAD_MISMATCH")
-    try:
-        state = journal.verify_chain(local, head, journal_key=journal_key,
-                                     legacy_key=legacy_key, keys=keys)
-    except (journal.JournalLabError, TypeError, ValueError, AttributeError):
-        return Finding("INTEGRITY_OR_KEY_FAILURE")
     return Finding("VERIFIED_MATCH", state.phase)

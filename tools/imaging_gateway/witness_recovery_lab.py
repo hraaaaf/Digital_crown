@@ -1,8 +1,8 @@
-"""LOT06-M volatile decision/receipt and archive-evidence model (LAB ONLY).
+"""LOT06-M isolated synthetic decision and archive consistency model.
 
-An in-process dictionary is NOT an independent authority, durable transaction,
-persistent idempotency ledger, cryptographic receipt, or recovery approval.
-Never use this module to approve a patient upload or to repair a physical spool.
+One immutable Python state installation models a *logical* atomic decision.
+It is not physically durable, cross-process linearizable, authenticated,
+an independent witness, or permission for any patient/clinical action.
 """
 from __future__ import annotations
 
@@ -11,13 +11,18 @@ import hashlib
 import hmac
 import json
 import re
+import threading
 
 from . import fork_lab as fork
 from . import journal_lab as journal
 
 
 class WitnessLabError(RuntimeError):
-    """Fixed diagnostic codes: no media, keys, patient or scope in errors."""
+    """Fixed codes only; no image/key/scope leaks."""
+
+
+class SimulatedLabCrash(RuntimeError):
+    """Fault injection at a logical state installation boundary, no I/O."""
 
 
 @dataclass(frozen=True)
@@ -36,40 +41,15 @@ class Assessment:
     code: str
 
 
+@dataclass(frozen=True)
+class _State:
+    history: journal.Journal
+    head: journal.TrustedAnchor
+    decisions: tuple[Receipt, ...]
+
+
 def _fail(code: str) -> None:
     raise WitnessLabError(code)
-
-
-def _request_digest(draft: fork.Draft) -> str:
-    """Digest the *entire* synthetic proposal, not only a caller's claim."""
-    if (type(draft) is not fork.Draft
-            or type(draft.candidate) is not journal.Journal
-            or type(draft.candidate.records) is not tuple
-            or not 2 <= len(draft.candidate.records) <= 256
-            or type(draft.expected) is not journal.TrustedAnchor
-            or type(draft.next_anchor) is not journal.TrustedAnchor):
-        _fail("PROPOSAL_INVALID")
-    h = hashlib.sha256(b"DC06M|synthetic-proposal|v1\0")
-    try:
-        anchors = (
-            draft.expected.sequence, draft.expected.mac,
-            draft.next_anchor.sequence, draft.next_anchor.mac,
-        )
-        data = json.dumps(anchors, separators=(",", ":"), ensure_ascii=True).encode("ascii")
-        h.update(len(data).to_bytes(4, "big") + data)
-        for record in draft.candidate.records:
-            if type(record) is not journal.Record:
-                _fail("PROPOSAL_INVALID")
-            # 06-K's deterministic manifest includes both image byte digests.
-            fields = [record.sequence, record.previous_mac, record.mac]
-            data = json.dumps(fields, separators=(",", ":"), ensure_ascii=True).encode("ascii")
-            manifest = journal._manifest(record.snapshot)
-            for part in (data, manifest):
-                h.update(len(part).to_bytes(4, "big") + part)
-    except (journal.JournalLabError, ValueError, TypeError,
-            AttributeError, OverflowError, UnicodeError):
-        _fail("PROPOSAL_INVALID")
-    return h.hexdigest()
 
 
 def _same(a: journal.TrustedAnchor, b: journal.TrustedAnchor) -> bool:
@@ -79,12 +59,51 @@ def _same(a: journal.TrustedAnchor, b: journal.TrustedAnchor) -> bool:
             and a.sequence == b.sequence and hmac.compare_digest(a.mac, b.mac))
 
 
-class VolatileDecisionWitness:
-    """Serial model only: CAS and receipt ledger updated as one Python call.
+def _operation(operation_id: str) -> None:
+    if (type(operation_id) is not str
+            or not re.fullmatch(r"[0-9a-f]{32}", operation_id)
+            or operation_id == "0" * 32):
+        _fail("OPERATION_ID_INVALID")
 
-    The state can be cloned, reset or forged by Python code. This is NOT an
-    OS-atomic transaction or a physically trustworthy witness.
+
+def _request_digest(draft: fork.Draft, *, authority_id: str, epoch: str,
+                    opaque_scope: str, operation_id: str) -> str:
+    """Canonical domain bound to identity, epoch, scope, op ID AND bytes.
+
+    A SHA-256 digest is NOT a signature. This code only compares synthetic
+    payloads against a caller-owned in-memory decision table.
     """
+    if (type(draft) is not fork.Draft
+            or type(draft.candidate) is not journal.Journal
+            or type(draft.candidate.records) is not tuple
+            or not 2 <= len(draft.candidate.records) <= 256
+            or type(draft.expected) is not journal.TrustedAnchor
+            or type(draft.next_anchor) is not journal.TrustedAnchor):
+        _fail("PROPOSAL_INVALID")
+    _operation(operation_id)
+    h = hashlib.sha256(b"DC06M|synthetic-decision-envelope|v2\0")
+    try:
+        identity = [authority_id, epoch, opaque_scope, operation_id,
+                    draft.expected.sequence, draft.expected.mac,
+                    draft.next_anchor.sequence, draft.next_anchor.mac]
+        data = json.dumps(identity, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+        h.update(len(data).to_bytes(4, "big") + data)
+        for record in draft.candidate.records:
+            if type(record) is not journal.Record:
+                _fail("PROPOSAL_INVALID")
+            metadata = [record.sequence, record.previous_mac, record.mac]
+            data = json.dumps(metadata, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+            manifest = journal._manifest(record.snapshot)
+            for part in (data, manifest):
+                h.update(len(part).to_bytes(4, "big") + part)
+    except (journal.JournalLabError, ValueError, TypeError,
+            AttributeError, OverflowError, UnicodeError):
+        _fail("PROPOSAL_INVALID")
+    return h.hexdigest()
+
+
+class VolatileDecisionWitness:
+    """Serialized LAB CAS with one immutable state snapshot; still volatile."""
 
     def __init__(self, genesis: journal.Journal,
                  anchor: journal.TrustedAnchor, *, authority_id: str,
@@ -97,68 +116,156 @@ class VolatileDecisionWitness:
                 or type(opaque_scope) is not str
                 or not re.fullmatch(r"[0-9a-f]{32}", opaque_scope)):
             _fail("IDENTITY_INVALID")
-        self._authority = fork.VolatileAuthority(
-            genesis, anchor, journal_key=journal_key, legacy_key=legacy_key,
-            keys=keys
-        )
+        validated = fork.VolatileAuthority(
+            genesis, anchor, journal_key=journal_key,
+            legacy_key=legacy_key, keys=keys)
         self._authority_id = authority_id
         self._epoch = epoch
         self._opaque_scope = opaque_scope
-        self._decisions: dict[str, Receipt] = {}
+        self._journal_key = journal_key
+        self._legacy_key = legacy_key
+        self._keys = dict(keys)
+        self._scope = self._scope_for(genesis.records[0].snapshot)
+        self._state = _State(genesis, validated.observe(), ())
+        self._lock = threading.Lock()
+
+    @staticmethod
+    def _scope_for(snapshot: object) -> tuple:
+        return (snapshot.cabinet, snapshot.workstation, snapshot.identity,
+                snapshot.digest, snapshot.source_sha256)
 
     def _identity(self, epoch: str) -> None:
         if type(epoch) is not str or not hmac.compare_digest(epoch, self._epoch):
             _fail("EPOCH_REFUSED")
 
-    @staticmethod
-    def _operation(operation_id: str) -> None:
-        if (type(operation_id) is not str
-                or not re.fullmatch(r"[0-9a-f]{32}", operation_id)
-                or operation_id == "0" * 32):
-            _fail("OPERATION_ID_INVALID")
+    def _digest(self, draft: fork.Draft, operation_id: str) -> str:
+        return _request_digest(draft, authority_id=self._authority_id,
+                               epoch=self._epoch, opaque_scope=self._opaque_scope,
+                               operation_id=operation_id)
+
+    def _valid_history(self, history: journal.Journal,
+                       head: journal.TrustedAnchor) -> bool:
+        try:
+            state = journal.verify_chain(
+                history, head, journal_key=self._journal_key,
+                legacy_key=self._legacy_key, keys=self._keys)
+            return self._scope_for(state) == self._scope
+        except (journal.JournalLabError, TypeError, ValueError, AttributeError):
+            return False
+
+    def _valid_prefix(self, local: journal.Journal) -> bool:
+        if (type(local) is not journal.Journal or
+                type(local.records) is not tuple or
+                not 1 <= len(local.records) <= 256):
+            return False
+        last = local.records[-1]
+        if type(last) is not journal.Record:
+            return False
+        return self._valid_history(
+            local, journal.TrustedAnchor(last.sequence, last.mac))
+
+    def _ledger_complete(self, state: _State) -> bool:
+        """Entire history, every receipt field, ID, digest and order must match.
+
+        This is an integrity check *relative to memory-owned keys and ledger*,
+        NOT independent archive custody, witness authenticity or freshness.
+        """
+        if (type(state) is not _State
+                or not self._valid_history(state.history, state.head)
+                or type(state.decisions) is not tuple
+                or len(state.decisions) != state.head.sequence - 1):
+            return False
+        seen: set[str] = set()
+        records = state.history.records
+        for index, receipt in enumerate(state.decisions, start=2):
+            if type(receipt) is not Receipt:
+                return False
+            try:
+                _operation(receipt.operation_id)
+                if (receipt.operation_id in seen
+                        or type(receipt.request_digest) is not str
+                        or len(receipt.request_digest) != 64
+                        or any(c not in "0123456789abcdef"
+                               for c in receipt.request_digest)
+                        or receipt.authority_id != self._authority_id
+                        or receipt.opaque_scope != self._opaque_scope
+                        or receipt.epoch != self._epoch):
+                    return False
+                before = journal.TrustedAnchor(records[index-2].sequence,
+                                               records[index-2].mac)
+                after = journal.TrustedAnchor(records[index-1].sequence,
+                                              records[index-1].mac)
+                if not (_same(receipt.before, before)
+                        and _same(receipt.after, after)):
+                    return False
+                draft = fork.Draft(before,
+                                   journal.Journal(records[:index]), after)
+                if not hmac.compare_digest(
+                        receipt.request_digest,
+                        self._digest(draft, receipt.operation_id)):
+                    return False
+                seen.add(receipt.operation_id)
+            except (WitnessLabError, TypeError, ValueError, AttributeError):
+                return False
+        return True
 
     def observe(self, *, epoch: str) -> journal.TrustedAnchor:
         self._identity(epoch)
-        return self._authority.observe()
+        return self._state.head
 
     def decide(self, draft: fork.Draft, *, operation_id: str,
-               epoch: str) -> Receipt:
-        """Accept one synthetic CAS; retry of *identical* op returns receipt.
+               epoch: str, failpoint: str | None = None) -> Receipt:
+        """Logical CAS, ledger and history installed with one state assignment.
 
-        Physical design MUST persist CAS + operation_id->payload->receipt in
-        ONE atomic authority transaction before acknowledging anything.
+        Failpoint BEFORE_INSTALL => no change; AFTER_INSTALL => decision fully
+        visible even without the response. No real power-loss or fsync tested.
         """
         self._identity(epoch)
-        self._operation(operation_id)
-        digest = _request_digest(draft)
-        previous = self._decisions.get(operation_id)
-        if previous is not None:
-            if not hmac.compare_digest(previous.request_digest, digest):
-                _fail("IDEMPOTENCY_CONFLICT")
-            return previous  # Old receipt does NOT assert current head.
-        try:
-            head = self._authority.compare_and_swap(draft)
-        except fork.ForkLabError as exc:
-            if str(exc) in {"STALE_FORK", "FORK_PARENT_MISMATCH"}:
+        _operation(operation_id)
+        if failpoint not in (None, "BEFORE_INSTALL", "AFTER_INSTALL"):
+            _fail("FAILPOINT_INVALID")
+        digest = self._digest(draft, operation_id)
+        with self._lock:
+            old = self._state
+            if not self._ledger_complete(old):
+                _fail("WITNESS_LEDGER_INCONSISTENT")
+            previous = next((r for r in old.decisions
+                             if r.operation_id == operation_id), None)
+            if previous is not None:
+                if not hmac.compare_digest(previous.request_digest, digest):
+                    _fail("IDEMPOTENCY_CONFLICT")
+                return previous
+            if not _same(draft.expected, old.head):
                 _fail("STALE_FORK")
-            _fail("PROPOSAL_REFUSED")
-        receipt = Receipt(operation_id, digest, self._authority_id,
-                          self._opaque_scope, self._epoch,
-                          draft.expected, head)
-        self._decisions[operation_id] = receipt
-        return receipt
+            if (type(draft.next_anchor.sequence) is not int
+                    or draft.next_anchor.sequence != old.head.sequence + 1
+                    or draft.candidate.records[:-1] != old.history.records):
+                _fail("FORK_PARENT_MISMATCH")
+            if not self._valid_history(draft.candidate, draft.next_anchor):
+                _fail("PROPOSAL_REFUSED")
+            receipt = Receipt(operation_id, digest, self._authority_id,
+                              self._opaque_scope, self._epoch,
+                              draft.expected, draft.next_anchor)
+            staged = _State(draft.candidate, draft.next_anchor,
+                            old.decisions + (receipt,))
+            if failpoint == "BEFORE_INSTALL":
+                raise SimulatedLabCrash("BEFORE_INSTALL")
+            self._state = staged  # single linearization point in LAB
+            if failpoint == "AFTER_INSTALL":
+                raise SimulatedLabCrash("AFTER_INSTALL")
+            return receipt
 
     def lookup(self, draft: fork.Draft, *, operation_id: str,
                epoch: str) -> Receipt | None:
-        """Read simulated decision by (epoch, op_id, request body).
-
-        An absent result is NOT proof an in-flight request cannot arrive.
-        Retry, if permitted, with exactly the same id and body.
-        """
+        """Absence is UNKNOWN: an in-flight identical request can still arrive."""
         self._identity(epoch)
-        self._operation(operation_id)
-        digest = _request_digest(draft)
-        previous = self._decisions.get(operation_id)
+        _operation(operation_id)
+        digest = self._digest(draft, operation_id)
+        state = self._state
+        if not self._ledger_complete(state):
+            _fail("WITNESS_LEDGER_INCONSISTENT")
+        previous = next((r for r in state.decisions
+                         if r.operation_id == operation_id), None)
         if previous is not None and not hmac.compare_digest(
                 previous.request_digest, digest):
             _fail("IDEMPOTENCY_CONFLICT")
@@ -167,68 +274,54 @@ class VolatileDecisionWitness:
     def lost_reply(self, local: journal.Journal | None,
                    draft: fork.Draft, *, operation_id: str,
                    epoch: str) -> Assessment:
-        """Observe after a lost reply. NEVER finalize or commit local data."""
-        previous = self.lookup(draft, operation_id=operation_id, epoch=epoch)
-        head = self.observe(epoch=epoch)
+        """Classify only, never locally finalize or produce an ACK."""
+        try:
+            previous = self.lookup(draft, operation_id=operation_id, epoch=epoch)
+        except WitnessLabError as exc:
+            if str(exc) == "WITNESS_LEDGER_INCONSISTENT":
+                return Assessment("WITNESS_LEDGER_INCONSISTENT_REFUSE")
+            raise
+        current = self._state
         if previous is None:
-            if _same(draft.expected, head):
+            if _same(draft.expected, current.head):
                 return Assessment("UNKNOWN_RETRY_SAME_OP_ONLY")
             return Assessment("UNDECIDED_STALE_HEAD_REFUSE")
-        if not _same(previous.after, head):
+        if not _same(previous.after, current.head):
             return Assessment("OLD_DECISION_RECHECK_CURRENT_HEAD")
-        if type(local) is journal.Journal and local == draft.candidate:
-            try:
-                self._authority.recover(local)
-            except fork.ForkLabError:
-                return Assessment("LOCAL_INVALID_REFUSE")
+        if not self._valid_prefix(local):
+            return Assessment("LOCAL_EVIDENCE_MISSING" if local is None
+                              else "LOCAL_INVALID_REFUSE")
+        if local == current.history:
             return Assessment("DECIDED_LOCAL_REVIEW_REQUIRED")
-        return Assessment("DECIDED_NOT_FINALIZED")
+        if (len(local.records) < len(current.history.records)
+                and local.records == current.history.records[:len(local.records)]):
+            return Assessment("DECIDED_NOT_FINALIZED_LOCAL_STALE")
+        return Assessment("LOCAL_DIVERGENCE_REFUSE")
 
     def assess_archive(self, local: journal.Journal | None,
                        archive: journal.Journal | None, *,
                        epoch: str) -> Assessment:
-        """Evidence classifier: even complete evidence REQUIRES human gate.
-
-        No archive is written or restored. Missing local journal cannot prove
-        which prior genesis/state was authoritative; fail closed.
-        """
+        """Read-only consistency classification, NEVER authorization to restore."""
         self._identity(epoch)
-        head = self._authority.observe()
-        if (type(local) is not journal.Journal or
-                type(local.records) is not tuple or
-                not 1 <= len(local.records) <= 256):
+        state = self._state
+        if local is None:
             return Assessment("LOCAL_EVIDENCE_MISSING")
-        if len(local.records) > head.sequence:
+        if not self._valid_prefix(local):
+            return Assessment("LOCAL_INVALID_REFUSE")
+        if len(local.records) > state.head.sequence:
             return Assessment("LOCAL_AHEAD_REFUSE")
-        if len(local.records) == head.sequence:
-            try:
-                self._authority.recover(local)
-            except fork.ForkLabError:
+        if len(local.records) == state.head.sequence:
+            if local != state.history:
                 return Assessment("LOCAL_DIVERGENCE_REFUSE")
+            if not self._ledger_complete(state):
+                return Assessment("WITNESS_LEDGER_INCOMPLETE_REFUSE")
             return Assessment("ALIGNED_NO_CLINICAL_ACK")
+        if local.records != state.history.records[:len(local.records)]:
+            return Assessment("LOCAL_PREFIX_FORK_REFUSE")
         if type(archive) is not journal.Journal:
             return Assessment("INDEPENDENT_ARCHIVE_REQUIRED")
-        try:
-            self._authority.recover(archive)  # 06-K HMAC + 06-J AEAD + head
-        except (fork.ForkLabError, TypeError, AttributeError):
+        if archive != state.history or not self._valid_history(archive, state.head):
             return Assessment("ARCHIVE_UNTRUSTED_REFUSE")
-        if local.records != archive.records[:len(local.records)]:
-            return Assessment("LOCAL_PREFIX_FORK_REFUSE")
-        # Every missing suffix event must correspond to one decision in this
-        # volatile ledger. A count or a single final MAC alone is insufficient.
-        for sequence in range(len(local.records) + 1, head.sequence + 1):
-            before = archive.records[sequence - 2]
-            after = archive.records[sequence - 1]
-            matching = [
-                receipt for receipt in self._decisions.values()
-                if receipt.after.sequence == sequence
-                and receipt.epoch == self._epoch
-                and _same(receipt.before,
-                          journal.TrustedAnchor(before.sequence, before.mac))
-                and _same(receipt.after,
-                          journal.TrustedAnchor(after.sequence, after.mac))
-            ]
-            if len(matching) != 1:
-                return Assessment("DECISION_LEDGER_INCOMPLETE_REFUSE")
-        # The caller-provided archive has NO independent provenance proof.
+        if not self._ledger_complete(state):
+            return Assessment("DECISION_LEDGER_INCOMPLETE_REFUSE")
         return Assessment("CHAIN_VALID_PROVENANCE_UNVERIFIED_HUMAN_GATE")
