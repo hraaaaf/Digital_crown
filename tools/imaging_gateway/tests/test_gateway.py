@@ -1,7 +1,10 @@
 """Synthetic fixtures only; no device, patient or server access."""
 import base64
-import hashlib
+import errno
 import json
+import sqlite3
+from unittest.mock import patch
+import hashlib
 import os
 import subprocess
 import sys
@@ -190,7 +193,7 @@ class GatewayTests(unittest.TestCase):
         self.enable_ready_mode()
         self.ready_marker()
         result = self.agent.scan_once()
-        self.assertEqual(result, dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0))
+        self.assertEqual(result, dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0, deferred=0))
         self.assertEqual(self.agent.items(), [])
 
     def test_incomplete_file_with_future_digest_never_staged(self):
@@ -304,6 +307,172 @@ class GatewayTests(unittest.TestCase):
             output.truncate(self.config.max_bytes + 33)
         with self.assertRaises(GatewayError):
             self.agent.read_verified(1)
+
+    # LOT06-D: no silent loss on quota, disk-full or an interrupted spool commit.
+    def limited_agent(self, **policy):
+        opts = dict(
+            require_ready_manifest=False,
+            max_spool_bytes=2 * 1024 ** 3,
+            max_queue_items=1000,
+            min_free_bytes=0,
+        )
+        opts.update(policy)
+        return HotFolder(Config(
+            "cabinet1", "device1", self.watch, self.private, b"k" * 32, **opts
+        ))
+
+    def test_spool_byte_cap_defers_without_deleting_original(self):
+        limit = len(SYNTHETIC) + 32
+        self.agent = self.limited_agent(max_spool_bytes=limit)
+        self.assertEqual(self.stage("one.png")["staged"], 1)
+        (self.watch / "two.png").write_bytes(SYNTHETIC)
+        self.agent.scan_once()
+        outcome = self.agent.scan_once()
+        self.assertEqual(outcome["deferred"], 1)
+        self.assertEqual(outcome["duplicate"], 1)
+        self.assertEqual((self.watch / "two.png").read_bytes(), SYNTHETIC)
+        self.assertEqual(len(self.agent.items()), 1)
+        health = self.agent.storage_health()
+        self.assertEqual(health["state"], "BACKPRESSURE")
+        self.assertEqual(health["last_capacity_issue"], "SPOOL_BYTE_LIMIT")
+
+    def test_queue_item_cap_defers_and_replays_existing_capture(self):
+        self.agent = self.limited_agent(max_queue_items=1)
+        self.stage("first.png")
+        (self.watch / "second.png").write_bytes(SYNTHETIC)
+        self.agent.scan_once()
+        outcome = self.agent.scan_once()
+        self.assertEqual(outcome["duplicate"], 1)
+        self.assertEqual(outcome["deferred"], 1)
+        self.assertEqual(len(self.agent.items()), 1)
+        self.assertEqual(self.agent.storage_health()["last_capacity_issue"], "QUEUE_ITEM_LIMIT")
+
+    def test_low_free_space_defers_then_recovers_with_original_intact(self):
+        self.agent = self.limited_agent(min_free_bytes=64)
+        source = self.watch / "fixture.png"
+        source.write_bytes(SYNTHETIC)
+        self.agent.scan_once()
+        with patch("tools.imaging_gateway.gateway.shutil.disk_usage") as disk:
+            disk.return_value.free = 0
+            outcome = self.agent.scan_once()
+            self.assertEqual(outcome["deferred"], 1)
+        self.assertEqual(len(self.agent.items()), 0)
+        self.assertEqual(source.read_bytes(), SYNTHETIC)
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+
+    def test_enospc_during_encrypted_write_preserves_source_and_no_row(self):
+        self.agent = self.limited_agent()
+        source = self.watch / "fixture.png"
+        source.write_bytes(SYNTHETIC)
+        self.agent.scan_once()
+        with patch("tools.imaging_gateway.gateway.os.replace",
+                   side_effect=OSError(errno.ENOSPC, "synthetic disk full")):
+            result = self.agent.scan_once()
+        self.assertEqual(result["deferred"], 1)
+        self.assertEqual(self.agent.storage_health()["last_capacity_issue"], "DISK_FULL")
+        self.assertEqual(len(self.agent.items()), 0)
+        self.assertEqual(list((self.private / "spool").iterdir()), [])
+        self.assertEqual(source.read_bytes(), SYNTHETIC)
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+
+    def test_interrupted_after_ciphertext_rename_orphan_reused_at_quota(self):
+        exact_bytes = len(SYNTHETIC) + 32
+        self.agent = self.limited_agent(max_spool_bytes=exact_bytes)
+        source = self.watch / "fixture.png"
+        source.write_bytes(SYNTHETIC)
+        self.agent.scan_once()
+        real_store = self.agent._store
+
+        def fail_after_rename(*args):
+            real_store(*args)
+            raise OSError(errno.ENOSPC, "synthetic disk full after rename")
+
+        with patch.object(self.agent, "_store", side_effect=fail_after_rename):
+            self.assertEqual(self.agent.scan_once()["deferred"], 1)
+        self.assertEqual(len(self.agent.items()), 0)
+        health = self.agent.storage_health()
+        self.assertEqual(health["orphan_files"], 1)
+        self.assertEqual(health["orphan_bytes"], exact_bytes)
+        restarted = self.limited_agent(max_spool_bytes=exact_bytes)
+        self.assertEqual(restarted.scan_once()["unstable"], 1)
+        self.assertEqual(restarted.scan_once()["staged"], 1)
+        self.assertEqual(restarted.read_verified(1), SYNTHETIC)
+        self.assertEqual(restarted.storage_health()["orphan_files"], 0)
+        self.assertEqual(len(list((self.private / "spool").iterdir())), 1)
+
+    def test_untracked_partial_spool_counts_against_quota_no_auto_delete(self):
+        self.agent = self.limited_agent(max_spool_bytes=len(SYNTHETIC) + 32)
+        partial = self.private / "spool" / ".partial-interrupted"
+        partial.write_bytes(b"X" * 64)
+        self.assertEqual(self.stage()["deferred"], 1)
+        h = self.agent.storage_health()
+        self.assertEqual(h["orphan_files"], 1)
+        self.assertEqual(h["orphan_bytes"], 64)
+        self.assertTrue(partial.exists())
+        partial.unlink()  # explicit operator cleanup, not agent deletion
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+
+    def test_new_capture_recovers_on_restart_after_increasing_budget(self):
+        self.agent = self.limited_agent(max_queue_items=1)
+        self.stage("first.png")
+        (self.watch / "second.png").write_bytes(SYNTHETIC)
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["deferred"], 1)
+        restarted = self.limited_agent(max_queue_items=2)
+        self.assertEqual(restarted.scan_once()["unstable"], 2)
+        self.assertEqual(restarted.scan_once()["staged"], 1)
+        self.assertEqual(len(restarted.items()), 2)
+        self.assertTrue(all(item["state"] == "PENDING_CONFIRMATION" for item in restarted.items()))
+
+    def test_health_exposes_only_aggregate_counters_no_phi(self):
+        self.agent = self.limited_agent()
+        self.stage("secret_patient_name.png")
+        health = self.agent.storage_health()
+        exported = json.dumps(health)
+        self.assertEqual(health["queued_items"], 1)
+        self.assertIn("PENDING_CONFIRMATION", health["states"])
+        self.assertNotIn("secret_patient_name", exported)
+        self.assertNotIn("filename", exported)
+        self.assertNotIn("patient_id", exported)
+        self.assertNotIn(self.agent.items()[0]["digest"], exported)
+
+    def test_invalid_capacity_configuration_rejected(self):
+        for overrides in [
+            {"max_spool_bytes": 0},
+            {"max_spool_bytes": -1},
+            {"max_queue_items": 0},
+            {"max_queue_items": True},
+            {"min_free_bytes": -1},
+            {"min_free_bytes": False},
+        ]:
+            with self.subTest(overrides=overrides), self.assertRaises(GatewayError):
+                self.limited_agent(**overrides)
+
+    def test_unexpected_storage_error_propagates_without_false_success(self):
+        self.agent = self.limited_agent()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.agent.scan_once()
+        with patch.object(self.agent, "_store", side_effect=OSError(errno.EACCES, "denied")):
+            with self.assertRaises(PermissionError):
+                self.agent.scan_once()
+        self.assertEqual(len(self.agent.items()), 0)
+        self.assertEqual((self.watch / "fixture.png").read_bytes(), SYNTHETIC)
+
+    def test_spool_symlink_entry_fails_closed(self):
+        self.agent = self.limited_agent()
+        external = self.private / "untrusted"
+        external.write_bytes(b"X")
+        link = self.private / "spool" / "untrusted.dc6"
+        try:
+            link.symlink_to(external)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlink unavailable in this synthetic environment")
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.agent.scan_once()
+        with self.assertRaises(GatewayError):
+            self.agent.scan_once()
+        self.assertEqual(len(self.agent.items()), 0)
+        self.assertTrue(link.is_symlink())
 
 
 if __name__ == "__main__":

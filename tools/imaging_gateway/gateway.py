@@ -8,12 +8,14 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+import errno
 import hashlib
 import hmac
 import json
 import os
 import re
 import secrets
+import shutil
 import sqlite3
 import stat
 import tempfile
@@ -34,6 +36,26 @@ SUPPORTED = {
 }
 ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 MAX_BYTES = 50 * 1024 * 1024
+DEFAULT_SPOOL_BYTES = 2 * 1024 * 1024 * 1024
+DEFAULT_QUEUE_ITEMS = 1000
+DEFAULT_FREE_RESERVE_BYTES = 64 * 1024 * 1024
+_MAX_SPOOL_BYTES = 16 * 1024 ** 4
+
+
+class StorageBackpressure(GatewayError):
+    """Local capacity gate; neither source nor confirmed media are removed."""
+
+    def __init__(self, code):
+        self.code = code
+        super().__init__(code)
+
+
+def _is_disk_full(error):
+    return (
+        getattr(error, "errno", None) in (errno.ENOSPC, getattr(errno, "EDQUOT", -1))
+        or getattr(error, "winerror", None) in (39, 112)
+        or getattr(error, "sqlite_errorcode", None) == sqlite3.SQLITE_FULL
+    )
 
 
 def sniff(data: bytes) -> str | None:
@@ -58,6 +80,9 @@ class Config:
     category: str = "PHOTO"
     max_bytes: int = MAX_BYTES
     require_ready_manifest: bool = False
+    max_spool_bytes: int = DEFAULT_SPOOL_BYTES
+    max_queue_items: int = DEFAULT_QUEUE_ITEMS
+    min_free_bytes: int = DEFAULT_FREE_RESERVE_BYTES
 
     def __post_init__(self):
         if not ID.fullmatch(self.cabinet) or not ID.fullmatch(self.workstation):
@@ -66,6 +91,13 @@ class Config:
             raise GatewayError("explicit category required")
         if type(self.require_ready_manifest) is not bool:
             raise GatewayError("invalid ready-manifest mode")
+        if (type(self.max_spool_bytes) is not int or
+                not 1 <= self.max_spool_bytes <= _MAX_SPOOL_BYTES or
+                type(self.max_queue_items) is not int or
+                not 1 <= self.max_queue_items <= 100_000 or
+                type(self.min_free_bytes) is not int or
+                not 0 <= self.min_free_bytes <= _MAX_SPOOL_BYTES):
+            raise GatewayError("invalid local capacity policy")
         if len(self.key) != 32:
             raise GatewayError("a 256-bit spool key is mandatory")
         if not 0 < self.max_bytes <= MAX_BYTES:
@@ -86,6 +118,7 @@ class HotFolder:
     def __init__(self, config: Config):
         self.config = config
         self._observed = {}
+        self._last_capacity_issue = None  # diagnostic only; no patient/file info
         self.private = Path(config.private).absolute()
         self.spool = self.private / "spool"
         if self.spool.is_symlink():
@@ -273,8 +306,79 @@ class HotFolder:
             if os.path.exists(tmp):
                 os.unlink(tmp)
 
+    def _spool_usage(self, db):
+        """Count actual on-disk bytes, including crash-orphan and partial files.
+
+        Never delete untracked bytes automatically: retain for forensic recovery.
+        """
+        registered = {row[0] for row in db.execute("SELECT blob FROM items")}
+        occupied = 0
+        orphan_bytes = 0
+        orphan_count = 0
+        file_count = 0
+        for entry in os.scandir(self.spool):
+            file_count += 1
+            if file_count > 100_000:
+                raise StorageBackpressure("SPOOL_DIRECTORY_LIMIT")
+            meta = entry.stat(follow_symlinks=False)
+            if not stat.S_ISREG(meta.st_mode) or meta.st_nlink != 1:
+                raise GatewayError("unsafe spool entry")
+            occupied += meta.st_size
+            if entry.name not in registered:
+                orphan_count += 1
+                orphan_bytes += meta.st_size
+        return {
+            "spool_bytes": occupied,
+            "orphan_files": orphan_count,
+            "orphan_bytes": orphan_bytes,
+        }
+
+    def _check_capacity(self, db, incoming_size, blob):
+        if db.execute("SELECT COUNT(*) FROM items").fetchone()[0] >= self.config.max_queue_items:
+            raise StorageBackpressure("QUEUE_ITEM_LIMIT")
+        used = self._spool_usage(db)["spool_bytes"]
+        # If the ciphertext was durably renamed before a prior DB crash,
+        # a matching capture may reuse that orphan without counting it twice.
+        additional = 0 if (self.spool / blob).exists() else incoming_size + 32
+        if used + additional > self.config.max_spool_bytes:
+            raise StorageBackpressure("SPOOL_BYTE_LIMIT")
+        free = shutil.disk_usage(self.spool).free
+        if free < additional + self.config.min_free_bytes:
+            raise StorageBackpressure("DISK_RESERVE_LIMIT")
+
+    def storage_health(self):
+        """Explicit no-PHI operational diagnostics. No file names/paths/digests."""
+        with self._db() as db:
+            counts = dict(db.execute(
+                "SELECT state,COUNT(*) FROM items GROUP BY state"
+            ).fetchall())
+            queued = sum(counts.values())
+            usage = self._spool_usage(db)
+            free = shutil.disk_usage(self.spool).free
+        limited = (
+            self._last_capacity_issue is not None or
+            queued >= self.config.max_queue_items or
+            usage["spool_bytes"] >= self.config.max_spool_bytes or
+            free < self.config.min_free_bytes
+        )
+        return {
+            "state": "BACKPRESSURE" if limited else "READY",
+            "queued_items": queued,
+            "states": counts,
+            "spool_bytes": usage["spool_bytes"],
+            "orphan_files": usage["orphan_files"],
+            "orphan_bytes": usage["orphan_bytes"],
+            "free_bytes": free,
+            "max_spool_bytes": self.config.max_spool_bytes,
+            "max_queue_items": self.config.max_queue_items,
+            "min_free_bytes": self.config.min_free_bytes,
+            "last_capacity_issue": self._last_capacity_issue,
+        }
+
     def scan_once(self):
-        outcome = dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0)
+        outcome = dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0,
+                       deferred=0)
+        self._last_capacity_issue = None
         for path in sorted(Path(self.config.watch).iterdir()):
             if self.config.require_ready_manifest and path.name.endswith(".ready"):
                 continue  # Completion metadata is not an acquisition.
@@ -313,27 +417,43 @@ class HotFolder:
             accepted = mime is not None and path.suffix.lower() in SUPPORTED[mime]
             state = "PENDING_CONFIRMATION" if accepted else "QUARANTINED"
             blob = identity + ".dc6"
-            with self._db() as db:
-                db.execute("BEGIN IMMEDIATE")
-                previous = db.execute(
-                    "SELECT blob,digest FROM items WHERE dedup_key=?", (identity,)
-                ).fetchone()
-                if previous:
-                    self._decrypt(previous[0], identity, previous[1])
-                    outcome["duplicate"] += 1
-                    continue
-                self._store(blob, identity, content, digest)
-                item = db.execute(
-                    """INSERT INTO items
-                    (dedup_key,digest,size,mime,category,state,blob,created_at)
-                    VALUES(?,?,?,?,?,?,?,?)""",
-                    (identity, digest, len(content), mime, self.config.category,
-                     state, blob, int(time.time())),
-                )
-                db.execute(
-                    "INSERT INTO audit(item_id,event,at) VALUES(?,?,?)",
-                    (item.lastrowid, state, int(time.time())),
-                )
+            try:
+                with self._db() as db:
+                    db.execute("BEGIN IMMEDIATE")
+                    previous = db.execute(
+                        "SELECT blob,digest FROM items WHERE dedup_key=?", (identity,)
+                    ).fetchone()
+                    if previous:
+                        self._decrypt(previous[0], identity, previous[1])
+                        outcome["duplicate"] += 1
+                        continue
+                    # Reserve under the SQLite writer lock, including physical
+                    # orphans from an earlier interrupted file-to-DB commit.
+                    self._check_capacity(db, len(content), blob)
+                    self._store(blob, identity, content, digest)
+                    item = db.execute(
+                        """INSERT INTO items
+                        (dedup_key,digest,size,mime,category,state,blob,created_at)
+                        VALUES(?,?,?,?,?,?,?,?)""",
+                        (identity, digest, len(content), mime, self.config.category,
+                         state, blob, int(time.time())),
+                    )
+                    db.execute(
+                        "INSERT INTO audit(item_id,event,at) VALUES(?,?,?)",
+                        (item.lastrowid, state, int(time.time())),
+                    )
+            except StorageBackpressure as error:
+                self._last_capacity_issue = error.code
+                outcome["deferred"] += 1
+                continue
+            except (OSError, sqlite3.OperationalError) as error:
+                if not _is_disk_full(error):
+                    raise
+                # The DB transaction rolled back; original file stays untouched.
+                # Never synthesize CONFIRMED or silently drop an acquisition.
+                self._last_capacity_issue = "DISK_FULL"
+                outcome["deferred"] += 1
+                continue
             outcome["staged" if accepted else "quarantine"] += 1
         return outcome
 
