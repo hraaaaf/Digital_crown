@@ -33,8 +33,10 @@ class DecisionAndRestoreTests(unittest.TestCase):
             self.genesis,journal_key=self.journal_key,
             legacy_key=self.legacy_key,keys=self.keys
         )
+        self.registry=w.VolatileEnrollmentRegistry()
         self.witness=w.VolatileDecisionWitness(
             self.j0,self.a0,authority_id="lab-authority",epoch="e1",opaque_scope="a"*32,
+            registry=self.registry,
             journal_key=self.journal_key,legacy_key=self.legacy_key,keys=self.keys
         )
         self.op1="1"*32
@@ -194,6 +196,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
         self.decide(first)
         reset=w.VolatileDecisionWitness(
             self.j0,self.a0,authority_id="lab-authority",epoch="e1",opaque_scope="a"*32,
+            registry=w.VolatileEnrollmentRegistry(),  # intentionally untrusted reset
             journal_key=self.journal_key,legacy_key=self.legacy_key,keys=self.keys
         )
         self.assertEqual(reset.assess_archive(self.j0,None,epoch="e1").code,
@@ -258,6 +261,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
             other=w.VolatileDecisionWitness(
                 self.j0,self.a0,authority_id=authority_id,
                 epoch=epoch,opaque_scope=scope,
+                registry=w.VolatileEnrollmentRegistry(),  # digest-only separate scope
                 journal_key=self.journal_key,
                 legacy_key=self.legacy_key,keys=self.keys)
             different=other.decide(draft,operation_id=op,epoch=epoch)
@@ -357,6 +361,98 @@ class DecisionAndRestoreTests(unittest.TestCase):
                                 epoch="e1",failpoint="MID_CAS")
         self.assertEqual(self.witness._state.head,self.a0)
         self.assertEqual(self.witness._state.decisions,())
+
+
+    def test_replay_observe_refuses_torn_ledger(self):
+        draft=self.proposal()
+        self.decide(draft)
+        state=self.witness._state
+        for d in ((),(replace(state.decisions[0],request_digest="0"*64),)):
+            self.witness._state=replace(state,decisions=d)
+            with self.assertRaisesRegex(w.WitnessLabError,"WITNESS_LEDGER_INCONSISTENT"):
+                self.witness.observe(epoch="e1")
+        self.witness._state=state
+        self.assertEqual(self.witness.observe(epoch="e1"),draft.next_anchor)
+
+    def test_replay_same_capture_alias_denied_in_shared_registry(self):
+        args=dict(journal_key=self.journal_key,
+                  legacy_key=self.legacy_key,keys=self.keys)
+        for authority,epoch,scope,reason in (
+                ("lab-authority","e1","a"*32,"ACTIVE_WITNESS_EXISTS"),
+                ("lab-authority","e1","b"*32,"ENROLLMENT_CONFLICT"),
+                ("lab-authority","e2","a"*32,"ENROLLMENT_CONFLICT"),
+                ("other-authority","e1","a"*32,"ENROLLMENT_CONFLICT")):
+            with self.subTest(auth=authority,epoch=epoch):
+                with self.assertRaisesRegex(w.WitnessLabError,reason):
+                    w.VolatileDecisionWitness(
+                        self.j0,self.a0,authority_id=authority,epoch=epoch,
+                        opaque_scope=scope,registry=self.registry,**args)
+        # Negative: independent registry can still permit the old fork.
+        second=w.VolatileDecisionWitness(
+            self.j0,self.a0,authority_id="lab-authority",epoch="e1",
+            opaque_scope="b"*32,registry=w.VolatileEnrollmentRegistry(),**args)
+        self.decide(self.proposal())
+        second.decide(self.proposal(kid="cd"*16),
+                      operation_id=self.op2,epoch="e1")
+        self.assertNotEqual(self.witness._state.head,second._state.head)
+
+    def test_replay_lost_reply_uses_single_snapshot(self):
+        draft=self.proposal()
+        digest=self.witness._digest
+        did=[False]
+        def interleave(d,op):
+            if not did[0]:
+                did[0]=True
+                self.witness._digest=digest
+                self.decide(d)
+            return digest(d,op)
+        self.witness._digest=interleave
+        self.assertEqual(self.witness.lost_reply(
+            self.j0,draft,operation_id=self.op1,epoch="e1").code,
+            "UNKNOWN_RETRY_SAME_OP_ONLY")
+        self.assertEqual(self.witness._state.head,draft.next_anchor)
+        self.assertEqual(self.witness.lost_reply(
+            self.j0,draft,operation_id=self.op1,epoch="e1").code,
+            "DECIDED_NOT_FINALIZED_LOCAL_STALE")
+
+    def test_replay_modified_historical_prefix_denied(self):
+        draft=self.proposal()
+        self.decide(draft)
+        corrupted=replace(self.j0.records[0],mac="0"*64)
+        forged=replace(draft,candidate=j.Journal(
+            (corrupted,)+draft.candidate.records[1:]))
+        for action in (self.witness.lookup,self.witness.decide):
+            with self.assertRaisesRegex(w.WitnessLabError,"PROPOSAL_REFUSED"):
+                action(forged,operation_id=self.op1,epoch="e1")
+
+    def test_replay_linear_manifest_cost(self):
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        history,head,state=self.j0,self.a0,self.genesis
+        for i in range(16):
+            if state.phase in ("SOURCE","ROLLED_BACK"):
+                state=m.prepare(state,expected_revision=state.revision,
+                    legacy_key=self.legacy_key,target_key_id="ab"*16,keys=self.keys)
+            elif state.phase=="PREPARED":
+                state=m.verify(state,expected_revision=state.revision,
+                    legacy_key=self.legacy_key,keys=self.keys)
+            elif state.phase=="VERIFIED":
+                state=m.commit(state,expected_revision=state.revision,
+                    legacy_key=self.legacy_key,keys=self.keys)
+            else:
+                state=m.rollback(state,expected_revision=state.revision,
+                    legacy_key=self.legacy_key,operator_confirmed=True)
+            draft=self.proposal(base=history,anchor=head,state=state)
+            self.witness.decide(draft,operation_id=format(i+1,"032x"),epoch="e1")
+            history,head=draft.candidate,draft.next_anchor
+        count=[0]
+        original=journal_lab._manifest
+        def counted(value):
+            count[0]+=1
+            return original(value)
+        with patch.object(journal_lab,"_manifest",side_effect=counted):
+            self.witness.lookup(draft,operation_id=format(16,"032x"),epoch="e1")
+        self.assertLessEqual(count[0],3*len(history.records)+2)
 
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
