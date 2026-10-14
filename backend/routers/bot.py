@@ -446,3 +446,8 @@ async def bot_cancel_action(
     record.status = "cancelled"
     db.commit()
     return {"status": "cancelled"}
+
+
+# Explicitly isolated experimental preview; no influence on legacy chat/execute.
+from backend.routers import bot_workflows as _bot_workflows  # noqa: E402
+router.include_router(_bot_workflows.router)
