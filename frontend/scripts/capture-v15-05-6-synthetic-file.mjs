@@ -114,7 +114,12 @@ try{
       serverRequests,errors,unexpected,status,cause:String(cause)}));
   }
   const after=await page.evaluate(()=>({width:document.documentElement.clientWidth,
-    scroll:document.documentElement.scrollWidth,importLocked:document.body.textContent?.includes('Import bloqué'),
+    scroll:document.documentElement.scrollWidth,
+    // Assert the real clinical import control stays disabled, not a fragile copy string.
+    importLocked:(()=>{
+      const control=document.querySelector('button[aria-label="Import en cours de construction"]');
+      return control instanceof HTMLButtonElement && control.disabled;
+    })(),
     overflowNodes:[...document.querySelectorAll('body *')].filter(el=>{
       const r=el.getBoundingClientRect(); return r.width && r.right>innerWidth+1;
     }).slice(0,12).map(el=>({tag:el.tagName,className:typeof el.className==='string'?el.className.slice(0,100):'',
