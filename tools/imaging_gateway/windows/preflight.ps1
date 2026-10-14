@@ -41,13 +41,14 @@ function Test-BroadWriteRules {
 
 function Convert-RulesToOpaque {
   param([System.Security.AccessControl.FileSystemSecurity]$Acl)
+  # Request SIDs from the native ACL API directly. Account-name translation
+  # can fail on Windows runners and localized/offline cabinet workstations.
   $rules = @()
-  foreach ($rule in $Acl.Access) {
-    $sid = $rule.IdentityReference.Translate(
-      [System.Security.Principal.SecurityIdentifier]
-    ).Value
+  foreach ($rule in $Acl.GetAccessRules(
+    $true, $true, [System.Security.Principal.SecurityIdentifier]
+  )) {
     $rules += [pscustomobject]@{
-      Sid = $sid
+      Sid = $rule.IdentityReference.Value
       Type = $rule.AccessControlType.ToString()
       Mask = [int64]$rule.FileSystemRights
     }
@@ -164,11 +165,15 @@ try {
       }
       foreach ($path in @($state.FullName, $spool)) {
         $phase = 'STATE_SPOOL_ACL'
+        $phase = 'ACL_READ'
         $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
+        $phase = 'ACL_SID_EXTRACTION'
         $rules = @(Convert-RulesToOpaque -Acl $acl)
+        $phase = 'ACL_POLICY'
         Add-Check $checks 'STATE_ACL_BROAD_WRITE_DENIED' (
           -not (Test-BroadWriteRules -Rules $rules)
         )
+        $phase = 'ACL_OWNER'
         $owner = $acl.Owner
         Add-Check $checks 'STATE_ACL_OWNER_PRESENT' (
           -not [string]::IsNullOrWhiteSpace($owner)

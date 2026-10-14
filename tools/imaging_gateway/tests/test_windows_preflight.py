@@ -70,7 +70,7 @@ class WindowsPreflightNativeTests(unittest.TestCase):
         self.assertIn("STATE_VOLUME_NTFS", codes)
         self.assertIn("STATE_ACL_BROAD_WRITE_DENIED", codes)
         self.assertIn("DATABASE_NOT_INITIALIZED", codes)
-        self.assertNotIn("INSPECTION_FAILED", codes,
+        self.assertFalse(any(code.startswith("INSPECTION_FAILED") for code in codes),
                          "Native ACL/volume preflight must really inspect files")
         self.assertIn("DPAPI_DEVICE_KEY_AND_RECOVERY_VERIFIED", codes)
         self.assertIn("PHYSICAL_NTFS_ACL_FIELD_CERTIFIED", codes)
@@ -87,7 +87,7 @@ class WindowsPreflightNativeTests(unittest.TestCase):
                                   "-StateDir", self.root / "missing-private")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(report["status"], "BLOCKED")
-        self.assertIn("INSPECTION_FAILED",
+        self.assertIn("INSPECTION_FAILED_PATHS",
                       [item["code"] for item in report["checks"]])
         self.assertNotIn("missing-private", result.stdout)
 
@@ -114,7 +114,7 @@ class WindowsPreflightNativeTests(unittest.TestCase):
         result, report = run_gate("-WatchDir", self.watch, "-StateDir", self.state)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(report["status"], "BLOCKED")
-        self.assertIn("INSPECTION_FAILED",
+        self.assertIn("INSPECTION_FAILED_PATHS",
                       [x["code"] for x in report["checks"]])
 
     def test_preflight_does_not_need_spool_key(self):
