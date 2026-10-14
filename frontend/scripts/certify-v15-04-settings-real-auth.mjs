@@ -10,10 +10,12 @@ const phase = process.env.SETTINGS_REAL_PHASE;
 const head = process.env.PRODUCT_HEAD;
 const base = process.env.BASE_HEAD;
 const password = process.env.T2_PASSWORD;
+const ownerPin = process.env.T2_OWNER_PIN;
 const owner = process.env.T2_USER;
 const branchPhase = phase === 'before' || phase === 'after';
 if (!branchPhase || !/^[0-9a-f]{40}$/.test(head || '')
-  || !/^[0-9a-f]{40}$/.test(base || '') || !password || !owner) {
+  || !/^[0-9a-f]{40}$/.test(base || '') || !password || !owner
+  || !/^\d{6}$/.test(ownerPin || '')) {
   throw new Error('Exact HEADs, phase, and isolated credentials required');
 }
 if (process.env.ENVIRONMENT !== 'test' || process.env.DIGITALCROWN_ISOLATED_RUNTIME !== '1') {
@@ -64,6 +66,31 @@ try {
         const enrollment = await enrollT2Workstation(api, ownerToken, password);
         const workstationCookies = enrollment.cookies.filter(cookie => cookie.name === 'dc_workstation');
         if (workstationCookies.length !== 1) throw new Error('Missing real enrolled workstation cookie');
+
+        // Enrolment creates a workstation in unselected (hub) mode. This
+        // owner-only endpoint requires a real Cabinet-mode workstation, so
+        // exercise the actual privileged PIN and mode APIs; never forge mode
+        // state, database records, auth responses or cookies in the harness.
+        const ownerHeaders = { Authorization: 'Bearer ' + ownerToken };
+        const pinSetup = await api.post('/api/workstation/owner-pin', {
+          data: { accountPassword: password, newPin: ownerPin },
+          headers: ownerHeaders,
+        });
+        if (pinSetup.status() !== 200) {
+          throw new Error('Real owner PIN setup failed: HTTP ' + pinSetup.status());
+        }
+        const modeSelection = await api.post('/api/workstation/mode', {
+          data: { mode: 'cabinet', ownerPin },
+          headers: ownerHeaders,
+        });
+        if (modeSelection.status() !== 200) {
+          throw new Error('Real Cabinet workstation mode selection failed: HTTP ' + modeSelection.status());
+        }
+        const serverMode = await modeSelection.json();
+        if (serverMode.defaultExperience !== 'cabinet') {
+          throw new Error('Real Cabinet workstation mode was not acknowledged by server');
+        }
+        record.checks.realCabinetMode = true;
 
         // Backend owner/delegated decisions are verified with genuine credentials.
         const roleLogin = await api.post('/api/auth/login', {

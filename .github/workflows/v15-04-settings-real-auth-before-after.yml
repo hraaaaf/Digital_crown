@@ -62,6 +62,9 @@ jobs:
           credential="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
           echo "::add-mask::$credential"
           echo "T2_PASSWORD=$credential" >> "$GITHUB_ENV"
+          pin="$(python -c 'import secrets; print(f"{secrets.randbelow(900000) + 100000:06d}")')"
+          echo "::add-mask::$pin"
+          echo "T2_OWNER_PIN=$pin" >> "$GITHUB_ENV"
       - name: Install actual FastAPI runtime dependencies
         working-directory: after
         run: |
@@ -173,6 +176,7 @@ jobs:
               for s in samples:
                   assert s['complete'] and s['checks']['realBrowserLogin']
                   assert s['checks']['realWorkstationCookie'] and s['checks']['realSettingsNavigation']
+                  assert s['checks']['realCabinetMode']
                   assert s['checks']['roleBoundary']
                   assert len(s['shots']) == (4 if phase == 'after' and s['role'] == 'owner' else 2)
                   for name in s['shots']:
