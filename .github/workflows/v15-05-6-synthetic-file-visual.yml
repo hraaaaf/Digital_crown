@@ -1,0 +1,52 @@
+name: V1.5-05.6 Synthetic File Upload Visual 390 430 768 1280 text200
+on:
+  pull_request:
+    paths:
+      - frontend/src/features/admin/migration/**
+      - frontend/scripts/capture-v15-05-6-synthetic-file.mjs
+      - .github/workflows/v15-05-6-synthetic-file-visual.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend and isolated Playwright
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Synthetic no-network BEFORE and AFTER at four viewports and 200 percent text scale
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --port 4197 --host 127.0.0.1 >/tmp/v15-05-6-vite.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:4197/migration-preview.html -o /dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:4197/migration-preview.html -o /dev/null
+          GITHUB_SHA="$(git rev-parse HEAD)" node scripts/capture-v15-05-6-synthetic-file.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v15-05-6-file-before-after-responsive
+          path: frontend/artifacts/v15-05-6-file
+          if-no-files-found: error
+          retention-days: 14
+      - name: Exact SHA proof
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
