@@ -221,7 +221,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
         bad=replace(record,snapshot=replace(record.snapshot,cabinet=99))
         forged=replace(draft,candidate=j.Journal(
             draft.candidate.records[:-1]+(bad,)))
-        with self.assertRaisesRegex(w.WitnessLabError,"PROPOSAL_INVALID"):
+        with self.assertRaisesRegex(w.WitnessLabError,"PROPOSAL_REFUSED"):
             self.decide(forged)
         self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
 
@@ -398,15 +398,15 @@ class DecisionAndRestoreTests(unittest.TestCase):
 
     def test_replay_lost_reply_uses_single_snapshot(self):
         draft=self.proposal()
-        digest=self.witness._digest
+        preflight=self.witness._preflight_draft
         did=[False]
-        def interleave(d,op):
+        def interleave(d):
             if not did[0]:
                 did[0]=True
-                self.witness._digest=digest
+                self.witness._preflight_draft=preflight
                 self.decide(d)
-            return digest(d,op)
-        self.witness._digest=interleave
+            return preflight(d)
+        self.witness._preflight_draft=interleave
         self.assertEqual(self.witness.lost_reply(
             self.j0,draft,operation_id=self.op1,epoch="e1").code,
             "UNKNOWN_RETRY_SAME_OP_ONLY")
