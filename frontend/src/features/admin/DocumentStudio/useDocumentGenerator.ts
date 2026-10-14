@@ -288,7 +288,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           catalog_source_label: d.catalogSourceLabel ?? null,
           catalog_snapshot_date: d.catalogSnapshotDate ?? null,
           catalog_marketing_status_verified: d.catalogMarketingStatusVerified ?? null,
-        }))
+        })),
         doc_date: docDate,
         show_legal_annotations: params.showLegalAnnotations !== false,
       };
