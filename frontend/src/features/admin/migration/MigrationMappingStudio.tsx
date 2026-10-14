@@ -392,8 +392,8 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
         </p>
         <div className="flex flex-col justify-between gap-3 sm:flex-row">
           <button type="button" onClick={() => setStage('review')} className={buttonClass + ' border border-border-main'}><ArrowLeft size={17} /> Modifier</button>
-          <button type="button" disabled aria-label="Import réel en cours de construction" className={buttonClass + ' bg-slate-800 text-white'}>
-            <LockKeyhole size={17} /> Import réel en cours de construction
+          <button type="button" disabled aria-label="Import en cours de construction" className={buttonClass + ' bg-slate-800 text-white'}>
+            <LockKeyhole size={17} /> Import en cours de construction
           </button>
         </div>
       </section>}
