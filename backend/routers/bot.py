@@ -379,6 +379,12 @@ async def bot_execute(
         _log_rejected("annulée")
         raise HTTPException(status_code=409, detail="Cette action a ete annulee.")
 
+    # Fail closed for both final and in-flight states (including stale claims
+    # after a worker crash). In-flight actions require manual reconciliation.
+    if record.status != "pending":
+        _log_rejected(f"statut non exécutable : {record.status}")
+        raise HTTPException(status_code=409, detail="Action déjà prise en charge ou non exécutable.")
+
     action_type = record.action_type
 
     # Fail-closed : type inconnu ou non autorise -> 403
@@ -388,42 +394,75 @@ async def bot_execute(
         raise HTTPException(status_code=403, detail=f"Action non autorisee : {action_type}")
     require_bot_permission(current_user, permission)
 
-    # Reconstituer le format attendu par ActionDispatcher.execute()
+    # Atomic compare-and-swap claim, persisted BEFORE any dispatcher side effect.
+    # No second worker can claim a row unless it remains pending and unexpired.
+    claimed = db.query(models.BotPendingAction).filter(
+        models.BotPendingAction.id == action_id,
+        models.BotPendingAction.user_id == current_user.id,
+        models.BotPendingAction.employer_id == employer_id,
+        models.BotPendingAction.status == "pending",
+        models.BotPendingAction.expires_at > datetime.utcnow(),
+    ).update({"status": "executing"}, synchronize_session=False)
+    if claimed != 1:
+        db.rollback()
+        _log_rejected("prise en charge concurrente ou expiration")
+        raise HTTPException(status_code=409, detail="Action déjà prise en charge ou expirée.")
+    db.commit()  # claim durable, independently of dispatcher transactions
+
+    # The proposed payload is kept server-side, with tenant/role rechecked.
     pending_action = {"type": action_type, "params": record.params_json}
+    patient_resource = str(record.params_json.get("patient_id")) if record.params_json.get("patient_id") else None
+
+    def _mark_failed() -> None:
+        db.rollback()
+        db.query(models.BotPendingAction).filter(
+            models.BotPendingAction.id == action_id,
+            models.BotPendingAction.status == "executing",
+        ).update({"status": "failed"}, synchronize_session=False)
+        db.commit()
 
     try:
         response = dispatcher.execute(pending_action, db, current_user)
     except Exception as e:
-        # Audit échec d'exécution
+        _mark_failed()
         audit_service.log(
-            db=db,
-            user_id=current_user.id,
-            employer_id=employer_id,
-            action="BOT_EXECUTE",
-            resource_type=str(action_type),
-            resource_id=str(record.params_json.get("patient_id")) if record.params_json.get("patient_id") else None,
-            severity="ERROR",
+            db=db, user_id=current_user.id, employer_id=employer_id,
+            action="BOT_EXECUTE", resource_type=str(action_type),
+            resource_id=patient_resource, severity="ERROR",
             details=f"Échec exécution action Crown Bot (id={action_id}) : {action_type}. Erreur : {str(e)}",
         )
         raise
 
-    # Marquer comme execute
-    record.status = "executed"
-    record.executed_at = datetime.utcnow()
+    # Dispatcher may return a BotResponse(error) without raising. Never
+    # present it as a successful execution nor permit an automatic retry.
+    if response.action_type == "error":
+        _mark_failed()
+        audit_service.log(
+            db=db, user_id=current_user.id, employer_id=employer_id,
+            action="BOT_EXECUTE", resource_type=str(action_type),
+            resource_id=patient_resource, severity="ERROR",
+            details=f"Échec métier Crown Bot (id={action_id}) : {action_type}",
+        )
+        raise HTTPException(status_code=409, detail="Action échouée. Reconciliation requise.")
+
+    completed = db.query(models.BotPendingAction).filter(
+        models.BotPendingAction.id == action_id,
+        models.BotPendingAction.status == "executing",
+    ).update(
+        {"status": "executed", "executed_at": datetime.utcnow()},
+        synchronize_session=False,
+    )
+    if completed != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="État d'action incohérent : contrôle manuel requis.")
     db.commit()
 
-    # Audit succès d'exécution (APRÈS le commit)
     audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
-        action="BOT_EXECUTE",
-        resource_type=str(action_type),
-        resource_id=str(record.params_json.get("patient_id")) if record.params_json.get("patient_id") else None,
-        severity="INFO",
+        db=db, user_id=current_user.id, employer_id=employer_id,
+        action="BOT_EXECUTE", resource_type=str(action_type),
+        resource_id=patient_resource, severity="INFO",
         details=f"Action Crown Bot executee avec succes (id={action_id}) : {action_type}",
     )
-
     return response.to_dict()
 
 
