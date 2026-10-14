@@ -39,6 +39,24 @@ function Test-BroadWriteRules {
   return $false
 }
 
+function Read-FileAcl {
+  param([string]$LiteralPath)
+  # PowerShell Security module's Get-Acl is absent from some Windows runners.
+  # The Windows-only .NET ACL extension retrieves the same security descriptor
+  # without changing any permissions. Fail closed if both are unavailable.
+  $cmd = Get-Command -Name 'Get-Acl' -ErrorAction SilentlyContinue
+  if ($null -ne $cmd) {
+    return Get-Acl -LiteralPath $LiteralPath -ErrorAction Stop
+  }
+  $item = Get-Item -LiteralPath $LiteralPath -Force -ErrorAction Stop
+  if ($item.PSIsContainer) {
+    $directory = [System.IO.DirectoryInfo]::new($item.FullName)
+    return [System.IO.FileSystemAclExtensions]::GetAccessControl($directory)
+  }
+  $file = [System.IO.FileInfo]::new($item.FullName)
+  return [System.IO.FileSystemAclExtensions]::GetAccessControl($file)
+}
+
 function Convert-RulesToOpaque {
   param([System.Security.AccessControl.FileSystemSecurity]$Acl)
   # Request SIDs from the native ACL API directly. Account-name translation
@@ -166,7 +184,7 @@ try {
       foreach ($path in @($state.FullName, $spool)) {
         $phase = 'STATE_SPOOL_ACL'
         $phase = 'ACL_READ'
-        $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
+        $acl = Read-FileAcl -LiteralPath $path
         $phase = 'ACL_SID_EXTRACTION'
         $rules = @(Convert-RulesToOpaque -Acl $acl)
         $phase = 'ACL_POLICY'
@@ -186,7 +204,7 @@ try {
         Add-Check $checks 'DATABASE_NO_REPARSE' (
           ([int]$db.Attributes -band [int][System.IO.FileAttributes]::ReparsePoint) -eq 0
         )
-        $dbAcl = Get-Acl -LiteralPath $dbPath -ErrorAction Stop
+        $dbAcl = Read-FileAcl -LiteralPath $dbPath
         Add-Check $checks 'DATABASE_ACL_BROAD_WRITE_DENIED' (
           -not (Test-BroadWriteRules -Rules @(Convert-RulesToOpaque -Acl $dbAcl))
         )

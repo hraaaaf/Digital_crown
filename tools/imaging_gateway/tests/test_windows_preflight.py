@@ -87,8 +87,9 @@ class WindowsPreflightNativeTests(unittest.TestCase):
                                   "-StateDir", self.root / "missing-private")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(report["status"], "BLOCKED")
-        self.assertIn("INSPECTION_FAILED_PATHS",
-                      [item["code"] for item in report["checks"]])
+        self.assertTrue(
+            any(str(item["code"]).startswith("INSPECTION_FAILED_PATHS_")
+                for item in report["checks"]), report)
         self.assertNotIn("missing-private", result.stdout)
 
     def test_nested_state_cannot_pass_separation_gate(self):
@@ -114,8 +115,9 @@ class WindowsPreflightNativeTests(unittest.TestCase):
         result, report = run_gate("-WatchDir", self.watch, "-StateDir", self.state)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(report["status"], "BLOCKED")
-        self.assertIn("INSPECTION_FAILED_PATHS",
-                      [x["code"] for x in report["checks"]])
+        self.assertTrue(
+            any(str(item["code"]).startswith("INSPECTION_FAILED_PATHS_")
+                for item in report["checks"]), report)
 
     def test_preflight_does_not_need_spool_key(self):
         old = os.environ.pop("DC_IMAGING_SPOOL_KEY_HEX", None)
