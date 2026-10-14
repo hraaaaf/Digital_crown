@@ -88,3 +88,24 @@ Synthetic tests (tests/test_adapters.py) are discovered by the existing Windows/
 **Testable states**: empty spool; waiting patient association; quarantined file; retries pending/exhausted; hard quota; disk full; orphan ciphertext; corrupt local state; unknown metrics; report XSS escaping; HTML 390px responsive stylesheet and wide 1440px grid contract, no submit/button, no patient metadata. Synthetic Linux/Windows tests, no frontend visual BEFORE/AFTER or device certification.
 
 **Blocking conditions for activation**: backend device identity, session-bound capture/patient verification, persisted human confirmation, server upload/idempotent receipt, genuine physical Windows and instrument tests. Local projection is read-only, never a way to override these gates. Mobile product surfaces exist but this imaging workflow remains en cours de construction.
+
+## LOT06-G — Windows installation safety read-only gate
+
+**Current status: inspection prototype only. No installation, ACL repair, Windows service, DPAPI provisioning, production activation or physical hardware validation.** The cross-platform hot-folder collector currently receives a 256-bit spool key from environment variable DC_IMAGING_SPOOL_KEY_HEX. This is not a certified Windows secret delivery mechanism (environment leak/dump, backup, rotation and operator boundary remain unresolved). Never type, paste or print a real key into a shell transcript or CI job. A DPAPI-bound key lifecycle (identity, provisioning, escrow/recovery, rotation, revocation, service account) requires a separate authorized gate; the present script explicitly reports DPAPI_DEVICE_KEY_AND_RECOVERY_VERIFIED=false and cannot report READY for installation.
+
+To examine an **already-provisioned test directory** on Windows (PowerShell 5.1 or later; no spool key required, and no changes to any file):
+
+~~~powershell
+powershell.exe -NoProfile -NonInteractive -File .\tools\imaging_gateway\windows\preflight.ps1 -WatchDir "C:\DC-TEST\watch" -StateDir "C:\DC-TEST\state"
+~~~
+
+The script returns **stable JSON codes only** (no actual path, patient, file name, SID, ACL identity, digest or key) with contract DC06G-WINDOWS-PREFLIGHT-V1, status BLOCKED, ready_for_install=false, clinical_activation_permitted=false. It inspects:
+- required existing directories; watch and private/state directories must be disjoint;
+- directory reparse points and ancestor links, including private/spool;
+- the state volume must be reported NTFS by Get-Volume (unavailable/inconclusive becomes a blocker);
+- Windows ACLs on state/spool and existing acquisitions.sqlite3, rejecting allow-write ACE for Everyone, Authenticated Users, Users, Guests, Interactive and Anonymous by invariant **SID**, not localized account names; explicit deny entries do not justify accepting broad allow entries;
+- presence of a valid local key protection/escrow strategy and genuine physical NTFS validation **remain UNSATISFIED by construction**, even if the runner reports directory ACLs safe.
+
+**Read-only exit semantics**: exit code 0 means the diagnostic completed and returned JSON, NOT installation approval; inspect status and every check.ok. Inspection failure returns a generic INSPECTION_FAILED code without leaking exception text. The script performs NO Set-Acl, New-Item, Remove-Item, DPAPI decrypt, driver install, service start or upload.
+
+GitHub-hosted Windows runners execute synthetic native PowerShell self-tests, path/ACL inspection, missing-path, nested-path and no-key proof alongside existing 06A-F tests. The native runner verifies that the inspector can be executed, not that a cabinet machine is configured correctly. Before any real installer/driver approval, check dedicated Windows account, NTFS ACL/reparse and file ownership, DPAPI user/machine scope and recoverability, antivirus lock contention, backup/restore and fresh-key procedure, genuine camera/RVG/pano/ceph devices, and server Patient/RDV identity and receipt gate. The operational clinical gate is still NO-GO.
