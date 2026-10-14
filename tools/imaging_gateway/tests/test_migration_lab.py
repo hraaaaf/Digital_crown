@@ -170,6 +170,23 @@ class MigrationStateMachineTests(unittest.TestCase):
         self.assertEqual(restored.source, self.original)
         self.assertEqual(self.active(restored), self.media)
 
+    def test_explicit_rollback_from_missing_or_corrupt_candidate_header(self):
+        committed = self.commit(self.verify(self.prepare()))
+        for broken in (
+            replace(committed, candidate=None),
+            replace(committed, candidate=b"garbled"),
+            replace(committed, candidate=committed.candidate[:2]),
+            replace(committed, target_key_id=None),
+            replace(committed, candidate_sha256=None),
+        ):
+            with self.subTest(candidate=broken.candidate):
+                with self.assertRaises(m.MigrationLabError):
+                    m.restart(broken, legacy_key=self.legacy_key, keys=self.keys)
+                restored = self.rollback(broken)
+                self.assertEqual(restored.phase, "ROLLED_BACK")
+                self.assertEqual(restored.source, self.original)
+                self.assertEqual(self.active(restored), self.media)
+
     def test_missing_new_key_blocks_restart_and_explicit_rollback_still_works(self):
         c = self.commit(self.verify(self.prepare()))
         with self.assertRaisesRegex(m.MigrationLabError, "CANDIDATE_UNAVAILABLE"):

@@ -50,7 +50,8 @@ def _reject(error: str) -> None:
     raise MigrationLabError(error)
 
 
-def _source_clear(state: Snapshot, legacy_key: bytes) -> bytes:
+def _source_clear(state: Snapshot, legacy_key: bytes, *,
+                  tolerate_candidate_corruption: bool = False) -> bytes:
     if type(state) is not Snapshot:
         _reject("SNAPSHOT_INVALID")
     if (type(state.phase) is not str or state.phase not in _PHASES
@@ -71,7 +72,7 @@ def _source_clear(state: Snapshot, legacy_key: bytes) -> bytes:
         if (state.candidate is not None or state.candidate_sha256 is not None
                 or state.target_key_id is not None):
             _reject("CHECKPOINT_INVALID")
-    else:
+    elif not tolerate_candidate_corruption:
         if (type(state.candidate) is not bytes
                 or type(state.candidate_sha256) is not str
                 or not _SHA.fullmatch(state.candidate_sha256)
@@ -188,7 +189,9 @@ def rollback(state: Snapshot, *, expected_revision: int, legacy_key: bytes,
     Allows rollback of a *corrupt* candidate; still authenticates old source.
     The boolean is a test gate, NOT real operator authentication.
     """
-    _source_clear(state, legacy_key)
+    # Recovery does not depend on a structurally valid candidate envelope.
+    # Source hash and legacy AEAD remain mandatory.
+    _source_clear(state, legacy_key, tolerate_candidate_corruption=True)
     _lease(state, expected_revision)
     if operator_confirmed is not True:
         _reject("OPERATOR_GATE_REQUIRED")
