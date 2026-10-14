@@ -116,6 +116,7 @@ $report = [ordered]@{
 # Fail closed even if ACL checks are clean: the current agent receives a raw
 # 256-bit key via an environment variable; DPAPI binding, escrow, rotation and
 # Windows service account ownership are NOT implemented/certified.
+$phase = 'START'
 try {
   if ([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) {
     Add-Check $checks 'WINDOWS_REQUIRED' $false
@@ -123,6 +124,7 @@ try {
             [string]::IsNullOrWhiteSpace($StateDir)) {
     Add-Check $checks 'REQUIRED_PATHS_MISSING' $false
   } else {
+    $phase = 'PATHS'
     $watch = Get-Item -LiteralPath $WatchDir -Force -ErrorAction Stop
     $state = Get-Item -LiteralPath $StateDir -Force -ErrorAction Stop
     if (-not $watch.PSIsContainer -or -not $state.PSIsContainer) {
@@ -152,6 +154,7 @@ try {
       Add-Check $checks 'SPOOL_NO_REPARSE' (
         ([int]$spoolObj.Attributes -band [int][System.IO.FileAttributes]::ReparsePoint) -eq 0
       )
+      $phase = 'VOLUME'
       $volume = $state.PSDrive.Name
       if ($volume -match '^[A-Za-z]$') {
         $fsName = (Get-Volume -DriveLetter $volume -ErrorAction Stop).FileSystem
@@ -160,6 +163,7 @@ try {
         Add-Check $checks 'STATE_VOLUME_NTFS' $false
       }
       foreach ($path in @($state.FullName, $spool)) {
+        $phase = 'STATE_SPOOL_ACL'
         $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
         $rules = @(Convert-RulesToOpaque -Acl $acl)
         Add-Check $checks 'STATE_ACL_BROAD_WRITE_DENIED' (
@@ -171,6 +175,7 @@ try {
         )
       }
       $dbPath = Join-Path $state.FullName 'acquisitions.sqlite3'
+      $phase = 'DATABASE_ACL'
       if (Test-Path -LiteralPath $dbPath -PathType Leaf) {
         $db = Get-Item -LiteralPath $dbPath -Force -ErrorAction Stop
         Add-Check $checks 'DATABASE_NO_REPARSE' (
@@ -187,7 +192,7 @@ try {
   }
 } catch {
   # Avoid exception details; they may contain absolute paths, account names, etc.
-  Add-Check $checks 'INSPECTION_FAILED' $false
+  Add-Check $checks ('INSPECTION_FAILED_' + $phase) $false
 }
 Add-Check $checks 'DPAPI_DEVICE_KEY_AND_RECOVERY_VERIFIED' $false
 Add-Check $checks 'PHYSICAL_NTFS_ACL_FIELD_CERTIFIED' $false
