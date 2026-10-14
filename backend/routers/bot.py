@@ -435,13 +435,19 @@ async def bot_execute(
 
     # Dispatcher may return a BotResponse(error) without raising. Never
     # present it as a successful execution nor permit an automatic retry.
-    if response.action_type == "error":
+    expected_response_type = {
+        "CREATE_APPOINTMENT": "write_done",
+        "CHANGE_STATUS": "write_done",
+        "OPEN_PRESCRIPTION_EDITOR": "redirect",
+        "OPEN_DEVIS_EDITOR": "redirect",
+    }[action_type]
+    if response.action_type != expected_response_type:
         _mark_failed()
         audit_service.log(
             db=db, user_id=current_user.id, employer_id=employer_id,
             action="BOT_EXECUTE", resource_type=str(action_type),
             resource_id=patient_resource, severity="ERROR",
-            details=f"Échec métier Crown Bot (id={action_id}) : {action_type}",
+            details=f"Réponse d'exécution inattendue Crown Bot (id={action_id}) : {action_type} retourne {response.action_type}",
         )
         raise HTTPException(status_code=409, detail="Action échouée. Reconciliation requise.")
 
