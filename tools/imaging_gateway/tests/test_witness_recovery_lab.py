@@ -146,7 +146,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
         self.decide(first)
         self.witness._state=replace(self.witness._state, decisions=())  # synthetic ledger loss
         self.assertEqual(self.witness.assess_archive(self.j0,first.candidate,
-                         epoch="e1").code,"DECISION_LEDGER_INCOMPLETE_REFUSE")
+                         epoch="e1").code,"WITNESS_LEDGER_INCOMPLETE_REFUSE")
 
     def test_multiple_suffix_events_require_complete_ledger(self):
         first=self.proposal()
@@ -162,7 +162,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
         self.witness._state=replace(self.witness._state,
                                      decisions=self.witness._state.decisions[1:])
         self.assertEqual(self.witness.assess_archive(self.j0,second.candidate,
-                         epoch="e1").code,"DECISION_LEDGER_INCOMPLETE_REFUSE")
+                         epoch="e1").code,"WITNESS_LEDGER_INCOMPLETE_REFUSE")
 
     def test_old_receipt_does_not_establish_current_highwatermark(self):
         first=self.proposal()
@@ -247,7 +247,7 @@ class DecisionAndRestoreTests(unittest.TestCase):
                 self.assertEqual(
                     self.witness.assess_archive(self.j0,draft.candidate,
                                                 epoch="e1").code,
-                    "DECISION_LEDGER_INCOMPLETE_REFUSE")
+                    "WITNESS_LEDGER_INCOMPLETE_REFUSE")
         self.witness._state=replace(self.witness._state,decisions=(good,))
 
     def test_security_digest_separates_identity_scope_epoch_and_op(self):
