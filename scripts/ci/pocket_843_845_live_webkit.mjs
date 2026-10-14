@@ -39,11 +39,32 @@ const safePath = url => {
   catch { return '[invalid]'; }
 };
 let errors = 0;
+const pageErrorDiagnostics = [];
+function classifyPageError(error) {
+  const msg = String(error?.message || '');
+  const categories = [
+    [/storage|indexeddb|quota|transaction/i, 'storage'],
+    [/crypto|subtle|decrypt|encrypt|ecdh/i, 'crypto'],
+    [/fetch|network|load failed|abort/i, 'network'],
+    [/permission|notallowed|denied/i, 'permission'],
+    [/dynamic import|module|chunk/i, 'module'],
+    [/react|hook|render|hydration/i, 'react'],
+    [/undefined|null|cannot read/i, 'undefined-access'],
+    [/syntax|parse|json/i, 'parse'],
+    [/timeout/i, 'timeout'],
+  ];
+  return {
+    errorType: ['TypeError', 'ReferenceError', 'SyntaxError', 'SecurityError', 'Error'].includes(error?.name) ? error.name : 'other',
+    category: categories.find(([pattern]) => pattern.test(msg))?.[1] || 'unknown',
+    // Property names, not values or URLs, help classify minified runtime errors.
+    property: msg.match(/reading ['"]([a-zA-Z_$][a-zA-Z0-9_$]{0,40})['"]/)?.[1] || null,
+  };
+}
 const visited = [];
 page.on('framenavigated', frame => {
   if (frame === page.mainFrame()) visited.push(safePath(frame.url()));
 });
-page.on('pageerror', () => { errors++; });
+page.on('pageerror', error => { errors++; if (pageErrorDiagnostics.length < 3) pageErrorDiagnostics.push(classifyPageError(error)); });
 
 try {
   // In Safari, a one-time pairing code must be blocked so it is not consumed
@@ -95,7 +116,7 @@ try {
   await page.locator('[data-dc-pocket-today]').waitFor({ state: 'visible', timeout: 20000 });
   evidence.todayBoot = true;
   // Read ONLY the existence of the stored pairing key, never the token or master key.
-  evidence.encryptedWallet = await page.evaluate(() => new Promise(resolve => {
+  evidence.indexedDbPairingRecord = await page.evaluate(() => new Promise(resolve => {
     const request = indexedDB.open('digital-crown-zka');
     request.onerror = () => resolve(false);
     request.onsuccess = () => {
@@ -154,7 +175,7 @@ try {
 } catch {
   await page.screenshot({ path: '/tmp/pocket-pwa-first-launch-failed-webkit.png', animations: 'disabled' }).catch(() => {});
   console.error('FUE_POCKET_APP_LIFECYCLE_FAILED=' + JSON.stringify({
-    ...evidence, currentPath: safePath(page.url()), visited: visited.slice(-12), runtimeErrors: errors,
+    ...evidence, currentPath: safePath(page.url()), visited: visited.slice(-12), runtimeErrors: errors, pageErrorDiagnostics,
     onboardingVisible: await page.getByText('Compagnon Mobile').count(),
     successVisible: await page.getByText('Appairage réussi', { exact: true }).count(),
   }));
