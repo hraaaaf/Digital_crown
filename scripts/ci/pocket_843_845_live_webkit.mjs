@@ -61,10 +61,36 @@ function classifyPageError(error) {
   };
 }
 const visited = [];
+let phase = 'initial';
+const moduleRequests = [];
+page.on('requestfailed', request => {
+  const p = safePath(request.url());
+  // Do not expose path IDs, tokens or full URLs; only asset type and failure class.
+  if (moduleRequests.length < 8) moduleRequests.push({
+    asset: p.startsWith('/assets/') ? 'asset' : p.startsWith('/api/') ? 'api' : 'other',
+    kind: request.resourceType(),
+    failure: /cancel|abort/i.test(request.failure()?.errorText || '') ? 'cancelled' : 'failed',
+    phase,
+  });
+});
+page.on('response', response => {
+  const p = safePath(response.url());
+  if (p.startsWith('/assets/') && response.status() >= 400 && moduleRequests.length < 8)
+    moduleRequests.push({ asset: 'asset', kind: 'http', status: response.status(), phase });
+});
 page.on('framenavigated', frame => {
   if (frame === page.mainFrame()) visited.push(safePath(frame.url()));
 });
-page.on('pageerror', error => { errors++; if (pageErrorDiagnostics.length < 3) pageErrorDiagnostics.push(classifyPageError(error)); });
+page.on('pageerror', error => {
+  errors++;
+  if (pageErrorDiagnostics.length < 3) {
+    const diagnostic = classifyPageError(error);
+    pageErrorDiagnostics.push({
+      ...diagnostic, phase,
+      knownModuleLoadFailure: /importing a module script failed|failed to fetch dynamically imported module|load failed/i.test(String(error?.message || '')),
+    });
+  }
+});
 
 try {
   // In Safari, a one-time pairing code must be blocked so it is not consumed
@@ -104,6 +130,7 @@ try {
   await page.getByLabel("Code d'appairage à 6 chiffres").fill(fields.POCKET_FUE_CODE);
   await page.getByRole('button', { name: "Valider le code d'appairage" }).click();
   await page.getByText('Appairage réussi', { exact: true }).waitFor({ state: 'visible', timeout: 25000 });
+  phase = 'paired';
   evidence.paired = true;
   evidence.realServerPairing = true;
 
@@ -114,6 +141,7 @@ try {
     await page.waitForURL(/\/mobile\/dashboard(?:\?.*)?$/, { timeout: 16000 });
   }
   await page.locator('[data-dc-pocket-today]').waitFor({ state: 'visible', timeout: 20000 });
+  phase = 'dashboard';
   evidence.todayBoot = true;
   // Read ONLY the existence of the stored pairing key, never the token or master key.
   evidence.indexedDbPairingRecord = await page.evaluate(() => new Promise(resolve => {
@@ -160,6 +188,7 @@ try {
   await page.locator('[data-dc-pocket-today]').waitFor({ state: 'visible', timeout: 8000 });
   evidence.todayWorks = true;
 
+  phase = 'relaunch';
   // Reopen the installed PWA's canonical start URL (same browser profile).
   // A lasting device pair must NOT show the scanner a second time.
   await page.goto(origin + '/mobile/dashboard', { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -175,7 +204,7 @@ try {
 } catch {
   await page.screenshot({ path: '/tmp/pocket-pwa-first-launch-failed-webkit.png', animations: 'disabled' }).catch(() => {});
   console.error('FUE_POCKET_APP_LIFECYCLE_FAILED=' + JSON.stringify({
-    ...evidence, currentPath: safePath(page.url()), visited: visited.slice(-12), runtimeErrors: errors, pageErrorDiagnostics,
+    ...evidence, currentPath: safePath(page.url()), visited: visited.slice(-12), runtimeErrors: errors, pageErrorDiagnostics, moduleRequests,
     onboardingVisible: await page.getByText('Compagnon Mobile').count(),
     successVisible: await page.getByText('Appairage réussi', { exact: true }).count(),
   }));
