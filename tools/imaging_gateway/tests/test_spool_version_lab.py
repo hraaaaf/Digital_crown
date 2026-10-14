@@ -1,6 +1,7 @@
 """LOT06-I isolated versioned envelope, failure/replay abuse fixtures."""
 import hashlib
 from pathlib import Path
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
@@ -173,7 +174,9 @@ class VersionedEnvelopeTests(unittest.TestCase):
             (watch / "synthetic.png").write_bytes(self.clear)
             self.assertEqual(collector.scan_once()["unstable"], 1)
             self.assertEqual(collector.scan_once()["staged"], 1)
-            with sqlite3.connect(private / "acquisitions.sqlite3") as db:
+            # sqlite3.Connection context manager does NOT close the handle.
+            # Windows NTFS refuses TempDirectory cleanup while SQLite is open.
+            with closing(sqlite3.connect(private / "acquisitions.sqlite3")) as db:
                 row = db.execute("SELECT dedup_key,blob,digest FROM items").fetchone()
             self.assertIsNotNone(row)
             identity, filename, digest = row
