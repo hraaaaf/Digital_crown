@@ -519,12 +519,34 @@ class DecisionAndRestoreTests(unittest.TestCase):
                     for r in self.j0.records)
         with patch.object(w,"_MAX_LAB_AUDIT_BYTES",minimum):
             with self.assertRaisesRegex(
-                    w.WitnessLabError,"WITNESS_LEDGER_INCONSISTENT"):
+                    w.WitnessLabError,"AUDIT_WORK_BUDGET_EXCEEDED"):
                 self.witness.observe(epoch="e1")
             self.assertEqual(self.witness.assess_archive(
                 d.candidate,None,epoch="e1").code,
-                "WITNESS_LEDGER_INCOMPLETE_REFUSE")
+                "AUDIT_WORK_BUDGET_REFUSE")
         self.assertEqual(self.witness._state,full)
+
+
+    def test_loop_same_identity_modified_content_cannot_reenroll(self):
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        identity="e"*64
+        changed_clear=b"another-valid-version-of-this-capture"
+        nonce=b"secondnonce1"
+        aad=("DC06A|lab_m|workstation_m|"+identity).encode("ascii")
+        payload=b"DC6A"+nonce+AESGCM(self.legacy_key).encrypt(
+            nonce,changed_clear,aad)
+        state=m.begin(payload,cabinet="lab_m",workstation="workstation_m",
+            identity=identity,digest=hashlib.sha256(changed_clear).hexdigest(),
+            legacy_key=self.legacy_key)
+        second_j,second_a=j.initialize(
+            state,journal_key=self.journal_key,
+            legacy_key=self.legacy_key,keys=self.keys)
+        with self.assertRaisesRegex(w.WitnessLabError,"ENROLLMENT_CONFLICT"):
+            w.VolatileDecisionWitness(
+                second_j,second_a,authority_id="lab-authority",epoch="e1",
+                opaque_scope="b"*32,registry=self.registry,
+                journal_key=self.journal_key,
+                legacy_key=self.legacy_key,keys=self.keys)
 
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]

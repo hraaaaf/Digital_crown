@@ -146,7 +146,9 @@ class VolatileDecisionWitness:
         capture_scope = self._scope_for(genesis.records[0].snapshot)
         # Logical capture identity is invariant under legitimate AES-GCM nonce
         # changes. Ciphertext hash remains in the per-witness chain scope.
-        registration_key = capture_scope[:4]
+        # Content digest is validation evidence, not a scope namespace key:
+        # identical capture ID with modified valid media must NOT re-enroll.
+        registration_key = capture_scope[:3]
         registry.claim(registration_key, authority_id, epoch, opaque_scope)
         self._registry = registry
         self._authority_id = authority_id
@@ -195,27 +197,27 @@ class VolatileDecisionWitness:
             local, journal.TrustedAnchor(last.sequence, last.mac))
 
     @staticmethod
-    def _within_audit_budget(history: journal.Journal) -> bool:
-        """Fail closed before crypto work if retained media exceeds LAB budget."""
+    def _audit_budget_status(history: journal.Journal) -> str:
+        """Shape / resource budget classifier; never hashes large media."""
         if (type(history) is not journal.Journal
                 or type(history.records) is not tuple):
-            return False
+            return "INVALID"
         total = 0
         for record in history.records:
             if type(record) is not journal.Record:
-                return False
+                return "INVALID"
             snapshot = record.snapshot
             if (type(snapshot) is not journal.migration.Snapshot
                     or type(snapshot.source) is not bytes
                     or (snapshot.candidate is not None
                         and type(snapshot.candidate) is not bytes)):
-                return False
+                return "INVALID"
             total += len(snapshot.source)
             if snapshot.candidate is not None:
                 total += len(snapshot.candidate)
             if total > _MAX_LAB_AUDIT_BYTES:
-                return False
-        return True
+                return "EXCEEDED"
+        return "OK"
 
     def _ledger_complete(self, state: _State) -> bool:
         """Entire history, every receipt field, ID, digest and order must match.
@@ -224,7 +226,7 @@ class VolatileDecisionWitness:
         NOT independent archive custody, witness authenticity or freshness.
         """
         if (type(state) is not _State
-                or not self._within_audit_budget(state.history)
+                or self._audit_budget_status(state.history) != "OK"
                 or not self._valid_history(state.history, state.head)
                 or type(state.decisions) is not tuple
                 or len(state.decisions) != state.head.sequence - 1):
@@ -266,6 +268,8 @@ class VolatileDecisionWitness:
     def observe(self, *, epoch: str) -> journal.TrustedAnchor:
         self._identity(epoch)
         state = self._state
+        if self._audit_budget_status(state.history) == "EXCEEDED":
+            _fail("AUDIT_WORK_BUDGET_EXCEEDED")
         if not self._ledger_complete(state):
             _fail("WITNESS_LEDGER_INCONSISTENT")
         return state.head
@@ -284,6 +288,8 @@ class VolatileDecisionWitness:
         digest = self._digest(draft, operation_id)
         with self._lock:
             old = self._state
+            if self._audit_budget_status(old.history) == "EXCEEDED":
+                _fail("AUDIT_WORK_BUDGET_EXCEEDED")
             if not self._ledger_complete(old):
                 _fail("WITNESS_LEDGER_INCONSISTENT")
             previous = next((r for r in old.decisions
@@ -300,8 +306,11 @@ class VolatileDecisionWitness:
                     or draft.next_anchor.sequence != old.head.sequence + 1
                     or draft.candidate.records[:-1] != old.history.records):
                 _fail("FORK_PARENT_MISMATCH")
-            if not self._within_audit_budget(draft.candidate):
+            budget_status = self._audit_budget_status(draft.candidate)
+            if budget_status == "EXCEEDED":
                 _fail("AUDIT_WORK_BUDGET_EXCEEDED")
+            if budget_status != "OK":
+                _fail("PROPOSAL_REFUSED")
             if not self._valid_history(draft.candidate, draft.next_anchor):
                 _fail("PROPOSAL_REFUSED")
             receipt = Receipt(operation_id, digest, self._authority_id,
@@ -323,6 +332,8 @@ class VolatileDecisionWitness:
         _operation(operation_id)
         digest = self._digest(draft, operation_id)
         state = self._state
+        if self._audit_budget_status(state.history) == "EXCEEDED":
+            _fail("AUDIT_WORK_BUDGET_EXCEEDED")
         if not self._ledger_complete(state):
             _fail("WITNESS_LEDGER_INCONSISTENT")
         previous = next((r for r in state.decisions
@@ -341,6 +352,8 @@ class VolatileDecisionWitness:
         self._identity(epoch)
         _operation(operation_id)
         current = self._state  # one coherent snapshot; no mixed-head race
+        if self._audit_budget_status(current.history) == "EXCEEDED":
+            return Assessment("AUDIT_WORK_BUDGET_REFUSE")
         if not self._ledger_complete(current):
             return Assessment("WITNESS_LEDGER_INCONSISTENT_REFUSE")
         digest = self._digest(draft, operation_id)
@@ -373,6 +386,8 @@ class VolatileDecisionWitness:
         """Read-only consistency classification, NEVER authorization to restore."""
         self._identity(epoch)
         state = self._state
+        if self._audit_budget_status(state.history) == "EXCEEDED":
+            return Assessment("AUDIT_WORK_BUDGET_REFUSE")
         # Witness integrity takes precedence over missing/invalid local media,
         # backup unavailability and all directional classifications.
         if not self._ledger_complete(state):

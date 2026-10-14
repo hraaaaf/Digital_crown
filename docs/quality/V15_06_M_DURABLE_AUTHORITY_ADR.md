@@ -142,3 +142,9 @@ The previous same-SHA forensic A=7.0/B=6.8 audit exposed three MAJOR: nonce-depe
 - Four regression tests exercise nonce re-encryption, all early-return archive branches, prospective budget refusal with unchanged head, and legacy over-budget state read refusal. No actual large-media benchmark or real durable anti-rollback is claimed.
 
 ADR historical v2/dict descriptions are superseded by this section and the current v3 immutable-state source. Nothing authorizes a clinical ACK, merge or physical service.
+
+## 12. Quality loop second pass: stable capture ID vs content digest and diagnostic precedence
+
+The shared-registry enrollment key is now stable cabinet/workstation/capture identity (three fields), not source cipher digest **nor clear content digest**, so a fresh valid DC6A envelope carrying another media version of the *same* capture identity cannot enroll a duplicate active witness. The full source ciphertext, content digest and key compatibility remain validated independently by J/K and retained in authenticated per-witness history. In the LAB, identity uniqueness still depends on authorized capture IDs; actual provisioning/attack prevention requires physical human design gate.
+
+The per-audit workload budget is a **distinct deterministic diagnostic**: attempts above 128MiB aggregate retained source+candidate bytes return AUDIT_WORK_BUDGET_EXCEEDED / AUDIT_WORK_BUDGET_REFUSE, separate from ledger tampering, without decrypting/hashing over-budget media. It is intentionally fail-closed, constrains legacy 50MiB media migration/retention and is NOT an acceptable production liveness solution. No claimed performance certification at 128/256 stages. Distinguishing resource refusal from compromised witness ensures trustworthy incident triage.
