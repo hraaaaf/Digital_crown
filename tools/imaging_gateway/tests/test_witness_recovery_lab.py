@@ -548,6 +548,57 @@ class DecisionAndRestoreTests(unittest.TestCase):
                 journal_key=self.journal_key,
                 legacy_key=self.legacy_key,keys=self.keys)
 
+
+    def test_loop_verified_snapshot_cache_skips_rehash_on_repeated_reads(self):
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        draft=self.proposal()
+        self.decide(draft)
+        calls=[0]
+        original=journal_lab._manifest
+        def counted(snapshot):
+            calls[0]+=1
+            return original(snapshot)
+        with patch.object(journal_lab,"_manifest",side_effect=counted):
+            for _ in range(32):
+                self.assertEqual(self.witness.observe(epoch="e1"),
+                                 draft.next_anchor)
+                self.assertEqual(self.witness.lookup(
+                    draft,operation_id=self.op1,epoch="e1").operation_id,
+                    self.op1)
+        # 32 request digests require one new-event manifest per lookup;
+        # no 32 * full historical chain rescans should occur.
+        self.assertLessEqual(calls[0],32+2)
+
+    def test_loop_cache_invalidated_on_state_substitution_and_key_change(self):
+        draft=self.proposal()
+        self.decide(draft)
+        head=self.witness._state
+        self.assertEqual(self.witness.observe(epoch="e1"),draft.next_anchor)
+        self.witness._state=replace(head,decisions=())
+        with self.assertRaisesRegex(w.WitnessLabError,"WITNESS_LEDGER_INCONSISTENT"):
+            self.witness.observe(epoch="e1")
+        self.witness._state=head
+        self.assertEqual(self.witness.observe(epoch="e1"),draft.next_anchor)
+        # Change a target AEAD key even though the _State object is unchanged.
+        self.witness._keys["ab"*16]=b"X"*32
+        with self.assertRaisesRegex(w.WitnessLabError,"WITNESS_LEDGER_INCONSISTENT"):
+            self.witness.observe(epoch="e1")
+
+    def test_loop_after_install_failure_keeps_verified_head_and_receipt(self):
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        draft=self.proposal()
+        with self.assertRaisesRegex(w.SimulatedLabCrash,"AFTER_INSTALL"):
+            self.witness.decide(draft,operation_id=self.op1,
+                epoch="e1",failpoint="AFTER_INSTALL")
+        with patch.object(journal_lab,"_manifest",
+                          side_effect=AssertionError("unexpected revalidation")):
+            self.assertEqual(self.witness.observe(epoch="e1"),
+                             draft.next_anchor)
+        self.assertIsNotNone(self.witness.lookup(
+            draft,operation_id=self.op1,epoch="e1"))
+
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
         source=(root/"witness_recovery_lab.py").read_text(encoding="utf-8")

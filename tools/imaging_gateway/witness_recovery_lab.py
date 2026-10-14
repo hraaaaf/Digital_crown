@@ -160,6 +160,10 @@ class VolatileDecisionWitness:
         self._scope = capture_scope
         self._state = _State(genesis, validated.observe(), ())
         self._lock = threading.Lock()
+        # A verified cache is only an in-process speed hint, never authority.
+        # Only immutable objects previously authenticated can be cache hits.
+        self._audit_cache_state = self._state
+        self._audit_cache_material = self._material_token()
 
     @staticmethod
     def _scope_for(snapshot: object) -> tuple:
@@ -219,15 +223,35 @@ class VolatileDecisionWitness:
                 return "EXCEEDED"
         return "OK"
 
+    def _material_token(self) -> tuple | None:
+        """Invalidate a cached verified state if any key material changed."""
+        try:
+            if type(self._keys) is not dict:
+                return None
+            return (self._journal_key, self._legacy_key,
+                    tuple(sorted(self._keys.items())))
+        except (AttributeError, TypeError, ValueError):
+            return None
+
     def _ledger_complete(self, state: _State) -> bool:
         """Entire history, every receipt field, ID, digest and order must match.
 
         This is an integrity check *relative to memory-owned keys and ledger*,
         NOT independent archive custody, witness authenticity or freshness.
         """
-        if (type(state) is not _State
-                or self._audit_budget_status(state.history) != "OK"
-                or not self._valid_history(state.history, state.head)
+        # Verify any externally substituted/tampered snapshot from scratch.
+        # Frozen State/Journal/Record/Snapshot dataclasses and immutable bytes
+        # are REQUIRED: never cache mutable data or real external attestations.
+        if type(state) is not _State:
+            return False
+        if self._audit_budget_status(state.history) != "OK":
+            return False
+        material = self._material_token()
+        if (material is not None
+                and state is self._audit_cache_state
+                and material == self._audit_cache_material):
+            return True
+        if (not self._valid_history(state.history, state.head)
                 or type(state.decisions) is not tuple
                 or len(state.decisions) != state.head.sequence - 1):
             return False
@@ -263,6 +287,10 @@ class VolatileDecisionWitness:
                 seen.add(receipt.operation_id)
             except (WitnessLabError, TypeError, ValueError, AttributeError):
                 return False
+        # Cache is not a decision, not persisted, and not a security root.
+        if material is not None:
+            self._audit_cache_material = material
+            self._audit_cache_state = state
         return True
 
     def observe(self, *, epoch: str) -> journal.TrustedAnchor:
@@ -320,7 +348,12 @@ class VolatileDecisionWitness:
                             old.decisions + (receipt,))
             if failpoint == "BEFORE_INSTALL":
                 raise SimulatedLabCrash("BEFORE_INSTALL")
-            self._state = staged  # single linearization point in LAB
+            # Staged history fully verified above; previous state and its
+            # ledger were also authenticated; new receipt is deterministic.
+            # Advance the non-authoritative cache BEFORE publishing state.
+            self._audit_cache_material = self._material_token()
+            self._audit_cache_state = staged
+            self._state = staged  # single authoritative LAB linearization
             if failpoint == "AFTER_INSTALL":
                 raise SimulatedLabCrash("AFTER_INSTALL")
             return receipt
