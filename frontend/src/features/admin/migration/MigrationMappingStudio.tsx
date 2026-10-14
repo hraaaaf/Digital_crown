@@ -234,21 +234,25 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
         <button type="button" disabled={downloadingDemo || checkingDemoFile} onClick={() => { void downloadFixture(); }}
           className={buttonClass + ' border border-border-main'}>
           {downloadingDemo ? 'Fichier fictif en préparation…' : 'Télécharger la base SQLite fictive'}</button>
-        <label htmlFor={demoFileId} className="block text-sm font-bold">Sélectionner uniquement le fichier fictif téléchargé
-          <input id={demoFileId} aria-label="Fichier SQLite fictif Digital Crown" type="file" accept=".db,application/vnd.sqlite3"
-            disabled={!officialDemoSha || checkingDemoFile || downloadingDemo}
-            onChange={event => { void checkFile(event); }}
-            className="mt-2 block w-full min-w-0 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:p-3 file:font-bold" />
+        <p className="text-sm font-bold">Sélectionner uniquement le fichier fictif téléchargé</p>
+        <input id={demoFileId} aria-label="Fichier SQLite fictif Digital Crown" type="file" accept=".db,application/vnd.sqlite3"
+          disabled={!officialDemoSha || checkingDemoFile || downloadingDemo}
+          onChange={event => { void checkFile(event); }}
+          className="peer sr-only" />
+        <label htmlFor={demoFileId}
+          className={'inline-flex min-h-11 items-center rounded-xl border border-border-main bg-card-bg px-4 py-3 text-sm font-bold text-text-main peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ' +
+            (!officialDemoSha || checkingDemoFile || downloadingDemo ? 'cursor-not-allowed opacity-50' : 'cursor-pointer')}>
+          Choisir le fichier SQLite fictif
         </label>
         {officialDemoSha && <p role="status" className="text-xs text-text-muted">Fichier fictif préparé · contrôle SHA local activé.</p>}
         {checkingDemoFile && <p role="status" className="text-sm font-bold">Vérification et simulation du fichier fictif en cours…</p>}
         {fileResult && <p role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
-          Fichier SQLite fictif vérifié : {fileResult.verified_patients}/100 patients et {fileResult.verified_patient_links}/200 relations contrôlées. Après rollback : {fileResult.after_rollback_patients} patient, {fileResult.after_rollback_appointments} rendez-vous. Aucune écriture dans le cabinet.
+          Fichier SQLite fictif vérifié : {fileResult.verified_patients}/100 patients et {fileResult.verified_patient_links}/200 relations contrôlées. Après annulation : {fileResult.after_rollback_patients} patient, {fileResult.after_rollback_appointments} rendez-vous. Aucune écriture dans le cabinet.
         </p>}
       </div>}
       {rehearsal && <p role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
         Simulation fictive : {rehearsal.verified_patients}/100 patients et {rehearsal.verified_patient_links}/200 liens vérifiés,
-        {rehearsal.after_rollback_patients} patient et {rehearsal.after_rollback_appointments} RDV conservés après rollback.
+        {rehearsal.after_rollback_patients} patient et {rehearsal.after_rollback_appointments} RDV conservés après annulation.
         Aucun dossier du cabinet lu ou modifié. Import réel toujours bloqué.
       </p>}
       {gatewayError && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">{gatewayError}</p>}
