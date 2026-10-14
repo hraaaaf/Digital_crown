@@ -124,7 +124,7 @@ class AuthenticatedMigrationJournalTests(unittest.TestCase):
             self.append(self.j0,self.a0,replace(p,phase="VERIFIED"))
         with self.assertRaisesRegex(j.JournalLabError,"MIGRATION_HISTORY_INVALID"):
             self.append(l1,a1,replace(p,revision=9))
-        with self.assertRaisesRegex(j.JournalLabError,"MIGRATION_HISTORY_INVALID"):
+        with self.assertRaisesRegex(j.JournalLabError,"CHECKPOINT_UNAVAILABLE"):
             self.append(l1,a1,replace(self.verified(p),source=b"changed"))
 
     def test_key_separation_wrong_mac_key_and_missing_target_key(self):
@@ -145,7 +145,7 @@ class AuthenticatedMigrationJournalTests(unittest.TestCase):
             self.check(self.j0,self.a0,legacy_key=b"Z"*32)
         bad=replace(self.j0.records[0].snapshot,source=self.old[:-1]+b"X")
         forged=j.Journal((replace(self.j0.records[0],snapshot=bad),))
-        with self.assertRaisesRegex(j.JournalLabError,"CHECKPOINT_UNAVAILABLE"):
+        with self.assertRaisesRegex(j.JournalLabError,"RECORD_AUTHENTICATION_FAILED"):
             self.check(forged,self.a0)
 
     def test_wrong_capture_or_scope_and_candidate_tag_corruption(self):

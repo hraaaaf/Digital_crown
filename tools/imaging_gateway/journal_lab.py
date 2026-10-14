@@ -183,15 +183,17 @@ def verify_chain(journal: Journal, anchor: TrustedAnchor, *,
             _fail("RECORD_INVALID")
         if not hmac.compare_digest(record.previous_mac, previous_mac):
             _fail("CHAIN_LINK_INVALID")
+        # Authenticate record metadata and byte digests BEFORE decrypting media.
+        # Authentication prevents unauthenticated state from reaching recovery.
+        expected = _mac(index, previous_mac, record.snapshot, journal_key)
+        if not hmac.compare_digest(record.mac, expected):
+            _fail("RECORD_AUTHENTICATION_FAILED")
         _validate_snapshot(record.snapshot, legacy_key=legacy_key, keys=keys)
         if prior is None:
             if record.snapshot.phase != "SOURCE" or record.snapshot.revision != 0:
                 _fail("GENESIS_SOURCE_REQUIRED")
         else:
             _transition(prior, record.snapshot)
-        expected = _mac(index, previous_mac, record.snapshot, journal_key)
-        if not hmac.compare_digest(record.mac, expected):
-            _fail("RECORD_AUTHENTICATION_FAILED")
         previous_mac = record.mac
         prior = record.snapshot
     # TrustedAnchor is supplied independently by the caller; if the attacker
