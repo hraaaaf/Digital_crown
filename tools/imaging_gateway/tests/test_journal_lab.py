@@ -143,7 +143,7 @@ class AuthenticatedMigrationJournalTests(unittest.TestCase):
     def test_wrong_legacy_key_and_corrupted_snapshot_cannot_verify(self):
         with self.assertRaisesRegex(j.JournalLabError,"CHECKPOINT_UNAVAILABLE"):
             self.check(self.j0,self.a0,legacy_key=b"Z"*32)
-        bad=replace(self.j0.records[0].snapshot,source=self.old[:-1]+b"X")
+        bad=replace(self.j0.records[0].snapshot,source=self.old[:-1]+bytes([self.old[-1] ^ 1]))
         forged=j.Journal((replace(self.j0.records[0],snapshot=bad),))
         with self.assertRaisesRegex(j.JournalLabError,"RECORD_AUTHENTICATION_FAILED"):
             self.check(forged,self.a0)
@@ -154,7 +154,7 @@ class AuthenticatedMigrationJournalTests(unittest.TestCase):
         for state in (
             replace(checkpoint,identity="f"*64),
             replace(checkpoint,workstation="other"),
-            replace(checkpoint,candidate=checkpoint.candidate[:-1]+b"X"),
+            replace(checkpoint,candidate=checkpoint.candidate[:-1]+bytes([checkpoint.candidate[-1] ^ 1])),
         ):
             forged=j.Journal(l1.records[:-1]+(replace(l1.records[-1],snapshot=state),))
             with self.assertRaises(j.JournalLabError):

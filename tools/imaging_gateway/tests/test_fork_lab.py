@@ -146,7 +146,7 @@ class ForkArbitrationTests(unittest.TestCase):
         for altered in (
             replace(s,workstation="other_station"),
             replace(s,identity="f"*64),
-            replace(s,candidate=s.candidate[:-1]+b"X"),
+            replace(s,candidate=s.candidate[:-1]+bytes([s.candidate[-1] ^ 1])),
         ):
             forged=replace(
                 good,candidate=j.Journal(good.candidate.records[:-1]+(

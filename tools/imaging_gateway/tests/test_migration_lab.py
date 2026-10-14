@@ -136,7 +136,7 @@ class MigrationStateMachineTests(unittest.TestCase):
     def test_corrupt_legacy_source_or_seal_never_promotes_or_rolls_back(self):
         prepared = self.prepare()
         for corrupt in (
-            replace(prepared, source=prepared.source[:-1] + b"x"),
+            replace(prepared, source=prepared.source[:-1] + bytes([prepared.source[-1] ^ 1])),
             replace(prepared, source_sha256="0" * 64),
             replace(prepared, digest="b" * 64),
             replace(prepared, identity="e" * 64),
@@ -149,7 +149,7 @@ class MigrationStateMachineTests(unittest.TestCase):
 
     def test_mutated_candidate_blocks_verify_commit_restart(self):
         p = self.prepare()
-        broken = replace(p, candidate=p.candidate[:-1] + b"x")
+        broken = replace(p, candidate=p.candidate[:-1] + bytes([p.candidate[-1] ^ 1]))
         with self.assertRaisesRegex(m.MigrationLabError, "CANDIDATE_CHECKPOINT_INVALID"):
             self.verify(broken)
         with self.assertRaises(m.MigrationLabError):
@@ -160,7 +160,7 @@ class MigrationStateMachineTests(unittest.TestCase):
 
     def test_explicit_rollback_restores_from_corrupted_committed_candidate(self):
         committed = self.commit(self.verify(self.prepare()))
-        corrupted = replace(committed, candidate=committed.candidate[:-1] + b"x")
+        corrupted = replace(committed, candidate=committed.candidate[:-1] + bytes([committed.candidate[-1] ^ 1]))
         with self.assertRaises(m.MigrationLabError):
             self.active(corrupted)
         restored = self.rollback(corrupted)
