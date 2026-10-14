@@ -215,3 +215,23 @@ def test_stale_claim_is_not_retryable(client, db, dentiste, auth_headers):
         )
         assert res.status_code == 409
         executor.assert_not_called()
+
+
+def test_unexpected_nonerror_dispatch_response_cannot_be_recorded_as_executed(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste)
+    action = _pending(db, dentiste, patient.id)
+    with patch(
+        "backend.routers.bot.dispatcher.execute",
+        return_value=BotResponse("Pas de redirection", action_type="read"),
+    ) as executor:
+        res = client.post(
+            "/api/bot/execute", headers=auth_headers,
+            json={"pending_action_id": action.id},
+        )
+        assert res.status_code == 409, res.text
+        assert executor.call_count == 1
+    db.refresh(action)
+    assert action.status == "failed"
+    assert action.executed_at is None
