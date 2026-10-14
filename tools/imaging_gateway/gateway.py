@@ -352,14 +352,23 @@ class HotFolder:
     def storage_health(self):
         """Explicit no-PHI operational diagnostics. No file names/paths/digests."""
         with self._db() as db:
-            counts = dict(db.execute(
+            raw_counts = db.execute(
                 "SELECT state,COUNT(*) FROM items GROUP BY state"
-            ).fetchall())
+            ).fetchall()
+            # SQL states are not user-facing strings. Never leak a corrupt or
+            # attacker-injected state value through --health/--operations.
+            allowed = {"PENDING_CONFIRMATION", "QUARANTINED",
+                       "RETRY_PENDING", "BLOCKED"}
+            counts = {}
+            for raw_state, count in raw_counts:
+                name = raw_state if raw_state in allowed else "UNRECOGNIZED_STATE"
+                counts[name] = counts.get(name, 0) + count
             queued = sum(counts.values())
             usage = self._spool_usage(db)
             free = shutil.disk_usage(self.spool).free
         limited = (
             self._last_capacity_issue is not None or
+            "UNRECOGNIZED_STATE" in counts or
             queued >= self.config.max_queue_items or
             usage["spool_bytes"] >= self.config.max_spool_bytes or
             free < self.config.min_free_bytes
