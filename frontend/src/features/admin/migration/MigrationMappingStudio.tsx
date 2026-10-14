@@ -174,7 +174,7 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Database size={25} /></span>
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-widest text-primary">Digital Crown · préparation de migration</p>
-          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Correspondances de données</h1>
+          <h1 className="mt-1 min-w-0 text-2xl font-black [overflow-wrap:anywhere] sm:text-3xl">Correspondances de données</h1>
           <p className="mt-2 text-sm text-text-muted">Préparer les correspondances de colonnes sans toucher aux dossiers patients.</p>
         </div>
       </div>
