@@ -26,7 +26,7 @@ concurrency:
 jobs:
   disposable-pairing:
     runs-on: ubuntu-latest
-    timeout-minutes: 38
+    timeout-minutes: 48
     env:
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
@@ -180,7 +180,7 @@ jobs:
         shell: bash
         run: |
           test -n "$FUE_TUNNEL_ORIGIN"
-          sleep 215
+          sleep 275
       - name: Issue real five-minute pairing code 2
         shell: bash
         run: |
@@ -200,7 +200,7 @@ jobs:
         shell: bash
         run: |
           test -n "$FUE_TUNNEL_ORIGIN"
-          sleep 215
+          sleep 275
       - name: Issue real five-minute pairing code 3
         shell: bash
         run: |
@@ -220,7 +220,7 @@ jobs:
         shell: bash
         run: |
           test -n "$FUE_TUNNEL_ORIGIN"
-          sleep 215
+          sleep 275
       - name: Issue real five-minute pairing code 4
         shell: bash
         run: |
@@ -236,11 +236,50 @@ jobs:
           path: ${{ runner.temp }}/pocket-fue-code-4.txt
           retention-days: 1
           if-no-files-found: error
+      - name: Keep test tunnel active during pairing window 4
+        shell: bash
+        run: |
+          test -n "$FUE_TUNNEL_ORIGIN"
+          sleep 275
+      - name: Issue real five-minute pairing code 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_iphone_live_issue.py > "$RUNNER_TEMP/pocket-fue-code-5.txt"
+          chmod 600 "$RUNNER_TEMP/pocket-fue-code-5.txt"
+          echo "POCKET_LIVE_PRIVATE_PAIRING_WINDOW_5_READY=true"
+      - name: Publish live pairing artifact 5
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-5
+          path: ${{ runner.temp }}/pocket-fue-code-5.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep test tunnel active during pairing window 5
+        shell: bash
+        run: |
+          test -n "$FUE_TUNNEL_ORIGIN"
+          sleep 275
+      - name: Issue real five-minute pairing code 6
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          FUE_TUNNEL_ORIGIN="$FUE_TUNNEL_ORIGIN" python scripts/ci/pocket_iphone_live_issue.py > "$RUNNER_TEMP/pocket-fue-code-6.txt"
+          chmod 600 "$RUNNER_TEMP/pocket-fue-code-6.txt"
+          echo "POCKET_LIVE_PRIVATE_PAIRING_WINDOW_6_READY=true"
+      - name: Publish live pairing artifact 6
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-fue-live-code-6
+          path: ${{ runner.temp }}/pocket-fue-code-6.txt
+          retention-days: 1
+          if-no-files-found: error
       - name: Keep final live code usable and close test session
         shell: bash
         run: |
-          # Keep gateway online LONGER than full 300s TTL of last issued PIN.
-          # Previous runner terminated 20s before advertised PIN expiry,
-          # causing real iPhone Cloudflare 502 Host Error.
-          sleep 370
+          # 6 windows of 300s each; gateway up for >= 30min after first issuance,
+          # plus 80 seconds beyond the final PIN expiry for iOS confirmation.
+          sleep 380
           echo "POCKET_FUE_SESSION_EXPIRED=true"
