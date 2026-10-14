@@ -204,7 +204,8 @@ class VolatileDecisionWitness:
     def _audit_budget_status(history: journal.Journal) -> str:
         """Shape / resource budget classifier; never hashes large media."""
         if (type(history) is not journal.Journal
-                or type(history.records) is not tuple):
+                or type(history.records) is not tuple
+                or not 1 <= len(history.records) <= 256):
             return "INVALID"
         total = 0
         for record in history.records:

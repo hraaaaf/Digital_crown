@@ -647,6 +647,21 @@ class DecisionAndRestoreTests(unittest.TestCase):
                 extended,d,operation_id=self.op1,epoch="e1").code,
                 "LOCAL_AUDIT_BUDGET_REFUSE")
 
+
+    def test_loop_many_small_records_refused_before_hash(self):
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        draft=self.proposal()
+        repeated=j.Journal(draft.candidate.records + (draft.candidate.records[-1],)*256)
+        forged=replace(draft,candidate=repeated)
+        with patch.object(journal_lab,"_manifest",
+                          side_effect=AssertionError("not preflighted")):
+            for action in (self.witness.decide,self.witness.lookup):
+                with self.assertRaisesRegex(
+                        w.WitnessLabError,"PROPOSAL_INVALID"):
+                    action(forged,operation_id=self.op1,epoch="e1")
+        self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
+
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
         source=(root/"witness_recovery_lab.py").read_text(encoding="utf-8")
