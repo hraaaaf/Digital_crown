@@ -45,7 +45,11 @@ class ArchiveService:
     
     def __init__(self, db: Session):
         self.db = db
-        ARCHIVE_BASE_DIR.mkdir(parents=True, exist_ok=True)
+        # Resolve MEDIA_ROOT at service construction, after runtime selection.
+        self.media_dir = get_media_root()
+        self.archive_base_dir = self.media_dir / "archives"
+        self.legacy_docs_dir = self.media_dir / "documents"
+        self.archive_base_dir.mkdir(parents=True, exist_ok=True)
     
     def _calculate_file_hash(self, file_content: bytes) -> str:
         """Calcule le hash SHA-256 du fichier."""
@@ -97,7 +101,7 @@ class ArchiveService:
                           filename: str, version: int = 1) -> Path:
         """Génère le chemin de stockage hiérarchique."""
         today = datetime.now()
-        path = ARCHIVE_BASE_DIR / str(patient_id) / doc_type.value / str(today.year) / str(today.month)
+        path = self.archive_base_dir / str(patient_id) / doc_type.value / str(today.year) / str(today.month)
         path.mkdir(parents=True, exist_ok=True)
         
         # Ajouter la version dans le nom si > 1
@@ -110,7 +114,7 @@ class ArchiveService:
 
     def _resolve_archive_storage_path(self, doc: models.DocumentArchive) -> Path:
         if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
-            return MEDIA_DIR / doc.file_path.replace("static/", "", 1)
+            return self.media_dir / doc.file_path.replace("static/", "", 1)
         return BASE_DIR / doc.file_path
 
     def _replace_document_in_place(
@@ -314,7 +318,7 @@ class ArchiveService:
                 old_doc = conflict["existing_document"]
                 if old_doc:
                     if old_doc.file_path.startswith("static/archives/"):
-                        storage_path = MEDIA_DIR / old_doc.file_path.replace("static/", "", 1)
+                        storage_path = self.media_dir / old_doc.file_path.replace("static/", "", 1)
                     else:
                         storage_path = BASE_DIR / old_doc.file_path
                     storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -377,7 +381,7 @@ class ArchiveService:
         # --- DOUBLE EXPORT : RESTAURATION DOSSIERS HISTORIQUES (static/documents/YYYY/MM) ---
         if doc_type in [DocumentType.NOTE_HONORAIRES, DocumentType.DEVIS, DocumentType.ORDONNANCE, DocumentType.CERTIFICAT]:
             today = datetime.now()
-            legacy_dir = LEGACY_DOCS_DIR / str(today.year) / f"{today.month:02d}"
+            legacy_dir = self.legacy_docs_dir / str(today.year) / f"{today.month:02d}"
             legacy_dir.mkdir(parents=True, exist_ok=True)
             
             # Consiste à utiliser le même nommage que l'ancien générateur
