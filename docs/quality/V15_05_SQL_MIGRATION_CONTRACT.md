@@ -1,0 +1,30 @@
+# Digital Crown V1.5-05 — SQL Migration Wizard: contract & staged delivery
+Status: **05.1 in progress**, no import runtime, no schema migration, no production operation.
+Canonical authority: [Notion V1.5-05, locked decisions 01–65](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb); base `master@c0d47f4832e6da2211c6f94eb88f0db56fcaebb6`.
+
+## Dependencies and safe boundary
+Digital Crown remains the authority for `patients`, `users` (practitioners), appointments, `clinical_assets`, financial records, and archives. `backend/core/schema_runtime.py` expects Alembic `neo000000027`; `backend/services/backup_service.py` provides backup primitives, **not proof of a successful restore**. Never perform `Base.metadata.create_all`, Alembic changes or a live migration from the inspector. Source credentials must never be accepted; only offline copies in an isolated staging directory.
+
+## Ordered sublots (the remaining contracts are future, NOT implemented)
+- **05.1 — Source SQL Inspector**: accept an *attested offline copy* within a specified staging root; parse bounded schema metadata only; output digest, engine declared by user, source tables/columns, explicit unknowns. Support SQLite standalone DB images read-only and common text CREATE TABLE DDL for PostgreSQL/MySQL/MariaDB/SQLite. No row import, no mapping, no SQL execution. Native dump adapters and large dumps are pending, visibly refused.
+- **05.2 — Mapping Studio**: explicit `MappingProfile(version, source_software, source_version, source_schema_digest, table_mapping, column_mapping, transformations_version)` with `UNMAPPED` first-class. Machine suggestions are NEVER approvals; immutable administrator confirmation tied to source digest; revalidate each dump. No password/credential mapping.
+- **05.3 — Dry-run**: `DryRunReport(input_sha256, mapping_profile_sha256, counts_by_entity, anomalies, duplicates, ignored, collisions, unmapped, ambiguous_dates, warnings, critical_count)`; deterministic, no target write, no success if critical unknown. Export privacy-minimized CSV/JSON.
+- **05.4 — Identity**: patients then practitioners, deterministic match candidates with human adjudication, preserve legacy file numbers and tenant constraints; forbid silent merge. Any persisted provenance requires additive, consumer-compatible schema contract before adding any column or table.
+- **05.5 — Agenda/clinical/finance**: appointments (future mandatory, past configurable), statuses and acts mapped explicitly; preserve source values and chronology, historical medical data, accounting deltas remain anomalies. No invented invoices or recomputed source balances.
+- **05.6 — Documents/media**: only available files + verified metadata, preserve modality/category and original fingerprint; quarantine unmatched or suspicious records, never expose files via static routes.
+- **05.7 — Controlled import/certification**: tenant-bound admin gate + version-bound mapping/dry-run + tested target backup/restore + large-import rehearsal; ordered chunks, transactional checkpoints, replay-safe keys `(tenant, source_system, source_instance, entity_type, legacy_id)`, cancellation *between* batches, configurable error cutoff, compare source/target by entity, manual sample check, rollback until signed-off.
+
+## 05.1 inspector public contract
+`inspect_staged_copy(path: Path, staging_root: Path, *, dialect: 'postgresql'|'mysql'|'mariadb'|'sqlite', attested_offline_copy: bool, encoding: str='utf-8') -> InspectionReport`.
+
+Successful schema-only report includes `dialect_declared`, `source_format`, `sha256`, `file_size_bytes`, `tables[{source_name, columns[{name, declared_type, not_null, primary_key}]}]`, `warnings`, `row_counts=null`, `mapping_approved=false`, `dry_run_completed=false`, `import_permitted=false`. This is NOT a migration dry-run, not data extraction, and never an auto-approval. Rejected inputs raise `UnsafeSource` with a non-PHI error code. Bounded initial inspector max 32 MiB. No input path/SQL values in report, error message or CI artifact. Explicit encoding must be selected where UTF-8 fails.
+
+## Compatibility and integration gates
+05.1 adds **no API endpoint, UI, shared model, Alembic migration, runtime hook, package dependency or existing workflow changes**; no mobile surface therefore no BEFORE/AFTER captures required yet. Later UI must verify desktop and mobile availability before changing it, with paired 390/430/768/1280 screenshots if applicable. No merge to master or Vercel. Source copy attestation alone cannot prove offline origin; require operator-controlled staging process and source provenance in a later sublot. Existing branches 04.7/04.8 and 06 must be untouched. After LOT04 closeout and explicit integration authorization, reevaluate exact HEAD, schema consumers, backups, restored rehearsal and human gates.
+
+## Required negative tests
+Reject non-attested copies, out-of-root paths/symlinks, invalid SQLite headers, malformed/ambiguous SQL, unsupported/native archives and encodings. Prove source-byte invariance and absence of row values in schema reports. CI must run isolated synthetic tests; green schema inventory does NOT mean a safe actual import.
+
+## Two adversarial review prompts
+**A — Data integrity/security**: Can a live source be mistaken for a copy? Could any write occur, credential/PHI leak, malicious SQL execute, mapping silently be treated as approved, or provenance/rollback/idempotence be claimed without evidence? Mark BLOCKER/MAJOR and propose negative regression tests.
+**B — Migration/UX/evidence**: Compare 65 locked decisions to output schema, warnings and user decisions; hunt misleading claims of cross-dialect completeness, missing native formats, false-green tests, inaccessible mobile interaction, CI SHA mismatches and unsupported real-dump scenarios. Mark BLOCKER/MAJOR and exact gate next.
