@@ -39,6 +39,26 @@ class PortableDPAPIContract(unittest.TestCase):
             with self.assertRaisesRegex(vault.KeyCustodyError, "KEY_RECORD_INVALID"):
                 vault._open_record(raw, binding)
 
+    def test_revocation_appearing_during_unlock_stops_return(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "key.json"
+            with patch.object(vault, "_read", return_value=b"synthetic"):
+                def add_tombstone(*args):
+                    vault._revocation_path(path).write_bytes(b"blocked")
+                    return b"k" * 32
+                with patch.object(vault, "_open_record", side_effect=add_tombstone):
+                    with self.assertRaisesRegex(vault.KeyCustodyError, "KEY_LOCALLY_REVOKED"):
+                        vault.unlock(path, "cab", "ws")
+
+    def test_os_error_never_leaks_path_in_key_error(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "key.json"
+            path.write_bytes(b"synthetic")
+            with patch.object(vault.os, "open", side_effect=OSError("SECRET_PATIENT_FILE_PATH")):
+                with self.assertRaises(vault.KeyCustodyError) as raised:
+                    vault._read(path)
+            self.assertEqual(str(raised.exception), "KEY_RECORD_UNREADABLE")
+
     @unittest.skipUnless(os.name != "nt", "Windows uses the real native DPAPI suite")
     def test_linux_fails_closed_without_native_dpapi(self):
         with self.assertRaisesRegex(vault.KeyCustodyError, "WINDOWS_DPAPI_REQUIRED"):

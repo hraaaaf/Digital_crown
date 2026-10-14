@@ -42,8 +42,11 @@ def _dpapi(data: bytes, entropy: bytes, *, unprotect: bool) -> bytes:
     if os.name != "nt":
         raise KeyCustodyError("WINDOWS_DPAPI_REQUIRED")
     # User profile and logon identity are part of Windows DPAPI CurrentUser.
-    crypt = ctypes.WinDLL("crypt32", use_last_error=True)
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    try:
+        crypt = ctypes.WinDLL("crypt32", use_last_error=True)
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    except (OSError, AttributeError):
+        raise KeyCustodyError("DPAPI_API_UNAVAILABLE") from None
     func = crypt.CryptUnprotectData if unprotect else crypt.CryptProtectData
     if unprotect:
         func.argtypes = [
@@ -110,19 +113,35 @@ def _read(path: Path) -> bytes:
     if path.is_symlink():
         raise KeyCustodyError("UNSAFE_KEY_RECORD")
     try:
-        st = os.stat(path, follow_symlinks=False)
-        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+        first = os.stat(path, follow_symlinks=False)
+        if not stat.S_ISREG(first.st_mode) or first.st_nlink != 1:
             raise KeyCustodyError("UNSAFE_KEY_RECORD")
-        if not 0 < st.st_size <= _MAX_RECORD:
+        if not 0 < first.st_size <= _MAX_RECORD:
             raise KeyCustodyError("KEY_RECORD_SIZE_INVALID")
-        with path.open("rb") as handle:
-            raw = handle.read(_MAX_RECORD + 1)
-        if len(raw) != st.st_size:
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags)
+        try:
+            opened = os.fstat(fd)
+            signature = (first.st_dev, first.st_ino, first.st_size,
+                         first.st_mtime_ns, first.st_ctime_ns)
+            def matches(value):
+                return (stat.S_ISREG(value.st_mode) and value.st_nlink == 1 and
+                        (value.st_dev, value.st_ino, value.st_size,
+                         value.st_mtime_ns, value.st_ctime_ns) == signature)
+            if not matches(opened):
+                raise KeyCustodyError("KEY_RECORD_CHANGED")
+            with os.fdopen(fd, "rb", closefd=False) as handle:
+                raw = handle.read(_MAX_RECORD + 1)
+            after = os.fstat(fd)
+        finally:
+            os.close(fd)
+        final = os.stat(path, follow_symlinks=False)
+        if not matches(after) or not matches(final) or len(raw) != first.st_size:
             raise KeyCustodyError("KEY_RECORD_CHANGED")
         return raw
     except FileNotFoundError:
         raise KeyCustodyError("KEY_RECORD_MISSING") from None
-    except (PermissionError, IsADirectoryError):
+    except OSError:
         raise KeyCustodyError("KEY_RECORD_UNREADABLE") from None
 
 
@@ -186,7 +205,9 @@ def unlock(path: Path, cabinet: str, workstation: str) -> bytes:
     """Memory-only access under the same Windows user/profile and device scope."""
     path = Path(path)
     _check_not_revoked(path)
-    return _open_record(_read(path), _binding(cabinet, workstation))
+    key = _open_record(_read(path), _binding(cabinet, workstation))
+    _check_not_revoked(path)
+    return key
 
 
 def backup_sealed(source: Path, backup: Path, cabinet: str, workstation: str) -> None:

@@ -28,3 +28,5 @@ Run: python -m unittest discover -s tools/imaging_gateway/tests -v
 CI: existing LOT06 synthetic workflow runs Ubuntu plus Windows. Portable parser/contract negatives run on Linux and Windows; native CryptProtectData/CryptUnprotectData roundtrip, process restart, same-user sealed backup/restore, tamper, scope mismatch, local revocation, crash-partial record and DPAPI denial execute only on Windows. This is hosted-runner evidence, never physical-clinic proof.
 
 Scope locks: LOT04/05 untouched, no database schema, backend, frontend/mobile, driver, Windows service, master merge, Vercel, clinical activation or patient data. No clinical/equipment certification. LOT06-B2 server-ledger/device-auth gate remains independently blocked.
+
+Adversarial correction (06-H candidate): sealed-record reads compare metadata before/after the bounded read, use O_NOFOLLOW when the platform offers it, and reduce raw OS failures to fixed codes. A second revocation check follows DPAPI unwrap. Race-free Windows reparse protection still requires the physical NTFS and installer gate; it is NOT proven by this mitigation.
