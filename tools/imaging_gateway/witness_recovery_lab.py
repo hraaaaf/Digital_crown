@@ -48,6 +48,24 @@ class _State:
     decisions: tuple[Receipt, ...]
 
 
+class VolatileEnrollmentRegistry:
+    """LAB-only shared capture registry. Creating another defeats uniqueness."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._claims: dict[tuple, tuple[str, str, str]] = {}
+
+    def claim(self, capture: tuple, authority_id: str,
+              epoch: str, scope: str) -> None:
+        entry = (authority_id, epoch, scope)
+        with self._lock:
+            previous = self._claims.get(capture)
+            if previous is not None:
+                _fail("ACTIVE_WITNESS_EXISTS" if previous == entry
+                      else "ENROLLMENT_CONFLICT")
+            self._claims[capture] = entry
+
+
 def _fail(code: str) -> None:
     raise WitnessLabError(code)
 
@@ -68,10 +86,11 @@ def _operation(operation_id: str) -> None:
 
 def _request_digest(draft: fork.Draft, *, authority_id: str, epoch: str,
                     opaque_scope: str, operation_id: str) -> str:
-    """Canonical domain bound to identity, epoch, scope, op ID AND bytes.
+    """Single-transition v3 digest; parent authenticated MAC binds past.
 
-    A SHA-256 digest is NOT a signature. This code only compares synthetic
-    payloads against a caller-owned in-memory decision table.
+    Full proposal verification remains mandatory for new decisions; returning
+    an existing receipt requires exact historical prefix equality. A digest
+    is NOT a cryptographic authority signature.
     """
     if (type(draft) is not fork.Draft
             or type(draft.candidate) is not journal.Journal
@@ -81,33 +100,32 @@ def _request_digest(draft: fork.Draft, *, authority_id: str, epoch: str,
             or type(draft.next_anchor) is not journal.TrustedAnchor):
         _fail("PROPOSAL_INVALID")
     _operation(operation_id)
-    h = hashlib.sha256(b"DC06M|synthetic-decision-envelope|v2\0")
     try:
+        last = draft.candidate.records[-1]
+        if type(last) is not journal.Record:
+            _fail("PROPOSAL_INVALID")
         identity = [authority_id, epoch, opaque_scope, operation_id,
                     draft.expected.sequence, draft.expected.mac,
-                    draft.next_anchor.sequence, draft.next_anchor.mac]
-        data = json.dumps(identity, separators=(",", ":"), ensure_ascii=True).encode("ascii")
-        h.update(len(data).to_bytes(4, "big") + data)
-        for record in draft.candidate.records:
-            if type(record) is not journal.Record:
-                _fail("PROPOSAL_INVALID")
-            metadata = [record.sequence, record.previous_mac, record.mac]
-            data = json.dumps(metadata, separators=(",", ":"), ensure_ascii=True).encode("ascii")
-            manifest = journal._manifest(record.snapshot)
-            for part in (data, manifest):
-                h.update(len(part).to_bytes(4, "big") + part)
+                    draft.next_anchor.sequence, draft.next_anchor.mac,
+                    last.sequence, last.previous_mac, last.mac]
+        h = hashlib.sha256(b"DC06M|synthetic-decision-envelope|v3\0")
+        data = json.dumps(identity, separators=(",", ":"),
+                          ensure_ascii=True).encode("ascii")
+        manifest = journal._manifest(last.snapshot)
+        for part in (data, manifest):
+            h.update(len(part).to_bytes(4, "big") + part)
     except (journal.JournalLabError, ValueError, TypeError,
             AttributeError, OverflowError, UnicodeError):
         _fail("PROPOSAL_INVALID")
     return h.hexdigest()
-
 
 class VolatileDecisionWitness:
     """Serialized LAB CAS with one immutable state snapshot; still volatile."""
 
     def __init__(self, genesis: journal.Journal,
                  anchor: journal.TrustedAnchor, *, authority_id: str,
-                 epoch: str, opaque_scope: str, journal_key: bytes,
+                 epoch: str, opaque_scope: str,
+                 registry: VolatileEnrollmentRegistry, journal_key: bytes,
                  legacy_key: bytes, keys: dict):
         if (type(authority_id) is not str
                 or not re.fullmatch(r"[a-zA-Z0-9._-]{1,64}", authority_id)
@@ -116,16 +134,21 @@ class VolatileDecisionWitness:
                 or type(opaque_scope) is not str
                 or not re.fullmatch(r"[0-9a-f]{32}", opaque_scope)):
             _fail("IDENTITY_INVALID")
+        if type(registry) is not VolatileEnrollmentRegistry:
+            _fail("ENROLLMENT_REQUIRED")
         validated = fork.VolatileAuthority(
             genesis, anchor, journal_key=journal_key,
             legacy_key=legacy_key, keys=keys)
+        capture_scope = self._scope_for(genesis.records[0].snapshot)
+        registry.claim(capture_scope, authority_id, epoch, opaque_scope)
+        self._registry = registry
         self._authority_id = authority_id
         self._epoch = epoch
         self._opaque_scope = opaque_scope
         self._journal_key = journal_key
         self._legacy_key = legacy_key
         self._keys = dict(keys)
-        self._scope = self._scope_for(genesis.records[0].snapshot)
+        self._scope = capture_scope
         self._state = _State(genesis, validated.observe(), ())
         self._lock = threading.Lock()
 
@@ -199,7 +222,7 @@ class VolatileDecisionWitness:
                         and _same(receipt.after, after)):
                     return False
                 draft = fork.Draft(before,
-                                   journal.Journal(records[:index]), after)
+                                   journal.Journal((records[0], records[index-1])), after)
                 if not hmac.compare_digest(
                         receipt.request_digest,
                         self._digest(draft, receipt.operation_id)):
@@ -211,7 +234,10 @@ class VolatileDecisionWitness:
 
     def observe(self, *, epoch: str) -> journal.TrustedAnchor:
         self._identity(epoch)
-        return self._state.head
+        state = self._state
+        if not self._ledger_complete(state):
+            _fail("WITNESS_LEDGER_INCONSISTENT")
+        return state.head
 
     def decide(self, draft: fork.Draft, *, operation_id: str,
                epoch: str, failpoint: str | None = None) -> Receipt:
@@ -234,6 +260,8 @@ class VolatileDecisionWitness:
             if previous is not None:
                 if not hmac.compare_digest(previous.request_digest, digest):
                     _fail("IDEMPOTENCY_CONFLICT")
+                if draft.candidate.records != old.history.records[:previous.after.sequence]:
+                    _fail("PROPOSAL_REFUSED")
                 return previous
             if not _same(draft.expected, old.head):
                 _fail("STALE_FORK")
@@ -266,22 +294,30 @@ class VolatileDecisionWitness:
             _fail("WITNESS_LEDGER_INCONSISTENT")
         previous = next((r for r in state.decisions
                          if r.operation_id == operation_id), None)
-        if previous is not None and not hmac.compare_digest(
-                previous.request_digest, digest):
-            _fail("IDEMPOTENCY_CONFLICT")
+        if previous is not None:
+            if not hmac.compare_digest(previous.request_digest, digest):
+                _fail("IDEMPOTENCY_CONFLICT")
+            if draft.candidate.records != state.history.records[:previous.after.sequence]:
+                _fail("PROPOSAL_REFUSED")
         return previous
 
     def lost_reply(self, local: journal.Journal | None,
                    draft: fork.Draft, *, operation_id: str,
                    epoch: str) -> Assessment:
         """Classify only, never locally finalize or produce an ACK."""
-        try:
-            previous = self.lookup(draft, operation_id=operation_id, epoch=epoch)
-        except WitnessLabError as exc:
-            if str(exc) == "WITNESS_LEDGER_INCONSISTENT":
-                return Assessment("WITNESS_LEDGER_INCONSISTENT_REFUSE")
-            raise
-        current = self._state
+        self._identity(epoch)
+        _operation(operation_id)
+        current = self._state  # one coherent snapshot; no mixed-head race
+        if not self._ledger_complete(current):
+            return Assessment("WITNESS_LEDGER_INCONSISTENT_REFUSE")
+        digest = self._digest(draft, operation_id)
+        previous = next((r for r in current.decisions
+                         if r.operation_id == operation_id), None)
+        if previous is not None:
+            if not hmac.compare_digest(previous.request_digest, digest):
+                _fail("IDEMPOTENCY_CONFLICT")
+            if draft.candidate.records != current.history.records[:previous.after.sequence]:
+                _fail("PROPOSAL_REFUSED")
         if previous is None:
             if _same(draft.expected, current.head):
                 return Assessment("UNKNOWN_RETRY_SAME_OP_ONLY")
