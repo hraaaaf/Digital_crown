@@ -53,14 +53,14 @@ try {
       return route.abort();
     });
     await page.goto('http://127.0.0.1:4196/migration-preview.html?filled=0',{waitUntil:'networkidle'});
-    await page.getByRole('heading',{name:'Mapping Studio'}).waitFor();
+    await page.getByRole('heading',{name:'Correspondances de données'}).waitFor();
     const before=await page.evaluate(()=>({
       width:document.documentElement.clientWidth,
       scroll:document.documentElement.scrollWidth,
       importEnabled:!!document.querySelector('button:not([disabled])[aria-label*="Importer"]')
     }));
     await page.screenshot({path:path.join(out,'BEFORE-'+vp.label+'.png'),fullPage:true,animations:'disabled'});
-    await page.getByRole('button',{name:'Contrôler le backend sécurisé'}).click();
+    await page.getByRole('button',{name:'Contrôler le serveur sécurisé'}).click();
     await page.getByText(/Sous-ensemble de tables et révision vérifiés/).waitFor();
     await page.getByRole('button',{name:/Simuler 100 patients/}).click();
     await page.getByText(/Simulation fictive : 100\/100/).waitFor();
