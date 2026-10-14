@@ -40,15 +40,15 @@ L'audit patient de 2026-10-12 rapporte **huit pistes F01–F08** à réconcilier
 - PR chaîne LOT04/Pocket #835/#838/#840/#847/#849/#852/#862/#873/#874/#876/#877/#881 : GitHub les reconnaît déjà MERGED, reprises par l'intégration finale #882.
 - PR laboratoire #858/#859/#860/#870/#871 : CLOSED **non merged**, avec commentaires individuels ; leurs variantes B/C/D sont intégrées/modifiées en logiciel, mais pas tous leurs anciens workflows indépendants.
 - PR #799 : CLOSED **non merged**, remplacée par une réalisation clinique durcie (#837 puis #882). Ne pas restaurer son ancienne logique.
-- PR documentaires #848/#836/#846 : à archiver comme sources datées **uniquement après** création de ce registre de traçabilité. Leurs documents détaillés restent accessibles dans les branches/PR originales ; les risques actuels restent ouverts tant que non revérifiés sur master.
-- PR FUE lab #839 : candidat à l'archivage **comme expérience révolue**, avec son run et ses limites sauvegardés ici ; **aucun PASS terrain** accordé.
-- PR mobiles #843/#845 : **conserver OPEN/BLOQUÉ À REQUALIFIER** tant que leurs échecs/correctifs et la validation iOS sur le code actuel ne sont pas résolus. L'expérience #845 n'est pas une preuve d'appairage physique iPhone.
+- PR documentaires #848/#836/#846 : **CLOSED / merged=false** après création de ce registre, avec commentaires individuels de provenance. Leurs documents détaillés restent accessibles dans les branches/PR originales ; les risques actuels restent ouverts tant que non revérifiés sur master.
+- PR FUE lab #839 : **CLOSED / merged=false**, archivée comme expérience de LAB révolue ; son run et ses limites sont sauvegardés ici. **Aucun PASS terrain** accordé.
+- PR mobiles #843/#845 : **OPEN/DRAFT — BLOQUÉ À REQUALIFIER**, avec commentaires de statut précis sur chaque PR, tant que leurs échecs/correctifs et la validation iOS sur le code actuel ne sont pas résolus. L'expérience #845 n'est pas une preuve d'appairage physique iPhone.
 
 ## 4. Gates et suite
 
 **REQUIRED à confirmer** : tests de régression exact-HEAD sur l'implémentation active, contrôle de la vraie frontière Station PDF HTTP423, permissions tenant/auth, scénario Mobile/PWA pertinent et revue de la source de risque. **PHYSICAL PASS LOT10 séparé** (deux postes, LAN/TLS/QR et impression/secure release, observateur et artefacts). Jamais d'activation de l'impression clinique, migration patient, environnement cabinet ou Vercel à partir de cette documentation.
 
-**Prochaines actions** : (1) maintenir un seul registre documentaire sans réouvrir les PR historiques ; (2) diagnostiquer les runs rouges #843/#845 et les reproduire, si encore applicables, sur `master` exact dans un environnement synthétique isolé ; (3) planifier les essais terrain LOT10, sans confondre preuve CI et preuve matérielle. Aucun certificat de release ou review indépendante n'est produit ici.
+**Prochaines actions** : (1) intégrer ce registre doc-only par sa PR dédiée après vérification des gates du HEAD exact ; (2) diagnostiquer les runs rouges #843/#845 et les reproduire, si encore applicables, sur `master` exact dans un environnement synthétique isolé ; (3) planifier les essais terrain LOT10, sans confondre preuve CI et preuve matérielle. Aucun certificat de release ou review indépendante n'est produit ici.
 
 **Double lecture interne (documentaire seulement)** :
 - **A / sécurité et clinique** : aucune promotion d'une ancienne autorisation papier, de l'archive `AUTRE` ni d'un partage Pocket en autorisation Station ; maintenir toutes les frontières fail-closed.
