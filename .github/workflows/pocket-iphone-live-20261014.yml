@@ -20,13 +20,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: pocket-pwa-first-launch-webkit-20261012
+  group: pocket-iphone-live-20261014
   cancel-in-progress: true
 
 jobs:
   disposable-pairing:
     runs-on: ubuntu-latest
-    timeout-minutes: 32
+    timeout-minutes: 38
     env:
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
@@ -239,5 +239,8 @@ jobs:
       - name: Keep final live code usable and close test session
         shell: bash
         run: |
-          sleep 250
+          # Keep gateway online LONGER than full 300s TTL of last issued PIN.
+          # Previous runner terminated 20s before advertised PIN expiry,
+          # causing real iPhone Cloudflare 502 Host Error.
+          sleep 370
           echo "POCKET_FUE_SESSION_EXPIRED=true"
