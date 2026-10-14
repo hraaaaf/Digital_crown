@@ -115,10 +115,20 @@ try{
   }
   const after=await page.evaluate(()=>({width:document.documentElement.clientWidth,
     scroll:document.documentElement.scrollWidth,
-    // Assert the real clinical import control stays disabled, not a fragile copy string.
+    // On the initial wizard stage the disabled import button is intentionally not mounted.
+    // Require the explicit non-import status + safety warning AND no enabled import action.
     importLocked:(()=>{
-      const control=document.querySelector('button[aria-label="Import en cours de construction"]');
-      return control instanceof HTMLButtonElement && control.disabled;
+      const studio=document.querySelector('[data-testid="migration-studio"]');
+      if(!studio) return false;
+      const hasConstructionStatus=[...studio.querySelectorAll('[role="status"]')]
+        .some(el=>el.textContent?.includes('Import réel en cours de construction'));
+      const hasClinicalDeny=!!studio.querySelector('[role="note"][aria-label="Limites de certification"]')
+        ?.textContent?.includes('Import réel interdit.');
+      const importActions=[...studio.querySelectorAll('button')].filter(button=>
+        /^(importer|import en cours de construction|import réel)/i.test(
+          button.getAttribute('aria-label')||button.textContent?.trim()||''));
+      return hasConstructionStatus && hasClinicalDeny &&
+        importActions.every(button=>button.disabled);
     })(),
     overflowNodes:[...document.querySelectorAll('body *')].filter(el=>{
       const r=el.getBoundingClientRect(); return r.width && r.right>innerWidth+1;
