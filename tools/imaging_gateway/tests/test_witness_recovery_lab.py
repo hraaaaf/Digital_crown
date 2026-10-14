@@ -662,6 +662,42 @@ class DecisionAndRestoreTests(unittest.TestCase):
                     action(forged,operation_id=self.op1,epoch="e1")
         self.assertEqual(self.witness.observe(epoch="e1"),self.a0)
 
+
+    def test_loop_receipt_queries_never_rehash_media(self):
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        draft=self.proposal()
+        receipt=self.decide(draft)
+        with patch.object(journal_lab,"_manifest",
+                          side_effect=AssertionError("media rehash")):
+            for _ in range(50):
+                self.assertEqual(
+                    self.witness.lookup(draft,operation_id=self.op1,epoch="e1"),
+                    receipt)
+                self.assertEqual(
+                    self.witness.decide(draft,operation_id=self.op1,epoch="e1"),
+                    receipt)
+                self.assertIsNone(self.witness.lookup(
+                    draft,operation_id=self.op2,epoch="e1"))
+                self.assertEqual(
+                    self.witness.lost_reply(None,draft,
+                        operation_id=self.op1,epoch="e1").code,
+                    "LOCAL_EVIDENCE_MISSING")
+
+    def test_loop_conflicting_receipt_head_needs_no_media_hash(self):
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        draft=self.proposal()
+        self.decide(draft)
+        fake=replace(draft,next_anchor=replace(
+            draft.next_anchor,mac="0"*64))
+        with patch.object(journal_lab,"_manifest",
+                          side_effect=AssertionError("unnecessary hash")):
+            for fn in (self.witness.lookup,self.witness.decide):
+                with self.assertRaisesRegex(
+                        w.WitnessLabError,"IDEMPOTENCY_CONFLICT"):
+                    fn(fake,operation_id=self.op1,epoch="e1")
+
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
         source=(root/"witness_recovery_lab.py").read_text(encoding="utf-8")
