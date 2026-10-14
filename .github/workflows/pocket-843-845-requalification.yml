@@ -76,7 +76,7 @@ jobs:
         env:
           TELEMETRY_ENABLED: 'false'
           CLOUD_AI_ENABLED: 'false'
-        run: node ../scripts/ci/pocket-843-845-webkit-safety-smoke.mjs
+        run: POCKET_TESTED_HEAD="$(git rev-parse HEAD)" node ../scripts/ci/pocket-843-845-webkit-safety-smoke.mjs
 
 # Scope: physical iPhone, real HTTPS pairing, persistent PWA Home Screen,
 # and LOT10 printer hardware remain NOT TESTED by these isolated checks.
