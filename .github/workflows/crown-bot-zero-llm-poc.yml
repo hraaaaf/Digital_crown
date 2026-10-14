@@ -1,0 +1,44 @@
+name: Crown Bot ZERO-LLM POC (isolated)
+
+on:
+  pull_request:
+    paths:
+      - backend/services/bot/workflow_poc.py
+      - backend/tests/test_crown_bot_zero_llm_poc.py
+      - .github/workflows/crown-bot-zero-llm-poc.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crown-bot-zero-llm-poc-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic-poc:
+    name: Pure deterministic contract tests (no LLM, DB, network, deploy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile standalone workflow
+        run: python -m compileall -q backend/services/bot/workflow_poc.py
+      - name: Execute synthetic-only tests
+        env:
+          PYTHONPATH: .
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python -m unittest discover -s backend/tests -p 'test_crown_bot_zero_llm_poc.py' -v
+      - name: Summarize exact evaluated ref
+        if: always()
+        shell: bash
+        run: |
+          echo "## Crown Bot ZERO-LLM isolated POC" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Three proposed flows only; no production API registration." >> "$GITHUB_STEP_SUMMARY"
+          echo "- No API, database, remote LLM, external credentials or deployment." >> "$GITHUB_STEP_SUMMARY"
