@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/pocket-843-845-requalification.yml
-      - frontend/scripts/pocket-843-845-webkit-safety-smoke.mjs
+      - scripts/ci/pocket-843-845-webkit-safety-smoke.mjs
   workflow_dispatch:
 
 permissions:
@@ -76,7 +76,7 @@ jobs:
         env:
           TELEMETRY_ENABLED: 'false'
           CLOUD_AI_ENABLED: 'false'
-        run: node scripts/pocket-843-845-webkit-safety-smoke.mjs
+        run: node ../scripts/ci/pocket-843-845-webkit-safety-smoke.mjs
 
 # Scope: physical iPhone, real HTTPS pairing, persistent PWA Home Screen,
 # and LOT10 printer hardware remain NOT TESTED by these isolated checks.
