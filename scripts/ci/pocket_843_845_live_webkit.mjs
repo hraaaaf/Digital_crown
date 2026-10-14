@@ -57,7 +57,7 @@ try {
     throw Error('SAFARI_CONSUMES_ONE_USE_QR');
   }
   evidence.safariClaimsBlocked = true;
-  evidence.localhostHttps = new URL(page.url() || origin).protocol === 'https:';
+  evidence.localhostHttps = new URL(origin).protocol === 'https:';
   // An installed Pocket instance has its own IndexedDB AND cookie container;
   // the test HTTPS gateway requires each context to open its capability entry.
   await safariContext.close();
@@ -94,9 +94,28 @@ try {
   }
   await page.locator('[data-dc-pocket-today]').waitFor({ state: 'visible', timeout: 20000 });
   evidence.todayBoot = true;
-  const dbs = await page.evaluate(async () => indexedDB.databases());
-  evidence.encryptedWallet = Array.isArray(dbs) && dbs.length > 0;
-  if (!evidence.encryptedWallet) throw Error('NO_INDEXEDDB_PERSISTENCE');
+  // Read ONLY the existence of the stored pairing key, never the token or master key.
+  evidence.encryptedWallet = await page.evaluate(() => new Promise(resolve => {
+    const request = indexedDB.open('digital-crown-zka');
+    request.onerror = () => resolve(false);
+    request.onsuccess = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('secure_keys')) {
+        db.close();
+        resolve(false);
+        return;
+      }
+      const transaction = db.transaction('secure_keys', 'readonly');
+      const lookup = transaction.objectStore('secure_keys').get('zka_credentials');
+      lookup.onsuccess = () => {
+        const present = lookup.result != null;
+        db.close();
+        resolve(present);
+      };
+      lookup.onerror = () => { db.close(); resolve(false); };
+    };
+  }));
+  if (!evidence.encryptedWallet) throw Error('NO_INDEXEDDB_PAIRING_RECORD');
   const nav = page.locator('[data-mobile-bottom-nav][data-pocket-glass-nav]');
   await nav.waitFor({ state: 'visible', timeout: 8000 });
   evidence.fiveTabs = (await nav.locator('[data-mobile-nav-item]').count()) === 5;
