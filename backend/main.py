@@ -657,9 +657,13 @@ from backend.routers import (
 )
 from backend.routers import ai_feedback as ai_feedback_router
 
+# LOT06-B: isolated, lab-only preflight; never writes clinical media.
+from backend.routers import imaging_acquisition_preflight_v15
+
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
 app.include_router(workstation_mode.router, prefix="/api/workstation", tags=["Workstation Mode"])
+app.include_router(imaging_acquisition_preflight_v15.router, prefix="/api/imaging-acquisitions", tags=["Imaging Acquisition Preflight"])
 app.include_router(station_patient_session.router, prefix="/api/workstation", tags=["Station Patient Session"])
 app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
 app.include_router(ia.router, prefix="/api/ia", tags=["IA & Analysis"])
