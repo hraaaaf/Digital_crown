@@ -132,15 +132,19 @@ describe('05.2-B1 — suggestions/decisions and privileges', () => {
       columns: { id: 'id', fullname: null, password_hash: 'name' } } };
     expect(progress(s, t, stolen).credentialBlocked).toBeGreaterThan(0);
   });
-  it('denies secretary, untrusted roles, and partial dentists even with settings permission', () => {
+  it('denies non-owners, missing employer identity and superadmin flag bypasses', () => {
     expect(canViewMigrationStudio(user({ permissions: { settings: true, admin: true } }))).toBe(false);
+    expect(canViewMigrationStudio(user({ role: 'ADMIN' }))).toBe(false); // employed ADMIN, employer_id: 13
+    expect(canViewMigrationStudio(user({ role: 'ADMIN', employer_id: undefined }))).toBe(false);
     expect(canViewMigrationStudio(user({ role: 'DENTISTE', employer_id: undefined }))).toBe(false);
     expect(canViewMigrationStudio(user({ role: 'DENTISTE', employer_id: 7 }))).toBe(false);
+    expect(canViewMigrationStudio(user({ role: 'ADMIN', is_superadmin: true }))).toBe(false);
+    expect(canViewMigrationStudio(user({ role: 'SECRETAIRE', employer_id: null, is_superadmin: true }))).toBe(false);
     expect(canViewMigrationStudio(null)).toBe(false);
   });
-  it('recognizes only explicit superadmin, ADMIN or fully resolved owner dentist', () => {
-    expect(canViewMigrationStudio(user({ is_superadmin: true }))).toBe(true);
-    expect(canViewMigrationStudio(user({ role: 'ADMIN' }))).toBe(true);
+  it('recognizes only fully resolved root-owner ADMIN or DENTISTE', () => {
+    expect(canViewMigrationStudio(user({ role: 'ADMIN', employer_id: null }))).toBe(true);
     expect(canViewMigrationStudio(user({ role: 'DENTISTE', employer_id: null }))).toBe(true);
+    expect(canViewMigrationStudio(user({ role: 'ADMIN', employer_id: null, is_superadmin: true }))).toBe(true);
   });
 });

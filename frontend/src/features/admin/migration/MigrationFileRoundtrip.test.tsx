@@ -18,7 +18,7 @@ const ready = {
 async function mounted() {
   vi.mocked(fetchMigrationPreflight).mockResolvedValue(ready);
   render(<MigrationMappingStudio />);
-  fireEvent.click(screen.getByRole('button',{name:'Contrôler le backend sécurisé'}));
+  fireEvent.click(screen.getByRole('button',{name:'Contrôler le serveur sécurisé'}));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Télécharger la base SQLite fictive'})).toBeTruthy());
 }
 describe('LOT05.6 synthetic-only SQLite file staff workflow', () => {

@@ -69,7 +69,7 @@ try{
     try {
       await page.goto('http://127.0.0.1:4197/migration-preview.html?filled=0',
                       {waitUntil:'networkidle'});
-      await page.getByRole('heading',{name:'Mapping Studio'}).waitFor({timeout:10000});
+      await page.getByRole('heading',{name:'Correspondances de données'}).waitFor({timeout:10000});
       ready=true;
       break;
     } catch (cause) {
@@ -94,7 +94,7 @@ try{
   if(!await details.count()) throw new Error('WARNING_DETAILS_MISSING:'+vp.name);
   const before=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
   await page.screenshot({path:path.join(dest,'BEFORE-'+vp.name+'.png'),fullPage:true,animations:'disabled'});
-  await page.getByRole('button',{name:'Contrôler le backend sécurisé'}).click();
+  await page.getByRole('button',{name:'Contrôler le serveur sécurisé'}).click();
   await page.getByRole('button',{name:'Télécharger la base SQLite fictive'}).click();
   const fileInput=page.getByLabel('Fichier SQLite fictif Digital Crown');
   await fileInput.waitFor();
@@ -114,7 +114,22 @@ try{
       serverRequests,errors,unexpected,status,cause:String(cause)}));
   }
   const after=await page.evaluate(()=>({width:document.documentElement.clientWidth,
-    scroll:document.documentElement.scrollWidth,importLocked:document.body.textContent?.includes('Import bloqué'),
+    scroll:document.documentElement.scrollWidth,
+    // On the initial wizard stage the disabled import button is intentionally not mounted.
+    // Require the explicit non-import status + safety warning AND no enabled import action.
+    importLocked:(()=>{
+      const studio=document.querySelector('[data-testid="migration-studio"]');
+      if(!studio) return false;
+      const hasConstructionStatus=[...studio.querySelectorAll('[role="status"]')]
+        .some(el=>el.textContent?.includes('Import réel en cours de construction'));
+      const hasClinicalDeny=!!studio.querySelector('[role="note"][aria-label="Limites de certification"]')
+        ?.textContent?.includes('Import réel interdit.');
+      const importActions=[...studio.querySelectorAll('button')].filter(button=>
+        /^(importer|import en cours de construction|import réel)/i.test(
+          button.getAttribute('aria-label')||button.textContent?.trim()||''));
+      return hasConstructionStatus && hasClinicalDeny &&
+        importActions.every(button=>button.disabled);
+    })(),
     overflowNodes:[...document.querySelectorAll('body *')].filter(el=>{
       const r=el.getBoundingClientRect(); return r.width && r.right>innerWidth+1;
     }).slice(0,12).map(el=>({tag:el.tagName,className:typeof el.className==='string'?el.className.slice(0,100):'',
