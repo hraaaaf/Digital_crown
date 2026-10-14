@@ -296,13 +296,28 @@ class VolatileDecisionWitness:
 
     def _preflight_draft(self, draft: fork.Draft) -> None:
         """Cheap shape + byte budget check BEFORE request digest hashing."""
-        if type(draft) is not fork.Draft:
+        if (type(draft) is not fork.Draft
+                or type(draft.expected) is not journal.TrustedAnchor
+                or type(draft.next_anchor) is not journal.TrustedAnchor
+                or type(draft.candidate) is not journal.Journal
+                or type(draft.candidate.records) is not tuple
+                or not 2 <= len(draft.candidate.records) <= 256):
             _fail("PROPOSAL_INVALID")
         status = self._audit_budget_status(draft.candidate)
         if status == "EXCEEDED":
             _fail("AUDIT_WORK_BUDGET_EXCEEDED")
         if status != "OK":
             _fail("PROPOSAL_INVALID")
+
+    @staticmethod
+    def _check_same_operation(draft: fork.Draft, receipt: Receipt,
+                              accepted: journal.Journal) -> None:
+        """Equal immutable receipt/anchors/history without rehashing media."""
+        if not (_same(draft.expected, receipt.before)
+                and _same(draft.next_anchor, receipt.after)):
+            _fail("IDEMPOTENCY_CONFLICT")
+        if draft.candidate.records != accepted.records[:receipt.after.sequence]:
+            _fail("PROPOSAL_REFUSED")
 
     def observe(self, *, epoch: str) -> journal.TrustedAnchor:
         self._identity(epoch)
@@ -325,7 +340,6 @@ class VolatileDecisionWitness:
         if failpoint not in (None, "BEFORE_INSTALL", "AFTER_INSTALL"):
             _fail("FAILPOINT_INVALID")
         self._preflight_draft(draft)
-        digest = self._digest(draft, operation_id)
         with self._lock:
             old = self._state
             if self._audit_budget_status(old.history) == "EXCEEDED":
@@ -335,10 +349,7 @@ class VolatileDecisionWitness:
             previous = next((r for r in old.decisions
                              if r.operation_id == operation_id), None)
             if previous is not None:
-                if not hmac.compare_digest(previous.request_digest, digest):
-                    _fail("IDEMPOTENCY_CONFLICT")
-                if draft.candidate.records != old.history.records[:previous.after.sequence]:
-                    _fail("PROPOSAL_REFUSED")
+                self._check_same_operation(draft, previous, old.history)
                 return previous
             if not _same(draft.expected, old.head):
                 _fail("STALE_FORK")
@@ -353,6 +364,7 @@ class VolatileDecisionWitness:
                 _fail("PROPOSAL_REFUSED")
             if not self._valid_history(draft.candidate, draft.next_anchor):
                 _fail("PROPOSAL_REFUSED")
+            digest = self._digest(draft, operation_id)
             receipt = Receipt(operation_id, digest, self._authority_id,
                               self._opaque_scope, self._epoch,
                               draft.expected, draft.next_anchor)
@@ -376,7 +388,6 @@ class VolatileDecisionWitness:
         self._identity(epoch)
         _operation(operation_id)
         self._preflight_draft(draft)
-        digest = self._digest(draft, operation_id)
         state = self._state
         if self._audit_budget_status(state.history) == "EXCEEDED":
             _fail("AUDIT_WORK_BUDGET_EXCEEDED")
@@ -385,10 +396,7 @@ class VolatileDecisionWitness:
         previous = next((r for r in state.decisions
                          if r.operation_id == operation_id), None)
         if previous is not None:
-            if not hmac.compare_digest(previous.request_digest, digest):
-                _fail("IDEMPOTENCY_CONFLICT")
-            if draft.candidate.records != state.history.records[:previous.after.sequence]:
-                _fail("PROPOSAL_REFUSED")
+            self._check_same_operation(draft, previous, state.history)
         return previous
 
     def lost_reply(self, local: journal.Journal | None,
@@ -403,14 +411,10 @@ class VolatileDecisionWitness:
         if not self._ledger_complete(current):
             return Assessment("WITNESS_LEDGER_INCONSISTENT_REFUSE")
         self._preflight_draft(draft)
-        digest = self._digest(draft, operation_id)
         previous = next((r for r in current.decisions
                          if r.operation_id == operation_id), None)
         if previous is not None:
-            if not hmac.compare_digest(previous.request_digest, digest):
-                _fail("IDEMPOTENCY_CONFLICT")
-            if draft.candidate.records != current.history.records[:previous.after.sequence]:
-                _fail("PROPOSAL_REFUSED")
+            self._check_same_operation(draft, previous, current.history)
         if previous is None:
             if _same(draft.expected, current.head):
                 return Assessment("UNKNOWN_RETRY_SAME_OP_ONLY")
