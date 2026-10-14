@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url));
 const { webkit } = require('playwright');
@@ -58,6 +59,23 @@ function classifyPageError(error) {
     category: categories.find(([pattern]) => pattern.test(msg))?.[1] || 'unknown',
     // Property names, not values or URLs, help classify minified runtime errors.
     property: msg.match(/reading ['"]([a-zA-Z_$][a-zA-Z0-9_$]{0,40})['"]/)?.[1] || null,
+    // Secret-safe exception signature; no raw message, stack, token, URL or patient content.
+    safeName: /^[A-Za-z][A-Za-z0-9]{0,39}$/.test(String(error?.name || '')) ? String(error.name) : 'unknown-name',
+    fingerprint: createHash('sha256').update(msg).digest('hex').slice(0,16),
+    messageLength: Math.min(msg.length, 10000),
+    signature: [
+      [/service.?worker|workbox|sw[.]js/i, 'service-worker'],
+      [/not.?supported|unsupported/i, 'not-supported'],
+      [/not.?allowed|operation is not allowed/i, 'not-allowed'],
+      [/quota|indexeddb|database/i, 'storage'],
+      [/abort|cancel|interrupted/i, 'aborted'],
+      [/import|module|chunk/i, 'module'],
+      [/fetch|network|load failed/i, 'network'],
+      [/security|certificate|trust|ssl|tls/i, 'tls-security'],
+      [/resizeobserver/i, 'resize-observer'],
+    ].find(([pattern]) => pattern.test(msg))?.[1] || 'other',
+    stackOrigin: /\/assets\/[^\s:]+\.js/.test(String(error?.stack || '')) ? 'built-asset' :
+      /\/src\//.test(String(error?.stack || '')) ? 'source' : 'unknown',
   };
 }
 const visited = [];
@@ -96,6 +114,7 @@ try {
   // In Safari, a one-time pairing code must be blocked so it is not consumed
   // in the WRONG storage profile before Pocket has been installed.
   if (origin !== 'https://127.0.0.1:5443') throw Error('NON_LOOPBACK_ORIGIN');
+  phase = 'safari-gateway';
   const safari = await safariContext.newPage();
   await safari.goto(fields.POCKET_FUE_LINK, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await safari.getByRole('link', { name: /Continuer vers l.appairage/ }).click();
@@ -108,8 +127,10 @@ try {
   // An installed Pocket instance has its own IndexedDB AND cookie container;
   // the test HTTPS gateway requires each context to open its capability entry.
   await safariContext.close();
+  phase = 'pwa-gateway';
   await page.goto(fields.POCKET_FUE_LINK, { waitUntil: 'domcontentloaded', timeout: 30000 });
   evidence.pwaSeparateStorage = (await page.evaluate(() => (navigator).standalone)) === true;
+  phase = 'pwa-onboarding';
   await page.getByRole('link', { name: /Continuer vers l.appairage/ }).click();
   const manifest = await page.evaluate(async () => {
     const response = await fetch('/manifest.json');
@@ -123,6 +144,7 @@ try {
   if (!evidence.pwaStandaloneManifest) throw Error('PWA_MANIFEST_WRONG');
   // First installed-app start without device credentials must require pairing,
   // while preserving the already-authorized synthetic HTTPS test gateway.
+  phase = 'unauthenticated-dashboard';
   await page.goto(origin + '/mobile/dashboard', { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.getByText('Compagnon Mobile', { exact: true }).waitFor({ state: 'visible', timeout: 20000 });
   if (new URL(page.url()).pathname !== '/mobile/onboarding') throw Error('PWA_UNPAIRED_BYPASS');
