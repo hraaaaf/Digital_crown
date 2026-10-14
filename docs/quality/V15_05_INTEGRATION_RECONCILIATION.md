@@ -1,6 +1,18 @@
-# LOT05 — intégration provisoire Mapping Studio FR + essai SQLite fictif
+# LOT05 — journal d’intégration et clôture technique (historique + état certifié)
 
-**État : DRAFT / NO-GO intégration finale, aucune donnée réelle, aucun merge ou déploiement.**
+**État actuel au 14 octobre 2026 : INTÉGRÉ SUR `master`, certification post-merge réussie.** Cette validation porte exclusivement sur la préparation de migration et les simulations **100 % fictives** ; **l’import de données cliniques réelles et le déploiement Vercel ne sont ni autorisés ni certifiés**.
+
+### Attestation de clôture LOT05 (autorité chronologique sur les états historiques ci-dessous)
+
+- PR [#890](https://github.com/hraaaaf/Digital_crown/pull/890) **MERGED** ; merge `e88d2c74820991ce8321da1b17073c34cffb9c6d` (parents `c5040140705761e741f91c77648bb6a757bf044a` et source certifiée `87a8c9ac428177880982519af05c565b53917678`).
+- La pré-certification sur ce HEAD source : **15/15 workflows LOT05 techniques SUCCESS**, [T2 authentifié](https://github.com/hraaaaf/Digital_crown/actions/runs/38583900931), [SQLite fictif 05.6](https://github.com/hraaaaf/Digital_crown/actions/runs/38583900453), [JWT / PostgreSQL Alembic](https://github.com/hraaaaf/Digital_crown/actions/runs/38583900818), [visuels 390–1280 + texte 200 %](https://github.com/hraaaaf/Digital_crown/actions/runs/38583900492), [CI Scope](https://github.com/hraaaaf/Digital_crown/actions/runs/38590456909), et [approbation visuelle humaine](https://github.com/hraaaaf/Digital_crown/actions/runs/38587237156) SUCCESS.
+- La certification `push` sur le **merge exact** : [Cabinet Upgrade PostgreSQL #38591351010](https://github.com/hraaaaf/Digital_crown/actions/runs/38591351010) **SUCCESS**, jobs `PostgreSQL 18 + immutable release invariants` et `Windows PowerShell 5.1 release guards` tous deux SUCCESS.
+- Le diff de fusion comprend 68 chemins **LOT05 seulement** (65 ajouts, 3 modifications d'intégration, 0 suppression). `backend/main.py` conserve les routes Station existantes et ajoute `legacy_migration_router` ; le runtime canonique est **Alembic `neo000000031`**.
+- Sécurité : interface propriétaire seulement ; `import_permitted=false`, `full_schema_certified=false`, bouton Import désactivé, aucun import vrai patient, backup/restauration du cabinet **non certifiés**. Gardes de SHA sur seul SQLite officiel fictif et rollback démontrés dans les **tests isolés** ; cela ne certifie pas de reprise de vraie base.
+- Gouvernance : deux perspectives de revue adversariale **internes**, pas de revue GitHub indépendante formelle ; approbation visuelle propriétaire enregistrée sur le HEAD pré-merge. M6-I biométrie `skipped` **EXPÉRIMENTAL** et hors LOT05. Pas de déploiement initié.
+- **Suite hors clôture LOT05 technique :** audit et rangement des anciennes PR Draft #854/#875/#879/#880/#883/#885 sans les fusionner à nouveau ; implémentation 05.7 import contrôlé de vraies données **interdite jusqu’à nouveau contrat, sauvegarde/restauration testées, accord humain et nouveau gate séparé**.
+
+> Les sections « candidat », « DRAFT/NO-GO », « preuves à obtenir » et « aucun merge » conservées **ci-dessous sont le journal historique pré-fusion**, non le statut courant.
 
 ## Sources observées (14 octobre 2026)
 
