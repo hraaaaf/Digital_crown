@@ -21,11 +21,10 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 const fail = (code: string): never => { throw new Error(code); };
 
 export function canViewMigrationStudio(user: AppUser | null | undefined): boolean {
-  return !!user && (
-    user.is_superadmin === true ||
-    user.role === 'ADMIN' ||
-    (user.role === 'DENTISTE' && user.employer_id === null)
-  );
+  // Match backend require_cabinet_owner(): a superadmin flag is not an owner bypass.
+  // Missing employer_id is UNKNOWN and must fail closed just like a staff account.
+  return !!user && user.employer_id === null &&
+    (user.role === 'ADMIN' || user.role === 'DENTISTE');
 }
 export const isCredentialName = (name: string) => SECRET.test(name);
 export const isSupportedJsonSize = (size: number) => Number.isInteger(size) && size > 0 && size <= MAX_SIZE;
