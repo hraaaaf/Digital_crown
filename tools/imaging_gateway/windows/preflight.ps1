@@ -41,14 +41,28 @@ function Test-BroadWriteRules {
 
 function Read-FileAcl {
   param([string]$LiteralPath)
-  # PowerShell Security module's Get-Acl is absent from some Windows runners.
-  # The Windows-only .NET ACL extension retrieves the same security descriptor
-  # without changing any permissions. Fail closed if both are unavailable.
+  # Get-Acl can be unavailable if Microsoft.PowerShell.Security is not loaded.
+  # Prefer the native cmdlet, then the platform-specific .NET security API.
   $cmd = Get-Command -Name 'Get-Acl' -ErrorAction SilentlyContinue
+  if ($null -eq $cmd) {
+    try {
+      Import-Module -Name Microsoft.PowerShell.Security -ErrorAction Stop
+      $cmd = Get-Command -Name 'Get-Acl' -ErrorAction SilentlyContinue
+    } catch {
+      $cmd = $null
+    }
+  }
   if ($null -ne $cmd) {
     return Get-Acl -LiteralPath $LiteralPath -ErrorAction Stop
   }
   $item = Get-Item -LiteralPath $LiteralPath -Force -ErrorAction Stop
+  if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    if ($item.PSIsContainer) {
+      return [System.IO.Directory]::GetAccessControl($item.FullName)
+    }
+    return [System.IO.File]::GetAccessControl($item.FullName)
+  }
+  Add-Type -AssemblyName 'System.IO.FileSystem.AccessControl' -ErrorAction Stop
   if ($item.PSIsContainer) {
     $directory = [System.IO.DirectoryInfo]::new($item.FullName)
     return [System.IO.FileSystemAclExtensions]::GetAccessControl($directory)
