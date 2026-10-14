@@ -320,10 +320,10 @@ class HotFolder:
             file_count += 1
             if file_count > 100_000:
                 raise StorageBackpressure("SPOOL_DIRECTORY_LIMIT")
-            meta = entry.stat(follow_symlinks=False)
-            # Some Windows filesystems report st_nlink=0 for ordinary files.
-            # Reject proven multi-link entries; do not reject an unreported count.
-            # NTFS hardlink enforcement still needs a physical Windows field gate.
+            # Windows DirEntry.stat() can omit the NTFS hardlink count.
+            # os.stat(path, follow_symlinks=False) performs a full file query,
+            # preserving the ability to refuse observed hardlinks and symlinks.
+            meta = os.stat(entry.path, follow_symlinks=False)
             if not stat.S_ISREG(meta.st_mode) or meta.st_nlink > 1:
                 raise GatewayError("unsafe spool entry")
             occupied += meta.st_size
