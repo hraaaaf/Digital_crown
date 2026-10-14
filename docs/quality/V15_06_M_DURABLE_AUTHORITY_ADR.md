@@ -77,3 +77,38 @@ Authorized reconciliation (future, not LAB): incident ticket and minimized evide
 - TPM vendor/hardware behavior and counter endurance unverified for Digital Crown. No claim of validation or applicable standard/certification.
 
 **Residual blockers**: independent trust domain and reliable monotonic CAS not implemented, cross-store crash recovery unproved, operating availability offline, escrow/rotation, key compromise, Windows physical tests, legacy capture identity, B2 and dental devices. **Recommended architecture = D, conditional. Clinical status = NO-GO.**
+
+## 8. 06-M corrective specification after quality gate failure (review B = 7.9/10)
+
+**Gate correction**: CI green on prior SHA `3aced804...` did not validate the architecture; reliability score 7.9/10 is below the strict 8.0/10 minimum. This section stays within **LOT06-M**. It does not make a durability or clinical claim.
+
+### 8.1 Authority-side atomic decision record — mandatory physical contract
+
+The authority (not the collector) must make `CAS(old_epoch, scope, expected_sequence, expected_mac) + append immutable decision + operation_id/complete request digest uniqueness + receipt` **one durable, serializable transaction**. A process must never return a success receipt before this *same* transaction is durably committed. An incomplete transaction cannot expose an advanced head without the corresponding durable decision. Head, decision ledger and receipt must be covered by the same rollback-protected authority failure domain; a signed receipt alone is NOT a freshness proof. Uniqueness is (`authority_id, epoch, scope, operation_id`); reuse with a different canonical byte-for-byte intent **conflicts**, even when the head has since advanced. Canonical request digest binds full proposal, candidate manifest and expected/next head. No operation-id reuse after epoch rotation without an audited epoch transition.
+
+No safe proof is possible from a *bare* counter increment without the matching manifest/decision and recoverable encrypted media. The authority returns `DECIDED` only with the receipt; `UNKNOWN` on failed query or partition; `CONFLICT` on reused identifier with changed body; `STALE` when competing CAS won; `NOT_SEEN` is not definitive while a delayed request may still arrive. After timeout, query by the *same* operation ID **and same payload**; do not generate a new ID or promote media because a network timeout elapsed. Retrying the same ID must be idempotent, including after receipt loss and later unrelated accepted operations. A receipt about a prior decision does not establish the **current** witness head.
+
+Trust-domain non-claims: in-memory `VolatileDecisionWitness` uses 06-L `VolatileAuthority` + an ordinary Python dict, sequentially. It models decision and receipt together **logically**, not an OS-atomic operation or stable storage. It holds prototype keys and is resettable; in production the authority must not inherit such unrestricted collector key/material privileges.
+
+### 8.2 Crash boundary ledger (no cross-store atomicity)
+
+| Boundary | Authority decision | Local evidence | Recovery rule |
+|---|---|---|---|
+| B0 before staging | old head | old verified journal | remain old; no new acknowledgment |
+| B1 candidate staged, no local intent | old head | orphan encrypted candidate | quarantine orphan; legacy remains active |
+| B2 intent/outbox durable, no decision known | old or racing | local intent, source and candidate | query immutable `op_id`; retry same body only; never switch to a new id on ambiguous timeout |
+| B3 witness transaction durably commits, ACK lost | advanced, decision exists | older local journal | query same `op_id`, verify receipt and current head; `DECIDED_NOT_FINALIZED`, **not a clinical ACK** |
+| B4 witness advanced, local transaction/receipt torn | advanced | journal/intent stale or incomplete | `AUTHORITY_AHEAD`; require full independently retained authenticated chain+media/keys and human reconciliation |
+| B5 finalized local chain, witness inaccessible/reset | unknown trust | apparently valid committed local | quarantine; no fresh promotion, B2 ACK, or unsupported freshness |
+| B6 another decision advances witness after first | newer head | old valid receipt | old receipt remains queryable, but is **not** permission to assume current head |
+| B7 backup restores journal + locally stored anchor | witness should be newer | internally authentic but stale journal | detect only with independent uncompromised witness; otherwise global rollback remains undetectable |
+
+**Recovery proof bundle** (required *before* any future human-authorized physical reconstruction): authenticated independent witness identity/epoch/current head plus *all* immutable decisions from local prefix to head; independent archived full 06-K chain incl. **every** missing record; authenticated DC6A + DC6B ciphertext and required old/new keys; matching cabinet/station/capture opaque scope; prefix equality vs local surviving journal; stable operation_id and receipts per transition; documented backup provenance and restore test; explicit reconciliation incident, distinct approvers and preservation of forensic copies. A complete archive means **EVIDENCE_COMPLETE_HUMAN_GATE_REQUIRED**, **not RECOVERED**. Media or key missing, forked prefix, missing witness decision, different epoch, witness itself rolled back or compromised = hard block, incident escalation, no automated key rotation/rollback/reset or clinical use.
+
+No automatic solution exists for witness-ahead when the sole candidate/journal copy is lost. If the witness and its decision ledger are lost/rolled back together, the source of monotonic truth is lost; an exceptional independently verified new-epoch recovery plan and HUMAN GATE are necessary. **Availability is sacrificed rather than manufacturing a history.**
+
+### 8.3 Model evidence and limitation
+
+`tools/imaging_gateway/witness_recovery_lab.py` exercises identical-op replay, conflicting op_id payload, competing forks, uncertain/lost reply, old receipts after later decisions, archive completeness, prefix mismatch, missing decision, integrity fault, incorrect epoch and whole-authority reset. It returns only non-authorizing classification codes. The full local/archive evidence remains memory-only and the witness is re-creatable; no physical CAS, durable receipt, cryptographic witness identity, fsync, Windows ACL, independent archival provenance, dual-control approval, or active collector integration is proven. A malicious caller can construct fake witness objects; do not reuse these classes in production.
+
+**Evidence rule**: require exact-HEAD Windows/Linux synthetic CI; two INTERNAL critical reviews with at least 8.0/10 each **and zero unresolved material BLOCKER/MAJOR**, plus an additional confirmation pass. Scores never override findings; no claim of independent convergence from same-assistant reviews. The future physical authority requires a separate human design/topology/escrow decision and power-loss tests. LOT06 clinical status stays **NO-GO**.
