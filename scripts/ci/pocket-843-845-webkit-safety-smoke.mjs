@@ -9,7 +9,7 @@ const iphoneUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWe
 const browser = await webkit.launch({ headless: true });
 const evidence = {
   scope: 'isolated-loopback-WebKit-only',
-  exactCommit: process.env.GITHUB_SHA || 'local',
+  exactCommit: process.env.POCKET_TESTED_HEAD || 'unverified-local',
   safariInstallGuard: false,
   safariOneUseClaimBlocked: false,
   installedFirstBootGuard: false,
