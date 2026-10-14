@@ -136,7 +136,7 @@ try {
       lookup.onerror = () => { db.close(); resolve(false); };
     };
   }));
-  if (!evidence.encryptedWallet) throw Error('NO_INDEXEDDB_PAIRING_RECORD');
+  if (!evidence.indexedDbPairingRecord) throw Error('NO_INDEXEDDB_PAIRING_RECORD');
   const nav = page.locator('[data-mobile-bottom-nav][data-pocket-glass-nav]');
   await nav.waitFor({ state: 'visible', timeout: 8000 });
   evidence.fiveTabs = (await nav.locator('[data-mobile-nav-item]').count()) === 5;
