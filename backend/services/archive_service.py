@@ -400,7 +400,7 @@ class ArchiveService:
             is_latest_version=True,
             file_hash=file_hash,
             file_size=file_size,
-            file_path=("static/archives/" + str(storage_path.relative_to(ARCHIVE_BASE_DIR))).replace("\\", "/"),
+            file_path=("static/archives/" + str(storage_path.relative_to(self.archive_base_dir))).replace("\\", "/"),
             title=title or filename,
             description=description,
             tags=tags,
