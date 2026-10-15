@@ -214,6 +214,64 @@ def run():
     assert denied_legacy.status_code == 409, denied_legacy.text
     print("CLINICAL_REAL_LEGACY_NULL_PRACTITIONER_CROSS_INGRESS: PASS")
 
+    # A legacy 8-hour booking starting 5h before a candidate must block it.
+    # Previous 4h lookback silently hid 09:00-17:00 from a 14:00 search.
+    long_start = (first_slot + timedelta(days=6)).replace(
+        hour=9, minute=0, second=0, microsecond=0,
+    )
+    candidate = long_start.replace(hour=14)
+    with database.SessionLocal() as db:
+        long_existing = models.Appointment(
+            patient_name="Historical 8h Synthetic", employer_id=doctor_id,
+            datetime_start=long_start, duration_minutes=480,
+            praticien_id=doctor_id, status=models.AppointmentStatus.PREVU,
+            scheduling_type=models.SchedulingType.EXACT_TIME,
+        )
+        db.add(long_existing)
+        db.commit()
+        long_id = long_existing.id
+    long_conflict = api.post("/api/appointments/", headers=authorization, json={
+        "patient_name": "Long Overlap Synthetic", "praticien_id": doctor_id,
+        "datetime_start": candidate.isoformat(), "duration_minutes": 30,
+    })
+    assert long_conflict.status_code == 409, long_conflict.text
+    with database.SessionLocal() as db:
+        assert db.get(models.Appointment, long_id).duration_minutes == 480
+        assert db.query(models.Appointment).filter(
+            models.Appointment.employer_id == doctor_id,
+            models.Appointment.datetime_start == candidate,
+        ).count() == 0
+    print("CLINICAL_REAL_EIGHT_HOUR_OVERLAP: PASS")
+
+    # An expired request is NOT a copyable offer of an available slot.
+    expired_slot = first_slot + timedelta(days=7)
+    expired_response = api.post(
+        "/api/frontdesk/appointment-request", headers=authorization, json={
+            "first_name": "Expired", "last_name": "Synthetic",
+            "requested_start": expired_slot.isoformat(), "duration_minutes": 30,
+        },
+    )
+    assert expired_response.status_code == 200, expired_response.text
+    expired_id = expired_response.json()["id"]
+    with database.SessionLocal() as db:
+        expired_request = db.get(models.Appointment, expired_id)
+        expired_request.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        db.commit()
+    stale_offer = api.post(
+        f"/api/appointments/{expired_id}/request-confirmation",
+        headers=authorization,
+    )
+    assert stale_offer.status_code == 410, stale_offer.text
+    assert "disponible" not in stale_offer.text.lower()
+    with database.SessionLocal() as db:
+        assert db.get(models.Appointment, expired_id).status == models.AppointmentStatus.EXPIRE
+        assert db.query(models.AuditLog).filter(
+            models.AuditLog.resource_id == str(expired_id),
+            models.AuditLog.action == "FRONTDESK_APPOINTMENT_EXPIRED",
+        ).count() == 1
+    print("CLINICAL_REAL_EXPIRED_FRONTDESK_NO_MESSAGE: PASS")
+
+
 
 
     # Real clinical closure, no mocks: check that a conflicting creation does
@@ -261,6 +319,7 @@ def run():
         db.add(action)
         db.commit()
         action_id = action.id
+        bot_session_id = bs.id
     outcome = api.post("/api/bot/execute", headers=authorization,
                        json={"pending_action_id": action_id})
     assert outcome.status_code == 200, outcome.text
@@ -282,6 +341,45 @@ def run():
         ).count()
         assert audit >= 1
     print("CLINICAL_REAL_BOT_HTTP_EXECUTE_REPLAY_AUDIT: PASS")
+
+    # Status confirmation must be conditional on the actual appointment status
+    # still matching the user's preview (not merely the same patient).
+    with database.SessionLocal() as db:
+        stale_appt = models.Appointment(
+            patient_id=patient_id, employer_id=doctor_id,
+            praticien_id=doctor_id,
+            datetime_start=first_slot + timedelta(days=9),
+            duration_minutes=30, motif="Synthetic status CAS",
+            status=models.AppointmentStatus.PREVU,
+            scheduling_type=models.SchedulingType.EXACT_TIME,
+        )
+        db.add(stale_appt)
+        db.flush()
+        stale_action = models.BotPendingAction(
+            session_id=bot_session_id, user_id=doctor_id,
+            employer_id=doctor_id, action_type="CHANGE_STATUS",
+            params_json={
+                "appointment_id": stale_appt.id, "patient_id": patient_id,
+                "expected_status": "PREVU", "status": "EN_FAUTEUIL",
+            },
+            status="pending", expires_at=datetime.utcnow() + timedelta(minutes=30),
+        )
+        db.add(stale_action)
+        db.commit()
+        stale_action_id = stale_action.id
+        stale_appt_id = stale_appt.id
+        stale_appt.status = models.AppointmentStatus.ANNULE
+        db.commit()  # clinic cancels AFTER bot's preview but BEFORE confirmation
+    stale_execution = api.post(
+        "/api/bot/execute", headers=authorization,
+        json={"pending_action_id": stale_action_id},
+    )
+    assert stale_execution.status_code == 409, stale_execution.text
+    with database.SessionLocal() as db:
+        assert db.get(models.Appointment, stale_appt_id).status == models.AppointmentStatus.ANNULE
+        assert db.get(models.BotPendingAction, stale_action_id).status == "failed"
+    print("CLINICAL_REAL_BOT_STALE_CANCELLED_STATUS_CAS: PASS")
+
     print("CLINICAL_FULL_SCHEMA_HTTP_GATE: PASS migrated schema, HTTP, real database transaction")
 
 
