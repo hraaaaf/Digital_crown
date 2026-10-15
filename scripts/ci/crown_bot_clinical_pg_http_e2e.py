@@ -138,6 +138,55 @@ def run():
         ).all()
         assert len(records) == 1, "Two HTTP creates produced double booking"
     print("CLINICAL_REAL_HTTP_TWO_SESSIONS: PASS")
+    # A pending frontdesk request is an enquiry, NOT a capacity reservation.
+    front_slot = first_slot + timedelta(days=3)
+    pending = api.post("/api/frontdesk/appointment-request",
+        headers=authorization, json={
+            "first_name": "Pending", "last_name": "Synthetic",
+            "requested_start": front_slot.isoformat(), "duration_minutes": 30,
+        })
+    assert pending.status_code == 200, pending.text
+    tentative_id = pending.json()["id"]
+    actual = api.post("/api/appointments/", headers=authorization, json={
+        "patient_name": "Already Confirmed", "praticien_id": doctor_id,
+        "datetime_start": front_slot.isoformat(), "duration_minutes": 30,
+    })
+    assert actual.status_code == 200, actual.text
+    denied = api.post(f"/api/appointments/{tentative_id}/confirm", headers=authorization)
+    assert denied.status_code == 409, denied.text
+    print("CLINICAL_REAL_FRONTDESK_PROPOSAL_NOT_OCCUPYING: PASS")
+
+    # Real HTTP race: confirming versus rejecting EXACTLY the same request.
+    race_slot = first_slot + timedelta(days=4)
+    pending2 = api.post("/api/frontdesk/appointment-request", headers=authorization,
+        json={
+            "first_name": "Race", "last_name": "Synthetic",
+            "requested_start": race_slot.isoformat(), "duration_minutes": 30,
+        })
+    assert pending2.status_code == 200, pending2.text
+    race_id = pending2.json()["id"]
+    ready = Barrier(2)
+    def transition_request(operation):
+        test_client = TestClient(app, raise_server_exceptions=True)
+        ready.wait(timeout=20)
+        return test_client.post(
+            f"/api/appointments/{race_id}/{operation}", headers=authorization,
+        )
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        raced = list(pool.map(transition_request, ("confirm", "reject")))
+    assert sorted(x.status_code for x in raced) == [200, 409], [
+        (x.status_code, x.text[:500]) for x in raced
+    ]
+    with database.SessionLocal() as session:
+        final = session.get(models.Appointment, race_id)
+        assert final.status in {
+            models.AppointmentStatus.CONFIRME,
+            models.AppointmentStatus.REFUSE,
+        }
+        if final.status == models.AppointmentStatus.CONFIRME:
+            assert final.praticien_id == doctor_id
+    print("CLINICAL_REAL_FRONTDESK_CONFIRM_REJECT_RACE: PASS")
+
 
     # Real clinical closure, no mocks: check that a conflicting creation does
     # not write and patient tenant is still enforced.
