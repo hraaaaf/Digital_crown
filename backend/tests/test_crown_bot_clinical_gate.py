@@ -264,3 +264,28 @@ def test_frontdesk_rejected_request_cannot_be_confirmed_later(db, dentiste):
     db.refresh(request)
     assert request.status == models.AppointmentStatus.REFUSE
     assert request.praticien_id is None
+
+
+def test_sqlcipher_busy_returns_safe_http_409_not_unhandled_500(
+    client, dentiste, auth_headers
+):
+    from sqlalchemy.exc import OperationalError
+    synthetic = OperationalError(
+        statement="synthetic booking lock", params=None,
+        orig=RuntimeError("database is locked"),
+    )
+    with patch(
+        "backend.routers.appointments.lock_cabinet_booking",
+        side_effect=synthetic,
+    ):
+        response = client.post(
+            "/api/appointments/", headers=auth_headers, json={
+                "patient_name": "Synthetic Busy",
+                "praticien_id": dentiste.id,
+                "datetime_start": _slot(18, 11).isoformat(),
+                "duration_minutes": 30,
+            },
+        )
+    assert response.status_code == 409, response.text
+    assert "Vérifiez le rendez-vous" in response.json()["detail"]
+    assert "synthetic" not in response.text.lower()
