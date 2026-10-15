@@ -159,6 +159,17 @@ jobs:
         run: |
           alembic upgrade head
           python scripts/ci/crown_bot_clinical_pg_http_e2e.py
+      - name: REQUIRED — full-schema encrypted SQLCipher clinical HTTP E2E
+        env:
+          DATABASE_URL: sqlite:////tmp/crown_bot_clinical_${{ github.run_id }}.db
+          CROWN_BOT_CLINICAL_CI_DATABASE: synthetic-only
+          CABINET_MASTER_KEY_HEX: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          SQLCIPHER_KEY_HEX: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+        run: |
+          sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+          python -m pip install 'sqlcipher3==0.6.2'
+          alembic upgrade head
+          python scripts/ci/crown_bot_clinical_pg_http_e2e.py
       - name: Security evidence summary
         if: always()
         run: |
