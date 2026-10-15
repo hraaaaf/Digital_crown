@@ -12,6 +12,50 @@ from backend.services.agenda_transaction_lock import lock_cabinet_booking
 
 router = APIRouter(tags=["frontdesk"])
 
+_PENDING = (
+    models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+    models.AppointmentStatus.EN_ATTENTE_CONFIRM,
+)
+
+
+def _pending_request(db: Session, employer_id: int, appointment_id: int):
+    """Caller MUST obtain lock_cabinet_booking before this tenant-scoped read."""
+    return db.query(models.Appointment).filter(
+        models.Appointment.id == appointment_id,
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.deleted_at.is_(None),
+    ).first()
+
+
+def _cas_request_state(
+    db: Session, employer_id: int, appointment_id: int,
+    statuses: tuple, new_status, **fields,
+) -> None:
+    """Never accept stale ORM state; one winning conditional transition."""
+    changed = db.query(models.Appointment).filter(
+        models.Appointment.id == appointment_id,
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.deleted_at.is_(None),
+        models.Appointment.status.in_(statuses),
+    ).update({"status": new_status, **fields}, synchronize_session=False)
+    if changed != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Demande déjà traitée ou modifiée.")
+
+
+def _frontdesk_audit(db: Session, user, appointment, action: str) -> None:
+    # Same COMMIT as the corresponding clinical state change.
+    db.add(models.AuditLog(
+        user_id=user.id,
+        employer_id=user.get_employer_id(),
+        action=action,
+        resource_type="APPOINTMENT",
+        resource_id=str(appointment.id),
+        severity="INFO",
+        details=f"Demande de rendez-vous : {appointment.patient_name}",
+    ))
+
+
 
 @router.post("/frontdesk/appointment-request")
 async def create_appointment_request(
@@ -119,33 +163,20 @@ async def request_patient_confirmation(
         raise HTTPException(status_code=403, detail="Permission refusée.")
 
     employer_id = current_user.get_employer_id()
-    appt = db.query(models.Appointment).filter(
-        models.Appointment.id == appointment_id,
-        models.Appointment.employer_id == employer_id,
-    ).first()
-
-    if not appt:
+    lock_cabinet_booking(db, employer_id)
+    appt = _pending_request(db, employer_id, appointment_id)
+    if appt is None:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
-
     if appt.status != schemas.AppointmentStatus.EN_ATTENTE_DEMANDE:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Transition invalide : {appt.status.value} → EN_ATTENTE_CONFIRM",
-        )
-
-    appt.status = schemas.AppointmentStatus.EN_ATTENTE_CONFIRM
-    db.commit()
-
-    audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
-        action="FRONTDESK_CONFIRMATION_REQUESTED",
-        resource_type="APPOINTMENT",
-        resource_id=str(appt.id),
-        severity="INFO",
-        details=f"Confirmation demandée au patient : {appt.patient_name}",
+        raise HTTPException(status_code=409, detail="Transition de demande déjà traitée.")
+    _cas_request_state(
+        db, employer_id, appt.id,
+        (schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,),
+        schemas.AppointmentStatus.EN_ATTENTE_CONFIRM,
     )
+    _frontdesk_audit(db, current_user, appt, "FRONTDESK_CONFIRMATION_REQUESTED")
+    db.commit()
+    db.refresh(appt)
 
     message_template = f"""Bonjour {appt.patient_name.split()[0]}, votre demande de rendez-vous
 pour le {appt.datetime_start.strftime('%d/%m/%Y')} à {appt.datetime_start.strftime('%H:%M')} est disponible.
@@ -164,64 +195,60 @@ async def confirm_appointment(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Confirm appointment: EN_ATTENTE_DEMANDE or EN_ATTENTE_CONFIRM → CONFIRME."""
+    """Confirm only a STILL-pending, non-expired request under cabinet lock."""
     if not has_permission(current_user, "agenda"):
         raise HTTPException(status_code=403, detail="Permission refusée.")
-
     employer_id = current_user.get_employer_id()
-    appt = db.query(models.Appointment).filter(
-        models.Appointment.id == appointment_id,
-        models.Appointment.employer_id == employer_id,
-    ).first()
-
-    if not appt:
+    # Lock FIRST. A stale SELECT prior to this lock could resurrect a
+    # rejected/expired request when another worker commits concurrently.
+    lock_cabinet_booking(db, employer_id)
+    appt = _pending_request(db, employer_id, appointment_id)
+    if appt is None:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
-
-    if appt.status not in [
-        schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
-        schemas.AppointmentStatus.EN_ATTENTE_CONFIRM,
-    ]:
-        raise HTTPException(status_code=409, detail=f"Statut invalide pour confirmation: {appt.status.value}")
-
-    if appt.expires_at and appt.expires_at < datetime.utcnow():
-        appt.status = schemas.AppointmentStatus.EXPIRE
+    if appt.status not in _PENDING:
+        raise HTTPException(status_code=409, detail="Demande déjà traitée.")
+    if appt.expires_at and appt.expires_at <= datetime.utcnow():
+        _cas_request_state(
+            db, employer_id, appt.id, _PENDING,
+            schemas.AppointmentStatus.EXPIRE,
+            expires_at=datetime.utcnow(),
+        )
+        _frontdesk_audit(db, current_user, appt, "FRONTDESK_APPOINTMENT_EXPIRED")
         db.commit()
         raise HTTPException(status_code=410, detail="Demande expirée.")
 
-    # Confirmation is a committed clinical booking, not just a request status:
-    # enforce the same cross-entry atomic availability fence as Agenda/Bot.
-    from backend.routers.appointments import _find_conflicts
+    from backend.routers.appointments import (
+        _find_conflicts, _resolve_practitioner_id,
+    )
     from backend.services.agenda_availability import validate_appointment_availability
-    lock_cabinet_booking(db, employer_id)
+    # Never confirm an unassigned legacy request as a GLOBAL blocking slot.
+    # Dentists default to themselves; secretaries must supply a practitioner
+    # through the canonical Agenda before final confirmation.
+    practitioner_id = _resolve_practitioner_id(
+        db, employer_id, current_user, appt.praticien_id,
+    )
     availability_error = validate_appointment_availability(
         db, employer_id, appt.datetime_start, appt.duration_minutes,
-        appt.scheduling_type, practitioner_id=appt.praticien_id,
+        appt.scheduling_type, practitioner_id=practitioner_id,
     )
     if availability_error:
         raise HTTPException(status_code=422, detail=availability_error)
-    conflicting = _find_conflicts(
-        db, employer_id, appt.praticien_id, appt.datetime_start,
+    if _find_conflicts(
+        db, employer_id, practitioner_id, appt.datetime_start,
         appt.duration_minutes, exclude_id=appt.id,
-    )
-    if conflicting:
+    ):
         raise HTTPException(status_code=409, detail="Créneau déjà occupé.")
-
-    appt.status = schemas.AppointmentStatus.CONFIRME
-    appt.confirmed_by_id = current_user.id
-    appt.confirmed_at = datetime.utcnow()
-    db.commit()
-
-    audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
-        action="FRONTDESK_APPOINTMENT_CONFIRMED",
-        resource_type="APPOINTMENT",
-        resource_id=str(appt.id),
-        severity="INFO",
-        details=f"Rendez-vous confirmé : {appt.patient_name}",
+    now = datetime.utcnow()
+    _cas_request_state(
+        db, employer_id, appt.id, _PENDING,
+        schemas.AppointmentStatus.CONFIRME,
+        praticien_id=practitioner_id,
+        confirmed_by_id=current_user.id,
+        confirmed_at=now,
     )
-
+    _frontdesk_audit(db, current_user, appt, "FRONTDESK_APPOINTMENT_CONFIRMED")
+    db.commit()
+    db.refresh(appt)
     return {
         "id": appt.id,
         "status": appt.status.value,
@@ -236,41 +263,20 @@ async def reject_appointment(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Reject appointment: EN_ATTENTE_* → REFUSE."""
     if not has_permission(current_user, "agenda"):
         raise HTTPException(status_code=403, detail="Permission refusée.")
-
     employer_id = current_user.get_employer_id()
-    appt = db.query(models.Appointment).filter(
-        models.Appointment.id == appointment_id,
-        models.Appointment.employer_id == employer_id,
-    ).first()
-
-    if not appt:
+    lock_cabinet_booking(db, employer_id)
+    appt = _pending_request(db, employer_id, appointment_id)
+    if appt is None:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
-
-    if appt.status not in [
-        schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
-        schemas.AppointmentStatus.EN_ATTENTE_CONFIRM,
-    ]:
-        raise HTTPException(status_code=409, detail=f"Cannot reject status: {appt.status.value}")
-
-    appt.status = schemas.AppointmentStatus.REFUSE
-    appt.expires_at = datetime.utcnow()
-    db.commit()
-
-    audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
-        action="FRONTDESK_APPOINTMENT_REJECTED",
-        resource_type="APPOINTMENT",
-        resource_id=str(appt.id),
-        severity="INFO",
-        details=f"Rendez-vous refusé : {appt.patient_name}",
+    _cas_request_state(
+        db, employer_id, appointment_id, _PENDING,
+        schemas.AppointmentStatus.REFUSE, expires_at=datetime.utcnow(),
     )
-
-    return {"id": appt.id, "status": appt.status.value}
+    _frontdesk_audit(db, current_user, appt, "FRONTDESK_APPOINTMENT_REJECTED")
+    db.commit()
+    return {"id": appt.id, "status": schemas.AppointmentStatus.REFUSE.value}
 
 
 @router.post("/appointments/{appointment_id}/expire")
@@ -279,45 +285,17 @@ async def expire_appointment(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Manually expire an appointment."""
     if not has_permission(current_user, "agenda"):
         raise HTTPException(status_code=403, detail="Permission refusée.")
-
     employer_id = current_user.get_employer_id()
-    appt = db.query(models.Appointment).filter(
-        models.Appointment.id == appointment_id,
-        models.Appointment.employer_id == employer_id,
-    ).first()
-
-    if not appt:
+    lock_cabinet_booking(db, employer_id)
+    appt = _pending_request(db, employer_id, appointment_id)
+    if appt is None:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
-
-    if appt.status not in [
-        schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
-        schemas.AppointmentStatus.EN_ATTENTE_CONFIRM,
-    ]:
-        raise HTTPException(status_code=409, detail=f"Cannot expire status: {appt.status.value}")
-
-    appt.status = schemas.AppointmentStatus.EXPIRE
-    appt.expires_at = datetime.utcnow()
-    db.commit()
-
-    audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
-        action="FRONTDESK_APPOINTMENT_EXPIRED",
-        resource_type="APPOINTMENT",
-        resource_id=str(appt.id),
-        severity="INFO",
-        details=f"Rendez-vous expiré : {appt.patient_name}",
+    _cas_request_state(
+        db, employer_id, appointment_id, _PENDING,
+        schemas.AppointmentStatus.EXPIRE, expires_at=datetime.utcnow(),
     )
-
-    return {"id": appt.id, "status": appt.status.value}
-
-
-# D0 Patient Companion is mounted here only because main.py exposes this router at /api.
-# Business logic stays isolated in its own module; this keeps the public contract
-# /api/patient-companion/* without creating another app-level router registry.
-from backend.routers import patient_companion as patient_companion
-router.include_router(patient_companion.router, prefix="/patient-companion")
+    _frontdesk_audit(db, current_user, appt, "FRONTDESK_APPOINTMENT_EXPIRED")
+    db.commit()
+    return {"id": appt.id, "status": schemas.AppointmentStatus.EXPIRE.value}
