@@ -129,7 +129,7 @@ export function CabinetTwoViewsPilot({ patient, canCephalo }: CabinetTwoViewsPil
       >
         <div data-v15-07-first-pane className="h-full min-w-0 shrink-0" style={{ flexBasis: ratio + '%' }}>
           {leftView === 'dossier' || !canCephalo ? (
-            <ViewSlotThemeFrame title="Dossier patient" description="Données réellement chargées dans le dossier actif">
+            <ViewSlotThemeFrame fillHeight title="Dossier patient" description="Données réellement chargées dans le dossier actif">
               <dl data-v15-07-real-dossier className="grid min-w-0 gap-3 text-sm">
                 {([
                   ['Patient', [patient.prenom, patient.nom].filter(Boolean).join(' ')],
@@ -149,7 +149,7 @@ export function CabinetTwoViewsPilot({ patient, canCephalo }: CabinetTwoViewsPil
               </dl>
             </ViewSlotThemeFrame>
           ) : (
-            <ViewSlotThemeFrame title="Suivi orthodontique T0 / T1" description="Comparaison existante, sans activation de superposition scientifique">
+            <ViewSlotThemeFrame fillHeight title="Suivi orthodontique T0 / T1" description="Comparaison existante, sans activation de superposition scientifique">
               <OrthoLongitudinalComparePanel patientId={patient.id} />
             </ViewSlotThemeFrame>
           )}
@@ -178,7 +178,7 @@ export function CabinetTwoViewsPilot({ patient, canCephalo }: CabinetTwoViewsPil
           <span aria-hidden="true" className="h-14 w-1 rounded-full bg-border-main group-hover:bg-primary" />
         </div>
         <div data-v15-07-second-pane className="h-full min-w-0 flex-1">
-          <ViewSlotThemeFrame title="Images et photographies" description="Médiathèque clinique existante — T0 / T1 / T2">
+          <ViewSlotThemeFrame fillHeight title="Images et photographies" description="Médiathèque clinique existante — T0 / T1 / T2">
             {media}
           </ViewSlotThemeFrame>
         </div>
