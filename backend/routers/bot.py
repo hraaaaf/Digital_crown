@@ -13,7 +13,7 @@ from backend import models, schemas
 from backend.routers.auth import get_current_user, has_permission
 from backend.services.audit_service import audit_service
 from backend.services.bot.intent_parser import intent_parser as regex_parser, ParsedIntent
-from backend.services.bot.atomic_action_claim import claim_pending_action
+from backend.services.bot.atomic_action_claim import claim_pending_action, transition_pending_action
 from backend.services.bot.action_dispatcher import (
     ActionDispatcher,
 )
@@ -370,8 +370,20 @@ async def bot_execute(
         _log_rejected("déjà exécutée")
         raise HTTPException(status_code=409, detail="Cette action a deja ete executee.")
 
-    if record.status == "expired" or record.expires_at < datetime.utcnow():
-        record.status = "expired"
+    if record.status == "expired":
+        _log_rejected("expirée (> 30 min)")
+        raise HTTPException(status_code=410, detail="Cette action a expire (> 30 min). Redemandez au Crown Bot.")
+
+    # Compare-and-swap, never overwrite a concurrent executing claim.
+    if record.status == "pending" and record.expires_at <= datetime.utcnow():
+        expired = transition_pending_action(
+            db, models.BotPendingAction, action_id, current_user.id,
+            employer_id, new_status="expired", now=datetime.utcnow(), expired=True,
+        )
+        if not expired:
+            db.rollback()
+            _log_rejected("expiration concurrente à l'exécution")
+            raise HTTPException(status_code=409, detail="Action déjà prise en charge.")
         db.commit()
         _log_rejected("expirée (> 30 min)")
         raise HTTPException(status_code=410, detail="Cette action a expire (> 30 min). Redemandez au Crown Bot.")
@@ -484,9 +496,17 @@ async def bot_cancel_action(
     ).first()
     if not record:
         raise HTTPException(status_code=404, detail="Action introuvable.")
-    if record.status not in ("pending",):
+    if record.status != "pending":
         raise HTTPException(status_code=409, detail=f"Impossible d'annuler : statut = {record.status}.")
-    record.status = "cancelled"
+    # In particular, a stale loaded pending row must never overwrite executing.
+    cancelled = transition_pending_action(
+        db, models.BotPendingAction, action_id, current_user.id,
+        current_user.get_employer_id(), new_status="cancelled",
+        now=datetime.utcnow(),
+    )
+    if not cancelled:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Action expirée ou déjà prise en charge.")
     db.commit()
     return {"status": "cancelled"}
 
