@@ -40,6 +40,13 @@ def _create_tables():
     # production router import order and exercising the real cabinet schema contract.
     install_document_provenance_p3()
     models.Base.metadata.create_all(bind=_engine)
+    # Match migrated clinical DB trigger/index even in isolated in-memory tests.
+    from backend.core.appointment_revision_ddl import (
+        install_appointment_overlap_index, install_appointment_revision_guard,
+    )
+    with _engine.begin() as conn:
+        install_appointment_revision_guard(conn)
+        install_appointment_overlap_index(conn)
     yield
     models.Base.metadata.drop_all(bind=_engine)
 
