@@ -156,7 +156,7 @@ class IncrementalColdTests(unittest.TestCase):
 
     def test_forged_epoch_or_phase_with_resealed_archive_fails_JK(self):
         store,bundle,head,_,_=self.build(total=9)
-        altered=replace(bundle.records[3].snapshot,phase="SOURCE")
+        altered=replace(bundle.records[3].snapshot,phase="VERIFIED")
         changed=replace(bundle.records[3],snapshot=altered)
         forged=replace(bundle,records=bundle.records[:3]+(changed,)+
                        bundle.records[4:])
