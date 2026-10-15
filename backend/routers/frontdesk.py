@@ -83,19 +83,10 @@ async def create_appointment_request(
         expires_at=datetime.utcnow() + timedelta(minutes=30),
     )
     db.add(appointment)
+    db.flush()
+    _frontdesk_audit(db, current_user, appointment, "FRONTDESK_REQUEST_CREATED")
     db.commit()
     db.refresh(appointment)
-
-    audit_service.log(
-        db=db,
-        user_id=current_user.id,
-        employer_id=employer_id,
-        action="FRONTDESK_REQUEST_CREATED",
-        resource_type="APPOINTMENT",
-        resource_id=str(appointment.id),
-        severity="INFO",
-        details=f"Demande RDV créée : {req.last_name} {req.first_name}",
-    )
 
     return {
         "id": appointment.id,
