@@ -455,6 +455,7 @@ def test_bot_status_change_is_atomic_on_precommit_failure(
     action.params_json = {
         "appointment_id": appt.id,
         "patient_id": patient.id,
+        "expected_status": "PREVU",
         "status": "ANNULE",
         "patient_name": "Synthetic Patient",
     }
@@ -498,6 +499,7 @@ def test_bot_status_change_and_action_status_commit_together(
     action.params_json = {
         "appointment_id": appt.id,
         "patient_id": patient.id,
+        "expected_status": "PREVU",
         "status": "ANNULE",
         "patient_name": "Synthetic Patient",
     }
@@ -600,7 +602,7 @@ def test_bot_status_rejects_archived_appointment_even_same_tenant(
     db.commit()
     action = _pending(db, dentiste, patient.id, action_type="CHANGE_STATUS")
     action.params_json = {"appointment_id": appt.id, "patient_id": patient.id,
-                          "status": "ANNULE"}
+                          "expected_status": "PREVU", "status": "ANNULE"}
     db.commit()
     response = client.post(
         "/api/bot/execute", headers=auth_headers,
@@ -628,7 +630,7 @@ def test_bot_status_rejects_patient_reassignment_after_confirmation_preview(
     db.commit()
     action = _pending(db, dentiste, patient.id, action_type="CHANGE_STATUS")
     action.params_json = {"appointment_id": appt.id, "patient_id": patient.id,
-                          "status": "ANNULE"}
+                          "expected_status": "PREVU", "status": "ANNULE"}
     db.commit()
     appt.patient_id = other.id  # change between proposal and confirmation
     db.commit()
@@ -641,4 +643,64 @@ def test_bot_status_rejects_patient_reassignment_after_confirmation_preview(
     db.refresh(action)
     assert appt.status == models.AppointmentStatus.PREVU
     assert appt.patient_id == other.id
+    assert action.status == "failed"
+
+
+def test_bot_status_cannot_reactivate_cancelled_appointment_after_preview(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste)
+    appt = models.Appointment(
+        patient_id=patient.id, employer_id=dentiste.get_employer_id(),
+        datetime_start=datetime.now() + timedelta(days=8),
+        duration_minutes=30, motif="Synthetic delayed confirmation",
+        status=models.AppointmentStatus.PREVU,
+    )
+    db.add(appt)
+    db.commit()
+    action = _pending(db, dentiste, patient.id, action_type="CHANGE_STATUS")
+    action.params_json = {
+        "appointment_id": appt.id, "patient_id": patient.id,
+        "expected_status": "PREVU", "status": "EN_FAUTEUIL",
+    }
+    db.commit()
+    appt.status = models.AppointmentStatus.ANNULE
+    db.commit()  # a second clinical actor changed state after bot preview
+    response = client.post(
+        "/api/bot/execute", headers=auth_headers,
+        json={"pending_action_id": action.id},
+    )
+    assert response.status_code == 409, response.text
+    db.refresh(appt)
+    db.refresh(action)
+    assert appt.status == models.AppointmentStatus.ANNULE
+    assert action.status == "failed"
+
+
+def test_bot_historical_status_action_without_expected_status_fails_closed(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste)
+    appt = models.Appointment(
+        patient_id=patient.id, employer_id=dentiste.get_employer_id(),
+        datetime_start=datetime.now() + timedelta(days=8),
+        duration_minutes=30, motif="Synthetic legacy action",
+        status=models.AppointmentStatus.PREVU,
+    )
+    db.add(appt)
+    db.commit()
+    action = _pending(db, dentiste, patient.id, action_type="CHANGE_STATUS")
+    action.params_json = {
+        "appointment_id": appt.id, "patient_id": patient.id,
+        "status": "ANNULE",
+    }
+    db.commit()
+    response = client.post(
+        "/api/bot/execute", headers=auth_headers,
+        json={"pending_action_id": action.id},
+    )
+    assert response.status_code == 409, response.text
+    db.refresh(appt)
+    db.refresh(action)
+    assert appt.status == models.AppointmentStatus.PREVU
     assert action.status == "failed"
