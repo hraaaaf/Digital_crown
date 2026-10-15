@@ -698,6 +698,60 @@ class DecisionAndRestoreTests(unittest.TestCase):
                         w.WitnessLabError,"IDEMPOTENCY_CONFLICT"):
                     fn(fake,operation_id=self.op1,epoch="e1")
 
+
+    def test_boundary_256_authentic_decisions_then_257_refused(self):
+        """LAB: positive 256-record chain, cold audit, safe exhaustion."""
+        from unittest.mock import patch
+        from tools.imaging_gateway import journal_lab
+        history, anchor, snapshot = self.j0, self.a0, self.genesis
+        last_draft = None
+        for step in range(1, 256):
+            if snapshot.phase in ("SOURCE", "ROLLED_BACK"):
+                snapshot = m.prepare(
+                    snapshot, expected_revision=snapshot.revision,
+                    legacy_key=self.legacy_key, target_key_id="ab"*16,
+                    keys=self.keys)
+            elif snapshot.phase == "PREPARED":
+                snapshot = m.verify(
+                    snapshot, expected_revision=snapshot.revision,
+                    legacy_key=self.legacy_key, keys=self.keys)
+            elif snapshot.phase == "VERIFIED":
+                snapshot = m.commit(
+                    snapshot, expected_revision=snapshot.revision,
+                    legacy_key=self.legacy_key, keys=self.keys)
+            else:
+                snapshot = m.rollback(
+                    snapshot, expected_revision=snapshot.revision,
+                    legacy_key=self.legacy_key, operator_confirmed=True)
+            last_draft = self.proposal(
+                base=history, anchor=anchor, state=snapshot)
+            self.witness.decide(last_draft,
+                operation_id=format(step,"032x"), epoch="e1")
+            history, anchor = last_draft.candidate, last_draft.next_anchor
+
+        self.assertEqual(len(history.records), 256)
+        self.assertEqual(self.witness.observe(epoch="e1"), anchor)
+        self.assertEqual(len(self.witness._state.decisions), 255)
+        # A new _State object invalidates the verified identity cache.
+        # Full audit on this 256-record cold snapshot must still succeed.
+        self.witness._state = replace(self.witness._state)
+        count=[0]
+        original=journal_lab._manifest
+        def counted(value):
+            count[0]+=1
+            return original(value)
+        with patch.object(journal_lab, "_manifest", side_effect=counted):
+            self.assertEqual(self.witness.observe(epoch="e1"), anchor)
+        self.assertGreaterEqual(count[0], 2*len(history.records)-2)
+        self.assertLessEqual(count[0], 3*len(history.records)+2)
+        self.assertEqual(
+            self.witness.lookup(last_draft,
+                operation_id=format(255,"032x"), epoch="e1").after,
+            anchor)
+        with self.assertRaisesRegex(f.ForkLabError, "DRAFT_REJECTED"):
+            self.proposal(base=history, anchor=anchor, state=snapshot)
+        self.assertEqual(self.witness.observe(epoch="e1"), anchor)
+
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
         source=(root/"witness_recovery_lab.py").read_text(encoding="utf-8")
