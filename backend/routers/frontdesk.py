@@ -8,6 +8,7 @@ from backend.database import get_db
 from backend import models, schemas
 from backend.routers.auth import get_current_user, has_permission
 from backend.services.audit_service import audit_service
+from backend.services.agenda_transaction_lock import lock_cabinet_booking
 
 router = APIRouter(tags=["frontdesk"])
 
@@ -186,6 +187,24 @@ async def confirm_appointment(
         appt.status = schemas.AppointmentStatus.EXPIRE
         db.commit()
         raise HTTPException(status_code=410, detail="Demande expirée.")
+
+    # Confirmation is a committed clinical booking, not just a request status:
+    # enforce the same cross-entry atomic availability fence as Agenda/Bot.
+    from backend.routers.appointments import _find_conflicts
+    from backend.services.agenda_availability import validate_appointment_availability
+    lock_cabinet_booking(db, employer_id)
+    availability_error = validate_appointment_availability(
+        db, employer_id, appt.datetime_start, appt.duration_minutes,
+        appt.scheduling_type, practitioner_id=appt.praticien_id,
+    )
+    if availability_error:
+        raise HTTPException(status_code=422, detail=availability_error)
+    conflicting = _find_conflicts(
+        db, employer_id, appt.praticien_id, appt.datetime_start,
+        appt.duration_minutes, exclude_id=appt.id,
+    )
+    if conflicting:
+        raise HTTPException(status_code=409, detail="Créneau déjà occupé.")
 
     appt.status = schemas.AppointmentStatus.CONFIRME
     appt.confirmed_by_id = current_user.id
