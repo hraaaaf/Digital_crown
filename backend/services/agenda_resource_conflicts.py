@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.services.agenda_booking_occupancy import OCCUPYING_APPOINTMENT_STATUSES
 from backend.models import AgendaResource
 
 _CANCELLED_STATUSES = {"annule", "cancelled", "canceled"}
@@ -50,7 +51,7 @@ def find_resource_conflict(
     if exclude_appointment_id is not None:
         query = query.filter(models.Appointment.id != exclude_appointment_id)
     for appointment in query.all():
-        if _status_value(appointment.status) in _CANCELLED_STATUSES:
+        if appointment.status not in OCCUPYING_APPOINTMENT_STATUSES:
             continue
         if _status_value(getattr(appointment, "scheduling_type", "exact_time")) not in {"exact_time", "exact-time", "exact"}:
             continue
