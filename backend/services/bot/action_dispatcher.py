@@ -235,20 +235,52 @@ class ActionDispatcher:
         self, params: Dict[str, Any], db: Session, user: models.User,
         *, defer_commit: bool = False,
     ) -> BotResponse:
-        """Applique réellement le changement de statut du RDV."""
+        """Change only the STILL-active appointment belonging to the previewed patient."""
         employer_id = user.get_employer_id()
-        appt = db.query(models.Appointment).filter(
-            models.Appointment.id == params.get("appointment_id"),
-            models.Appointment.employer_id == employer_id,
+        expected_patient_id = params.get("patient_id")
+        appointment_id = params.get("appointment_id")
+        if (
+            isinstance(expected_patient_id, bool)
+            or not isinstance(expected_patient_id, int)
+            or expected_patient_id <= 0
+            or isinstance(appointment_id, bool)
+            or not isinstance(appointment_id, int)
+        ):
+            # Legacy pending actions without bound patient identity MUST be
+            # regenerated; blindly executing them could change a different case.
+            return BotResponse(
+                message="Action ancienne ou patient non identifié : redemandez la modification.",
+                action_type="error",
+            )
+        patient = db.query(models.Patient).filter(
+            models.Patient.id == expected_patient_id,
+            models.Patient.employer_id == employer_id,
+            models.Patient.deleted_at.is_(None),
         ).first()
-        if not appt:
-            return BotResponse(message="Rendez-vous introuvable.", action_type="error")
-
+        if patient is None:
+            return BotResponse(message="Patient introuvable.", action_type="error")
         status_name = params.get("status", "")
         try:
-            appt.status = models.AppointmentStatus[status_name]
+            next_status = models.AppointmentStatus[status_name]
         except KeyError:
-            return BotResponse(message=f"Statut invalide : {status_name}", action_type="error")
+            return BotResponse(
+                message=f"Statut invalide : {status_name}", action_type="error",
+            )
+
+        # SQL CAS locks this exact row until /bot/execute's final commit.
+        # Patient reassignment/deletion after preview yields rowcount=0.
+        # Never modify soft-deleted or another clinic's appointment.
+        updated = db.query(models.Appointment).filter(
+            models.Appointment.id == appointment_id,
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.patient_id == expected_patient_id,
+            models.Appointment.deleted_at.is_(None),
+        ).update({"status": next_status}, synchronize_session=False)
+        if updated != 1:
+            return BotResponse(
+                message="Rendez-vous archivé, réattribué ou introuvable : action refusée.",
+                action_type="error",
+            )
         if defer_commit:
             db.flush()
             db.add(models.AuditLog(
@@ -256,20 +288,18 @@ class ActionDispatcher:
                 employer_id=employer_id,
                 action="UPDATE",
                 resource_type="Appointment",
-                resource_id=str(appt.id),
+                resource_id=str(appointment_id),
                 details=f"Crown Bot statut -> {status_name} (transaction atomique)",
             ))
         else:
             db.commit()
-
         return BotResponse(
             message=(
                 f"✅ **Statut mis à jour**\n"
-                f"👤 {params.get('patient_name', '—')}\n"
-                f"📅 {params.get('when', '')}\n"
+                f"👤 {patient.prenom} {patient.nom}\n"
                 f"➡️ {params.get('status_label', status_name)}"
             ),
-            data={"appointment_id": appt.id, "status": status_name},
+            data={"appointment_id": appointment_id, "status": status_name},
             action_type="write_done",
             suggestions=["Agenda d'aujourd'hui"],
         )
@@ -939,6 +969,7 @@ class ActionDispatcher:
         base_q = db.query(models.Appointment).filter(
             models.Appointment.patient_id == patient.id,
             models.Appointment.employer_id == employer_id,
+            models.Appointment.deleted_at.is_(None),
         )
         appt = (
             base_q.filter(
@@ -969,6 +1000,7 @@ class ActionDispatcher:
                 "type": "CHANGE_STATUS",
                 "params": {
                     "appointment_id": appt.id,
+                    "patient_id": patient.id,
                     "status": status_name,
                     "status_label": status_label,
                     "patient_name": f"{patient.prenom} {patient.nom}",
