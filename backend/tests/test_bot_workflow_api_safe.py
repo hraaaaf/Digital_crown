@@ -509,3 +509,45 @@ def test_bot_status_change_and_action_status_commit_together(
     db.refresh(action)
     assert appt.status == models.AppointmentStatus.ANNULE
     assert action.status == "executed"
+
+def test_foreign_patient_denial_does_not_commit_executing_claim(
+    client, db, dentiste, auth_headers
+):
+    from backend.tests.conftest import make_user
+    other_owner = make_user(db)
+    foreign = _patient(db, other_owner, first="Foreign", last="Hidden")
+    action = _pending(db, dentiste, foreign.id, action_type="CREATE_APPOINTMENT")
+    action.params_json = {
+        "patient_id": foreign.id,
+        "datetime_start": (datetime.now() + timedelta(days=9)).isoformat(),
+        "motif": "Consultation",
+        "duration_minutes": 30,
+    }
+    db.commit()
+    before = db.query(models.Appointment).count()
+    res = client.post(
+        "/api/bot/execute", headers=auth_headers,
+        json={"pending_action_id": action.id},
+    )
+    assert res.status_code == 404
+    assert "Foreign" not in res.text
+    db.refresh(action)
+    assert action.status == "failed", "Tenant denial must not strand executing"
+    assert db.query(models.Appointment).count() == before
+
+
+def test_foreign_patient_redirect_denial_does_not_commit_executing_claim(
+    client, db, dentiste, auth_headers
+):
+    from backend.tests.conftest import make_user
+    other_owner = make_user(db)
+    foreign = _patient(db, other_owner, first="Foreign", last="Hidden")
+    action = _pending(db, dentiste, foreign.id, action_type="OPEN_DEVIS_EDITOR")
+    res = client.post(
+        "/api/bot/execute", headers=auth_headers,
+        json={"pending_action_id": action.id},
+    )
+    assert res.status_code == 404
+    assert "Foreign" not in res.text
+    db.refresh(action)
+    assert action.status == "failed"
