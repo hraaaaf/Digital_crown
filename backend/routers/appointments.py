@@ -16,6 +16,7 @@ from backend.services.agenda_availability import (
     get_practitioner_day_availability,
     validate_appointment_availability,
 )
+from backend.services.agenda_transaction_lock import lock_cabinet_booking
 from backend.services.agenda_resource_conflicts import assert_resource_available, find_resource_conflict, validate_assignable_resource
 
 router = APIRouter(tags=["Appointments"])
@@ -181,9 +182,7 @@ def _create_appointment_validated(
     # Serialize check+insert across independent actions and the normal API.
     # PG xact lock is held until commit; the next READ COMMITTED transaction
     # sees the previous confirmed slot before validating conflicts.
-    if db.get_bind().dialect.name == "postgresql":
-        db.execute(text("SELECT pg_advisory_xact_lock(1420958, :employer_id)"),
-                   {"employer_id": employer_id})
+    lock_cabinet_booking(db, employer_id)
     practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, appt.praticien_id)
     validate_assignable_resource(db, employer_id, appt.resource_id)
     normalized_start = _naive_datetime(appt.datetime_start)
