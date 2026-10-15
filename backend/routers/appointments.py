@@ -94,17 +94,34 @@ def _find_conflicts(
     """
     datetime_start = _naive_datetime(datetime_start)
     end = datetime_start + timedelta(minutes=duration_minutes)
-    # No arbitrary backwards lookback. Historical bookings may last >4h,
-    # and older imports may not observe any modern duration limit: filtering
-    # starts by a fixed window would silently allow double bookings.
-    # Keep the end-overlap predicate in Python until all legacy rows can be
-    # migrated to a consistently indexed, database-specific end timestamp.
+    # Push true interval-end comparison into SQL to avoid ORM hydration of
+    # the entire historic cabinet calendar. Both expressions have a matching
+    # schema index and handle arbitrarily long historical bookings correctly.
+    # The SQLite expression is also supported by real file-backed SQLCipher.
+    from sqlalchemy import Float, DateTime, func, literal_column
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        end_expr = literal_column(
+            "(appointments.datetime_start + appointments.duration_minutes * INTERVAL '1 minute')",
+            type_=DateTime(),
+        )
+        overlaps = end_expr > datetime_start
+    elif dialect == "sqlite":
+        end_julian = literal_column(
+            "(julianday(appointments.datetime_start) + appointments.duration_minutes / 1440.0)",
+            type_=Float(),
+        )
+        overlaps = end_julian > func.julianday(datetime_start)
+    else:
+        raise RuntimeError("Unsupported clinical booking conflict dialect")
+
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
         models.Appointment.status.in_(OCCUPYING_APPOINTMENT_STATUSES),
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
+        overlaps,
     )
     if practitioner_id is not None:
         q = q.filter(
@@ -115,13 +132,7 @@ def _find_conflicts(
         )
     if exclude_id:
         q = q.filter(models.Appointment.id != exclude_id)
-    rows = q.all()
-    return [
-        appointment
-        for appointment in rows
-        if _naive_datetime(appointment.datetime_start) + timedelta(minutes=appointment.duration_minutes) > datetime_start
-        and _naive_datetime(appointment.datetime_start) < end
-    ]
+    return q.all()  # DB filters both interval boundaries before loading rows
 
 
 def _appointments_overlap(start_a: datetime, duration_a: int, start_b: datetime, duration_b: int) -> bool:
