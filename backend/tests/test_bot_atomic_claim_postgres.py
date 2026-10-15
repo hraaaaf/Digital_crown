@@ -27,6 +27,15 @@ SPEC.loader.exec_module(MODULE)
 claim_pending_action = MODULE.claim_pending_action
 transition_pending_action = MODULE.transition_pending_action
 
+LOCK_SOURCE = Path(__file__).resolve().parents[1] / "services" / "agenda_transaction_lock.py"
+LOCK_SPEC = importlib.util.spec_from_file_location("isolated_agenda_transaction_lock", LOCK_SOURCE)
+assert LOCK_SPEC is not None and LOCK_SPEC.loader is not None
+LOCK_MODULE = importlib.util.module_from_spec(LOCK_SPEC)
+sys.modules[LOCK_SPEC.name] = LOCK_MODULE
+LOCK_SPEC.loader.exec_module(LOCK_MODULE)
+lock_cabinet_booking = LOCK_MODULE.lock_cabinet_booking
+
+
 
 class Base(DeclarativeBase):
     pass
@@ -40,6 +49,13 @@ class ClaimRow(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
+
+
+class BookingRow(Base):
+    __tablename__ = "synthetic_booking_txn_ci"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    employer_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    slot: Mapped[str] = mapped_column(String(32), nullable=False)
 
 @unittest.skipUnless(
     os.getenv("CROWN_BOT_CAS_TEST_DB_URL"),
@@ -190,3 +206,87 @@ class TestPostgresAtomicBotClaim(unittest.TestCase):
             db.commit()
         with self.Session() as db:
             self.assertEqual(db.get(ClaimRow, key).status, "executing")
+
+    def test_transactional_booking_and_status_commit_or_rollback_together(self):
+        """Crash BEFORE the only commit leaves neither action nor appointment."""
+        key = self._row()
+        with self.Session() as session:
+            self.assertTrue(claim_pending_action(
+                session, ClaimRow, key, 11, 22, datetime.utcnow()
+            ))
+            session.add(BookingRow(employer_id=22, slot="2026-10-16T10:00"))
+            session.flush()
+            session.query(ClaimRow).filter(
+                ClaimRow.id == key, ClaimRow.status == "executing",
+            ).update({"status": "executed"}, synchronize_session=False)
+            session.flush()
+            # Simulates PostgreSQL automatically aborting an uncommitted
+            # transaction after the worker dies between flush and COMMIT.
+            session.rollback()
+
+        with self.Session() as session:
+            self.assertEqual(session.get(ClaimRow, key).status, "pending")
+            self.assertEqual(session.query(BookingRow).filter_by(
+                employer_id=22, slot="2026-10-16T10:00"
+            ).count(), 0)
+
+        with self.Session() as session:
+            self.assertTrue(claim_pending_action(
+                session, ClaimRow, key, 11, 22, datetime.utcnow()
+            ))
+            session.add(BookingRow(employer_id=22, slot="2026-10-16T10:00"))
+            session.query(ClaimRow).filter(
+                ClaimRow.id == key, ClaimRow.status == "executing",
+            ).update({"status": "executed"}, synchronize_session=False)
+            session.commit()
+
+        with self.Session() as session:
+            self.assertEqual(session.get(ClaimRow, key).status, "executed")
+            self.assertEqual(session.query(BookingRow).filter_by(
+                employer_id=22, slot="2026-10-16T10:00"
+            ).count(), 1)
+            self.assertFalse(claim_pending_action(
+                session, ClaimRow, key, 11, 22, datetime.utcnow()
+            ))
+            session.rollback()
+
+    def test_distinct_action_ids_cannot_double_book_same_slot_under_tenant_lock(self):
+        """PostgreSQL xact advisory lock serializes actual check then INSERT."""
+        action_a, action_b = self._row(), self._row()
+        slot = "2026-10-20T11:00"
+        barrier = Barrier(2)
+
+        def book(action_id):
+            with self.Session() as session:
+                barrier.wait(timeout=15)
+                self.assertTrue(claim_pending_action(
+                    session, ClaimRow, action_id, 11, 22, datetime.utcnow()
+                ))
+                self.assertTrue(lock_cabinet_booking(session, 22))
+                has_conflict = session.query(BookingRow).filter_by(
+                    employer_id=22, slot=slot,
+                ).first()
+                if has_conflict is not None:
+                    session.rollback()
+                    return "conflict"
+                session.add(BookingRow(employer_id=22, slot=slot))
+                session.query(ClaimRow).filter(
+                    ClaimRow.id == action_id, ClaimRow.status == "executing",
+                ).update({"status": "executed"}, synchronize_session=False)
+                session.commit()
+                return "committed"
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            x = pool.submit(book, action_a)
+            y = pool.submit(book, action_b)
+            results = [x.result(timeout=25), y.result(timeout=25)]
+        self.assertEqual(sorted(results), ["committed", "conflict"])
+        with self.Session() as session:
+            self.assertEqual(session.query(BookingRow).filter_by(
+                employer_id=22, slot=slot,
+            ).count(), 1)
+            statuses = [
+                session.get(ClaimRow, action_a).status,
+                session.get(ClaimRow, action_b).status,
+            ]
+            self.assertEqual(sorted(statuses), ["executed", "pending"])
