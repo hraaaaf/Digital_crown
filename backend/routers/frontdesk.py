@@ -160,6 +160,17 @@ async def request_patient_confirmation(
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
     if appt.status != schemas.AppointmentStatus.EN_ATTENTE_DEMANDE:
         raise HTTPException(status_code=409, detail="Transition de demande déjà traitée.")
+    # A stale offer must never produce a copyable "slot available" message.
+    # Record expiry atomically under the same cabinet reservation lock.
+    if appt.expires_at and appt.expires_at <= datetime.utcnow():
+        _cas_request_state(
+            db, employer_id, appt.id,
+            (schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,),
+            schemas.AppointmentStatus.EXPIRE,
+        )
+        _frontdesk_audit(db, current_user, appt, "FRONTDESK_APPOINTMENT_EXPIRED")
+        db.commit()
+        raise HTTPException(status_code=410, detail="Demande expirée.")
     _cas_request_state(
         db, employer_id, appt.id,
         (schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,),
