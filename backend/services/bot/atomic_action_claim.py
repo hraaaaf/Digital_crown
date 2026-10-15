@@ -1,7 +1,10 @@
-"""Atomic claim of a stored action, independent of the action's business logic.
+"""Atomic claim / pending transitions for a stored bot action.
 
-The caller MUST commit the successful claim before invoking a side-effecting
-dispatcher, and must not blindly retry an 'executing' action after a crash.
+The /bot/execute caller MUST keep the claim uncommitted until its business
+write and final executed status can be committed in the SAME transaction.
+PostgreSQL holds the affected row lock until then. A crash before commit
+rolls both operations back to pending; a committed executed action is final.
+Older durable 'executing' rows from pre-upgrade runs still need reconciliation.
 """
 
 from datetime import datetime
