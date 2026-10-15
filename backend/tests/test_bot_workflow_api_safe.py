@@ -351,3 +351,84 @@ def test_bot_booking_rejects_canonical_conflict_without_duplicate_write(
     assert db.query(models.Appointment).count() == before
     db.refresh(action)
     assert action.status == "failed"
+
+
+def test_bot_booking_atomic_business_and_action_state_on_success(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste)
+    future = (datetime.now() + timedelta(days=7)).replace(
+        hour=11, minute=0, second=0, microsecond=0
+    )
+    action = _pending(db, dentiste, patient.id, action_type="CREATE_APPOINTMENT")
+    action.params_json = {
+        "patient_id": patient.id,
+        "datetime_start": future.isoformat(),
+        "motif": "Consultation",
+        "duration_minutes": 30,
+    }
+    db.commit()
+    baseline = db.query(models.Appointment).count()
+    with patch(
+        "backend.routers.appointments.validate_appointment_availability",
+        return_value=None,
+    ):
+        res = client.post(
+            "/api/bot/execute", headers=auth_headers,
+            json={"pending_action_id": action.id},
+        )
+    assert res.status_code == 200, res.text
+    assert db.query(models.Appointment).count() == baseline + 1
+    db.refresh(action)
+    assert action.status == "executed"
+    assert action.executed_at is not None
+    replay = client.post(
+        "/api/bot/execute", headers=auth_headers,
+        json={"pending_action_id": action.id},
+    )
+    assert replay.status_code == 409
+    assert db.query(models.Appointment).count() == baseline + 1
+
+
+def test_bot_booking_exception_after_flush_rolls_back_business_write(
+    client, db, dentiste, auth_headers
+):
+    import pytest
+    from backend.services.bot.action_dispatcher import ActionDispatcher
+
+    patient = _patient(db, dentiste)
+    future = (datetime.now() + timedelta(days=7)).replace(
+        hour=14, minute=0, second=0, microsecond=0
+    )
+    action = _pending(db, dentiste, patient.id, action_type="CREATE_APPOINTMENT")
+    action.params_json = {
+        "patient_id": patient.id,
+        "datetime_start": future.isoformat(),
+        "motif": "Consultation",
+        "duration_minutes": 30,
+    }
+    db.commit()
+    baseline = db.query(models.Appointment).count()
+
+    real = ActionDispatcher()
+    def inject_failure_after_business_flush(pending, session, user, **kwargs):
+        response = real.execute(pending, session, user, **kwargs)
+        assert response.action_type == "write_done"
+        assert session.query(models.Appointment).count() == baseline + 1
+        raise RuntimeError("synthetic-crash-before-final-commit")
+
+    with patch(
+        "backend.routers.appointments.validate_appointment_availability",
+        return_value=None,
+    ), patch(
+        "backend.routers.bot.dispatcher.execute",
+        side_effect=inject_failure_after_business_flush,
+    ), pytest.raises(RuntimeError, match="synthetic-crash-before-final-commit"):
+        client.post(
+            "/api/bot/execute", headers=auth_headers,
+            json={"pending_action_id": action.id},
+        )
+    assert db.query(models.Appointment).count() == baseline
+    db.refresh(action)
+    assert action.status == "failed"
+    assert action.executed_at is None
