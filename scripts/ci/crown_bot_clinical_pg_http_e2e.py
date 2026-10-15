@@ -15,9 +15,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 assert os.environ.get("CROWN_BOT_CLINICAL_CI_DATABASE") == "synthetic-only", "Refusing non-CI execution"
-assert "127.0.0.1" in os.environ.get("DATABASE_URL", ""), "Require local CI PostgreSQL"
+_ci_url = os.environ.get("DATABASE_URL", "")
+assert _ci_url.startswith("postgresql+") and "127.0.0.1" in _ci_url or (
+    _ci_url.startswith("sqlite:////tmp/crown_bot_clinical_")
+), "Require local synthetic PostgreSQL or disposable SQLCipher CI file"
 
 from backend import database, models
+if _ci_url.startswith("sqlite:"):
+    assert "pysqlcipher" in database.SQLALCHEMY_DATABASE_URL, "Refuse plaintext SQLite fallback"
+    with database.engine.connect() as _conn:
+        assert _conn.exec_driver_sql("PRAGMA cipher_version").scalar(), "Not real SQLCipher"
+
 from backend.main import app
 from backend.security import get_password_hash
 
@@ -108,7 +116,7 @@ def run():
             models.Appointment.datetime_start == first_slot,
         ).all()
         assert len(records) == 1, "Two HTTP creates produced double booking"
-    print("CLINICAL_PG_REAL_HTTP_TWO_SESSIONS: PASS")
+    print("CLINICAL_REAL_HTTP_TWO_SESSIONS: PASS")
 
     # Real clinical closure, no mocks: check that a conflicting creation does
     # not write and patient tenant is still enforced.
@@ -130,7 +138,7 @@ def run():
         "duration_minutes": 30,
     })
     assert blocked.status_code == 422, blocked.text
-    print("CLINICAL_PG_REAL_CLOSURE: PASS")
+    print("CLINICAL_REAL_CLOSURE: PASS")
 
     # Exercise actual Crown Bot HTTP confirm using real owner+patient and
     # action tables, then reject replay and inspect committed appointment/audit.
@@ -174,8 +182,8 @@ def run():
             models.AuditLog.resource_id == str(appointments[0].id),
         ).count()
         assert audit >= 1
-    print("CLINICAL_PG_REAL_BOT_HTTP_EXECUTE_REPLAY_AUDIT: PASS")
-    print("CLINICAL_PG_GATE: PASS migrated schema, HTTP, real PG transaction")
+    print("CLINICAL_REAL_BOT_HTTP_EXECUTE_REPLAY_AUDIT: PASS")
+    print("CLINICAL_FULL_SCHEMA_HTTP_GATE: PASS migrated schema, HTTP, real database transaction")
 
 
 if __name__ == "__main__":
