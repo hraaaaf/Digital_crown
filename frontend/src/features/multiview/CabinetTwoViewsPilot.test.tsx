@@ -48,7 +48,7 @@ describe('Vues multiples Cabinet — deux véritables modules liés à un patien
     expect(screen.getByText('DOS-17')).toBeTruthy();
     expect(screen.getByText('Patient DEMONSTRATION')).toBeTruthy();
     expect(screen.getAllByTestId('module-mediatheque-reel')).toHaveLength(1);
-    expect(screen.getAllByTestId('module-suivi-reel')).toHaveLength(0);
+    expect(screen.queryAllByTestId('module-suivi-reel')).toHaveLength(0);
   });
   it('présente le vrai comparateur T0/T1 uniquement si Céphalo est autorisée', () => {
     desktop = true;
