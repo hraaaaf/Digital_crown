@@ -240,6 +240,18 @@ class ActionDispatcher:
         expected_patient_id = params.get("patient_id")
         appointment_id = params.get("appointment_id")
         expected_status_name = params.get("expected_status")
+        expected_revision = params.get("expected_revision")
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 0
+        ):
+            # The DB-owned monotonic revision is mandatory: old status-only
+            # proposals cannot prove that a booking was not edited and restored.
+            return BotResponse(
+                message="Action ancienne : rendez-vous modifié ou version non vérifiable. Reformulez.",
+                action_type="error",
+            )
         try:
             expected_status = models.AppointmentStatus[expected_status_name]
         except (KeyError, TypeError):
@@ -278,8 +290,9 @@ class ActionDispatcher:
             )
 
         # SQL CAS locks this exact row until /bot/execute's final commit.
-        # Patient reassignment/deletion OR any intervening status change
-        # (including cancellation) after preview yields rowcount=0.
+        # Database trigger advances clinical_revision on EVERY update,
+        # including raw/bulk writes. This rejects ABA (status changes back)
+        # and any rescheduling even if patient and status appear unchanged.
         # Never modify soft-deleted or another clinic's appointment.
         updated = db.query(models.Appointment).filter(
             models.Appointment.id == appointment_id,
@@ -287,6 +300,7 @@ class ActionDispatcher:
             models.Appointment.patient_id == expected_patient_id,
             models.Appointment.deleted_at.is_(None),
             models.Appointment.status == expected_status,
+            models.Appointment.clinical_revision == expected_revision,
         ).update({"status": next_status}, synchronize_session=False)
         if updated != 1:
             return BotResponse(
@@ -1014,6 +1028,7 @@ class ActionDispatcher:
                     "appointment_id": appt.id,
                     "patient_id": patient.id,
                     "expected_status": appt.status.name,
+                    "expected_revision": appt.clinical_revision,
                     "status": status_name,
                     "status_label": status_label,
                     "patient_name": f"{patient.prenom} {patient.nom}",
