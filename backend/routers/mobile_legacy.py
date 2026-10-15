@@ -54,7 +54,7 @@ def _decode_mobile_identity(authorization: str, db: Session):
         if not jti:
             raise err
         from backend.security import token_blacklist
-        if token_blacklist.is_revoked(jti, db):
+        if token_blacklist.is_revoked(jti, db, mobile_epoch=payload.get("mobile_epoch")):
             raise err
         user_id = int(payload["sub"])
         tenant_id = int(payload["tenant_id"])
