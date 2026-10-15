@@ -157,7 +157,8 @@ class ActionDispatcher:
                 message="Patient ambigu ou introuvable : sélectionnez son identifiant exact.",
                 action_type="error",
             )
-        assert_patient_access(patient_id, user, db)
+        # Use one scoped read: assert_patient_access can write an audit entry
+        # and COMMIT on denial, which would prematurely persist the bot claim.
         patient = db.query(models.Patient).filter(
             models.Patient.id == patient_id,
             models.Patient.employer_id == employer_id,
@@ -256,9 +257,15 @@ class ActionDispatcher:
         """Retourne un redirect_url pour ouvrir l'éditeur d'ordonnance."""
         patient_id = params.get("patient_id")
         procedure = params.get("procedure", "")
-        # S2 : patient_id client → vérification tenant avant de renvoyer un redirect.
+        # Read-only tenant gate: denied access must not commit bot's claim.
         if patient_id:
-            assert_patient_access(patient_id, user, db)
+            patient = db.query(models.Patient).filter(
+                models.Patient.id == patient_id,
+                models.Patient.employer_id == user.get_employer_id(),
+                models.Patient.deleted_at.is_(None),
+            ).first()
+            if patient is None:
+                raise HTTPException(status_code=404, detail="Patient introuvable.")
         url = f"/bibliotheque?mode=prescription&patient_id={patient_id}"
         if procedure:
             url += f"&procedure={procedure}"
@@ -273,9 +280,15 @@ class ActionDispatcher:
     ) -> BotResponse:
         """Retourne un redirect_url pour ouvrir le module devis."""
         patient_id = params.get("patient_id")
-        # S2 : patient_id client → vérification tenant avant de renvoyer un redirect.
+        # Read-only tenant gate avoids nested audit commits during execution.
         if patient_id:
-            assert_patient_access(patient_id, user, db)
+            patient = db.query(models.Patient).filter(
+                models.Patient.id == patient_id,
+                models.Patient.employer_id == user.get_employer_id(),
+                models.Patient.deleted_at.is_(None),
+            ).first()
+            if patient is None:
+                raise HTTPException(status_code=404, detail="Patient introuvable.")
         url = f"/patients/{patient_id}?tab=admin&documentTab=devis"
         return BotResponse(
             message="✅ Ouverture du module devis...",
