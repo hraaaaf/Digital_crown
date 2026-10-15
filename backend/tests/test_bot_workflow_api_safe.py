@@ -93,7 +93,7 @@ def test_live_tenant_guard_rejects_foreign_patient(client, db, auth_headers):
             URL, headers=auth_headers,
             json={"messages": ["/patient", str(other.id)]},
         )
-    assert r.status_code in (403, 404)
+    assert r.status_code == 404
     assert "Foreign" not in r.text
     assert "Tenant" not in r.text
 
@@ -248,3 +248,106 @@ def test_unexpected_nonerror_dispatch_response_cannot_be_recorded_as_executed(
     db.refresh(action)
     assert action.status == "failed"
     assert action.executed_at is None
+
+
+def test_soft_deleted_patient_not_visible_in_preview(client, db, dentiste, auth_headers):
+    patient = _patient(db, dentiste)
+    patient.deleted_at = datetime.utcnow()
+    db.commit()
+    with patch.object(settings, "CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED", True):
+        res = client.post(
+            URL, headers=auth_headers,
+            json={"messages": ["/patient", str(patient.id)]},
+        )
+    assert res.status_code == 404
+    assert "Synthetic" not in res.text
+    assert "Patient" not in res.text
+
+
+def test_stale_cancel_never_overwrites_executing_state(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste)
+    action = _pending(db, dentiste, patient.id)
+
+    def concurrent_claim(_db, *_args, **_kwargs):
+        _db.query(models.BotPendingAction).filter(
+            models.BotPendingAction.id == action.id,
+        ).update({"status": "executing"}, synchronize_session=False)
+        _db.commit()
+        return False
+
+    with patch("backend.routers.bot.transition_pending_action", side_effect=concurrent_claim):
+        res = client.post(
+            f"/api/bot/execute/{action.id}/cancel", headers=auth_headers,
+        )
+    assert res.status_code == 409
+    db.refresh(action)
+    assert action.status == "executing"
+
+
+def test_expired_stale_request_never_overwrites_executing_state(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste)
+    action = _pending(db, dentiste, patient.id)
+    action.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.commit()
+
+    def concurrent_claim(_db, *_args, **_kwargs):
+        _db.query(models.BotPendingAction).filter(
+            models.BotPendingAction.id == action.id,
+        ).update({"status": "executing"}, synchronize_session=False)
+        _db.commit()
+        return False
+
+    with patch("backend.routers.bot.transition_pending_action", side_effect=concurrent_claim):
+        res = client.post(
+            "/api/bot/execute", headers=auth_headers,
+            json={"pending_action_id": action.id},
+        )
+    assert res.status_code == 409
+    db.refresh(action)
+    assert action.status == "executing"
+
+
+def test_bot_booking_rejects_canonical_conflict_without_duplicate_write(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste)
+    future = datetime.now() + timedelta(days=8)
+    future = future.replace(hour=10, minute=30, second=0, microsecond=0)
+    existing = models.Appointment(
+        patient_id=patient.id,
+        employer_id=dentiste.get_employer_id(),
+        praticien_id=dentiste.id,
+        datetime_start=future,
+        duration_minutes=30,
+        motif="Consultation",
+    )
+    db.add(existing)
+    db.commit()
+    action = _pending(db, dentiste, patient.id, action_type="CREATE_APPOINTMENT")
+    action.params_json = {
+        "patient_id": patient.id,
+        "datetime_start": future.isoformat(),
+        "motif": "Consultation",
+        "duration_minutes": 30,
+    }
+    db.commit()
+    before = db.query(models.Appointment).count()
+    # Keep the real canonical practitioner/conflict query; isolate weekly
+    # calendar availability to test the overlap contract specifically.
+    with patch(
+        "backend.routers.appointments.validate_appointment_availability",
+        return_value=None,
+    ) as availability:
+        res = client.post(
+            "/api/bot/execute", headers=auth_headers,
+            json={"pending_action_id": action.id},
+        )
+    assert availability.call_count == 1
+    assert res.status_code == 409, res.text
+    assert db.query(models.Appointment).count() == before
+    db.refresh(action)
+    assert action.status == "failed"
