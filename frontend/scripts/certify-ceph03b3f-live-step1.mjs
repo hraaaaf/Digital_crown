@@ -31,7 +31,7 @@ const server=await createServer({
     proxy:{'/api':{target:'http://127.0.0.1:8005',changeOrigin:true,secure:false}} },
 });
 let browser;
-const cases=[];const zoomProof=[];const errors=[];
+const cases=[];const zoomProof=[];const labelProof=[];const errors=[];
 const reqs=[];
 const waitFor=async(fn,label,timeoutMs=30000)=>{
   const start=Date.now();
@@ -197,9 +197,39 @@ try {
       assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
         'Live Step1 browser N not equal to authenticated GET');
 
+      // Observational browser proof: actual screen-space label rectangles.
+      // Record collisions and clipping without prematurely claiming a PASS.
+      const labelMetrics=()=>page.evaluate(()=>{
+        const svg=document.querySelector('svg[data-cephalo-viewport="base"]');
+        if(!svg)return {error:'MISSING_BASE_SVG'};
+        const stage=svg.getBoundingClientRect();
+        const labels=[...svg.querySelectorAll('[data-cephalo-landmark-label]')].map(el=>{
+          const r=el.getBoundingClientRect();
+          return {id:el.getAttribute('data-cephalo-landmark-label'),left:r.left,top:r.top,
+            right:r.right,bottom:r.bottom,width:r.width,height:r.height,
+            inStage:r.right>stage.left&&r.left<stage.right&&r.bottom>stage.top&&r.top<stage.bottom};
+        });
+        const invalid=labels.filter(x=>![x.left,x.right,x.top,x.bottom,x.width,x.height]
+          .every(Number.isFinite)||x.width<=0||x.height<=0).map(x=>x.id);
+        const visible=labels.filter(x=>x.inStage&&x.width>0&&x.height>0);
+        const collisions=[];
+        for(let i=0;i<visible.length;i++)for(let j=i+1;j<visible.length;j++){
+          const a=visible[i],b=visible[j];
+          if(a.left<b.right-.5&&a.right>b.left+.5&&a.top<b.bottom-.5&&a.bottom>b.top+.5)
+            collisions.push(a.id+' : '+b.id);
+        }
+        return {total:labels.length,visible:visible.length,offStage:labels.length-visible.length,
+          minCssPx:visible.length?Math.min(...visible.map(x=>x.height)):null,
+          invalid,collisions,ids:visible.map(x=>x.id)};
+      });
+      const all100=await labelMetrics();
+      assert(!all100.error&&all100.total>0&&all100.invalid.length===0,
+        'Visible label measurement unavailable on real Step1 '+film+': '+JSON.stringify(all100));
+
       // Cross-layer zoom regression witness on the ACTUAL public film, clinical
       // browser and authenticated session. View-only: no analysis PUT is issued.
       await setMode(page,'com');
+      const com100=await labelMetrics();
       const readZoom=()=>page.evaluate(()=>{
         const base=document.querySelector('svg[data-cephalo-viewport="base"]');
         const overlay=document.querySelector('svg[data-cephalo-viewport="overlay"]');
@@ -223,6 +253,7 @@ try {
         && Math.abs(crop150[2]-radio.width/1.5)<0.001
         && Math.abs(crop150[3]-radio.height/1.5)<0.001,
         '150% overlay/base crop mismatch on '+film+': '+JSON.stringify(magnified));
+      const com150=await labelMetrics();
       await setMode(page,'all');
       assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
         'Zoom unexpectedly changed landmark X on '+film);
@@ -234,6 +265,7 @@ try {
       const shifted=crop(panned.base);
       assert(panned.base===panned.overlay && shifted[0]>crop150[0],
         'Pan must move both viewBoxes without skew on '+film+': '+JSON.stringify(panned));
+      const comPan=await labelMetrics();
       const zoomShot=await shot(page,film,'com','1280x900','zoom150-pan');
       await page.getByRole('button',{name:'Afficher toute la radiographie'}).click();
       const reset=await readZoom();
@@ -244,6 +276,7 @@ try {
         'View-only pan/reset mutated anatomical N on '+film);
       zoomProof.push({film,viewport:'1280x900',originalZoom,magnified,panned,reset,
         screenshot:zoomShot,valid:true});
+      labelProof.push({film,viewport:'1280x900',all100,com100,com150,comPan});
       for(const viewport of [{width:1280,height:900},{width:1600,height:1000}]){
         await page.setViewportSize(viewport);
         const size=viewport.width+'x'+viewport.height;
@@ -389,8 +422,8 @@ const report={
   browserEntry:'CephaloWorkspace -> Step1Cephalo -> useOrthoStore -> cephaloRepository -> Axios',
   backend:'FastAPI app real HTTP /api, authenticated HttpOnly cookie, in-memory SQLite',
   untested:'Product /login visual screen, mobile UI, clinical anatomical accuracy, physical calibration',
-  cases,zoomProof,errors,invalidCount:cases.filter(x=>!x.valid).length,
+  cases,zoomProof,labelProof,errors,invalidCount:cases.filter(x=>!x.valid).length,
 };
 await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
-assert(cases.length===10&&zoomProof.length===2&&zoomProof.every(x=>x.valid)&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
+assert(cases.length===10&&zoomProof.length===2&&zoomProof.every(x=>x.valid)&&labelProof.length===2&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
 console.log('DC_CEPH03B3F_REAL_STEP1_HTTP_TWO_RADIOS_8_SCENES_4_EDIT_TRANSACTIONS_PER_FILM_PASS');
