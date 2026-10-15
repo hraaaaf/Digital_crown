@@ -240,17 +240,17 @@ def _create_appointment_validated(
             details=f"RDV patient {appt.patient_id} (bot transaction)",
         ))
         return db_appt
-    db.commit()
-    db.refresh(db_appt)
-    audit_service.log(
-        db=db,
+    db.flush()
+    db.add(models.AuditLog(
         user_id=current_user.id,
         employer_id=employer_id,
         action="CREATE",
         resource_type="Appointment",
         resource_id=str(db_appt.id),
         details=f"RDV patient {appt.patient_id}",
-    )
+    ))
+    db.commit()  # appointment and audit survive (or roll back) together
+    db.refresh(db_appt)
     return db_appt
 
 
@@ -320,17 +320,16 @@ def update_appointment(
     for key, value in update_data.items():
         setattr(db_appt, key, value)
 
-    db.commit()
-    db.refresh(db_appt)
-    audit_service.log(
-        db=db,
+    db.add(models.AuditLog(
         user_id=current_user.id,
         employer_id=employer_id,
         action="UPDATE",
         resource_type="Appointment",
         resource_id=str(id),
         details=f"Champs: {', '.join(update_data.keys())}",
-    )
+    ))
+    db.commit()  # rescheduling and audit are a single clinical transaction
+    db.refresh(db_appt)
     return db_appt
 
 
