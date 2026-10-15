@@ -407,8 +407,9 @@ async def bot_execute(
         raise HTTPException(status_code=403, detail=f"Action non autorisee : {action_type}")
     require_bot_permission(current_user, permission)
 
-    # Atomic compare-and-swap claim, persisted BEFORE any dispatcher side effect.
-    # No second worker can claim a row unless it remains pending and unexpired.
+    # Transactional compare-and-swap: the SQL row lock remains held until
+    # the business mutation and executed status are committed TOGETHER.
+    # A worker crash rolls back the whole transaction to pending (safe retry).
     claimed = claim_pending_action(
         db, models.BotPendingAction, action_id,
         current_user.id, employer_id, datetime.utcnow(),
@@ -417,22 +418,29 @@ async def bot_execute(
         db.rollback()
         _log_rejected("prise en charge concurrente ou expiration")
         raise HTTPException(status_code=409, detail="Action déjà prise en charge ou expirée.")
-    db.commit()  # claim durable, independently of dispatcher transactions
+    # Deliberately NO commit here: an early commit would strand executing
+    # after a crash and break atomicity with the appointment / status update.
 
     # The proposed payload is kept server-side, with tenant/role rechecked.
     pending_action = {"type": action_type, "params": record.params_json}
     patient_resource = str(record.params_json.get("patient_id")) if record.params_json.get("patient_id") else None
 
     def _mark_failed() -> None:
+        # Undo both the uncommitted executing claim and any partial business
+        # changes; then mark the original pending action failed separately.
         db.rollback()
         db.query(models.BotPendingAction).filter(
             models.BotPendingAction.id == action_id,
-            models.BotPendingAction.status == "executing",
+            models.BotPendingAction.user_id == current_user.id,
+            models.BotPendingAction.employer_id == employer_id,
+            models.BotPendingAction.status == "pending",
         ).update({"status": "failed"}, synchronize_session=False)
         db.commit()
 
     try:
-        response = dispatcher.execute(pending_action, db, current_user)
+        response = dispatcher.execute(
+            pending_action, db, current_user, transactional=True,
+        )
     except Exception as e:
         _mark_failed()
         audit_service.log(
@@ -471,7 +479,7 @@ async def bot_execute(
     if completed != 1:
         db.rollback()
         raise HTTPException(status_code=409, detail="État d'action incohérent : contrôle manuel requis.")
-    db.commit()
+    db.commit()  # one commit: business write AND action.executed
 
     audit_service.log(
         db=db, user_id=current_user.id, employer_id=employer_id,
