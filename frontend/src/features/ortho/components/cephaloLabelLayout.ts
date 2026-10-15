@@ -111,10 +111,17 @@ export function layoutCephaloPerimeterLabels(
   const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
   const place = (side: 'left' | 'right', column: typeof points) => {
     const rows = column.slice().sort((a, b) => a.y - b.y || a.id.localeCompare(b.id));
-    const step = (vh - pad * 2) / Math.max(1, rows.length);
+    // Floating image controls occupy the top and bottom corners on tall
+    // radiographs. Reserve these lanes where vertical room permits, while
+    // preserving 22.5px minimum row pitch for the desktop 38-name layout.
+    const stageHeightCss = vh / scale;
+    const verticalPadCss = Math.min(74, Math.max(13,
+      (stageHeightCss - rows.length * 22.5) / 2));
+    const verticalPad = verticalPadCss * scale;
+    const step = (vh - verticalPad * 2) / Math.max(1, rows.length);
     const x = side === 'left' ? vx + pad : vx + vw - pad;
     rows.forEach((pt, index) => {
-      const y = vy + pad + (index + 0.5) * step + 5.5 * scale;
+      const y = vy + verticalPad + (index + 0.5) * step + 5.5 * scale;
       // Full clinical name, never a relabeled or truncated anatomical ID.
       const approxWidth = pt.id.length * 9.7 * scale;
       const leaderEndX = side === 'left'

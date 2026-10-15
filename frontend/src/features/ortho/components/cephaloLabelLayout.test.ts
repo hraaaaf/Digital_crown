@@ -94,6 +94,27 @@ describe('R21.2 no-container perimeter labeling', () => {
     }
     expect(JSON.stringify(pts)).toBe(prior);
   });
+  it('reserves floating control lanes at short and tall desktop radiograph heights', () => {
+    const before = JSON.stringify(pts);
+    for (const screenHeight of [510, 574, 690]) {
+      const unitsPerPixel = 3;
+      const positions = [...layoutCephaloPerimeterLabels(
+        pts, `0 0 2272 ${screenHeight * unitsPerPixel}`, unitsPerPixel,
+      ).values()];
+      expect(positions).toHaveLength(38);
+      for (const side of ['left', 'right'] as const) {
+        const rail = positions.filter(p => p.side === side).sort((a, b) => a.y - b.y);
+        expect(rail).toHaveLength(19);
+        const reserved = screenHeight >= 574 ? 69 : 39;
+        expect(rail[0].y / unitsPerPixel).toBeGreaterThan(reserved);
+        expect(screenHeight - rail[18].y / unitsPerPixel).toBeGreaterThan(reserved - 8);
+        for (let i = 1; i < rail.length; i++) {
+          expect((rail[i].y - rail[i-1].y) / unitsPerPixel).toBeGreaterThanOrEqual(22.49);
+        }
+      }
+    }
+    expect(JSON.stringify(pts)).toBe(before);
+  });
   it('refuses invalid geometry and scale without writing coordinates', () => {
     expect(layoutCephaloPerimeterLabels(pts, 'bad', 2).size).toBe(0);
     expect(layoutCephaloPerimeterLabels(pts, '0 0 0 100', 2).size).toBe(0);

@@ -212,6 +212,24 @@ try {
         const invalid=labels.filter(x=>![x.left,x.right,x.top,x.bottom,x.width,x.height]
           .every(Number.isFinite)||x.width<=0||x.height<=0).map(x=>x.id);
         const visible=labels.filter(x=>x.inStage&&x.width>0&&x.height>0);
+        // Intersecting the SVG is not the same as being legible: floating
+        // native controls can cover text even while all 38 nodes exist.
+        const clipped=visible.filter(x=>
+          x.left<stage.left-.5||x.right>stage.right+.5
+          ||x.top<stage.top-.5||x.bottom>stage.bottom+.5).map(x=>x.id);
+        const controls=[...document.querySelectorAll('button')].filter(el=>{
+          const style=getComputedStyle(el),r=el.getBoundingClientRect();
+          return style.display!=='none'&&style.visibility!=='hidden'
+            &&r.width>0&&r.height>0;
+        }).map(el=>({rect:el.getBoundingClientRect(),
+          name:el.getAttribute('aria-label')||el.getAttribute('title')
+            ||el.textContent?.trim().slice(0,45)||'unnamed button'}));
+        const controlCollisions=[];
+        for(const x of visible)for(const {rect:r,name} of controls){
+          if(x.left<r.right-.5&&x.right>r.left+.5
+            &&x.top<r.bottom-.5&&x.bottom>r.top+.5)
+            controlCollisions.push(x.id+' : '+name);
+        }
         const collisions=[];
         for(let i=0;i<visible.length;i++)for(let j=i+1;j<visible.length;j++){
           const a=visible[i],b=visible[j];
@@ -220,13 +238,14 @@ try {
         }
         return {total:labels.length,visible:visible.length,offStage:labels.length-visible.length,
           minCssPx:visible.length?Math.min(...visible.map(x=>x.height)):null,
-          invalid,collisions,ids:visible.map(x=>x.id)};
+          invalid,clipped,controlCollisions,collisions,ids:visible.map(x=>x.id)};
       });
       const assertNames=(metric,expected,stage)=>{
         assert(!metric.error && metric.invalid.length===0
           && metric.total===expected && metric.visible===expected
           && metric.offStage===0 && metric.minCssPx>=16
-          && metric.collisions.length===0,
+          && metric.collisions.length===0 && metric.clipped.length===0
+          && metric.controlCollisions.length===0,
           'ALL NAMES MUST BE SIMULTANEOUS, TEXT-ONLY, COLLISION-FREE '+film+
           ' '+stage+' expected='+expected+' actual='+JSON.stringify(metric));
       };
