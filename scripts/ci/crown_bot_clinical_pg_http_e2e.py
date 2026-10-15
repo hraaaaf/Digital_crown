@@ -360,7 +360,9 @@ def run():
             employer_id=doctor_id, action_type="CHANGE_STATUS",
             params_json={
                 "appointment_id": stale_appt.id, "patient_id": patient_id,
-                "expected_status": "PREVU", "status": "EN_FAUTEUIL",
+                "expected_status": "PREVU",
+                "expected_revision": stale_appt.clinical_revision,
+                "status": "EN_FAUTEUIL",
             },
             status="pending", expires_at=datetime.utcnow() + timedelta(minutes=30),
         )
@@ -379,6 +381,95 @@ def run():
         assert db.get(models.Appointment, stale_appt_id).status == models.AppointmentStatus.ANNULE
         assert db.get(models.BotPendingAction, stale_action_id).status == "failed"
     print("CLINICAL_REAL_BOT_STALE_CANCELLED_STATUS_CAS: PASS")
+
+    # REAL clinical ABA on the same appointment and separate SQL writes:
+    # PREVU -> ANNULE -> PREVU would bypass status-only matching.
+    with database.SessionLocal() as db:
+        aba = models.Appointment(
+            patient_id=patient_id, employer_id=doctor_id,
+            praticien_id=doctor_id,
+            datetime_start=first_slot + timedelta(days=11),
+            duration_minutes=30, status=models.AppointmentStatus.PREVU,
+            scheduling_type=models.SchedulingType.EXACT_TIME,
+        )
+        db.add(aba)
+        db.flush()
+        aba_action = models.BotPendingAction(
+            session_id=bot_session_id, user_id=doctor_id,
+            employer_id=doctor_id, action_type="CHANGE_STATUS",
+            params_json={
+                "appointment_id": aba.id, "patient_id": patient_id,
+                "expected_status": "PREVU",
+                "expected_revision": aba.clinical_revision,
+                "status": "EN_FAUTEUIL",
+            },
+            status="pending", expires_at=datetime.utcnow() + timedelta(minutes=30),
+        )
+        db.add(aba_action)
+        db.commit()
+        aba_id = aba.id
+        aba_action_id = aba_action.id
+        expected_revision = aba.clinical_revision
+        db.execute(text("UPDATE appointments SET status='ANNULE' WHERE id=:id"), {"id": aba_id})
+        db.execute(text("UPDATE appointments SET status='PREVU' WHERE id=:id"), {"id": aba_id})
+        db.commit()
+        db.refresh(aba)
+        assert aba.clinical_revision == expected_revision + 2
+    result = api.post(
+        "/api/bot/execute", headers=authorization,
+        json={"pending_action_id": aba_action_id},
+    )
+    assert result.status_code == 409, result.text
+    with database.SessionLocal() as db:
+        assert db.get(models.Appointment, aba_id).status == models.AppointmentStatus.PREVU
+        assert db.get(models.BotPendingAction, aba_action_id).status == "failed"
+    print("CLINICAL_REAL_BOT_ABA_REVISION_CAS: PASS")
+
+    # A SQL-side old-appointment corpus must not be loaded as ORM objects
+    # to check one future slot. The indexed end expression filters in DB.
+    import time
+    old_start = datetime(2020, 1, 1, 9, 0)
+    count = 2500
+    with database.SessionLocal() as db:
+        db.bulk_insert_mappings(models.Appointment, [
+            {
+                "patient_name": f"Synthetic archive {i}",
+                "employer_id": doctor_id,
+                "praticien_id": doctor_id,
+                "datetime_start": old_start + timedelta(days=i % 900),
+                "duration_minutes": 30,
+                "status": models.AppointmentStatus.PREVU,
+                "scheduling_type": models.SchedulingType.EXACT_TIME,
+            }
+            for i in range(count)
+        ])
+        db.commit()
+        from backend.routers.appointments import _find_conflicts
+        candidate = first_slot + timedelta(days=60)
+        # Check both correctness and bounded runtime, with a generous CI
+        # threshold. Log actual timings; do not claim realistic scale.
+        durations = []
+        for _ in range(5):
+            start_clock = time.perf_counter()
+            matches = _find_conflicts(db, doctor_id, doctor_id, candidate, 30)
+            durations.append(time.perf_counter() - start_clock)
+            assert not matches
+        assert max(durations) < 5.0, f"SQL end index query too slow: {durations}"
+        if db.get_bind().dialect.name == "sqlite":
+            index_rows = db.execute(text(
+                "PRAGMA index_list('appointments')"
+            )).all()
+            assert "ix_appointments_tenant_clinical_end" in {row[1] for row in index_rows}
+        else:
+            indexed = db.execute(text(
+                "SELECT count(*) FROM pg_indexes WHERE tablename='appointments' "
+                "AND indexname='ix_appointments_tenant_clinical_end'"
+            )).scalar()
+            assert indexed == 1
+        print("CLINICAL_REAL_INDEXED_OVERLAP_ARCHIVE: PASS",
+              "historical_rows=", count,
+              "max_lookup_ms=", round(max(durations) * 1000, 2))
+
 
     print("CLINICAL_FULL_SCHEMA_HTTP_GATE: PASS migrated schema, HTTP, real database transaction")
 
