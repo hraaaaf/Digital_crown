@@ -30,10 +30,21 @@ assert _ci_url.startswith("postgresql+") and "127.0.0.1" in _ci_url or (
 ), "Require local synthetic PostgreSQL or disposable SQLCipher CI file"
 
 from backend import database, models
+from backend.core.runtime_safety import (
+    database_target_fingerprint, is_known_cabinet_database,
+)
+# This startup attestation is NOT a bypass: assert the exact disposable CI
+# target before constructing its fingerprint, and retain the real runtime
+# guard in backend.main. Never attest a known cabinet database.
+assert not is_known_cabinet_database(_ci_url), "Refusing actual cabinet DB"
+if _ci_url.startswith("postgresql+"):
+    assert _ci_url.endswith("/crown_bot_clinical_cert"), "Unexpected PostgreSQL database"
 if _ci_url.startswith("sqlite:"):
     assert "pysqlcipher" in database.SQLALCHEMY_DATABASE_URL, "Refuse plaintext SQLite fallback"
     with database.engine.connect() as _conn:
         assert _conn.exec_driver_sql("PRAGMA cipher_version").scalar(), "Not real SQLCipher"
+os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] = "true"
+os.environ["DIGITALCROWN_ISOLATION_DB_FINGERPRINT"] = database_target_fingerprint(_ci_url)
 
 from backend.main import app
 from backend.security import get_password_hash
