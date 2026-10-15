@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  core-before:
+  authenticated-media-pilot:
     name: Authenticated Cabinet G1 frame / existing media route / isolated T2
     runs-on: ubuntu-24.04
     timeout-minutes: 55
@@ -63,19 +63,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/v15-07-g1-req.txt
-          pip install -r /tmp/v15-07-g0-req.txt
+          pip install -r /tmp/v15-07-g1-req.txt
       - name: Install real frontend and Chromium (Playwright isolated from product npm graph)
         working-directory: frontend
         shell: bash
         run: |
           set -euo pipefail
           npm ci
-          mkdir -p /tmp/v15-07-g0-playwright
-          npm install --prefix /tmp/v15-07-g0-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
-          test -d /tmp/v15-07-g0-playwright/node_modules/playwright
-          test -d /tmp/v15-07-g0-playwright/node_modules/playwright-core
-          ln -s /tmp/v15-07-g0-playwright/node_modules/playwright node_modules/playwright
-          /tmp/v15-07-g0-playwright/node_modules/.bin/playwright install --with-deps chromium
+          mkdir -p /tmp/v15-07-g1-playwright
+          npm install --prefix /tmp/v15-07-g1-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          test -d /tmp/v15-07-g1-playwright/node_modules/playwright
+          test -d /tmp/v15-07-g1-playwright/node_modules/playwright-core
+          ln -s /tmp/v15-07-g1-playwright/node_modules/playwright node_modules/playwright
+          /tmp/v15-07-g1-playwright/node_modules/.bin/playwright install --with-deps chromium
       - name: Attest disposable test database target (do not bypass boot policy)
         shell: bash
         run: |
@@ -97,29 +97,29 @@ jobs:
           test -n "${DIGITALCROWN_ISOLATION_DB_FINGERPRINT:-}"
           test "$DATABASE_URL" = "sqlite:///./t2-runtime-cert.db"
           rm -f t2-runtime-cert.db
-          python scripts/t2_runtime_server.py >/tmp/v15-07-g0-backend.log 2>&1 &
+          python scripts/t2_runtime_server.py >/tmp/v15-07-g1-backend.log 2>&1 &
           backend_pid=$!
           for i in {1..100}; do
             if ! kill -0 "$backend_pid" 2>/dev/null; then
               echo "Isolated backend process exited before /health"
-              tail -100 /tmp/v15-07-g0-backend.log
+              tail -100 /tmp/v15-07-g1-backend.log
               exit 1
             fi
             if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
             sleep 1
           done
-          tail -100 /tmp/v15-07-g0-backend.log
+          tail -100 /tmp/v15-07-g1-backend.log
           exit 1
       - name: Start actual pilot frontend with opt-in
         working-directory: frontend
         shell: bash
         run: |
-          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/v15-07-g0-frontend.log 2>&1 &
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/v15-07-g1-frontend.log 2>&1 &
           for i in {1..100}; do
             if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
             sleep 1
           done
-          tail -80 /tmp/v15-07-g0-frontend.log
+          tail -80 /tmp/v15-07-g1-frontend.log
           exit 1
       - name: Test Desktop-only pilot and unchanged media module in Vitest
         working-directory: frontend
@@ -134,7 +134,7 @@ jobs:
           import crypto from 'node:crypto';
           import { chromium, request } from 'playwright';
 
-          const out = path.resolve('../artifacts/v15-07-g0-core');
+          const out = path.resolve('../artifacts/v15-07-g1-cabinet-media-pilot');
           fs.mkdirSync(out, { recursive: true });
           const sourceHead = process.env.SOURCE_HEAD;
           const user = process.env.T2_USER;
@@ -274,27 +274,27 @@ jobs:
             failures:critical.slice(0,8).map(e=>({screen:e.screen,size:e.size,error:e.failure,pageErrors:e.pageErrors,http5xx:e.http5xx}))}));
           if(report.captured!==32||critical.length)process.exitCode=1;
           EVIDENCE
-          node --check scripts/v15-07-g0-core-before.mjs
+          node --check scripts/v15-07-g1-cabinet-media-pilot.mjs
       - name: Execute real actual auth Cabinet pilot screen matrix (product feature flag isolated)
         working-directory: frontend
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p ../artifacts
-          node scripts/run-with-t2-workstation.mjs scripts/v15-07-g0-core-before.mjs 2>&1 | tee ../artifacts/v15-07-g0-runner.log
+          node scripts/run-with-t2-workstation.mjs scripts/v15-07-g1-cabinet-media-pilot.mjs 2>&1 | tee ../artifacts/v15-07-g1-cabinet-media-pilot.log
       - name: Capture failure diagnostics (sanitized)
         if: failure()
         shell: bash
         run: |
-          tail -80 /tmp/v15-07-g0-backend.log || true
-          tail -80 /tmp/v15-07-g0-frontend.log || true
+          tail -80 /tmp/v15-07-g1-backend.log || true
+          tail -80 /tmp/v15-07-g1-frontend.log || true
       - name: Upload manifest and real screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v15-07-g0-core-before-exact-master
+          name: v15-07-g1-cabinet-media-actual-auth
           path: |
-            artifacts/v15-07-g0-core
-            artifacts/v15-07-g0-runner.log
+            artifacts/v15-07-g1-cabinet-media-pilot
+            artifacts/v15-07-g1-cabinet-media-pilot.log
           retention-days: 30
           if-no-files-found: warn
