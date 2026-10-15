@@ -165,7 +165,9 @@ class ActionDispatcher:
             models.Patient.deleted_at.is_(None),
         ).first()
         if patient is None:
-            return BotResponse(message="Patient non actif ou supprimé.", action_type="error")
+            # Same external response for absent, foreign and archived patients.
+            # Let the router rollback and mark the action failed, not executing.
+            raise HTTPException(status_code=404, detail="Patient introuvable.")
 
         datetime_str = params.get("datetime_start")
         motif = params.get("motif")
