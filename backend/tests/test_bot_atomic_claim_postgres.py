@@ -25,6 +25,7 @@ MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 claim_pending_action = MODULE.claim_pending_action
+transition_pending_action = MODULE.transition_pending_action
 
 
 class Base(DeclarativeBase):
@@ -111,3 +112,81 @@ class TestPostgresAtomicBotClaim(unittest.TestCase):
         inflight = self._row(status="executing")
         self.assertFalse(self._claim(expired))
         self.assertFalse(self._claim(inflight))
+
+
+    def test_cancel_and_execute_race_only_one_state_transition_wins(self):
+        # Real two-connection PostgreSQL test for R2-01.
+        key = self._row()
+        together = Barrier(2)
+
+        def worker(transition):
+            with self.Session() as db:
+                together.wait(timeout=10)
+                if transition == "execute":
+                    result = claim_pending_action(
+                        db, ClaimRow, key, 11, 22, datetime.utcnow()
+                    )
+                else:
+                    result = transition_pending_action(
+                        db, ClaimRow, key, 11, 22,
+                        new_status="cancelled", now=datetime.utcnow(),
+                    )
+                db.commit()
+                return result
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            one = pool.submit(worker, "execute")
+            two = pool.submit(worker, "cancel")
+            outcomes = [one.result(timeout=15), two.result(timeout=15)]
+        self.assertEqual(sorted(outcomes), [False, True])
+        with self.Session() as session:
+            self.assertIn(session.get(ClaimRow, key).status, {"executing", "cancelled"})
+
+    def test_expire_and_execute_at_ttl_boundary_never_overwrite(self):
+        # Simulated opposing clocks at expiry boundary with real row locking:
+        # whichever pending-only update commits first owns the row.
+        key = self._row(minutes=1)
+        together = Barrier(2)
+
+        def worker(expiring):
+            with self.Session() as session:
+                together.wait(timeout=10)
+                if expiring:
+                    result = transition_pending_action(
+                        session, ClaimRow, key, 11, 22,
+                        new_status="expired",
+                        now=datetime.utcnow() + timedelta(minutes=2),
+                        expired=True,
+                    )
+                else:
+                    result = claim_pending_action(
+                        session, ClaimRow, key, 11, 22, datetime.utcnow()
+                    )
+                session.commit()
+                return result
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            a = pool.submit(worker, True)
+            b = pool.submit(worker, False)
+            self.assertEqual(sorted([a.result(timeout=15), b.result(timeout=15)]),
+                             [False, True])
+        with self.Session() as session:
+            self.assertIn(session.get(ClaimRow, key).status, {"expired", "executing"})
+
+    def test_stale_cancel_and_expiry_cannot_change_executing(self):
+        key = self._row()
+        self.assertTrue(self._claim(key))
+        with self.Session() as db:
+            self.assertFalse(transition_pending_action(
+                db, ClaimRow, key, 11, 22,
+                new_status="cancelled", now=datetime.utcnow(),
+            ))
+            self.assertFalse(transition_pending_action(
+                db, ClaimRow, key, 11, 22,
+                new_status="expired",
+                now=datetime.utcnow() + timedelta(days=1),
+                expired=True,
+            ))
+            db.commit()
+        with self.Session() as db:
+            self.assertEqual(db.get(ClaimRow, key).status, "executing")
