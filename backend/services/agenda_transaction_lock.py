@@ -1,23 +1,30 @@
-"""Serialize check+insert for canonical appointment bookings on PostgreSQL.
+"""Serialize the canonical availability-check-and-insert in one DB transaction.
 
-Postgres transaction advisory lock is scoped to the tenant (employer_id);
-the caller MUST hold it through validation, INSERT and COMMIT. No lock is
-acquired on SQLite/SQLCipher, whose cross-process booking serialization is
-a separate deployment gate and is not certified by this PostgreSQL proof.
+PostgreSQL: tenant-scoped transaction advisory lock.
+SQLite/SQLCipher: acquire a real database writer lock with an UPDATE that
+matches no appointments (and therefore changes no clinical row). SQLite has
+one writer per database; competing bookings wait or fail closed on busy/locked.
+The caller MUST not commit between this fence, conflict check, and INSERT.
 """
 from sqlalchemy import text
 
 
 def lock_cabinet_booking(db, employer_id: int) -> bool:
-    """Acquire a PostgreSQL transaction-scoped advisory lock for one cabinet.
+    """Hold a DB-level transactional booking write lock through final COMMIT.
 
-    Requires default READ COMMITTED semantics for a fresh conflict read.
-    Returns True when the real PostgreSQL lock is held, False otherwise.
+    In SQLite/SQLCipher a no-op UPDATE acquires a RESERVED write lock even
+    if the predicate matches no rows. Avoid BEGIN IMMEDIATE here: /bot/execute
+    already holds a write transaction for the pending->executing claim.
     """
-    if db.get_bind().dialect.name != "postgresql":
-        return False
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(1420958, :employer_id)"),
-        {"employer_id": int(employer_id)},
-    )
-    return True
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(1420958, :employer_id)"),
+            {"employer_id": int(employer_id)},
+        )
+        return True
+    if dialect == "sqlite":
+        db.execute(text("UPDATE appointments SET id = id WHERE 1 = 0"))
+        return True
+    # Unknown dialect cannot silently skip concurrency protection.
+    raise RuntimeError("Booking transaction lock unavailable for database dialect")
