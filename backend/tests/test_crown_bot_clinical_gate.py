@@ -183,3 +183,18 @@ def test_clinic_write_requires_unambiguous_full_patient_name(db, dentiste):
     names[1].deleted_at = datetime.utcnow()
     db.commit()
     assert matcher._find_patient_for_write(db, tenant, "Ahmed Bennani").id == names[0].id
+
+
+def test_clinic_production_fails_closed_without_agenda_settings(db, dentiste, monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "cabinet")
+    slot = _slot(8, 11)
+    with pytest.raises(HTTPException) as exc:
+        create_appointment(
+            schemas.AppointmentCreate(
+                patient_name="Synthetic No Settings", praticien_id=dentiste.id,
+                datetime_start=slot, duration_minutes=30,
+            ), db, dentiste,
+        )
+    assert exc.value.status_code == 422
+    assert "configurez les horaires" in str(exc.value.detail)
+    assert db.query(models.Appointment).count() == 0
