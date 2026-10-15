@@ -227,7 +227,7 @@ jobs:
           cp frontend/scripts/fixtures/dc-ceph03b3c-public-cephalograms.json /tmp/dc-ceph03b3f-proof/CC-BY-SA-source-manifest.json
           printf 'HEAD=%s\nBROWSER=actual CephaloWorkspace/Step1 with Axios and live FastAPI HTTP\nDB=ephemeral in-memory SQLite\nAUTH=real login HttpOnly cookie, isolated user/patients\nMODEL=actual pinned SRPose38 ONNX\nSCOPE=not real clinic login UI, no patient data, no anatomical accuracy, no physical calibration\n' "$GITHUB_SHA" >/tmp/dc-ceph03b3f-proof/scope.txt
           if [ -f /tmp/dc-ceph03b3f-http.log ]; then
-            grep -E 'Traceback|ERROR|DC_CEPH03B3F_EPHEMERAL_HTTP_READY' /tmp/dc-ceph03b3f-http.log | tail -n 45 >/tmp/dc-ceph03b3f-proof/backend-sanitized.log || true
+            grep -E 'Traceback|ERROR|DC_CEPH03B3F_EPHEMERAL_HTTP_READY|OperationalError|IntegrityError|ProgrammingError|ValidationError|StatementError|RuntimeError|AttributeError|TypeError|KeyError' /tmp/dc-ceph03b3f-http.log | tail -n 45 >/tmp/dc-ceph03b3f-proof/backend-sanitized.log || true
           fi
       - uses: actions/upload-artifact@v4
         if: always()

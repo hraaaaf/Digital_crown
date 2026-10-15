@@ -412,6 +412,15 @@ try {
     }
   }
 }finally{
+  // Evidence must survive a red backend/browser run, never mark it as PASS.
+  // Labels remain observation-only until an exact-HEAD certification gate.
+  if(cases.length!==10 || labelProof.length!==2 || errors.length){
+    await writeFile(path.join(out,'partial-report.json'),JSON.stringify({
+      head:process.env.GITHUB_SHA || 'unknown',
+      status:'INCOMPLETE_NOT_CERTIFIED',
+      cases,zoomProof,labelProof,errors,
+    },null,2));
+  }
   if(browser)await browser.close();
   await server.close();
 }
