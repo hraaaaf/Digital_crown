@@ -797,3 +797,27 @@ def test_bot_legacy_status_without_revision_is_rejected_even_if_status_matches(
     db.refresh(action)
     assert appt.status == models.AppointmentStatus.PREVU
     assert action.status == "failed"
+
+
+def test_bot_status_preview_captures_database_owned_revision(db, dentiste):
+    from types import SimpleNamespace
+    from backend.services.bot.action_dispatcher import ActionDispatcher
+    patient = _patient(db, dentiste)
+    appt = models.Appointment(
+        patient_id=patient.id, employer_id=dentiste.get_employer_id(),
+        datetime_start=datetime.now() + timedelta(days=24),
+        duration_minutes=30, status=models.AppointmentStatus.PREVU,
+    )
+    db.add(appt)
+    db.commit()
+    parsed = SimpleNamespace(
+        entities={"patient_id": patient.id},
+        raw_message="annuler le rendez-vous",
+    )
+    response = ActionDispatcher()._handle_change_status(parsed, db, dentiste)
+    assert response.action_type == "write_pending"
+    params = response.pending_action["params"]
+    assert params["appointment_id"] == appt.id
+    assert params["patient_id"] == patient.id
+    assert params["expected_status"] == appt.status.name
+    assert params["expected_revision"] == appt.clinical_revision
