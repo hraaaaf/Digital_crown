@@ -17,7 +17,6 @@ from backend.config import settings
 from backend.database import get_db
 from backend.routers.auth import get_current_user, has_permission
 from backend.services.bot.workflow_poc import PocConversation
-from backend.utils.access_control import assert_patient_access
 
 
 router = APIRouter(tags=["bot-zero-llm-experimental"])
@@ -78,12 +77,12 @@ def preview_bot_workflow(
     if not isinstance(patient_id, int) or isinstance(patient_id, bool) or patient_id <= 0:
         raise HTTPException(status_code=422, detail="Patient invalide.")
 
-    # Independent server-side tenant resolution: not just the client's claim.
-    # Cross-cabinet data never enters the preview response.
-    assert_patient_access(patient_id, user, db)
+    # Single scoped lookup: a foreign, unknown or soft-deleted patient gives
+    # the same generic 404 (no global-ID existence oracle).
     patient = db.query(models.Patient).filter(
         models.Patient.id == patient_id,
         models.Patient.employer_id == user.get_employer_id(),
+        models.Patient.deleted_at.is_(None),
     ).first()
     if patient is None:
         raise HTTPException(status_code=404, detail="Patient introuvable.")
