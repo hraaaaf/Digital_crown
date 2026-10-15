@@ -146,6 +146,8 @@ jobs:
           const rows = await response.json();
           const patient = rows.find(x => x.numero_dossier === 'T2-0001') || rows[0];
           if (!patient) throw Error('No isolated T2 patient fixture');
+          const fixturePatientName = [patient.nom, patient.prenom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+          if (!fixturePatientName) throw Error('T2 fixture has no displayable patient name');
 
           const screens = [
             {key:'dashboard',path:'/dashboard'},
@@ -173,15 +175,23 @@ jobs:
                 const errors=[], http5xx=[];
                 page.on('pageerror',err=>errors.push(String(err).slice(0,350)));
                 page.on('response',res=>{if(res.status()>=500)http5xx.push({status:res.status(),path:new URL(res.url()).pathname});});
-                let failure=null, actualUrl=null, dom=null, screenshot=null, hash=null;
+                let failure=null, actualUrl=null, dom=null, screenshot=null, hash=null, patientReadyMs=null;
                 try {
                   await page.addInitScript(({access,refresh})=>{
                     localStorage.setItem('token',access);
                     localStorage.setItem('refresh_token',refresh||'');
                     localStorage.setItem('appMode','prod');
                   },{access:tokens.access_token,refresh:tokens.refresh_token});
+                  const navigationStartedAt = Date.now();
                   await page.goto('http://127.0.0.1:5173'+screen.path,{waitUntil:'domcontentloaded',timeout:90000});
                   await page.locator('main').first().waitFor({state:'visible',timeout:30000});
+                  if(screen.key === 'dossier' || screen.imaging){
+                    // Lazy-loaded patient dossier: visible <main> may still be an empty splash.
+                    // Wait for the real, uniquely identified fictitious patient header before assessing content.
+                    await page.locator('main').getByText(fixturePatientName,{exact:false})
+                      .first().waitFor({state:'visible',timeout:60000});
+                    patientReadyMs = Date.now() - navigationStartedAt;
+                  }
                   if(screen.imaging){
                     await page.getByRole('button',{name:'Imagerie',exact:true}).click({timeout:20000});
                     await page.getByRole('button',{name:'Médiathèque',exact:true}).click({timeout:20000});
@@ -210,7 +220,7 @@ jobs:
                 evidence.push({screen:screen.key,size:size.key,viewport:{width:size.width,height:size.height},
                   zoom:size.cssZoom?'CSS zoom proxy only, NOT browser 200%': '1x',
                   intendedPath:screen.path,actualUrl,dom,screenshot,sha256:hash,
-                  pageErrors:errors,http5xx,failure});
+                  pageErrors:errors,http5xx,failure,patientReadyMs});
                 await page.close();
               }
               await context.close();
