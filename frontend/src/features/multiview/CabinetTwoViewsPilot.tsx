@@ -2,6 +2,7 @@ import { useRef, useState, useSyncExternalStore, type KeyboardEvent, type Pointe
 import { PatientMediaTimeline } from '../patients/components/PatientMediaTimeline';
 import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
 import { ViewSlotThemeFrame } from './ViewSlotThemeFrame';
+import './CabinetTwoViewsPilot.css';
 
 const DESKTOP = '(min-width: 1280px)';
 const MIN_RATIO = 37;
