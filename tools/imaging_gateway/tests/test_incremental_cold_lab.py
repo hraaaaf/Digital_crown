@@ -97,6 +97,29 @@ class IncrementalColdTests(unittest.TestCase):
         self.assertEqual(proof.metadata_sha256,
             hashlib.sha256(c._canonical(bundle)).hexdigest())
 
+
+    def test_256_small_events_match_original_full_JK_verifier(self):
+        store,bundle,head,_,_=self.build(total=256)
+        rebuilt=[]
+        for event in bundle.records:
+            s=event.snapshot
+            src=store.get(s.source)
+            cand=store.get(s.candidate) if s.candidate is not None else None
+            state=m.Snapshot(
+                s.cabinet,s.workstation,s.identity,s.digest,src,
+                s.source_sha256,s.phase,s.revision,cand,
+                s.candidate_sha256,s.target_key_id)
+            rebuilt.append(j.Record(
+                event.sequence,event.previous_mac,state,event.mac))
+        real=j.Journal(tuple(rebuilt))
+        final=j.verify_chain(
+            real,head,journal_key=self.jkey,legacy_key=self.legacy,
+            keys=self.keys)
+        self.assertEqual(final.revision,255)
+        proof=self.audit(store,bundle,head)
+        self.assertEqual(proof.event_count,len(real.records))
+        self.assertEqual(proof.anchor,head)
+
     def test_wrong_anchor_archive_seal_event_and_key_refuse(self):
         store,bundle,head,_,_=self.build(total=9)
         old=j.TrustedAnchor(head.sequence-1,bundle.records[-2].mac)
