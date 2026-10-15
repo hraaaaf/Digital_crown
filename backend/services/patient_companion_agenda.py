@@ -16,6 +16,7 @@ from backend.models_patient_companion import (
 from backend.services.agenda_availability import validate_appointment_availability
 from backend.services.agenda_resource_conflicts import assert_resource_available
 from backend.services.agenda_transaction_lock import lock_cabinet_booking
+from backend.services.agenda_booking_occupancy import OCCUPYING_APPOINTMENT_STATUSES
 from backend.services.patient_companion_remote_worker import RemoteDomainResult
 
 ACTIVE_CANCEL_BLOCKERS = {
@@ -80,20 +81,14 @@ def _validate_exact_slot(db: Session, access: PatientCompanionAccess, *, start: 
     )
     if error:
         return "SLOT_UNAVAILABLE"
-    end = start + timedelta(minutes=duration)
-    q = db.query(models.Appointment).filter(
-        models.Appointment.employer_id == access.employer_id,
-        models.Appointment.deleted_at.is_(None),
-        models.Appointment.status != models.AppointmentStatus.ANNULE,
-        models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
-        models.Appointment.datetime_start < end,
-        models.Appointment.praticien_id == practitioner_id,
-    )
-    if exclude_id is not None:
-        q = q.filter(models.Appointment.id != exclude_id)
-    for existing in q.all():
-        if existing.datetime_start + timedelta(minutes=existing.duration_minutes) > start:
-            return "SLOT_CONFLICT"
+    # Exactly the same occupancy/practitioner NULL contract as Agenda:
+    # a historical appointment without assigned practitioner blocks all.
+    from backend.routers.appointments import _find_conflicts
+    if _find_conflicts(
+        db, access.employer_id, practitioner_id, start, duration,
+        exclude_id=exclude_id,
+    ):
+        return "SLOT_CONFLICT"
     try:
         assert_resource_available(
             db,
