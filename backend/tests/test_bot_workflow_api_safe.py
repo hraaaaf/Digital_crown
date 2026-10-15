@@ -260,8 +260,8 @@ def test_soft_deleted_patient_not_visible_in_preview(client, db, dentiste, auth_
             json={"messages": ["/patient", str(patient.id)]},
         )
     assert res.status_code == 404
+    assert res.json()["detail"] == "Patient introuvable."
     assert "Synthetic" not in res.text
-    assert "Patient" not in res.text
 
 
 def test_stale_cancel_never_overwrites_executing_state(
