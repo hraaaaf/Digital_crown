@@ -12,6 +12,9 @@ interface CephaloLandmarkReticlesProps {
   /** Anatomical image-space bounds, not CSS/viewBox viewport pixels. */
   imageWidth: number;
   imageHeight: number;
+  /** Display-only labels, enabled in the desktop embedded workbench only. */
+  compactLabels?: boolean;
+  unitsPerPixel?: number;
   isCalibrating: boolean;
   baseOpacity: number;
   activeDragId: string | null;
@@ -46,6 +49,8 @@ export const CephaloLandmarkReticles = ({
   landmarks,
   imageWidth,
   imageHeight,
+  compactLabels = false,
+  unitsPerPixel = 1,
   isCalibrating,
   baseOpacity,
   activeDragId,
@@ -76,7 +81,7 @@ export const CephaloLandmarkReticles = ({
   const priorityId = activeDragId ?? keyboardFocusedId ?? focusedPointId ?? hoveredPointId ?? activePointId ?? null;
   const shownLabels = new Set<string>();
   for (const point of landmarks) {
-    if ((isHoverActive && hoveredIds.has(point.id.toLowerCase()))
+    if (compactLabels || (isHoverActive && hoveredIds.has(point.id.toLowerCase()))
       || point.id === keyboardFocusedId || point.id === focusedPointId
       || point.id === activeDragId || point.id === hoveredPointId
       || point.id === activePointId) shownLabels.add(point.id);
@@ -85,8 +90,11 @@ export const CephaloLandmarkReticles = ({
     landmarks.map(point => activeDragPos?.id === point.id
       ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
     shownLabels, priorityId, imageWidth, imageHeight,
+    compactLabels ? 16 * Math.max(0.1, Math.min(unitsPerPixel, 30)) : undefined,
   );
-  const labelFontSize = cephaloLabelFontSize(imageWidth, imageHeight);
+  const labelFontSize = compactLabels
+    ? 16 * Math.max(0.1, Math.min(unitsPerPixel, 30))
+    : cephaloLabelFontSize(imageWidth, imageHeight);
 
   return (
     <>
@@ -292,6 +300,7 @@ export const CephaloLandmarkReticles = ({
                 />
                 <text
                   data-ceph03b-landmark-label={pt.id}
+                  data-cephalo-landmark-label={compactLabels ? pt.id : undefined}
                   x={labelPosition.x}
                   y={labelPosition.y}
                   fontSize={labelFontSize}

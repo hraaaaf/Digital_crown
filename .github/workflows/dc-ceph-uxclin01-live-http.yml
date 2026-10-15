@@ -53,6 +53,10 @@ jobs:
               frontend/src/features/ortho/CephaloTracingLayer.realRadioFixture.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.visualFixture.tsx | \
               frontend/src/features/ortho/components/CephaloLandmarkReticles.pointerLifecycle.test.tsx | \
+              frontend/src/features/ortho/components/CephaloLandmarkReticles.tsx | \
+              frontend/src/features/ortho/components/cephaloLabelLayout.ts | \
+              frontend/src/features/ortho/components/cephaloLabelLayout.test.ts | \
+              frontend/src/features/ortho/components/useCephaloUnitsPerPixel.ts | \
               frontend/src/features/ortho/CephaloTracingLayer.tsx | \
               frontend/src/features/ortho/CephaloTracingLayerBase.tsx | \
               frontend/src/features/ortho/cephaloConstructionViewport.ts | \

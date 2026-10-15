@@ -21,10 +21,12 @@ export function layoutCephaloLandmarkLabels(
   priorityId: string | null,
   imageWidth: number,
   imageHeight: number,
+  fontOverride?: number,
 ): Map<string, CephaloLabelPlacement> {
   const result = new Map<string, CephaloLabelPlacement>();
   if (!(imageWidth > 0 && imageHeight > 0)) return result;
-  const font = cephaloLabelFontSize(imageWidth, imageHeight);
+  const font = fontOverride && Number.isFinite(fontOverride) && fontOverride > 0
+    ? fontOverride : cephaloLabelFontSize(imageWidth, imageHeight);
   const candidates = landmarks
     .filter(pt => requestedIds.has(pt.id) && Number.isFinite(pt.x) && Number.isFinite(pt.y))
     .sort((a, b) => Number(b.id === priorityId) - Number(a.id === priorityId)
@@ -44,6 +46,16 @@ export function layoutCephaloLandmarkLabels(
       { x: pt.x + shift * 1.8, y: pt.y - height * 0.1 },
       { x: pt.x - shift * 1.8 - width, y: pt.y - height * 0.1 },
     ];
+    if (fontOverride) {
+      origins.push(
+        { x: pt.x + shift * 2.6, y: pt.y - height },
+        { x: pt.x - shift * 2.6 - width, y: pt.y - height },
+        { x: pt.x + shift * 2.6, y: pt.y + height },
+        { x: pt.x - shift * 2.6 - width, y: pt.y + height },
+        { x: pt.x + shift * 3.5, y: pt.y - height * 0.25 },
+        { x: pt.x - shift * 3.5 - width, y: pt.y - height * 0.25 },
+      );
+    }
     for (const origin of origins) {
       const x = Math.max(margin, Math.min(imageWidth - margin - width, origin.x));
       const y = Math.max(margin + height, Math.min(imageHeight - margin, origin.y));

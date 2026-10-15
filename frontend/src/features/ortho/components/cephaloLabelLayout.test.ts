@@ -51,3 +51,23 @@ describe('DC-CEPH-03B.3e label layout (visual only)', () => {
     expect(cephaloLabelFontSize(2272, 1818)).toBeGreaterThan(18);
   });
 });
+
+// Pure presentation coordinates: full clinical IDs remain the persistence contract.
+describe('R21.2 compact labels do not change editable anatomical coordinates', () => {
+  it('uses a zoom-dependent screen font while keeping boxes separated', () => {
+    const source = JSON.stringify(points);
+    for (const units of [1.5, 2.5, 4]) {
+      const rendered = layoutCephaloLandmarkLabels(points, new Set(points.map(p => p.id)), 'N', 1280, 900, 16 * units);
+      expect(rendered.has('N')).toBe(true);
+      expect(rendered.size).toBeGreaterThanOrEqual(4);
+      const boxes = [...rendered.values()];
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          const a = boxes[i], b = boxes[j];
+          expect(a.x >= b.x+b.width || b.x >= a.x+a.width || a.y-a.height >= b.y || b.y-b.height >= a.y).toBe(true);
+        }
+      }
+    }
+    expect(JSON.stringify(points)).toBe(source);
+  });
+});

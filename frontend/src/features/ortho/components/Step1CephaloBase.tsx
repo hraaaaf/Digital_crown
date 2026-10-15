@@ -331,6 +331,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           imageHeight={imgDim.h}
           viewZoom={activeViewZoom}
           viewPan={activeViewZoom > 1 ? viewPan : { x: 0, y: 0 }}
+          compactLabels={embedded && desktopZoomAvailable}
           onUpdateLandmarks={updateLandmarksOptimistic}
           onKeyboardNudgeLandmark={nudgeLandmarkFromKeyboard}
           activePointId={activePointId}

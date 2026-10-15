@@ -24,6 +24,7 @@ import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
 import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';
 import { CephaloSvgDefs } from './components/CephaloSvgDefs';
 import { getCephaloConstructionViewport, getCephaloZoomViewBox } from './cephaloConstructionViewport';
+import { useCephaloUnitsPerPixel } from './components/useCephaloUnitsPerPixel';
 import { useCephaloInteraction } from './hooks/useCephaloInteraction';
 import type { OrthoLayerId, OrthoLayerOpacity, OrthoLayerVisibility } from './orthoLayerRegistry';
 
@@ -47,6 +48,7 @@ export interface CephaloTracingLayerProps {
   /** Visual crop only. Clinical coordinates are never scaled or rewritten. */
   viewZoom?: number;
   viewPan?: { x: number; y: number };
+  compactLabels?: boolean;
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
   onKeyboardNudgeLandmark?: (id: string, dx: number, dy: number, imageWidth: number, imageHeight: number) => void;
   /** Transient rendering-only drag preview; never stored or committed here. */
@@ -159,6 +161,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   imageHeight,
   viewZoom = 1,
   viewPan,
+  compactLabels = false,
   onUpdateLandmarks,
   onKeyboardNudgeLandmark,
   onLandmarkDragPreview,
@@ -210,6 +213,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     onEmptyAreaClick,
   });
 
+  const unitsPerPixel = useCephaloUnitsPerPixel(
+    svgRef, compactLabels, getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan),
+  );
   const isHoverActive = !!hoveredMetric;
   const isLineHovered = (lineId: string) =>
     isHoverActive && hoveredMetric!.lines.map(l => l.toLowerCase()).includes(lineId.toLowerCase());
@@ -839,6 +845,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           landmarks={landmarks}
           imageWidth={imageWidth}
           imageHeight={imageHeight}
+          compactLabels={compactLabels}
+          unitsPerPixel={unitsPerPixel}
           isCalibrating={isCalibrating}
           baseOpacity={baseOpacity}
           activeDragId={activeDragId}
