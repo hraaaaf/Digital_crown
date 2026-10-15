@@ -16,8 +16,8 @@ from . import journal_lab as journal
 from . import migration_lab as migration
 from . import spool_version_lab as codec
 
-_SCOPE = re.compile(r"[A-Za-z0-9_-]{1,64}\\Z")
-_KEY_ID = re.compile(r"[0-9a-f]{32}\\Z")
+_SCOPE = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
+_KEY_ID = re.compile(r"[0-9a-f]{32}\Z")
 _PHASES = frozenset({"SOURCE", "PREPARED", "VERIFIED", "COMMITTED",
                      "ROLLED_BACK"})
 
