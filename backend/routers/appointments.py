@@ -17,6 +17,7 @@ from backend.services.agenda_availability import (
     validate_appointment_availability,
 )
 from backend.services.agenda_transaction_lock import lock_cabinet_booking
+from backend.services.agenda_booking_occupancy import OCCUPYING_APPOINTMENT_STATUSES
 from backend.services.agenda_resource_conflicts import assert_resource_available, find_resource_conflict, validate_assignable_resource
 
 router = APIRouter(tags=["Appointments"])
@@ -96,7 +97,7 @@ def _find_conflicts(
     window_start = datetime_start - timedelta(hours=4)
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
-        models.Appointment.status != models.AppointmentStatus.ANNULE,
+        models.Appointment.status.in_(OCCUPYING_APPOINTMENT_STATUSES),
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
