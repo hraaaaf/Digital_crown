@@ -42,6 +42,7 @@ import { PatientJourney } from './components/PatientJourney';
 import { PatientFinances } from './components/PatientFinances';
 import { PatientRvgPanel } from './components/PatientRvgPanel';
 import { CabinetMediaViewPilot } from '../multiview/CabinetMediaViewPilot';
+import { CabinetTwoViewsPilot } from '../multiview/CabinetTwoViewsPilot';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientCompanionPanel } from './components/PatientCompanionPanel';
 import { usePatientStore } from '../../stores/usePatientStore';
@@ -380,7 +381,9 @@ export const PatientDetails = () => {
               </div>
 
               <div className="bg-card-bg rounded-[1.25rem] sm:rounded-[1.75rem] shadow-elite border border-border-main overflow-hidden min-h-[60vh] p-1.5 sm:p-2.5 md:p-3 min-w-0">
-                {radioTab === 'media' && <CabinetMediaViewPilot patientId={Number(id)} />}
+                {radioTab === 'media' && (import.meta.env.VITE_V15_07_G1_TWO_VIEWS_PILOT === '1'
+                  ? <CabinetTwoViewsPilot patient={patient} canCephalo={canCephalo} />
+                  : <CabinetMediaViewPilot patientId={Number(id)} />)}
                 {radioTab === 'rvg' && <PatientRvgPanel patientId={Number(id)} />}
                 {radioTab === 'panoramic' && canPanoramic && <PanoramicStudio patientId={Number(id)} patientName={fullName} />}
                 {radioTab === 'cephalo' && canCephalo && (
