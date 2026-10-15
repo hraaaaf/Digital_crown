@@ -642,9 +642,17 @@ class ActionDispatcher:
         e = parsed.entities
         patient_name = e.get("patient_name", "")
         target_date = e.get("target_date", "")
-        time = e.get("time", "09:00")
-        motif = e.get("motif", "Consultation")
+        time = e.get("time")
+        motif = e.get("motif")
         duration = e.get("duration_minutes", 30)
+
+        # No silent date/time/motif: clinical booking proposals need explicit
+        # fields and will be revalidated by the canonical agenda on execution.
+        if not target_date or not time or not motif:
+            return BotResponse(
+                message="Précisez explicitement la date, l'heure et le motif du rendez-vous.",
+                action_type="clarification",
+            )
 
         # Résoudre le patient
         patient_id = e.get("patient_id")
@@ -655,27 +663,14 @@ class ActionDispatcher:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
 
-        date_str = target_date or datetime.now().date().isoformat()
-        
-        # Vérifier si la date tombe pendant un congé ou un jour férié
-        try:
-            target_dt = datetime.fromisoformat(date_str)
-            exception = db.query(models.AgendaException).filter(
-                models.AgendaException.start_date <= target_dt,
-                models.AgendaException.end_date >= target_dt
-            ).first()
-            if exception:
-                return BotResponse(
-                    message=(
-                        f"⚠️ **Impossible de prendre RDV le {date_str}.**\n"
-                        f"Le cabinet est fermé pour : **{exception.reason}**.\n"
-                        f"Voulez-vous choisir une autre date ?"
-                    ),
-                    action_type="read",
-                    suggestions=["Demain", "La semaine prochaine"]
-                )
-        except Exception as e:
-            logger.warning("Vérification congés agenda ignorée : %s", e)
+        if not patient_id:
+            return BotResponse(
+                message="Patient ambigu ou introuvable : sélectionnez un dossier patient précis.",
+                action_type="clarification",
+            )
+        date_str = target_date
+        # Final cabinet/practitioner/resource availability MUST be checked
+        # when the pending action is executed, not by a stale chat preview.
 
         return BotResponse(
             message=(
