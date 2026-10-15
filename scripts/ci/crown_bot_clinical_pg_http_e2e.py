@@ -125,12 +125,13 @@ def run():
     with database.SessionLocal() as db:
         db.execute(text(
             "INSERT INTO agenda_exceptions "
-            "(start_date,end_date,reason,is_holiday,employer_id) "
-            "VALUES (:start,:end,'Synthetic PG closure',false,:tenant)"
+            "(start_date,end_date,reason,is_holiday,employer_id,created_at) "
+            "VALUES (:start,:end,'Synthetic PG closure',false,:tenant,:created_at)"
         ), {
             "start": closure_slot - timedelta(minutes=10),
             "end": closure_slot + timedelta(minutes=45),
             "tenant": doctor_id,
+            "created_at": datetime.utcnow(),
         })
         db.commit()
     blocked = api.post("/api/appointments/", headers=authorization, json={
