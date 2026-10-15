@@ -1,80 +1,80 @@
-# V1.5-07A — Theme Packs & Motion: foundation / isolation contract
+# V1.5-07A — Desktop Experience & MultiView | Foundation Contract
 
-Status: DRAFT / CONTRACT-ONLY / NOT IMPLEMENTED  
-Repository: `hraaaaf/Digital_crown`  
-Baseline: `master@9158902e034c22b162873d5fd44ea7afd45f3e16` (2026-10-14)  
-Canonical product decision: [V1.5-07 Theme Packs & Motion](https://app.notion.com/p/3e677c66336281639049f4cc7be1e5ae)  
-Parallel work: [LOT06 acquisition PR #851](https://github.com/hraaaaf/Digital_crown/pull/851) remains OPEN/DRAFT.
+**Status: DRAFT / CONTRACT-ONLY / NOT IMPLEMENTED.**
+**Baseline verified:** `master@9158902e034c22b162873d5fd44ea7afd45f3e16` (2026-10-15).
+**Canonical authority:** [ROADMAP UNIQUE V1.5](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb) and [LOT07 decisions](https://app.notion.com/p/3e677c66336281639049f4cc7be1e5ae).
+**Isolation:** LOT06 [PR #851](https://github.com/hraaaaf/Digital_crown/pull/851), LOT04/05, Queue, scientific engines, database and deployment remain out of scope. No runtime/UI activation in 07-A.
 
-## 1. Purpose and non-goals
+## 1. Approved product scope (not a proposal)
 
-Make three **visually distinct** product families available without changing any workflow, permissions, clinical meaning, or patient data:
-1. Clinical Minimal;
-2. Color / Friendly;
-3. Premium Motion.
+- **Digital Crown Signature** is one Cabinet Desktop experience with **Signature Core** (today's UI, unchanged baseline/default) and **Signature Iconic** (same layouts and workflows; optional icons, accents, decorations and motion).
+- **Digital Crown Command** is the second, denser clinical workbench. Initial design candidates: Dashboard, Agenda, Patient Dossier, Imaging. Share all business rules, APIs, permissions and patient data; no second clinical app.
+- **MultiView Studio (07.1)** is one shared desktop module/panel engine for both experiences, ultimately applicable to all **eligible and authorized Cabinet Desktop modules**. Not confined to Imaging.
+- **One patient context per workspace**, across every patient-dependent panel. Switching from A to B must be explicit and protected; never show A and B as two dossiers in one workspace.
+- **Desktop Cabinet only.** Do not extend new experiences or MultiView to Hub, Station, Pocket, Patient Companion, mobile or tablet. Preserve and test existing small-screen fallback and mobile behavior without inventing features.
+- Experience selection (Core / Iconic / Command) and MultiView layout selection are two **separate settings scoped per authenticated user AND trusted workstation**; no sync across PCs or cabinet-wide selection.
+- Keep the existing clinic `selected_theme` palette independent, fully backwards-compatible and still available to its current Pocket/mobile consumers.
+- The prior three-pack/theme-only product description and original 10-SP estimate are **historical and superseded**; no automatic new estimate or certification.
 
-This first PR deliberately **does not enable** any pack, expose a new user setting, alter CSS, change persistence, modify UI, run or certify visual screenshots, or imply that the three packs are already implemented. It establishes a reviewable boundary and a concrete acceptance matrix so subsequent PRs can implement the smallest safe slice.
+## 2. Architecture and components to reuse
 
-Excluded: LOT06 hot-folder, imaging gateway, hardware, LOT04/05 imports, queue/LOT08, Station functional behavior, external cloud data transfer, clinical algorithms, DB migrations, and unapproved 07.1 **MultiView Studio** (proposal only).
+| Canonical existing component | Safe reuse / boundary |
+| --- | --- |
+| `frontend/src/index.css` | Semantic tokens, existing legacy themes, high contrast and reduced-motion. No second theme engine. |
+| `frontend/src/features/admin/Settings/tabs/BrandingTab.tsx`, `branding/presets.ts`, `hooks/useSettingsStore.ts` | Cabinet palette, existing animations and preview/save behavior. **Do not** encode personal experience choice in clinic `selected_theme`. |
+| `frontend/src/features/admin/Settings/hooks/themePersistenceTruth.test.ts` | Regression guard: preview before backend ACK must not persist theme. |
+| `frontend/src/components/Layout/MainLayout.tsx` | Reuse one shell, Framer motion and existing navigation. Never embed/cloned entire router, sidebar or global stores in each pane. |
+| `frontend/src/features/patients/components/PatientMediaTimeline.tsx` | Already has authenticated media, T0/T1/T2 and fixed two-media comparison; extend viewer but never call this a general MultiView engine. |
+| `frontend/src/services/workstationMode.ts` | Opaque server-side workstation identity candidate, to verify before preference storage. Existing `defaultExperience` (cabinet/station/control_center) is **not** Core/Iconic/Command. |
+| `frontend/src/stores/useAuthStore.ts`, backend authorization | Authenticated user/context. Every panel access remains controlled by authoritative backend RBAC/tenant, not frontend route presence. |
 
-## 2. Existing baseline — do not create a second theme engine
+**Still open:** module-by-module R (read), W (bounded action), X (full workspace sensitive action) matrix; preference storage/identity on shared/revoked/offline workstations; four actual target mockups; patient A→B interaction; revised SP estimate for all-eligible-modules MultiView; popup protocol and physical proof. Do not infer architectural approval from product-scope approval.
 
-Repository source observations on baseline master (code inspection, not runtime validation):
-- `frontend/src/index.css`: existing `:root` semantic tokens; `[data-theme='emerald'|'rose'|'prestige'|'ocean'|'graphite'|'dark'|'high-contrast']` selectors; `@theme` bridge; reduced-motion rule.
-- `frontend/src/features/admin/Settings/tabs/branding/presets.ts`: current preset-to-`selected_theme` mapping and density defaults.
-- `frontend/src/features/admin/Settings/hooks/useSettingsStore.ts`, `frontend/src/features/admin/Settings/types.ts`: current settings read/write representation.
-- `backend/models.py`, `backend/schemas/cabinet.py`: existing `selected_theme`, default `elite`. No new schema required for foundation.
-- `frontend/src/features/mobile/Dashboard/hooks/useMobileRuntimeTheme.ts`: independent mobile consumer of clinic theme values, which must stay compatible.
-- `frontend/src/styles/patientCompanionTheme.css`, `frontend/src/features/mobile/mobileRuntimeTheme.css`: mobile/patient surfaces already consume shared tokens.
+## 3. Execution gates (G-numbers are order, not replacement canonical sublot IDs)
 
-The three V1.5 pack families are **product-level design choices**. They are not yet proven to map one-to-one to existing `selected_theme` IDs. Do not silently overwrite legacy values, reinterpret `prestige` as motion policy, or store an unrecognized pack name in a field accepted by existing clients.
+### G0 — Signature Core baseline and acceptance (07-A)
+1. Capture real BEFORE of Dashboard, Agenda, Patient Dossier and Imaging from **one recorded current master HEAD** on controlled fictitious fixtures, without AI redraw or fabricated clinical events.
+2. Desktop viewports 1280, 1440, 1920, 2560 plus 200% zoom; verify 390/430/768 only for existing mobile/responsive non-regression.
+3. Check visible clinical truth, legibility, keyboard, focus, contrast, no overflow, relevant RBAC, error states and runtime logs. Log defects with screenshots and exact route/state/HEAD.
+4. Fix real P0/P1/major defects on isolated scope, compare AFTER at identical state/viewport and request explicit visual human approval. Existing V0.3 concepts are historical multi-SHA references (~7.5/10 internal), **not** current runtime proof.
 
-## 3. Architecture contract for 07B+
+**Exit:** approved reproducible Core reference manifest with no unaddressed blocker for scope; NOT a blanket certification without evidence.
 
-**One source of theme truth.** Preserve clinic settings, existing selectors, token naming, and known legacy IDs. Any new family-to-preset mapping must have a documented compatibility table and explicit legacy fallback tested on desktop and Pocket. In absence of full backwards compatibility, use an adapter rather than replacing `selected_theme` semantics.
+### G1 — First safe MultiView (07.1.A + narrow 07.1.B; BEFORE Iconic)
+1. Define authorized `ViewSlot`/module registry and panel lifecycle (server RBAC, tenant and user checks); no duplicated routers, independent invented business stores or arbitrary module embedding.
+2. Lock one active `patientId`; protect unsaved draft, invalidate stale requests and clear patient A media/popup before switching to B. No token, PHI, draft or image in layout preference, history, logs or broadcast.
+3. Implement the first **two-pane** column and row splits for a small approved subset of eligible Desktop modules, with bounded resize, swap, maximize/reset, keyboard/focus and narrow-screen safe fallback.
+4. Layout scoped to user+trusted workstation, independently of visual experience and palette; fail safely to one pane on unknown preference or unreliable device identity.
+5. Execute negative tests for A/B race, revoked role, forbidden module, session expiry and empty/slow media; genuine UI AFTER then owner approval.
 
-**Tokens versus clinical states.** Cosmetic choices may affect surface, background, typography, radius, elevation, non-clinical accents and density. Clinically meaningful danger/warning/success/info semantics remain explicit; textual status, iconography and actions cannot rely solely on color. Tokens must be WCAG-readable under every pack.
+**Exit:** working, secure and accepted vertical/horizontal two-pane pilot. Final product scope all eligible modules remains unchanged.
 
-**Pack is not authority.** Theme/density/motion preferences never change route visibility, RBAC, audit, API permissions, patient media access, clinical calculations, persistence rights, or appointment/financial state. No pack-specific duplication of business components.
+### G2 — Signature Iconic (07-B + targeted 07-D)
+1. Reuse current tokens, Lucide and Framer Motion; enrich iconography/decorations/optional motion without moving or hiding clinical actions or inventing new business flows.
+2. Maintain manual motion-off and `prefers-reduced-motion`, focus/contrast/200% zoom and performance. Never encode clinical safety purely in color or decoration.
+3. Preview without persistence, explicit Apply/Cancel/Rollback, **user+workstation** preference with safe fallback Core; no update to cabinet `selected_theme` on experience selection.
+4. Compare same exact fixtures, screens, actions and permissions to Core; request visual human signoff.
 
-**Motion is independently controllable.** A pack must work when animations are fully disabled. `prefers-reduced-motion: reduce` is a hard accessibility constraint. No motion-dependent interaction, forced transitions, or loss of focus indication.
+**Exit:** demonstrably distinct but functionally identical Iconic, reversible and accepted.
 
-**Preview and rollback.** A preview never silently persists. On cancel/failure, restore the exact previous `selected_theme` and relevant style/font/density state; on reload, persisted settings must be explicit and reversible. Handle offline/unavailable settings API without falsely reporting successful save. Specify authorization and ownership before any write.
+### G3 — Digital Crown Command and advanced MultiView (07-C / 07-D / remaining 07.1)
+1. Dense Dashboard, Agenda, Patient Dossier and Imaging, same underlying components, APIs, rules and auth.
+2. Complete 3-column and 1+2 layouts, size/position persistence, zoom/pan and T0/T1/T2 comparisons with timepoint, date and evidence provenance labels.
+3. Mark **actual results vs projection** unambiguously: “Projection / simulation — résultat non garanti”. No mockup/AI/3D generation silently included.
+4. Patient display popout in **read-only** mode with clinician-side preview then Present action; blank on changed patient, logout, role revocation, lost session/network. Pop-up blocked or unsupported multi-display API must fail to a safe manual fallback. A second PC is not a second local monitor.
+5. Persist visual experience and layout independently per user and workstation, preserving saved state and fail-closed draft/permissions.
 
-**Local-first / remote assets.** Theme presentation cannot introduce transfer of patient data or new external network dependencies. Audit preexisting remote font imports before any release readiness claim. Treat high-contrast mode and text scaling as supported product paths, not a fourth branded family.
+**Exit:** Command and complex MultiView accepted with independently demonstrated same clinical behavior.
 
-**Surfaces.** Include Cabinet desktop, Hub (neutral Digital Crown chrome), Station (touch suitable), Pocket/mobile (only the routes where theming currently exists), and Patient Companion where its current inherited token model applies. Preserve their separate authorization boundaries.
+### G4 — Acceptance and FUE (07-E + 07.1.E)
+- BEFORE / TARGET / AFTER on **exact HEAD**, same data/route/viewport; 1280/1440/1920/2560, 200% zoom, keyboard, contrast, high contrast, reduced-motion, relevant FR/AR, performance.
+- RPG-C/J/F for contracts/journeys/privacy; RPG-X where cross-window actors/transport is involved. Test cross-tenant, cross-patient, stale async work, role changes, offline, bad device state, popup refusal and rollback.
+- Two separate adversarial review perspectives plus exact-HEAD confirmation. No `CONVERGED`, **9.5/10** or `CLOSED` without required independent proof and actual tests; internal self-review has its documented ceiling.
+- Real dual-screen Windows or other physical test remains **LOT10 / PHYSICAL OPEN** until performed on actual devices. Synthetic CI cannot certify that.
+- No automatic merge, Vercel deploy, cabinet installation or release activation.
 
-## 4. Acceptance / evidence matrix (future implementation, not checked by this PR)
+## 4. Stop conditions and next action
 
-| Required check | Observation / failure mode | Gate |
-| --- | --- | --- |
-| Legacy theme compatibility | Current `elite`, `emerald`, `rose`, `prestige`, `ocean`, `graphite`, `dark`, `high-contrast` render correctly; unknown IDs fail to a safe supported default | REQUIRED |
-| Theme invariant | Compare same authorized workflow/API transitions in all 3 families; no RBAC/clinical-state delta | REQUIRED |
-| Mobile support | Confirm which Pocket/Patient Companion/Station routes exist; no invented mobile features; capture applicable surfaces | REQUIRED |
-| Visual BEFORE/TARGET/AFTER | Compare real screenshots at **390, 430, 768, 1280 px**, same routes and states, for each implemented family | REQUIRED |
-| Accessibility | WCAG 2.2-oriented review, keyboard focus, contrast, label semantics, 200% zoom/text scale, reduced-motion, touch targets | REQUIRED |
-| Persistence / reversal | Preview is transient; cancel/refresh/API error and post-save rollback preserve correct state | REQUIRED once persistence is modified |
-| Motion | `prefers-reduced-motion` and manual motion-off both remove nonessential animations without disabling controls | REQUIRED once motion is modified |
-| Reliability/privacy | No patient payloads in theme telemetry/logs; offline/failed API does not claim save | REQUIRED once settings change |
-| Performance | Measure script/layout costs on representative mobile + desktop and report baseline/AFTER | REQUIRED once UI is modified |
-| Extra screenshot modes | Dark/high contrast and Arabic/FR/EN where relevant | REQUIRED for affected surface |
-| CI/evidence | Tests collected/executed on the exact PR HEAD, record skips and artifact links, two adversarial perspectives and clean confirmation | REQUIRED before lot closure |
+Stop if a layout could mix A/B patient contexts, leak PHI or tokens via preference/URL/log/window, lose drafts, bypass server RBAC, silently change real patient data, overwrite existing clinic/mobile themes, or mislabel a projection as actual outcome. UI attractiveness or green docs CI is not proof of runtime UI.
 
-No screenshots, test runs, CI green status or independent human reviews are asserted by this contract-only commit.
-
-## 5. Work sequencing / change control
-
-- **07A (this DRAFT PR)**: baseline contract and isolation only.
-- **07B**: implement *one* mapped pack/prototype with a compatibility adapter and negative tests; collect real BEFORE/TARGET/AFTER evidence. No auto-save at this stage.
-- **07C**: add the other visual families and separately controllable motion/reduced-motion, with functional parity proofs.
-- **07D**: preview/persistence/rollback and a11y/performance gate after required authorization and tests.
-- **07E**: multi-viewport review, independent verification when available, closeout/merge only by separate decision.
-
-Do not touch `tools/imaging_gateway/`, LOT06 docs/workflow, clinical backend, DB/Alembic, imported customer data, or deployment configuration as a shortcut. Begin every implementation slice by checking latest `master`, branch HEAD, exact changed-file list, and current relevant CI; isolate additional work if another PR modifies the same theme settings paths.
-
-## 6. Stop conditions
-
-Block release/merge if a theme can misstate a clinical warning, break high-contrast/reduced-motion, alter access controls, lose a persisted setting, render a Pocket flow unusable, or if the acceptance proof is missing. The LOT07 theme visual gate is **NOT SATISFIED** by this documentation PR.
-
-No Vercel deployment, master merge, production install or release activation is authorized by this document.
+**This PR remains contract-only.** Next: execute G0 verified Core BEFORE on current master, then scoped G1 prototype only after the UX/security contract is approved. All product implementation, mergers and release decisions remain separate.
