@@ -432,3 +432,80 @@ def test_bot_booking_exception_after_flush_rolls_back_business_write(
     db.refresh(action)
     assert action.status == "failed"
     assert action.executed_at is None
+
+def test_bot_status_change_is_atomic_on_precommit_failure(
+    client, db, dentiste, auth_headers
+):
+    import pytest
+    from backend.services.bot.action_dispatcher import ActionDispatcher
+
+    patient = _patient(db, dentiste)
+    future = datetime.now() + timedelta(days=8)
+    appt = models.Appointment(
+        patient_id=patient.id,
+        employer_id=dentiste.get_employer_id(),
+        datetime_start=future,
+        duration_minutes=30,
+        motif="Consultation",
+        status=models.AppointmentStatus.PREVU,
+    )
+    db.add(appt)
+    db.commit()
+    action = _pending(db, dentiste, patient.id, action_type="CHANGE_STATUS")
+    action.params_json = {
+        "appointment_id": appt.id,
+        "status": "ANNULE",
+        "patient_name": "Synthetic Patient",
+    }
+    db.commit()
+    original = ActionDispatcher()
+
+    def inject_after_flush(pending, session, user, **kwargs):
+        result = original.execute(pending, session, user, **kwargs)
+        assert result.action_type == "write_done"
+        assert session.get(models.Appointment, appt.id).status == models.AppointmentStatus.ANNULE
+        raise RuntimeError("synthetic-status-crash-before-commit")
+
+    with patch(
+        "backend.routers.bot.dispatcher.execute",
+        side_effect=inject_after_flush,
+    ), pytest.raises(RuntimeError, match="synthetic-status-crash-before-commit"):
+        client.post(
+            "/api/bot/execute", headers=auth_headers,
+            json={"pending_action_id": action.id},
+        )
+    db.refresh(appt)
+    db.refresh(action)
+    assert appt.status == models.AppointmentStatus.PREVU
+    assert action.status == "failed"
+
+
+def test_bot_status_change_and_action_status_commit_together(
+    client, db, dentiste, auth_headers
+):
+    patient = _patient(db, dentiste)
+    appt = models.Appointment(
+        patient_id=patient.id,
+        employer_id=dentiste.get_employer_id(),
+        datetime_start=datetime.now() + timedelta(days=7),
+        duration_minutes=30, motif="Consultation",
+        status=models.AppointmentStatus.PREVU,
+    )
+    db.add(appt)
+    db.commit()
+    action = _pending(db, dentiste, patient.id, action_type="CHANGE_STATUS")
+    action.params_json = {
+        "appointment_id": appt.id,
+        "status": "ANNULE",
+        "patient_name": "Synthetic Patient",
+    }
+    db.commit()
+    res = client.post(
+        "/api/bot/execute", headers=auth_headers,
+        json={"pending_action_id": action.id},
+    )
+    assert res.status_code == 200, res.text
+    db.refresh(appt)
+    db.refresh(action)
+    assert appt.status == models.AppointmentStatus.ANNULE
+    assert action.status == "executed"
