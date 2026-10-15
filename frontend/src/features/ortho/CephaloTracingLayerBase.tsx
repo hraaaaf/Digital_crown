@@ -847,6 +847,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           imageHeight={imageHeight}
           compactLabels={compactLabels}
           unitsPerPixel={unitsPerPixel}
+          labelViewport={getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan)}
           isCalibrating={isCalibrating}
           baseOpacity={baseOpacity}
           activeDragId={activeDragId}

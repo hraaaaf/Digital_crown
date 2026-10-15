@@ -1,7 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import type { Landmark } from '../cephaloShared';
-import { cephaloLabelFontSize, layoutCephaloLandmarkLabels } from './cephaloLabelLayout';
+import { cephaloLabelFontSize, layoutCephaloLandmarkLabels, layoutCephaloPerimeterLabels } from './cephaloLabelLayout';
 
 const SOFT_TISSUE_IDS = new Set([
   'ul', 'll', 'sn', 'stpog', 'ls', 'li', 'prn', 'cm', 'g_soft', 'n_soft', 'a_soft', 'st', 'b_soft', 'pog_soft', 'me_soft', 'g-soft', 'n-soft'
@@ -15,6 +15,7 @@ interface CephaloLandmarkReticlesProps {
   /** Display-only labels, enabled in the desktop embedded workbench only. */
   compactLabels?: boolean;
   unitsPerPixel?: number;
+  labelViewport?: string;
   isCalibrating: boolean;
   baseOpacity: number;
   activeDragId: string | null;
@@ -51,6 +52,7 @@ export const CephaloLandmarkReticles = ({
   imageHeight,
   compactLabels = false,
   unitsPerPixel = 1,
+  labelViewport = '',
   isCalibrating,
   baseOpacity,
   activeDragId,
@@ -86,12 +88,18 @@ export const CephaloLandmarkReticles = ({
       || point.id === activeDragId || point.id === hoveredPointId
       || point.id === activePointId) shownLabels.add(point.id);
   }
-  const labelPositions = layoutCephaloLandmarkLabels(
+  const labelPositions = compactLabels ? new Map() : layoutCephaloLandmarkLabels(
     landmarks.map(point => activeDragPos?.id === point.id
       ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
     shownLabels, priorityId, imageWidth, imageHeight,
-    compactLabels ? 16 * Math.max(0.1, Math.min(unitsPerPixel, 30)) : undefined,
   );
+  const perimeterLabels = compactLabels
+    ? layoutCephaloPerimeterLabels(
+        landmarks.map(point => activeDragPos?.id === point.id
+          ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
+        labelViewport, unitsPerPixel,
+      )
+    : new Map();
   const labelFontSize = compactLabels
     ? 16 * Math.max(0.1, Math.min(unitsPerPixel, 30))
     : cephaloLabelFontSize(imageWidth, imageHeight);
@@ -281,7 +289,7 @@ export const CephaloLandmarkReticles = ({
                 </>
               )}
 
-              {labelPosition && (
+              {!compactLabels && labelPosition && (
                 <>
                 <rect
                   data-ceph03b-label-background={pt.id}
@@ -318,6 +326,42 @@ export const CephaloLandmarkReticles = ({
           </motion.g>
         );
       })}
+      {compactLabels && !isCalibrating && baseOpacity > 0.08 && (
+        <g data-cephalo-perimeter-labels="true" pointerEvents="none">
+          {landmarks.map(point => {
+            const place = perimeterLabels.get(point.id);
+            if (!place) return null;
+            const emphasized = point.id === activeDragId || point.id === activePointId
+              || point.id === keyboardFocusedId || point.id === hoveredPointId;
+            return (
+              <g key={point.id}>
+                <line
+                  data-cephalo-label-leader={point.id}
+                  x1={place.sourceX} y1={place.sourceY}
+                  x2={place.leaderEndX} y2={place.leaderEndY}
+                  stroke={emphasized ? '#fef08a' : '#dbeafe'}
+                  strokeOpacity={emphasized ? 0.78 : 0.23}
+                  strokeWidth={emphasized ? 1.35 : 0.7}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <text
+                  data-ceph03b-landmark-label={point.id}
+                  data-cephalo-landmark-label={point.id}
+                  x={place.x}
+                  y={place.y}
+                  textAnchor={place.side === 'left' ? 'start' : 'end'}
+                  fontSize={labelFontSize}
+                  fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
+                  fontWeight={emphasized ? 800 : 600}
+                  className="select-none"
+                  fill={emphasized ? '#fef08a' : '#f8fafc'}
+                  style={{ paintOrder: 'stroke', stroke: '#0b1220', strokeWidth: '2.4px' }}
+                >{point.id}</text>
+              </g>
+            );
+          })}
+        </g>
+      )}
     </>
   );
 };

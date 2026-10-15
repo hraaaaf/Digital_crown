@@ -222,14 +222,24 @@ try {
           minCssPx:visible.length?Math.min(...visible.map(x=>x.height)):null,
           invalid,collisions,ids:visible.map(x=>x.id)};
       });
+      const assertNames=(metric,expected,stage)=>{
+        assert(!metric.error && metric.invalid.length===0
+          && metric.total===expected && metric.visible===expected
+          && metric.offStage===0 && metric.minCssPx>=16
+          && metric.collisions.length===0,
+          'ALL NAMES MUST BE SIMULTANEOUS, TEXT-ONLY, COLLISION-FREE '+film+
+          ' '+stage+' expected='+expected+' actual='+JSON.stringify(metric));
+      };
+      const noBoxes=async()=>page.locator('[data-ceph03b-label-background]').count();
       const all100=await labelMetrics();
-      assert(!all100.error&&all100.total>0&&all100.invalid.length===0,
-        'Visible label measurement unavailable on real Step1 '+film+': '+JSON.stringify(all100));
+      assertNames(all100,38,'ALL100');
+      assert((await noBoxes())===0,'Desktop landmark labels must have NO background containers '+film);
 
       // Cross-layer zoom regression witness on the ACTUAL public film, clinical
       // browser and authenticated session. View-only: no analysis PUT is issued.
       await setMode(page,'com');
       const com100=await labelMetrics();
+      assertNames(com100,9,'COM100');
       const readZoom=()=>page.evaluate(()=>{
         const base=document.querySelector('svg[data-cephalo-viewport="base"]');
         const overlay=document.querySelector('svg[data-cephalo-viewport="overlay"]');
@@ -254,7 +264,10 @@ try {
         && Math.abs(crop150[3]-radio.height/1.5)<0.001,
         '150% overlay/base crop mismatch on '+film+': '+JSON.stringify(magnified));
       const com150=await labelMetrics();
+      assertNames(com150,9,'COM150');
       await setMode(page,'all');
+      const all150=await labelMetrics();
+      assertNames(all150,38,'ALL150');
       assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
         'Zoom unexpectedly changed landmark X on '+film);
       await setMode(page,'com');
@@ -266,6 +279,11 @@ try {
       assert(panned.base===panned.overlay && shifted[0]>crop150[0],
         'Pan must move both viewBoxes without skew on '+film+': '+JSON.stringify(panned));
       const comPan=await labelMetrics();
+      assertNames(comPan,9,'COMPAN');
+      await setMode(page,'all');
+      const allPan=await labelMetrics();
+      assertNames(allPan,38,'ALLPAN');
+      await setMode(page,'com');
       const zoomShot=await shot(page,film,'com','1280x900','zoom150-pan');
       await page.getByRole('button',{name:'Afficher toute la radiographie'}).click();
       const reset=await readZoom();
@@ -276,7 +294,7 @@ try {
         'View-only pan/reset mutated anatomical N on '+film);
       zoomProof.push({film,viewport:'1280x900',originalZoom,magnified,panned,reset,
         screenshot:zoomShot,valid:true});
-      labelProof.push({film,viewport:'1280x900',all100,com100,com150,comPan});
+      labelProof.push({film,viewport:'1280x900',all100,all150,allPan,com100,com150,comPan,boxCount:0,valid:true});
       for(const viewport of [{width:1280,height:900},{width:1600,height:1000}]){
         await page.setViewportSize(viewport);
         const size=viewport.width+'x'+viewport.height;

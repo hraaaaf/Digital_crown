@@ -74,3 +74,62 @@ export function layoutCephaloLandmarkLabels(
   }
   return result;
 }
+
+
+/**
+ * R21.2 desktop editorial layout: every anatomical name gets a stable text
+ * position on one of two visual rails. This only creates presentation data.
+ * The source landmarks, calibrated measurements and editing remain untouched.
+ */
+export interface CephaloPerimeterLabel {
+  id: string;
+  x: number;
+  y: number;
+  side: 'left' | 'right';
+  sourceX: number;
+  sourceY: number;
+  leaderEndX: number;
+  leaderEndY: number;
+}
+
+export function layoutCephaloPerimeterLabels(
+  landmarks: Pick<Landmark, 'id' | 'x' | 'y'>[],
+  viewport: string,
+  unitsPerPixel: number,
+): Map<string, CephaloPerimeterLabel> {
+  const result = new Map<string, CephaloPerimeterLabel>();
+  const parts = viewport.trim().split(/\s+/).map(Number);
+  if (parts.length !== 4 || parts.some(value => !Number.isFinite(value))) return result;
+  const [vx, vy, vw, vh] = parts;
+  if (vw <= 0 || vh <= 0 || !Number.isFinite(unitsPerPixel) || unitsPerPixel <= 0) return result;
+  const scale = Math.max(0.1, Math.min(unitsPerPixel, 30));
+  const pad = 13 * scale;
+  const points = landmarks.filter(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))
+    .slice().sort((a, b) => a.x - b.x || a.y - b.y || a.id.localeCompare(b.id));
+  const left = points.slice(0, Math.ceil(points.length / 2));
+  const right = points.slice(Math.ceil(points.length / 2));
+  const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
+  const place = (side: 'left' | 'right', column: typeof points) => {
+    const rows = column.slice().sort((a, b) => a.y - b.y || a.id.localeCompare(b.id));
+    const step = (vh - pad * 2) / Math.max(1, rows.length);
+    const x = side === 'left' ? vx + pad : vx + vw - pad;
+    rows.forEach((pt, index) => {
+      const y = vy + pad + (index + 0.5) * step + 5.5 * scale;
+      // Full clinical name, never a relabeled or truncated anatomical ID.
+      const approxWidth = pt.id.length * 9.7 * scale;
+      const leaderEndX = side === 'left'
+        ? Math.min(x + approxWidth + 7 * scale, vx + vw * 0.47)
+        : Math.max(x - approxWidth - 7 * scale, vx + vw * 0.53);
+      result.set(pt.id, {
+        id: pt.id, x, y, side,
+        sourceX: clamp(pt.x, vx + pad, vx + vw - pad),
+        sourceY: clamp(pt.y, vy + pad, vy + vh - pad),
+        leaderEndX,
+        leaderEndY: y - 5 * scale,
+      });
+    });
+  };
+  place('left', left);
+  place('right', right);
+  return result;
+}

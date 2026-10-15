@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cephaloLabelFontSize, layoutCephaloLandmarkLabels } from './cephaloLabelLayout';
+import { cephaloLabelFontSize, layoutCephaloLandmarkLabels, layoutCephaloPerimeterLabels } from './cephaloLabelLayout';
 
 const points = [
   { id: 'N', x: 800, y: 450 }, { id: 'A', x: 806, y: 454 },
@@ -69,5 +69,34 @@ describe('R21.2 compact labels do not change editable anatomical coordinates', (
       }
     }
     expect(JSON.stringify(points)).toBe(source);
+  });
+});
+
+describe('R21.2 no-container perimeter labeling', () => {
+  const pts = Array.from({ length: 38 }, (_, i) => ({
+    id: 'Anatomic_' + String(i).padStart(2, '0'), x: 150 + i * 37, y: 200 + (i * 101) % 1000,
+  }));
+  it('places all 38 unchanged names in two deterministic balanced rails', () => {
+    const prior = JSON.stringify(pts);
+    for (const [viewBox, scale] of [['0 0 2272 1818', 2.7], ['0 0 1000 1255', 2],
+      ['300 250 1000 900', 1.7]] as const) {
+      const actual = layoutCephaloPerimeterLabels(pts, viewBox, scale);
+      expect(actual.size).toBe(38);
+      expect([...actual.values()].filter(v => v.side === 'left')).toHaveLength(19);
+      expect([...actual.values()].filter(v => v.side === 'right')).toHaveLength(19);
+      for (const item of actual.values()) {
+        expect(item.id).toMatch(/^Anatomic_[0-9]{2}$/);
+        expect([item.x, item.y, item.sourceX, item.sourceY, item.leaderEndX,
+          item.leaderEndY].every(Number.isFinite)).toBe(true);
+      }
+      expect([...layoutCephaloPerimeterLabels([...pts].reverse(), viewBox, scale)])
+        .toEqual([...actual]);
+    }
+    expect(JSON.stringify(pts)).toBe(prior);
+  });
+  it('refuses invalid geometry and scale without writing coordinates', () => {
+    expect(layoutCephaloPerimeterLabels(pts, 'bad', 2).size).toBe(0);
+    expect(layoutCephaloPerimeterLabels(pts, '0 0 0 100', 2).size).toBe(0);
+    expect(layoutCephaloPerimeterLabels(pts, '0 0 200 200', NaN).size).toBe(0);
   });
 });
