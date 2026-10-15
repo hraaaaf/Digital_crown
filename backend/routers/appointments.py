@@ -176,7 +176,18 @@ def _create_appointment_validated(
     The normal public route keeps its existing commit/audit semantics.
     """
     if appt.patient_id:
-        assert_patient_access(appt.patient_id, current_user, db)
+        if defer_commit:
+            # A rejected access check must NOT call audit_service.log(), whose
+            # own commit would accidentally commit bot's executing claim.
+            scoped_patient = db.query(models.Patient).filter(
+                models.Patient.id == appt.patient_id,
+                models.Patient.employer_id == current_user.get_employer_id(),
+                models.Patient.deleted_at.is_(None),
+            ).first()
+            if scoped_patient is None:
+                raise HTTPException(status_code=404, detail="Patient introuvable.")
+        else:
+            assert_patient_access(appt.patient_id, current_user, db)
 
     employer_id = current_user.get_employer_id()
     # Serialize check+insert across independent actions and the normal API.
