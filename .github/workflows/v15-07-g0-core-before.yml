@@ -244,7 +244,8 @@ jobs:
         working-directory: frontend
         shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
+          mkdir -p ../artifacts
           node scripts/run-with-t2-workstation.mjs scripts/v15-07-g0-core-before.mjs 2>&1 | tee ../artifacts/v15-07-g0-runner.log
       - name: Capture failure diagnostics (sanitized)
         if: failure()
