@@ -551,3 +551,33 @@ def test_foreign_patient_redirect_denial_does_not_commit_executing_claim(
     assert "Foreign" not in res.text
     db.refresh(action)
     assert action.status == "failed"
+
+
+def test_legacy_executing_inventory_is_read_only_and_owner_scoped(
+    client, db, dentiste, auth_headers
+):
+    from backend.tests.conftest import make_user
+    own = _pending(db, dentiste, 1, action_type="CREATE_APPOINTMENT")
+    own.status = "executing"
+    another_owner = make_user(db)
+    foreign = _pending(db, another_owner, 1, action_type="CREATE_APPOINTMENT")
+    foreign.status = "executing"
+    db.commit()
+
+    r = client.get("/api/bot/execute/reconciliation", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "manual_reconciliation_required"
+    assert body["safe_to_retry"] is False
+    assert body["automatic_reset"] is False
+    assert len(body["actions"]) == 1
+    assert body["actions"][0]["action_id"] == own.id
+    assert foreign.id not in r.text
+    assert "params_json" not in r.text
+    assert "patient_id" not in r.text
+    db.refresh(own)
+    assert own.status == "executing"
+
+    client.cookies.clear()
+    anonymous = client.get("/api/bot/execute/reconciliation")
+    assert anonymous.status_code == 401
