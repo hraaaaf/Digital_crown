@@ -289,3 +289,54 @@ def test_sqlcipher_busy_returns_safe_http_409_not_unhandled_500(
     assert response.status_code == 409, response.text
     assert "Vérifiez le rendez-vous" in response.json()["detail"]
     assert "synthetic" not in response.text.lower()
+
+
+def test_eight_hour_legacy_booking_cannot_be_hidden_by_four_hour_lookback(db, dentiste):
+    from backend.routers.appointments import _find_conflicts
+    start = _slot(23, 9)
+    candidate = _slot(23, 14)  # 5 hours after start, before its 17:00 end
+    existing = _appointment(db, dentiste, start)
+    existing.duration_minutes = 480
+    db.commit()
+    assert [x.id for x in _find_conflicts(
+        db, dentiste.get_employer_id(), dentiste.id, candidate, 30
+    )] == [existing.id]
+    before = db.query(models.Appointment).count()
+    with pytest.raises(HTTPException) as exc:
+        create_appointment(
+            schemas.AppointmentCreate(
+                patient_name="Synthetic Overlap",
+                praticien_id=dentiste.id,
+                datetime_start=candidate, duration_minutes=30,
+            ), db, dentiste,
+        )
+    assert exc.value.status_code == 409
+    assert db.query(models.Appointment).count() == before
+
+
+def test_expired_frontdesk_request_never_emits_availability_message(
+    client, db, dentiste, auth_headers
+):
+    request = models.Appointment(
+        employer_id=dentiste.get_employer_id(),
+        patient_name="Expired Synthetic",
+        datetime_start=_slot(24, 11),
+        duration_minutes=30,
+        status=models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+        expires_at=datetime.utcnow() - timedelta(seconds=1),
+    )
+    db.add(request)
+    db.commit()
+    res = client.post(
+        f"/api/appointments/{request.id}/request-confirmation",
+        headers=auth_headers,
+    )
+    assert res.status_code == 410, res.text
+    assert "disponible" not in res.text.lower()
+    db.refresh(request)
+    assert request.status == models.AppointmentStatus.EXPIRE
+    assert db.query(models.AuditLog).filter(
+        models.AuditLog.resource_id == str(request.id),
+        models.AuditLog.action == "FRONTDESK_APPOINTMENT_EXPIRED",
+    ).count() == 1
