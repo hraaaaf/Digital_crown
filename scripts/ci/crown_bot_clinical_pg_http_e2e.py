@@ -6,6 +6,8 @@ Must run only against an isolated fresh CI database, never clinic/prod DB.
 """
 import json
 import os
+import sys
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from threading import Barrier
@@ -13,6 +15,13 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import text
+
+# Invoked as `python scripts/ci/crown_bot_clinical_pg_http_e2e.py`: Python
+# normally places scripts/ci, not the repository root, on sys.path.
+# Add only this repository root. Never import backend/tests/conftest,
+# which intentionally overrides DATABASE_URL to SQLite in-memory.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
 
 assert os.environ.get("CROWN_BOT_CLINICAL_CI_DATABASE") == "synthetic-only", "Refusing non-CI execution"
 _ci_url = os.environ.get("DATABASE_URL", "")
