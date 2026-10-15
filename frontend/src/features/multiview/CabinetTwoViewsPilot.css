@@ -1,0 +1,39 @@
+/*
+ * Cabinet Desktop two-view pilot only.
+ * Use the actual PANEL width, not the global browser width, to adapt existing
+ * media toolbar columns. No palette overrides, no clinical component forks.
+ */
+[data-v15-07-second-pane] {
+  container-type: inline-size;
+}
+
+@container (max-width: 760px) {
+  [data-v15-07-second-pane] [data-testid="patient-media-timeline"] > div:first-child > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  [data-v15-07-second-pane] [aria-label="Recherche et filtres médias"] {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  [data-v15-07-second-pane] [aria-label="Recherche et filtres médias"] > label,
+  [data-v15-07-second-pane] [aria-label="Recherche et filtres médias"] > button {
+    grid-column: 1 / -1;
+  }
+
+  [data-v15-07-second-pane] [data-testid="patient-media-timeline"] > div:nth-of-type(2) > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  [data-v15-07-second-pane] [data-testid="patient-media-timeline"] > div:nth-of-type(2) > div > button {
+    grid-column: 1 / -1;
+  }
+
+  [data-v15-07-second-pane] [data-testid="media-inline-viewer"],
+  [data-v15-07-second-pane] [data-testid="media-asset-rail"] {
+    min-width: 0;
+  }
+}
