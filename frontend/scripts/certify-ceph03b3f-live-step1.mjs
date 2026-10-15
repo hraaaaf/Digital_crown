@@ -309,11 +309,34 @@ try {
       assert([401,403].includes(anonRead.status()),'Anonymous GET leaked persisted landmark analysis');
       assert([401,403].includes(anonMedia.status()),'Anonymous GET leaked protected image');
       const beforeReload=await shot(page,film,'all','1600x1000','edited');
+      // Fail closed on the real patient-scoped active/trash history API before
+      // asking the actual History UI to hydrate the persisted analysis.
+      const activeHistoryResponse=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-analyses');
+      const trashHistoryResponse=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-trash');
+      assert(activeHistoryResponse.status()===200 && trashHistoryResponse.status()===200,
+        'Patient history API failed: active='+activeHistoryResponse.status()+
+        ' trash='+trashHistoryResponse.status()+' film='+film);
+      const activeHistory=await activeHistoryResponse.json();
+      const trashHistory=await trashHistoryResponse.json();
+      assert(Array.isArray(activeHistory)&&Array.isArray(trashHistory)
+        &&activeHistory.some(record=>record.id===id)&&!trashHistory.some(record=>record.id===id),
+        'Persisted analysis not active in patient history: '+film+
+        ' expected='+id+' activeIds='+JSON.stringify(Array.isArray(activeHistory)?activeHistory.map(x=>x.id):activeHistory)+
+        ' trashIds='+JSON.stringify(Array.isArray(trashHistory)?trashHistory.map(x=>x.id):trashHistory));
       // Real product rehydration: fresh browser navigation -> actual History UI
       // -> authenticated GET -> real store, no imported JSON snapshots.
       await page.reload({waitUntil:'domcontentloaded'});
       await page.getByRole('button',{name:'Historique',exact:true}).first().click();
-      await page.getByText('Analyse enregistrée').first().waitFor({timeout:30000});
+      await page.getByText('Analyse enregistrée').first().waitFor({timeout:30000}).catch(async error=>{
+        const body=(await page.locator('body').innerText().catch(()=>'' )).slice(0,2800);
+        const diagnostic={film,patient,analysisId:id,
+          historyActiveIds:activeHistory.map(record=>record.id),
+          historyTrashIds:trashHistory.map(record=>record.id),
+          pageUrl:page.url(),body};
+        await writeFile(path.join(out,film+'-history-ui-failure.json'),JSON.stringify(diagnostic,null,2));
+        await page.screenshot({path:path.join(out,film+'-history-ui-failure.png'),fullPage:false}).catch(()=>{});
+        throw new Error('History UI did not render verified active analysis '+id+': '+body.slice(0,800),{cause:error});
+      });
       const reloadGet=page.waitForResponse(resp=>resp.url().includes(pathForId(id))
         &&resp.request().method()==='GET',{timeout:30000});
       await page.getByText('Analyse enregistrée').first().click();
