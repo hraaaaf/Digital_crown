@@ -97,7 +97,8 @@ class ActionDispatcher:
         return matches[0] if len(matches) == 1 else None
 
     def execute(
-        self, pending_action: Dict[str, Any], db: Session, user: models.User
+        self, pending_action: Dict[str, Any], db: Session, user: models.User,
+        *, transactional: bool = False,
     ) -> BotResponse:
         """Exécute une pending_action confirmée par l'utilisateur."""
         action_type = pending_action.get("type")
@@ -116,6 +117,8 @@ class ActionDispatcher:
                 action_type="error",
             )
         try:
+            if transactional and action_type in {"CREATE_APPOINTMENT", "CHANGE_STATUS"}:
+                return fn(params, db, user, defer_commit=True)
             return fn(params, db, user)
         except HTTPException:
             # S2 : refus permission/tenant (assert_patient_access) — on laisse
@@ -129,14 +132,15 @@ class ActionDispatcher:
             )
 
     def _exec_create_appointment(
-        self, params: Dict[str, Any], db: Session, user: models.User
+        self, params: Dict[str, Any], db: Session, user: models.User,
+        *, defer_commit: bool = False,
     ) -> BotResponse:
         """Execute through the SAME canonical booking guards as /api/appointments.
 
         Never commit a bare Appointment: that bypasses closures, conflicts,
         practitioner and resource validation. Explicit identity/time are required.
         """
-        from backend.routers.appointments import create_appointment
+        from backend.routers.appointments import _create_appointment_validated
         from backend.schemas.appointments import AppointmentCreate
 
         employer_id = user.get_employer_id()
@@ -179,7 +183,7 @@ class ActionDispatcher:
         # The canonical router validates practitioner assignment (secretaries
         # must supply one), weekly/exception availability, overlap and resource.
         # It also commits the appointment and its standard audit event.
-        appointment = create_appointment(
+        appointment = _create_appointment_validated(
             appt=AppointmentCreate(
                 patient_id=patient_id,
                 praticien_id=params.get("praticien_id"),
@@ -191,6 +195,7 @@ class ActionDispatcher:
             ),
             db=db,
             current_user=user,
+            defer_commit=defer_commit,
         )
         return BotResponse(
             message=(
@@ -203,7 +208,8 @@ class ActionDispatcher:
         )
 
     def _exec_change_status(
-        self, params: Dict[str, Any], db: Session, user: models.User
+        self, params: Dict[str, Any], db: Session, user: models.User,
+        *, defer_commit: bool = False,
     ) -> BotResponse:
         """Applique réellement le changement de statut du RDV."""
         employer_id = user.get_employer_id()
@@ -219,7 +225,10 @@ class ActionDispatcher:
             appt.status = models.AppointmentStatus[status_name]
         except KeyError:
             return BotResponse(message=f"Statut invalide : {status_name}", action_type="error")
-        db.commit()
+        if defer_commit:
+            db.flush()
+        else:
+            db.commit()
 
         return BotResponse(
             message=(
