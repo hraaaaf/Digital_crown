@@ -153,6 +153,19 @@ jobs:
           if (!patient) throw Error('No isolated T2 patient fixture');
           const fixturePatientName = [patient.nom, patient.prenom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
           if (!fixturePatientName) throw Error('T2 fixture has no displayable patient name');
+          // Seed genuine authenticated MEDIA API rows on disposable T2 patient only.
+          // These are flat synthetic PNG fixtures (not clinical images), via the
+          // existing certified C5 import contract; no mock HTTP handlers.
+          const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEANmpCD8ongcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfUJxAYTIfIvQAAAAAElFTkSuQmCC','base64');
+          for (const point of ['T0','T1','T2']) {
+            const uploaded = await api.post('/api/patients/' + patient.id + '/assets/import',{
+              headers,multipart:{
+                file:{name:'g1-fictif-'+point.toLowerCase()+'.png',mimeType:'image/png',buffer:png},
+                asset_type:'PHOTO',source_kind:'UPLOAD',timepoint:point
+              }
+            });
+            if(!uploaded.ok())throw Error('Synthetic T2 '+point+' MEDIA API import rejected: HTTP '+uploaded.status());
+          }
 
           const screens = [
             {key:'dashboard',path:'/dashboard'},
@@ -238,6 +251,18 @@ jobs:
                           await select.selectOption('dossier');
                           await summary.waitFor({state:'visible'});
                         }
+                        // Two genuine server-backed PHOTO assets from the synthetic T2
+                        // fixture: select exactly T0 and T1, not just two arbitrary rows.
+                        const mediaRail = page.locator('[data-testid="media-asset-rail"]');
+                        await mediaRail.locator('section[aria-label="Temps T0"]').getByRole('button',{name:'Ajouter à la comparaison'}).first().click();
+                        await mediaRail.locator('section[aria-label="Temps T1"]').getByRole('button',{name:'Ajouter à la comparaison'}).first().click();
+                        const comparison = page.locator('[data-testid="media-compare-panel"]');
+                        await comparison.waitFor({state:'visible',timeout:25000});
+                        const pair=await comparison.getByRole('heading').first().innerText();
+                        if(!(pair.includes('T0')&&pair.includes('T1')))throw Error('API-backed T0/T1 photo comparison missing '+pair);
+                        await comparison.scrollIntoViewIfNeeded();
+                        await page.screenshot({path:path.join(out,'imagerie-photos-T0-T1-vraies-api-desktop1440.png'),fullPage:false});
+                        await page.getByRole('button',{name:'Fermer la comparaison'}).click();
                         // CSS theme rerender proof in the REAL authenticated Cabinet media route.
                         const frame=page.locator('[data-v15-07-theme-slot]').first();
                         const lightBg=await frame.evaluate(el=>getComputedStyle(el).backgroundColor);
