@@ -522,3 +522,7 @@ async def bot_cancel_action(
 # Explicitly isolated experimental preview; no influence on legacy chat/execute.
 from backend.routers import bot_workflows as _bot_workflows  # noqa: E402
 router.include_router(_bot_workflows.router)
+
+# Diagnostic-only inventory for legacy durable executing claims.
+from backend.routers import bot_reconciliation as _bot_reconciliation  # noqa: E402
+router.include_router(_bot_reconciliation.router)
