@@ -239,6 +239,16 @@ class ActionDispatcher:
         employer_id = user.get_employer_id()
         expected_patient_id = params.get("patient_id")
         appointment_id = params.get("appointment_id")
+        expected_status_name = params.get("expected_status")
+        try:
+            expected_status = models.AppointmentStatus[expected_status_name]
+        except (KeyError, TypeError):
+            # Historical confirmations without original status cannot prove
+            # the appointment is still in the state shown to the user.
+            return BotResponse(
+                message="Statut du rendez-vous non vérifiable : préparez une nouvelle confirmation.",
+                action_type="error",
+            )
         if (
             isinstance(expected_patient_id, bool)
             or not isinstance(expected_patient_id, int)
@@ -268,17 +278,19 @@ class ActionDispatcher:
             )
 
         # SQL CAS locks this exact row until /bot/execute's final commit.
-        # Patient reassignment/deletion after preview yields rowcount=0.
+        # Patient reassignment/deletion OR any intervening status change
+        # (including cancellation) after preview yields rowcount=0.
         # Never modify soft-deleted or another clinic's appointment.
         updated = db.query(models.Appointment).filter(
             models.Appointment.id == appointment_id,
             models.Appointment.employer_id == employer_id,
             models.Appointment.patient_id == expected_patient_id,
             models.Appointment.deleted_at.is_(None),
+            models.Appointment.status == expected_status,
         ).update({"status": next_status}, synchronize_session=False)
         if updated != 1:
             return BotResponse(
-                message="Rendez-vous archivé, réattribué ou introuvable : action refusée.",
+                message="Rendez-vous modifié, annulé, archivé ou réattribué : actualisez avant de confirmer.",
                 action_type="error",
             )
         if defer_commit:
@@ -1001,6 +1013,7 @@ class ActionDispatcher:
                 "params": {
                     "appointment_id": appt.id,
                     "patient_id": patient.id,
+                    "expected_status": appt.status.name,
                     "status": status_name,
                     "status_label": status_label,
                     "patient_name": f"{patient.prenom} {patient.nom}",
