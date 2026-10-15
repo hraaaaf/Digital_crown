@@ -186,6 +186,34 @@ def run():
         if final.status == models.AppointmentStatus.CONFIRME:
             assert final.praticien_id == doctor_id
     print("CLINICAL_REAL_FRONTDESK_CONFIRM_REJECT_RACE: PASS")
+    # A legacy unassigned appointment blocks ALL practitioner calendars.
+    # The patient-companion service must agree with canonical Agenda on both
+    # true production database drivers, not only synthetic SQLite memory.
+    from types import SimpleNamespace
+    from backend.services.patient_companion_agenda import _validate_exact_slot
+    legacy_slot = first_slot + timedelta(days=5)
+    with database.SessionLocal() as db:
+        legacy = models.Appointment(
+            patient_name="Legacy Global Blocker", employer_id=doctor_id,
+            datetime_start=legacy_slot, duration_minutes=30,
+            praticien_id=None, status=models.AppointmentStatus.PREVU,
+            scheduling_type=models.SchedulingType.EXACT_TIME,
+        )
+        db.add(legacy)
+        db.commit()
+        outcome = _validate_exact_slot(
+            db, SimpleNamespace(employer_id=doctor_id),
+            start=legacy_slot, duration=30, practitioner_id=doctor_id,
+            resource_id=None,
+        )
+        assert outcome == "SLOT_CONFLICT", outcome
+    denied_legacy = api.post("/api/appointments/", headers=authorization, json={
+        "patient_name": "Should Not Book", "praticien_id": doctor_id,
+        "datetime_start": legacy_slot.isoformat(), "duration_minutes": 30,
+    })
+    assert denied_legacy.status_code == 409, denied_legacy.text
+    print("CLINICAL_REAL_LEGACY_NULL_PRACTITIONER_CROSS_INGRESS: PASS")
+
 
 
     # Real clinical closure, no mocks: check that a conflicting creation does
