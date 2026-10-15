@@ -282,6 +282,9 @@ def update_appointment(
         validate_assignable_resource(db, employer_id, update_data["resource_id"])
 
     if any(key in update_data for key in ("datetime_start", "duration_minutes", "scheduling_type", "praticien_id", "resource_id")):
+        # Shared with single/bulk/bot/mobile/companion: lock before rechecking
+        # an alternate time/resource to avoid a cross-entry lost reservation.
+        lock_cabinet_booking(db, employer_id)
         effective_start = _naive_datetime(update_data.get("datetime_start", db_appt.datetime_start))
         effective_duration = update_data.get("duration_minutes", db_appt.duration_minutes)
         effective_type = update_data.get("scheduling_type", db_appt.scheduling_type)
@@ -429,6 +432,9 @@ def create_bulk_appointments(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = current_user.get_employer_id()
+    # One transaction-scoped lock for the entire batch, including conflict
+    # checks against other ingress routes and all subsequent inserts.
+    lock_cabinet_booking(db, employer_id)
     prepared = []
 
     for index, item in enumerate(payload.appointments):
