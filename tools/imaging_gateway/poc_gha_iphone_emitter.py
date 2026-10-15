@@ -128,16 +128,30 @@ def main() -> None:
     raw[-1] ^= 1
     corrupt["payload_b64"] = base64.b64encode(raw).decode("ascii")
     (args.out / "receipt_tampered.json").write_text(json.dumps(corrupt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    # DEMO only. Public key ships with signed receipt to simplify phone UX.
+    # It is NOT independent issuer authentication, trusted pinning or witness CAS.
+    (args.out / "public_key_b64.txt").write_text(public_key + "\n", encoding="ascii")
+    (args.out / "receiver_bundle.json").write_text(
+        json.dumps({
+            "protocol": "DC06M-IPHONE-POC-BUNDLE-v1",
+            "public_key_b64": public_key,
+            "expected_sha": args.source_sha,
+            "expected_run_id": args.run_id,
+            "valid": packet,
+            "tampered": corrupt,
+            "trust_limit": "DEMO_ONLY_SELF_DISTRIBUTED_PUBKEY_NOT_INDEPENDENT_AUTHORITY",
+        }, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     shutil.copyfile(Path(__file__).with_name("poc_gha_iphone_receiver.html"), args.out / "receiver.html")
     (args.out / "README.txt").write_text(
-        "LOT06-M SYNTHETIC ED25519 POC — NO PATIENT DATA / NO CAS / NO CLINICAL ACK\n"
-        "1. On iPhone, signed into GitHub, download the Actions artifact ZIP.\n"
-        "2. On the job summary, copy PUBLIC KEY base64 and SHA / RUN ID.\n"
-        "3. Open receiver.html in a browser executing local HTML JavaScript; "
-        "iOS Files preview may NOT do so. If WebCrypto is blocked, gate = BLOCKED.\n"
-        "4. Paste public key (not from packet ZIP), choose receipt.json and Verify.\n"
-        "5. Repeat with receipt_tampered.json; expected = REJECTED.\n"
-        "6. Results from Safari on a real device require separate observation.\n",
+        "LOT06-M SYNTHETIC ED25519 DEMO - NO PATIENT DATA / NO CAS / NO CLINICAL ACK\n"
+        "1. The artifact ZIP now includes public_key_b64.txt and receiver_bundle.json.\n"
+        "2. Bundling key with receipt is a DEMO convenience, NOT independent pinning.\n"
+        "3. Prefer the in-chat iPhone WebCrypto receiver preloaded with bundle.\n"
+        "4. Valid must VERIFY; tampered must REJECT.\n"
+        "5. Local HTML from iOS Files preview may block JS or crypto.subtle.\n"
+        "6. Device gate only closes with actual observed iPhone results.\n",
         encoding="utf-8")
     with args.summary.open("a", encoding="utf-8") as s:
         s.write("\n## LOT06-M synthetic iPhone receipt POC\n\n")
