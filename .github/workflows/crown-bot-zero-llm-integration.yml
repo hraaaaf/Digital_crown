@@ -6,6 +6,8 @@ on:
       - backend/config.py
       - backend/routers/bot.py
       - backend/routers/bot_workflows.py
+      - backend/routers/bot_reconciliation.py
+      - tests/test_fue_g04_crown_bot_sqlcipher.py
       - backend/services/bot/workflow_poc.py
       - backend/services/bot/atomic_action_claim.py
       - backend/services/bot/action_dispatcher.py
@@ -38,7 +40,7 @@ jobs:
           python-version: '3.12'
       - name: Compile changed code
         run: |
-          python -m compileall -q backend/services/bot/workflow_poc.py backend/services/bot/atomic_action_claim.py backend/services/bot/action_dispatcher.py backend/services/agenda_transaction_lock.py backend/routers/appointments.py backend/routers/bot_workflows.py backend/routers/bot.py backend/config.py
+          python -m compileall -q backend/services/bot/workflow_poc.py backend/services/bot/atomic_action_claim.py backend/services/bot/action_dispatcher.py backend/services/agenda_transaction_lock.py backend/routers/appointments.py backend/routers/bot_workflows.py backend/routers/bot_reconciliation.py backend/routers/bot.py backend/config.py
       - name: Run pure FSM tests
         run: python -m unittest discover -s backend/tests -p 'test_crown_bot_zero_llm_poc.py' -v
 
@@ -73,6 +75,24 @@ jobs:
         run: python -m pip install 'sqlalchemy>=2.0,<3' psycopg2-binary
       - name: Execute two-connection CAS, crash rollback and distinct-booking serialization
         run: python -m unittest discover -s backend/tests -p 'test_bot_atomic_claim_postgres.py' -v
+
+  sqlcipher-real:
+    name: Real encrypted SQLCipher booking concurrency and crash
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install SQLCipher runtime library
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Install SQLCipher test runtime
+        run: python -m pip install 'pytest>=8,<10' 'sqlalchemy>=2.0,<3' 'sqlcipher3==0.6.2'
+      - name: Encrypted on-disk two-connection booking and crash regression
+        run: python -m pytest tests/test_fue_g04_crown_bot_sqlcipher.py -q
 
   api:
     name: Flag OFF + tenant + action replay API regressions
