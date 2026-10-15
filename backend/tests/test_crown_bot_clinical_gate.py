@@ -142,12 +142,13 @@ def test_clinic_real_cabinet_closure_rejects_booking(db, dentiste):
     _cabinet_week(db, dentiste.get_employer_id())
     db.execute(text(
         "INSERT INTO agenda_exceptions "
-        "(start_date,end_date,reason,is_holiday,employer_id) "
-        "VALUES (:start,:end,'Synthetic closure',0,:employer)"
+        "(start_date,end_date,reason,is_holiday,employer_id,created_at) "
+        "VALUES (:start,:end,'Synthetic closure',0,:employer,:created_at)"
     ), {
         "start": slot - timedelta(minutes=15),
         "end": slot + timedelta(minutes=45),
         "employer": dentiste.get_employer_id(),
+        "created_at": datetime.utcnow(),
     })
     db.commit()
     with pytest.raises(HTTPException) as exc:
