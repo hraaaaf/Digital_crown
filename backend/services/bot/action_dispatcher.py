@@ -90,7 +90,11 @@ class ActionDispatcher:
         return query
 
     def _find_patient_by_name(self, db: Session, employer_id: int, name: str):
-        return self._patient_query_by_name(db, employer_id, name).first()
+        # Ambiguous homonyms must never silently resolve to the first record.
+        matches = self._patient_query_by_name(db, employer_id, name).filter(
+            models.Patient.deleted_at.is_(None)
+        ).limit(2).all()
+        return matches[0] if len(matches) == 1 else None
 
     def execute(
         self, pending_action: Dict[str, Any], db: Session, user: models.User
@@ -127,64 +131,75 @@ class ActionDispatcher:
     def _exec_create_appointment(
         self, params: Dict[str, Any], db: Session, user: models.User
     ) -> BotResponse:
-        """Crée réellement le rendez-vous en base."""
-        from datetime import datetime as dt
+        """Execute through the SAME canonical booking guards as /api/appointments.
 
-        patient_id = params.get("patient_id")
-        patient_name = params.get("patient_name", "")
-        datetime_str = params.get("datetime_start")
-        motif = params.get("motif", "Consultation")
-        duration = params.get("duration_minutes", 30)
+        Never commit a bare Appointment: that bypasses closures, conflicts,
+        practitioner and resource validation. Explicit identity/time are required.
+        """
+        from backend.routers.appointments import create_appointment
+        from backend.schemas.appointments import AppointmentCreate
+
         employer_id = user.get_employer_id()
-
-        # Résoudre patient_id si absent
-        if not patient_id and patient_name:
-            patient = self._find_patient_by_name(db, employer_id, patient_name)
+        patient_id = params.get("patient_id")
+        if not patient_id and params.get("patient_name"):
+            patient = self._find_patient_by_name(
+                db, employer_id, str(params["patient_name"])
+            )
             if patient:
                 patient_id = patient.id
-                patient_name = f"{patient.prenom} {patient.nom}"
 
-        # S2 : le patient_id de la pending_action est fourni par le client.
-        # On vérifie qu'il appartient bien au cabinet AVANT toute écriture.
-        if patient_id:
-            assert_patient_access(patient_id, user, db)
-
-        if not datetime_str:
+        if isinstance(patient_id, bool) or not isinstance(patient_id, int) or patient_id <= 0:
             return BotResponse(
-                message="Date et heure manquantes pour créer le rendez-vous.",
+                message="Patient ambigu ou introuvable : sélectionnez son identifiant exact.",
                 action_type="error",
             )
+        assert_patient_access(patient_id, user, db)
+        patient = db.query(models.Patient).filter(
+            models.Patient.id == patient_id,
+            models.Patient.employer_id == employer_id,
+            models.Patient.deleted_at.is_(None),
+        ).first()
+        if patient is None:
+            return BotResponse(message="Patient non actif ou supprimé.", action_type="error")
 
+        datetime_str = params.get("datetime_start")
+        motif = params.get("motif")
+        duration = params.get("duration_minutes")
+        if not isinstance(datetime_str, str) or not isinstance(motif, str) or not motif.strip():
+            return BotResponse(message="Date, heure et motif explicites requis.", action_type="error")
+        if isinstance(duration, bool) or not isinstance(duration, int) or not (5 <= duration <= 480):
+            return BotResponse(message="Durée du rendez-vous invalide.", action_type="error")
         try:
-            datetime_start = dt.fromisoformat(datetime_str)
+            datetime_start = datetime.fromisoformat(datetime_str)
         except ValueError:
-            return BotResponse(
-                message=f"Format de date invalide : {datetime_str}",
-                action_type="error",
-            )
+            return BotResponse(message="Date et heure de rendez-vous invalides.", action_type="error")
+        if datetime_start.tzinfo is not None or datetime_start <= datetime.now():
+            return BotResponse(message="Créneau passé ou fuseau non explicité dans l'agenda du cabinet.", action_type="error")
 
-        appt = models.Appointment(
-            patient_id=patient_id,
-            patient_name=patient_name if not patient_id else None,
-            datetime_start=datetime_start,
-            duration_minutes=duration,
-            motif=motif,
-            employer_id=employer_id,
+        # The canonical router validates practitioner assignment (secretaries
+        # must supply one), weekly/exception availability, overlap and resource.
+        # It also commits the appointment and its standard audit event.
+        appointment = create_appointment(
+            appt=AppointmentCreate(
+                patient_id=patient_id,
+                praticien_id=params.get("praticien_id"),
+                resource_id=params.get("resource_id"),
+                datetime_start=datetime_start,
+                duration_minutes=duration,
+                motif=motif.strip(),
+                source="bot",
+            ),
+            db=db,
+            current_user=user,
         )
-        db.add(appt)
-        db.commit()
-        db.refresh(appt)
-
-        date_label = datetime_start.strftime("%d/%m/%Y à %Hh%M")
         return BotResponse(
             message=(
-                f"✅ **Rendez-vous créé !**\n"
-                f"👤 {patient_name or 'Patient à identifier'}\n"
-                f"📅 {date_label} · {duration} min · {motif}"
+                f"✅ Rendez-vous créé pour {patient.prenom} {patient.nom} : "
+                f"{datetime_start:%d/%m/%Y à %Hh%M}, {duration} min."
             ),
-            data={"appointment_id": appt.id},
+            data={"appointment_id": appointment.id},
             action_type="write_done",
-            suggestions=["Agenda d'aujourd'hui", "Créer un autre RDV"],
+            suggestions=["Agenda d'aujourd'hui"],
         )
 
     def _exec_change_status(
