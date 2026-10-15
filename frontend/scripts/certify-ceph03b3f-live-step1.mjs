@@ -223,8 +223,12 @@ try {
         && Math.abs(crop150[2]-radio.width/1.5)<0.001
         && Math.abs(crop150[3]-radio.height/1.5)<0.001,
         '150% overlay/base crop mismatch on '+film+': '+JSON.stringify(magnified));
+      await setMode(page,'all');
       assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
         'Zoom unexpectedly changed landmark X on '+film);
+      await setMode(page,'com');
+      assert((await readZoom()).base===magnified.base && (await readZoom()).overlay===magnified.overlay,
+        'Mode switch must not reset COM zoom on '+film);
       await page.getByRole('button',{name:'Déplacer la radiographie à droite'}).click();
       const panned=await readZoom();
       const shifted=crop(panned.base);
@@ -235,6 +239,7 @@ try {
       const reset=await readZoom();
       assert(reset.base===imageView && reset.overlay===imageView && reset.level?.includes('100'),
         'Zoom reset did not restore complete image on '+film);
+      await setMode(page,'all');
       assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
         'View-only pan/reset mutated anatomical N on '+film);
       zoomProof.push({film,viewport:'1280x900',originalZoom,magnified,panned,reset,
