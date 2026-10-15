@@ -79,11 +79,14 @@ try{
  await page.getByRole('button',{name:'Agrandir cette vue'}).click();
  assert.equal(await page.locator('[data-count]').innerText(),'2');
  for(const theme of themes){
-   const s=await page.evaluate(theme=>{
+   const s=await page.evaluate(async theme=>{
      document.documentElement.dataset.theme=theme==='elite'?'':theme;
      document.body.dataset.theme=theme==='elite'?'':theme;
      document.documentElement.style.removeProperty('--primary');
      document.body.style.removeProperty('--primary');
+     // Real Digital Crown CSS animates theme colors for 400 ms.
+     // Sample only the settled computed values, not the first transition frame.
+     await new Promise(resolve=>setTimeout(resolve,650));
      const el=document.querySelector('[data-v15-07-theme-slot]');
      const inner=document.querySelector('[data-v15-07-theme-slot-content]');
      const btn=el.querySelectorAll('button')[1];
@@ -120,9 +123,10 @@ try{
    const f='viewport-'+width+'.png';await page.screenshot({path:path.join(out,f),fullPage:true});screenshots.push(f);
  }
  await page.setViewportSize({width:1440,height:900});
- const custom=await page.evaluate(()=>{
+ const custom=await page.evaluate(async ()=>{
    document.documentElement.style.setProperty('--primary','#ad5100');
    document.body.style.setProperty('--primary','#ad5100');
+   await new Promise(resolve=>setTimeout(resolve,650));
    return getComputedStyle(document.querySelectorAll('[data-v15-07-theme-slot] button')[1]).backgroundColor;
  });
  assert(same(custom,'rgb(173, 81, 0)'),'custom primary ignored: '+custom);
