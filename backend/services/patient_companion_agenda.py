@@ -15,6 +15,7 @@ from backend.models_patient_companion import (
 )
 from backend.services.agenda_availability import validate_appointment_availability
 from backend.services.agenda_resource_conflicts import assert_resource_available
+from backend.services.agenda_transaction_lock import lock_cabinet_booking
 from backend.services.patient_companion_remote_worker import RemoteDomainResult
 
 ACTIVE_CANCEL_BLOCKERS = {
@@ -204,6 +205,9 @@ def create_appointment(db: Session, access: PatientCompanionAccess, payload: dic
     slot = _slot_for_ref(db, access, payload.get("slot_ref"))
     if slot is None:
         return _reject("SLOT_NOT_FOUND")
+    # Even two different opaque slot IDs must not race into the same interval.
+    # The host remote worker owns final COMMIT: keep lock through that commit.
+    lock_cabinet_booking(db, access.employer_id)
     conflict = _slot_error(db, access, slot)
     if conflict:
         return _reject(conflict)
@@ -245,6 +249,7 @@ def reschedule_appointment(db: Session, access: PatientCompanionAccess, payload:
     slot = _slot_for_ref(db, access, payload.get("slot_ref"))
     if slot is None:
         return _reject("SLOT_NOT_FOUND")
+    lock_cabinet_booking(db, access.employer_id)
     conflict = _slot_error(db, access, slot, exclude_id=appointment.id)
     if conflict:
         return _reject(conflict)
