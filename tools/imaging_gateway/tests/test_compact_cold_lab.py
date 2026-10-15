@@ -183,6 +183,32 @@ class CompactColdTests(unittest.TestCase):
         with self.assertRaisesRegex(c.CompactColdLabError,"COLD_CHAIN_REFUSE"):
             self.read(tampered,anchor,store)
 
+
+    def test_poisoned_existing_blob_refuses_entire_batch(self):
+        history, anchor = self.history()
+        store = c.VolatileBlobStore()
+        source_key = history.records[0].snapshot.source_sha256
+        candidate_key = history.records[-1].snapshot.candidate_sha256
+        store._blobs[candidate_key] = b"corrupted-existing-ciphertext"
+        before = dict(store._blobs)
+        with self.assertRaisesRegex(c.CompactColdLabError,
+                                    "BLOB_STORE_CORRUPT"):
+            self.packed(history, anchor, store)
+        self.assertEqual(store._blobs, before)
+        self.assertNotIn(source_key, store._blobs)
+
+    def test_invalid_batch_cannot_partially_publish(self):
+        store=c.VolatileBlobStore()
+        valid=b"encrypted-synthetic-test-only"
+        digest=hashlib.sha256(valid).hexdigest()
+        before=dict(store._blobs)
+        with self.assertRaisesRegex(c.CompactColdLabError,
+                                    "BLOB_BATCH_INVALID"):
+            store.commit_batch({digest:valid, "0"*64:b"invalid"})
+        self.assertEqual(store._blobs,before)
+        store.commit_batch({digest:valid})
+        self.assertEqual(store.get(c.BlobRef(digest,len(valid))),valid)
+
     def test_invalid_record_or_bad_archive_key_never_packs(self):
         history, anchor = self.history()
         bad = j.Journal(history.records[:-1] +

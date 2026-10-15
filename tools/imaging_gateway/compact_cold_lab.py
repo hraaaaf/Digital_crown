@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import json
 import re
+import threading
 
 from . import journal_lab as journal
 from . import migration_lab as migration
@@ -76,23 +77,48 @@ class VolatileBlobStore:
 
     def __init__(self):
         self._blobs: dict[str, bytes] = {}
+        self._lock = threading.Lock()
 
     def put(self, blob: bytes) -> BlobRef:
         if (type(blob) is not bytes or not 0 < len(blob)
                 <= codec.MAX_CLEAR_BYTES + codec.V2_OVERHEAD):
             _refuse("BLOB_SIZE_REFUSE")
         digest = hashlib.sha256(blob).hexdigest()
-        current = self._blobs.get(digest)
-        if current is not None and not hmac.compare_digest(
-                hashlib.sha256(current).hexdigest(), digest):
-            _refuse("BLOB_STORE_CORRUPT")
-        self._blobs[digest] = blob
+        with self._lock:
+            current = self._blobs.get(digest)
+            if current is not None and (type(current) is not bytes
+                    or not hmac.compare_digest(
+                        hashlib.sha256(current).hexdigest(), digest)
+                    or current != blob):
+                _refuse("BLOB_STORE_CORRUPT")
+            self._blobs[digest] = blob
         return BlobRef(digest, len(blob))
+
+    def commit_batch(self, entries: dict[str, bytes]) -> None:
+        """All-or-none in-process dict publication; no disk guarantees."""
+        if type(entries) is not dict or len(entries) > 512:
+            _refuse("BLOB_BATCH_INVALID")
+        for digest, blob in entries.items():
+            if (type(digest) is not str or _SHA.fullmatch(digest) is None
+                    or type(blob) is not bytes
+                    or not 0 < len(blob)
+                            <= codec.MAX_CLEAR_BYTES + codec.V2_OVERHEAD
+                    or not hmac.compare_digest(
+                        hashlib.sha256(blob).hexdigest(), digest)):
+                _refuse("BLOB_BATCH_INVALID")
+        with self._lock:
+            for digest, blob in entries.items():
+                current = self._blobs.get(digest)
+                if current is not None and (type(current) is not bytes
+                        or current != blob):
+                    _refuse("BLOB_STORE_CORRUPT")
+            self._blobs.update(entries)
 
     def get(self, ref: BlobRef) -> bytes:
         if not _valid_ref(ref):
             _refuse("BLOB_REFERENCE_REFUSE")
-        data = self._blobs.get(ref.sha256)
+        with self._lock:
+            data = self._blobs.get(ref.sha256)
         if data is None:
             _refuse("BLOB_MISSING_REFUSE")
         if (type(data) is not bytes or len(data) != ref.length
@@ -102,7 +128,8 @@ class VolatileBlobStore:
         return data
 
     def distinct_bytes(self) -> int:
-        return sum(len(data) for data in self._blobs.values())
+        with self._lock:
+            return sum(len(data) for data in self._blobs.values())
 
 
 def _valid_ref(ref: object) -> bool:
@@ -236,11 +263,14 @@ def pack_verified(history: journal.Journal, anchor: journal.TrustedAnchor,
                              legacy_key=legacy_key, keys=keys)
     except (journal.JournalLabError, ValueError, TypeError, AttributeError):
         _refuse("UNAUTHENTICATED_HISTORY_REFUSE")
+    # Stage all blobs away from the shared store. Only publish AFTER
+    # verified chain, canonical bundle and keyed seal are complete.
+    staged = VolatileBlobStore()
     compact = []
     for record in history.records:
         snap = record.snapshot
-        src = store.put(snap.source)
-        target = store.put(snap.candidate) if snap.candidate is not None else None
+        src = staged.put(snap.source)
+        target = staged.put(snap.candidate) if snap.candidate is not None else None
         compact.append(CompactRecord(
             record.sequence, record.previous_mac, record.mac,
             SnapshotRef(snap.cabinet, snap.workstation, snap.identity,
@@ -248,7 +278,9 @@ def pack_verified(history: journal.Journal, anchor: journal.TrustedAnchor,
                         src, snap.source_sha256, target,
                         snap.candidate_sha256, snap.target_key_id)))
     draft = CompactBundle(anchor, tuple(compact), "0" * 64)
-    return CompactBundle(anchor, draft.records, _seal(draft, archive_key))
+    completed = CompactBundle(anchor, draft.records, _seal(draft, archive_key))
+    store.commit_batch(staged._blobs)
+    return completed
 
 
 def reassemble_verified(bundle: CompactBundle, trusted_anchor: journal.TrustedAnchor,
