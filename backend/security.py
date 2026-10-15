@@ -157,6 +157,38 @@ class TokenBlacklist:
             self._mobile_cutoffs[int(employer_id)] = cutoff
         return cutoff
 
+    def current_mobile_epoch(self, employer_id: int, db=None) -> str:
+        """Get the persisted, per-cabinet revocation generation for NEW JWTs.
+
+        A generation, unlike a microsecond timestamp, changes even when
+        Windows timestamps are identical before and after revocation.
+        Read from the database on every issue/verify: process-local caches
+        cannot prove validity across independent application processes.
+        On storage failure, token minting must fail and verification denies.
+        """
+        from backend.database import SessionLocal
+        from backend.models import RevokedToken
+
+        own_session = db is None
+        session = db if db is not None else SessionLocal()
+        try:
+            prefix = f"{self.MOBILE_EPOCH_PREFIX}{int(employer_id)}:"
+            current = datetime.now(timezone.utc).replace(tzinfo=None)
+            markers = session.query(RevokedToken.jti).filter(
+                RevokedToken.jti.like(f"{prefix}%"),
+                RevokedToken.expires_at > current,
+            ).all()
+            latest = None
+            for row in markers:
+                marker = row[0]
+                stamp = self._parse_mobile_epoch_marker(marker, int(employer_id))
+                if stamp is not None and (latest is None or (stamp, marker) > latest):
+                    latest = (stamp, marker)
+            return latest[1] if latest is not None else "initial"
+        finally:
+            if own_session:
+                session.close()
+
     def revoke_mobile_access(self, employer_id: int, db=None) -> dict:
         """Persist a cabinet cutoff and invalidate its pending pairing codes.
 
@@ -168,9 +200,7 @@ class TokenBlacklist:
 
         employer_id = int(employer_id)
         now = datetime.now(timezone.utc)
-        cutoff_us = int(now.timestamp() * 1_000_000)
         expires_at = (now + self.MOBILE_EPOCH_RETENTION).replace(tzinfo=None)
-        marker = f"{self.MOBILE_EPOCH_PREFIX}{employer_id}:{cutoff_us}:{uuid.uuid4().hex[:12]}"
 
         db_session = db
         own_session = False
@@ -178,6 +208,15 @@ class TokenBlacklist:
             db_session = SessionLocal()
             own_session = True
         try:
+            # Strictly advance the cutoff if the platform clock stays within
+            # one tick across multiple revocations. Legacy JWTs keep their
+            # existing microsecond-based fail-closed revocation semantics.
+            prior = self._mobile_cutoff(employer_id, db_session)
+            cutoff_us = max(
+                int(now.timestamp() * 1_000_000),
+                (prior + 1) if prior is not None else 0,
+            )
+            marker = f"{self.MOBILE_EPOCH_PREFIX}{employer_id}:{cutoff_us}:{uuid.uuid4().hex[:12]}"
             db_session.add(RevokedToken(jti=marker, expires_at=expires_at))
             invalidated = db_session.query(ZKAPairingToken).filter(
                 ZKAPairingToken.employer_id == employer_id,
@@ -201,7 +240,7 @@ class TokenBlacklist:
             if own_session:
                 db_session.close()
 
-    def is_revoked(self, jti: str, db=None) -> bool:
+    def is_revoked(self, jti: str, db=None, *, mobile_epoch: str | None = None) -> bool:
         if not jti:
             return False
 
@@ -217,12 +256,20 @@ class TokenBlacklist:
         if mobile_identity is not None:
             employer_id, issued_us = mobile_identity
             try:
-                cutoff = self._mobile_cutoff(employer_id, db)
+                if mobile_epoch is not None:
+                    # New JWTs carry their persisted issuance generation.
+                    # A later revoke changes it even when the wall clock has
+                    # not ticked. Do not compare their coarse timestamps.
+                    if mobile_epoch != self.current_mobile_epoch(employer_id, db):
+                        return True
+                else:
+                    # Previously issued JWTs have no generation claim.
+                    # Keep the original conservative timestamp cutoff.
+                    cutoff = self._mobile_cutoff(employer_id, db)
+                    if cutoff is not None and issued_us <= cutoff:
+                        return True
             except Exception:
-                # Revocation state is security-critical. An unavailable store
-                # must deny rather than silently accept a possibly revoked token.
-                return True
-            if cutoff is not None and issued_us <= cutoff:
+                # Security-critical epoch reads must FAIL CLOSED.
                 return True
 
         import sys
