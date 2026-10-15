@@ -10,6 +10,7 @@ from threading import Barrier
 import sys
 import uuid
 import subprocess
+import importlib.util
 
 import pytest
 from sqlalchemy import DateTime, Integer, String, create_engine
@@ -20,8 +21,29 @@ from sqlalchemy.pool import QueuePool
 import sqlcipher3
 sys.modules["pysqlcipher3"] = sqlcipher3
 
-from backend.services.agenda_transaction_lock import lock_cabinet_booking
-from backend.services.bot.atomic_action_claim import claim_pending_action
+# The pure helpers are imported directly from their source files so this
+# isolated gate does not import backend/__init__.py (which initializes the full
+# FastAPI/Pydantic application dependency graph).
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_pure_helper(relative_path: str, module_name: str):
+    location = ROOT / relative_path
+    spec = importlib.util.spec_from_file_location(module_name, location)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+lock_cabinet_booking = _load_pure_helper(
+    "backend/services/agenda_transaction_lock.py",
+    "isolated_sqlcipher_agenda_lock",
+).lock_cabinet_booking
+claim_pending_action = _load_pure_helper(
+    "backend/services/bot/atomic_action_claim.py",
+    "isolated_sqlcipher_bot_claim",
+).claim_pending_action
 
 
 class Base(DeclarativeBase):
