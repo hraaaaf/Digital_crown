@@ -94,14 +94,17 @@ def _find_conflicts(
     """
     datetime_start = _naive_datetime(datetime_start)
     end = datetime_start + timedelta(minutes=duration_minutes)
-    window_start = datetime_start - timedelta(hours=4)
+    # No arbitrary backwards lookback. Historical bookings may last >4h,
+    # and older imports may not observe any modern duration limit: filtering
+    # starts by a fixed window would silently allow double bookings.
+    # Keep the end-overlap predicate in Python until all legacy rows can be
+    # migrated to a consistently indexed, database-specific end timestamp.
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
         models.Appointment.status.in_(OCCUPYING_APPOINTMENT_STATUSES),
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
-        models.Appointment.datetime_start >= window_start,
     )
     if practitioner_id is not None:
         q = q.filter(
