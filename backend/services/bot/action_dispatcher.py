@@ -227,6 +227,14 @@ class ActionDispatcher:
             return BotResponse(message=f"Statut invalide : {status_name}", action_type="error")
         if defer_commit:
             db.flush()
+            db.add(models.AuditLog(
+                user_id=user.id,
+                employer_id=employer_id,
+                action="UPDATE",
+                resource_type="Appointment",
+                resource_id=str(appt.id),
+                details=f"Crown Bot statut -> {status_name} (transaction atomique)",
+            ))
         else:
             db.commit()
 
