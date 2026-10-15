@@ -16,6 +16,11 @@ from . import journal_lab as journal
 from . import migration_lab as migration
 from . import spool_version_lab as codec
 
+_SCOPE = re.compile(r"[A-Za-z0-9_-]{1,64}\\Z")
+_KEY_ID = re.compile(r"[0-9a-f]{32}\\Z")
+_PHASES = frozenset({"SOURCE", "PREPARED", "VERIFIED", "COMMITTED",
+                     "ROLLED_BACK"})
+
 _DOMAIN = b"DC06M|compact-cold-bundle|v1\0"
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 _MAX_SCAN_BYTES = 512 * 1024 * 1024  # per-invocation cold verification work
@@ -152,17 +157,37 @@ def _canonical(bundle: CompactBundle) -> bytes:
         if type(s) is not SnapshotRef or not _valid_ref(s.source):
             _refuse("ARCHIVE_SHAPE_REFUSE")
         if (s.candidate is not None and not _valid_ref(s.candidate)
-                or any(type(v) is not str for v in
-                    (s.cabinet, s.workstation, s.identity, s.digest, s.phase,
-                     s.source_sha256))
+                or type(s.cabinet) is not str
+                or _SCOPE.fullmatch(s.cabinet) is None
+                or type(s.workstation) is not str
+                or _SCOPE.fullmatch(s.workstation) is None
+                or type(s.identity) is not str
+                or _SHA.fullmatch(s.identity) is None
+                or type(s.digest) is not str
+                or _SHA.fullmatch(s.digest) is None
+                or type(s.phase) is not str or s.phase not in _PHASES
                 or type(s.revision) is not int or s.revision < 0
-                or (s.target_key_id is not None and type(s.target_key_id) is not str)
+                or type(s.source_sha256) is not str
+                or _SHA.fullmatch(s.source_sha256) is None
+                or (s.target_key_id is not None
+                    and (type(s.target_key_id) is not str
+                         or _KEY_ID.fullmatch(s.target_key_id) is None))
                 or (s.candidate_sha256 is not None
-                    and type(s.candidate_sha256) is not str)
+                    and (type(s.candidate_sha256) is not str
+                         or _SHA.fullmatch(s.candidate_sha256) is None))
+                or s.source.length > codec.MAX_CLEAR_BYTES + codec.V1_OVERHEAD
+                or (s.candidate is not None
+                    and s.candidate.length >
+                        codec.MAX_CLEAR_BYTES + codec.V2_OVERHEAD)
                 or s.source.sha256 != s.source_sha256
                 or (s.candidate is None) != (s.candidate_sha256 is None)
                 or (s.candidate is not None
-                    and s.candidate.sha256 != s.candidate_sha256)):
+                    and s.candidate.sha256 != s.candidate_sha256)
+                or (s.phase in ("SOURCE", "ROLLED_BACK") and (
+                        s.candidate is not None or
+                        s.target_key_id is not None))
+                or (s.phase in ("PREPARED", "VERIFIED", "COMMITTED") and (
+                        s.candidate is None or s.target_key_id is None))):
             _refuse("ARCHIVE_SHAPE_REFUSE")
         records.append([
             record.sequence, record.previous_mac, record.mac,

@@ -129,6 +129,60 @@ class CompactColdTests(unittest.TestCase):
         self.assertLessEqual(store.distinct_bytes(), 101 * 1024 * 1024)
         self.assertEqual(self.read(bundle, anchor, store), history)
 
+
+    def test_256_valid_tiny_events_compact_roundtrip(self):
+        history, anchor = self.history()
+        state = history.records[-1].snapshot
+        while len(history.records) < 256:
+            if state.phase == "VERIFIED":
+                state = m.commit(state, expected_revision=state.revision,
+                                 legacy_key=self.legacy, keys=self.target)
+            elif state.phase == "COMMITTED":
+                state = m.rollback(state, expected_revision=state.revision,
+                                   legacy_key=self.legacy, operator_confirmed=True)
+            elif state.phase == "ROLLED_BACK":
+                state = m.prepare(state, expected_revision=state.revision,
+                                  legacy_key=self.legacy,
+                                  target_key_id="ab"*16, keys=self.target)
+            else:
+                state = m.verify(state, expected_revision=state.revision,
+                                 legacy_key=self.legacy, keys=self.target)
+            history, anchor = j.append(
+                history, anchor, state, journal_key=self.jkey,
+                legacy_key=self.legacy, keys=self.target)
+        _, _, store, bundle = self.packed(history, anchor)
+        self.assertEqual(len(bundle.records), 256)
+        self.assertLessEqual(len(store._blobs), 65)
+        self.assertEqual(self.read(bundle, anchor, store), history)
+        with self.assertRaisesRegex(j.JournalLabError, "JOURNAL_LIMIT"):
+            j.append(history, anchor, state, journal_key=self.jkey,
+                     legacy_key=self.legacy, keys=self.target)
+
+    def test_metadata_bound_before_large_or_malformed_replay(self):
+        history, anchor, store, bundle = self.packed()
+        rec=bundle.records[-1]
+        altered=replace(rec.snapshot,cabinet="a"*100000)
+        bad=replace(bundle,records=bundle.records[:-1] +
+                    (replace(rec,snapshot=altered),))
+        with self.assertRaisesRegex(c.CompactColdLabError,"ARCHIVE_SHAPE_REFUSE"):
+            self.read(bad,anchor,store)
+        malformed=replace(rec.snapshot,source=replace(
+            rec.snapshot.source,length=51*1024*1024))
+        bad=replace(bundle,records=bundle.records[:-1] +
+                    (replace(rec,snapshot=malformed),))
+        with self.assertRaisesRegex(c.CompactColdLabError,"ARCHIVE_SHAPE_REFUSE"):
+            self.read(bad,anchor,store)
+
+    def test_archive_seal_compromise_does_not_override_JK_chain(self):
+        history, anchor, store, bundle = self.packed()
+        rec=bundle.records[-1]
+        changed=replace(rec.snapshot,phase="COMMITTED")
+        tampered=replace(bundle,records=bundle.records[:-1] +
+                        (replace(rec,snapshot=changed),))
+        tampered=replace(tampered,seal=c._seal(tampered,self.akey))
+        with self.assertRaisesRegex(c.CompactColdLabError,"COLD_CHAIN_REFUSE"):
+            self.read(tampered,anchor,store)
+
     def test_invalid_record_or_bad_archive_key_never_packs(self):
         history, anchor = self.history()
         bad = j.Journal(history.records[:-1] +
