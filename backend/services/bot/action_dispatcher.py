@@ -96,6 +96,27 @@ class ActionDispatcher:
         ).limit(2).all()
         return matches[0] if len(matches) == 1 else None
 
+    def _find_patient_for_write(self, db: Session, employer_id: int, name: str):
+        """No substring-only identification for a clinical mutation.
+
+        A full first+last name in either order is required; homonyms are
+        rejected. Reading/search retains its separate fuzzy search.
+        """
+        normalized = " ".join((name or "").casefold().split())
+        if len(normalized.split()) < 2:
+            return None
+        candidates = self._patient_query_by_name(
+            db, employer_id, name
+        ).filter(models.Patient.deleted_at.is_(None)).limit(50).all()
+        matching = [
+            p for p in candidates
+            if normalized in {
+                " ".join(f"{p.prenom} {p.nom}".casefold().split()),
+                " ".join(f"{p.nom} {p.prenom}".casefold().split()),
+            }
+        ]
+        return matching[0] if len(matching) == 1 else None
+
     def execute(
         self, pending_action: Dict[str, Any], db: Session, user: models.User,
         *, transactional: bool = False,
@@ -146,7 +167,7 @@ class ActionDispatcher:
         employer_id = user.get_employer_id()
         patient_id = params.get("patient_id")
         if not patient_id and params.get("patient_name"):
-            patient = self._find_patient_by_name(
+            patient = self._find_patient_for_write(
                 db, employer_id, str(params["patient_name"])
             )
             if patient:
@@ -690,7 +711,7 @@ class ActionDispatcher:
         patient_id = e.get("patient_id")
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = self._find_patient_by_name(db, employer_id, patient_name)
+            patient = self._find_patient_for_write(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -736,7 +757,7 @@ class ActionDispatcher:
 
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = self._find_patient_by_name(db, employer_id, patient_name)
+            patient = self._find_patient_for_write(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -794,7 +815,7 @@ class ActionDispatcher:
 
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = self._find_patient_by_name(db, employer_id, patient_name)
+            patient = self._find_patient_for_write(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -881,9 +902,10 @@ class ActionDispatcher:
             return db.query(models.Patient).filter(
                 models.Patient.id == entities["patient_id"],
                 models.Patient.employer_id == employer_id,
+                models.Patient.deleted_at.is_(None),
             ).first()
         if "patient_name" in entities:
-            return self._find_patient_by_name(db, employer_id, entities["patient_name"])
+            return self._find_patient_for_write(db, employer_id, entities["patient_name"])
         return None
 
     def _handle_change_status(
