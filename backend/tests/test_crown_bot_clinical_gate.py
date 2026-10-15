@@ -159,3 +159,27 @@ def test_clinic_real_cabinet_closure_rejects_booking(db, dentiste):
         )
     assert exc.value.status_code == 422
     assert "Synthetic closure" in str(exc.value.detail)
+
+
+def test_clinic_write_requires_unambiguous_full_patient_name(db, dentiste):
+    from backend.services.bot.action_dispatcher import ActionDispatcher
+    names = [
+        models.Patient(
+            prenom="Ahmed", nom="Bennani", date_naissance=datetime(1990, 1, 1),
+            sexe="M", employer_id=dentiste.get_employer_id(),
+        ),
+        models.Patient(
+            prenom="Ahmed", nom="Bennani", date_naissance=datetime(1988, 1, 1),
+            sexe="M", employer_id=dentiste.get_employer_id(),
+        ),
+    ]
+    db.add_all(names)
+    db.commit()
+    matcher = ActionDispatcher()
+    tenant = dentiste.get_employer_id()
+    assert matcher._find_patient_for_write(db, tenant, "Ahmed") is None
+    assert matcher._find_patient_for_write(db, tenant, "Ahmed Benn") is None
+    assert matcher._find_patient_for_write(db, tenant, "Ahmed Bennani") is None
+    names[1].deleted_at = datetime.utcnow()
+    db.commit()
+    assert matcher._find_patient_for_write(db, tenant, "Ahmed Bennani").id == names[0].id
