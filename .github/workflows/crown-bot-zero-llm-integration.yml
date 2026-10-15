@@ -8,6 +8,9 @@ on:
       - backend/routers/bot_workflows.py
       - backend/services/bot/workflow_poc.py
       - backend/services/bot/atomic_action_claim.py
+      - backend/services/bot/action_dispatcher.py
+      - backend/routers/appointments.py
+      - backend/services/agenda_transaction_lock.py
       - backend/tests/test_bot_atomic_claim_postgres.py
       - backend/tests/test_crown_bot_zero_llm_poc.py
       - backend/tests/test_bot_workflow_api_safe.py
@@ -35,7 +38,7 @@ jobs:
           python-version: '3.12'
       - name: Compile changed code
         run: |
-          python -m compileall -q backend/services/bot/workflow_poc.py backend/services/bot/atomic_action_claim.py backend/routers/bot_workflows.py backend/routers/bot.py backend/config.py
+          python -m compileall -q backend/services/bot/workflow_poc.py backend/services/bot/atomic_action_claim.py backend/services/bot/action_dispatcher.py backend/services/agenda_transaction_lock.py backend/routers/appointments.py backend/routers/bot_workflows.py backend/routers/bot.py backend/config.py
       - name: Run pure FSM tests
         run: python -m unittest discover -s backend/tests -p 'test_crown_bot_zero_llm_poc.py' -v
 
@@ -68,7 +71,7 @@ jobs:
           python-version: '3.12'
       - name: Minimal real PostgreSQL dependencies
         run: python -m pip install 'sqlalchemy>=2.0,<3' psycopg2-binary
-      - name: Execute two-connection CAS and tenant/expiry regression
+      - name: Execute two-connection CAS, crash rollback and distinct-booking serialization
         run: python -m unittest discover -s backend/tests -p 'test_bot_atomic_claim_postgres.py' -v
 
   api:
@@ -106,4 +109,4 @@ jobs:
           echo "## ZERO-LLM adapter security gate" >> "$GITHUB_STEP_SUMMARY"
           echo "PR merge-ref SHA: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Flag is OFF by default. No Vercel deployment, no real patients." >> "$GITHUB_STEP_SUMMARY"
-          echo "API test DB = SQLite in-memory. PostgreSQL race/real browser tests still required before activation." >> "$GITHUB_STEP_SUMMARY"
+          echo "API test DB = SQLite in-memory. PostgreSQL tests use synthetic SQL schema, not a real HTTP/backend clinical E2E. Browser tests still required." >> "$GITHUB_STEP_SUMMARY"
