@@ -75,12 +75,35 @@ jobs:
           test -d /tmp/v15-07-g0-playwright/node_modules/playwright-core
           ln -s /tmp/v15-07-g0-playwright/node_modules/playwright node_modules/playwright
           /tmp/v15-07-g0-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Attest disposable test database target (do not bypass boot policy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint, is_known_cabinet_database
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["ENVIRONMENT"] == "test"
+          assert os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] == "1"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target), "Never start on known clinic data"
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(target))
+          PY
       - name: Start isolated FastAPI fixture runtime
         shell: bash
         run: |
+          set -euo pipefail
+          test -n "${DIGITALCROWN_ISOLATION_DB_FINGERPRINT:-}"
+          test "$DATABASE_URL" = "sqlite:///./t2-runtime-cert.db"
           rm -f t2-runtime-cert.db
           python scripts/t2_runtime_server.py >/tmp/v15-07-g0-backend.log 2>&1 &
+          backend_pid=$!
           for i in {1..100}; do
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              echo "Isolated backend process exited before /health"
+              tail -100 /tmp/v15-07-g0-backend.log
+              exit 1
+            fi
             if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
             sleep 1
           done
