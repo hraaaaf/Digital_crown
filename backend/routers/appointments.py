@@ -216,9 +216,17 @@ def _create_appointment_validated(
     db_appt = models.Appointment(**appt_data)
     db.add(db_appt)
     if defer_commit:
-        # Flush only, so an abrupt crash before the final caller commit
-        # rolls back BOTH the appointment and its bot action status.
+        # Flush only: crash before final caller COMMIT rolls back appointment,
+        # audit event and bot action status together.
         db.flush()
+        db.add(models.AuditLog(
+            user_id=current_user.id,
+            employer_id=employer_id,
+            action="CREATE",
+            resource_type="Appointment",
+            resource_id=str(db_appt.id),
+            details=f"RDV patient {appt.patient_id} (bot transaction)",
+        ))
         return db_appt
     db.commit()
     db.refresh(db_appt)
