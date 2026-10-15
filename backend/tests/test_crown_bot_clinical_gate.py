@@ -199,3 +199,68 @@ def test_clinic_production_fails_closed_without_agenda_settings(db, dentiste, mo
     assert exc.value.status_code == 422
     assert "configurez les horaires" in str(exc.value.detail)
     assert db.query(models.Appointment).count() == 0
+
+
+def test_legacy_unassigned_practitioner_blocks_patient_companion_too(db, dentiste):
+    from types import SimpleNamespace
+    from backend.services.patient_companion_agenda import _validate_exact_slot
+    from backend.routers.appointments import _find_conflicts
+    slot = _slot(15, 11)
+    appt = _appointment(db, dentiste, slot)
+    appt.praticien_id = None  # legacy global blocker
+    db.commit()
+    tenant = dentiste.get_employer_id()
+    assert _find_conflicts(db, tenant, dentiste.id, slot, 30)
+    access = SimpleNamespace(employer_id=tenant)
+    assert _validate_exact_slot(
+        db, access, start=slot, duration=30,
+        practitioner_id=dentiste.id, resource_id=None,
+    ) == "SLOT_CONFLICT"
+
+
+def test_frontdesk_pending_refused_and_expired_do_not_reserve_clinical_capacity(db, dentiste):
+    from backend.routers.appointments import _find_conflicts
+    slot = _slot(16, 11)
+    tenant = dentiste.get_employer_id()
+    for status in (
+        models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        models.AppointmentStatus.EN_ATTENTE_CONFIRM,
+        models.AppointmentStatus.REFUSE,
+        models.AppointmentStatus.EXPIRE,
+        models.AppointmentStatus.ANNULE,
+    ):
+        p = _appointment(db, dentiste, slot)
+        p.praticien_id = None
+        p.status = status
+        db.commit()
+    assert _find_conflicts(db, tenant, dentiste.id, slot, 30) == []
+    booked = _appointment(db, dentiste, slot)
+    booked.praticien_id = None
+    booked.status = models.AppointmentStatus.CONFIRME
+    db.commit()
+    assert _find_conflicts(db, tenant, dentiste.id, slot, 30)
+
+
+def test_frontdesk_rejected_request_cannot_be_confirmed_later(db, dentiste):
+    from backend.routers.frontdesk import reject_appointment, confirm_appointment
+    slot = _slot(17, 11)
+    request = models.Appointment(
+        employer_id=dentiste.get_employer_id(), patient_name="Synthetic pending",
+        datetime_start=slot, duration_minutes=30,
+        status=models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+    )
+    db.add(request)
+    db.commit()
+    result = asyncio.run(reject_appointment(
+        request.id, db=db, current_user=dentiste,
+    ))
+    assert result["status"] == models.AppointmentStatus.REFUSE.value
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(confirm_appointment(
+            request.id, db=db, current_user=dentiste,
+        ))
+    assert exc.value.status_code == 409
+    db.refresh(request)
+    assert request.status == models.AppointmentStatus.REFUSE
+    assert request.praticien_id is None
