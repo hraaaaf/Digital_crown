@@ -16,6 +16,7 @@ on:
       - backend/routers/mobile_legacy.py
       - backend/services/patient_companion_agenda.py
       - backend/tests/test_crown_bot_clinical_gate.py
+      - scripts/ci/crown_bot_clinical_pg_http_e2e.py
       - backend/services/agenda_transaction_lock.py
       - backend/tests/test_bot_atomic_claim_postgres.py
       - backend/tests/test_crown_bot_zero_llm_poc.py
@@ -101,7 +102,21 @@ jobs:
   api:
     name: Flag OFF + tenant + action replay API regressions
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crown_bot_clinical_cert
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d crown_bot_clinical_cert"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
       DATABASE_URL: "sqlite:///:memory:"
@@ -137,6 +152,13 @@ jobs:
             backend/tests/test_frontdesk.py \
             backend/tests/test_appointments_multi_practitioner_p0.py \
             backend/tests/test_mobile_m63_canonical_agenda.py
+      - name: REQUIRED — migrated PostgreSQL clinical HTTP end-to-end
+        env:
+          DATABASE_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/crown_bot_clinical_cert
+          CROWN_BOT_CLINICAL_CI_DATABASE: synthetic-only
+        run: |
+          alembic upgrade head
+          python scripts/ci/crown_bot_clinical_pg_http_e2e.py
       - name: Security evidence summary
         if: always()
         run: |
