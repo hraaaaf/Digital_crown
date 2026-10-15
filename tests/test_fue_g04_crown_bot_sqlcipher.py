@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import Barrier
 import sys
 import uuid
+import subprocess
 
 import pytest
 from sqlalchemy import DateTime, Integer, String, create_engine
@@ -150,3 +151,54 @@ def test_bot_claim_booking_and_status_roll_back_as_one_sqlcipher_transaction(enc
             session, SyntheticAction, action_id, 11, 7, datetime.utcnow()
         )
         session.rollback()
+
+
+def test_real_process_crash_before_sqlcipher_commit_reverts_business_and_action(encrypted_sessions):
+    """Abrupt child-process death is stronger evidence than session.rollback()."""
+    Session, dbfile = encrypted_sessions
+    action_id = str(uuid.uuid4())
+    with Session.begin() as session:
+        session.add(SyntheticAction(
+            id=action_id, user_id=11, employer_id=7, status="pending",
+            expires_at=datetime.utcnow() + timedelta(minutes=30),
+        ))
+
+    # Use actual SQLCipher DBAPI on the same encrypted database in a NEW
+    # interpreter. os._exit prevents Python cleanup and normal DBAPI close.
+    child_script = """
+import os, sys
+from sqlcipher3 import dbapi2
+db = dbapi2.connect(sys.argv[1], timeout=15)
+db.execute("PRAGMA key = '" + ("e" * 64) + "'")
+assert db.execute("PRAGMA cipher_version").fetchone()[0]
+db.execute("UPDATE bot_pending_actions SET status = 'executing' WHERE id = ?", (sys.argv[2],))
+db.execute("INSERT INTO appointments (employer_id, datetime_start) VALUES (?, ?)", (7, "2026-11-19T15:00:00"))
+db.execute("UPDATE bot_pending_actions SET status = 'executed' WHERE id = ?", (sys.argv[2],))
+os._exit(0)  # no commit, no close: simulated hard worker crash
+"""
+    result = subprocess.run(
+        [sys.executable, "-B", "-c", child_script, str(dbfile), action_id],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+
+    # A genuinely fresh SQLCipher connection must observe rollback; its
+    # encrypted file remains intact and a safe retry can claim pending.
+    with Session() as session:
+        assert session.get(SyntheticAction, action_id).status == "pending"
+        assert session.query(SyntheticAppointment).count() == 0
+        assert claim_pending_action(
+            session, SyntheticAction, action_id, 11, 7, datetime.utcnow()
+        )
+        assert lock_cabinet_booking(session, 7)
+        session.add(SyntheticAppointment(
+            employer_id=7, datetime_start="2026-11-19T15:00:00"
+        ))
+        session.query(SyntheticAction).filter_by(
+            id=action_id, status="executing",
+        ).update({"status": "executed"}, synchronize_session=False)
+        session.commit()
+    with Session() as session:
+        assert session.get(SyntheticAction, action_id).status == "executed"
+        assert session.query(SyntheticAppointment).count() == 1
+    assert not dbfile.read_bytes().startswith(b"SQLite format 3")
