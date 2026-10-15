@@ -35,9 +35,10 @@ def fail(message):
 
 
 def run():
+    doctor_email = f"clinical-{uuid4().hex}@invalid.example"
     with database.SessionLocal() as db:
         doctor = models.User(
-            email=f"clinical-{uuid4().hex}@invalid.example",
+            email=doctor_email,
             hashed_password=get_password_hash("CiSyntheticOnlyPass123!"),
             role=models.UserRole.DENTISTE, nom_complet="Synthetic CI Dentist",
             is_active=True, is_licensed=True,
@@ -74,7 +75,7 @@ def run():
     api = TestClient(app, raise_server_exceptions=True)
     login = api.post(
         "/api/auth/login",
-        data={"username": doctor.email, "password": "CiSyntheticOnlyPass123!"},
+        data={"username": doctor_email, "password": "CiSyntheticOnlyPass123!"},
     )
     assert login.status_code == 200, login.text
     authorization = {"Authorization": f"Bearer {login.json()['access_token']}"}
