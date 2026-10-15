@@ -69,6 +69,13 @@ class VolatileEnrollmentRegistry:
                       else "ENROLLMENT_CONFLICT")
             self._claims[capture] = entry
 
+    def matches(self, capture: tuple, authority_id: str,
+                epoch: str, scope: str) -> bool:
+        """Do not continue using an accidentally reset enrollment registry."""
+        with self._lock:
+            return self._claims.get(capture) == (
+                authority_id, epoch, scope)
+
 
 def _fail(code: str) -> None:
     raise WitnessLabError(code)
@@ -173,6 +180,9 @@ class VolatileDecisionWitness:
     def _identity(self, epoch: str) -> None:
         if type(epoch) is not str or not hmac.compare_digest(epoch, self._epoch):
             _fail("EPOCH_REFUSED")
+        if not self._registry.matches(self._scope[:3], self._authority_id,
+                                      self._epoch, self._opaque_scope):
+            _fail("ENROLLMENT_INTEGRITY_REFUSE")
 
     def _digest(self, draft: fork.Draft, operation_id: str) -> str:
         return _request_digest(draft, authority_id=self._authority_id,
@@ -230,7 +240,9 @@ class VolatileDecisionWitness:
             if type(self._keys) is not dict:
                 return None
             return (self._journal_key, self._legacy_key,
-                    tuple(sorted(self._keys.items())))
+                    tuple(sorted(self._keys.items())),
+                    self._authority_id, self._epoch,
+                    self._opaque_scope, self._scope)
         except (AttributeError, TypeError, ValueError):
             return None
 

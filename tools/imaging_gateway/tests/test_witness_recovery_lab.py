@@ -752,6 +752,36 @@ class DecisionAndRestoreTests(unittest.TestCase):
             self.proposal(base=history, anchor=anchor, state=snapshot)
         self.assertEqual(self.witness.observe(epoch="e1"), anchor)
 
+
+    def test_loop_registry_claim_deletion_refuses_every_authority_read(self):
+        draft=self.proposal()
+        self.decide(draft)
+        claims=dict(self.registry._claims)
+        self.registry._claims.clear()
+        try:
+            for action in (
+                    lambda:self.witness.observe(epoch="e1"),
+                    lambda:self.witness.lookup(draft,operation_id=self.op1,epoch="e1"),
+                    lambda:self.witness.decide(draft,operation_id=self.op1,epoch="e1"),
+                    lambda:self.witness.assess_archive(draft.candidate,None,epoch="e1")):
+                with self.assertRaisesRegex(
+                        w.WitnessLabError,"ENROLLMENT_INTEGRITY_REFUSE"):
+                    action()
+        finally:
+            self.registry._claims.update(claims)
+
+    def test_loop_changed_witness_identity_invalidates_verified_cache(self):
+        d=self.proposal()
+        self.decide(d)
+        self.assertEqual(self.witness.observe(epoch="e1"),d.next_anchor)
+        original=self.witness._authority_id
+        self.witness._authority_id="unauthorized-alias"
+        with self.assertRaisesRegex(
+                w.WitnessLabError,"ENROLLMENT_INTEGRITY_REFUSE"):
+            self.witness.observe(epoch="e1")
+        self.witness._authority_id=original
+        self.assertEqual(self.witness.observe(epoch="e1"),d.next_anchor)
+
     def test_no_live_wiring_or_io(self):
         root=Path(__file__).resolve().parents[1]
         source=(root/"witness_recovery_lab.py").read_text(encoding="utf-8")
