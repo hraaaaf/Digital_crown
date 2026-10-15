@@ -229,6 +229,13 @@ jobs:
                       await summary.waitFor({state:'visible',timeout:25000});
                       if(!(await summary.innerText()).includes(patient.numero_dossier))
                         throw Error('Dossier pane did not use the authenticated active patient');
+                      // The media toolbar must adapt to the CONTAINER width.
+                      // A responsive layout based only on the browser breakpoint
+                      // can overflow when placed inside a half-width ViewSlot.
+                      const paneBox=await page.locator('[data-v15-07-second-pane]').boundingBox();
+                      const filtersBox=await page.locator('[data-v15-07-second-pane] [aria-label="Recherche et filtres médias"]').boundingBox();
+                      if (!paneBox || !filtersBox || filtersBox.x + filtersBox.width > paneBox.x + paneBox.width + 2)
+                        throw Error('Medical media toolbar clipped in half-width pane');
                       const splitter = page.getByRole('separator',{name:'Redimensionner les vues'});
                       if(!(await splitter.isVisible())) throw Error('Keyboard and pointer resize separator missing');
                       if(size.key === 'desktop1440') {
