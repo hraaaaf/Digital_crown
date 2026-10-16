@@ -195,3 +195,48 @@ def test_missing_foreign_pair_fails_closed(monkeypatch, tmp_path):
         probe.require_t2_environment(SimpleNamespace(
             api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json")
         ))
+
+
+def test_owner_tenant_404_precedes_restricted_login_cookie_change(monkeypatch, tmp_path):
+    """Role login changes shared cookie; foreign 404 must use owner session."""
+    env = {
+        "DIGITALCROWN_ISOLATED_RUNTIME": "1",
+        "T2_USER": "t2-owner@example.test", "T2_PASSWORD": "fictional",
+        "T2_PATIENT_ID": "1", "T2_FOREIGN_PATIENT_ID": "3",
+        "T2_UNKNOWN_PATIENT_ID": "10003",
+        "T2_DENIED_USER": "t2-restricted@example.test",
+        "T2_DENIED_PASSWORD": "fictional",
+        "T2_DENIED_COMMAND": "/patient",
+    }
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    sequence = []
+
+    def fake_login(url, user, password, *, enroll_workstation=True):
+        sequence.append("restricted_login" if not enroll_workstation else "owner_login")
+        return "owner-token" if enroll_workstation else "restricted-token"
+
+    def fake_http(url, payload, bearer=None, form=False, anonymous=False):
+        messages = payload["messages"]
+        if anonymous:
+            return 401, {"detail": "Unauthorized"}, 1.0
+        if messages == ["/patient"]:
+            if bearer == "restricted-token":
+                return 403, {"detail": "Denied"}, 1.0
+            return 200, {"status": "clarification", "proposal": None}, 1.0
+        if messages == ["/patient", "1"]:
+            return 200, {"status": "read", "patient": {"id": 1},
+                         "proposal": None}, 1.0
+        if messages in ([ "/patient", "3" ], [ "/patient", "10003" ]):
+            sequence.append("foreign_check")
+            assert bearer == "owner-token"
+            return 404, {"detail": "Patient introuvable."}, 1.0
+        raise AssertionError("Unexpected synthetic request")
+
+    monkeypatch.setattr(probe, "login", fake_login)
+    monkeypatch.setattr(probe, "http_json", fake_http)
+    result = probe.run(SimpleNamespace(
+        api="http://127.0.0.1:8005", n=30, out=str(tmp_path/"evidence.json")))
+    assert result["checks"]["foreign_unknown_same_404"] == "PASS"
+    assert result["checks"]["permission_denied_403"] == "PASS"
+    assert sequence.index("foreign_check") < sequence.index("restricted_login")
