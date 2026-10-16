@@ -169,14 +169,23 @@ def test_transcript_is_strictly_bounded(client, auth_headers):
         assert extra.status_code == 422
 
 
-def test_invalid_date_cannot_propose_write(client, auth_headers):
+def test_invalid_date_cannot_propose_write(client, db, dentiste, auth_headers):
+    patient = _patient(db, dentiste)
+    before = (db.query(models.Appointment).count(),
+              db.query(models.BotPendingAction).count())
     with patch.object(settings, "CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED", True):
         res = client.post(
             URL, headers=auth_headers,
-            json={"messages": ["/rdv", "2", "2020-01-01", "14:30", "30", "consultation", "CONFIRMER"]},
+            json={"messages": [
+                "/rdv", f"id:{patient.id}", "2020-01-01", "14:30",
+                "30", "consultation", "CONFIRMER",
+            ]},
         )
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
+    assert res.json()["status"] == "clarification"
     assert res.json()["proposal"] is None
+    assert (db.query(models.Appointment).count(),
+            db.query(models.BotPendingAction).count()) == before
 
 
 def test_atomic_claim_prevents_replay_of_success(client, db, dentiste, auth_headers):
