@@ -125,6 +125,33 @@ jobs:
               assert has_permission(no_agenda, 'patients') is True
               assert has_permission(no_agenda, 'agenda') is False
               assert has_permission(no_agenda, 'accounting') is False
+              # Distinct S05 reception role may prepare appointment proposals,
+              # but cannot access accounting and cannot execute any preview.
+              s05_email = 't2-s05-reception@cabinet.ma'
+              reception = db.query(models.User).filter(
+                  models.User.email == s05_email).one_or_none()
+              if reception is None:
+                  reception = models.User(
+                      email=s05_email,
+                      hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
+                      role=models.UserRole.SECRETAIRE,
+                      nom_complet='T2 S05 Synthetic Reception',
+                      is_active=True, is_licensed=True,
+                      approval_status=models.ApprovalStatus.APPROVED.value,
+                      employer_id=owner.id,
+                      permissions={
+                          'agenda': True, 'patients': True, 'accounting': False,
+                          'admin': False, 'clinical': False,
+                      },
+                  )
+                  db.add(reception)
+                  db.commit()
+                  db.refresh(reception)
+              assert reception.id != no_agenda.id
+              assert reception.employer_id == owner.id
+              assert has_permission(reception, 'patients') is True
+              assert has_permission(reception, 'agenda') is True
+              assert has_permission(reception, 'accounting') is False
               foreign_owner = db.query(models.User).filter(
                   models.User.email == 't2-setup-390@cabinet.ma').one()
               assert owner.id != foreign_owner.id, 'T2 owners must be isolated'
@@ -165,8 +192,11 @@ jobs:
               f.write('T2_DENIED_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
               f.write('T2_S06_USER=' + s06_email + '\n')
               f.write('T2_S06_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
+              f.write('T2_S05_USER=' + s05_email + '\n')
+              f.write('T2_S05_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
           print('PASS: two seeded T2 cabinet owners are distinct, foreign patient exists in DB; unknown ID absent; baseline taken after synthetic fixture')
           print('PASS: S06 synthetic secretary patients=true, agenda=false, employer scoped to T2 owner')
+          print('PASS: S05 synthetic reception patients=true, agenda=true, accounting=false, employer scoped')
           PY
       - name: Measure useful HTTP patient read p50 / p95
         shell: bash
