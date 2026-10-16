@@ -339,8 +339,13 @@ jobs:
                           const rgb=v=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=v;ctx.fillRect(0,0,1,1);return Array.from(ctx.getImageData(0,0,1,1).data).slice(0,3);};
                           const lum=a=>a.map(v=>{v/=255;return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);}).reduce((s,c,i)=>s+c*[0.2126,0.7152,0.0722][i],0);
                           const fg=getComputedStyle(el).color,bg=getComputedStyle(el).getPropertyValue('--card-bg').trim();
-                          const x=lum(rgb(fg)),y=lum(rgb(bg)),ratio=(Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);
-                          return {pass:ratio>=4.5,ratio:+ratio.toFixed(2),fg,bg};
+                          const contrast=(a,b)=>{const x=lum(rgb(a)),y=lum(rgb(b));return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);};
+                          const ratio=contrast(fg,bg);
+                          const title=document.querySelector('.v15-g1-opaque-patient-header h1');
+                          const titleFg=title?getComputedStyle(title).color:null;
+                          const titleRatio=titleFg?contrast(titleFg,bg):0;
+                          return {pass:ratio>=4.5&&titleRatio>=4.5,
+                            ratio:+ratio.toFixed(2),titleRatio:+titleRatio.toFixed(2),fg,titleFg,bg};
                         });
                         desktopQA.push({check:'Prestige small media label WCAG AA contrast',...contrastQA});
                         if(!contrastQA.pass)throw Error('Prestige media contrast <4.5:1: '+JSON.stringify(contrastQA));
