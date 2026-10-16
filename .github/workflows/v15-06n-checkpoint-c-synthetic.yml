@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/v15-06n-checkpoint-c-synthetic-20261016
+      - feat/v15-06-reconcile-master-synthetic-20261016
     paths:
       - '.github/workflows/v15-06n-checkpoint-c-synthetic.yml'
       - 'tools/imaging_gateway/checkpoint_c_lab.py'
