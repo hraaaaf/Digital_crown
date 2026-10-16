@@ -173,15 +173,7 @@ def run(args):
         timings.append(elapsed)
     checks = {'anonymous_401': 'PASS', 'clarification_no_patient': 'PASS',
               'useful_read_no_proposal': 'PASS'}
-    denied_user = os.getenv('T2_DENIED_USER', '')
-    if denied_user:
-        denied_token = login(api, denied_user, os.environ['T2_DENIED_PASSWORD'], enroll_workstation=False)
-        status, payload, _ = http_json(endpoint, {'messages': [os.getenv('T2_DENIED_COMMAND', '/rdv')]}, denied_token)
-        if status != 403 or 'patient' in payload or 'proposal' in payload:
-            raise RuntimeError('FAIL CLOSED: denied permission is not isolated')
-        checks['permission_denied_403'] = 'PASS'
-    else:
-        checks['permission_denied_403'] = 'NOT_RUN_NO_FIXTURE'
+    # Check tenant isolation while the owner session cookie still owns the jar.
     foreign_id = os.getenv('T2_FOREIGN_PATIENT_ID', '')
     if foreign_id:
         status, payload, _ = http_json(
@@ -201,6 +193,16 @@ def run(args):
     else:
         checks['foreign_patient_404'] = 'NOT_RUN_NO_FIXTURE'
         checks['foreign_unknown_same_404'] = 'NOT_RUN_NO_FIXTURE'
+    # Run denied-role login LAST: it replaces the HttpOnly access cookie.
+    denied_user = os.getenv('T2_DENIED_USER', '')
+    if denied_user:
+        denied_token = login(api, denied_user, os.environ['T2_DENIED_PASSWORD'], enroll_workstation=False)
+        status, payload, _ = http_json(endpoint, {'messages': [os.getenv('T2_DENIED_COMMAND', '/rdv')]}, denied_token)
+        if status != 403 or 'patient' in payload or 'proposal' in payload:
+            raise RuntimeError('FAIL CLOSED: denied permission is not isolated')
+        checks['permission_denied_403'] = 'PASS'
+    else:
+        checks['permission_denied_403'] = 'NOT_RUN_NO_FIXTURE'
     data = {
         'scope': 'SYNTHETIC_LOCALHOST_T2',
         'measurement': 'full HTTP response for an authorized useful patient read',
