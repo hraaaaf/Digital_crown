@@ -69,6 +69,13 @@ def install_appointment_overlap_index(connection):
                 (datetime_start + duration_minutes * INTERVAL '1 minute')
               )
         """))
+        connection.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_appointments_resource_clinical_end
+              ON appointments (
+                employer_id, resource_id,
+                (datetime_start + duration_minutes * INTERVAL '1 minute')
+              )
+        """))
     elif connection.dialect.name == "sqlite":
         connection.execute(text("""
             CREATE INDEX IF NOT EXISTS ix_appointments_tenant_clinical_end
@@ -77,11 +84,21 @@ def install_appointment_overlap_index(connection):
                 (julianday(datetime_start) + duration_minutes / 1440.0)
               )
         """))
+        connection.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_appointments_resource_clinical_end
+              ON appointments (
+                employer_id, resource_id,
+                (julianday(datetime_start) + duration_minutes / 1440.0)
+              )
+        """))
     else:
         raise RuntimeError("Unsupported booking index database dialect")
 
 
 def remove_appointment_overlap_index(connection):
+    connection.execute(text(
+        "DROP INDEX IF EXISTS ix_appointments_resource_clinical_end"
+    ))
     connection.execute(text(
         "DROP INDEX IF EXISTS ix_appointments_tenant_clinical_end"
     ))
