@@ -94,9 +94,14 @@ async def poll_lab_collector(collector, stop: asyncio.Event, *, interval: float 
             pass
 
 
-def start_if_enabled(environ: Mapping[str, str] | None = None) -> BridgeLabHandle | None:
-    """Called from FastAPI lifespan, not from a separate Windows executable."""
-    collector = make_lab_collector(environ)
+def start_if_enabled(
+    environ: Mapping[str, str] | None = None, *, trusted_environment: str | None = None
+) -> BridgeLabHandle | None:
+    """Require the backend settings and process environment to agree on TEST."""
+    env = os.environ if environ is None else environ
+    if lab_requested(env) and str(trusted_environment).lower() != "test":
+        raise BridgeLabConfigurationError("IMAGING_BRIDGE_BACKEND_TEST_REQUIRED")
+    collector = make_lab_collector(env)
     if collector is None:
         return None
     stop = asyncio.Event()

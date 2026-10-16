@@ -43,6 +43,11 @@ class BridgeLabConfigTests(unittest.TestCase):
             make_lab_collector({**self.env, "ENVIRONMENT": "cabinet"})
         self.assertFalse((self.root / "private").exists())
 
+    def test_rejects_mismatched_backend_environment(self):
+        with self.assertRaisesRegex(BridgeLabConfigurationError, "BACKEND_TEST_REQUIRED"):
+            start_if_enabled(self.env, trusted_environment="cabinet")
+        self.assertFalse((self.root / "private").exists())
+
     def test_rejects_nonisolated_test(self):
         with self.assertRaises(BridgeLabConfigurationError):
             make_lab_collector({**self.env, "DIGITALCROWN_ISOLATED_RUNTIME": "false"})
@@ -116,7 +121,7 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 "DC_V15_06_BRIDGE_LAB_ROOT": str(root),
                 "DC_V15_06_BRIDGE_LAB_KEY_HEX": (b"k" * 32).hex(),
             }
-            handle = start_if_enabled(env)
+            handle = start_if_enabled(env, trusted_environment="test")
             self.assertIsNotNone(handle)
             db_path = root / "private" / "acquisitions.sqlite3"
             try:

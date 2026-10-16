@@ -304,7 +304,7 @@ async def lifespan(app: FastAPI):
         # This is NOT an installer/service activation or a clinical capture.
         if boot_policy != REHEARSAL_MIGRATION_ONLY:
             from backend.services.imaging_bridge_lab_v15 import start_if_enabled
-            imaging_bridge_lab_handle = start_if_enabled()
+            imaging_bridge_lab_handle = start_if_enabled(trusted_environment=str(_cfg.ENVIRONMENT))
 
     except asyncio.CancelledError:
         raise
