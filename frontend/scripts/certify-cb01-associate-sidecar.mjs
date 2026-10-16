@@ -126,17 +126,63 @@ try {
       staffSearchChecks,
       result,errors:errors.length,writes:writes.length});
     if(desktop) {
-      await page.getByRole('button',{name:'Réduire le panneau Crown Bot'}).click();
-      if(await sidecar.count()) throw new Error('FAIL: sidecar did not collapse');
-      if(!(await page.getByRole('button',{name:'Ouvrir CrownBot'}).count())) {
-        throw new Error('FAIL: Crown Bot reopen control missing');
+      const closeButton=page.getByRole('button',{name:'Réduire le panneau Crown Bot'});
+      await closeButton.waitFor({state:'visible'});
+      if(!await closeButton.evaluate(el=>el===document.activeElement)) {
+        throw new Error('FAIL: keyboard focus not moved into opened sidecar');
       }
+      // Press Escape, confirm that a keyboard-only user can close and reopen.
+      await page.keyboard.press('Escape');
+      await sidecar.waitFor({state:'detached'});
+      const launcher=page.getByRole('button',{name:'Ouvrir CrownBot'});
+      await launcher.waitFor({state:'visible'});
+      if(!await launcher.evaluate(el=>el===document.activeElement)) {
+        throw new Error('FAIL: Escape did not restore focus to the launcher');
+      }
+      await page.keyboard.press('Enter');
+      await sidecar.waitFor({state:'visible'});
+      const reopenClose=page.getByRole('button',{name:'Réduire le panneau Crown Bot'});
+      await reopenClose.click();
+      await sidecar.waitFor({state:'detached'});
+      if(!await launcher.evaluate(el=>el===document.activeElement)) {
+        throw new Error('FAIL: reduce button did not restore keyboard focus');
+      }
+      // 200% reflow PROXY: 1/2 the CSS viewport width. This is NOT actual
+      // browser Ctrl+Plus / OS accessibility zoom; name evidence precisely.
+      const proxyWidth=Math.floor(width/2);
+      await page.setViewportSize({width:proxyWidth,height});
+      await page.getByRole('button',{name:'Ouvrir CrownBot'}).focus();
+      await page.keyboard.press('Enter');
+      await overlay.waitFor({state:'visible'});
+      if(await sidecar.count()) {
+        throw new Error('FAIL: desktop sidecar did not reflow to web floating fallback');
+      }
+      const reflow=await page.evaluate(() => {
+        const root=document.documentElement;
+        const overlay=document.querySelector('[data-ux1-c-crownbot-overlay]');
+        const box=overlay?.getBoundingClientRect();
+        return {
+          viewport:root.clientWidth,
+          overflow:root.scrollWidth>root.clientWidth+2,
+          overlay:box?{x:box.x,width:box.width,right:box.right}:null,
+        };
+      });
+      if (reflow.overflow || !reflow.overlay ||
+        reflow.overlay.x < -1 || reflow.overlay.right>proxyWidth+1) {
+        throw new Error('FAIL: 200% CSS reflow proxy clipped the assistant at '+width+
+          ' '+JSON.stringify(reflow));
+      }
+      await page.screenshot({
+        path:path.join(output,'reflow-proxy-200-'+width+'.png'),
+      });
+      evidence[evidence.length-1].keyboard='PASS_ESCAPE_ENTER_RESTORE_FOCUS';
+      evidence[evidence.length-1].zoom200ReflowProxy=reflow;
     }
     await context.close();
   }
   const summary={kind:'CB01_SYNTHETIC_PREVIEW_ONLY',flagDependent:true,
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
-    browserZoom200Percent:'NOT_RUN', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
+    browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
     evidence};
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2));
   console.log('CB01_ASSOCIATE_SIDECAR_VISUAL: PASS',JSON.stringify(evidence));
