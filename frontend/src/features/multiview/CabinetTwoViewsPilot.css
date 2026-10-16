@@ -69,3 +69,9 @@
 [data-theme='dark'] [data-v15-07-two-views] .text-primary {
   color: color-mix(in srgb, var(--text-main) 68%, var(--primary));
 }
+
+/* The patient identity heading uses an inline primary ink; in Prestige that
+ * blue measured below normal-text contrast. Override only the pilot header. */
+[data-theme='prestige'] .v15-g1-opaque-patient-header h1 {
+  color: color-mix(in srgb, var(--text-main) 68%, var(--primary)) !important;
+}
