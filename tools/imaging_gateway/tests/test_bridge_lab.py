@@ -4,6 +4,7 @@ import ast
 import base64
 import hashlib
 import json
+import os
 import sqlite3
 from pathlib import Path
 import tempfile
@@ -51,7 +52,7 @@ class BridgeLabConfigTests(unittest.TestCase):
             encoding="utf-8")
         tree = ast.parse(source)
         imports = [(n, p) for p in ast.walk(tree)
-                   if isinstance(p, ast.If) for n in ast.walk(p)
+                   if isinstance(p, ast.If) for n in p.body
                    if isinstance(n, ast.ImportFrom)
                    and n.module == "tools.imaging_gateway.bridge_background_lab"]
         self.assertEqual(len(imports), 1)
@@ -76,6 +77,15 @@ class BridgeLabConfigTests(unittest.TestCase):
     def test_rejects_nonisolated_test(self):
         with self.assertRaises(BridgeLabConfigurationError):
             make_lab_collector({**self.env, "DIGITALCROWN_ISOLATED_RUNTIME": "false"})
+
+    @unittest.skipUnless(os.name == "nt", "Windows case-insensitive temp path proof")
+    def test_windows_temp_directory_case_alias_is_accepted(self):
+        alias = self.root.with_name(self.root.name.swapcase())
+        self.assertTrue(alias.exists(), "fixture must be on case-insensitive Windows volume")
+        collector = make_lab_collector({
+            **self.env, "DC_V15_06_BRIDGE_LAB_ROOT": str(alias),
+        })
+        self.assertEqual(collector.items(), [])
 
     def test_rejects_missing_marker(self):
         (self.root / ".digitalcrown-imaging-lab-only").unlink()

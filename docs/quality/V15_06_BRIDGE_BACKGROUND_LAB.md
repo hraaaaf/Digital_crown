@@ -22,3 +22,6 @@ This is a lab-only prototype on a draft stacked PR. No clinical installation wit
 The existing 06-A imaging matrix has only lightweight spool/cryptography dependencies. This LAB worker lives in `tools.imaging_gateway.bridge_background_lab` and is imported from the product's FastAPI lifespan; the synthetic suite therefore does not import `backend.__init__` or require SQLAlchemy. The 06-B operational route check supports both first-level PRs (preflight 0 -> 1) and stacked descendant PRs (preflight 1 -> 1), retaining strict multiset equality for all other routes.
 
 The optional LAB module import in `backend.main.lifespan` is guarded by the explicit `DC_V15_06_BRIDGE_LAB=1` switch; ordinary installed startup must never require the optional imaging gateway package at boot. A source-level regression asserts this property in the lightweight CI.
+
+### CI repair 2026-10-16
+Both Python 3.11 OS runners use `unittest` without `pytest`; route-registry regression tests are now `unittest.TestCase` tests collected and executed on both. The isolated root guard retains strict canonical equality and OS temp containment while normalizing Windows path casing (with a Windows-only case-alias test). The import-scope AST negative test counts only direct guarded imports, not nested `If` duplicates. None of these changes enable acquisition in a cabinet.

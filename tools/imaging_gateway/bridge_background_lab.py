@@ -52,7 +52,20 @@ def make_lab_collector(environ: Mapping[str, str] | None = None):
     try:
         root = configured.resolve(strict=True)
         temp = Path(tempfile.gettempdir()).resolve(strict=True)
-        if configured != root or temp not in root.parents or not root.is_dir():
+        # Windows resolves some TEMP roots using different letter casing. Keep
+        # the strict same-path and TEMP containment checks, but compare using
+        # the filesystem's case normalization instead of Path spelling.
+        raw_norm = os.path.normcase(os.path.abspath(str(configured)))
+        root_norm = os.path.normcase(str(root))
+        temp_norm = os.path.normcase(str(temp))
+        try:
+            inside_temp = (
+                root_norm != temp_norm
+                and os.path.commonpath((root_norm, temp_norm)) == temp_norm
+            )
+        except ValueError:
+            inside_temp = False  # Different Windows drives are never accepted.
+        if raw_norm != root_norm or not inside_temp or not root.is_dir():
             raise BridgeLabConfigurationError("IMAGING_BRIDGE_UNSAFE_FIXTURE_ROOT")
         if (root / _MARKER).is_symlink() or (root / _MARKER).read_text(encoding="utf-8") != _MARKER_VALUE:
             raise BridgeLabConfigurationError("IMAGING_BRIDGE_FIXTURE_MARKER_REQUIRED")
