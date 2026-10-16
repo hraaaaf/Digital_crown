@@ -53,7 +53,19 @@ beforeEach(() => {
   mockUser = { is_superadmin: false, nom_complet: 'Owner', role: 'DENTISTE', employer_id: null };
   mockProfile = { nom: 'Cabinet', font_fr: 'inter' };
 });
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
+function simulateViewport(wide: boolean) {
+  const matches = wide;
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches, media: '(min-width: 1280px)', addEventListener: vi.fn(),
+    removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(),
+  })));
+}
 
 describe('MainLayout G1 shell matrix', () => {
   it('opens and closes the mobile sidebar through the shared Menu control', () => {
@@ -111,5 +123,58 @@ describe('MainLayout G1 shell matrix', () => {
 
     renderAt('/patients');
     expect(screen.queryByText('Practitioner context')).toBeNull();
+  });
+});
+
+
+describe('CB-01 Associate Sidecar: double gating and no hidden duplicate', () => {
+  it('keeps original floating view when new flag is OFF, even on desktop', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'false');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    simulateViewport(true);
+    const result = renderAt('/dashboard');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeNull();
+    expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Close CrownBot' })).toHaveLength(1);
+  });
+
+  it('keeps floating fallback on narrow web screens; not Pocket', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    simulateViewport(false);
+    const result = renderAt('/dashboard');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeNull();
+    expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeTruthy();
+    expect(screen.getByText('Page content')).toBeTruthy();
+  });
+
+  it('renders exactly one accessible reflow sidecar at desktop and can collapse', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    simulateViewport(true);
+    const result = renderAt('/patients/42');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeTruthy();
+    expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeNull();
+    expect(screen.getByRole('complementary', {
+      name: 'Crown Bot — assistant latéral expérimental',
+    })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Close CrownBot' })).toHaveLength(1);
+    expect(screen.getByText('Page content')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Réduire le panneau Crown Bot' }));
+    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeNull();
+    expect(screen.getByText('Page content')).toBeTruthy();
+  });
+
+  it('requires the prior safe preview flag even when sidecar is opted in', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'false');
+    simulateViewport(true);
+    const result = renderAt('/dashboard');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeNull();
+    expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeTruthy();
   });
 });
