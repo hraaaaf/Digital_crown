@@ -25,7 +25,9 @@ from tools.imaging_gateway.durable_cas_lab import (
 from tools.imaging_gateway.independent_witness_lab import verify_response
 
 DOMAIN = b"DC06N|checkpoint-C|synthetic-v1\0"
+HEAD_DOMAIN = b"DC06N|checkpoint-C-HEAD|synthetic-v1\0"
 PROTOCOL = "DC06N_C_ANCHOR_SYNTHETIC_V1"
+HEAD_PROTOCOL = "DC06N_C_HEAD_SYNTHETIC_V1"
 HEX32 = re.compile(r"[0-9a-f]{32}\Z")
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 SCHEMA = frozenset({
@@ -83,6 +85,36 @@ def verify_anchor(packet: dict, c_pin: bytes, b_pin: bytes, scope: str) -> dict:
     return proof
 
 
+def verify_challenged_c_head(packet: dict, challenge: str, c_pin: bytes,
+                             b_pin: bytes, scope: str) -> dict:
+    """Verify fresh challenge binding to a C-signed head, NOT anti-rollback of C.
+
+    C can still be restored with its signing key and sign an old head freshly.
+    The caller must enroll the C pin independently; this LAB cannot prove it.
+    """
+    _refuse(_hex(challenge, HEX32), "C_HEAD_CHALLENGE_SHAPE_REFUSE")
+    _refuse(type(packet) is dict and set(packet) == {"response", "signature_b64"},
+            "C_HEAD_PACKET_SHAPE_REFUSE")
+    response, signature = packet["response"], packet["signature_b64"]
+    _refuse(type(response) is dict and set(response) ==
+            {"protocol", "challenge", "anchor"}, "C_HEAD_RESPONSE_SHAPE_REFUSE")
+    _refuse(response["protocol"] == HEAD_PROTOCOL
+            and response["challenge"] == challenge,
+            "C_HEAD_CHALLENGE_BINDING_REFUSE")
+    _refuse(type(signature) is str and len(signature) <= 128
+            and type(c_pin) is bytes and len(c_pin) == 32,
+            "C_HEAD_SIGNATURE_SHAPE_REFUSE")
+    message = HEAD_DOMAIN + canonical(response)
+    _refuse(len(message) <= 4096, "C_HEAD_WIRE_LIMIT_REFUSE")
+    try:
+        sig = base64.b64decode(signature, validate=True)
+        _refuse(len(sig) == 64, "C_HEAD_SIGNATURE_LENGTH_REFUSE")
+        Ed25519PublicKey.from_public_bytes(c_pin).verify(sig, message)
+    except (InvalidSignature, ValueError, binascii.Error, TypeError) as exc:
+        raise CasRefusal("C_HEAD_SIGNATURE_REFUSE") from exc
+    return verify_anchor(response["anchor"], c_pin, b_pin, scope)
+
+
 @dataclass(frozen=True)
 class AnchorDecision:
     status: str
@@ -111,6 +143,27 @@ def classify_verified_head(witness_packet: dict | None, fresh_head_request: dict
     if witness["mac"] != checkpoint["mac"]:
         return AnchorDecision("SAME_SEQ_FORK_REFUSED_LAB", witness["seq"], checkpoint["seq"])
     return AnchorDecision("MATCH_LAB_NOT_GLOBAL_FRESHNESS", witness["seq"], checkpoint["seq"])
+
+
+def classify_challenged_heads(witness_packet: dict | None, b_head_request: dict,
+                              c_head_packet: dict | None, c_challenge: str,
+                              b_pin: bytes, c_pin: bytes) -> AnchorDecision:
+    """Two challenged signatures; never an independent CURRENT-C proof.
+
+    Caller must independently authenticate the current C witness and ensure
+    its trusted high-watermark cannot be rolled back. This LAB cannot do so.
+    """
+    _refuse(type(b_head_request) is dict and b_head_request.get("method") == "HEAD"
+            and _hex(c_challenge, HEX32), "C_DUAL_CHALLENGE_REFUSE")
+    if witness_packet is None or c_head_packet is None:
+        return AnchorDecision("UNKNOWN_NO_INDEPENDENT_CURRENT_C_LAB")
+    c_proof = verify_challenged_c_head(c_head_packet, c_challenge, c_pin,
+                                     b_pin, b_head_request["scope"])
+    # Existing historical comparator checks B's distinct challenge, signed
+    # B HEAD, signed C anchor and B/C scope. No authorization status exists.
+    return classify_verified_head(witness_packet, b_head_request,
+                                  c_head_packet["response"]["anchor"],
+                                  b_pin, c_pin)
 
 
 class SyntheticCheckpointC:
@@ -150,6 +203,17 @@ class SyntheticCheckpointC:
         # This direct getter has no independent provenance or freshness.
         return {"checkpoint": dict(self._latest["checkpoint"]),
                 "signature_b64": self._latest["signature_b64"]}
+
+    def challenged_head(self, challenge: str) -> dict:
+        """In-process synthetic C HEAD, not a fresh immutable high-watermark."""
+        _refuse(_hex(challenge, HEX32), "C_HEAD_CHALLENGE_SHAPE_REFUSE")
+        response = {"protocol": HEAD_PROTOCOL, "challenge": challenge,
+                    "anchor": self.latest}
+        message = HEAD_DOMAIN + canonical(response)
+        _refuse(len(message) <= 4096, "C_HEAD_WIRE_LIMIT_REFUSE")
+        return {"response": response,
+                "signature_b64": base64.b64encode(
+                    self.signer.sign(message)).decode("ascii")}
 
     def anchor(self, receipt: bytes) -> dict:
         """Advance C only for exact next witness receipt; no clinical authorization."""
