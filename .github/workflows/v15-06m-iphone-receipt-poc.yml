@@ -1,0 +1,43 @@
+name: V1.5-06M Synthetic iPhone Receipt POC
+
+on:
+  push:
+    branches:
+      - feat/v15-06-hotfolder-foundation-20261012
+    paths:
+      - '.github/workflows/v15-06m-iphone-receipt-poc.yml'
+      - 'tools/imaging_gateway/poc_gha_iphone_*'
+      - 'tools/imaging_gateway/tests/test_poc_gha_iphone_emitter.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-phone-packet:
+    name: Synthetic sender + signed artifact (not witness)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test-only Ed25519 dependency
+        run: python -m pip install 'cryptography>=42,<48'
+      - name: Run synthetic fixture and refusal tests
+        run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_poc_gha_iphone_emitter.py' -v
+      - name: Generate synthetic packet with ephemeral signing key
+        run: |
+          python -m tools.imaging_gateway.poc_gha_iphone_emitter \
+            --out "dc06m-iphone-proof" \
+            --source-sha "$GITHUB_SHA" \
+            --run-id "$GITHUB_RUN_ID" \
+            --summary "$GITHUB_STEP_SUMMARY"
+      - name: Upload synthetic-only receipt and offline verifier
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc06m-iphone-synthetic-receipt
+          path: dc06m-iphone-proof/
+          retention-days: 1
+          if-no-files-found: error
