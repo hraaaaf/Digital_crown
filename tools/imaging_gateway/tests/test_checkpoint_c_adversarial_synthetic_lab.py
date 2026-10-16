@@ -22,8 +22,8 @@ from tools.imaging_gateway.checkpoint_c_lab import (
     reconcile_challenged_receipt, verify_anchor, verify_challenged_c_head,
 )
 from tools.imaging_gateway.durable_cas_lab import (
-    AUTHORITY, EPOCH, GENESIS_MAC, CasRefusal, audit, event, signer_pub,
-    verify_receipt,
+    AUTHORITY, EPOCH, GENESIS_MAC, CasRefusal, _receipt, audit, event,
+    event_bytes, signer_pub, verify_receipt,
 )
 from tools.imaging_gateway.independent_witness_lab import b64, proof_bytes
 
@@ -142,12 +142,13 @@ class CheckpointCAdversarialSynthetic(unittest.TestCase):
         l = self.lab
         e, r = l.commit_b()
         l.c.anchor(r)
-        b_head, b_req = l.fresh_head()
+        b_head, original_req = l.fresh_head()
         nonce = secrets.token_hex(16)
         c_head = l.c.challenged_head(nonce)
         for kind in ("wrong_nonce", "wrong_c_pin", "wrong_b_pin",
                      "wrong_scope", "truncated_c_signature"):
             with self.subTest(case=kind):
+                b_req = dict(original_req)
                 c_packet = deepcopy(c_head)
                 challenge = nonce
                 b_pin = l.b_pin
@@ -190,20 +191,22 @@ class CheckpointCAdversarialSynthetic(unittest.TestCase):
                 with self.assertRaises(CasRefusal):
                     verify_anchor(altered, l.c_pin, l.b_pin, l.scope)
 
-    def test_fixture_receipt_rebind_refused_at_c_after_valid_anchor(self):
+    def test_validly_signed_receipt_rebind_with_same_op_refused_at_c(self):
         l = self.lab
-        e, receipt = l.commit_b()
+        original, receipt = l.commit_b()
         l.c.anchor(receipt)
-        l.c.anchor(receipt)
-        # Re-signing a different receipt with same op_id is NOT the same op.
-        # This is a counterexample built only with the disposable test key.
-        malicious_body = verify_receipt(receipt, l.b_pin)
-        self.assertEqual(l.c.latest["checkpoint"]["op_id"], e["op_id"])
-        changed = {**malicious_body, "request_sha256": "a" * 64}
-        # The change destroys the signed receipt and must never advance C.
-        with self.assertRaises(CasRefusal):
-            l.c.anchor(base64.b64encode(b"bad") + receipt[:12])
+        # A *different but correctly signed* witness receipt under the same
+        # op_id cannot replace C's previous bound receipt.
+        changed_event = {**original, "manifest_digest": "f" * 64}
+        conflicting = _receipt(changed_event, event_bytes(changed_event), l.b_key)
+        self.assertNotEqual(conflicting, receipt)
+        self.assertEqual(verify_receipt(conflicting, l.b_pin)["op_id"],
+                         original["op_id"])
+        with self.assertRaisesRegex(CasRefusal, "C_OP_ID_REBIND_REFUSE"):
+            l.c.anchor(conflicting)
         self.assertEqual(l.c.latest["checkpoint"]["seq"], 1)
+        self.assertEqual(self._exchange().status,
+                         "MATCH_B_C_RECEIPT_LAB_NOT_AUTHORITY")
 
     def test_c_signer_failure_does_not_advance_or_erase_replay(self):
         l = self.lab
