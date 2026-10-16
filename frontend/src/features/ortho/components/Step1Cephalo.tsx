@@ -213,7 +213,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         <button type="button" data-cephalo-all-names-toggle
           aria-pressed={showAllLandmarkNames}
           aria-label={showAllLandmarkNames ? 'Revenir aux noms majeurs des repères' : 'Afficher tous les noms des repères'}
-          title={showAllLandmarkNames ? 'Afficher uniquement les noms majeurs ; autres au survol' : 'Afficher les 38 noms anatomiques'}
+          title={showAllLandmarkNames ? 'Afficher uniquement les noms majeurs ; autres au survol' : 'Afficher les noms de tous les points actuellement visibles'}
           onClick={() => setShowAllLandmarkNames(value => !value)}
           className="hidden min-h-10 items-center justify-center rounded-xl border px-3 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 xl:inline-flex"
           style={{ background: showAllLandmarkNames ? props.P.bgInput : props.P.bgCard,

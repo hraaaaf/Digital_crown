@@ -407,6 +407,12 @@ try {
         const expanded=await verifySvg(page,expected);
         assert(expanded===38&&await pointToggle.getAttribute('aria-pressed')==='true',
           'Full 38-point override missing '+film+' '+mode);
+        if(mode==='ricketts'){
+          const projectionLeak=await page.locator('svg[data-cephalo-viewport="base"] text')
+            .evaluateAll(nodes=>nodes.filter(n=>["A'","B'"].includes(n.textContent?.trim()??'')).length);
+          assert(projectionLeak===0,
+            'Ricketts full-markers override leaked McNamara A/B prime projections '+film);
+        }
         if(mode==='steiner'){
           await shot(page,film,mode,'1280x900','all-points');
         }

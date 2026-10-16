@@ -188,6 +188,19 @@ async function captureViewport(viewport,attempt){
       valid:focusedSteiner>0&&focusedSteiner<29&&expandedSteiner===29
         &&restoredSteiner===focusedSteiner&&allPointsPressed==='true'
         &&manualMissing.includes('Occ_Steiner_Ant')&&manualMissing.includes('Occ_Steiner_Post')};
+    let assertRickettsIsolated=false;
+    // Turning on every point must not restore McNamara A′/B′ projections
+    // under the Ricketts E-line analysis.
+    await page.locator('#cephalo-ready-analysis').selectOption('ricketts');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='ricketts',null,{timeout:5000});
+    await pointToggle.click();
+    const noRickettsMcNamaraLeak=await page.locator('svg[data-cephalo-viewport="base"] text')
+      .evaluateAll(nodes=>!nodes.some(n=>["A'","B'"].includes(n.textContent?.trim()??'')));
+    const allRickettsMarkers=await page.locator('[data-ceph03b-drag-handle]').count();
+    await pointToggle.click();
+    await page.locator('#cephalo-ready-analysis').selectOption('all');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='all',null,{timeout:5000});
+    assertRickettsIsolated= noRickettsMcNamaraLeak && allRickettsMarkers===29;
     const nameToggle=page.locator('[data-cephalo-all-names-toggle]');
     const labelNodes=page.locator('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label]');
     const defaultNames=await labelNodes.count();
@@ -222,10 +235,10 @@ async function captureViewport(viewport,attempt){
     const restoredNames=await labelNodes.count();
     const defaultPressed=await nameToggle.getAttribute('aria-pressed');
     await nameToggle.click(); // Retain old all-name evidence for every analysis below.
-    const progressiveProof={defaultNames,allHandles,analysisMajorProof,pointFocusProof,dotWitness,shortNameWitness,secondaryDefaultHidden,hoverExposesName,
+    const progressiveProof={defaultNames,allHandles,analysisMajorProof,pointFocusProof,assertRickettsIsolated,dotWitness,shortNameWitness,secondaryDefaultHidden,hoverExposesName,
       hoverClearsName,focusExposesName,focusClearsName,fullNames,restoredNames,
       allPressed,defaultPressed,essentialScreenshot,exhaustiveScreenshot,
-      valid:analysisMajorProof.every(mode=>mode.valid)&&pointFocusProof.valid&&allHandles===29&&defaultNames===10
+      valid:analysisMajorProof.every(mode=>mode.valid)&&pointFocusProof.valid&&assertRickettsIsolated&&allHandles===29&&defaultNames===10
         &&dotWitness.count===29&&dotWitness.darkContours&&dotWitness.allFinite
         &&dotWitness.diameters.every(px=>px>=4&&px<=8)&&shortNameWitness
         &&secondaryDefaultHidden&&hoverExposesName&&hoverClearsName

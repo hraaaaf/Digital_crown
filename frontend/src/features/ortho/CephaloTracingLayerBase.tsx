@@ -755,7 +755,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {isLayerVisible('measurements') && aPrime && ptA && aPrimeTick && (
+        {isLayerVisible('measurements') && ['all','mcnamara'].includes(activeAnalysis.toLowerCase()) && aPrime && ptA && aPrimeTick && (
           <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptA.x} y1={ptA.y}
@@ -786,7 +786,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {isLayerVisible('measurements') && bPrime && ptB && bPrimeTick && (
+        {isLayerVisible('measurements') && ['all','mcnamara'].includes(activeAnalysis.toLowerCase()) && bPrime && ptB && bPrimeTick && (
           <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptB.x} y1={ptB.y}
