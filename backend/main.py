@@ -211,6 +211,7 @@ async def lifespan(app: FastAPI):
     firebase_sync_task = None
     patient_relay_task = None
     station_ttl_cleanup_task = None
+    imaging_bridge_lab_handle = None
     try:
         boot_policy = assert_runtime_startup_allowed(_cfg)
 
@@ -299,6 +300,11 @@ async def lifespan(app: FastAPI):
             and str(_cfg.ENVIRONMENT).lower() in {"cabinet", "production"}
             else None
         )
+        # LOT06 isolated LAB only: one local worker within the existing backend.
+        # This is NOT an installer/service activation or a clinical capture.
+        if boot_policy != REHEARSAL_MIGRATION_ONLY:
+            from backend.services.imaging_bridge_lab_v15 import start_if_enabled
+            imaging_bridge_lab_handle = start_if_enabled()
 
     except asyncio.CancelledError:
         raise
@@ -314,6 +320,9 @@ async def lifespan(app: FastAPI):
         patient_relay_task.cancel()
     if station_ttl_cleanup_task is not None:
         station_ttl_cleanup_task.cancel()
+    if imaging_bridge_lab_handle is not None:
+        from backend.services.imaging_bridge_lab_v15 import stop_bridge_lab
+        await stop_bridge_lab(imaging_bridge_lab_handle)
     logger.info("Arret de l'API...")
 
 

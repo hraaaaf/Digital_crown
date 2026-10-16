@@ -1,0 +1,128 @@
+"""LAB-only background worker contract: no hardware or patient access."""
+import asyncio
+import base64
+from pathlib import Path
+import tempfile
+import unittest
+
+from backend.services.imaging_bridge_lab_v15 import (
+    BridgeLabConfigurationError, lab_requested, make_lab_collector,
+    poll_lab_collector, start_if_enabled,
+)
+
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
+    "AAAAFklEQVR4nGPkEpFjYGBgYmBgYGBgAAAC5gBAXKUgWwAAAABJRU5ErkJggg=="
+)
+
+
+class BridgeLabConfigTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        (self.root / ".digitalcrown-imaging-lab-only").write_text(
+            "DIGITALCROWN_IMAGING_LAB_ONLY_V1\n", encoding="utf-8")
+        (self.root / "incoming").mkdir()
+        self.env = {
+            "DC_V15_06_BRIDGE_LAB": "1",
+            "ENVIRONMENT": "test",
+            "DIGITALCROWN_ISOLATED_RUNTIME": "true",
+            "DC_V15_06_BRIDGE_LAB_ROOT": str(self.root),
+            "DC_V15_06_BRIDGE_LAB_KEY_HEX": (b"k" * 32).hex(),
+        }
+
+    def test_disabled_by_default_has_no_collector(self):
+        self.assertFalse(lab_requested({}))
+        self.assertIsNone(make_lab_collector({}))
+        self.assertFalse((self.root / "private").exists())
+
+    def test_rejects_production_even_if_switch_was_set(self):
+        with self.assertRaisesRegex(BridgeLabConfigurationError, "TEST_ISOLATION_REQUIRED"):
+            make_lab_collector({**self.env, "ENVIRONMENT": "cabinet"})
+        self.assertFalse((self.root / "private").exists())
+
+    def test_rejects_nonisolated_test(self):
+        with self.assertRaises(BridgeLabConfigurationError):
+            make_lab_collector({**self.env, "DIGITALCROWN_ISOLATED_RUNTIME": "false"})
+
+    def test_rejects_missing_marker(self):
+        (self.root / ".digitalcrown-imaging-lab-only").unlink()
+        with self.assertRaises(BridgeLabConfigurationError):
+            make_lab_collector(self.env)
+
+    def test_rejects_non_temp_and_relative_roots(self):
+        for root in ("relative/path", str(Path(self.tmp.name).parent)):
+            with self.subTest(root=root), self.assertRaises(BridgeLabConfigurationError):
+                make_lab_collector({**self.env, "DC_V15_06_BRIDGE_LAB_ROOT": root})
+
+    def test_rejects_missing_or_malformed_key(self):
+        for key in ("", "z" * 64):
+            with self.subTest(key=key[:3]), self.assertRaises(BridgeLabConfigurationError):
+                make_lab_collector({**self.env, "DC_V15_06_BRIDGE_LAB_KEY_HEX": key})
+
+    def test_real_synthetic_collector_stages_without_patient_binding(self):
+        collector = make_lab_collector(self.env)
+        photo = self.root / "incoming" / "fake_photo.png"
+        photo.write_bytes(PNG)
+        self.assertEqual(collector.scan_once()["unstable"], 1)
+        self.assertEqual(collector.scan_once()["staged"], 1)
+        items = collector.items()
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["state"], "PENDING_CONFIRMATION")
+        self.assertNotIn("patient_id", items[0])
+        self.assertEqual(photo.read_bytes(), PNG)
+        self.assertNotIn(PNG, next((self.root / "private" / "spool").iterdir()).read_bytes())
+
+    def test_invalid_media_is_quarantined_not_confirmed(self):
+        collector = make_lab_collector(self.env)
+        (self.root / "incoming" / "fake_photo.png").write_bytes(b"invalid synthetic data")
+        collector.scan_once()
+        self.assertEqual(collector.scan_once()["quarantine"], 1)
+        self.assertEqual(collector.items()[0]["state"], "QUARANTINED")
+
+
+class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_background_worker_runs_and_stops_without_separate_process(self):
+        class Collector:
+            ticks = 0
+            def scan_once(self):
+                self.ticks += 1
+                return {"staged": 0}
+        collector = Collector()
+        stop = asyncio.Event()
+        task = asyncio.create_task(poll_lab_collector(collector, stop, interval=0.01))
+        await asyncio.wait_for(self._until(lambda: collector.ticks >= 2), timeout=3)
+        stop.set()
+        await asyncio.wait_for(task, timeout=3)
+        last = collector.ticks
+        await asyncio.sleep(0.04)
+        self.assertEqual(collector.ticks, last)
+
+    async def test_start_is_silent_when_not_requested(self):
+        self.assertIsNone(start_if_enabled({}))
+
+    async def test_failure_is_private_and_retry_does_not_create_confirmation(self):
+        class BadCollector:
+            ticks = 0
+            def scan_once(self):
+                self.ticks += 1
+                raise RuntimeError("PATIENT_PERSONAL_SECRET_FILENAME")
+        collector = BadCollector()
+        stop = asyncio.Event()
+        with self.assertLogs("backend.services.imaging_bridge_lab_v15", level="WARNING") as logs:
+            task = asyncio.create_task(poll_lab_collector(collector, stop, interval=0.01))
+            await asyncio.wait_for(self._until(lambda: collector.ticks >= 2), timeout=3)
+            stop.set()
+            await task
+        self.assertNotIn("PATIENT_PERSONAL_SECRET_FILENAME", " ".join(logs.output))
+        self.assertTrue(all("not confirmed" in line for line in logs.output))
+
+    @staticmethod
+    async def _until(predicate):
+        while not predicate():
+            await asyncio.sleep(0.01)
+
+
+if __name__ == "__main__":
+    unittest.main()
