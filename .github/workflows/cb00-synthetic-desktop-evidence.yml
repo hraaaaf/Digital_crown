@@ -5,6 +5,13 @@ on:
     paths:
       - frontend/scripts/certify-cb00-desktop-existing-preview.mjs
       - scripts/ci/crownbot_cb00_t2_read_evidence.py
+      - backend/routers/bot_workflows.py
+      - backend/services/bot/patient_selector.py
+      - backend/services/bot/workflow_poc.py
+      - backend/tests/test_cb00_patient_selectors.py
+      - backend/tests/test_bot_workflow_api_safe.py
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
       - .github/workflows/cb00-synthetic-desktop-evidence.yml
   workflow_dispatch:
 
@@ -78,6 +85,15 @@ jobs:
           npm ci
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
+      - name: Test scoped patient resolution against real isolated backend models
+        shell: bash
+        run: |
+          pip install pytest==8.4.2
+          python -m pytest -q backend/tests/test_cb00_patient_selectors.py
+      - name: Test flagged preview dossier disambiguation UI
+        shell: bash
+        working-directory: frontend
+        run: npx vitest run src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
       - name: Start disposable synthetic T2 backend
         shell: bash
         run: |
