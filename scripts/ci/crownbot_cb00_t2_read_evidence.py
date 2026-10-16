@@ -11,7 +11,7 @@ Example, from repo root with disposable T2 flags explicitly enabled there:
   T2_PASSWORD='synthetic' T2_PATIENT_ID=7 \
   python scripts/ci/crownbot_cb00_t2_read_evidence.py --out /tmp/cb00-read.json
 Optional negative T2 fixtures: T2_DENIED_USER, T2_DENIED_PASSWORD,
-T2_FOREIGN_PATIENT_ID, T2_DENIED_COMMAND. Never store names, credentials, tokens or responses.
+T2_FOREIGN_PATIENT_ID, T2_UNKNOWN_PATIENT_ID, T2_DENIED_COMMAND. Never store names, credentials, tokens or responses.
 """
 import argparse
 import json
@@ -77,8 +77,14 @@ def require_t2_environment(args) -> tuple[str, str, str, int]:
     if os.getenv('T2_DENIED_COMMAND', '/rdv') not in ('/patient', '/rdv', '/devis'):
         raise ValueError('REFUSED: denied command not in supported capabilities')
     foreign_id = os.getenv('T2_FOREIGN_PATIENT_ID', '')
+    unknown_id = os.getenv('T2_UNKNOWN_PATIENT_ID', '')
     if foreign_id and not re.fullmatch(r'[1-9]\d{0,9}', foreign_id):
         raise ValueError('REFUSED: foreign patient fixture must be synthetic positive ID')
+    if bool(foreign_id) != bool(unknown_id):
+        raise ValueError('REFUSED: both foreign and unknown synthetic patient fixtures required')
+    if unknown_id and (not re.fullmatch(r'[1-9]\d{0,9}', unknown_id)
+                       or unknown_id == foreign_id or unknown_id == raw_id):
+        raise ValueError('REFUSED: unknown fixture must be distinct and valid')
     if not Path(args.out).parent.exists():
         raise ValueError('REFUSED: output parent directory missing')
     return api, user, password, int(raw_id)
@@ -182,9 +188,19 @@ def run(args):
             endpoint, {'messages': ['/patient', foreign_id]}, token)
         if status != 404 or 'patient' in payload or 'proposal' in payload:
             raise RuntimeError('FAIL CLOSED: cross-tenant lookup contract failure')
+        # Compare with a DB-verified missing ID to reject existence oracles.
+        missing_status, missing_payload, _ = http_json(
+            endpoint,
+            {'messages': ['/patient', os.environ['T2_UNKNOWN_PATIENT_ID']]},
+            token,
+        )
+        if missing_status != 404 or missing_payload != payload:
+            raise RuntimeError('FAIL CLOSED: tenant 404 differs from unknown patient 404')
         checks['foreign_patient_404'] = 'PASS'
+        checks['foreign_unknown_same_404'] = 'PASS'
     else:
         checks['foreign_patient_404'] = 'NOT_RUN_NO_FIXTURE'
+        checks['foreign_unknown_same_404'] = 'NOT_RUN_NO_FIXTURE'
     data = {
         'scope': 'SYNTHETIC_LOCALHOST_T2',
         'measurement': 'full HTTP response for an authorized useful patient read',
