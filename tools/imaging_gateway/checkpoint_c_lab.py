@@ -166,6 +166,64 @@ def classify_challenged_heads(witness_packet: dict | None, b_head_request: dict,
                                   b_pin, c_pin)
 
 
+
+def reconcile_challenged_receipt(
+        witness_head_packet: dict | None, b_head_request: dict,
+        c_head_packet: dict | None, c_challenge: str,
+        b_lookup_packet: dict | None, b_lookup_request: dict | None,
+        b_pin: bytes, c_pin: bytes) -> AnchorDecision:
+    """Reconcile signed B current LOOKUP bytes with B HEAD and C checkpoint.
+
+    Conditional LAB ONLY: the three independently signed responses are not a
+    distributed snapshot, nor evidence that C remains rollback-resistant.
+    A matched receipt never grants COMMITTED, clinical ACK or global freshness.
+    """
+    heads = classify_challenged_heads(
+        witness_head_packet, b_head_request, c_head_packet, c_challenge,
+        b_pin, c_pin)
+    if heads.status != "MATCH_LAB_NOT_GLOBAL_FRESHNESS":
+        return heads
+    if heads.witness_seq == 0:
+        # Genesis has no committed receipt; no fabricated receipt is needed.
+        return AnchorDecision("MATCH_GENESIS_LAB_NOT_AUTHORITY", 0, 0)
+    if b_lookup_packet is None or b_lookup_request is None:
+        return AnchorDecision("UNKNOWN_B_CURRENT_RECEIPT_LAB",
+                              heads.witness_seq, heads.checkpoint_seq)
+    _refuse(type(b_lookup_request) is dict
+            and b_lookup_request.get("method") == "LOOKUP"
+            and b_lookup_request.get("scope") == b_head_request.get("scope"),
+            "B_RECEIPT_LOOKUP_REQUEST_REFUSE")
+    c_head = verify_challenged_c_head(
+        c_head_packet, c_challenge, c_pin, b_pin, b_head_request["scope"])
+    _refuse(b_lookup_request.get("op_id") == c_head["op_id"],
+            "B_RECEIPT_LOOKUP_OP_REFUSE")
+    b_head = verify_response(witness_head_packet, b_pin, b_head_request)
+    b_lookup = verify_response(b_lookup_packet, b_pin, b_lookup_request)
+    if b_lookup["status"] == "UNKNOWN_OP":
+        return AnchorDecision("UNKNOWN_B_CURRENT_RECEIPT_LAB",
+                              b_head["seq"], c_head["seq"])
+    if (b_lookup["status"] != "DECIDED_LAB_ONLY"
+            or (b_lookup["seq"], b_lookup["mac"]) !=
+                (b_head["seq"], b_head["mac"])):
+        return AnchorDecision("B_RECEIPT_HEAD_CONFLICT_LAB",
+                              b_head["seq"], c_head["seq"])
+    raw = base64.b64decode(b_lookup["receipt_b64"], validate=True)
+    body = verify_receipt(raw, b_pin)
+    if (body.get("authority_id") != AUTHORITY or body.get("epoch") != EPOCH
+            or body.get("scope") != b_head["scope"]
+            or body.get("op_id") != c_head["op_id"]
+            or body.get("after_seq") != b_head["seq"]
+            or body.get("after_mac") != b_head["mac"]
+            or body.get("before_seq") != b_head["seq"] - 1):
+        return AnchorDecision("B_C_RECEIPT_BODY_CONFLICT_LAB",
+                              b_head["seq"], c_head["seq"])
+    if hashlib.sha256(raw).hexdigest() != c_head["receipt_sha256"]:
+        return AnchorDecision("B_C_RECEIPT_HASH_CONFLICT_LAB",
+                              b_head["seq"], c_head["seq"])
+    return AnchorDecision("MATCH_B_C_RECEIPT_LAB_NOT_AUTHORITY",
+                          b_head["seq"], c_head["seq"])
+
+
 class SyntheticCheckpointC:
     """Volatile, single-process, disposable C fixture. NOT a trusted durable store."""
 
