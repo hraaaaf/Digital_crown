@@ -63,7 +63,7 @@ def preflight(
     # If both exist, require they identify the same credential; a forged
     # "Bearer anything" must never borrow a valid cookie's authority.
     cookie_token = request.cookies.get("access_token")
-    if cookie_token and not secrets.compare_digest(authorization[7:], cookie_token):
+    if cookie_token and not secrets.compare_digest(authorization[7:].encode("utf-8"), cookie_token.encode("utf-8")):
         raise HTTPException(status_code=401, detail="EXPLICIT_STAFF_BEARER_MISMATCH")
     if not has_permission(current_user, "patients"):
         raise HTTPException(status_code=403, detail="PATIENT_PERMISSION_REQUIRED")
