@@ -18,6 +18,15 @@ on:
       - backend/tests/test_crown_bot_clinical_gate.py
       - scripts/ci/crown_bot_clinical_pg_http_e2e.py
       - backend/services/agenda_transaction_lock.py
+      - backend/services/agenda_interval_overlap.py
+      - backend/services/agenda_resource_conflicts.py
+      - backend/core/appointment_revision_ddl.py
+      - backend/tests/test_agenda_a4_resource_conflicts.py
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
+      - frontend/.env.example
       - backend/tests/test_bot_atomic_claim_postgres.py
       - backend/tests/test_crown_bot_zero_llm_poc.py
       - backend/tests/test_bot_workflow_api_safe.py
@@ -32,6 +41,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  frontend-preview:
+    name: Crown Bot flag-guarded UI preview (no clinical write)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Verify disabled legacy UI, guarded preview, and no execution
+        working-directory: frontend
+        run: npx vitest run src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+
   pure:
     name: Pure FSM (synthetic no-deps)
     runs-on: ubuntu-latest
@@ -176,4 +205,4 @@ jobs:
           echo "## ZERO-LLM adapter security gate" >> "$GITHUB_STEP_SUMMARY"
           echo "PR merge-ref SHA: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Flag is OFF by default. No Vercel deployment, no real patients." >> "$GITHUB_STEP_SUMMARY"
-          echo "API test DB = SQLite in-memory. PostgreSQL tests use synthetic SQL schema, not a real HTTP/backend clinical E2E. Browser tests still required." >> "$GITHUB_STEP_SUMMARY"
+          echo "API tests use isolated SQLite; PostgreSQL and encrypted SQLCipher use real migrated FastAPI HTTP clinical E2E. Crown Bot UI guarded Vitest tests are included; browser screenshots remain separately required." >> "$GITHUB_STEP_SUMMARY"
