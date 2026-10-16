@@ -30,6 +30,53 @@ const api = await request.newContext({ baseURL: apiOrigin });
 const login = await api.post('/api/auth/login', { form: { username:user, password } });
 if (!login.ok()) throw new Error('Synthetic auth rejected');
 const tokens = await login.json();
+
+// S05/S06 are independent receptionist identities. An owner-browser PASS is
+// insufficient evidence of reception RBAC; verify role-specific HTTP after
+// seeding the synthetic dossier, before entering the UI scenarios.
+const futureDossierProposal=[
+  '/rdv','dossier:CB01-N-101','2099-01-01','10:00','30','consultation','CONFIRMER',
+];
+const roleChecks={s05ReceptionDossier:'NOT_RUN',s06NoAgenda:'NOT_RUN'};
+for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
+  const account=process.env[envPrefix+'_USER'];
+  const secret=process.env[envPrefix+'_PASSWORD'];
+  if (!account?.startsWith('t2-') || !secret) {
+    throw new Error('REFUSED: synthetic role credentials missing: '+kind);
+  }
+  const signedIn=await api.post('/api/auth/login',{
+    form:{username:account,password:secret},
+  });
+  if (!signedIn.ok()) throw new Error('FAIL: synthetic receptionist authentication '+kind);
+  const roleToken=(await signedIn.json()).access_token;
+  const sendRolePreview=async messages => {
+    const response=await api.post('/api/bot/workflows/preview',{
+      data:{messages},
+      headers:{Authorization:'Bearer '+roleToken},
+    });
+    return {status:response.status(),payload:await response.json()};
+  };
+  if(kind==='s05') {
+    const r=await sendRolePreview(futureDossierProposal);
+    if(r.status!==200 || r.payload?.status!=='proposal_only'
+      || r.payload?.proposal?.type!=='CREATE_APPOINTMENT'
+      || !Number.isInteger(r.payload?.proposal?.params?.patient_id)
+      || /"pending_action_id"|"pendingActionId"|"action_id"|"actionId"/.test(
+        JSON.stringify(r.payload))) {
+      throw new Error('FAIL: S05 receptionist dossier proposal not safe');
+    }
+    roleChecks.s05ReceptionDossier='PASS_PROPOSAL_ONLY';
+  } else {
+    const a=await sendRolePreview(['/rdv']);
+    const b=await sendRolePreview(futureDossierProposal);
+    if(a.status!==403 || b.status!==403
+      || JSON.stringify(a.payload)!==JSON.stringify(b.payload)
+      || JSON.stringify(b.payload).includes('CB01-N-101')) {
+      throw new Error('FAIL: S06 secretary no-agenda access did not fail closed');
+    }
+    roleChecks.s06NoAgenda='PASS_403';
+  }
+}
 const browser = await chromium.launch({ headless:true });
 const evidence = [];
 try {
@@ -139,7 +186,7 @@ try {
       await preview.getByText('Patient identifié : T2 CERTIFICATION — Dossier T2-0001').waitFor();
       staffSearchChecks='PASS_DOSSIER_HOMONYMS_NUMERIC_COLLISION';
 
-      // S05 synthetic workflow: dossier lookup -> future appointment proposal.
+      // Owner browser: dossier lookup -> non-executable future appointment.
       // /rdv is NEVER a booking; capture actual HTTP payload and forbid action IDs.
       await preview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
       await preview.getByRole('button',{name:'/rdv'}).click();
@@ -175,7 +222,7 @@ try {
         throw new Error('FAIL: S05 dossier appointment preview not fail-closed non-executable');
       }
       await preview.getByText('Proposition CREATE_APPOINTMENT : simulation uniquement, non exécutable.').waitFor();
-      staffSearchChecks+='|PASS_S05_DOSSIER_RDV_PROPOSAL_ONLY';
+      staffSearchChecks+='|PASS_OWNER_DOSSIER_RDV_PROPOSAL_ONLY';
     }
     await page.screenshot({path:path.join(output,'after-'+width+'.png')});
     evidence.push({width,mode:desktop?'sidecar-reflow':'web-floating-fallback',
@@ -264,7 +311,7 @@ try {
   const summary={kind:'CB01_SYNTHETIC_PREVIEW_ONLY',flagDependent:true,
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
     browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
-    evidence};
+    roleChecks,evidence};
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2));
   console.log('CB01_ASSOCIATE_SIDECAR_VISUAL: PASS',JSON.stringify(evidence));
 } finally {
