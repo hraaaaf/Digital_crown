@@ -16,7 +16,7 @@ const SHORT_ANATOMICAL_LABELS: Readonly<Record<string,string>> = Object.freeze({
   U1_apex:'U1 A', L1_apex:'L1 A', Cm:'Cm', Ptm:'Ptm',
   Co:'Co', Prn:'Prn', Ba:'Ba', PT_point:'PT', Bo:'Bo',
   Ls2:'Ls2', Li2:'Li2', Gn_soft:'Gn′', Me_soft:'Me′',
-  G_soft:'G′', N_soft:'N′', C_point:'C', U6:'U6', L6:'L6',
+  G_soft:'G′', N_soft:'N′', A_soft:'A′', B_soft:'B′', C_point:'C', U6:'U6', L6:'L6',
   U1_facial_surface:'U1 V', L1_facial_surface:'L1 V',
   Po_anatomic:'Po a', Gn_anatomic:'Gn a',
   Pog_hard:'Pog', D_Steiner_1959:'D St',
