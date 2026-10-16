@@ -12,7 +12,8 @@ from unittest.mock import patch
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from tools.imaging_gateway.checkpoint_c_lab import (
-    SyntheticCheckpointC, classify_verified_head, verify_anchor,
+    SyntheticCheckpointC, classify_verified_head, classify_challenged_heads,
+    verify_anchor, verify_challenged_c_head,
 )
 from tools.imaging_gateway.durable_cas_lab import (
     AUTHORITY, EPOCH, GENESIS_MAC, CasRefusal, apply, audit, canonical, event, initialize,
@@ -200,6 +201,97 @@ class CheckpointCSyntheticTests(unittest.TestCase):
         self.assertEqual(self.verdict().status, "PENDING_C_ANCHOR_LAB")
         self.assertEqual(self.c.anchor(receipt)["checkpoint"]["seq"], 1)
         self.assertEqual(self.verdict().status, "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+
+    def dual(self, *, c=None, b=None, challenge=None):
+        b_pkt, b_req = b if b is not None else self.fresh_head()
+        nonce = challenge or secrets.token_hex(16)
+        c_pkt = self.c.challenged_head(nonce) if c is None else c
+        return classify_challenged_heads(
+            b_pkt, b_req, c_pkt, nonce, self.b_pin, self.c_pin)
+
+    def test_challenged_c_genesis_match_is_not_authorization(self):
+        self.assertEqual(self.dual().status, "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+
+    def test_challenged_c_b_ahead_pending_before_anchor(self):
+        _, receipt = self.commit_b()
+        self.assertEqual(self.dual().status, "PENDING_C_ANCHOR_LAB")
+        self.c.anchor(receipt)
+        self.assertEqual(self.dual().status, "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+
+    def test_challenged_c_new_nonce_rejects_replay_of_old_signed_head(self):
+        old_nonce = secrets.token_hex(16)
+        old_head = self.c.challenged_head(old_nonce)
+        with self.assertRaisesRegex(CasRefusal, "C_HEAD_CHALLENGE_BINDING_REFUSE"):
+            self.dual(c=old_head, challenge=secrets.token_hex(16))
+        self.assertEqual(self.dual(c=old_head, challenge=old_nonce).status,
+                         "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+
+    def test_challenged_c_tamper_or_wrong_pin_fails_closed(self):
+        nonce = secrets.token_hex(16)
+        old_head = self.c.challenged_head(nonce)
+        bad = {"response": {**old_head["response"], "protocol": "BAD_PROTOCOL"},
+               "signature_b64": old_head["signature_b64"]}
+        with self.assertRaisesRegex(CasRefusal, "C_HEAD_CHALLENGE_BINDING_REFUSE"):
+            self.dual(c=bad, challenge=nonce)
+        tampered = {"response": {**old_head["response"],
+                    "anchor": {**old_head["response"]["anchor"],
+                              "checkpoint": {**old_head["response"]["anchor"]["checkpoint"],
+                                             "seq": 1}}},
+                    "signature_b64": old_head["signature_b64"]}
+        with self.assertRaisesRegex(CasRefusal, "C_HEAD_SIGNATURE_REFUSE"):
+            self.dual(c=tampered, challenge=nonce)
+        with self.assertRaisesRegex(CasRefusal, "C_HEAD_SIGNATURE_REFUSE"):
+            verify_challenged_c_head(old_head, nonce,
+                                     signer_pub(Ed25519PrivateKey.generate()),
+                                     self.b_pin, self.scope)
+
+    def test_challenged_c_missing_either_side_unknown(self):
+        b_pkt, b_req = self.fresh_head()
+        nonce = secrets.token_hex(16)
+        c_pkt = self.c.challenged_head(nonce)
+        self.assertEqual(classify_challenged_heads(
+            b_pkt, b_req, None, nonce, self.b_pin, self.c_pin).status,
+            "UNKNOWN_NO_INDEPENDENT_CURRENT_C_LAB")
+        self.assertEqual(classify_challenged_heads(
+            None, b_req, c_pkt, nonce, self.b_pin, self.c_pin).status,
+            "UNKNOWN_NO_INDEPENDENT_CURRENT_C_LAB")
+
+    def test_challenged_c_detects_b_rollback_if_c_current(self):
+        first, r1 = self.commit_b()
+        self.c.anchor(r1)
+        saved = self.root / "saved-b-for-challenged.db"
+        shutil.copy2(self.db, saved)
+        _, r2 = self.commit_b(1, first["after_mac"])
+        self.c.anchor(r2)
+        shutil.copy2(saved, self.db)
+        self.assertEqual(self.dual().status, "B_ROLLBACK_DETECTED_LAB")
+
+    def test_restored_c_can_freshly_sign_old_state_no_physical_proof(self):
+        first, r1 = self.commit_b()
+        older_c = SyntheticCheckpointC(self.scope, self.b_pin, self.c_key)
+        older_c.anchor(r1)
+        self.c.anchor(r1)
+        saved = self.root / "saved-b-and-c.db"
+        shutil.copy2(self.db, saved)
+        _, r2 = self.commit_b(1, first["after_mac"])
+        self.c.anchor(r2)
+        shutil.copy2(saved, self.db)
+        # This C shares the old (valid) key and state, yet signs the NEW
+        # challenge; nonce freshness is NOT monotonic rollback protection.
+        nonce = secrets.token_hex(16)
+        fresh_from_stale_c = older_c.challenged_head(nonce)
+        self.assertEqual(self.dual(c=fresh_from_stale_c, challenge=nonce).status,
+                         "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+        self.assertEqual(self.dual().status, "B_ROLLBACK_DETECTED_LAB")
+
+    def test_challenged_c_rejects_malformed_structure_or_challenge(self):
+        nonce = secrets.token_hex(16)
+        with self.assertRaisesRegex(CasRefusal, "C_HEAD_CHALLENGE_SHAPE_REFUSE"):
+            self.c.challenged_head("bad")
+        with self.assertRaisesRegex(CasRefusal, "C_HEAD_PACKET_SHAPE_REFUSE"):
+            verify_challenged_c_head({}, nonce, self.c_pin, self.b_pin, self.scope)
+        with self.assertRaisesRegex(CasRefusal, "C_DUAL_CHALLENGE_REFUSE"):
+            self.dual(challenge="wrong")
 
     def test_scope_mismatch_is_refused(self):
         _, r1 = self.commit_b()
