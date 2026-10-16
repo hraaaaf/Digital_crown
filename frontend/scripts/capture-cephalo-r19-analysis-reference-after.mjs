@@ -138,6 +138,21 @@ async function captureViewport(viewport,attempt){
         &&initialWidth>expandedWidth+100&&readingWidth>initialWidth+250
         &&Math.abs(restoredWidth-initialWidth)<5};
   }
+  let mobileImageFirstProof=null;
+  if(viewport.width<1280){
+    const stage=page.locator('[data-r20-radiograph-stage]');
+    const rail=page.locator('[data-r20-workbench-sidebar]');
+    const top=await stage.evaluate(el=>el.getBoundingClientRect().top);
+    const folded=await rail.evaluate(el=>getComputedStyle(el).display==='none');
+    const screenShot=`after-image-first-entry-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,screenShot),fullPage:false});
+    await page.locator('[data-r23-tools-toggle]').click();
+    const opened=await rail.evaluate(el=>getComputedStyle(el).display!=='none');
+    await page.locator('[data-r23-tools-toggle]').click();
+    const restored=await rail.evaluate(el=>getComputedStyle(el).display==='none');
+    mobileImageFirstProof={top,folded,opened,restored,screenShot,
+      valid:top>0&&top<viewport.height*.7&&folded&&opened&&restored};
+  }
   const states=[];
   for(const mode of modes){
    await page.locator(`[data-analysis="${mode}"]`).click();
@@ -249,8 +264,9 @@ async function captureViewport(viewport,attempt){
   }
   const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)
     &&selectorChecks.length===3&&selectorChecks.every(s=>s.valid)
-    &&(viewport.width<1280||(focusProof?.valid===true&&imageFirstProof?.valid===true));
-  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states,focusProof,imageFirstProof};
+    &&(viewport.width<1280 ? mobileImageFirstProof?.valid===true
+      : (focusProof?.valid===true&&imageFirstProof?.valid===true));
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states,focusProof,imageFirstProof,mobileImageFirstProof};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }

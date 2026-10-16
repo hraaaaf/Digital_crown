@@ -149,7 +149,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         <button type="button" data-r23-tools-toggle aria-expanded={desktopToolsOpen}
           aria-controls="cephalo-r23-utility-rail"
           onClick={() => setDesktopToolsOpen(value => !value)}
-          className="hidden min-h-10 items-center rounded-xl border px-3 text-xs font-bold xl:inline-flex"
+          className="inline-flex min-h-11 items-center rounded-xl border px-3 text-xs font-bold"
           style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}
         >{desktopToolsOpen ? 'Masquer les outils' : 'Afficher les outils'}</button>
         <button type="button" data-r23-measures-toggle aria-expanded={measuresOpen}
@@ -170,7 +170,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         data-r20-workbench-sidebar
         id="cephalo-r23-utility-rail"
         aria-label="Contrôles du workbench céphalométrique"
-        className={`min-w-0 rounded-2xl border p-2 xl:h-[82vh] xl:overflow-y-auto xl:p-2.5 ${desktopToolsOpen ? '' : 'xl:hidden'}`}
+        className={`min-w-0 rounded-2xl border p-2 xl:h-[82vh] xl:overflow-y-auto xl:p-2.5 ${desktopToolsOpen ? '' : 'hidden'}`}
         style={{ background: props.P.bgPanel, borderColor: props.P.border, boxShadow: props.P.shadow }}
       >
         <div className="hidden xl:block">

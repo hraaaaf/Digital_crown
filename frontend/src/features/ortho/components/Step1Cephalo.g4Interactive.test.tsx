@@ -105,11 +105,11 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     const utility=document.querySelector('[data-r20-workbench-sidebar]') as HTMLElement;
     const metrics=document.querySelector('[data-r20-measures-panel]') as HTMLElement;
     expect(root.dataset.r23ImageFirst).toBe('tools-collapsed');
-    expect(utility.className).toContain('xl:hidden');
+    expect(utility.className).toContain('hidden');
     const tools=screen.getByRole('button',{name:'Afficher les outils'});
     fireEvent.click(tools);
     expect(root.className).toContain('xl:grid-cols-[200px_minmax(0,1fr)_350px]');
-    expect(utility.className).not.toContain('xl:hidden');
+    expect(utility.className).not.toContain('hidden');
     expect(screen.getByRole('button',{name:'Masquer les outils'}).getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(screen.getByRole('button',{name:'Masquer les outils'}));
     expect(root.className).toContain('xl:grid-cols-[minmax(0,1fr)_350px]');
@@ -119,6 +119,19 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Afficher les mesures'}));
     expect(metrics.className).not.toContain('hidden');
     expect(document.querySelectorAll('#cephalo-ready-analysis')).toHaveLength(1);
+  });
+
+  it('keeps the mobile utility rail one click away while prioritizing the radiograph',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const rail=document.querySelector('[data-r20-workbench-sidebar]') as HTMLElement;
+    const tools=screen.getByRole('button',{name:'Afficher les outils'});
+    expect(tools.className).toContain('inline-flex');
+    expect(rail.className).toContain('hidden');
+    fireEvent.click(tools);
+    expect(rail.className).not.toContain('hidden');
+    fireEvent.click(screen.getByRole('button',{name:'Masquer les outils'}));
+    expect(rail.className).toContain('hidden');
+    expect(screen.getByRole('combobox',{name:'Analyse clé en main'})).toBeTruthy();
   });
 
   it('keeps the selected analysis in the actual stage when the workbench selector changes',()=>{
