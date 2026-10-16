@@ -101,3 +101,34 @@ def test_no_redirect_forwarding_network():
         assert observed == [("/redirect", "Bearer synthetic-not-real-token")]
     finally:
         server.shutdown()
+
+
+@pytest.mark.parametrize("enroll,expected_suffixes", [
+    (False, ["/api/auth/login"]),
+    (True, ["/api/auth/login", "/api/workstation/enroll"]),
+])
+def test_denied_role_reuses_owner_station_without_enrollment(
+    monkeypatch, enroll, expected_suffixes
+):
+    """A restricted staff user must not attempt the owner-only enrollment route."""
+    called = []
+
+    def fake_http(url, data, bearer=None, form=False, anonymous=False):
+        called.append(url)
+        if url.endswith("/api/auth/login"):
+            assert form is True
+            return 200, {"access_token": "synthetic-only"}, 1
+        if url.endswith("/api/workstation/enroll"):
+            assert bearer == "synthetic-only"
+            assert data == {"accountPassword": "synthetic-pass"}
+            return 200, {"workstationId": "synthetic"}, 1
+        raise AssertionError("unexpected endpoint")
+
+    monkeypatch.setattr(probe, "http_json", fake_http)
+    assert probe.login(
+        "http://127.0.0.1:8005", "t2-denied@example.test",
+        "synthetic-pass", enroll_workstation=enroll,
+    ) == "synthetic-only"
+    assert called == [
+        "http://127.0.0.1:8005" + suffix for suffix in expected_suffixes
+    ]
