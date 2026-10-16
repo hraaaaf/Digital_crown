@@ -145,6 +145,12 @@ async function captureViewport(viewport,attempt){
     const top=await stage.evaluate(el=>el.getBoundingClientRect().top);
     const folded=await rail.evaluate(el=>getComputedStyle(el).display==='none');
     const selectorWidth=await page.locator('#cephalo-ready-analysis').evaluate(el=>el.getBoundingClientRect().width);
+    const stepSelector=page.locator('[data-cephalo-mobile-step-selector]');
+    const compactStepProof=viewport.width<768
+      ? { visible:await stepSelector.isVisible(),
+          options:await stepSelector.locator('option').count(),
+          value:await stepSelector.inputValue()}
+      : null;
     const screenShot=`after-image-first-entry-${viewport.name}.png`;
     await page.screenshot({path:path.join(OUTPUT_DIR,screenShot),fullPage:false});
     const list=page.locator('[data-r23-mobile-point-directory]');
@@ -178,8 +184,10 @@ async function captureViewport(viewport,attempt){
     await page.locator('[data-cephalo-stage-root] button[title="Quitter plein écran"]').click();
     await page.waitForFunction(()=>!document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:5000});
     const fullscreenRestored=await page.locator('[data-cephalo-stage-root]').evaluate(el=>getComputedStyle(el).position!=='fixed');
-    mobileImageFirstProof={top,folded,opened,restored,selectorWidth,menuNames,firstId,selectedVisible,bgCount,screenShot,fullscreen,mobileFocusShot,fullscreenRestored,
-      valid:top>0&&top<viewport.height*.56&&folded&&opened&&restored&&selectorWidth>=141
+    mobileImageFirstProof={top,folded,opened,restored,selectorWidth,compactStepProof,menuNames,firstId,selectedVisible,bgCount,screenShot,fullscreen,mobileFocusShot,fullscreenRestored,
+      valid:top>0&&top<viewport.height*.56
+        &&(viewport.width>=768||(compactStepProof?.visible&&compactStepProof.options===4&&compactStepProof.value==='1'))
+        &&folded&&opened&&restored&&selectorWidth>=141
         &&menuNames===29&&selectedVisible&&bgCount===0
         &&fullscreen.width>=viewport.width-2&&fullscreen.height>=viewport.height-2
         &&fullscreen.topmost&&fullscreen.visible&&fullscreenRestored};
