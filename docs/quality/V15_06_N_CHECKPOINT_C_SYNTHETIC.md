@@ -33,3 +33,24 @@ This lab implements a deliberately **volatile** in-process C checkpoint fixture,
 - B/C signer and witness DB share one CI runner: their separate logical identities do not constitute separate administrative or rollback domains.
 - The checkpoint fixture's updates are volatile, in-process and non-atomic with the B CAS transaction. Its integrity does not survive hostile restore or power loss as a promised property.
 - True HSM Ed25519 private key protection and reliable per-decision immutable C checkpoint acknowledgement remain implementation feasibility questions. Real validation exclusively LOT10.
+
+## ADR §3 / §8 and LOT06-N contract reconciliation — C challenged HEAD, v0.2
+
+**Two distinct challenges are necessary but insufficient.** B's already-existing `DC06N_SYNTHETIC_V1` HEAD carries a signed challenge. New `DC06N_C_HEAD_SYNTHETIC_V1` C HEAD now signs its *own* caller-supplied 32-hex challenge plus the current in-memory C anchor in a separately domain-separated envelope `DC06N|checkpoint-C-HEAD|synthetic-v1`. `verify_challenged_c_head` checks shape, exact challenge, C public pin, signature, nested signed anchor and B key pin/scope. `classify_challenged_heads` requires both, then delegates the state relationship to the historical-only B/C comparator. **This proves challenge binding of C's claim, not global freshness of C's state.**
+
+| ADR demand / adverse case | LAB observation | Invariant status |
+| --- | --- | --- |
+| Fresh B signed query bound to authority/epoch/scope/challenge | `verify_response` on B `HEAD_ONLY` | Synthetic cryptographic binding only |
+| Fresh C signed query plus independently pinned C identity | C challenge signature verified against supplied pin; pin provenance is not independently demonstrated | **Missing physical enrollment and anti-rollback store** |
+| B lower than C checkpoint after B DB+same-key rollback | `B_ROLLBACK_DETECTED_LAB` with intact C | Conditional LAB negative proof only |
+| B ahead of C, including B commit before C anchor | `PENDING_C_ANCHOR_LAB`, never clinical ACK | Synthetic classifier only |
+| Equal B and C heads | `MATCH_LAB_NOT_GLOBAL_FRESHNESS`; NOT `COMMITTED` | No current-C or receipt-reconciliation proof |
+| Malicious replay of previous C HEAD *packet* against NEW nonce | `C_HEAD_CHALLENGE_BINDING_REFUSE` | Synthetic replay binding only |
+| **B and C both restored**, C still has valid old key and signs *new* challenge | `MATCH_LAB_NOT_GLOBAL_FRESHNESS` — **undetected rollback** | **B9 BLOCKER persists** |
+| Receipt, manifest, op_id and previous C checkpoint linkage | C signed anchor carries `receipt_sha256`, `op_id`, `prev_checkpoint_sha256`; fixture checks *on anchor advance* | B/C equality classifier checks only `seq/mac`, not full current receipt history; **NOT a COMMITTED proof** |
+| C signer failure between B commit and C state update | sign first, mutate synthetic C state only afterward; regression | In-process behavior only, not C/WORM durable ack |
+| True Windows/NTFS SSD power-off, independent operators, HSM/WORM lock | Not used and not exercised | **LOT10 EXCLUSIVELY** |
+
+**No approval by a green classification.** The "B current" evidence and "C current" evidence are both signed responses in a harness that controls keys, DB, the source of challenges and recovery snapshots. A returned old signed C anchor **or** a freshly signed C HEAD over a restored old C state remains a counterexample. Even if both report the same seq/mac, the local journal/media/manifest and exact B/C full receipts must be reconciled independently before any future COMMITTED or clinical ACK; not implemented here.
+
+**Gate placement:** all real-device, true-WORM/TPM, cross-admin recovery, unplug/power-cut, physical B0–B9 and installation work stays in existing LOT10 10.1/10.3/10.4/10.7/10.8. LOT06-N remains design + CI LAB only; no new LOT10 sub-lot and no automatic 13-SP increase.
