@@ -135,7 +135,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           </span>
           <button type="button"
             data-cephalo-focus-entry="desktop"
-            aria-label="Agrandir la radiographie en mode focus"
+            aria-label="Activer le mode Focus radiographie"
             title="Voir les repères en grand ; touche Échap pour revenir"
             onClick={() => setIsStep1Fullscreen(true)}
             className="mt-3 hidden min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-2 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 xl:inline-flex"

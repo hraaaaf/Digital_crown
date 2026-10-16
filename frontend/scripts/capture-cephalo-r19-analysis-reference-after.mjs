@@ -190,7 +190,7 @@ async function captureViewport(viewport,attempt){
   if(viewport.width>=1280){
     await page.locator('[data-analysis="all"]').click();
     const beforeWidth=await page.locator('[data-r20-radiograph-stage] > div').evaluate(el=>el.getBoundingClientRect().width);
-    const focusButton=page.getByRole('button',{name:'Agrandir la radiographie en mode focus'});
+    const focusButton=page.getByRole('button',{name:'Activer le mode Focus radiographie',exact:true});
     await focusButton.click();
     await page.waitForFunction(()=>{
       const stage=document.querySelector('[data-r20-radiograph-stage] > div');

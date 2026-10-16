@@ -294,7 +294,7 @@ try {
       const imageView='0 0 '+radio.width+' '+radio.height;
       assert(originalZoom.base===imageView && originalZoom.overlay===imageView && originalZoom.level?.includes('100'),
         'Base and overlay must both start at the full image on '+film+': '+JSON.stringify(originalZoom));
-      const zoomIn=page.getByRole('button',{name:'Agrandir la radiographie'});
+      const zoomIn=page.getByRole('button',{name:'Agrandir la radiographie',exact:true});
       await zoomIn.click(); await zoomIn.click();
       const magnified=await readZoom();
       const crop=(value)=>String(value||'').split(' ').map(Number);

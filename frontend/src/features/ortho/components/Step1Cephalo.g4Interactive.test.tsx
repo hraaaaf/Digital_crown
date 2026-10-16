@@ -80,7 +80,7 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     const cta=document.querySelector('[data-cephalo-focus-entry="desktop"]') as HTMLButtonElement;
     expect(cta).toBeTruthy();
-    expect(cta.getAttribute('aria-label')).toBe('Agrandir la radiographie en mode focus');
+    expect(cta.getAttribute('aria-label')).toBe('Activer le mode Focus radiographie');
     expect(cta.className).toContain('xl:inline-flex');
     fireEvent.click(cta);
     expect(state.setIsStep1Fullscreen).toHaveBeenCalledWith(true);
