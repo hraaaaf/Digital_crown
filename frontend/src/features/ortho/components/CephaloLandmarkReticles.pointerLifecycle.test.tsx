@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Landmark } from '../cephaloShared';
-import { CephaloLandmarkReticles } from './CephaloLandmarkReticles';
+import { CephaloLandmarkReticles, cephaloShortPointName } from './CephaloLandmarkReticles';
 import { CephaloTracingLayer as CephaloTracingLayerBase } from '../CephaloTracingLayerBase';
 
 const baseline: Landmark[] = [{ id: 'N', x: 30, y: 40 }, { id: 'S', x: 60, y: 70 }];
@@ -285,6 +285,40 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     expect(onUpdate).not.toHaveBeenCalled();
     view.rerender(<Fixture onUpdate={onUpdate} compactLabels />);
     expect(document.querySelectorAll('[data-cephalo-landmark-label]')).toHaveLength(2);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+
+  it('has 38 distinct, concise French display aliases for pinned SRPose38 IDs', () => {
+    const source = ['S','N','Or','Po','A','B','Pog','Me','Gn','Go',
+      'L1_incisal','U1_incisal','Ls_soft','Li_soft','Sn_soft','Pog_soft',
+      'PNS','ANS','Ar','D_point','U1_apex','L1_apex','Cm','Ptm','Co',
+      'Prn','Ba','PT_point','Bo','Ls2','Li2','Gn_soft','Me_soft',
+      'G_soft','N_soft','C_point','U6','L6'];
+    const labels = source.map(cephaloShortPointName);
+    expect(source).toHaveLength(38);
+    expect(new Set(labels).size).toBe(38);
+    expect(labels.every(label => label.length<=5 && !label.includes('_'))).toBe(true);
+    expect(cephaloShortPointName('L1_incisal')).toBe('L1');
+    expect(cephaloShortPointName('U1_incisal')).toBe('U1');
+    expect(cephaloShortPointName('L1_apex')).toBe('L1 A');
+    expect(cephaloShortPointName('U1_apex')).toBe('U1 A');
+    expect(cephaloShortPointName('N_soft')).toBe('N′');
+    expect(cephaloShortPointName('Pog_soft')).toBe('Pog′');
+    expect(cephaloShortPointName('ANS')).toBe('ENA');
+    expect(cephaloShortPointName('PNS')).toBe('ENP');
+    expect(cephaloShortPointName('UNKNOWN_CLINICAL_ID')).toBe('UNKNOWN_CLINICAL_ID');
+  });
+
+  it('renders each desktop point as a small, outlined, persistent core without editing coordinates', () => {
+    const onUpdate = vi.fn();
+    render(<Fixture onUpdate={onUpdate} compactLabels prominentPointIds={['N']} />);
+    const circles = Array.from(document.querySelectorAll('[data-cephalo-point-core]'));
+    expect(circles).toHaveLength(2);
+    expect(circles.every(circle=>circle.getAttribute('stroke')==='#020617')).toBe(true);
+    expect(circles.every(circle=>Number(circle.getAttribute('r'))===2.5)).toBe(true);
+    expect(circles.map(circle=>[circle.getAttribute('cx'),circle.getAttribute('cy')]))
+      .toEqual([['30','40'],['60','70']]);
     expect(onUpdate).not.toHaveBeenCalled();
   });
 

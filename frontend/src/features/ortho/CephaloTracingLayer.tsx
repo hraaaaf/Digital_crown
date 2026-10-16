@@ -1,4 +1,5 @@
 import React from 'react';
+import { cephaloShortPointName } from './components/CephaloLandmarkReticles';
 import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracingLayerBase';
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
@@ -336,7 +337,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 <circle cx={p.x} cy={p.y} r="3.4" fill={P.bgInput} stroke={CEPHALO_SCIENTIFIC_COLORS.skeletal} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
                 {/* Ricketts identification appears on metric focus rather than overprinting every marker. */}
                 {metricFocus && focusedPointIds.has(p.id.toLowerCase()) && (
-                  <text x={p.x + 10} y={p.y - 10} fill={P.text} fontSize="10" fontWeight="800">{p.id}</text>
+                  <text x={p.x + 10} y={p.y - 10} fill={P.text} fontSize="10" fontWeight="800">{cephaloShortPointName(p.id)}</text>
                 )}
               </g>
             );
@@ -402,7 +403,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
                 {/* Keep COM reference coordinates; show names only for explicit canonical focus. */}
                 {hasCanonicalFocus && focusedPointIds.has(p.id.toLowerCase()) && (
-                  <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{p.id}</text>
+                  <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{cephaloShortPointName(p.id)}</text>
                 )}
               </g>
             );

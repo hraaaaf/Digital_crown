@@ -1,6 +1,7 @@
 import React from 'react';
 import { Ruler, DraftingCompass, ZoomIn, SlidersHorizontal, ScanFace, Wand2, Layers3, Maximize2 } from 'lucide-react';
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
+import { cephaloShortPointName } from './CephaloLandmarkReticles';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import {
@@ -201,7 +202,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             <div role="group" aria-label="Liste des repères anatomiques" className="grid max-h-[40vh] grid-cols-3 gap-1 overflow-y-auto overscroll-contain">
               {[...localLandmarks].sort((a,b)=>a.id.localeCompare(b.id)).map(point => (
                 <button key={point.id} type="button" data-r23-point-select={point.id}
-                  aria-label={`Inspecter le repère ${point.id}`} aria-pressed={inspectedPointId===point.id}
+                  aria-label={`Inspecter le repère ${cephaloShortPointName(point.id)}`} aria-pressed={inspectedPointId===point.id}
                   onClick={() => {
                     disarmPointPlacement(null);
                     setInspectedPointId(point.id);
@@ -209,7 +210,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
                   }}
                   className="min-h-10 break-all rounded-lg border px-1 py-1 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
                   style={{ background: inspectedPointId===point.id ? props.P.bgInput : props.P.bgCard, borderColor: inspectedPointId===point.id ? props.P.borderFocus : props.P.border, color: props.P.text }}>
-                  {point.id}
+                  {cephaloShortPointName(point.id)}
                 </button>
               ))}
             </div>

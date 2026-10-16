@@ -151,6 +151,7 @@ export interface CephaloAnatomicalLabel {
 export function layoutCephaloAnatomicalLabels(
   landmarks: Pick<Landmark,'id'|'x'|'y'>[], viewport: string, unitsPerPixel: number,
   originalImageWidth?: number,
+  labelForId: (id: string) => string = id => id,
 ): Map<string, CephaloAnatomicalLabel> {
   const result=new Map<string,CephaloAnatomicalLabel>();
   const v=viewport.trim().split(/\s+/).map(Number);
@@ -186,7 +187,7 @@ export function layoutCephaloAnatomicalLabels(
   const ordered=points.slice().sort((a,b)=>density(b)-density(a)
     ||b.id.length-a.id.length||a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));
   for(const pt of ordered){
-    const w=pt.id.length*9.95+5;
+    const w=labelForId(pt.id).length*9.95+5;
     if(w>W-2*edge)continue;
     const ax=clamp((pt.x-vx)/scale,edge,W-edge);
     const ay=clamp((pt.y-vy)/scale,edge,H-edge);
