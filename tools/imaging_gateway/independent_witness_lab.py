@@ -11,6 +11,9 @@ import base64
 import binascii
 import hashlib
 import json
+import os
+import tempfile
+import time
 import re
 import socket
 import socketserver
@@ -213,6 +216,7 @@ def cli() -> None:
     group.add_argument("--lab-client", action="store_true")
     parser.add_argument("--db", type=Path)
     parser.add_argument("--port", type=int)
+    parser.add_argument("--gate", type=Path)
     args = parser.parse_args()
     bootstrap = json.load(sys.stdin)  # synthetic secrets via pipe, not environment/log/file
     if args.lab_server:
@@ -229,6 +233,17 @@ def cli() -> None:
             raise SystemExit(2)
         client = Ed25519PrivateKey.from_private_bytes(unb64(bootstrap["client_private_b64"], 32))
         pub = unb64(bootstrap["witness_pub_b64"], 32)
+        if args.gate is not None:
+            if (not args.gate.is_absolute()
+                    or not args.gate.parent.name.startswith("dc06m-cas-synthetic-")
+                    or not args.gate.parent.resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())):
+                raise SystemExit(2)
+            (args.gate.parent / ("ready-" + str(os.getpid()))).touch()
+            deadline = time.monotonic() + 10.0
+            while not args.gate.exists():
+                if time.monotonic() > deadline:
+                    raise SystemExit(2)
+                time.sleep(0.01)
         result = send_request(args.port, bootstrap["request"], client, pub)
         print(json.dumps(result, sort_keys=True), flush=True)
 

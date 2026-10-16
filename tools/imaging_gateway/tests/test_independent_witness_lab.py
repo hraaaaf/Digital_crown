@@ -13,6 +13,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 from cryptography.hazmat.primitives import serialization
@@ -94,28 +95,49 @@ class IndependentWitnessSyntheticTests(unittest.TestCase):
                 "op_id": op or secrets.token_hex(16),
                 "event": e}
 
-    def call(self, req, client=None, pub=None, port=None):
+    def call(self, req, client=None, pub=None, port=None, gate=None):
         wire = {"client_private_b64": private(client or self.client),
                 "witness_pub_b64": b64(pub or self.wpub), "request": req}
+        argv = [sys.executable, "-m", "tools.imaging_gateway.independent_witness_lab",
+                "--lab-client", "--port", str(self.port if port is None else port)]
+        if gate is not None:
+            argv.extend(["--gate", str(gate)])
         result = subprocess.run(
-            [sys.executable, "-m", "tools.imaging_gateway.independent_witness_lab",
-             "--lab-client", "--port", str(self.port if port is None else port)],
+            argv,
             input=json.dumps(wire) + "\n", capture_output=True, text=True, timeout=12)
         self.assertEqual(result.returncode, 0, (result.stdout, result.stderr))
         return json.loads(result.stdout)
 
     def test_two_processes_same_parent_one_cas_winner(self):
         r1, r2 = self.req("APPLY", self.e()), self.req("APPLY", self.e())
+        gate = Path(self.temp.name) / "barrier-go"
         with ThreadPoolExecutor(max_workers=2) as pool:
-            out = list(pool.map(self.call, (r1, r2)))
+            f1 = pool.submit(self.call, r1, gate=gate)
+            f2 = pool.submit(self.call, r2, gate=gate)
+            deadline = time.monotonic() + 10
+            while len(list(gate.parent.glob("ready-*"))) < 2 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(len(list(gate.parent.glob("ready-*"))), 2,
+                             "Both client processes must reach the barrier")
+            gate.touch()
+            out = [f1.result(timeout=15), f2.result(timeout=15)]
         self.assertEqual(sorted(x["status"] for x in out),
                          ["DECIDED_LAB_ONLY", "UNKNOWN_NO_AUTHORITY"], out)
         self.assertEqual(audit(self.path, self.scope, self.wpub)[2], 1)
 
     def test_two_processes_same_request_idempotent_same_receipt(self):
         req = self.req("APPLY", self.e())
+        gate = Path(self.temp.name) / "barrier-go"
         with ThreadPoolExecutor(max_workers=2) as pool:
-            out = list(pool.map(self.call, (req, req)))
+            f1 = pool.submit(self.call, req, gate=gate)
+            f2 = pool.submit(self.call, req, gate=gate)
+            deadline = time.monotonic() + 10
+            while len(list(gate.parent.glob("ready-*"))) < 2 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(len(list(gate.parent.glob("ready-*"))), 2,
+                             "Both client processes must reach the barrier")
+            gate.touch()
+            out = [f1.result(timeout=15), f2.result(timeout=15)]
         self.assertEqual([x["status"] for x in out],
                          ["DECIDED_LAB_ONLY", "DECIDED_LAB_ONLY"], out)
         self.assertEqual(out[0]["receipt_b64"], out[1]["receipt_b64"])
