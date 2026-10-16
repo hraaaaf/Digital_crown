@@ -1,0 +1,37 @@
+name: V1.5-06N Independent Witness Synthetic LAB
+
+on:
+  push:
+    branches:
+      - feat/v15-06n-independent-witness-synthetic-20261016
+    paths:
+      - '.github/workflows/v15-06n-independent-witness-synthetic.yml'
+      - 'tools/imaging_gateway/independent_witness_lab.py'
+      - 'tools/imaging_gateway/tests/test_independent_witness_lab.py'
+      - 'docs/quality/V15_06_N_INDEPENDENT_WITNESS_SYNTHETIC.md'
+      - 'tools/imaging_gateway/durable_cas_lab.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-separated-processes:
+    name: Loopback witness/clients and crash rejoin on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install synthetic signing dependency
+        run: python -m pip install 'cryptography>=42,<48'
+      - name: Compile lab files
+        run: python -m compileall -q tools/imaging_gateway/independent_witness_lab.py tools/imaging_gateway/tests/test_independent_witness_lab.py
+      - name: Exercise process-separated loopback witness
+        run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_independent_witness_lab.py' -v
