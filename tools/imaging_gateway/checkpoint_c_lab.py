@@ -66,6 +66,7 @@ def verify_anchor(packet: dict, c_pin: bytes, b_pin: bytes, scope: str) -> dict:
     _refuse(type(c_pin) is bytes and len(c_pin) == 32
             and type(b_pin) is bytes and len(b_pin) == 32
             and _hex(scope, HEX32), "C_PIN_REFUSE")
+    _refuse(c_pin != b_pin, "C_B_SAME_SIGNER_REFUSE")
     message = _packet_bytes(packet["checkpoint"])
     signature = packet["signature_b64"]
     _refuse(type(signature) is str and len(signature) <= 128, "C_SIGNATURE_SHAPE_REFUSE")
@@ -232,6 +233,7 @@ class SyntheticCheckpointC:
         _refuse(_hex(scope, HEX32) and type(witness_pin) is bytes
                 and len(witness_pin) == 32
                 and isinstance(signer, Ed25519PrivateKey), "C_ENROLLMENT_REFUSE")
+        _refuse(signer_pub(signer) != witness_pin, "C_B_SAME_SIGNER_REFUSE")
         self.scope, self.witness_pin, self.signer = scope, witness_pin, signer
         self._head_seq, self._head_mac = 0, GENESIS_MAC
         self._ops: dict[str, tuple[bytes, dict]] = {}
