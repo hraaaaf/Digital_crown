@@ -212,6 +212,20 @@ class IndependentWitnessSyntheticTests(unittest.TestCase):
         with self.assertRaisesRegex(CasRefusal, "RESPONSE_BINDING_REFUSE"):
             verify_response(packet, self.wpub, self.req("HEAD", op=req["op_id"]))
 
+    def test_signed_proof_cannot_confuse_head_with_decision(self):
+        # Protocol-confusion negative: a HEAD query must NEVER authorize a receipt.
+        req = self.req("HEAD")
+        e = self.e(op=req["op_id"])
+        receipt = apply(self.path, e, self.witness)
+        proof = {"protocol": "DC06N_SYNTHETIC_V1", "authority_id": "dc06m-cas-synthetic-only",
+                 "epoch": "SYNTHETIC_ONLY", "scope": self.scope,
+                 "challenge": req["challenge"], "method": "HEAD",
+                 "op_id": req["op_id"], "seq": 1, "mac": e["after_mac"],
+                 "status": "DECIDED_LAB_ONLY", "receipt_b64": b64(receipt)}
+        packet = {"proof": proof, "signature_b64": b64(self.witness.sign(proof_bytes(proof)))}
+        with self.assertRaisesRegex(CasRefusal, "RESPONSE_METHOD_STATUS_REFUSE"):
+            verify_response(packet, self.wpub, req)
+
     def test_bad_signature_and_schema_refused(self):
         req = self.req("APPLY", self.e())
         packet = auth_request(req, self.client)
@@ -220,6 +234,8 @@ class IndependentWitnessSyntheticTests(unittest.TestCase):
             verify_request(packet, signer_pub(Ed25519PrivateKey.generate()))
         with self.assertRaises(CasRefusal):
             request_shape({**req, "patient_id": "DENIED"})
+        with self.assertRaises(CasRefusal):
+            request_shape({**req, "method": []})
         forged = {"request": {**req, "challenge": secrets.token_hex(16)},
                   "signature_b64": packet["signature_b64"]}
         with self.assertRaises(CasRefusal):

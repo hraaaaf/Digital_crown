@@ -55,7 +55,7 @@ def unb64(value: str, length: int | None = None) -> bytes:
 def request_shape(req: dict) -> None:
     if type(req) is not dict or set(req) != {"protocol", "method", "scope", "challenge", "op_id", "event"}:
         raise CasRefusal("CLIENT_REQUEST_SHAPE_REFUSE")
-    if (req["protocol"] != "DC06N_SYNTHETIC_V1" or req["method"] not in METHODS
+    if (req["protocol"] != "DC06N_SYNTHETIC_V1" or type(req["method"]) is not str or req["method"] not in METHODS
             or type(req["scope"]) is not str or not CHALLENGE.fullmatch(req["scope"])
             or type(req["challenge"]) is not str or not CHALLENGE.fullmatch(req["challenge"])
             or type(req["op_id"]) is not str or not CHALLENGE.fullmatch(req["op_id"])):
@@ -115,6 +115,14 @@ def verify_response(packet: dict, pinned_pub: bytes, req: dict) -> dict:
             or type(proof["mac"]) is not str or not re.fullmatch("[0-9a-f]{64}", proof["mac"])
             or proof["status"] not in ("DECIDED_LAB_ONLY", "HISTORICAL_ONLY", "HEAD_ONLY", "UNKNOWN_OP")):
         raise CasRefusal("RESPONSE_BINDING_REFUSE")
+    allowed_status = {
+        "HEAD": {"HEAD_ONLY"},
+        "LOOKUP": {"DECIDED_LAB_ONLY", "HISTORICAL_ONLY", "UNKNOWN_OP"},
+        "APPLY": {"DECIDED_LAB_ONLY"},
+        "DROP_AFTER_COMMIT": set(),  # never trust an ACK for deliberate drop test
+    }
+    if proof["status"] not in allowed_status[req["method"]]:
+        raise CasRefusal("RESPONSE_METHOD_STATUS_REFUSE")
     if proof["status"] in ("DECIDED_LAB_ONLY", "HISTORICAL_ONLY"):
         receipt = unb64(proof["receipt_b64"])
         body = verify_receipt(receipt, pinned_pub)
