@@ -69,7 +69,7 @@ try {
     for(let i=0;i<31;i++){
       await preview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
       await preview.getByRole('button',{name:'/patient'}).click();
-      await preview.getByText('Identifiant numérique du patient ?').waitFor({state:'visible'});
+      await preview.getByText('Patient : saisissez un identifiant, un nom/prénom exact ou un numéro de dossier', { exact: false }).waitFor({state:'visible'});
       await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(patientId);
       const started=performance.now();
       const responsePromise=page.waitForResponse(r=>
