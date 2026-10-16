@@ -78,12 +78,35 @@ def route_delta(before: list[tuple[str, tuple[str, ...]]],
     )
 
 
+def validate_route_transition(
+    old: list[tuple[str, tuple[str, ...]]],
+    new: list[tuple[str, tuple[str, ...]]],
+) -> tuple[int, int, int, int, list, list]:
+    """Keep both legitimate PR baselines strict.
+
+    A first-level PR proves PRE-FLIGHT addition 0 -> 1. A stacked child PR
+    proves preservation 1 -> 1. Both reject ALL other route changes,
+    duplicate registrations and removals.
+    """
+    bpre = sum(x == (PREFLIGHT, ("POST",)) for x in old)
+    apre = sum(x == (PREFLIGHT, ("POST",)) for x in new)
+    bimp = sum(x[0] == EXISTING_IMPORT and "POST" in x[1] for x in old)
+    aimp = sum(x[0] == EXISTING_IMPORT and "POST" in x[1] for x in new)
+    extra, missing = route_delta(old, new)
+    if (bpre, apre, bimp, aimp) not in {(0, 1, 1, 1), (1, 1, 1, 1)}:
+        raise AssertionError("PREFLIGHT_OR_LEGACY_ROUTE_INVARIANT_FAILURE")
+    expected_extra = [(PREFLIGHT, ("POST",))] if bpre == 0 else []
+    if extra != expected_extra or missing:
+        raise AssertionError("UNEXPECTED_RUNTIME_ROUTE_DIFF")
+    return bpre, apre, bimp, aimp, extra, missing
+
+
 def render(phase: str, sha: str, before_count: int, after_count: int,
            evidence: dict) -> str:
     if phase not in ("BEFORE", "AFTER"):
         raise ValueError("INVALID_PHASE")
-    present = phase == "AFTER"
-    now = after_count if present else before_count
+    now = after_count if phase == "AFTER" else before_count
+    present = now == 1
     label = "ENREGISTRÉE UNE FOIS" if present else "ABSENTE"
     status = "POST /api/imaging-acquisitions/preflight" if present else "Aucune route LOT06-B"
     safe_sha = html.escape(sha)
@@ -115,7 +138,7 @@ depuis le commit indiqué. Il ne s'agit ni d'une interface produit ni d'une preu
 <code>{status}</code></section>
 <section class="card"><small>Nombre de routes préflight POST</small>
 <div class="value">{now}</div>
-<p class="muted">Attendu: 0 BEFORE / 1 AFTER</p></section>
+<p class="muted">Attendu: {before_count} BEFORE / {after_count} AFTER</p></section>
 <section class="card"><small>Route média historique</small>
 <div class="value good">PRÉSERVÉE</div>
 <code>{html.escape(EXISTING_IMPORT)}</code></section>
@@ -123,9 +146,10 @@ depuis le commit indiqué. Il ne s'agit ni d'une interface produit ni d'une preu
 </div>
 <div class="card">
 <small>But vérifié · Contrat observable</small>
-<p>Avant : aucune route de préflight. Après : exactement une route
+<p>Avant : {before_count} route préflight. Après : {after_count} route
 <code>POST /api/imaging-acquisitions/preflight</code>.
-Le routage existant d'import média reste identique.</p>
+Le routage existant d'import média reste identique et aucune route
+supplémentaire non prévue n'est autorisée.</p>
 <p class="muted">Les refus, le contrôle du tenant et l'absence de création
 d'actifs cliniques sont vérifiés séparément par le workflow 06-B (pytest).</p>
 </div>
@@ -157,15 +181,7 @@ def main() -> None:
     after = collect(args.after_root)
     old = [signature(x) for x in before]
     new = [signature(x) for x in after]
-    bpre = sum(x == (PREFLIGHT, ("POST",)) for x in old)
-    apre = sum(x == (PREFLIGHT, ("POST",)) for x in new)
-    bimp = sum(x[0] == EXISTING_IMPORT and "POST" in x[1] for x in old)
-    aimp = sum(x[0] == EXISTING_IMPORT and "POST" in x[1] for x in new)
-    extra, missing = route_delta(old, new)
-    if (bpre, apre, bimp, aimp) != (0, 1, 1, 1):
-        raise AssertionError("PREFLIGHT_OR_LEGACY_ROUTE_INVARIANT_FAILURE")
-    if extra != [(PREFLIGHT, ("POST",))] or missing:
-        raise AssertionError("UNEXPECTED_RUNTIME_ROUTE_DIFF")
+    bpre, apre, bimp, aimp, extra, missing = validate_route_transition(old, new)
 
     summary = {
         "kind": "LOT06_SYNTHETIC_OPERATIONAL_FASTAPI_REGISTRY",

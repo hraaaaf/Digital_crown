@@ -17,3 +17,6 @@ Default-off; cabinet/non-isolated or backend-settings mismatch denial; fixture s
 Native Windows background process/service lifecycle and INSTALLABLE_CERTIFIED packaging, multi-poste ownership, Wi-Fi/RVG/DICOM/TWAIN/proprietary SDK hardware, certified patient binding and atomic receipt, product/mobile UI, RPG-X separate process actors and RPG-P physical tests. Tests here do not certify any device or claim clinical interoperability.
 
 This is a lab-only prototype on a draft stacked PR. No clinical installation without separate certified release, rehearsal and explicit human approval.
+
+## CI separation
+The existing 06-A imaging matrix has only lightweight spool/cryptography dependencies. This LAB worker lives in `tools.imaging_gateway.bridge_background_lab` and is imported from the product's FastAPI lifespan; the synthetic suite therefore does not import `backend.__init__` or require SQLAlchemy. The 06-B operational route check supports both first-level PRs (preflight 0 -> 1) and stacked descendant PRs (preflight 1 -> 1), retaining strict multiset equality for all other routes.

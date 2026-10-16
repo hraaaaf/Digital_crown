@@ -303,7 +303,7 @@ async def lifespan(app: FastAPI):
         # LOT06 isolated LAB only: one local worker within the existing backend.
         # This is NOT an installer/service activation or a clinical capture.
         if boot_policy != REHEARSAL_MIGRATION_ONLY:
-            from backend.services.imaging_bridge_lab_v15 import start_if_enabled
+            from tools.imaging_gateway.bridge_background_lab import start_if_enabled
             imaging_bridge_lab_handle = start_if_enabled(trusted_environment=str(_cfg.ENVIRONMENT))
 
     except asyncio.CancelledError:
@@ -321,7 +321,7 @@ async def lifespan(app: FastAPI):
     if station_ttl_cleanup_task is not None:
         station_ttl_cleanup_task.cancel()
     if imaging_bridge_lab_handle is not None:
-        from backend.services.imaging_bridge_lab_v15 import stop_bridge_lab
+        from tools.imaging_gateway.bridge_background_lab import stop_bridge_lab
         await stop_bridge_lab(imaging_bridge_lab_handle)
     logger.info("Arret de l'API...")
 

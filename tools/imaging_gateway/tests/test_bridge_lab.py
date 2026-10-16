@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from backend.services.imaging_bridge_lab_v15 import (
+from tools.imaging_gateway.bridge_background_lab import (
     BridgeLabConfigurationError, lab_requested, make_lab_collector,
     poll_lab_collector, start_if_enabled, stop_bridge_lab,
 )
@@ -181,7 +181,7 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 raise RuntimeError("PATIENT_PERSONAL_SECRET_FILENAME")
         collector = BadCollector()
         stop = asyncio.Event()
-        with self.assertLogs("backend.services.imaging_bridge_lab_v15", level="WARNING") as logs:
+        with self.assertLogs("tools.imaging_gateway.bridge_background_lab", level="WARNING") as logs:
             task = asyncio.create_task(poll_lab_collector(collector, stop, interval=0.01))
             await asyncio.wait_for(self._until(lambda: collector.ticks >= 2), timeout=3)
             stop.set()
