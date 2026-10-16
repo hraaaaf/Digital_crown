@@ -23,7 +23,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
+
+class _NoRedirect(HTTPRedirectHandler):
+    # Prevent auth header forwarding to any redirect destination.
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+_NO_REDIRECT_OPENER = build_opener(_NoRedirect)
 
 
 def percentile(values: list[float], ratio: float) -> float:
@@ -83,7 +90,7 @@ def http_json(url: str, data: dict, bearer: str | None = None, form=False):
     request = Request(url, data=encoded, headers=headers, method='POST')
     started = time.perf_counter_ns()
     try:
-        with urlopen(request, timeout=15) as response:
+        with _NO_REDIRECT_OPENER.open(request, timeout=15) as response:
             raw = response.read()
             status = response.status
     except HTTPError as exc:
