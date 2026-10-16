@@ -68,3 +68,66 @@ def test_numeric_dossier_collision_not_auto_selected(client, db, dentiste, auth_
                             json={"messages": ["/patient", selector]})
             assert r.status_code == 200
             assert r.json()["patient"]["id"] == expected
+
+
+def test_foreign_name_and_dossier_look_like_unknown(client, db, auth_headers):
+    from backend.tests.conftest import make_user
+    other = make_user(db)
+    foreign = models.Patient(nom="Externe", prenom="Fictif",
+                             numero_dossier="F-2026-919",
+                             date_naissance=datetime(1990, 1, 1),
+                             sexe="F", employer_id=other.id)
+    db.add(foreign)
+    db.commit()
+    with patch.object(settings, "CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED", True):
+        responses = []
+        for selector in ("F-2026-919", "dossier:F-2026-919",
+                         "Fictif Externe", "DOSS-ABSENT-002"):
+            result = client.post(URL, headers=auth_headers,
+                                 json={"messages": ["/patient", selector]})
+            assert result.status_code == 404
+            responses.append(result.json())
+        assert all(r == {"detail": "Patient introuvable."} for r in responses)
+
+
+def test_soft_deleted_and_denied_search(client, db, dentiste, auth_headers):
+    p = models.Patient(nom="Supprime", prenom="Fictif",
+                       numero_dossier="SUP-2026-01",
+                       date_naissance=datetime(1990, 1, 1),
+                       sexe="F", employer_id=dentiste.id,
+                       deleted_at=datetime.utcnow())
+    db.add(p)
+    db.commit()
+    with patch.object(settings, "CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED", True):
+        for selector in ("SUP-2026-01", "Fictif Supprime"):
+            result = client.post(URL, headers=auth_headers,
+                                 json={"messages": ["/patient", selector]})
+            assert result.status_code == 404
+        with patch("backend.routers.bot_workflows.has_permission",
+                   return_value=False):
+            denied = client.post(URL, headers=auth_headers,
+                                 json={"messages": ["/patient", "Benali"]})
+            assert denied.status_code == 403
+            assert "candidates" not in denied.text
+
+
+def test_dossier_rdv_remains_unexecutable(client, db, dentiste, auth_headers):
+    from datetime import date, timedelta
+    p = models.Patient(nom="Rdv", prenom="Fictif", numero_dossier="RDV-008",
+                       date_naissance=datetime(1990, 1, 1),
+                       sexe="F", employer_id=dentiste.id)
+    db.add(p)
+    db.commit()
+    baseline = (db.query(models.Appointment).count(),
+                db.query(models.BotPendingAction).count())
+    with patch.object(settings, "CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED", True):
+        result = client.post(URL, headers=auth_headers, json={"messages": [
+            "/rdv", "dossier:RDV-008",
+            (date.today() + timedelta(days=1)).isoformat(),
+            "10:00", "30", "consultation", "CONFIRMER"]})
+    assert result.status_code == 200, result.text
+    assert result.json()["proposal"]["params"]["patient_id"] == p.id
+    assert result.json()["status"] == "proposal_only"
+    assert "pending_action_id" not in result.text
+    assert (db.query(models.Appointment).count(),
+            db.query(models.BotPendingAction).count()) == baseline
