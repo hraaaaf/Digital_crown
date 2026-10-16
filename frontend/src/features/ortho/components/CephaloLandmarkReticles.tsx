@@ -1,7 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import type { Landmark } from '../cephaloShared';
-import { cephaloLabelFontSize, layoutCephaloLandmarkLabels, layoutCephaloPerimeterLabels } from './cephaloLabelLayout';
+import { cephaloLabelFontSize, layoutCephaloLandmarkLabels, layoutCephaloAnatomicalLabels } from './cephaloLabelLayout';
 
 const SOFT_TISSUE_IDS = new Set([
   'ul', 'll', 'sn', 'stpog', 'ls', 'li', 'prn', 'cm', 'g_soft', 'n_soft', 'a_soft', 'st', 'b_soft', 'pog_soft', 'me_soft', 'g-soft', 'n-soft'
@@ -93,8 +93,8 @@ export const CephaloLandmarkReticles = ({
       ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
     shownLabels, priorityId, imageWidth, imageHeight,
   );
-  const perimeterLabels = compactLabels
-    ? layoutCephaloPerimeterLabels(
+  const anatomicalLabels = compactLabels
+    ? layoutCephaloAnatomicalLabels(
         landmarks.map(point => activeDragPos?.id === point.id
           ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
         labelViewport, unitsPerPixel,
@@ -327,35 +327,35 @@ export const CephaloLandmarkReticles = ({
         );
       })}
       {compactLabels && !isCalibrating && baseOpacity > 0.08 && (
-        <g data-cephalo-perimeter-labels="true" pointerEvents="none">
+        <g data-cephalo-anatomical-labels="true" pointerEvents="none">
           {landmarks.map(point => {
-            const place = perimeterLabels.get(point.id);
+            const place = anatomicalLabels.get(point.id);
             if (!place) return null;
             const emphasized = point.id === activeDragId || point.id === activePointId
               || point.id === keyboardFocusedId || point.id === hoveredPointId;
             return (
               <g key={point.id}>
-                <line
+                {place.leaderNeeded && <line
                   data-cephalo-label-leader={point.id}
                   x1={place.sourceX} y1={place.sourceY}
                   x2={place.leaderEndX} y2={place.leaderEndY}
-                  stroke={emphasized ? '#fef08a' : '#dbeafe'}
-                  strokeOpacity={emphasized ? 0.78 : 0.23}
-                  strokeWidth={emphasized ? 1.35 : 0.7}
+                  stroke={emphasized ? '#fef08a' : '#93c5fd'}
+                  strokeOpacity={emphasized ? 0.50 : 0.18}
+                  strokeWidth={emphasized ? 1.2 : 0.65}
                   vectorEffect="non-scaling-stroke"
-                />
+                />}
                 <text
                   data-ceph03b-landmark-label={point.id}
                   data-cephalo-landmark-label={point.id}
                   x={place.x}
                   y={place.y}
-                  textAnchor={place.side === 'left' ? 'start' : 'end'}
+                  textAnchor="start"
                   fontSize={labelFontSize}
                   fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
                   fontWeight={emphasized ? 800 : 600}
                   className="select-none"
                   fill={emphasized ? '#fef08a' : '#f8fafc'}
-                  style={{ paintOrder: 'stroke', stroke: '#0b1220', strokeWidth: '2.4px' }}
+                  style={{ paintOrder: 'stroke', stroke: '#0b1220', strokeWidth: '2.1px' }}
                 >{point.id}</text>
               </g>
             );

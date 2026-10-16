@@ -249,9 +249,31 @@ try {
           'ALL NAMES MUST BE SIMULTANEOUS, TEXT-ONLY, COLLISION-FREE '+film+
           ' '+stage+' expected='+expected+' actual='+JSON.stringify(metric));
       };
+      // Anatomical proximity oracle: block a silent return to distant rails.
+      const proximity=()=>page.evaluate(()=>{
+        const svg=document.querySelector('svg[data-cephalo-viewport="base"]');
+        const m=svg?.getScreenCTM();
+        if(!svg||!m)return {error:'SCREEN_MATRIX_MISSING'};
+        const nodes=[...svg.querySelectorAll('[data-cephalo-landmark-label]')];
+        const ds=nodes.map(el=>{
+          const id=el.getAttribute('data-cephalo-landmark-label');
+          const handle=svg.querySelector('[data-ceph03b-drag-handle="'+id+'"] circle');
+          if(!handle)return NaN;
+          const x=Number(handle.getAttribute('cx')),y=Number(handle.getAttribute('cy'));
+          const p=new DOMPoint(x,y).matrixTransform(m);
+          const r=el.getBoundingClientRect();
+          return Math.hypot(Math.max(r.left-p.x,0,p.x-r.right),
+            Math.max(r.top-p.y,0,p.y-r.bottom));
+        }).sort((a,b)=>a-b);
+        return {total:ds.length,finite:ds.every(Number.isFinite),
+          medianPx:ds[Math.floor(ds.length/2)]??null,maxPx:Math.max(0,...ds)};
+      });
       const noBoxes=async()=>page.locator('[data-ceph03b-label-background]').count();
       const all100=await labelMetrics();
       assertNames(all100,38,'ALL100');
+      const anatomicalProof=await proximity();
+      assert(anatomicalProof.finite&&anatomicalProof.total===38&&anatomicalProof.medianPx<125,
+        'BEFORE 2.0 spatial proximity failed '+film+' '+JSON.stringify(anatomicalProof));
       assert((await noBoxes())===0,'Desktop landmark labels must have NO background containers '+film);
 
       // Cross-layer zoom regression witness on the ACTUAL public film, clinical

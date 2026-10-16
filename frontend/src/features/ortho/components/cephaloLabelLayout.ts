@@ -140,3 +140,80 @@ export function layoutCephaloPerimeterLabels(
   place('right', right);
   return result;
 }
+
+
+/** BEFORE 2.0: labels stay near anatomical points, never alter them. */
+export interface CephaloAnatomicalLabel {
+  id: string; x: number; y: number; width: number;
+  sourceX: number; sourceY: number; leaderEndX: number; leaderEndY: number;
+  leaderNeeded: boolean; distancePx: number;
+}
+export function layoutCephaloAnatomicalLabels(
+  landmarks: Pick<Landmark,'id'|'x'|'y'>[], viewport: string, unitsPerPixel: number,
+): Map<string, CephaloAnatomicalLabel> {
+  const result=new Map<string,CephaloAnatomicalLabel>();
+  const v=viewport.trim().split(/\s+/).map(Number);
+  if(v.length!==4||v.some(n=>!Number.isFinite(n))||!Number.isFinite(unitsPerPixel)
+    ||unitsPerPixel<=0||v[2]<=0||v[3]<=0)return result;
+  const [vx,vy,vw,vh]=v;
+  const scale=Math.max(.1,Math.min(30,unitsPerPixel));
+  const W=vw/scale,H=vh/scale;
+  if(W<250||H<290)return result;
+  const edge=15,h=21,gap=3;
+  type Box={l:number;t:number;r:number;b:number};
+  const forbidden:Box[]=[
+    {l:W*.16,t:36,r:W*.87,b:92},
+    {l:W-112,t:0,r:W,b:88},
+    {l:0,t:H-58,r:190,b:H},
+    {l:W-115,t:H-53,r:W,b:H},
+  ];
+  const intersect=(a:Box,b:Box,p=gap)=>
+    a.l<b.r+p && a.r+p>b.l && a.t<b.b+p && a.b+p>b.t;
+  const placed:Box[]=[];
+  const clamp=(x:number,a:number,b:number)=>Math.max(a,Math.min(b,x));
+  const points=landmarks.filter(p=>p.id&&Number.isFinite(p.x)&&Number.isFinite(p.y));
+  const density=(p:typeof points[number])=>points.filter(q=>q!==p
+    &&Math.hypot(q.x-p.x,q.y-p.y)<105*scale).length;
+  const ordered=points.slice().sort((a,b)=>density(b)-density(a)
+    ||b.id.length-a.id.length||a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));
+  for(const pt of ordered){
+    const w=pt.id.length*9.95+5;
+    if(w>W-2*edge)continue;
+    const ax=clamp((pt.x-vx)/scale,edge,W-edge);
+    const ay=clamp((pt.y-vy)/scale,edge,H-edge);
+    const seeds=[[18,-8],[-w-18,-8],[18,14],[-w-18,14],
+      [-w/2,-27],[-w/2,29]];
+    const options:{l:number;t:number;cost:number}[]=[];
+    for(const radius of [0,22,40,65,95,130,170,220,290,360,460])
+      for(const [dx,dy] of seeds)
+        for(const [sx,sy] of radius===0 ? [[0,0]]
+          : [[1,0],[-1,0],[0,1],[0,-1],[.7,.7],[-.7,.7],[.7,-.7],[-.7,-.7]]){
+          const l=clamp(ax+dx+sx*radius,edge,W-edge-w);
+          const t=clamp(ay+dy+sy*radius-h,edge,H-edge-h);
+          options.push({l,t,cost:Math.hypot(l+w/2-ax,t+h/2-ay)});
+        }
+    // Global fallback must never silently drop a required clinical name.
+    for(let t=edge;t<=H-edge-h;t+=h+4)
+      for(let l=edge;l<=W-edge-w;l+=14)
+        options.push({l,t,cost:Math.hypot(l+w/2-ax,t+h/2-ay)+12});
+    options.sort((a,b)=>a.cost-b.cost||a.t-b.t||a.l-b.l);
+    const chosen=options.find(c=>{
+      const box={l:c.l,t:c.t,r:c.l+w,b:c.t+h};
+      return !placed.some(b=>intersect(box,b))
+        &&!forbidden.some(b=>intersect(box,b,1));
+    });
+    if(!chosen)continue; // The live browser gate fails if 38/38 not visible.
+    placed.push({l:chosen.l,t:chosen.t,r:chosen.l+w,b:chosen.t+h});
+    const ex=clamp(ax,chosen.l,chosen.l+w);
+    const ey=clamp(ay,chosen.t,chosen.t+h);
+    const d=Math.hypot(ex-ax,ey-ay);
+    result.set(pt.id,{
+      id:pt.id,x:vx+chosen.l*scale,y:vy+(chosen.t+h-4)*scale,width:w*scale,
+      sourceX:pt.x,sourceY:pt.y,
+      leaderEndX:vx+ex*scale,leaderEndY:vy+ey*scale,
+      leaderNeeded:d>23 && pt.x>=vx&&pt.x<=vx+vw&&pt.y>=vy&&pt.y<=vy+vh,
+      distancePx:d,
+    });
+  }
+  return result;
+}

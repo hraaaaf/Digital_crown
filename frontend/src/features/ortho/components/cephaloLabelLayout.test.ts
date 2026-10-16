@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cephaloLabelFontSize, layoutCephaloLandmarkLabels, layoutCephaloPerimeterLabels } from './cephaloLabelLayout';
+import { cephaloLabelFontSize, layoutCephaloLandmarkLabels, layoutCephaloPerimeterLabels, layoutCephaloAnatomicalLabels } from './cephaloLabelLayout';
 
 const points = [
   { id: 'N', x: 800, y: 450 }, { id: 'A', x: 806, y: 454 },
@@ -119,5 +119,44 @@ describe('R21.2 no-container perimeter labeling', () => {
     expect(layoutCephaloPerimeterLabels(pts, 'bad', 2).size).toBe(0);
     expect(layoutCephaloPerimeterLabels(pts, '0 0 0 100', 2).size).toBe(0);
     expect(layoutCephaloPerimeterLabels(pts, '0 0 200 200', NaN).size).toBe(0);
+  });
+});
+
+describe('BEFORE 2.0 anatomical non-container labels',()=>{
+  const dense=Array.from({length:38},(_,i)=>({
+    id:'P'+String(i).padStart(2,'0'),x:530+(i%8)*8,y:550+Math.floor(i/8)*10,
+  }));
+  it('fits all 38 full names without overlapping on dense anatomy and remains deterministic',()=>{
+    const old=JSON.stringify(dense);
+    for(const [vb,scale] of [['0 0 2272 1818',3],['300 100 1500 1200',3]] as const){
+      const labels=layoutCephaloAnatomicalLabels(dense,vb,scale);
+      expect(labels.size).toBe(38);
+      const boxes=[...labels.values()].map(p=>({id:p.id,
+        l:p.x/scale,r:(p.x+p.width)/scale,t:p.y/scale-17,b:p.y/scale+4}));
+      for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){
+        const a=boxes[i],b=boxes[j];
+        expect(a.r+1<=b.l||b.r+1<=a.l||a.b+1<=b.t||b.b+1<=a.t,
+          a.id+' / '+b.id).toBe(true);
+      }
+      expect([...layoutCephaloAnatomicalLabels([...dense].reverse(),vb,scale)])
+        .toEqual([...labels]);
+    }
+    expect(JSON.stringify(dense)).toBe(old);
+  });
+  it('keeps isolated names next to their actual anatomical point',()=>{
+    const pts=[{id:'N',x:1100,y:280},{id:'A',x:1900,y:1050},
+      {id:'B',x:1600,y:1400}];
+    const placed=layoutCephaloAnatomicalLabels(pts,'0 0 2272 1818',3);
+    expect(placed.size).toBe(3);
+    for(const p of pts){
+      const label=placed.get(p.id)!;
+      expect(label.distancePx).toBeLessThan(45);
+      expect(Number.isFinite(label.leaderEndX)).toBe(true);
+    }
+  });
+  it('refuses invalid geometry and scale instead of inventing positions',()=>{
+    expect(layoutCephaloAnatomicalLabels(dense,'bad',2).size).toBe(0);
+    expect(layoutCephaloAnatomicalLabels(dense,'0 0 2272 1818',NaN).size).toBe(0);
+    expect(layoutCephaloAnatomicalLabels(dense,'0 0 100 100',1).size).toBe(0);
   });
 });
