@@ -474,6 +474,43 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(len(self.agent.items()), 0)
         self.assertTrue(link.is_symlink())
 
+    def test_spool_iterator_closed_when_unsafe_entry_is_rejected(self):
+        self.agent = self.limited_agent()
+        self.stage()
+        original = next((self.private / "spool").glob("*.dc6"))
+        alias = self.private / "spool" / "unsafe-alias.dc6"
+        try:
+            os.link(original, alias)
+        except (OSError, NotImplementedError):
+            self.skipTest("hardlinks unavailable")
+        if original.stat().st_nlink <= 1:
+            self.skipTest("filesystem cannot report link count")
+
+        real_scandir = os.scandir
+        observed = []
+
+        class TrackedScandir:
+            def __init__(self, path):
+                self.inner = real_scandir(path)
+                self.closed = False
+                observed.append(self)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                self.closed = True
+                self.inner.close()
+
+            def __iter__(self):
+                return iter(self.inner)
+
+        with patch("tools.imaging_gateway.gateway.os.scandir", side_effect=TrackedScandir):
+            with self.assertRaisesRegex(GatewayError, "unsafe spool entry"):
+                self.agent.storage_health()
+        self.assertTrue(observed, "scandir must have been called")
+        self.assertTrue(all(item.closed for item in observed), "scandir must close on failure")
+
     def test_spool_hardlink_entry_rejected_where_link_count_reported(self):
         self.agent = self.limited_agent()
         self.stage()

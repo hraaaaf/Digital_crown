@@ -316,20 +316,23 @@ class HotFolder:
         orphan_bytes = 0
         orphan_count = 0
         file_count = 0
-        for entry in os.scandir(self.spool):
-            file_count += 1
-            if file_count > 100_000:
-                raise StorageBackpressure("SPOOL_DIRECTORY_LIMIT")
-            # Windows DirEntry.stat() can omit the NTFS hardlink count.
-            # os.stat(path, follow_symlinks=False) performs a full file query,
-            # preserving the ability to refuse observed hardlinks and symlinks.
-            meta = os.stat(entry.path, follow_symlinks=False)
-            if not stat.S_ISREG(meta.st_mode) or meta.st_nlink > 1:
-                raise GatewayError("unsafe spool entry")
-            occupied += meta.st_size
-            if entry.name not in registered:
-                orphan_count += 1
-                orphan_bytes += meta.st_size
+        # Close the directory handle on *all* exits, including fail-closed
+        # rejections (symlinks, hardlinks and file-count backpressure).
+        with os.scandir(self.spool) as entries:
+            for entry in entries:
+                file_count += 1
+                if file_count > 100_000:
+                    raise StorageBackpressure("SPOOL_DIRECTORY_LIMIT")
+                # Windows DirEntry.stat() can omit the NTFS hardlink count.
+                # os.stat(path, follow_symlinks=False) performs a full file query,
+                # preserving the ability to refuse observed hardlinks and symlinks.
+                meta = os.stat(entry.path, follow_symlinks=False)
+                if not stat.S_ISREG(meta.st_mode) or meta.st_nlink > 1:
+                    raise GatewayError("unsafe spool entry")
+                occupied += meta.st_size
+                if entry.name not in registered:
+                    orphan_count += 1
+                    orphan_bytes += meta.st_size
         return {
             "spool_bytes": occupied,
             "orphan_files": orphan_count,
