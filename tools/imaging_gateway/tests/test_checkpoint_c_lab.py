@@ -408,6 +408,12 @@ class CheckpointCSyntheticTests(unittest.TestCase):
         with self.assertRaisesRegex(CasRefusal, "B_RECEIPT_LOOKUP_OP_REFUSE"):
             self.receipts(first["op_id"], lookup_pair=(lookup_pkt, wrong_req))
 
+    def test_B_and_C_same_signer_identity_refused_even_in_synthetic_lab(self):
+        with self.assertRaisesRegex(CasRefusal, "C_B_SAME_SIGNER_REFUSE"):
+            SyntheticCheckpointC(self.scope, self.b_pin, self.b_key)
+        with self.assertRaisesRegex(CasRefusal, "C_B_SAME_SIGNER_REFUSE"):
+            verify_anchor(self.c.latest, self.b_pin, self.b_pin, self.scope)
+
     def test_scope_mismatch_is_refused(self):
         _, r1 = self.commit_b()
         anchor = self.c.anchor(r1)
