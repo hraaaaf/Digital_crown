@@ -1,13 +1,14 @@
 """LAB-only background worker contract: no hardware or patient access."""
 import asyncio
 import base64
+import sqlite3
 from pathlib import Path
 import tempfile
 import unittest
 
 from backend.services.imaging_bridge_lab_v15 import (
     BridgeLabConfigurationError, lab_requested, make_lab_collector,
-    poll_lab_collector, start_if_enabled,
+    poll_lab_collector, start_if_enabled, stop_bridge_lab,
 )
 
 PNG = base64.b64decode(
@@ -98,6 +99,42 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
         last = collector.ticks
         await asyncio.sleep(0.04)
         self.assertEqual(collector.ticks, last)
+
+    async def test_real_lab_background_stages_without_patient_or_server(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".digitalcrown-imaging-lab-only").write_text(
+                "DIGITALCROWN_IMAGING_LAB_ONLY_V1\n", encoding="utf-8")
+            incoming = root / "incoming"
+            incoming.mkdir()
+            photo = incoming / "fictitious.png"
+            photo.write_bytes(PNG)
+            env = {
+                "DC_V15_06_BRIDGE_LAB": "1",
+                "ENVIRONMENT": "test",
+                "DIGITALCROWN_ISOLATED_RUNTIME": "true",
+                "DC_V15_06_BRIDGE_LAB_ROOT": str(root),
+                "DC_V15_06_BRIDGE_LAB_KEY_HEX": (b"k" * 32).hex(),
+            }
+            handle = start_if_enabled(env)
+            self.assertIsNotNone(handle)
+            db_path = root / "private" / "acquisitions.sqlite3"
+            try:
+                async def was_staged():
+                    while True:
+                        with sqlite3.connect(db_path) as db:
+                            row = db.execute("SELECT state FROM items").fetchone()
+                        if row is not None:
+                            self.assertEqual(row[0], "PENDING_CONFIRMATION")
+                            return
+                        await asyncio.sleep(0.05)
+                await asyncio.wait_for(was_staged(), timeout=8)
+            finally:
+                await stop_bridge_lab(handle)
+            self.assertTrue(handle.task.done())
+            self.assertEqual(photo.read_bytes(), PNG)
+            with sqlite3.connect(db_path) as db:
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM items").fetchone()[0], 1)
 
     async def test_start_is_silent_when_not_requested(self):
         self.assertIsNone(start_if_enabled({}))
