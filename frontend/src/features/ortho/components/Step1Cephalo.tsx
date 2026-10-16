@@ -3,7 +3,7 @@ import { Ruler, DraftingCompass, ZoomIn, SlidersHorizontal, ScanFace, Wand2, Lay
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
 import { cephaloShortPointName } from './CephaloLandmarkReticles';
 import { cephaloAnalysisMetricKeys, CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
-import { resolveCephaloAnalysisPointContract } from '../cephaloAnalysisPointFocus';
+import { countDefaultVisiblePointMarkers, resolveCephaloAnalysisPointContract } from '../cephaloAnalysisPointFocus';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import {
   CEPHALO_ANALYSIS_CHANGE_EVENT,
@@ -102,6 +102,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const pointContract = React.useMemo(() => resolveCephaloAnalysisPointContract(
     analysis, cephaloAnalysisMetricKeys[analysis], localLandmarks.map(point=>point.id)),
     [analysis, localLandmarks]);
+  const defaultVisiblePointMarkers = countDefaultVisiblePointMarkers(analysis,pointContract,localLandmarks.map(p=>p.id));
   const missingManualIds = pointContract.missing.filter(id=>
     id==='Po_anatomic'||id==='Pog_hard'||id==='Gn_anatomic'
     ||id==='U1_facial_surface'||id==='L1_facial_surface'
@@ -207,7 +208,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           style={{color:props.P.textMuted}}>
           {analysis==='all'||showAllPointMarkers||pointContract.ids===null
             ? localLandmarks.length
-            : pointContract.count}/{localLandmarks.length} points
+            : defaultVisiblePointMarkers}/{localLandmarks.length} points
         </span>
         <button type="button" data-cephalo-all-names-toggle
           aria-pressed={showAllLandmarkNames}

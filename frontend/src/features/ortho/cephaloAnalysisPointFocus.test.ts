@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCephaloAnalysisPointContract } from './cephaloAnalysisPointFocus';
+import { countDefaultVisiblePointMarkers, resolveCephaloAnalysisPointContract } from './cephaloAnalysisPointFocus';
 
 const present=['S','N','A','B','Po','Or','Go','Me','Co','Gn','ANS',
   'U1_incisal','U1_apex','L1_incisal','L1_apex','Ls_soft','Li_soft','Prn','Pog_soft'];
@@ -51,6 +51,11 @@ describe('R23-F read-only clinical per-analysis landmark focus',()=>{
     const r=resolveCephaloAnalysisPointContract('ricketts',['Ligne_E_Ls','Ligne_E_Li'],present);
     expect(m.ids).toEqual(['Co','A','Gn','ANS','Me']);
     expect(c.ids).toContain('U1_incisal');
+    // COM draws N/A/B on its independent construction layer, not as duplicate
+    // editable dots. The visible counter must match the real SVG handle count.
+    const allRelated=['S','N','A','B','Po','Or','Go','Me','U1_incisal','U1_apex','L1_incisal','L1_apex'];
+    expect(countDefaultVisiblePointMarkers('com',c,allRelated)).toBe(9);
+    expect(countDefaultVisiblePointMarkers('mcnamara',m,present)).toBe(5);
     expect(r.ids).toContain('Prn');
     expect(r.ids).toContain('Pog_soft');
     expect(r.ids).not.toContain('U1_apex');

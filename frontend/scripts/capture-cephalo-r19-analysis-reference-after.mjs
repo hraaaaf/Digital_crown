@@ -157,9 +157,11 @@ async function captureViewport(viewport,attempt){
       await page.waitForFunction(m=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')===m,mode,{timeout:5000});
       const found=await page.locator('[data-cephalo-landmark-label]').evaluateAll(els=>els.map(el=>el.getAttribute('data-cephalo-landmark-label')));
       const count=await page.locator('[data-ceph03b-drag-handle]').count();
+      const counter=await page.locator('[data-cephalo-points-focus-count]').textContent();
+      const visibleNumber=Number(counter?.trim().split('/')[0]);
       const source=await page.locator('[data-cephalo-points-focus-count]').getAttribute('data-cephalo-point-source');
-      analysisMajorProof.push({mode,expected:names,found,count,source,
-        valid:found.length===names.length&&names.every(id=>found.includes(id))
+      analysisMajorProof.push({mode,expected:names,found,count,visibleNumber,source,
+        valid:visibleNumber===count&&found.length===names.length&&names.every(id=>found.includes(id))
           &&(mode==='all'?count===29:count>0&&count<29)
           &&(mode==='all'?source==='all':source==='LOT06'||source==='legacy-display')});
     }

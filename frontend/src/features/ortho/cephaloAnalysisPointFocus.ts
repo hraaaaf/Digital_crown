@@ -28,6 +28,20 @@ const LEGACY_DISPLAY_ANCHORS: Partial<Record<CephaloAnalysisMode, readonly strin
   ],
 };
 
+/** COM anatomical references drawn on the construction layer, not duplicate edit dots. */
+export const CEPHALO_COM_CONSTRUCTION_ONLY_IDS = ['N','A','B'] as const;
+
+export const countDefaultVisiblePointMarkers = (
+  mode: CephaloAnalysisMode,
+  contract: CephaloAnalysisPointContract,
+  presentIds: readonly string[],
+): number => {
+  if (!contract.ids) return presentIds.length;
+  const allowed=new Set(contract.ids);
+  const hiddenConstructionIds=mode==='com' ? new Set<string>(CEPHALO_COM_CONSTRUCTION_ONLY_IDS) : null;
+  return presentIds.filter(id=>allowed.has(id)&&!hiddenConstructionIds?.has(id)).length;
+};
+
 export type CephaloAnalysisPointContract = {
   /** null = fail-open full radiograph, not a guessed partial set. */
   ids: readonly string[] | null;

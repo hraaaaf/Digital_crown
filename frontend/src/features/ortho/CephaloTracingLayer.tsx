@@ -1,4 +1,5 @@
 import React from 'react';
+import { CEPHALO_COM_CONSTRUCTION_ONLY_IDS } from './cephaloAnalysisPointFocus';
 import { cephaloShortPointName } from './components/CephaloLandmarkReticles';
 import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracingLayerBase';
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
@@ -61,7 +62,10 @@ const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
   ]),
 };
 
-const COM_BASE_SUPPRESSED_LANDMARKS = new Set(['n', 'nasion', 'a', 'point_a', 'b', 'point_b']);
+const COM_BASE_SUPPRESSED_LANDMARKS = new Set([
+  ...CEPHALO_COM_CONSTRUCTION_ONLY_IDS.map(id=>id.toLowerCase()),
+  'nasion','point_a','point_b',
+]);
 
 const normalizeMode = (value?: string): AnalysisMode => {
   const normalized = (value || 'all').trim().toLowerCase();
