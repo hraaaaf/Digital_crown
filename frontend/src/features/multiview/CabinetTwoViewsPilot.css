@@ -54,3 +54,18 @@
 [data-theme='dark'] [data-v15-07-two-views] .text-text-muted {
   color: color-mix(in srgb, var(--text-main) 82%, var(--card-bg));
 }
+
+/* Desktop pilot only: the sticky clinical header must completely occlude
+ * scrolling patient and practitioner data; don't affect Pocket or other routes. */
+@media (min-width: 1280px) {
+  .v15-g1-opaque-patient-header {
+    background-color: var(--card-bg);
+  }
+}
+
+/* Prestige is the actual dark G1 screenshot theme; dark and Prestige media
+ * labels must remain AA-legible without changing global palette tokens. */
+[data-theme='prestige'] [data-v15-07-two-views] .text-primary,
+[data-theme='dark'] [data-v15-07-two-views] .text-primary {
+  color: color-mix(in srgb, var(--text-main) 68%, var(--primary));
+}
