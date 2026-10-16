@@ -55,11 +55,27 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
   const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
   const [isBotOpen, setIsBotOpen] = useState(false);
+  // Only one CrownBotChat can mount at a time: the hidden duplicate would
+  // otherwise open a second websocket and duplicate effectful API reads.
+  const [isWideDesktop, setIsWideDesktop] = useState(
+    () => typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(min-width: 1280px)').matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(min-width: 1280px)');
+    const onChange = () => setIsWideDesktop(query.matches);
+    onChange();
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
   // CB-01 experiment: DESKTOP web only, double opted-in alongside the existing
   // non-executable preview. The real cabinet defaults to the old floating UI.
   const associateSidecarEnabled =
     import.meta.env.VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED === 'true'
     && import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
+  const showAssociateSidecar = associateSidecarEnabled && isWideDesktop;
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
@@ -125,7 +141,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      {associateSidecarEnabled && isBotOpen && (
+      {showAssociateSidecar && isBotOpen && (
         <aside
           data-cb01-associate-sidecar
           aria-label="Crown Bot — assistant latéral expérimental"
@@ -171,14 +187,14 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <AnimatePresence>
-        {isBotOpen && (
+        {isBotOpen && !showAssociateSidecar && (
           <motion.div
             data-ux1-c-crownbot-overlay
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className={`fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${associateSidecarEnabled ? 'xl:hidden ' : ''}${
+            className={`fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
               isPatientRoute
                 ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
                 : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
