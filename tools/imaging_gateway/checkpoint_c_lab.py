@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+from copy import deepcopy
 import hashlib
 import re
 from dataclasses import dataclass
@@ -96,7 +97,8 @@ def classify_verified_head(witness_packet: dict | None, fresh_head_request: dict
     Caller-supplied/stale C packet can still be replayed. MATCH is NOT a freshness
     certificate and C's genuine independent high-watermark is NEVER proved here.
     """
-    _refuse(fresh_head_request.get("method") == "HEAD", "C_EXPECT_HEAD_REFUSE")
+    _refuse(type(fresh_head_request) is dict
+            and fresh_head_request.get("method") == "HEAD", "C_EXPECT_HEAD_REFUSE")
     if witness_packet is None or c_packet is None:
         return AnchorDecision("UNKNOWN_NO_INDEPENDENT_CURRENT_C_LAB")
     witness = verify_response(witness_packet, b_pin, fresh_head_request)
@@ -160,7 +162,7 @@ class SyntheticCheckpointC:
         if op_id in self._ops:
             old_receipt, old_packet = self._ops[op_id]
             _refuse(old_receipt == receipt, "C_OP_ID_REBIND_REFUSE")
-            return old_packet
+            return deepcopy(old_packet)
         _refuse(body["before_seq"] == self._head_seq
                 and body["before_mac"] == self._head_mac
                 and body["after_seq"] == self._head_seq + 1
@@ -173,4 +175,4 @@ class SyntheticCheckpointC:
         # This is ONLY in-process ordering, not an atomic/durable C/WORM proof.
         self._ops[op_id] = (receipt, result)
         self._latest = result
-        return result
+        return deepcopy(result)
