@@ -367,9 +367,17 @@ try {
       await edit('ArrowRight',originalN.x+1,'arrow1');
       expected=(await edit('Shift+ArrowRight',originalN.x+11,'shift10')).landmarks_data;
       assert(Math.abs(await getPointX(page)-(originalN.x+11))<0.0001,'Keyboard store lost rapid edits');
-      // The integrated UX keeps history commands inside a semantic disclosure.
-      // Open it through the actual user-facing summary before exercising the
-      // real authenticated undo/redo PUT transactions.
+      // R23-A starts image-first: the correction-history tools remain
+      // available behind an explicit reversible button. Exercise that user
+      // journey before the real authenticated undo/redo PUT transactions.
+      const toolsToggle=page.locator('[data-r23-tools-toggle]');
+      const utilityRail=page.locator('[data-r20-workbench-sidebar]');
+      assert(await utilityRail.evaluate(el=>getComputedStyle(el).display==='none'),
+        'R23-A initial utility rail should be folded on desktop');
+      await toolsToggle.click();
+      assert(await utilityRail.isVisible(),'R23-A cannot reopen clinical edit tools');
+      assert(await toolsToggle.getAttribute('aria-expanded')==='true',
+        'R23-A tools disclosure accessibility state invalid');
       const historyDisclosure=page.locator('details').filter({has:page.locator('[data-ortho-edit-history]')});
       assert(await historyDisclosure.count()===1,'Expected one accessible correction history disclosure');
       await historyDisclosure.locator('summary').click();
@@ -396,6 +404,10 @@ try {
         && redone.angles_data?.calibration_source_resolution?.applied_to_analysis===false
         && redone.mm_per_pixel===null && redone.is_calibrated===false,
         'Refined SQLite record discarded immutable calibration source evidence');
+      await toolsToggle.click();
+      assert(await utilityRail.evaluate(el=>getComputedStyle(el).display==='none')
+        &&await toolsToggle.getAttribute('aria-expanded')==='false',
+        'R23-A utility rail failed to close after live edit and redo');
       const anonRead=await anon.request.get(origin+pathForId(id));
       const anonMedia=await anon.request.get(origin+'/'+uploaded.image_path);
       assert([401,403].includes(anonRead.status()),'Anonymous GET leaked persisted landmark analysis');
