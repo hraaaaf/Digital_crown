@@ -240,3 +240,92 @@ def test_owner_tenant_404_precedes_restricted_login_cookie_change(monkeypatch, t
     assert result["checks"]["foreign_unknown_same_404"] == "PASS"
     assert result["checks"]["permission_denied_403"] == "PASS"
     assert sequence.index("foreign_check") < sequence.index("restricted_login")
+
+
+@pytest.mark.parametrize("full_result", [
+    (403, {"detail": "Accès refusé."}),
+    (200, {"status": "proposal_only", "proposal": {"type": "CREATE_APPOINTMENT"}}),
+    (403, {"detail": "Accès refusé.", "patient": {"id": 1}}),
+    (404, {"detail": "Not found"}),
+])
+def test_s06_denies_full_appointment_proposal_fail_closed(
+    monkeypatch, tmp_path, full_result
+):
+    """Only a generic 403 for BOTH forms is accepted as S06 evidence."""
+    env = {
+        "DIGITALCROWN_ISOLATED_RUNTIME": "1",
+        "T2_USER": "t2-owner@example.test", "T2_PASSWORD": "fake",
+        "T2_PATIENT_ID": "1",
+        "T2_S06_USER": "t2-s06@example.test",
+        "T2_S06_PASSWORD": "fake",
+    }
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    for k in ("T2_DENIED_USER", "T2_DENIED_PASSWORD", "T2_FOREIGN_PATIENT_ID",
+              "T2_UNKNOWN_PATIENT_ID"):
+        monkeypatch.delenv(k, raising=False)
+    logins, requests = [], []
+
+    def fake_login(url, user, password, *, enroll_workstation=True):
+        logins.append((user, enroll_workstation))
+        return "s06" if user == env["T2_S06_USER"] else "owner"
+
+    def fake_http(url, data, bearer=None, form=False, anonymous=False):
+        messages = data["messages"]
+        requests.append((messages, bearer))
+        if anonymous:
+            return 401, {"detail": "Unauthorized"}, 1.0
+        if bearer == "s06":
+            assert messages[0] == "/rdv"
+            if len(messages) == 1:
+                return 403, {"detail": "Accès refusé."}, 1.0
+            return full_result[0], full_result[1], 1.0
+        if messages == ["/patient"]:
+            return 200, {"status": "clarification", "proposal": None}, 1.0
+        if messages == ["/patient", "1"]:
+            return 200, {"status": "read", "proposal": None, "patient": {"id": 1}}, 1.0
+        raise AssertionError("unexpected request")
+
+    monkeypatch.setattr(probe, "login", fake_login)
+    monkeypatch.setattr(probe, "http_json", fake_http)
+    outfile = tmp_path / "result.json"
+    args = SimpleNamespace(api="http://127.0.0.1:8005", n=30, out=str(outfile))
+    if full_result == (403, {"detail": "Accès refusé."}):
+        result = probe.run(args)
+        assert result["checks"]["s06_no_agenda_403"] == "PASS"
+        assert result["checks"]["s06_full_proposal_denied_403"] == "PASS"
+        assert outfile.exists()
+        assert len([x for x in requests if x[1] == "s06"]) == 2
+        assert len([x for x in requests if x[1] == "s06" and
+                    x[0][0] == "/rdv" and len(x[0]) == 7]) == 1
+        assert logins == [("t2-owner@example.test", True), ("t2-s06@example.test", False)]
+    else:
+        with pytest.raises(RuntimeError, match="S06 agenda denial"):
+            probe.run(args)
+        assert not outfile.exists()
+
+
+def test_s06_fixture_missing_password_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    monkeypatch.setenv("T2_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    monkeypatch.setenv("T2_S06_USER", "t2-s06@example.test")
+    monkeypatch.delenv("T2_S06_PASSWORD", raising=False)
+    with pytest.raises(ValueError, match="S06 no-agenda identity"):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json"),
+        ))
+
+
+def test_s06_same_identity_as_owner_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    monkeypatch.setenv("T2_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    monkeypatch.setenv("T2_S06_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_S06_PASSWORD", "fake")
+    with pytest.raises(ValueError, match="distinct synthetic"):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json"),
+        ))
