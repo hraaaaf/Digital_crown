@@ -77,6 +77,7 @@ interface Patient {
 
 type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances' | 'companion';
 type RadioTab = 'media' | 'rvg' | 'panoramic' | 'cephalo';
+type PatientNextBestAction = { title: string; message: string; action?: string };
 
 const userRoleValue = (role: unknown): string => {
   if (!role) return '';
@@ -115,6 +116,7 @@ export const PatientDetails = () => {
 
   const requestedRadioTab = (searchParams.get('radioTab') as RadioTab | null) || 'rvg';
   const radioTab: RadioTab = availableRadioTabs.includes(requestedRadioTab) ? requestedRadioTab : 'rvg';
+  const g1MediaPilot = import.meta.env.VITE_V15_07_G1_TWO_VIEWS_PILOT === '1' && activeTab === 'radiology' && radioTab === 'media';
   const handleRadioTabChange = (value: RadioTab) => {
     if (!availableRadioTabs.includes(value)) return;
     setSearchParams(prev => {
@@ -131,6 +133,7 @@ export const PatientDetails = () => {
   const [fetchError, setFetchError] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotifSummary[]>([]);
+  const [g1InlineAdvice, setG1InlineAdvice] = useState<PatientNextBestAction | null>(null);
   const lastEditingDoc = useRef(null);
   const flowContentRef = useRef<HTMLElement>(null);
   const flowHandoff = useFlowHandoff();
@@ -210,16 +213,25 @@ export const PatientDetails = () => {
   }, [patient?.motif_consultation]);
 
   useEffect(() => {
-    // The contextual next-best-action belongs to clinical navigation, not the Companion admin flow.
-    // Keeping it out of Companion also prevents a large mobile toast from obscuring the access controls.
+    // The actual clinical NBA is never suppressed. In the opt-in G1 imaging
+    // route only, display it in document flow instead of obscuring a view.
+    // All other routes retain their existing toast contract.
+    setG1InlineAdvice(null);
     if (!id || activeTab === 'companion') return;
+    let cancelled = false;
     const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
-        if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, { duration: 7000 });
+        if (cancelled || !res.data.nba) return;
+        const nba = res.data.nba as PatientNextBestAction;
+        if (g1MediaPilot) {
+          setG1InlineAdvice({ title: nba.title, message: nba.message, action: nba.action });
+        } else {
+          toast(`💡 ${nba.title} — ${nba.message}${nba.action ? ` · Action : ${nba.action}` : ''}`, { duration: 7000 });
+        }
       }).catch(() => {});
     }, 1500);
-    return () => clearTimeout(timer);
-  }, [id, activeTab]);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [id, activeTab, g1MediaPilot]);
 
   useEffect(() => {
     if (!canClinical && activeTab === 'clinical') {
@@ -342,6 +354,17 @@ export const PatientDetails = () => {
       </header>
 
       <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : isRadiology ? 'flex-1 px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 space-y-2' : 'flex-1 px-3 py-3 sm:px-4 sm:py-6 md:px-8 md:py-8 space-y-4 sm:space-y-6')}>
+        {g1MediaPilot && g1InlineAdvice && (
+          <aside data-v15-07-g1-inline-nba role="status" aria-label="Conseil clinique du dossier"
+            className="flex min-w-0 items-start gap-2 rounded-lg border border-border-main bg-card-bg p-2.5 text-text-main">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+            <div className="min-w-0 text-xs leading-snug">
+              <p className="font-bold">{g1InlineAdvice.title}</p>
+              <p className="mt-0.5 text-text-muted">{g1InlineAdvice.message}</p>
+              {g1InlineAdvice.action && <p className="mt-0.5 font-semibold text-primary">Action : {g1InlineAdvice.action}</p>}
+            </div>
+          </aside>
+        )}
         {!isDocuments && (patient.antecedents_medicaux || patient.motif_consultation) && (
           <div className={cn('flex flex-col animate-in fade-in slide-in-from-top-4 duration-500', isRadiology ? 'gap-2' : 'gap-3')}>
             {patient.antecedents_medicaux && <div className={cn('bg-red-50 border border-red-200 flex items-start text-red-700 shadow-sm', isRadiology ? 'p-2.5 rounded-xl gap-2' : 'p-4 rounded-2xl gap-3')}><AlertTriangle className={cn('shrink-0 mt-0.5', isRadiology ? 'w-4 h-4' : 'w-5 h-5')} /><div><h4 className={cn('font-black uppercase tracking-widest', isRadiology ? 'text-[10px] mb-0.5' : 'text-sm mb-1')}>Antécédents Médicaux</h4><p className={cn('font-medium whitespace-pre-wrap', isRadiology ? 'text-xs line-clamp-2' : 'text-sm')}>{patient.antecedents_medicaux}</p></div></div>}
