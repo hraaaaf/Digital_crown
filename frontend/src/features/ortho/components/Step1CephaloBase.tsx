@@ -40,11 +40,12 @@ interface Step1CephaloProps {
   P: ThemePalette; // Theme palette
   embedded?: boolean; // Shared desktop workbench hosts controls outside the image.
   activeAnalysis?: CephaloAnalysisMode; // Presentation selection survives a fullscreen portal switch.
+  inspectedPointId?: string | null; // READ-ONLY: visually highlight, never reposition.
   fileRef: React.RefObject<HTMLInputElement | null>;
   step1ContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1ContainerRef, embedded = false, activeAnalysis }) => {
+export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1ContainerRef, embedded = false, activeAnalysis, inspectedPointId }) => {
   const store = useOrthoStore();
 
   const [showTip, setShowTip] = React.useState(false);
@@ -341,7 +342,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           onUpdateLandmarks={updateLandmarksOptimistic}
           onKeyboardNudgeLandmark={nudgeLandmarkFromKeyboard}
           activePointId={activePointId}
-          focusedPointId={null}
+          focusedPointId={inspectedPointId ?? null}
           tweedPoAnatomicCertified={tweedPoAnatomicCertified}
           onPointMouseDown={setActivePointId}
           onEmptyAreaClick={activeSteinerPlacement ? handleSteinerExplicitPointPlacement : undefined}

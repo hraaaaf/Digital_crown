@@ -40,8 +40,8 @@ vi.mock('../stores/useOrthoStore',()=>({
   useOrthoStore:(selector:any)=>selector(state),
 }));
 vi.mock('./Step1CephaloBase',()=>({
-  Step1Cephalo:({ embedded, activeAnalysis }: { embedded?: boolean; activeAnalysis?: string }) =>
-    <div data-embedded={embedded ? 'true' : 'false'} data-active-analysis={activeAnalysis}>Cephalo base stage</div>,
+  Step1Cephalo:({ embedded, activeAnalysis, inspectedPointId }: { embedded?: boolean; activeAnalysis?: string; inspectedPointId?: string|null }) =>
+    <div data-embedded={embedded ? 'true' : 'false'} data-active-analysis={activeAnalysis} data-inspected-point={inspectedPointId ?? ''}>Cephalo base stage</div>,
 }));
 vi.mock('./CephaloAnalysisWorkbenchPanel',()=>({
   CephaloAnalysisWorkbenchPanel:({analysis}:any)=><div>Workbench analysis: {analysis}</div>,
@@ -154,8 +154,9 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     fireEvent.click(screen.getByLabelText('Parcourir les repères anatomiques'));
     expect(menu.open).toBe(true);
     expect(menu.querySelectorAll('[data-r23-point-select]')).toHaveLength(38);
-    fireEvent.click(screen.getByRole('button',{name:'Sélectionner le repère P07'}));
-    expect(state.setActivePointId).toHaveBeenCalledWith('P07');
+    fireEvent.click(screen.getByRole('button',{name:'Inspecter le repère P07'}));
+    expect(state.setActivePointId).not.toHaveBeenCalled();
+    expect(screen.getByText('Cephalo base stage').getAttribute('data-inspected-point')).toBe('P07');
     expect(menu.open).toBe(false);
     expect(screen.getByRole('combobox',{name:'Analyse clé en main'})).toBeTruthy();
   });

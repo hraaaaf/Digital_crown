@@ -75,8 +75,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const redoLandmarkEdit = useOrthoStore(state => state.redoLandmarkEdit);
   const resetLandmarkEdits = useOrthoStore(state => state.resetLandmarkEdits);
   const setIsStep1Fullscreen = useOrthoStore(state => state.setIsStep1Fullscreen);
-  const activePointId = useOrthoStore(state => state.activePointId);
-  const setActivePointId = useOrthoStore(state => state.setActivePointId);
+  // Browsing names must never arm the clinical point repositioning mode.
+  const [inspectedPointId, setInspectedPointId] = React.useState<string | null>(null);
   const pointMenuRef = React.useRef<HTMLDetailsElement>(null);
   const [analysis, setAnalysis] = React.useState<CephaloAnalysisMode>('all');
   // R23-A: prioritize the image on desktop. Mobile retains its existing
@@ -178,10 +178,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             <div role="group" aria-label="Liste des repères anatomiques" className="grid max-h-[40vh] grid-cols-3 gap-1 overflow-y-auto overscroll-contain">
               {[...localLandmarks].sort((a,b)=>a.id.localeCompare(b.id)).map(point => (
                 <button key={point.id} type="button" data-r23-point-select={point.id}
-                  aria-label={`Sélectionner le repère ${point.id}`} aria-pressed={activePointId===point.id}
-                  onClick={() => { setActivePointId(point.id); pointMenuRef.current?.removeAttribute('open'); }}
+                  aria-label={`Inspecter le repère ${point.id}`} aria-pressed={inspectedPointId===point.id}
+                  onClick={() => { setInspectedPointId(point.id); pointMenuRef.current?.removeAttribute('open'); }}
                   className="min-h-10 break-all rounded-lg border px-1 py-1 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
-                  style={{ background: activePointId===point.id ? props.P.bgInput : props.P.bgCard, borderColor: activePointId===point.id ? props.P.borderFocus : props.P.border, color: props.P.text }}>
+                  style={{ background: inspectedPointId===point.id ? props.P.bgInput : props.P.bgCard, borderColor: inspectedPointId===point.id ? props.P.borderFocus : props.P.border, color: props.P.text }}>
                   {point.id}
                 </button>
               ))}
@@ -441,7 +441,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         className="min-w-0"
         style={{ '--cephalo-scientific-anchor': props.P.text } as React.CSSProperties}
       >
-        <Step1CephaloBase {...props} embedded activeAnalysis={analysis} />
+        <Step1CephaloBase {...props} embedded activeAnalysis={analysis} inspectedPointId={inspectedPointId} />
       </div>
 
       <div data-r20-measures-panel id="cephalo-r23-measure-rail" className={`min-w-0 h-[68vh] xl:h-[82vh] ${measuresOpen ? '' : 'hidden'}`}>
