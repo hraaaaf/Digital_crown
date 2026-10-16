@@ -47,3 +47,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* In dark mode the global secondary text token (#64748b) can fall below
+ * WCAG AA on cabinet cards. Derive a readable muted tone from live tokens,
+ * scoped strictly to the dormant G1 split; do not modify cabinet themes. */
+[data-theme='dark'] [data-v15-07-two-views] .text-text-muted {
+  color: color-mix(in srgb, var(--text-main) 82%, var(--card-bg));
+}
