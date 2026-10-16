@@ -169,7 +169,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
       <div
         data-ux1-c-crownbot-floating
-        className={`${isPatientRoute ? 'hidden lg:block' : ''} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
+        className={`${isPatientRoute ? 'hidden lg:block' : ''} ${showAssociateSidecar && isBotOpen ? 'hidden' : ''} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
       >
         <button
           onClick={() => setIsBotOpen(!isBotOpen)}
