@@ -68,11 +68,20 @@ for (const viewport of viewports) {
   if (!filteredText) throw new Error('C5 server search did not narrow media list to 1/1');
   await search.fill('');
 
-  const addButtons = page.getByRole('button', { name: 'Ajouter à la comparaison' });
-  await addButtons.nth(0).click();
-  await addButtons.nth(1).click();
+  // Select a real T0/T1 pair from authenticated MEDIA API rows.
+  // The first two rail buttons are not a stable chronological pair (the previous
+  // C5 artifact proved T0 ↔ T2 instead of the requested T0 ↔ T1).
+  const mediaRail = page.getByTestId('media-asset-rail');
+  await mediaRail.locator('section[aria-label="Temps T0"]')
+    .getByRole('button', { name: 'Ajouter à la comparaison' }).first().click();
+  await mediaRail.locator('section[aria-label="Temps T1"]')
+    .getByRole('button', { name: 'Ajouter à la comparaison' }).first().click();
   const comparePanel = page.getByTestId('media-compare-panel');
   await comparePanel.waitFor({ state: 'visible', timeout: 30000 });
+  const comparisonLabel = (await comparePanel.locator('h3').first().innerText()).trim();
+  if (comparisonLabel !== 'T0 ↔ T1' && comparisonLabel !== 'T1 ↔ T0') {
+    throw new Error('C5 must compare genuine T0/T1 assets, got ' + comparisonLabel);
+  }
 
   // Observe the application's own positioning. The certification must not scroll
   // the panel itself, otherwise it can hide or manufacture a sticky-header defect.
@@ -120,7 +129,7 @@ for (const viewport of viewports) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   const shot = `c5-after-compare-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
-  evidence.push({ viewport, shot, overflow, visualFrame, pageErrors, http5xx });
+  evidence.push({ viewport, shot, comparisonLabel, overflow, visualFrame, pageErrors, http5xx });
   await context.close();
 }
 
