@@ -51,6 +51,8 @@ export interface CephaloTracingLayerProps {
   compactLabels?: boolean;
   /** Names to persist in desktop progressive-label mode; undefined exposes all. */
   prominentPointIds?: readonly string[];
+  analysisPointIds?: readonly string[];
+  showAllPointMarkers?: boolean;
   /** Keep the duplicate floating analysis tabs only on desktop or fullscreen.
    *  The accessible analysis selector remains always available on mobile. */
   showStageTabs?: boolean;

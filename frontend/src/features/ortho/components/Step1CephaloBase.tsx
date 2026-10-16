@@ -42,11 +42,13 @@ interface Step1CephaloProps {
   activeAnalysis?: CephaloAnalysisMode; // Presentation selection survives a fullscreen portal switch.
   inspectedPointId?: string | null; // READ-ONLY: visually highlight, never reposition.
   prominentPointIds?: readonly string[]; // Desktop display only. Undefined = legacy full labels.
+  analysisPointIds?: readonly string[]; // Canonical/legacy display anchors; never source mutation.
+  showAllPointMarkers?: boolean; // Explicit desktop full-point override.
   fileRef: React.RefObject<HTMLInputElement | null>;
   step1ContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1ContainerRef, embedded = false, activeAnalysis, inspectedPointId, prominentPointIds }) => {
+export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1ContainerRef, embedded = false, activeAnalysis, inspectedPointId, prominentPointIds, analysisPointIds, showAllPointMarkers }) => {
   const store = useOrthoStore();
 
   const [showTip, setShowTip] = React.useState(false);
@@ -340,6 +342,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           viewPan={activeViewZoom > 1 ? viewPan : { x: 0, y: 0 }}
           compactLabels={embedded && desktopZoomAvailable}
           prominentPointIds={embedded && desktopZoomAvailable ? prominentPointIds : undefined}
+          analysisPointIds={embedded && desktopZoomAvailable ? analysisPointIds : undefined}
+          showAllPointMarkers={Boolean(embedded && desktopZoomAvailable && showAllPointMarkers)}
           showStageTabs={isStep1Fullscreen || desktopZoomAvailable}
           activeAnalysis={activeAnalysis}
           onUpdateLandmarks={updateLandmarksOptimistic}

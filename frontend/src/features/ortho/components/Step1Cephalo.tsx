@@ -2,7 +2,8 @@ import React from 'react';
 import { Ruler, DraftingCompass, ZoomIn, SlidersHorizontal, ScanFace, Wand2, Layers3, Maximize2 } from 'lucide-react';
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
 import { cephaloShortPointName } from './CephaloLandmarkReticles';
-import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
+import { cephaloAnalysisMetricKeys, CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
+import { resolveCephaloAnalysisPointContract } from '../cephaloAnalysisPointFocus';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import {
   CEPHALO_ANALYSIS_CHANGE_EVENT,
@@ -97,6 +98,14 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const [desktopToolsOpen, setDesktopToolsOpen] = React.useState(false);
   const [measuresOpen, setMeasuresOpen] = React.useState(true);
   const [showAllLandmarkNames, setShowAllLandmarkNames] = React.useState(false);
+  const [showAllPointMarkers, setShowAllPointMarkers] = React.useState(false);
+  const pointContract = React.useMemo(() => resolveCephaloAnalysisPointContract(
+    analysis, cephaloAnalysisMetricKeys[analysis], localLandmarks.map(point=>point.id)),
+    [analysis, localLandmarks]);
+  const missingManualIds = pointContract.missing.filter(id=>
+    id==='Po_anatomic'||id==='Pog_hard'||id==='Gn_anatomic'
+    ||id==='U1_facial_surface'||id==='L1_facial_surface'
+    ||id==='D_Steiner_1959'||id==='Occ_Steiner_Ant'||id==='Occ_Steiner_Post');
 
   React.useEffect(() => {
     const onAnalysis = (event: Event) => {
@@ -181,6 +190,24 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <ScanFace size={16} aria-hidden="true" />
           <span className="hidden xl:inline xl:ml-1">{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</span>
         </button>
+        <button type="button" data-cephalo-all-points-toggle
+          aria-pressed={showAllPointMarkers}
+          aria-label={showAllPointMarkers ? 'Revenir aux points de cette analyse' : 'Afficher tous les points anatomiques'}
+          title={showAllPointMarkers ? 'Revenir au filtre de points de cette analyse' : 'Afficher les 38 points sans changer les calculs'}
+          onClick={() => setShowAllPointMarkers(value=>!value)}
+          className="hidden min-h-10 items-center justify-center rounded-xl border px-3 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 xl:inline-flex"
+          style={{background:showAllPointMarkers?props.P.bgInput:props.P.bgCard,
+            borderColor:showAllPointMarkers?props.P.borderFocus:props.P.border,color:props.P.text}}>
+          {showAllPointMarkers?'Points ciblés':'Tous les points'}
+        </button>
+        <span data-cephalo-points-focus-count
+          data-cephalo-point-source={pointContract.source}
+          className="hidden text-[11px] font-semibold tabular-nums xl:inline"
+          style={{color:props.P.textMuted}}>
+          {analysis==='all'||showAllPointMarkers||pointContract.ids===null
+            ? localLandmarks.length
+            : pointContract.count}/{localLandmarks.length} points
+        </span>
         <button type="button" data-cephalo-all-names-toggle
           aria-pressed={showAllLandmarkNames}
           aria-label={showAllLandmarkNames ? 'Revenir aux noms majeurs des repères' : 'Afficher tous les noms des repères'}
@@ -470,9 +497,26 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         style={{ '--cephalo-scientific-anchor': props.P.text } as React.CSSProperties}
       >
         <Step1CephaloBase {...props} embedded activeAnalysis={analysis} inspectedPointId={inspectedPointId}
-          prominentPointIds={showAllLandmarkNames ? undefined : MAJOR_LANDMARK_IDS[analysis]} />
+          prominentPointIds={showAllLandmarkNames ? undefined : MAJOR_LANDMARK_IDS[analysis]}
+          analysisPointIds={pointContract.ids ?? undefined}
+          showAllPointMarkers={showAllPointMarkers} />
       </div>
 
+      {analysis!=='all' && missingManualIds.length>0 && (
+        <details data-cephalo-missing-manual className="rounded-lg border px-3 py-2 text-xs xl:col-span-full"
+          style={{background:props.P.bgCard,borderColor:props.P.border,color:props.P.textMuted}}>
+          <summary className="cursor-pointer font-bold">
+            {missingManualIds.length} repère{missingManualIds.length>1?'s':''} manuel{missingManualIds.length>1?'s':''} à placer · {ANALYSIS_LABELS[analysis]}
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-2" role="list" aria-label="Identités anatomiques manuelles manquantes">
+            {missingManualIds.map(id=><span key={id} data-cephalo-missing-manual-id={id} role="listitem"
+              className="rounded-lg border px-2 py-1" style={{borderColor:props.P.border}}>
+              {cephaloShortPointName(id)} · À placer
+            </span>)}
+          </div>
+          <p className="mt-2">Aucune coordonnée supposée. Utilisez les outils du protocole pour placer ces repères.</p>
+        </details>
+      )}
       <div data-r20-measures-panel id="cephalo-r23-measure-rail" className={`min-w-0 h-[68vh] xl:h-[82vh] ${measuresOpen ? '' : 'hidden'}`}>
         <CephaloAnalysisWorkbenchPanel P={props.P} analysis={analysis} />
       </div>

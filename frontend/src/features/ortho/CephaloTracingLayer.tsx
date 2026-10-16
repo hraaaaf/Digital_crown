@@ -162,10 +162,20 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     if (props.hoveredMetric) setMetricFocus(props.hoveredMetric);
   }, [props.hoveredMetric]);
 
-  const filteredLandmarks = React.useMemo(
-    () => filterLandmarks(props.landmarks, mode),
-    [props.landmarks, mode],
-  );
+  // R23-F: only on desktop, replace historical hardcoded point masks with
+  // source-backed display contracts. Keep mobile rendering byte-identical.
+  const filteredLandmarks = React.useMemo(() => {
+    if(!props.compactLabels) return filterLandmarks(props.landmarks,mode);
+    if(props.showAllPointMarkers || mode==='all' || !props.analysisPointIds)
+      return props.landmarks;
+    const ids=new Set(props.analysisPointIds);
+    // Inspector/keyboard-active points must never become unselectable when
+    // switching an analysis; hide only their *other* filtered siblings.
+    if(props.focusedPointId) ids.add(props.focusedPointId);
+    if(props.activePointId) ids.add(props.activePointId);
+    return props.landmarks.filter(point=>ids.has(point.id));
+  }, [props.landmarks,mode,props.compactLabels,props.showAllPointMarkers,
+      props.analysisPointIds,props.focusedPointId,props.activePointId]);
 
   const filteredGhosts = React.useMemo<GhostData[]>(
     () => (props.ghosts || []).map(ghost => ({
@@ -176,10 +186,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   );
 
   const baseLandmarks = React.useMemo(
-    () => mode === 'com'
+    () => mode === 'com' && !(props.compactLabels && props.showAllPointMarkers)
       ? filteredLandmarks.filter(item => !COM_BASE_SUPPRESSED_LANDMARKS.has(item.id.toLowerCase()))
       : filteredLandmarks,
-    [filteredLandmarks, mode],
+    [filteredLandmarks, mode, props.compactLabels, props.showAllPointMarkers],
   );
 
   const baseGhosts = React.useMemo<GhostData[]>(
