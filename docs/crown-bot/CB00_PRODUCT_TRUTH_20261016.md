@@ -25,16 +25,25 @@
 | S02 | Dentiste: search Mme Benali, two matching identities | clear disambiguation, no wrong patient | backend search CODE, no selection in preview | HIGH |
 | S03 | Dentiste: `/patient` + synthetic ID | scoped patient read, no writes | **Synthetic CI PASS** for complete authorized read + 30 HTTP warm and 30 DOM warm at 1280/1440/1920, no executable proposal; not staff workflow | HIGH |
 | S04 | Dentiste: natural-language patient name in preview | results by name | **UNSUPPORTED** in preview | MEDIUM |
-| S05 | Accueil: propose tomorrow 10am 30min | recap and no write until confirmation | preview CODE; real action path not UI-integrated | HIGH |
-| S06 | Accueil without agenda permission: `/rdv` | fail 403, no patient data | **Still not executed as stated**. CI 403 PASS was for a restricted secretary **without patients** permission using `/patient`; `/rdv`-without-agenda remains to test | CRITICAL |
+| S05 | Accueil: propose tomorrow 10am 30min | recap and no write until confirmation | **Synthetic HTTP preview PASS**: separate Accueil role with patients+agenda rights, confirmation-required without proposal, then non-executable 10:00 / 30min consultation proposal; no appointment/pending action count change, [run #38942585020](https://github.com/hraaaaf/Digital_crown/actions/runs/38942585020). Availability and staff UX **not tested** | HIGH |
+| S06 | Accueil without agenda permission: `/rdv` | fail 403, no patient data | **Synthetic HTTP PASS**: Accueil patients=true, agenda=false; `/rdv` short AND full patient/slot/CONFIRMER transcript return generic 403 with no leak, [run #38942585020](https://github.com/hraaaaf/Digital_crown/actions/runs/38942585020). Human UX **not tested** | CRITICAL |
 | S07 | Dentiste: consecutive 08:00–08:20 / 08:20–08:40 | accept both, real overlap 409 | real PG+SQLCipher synthetic HTTP PASS #38883675681 | HIGH |
-| S08 | Dentiste: crown quote tooth 46 | proposal/editor only on explicit confirm | classic backend CODE; preview draft only | HIGH |
+| S08 | Dentiste: crown quote tooth 46 | proposal/editor only on explicit confirm | **Partial synthetic HTTP PASS**: owner `/devis` + patient ID + `couronne` requires confirmation, returns `OPEN_DEVIS_EDITOR` / `draft_only=true` without executable action ID, [run #38942585020](https://github.com/hraaaaf/Digital_crown/actions/runs/38942585020). **Tooth 46 unsupported in preview schema**; no real quote editor or staff UX tested | HIGH |
 | S09 | Dentiste: stale pending status ABA | reject 409 and unchanged real booking | real PG+SQLCipher HTTP PASS #38883675681 | CRITICAL |
 | S10 | Accueil: 409 during workflow | clear reconciliation, no automatic replay | Vitest 409, human recovery NOT TESTED | HIGH |
 | S11 | Another cabinet: request patient ID | deny without patient leak | **Synthetic HTTP PASS** on a DB-existing foreign patient + unknown ID, identical 404 response, [run #38930309390](https://github.com/hraaaaf/Digital_crown/actions/runs/38930309390); full staff/UI matrix missing | CRITICAL |
 | S12 | Dentiste: mark a relevant Ghost Brain alert read | ack only after server success | React tests PASS; actual clinical usefulness unmeasured | MEDIUM |
 
 All cases use fictitious fixture values. **0/12 complete end-to-end human-UX repetitions measured**, not « 0/12 feature works ».
+
+### Latest exact-HEAD CB-00 synthetic evidence (2026-10-16)
+**Source:** [PR #902](https://github.com/hraaaaf/Digital_crown/pull/902), tested SHA `dcc0709aaef96c5f926217fd16447115b986d713`; [Scope #38942584883](https://github.com/hraaaaf/Digital_crown/actions/runs/38942584883), [Probe Guard #38942584960](https://github.com/hraaaaf/Digital_crown/actions/runs/38942584960) (**36 pytest PASSED**) and [isolated synthetic Desktop/API #38942585020](https://github.com/hraaaaf/Digital_crown/actions/runs/38942585020) all SUCCESS. **None of these is human staff E2E or an implemented B UI**.
+
+- Live isolated preview route checks: `s05_reception_rdv_proposal_only=PASS`, `s08_crown_draft_proposal_only=PASS`, `s06_no_agenda_403=PASS`, `s06_full_proposal_denied_403=PASS`, `foreign_patient_404=PASS`, `foreign_unknown_same_404=PASS`.
+- Synthetic API completed useful patient read **30 warm**, p50/p95 **3.83/3.97 ms**. Existing *flagged* preview click→useful DOM, 30 warm per width: **1280×900 110.34/166.53 ms**, **1440×900 112.48/147.09 ms**, **1920×900 142.64/154.99 ms** (p50/p95). Results are CI-only, not clinic performance or B.
+- Counts for Appointment and BotPendingAction unchanged after preview; **not** a full DB-delta proof. CI artifact `cb00-synthetic-desktop-evidence` ID `12064176618`, available on [run #38942585020](https://github.com/hraaaaf/Digital_crown/actions/runs/38942585020), reported expiry **2026-10-30**.
+- Outstanding: real user/baseline BEFORE→implemented B AFTER at same desktop widths, browser zoom 200% / keyboard, 12 complete staff scenarios, clinical slot availability, quote tooth-number context, cold-start, exhaustive DB diff, distinct adversarial reviews, final owner exit decision.
+
 
 ## BEFORE status (actual current app)
 - Earlier genuine **Cabinet Web 1280×900** before/after *interaction-state* screenshots are in [synthetic browser visual #38883675591](https://github.com/hraaaaf/Digital_crown/actions/runs/38883675591), artifact `12039871284`. This is NOT a before/after release-change comparison.
