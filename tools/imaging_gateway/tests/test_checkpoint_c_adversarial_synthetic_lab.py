@@ -308,6 +308,15 @@ class CheckpointCAdversarialSynthetic(unittest.TestCase):
         self.assertEqual(l.c.latest["checkpoint"]["op_id"],
                          accepted[0]["checkpoint"]["op_id"])
 
+    def test_missing_scope_on_B_HEAD_refuses_without_unhandled_key_error(self):
+        l = self.lab
+        b_head, _ = l.fresh_head()
+        nonce = secrets.token_hex(16)
+        with self.assertRaisesRegex(CasRefusal, "C_DUAL_CHALLENGE_REFUSE"):
+            classify_challenged_heads(
+                b_head, {"method": "HEAD"}, l.c.challenged_head(nonce),
+                nonce, l.b_pin, l.c_pin)
+
     def test_different_B_scope_signed_head_refused(self):
         l = self.lab
         b_head, req = l.fresh_head()
