@@ -17,6 +17,7 @@ from backend.config import settings
 from backend.database import get_db
 from backend.routers.auth import get_current_user, has_permission
 from backend.services.bot.workflow_poc import PocConversation
+from backend.services.bot.patient_selector import lookup_patient_candidates
 
 
 router = APIRouter(tags=["bot-zero-llm-experimental"])
@@ -56,8 +57,43 @@ def preview_bot_workflow(
     if not has_permission(user, permission):
         raise HTTPException(status_code=403, detail="Accès refusé.")
 
+    # A patient selector is resolved on the SERVER, after authorization and
+    # employer scoping. Never trust a client-supplied resolved identity.
+    transcript = list(req.messages)
+    if len(transcript) > 1 and transcript[1].strip().casefold() not in (
+        "/annuler", "/cancel",
+    ):
+        if not has_permission(user, "patients"):
+            raise HTTPException(status_code=403, detail="Accès refusé.")
+        matches, truncated = lookup_patient_candidates(
+            db, employer_id=user.get_employer_id(), selector=transcript[1]
+        )
+        if not matches:
+            # Identical for unknown, foreign, and soft-deleted selectors.
+            raise HTTPException(status_code=404, detail="Patient introuvable.")
+        if truncated:
+            return {
+                "status": "clarification",
+                "message": "Plusieurs correspondances. Précisez le numéro de dossier.",
+                "proposal": None,
+            }
+        if len(matches) > 1:
+            return {
+                "status": "disambiguation",
+                "message": "Plusieurs patients correspondent. Choisissez le bon dossier.",
+                "candidates": [
+                    {
+                        "id": p.id, "nom": p.nom, "prenom": p.prenom,
+                        "numero_dossier": p.numero_dossier,
+                    } for p in matches
+                ],
+                "proposal": None,
+            }
+        # Replayed FSM receives only a verified, scoped internal numeric ID.
+        transcript[1] = str(matches[0].id)
+
     workflow = PocConversation(today=date.today())
-    for message in req.messages:
+    for message in transcript:
         result = workflow.handle(message)
     payload = {"status": result.status, "message": result.message, "proposal": None}
 
@@ -91,7 +127,10 @@ def preview_bot_workflow(
         return {
             "status": "read",
             "message": "Patient identifié dans votre cabinet.",
-            "patient": {"id": patient.id, "nom": patient.nom, "prenom": patient.prenom},
+            "patient": {
+                "id": patient.id, "nom": patient.nom, "prenom": patient.prenom,
+                "numero_dossier": patient.numero_dossier,
+            },
             "proposal": None,
         }
 
