@@ -33,12 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Confirm exact tested source
         shell: bash
         env:
-          EXPECTED: \${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED"
           echo "CB00_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
