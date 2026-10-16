@@ -384,6 +384,37 @@ try {
       progressiveLabelProof.push({film,essentialCount:essential100.visible,fullCount:all100.visible,
         handles:38,visualPoints,conciseNames,hoverLabel,hoverCleared,focusLabel,focusCleared,editedByDisclosure:false,
         essential1280,full1280,valid:true});
+      // R23-F: source-backed per-analysis display + complete reversible 38-point
+      // recovery while preserving authenticated source geometry and analysis.
+      const focusProof=[];
+      const pointToggle=page.locator('[data-cephalo-all-points-toggle]');
+      for(const mode of ['steiner','tweed','mcnamara','ricketts']){
+        await setMode(page,mode);
+        const focused=await page.locator('[data-ceph03b-drag-handle]').count();
+        const source=await page.locator('[data-cephalo-points-focus-count]').getAttribute('data-cephalo-point-source');
+        assert(focused>0&&focused<38
+          &&(source==='LOT06'||source==='legacy-display'),
+          'ANALYSIS POINT FOCUS invalid '+film+' '+mode+' '+focused+' '+source);
+        if(mode==='steiner'){
+          const missing=await page.locator('[data-cephalo-missing-manual-id="Occ_Steiner_Ant"]').count();
+          assert(missing===1,'Missing Steiner manual identity not declared '+film);
+        }
+        await pointToggle.click();
+        const expanded=await verifySvg(page,expected);
+        assert(expanded===38&&await pointToggle.getAttribute('aria-pressed')==='true',
+          'Full 38-point override missing '+film+' '+mode);
+        if(mode==='steiner'){
+          await shot(page,film,mode,'1280x900','all-points');
+        }
+        await pointToggle.click();
+        const restored=await page.locator('[data-ceph03b-drag-handle]').count();
+        assert(restored===focused,'Point subset not restored '+film+' '+mode);
+        focusProof.push({mode,focused,expanded,restored,source,valid:true});
+      }
+      await setMode(page,'all');
+      assert((await verifySvg(page,expected))===38,
+        'Focus must never delete canonical points '+film);
+      progressiveLabelProof[progressiveLabelProof.length-1].focusProof=focusProof;
       const anatomicalProof=await proximity();
       assert(anatomicalProof.finite&&anatomicalProof.total===38&&anatomicalProof.medianPx<125,
         'BEFORE 2.0 spatial proximity failed '+film+' '+JSON.stringify(anatomicalProof));

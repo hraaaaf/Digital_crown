@@ -40,12 +40,18 @@ vi.mock('../stores/useOrthoStore',()=>({
   useOrthoStore:(selector:any)=>selector(state),
 }));
 vi.mock('./Step1CephaloBase',()=>({
-  Step1Cephalo:({ embedded, activeAnalysis, inspectedPointId }: { embedded?: boolean; activeAnalysis?: string; inspectedPointId?: string|null }) =>
-    <div data-embedded={embedded ? 'true' : 'false'} data-active-analysis={activeAnalysis} data-inspected-point={inspectedPointId ?? ''}>Cephalo base stage</div>,
+  Step1Cephalo:({embedded,activeAnalysis,inspectedPointId,analysisPointIds,showAllPointMarkers}: {
+    embedded?:boolean;activeAnalysis?:string;inspectedPointId?:string|null;
+    analysisPointIds?:readonly string[];showAllPointMarkers?:boolean
+  }) =>
+    <div data-embedded={embedded?'true':'false'} data-active-analysis={activeAnalysis}
+      data-inspected-point={inspectedPointId??''} data-point-filter={analysisPointIds?.join(',')??'ALL'}
+      data-all-points={showAllPointMarkers?'true':'false'}>Cephalo base stage</div>,
 }));
-vi.mock('./CephaloAnalysisWorkbenchPanel',()=>({
-  CephaloAnalysisWorkbenchPanel:({analysis}:any)=><div>Workbench analysis: {analysis}</div>,
-}));
+vi.mock('./CephaloAnalysisWorkbenchPanel',async(importOriginal)=>{
+  const original=await importOriginal<typeof import('./CephaloAnalysisWorkbenchPanel')>();
+  return {...original,CephaloAnalysisWorkbenchPanel:({analysis}:any)=><div>Workbench analysis: {analysis}</div>};
+});
 
 const P:any={
   bg:'#fff',bgPanel:'#fff',bgCard:'#fff',bgInput:'#f8fafc',border:'#ddd',borderFocus:'#003380',
@@ -167,6 +173,34 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Analyse clé en main'}),{target:{value:'steiner'}});
     expect(screen.getByText('Cephalo base stage').getAttribute('data-active-analysis')).toBe('steiner');
+  });
+
+  it('R23-F switches the clinical point focus, opens 38-point override, and never mutates store',()=>{
+    state.local={landmarks:[{id:'S',x:10,y:20},{id:'Po',x:40,y:20},{id:'Prn',x:30,y:21}],version:1};
+    const before=JSON.stringify(state.local);
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const stage=screen.getByText('Cephalo base stage');
+    expect(stage.getAttribute('data-point-filter')).toBe('ALL');
+    const chooser=screen.getByRole('combobox',{name:'Analyse clé en main'});
+    fireEvent.change(chooser,{target:{value:'steiner'}});
+    expect(stage.getAttribute('data-point-filter')).toContain('U1_apex');
+    expect(stage.getAttribute('data-point-filter')).toContain('Occ_Steiner_Ant');
+    expect(stage.getAttribute('data-point-filter')).not.toContain('Prn');
+    expect(document.querySelector('[data-cephalo-missing-manual-id="Occ_Steiner_Ant"]')).not.toBeNull();
+    expect(document.querySelector('[data-cephalo-missing-manual-id="Po_anatomic"]')).toBeNull();
+    const allToggle=document.querySelector('[data-cephalo-all-points-toggle]') as HTMLButtonElement;
+    fireEvent.click(allToggle);
+    expect(allToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(stage.getAttribute('data-all-points')).toBe('true');
+    fireEvent.click(allToggle);
+    expect(stage.getAttribute('data-all-points')).toBe('false');
+    fireEvent.change(chooser,{target:{value:'ricketts'}});
+    expect(stage.getAttribute('data-point-filter')).toContain('Pog_soft');
+    expect(stage.getAttribute('data-point-filter')).not.toContain('U1_apex');
+    fireEvent.change(chooser,{target:{value:'all'}});
+    expect(stage.getAttribute('data-point-filter')).toBe('ALL');
+    expect(JSON.stringify(state.local)).toBe(before);
+    expect(state.setActivePointId).not.toHaveBeenCalled();
   });
 
   it('renders the registry-driven layer manager and keeps planned anatomy fail-closed',()=>{

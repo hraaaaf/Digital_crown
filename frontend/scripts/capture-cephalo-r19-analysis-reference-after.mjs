@@ -138,19 +138,44 @@ async function captureViewport(viewport,attempt){
     // particular Ricketts uses tissue-profile points, not Steiner nuclei.
     const expectedModeNames={all:['S','N','A','B','Po','Or','Go','Me','U1_incisal','L1_incisal'],
       steiner:['S','N','A','B','U1_incisal','U1_apex','L1_incisal','L1_apex'],
-      tweed:['Po','Or','Go','Me','L1_incisal','L1_apex','Pog_soft','Ls_soft','Li_soft'],
-      mcnamara:['N','A','B','Po','Or','Co','Gn','Me','ANS'],
-      ricketts:['G_soft','N_soft','Prn','Cm','Sn_soft','Ls_soft','Li_soft','Pog_soft','Me_soft']};
+      tweed:['Or','Go','Me','L1_incisal','L1_apex','Pog_soft','Ls_soft','Li_soft'],
+      mcnamara:['A','Co','Gn','Me','ANS'],
+      ricketts:['Prn','Ls_soft','Li_soft','Pog_soft']};
     const analysisMajorProof=[];
     for(const [mode,names] of Object.entries(expectedModeNames)){
       await page.locator('#cephalo-ready-analysis').selectOption(mode);
       await page.waitForFunction(m=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')===m,mode,{timeout:5000});
       const found=await page.locator('[data-cephalo-landmark-label]').evaluateAll(els=>els.map(el=>el.getAttribute('data-cephalo-landmark-label')));
-      analysisMajorProof.push({mode,expected:names,found,
-        valid:found.length===names.length&&names.every(id=>found.includes(id))});
+      const count=await page.locator('[data-ceph03b-drag-handle]').count();
+      const source=await page.locator('[data-cephalo-points-focus-count]').getAttribute('data-cephalo-point-source');
+      analysisMajorProof.push({mode,expected:names,found,count,source,
+        valid:found.length===names.length&&names.every(id=>found.includes(id))
+          &&(mode==='all'?count===29:count>0&&count<29)
+          &&(mode==='all'?source==='all':source==='LOT06'||source==='legacy-display')});
     }
     await page.locator('#cephalo-ready-analysis').selectOption('all');
     await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='all',null,{timeout:5000});
+    // Desktop focus is reversible independently of the 'Tous les noms' switch.
+    await page.locator('#cephalo-ready-analysis').selectOption('steiner');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='steiner',null,{timeout:5000});
+    const focusedSteiner=await page.locator('[data-ceph03b-drag-handle]').count();
+    const manualMissing=await page.locator('[data-cephalo-missing-manual-id]').evaluateAll(nodes=>
+      nodes.map(el=>el.getAttribute('data-cephalo-missing-manual-id')));
+    const pointToggle=page.locator('[data-cephalo-all-points-toggle]');
+    await pointToggle.click();
+    const expandedSteiner=await page.locator('[data-ceph03b-drag-handle]').count();
+    const allPointsPressed=await pointToggle.getAttribute('aria-pressed');
+    const expandedPointScreenshot=`after-desktop-steiner-all-points-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,expandedPointScreenshot),fullPage:false});
+    await pointToggle.click();
+    const restoredSteiner=await page.locator('[data-ceph03b-drag-handle]').count();
+    await page.locator('#cephalo-ready-analysis').selectOption('all');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='all',null,{timeout:5000});
+    const pointFocusProof={focusedSteiner,expandedSteiner,restoredSteiner,allPointsPressed,
+      manualMissing,expandedPointScreenshot,
+      valid:focusedSteiner>0&&focusedSteiner<29&&expandedSteiner===29
+        &&restoredSteiner===focusedSteiner&&allPointsPressed==='true'
+        &&manualMissing.includes('Occ_Steiner_Ant')&&manualMissing.includes('Occ_Steiner_Post')};
     const nameToggle=page.locator('[data-cephalo-all-names-toggle]');
     const labelNodes=page.locator('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label]');
     const defaultNames=await labelNodes.count();
@@ -185,10 +210,10 @@ async function captureViewport(viewport,attempt){
     const restoredNames=await labelNodes.count();
     const defaultPressed=await nameToggle.getAttribute('aria-pressed');
     await nameToggle.click(); // Retain old all-name evidence for every analysis below.
-    const progressiveProof={defaultNames,allHandles,analysisMajorProof,dotWitness,shortNameWitness,secondaryDefaultHidden,hoverExposesName,
+    const progressiveProof={defaultNames,allHandles,analysisMajorProof,pointFocusProof,dotWitness,shortNameWitness,secondaryDefaultHidden,hoverExposesName,
       hoverClearsName,focusExposesName,focusClearsName,fullNames,restoredNames,
       allPressed,defaultPressed,essentialScreenshot,exhaustiveScreenshot,
-      valid:analysisMajorProof.every(mode=>mode.valid)&&allHandles===29&&defaultNames===10
+      valid:analysisMajorProof.every(mode=>mode.valid)&&pointFocusProof.valid&&allHandles===29&&defaultNames===10
         &&dotWitness.count===29&&dotWitness.darkContours&&dotWitness.allFinite
         &&dotWitness.diameters.every(px=>px>=4&&px<=8)&&shortNameWitness
         &&secondaryDefaultHidden&&hoverExposesName&&hoverClearsName

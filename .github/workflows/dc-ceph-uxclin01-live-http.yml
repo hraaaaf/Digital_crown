@@ -49,6 +49,8 @@ jobs:
               frontend/scripts/certify-ceph03b3f-live-step1.mjs | \
               frontend/scripts/capture-cephalo-r1-after.mjs | \
               frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs | \
+              frontend/src/features/ortho/cephaloAnalysisPointFocus.ts | \
+              frontend/src/features/ortho/cephaloAnalysisPointFocus.test.ts | \
               frontend/src/features/ortho/CephaloTracingLayer.dragPreview.test.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.realRadioFixture.tsx | \
               frontend/src/features/ortho/CephaloTracingLayer.visualFixture.tsx | \
@@ -134,7 +136,7 @@ jobs:
           npm ci --prefer-offline --fetch-retries=3 --fetch-retry-mintimeout=10000
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
           npx tsc -p tsconfig.app.json --noEmit
-          npx vitest run src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloImageUploadPolicy.test.ts src/features/ortho/cephaloConstructionViewport.test.ts
+          npx vitest run src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloImageUploadPolicy.test.ts src/features/ortho/cephaloConstructionViewport.test.ts src/features/ortho/cephaloAnalysisPointFocus.test.ts
           npx playwright install --with-deps chromium
           npx vitest run \
             src/features/ortho/CephaloTracingLayer.keyboardStoreIntegration.test.tsx \
@@ -214,7 +216,9 @@ jobs:
               ||x.visualPoints.sizes?.length!==38||!x.visualPoints.sizes.every(px=>px>=4&&px<=8)
               ||!x.hoverLabel
               ||!x.hoverCleared||!x.focusLabel||!x.focusCleared
-              ||x.editedByDisclosure!==false))
+              ||x.editedByDisclosure!==false||x.focusProof?.length!==4
+              ||x.focusProof.some(p=>!p.valid||p.focused<=0||p.focused>=38
+                ||p.expanded!==38||p.restored!==p.focused)))
             throw Error('Real desktop progressive label evidence missing');
           for(const x of r.progressiveLabelProof)for(const [key,resolution] of [
             ['essential1280','1280x900'],['full1280','1280x900'],['essential1600','1600x1000']]){
