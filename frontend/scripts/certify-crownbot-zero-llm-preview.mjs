@@ -57,7 +57,7 @@ try {
     const preview = page.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' });
     await preview.waitFor({ state: 'visible' });
     await preview.getByRole('button', { name: '/patient' }).click();
-    await preview.getByText('Identifiant numérique du patient ?').waitFor({
+    await preview.getByText('Patient : saisissez un identifiant, un nom/prénom exact ou un numéro de dossier', { exact: false }).waitFor({
       state: 'visible', timeout: 15000,
     });
     const after = `crownbot-after-${width}.png`;
