@@ -263,6 +263,10 @@ try {
           x.left<stage.left-.5||x.right>stage.right+.5
           ||x.top<stage.top-.5||x.bottom>stage.bottom+.5).map(x=>x.id);
         const controls=[...document.querySelectorAll('button')].filter(el=>{
+          // Native closed <details> contents are inaccessible even when an
+          // absolutely positioned descendant retains a nonzero DOM rect.
+          // Keep collision checks for ALL genuinely exposed controls.
+          if(el.closest('details:not([open])')) return false;
           const style=getComputedStyle(el),r=el.getBoundingClientRect();
           return style.display!=='none'&&style.visibility!=='hidden'
             &&r.width>0&&r.height>0;
