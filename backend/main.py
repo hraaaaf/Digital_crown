@@ -302,7 +302,9 @@ async def lifespan(app: FastAPI):
         )
         # LOT06 isolated LAB only: one local worker within the existing backend.
         # This is NOT an installer/service activation or a clinical capture.
-        if boot_policy != REHEARSAL_MIGRATION_ONLY:
+        if (boot_policy != REHEARSAL_MIGRATION_ONLY and
+                os.environ.get("DC_V15_06_BRIDGE_LAB") == "1"):
+            # Never import optional LAB tooling during ordinary cabinet startup.
             from tools.imaging_gateway.bridge_background_lab import start_if_enabled
             imaging_bridge_lab_handle = start_if_enabled(trusted_environment=str(_cfg.ENVIRONMENT))
 

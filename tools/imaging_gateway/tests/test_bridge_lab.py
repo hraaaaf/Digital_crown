@@ -1,5 +1,6 @@
 """LAB-only background worker contract: no hardware or patient access."""
 import asyncio
+import ast
 import base64
 import hashlib
 import json
@@ -41,6 +42,21 @@ class BridgeLabConfigTests(unittest.TestCase):
             "DC_V15_06_BRIDGE_LAB_ROOT": str(self.root),
             "DC_V15_06_BRIDGE_LAB_KEY_HEX": (b"k" * 32).hex(),
         }
+
+    def test_default_runtime_does_not_import_optional_lab_tooling(self):
+        # Small CI runners do not ship the entire clinical backend dependencies.
+        # Check the actual lifespan source: optional module must be guarded by
+        # a positive LAB switch, not imported during ordinary cabinet startup.
+        source = (Path(__file__).resolve().parents[3] / "backend" / "main.py").read_text(
+            encoding="utf-8")
+        tree = ast.parse(source)
+        imports = [(n, p) for p in ast.walk(tree)
+                   if isinstance(p, ast.If) for n in ast.walk(p)
+                   if isinstance(n, ast.ImportFrom)
+                   and n.module == "tools.imaging_gateway.bridge_background_lab"]
+        self.assertEqual(len(imports), 1)
+        for _, conditional in imports:
+            self.assertIn("DC_V15_06_BRIDGE_LAB", ast.unparse(conditional.test))
 
     def test_disabled_by_default_has_no_collector(self):
         self.assertFalse(lab_requested({}))

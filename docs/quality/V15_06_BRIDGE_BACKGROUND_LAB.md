@@ -20,3 +20,5 @@ This is a lab-only prototype on a draft stacked PR. No clinical installation wit
 
 ## CI separation
 The existing 06-A imaging matrix has only lightweight spool/cryptography dependencies. This LAB worker lives in `tools.imaging_gateway.bridge_background_lab` and is imported from the product's FastAPI lifespan; the synthetic suite therefore does not import `backend.__init__` or require SQLAlchemy. The 06-B operational route check supports both first-level PRs (preflight 0 -> 1) and stacked descendant PRs (preflight 1 -> 1), retaining strict multiset equality for all other routes.
+
+The optional LAB module import in `backend.main.lifespan` is guarded by the explicit `DC_V15_06_BRIDGE_LAB=1` switch; ordinary installed startup must never require the optional imaging gateway package at boot. A source-level regression asserts this property in the lightweight CI.
