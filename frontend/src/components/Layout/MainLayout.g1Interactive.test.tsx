@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { MainLayout } from './MainLayout';
@@ -26,7 +26,12 @@ vi.mock('../Header', () => ({
 vi.mock('../LicenseBanner', () => ({ LicenseBanner: () => null }));
 vi.mock('../AnimatedBackground', () => ({ AnimatedBackground: () => null }));
 vi.mock('../CrownBot/CrownBotChat', () => ({
-  CrownBotChat: ({ onClose }: { onClose: () => void }) => <button onClick={onClose}>Close CrownBot</button>,
+  CrownBotChat: ({ onClose }: { onClose: () => void }) => (
+    <div>
+      <button onClick={onClose}>Close CrownBot</button>
+      <input aria-label="Brouillon Crown Bot" defaultValue="" />
+    </div>
+  ),
 }));
 vi.mock('../../features/tutorial/VoluntaryTutorial', () => ({ VoluntaryTutorialPanel: () => null }));
 vi.mock('../../features/clinic/ClinicPractitionerBar', () => ({ ClinicPractitionerBar: () => <div>Practitioner context</div> }));
@@ -211,5 +216,39 @@ describe('CB-01 keyboard and reflow safeguards', () => {
     await waitFor(() => expect(
       document.activeElement,
     ).toBe(screen.getByRole('button', { name: 'Ouvrir CrownBot' })));
+  });
+});
+
+
+describe('CB-01 draft survives responsive 200% reflow', () => {
+  it('keeps the exact mounted chat instance and draft when crossing 1280px both ways', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    let notify: (() => void) | undefined;
+    const query = {
+      matches: true,
+      media: '(min-width: 1280px)',
+      addEventListener: vi.fn((_name: string, listener: () => void) => { notify = listener; }),
+      removeEventListener: vi.fn(),
+    };
+    vi.stubGlobal('matchMedia', vi.fn(() => query));
+    const result = renderAt('/patients/42');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeTruthy();
+    const draft = screen.getByRole('textbox', { name: 'Brouillon Crown Bot' }) as HTMLInputElement;
+    fireEvent.change(draft, { target: { value: 'dossier:BEN-2026' } });
+    expect(draft.value).toBe('dossier:BEN-2026');
+
+    act(() => { query.matches = false; notify?.(); });
+    expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeTruthy();
+    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Brouillon Crown Bot' })).toBe(draft);
+    expect(draft.value).toBe('dossier:BEN-2026');
+
+    act(() => { query.matches = true; notify?.(); });
+    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeTruthy();
+    expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Brouillon Crown Bot' })).toBe(draft);
+    expect(draft.value).toBe('dossier:BEN-2026');
   });
 });
