@@ -64,6 +64,19 @@ try {
       if (!await initialClose.evaluate(el=>el===document.activeElement)) {
         throw new Error('FAIL: focus not moved into opened sidecar on initial launch');
       }
+      // Browser keyboard traversal, not a jsdom approximation: the next
+      // Tab must enter the chat and Shift+Tab must return to Reduce.
+      await page.keyboard.press('Tab');
+      const tabbableInSidecar=await page.evaluate(() => {
+        const el=document.activeElement;
+        return Boolean(el && el.matches('button, input, a, select, textarea')
+          && el.closest('[data-cb01-associate-sidecar]'));
+      });
+      if (!tabbableInSidecar) throw new Error('FAIL: Tab escaped sidecar unexpectedly');
+      await page.keyboard.press('Shift+Tab');
+      if (!await initialClose.evaluate(el=>el===document.activeElement)) {
+        throw new Error('FAIL: Shift+Tab did not return to Reduce');
+      }
     } else {
       await overlay.waitFor({state:'visible',timeout:15000});
       if(await sidecar.count()) throw new Error('FAIL: sidecar wrongly mounted on fallback');
@@ -125,6 +138,44 @@ try {
       await preview.getByRole('button',{name:/T2 CERTIFICATION.*T2-0001/}).click();
       await preview.getByText('Patient identifié : T2 CERTIFICATION — Dossier T2-0001').waitFor();
       staffSearchChecks='PASS_DOSSIER_HOMONYMS_NUMERIC_COLLISION';
+
+      // S05 synthetic workflow: dossier lookup -> future appointment proposal.
+      // /rdv is NEVER a booking; capture actual HTTP payload and forbid action IDs.
+      await preview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
+      await preview.getByRole('button',{name:'/rdv'}).click();
+      const nextStep=async (value,expectedPrompt) => {
+        await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(value);
+        await preview.getByRole('button',{name:'Envoyer'}).click();
+        await preview.getByText(expectedPrompt,{exact:false}).waitFor({state:'visible'});
+      };
+      await nextStep('dossier:CB01-N-101','Date du rendez-vous au format');
+      await nextStep('2099-01-01','Heure du rendez-vous au format');
+      await nextStep('10:00','Durée : 15, 30, 45 ou 60');
+      await nextStep('30','Motif : consultation, détartrage ou couronne');
+      await nextStep('consultation','Tapez CONFIRMER');
+      await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill('CONFIRMER');
+      const finalResponse=page.waitForResponse(r=>
+        r.url().includes('/api/bot/workflows/preview')
+        && r.request().method()==='POST',{timeout:15000});
+      await preview.getByRole('button',{name:'Envoyer'}).click();
+      const finalResult=await finalResponse;
+      if(finalResult.status()!==200) {
+        throw new Error('FAIL: synthetic dossier appointment proposal HTTP '+finalResult.status());
+      }
+      const finalPayload=await finalResult.json();
+      if(finalPayload?.status!=='proposal_only'
+        || finalPayload?.proposal?.type!=='CREATE_APPOINTMENT'
+        || finalPayload?.proposal?.params?.datetime_start!=='2099-01-01T10:00:00'
+        || finalPayload?.proposal?.params?.duration_minutes!==30
+        || finalPayload?.proposal?.params?.motif!=='CONSULTATION'
+        || !Number.isInteger(finalPayload?.proposal?.params?.patient_id)
+        || finalPayload?.proposal?.params?.patient_id<=0
+        || /"pending_action_id"|"pendingActionId"|"action_id"|"actionId"/.test(
+          JSON.stringify(finalPayload))) {
+        throw new Error('FAIL: S05 dossier appointment preview not fail-closed non-executable');
+      }
+      await preview.getByText('Proposition CREATE_APPOINTMENT : simulation uniquement, non exécutable.').waitFor();
+      staffSearchChecks+='|PASS_S05_DOSSIER_RDV_PROPOSAL_ONLY';
     }
     await page.screenshot({path:path.join(output,'after-'+width+'.png')});
     evidence.push({width,mode:desktop?'sidecar-reflow':'web-floating-fallback',
@@ -204,7 +255,7 @@ try {
       if(!await launcher.evaluate(el=>el===document.activeElement)) {
         throw new Error('FAIL: reducer did not restore focus after CSS reflow');
       }
-      evidence[evidence.length-1].keyboard='PASS_ESCAPE_ENTER_RESTORE_FOCUS';
+      evidence[evidence.length-1].keyboard='PASS_ESCAPE_ENTER_RESTORE_FOCUS_TAB_SHIFT_TAB';
       evidence[evidence.length-1].draftSurvivesReflow='PASS_BOTH_DIRECTIONS';
       evidence[evidence.length-1].zoom200ReflowProxy=reflow;
     }
