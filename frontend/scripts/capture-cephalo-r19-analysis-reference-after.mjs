@@ -134,6 +134,23 @@ async function captureViewport(viewport,attempt){
     const restoredWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
     // R23 progressive desktop disclosure: retain all 29 handles and an
     // explicit reversible full-name oracle, not 29 always-on name assertions.
+    // Guard against selecting landmarks absent from an analysis. In
+    // particular Ricketts uses tissue-profile points, not Steiner nuclei.
+    const expectedModeNames={all:['S','N','A','B','Po','Or','Go','Me','U1_incisal','L1_incisal'],
+      steiner:['S','N','A','B','U1_incisal','U1_apex','L1_incisal','L1_apex'],
+      tweed:['Po','Or','Go','Me','L1_incisal','L1_apex','Pog_soft','Ls_soft','Li_soft'],
+      mcnamara:['N','A','B','Po','Or','Co','Gn','Me','ANS'],
+      ricketts:['G_soft','N_soft','Prn','Cm','Sn_soft','Ls_soft','Li_soft','Pog_soft','Me_soft']};
+    const analysisMajorProof=[];
+    for(const [mode,names] of Object.entries(expectedModeNames)){
+      await page.locator('#cephalo-ready-analysis').selectOption(mode);
+      await page.waitForFunction(m=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')===m,mode,{timeout:5000});
+      const found=await page.locator('[data-cephalo-landmark-label]').evaluateAll(els=>els.map(el=>el.getAttribute('data-cephalo-landmark-label')));
+      analysisMajorProof.push({mode,expected:names,found,
+        valid:found.length===names.length&&names.every(id=>found.includes(id))});
+    }
+    await page.locator('#cephalo-ready-analysis').selectOption('all');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='all',null,{timeout:5000});
     const nameToggle=page.locator('[data-cephalo-all-names-toggle]');
     const labelNodes=page.locator('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label]');
     const defaultNames=await labelNodes.count();
@@ -159,10 +176,10 @@ async function captureViewport(viewport,attempt){
     const restoredNames=await labelNodes.count();
     const defaultPressed=await nameToggle.getAttribute('aria-pressed');
     await nameToggle.click(); // Retain old all-name evidence for every analysis below.
-    const progressiveProof={defaultNames,allHandles,secondaryDefaultHidden,hoverExposesName,
+    const progressiveProof={defaultNames,allHandles,analysisMajorProof,secondaryDefaultHidden,hoverExposesName,
       hoverClearsName,focusExposesName,focusClearsName,fullNames,restoredNames,
       allPressed,defaultPressed,essentialScreenshot,exhaustiveScreenshot,
-      valid:allHandles===29&&defaultNames>=6&&defaultNames<=12
+      valid:analysisMajorProof.every(mode=>mode.valid)&&allHandles===29&&defaultNames===10
         &&secondaryDefaultHidden&&hoverExposesName&&hoverClearsName
         &&focusExposesName&&focusClearsName&&fullNames===29
         &&restoredNames===defaultNames&&allPressed==='true'&&defaultPressed==='false'};

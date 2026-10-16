@@ -49,11 +49,11 @@ const ANALYSIS_LABELS: Record<CephaloAnalysisMode, string> = {
 // in the two real 38-point source films. This is not an interpretation/diagnosis.
 const MAJOR_LANDMARK_IDS: Record<CephaloAnalysisMode, readonly string[]> = {
   all: ['S', 'N', 'A', 'B', 'Po', 'Or', 'Go', 'Me', 'U1_incisal', 'L1_incisal'],
-  steiner: ['S', 'N', 'A', 'B', 'Go', 'Gn', 'U1_incisal', 'U1_apex', 'L1_incisal', 'L1_apex'],
-  tweed: ['Po', 'Or', 'Go', 'Me', 'L1_incisal', 'L1_apex', 'Pog', 'Pog_soft', 'Ls_soft'],
-  mcnamara: ['N', 'A', 'B', 'Po', 'Or', 'Co', 'Gn', 'Me', 'Ptm'],
+  steiner: ['S', 'N', 'A', 'B', 'U1_incisal', 'U1_apex', 'L1_incisal', 'L1_apex', 'Gn_anatomic', 'D_Steiner_1959'],
+  tweed: ['Po', 'Po_anatomic', 'Or', 'Go', 'Me', 'L1_incisal', 'L1_apex', 'Pog_soft', 'Ls_soft', 'Li_soft'],
+  mcnamara: ['N', 'A', 'B', 'Po', 'Or', 'Co', 'Gn', 'Me', 'ANS'],
   com: ['S', 'N', 'A', 'B', 'Po', 'Or', 'Go', 'Me', 'U1_incisal', 'L1_incisal'],
-  ricketts: ['Po', 'Or', 'N', 'A', 'B', 'Pog', 'Gn', 'Go', 'Me', 'Co'],
+  ricketts: ['G_soft', 'N_soft', 'Prn', 'Cm', 'Sn_soft', 'Ls_soft', 'Li_soft', 'Pog_soft', 'Me_soft'],
 };
 
 /**
