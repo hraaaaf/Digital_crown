@@ -20,10 +20,11 @@ const LEGACY_DISPLAY_ANCHORS: Partial<Record<CephaloAnalysisMode, readonly strin
   mcnamara: ['Co','A','Gn','ANS','Me'],
   com: ['S','N','A','B','Po','Or','Go','Me','U1_incisal','U1_apex','L1_incisal','L1_apex'],
   ricketts: [
-    // Visible Ricketts constructed Frankfort / hard-tissue overlays plus
-    // nose-to-pogonion soft E-plane displayed by the current workbench.
-    'Po','Or','N','A','B','Pog','Go','Me',
-    'Prn','Pog_soft','Ls_soft','Li_soft',
+    // Current workbench exposes only the E-line pair; keep hard Po/Or to
+    // anchor its Ricketts Frankfurt overlay. Adding A/B/N here would also
+    // reveal unrelated A′/B′ base-projection labels, falsely implying those
+    // are requested E-line measures. The full atlas is NOT certified.
+    'Po','Or','Prn','Pog_soft','Ls_soft','Li_soft',
   ],
 };
 
