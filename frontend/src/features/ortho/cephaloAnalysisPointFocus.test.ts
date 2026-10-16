@@ -44,7 +44,10 @@ describe('R23-F read-only clinical per-analysis landmark focus',()=>{
   });
   it('explicitly bounds legacy workbench display anchors without invented positions',()=>{
     const m=resolveCephaloAnalysisPointContract('mcnamara',['Co_A','Co_Gn','ANS_Me'],present);
-    const c=resolveCephaloAnalysisPointContract('com',['Surplomb'],present);
+    const comMetrics=['Surplomb','Recouvrement','IMPA','I_Francfort','Inter_Incisif',
+      'Angle_de_Tweed','Decalage_A_B','Situation_A','Situation_B','Profondeur_Faciale'];
+    const c=resolveCephaloAnalysisPointContract('com',comMetrics,present);
+    expect(resolveCephaloAnalysisPointContract('com',['Surplomb'],present).ids).toBeNull();
     const r=resolveCephaloAnalysisPointContract('ricketts',['Ligne_E_Ls','Ligne_E_Li'],present);
     expect(m.ids).toEqual(['Co','A','Gn','ANS','Me']);
     expect(c.ids).toContain('U1_incisal');
