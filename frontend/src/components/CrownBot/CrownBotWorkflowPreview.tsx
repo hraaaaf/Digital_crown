@@ -33,10 +33,10 @@ export function CrownBotWorkflowPreview() {
     setInput('');
   };
 
-  const send = async (raw: string) => {
+  const send = async (raw: string, newWorkflow = false) => {
     const text = raw.trim();
     if (!text || text.length > 80 || inFlight.current) return;
-    const next = [...transcript, text];
+    const next = newWorkflow ? [text] : [...transcript, text];
     if (next.length > MAX_TURNS) {
       setError('Limite de simulation atteinte. Réinitialisez le parcours.');
       return;
@@ -81,7 +81,7 @@ export function CrownBotWorkflowPreview() {
       <div className="flex flex-wrap gap-2" aria-label="Parcours disponibles">
         {COMMANDS.map(command => (
           <button key={command} type="button" disabled={busy}
-            onClick={() => { if (!inFlight.current) { setTranscript([]); setAnswer(null); setError(''); void api.post<PreviewResponse>('/bot/workflows/preview', { messages: [command] }).then(res => { setTranscript([command]); setAnswer(res.data); setInput(''); }).catch(() => { setError('Simulation indisponible ou accès refusé. Aucune action effectuée.'); }); } }}
+            onClick={() => { void send(command, true); }}
             className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">
             {command}
           </button>
