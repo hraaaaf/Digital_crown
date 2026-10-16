@@ -76,6 +76,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const resetLandmarkEdits = useOrthoStore(state => state.resetLandmarkEdits);
   const setIsStep1Fullscreen = useOrthoStore(state => state.setIsStep1Fullscreen);
   const [analysis, setAnalysis] = React.useState<CephaloAnalysisMode>('all');
+  // R23-A: prioritize the image on desktop. Mobile retains its existing
+  // stacked utility tools; no settings or analysis controls are removed.
+  const [desktopToolsOpen, setDesktopToolsOpen] = React.useState(false);
+  const [measuresOpen, setMeasuresOpen] = React.useState(true);
 
   React.useEffect(() => {
     const onAnalysis = (event: Event) => {
@@ -97,6 +101,14 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
     color: active ? props.P.text : props.P.textMuted,
   });
 
+  const desktopColumns = desktopToolsOpen
+    ? (measuresOpen
+      ? 'xl:grid-cols-[200px_minmax(0,1fr)_350px] 2xl:grid-cols-[208px_minmax(0,1fr)_380px]'
+      : 'xl:grid-cols-[200px_minmax(0,1fr)] 2xl:grid-cols-[208px_minmax(0,1fr)]')
+    : (measuresOpen
+      ? 'xl:grid-cols-[minmax(0,1fr)_350px] 2xl:grid-cols-[minmax(0,1fr)_380px]'
+      : 'xl:grid-cols-[minmax(0,1fr)]');
+
   return (
     <div
       onKeyDownCapture={(event) => {
@@ -117,12 +129,48 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       }}
       data-r19-reference-layout
       data-r20-workbench-layout
-      className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[200px_minmax(0,1fr)_350px] 2xl:grid-cols-[208px_minmax(0,1fr)_380px] xl:items-stretch"
+      className={`grid min-w-0 grid-cols-1 gap-3 xl:items-stretch ${desktopColumns}`}
+      data-r23-image-first={desktopToolsOpen ? 'tools-open' : 'tools-collapsed'}
     >
+      <div data-r23-studio-toolbar className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border px-3 py-2 xl:col-span-full"
+        style={{ background: props.P.bgPanel, borderColor: props.P.border }}>
+        <label htmlFor="cephalo-ready-analysis" className="shrink-0 text-xs font-bold" style={{ color: props.P.text }}>Analyse clé en main</label>
+        <select
+          id="cephalo-ready-analysis"
+          value={analysis}
+          onChange={(event) => publishCephaloAnalysis(event.target.value as CephaloAnalysisMode)}
+          className="min-h-10 min-w-0 flex-1 rounded-xl border px-2 text-[13px] font-semibold sm:max-w-[215px] focus-visible:outline-2 focus-visible:outline-offset-2"
+          style={{ borderColor: props.P.borderFocus, background: props.P.bgCard, color: props.P.text }}
+        >
+          {(Object.keys(ANALYSIS_LABELS) as CephaloAnalysisMode[]).map((mode) => (
+            <option key={mode} value={mode}>{ANALYSIS_LABELS[mode]}</option>
+          ))}
+        </select>
+        <button type="button" data-r23-tools-toggle aria-expanded={desktopToolsOpen}
+          aria-controls="cephalo-r23-utility-rail"
+          onClick={() => setDesktopToolsOpen(value => !value)}
+          className="hidden min-h-10 items-center rounded-xl border px-3 text-xs font-bold xl:inline-flex"
+          style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}
+        >{desktopToolsOpen ? 'Masquer les outils' : 'Afficher les outils'}</button>
+        <button type="button" data-r23-measures-toggle aria-expanded={measuresOpen}
+          aria-controls="cephalo-r23-measure-rail"
+          onClick={() => setMeasuresOpen(value => !value)}
+          className="min-h-10 rounded-xl border px-3 text-xs font-bold"
+          style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}
+        >{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</button>
+        <button type="button" data-cephalo-focus-entry="desktop"
+          aria-label="Activer le mode Focus radiographie"
+          title="Examiner la radiographie sans panneaux ; Échap pour revenir"
+          onClick={() => setIsStep1Fullscreen(true)}
+          className="hidden min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold xl:inline-flex"
+          style={{ background: props.P.bgCard, borderColor: props.P.borderFocus, color: props.P.text }}
+        ><Maximize2 size={15} aria-hidden="true" />Focus</button>
+      </div>
       <aside
         data-r20-workbench-sidebar
+        id="cephalo-r23-utility-rail"
         aria-label="Contrôles du workbench céphalométrique"
-        className="min-w-0 rounded-2xl border p-2 xl:h-[82vh] xl:overflow-y-auto xl:p-2.5"
+        className={`min-w-0 rounded-2xl border p-2 xl:h-[82vh] xl:overflow-y-auto xl:p-2.5 ${desktopToolsOpen ? '' : 'xl:hidden'}`}
         style={{ background: props.P.bgPanel, borderColor: props.P.border, boxShadow: props.P.shadow }}
       >
         <div className="hidden xl:block">
@@ -133,33 +181,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
             Analyse active
           </span>
-          <button type="button"
-            data-cephalo-focus-entry="desktop"
-            aria-label="Activer le mode Focus radiographie"
-            title="Voir les repères en grand ; touche Échap pour revenir"
-            onClick={() => setIsStep1Fullscreen(true)}
-            className="mt-3 hidden min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-2 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 xl:inline-flex"
-            style={{ background: props.P.bgCard, borderColor: props.P.borderFocus, color: props.P.text }}
-          >
-            <Maximize2 size={15} aria-hidden="true" /> Focus radiographie
-          </button>
         </div>
 
         <section aria-label="Analyses céphalométriques prêtes à l’emploi" className="mt-3 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
-          <label htmlFor="cephalo-ready-analysis" className="mb-2 block text-xs font-bold" style={{ color: props.P.text }}>
-            Analyse clé en main
-          </label>
-          <select
-            id="cephalo-ready-analysis"
-            value={analysis}
-            onChange={(event) => publishCephaloAnalysis(event.target.value as CephaloAnalysisMode)}
-            className="min-h-11 w-full rounded-lg border px-2 text-[13px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-            style={{ borderColor: props.P.borderFocus, background: props.P.bgCard, color: props.P.text }}
-          >
-            {(Object.keys(ANALYSIS_LABELS) as CephaloAnalysisMode[]).map((mode) => (
-              <option key={mode} value={mode}>{ANALYSIS_LABELS[mode]}</option>
-            ))}
-          </select>
+          <p className="text-xs font-bold" style={{ color: props.P.text }}>Analyse : {ANALYSIS_LABELS[analysis]}</p>
           <p className="mt-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>
             {analysis === 'all'
               ? 'Tous les repères affichés. Choisissez une analyse pour isoler ses tracés.'
@@ -389,7 +414,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         <Step1CephaloBase {...props} embedded activeAnalysis={analysis} />
       </div>
 
-      <div data-r20-measures-panel className="min-w-0 h-[68vh] xl:h-[82vh]">
+      <div data-r20-measures-panel id="cephalo-r23-measure-rail" className={`min-w-0 h-[68vh] xl:h-[82vh] ${measuresOpen ? '' : 'hidden'}`}>
         <CephaloAnalysisWorkbenchPanel P={props.P} analysis={analysis} />
       </div>
     </div>

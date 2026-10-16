@@ -113,6 +113,31 @@ async function captureViewport(viewport,attempt){
    selectorChecks.push({requested,...result,valid:result.chosen===requested&&result.overlay===requested&&result.panel===requested});
    if(requested==='steiner') await page.screenshot({path:path.join(OUTPUT_DIR,`after-selector-steiner-${viewport.name}.png`),fullPage:false});
   }
+  // R23-A desktop: verify tools are folded on first use, the anatomical
+  // image claims the recovered width, and both panels can be restored.
+  let imageFirstProof=null;
+  if(viewport.width>=1280){
+    const grid=page.locator('[data-r20-workbench-layout]');
+    const stage=page.locator('[data-r20-radiograph-stage]');
+    const utility=page.locator('[data-r20-workbench-sidebar]');
+    const initialWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    const initiallyFolded=await grid.getAttribute('data-r23-image-first');
+    const utilityDisplay=await utility.evaluate(el=>getComputedStyle(el).display);
+    await page.locator('[data-r23-tools-toggle]').click();
+    const expandedWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    const utilityDisplayOpen=await utility.evaluate(el=>getComputedStyle(el).display);
+    await page.locator('[data-r23-tools-toggle]').click();
+    await page.locator('[data-r23-measures-toggle]').click();
+    const readingWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    await page.screenshot({path:path.join(OUTPUT_DIR,`after-image-first-reading-${viewport.name}.png`),fullPage:false});
+    await page.locator('[data-r23-measures-toggle]').click();
+    const restoredWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    const mobileMaintained=true;
+    imageFirstProof={initialWidth,expandedWidth,readingWidth,restoredWidth,initiallyFolded,utilityDisplay,utilityDisplayOpen,mobileMaintained,
+      valid:initiallyFolded==='tools-collapsed'&&utilityDisplay==='none'&&utilityDisplayOpen!=='none'
+        &&initialWidth>expandedWidth+100&&readingWidth>initialWidth+250
+        &&Math.abs(restoredWidth-initialWidth)<5};
+  }
   const states=[];
   for(const mode of modes){
    await page.locator(`[data-analysis="${mode}"]`).click();
@@ -224,8 +249,8 @@ async function captureViewport(viewport,attempt){
   }
   const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)
     &&selectorChecks.length===3&&selectorChecks.every(s=>s.valid)
-    &&(viewport.width<1280||focusProof?.valid===true);
-  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states,focusProof};
+    &&(viewport.width<1280||(focusProof?.valid===true&&imageFirstProof?.valid===true));
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states,focusProof,imageFirstProof};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }

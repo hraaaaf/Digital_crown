@@ -92,11 +92,33 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
   it('reserves a readable desktop analysis selector without shrinking the clinical measurement panel',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     const grid=document.querySelector('[data-r20-workbench-layout]') as HTMLElement;
-    expect(grid.className).toContain('xl:grid-cols-[200px_minmax(0,1fr)_350px]');
+    expect(grid.className).toContain('xl:grid-cols-[minmax(0,1fr)_350px]');
     const selector=screen.getByRole('combobox',{name:'Analyse clé en main'}) as HTMLSelectElement;
     expect(selector.className).toContain('text-[13px]');
     expect(Array.from(selector.options).find(o=>o.value==='all')?.textContent).toBe('Toutes analyses');
     expect(document.querySelector('[data-r20-radiograph-stage]')).toBeTruthy();
+  });
+
+  it('starts image-first on desktop with reversible utility and measurement panels',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const root=document.querySelector('[data-r20-workbench-layout]') as HTMLElement;
+    const utility=document.querySelector('[data-r20-workbench-sidebar]') as HTMLElement;
+    const metrics=document.querySelector('[data-r20-measures-panel]') as HTMLElement;
+    expect(root.dataset.r23ImageFirst).toBe('tools-collapsed');
+    expect(utility.className).toContain('xl:hidden');
+    const tools=screen.getByRole('button',{name:'Afficher les outils'});
+    fireEvent.click(tools);
+    expect(root.className).toContain('xl:grid-cols-[200px_minmax(0,1fr)_350px]');
+    expect(utility.className).not.toContain('xl:hidden');
+    expect(screen.getByRole('button',{name:'Masquer les outils'}).getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByRole('button',{name:'Masquer les outils'}));
+    expect(root.className).toContain('xl:grid-cols-[minmax(0,1fr)_350px]');
+    fireEvent.click(screen.getByRole('button',{name:'Masquer les mesures'}));
+    expect(metrics.className).toContain('hidden');
+    expect(root.className).toContain('xl:grid-cols-[minmax(0,1fr)]');
+    fireEvent.click(screen.getByRole('button',{name:'Afficher les mesures'}));
+    expect(metrics.className).not.toContain('hidden');
+    expect(document.querySelectorAll('#cephalo-ready-analysis')).toHaveLength(1);
   });
 
   it('keeps the selected analysis in the actual stage when the workbench selector changes',()=>{

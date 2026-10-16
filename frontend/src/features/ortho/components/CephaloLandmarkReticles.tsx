@@ -354,8 +354,9 @@ export const CephaloLandmarkReticles = ({
                   fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
                   fontWeight={emphasized ? 800 : 700}
                   className="select-none"
-                  fill={emphasized ? '#fef08a' : '#f8fafc'}
-                  style={{ paintOrder: 'stroke', stroke: '#0b1220', strokeWidth: '3px' }}
+                  fill={emphasized ? '#fef08a' : '#ffffff'}
+                  strokeLinejoin="round"
+                  style={{ paintOrder: 'stroke', stroke: '#020617', strokeWidth: '3.5px' }}
                 >{point.id}</text>
               </g>
             );
