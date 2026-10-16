@@ -112,7 +112,7 @@ def http_json(url: str, data: dict, bearer: str | None = None, form=False, anony
     return status, payload, elapsed
 
 
-def login(api, user, password):
+def login(api, user, password, *, enroll_workstation=True):
     status, payload, _ = http_json(
         f'{api}/api/auth/login', {'username': user, 'password': password}, form=True)
     token = payload.get('access_token')
@@ -120,13 +120,14 @@ def login(api, user, password):
         raise RuntimeError('Synthetic T2 login failed (check workstation session)')
     # Workstation identity is a separate production authorization boundary.
     # Preserve HttpOnly workstation cookies in the restricted localhost opener.
-    enroll_status, _, _ = http_json(
-        f'{api}/api/workstation/enroll',
-        {'accountPassword': password},
-        token,
-    )
-    if enroll_status != 200:
-        raise RuntimeError('T2 workstation enrollment denied; no measurements accepted')
+    if enroll_workstation:
+        enroll_status, _, _ = http_json(
+            f'{api}/api/workstation/enroll',
+            {'accountPassword': password},
+            token,
+        )
+        if enroll_status != 200:
+            raise RuntimeError('T2 workstation enrollment denied; no measurements accepted')
     return token
 
 
@@ -168,7 +169,7 @@ def run(args):
               'useful_read_no_proposal': 'PASS'}
     denied_user = os.getenv('T2_DENIED_USER', '')
     if denied_user:
-        denied_token = login(api, denied_user, os.environ['T2_DENIED_PASSWORD'])
+        denied_token = login(api, denied_user, os.environ['T2_DENIED_PASSWORD'], enroll_workstation=False)
         status, payload, _ = http_json(endpoint, {'messages': [os.getenv('T2_DENIED_COMMAND', '/rdv')]}, denied_token)
         if status != 403 or 'patient' in payload or 'proposal' in payload:
             raise RuntimeError('FAIL CLOSED: denied permission is not isolated')
