@@ -11,7 +11,10 @@ from copy import deepcopy
 import secrets
 import shutil
 import sqlite3
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -255,6 +258,55 @@ class CheckpointCAdversarialSynthetic(unittest.TestCase):
                 with self.assertRaises(CasRefusal):
                     verify_challenged_c_head(packet, nonce, l.c_pin,
                                              l.b_pin, l.scope)
+
+    def test_concurrent_signed_fork_cannot_anchor_twice(self):
+        l = self.lab
+        original, r1 = l.commit_b()
+        forged = event(l.scope, secrets.token_hex(16), 0, GENESIS_MAC,
+                       secrets.token_hex(32))
+        r2 = _receipt(forged, event_bytes(forged), l.b_key)
+        self.assertNotEqual(r1, r2)
+        entered_first = threading.Event()
+        entered_second = threading.Event()
+        release = threading.Event()
+        counter_lock = threading.Lock()
+        calls = [0]
+        real_sign = l.c._sign
+
+        def paused_sign(*args, **kwargs):
+            with counter_lock:
+                calls[0] += 1
+                call_number = calls[0]
+            if call_number == 1:
+                entered_first.set()
+                if not release.wait(timeout=5):
+                    raise CasRefusal("SYNTHETIC_SIGN_PAUSE_TIMEOUT")
+            else:
+                entered_second.set()
+            return real_sign(*args, **kwargs)
+
+        def attempt(receipt):
+            try:
+                return l.c.anchor(receipt)
+            except CasRefusal:
+                return None
+
+        with patch.object(l.c, "_sign", side_effect=paused_sign):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                first = executor.submit(attempt, r1)
+                self.assertTrue(entered_first.wait(timeout=4))
+                second = executor.submit(attempt, r2)
+                # In the unprotected fixture two signers can both enter with
+                # the same previous head. A corrected fixture serializes C.
+                entered_second.wait(timeout=0.25)
+                release.set()
+                results = [first.result(timeout=5), second.result(timeout=5)]
+        accepted = [p for p in results if p is not None]
+        self.assertEqual(len(accepted), 1, "C must never sign both competing parents")
+        self.assertEqual(len(l.c._ops), 1)
+        self.assertEqual(l.c.latest["checkpoint"]["seq"], 1)
+        self.assertEqual(l.c.latest["checkpoint"]["op_id"],
+                         accepted[0]["checkpoint"]["op_id"])
 
     def test_different_B_scope_signed_head_refused(self):
         l = self.lab
