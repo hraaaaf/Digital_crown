@@ -12,6 +12,7 @@ import binascii
 from copy import deepcopy
 import hashlib
 import re
+import threading
 from dataclasses import dataclass
 
 from cryptography.exceptions import InvalidSignature
@@ -234,6 +235,9 @@ class SyntheticCheckpointC:
                 and len(witness_pin) == 32
                 and isinstance(signer, Ed25519PrivateKey), "C_ENROLLMENT_REFUSE")
         _refuse(signer_pub(signer) != witness_pin, "C_B_SAME_SIGNER_REFUSE")
+        # LAB-only serialization of C's volatile accepted heads/receipt map.
+        # Not a distributed lock, durable atomic commit or rollback guarantee.
+        self._lock = threading.RLock()
         self.scope, self.witness_pin, self.signer = scope, witness_pin, signer
         self._head_seq, self._head_mac = 0, GENESIS_MAC
         self._ops: dict[str, tuple[bytes, dict]] = {}
@@ -265,6 +269,11 @@ class SyntheticCheckpointC:
                 "signature_b64": self._latest["signature_b64"]}
 
     def challenged_head(self, challenge: str) -> dict:
+        """Serialize HEAD observation with anchor updates; LAB only."""
+        with self._lock:
+            return self._challenged_head_serialized(challenge)
+
+    def _challenged_head_serialized(self, challenge: str) -> dict:
         """In-process synthetic C HEAD, not a fresh immutable high-watermark."""
         _refuse(_hex(challenge, HEX32), "C_HEAD_CHALLENGE_SHAPE_REFUSE")
         response = {"protocol": HEAD_PROTOCOL, "challenge": challenge,
@@ -276,6 +285,11 @@ class SyntheticCheckpointC:
                     self.signer.sign(message)).decode("ascii")}
 
     def anchor(self, receipt: bytes) -> dict:
+        """Serialize competing in-process C anchors; LAB only."""
+        with self._lock:
+            return self._anchor_serialized(receipt)
+
+    def _anchor_serialized(self, receipt: bytes) -> dict:
         """Advance C only for exact next witness receipt; no clinical authorization."""
         _refuse(type(receipt) is bytes and len(receipt) <= 4096,
                 "C_RECEIPT_SIZE_REFUSE")
