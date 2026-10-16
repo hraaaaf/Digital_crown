@@ -184,6 +184,7 @@ jobs:
             {key:'tablet768Regression',width:768,height:1024},
           ];
           const evidence = [];
+          const desktopQA = [];
           const browser = await chromium.launch({headless:true});
           try {
             for (const size of sizes) {
@@ -244,7 +245,29 @@ jobs:
                       if(!(await splitter.isVisible())) throw Error('Keyboard and pointer resize separator missing');
                       if(size.key === 'desktop1440') {
                         // Two-pane BEFORE interactions on the actual authenticated React UI.
+                        const stableTop=async()=>{
+                          await page.evaluate(()=>window.scrollTo({top:0,left:0,behavior:'instant'}));
+                          await page.waitForTimeout(400);
+                        };
+                        await stableTop();
                         await page.screenshot({path:path.join(out,'imagerie-deux-vues-initial-desktop1440.png'),fullPage:false});
+                        await page.evaluate(()=>window.scrollTo({top:160,left:0,behavior:'instant'}));
+                        await page.waitForTimeout(250);
+                        const stickyQA=await page.evaluate(()=>{
+                          const el=document.querySelector('.v15-g1-opaque-patient-header');
+                          if(!(el instanceof HTMLElement))return {pass:false,reason:'G1 header missing'};
+                          const style=getComputedStyle(el);
+                          const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+                          const ctx=canvas.getContext('2d',{willReadFrequently:true});
+                          if(!ctx)return {pass:false,reason:'canvas not available'};
+                          ctx.fillStyle=style.backgroundColor;ctx.fillRect(0,0,1,1);
+                          const alpha=ctx.getImageData(0,0,1,1).data[3];
+                          return {pass:style.position==='sticky'&&alpha>=254,position:style.position,alpha,scrollY:scrollY};
+                        });
+                        desktopQA.push({check:'desktop sticky header is opaque while scrolled',...stickyQA});
+                        if(!stickyQA.pass)throw Error('G1 opaque header proof failed: '+JSON.stringify(stickyQA));
+                        await page.screenshot({path:path.join(out,'imagerie-entete-scroll-desktop1440.png'),fullPage:false});
+                        await stableTop();
                         await splitter.focus();
                         await page.keyboard.press('ArrowRight');
                         if((await splitter.getAttribute('aria-valuenow')) !== '50')
@@ -252,12 +275,14 @@ jobs:
                         await page.getByRole('button',{name:'Échanger les vues',exact:true}).click();
                         const swapped = await page.locator('[data-v15-07-split-container]').evaluate(el=>getComputedStyle(el).flexDirection);
                         if(swapped !== 'row-reverse') throw Error('Pane swap failed');
+                        await stableTop();
                         await page.screenshot({path:path.join(out,'imagerie-deux-vues-echangees-desktop1440.png'),fullPage:false});
                         await page.getByRole('button',{name:'Réinitialiser',exact:true}).click();
                         const select=page.getByRole('combobox',{name:'Contenu du premier panneau'});
                         if(await select.locator('option[value="suivi"]').count()) {
                           await select.selectOption('suivi');
                           await page.getByRole('region',{name:'Suivi orthodontique T0 / T1'}).waitFor({state:'visible'});
+                          await stableTop();
                           await page.screenshot({path:path.join(out,'imagerie-suivi-T0-T1-desktop1440.png'),fullPage:false});
                           await select.selectOption('dossier');
                           await summary.waitFor({state:'visible'});
@@ -284,12 +309,52 @@ jobs:
                         await page.waitForTimeout(650);
                         const darkBg=await frame.evaluate(el=>getComputedStyle(el).backgroundColor);
                         if(darkBg===lightBg) throw Error('Active theme did not recolor real dossier frame');
+                        const contrastQA=await page.locator('[data-v15-07-two-views] p.text-primary').first().evaluate(el=>{
+                          const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+                          const ctx=canvas.getContext('2d',{willReadFrequently:true});
+                          const rgb=v=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=v;ctx.fillRect(0,0,1,1);return Array.from(ctx.getImageData(0,0,1,1).data).slice(0,3);};
+                          const lum=a=>a.map(v=>{v/=255;return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);}).reduce((s,c,i)=>s+c*[0.2126,0.7152,0.0722][i],0);
+                          const fg=getComputedStyle(el).color,bg=getComputedStyle(el).getPropertyValue('--card-bg').trim();
+                          const x=lum(rgb(fg)),y=lum(rgb(bg)),ratio=(Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);
+                          return {pass:ratio>=4.5,ratio:+ratio.toFixed(2),fg,bg};
+                        });
+                        desktopQA.push({check:'Prestige small media label WCAG AA contrast',...contrastQA});
+                        if(!contrastQA.pass)throw Error('Prestige media contrast <4.5:1: '+JSON.stringify(contrastQA));
+                        await stableTop();
                         await page.screenshot({path:path.join(out,'imagerie-deux-vues-sombre-desktop1440.png'),fullPage:false});
                         await page.evaluate(() => {
                           document.documentElement.dataset.theme='';
                           document.body.dataset.theme='';
                         });
                         await page.waitForTimeout(650);
+                        // Chromium's native compositor/pinch scale, NOT Ctrl+Plus
+                        // page zoom. Record this distinction in the proof.
+                        const cdp=await context.newCDPSession(page);
+                        try {
+                          await cdp.send('Emulation.setPageScaleFactor',{pageScaleFactor:2});
+                          await page.waitForTimeout(200);
+                          const scale=await page.evaluate(()=>window.visualViewport?.scale||1);
+                          desktopQA.push({check:'Chromium compositor scale 2 (not page zoom)',scale,pass:scale>=1.9});
+                          if(scale<1.9)throw Error('Chromium compositor scaling failed: '+scale);
+                          await page.screenshot({path:path.join(out,'imagerie-compositor-scale-200-NOT-pagezoom.png'),fullPage:false});
+                        } finally {
+                          await cdp.send('Emulation.setPageScaleFactor',{pageScaleFactor:1});
+                          await cdp.detach();
+                        }
+                        // Browser 200% page zoom would halve effective CSS width;
+                        // test that reflow independently, without claiming native zoom.
+                        await page.setViewportSize({width:720,height:900});
+                        await page.waitForTimeout(400);
+                        const reflow=await page.evaluate(()=>({
+                          split:document.querySelectorAll('[data-v15-07-two-views]').length,
+                          media:document.querySelectorAll('[data-testid="patient-media-timeline"]').length,
+                          overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,
+                        }));
+                        desktopQA.push({check:'720px layout proxy for 1440 at browser zoom 200%',...reflow,
+                          pass:reflow.split===0&&reflow.media===1&&!reflow.overflow});
+                        if(reflow.split!==0||reflow.media!==1||reflow.overflow)throw Error('G1 reflow fallback failed '+JSON.stringify(reflow));
+                        await page.screenshot({path:path.join(out,'imagerie-reflow-proxy-200-NOT-native-zoom.png'),fullPage:false});
+                        await page.setViewportSize({width:1440,height:900});
                       }
                     }
                   }
@@ -323,7 +388,7 @@ jobs:
             }
           } finally {await browser.close(); await api.dispose();}
           const critical=evidence.filter(e=>e.failure||e.pageErrors.length||e.http5xx.length);
-          const report={sourceHead,runnerHead:process.env.GITHUB_SHA,fixture:'isolated T2 only',
+          const report={sourceHead,runnerHead:process.env.GITHUB_SHA,fixture:'isolated T2 only',desktopQA,
             authentication:'real API credentials with enrolled disposable workstation',
             method:'real Vite React UI + disposable FastAPI + Playwright chromium, no routes mocked',
             cssZoomWarning:'CSS zoom proxy does not prove actual browser zoom at 200%',
