@@ -170,7 +170,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/certify-ceph03b3f-live-step1.mjs
-      - name: Exact-HEAD gate, 2 real model uploads, 8 desktop scenes, 8+ commits and auth denial
+      - name: Exact-HEAD gate, 2 public films, 4 mobile witnesses, 8 desktop scenes, 8+ edits and auth
         working-directory: frontend
         shell: bash
         run: |
@@ -179,12 +179,31 @@ jobs:
           import {readFile} from 'node:fs/promises';
           const dir='dc-ceph03b3f-live-http-proof/';
           const r=JSON.parse(await readFile(dir+'report.json','utf8'));
-          if(r.head!==process.env.GITHUB_SHA || r.cases.length!==10 ||r.invalidCount!==0
+          if(r.head!==process.env.GITHUB_SHA || r.cases.length!==12 ||r.invalidCount!==0
              ||r.errors.length!==0 ||r.browserEntry.indexOf('CephaloWorkspace')<0)
             throw Error('Live Step1 exact-HEAD report incomplete');
           const scenes=r.cases.filter(x=>x.screenshot);
           const records=r.cases.filter(x=>x.stage==='reloaded');
-          if(scenes.length!==8 ||records.length!==2)throw Error('Insufficient real Step1 scenes');
+          const mobile=r.cases.filter(x=>x.stage==='mobile-point-directory');
+          if(scenes.length!==8 ||records.length!==2||mobile.length!==2)
+            throw Error('Insufficient real Step1 desktop/mobile/history scenes');
+          if(new Set(mobile.map(x=>x.film)).size!==2)
+            throw Error('Both public films must have independent mobile witnesses');
+          for(const c of mobile){
+            if(!c.valid ||c.witnesses?.length!==2
+              ||!['390x844','768x1024'].every(size=>c.witnesses.some(w=>w.size===size&&w.valid)))
+              throw Error('Missing real mobile 390/768 witness '+c.film);
+            for(const w of c.witnesses){
+              if(w.markers!==38 ||w.names!==38 ||w.selectedLabel!==true
+                ||w.noBackgrounds!==true ||!Number.isFinite(w.stageTop)
+                ||w.stageTop<0 ||w.stageTop>=Number(w.size.split('x')[1])*.56)
+                throw Error('Unusable mobile anatomical point list '+c.film+' '+w.size);
+              const data=await readFile(dir+w.filename);
+              if(data.length<300||data.subarray(1,4).toString()!=='PNG'
+                ||w.size!==data.readUInt32BE(16)+'x'+data.readUInt32BE(20))
+                throw Error('Invalid real mobile screenshot '+w.filename);
+            }
+          }
           if(r.zoomProof?.length!==2||r.zoomProof.some(z=>
             !z.valid ||z.originalZoom.base!==z.originalZoom.overlay
             ||z.magnified.base!==z.magnified.overlay
