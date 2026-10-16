@@ -132,11 +132,45 @@ async function captureViewport(viewport,attempt){
     await page.screenshot({path:path.join(OUTPUT_DIR,`after-image-first-reading-${viewport.name}.png`),fullPage:false});
     await page.locator('[data-r23-measures-toggle]').click();
     const restoredWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    // R23 progressive desktop disclosure: retain all 29 handles and an
+    // explicit reversible full-name oracle, not 29 always-on name assertions.
+    const nameToggle=page.locator('[data-cephalo-all-names-toggle]');
+    const labelNodes=page.locator('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label]');
+    const defaultNames=await labelNodes.count();
+    const allHandles=await page.locator('[data-ceph03b-drag-handle]').count();
+    const essentialScreenshot=`after-desktop-essential-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,essentialScreenshot),fullPage:false});
+    const secondary=page.locator('[data-ceph03b-drag-handle="Prn"]');
+    const secondaryDefaultHidden=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+    await secondary.dispatchEvent('pointerover',{pointerId:1});
+    const hoverExposesName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===1;
+    await secondary.dispatchEvent('pointerout',{pointerId:1});
+    const hoverClearsName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+    await secondary.focus();
+    const focusExposesName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===1;
+    await secondary.evaluate(el=>el.blur());
+    const focusClearsName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+    await nameToggle.click();
+    const fullNames=await labelNodes.count();
+    const allPressed=await nameToggle.getAttribute('aria-pressed');
+    const exhaustiveScreenshot=`after-desktop-all-names-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,exhaustiveScreenshot),fullPage:false});
+    await nameToggle.click();
+    const restoredNames=await labelNodes.count();
+    const defaultPressed=await nameToggle.getAttribute('aria-pressed');
+    await nameToggle.click(); // Retain old all-name evidence for every analysis below.
+    const progressiveProof={defaultNames,allHandles,secondaryDefaultHidden,hoverExposesName,
+      hoverClearsName,focusExposesName,focusClearsName,fullNames,restoredNames,
+      allPressed,defaultPressed,essentialScreenshot,exhaustiveScreenshot,
+      valid:allHandles===29&&defaultNames>=6&&defaultNames<=12
+        &&secondaryDefaultHidden&&hoverExposesName&&hoverClearsName
+        &&focusExposesName&&focusClearsName&&fullNames===29
+        &&restoredNames===defaultNames&&allPressed==='true'&&defaultPressed==='false'};
     const mobileMaintained=true;
-    imageFirstProof={initialWidth,expandedWidth,readingWidth,restoredWidth,initiallyFolded,utilityDisplay,utilityDisplayOpen,mobileMaintained,
+    imageFirstProof={initialWidth,expandedWidth,readingWidth,restoredWidth,initiallyFolded,utilityDisplay,utilityDisplayOpen,mobileMaintained,progressiveProof,
       valid:initiallyFolded==='tools-collapsed'&&utilityDisplay==='none'&&utilityDisplayOpen!=='none'
         &&initialWidth>expandedWidth+100&&readingWidth>initialWidth+250
-        &&Math.abs(restoredWidth-initialWidth)<5};
+        &&Math.abs(restoredWidth-initialWidth)<5&&progressiveProof.valid};
   }
   let mobileImageFirstProof=null;
   if(viewport.width<1280){

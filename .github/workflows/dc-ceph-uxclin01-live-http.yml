@@ -204,6 +204,22 @@ jobs:
                 throw Error('Invalid real mobile screenshot '+w.filename);
             }
           }
+          // Progressive labels: two real films, 10 essential labels default,
+          // all 38 available on demand and after 150% zoom/pan as before.
+          if(r.progressiveLabelProof?.length!==2
+            ||new Set(r.progressiveLabelProof.map(x=>x.film)).size!==2
+            ||r.progressiveLabelProof.some(x=>!x.valid||x.essentialCount!==10
+              ||x.fullCount!==38||x.handles!==38||!x.hoverLabel
+              ||!x.hoverCleared||!x.focusLabel||!x.focusCleared
+              ||x.editedByDisclosure!==false))
+            throw Error('Real desktop progressive label evidence missing');
+          for(const x of r.progressiveLabelProof)for(const [key,resolution] of [
+            ['essential1280','1280x900'],['full1280','1280x900'],['essential1600','1600x1000']]){
+            const data=await readFile(dir+x[key]);
+            if(data.length<300||data.subarray(1,4).toString()!=='PNG'
+              ||data.readUInt32BE(16)+'x'+data.readUInt32BE(20)!==resolution)
+              throw Error('Progressive label witness PNG missing '+x.film+' '+key);
+          }
           if(r.zoomProof?.length!==2||r.zoomProof.some(z=>
             !z.valid ||z.originalZoom.base!==z.originalZoom.overlay
             ||z.magnified.base!==z.magnified.overlay

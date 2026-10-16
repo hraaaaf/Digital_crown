@@ -31,7 +31,7 @@ const server=await createServer({
     proxy:{'/api':{target:'http://127.0.0.1:8005',changeOrigin:true,secure:false}} },
 });
 let browser;
-const cases=[];const zoomProof=[];const labelProof=[];const errors=[];
+const cases=[];const zoomProof=[];const labelProof=[];const progressiveLabelProof=[];const errors=[];
 const reqs=[];
 const waitFor=async(fn,label,timeoutMs=30000)=>{
   const start=Date.now();
@@ -318,8 +318,51 @@ try {
           medianPx:ds[Math.floor(ds.length/2)]??null,maxPx:Math.max(0,...ds)};
       });
       const noBoxes=async()=>page.locator('[data-ceph03b-label-background]').count();
+      // Desktop progressive disclosure on both REAL public films: all handles
+      // and full 38-name fallback must remain available without any API edit.
+      const nameToggle=page.locator('[data-cephalo-all-names-toggle]');
+      assert(await nameToggle.isVisible() &&await nameToggle.getAttribute('aria-pressed')==='false',
+        'Desktop progressive label mode not the default '+film);
+      const essential100=await labelMetrics();
+      const essentialNames=['S','N','A','B','Po','Or','Go','Me','U1_incisal','L1_incisal'];
+      assert(essential100.total===essentialNames.length&&essential100.visible===essentialNames.length
+        &&essential100.collisions.length===0&&essential100.clipped.length===0
+        &&essential100.controlCollisions.length===0
+        &&essentialNames.every(id=>essential100.ids.includes(id))
+        &&await page.locator('[data-ceph03b-drag-handle]').count()===38,
+        'Desktop 38-point essential-only display invalid '+film+' '+JSON.stringify(essential100));
+      const essential1280=await shot(page,film,'all','1280x900','essential-names');
+      const secondary=page.locator('[data-ceph03b-drag-handle="Prn"]');
+      assert(await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0,
+        'Secondary name Prn must be initially hidden '+film);
+      await secondary.dispatchEvent('pointerover',{pointerId:1});
+      const hoverLabel=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===1;
+      await secondary.dispatchEvent('pointerout',{pointerId:1});
+      const hoverCleared=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+      await secondary.focus();
+      const focusLabel=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===1;
+      await secondary.evaluate(el=>el.blur());
+      const focusCleared=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+      assert(hoverLabel&&hoverCleared&&focusLabel&&focusCleared,
+        'Secondary name hover/focus lifecycle invalid '+film);
+      assert((await verifySvg(page,expected))===38,
+        'Hover/focus altered authenticated anatomical coordinates '+film);
+      const editRequestsBeforeLabelToggle=reqs.filter(x=>x.film===film
+        &&x.method==='PUT'&&x.url===pathForId(id)).length;
+      assert(editRequestsBeforeLabelToggle===0,'Name inspection caused a clinical PUT '+film);
+      await nameToggle.click();
+      assert(await nameToggle.getAttribute('aria-pressed')==='true','All-name toggle not activated '+film);
       const all100=await labelMetrics();
       assertNames(all100,38,'ALL100');
+      await nameToggle.click();
+      assert(await nameToggle.getAttribute('aria-pressed')==='false'
+        &&(await labelMetrics()).visible===essentialNames.length,
+        'Essential names not restored '+film);
+      await nameToggle.click(); // Existing 38/38 and COM 9/9 at 150%/pan remain strict.
+      const full1280=await shot(page,film,'all','1280x900','all-names');
+      progressiveLabelProof.push({film,essentialCount:essential100.visible,fullCount:all100.visible,
+        handles:38,hoverLabel,hoverCleared,focusLabel,focusCleared,editedByDisclosure:false,
+        essential1280,full1280,valid:true});
       const anatomicalProof=await proximity();
       assert(anatomicalProof.finite&&anatomicalProof.total===38&&anatomicalProof.medianPx<125,
         'BEFORE 2.0 spatial proximity failed '+film+' '+JSON.stringify(anatomicalProof));
@@ -394,6 +437,17 @@ try {
           const count=await verifySvg(page,expected);
           assert(mode!=='all'||count===38,'All mode must display 38 editable landmarks');
           const file=await shot(page,film,mode,size,'uploaded');
+          if(viewport.width===1600&&mode==='all'){
+            await nameToggle.click();
+            assert(await nameToggle.getAttribute('aria-pressed')==='false'
+              &&(await labelMetrics()).visible===10,
+              '1600 desktop essential landmark names missing '+film);
+            const essential1600=await shot(page,film,'all',size,'essential-names');
+            progressiveLabelProof[progressiveLabelProof.length-1].essential1600=essential1600;
+            await nameToggle.click();
+            assert(await nameToggle.getAttribute('aria-pressed')==='true',
+              '1600 full names not restored '+film);
+          }
           cases.push({film,mode,viewport:size,screenshot:file,handles:count,valid:true,analysisId:id});
         }
       }
@@ -563,7 +617,7 @@ try {
     await writeFile(path.join(out,'partial-report.json'),JSON.stringify({
       head:process.env.GITHUB_SHA || 'unknown',
       status:'INCOMPLETE_NOT_CERTIFIED',
-      cases,zoomProof,labelProof,errors,
+      cases,zoomProof,labelProof,progressiveLabelProof,errors,
     },null,2));
   }
   if(browser)await browser.close();
@@ -576,8 +630,8 @@ const report={
   browserEntry:'CephaloWorkspace -> Step1Cephalo -> useOrthoStore -> cephaloRepository -> Axios',
   backend:'FastAPI app real HTTP /api, authenticated HttpOnly cookie, in-memory SQLite',
   untested:'Product /login visual screen, 38 simultaneous mobile text labels (mobile tests only 38 selectable points and one highlighted name), clinical anatomical accuracy, physical calibration',
-  cases,zoomProof,labelProof,errors,invalidCount:cases.filter(x=>!x.valid).length,
+  cases,zoomProof,labelProof,progressiveLabelProof,errors,invalidCount:cases.filter(x=>!x.valid).length,
 };
 await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
-assert(cases.length===12&&zoomProof.length===2&&zoomProof.every(x=>x.valid)&&labelProof.length===2&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
+assert(cases.length===12&&zoomProof.length===2&&zoomProof.every(x=>x.valid)&&labelProof.length===2&&progressiveLabelProof.length===2&&progressiveLabelProof.every(x=>x.valid&&x.essential1600)&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
 console.log('DC_CEPH03B3F_REAL_STEP1_HTTP_TWO_RADIOS_8_SCENES_4_EDIT_TRANSACTIONS_PER_FILM_PASS');
