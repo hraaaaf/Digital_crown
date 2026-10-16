@@ -51,11 +51,18 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Create disposable user password only
+      - name: Create masked disposable auth password and independent SQLCipher key
         shell: bash
         run: |
-          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
-          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          storage_key="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$password"
+          echo "::add-mask::$storage_key"
+          {
+            echo "T2_USER=t2-browser@cabinet.ma"
+            printf 'T2_PASSWORD=%s\n' "$password"
+            printf 'SQLCIPHER_KEY_HEX=%s\n' "$storage_key"
+          } >> "$GITHUB_ENV"
       - name: Install isolated backend
         shell: bash
         run: |
