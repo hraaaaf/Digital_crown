@@ -72,3 +72,35 @@ This lab implements a deliberately **volatile** in-process C checkpoint fixture,
 **Frontière prouvée :** le B LOOKUP et les HEAD sont synthétiques, signés par clés de test détenues par un seul harnais ; aucune session/réseau réel ni propriété de snapshot distribué. Trois réponses valides produites à des instants différents ne constituent pas une lecture atomique ; seules des séquences/empreintes strictement liées sont acceptables comme constat LAB. Le checkpoint C reste en mémoire, révocable et restaurable ; une compromission simultanée B+C, le repli d'une époque, l'altération du stockage physique et l'administration commune demeurent des risques non résolus. Le reçu et la chaîne complète DC6A/DC6B ainsi que les médias/manifestes cliniques A **ne sont pas reconstruits ici**.
 
 **Limite documentaire :** ce dossier décrit et évalue exclusivement des scénarios synthétiques. Les essais physiques relèvent du LOT10, hors de ce protocole, hors de sa matrice et hors de ses scores.
+
+## v0.4 — Qualification synthétique approfondie (épreuves reproductibles uniquement)
+
+**Critère contractuel de fin :** toutes les propriétés ci-dessous sont vérifiées sur des fixtures, des clés et des processus éphémères ; les résultats sont associés à un SHA unique et à leurs journaux CI. Il n'existe pas de nombre mathématiquement fini de « tous les tests possibles » : cette matrice constitue une revue ciblée des risques connus, et ne vaut pas certification exhaustive de toutes les entrées imaginables.
+
+| Domaine du protocole synthétique | Jeux de tests / témoin de preuve |
+| --- | --- |
+| Parsing/contrats versionnés | champs absents, champs ajoutés, formes, types, canonicité, schéma B/C, bornes et refus explicites |
+| Signature et identité | Ed25519 B/C, mauvais pin, même identité B/C interdite, altérations signées/invalides, séparation des domaines de signature |
+| Défis | B HEAD, C HEAD et B LOOKUP signés, rejets de défis anciens, mal formés ou avec mauvais scope/opération |
+| CAS B | monotonicité séquence, requêtes identiques idempotentes, réutilisation d'opération avec octets différents refusée, fork/stale/gap |
+| Persistance simulée B | SQLite temporaire, vérification de chaîne, corruption de ligne, redémarrage de processus, interruption avant/après transaction, ACK perdu |
+| Concurrence B | deux processus sur la même tête et même opération, exactement une décision durable |
+| C checkpoint | progression et chaînage d'empreintes, ancien reçu idempotent, refus d'opération rebind, signature refusée sans avancer la tête |
+| **Concurrence C** | injection déterministe de deux reçus valides mais mutuellement incompatibles sous même parent ; avant correction deux succès observés ; correction par `RLock` **dans le harnais**, désormais une acceptation maximum |
+| Reçus B/C | troisième défi signé LOOKUP, identité `op_id`, `seq/mac`, `receipt_sha256`; détection de deux décisions signées ayant même tête mais autre manifeste |
+| Machine d'état | 40 transitions acceptées, vérification du reçu à chaque transition et rejeux des anciens reçus ; 20 transitions après instantané d'une fixture B puis restauration synthétique |
+| Contre-exemples sécurité | restauration synthétique de B seul => détectée si C en mémoire reste au nouvel état ; restauration synthétique des deux => non-détection connue, verdict non autorisant |
+| Portabilité | Python 3.11 sous runners Windows et Ubuntu, deux graines `PYTHONHASHSEED` `0` et `73` ; suite complète `unittest discover` sur les 19 modules de tests disponibles |
+| Vérification transversale | compileall, suite Imaging complète et Scope Gate, distinguer `push` HEAD brut du `pull_request` merge temporaire ; documenter tous les skips |
+
+**Preuve RED → FIX ajoutée :** le scénario de fork concurrent C a effectivement fait échouer la CI alors que le code ne sérialisait pas les transitions ; il est protégé par `test_concurrent_signed_fork_cannot_anchor_twice` depuis l'ajout du verrou de laboratoire. Le cas B HEAD sans `scope` produisait auparavant un accès de dictionnaire non protégé ; le contrôle précoce d'entrée renvoie désormais `C_DUAL_CHALLENGE_REFUSE` avec régression dédiée.
+
+**Contraintes du test :** aucun essai réel, aucune identité patient, aucun dispositif, aucune acquisition de donnée réelle, aucun service de cabinet, aucune opération sur le stockage de production. Une réponse signée sur une ancienne tête C reste reproductible si l'état C a été restauré ; le résultat `MATCH_B_C_RECEIPT_LAB_NOT_AUTHORITY` n'est donc jamais une preuve de fraîcheur globale ou une décision clinique. La clôture de **ce gate synthétique** se juge uniquement sur ces scénarios logiciels et leurs preuves CI ; toute autre validation est un périmètre distinct qui ne figure pas dans les critères ni les scores de cette matrice.
+
+### Revue adversariale interne — protocoles de réfutation
+
+**Perspective A / SEC — prompt de revue :** « Sur le SHA candidat exact, tente de produire une preuve signée qui soit acceptée malgré mauvais nonce, mauvais scope, mauvaise identité, preuve B/C incohérente, même `seq/mac` avec reçu différent, deux commits C concurrents ou restauration conjointe des états synthétiques. Vérifie que tous les résultats restent non autorisants, que les contournements reproductibles ont un test et que les risques hors modèle sont explicitement énoncés. »
+
+**Perspective B / REL-OPS — prompt de revue :** « Sur le même SHA exact et depuis le code source, attaque les transitions sous erreurs de signature, concurrence, séquences longues, idempotence, octets altérés, manque de réponse, corruption du SQLite test, perte d'ACK et redémarrage de processus. Compare les cas collectés/skippés Windows/Linux, les deux hash seeds, l'identité du HEAD testé et les chemins réellement exécutés. Aucun succès apparent sans run et contrat. »
+
+**Confirmation requise :** après toute correction, les deux angles de revue interne et une passe de confirmation doivent être rejoués sur le **même HEAD final** avec lecture des jobs, comptes et skips. Ces deux perspectives d'un même agent ne sont **pas** une revue indépendante externe. La CI seule ne clôt pas le lot, mais aucun résultat non synthétique ne participe au verdict du gate synthétique.
