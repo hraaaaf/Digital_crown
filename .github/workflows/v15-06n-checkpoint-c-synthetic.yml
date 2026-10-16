@@ -8,6 +8,7 @@ on:
       - '.github/workflows/v15-06n-checkpoint-c-synthetic.yml'
       - 'tools/imaging_gateway/checkpoint_c_lab.py'
       - 'tools/imaging_gateway/tests/test_checkpoint_c_lab.py'
+      - 'tools/imaging_gateway/tests/test_checkpoint_c_adversarial_synthetic_lab.py'
       - 'tools/imaging_gateway/durable_cas_lab.py'
       - 'tools/imaging_gateway/independent_witness_lab.py'
       - 'tools/imaging_gateway/tests/test_independent_witness_lab.py'
@@ -19,13 +20,16 @@ permissions:
 
 jobs:
   c-anchor-synthetic:
-    name: C anchor negative proof B9 / ${{ matrix.os }}
+    name: C anchor adversarial synthetic / ${{ matrix.os }} / hash ${{ matrix.hashseed }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 18
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
+        hashseed: ['0', '73']
+    env:
+      PYTHONHASHSEED: ${{ matrix.hashseed }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,9 +38,9 @@ jobs:
       - name: Synthetic crypto dependency
         run: python -m pip install 'cryptography>=42,<48'
       - name: Check syntax
-        run: python -m compileall -q tools/imaging_gateway/checkpoint_c_lab.py tools/imaging_gateway/tests/test_checkpoint_c_lab.py
-      - name: Checkpoint C B9 synthetic negatives
-        run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_checkpoint_c_lab.py' -v
+        run: python -m compileall -q tools/imaging_gateway/checkpoint_c_lab.py tools/imaging_gateway/tests/test_checkpoint_c_lab.py tools/imaging_gateway/tests/test_checkpoint_c_adversarial_synthetic_lab.py
+      - name: Checkpoint C adversarial, receipt and state-machine synthetics
+        run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_checkpoint_c*.py' -v
       - name: Regression LOT06-N witness processes
         run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_independent_witness_lab.py' -v
       - name: Regression LOT06-M durable CAS
