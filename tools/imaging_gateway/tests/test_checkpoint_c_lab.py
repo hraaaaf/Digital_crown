@@ -13,11 +13,11 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from tools.imaging_gateway.checkpoint_c_lab import (
     SyntheticCheckpointC, classify_verified_head, classify_challenged_heads,
-    verify_anchor, verify_challenged_c_head,
+    reconcile_challenged_receipt, verify_anchor, verify_challenged_c_head,
 )
 from tools.imaging_gateway.durable_cas_lab import (
     AUTHORITY, EPOCH, GENESIS_MAC, CasRefusal, apply, audit, canonical, event, initialize,
-    signer_pub,
+    lookup, signer_pub, verify_receipt,
 )
 from tools.imaging_gateway.independent_witness_lab import (
     b64, proof_bytes, verify_response,
@@ -294,6 +294,119 @@ class CheckpointCSyntheticTests(unittest.TestCase):
         with self.assertRaisesRegex(CasRefusal, "C_DUAL_CHALLENGE_REFUSE"):
             classify_challenged_heads(b_pkt, b_req, None, "wrong",
                                      self.b_pin, self.c_pin)
+
+    def signed_lookup(self, op_id):
+        seq, mac, _ = audit(self.db, self.scope, self.b_pin)
+        raw = lookup(self.db, self.scope, op_id, self.b_pin)
+        if raw is None:
+            status = "UNKNOWN_OP"
+        elif verify_receipt(raw, self.b_pin)["after_seq"] == seq:
+            status = "DECIDED_LAB_ONLY"
+        else:
+            status = "HISTORICAL_ONLY"
+        req = {"protocol": "DC06N_SYNTHETIC_V1", "method": "LOOKUP",
+               "scope": self.scope, "challenge": secrets.token_hex(16),
+               "op_id": op_id, "event": None}
+        proof = {"protocol": "DC06N_SYNTHETIC_V1", "authority_id": AUTHORITY,
+                 "epoch": EPOCH, "scope": self.scope, "challenge": req["challenge"],
+                 "method": "LOOKUP", "op_id": op_id, "seq": seq, "mac": mac,
+                 "status": status, "receipt_b64": b64(raw) if raw else ""}
+        packet = {"proof": proof, "signature_b64": b64(
+            self.b_key.sign(proof_bytes(proof)))}
+        self.assertEqual(verify_response(packet, self.b_pin, req)["status"], status)
+        return packet, req
+
+    def receipts(self, op_id, *, head=None, lookup_pair=None):
+        b_packet, b_req = head or self.fresh_head()
+        nonce = secrets.token_hex(16)
+        c_packet = self.c.challenged_head(nonce)
+        lookup_packet, lookup_req = lookup_pair or self.signed_lookup(op_id)
+        return reconcile_challenged_receipt(
+            b_packet, b_req, c_packet, nonce, lookup_packet, lookup_req,
+            self.b_pin, self.c_pin)
+
+    def test_receipt_reconcile_genesis_without_fabricated_receipt(self):
+        b_packet, b_req = self.fresh_head()
+        nonce = secrets.token_hex(16)
+        result = reconcile_challenged_receipt(
+            b_packet, b_req, self.c.challenged_head(nonce), nonce,
+            None, None, self.b_pin, self.c_pin)
+        self.assertEqual(result.status, "MATCH_GENESIS_LAB_NOT_AUTHORITY")
+
+    def test_receipt_reconcile_exact_B_lookup_with_C_hash(self):
+        e, r1 = self.commit_b()
+        self.c.anchor(r1)
+        result = self.receipts(e["op_id"])
+        self.assertEqual(result.status, "MATCH_B_C_RECEIPT_LAB_NOT_AUTHORITY")
+        self.assertEqual((result.witness_seq, result.checkpoint_seq), (1, 1))
+
+    def test_receipt_reconcile_missing_B_lookup_never_match(self):
+        e, r1 = self.commit_b()
+        self.c.anchor(r1)
+        b_pkt, b_req = self.fresh_head()
+        nonce = secrets.token_hex(16)
+        result = reconcile_challenged_receipt(
+            b_pkt, b_req, self.c.challenged_head(nonce), nonce,
+            None, None, self.b_pin, self.c_pin)
+        self.assertEqual(result.status, "UNKNOWN_B_CURRENT_RECEIPT_LAB")
+
+    def test_receipt_reconcile_B_ahead_not_claim_anchored(self):
+        e, r1 = self.commit_b()
+        self.assertEqual(self.receipts(e["op_id"]).status,
+                         "PENDING_C_ANCHOR_LAB")
+
+    def test_receipt_reconcile_historical_lookup_is_conflict(self):
+        first, r1 = self.commit_b()
+        self.c.anchor(r1)
+        old_head = self.fresh_head()
+        self.commit_b(1, first["after_mac"])
+        result = self.receipts(first["op_id"], head=old_head)
+        self.assertEqual(result.status, "B_RECEIPT_HEAD_CONFLICT_LAB")
+
+    def test_receipt_reconcile_same_head_but_changed_signed_receipt_refuses(self):
+        genesis = self.root / "genesis-receipt-rebind.db"
+        shutil.copy2(self.db, genesis)
+        first, r1 = self.commit_b()
+        self.c.anchor(r1)
+        # Adversarial restore and re-sign: SAME seq/mac/op_id, but a
+        # DIFFERENT manifest, canonical proposal and signed receipt.
+        shutil.copy2(genesis, self.db)
+        changed = {**first, "manifest_digest": "f" * 64}
+        r2 = apply(self.db, changed, self.b_key)
+        self.assertNotEqual(r1, r2)
+        self.assertEqual(self.dual().status, "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+        self.assertEqual(self.receipts(first["op_id"]).status,
+                         "B_C_RECEIPT_HASH_CONFLICT_LAB")
+
+    def test_receipt_reconcile_missing_op_after_rollback_is_unknown(self):
+        genesis = self.root / "genesis-missing-op.db"
+        shutil.copy2(self.db, genesis)
+        first, r1 = self.commit_b()
+        self.c.anchor(r1)
+        shutil.copy2(genesis, self.db)
+        changed = event(self.scope, secrets.token_hex(16), 0, GENESIS_MAC,
+                        first["after_mac"])
+        apply(self.db, changed, self.b_key)
+        self.assertEqual(self.dual().status, "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+        self.assertEqual(self.receipts(first["op_id"]).status,
+                         "UNKNOWN_B_CURRENT_RECEIPT_LAB")
+
+    def test_receipt_reconcile_tampered_signed_lookup_refused(self):
+        first, r1 = self.commit_b()
+        self.c.anchor(r1)
+        lookup_pkt, lookup_req = self.signed_lookup(first["op_id"])
+        corrupted = {"proof": {**lookup_pkt["proof"], "receipt_b64": "AA=="},
+                     "signature_b64": lookup_pkt["signature_b64"]}
+        with self.assertRaisesRegex(CasRefusal, "RESPONSE_SIGNATURE_REFUSE"):
+            self.receipts(first["op_id"], lookup_pair=(corrupted, lookup_req))
+
+    def test_receipt_reconcile_wrong_lookup_op_refused(self):
+        first, r1 = self.commit_b()
+        self.c.anchor(r1)
+        lookup_pkt, lookup_req = self.signed_lookup(first["op_id"])
+        wrong_req = {**lookup_req, "op_id": secrets.token_hex(16)}
+        with self.assertRaisesRegex(CasRefusal, "B_RECEIPT_LOOKUP_OP_REFUSE"):
+            self.receipts(first["op_id"], lookup_pair=(lookup_pkt, wrong_req))
 
     def test_scope_mismatch_is_refused(self):
         _, r1 = self.commit_b()
