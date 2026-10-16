@@ -122,17 +122,32 @@ try {
       const page=await context.newPage();
       const consoleErrors=[];
       const badResponses=[];
+      const failedResponseBodies=[];
+      let browserPhase='initial-navigation';
       page.on('response',response=>{
-        if(response.status()>=400)badResponses.push({
-          status:response.status(),method:response.request().method(),
-          url:new URL(response.url()).pathname,resourceType:response.request().resourceType(),
-        });
+        if(response.status()>=400){
+          const record={
+            status:response.status(),method:response.request().method(),
+            url:new URL(response.url()).pathname,resourceType:response.request().resourceType(),
+            phase:browserPhase,observedAt:new Date().toISOString(),
+          };
+          badResponses.push(record);
+          if(record.url.startsWith('/api/')){
+            // Diagnostic only; no request is ignored and the strict HTTP
+            // certification still FAILS on every failed authenticated call.
+            const bodyPromise=response.text().then(text=>({
+              ...record,body:text.slice(0,900),
+            })).catch(error=>({...record,bodyReadError:String(error).slice(0,180)}));
+            failedResponseBodies.push(bodyPromise);
+          }
+        }
       });
       page.on('pageerror',err=>consoleErrors.push(String(err)));
       page.on('console',msg=>{if(msg.type()==='error')consoleErrors.push(msg.text())});
       page.on('request',r=>{if(r.url().includes('/api/'))reqs.push({film,url:new URL(r.url()).pathname,method:r.method()})});
       await page.goto(origin+'/ceph03b3f-live-step1.html?patient='+patient,{waitUntil:'domcontentloaded',timeout:60000});
       await page.getByText('Uploader une radiographie').waitFor({timeout:30000});
+      browserPhase='radio-upload';
       const uploadDone=page.waitForResponse(resp=>
         resp.url().includes('/api/ia/upload-radio') && resp.request().method()==='POST',
         {timeout:120000});
@@ -183,6 +198,7 @@ try {
         'Radiograph stage too narrow at desktop 1280: '+JSON.stringify(desktopStage));
       await page.locator('[data-ceph03b-drag-handle="N"]').waitFor({timeout:60000});
       await page.locator('svg[viewBox="0 0 '+radio.width+' '+radio.height+'"]').first().waitFor({timeout:45000});
+      browserPhase='initial-analysis-read';
       const initialGet=await context.request.get(origin+pathForId(id));
       assert(initialGet.status()===200,'Initial authenticated GET failed');
       const initial=await initialGet.json();
@@ -336,6 +352,7 @@ try {
       zoomProof.push({film,viewport:'1280x900',originalZoom,magnified,panned,reset,
         screenshot:zoomShot,valid:true});
       labelProof.push({film,viewport:'1280x900',all100,all150,allPan,com100,com150,comPan,boxCount:0,valid:true});
+      browserPhase='screenshots-all-com';
       for(const viewport of [{width:1280,height:900},{width:1600,height:1000}]){
         await page.setViewportSize(viewport);
         const size=viewport.width+'x'+viewport.height;
@@ -348,6 +365,7 @@ try {
         }
       }
       await setMode(page,'all');
+      browserPhase='keyboard-correction';
       const point=page.locator('[data-ceph03b-drag-handle="N"]');
       await point.focus();
       assert(await point.getAttribute('data-ceph03b-keyboard-focused')==='true','Real Step1 DOM focus missing');
@@ -382,6 +400,7 @@ try {
       assert(await historyDisclosure.count()===1,'Expected one accessible correction history disclosure');
       await historyDisclosure.locator('summary').click();
       assert(await historyDisclosure.evaluate(el=>el.open),'Correction history not expanded');
+      browserPhase='undo-correction';
       const undoWait=page.waitForResponse(resp=>resp.url().includes('/api/ia/analyses/'+id)
         &&resp.request().method()==='PUT',{timeout:60000});
       await page.getByRole('button',{name:'Annuler dernière correction'}).click();
@@ -390,6 +409,7 @@ try {
         const res=await context.request.get(origin+pathForId(id));
         return res.status()===200 && Math.abs(persistedPoint(await res.json(),'N').x-(originalN.x+1))<0.0001;
       },'undo committed');
+      browserPhase='redo-correction';
       const redoWait=page.waitForResponse(resp=>resp.url().includes('/api/ia/analyses/'+id)
         &&resp.request().method()==='PUT',{timeout:60000});
       await page.getByRole('button',{name:'Rétablir correction'}).click();
@@ -415,6 +435,7 @@ try {
       const beforeReload=await shot(page,film,'all','1600x1000','edited');
       // Fail closed on the real patient-scoped active/trash history API before
       // asking the actual History UI to hydrate the persisted analysis.
+      browserPhase='history-api-preflight';
       const activeHistoryResponse=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-analyses');
       const trashHistoryResponse=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-trash');
       assert(activeHistoryResponse.status()===200 && trashHistoryResponse.status()===200,
@@ -429,6 +450,7 @@ try {
         ' trashIds='+JSON.stringify(Array.isArray(trashHistory)?trashHistory.map(x=>x.id):trashHistory));
       // Real product rehydration: fresh browser navigation -> actual History UI
       // -> authenticated GET -> real store, no imported JSON snapshots.
+      browserPhase='browser-reload';
       await page.reload({waitUntil:'domcontentloaded'});
       await page.getByRole('button',{name:'Historique',exact:true}).first().click();
       await page.getByText('Analyse enregistrée').first().waitFor({timeout:30000}).catch(async error=>{
@@ -448,6 +470,7 @@ try {
         await page.screenshot({path:path.join(out,film+'-history-ui-failure.png'),fullPage:false}).catch(()=>{});
         throw new Error('History UI did not render verified active analysis '+id+': '+body.slice(0,800),{cause:error});
       });
+      browserPhase='history-record-open';
       const reloadGet=page.waitForResponse(resp=>resp.url().includes(pathForId(id))
         &&resp.request().method()==='GET',{timeout:30000});
       await page.getByText('Analyse enregistrée').first().click();
@@ -457,6 +480,7 @@ try {
       assert(Math.abs(await getPointX(page)-(originalN.x+11))<0.0001,
         'History reload did not show durable SQLite correction');
       assert((await verifySvg(page,redone.landmarks_data))===38,'History image-space mismatch');
+      browserPhase='after-history-reload-capture';
       const afterReload=await shot(page,film,'all','1600x1000','api-reload');
       // Allow non-fatal font fetch console messages, but never API 401/403
       // during authenticated product use (negative probes use anon context).
@@ -464,8 +488,13 @@ try {
       const criticalHttp=badResponses.filter(r=>r.url.startsWith('/api/') ||
         (r.resourceType==='script' && r.status>=400));
       if(relevantErrors.length || criticalHttp.length || badResponses.length){
+        const evidence=await Promise.all(failedResponseBodies);
+        const authenticatedConfirm=await context.request.get(origin+pathForId(id))
+          .then(async response=>({status:response.status(),body:(await response.text()).slice(0,160)}))
+          .catch(error=>({error:String(error).slice(0,160)}));
         await writeFile(path.join(out,film+'-browser-http-diagnostic.json'),
-          JSON.stringify({film,relevantErrors,criticalHttp,badResponses},null,2));
+          JSON.stringify({film,phaseAtEvaluation:browserPhase,relevantErrors,
+            criticalHttp,badResponses,evidence,authenticatedConfirm},null,2));
       }
       assert(relevantErrors.length===0 && criticalHttp.length===0,'Browser errors '+film+': '+relevantErrors.join(' | ').slice(0,700)
         +' HTTP='+JSON.stringify(badResponses).slice(0,1800));
