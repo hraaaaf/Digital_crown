@@ -209,7 +209,10 @@ jobs:
           if(r.progressiveLabelProof?.length!==2
             ||new Set(r.progressiveLabelProof.map(x=>x.film)).size!==2
             ||r.progressiveLabelProof.some(x=>!x.valid||x.essentialCount!==10
-              ||x.fullCount!==38||x.handles!==38||!x.hoverLabel
+              ||x.fullCount!==38||x.handles!==38||!x.conciseNames
+              ||x.visualPoints?.count!==38||!x.visualPoints.darkContours||!x.visualPoints.allFinite
+              ||x.visualPoints.sizes?.length!==38||!x.visualPoints.sizes.every(px=>px>=4&&px<=8)
+              ||!x.hoverLabel
               ||!x.hoverCleared||!x.focusLabel||!x.focusCleared
               ||x.editedByDisclosure!==false))
             throw Error('Real desktop progressive label evidence missing');

@@ -155,6 +155,12 @@ async function captureViewport(viewport,attempt){
     const labelNodes=page.locator('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label]');
     const defaultNames=await labelNodes.count();
     const allHandles=await page.locator('[data-ceph03b-drag-handle]').count();
+    const dotWitness=await page.locator('[data-cephalo-point-core]').evaluateAll(nodes=>({
+      count:nodes.length,
+      diameters:nodes.map(el=>Number(el.getBoundingClientRect().width.toFixed(2))),
+      darkContours:nodes.every(el=>el.getAttribute('stroke')==='#020617'),
+      allFinite:nodes.every(el=>['cx','cy','r'].every(k=>Number.isFinite(Number(el.getAttribute(k))))),
+    }));
     const essentialScreenshot=`after-desktop-essential-${viewport.name}.png`;
     await page.screenshot({path:path.join(OUTPUT_DIR,essentialScreenshot),fullPage:false});
     const secondary=page.locator('[data-ceph03b-drag-handle="Prn"]');
@@ -169,6 +175,9 @@ async function captureViewport(viewport,attempt){
     const focusClearsName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
     await nameToggle.click();
     const fullNames=await labelNodes.count();
+    const renderedShortNames=await labelNodes.evaluateAll(nodes=>nodes.map(el=>el.textContent?.trim()??''));
+    const shortNameWitness=['U1','L1','U1 A','L1 A','N′','Pog′'].every(x=>renderedShortNames.includes(x))
+      &&renderedShortNames.every(x=>x.length<=8&&!x.includes('_'));
     const allPressed=await nameToggle.getAttribute('aria-pressed');
     const exhaustiveScreenshot=`after-desktop-all-names-${viewport.name}.png`;
     await page.screenshot({path:path.join(OUTPUT_DIR,exhaustiveScreenshot),fullPage:false});
@@ -176,10 +185,12 @@ async function captureViewport(viewport,attempt){
     const restoredNames=await labelNodes.count();
     const defaultPressed=await nameToggle.getAttribute('aria-pressed');
     await nameToggle.click(); // Retain old all-name evidence for every analysis below.
-    const progressiveProof={defaultNames,allHandles,analysisMajorProof,secondaryDefaultHidden,hoverExposesName,
+    const progressiveProof={defaultNames,allHandles,analysisMajorProof,dotWitness,shortNameWitness,secondaryDefaultHidden,hoverExposesName,
       hoverClearsName,focusExposesName,focusClearsName,fullNames,restoredNames,
       allPressed,defaultPressed,essentialScreenshot,exhaustiveScreenshot,
       valid:analysisMajorProof.every(mode=>mode.valid)&&allHandles===29&&defaultNames===10
+        &&dotWitness.count===29&&dotWitness.darkContours&&dotWitness.allFinite
+        &&dotWitness.diameters.every(px=>px>=4&&px<=8)&&shortNameWitness
         &&secondaryDefaultHidden&&hoverExposesName&&hoverClearsName
         &&focusExposesName&&focusClearsName&&fullNames===29
         &&restoredNames===defaultNames&&allPressed==='true'&&defaultPressed==='false'};

@@ -331,6 +331,18 @@ try {
         &&essentialNames.every(id=>essential100.ids.includes(id))
         &&await page.locator('[data-ceph03b-drag-handle]').count()===38,
         'Desktop 38-point essential-only display invalid '+film+' '+JSON.stringify(essential100));
+      // Actual rendered SVG points must remain clearly visible, small and
+      // contrast outlined at the final desktop CSS scale. Source coordinates
+      // continue to be tested independently against authenticated SQLite.
+      const visualPoints=await page.locator('[data-cephalo-point-core]').evaluateAll(nodes=>({
+        count:nodes.length,
+        sizes:nodes.map(el=>Number(el.getBoundingClientRect().width.toFixed(2))),
+        darkContours:nodes.every(el=>el.getAttribute('stroke')==='#020617'),
+        allFinite:nodes.every(el=>['cx','cy','r'].every(k=>Number.isFinite(Number(el.getAttribute(k))))),
+      }));
+      assert(visualPoints.count===38&&visualPoints.darkContours&&visualPoints.allFinite
+        &&visualPoints.sizes.every(px=>px>=4&&px<=8),
+        'REAL FILM DESKTOP POINT SIZE/VISIBILITY REGRESSION '+film+' '+JSON.stringify(visualPoints));
       const essential1280=await shot(page,film,'all','1280x900','essential-names');
       const secondary=page.locator('[data-ceph03b-drag-handle="Prn"]');
       assert(await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0,
@@ -354,6 +366,15 @@ try {
       assert(await nameToggle.getAttribute('aria-pressed')==='true','All-name toggle not activated '+film);
       const all100=await labelMetrics();
       assertNames(all100,38,'ALL100');
+      const fullDisplayNames=await page.locator('[data-cephalo-landmark-label]').evaluateAll(nodes=>
+        nodes.map(el=>el.textContent?.trim()??''));
+      const mandatoryAbbreviations=['U1','L1','U1 A','L1 A','N′','Pog′','ENA','ENP'];
+      const conciseNames=fullDisplayNames.length===38
+        &&mandatoryAbbreviations.every(name=>fullDisplayNames.includes(name))
+        &&fullDisplayNames.every(name=>name.length<=5&&!name.includes('_'))
+        &&new Set(fullDisplayNames).size===38;
+      assert(conciseNames,'French short labels must be unique and source-ID backed on '+film
+        +' '+JSON.stringify(fullDisplayNames));
       await nameToggle.click();
       assert(await nameToggle.getAttribute('aria-pressed')==='false'
         &&(await labelMetrics()).visible===essentialNames.length,
@@ -361,7 +382,7 @@ try {
       await nameToggle.click(); // Existing 38/38 and COM 9/9 at 150%/pan remain strict.
       const full1280=await shot(page,film,'all','1280x900','all-names');
       progressiveLabelProof.push({film,essentialCount:essential100.visible,fullCount:all100.visible,
-        handles:38,hoverLabel,hoverCleared,focusLabel,focusCleared,editedByDisclosure:false,
+        handles:38,visualPoints,conciseNames,hoverLabel,hoverCleared,focusLabel,focusCleared,editedByDisclosure:false,
         essential1280,full1280,valid:true});
       const anatomicalProof=await proximity();
       assert(anatomicalProof.finite&&anatomicalProof.total===38&&anatomicalProof.medianPx<125,
