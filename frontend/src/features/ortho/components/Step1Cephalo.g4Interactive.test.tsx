@@ -155,7 +155,8 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     expect(menu.open).toBe(true);
     expect(menu.querySelectorAll('[data-r23-point-select]')).toHaveLength(38);
     fireEvent.click(screen.getByRole('button',{name:'Inspecter le repère P07'}));
-    expect(state.setActivePointId).toHaveBeenCalledExactlyOnceWith(null);
+    expect(state.setActivePointId).toHaveBeenCalledTimes(1);
+    expect(state.setActivePointId).toHaveBeenCalledWith(null);
     expect(state.setActivePointId).not.toHaveBeenCalledWith('P07');
     expect(screen.getByText('Cephalo base stage').getAttribute('data-inspected-point')).toBe('P07');
     expect(menu.open).toBe(false);
