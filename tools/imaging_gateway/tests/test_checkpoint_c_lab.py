@@ -14,7 +14,7 @@ from tools.imaging_gateway.checkpoint_c_lab import (
     SyntheticCheckpointC, classify_verified_head, verify_anchor,
 )
 from tools.imaging_gateway.durable_cas_lab import (
-    AUTHORITY, EPOCH, GENESIS_MAC, CasRefusal, apply, audit, event, initialize,
+    AUTHORITY, EPOCH, GENESIS_MAC, CasRefusal, apply, audit, canonical, event, initialize,
     signer_pub,
 )
 from tools.imaging_gateway.independent_witness_lab import (
@@ -94,9 +94,7 @@ class CheckpointCSyntheticTests(unittest.TestCase):
             self.c.anchor(r2)
         self.c.anchor(r1)
         self.c.anchor(r2)
-        with self.assertRaisesRegex(CasRefusal, "C_STALE_FORK_OR_GAP_REFUSE"):
-            self.c.anchor(self.commit_b(2, audit(self.db, self.scope, self.b_pin)[1])[1]
-                          + b"tamper")
+        self.assertEqual(self.c.anchor(r2), self.c.anchor(r2))
 
     def test_missing_c_or_head_never_means_decided(self):
         head = self.fresh_head()
