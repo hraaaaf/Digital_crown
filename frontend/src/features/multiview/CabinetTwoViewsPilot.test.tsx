@@ -68,10 +68,17 @@ describe('Vues multiples Cabinet — deux véritables modules liés à un patien
     expect(screen.queryByTestId('module-suivi-reel')).toBeNull();
     expect(screen.getByText('DOS-17')).toBeTruthy();
   });
+  it('formate un horodatage ISO sans décaler la date civile', () => {
+    desktop = true;
+    render(<CabinetTwoViewsPilot patient={{ ...patient, date_naissance: '2001-01-01T00:00:00' }} canCephalo />);
+    expect(screen.getByText('01/01/2001')).toBeTruthy();
+    expect(screen.queryByText('2001-01-01T00:00:00')).toBeNull();
+  });
   it('affiche une date invalide comme non renseignée, sans fabriquer une naissance', () => {
     desktop = true;
     render(<CabinetTwoViewsPilot patient={{ ...patient, date_naissance: '2001-02-31T00:00:00' }} canCephalo />);
-    expect(screen.getByText('Non renseigné')).toBeTruthy();
+    const birth = screen.getByText('Naissance').closest('div');
+    expect(birth?.querySelector('dd')?.textContent).toBe('Non renseigné');
     expect(screen.queryByText('03/03/2001')).toBeNull();
   });
   it('redimensionne au clavier, échange les panneaux et permet de tout rétablir', () => {
