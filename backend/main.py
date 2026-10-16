@@ -656,12 +656,15 @@ from backend.routers import (
     bot, catalog, motifs, verification, analytics, agenda_settings, agenda_resources, medications, frontdesk, partner_orders, partner_catalog, workstation_mode, station_patient_session
 )
 from backend.routers import ai_feedback as ai_feedback_router
+# LOT06-B: isolated, lab-only preflight; never writes clinical media.
+from backend.routers import imaging_acquisition_preflight_v15
 from backend.routers import legacy_migration_v15 as legacy_migration_router
 
 app.include_router(legacy_migration_router.router, prefix="/api/migration", tags=["Migration — construction"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
 app.include_router(workstation_mode.router, prefix="/api/workstation", tags=["Workstation Mode"])
+app.include_router(imaging_acquisition_preflight_v15.router, prefix="/api/imaging-acquisitions", tags=["Imaging Acquisition Preflight"])
 app.include_router(station_patient_session.router, prefix="/api/workstation", tags=["Station Patient Session"])
 app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
 app.include_router(ia.router, prefix="/api/ia", tags=["IA & Analysis"])
