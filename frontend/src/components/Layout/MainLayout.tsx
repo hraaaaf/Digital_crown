@@ -55,6 +55,11 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
   const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
   const [isBotOpen, setIsBotOpen] = useState(false);
+  // CB-01 experiment: DESKTOP web only, double opted-in alongside the existing
+  // non-executable preview. The real cabinet defaults to the old floating UI.
+  const associateSidecarEnabled =
+    import.meta.env.VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED === 'true'
+    && import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
@@ -120,6 +125,32 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
+      {associateSidecarEnabled && isBotOpen && (
+        <aside
+          data-cb01-associate-sidecar
+          aria-label="Crown Bot — assistant latéral expérimental"
+          className="relative z-20 hidden h-full min-h-0 w-[clamp(360px,30vw,480px)] shrink-0 flex-col border-l border-slate-200 bg-white shadow-2xl xl:flex"
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-800">Crown Bot · Associate</p>
+              <p className="text-[11px] text-slate-500">Aperçu expérimental — aucune écriture</p>
+            </div>
+            <button
+              type="button"
+              aria-label="Réduire le panneau Crown Bot"
+              onClick={() => setIsBotOpen(false)}
+              className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Réduire
+            </button>
+          </div>
+          <div className="min-h-0 flex-1">
+            <CrownBotChat onClose={() => setIsBotOpen(false)} onUnreadChange={setGhostUnreadCount} />
+          </div>
+        </aside>
+      )}
+
       <div
         data-ux1-c-crownbot-floating
         className={`${isPatientRoute ? 'hidden lg:block' : ''} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
@@ -147,7 +178,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className={`fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
+            className={`fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${associateSidecarEnabled ? 'xl:hidden ' : ''}${
               isPatientRoute
                 ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
                 : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
