@@ -94,26 +94,11 @@ def _find_conflicts(
     """
     datetime_start = _naive_datetime(datetime_start)
     end = datetime_start + timedelta(minutes=duration_minutes)
-    # Push true interval-end comparison into SQL to avoid ORM hydration of
-    # the entire historic cabinet calendar. Both expressions have a matching
-    # schema index and handle arbitrarily long historical bookings correctly.
-    # The SQLite expression is also supported by real file-backed SQLCipher.
-    from sqlalchemy import Float, DateTime, func, literal_column
-    dialect = db.get_bind().dialect.name
-    if dialect == "postgresql":
-        end_expr = literal_column(
-            "(appointments.datetime_start + appointments.duration_minutes * INTERVAL '1 minute')",
-            type_=DateTime(),
-        )
-        overlaps = end_expr > datetime_start
-    elif dialect == "sqlite":
-        end_julian = literal_column(
-            "(julianday(appointments.datetime_start) + appointments.duration_minutes / 1440.0)",
-            type_=Float(),
-        )
-        overlaps = end_julian > func.julianday(datetime_start)
-    else:
-        raise RuntimeError("Unsupported clinical booking conflict dialect")
+    # Indexed conservative SQL prefilter; final Python interval check is exact.
+    from backend.services.agenda_interval_overlap import (
+        indexed_end_after, exact_half_open_overlap,
+    )
+    overlaps = indexed_end_after(db, datetime_start)
 
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
@@ -132,7 +117,13 @@ def _find_conflicts(
         )
     if exclude_id:
         q = q.filter(models.Appointment.id != exclude_id)
-    return q.all()  # DB filters both interval boundaries before loading rows
+    return [
+        row for row in q.all()
+        if exact_half_open_overlap(
+            _naive_datetime(row.datetime_start), row.duration_minutes,
+            datetime_start, end,
+        )
+    ]
 
 
 def _appointments_overlap(start_a: datetime, duration_a: int, start_b: datetime, duration_b: int) -> bool:
