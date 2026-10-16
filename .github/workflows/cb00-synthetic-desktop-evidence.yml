@@ -94,21 +94,50 @@ jobs:
         run: |
           python - <<'PY'
           import json, os
+          from datetime import datetime
           from backend import database, models
           with database.SessionLocal() as db:
+              owner = db.query(models.User).filter(
+                  models.User.email == 't2-browser@cabinet.ma').one()
+              foreign_owner = db.query(models.User).filter(
+                  models.User.email == 't2-setup-390@cabinet.ma').one()
+              assert owner.id != foreign_owner.id, 'T2 owners must be isolated'
               p = db.query(models.Patient).filter(
-                  models.Patient.numero_dossier == 'T2-0001').first()
-              assert p is not None and p.employer_id is not None
+                  models.Patient.numero_dossier == 'T2-0001',
+                  models.Patient.employer_id == owner.id).one()
+              foreign = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'CB00-FR-0001',
+                  models.Patient.employer_id == foreign_owner.id).one_or_none()
+              if foreign is None:
+                  foreign = models.Patient(
+                      numero_dossier='CB00-FR-0001', nom='FICTIF',
+                      prenom='EXTERNE', date_naissance=datetime(1990, 1, 1),
+                      sexe='F', employer_id=foreign_owner.id)
+                  db.add(foreign)
+                  db.commit()
+                  db.refresh(foreign)
+              assert foreign.id != p.id
+              assert foreign.employer_id == foreign_owner.id
+              assert foreign.employer_id != p.employer_id
+              assert foreign.deleted_at is None
+              unknown = db.query(models.Patient).order_by(
+                  models.Patient.id.desc()).first().id + 10000
+              assert 0 < unknown < 10 ** 10
+              assert db.query(models.Patient).filter(
+                  models.Patient.id == unknown).first() is None
               before = {
                   'appointments': db.query(models.Appointment).count(),
                   'pending_actions': db.query(models.BotPendingAction).count(),
               }
+              patient_id, foreign_id = p.id, foreign.id
           with open('/tmp/cb00-clinical-before.json', 'w') as f:
               json.dump(before, f)
           with open(os.environ['GITHUB_ENV'], 'a') as f:
-              f.write('T2_PATIENT_ID=' + str(p.id) + '\n')
+              f.write('T2_PATIENT_ID=' + str(patient_id) + '\n')
+              f.write('T2_FOREIGN_PATIENT_ID=' + str(foreign_id) + '\n')
+              f.write('T2_UNKNOWN_PATIENT_ID=' + str(unknown) + '\n')
               f.write('T2_DENIED_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
-          print('Synthetic fixture + two-table clinical count baseline ready')
+          print('PASS: two seeded T2 cabinet owners are distinct, foreign patient exists in DB; unknown ID absent; baseline taken after synthetic fixture')
           PY
       - name: Measure useful HTTP patient read p50 / p95
         shell: bash
