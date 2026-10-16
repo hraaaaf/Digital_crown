@@ -56,8 +56,11 @@ jobs:
       - name: Generate isolated runtime credential
         shell: bash
         run: |
+          set -euo pipefail
           echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
-          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
 
       - name: Source contract
         run: |
@@ -73,6 +76,8 @@ jobs:
           assert 'sha256' not in media
           assert 'process.env.T2_USER' in browser
           assert 'process.env.T2_PASSWORD' in browser
+          launcher = Path('frontend/scripts/run-with-t2-workstation.mjs').read_text(encoding='utf-8')
+          assert 'enrollT2Workstation' in launcher
           PY
 
       - name: Install backend
@@ -153,7 +158,10 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p ../artifacts/media-c5
-          node scripts/certify-media-c5-browser.mjs 2>&1 | tee ../artifacts/media-c5/runner.log
+          # The protected Patient route requires an enrolled workstation cookie.
+          # Reuse the same certified isolated T2 bootstrap as the green G1 proof;
+          # never disable runtime workstation or patient authorization gates.
+          node scripts/run-with-t2-workstation.mjs scripts/certify-media-c5-browser.mjs 2>&1 | tee ../artifacts/media-c5/runner.log
 
       - name: Dump runtime logs on failure
         if: failure()
