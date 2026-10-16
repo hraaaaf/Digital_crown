@@ -127,12 +127,14 @@ class SyntheticCheckpointC:
         self._previous_sha = "0" * 64
         self._latest = self._sign("0" * 32, "0" * 64, self._previous_sha)
 
-    def _sign(self, op_id: str, receipt_sha: str, prev_sha: str,\n              *, seq: int | None = None, mac: str | None = None) -> dict:
+    def _sign(self, op_id: str, receipt_sha: str, prev_sha: str,
+              *, seq: int | None = None, mac: str | None = None) -> dict:
         body = {
             "protocol": PROTOCOL, "authority_id": AUTHORITY, "epoch": EPOCH,
             "scope": self.scope,
             "witness_pin_sha256": hashlib.sha256(self.witness_pin).hexdigest(),
-            "seq": self._head_seq if seq is None else seq,\n            "mac": self._head_mac if mac is None else mac,
+            "seq": self._head_seq if seq is None else seq,
+            "mac": self._head_mac if mac is None else mac,
             "op_id": op_id, "receipt_sha256": receipt_sha,
             "prev_checkpoint_sha256": prev_sha,
         }
@@ -170,8 +172,9 @@ class SyntheticCheckpointC:
                 "C_STALE_FORK_OR_GAP_REFUSE")
         _refuse(self._head_seq < 256, "C_ANCHOR_LIMIT_REFUSE")
         previous_sha = hashlib.sha256(canonical(self._latest)).hexdigest()
+        result = self._sign(op_id, hashlib.sha256(receipt).hexdigest(), previous_sha,
+                            seq=body["after_seq"], mac=body["after_mac"])
         self._head_seq, self._head_mac = body["after_seq"], body["after_mac"]
-        result = self._sign(op_id, hashlib.sha256(receipt).hexdigest(), previous_sha)
         # This is ONLY in-process ordering, not an atomic/durable C/WORM proof.
         self._ops[op_id] = (receipt, result)
         self._latest = result
