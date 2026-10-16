@@ -22,6 +22,7 @@ const state = vi.hoisted(() => ({
   local:{landmarks:[{id:'S',x:10,y:20}],version:1},
   landmarkEditTimeline:{baseline:[{id:'S',x:10,y:20}],undoStack:[],redoStack:[],auditTrail:[],nextSequence:1} as any,
   setMagnifierEnabled:vi.fn(),
+  setIsStep1Fullscreen:vi.fn(),
   setVtoSettings:vi.fn(),
   setActiveMorphing:vi.fn(),
   setLayerVisible:vi.fn(),
@@ -73,6 +74,18 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     expect(screen.getByText('Cephalo base stage')).toBeTruthy();
     expect(screen.queryByRole('button',{name:'Loupe'})).toBeNull();
+  });
+
+  it('lets a first-time desktop clinician reach the existing fullscreen radiograph in one click',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const cta=document.querySelector('[data-cephalo-focus-entry="desktop"]') as HTMLButtonElement;
+    expect(cta).toBeTruthy();
+    expect(cta.getAttribute('aria-label')).toBe('Agrandir la radiographie en mode focus');
+    expect(cta.className).toContain('xl:inline-flex');
+    fireEvent.click(cta);
+    expect(state.setIsStep1Fullscreen).toHaveBeenCalledWith(true);
+    expect(document.querySelector('[data-r20-radiograph-stage]')).toBeTruthy();
+    expect(document.querySelector('[data-r20-measures-panel]')).toBeTruthy();
   });
 
   it('reserves a readable desktop analysis selector without shrinking the clinical measurement panel',()=>{

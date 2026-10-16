@@ -150,6 +150,7 @@ export interface CephaloAnatomicalLabel {
 }
 export function layoutCephaloAnatomicalLabels(
   landmarks: Pick<Landmark,'id'|'x'|'y'>[], viewport: string, unitsPerPixel: number,
+  originalImageWidth?: number,
 ): Map<string, CephaloAnatomicalLabel> {
   const result=new Map<string,CephaloAnatomicalLabel>();
   const v=viewport.trim().split(/\s+/).map(Number);
@@ -161,10 +162,18 @@ export function layoutCephaloAnatomicalLabels(
   if(W<250||H<290)return result;
   const edge=15,h=21,gap=3;
   type Box={l:number;t:number;r:number;b:number};
+  // At 150–200% zoom the toolbar gains four pan buttons, almost doubling
+  // its footprint. The labels and radiograph controls share a screen space,
+  // so keep that part of the canvas free of text at both zoom states.
+  // This is display-only geometry, not anatomical repositioning.
+  const zoomed=originalImageWidth !== undefined && Number.isFinite(originalImageWidth)
+    && originalImageWidth>0 && vw<originalImageWidth-.5;
+  const zoomDockWidth=Math.min(W-12,zoomed?Math.min(440,W*.82):220);
+  const zoomDockHeight=zoomed?108:76;
   const forbidden:Box[]=[
     {l:W*.16,t:36,r:W*.87,b:92},
     {l:W-112,t:0,r:W,b:88},
-    {l:0,t:H-58,r:190,b:H},
+    {l:0,t:H-zoomDockHeight,r:zoomDockWidth,b:H},
     {l:W-115,t:H-53,r:W,b:H},
   ];
   const intersect=(a:Box,b:Box,p=gap)=>

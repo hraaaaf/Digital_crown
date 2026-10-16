@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ruler, DraftingCompass, ZoomIn, SlidersHorizontal, ScanFace, Wand2, Layers3 } from 'lucide-react';
+import { Ruler, DraftingCompass, ZoomIn, SlidersHorizontal, ScanFace, Wand2, Layers3, Maximize2 } from 'lucide-react';
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -74,6 +74,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const undoLandmarkEdit = useOrthoStore(state => state.undoLandmarkEdit);
   const redoLandmarkEdit = useOrthoStore(state => state.redoLandmarkEdit);
   const resetLandmarkEdits = useOrthoStore(state => state.resetLandmarkEdits);
+  const setIsStep1Fullscreen = useOrthoStore(state => state.setIsStep1Fullscreen);
   const [analysis, setAnalysis] = React.useState<CephaloAnalysisMode>('all');
 
   React.useEffect(() => {
@@ -132,6 +133,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <span className="mt-2 inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold uppercase tracking-wide" style={{ borderColor: props.P.border, color: props.P.textMuted }}>
             Analyse active
           </span>
+          <button type="button"
+            data-cephalo-focus-entry="desktop"
+            aria-label="Agrandir la radiographie en mode focus"
+            title="Voir les repères en grand ; touche Échap pour revenir"
+            onClick={() => setIsStep1Fullscreen(true)}
+            className="mt-3 hidden min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-2 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 xl:inline-flex"
+            style={{ background: props.P.bgCard, borderColor: props.P.borderFocus, color: props.P.text }}
+          >
+            <Maximize2 size={15} aria-hidden="true" /> Focus radiographie
+          </button>
         </div>
 
         <section aria-label="Analyses céphalométriques prêtes à l’emploi" className="mt-3 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
@@ -150,7 +161,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             ))}
           </select>
           <p className="mt-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>
-            Tracés et mesures synchronisés. Données manquantes non estimées.
+            {analysis === 'all'
+              ? 'Tous les repères affichés. Choisissez une analyse pour isoler ses tracés.'
+              : 'Analyse ciblée : les calculs et les repères source restent inchangés.'}
+            {' '}Données manquantes non estimées.
           </p>
         </section>
 

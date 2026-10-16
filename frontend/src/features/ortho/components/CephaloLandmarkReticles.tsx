@@ -97,9 +97,9 @@ export const CephaloLandmarkReticles = ({
     ? layoutCephaloAnatomicalLabels(
         landmarks.map(point => activeDragPos?.id === point.id
           ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
-        labelViewport, unitsPerPixel,
+        labelViewport, unitsPerPixel, imageWidth,
       )
-    : new Map(), [compactLabels, landmarks, activeDragPos, labelViewport, unitsPerPixel]);
+    : new Map(), [compactLabels, landmarks, activeDragPos, labelViewport, unitsPerPixel, imageWidth]);
   const labelFontSize = compactLabels
     ? 16 * Math.max(0.1, Math.min(unitsPerPixel, 30))
     : cephaloLabelFontSize(imageWidth, imageHeight);

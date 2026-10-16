@@ -160,3 +160,26 @@ describe('BEFORE 2.0 anatomical non-container labels',()=>{
     expect(layoutCephaloAnatomicalLabels(dense,'0 0 100 100',1).size).toBe(0);
   });
 });
+
+describe('R22 zoom dock never obscures anatomical labels',()=>{
+  const landmarks=[
+    {id:'Go',x:840,y:1150},{id:'Me',x:1120,y:1050},
+    {id:'N',x:1050,y:360},{id:'Po',x:450,y:510},
+  ];
+  it('reserves expanded bottom-left pan controls at 150% without moving landmarks',()=>{
+    const before=JSON.stringify(landmarks);
+    const layout=layoutCephaloAnatomicalLabels(landmarks,'0 0 1500 1200',3,2272);
+    expect(layout.size).toBe(landmarks.length);
+    const W=500,H=400, dockWidth=Math.min(440,W*.82);
+    for(const p of layout.values()){
+      const l=p.x/3,t=p.y/3-17,r=(p.x+p.width)/3,b=p.y/3+4;
+      expect(r<=0||l>=dockWidth||b<=H-108||t>=H,
+        p.id+' hidden under pan controls').toBe(true);
+    }
+    expect(JSON.stringify(landmarks)).toBe(before);
+  });
+  it('keeps only the compact zoom dock reserved at 100%',()=>{
+    const layout=layoutCephaloAnatomicalLabels(landmarks,'0 0 2272 1818',3,2272);
+    expect(layout.size).toBe(landmarks.length);
+  });
+});
