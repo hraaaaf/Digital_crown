@@ -19,6 +19,7 @@ const F5_ENGINEERING_PREVIEW = import.meta.env.VITE_F5_ENGINEERING_PREVIEW === '
 
 interface Props {
   patientId: number;
+  embedded?: boolean;
 }
 
 const evidenceIcon = (kind: string) => {
@@ -60,7 +61,7 @@ const EvidenceLane = ({ items, onOpen }: { items: OrthoCompareEvidence[]; onOpen
   </div>
 );
 
-export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
+export const OrthoLongitudinalComparePanel = ({ patientId, embedded = false }: Props) => {
   const [, setSearchParams] = useSearchParams();
   const [fromOrdinal, setFromOrdinal] = useState<number | null>(null);
   const [toOrdinal, setToOrdinal] = useState<number | null>(null);
@@ -97,7 +98,10 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
     enabled: caseId !== null && fromOrdinal !== null && toOrdinal !== null && fromOrdinal !== toOrdinal,
   });
 
-  if (caseQuery.isLoading || timepointsQuery.isLoading) return null;
+  if (caseQuery.isLoading || timepointsQuery.isLoading) {
+    if (!embedded) return null;
+    return <section role="status" className="rounded-xl border border-border-main bg-card p-4 text-sm text-text-muted">Chargement du suivi orthodontique…</section>;
+  }
   if (caseQuery.isError || timepointsQuery.isError) {
     return (
       <section className="rounded-[2rem] border border-border-main bg-card-bg p-5 shadow-sm">
@@ -106,7 +110,19 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
       </section>
     );
   }
-  if (!caseQuery.data || timepoints.length === 0) return null;
+  if (!caseQuery.data || timepoints.length === 0) {
+    if (!embedded) return null;
+    return (
+      <section role="status" aria-label="Suivi orthodontique sans repères" className="rounded-xl border border-border-main bg-card p-4 text-text-main">
+        <p className="text-sm font-semibold">
+          {caseQuery.data ? 'Aucun repère orthodontique enregistré' : 'Aucun suivi orthodontique disponible'}
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-text-muted">
+          La comparaison T0 / T1 nécessite deux repères de suivi enregistrés pour ce patient. Les photographies de la médiathèque ne constituent pas des mesures céphalométriques.
+        </p>
+      </section>
+    );
+  }
 
   if (timepoints.length === 1) {
     return (

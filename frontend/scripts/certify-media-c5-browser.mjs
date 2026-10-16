@@ -68,37 +68,68 @@ for (const viewport of viewports) {
   if (!filteredText) throw new Error('C5 server search did not narrow media list to 1/1');
   await search.fill('');
 
-  const addButtons = page.getByRole('button', { name: 'Ajouter à la comparaison' });
-  await addButtons.nth(0).click();
-  await addButtons.nth(1).click();
+  // Select a real T0/T1 pair from authenticated MEDIA API rows.
+  // The first two rail buttons are not a stable chronological pair (the previous
+  // C5 artifact proved T0 ↔ T2 instead of the requested T0 ↔ T1).
+  const mediaRail = page.getByTestId('media-asset-rail');
+  await mediaRail.locator('section[aria-label="Temps T0"]')
+    .getByRole('button', { name: 'Ajouter à la comparaison' }).first().click();
+  await mediaRail.locator('section[aria-label="Temps T1"]')
+    .getByRole('button', { name: 'Ajouter à la comparaison' }).first().click();
   const comparePanel = page.getByTestId('media-compare-panel');
   await comparePanel.waitFor({ state: 'visible', timeout: 30000 });
+  const comparisonLabel = (await comparePanel.locator('h3').first().innerText()).trim();
+  if (comparisonLabel !== 'T0 ↔ T1' && comparisonLabel !== 'T1 ↔ T0') {
+    throw new Error('C5 must compare genuine T0/T1 assets, got ' + comparisonLabel);
+  }
 
   // Observe the application's own positioning. The certification must not scroll
   // the panel itself, otherwise it can hide or manufacture a sticky-header defect.
   await page.waitForTimeout(400);
   const visualFrame = await page.evaluate(() => {
-    const header = document.querySelector('header.sticky');
+    // Tailwind's "lg:sticky" is a literal class token; "header.sticky"
+    // never matched this patient header, making every viewport fail with null.
+    const header = document.querySelector('header[class~="lg:sticky"]');
     const panel = document.querySelector('[data-testid="media-compare-panel"]');
     const workspace = document.querySelector('[data-testid="patient-media-timeline"]');
     if (!(header instanceof HTMLElement) || !(panel instanceof HTMLElement) || !(workspace instanceof HTMLElement)) {
-      return { stickyOverlap: true, workspaceOverlap: true, headerBottom: null, panelTop: null, workspaceTop: null };
+      return {
+        missing: { header: !(header instanceof HTMLElement), panel: !(panel instanceof HTMLElement), workspace: !(workspace instanceof HTMLElement) },
+        headerModeCorrect: false, stickyOverlap: true, workspaceOverlap: true,
+        headerBottom: null, panelTop: null, workspaceTop: null,
+      };
     }
-    const headerBottom = Math.round(header.getBoundingClientRect().bottom);
-    const panelTop = Math.round(panel.getBoundingClientRect().top);
-    const workspaceTop = Math.round(workspace.getBoundingClientRect().top);
+    const headerBox = header.getBoundingClientRect();
+    const panelBox = panel.getBoundingClientRect();
+    const workspaceBox = workspace.getBoundingClientRect();
+    const headerPosition = getComputedStyle(header).position;
+    const headerExpectedSticky = matchMedia('(min-width: 1024px)').matches;
+    // Both axes must genuinely intersect by >2 CSS pixels. Merely being
+    // within 8px of the header is not overlap. Check only visible geometry.
+    const overlapsHeader = (box) => (
+      headerBox.bottom > 0 && headerBox.top < innerHeight &&
+      box.bottom > 0 && box.top < innerHeight &&
+      Math.min(headerBox.right, box.right) - Math.max(headerBox.left, box.left) > 2 &&
+      Math.min(headerBox.bottom, box.bottom) - Math.max(headerBox.top, box.top) > 2
+    );
     return {
-      stickyOverlap: panelTop < headerBottom + 8,
-      workspaceOverlap: workspaceTop < headerBottom + 8,
-      headerBottom,
-      panelTop,
-      workspaceTop,
+      headerPosition,
+      headerExpectedSticky,
+      headerModeCorrect: headerExpectedSticky ? headerPosition === 'sticky' : headerPosition === 'static',
+      stickyOverlap: overlapsHeader(panelBox),
+      workspaceOverlap: overlapsHeader(workspaceBox),
+      headerTop: Math.round(headerBox.top),
+      headerBottom: Math.round(headerBox.bottom),
+      panelTop: Math.round(panelBox.top),
+      panelBottom: Math.round(panelBox.bottom),
+      workspaceTop: Math.round(workspaceBox.top),
+      workspaceBottom: Math.round(workspaceBox.bottom),
     };
   });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   const shot = `c5-after-compare-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
-  evidence.push({ viewport, shot, overflow, visualFrame, pageErrors, http5xx });
+  evidence.push({ viewport, shot, comparisonLabel, overflow, visualFrame, pageErrors, http5xx });
   await context.close();
 }
 
@@ -106,6 +137,7 @@ await browser.close();
 await api.dispose();
 const invalid = evidence.flatMap((row) => [
   ...(row.overflow ? [{ viewport: row.viewport, reason: 'overflow' }] : []),
+  ...(!row.visualFrame?.headerModeCorrect ? [{ viewport: row.viewport, reason: 'header-mode-or-DOM-mismatch', visualFrame: row.visualFrame }] : []),
   ...(row.visualFrame?.stickyOverlap ? [{ viewport: row.viewport, reason: 'sticky-overlap', visualFrame: row.visualFrame }] : []),
   ...(row.visualFrame?.workspaceOverlap ? [{ viewport: row.viewport, reason: 'workspace-sticky-overlap', visualFrame: row.visualFrame }] : []),
   ...row.pageErrors.map((error) => ({ viewport: row.viewport, reason: 'pageerror', error })),

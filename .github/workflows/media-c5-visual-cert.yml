@@ -25,6 +25,7 @@ jobs:
       ENVIRONMENT: test
       SECRET_KEY: media-c5-certification-secret-key-long-enough
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
       TELEMETRY_ENABLED: 'false'
       CLOUD_AI_ENABLED: 'false'
       DEBUG: 'false'
@@ -55,8 +56,11 @@ jobs:
       - name: Generate isolated runtime credential
         shell: bash
         run: |
+          set -euo pipefail
           echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
-          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
 
       - name: Source contract
         run: |
@@ -72,6 +76,8 @@ jobs:
           assert 'sha256' not in media
           assert 'process.env.T2_USER' in browser
           assert 'process.env.T2_PASSWORD' in browser
+          launcher = Path('frontend/scripts/run-with-t2-workstation.mjs').read_text(encoding='utf-8')
+          assert 'enrollT2Workstation' in launcher
           PY
 
       - name: Install backend
@@ -97,15 +103,42 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Start isolated backend
+      - name: Attest disposable C5 database target (keep runtime boot policy)
+        shell: bash
         run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint, is_known_cabinet_database
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["ENVIRONMENT"] == "test"
+          assert os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] == "1"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target), "Never attest known clinic database"
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(target))
+          PY
+
+      - name: Start isolated backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test -n "${DIGITALCROWN_ISOLATION_DB_FINGERPRINT:-}"
           rm -f t2-runtime-cert.db
           python scripts/t2_runtime_server.py > /tmp/c5-backend.log 2>&1 &
+          backend_pid=$!
           for i in {1..90}; do
-            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              echo "C5 isolated backend exited before /health"
+              tail -80 /tmp/c5-backend.log
+              exit 1
+            fi
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null 2>&1; then exit 0; fi
             sleep 1
           done
-          cat /tmp/c5-backend.log
+          tail -80 /tmp/c5-backend.log
           exit 1
 
       - name: Start frontend
@@ -125,7 +158,10 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p ../artifacts/media-c5
-          node scripts/certify-media-c5-browser.mjs 2>&1 | tee ../artifacts/media-c5/runner.log
+          # The protected Patient route requires an enrolled workstation cookie.
+          # Reuse the same certified isolated T2 bootstrap as the green G1 proof;
+          # never disable runtime workstation or patient authorization gates.
+          node scripts/run-with-t2-workstation.mjs scripts/certify-media-c5-browser.mjs 2>&1 | tee ../artifacts/media-c5/runner.log
 
       - name: Dump runtime logs on failure
         if: failure()

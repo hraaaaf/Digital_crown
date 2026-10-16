@@ -20,6 +20,7 @@ interface ClinicalAsset {
 
 interface PatientMediaTimelineProps {
   patientId: number;
+  compactHeader?: boolean;
 }
 
 interface ViewerState {
@@ -119,7 +120,7 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
-export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) => {
+export const PatientMediaTimeline = ({ patientId, compactHeader = false }: PatientMediaTimelineProps) => {
   const [items, setItems] = useState<ClinicalAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -325,12 +326,20 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
       <div className="rounded-xl border border-border-main bg-card-bg px-2 py-2 sm:px-2.5 sm:py-2.5 lg:px-3">
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-primary">
-              <Images size={17} className="shrink-0" />
-              <h2 className="text-base font-black tracking-tight text-main sm:text-lg">Médiathèque clinique</h2>
-              {items.length > 0 && <span className="rounded-full bg-primary/5 px-2 py-0.5 text-[9px] font-black text-primary">{filteredItems.length}/{items.length}</span>}
-            </div>
-            <p className="mt-0.5 hidden text-[11px] font-medium leading-snug text-text-muted md:block lg:text-xs">Recherche, filtres et comparaison longitudinale T0/T1/T2.</p>
+            {compactHeader ? (
+              !loading && <p className="text-xs font-semibold text-text-muted" aria-label="Nombre de médias visibles">
+                {items.length === 0 ? 'Aucun média' : `${filteredItems.length} sur ${items.length} médias`}
+              </p>
+            ) : (
+              <>
+                <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-primary">
+                  <Images size={17} className="shrink-0" />
+                  <h2 className="text-base font-black tracking-tight text-main sm:text-lg">Médiathèque clinique</h2>
+                  {items.length > 0 && <span className="rounded-full bg-primary/5 px-2 py-0.5 text-[9px] font-black text-primary">{filteredItems.length}/{items.length}</span>}
+                </div>
+                <p className="mt-0.5 hidden text-[11px] font-medium leading-snug text-text-muted md:block lg:text-xs">Recherche, filtres et comparaison longitudinale T0/T1/T2.</p>
+              </>
+            )}
           </div>
 
           <div className="grid w-full gap-1.5 sm:grid-cols-2 xl:w-auto xl:min-w-[650px] xl:grid-cols-[minmax(180px,1.3fr)_minmax(120px,.8fr)_minmax(120px,.8fr)_auto]" aria-label="Recherche et filtres médias">

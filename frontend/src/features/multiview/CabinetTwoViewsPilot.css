@@ -1,0 +1,77 @@
+/*
+ * Cabinet Desktop two-view pilot only.
+ * Use the actual PANEL width, not the global browser width, to adapt existing
+ * media toolbar columns. No palette overrides, no clinical component forks.
+ */
+[data-v15-07-second-pane] {
+  container-type: inline-size;
+}
+
+@container (max-width: 760px) {
+  [data-v15-07-second-pane] [data-testid="patient-media-timeline"] > div:first-child > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  [data-v15-07-second-pane] [aria-label="Recherche et filtres médias"] {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  [data-v15-07-second-pane] [aria-label="Recherche et filtres médias"] > label,
+  [data-v15-07-second-pane] [aria-label="Recherche et filtres médias"] > button {
+    grid-column: 1 / -1;
+  }
+
+  [data-v15-07-second-pane] [data-testid="patient-media-timeline"] > div:nth-of-type(2) > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  [data-v15-07-second-pane] [data-testid="patient-media-timeline"] > div:nth-of-type(2) > div > button {
+    grid-column: 1 / -1;
+  }
+
+  [data-v15-07-second-pane] [data-testid="media-inline-viewer"],
+  [data-v15-07-second-pane] [data-testid="media-asset-rail"] {
+    min-width: 0;
+  }
+}
+
+/* The left slot is also a narrow container even on a wide desktop monitor. */
+[data-v15-07-first-pane] {
+  container-type: inline-size;
+}
+@container (max-width: 760px) {
+  [data-v15-07-first-pane] [data-ortho-f3-compare] > div:nth-child(2) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* In dark mode the global secondary text token (#64748b) can fall below
+ * WCAG AA on cabinet cards. Derive a readable muted tone from live tokens,
+ * scoped strictly to the dormant G1 split; do not modify cabinet themes. */
+[data-theme='dark'] [data-v15-07-two-views] .text-text-muted {
+  color: color-mix(in srgb, var(--text-main) 82%, var(--card-bg));
+}
+
+/* Desktop pilot only: the sticky clinical header must completely occlude
+ * scrolling patient and practitioner data; don't affect Pocket or other routes. */
+@media (min-width: 1280px) {
+  .v15-g1-opaque-patient-header {
+    background-color: var(--card-bg);
+  }
+}
+
+/* Prestige is the actual dark G1 screenshot theme; dark and Prestige media
+ * labels must remain AA-legible without changing global palette tokens. */
+[data-theme='prestige'] [data-v15-07-two-views] .text-primary,
+[data-theme='dark'] [data-v15-07-two-views] .text-primary {
+  color: color-mix(in srgb, var(--text-main) 68%, var(--primary));
+}
+
+/* The patient identity heading uses an inline primary ink; in Prestige that
+ * blue measured below normal-text contrast. Override only the pilot header. */
+[data-theme='prestige'] .v15-g1-opaque-patient-header h1 {
+  color: color-mix(in srgb, var(--text-main) 68%, var(--primary)) !important;
+}

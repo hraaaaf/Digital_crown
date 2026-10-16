@@ -14,6 +14,7 @@ export interface ViewSlotThemeFrameProps {
   children: ReactNode;
   onExchange?: () => void;
   onEnlarge?: () => void;
+  fillHeight?: boolean;
 }
 
 export function ViewSlotThemeFrame({
@@ -22,12 +23,13 @@ export function ViewSlotThemeFrame({
   children,
   onExchange,
   onEnlarge,
+  fillHeight = false,
 }: ViewSlotThemeFrameProps) {
   return (
     <section
       data-v15-07-theme-slot
       aria-label={title}
-      className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-elite-sm border border-border-main bg-card text-text-main"
+      className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-elite-sm border border-border-main bg-card text-text-main ${fillHeight ? 'h-full' : ''}`}
     >
       <header className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border-main bg-card p-3">
         <div className="min-w-0">
