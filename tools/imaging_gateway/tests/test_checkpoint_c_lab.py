@@ -173,6 +173,23 @@ class CheckpointCSyntheticTests(unittest.TestCase):
         self.assertEqual(self.verdict(head=fake_b_head).status,
                          "SAME_SEQ_FORK_REFUSED_LAB")
 
+    def test_caller_cannot_mutate_in_memory_c_history_through_return_value(self):
+        first, r1 = self.commit_b()
+        exposed = self.c.anchor(r1)
+        exposed["checkpoint"]["mac"] = "f" * 64
+        exposed["signature_b64"] = "CORRUPTED"
+        replay = self.c.anchor(r1)
+        self.assertEqual(replay["checkpoint"]["mac"], first["after_mac"])
+        verify_anchor(replay, self.c_pin, self.b_pin, self.scope)
+        _, r2 = self.commit_b(1, first["after_mac"])
+        anchored = self.c.anchor(r2)
+        self.assertEqual(anchored["checkpoint"]["seq"], 2)
+        self.assertEqual(self.verdict().status, "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+
+    def test_malformed_head_request_refuses_not_crashes(self):
+        with self.assertRaisesRegex(CasRefusal, "C_EXPECT_HEAD_REFUSE"):
+            classify_verified_head(None, None, None, self.b_pin, self.c_pin)
+
     def test_scope_mismatch_is_refused(self):
         _, r1 = self.commit_b()
         anchor = self.c.anchor(r1)
