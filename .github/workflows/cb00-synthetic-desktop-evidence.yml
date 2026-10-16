@@ -42,6 +42,7 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED"
           echo "CB00_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
+          echo "T2_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
           echo "Exact checkout SHA $EXPECTED" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-python@v5
         with:
