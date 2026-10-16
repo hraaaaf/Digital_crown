@@ -37,3 +37,13 @@
     min-width: 0;
   }
 }
+
+/* The left slot is also a narrow container even on a wide desktop monitor. */
+[data-v15-07-first-pane] {
+  container-type: inline-size;
+}
+@container (max-width: 760px) {
+  [data-v15-07-first-pane] [data-ortho-f3-compare] > div:nth-child(2) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

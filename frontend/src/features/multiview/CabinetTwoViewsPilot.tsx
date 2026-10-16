@@ -21,6 +21,22 @@ function clamp(value: number): number {
   return Math.max(MIN_RATIO, Math.min(MAX_RATIO, Math.round(value)));
 }
 
+/** ISO dates are clinical calendar dates: format without time-zone shifts or guessing. */
+function formatBirthDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.exec((value || '').trim());
+  if (!match) return 'Non renseigné';
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(0, 0, 0, 0);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return 'Non renseigné';
+  }
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
 export interface CabinetTwoViewsPatient {
   id: number;
   numero_dossier: string;
@@ -57,9 +73,10 @@ export function CabinetTwoViewsPilot({ patient, canCephalo }: CabinetTwoViewsPil
   const [ratio, setRatio] = useState(45);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
-  const media = <PatientMediaTimeline patientId={patient.id} />;
+  const split = desktop && Number.isInteger(patient.id) && patient.id > 0;
+  const media = <PatientMediaTimeline patientId={patient.id} compactHeader={split} />;
 
-  if (!desktop || !Number.isInteger(patient.id) || patient.id <= 0) return media;
+  if (!split) return media;
 
   const updateRatio = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragging.current || !containerRef.current) return;
@@ -131,18 +148,18 @@ export function CabinetTwoViewsPilot({ patient, canCephalo }: CabinetTwoViewsPil
         <div data-v15-07-first-pane className="h-full min-w-0 shrink-0" style={{ flexBasis: ratio + '%' }}>
           {leftView === 'dossier' || !canCephalo ? (
             <ViewSlotThemeFrame fillHeight title="Dossier patient" description="Données réellement chargées dans le dossier actif">
-              <dl data-v15-07-real-dossier className="grid min-w-0 gap-3 text-sm">
+              <dl data-v15-07-real-dossier className="grid min-w-0 gap-2 text-sm">
                 {([
                   ['Patient', [patient.prenom, patient.nom].filter(Boolean).join(' ')],
                   ['N° de dossier', patient.numero_dossier],
-                  ['Naissance', patient.date_naissance],
+                  ['Naissance', formatBirthDate(patient.date_naissance)],
                   ['Téléphone', patient.telephone],
                   ['Courriel', patient.email],
                   ['Assurance', patient.assurance],
                   ['Antécédents médicaux', patient.antecedents_medicaux],
                   ['Motif de consultation', patient.motif_consultation],
                 ] as const).map(([label, value]) => (
-                  <div key={label} className="min-w-0 rounded-lg border border-border-main bg-medical-pearl p-3">
+                  <div key={label} className="min-w-0 rounded-lg border border-border-main bg-medical-pearl p-2.5">
                     <dt className="text-xs font-semibold text-text-muted">{label}</dt>
                     <dd className="mt-1 whitespace-pre-wrap break-words font-medium text-text-main">{value || 'Non renseigné'}</dd>
                   </div>
@@ -151,7 +168,7 @@ export function CabinetTwoViewsPilot({ patient, canCephalo }: CabinetTwoViewsPil
             </ViewSlotThemeFrame>
           ) : (
             <ViewSlotThemeFrame fillHeight title="Suivi orthodontique T0 / T1" description="Comparaison existante, sans activation de superposition scientifique">
-              <OrthoLongitudinalComparePanel patientId={patient.id} />
+              <OrthoLongitudinalComparePanel patientId={patient.id} embedded />
             </ViewSlotThemeFrame>
           )}
         </div>
@@ -179,7 +196,7 @@ export function CabinetTwoViewsPilot({ patient, canCephalo }: CabinetTwoViewsPil
           <span aria-hidden="true" className="h-14 w-1 rounded-full bg-border-main group-hover:bg-primary" />
         </div>
         <div data-v15-07-second-pane className="h-full min-w-0 flex-1">
-          <ViewSlotThemeFrame fillHeight title="Images et photographies" description="Médiathèque clinique existante — T0 / T1 / T2">
+          <ViewSlotThemeFrame fillHeight title="Médiathèque clinique" description="Photos, radiographies et documents — T0 / T1 / T2">
             {media}
           </ViewSlotThemeFrame>
         </div>

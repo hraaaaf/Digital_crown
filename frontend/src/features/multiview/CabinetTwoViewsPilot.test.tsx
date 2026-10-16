@@ -4,13 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CabinetTwoViewsPilot, type CabinetTwoViewsPatient } from './CabinetTwoViewsPilot';
 
 vi.mock('../patients/components/PatientMediaTimeline', () => ({
-  PatientMediaTimeline: ({ patientId }: { patientId: number }) => (
-    <div data-testid="module-mediatheque-reel">Médias du patient {patientId}</div>
+  PatientMediaTimeline: ({ patientId, compactHeader }: { patientId: number; compactHeader?: boolean }) => (
+    <div data-testid="module-mediatheque-reel" data-compact-header={String(Boolean(compactHeader))}>Médias du patient {patientId}</div>
   ),
 }));
 vi.mock('../ortho/OrthoLongitudinalComparePanel', () => ({
-  OrthoLongitudinalComparePanel: ({ patientId }: { patientId: number }) => (
-    <div data-testid="module-suivi-reel">Comparaison longitudinale du patient {patientId}</div>
+  OrthoLongitudinalComparePanel: ({ patientId, embedded }: { patientId: number; embedded?: boolean }) => (
+    <div data-testid="module-suivi-reel" data-embedded={String(Boolean(embedded))}>Comparaison longitudinale du patient {patientId}</div>
   ),
 }));
 
@@ -39,6 +39,7 @@ describe('Vues multiples Cabinet — deux véritables modules liés à un patien
     render(<CabinetTwoViewsPilot patient={patient} canCephalo />);
     expect(screen.queryByRole('region',{name:'Vues multiples du patient actif'})).toBeNull();
     expect(screen.getAllByTestId('module-mediatheque-reel')).toHaveLength(1);
+    expect(screen.getByTestId('module-mediatheque-reel').getAttribute('data-compact-header')).toBe('false');
     expect(screen.queryByTestId('module-suivi-reel')).toBeNull();
   });
   it('charge le dossier réel déjà reçu et exactement une médiathèque du même patient', () => {
@@ -47,7 +48,11 @@ describe('Vues multiples Cabinet — deux véritables modules liés à un patien
     expect(screen.getByRole('region',{name:'Vues multiples du patient actif'})).toBeTruthy();
     expect(screen.getByText('DOS-17')).toBeTruthy();
     expect(screen.getByText('Patient DEMONSTRATION')).toBeTruthy();
+    expect(screen.getByText('01/01/2001')).toBeTruthy();
+    expect(screen.queryByText('2001-01-01')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Médiathèque clinique' })).toBeTruthy();
     expect(screen.getAllByTestId('module-mediatheque-reel')).toHaveLength(1);
+    expect(screen.getByTestId('module-mediatheque-reel').getAttribute('data-compact-header')).toBe('true');
     expect(screen.queryAllByTestId('module-suivi-reel')).toHaveLength(0);
   });
   it('présente le vrai comparateur T0/T1 uniquement si Céphalo est autorisée', () => {
@@ -57,10 +62,17 @@ describe('Vues multiples Cabinet — deux véritables modules liés à un patien
     rerender(<CabinetTwoViewsPilot patient={patient} canCephalo/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Contenu du premier panneau'}),{target:{value:'suivi'}});
     expect(screen.getByTestId('module-suivi-reel').textContent).toContain('17');
+    expect(screen.getByTestId('module-suivi-reel').getAttribute('data-embedded')).toBe('true');
     expect(screen.getAllByTestId('module-mediatheque-reel')).toHaveLength(1);
     rerender(<CabinetTwoViewsPilot patient={patient} canCephalo={false}/>);
     expect(screen.queryByTestId('module-suivi-reel')).toBeNull();
     expect(screen.getByText('DOS-17')).toBeTruthy();
+  });
+  it('affiche une date invalide comme non renseignée, sans fabriquer une naissance', () => {
+    desktop = true;
+    render(<CabinetTwoViewsPilot patient={{ ...patient, date_naissance: '2001-02-31T00:00:00' }} canCephalo />);
+    expect(screen.getByText('Non renseigné')).toBeTruthy();
+    expect(screen.queryByText('03/03/2001')).toBeNull();
   });
   it('redimensionne au clavier, échange les panneaux et permet de tout rétablir', () => {
     desktop = true;

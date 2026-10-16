@@ -229,6 +229,10 @@ jobs:
                       await summary.waitFor({state:'visible',timeout:25000});
                       if(!(await summary.innerText()).includes(patient.numero_dossier))
                         throw Error('Dossier pane did not use the authenticated active patient');
+                      if((await summary.innerText()).includes('T00:00:00'))
+                        throw Error('Raw ISO timestamp is exposed in the patient dossier');
+                      if(await page.getByText('Médiathèque clinique',{exact:true}).count() !== 1)
+                        throw Error('Duplicated or missing clinical media heading in the split view');
                       // The media toolbar must adapt to the CONTAINER width.
                       // A responsive layout based only on the browser breakpoint
                       // can overflow when placed inside a half-width ViewSlot.
