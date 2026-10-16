@@ -1,0 +1,282 @@
+name: CB-01 Associate Sidecar Visual (EXPERIMENTAL)
+
+on:
+  pull_request:
+    paths:
+      - frontend/src/components/Layout/MainLayout.tsx
+      - frontend/src/components/Layout/MainLayout.g1Interactive.test.tsx
+      - frontend/scripts/certify-cb01-associate-sidecar.mjs
+      - .github/workflows/cb01-associate-sidecar-visual.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cb01-associate:
+    name: Synthetic B sidecar at 1280 / 1440 / 1920 + web fallback 390 / 430
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: crown-bot-cb00-lab-only-secret-000001-long-enough
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: 'true'
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: 'true'
+      VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED: 'true'
+      T2_DENIED_USER: t2-restricted@cabinet.ma
+      T2_DENIED_COMMAND: /patient
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Confirm exact tested source
+        shell: bash
+        env:
+          EXPECTED: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED"
+          echo "CB01_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
+          echo "T2_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
+          echo "Exact checkout SHA $EXPECTED" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Create masked disposable auth password and independent SQLCipher key
+        shell: bash
+        run: |
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          storage_key="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$password"
+          echo "::add-mask::$storage_key"
+          {
+            echo "T2_USER=t2-browser@cabinet.ma"
+            printf 'T2_PASSWORD=%s\n' "$password"
+            printf 'SQLCIPHER_KEY_HEX=%s\n' "$storage_key"
+          } >> "$GITHUB_ENV"
+      - name: Install isolated backend
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb00-requirements.txt
+          pip install -r /tmp/cb00-requirements.txt
+      - name: Install isolated frontend and Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Test scoped patient resolution against real isolated backend models
+        shell: bash
+        run: |
+          pip install pytest==8.4.2
+          python -m pytest -q backend/tests/test_cb00_patient_selectors.py
+      - name: Test flagged preview dossier disambiguation UI
+        shell: bash
+        working-directory: frontend
+        run: npx vitest run src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+      - name: Verify CB-01 safe shell regressions in Vitest
+        working-directory: frontend
+        shell: bash
+        run: |
+          npx vitest run src/components/Layout/MainLayout.g1Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+      - name: Start disposable synthetic T2 backend
+        shell: bash
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/cb00-synthetic-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 70 /tmp/cb00-synthetic-backend.log
+          exit 1
+      - name: Read seeded synthetic patient ID and snapshot clinical counts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime
+          from backend import database, models
+          from backend.security import get_password_hash
+          from backend.routers.auth import has_permission
+          with database.SessionLocal() as db:
+              owner = db.query(models.User).filter(
+                  models.User.email == 't2-browser@cabinet.ma').one()
+              s06_email = 't2-s06-no-agenda@cabinet.ma'
+              no_agenda = db.query(models.User).filter(
+                  models.User.email == s06_email).one_or_none()
+              if no_agenda is None:
+                  no_agenda = models.User(
+                      email=s06_email,
+                      hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
+                      role=models.UserRole.SECRETAIRE,
+                      nom_complet='T2 S06 Synthetic Reception',
+                      is_active=True, is_licensed=True,
+                      approval_status=models.ApprovalStatus.APPROVED.value,
+                      employer_id=owner.id,
+                      permissions={
+                          'agenda': False, 'patients': True, 'accounting': False,
+                          'admin': False, 'clinical': False,
+                      },
+                  )
+                  db.add(no_agenda)
+                  db.commit()
+                  db.refresh(no_agenda)
+              assert no_agenda.employer_id == owner.id
+              assert has_permission(no_agenda, 'patients') is True
+              assert has_permission(no_agenda, 'agenda') is False
+              assert has_permission(no_agenda, 'accounting') is False
+              # Distinct S05 reception role may prepare appointment proposals,
+              # but cannot access accounting and cannot execute any preview.
+              s05_email = 't2-s05-reception@cabinet.ma'
+              reception = db.query(models.User).filter(
+                  models.User.email == s05_email).one_or_none()
+              if reception is None:
+                  reception = models.User(
+                      email=s05_email,
+                      hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
+                      role=models.UserRole.SECRETAIRE,
+                      nom_complet='T2 S05 Synthetic Reception',
+                      is_active=True, is_licensed=True,
+                      approval_status=models.ApprovalStatus.APPROVED.value,
+                      employer_id=owner.id,
+                      permissions={
+                          'agenda': True, 'patients': True, 'accounting': False,
+                          'admin': False, 'clinical': False,
+                      },
+                  )
+                  db.add(reception)
+                  db.commit()
+                  db.refresh(reception)
+              assert reception.id != no_agenda.id
+              assert reception.employer_id == owner.id
+              assert has_permission(reception, 'patients') is True
+              assert has_permission(reception, 'agenda') is True
+              assert has_permission(reception, 'accounting') is False
+              foreign_owner = db.query(models.User).filter(
+                  models.User.email == 't2-setup-390@cabinet.ma').one()
+              assert owner.id != foreign_owner.id, 'T2 owners must be isolated'
+              p = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'T2-0001',
+                  models.Patient.employer_id == owner.id).one()
+              foreign = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'CB00-FR-0001',
+                  models.Patient.employer_id == foreign_owner.id).one_or_none()
+              if foreign is None:
+                  foreign = models.Patient(
+                      numero_dossier='CB00-FR-0001', nom='FICTIF',
+                      prenom='EXTERNE', date_naissance=datetime(1990, 1, 1),
+                      sexe='F', employer_id=foreign_owner.id)
+                  db.add(foreign)
+                  db.commit()
+                  db.refresh(foreign)
+              assert foreign.id != p.id
+              assert foreign.employer_id == foreign_owner.id
+              assert foreign.employer_id != p.employer_id
+              assert foreign.deleted_at is None
+              unknown = db.query(models.Patient).order_by(
+                  models.Patient.id.desc()).first().id + 10000
+              assert 0 < unknown < 10 ** 10
+              assert db.query(models.Patient).filter(
+                  models.Patient.id == unknown).first() is None
+              before = {
+                  'appointments': db.query(models.Appointment).count(),
+                  'pending_actions': db.query(models.BotPendingAction).count(),
+              }
+              patient_id, foreign_id = p.id, foreign.id
+          with open('/tmp/cb00-clinical-before.json', 'w') as f:
+              json.dump(before, f)
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write('T2_PATIENT_ID=' + str(patient_id) + '\n')
+              f.write('T2_FOREIGN_PATIENT_ID=' + str(foreign_id) + '\n')
+              f.write('T2_UNKNOWN_PATIENT_ID=' + str(unknown) + '\n')
+              f.write('T2_DENIED_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
+              f.write('T2_S06_USER=' + s06_email + '\n')
+              f.write('T2_S06_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
+              f.write('T2_S05_USER=' + s05_email + '\n')
+              f.write('T2_S05_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
+          print('PASS: two seeded T2 cabinet owners are distinct, foreign patient exists in DB; unknown ID absent; baseline taken after synthetic fixture')
+          print('PASS: S06 synthetic secretary patients=true, agenda=false, employer scoped to T2 owner')
+          print('PASS: S05 synthetic reception patients=true, agenda=true, accounting=false, employer scoped')
+          PY
+      - name: Measure useful HTTP patient read p50 / p95
+        shell: bash
+        run: |
+          python scripts/ci/crownbot_cb00_t2_read_evidence.py \
+            --api http://127.0.0.1:8005 --n 30 \
+            --out /tmp/cb00-synthetic-http.json
+      - name: Start isolated existing flagged-preview web UI
+        shell: bash
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/cb00-synthetic-frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 70 /tmp/cb00-synthetic-frontend.log
+          exit 1
+      - name: Verify B sidecar workspace reflow and capture synthetic BEFORE/AFTER
+        working-directory: frontend
+        shell: bash
+        run: |
+          node scripts/run-with-t2-workstation.mjs \
+            scripts/certify-cb01-associate-sidecar.mjs
+      - name: Compare actual appointment and pending-action counts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from backend import database, models
+          with database.SessionLocal() as db:
+              after = {
+                  'appointments': db.query(models.Appointment).count(),
+                  'pending_actions': db.query(models.BotPendingAction).count(),
+              }
+          before = json.load(open('/tmp/cb00-clinical-before.json'))
+          if before != after:
+              raise SystemExit('FAIL: change in appointment or pending-action counts')
+          print('PASS: appointment and pending-action counts unchanged; not full DB diff')
+          PY
+      - name: Record performance evidence for artifact
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/cb00-http
+          if test -f /tmp/cb00-synthetic-http.json; then
+            cp /tmp/cb00-synthetic-http.json artifacts/cb00-http/http-summary.json
+          fi
+          echo "## CB-01 caveats" >> "$GITHUB_STEP_SUMMARY"
+          echo "Synthetic CI-only T2: B sidecar shell experimental, no cabinet production activation." >> "$GITHUB_STEP_SUMMARY"
+          echo "Does not certify production BEFORE, 200% browser zoom, 12 staff E2E, clinical validation or deployed UI." >> "$GITHUB_STEP_SUMMARY"
+      - name: Print bounded failure logs only
+        if: failure()
+        shell: bash
+        run: |
+          tail -n 80 /tmp/cb00-synthetic-backend.log || true
+          tail -n 80 /tmp/cb00-synthetic-frontend.log || true
+      - name: Upload synthetic CB-01 sidecar proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-synthetic-associate-sidecar-evidence
+          path: |
+            artifacts/cb01-associate-sidecar
+            artifacts/cb00-http
+          if-no-files-found: warn
+          retention-days: 14
