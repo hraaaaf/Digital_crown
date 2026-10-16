@@ -138,7 +138,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
     >
       <div data-r23-studio-toolbar className="relative z-50 flex min-w-0 flex-wrap items-center gap-1.5 rounded-2xl border px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2 xl:col-span-full"
         style={{ background: props.P.bgPanel, borderColor: props.P.border }}>
-        <label htmlFor="cephalo-ready-analysis" className="sr-only shrink-0 text-xs font-bold sm:not-sr-only" style={{ color: props.P.text }}>Analyse clé en main</label>
+        <label htmlFor="cephalo-ready-analysis" className="sr-only shrink-0 text-xs font-bold xl:not-sr-only" style={{ color: props.P.text }}>Analyse clé en main</label>
         <select
           id="cephalo-ready-analysis"
           value={analysis}
@@ -157,7 +157,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}
          aria-label={desktopToolsOpen ? 'Masquer les outils' : 'Afficher les outils'}>
           <SlidersHorizontal size={16} aria-hidden="true" />
-          <span className="hidden sm:inline sm:ml-1">{desktopToolsOpen ? 'Masquer les outils' : 'Afficher les outils'}</span>
+          <span className="hidden xl:inline xl:ml-1">{desktopToolsOpen ? 'Masquer les outils' : 'Afficher les outils'}</span>
         </button>
         <button type="button" data-r23-measures-toggle aria-expanded={measuresOpen}
           aria-controls="cephalo-r23-measure-rail"
@@ -166,7 +166,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}
          aria-label={measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}>
           <ScanFace size={16} aria-hidden="true" />
-          <span className="hidden sm:inline sm:ml-1">{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</span>
+          <span className="hidden xl:inline xl:ml-1">{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</span>
         </button>
         <details ref={pointMenuRef} data-r23-mobile-point-directory className="relative xl:hidden">
           <summary aria-label="Parcourir les repères anatomiques" className="flex min-h-10 cursor-pointer list-none items-center justify-center rounded-xl border px-2 text-[11px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
