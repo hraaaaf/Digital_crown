@@ -208,6 +208,31 @@ try {
         'SQLite GET lost calibrated source provenance/no-mm invariant');
       assert(initial.landmarks_data.length===38,'Initial SQLite GET not 38 landmarks');
       let expected=initial.landmarks_data;
+      const mobileWitness=[];
+      for(const size of [{width:390,height:844},{width:768,height:1024}]){
+        await page.setViewportSize(size);
+        await page.locator('[data-r20-workbench-layout]').waitFor();
+        const markers=await page.locator('[data-ceph03b-drag-handle]').count();
+        const menu=page.locator('[data-r23-mobile-point-directory]');
+        await menu.locator('summary').click();
+        const names=await menu.locator('[data-r23-point-select]').count();
+        await menu.locator('[data-r23-point-select="N"]').click();
+        await page.locator('[data-ceph03b-landmark-label="N"]').waitFor();
+        const noBackgrounds=await page.locator('[data-ceph03b-label-background]').count()===0;
+        const selectedLabel=await page.locator('[data-ceph03b-landmark-label="N"]').count()===1;
+        const entry=await page.locator('[data-r20-radiograph-stage]').boundingBox();
+        const filename=film+'-mobile-'+size.width+'x'+size.height+'-N-selected.png';
+        await page.screenshot({path:path.join(out,filename),animations:'disabled',fullPage:false});
+        const proof={film,size:size.width+'x'+size.height,markers,names,selectedLabel,noBackgrounds,
+          stageTop:entry?.y??null,filename,
+          valid:markers===38&&names===38&&selectedLabel&&noBackgrounds&&entry!==null
+            &&entry.y>=0&&entry.y<size.height*.56};
+        assert(proof.valid,'REAL FILM MOBILE POINT DIRECTORY, LABEL OR FOLD FAILURE '+JSON.stringify(proof));
+        mobileWitness.push(proof);
+      }
+      cases.push({film,stage:'mobile-point-directory',witnesses:mobileWitness,valid:true});
+      await page.setViewportSize({width:1280,height:900});
+      await page.waitForFunction(()=>matchMedia('(min-width: 1280px)').matches);
       const originalN=persistedPoint(initial,'N');
       assert(originalN,'N absent from SRPose38 output');
       assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
@@ -526,7 +551,7 @@ try {
 }finally{
   // Evidence must survive a red backend/browser run, never mark it as PASS.
   // Labels remain observation-only until an exact-HEAD certification gate.
-  if(cases.length!==10 || labelProof.length!==2 || errors.length){
+  if(cases.length!==12 || labelProof.length!==2 || errors.length){
     await writeFile(path.join(out,'partial-report.json'),JSON.stringify({
       head:process.env.GITHUB_SHA || 'unknown',
       status:'INCOMPLETE_NOT_CERTIFIED',

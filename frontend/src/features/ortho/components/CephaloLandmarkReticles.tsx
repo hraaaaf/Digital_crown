@@ -291,21 +291,6 @@ export const CephaloLandmarkReticles = ({
 
               {!compactLabels && labelPosition && (
                 <>
-                <rect
-                  data-ceph03b-label-background={pt.id}
-                  x={labelPosition.x - labelFontSize * 0.18}
-                  y={labelPosition.y - labelPosition.height}
-                  width={labelPosition.width + labelFontSize * 0.36}
-                  height={labelPosition.height + labelFontSize * 0.26}
-                  rx={labelFontSize * 0.18}
-                  fill="#07111f"
-                  fillOpacity="0.92"
-                  stroke="#e2e8f0"
-                  strokeOpacity="0.65"
-                  strokeWidth="1.25"
-                  vectorEffect="non-scaling-stroke"
-                  pointerEvents="none"
-                />
                 <text
                   data-ceph03b-landmark-label={pt.id}
                   data-cephalo-landmark-label={compactLabels ? pt.id : undefined}
@@ -316,7 +301,7 @@ export const CephaloLandmarkReticles = ({
                   fontWeight="900"
                   className="pointer-events-none select-none"
                   fill="#f8fafc"
-                  style={{ paintOrder: 'stroke', stroke: '#07111f', strokeWidth: labelFontSize * 0.1 }}
+                  style={{ paintOrder: 'stroke', stroke: '#020617', strokeWidth: Math.max(2.8, labelFontSize * 0.12) }}
                 >
                   {pt.id}
                 </text>

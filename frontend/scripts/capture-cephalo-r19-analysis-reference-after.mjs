@@ -147,6 +147,13 @@ async function captureViewport(viewport,attempt){
     const selectorWidth=await page.locator('#cephalo-ready-analysis').evaluate(el=>el.getBoundingClientRect().width);
     const screenShot=`after-image-first-entry-${viewport.name}.png`;
     await page.screenshot({path:path.join(OUTPUT_DIR,screenShot),fullPage:false});
+    const list=page.locator('[data-r23-mobile-point-directory]');
+    await list.locator('summary').click();
+    const menuNames=await list.locator('[data-r23-point-select]').count();
+    const firstId=await list.locator('[data-r23-point-select]').first().getAttribute('data-r23-point-select');
+    await list.locator('[data-r23-point-select]').first().click();
+    const selectedVisible=await page.locator('[data-ceph03b-landmark-label="'+firstId+'"]').count()===1;
+    const bgCount=await page.locator('[data-ceph03b-label-background]').count();
     await page.locator('[data-r23-tools-toggle]').click();
     const opened=await rail.evaluate(el=>getComputedStyle(el).display!=='none');
     await page.locator('[data-r23-tools-toggle]').click();
@@ -170,8 +177,9 @@ async function captureViewport(viewport,attempt){
     await page.locator('[data-cephalo-stage-root] button[title="Quitter plein écran"]').click();
     await page.waitForFunction(()=>!document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:5000});
     const fullscreenRestored=await page.locator('[data-cephalo-stage-root]').evaluate(el=>getComputedStyle(el).position!=='fixed');
-    mobileImageFirstProof={top,folded,opened,restored,selectorWidth,screenShot,fullscreen,mobileFocusShot,fullscreenRestored,
-      valid:top>0&&top<viewport.height*.7&&folded&&opened&&restored&&selectorWidth>=159
+    mobileImageFirstProof={top,folded,opened,restored,selectorWidth,menuNames,firstId,selectedVisible,bgCount,screenShot,fullscreen,mobileFocusShot,fullscreenRestored,
+      valid:top>0&&top<viewport.height*.56&&folded&&opened&&restored&&selectorWidth>=141
+        &&menuNames===29&&selectedVisible&&bgCount===0
         &&fullscreen.width>=viewport.width-2&&fullscreen.height>=viewport.height-2
         &&fullscreen.topmost&&fullscreen.visible&&fullscreenRestored};
   }

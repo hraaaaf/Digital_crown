@@ -23,6 +23,8 @@ const state = vi.hoisted(() => ({
   landmarkEditTimeline:{baseline:[{id:'S',x:10,y:20}],undoStack:[],redoStack:[],auditTrail:[],nextSequence:1} as any,
   setMagnifierEnabled:vi.fn(),
   setIsStep1Fullscreen:vi.fn(),
+  activePointId:null as string|null,
+  setActivePointId:vi.fn(),
   setVtoSettings:vi.fn(),
   setActiveMorphing:vi.fn(),
   setLayerVisible:vi.fn(),
@@ -54,6 +56,7 @@ const P:any={
 beforeEach(()=>{
   vi.clearAllMocks();
   state.imageSrc='blob:cephalo';
+  state.activePointId=null;
   state.magnifierEnabled=false;
   state.imgFilters={brightness:100,contrast:110,invert:false};
   state.activeMorphing='none';
@@ -137,8 +140,24 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
   it('keeps the selected analysis name readable at mobile width',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     const selector=screen.getByRole('combobox',{name:'Analyse clé en main'}) as HTMLSelectElement;
-    expect(selector.className).toContain('min-w-[160px]');
+    expect(selector.className).toContain('min-w-[142px]');
     expect(selector.value).toBe('all');
+  });
+
+  it('makes every anatomical name accessible on narrow displays without backgrounds',()=>{
+    state.local={landmarks:Array.from({length:38},(_,i)=>({
+      id:'P'+String(i).padStart(2,'0'),x:i*10,y:i*9,
+    })),version:1};
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const menu=document.querySelector('[data-r23-mobile-point-directory]') as HTMLDetailsElement;
+    expect(menu).toBeTruthy();
+    fireEvent.click(screen.getByText('Repères'));
+    expect(menu.open).toBe(true);
+    expect(menu.querySelectorAll('[data-r23-point-select]')).toHaveLength(38);
+    fireEvent.click(screen.getByRole('button',{name:'Sélectionner le repère P07'}));
+    expect(state.setActivePointId).toHaveBeenCalledWith('P07');
+    expect(menu.open).toBe(false);
+    expect(screen.getByRole('combobox',{name:'Analyse clé en main'})).toBeTruthy();
   });
 
   it('keeps the selected analysis in the actual stage when the workbench selector changes',()=>{

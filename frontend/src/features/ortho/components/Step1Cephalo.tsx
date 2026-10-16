@@ -75,6 +75,9 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const redoLandmarkEdit = useOrthoStore(state => state.redoLandmarkEdit);
   const resetLandmarkEdits = useOrthoStore(state => state.resetLandmarkEdits);
   const setIsStep1Fullscreen = useOrthoStore(state => state.setIsStep1Fullscreen);
+  const activePointId = useOrthoStore(state => state.activePointId);
+  const setActivePointId = useOrthoStore(state => state.setActivePointId);
+  const pointMenuRef = React.useRef<HTMLDetailsElement>(null);
   const [analysis, setAnalysis] = React.useState<CephaloAnalysisMode>('all');
   // R23-A: prioritize the image on desktop. Mobile retains its existing
   // stacked utility tools; no settings or analysis controls are removed.
@@ -132,14 +135,14 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       className={`grid min-w-0 grid-cols-1 gap-3 xl:items-stretch ${desktopColumns}`}
       data-r23-image-first={desktopToolsOpen ? 'tools-open' : 'tools-collapsed'}
     >
-      <div data-r23-studio-toolbar className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border px-3 py-2 xl:col-span-full"
+      <div data-r23-studio-toolbar className="relative z-50 flex min-w-0 flex-wrap items-center gap-1.5 rounded-2xl border px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2 xl:col-span-full"
         style={{ background: props.P.bgPanel, borderColor: props.P.border }}>
-        <label htmlFor="cephalo-ready-analysis" className="shrink-0 text-xs font-bold" style={{ color: props.P.text }}>Analyse clé en main</label>
+        <label htmlFor="cephalo-ready-analysis" className="sr-only shrink-0 text-xs font-bold sm:not-sr-only" style={{ color: props.P.text }}>Analyse clé en main</label>
         <select
           id="cephalo-ready-analysis"
           value={analysis}
           onChange={(event) => publishCephaloAnalysis(event.target.value as CephaloAnalysisMode)}
-          className="min-h-11 min-w-[160px] flex-1 rounded-xl border px-2 text-[13px] font-semibold sm:min-w-0 sm:max-w-[215px] focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="min-h-10 min-w-[142px] flex-1 rounded-xl border px-2 text-[13px] font-semibold sm:min-w-0 sm:max-w-[215px] focus-visible:outline-2 focus-visible:outline-offset-2"
           style={{ borderColor: props.P.borderFocus, background: props.P.bgCard, color: props.P.text }}
         >
           {(Object.keys(ANALYSIS_LABELS) as CephaloAnalysisMode[]).map((mode) => (
@@ -149,15 +152,42 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         <button type="button" data-r23-tools-toggle aria-expanded={desktopToolsOpen}
           aria-controls="cephalo-r23-utility-rail"
           onClick={() => setDesktopToolsOpen(value => !value)}
-          className="inline-flex min-h-11 items-center rounded-xl border px-3 text-xs font-bold"
+          className="inline-flex min-h-10 items-center justify-center rounded-xl border px-2 text-xs font-bold sm:px-3"
           style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}
-        >{desktopToolsOpen ? 'Masquer les outils' : 'Afficher les outils'}</button>
+         aria-label={desktopToolsOpen ? 'Masquer les outils' : 'Afficher les outils'}>
+          <SlidersHorizontal size={16} aria-hidden="true" />
+          <span className="hidden sm:inline sm:ml-1">{desktopToolsOpen ? 'Masquer les outils' : 'Afficher les outils'}</span>
+        </button>
         <button type="button" data-r23-measures-toggle aria-expanded={measuresOpen}
           aria-controls="cephalo-r23-measure-rail"
           onClick={() => setMeasuresOpen(value => !value)}
-          className="min-h-10 rounded-xl border px-3 text-xs font-bold"
+          className="inline-flex min-h-10 items-center justify-center rounded-xl border px-2 text-xs font-bold sm:px-3"
           style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}
-        >{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</button>
+         aria-label={measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}>
+          <ScanFace size={16} aria-hidden="true" />
+          <span className="hidden sm:inline sm:ml-1">{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</span>
+        </button>
+        <details ref={pointMenuRef} data-r23-mobile-point-directory className="relative xl:hidden">
+          <summary aria-label="Parcourir les repères anatomiques" className="flex min-h-10 cursor-pointer list-none items-center justify-center rounded-xl border px-2 text-[11px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
+            style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}>
+            Repères <span className="ml-1 tabular-nums">{localLandmarks.length}</span>
+          </summary>
+          <div className="absolute right-0 top-full z-[70] mt-2 w-[min(86vw,320px)] rounded-xl border p-2 shadow-xl"
+            style={{ background: props.P.bgPanel, borderColor: props.P.border }}>
+            <p className="px-1 pb-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>Sélectionnez un nom pour l'identifier sur la radiographie. Tous les points restent présents.</p>
+            <div role="group" aria-label="Liste des repères anatomiques" className="grid max-h-[40vh] grid-cols-3 gap-1 overflow-y-auto overscroll-contain">
+              {[...localLandmarks].sort((a,b)=>a.id.localeCompare(b.id)).map(point => (
+                <button key={point.id} type="button" data-r23-point-select={point.id}
+                  aria-label={`Sélectionner le repère ${point.id}`} aria-pressed={activePointId===point.id}
+                  onClick={() => { setActivePointId(point.id); pointMenuRef.current?.removeAttribute('open'); }}
+                  className="min-h-10 break-all rounded-lg border px-1 py-1 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
+                  style={{ background: activePointId===point.id ? props.P.bgInput : props.P.bgCard, borderColor: activePointId===point.id ? props.P.borderFocus : props.P.border, color: props.P.text }}>
+                  {point.id}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
         <button type="button" data-cephalo-focus-entry="desktop"
           aria-label="Activer le mode Focus radiographie"
           title="Examiner la radiographie sans panneaux ; Échap pour revenir"
