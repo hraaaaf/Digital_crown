@@ -152,6 +152,7 @@ async function captureViewport(viewport,attempt){
     const menuNames=await list.locator('[data-r23-point-select]').count();
     const firstId=await list.locator('[data-r23-point-select]').first().getAttribute('data-r23-point-select');
     await list.locator('[data-r23-point-select]').first().click();
+    await page.locator('[data-ceph03b-landmark-label="'+firstId+'"]').waitFor({timeout:3000});
     const selectedVisible=await page.locator('[data-ceph03b-landmark-label="'+firstId+'"]').count()===1;
     const bgCount=await page.locator('[data-ceph03b-label-background]').count();
     await page.locator('[data-r23-tools-toggle]').click();

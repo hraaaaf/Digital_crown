@@ -151,7 +151,7 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     const menu=document.querySelector('[data-r23-mobile-point-directory]') as HTMLDetailsElement;
     expect(menu).toBeTruthy();
-    fireEvent.click(screen.getByText('Repères'));
+    fireEvent.click(screen.getByLabelText('Parcourir les repères anatomiques'));
     expect(menu.open).toBe(true);
     expect(menu.querySelectorAll('[data-r23-point-select]')).toHaveLength(38);
     fireEvent.click(screen.getByRole('button',{name:'Sélectionner le repère P07'}));

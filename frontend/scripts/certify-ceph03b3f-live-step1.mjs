@@ -567,9 +567,9 @@ const report={
   model:'SRPose38 actual unpatched ONNX, no clinical accuracy assertion',
   browserEntry:'CephaloWorkspace -> Step1Cephalo -> useOrthoStore -> cephaloRepository -> Axios',
   backend:'FastAPI app real HTTP /api, authenticated HttpOnly cookie, in-memory SQLite',
-  untested:'Product /login visual screen, mobile UI, clinical anatomical accuracy, physical calibration',
+  untested:'Product /login visual screen, 38 simultaneous mobile text labels (mobile tests only 38 selectable points and one highlighted name), clinical anatomical accuracy, physical calibration',
   cases,zoomProof,labelProof,errors,invalidCount:cases.filter(x=>!x.valid).length,
 };
 await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
-assert(cases.length===10&&zoomProof.length===2&&zoomProof.every(x=>x.valid)&&labelProof.length===2&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
+assert(cases.length===12&&zoomProof.length===2&&zoomProof.every(x=>x.valid)&&labelProof.length===2&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
 console.log('DC_CEPH03B3F_REAL_STEP1_HTTP_TWO_RADIOS_8_SCENES_4_EDIT_TRANSACTIONS_PER_FILM_PASS');
