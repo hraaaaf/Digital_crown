@@ -197,16 +197,29 @@ async function captureViewport(viewport,attempt){
     await page.waitForFunction(()=>document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:6000});
     const focusedWidth=await page.locator('[data-cephalo-stage-root]').evaluate(el=>el.getBoundingClientRect().width);
     const focusedMode=await page.locator('[data-cephalo-analysis]').getAttribute('data-cephalo-analysis');
+    // Prove visible topmost radiograph, not merely a wide detached DOM node.
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const focusVisibility=await page.evaluate(()=>{
+      const root=document.querySelector('[data-cephalo-stage-root]');
+      const svg=root?.querySelector('svg[data-cephalo-viewport="base"]');
+      const style=root?getComputedStyle(root):null;
+      const top=document.elementFromPoint(innerWidth/2,innerHeight/2);
+      const r=svg?.getBoundingClientRect();
+      return {position:style?.position??null,zIndex:style?.zIndex??null,
+        onTop:Boolean(root&&top&&root.contains(top)),
+        svgVisible:Boolean(r&&r.width>300&&r.height>300&&r.left<innerWidth&&r.top<innerHeight&&r.bottom>0&&r.right>0)};
+    });
     const focusScreenshot=`after-focus-radiograph-${viewport.name}.png`;
     await page.screenshot({path:path.join(OUTPUT_DIR,focusScreenshot),fullPage:false});
     await page.keyboard.press('Escape');
     await page.waitForFunction(()=>!document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:5000});
     const restoredWidth=await page.locator('[data-cephalo-stage-root]').evaluate(el=>el.getBoundingClientRect().width);
     const restoredMode=await page.locator('[data-cephalo-analysis]').getAttribute('data-cephalo-analysis');
-    focusProof={beforeWidth,focusedWidth,restoredWidth,focusedMode,restoredMode,focusScreenshot,
+    focusProof={beforeWidth,focusedWidth,restoredWidth,focusedMode,restoredMode,focusVisibility,focusScreenshot,
       valid:focusedWidth>=viewport.width*.9
         &&focusedWidth>beforeWidth+200
         &&Math.abs(restoredWidth-beforeWidth)<5
+        &&focusVisibility.position==='fixed'&&focusVisibility.onTop&&focusVisibility.svgVisible
         &&focusedMode==='steiner'&&restoredMode==='steiner'};
   }
   const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)

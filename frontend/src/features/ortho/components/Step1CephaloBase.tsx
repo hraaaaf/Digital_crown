@@ -324,7 +324,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   // Transformed/grid ancestors can clip a position:fixed descendant.
   // React's portal preserves store, editor callbacks and anatomical points.
   const stageContent = (
-    <div ref={step1ContainerRef} data-cephalo-stage-root="true" className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[82vh] w-full'}`} style={{ ...themeVars, background: cbg, boxShadow: P.shadowLg, border: `1px solid ${P.border}` }}>
+    <div ref={step1ContainerRef} data-cephalo-stage-root="true" className={`flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'relative h-[82vh] w-full'}`} style={{ ...themeVars, background: cbg, boxShadow: P.shadowLg, border: `1px solid ${P.border}`, zIndex: isStep1Fullscreen ? 9999 : undefined }}>
       <div className="absolute inset-2 z-0 overflow-hidden rounded-[1.15rem] border border-[var(--ceph-ui-border)] bg-[var(--ceph-ui-panel)] shadow-lg sm:inset-2">
         <CephaloTracingLayer
           imageSrc={imageSrc}
