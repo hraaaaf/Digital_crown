@@ -189,33 +189,6 @@ jobs:
               assert foreign.employer_id == foreign_owner.id
               assert foreign.employer_id != p.employer_id
               assert foreign.deleted_at is None
-              # CB-01 browser-only synthetic staff scenarios: same surname,
-              # explicit dossier lookup and numeric dossier/global-ID collision.
-              named = db.query(models.Patient).filter(
-                  models.Patient.numero_dossier == 'CB01-N-101',
-                  models.Patient.employer_id == owner.id).one_or_none()
-              if named is None:
-                  named = models.Patient(
-                      numero_dossier='CB01-N-101', nom='BENALI',
-                      prenom='AMINA', date_naissance=datetime(1990, 1, 1),
-                      sexe='F', employer_id=owner.id)
-                  db.add(named)
-                  db.commit()
-                  db.refresh(named)
-              numeric = db.query(models.Patient).filter(
-                  models.Patient.numero_dossier == str(p.id),
-                  models.Patient.employer_id == owner.id).one_or_none()
-              if numeric is None:
-                  numeric = models.Patient(
-                      numero_dossier=str(p.id), nom='BENALI',
-                      prenom='SALMA', date_naissance=datetime(1990, 1, 1),
-                      sexe='F', employer_id=owner.id)
-                  db.add(numeric)
-                  db.commit()
-                  db.refresh(numeric)
-              assert named.id != numeric.id != p.id
-              assert named.employer_id == numeric.employer_id == p.employer_id
-              assert named.deleted_at is None and numeric.deleted_at is None
               unknown = db.query(models.Patient).order_by(
                   models.Patient.id.desc()).first().id + 10000
               assert 0 < unknown < 10 ** 10
@@ -247,6 +220,49 @@ jobs:
           python scripts/ci/crownbot_cb00_t2_read_evidence.py \
             --api http://127.0.0.1:8005 --n 30 \
             --out /tmp/cb00-synthetic-http.json
+      - name: Seed CB-01 browser homonyms after CB-00 reference probe
+        shell: bash
+        run: |
+          # A numeric dossier equal to an internal ID MUST NOT corrupt the
+          # legacy baseline read probe. Seed this collision after the probe.
+          python - <<'PY'
+          from datetime import datetime
+          from backend import database, models
+          with database.SessionLocal() as db:
+              owner = db.query(models.User).filter(
+                  models.User.email == 't2-browser@cabinet.ma').one()
+              p = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'T2-0001',
+                  models.Patient.employer_id == owner.id).one()
+              # CB-01 browser-only synthetic staff scenarios: same surname,
+              # explicit dossier lookup and numeric dossier/global-ID collision.
+              named = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'CB01-N-101',
+                  models.Patient.employer_id == owner.id).one_or_none()
+              if named is None:
+                  named = models.Patient(
+                      numero_dossier='CB01-N-101', nom='BENALI',
+                      prenom='AMINA', date_naissance=datetime(1990, 1, 1),
+                      sexe='F', employer_id=owner.id)
+                  db.add(named)
+                  db.commit()
+                  db.refresh(named)
+              numeric = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == str(p.id),
+                  models.Patient.employer_id == owner.id).one_or_none()
+              if numeric is None:
+                  numeric = models.Patient(
+                      numero_dossier=str(p.id), nom='BENALI',
+                      prenom='SALMA', date_naissance=datetime(1990, 1, 1),
+                      sexe='F', employer_id=owner.id)
+                  db.add(numeric)
+                  db.commit()
+                  db.refresh(numeric)
+              assert named.id != numeric.id != p.id
+              assert named.employer_id == numeric.employer_id == p.employer_id
+              assert named.deleted_at is None and numeric.deleted_at is None
+          print('PASS: CB-01 browser fixtures seeded AFTER CB-00 reference HTTP probe')
+          PY
       - name: Start isolated existing flagged-preview web UI
         shell: bash
         working-directory: frontend
