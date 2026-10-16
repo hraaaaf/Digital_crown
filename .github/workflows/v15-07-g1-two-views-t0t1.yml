@@ -246,12 +246,35 @@ jobs:
                       if(size.key === 'desktop1440') {
                         // Two-pane BEFORE interactions on the actual authenticated React UI.
                         const stableTop=async()=>{
-                          await page.evaluate(()=>window.scrollTo({top:0,left:0,behavior:'instant'}));
+                          // The Cabinet shell can scroll inside an overflow:auto
+                          // ancestor while window.scrollY remains zero.
+                          await page.evaluate(()=>{
+                            const h=document.querySelector('.v15-g1-opaque-patient-header');
+                            for(let n=h?.parentElement;n;n=n.parentElement){
+                              if(n.scrollTop>0)n.scrollTop=0;
+                            }
+                            if(document.scrollingElement)document.scrollingElement.scrollTop=0;
+                          });
                           await page.waitForTimeout(400);
                         };
                         await stableTop();
                         await page.screenshot({path:path.join(out,'imagerie-deux-vues-initial-desktop1440.png'),fullPage:false});
-                        await page.evaluate(()=>window.scrollTo({top:160,left:0,behavior:'instant'}));
+                        const scrollQA=await page.evaluate(()=>{
+                          const h=document.querySelector('.v15-g1-opaque-patient-header');
+                          if(!(h instanceof HTMLElement))return {pass:false,reason:'header missing'};
+                          const candidates=[];
+                          for(let n=h.parentElement;n;n=n.parentElement){
+                            const style=getComputedStyle(n);
+                            if(/auto|scroll/.test(style.overflowY) && n.scrollHeight-n.clientHeight>=100)candidates.push(n);
+                          }
+                          const root=document.scrollingElement;
+                          if(root&&root.scrollHeight-root.clientHeight>=100&&!candidates.includes(root))candidates.push(root);
+                          const target=candidates[0];
+                          if(!target)return {pass:false,reason:'no scrollable page ancestor'};
+                          target.scrollTop=Math.min(160,target.scrollHeight-target.clientHeight);
+                          return {pass:target.scrollTop>=80,actualScrollTop:target.scrollTop,scrollHost:target.tagName,
+                            candidateCount:candidates.length};
+                        });
                         await page.waitForTimeout(250);
                         const stickyQA=await page.evaluate(()=>{
                           const el=document.querySelector('.v15-g1-opaque-patient-header');
@@ -262,10 +285,11 @@ jobs:
                           if(!ctx)return {pass:false,reason:'canvas not available'};
                           ctx.fillStyle=style.backgroundColor;ctx.fillRect(0,0,1,1);
                           const alpha=ctx.getImageData(0,0,1,1).data[3];
-                          return {pass:style.position==='sticky'&&alpha>=254,position:style.position,alpha,scrollY:scrollY};
+                          return {pass:style.position==='sticky'&&alpha>=254,position:style.position,alpha,windowScrollY:scrollY};
                         });
-                        desktopQA.push({check:'desktop sticky header is opaque while scrolled',...stickyQA});
-                        if(!stickyQA.pass)throw Error('G1 opaque header proof failed: '+JSON.stringify(stickyQA));
+                        const stickyProof={pass:scrollQA.pass&&stickyQA.pass,scroll:scrollQA,header:stickyQA};
+                        desktopQA.push({check:'desktop sticky header is opaque during REAL scroll',...stickyProof});
+                        if(!stickyProof.pass)throw Error('G1 actual scroll/opaque header proof failed: '+JSON.stringify(stickyProof));
                         await page.screenshot({path:path.join(out,'imagerie-entete-scroll-desktop1440.png'),fullPage:false});
                         await stableTop();
                         await splitter.focus();
