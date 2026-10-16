@@ -308,6 +308,16 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     expect(cephaloShortPointName('ANS')).toBe('ENA');
     expect(cephaloShortPointName('PNS')).toBe('ENP');
     expect(cephaloShortPointName('UNKNOWN_CLINICAL_ID')).toBe('UNKNOWN_CLINICAL_ID');
+    // Canonical manual identities can coexist with automatic SRPose38 points.
+    // Display must neither collide nor leak raw English-like technical IDs.
+    const optionalManual=['Gn_anatomic','U1_facial_surface','L1_facial_surface',
+      'D_Steiner_1959','Occ_Steiner_Ant','Occ_Steiner_Post','Pog_hard'];
+    const optionalLabels=optionalManual.map(cephaloShortPointName);
+    expect(optionalLabels.every(label=>label.length<=8&&!label.includes('_'))).toBe(true);
+    expect(new Set([...labels,...optionalLabels]).size).toBe(labels.length+optionalLabels.length);
+    expect(cephaloShortPointName('Occ_Steiner_Ant')).toBe('Occ St A');
+    expect(cephaloShortPointName('Occ_Steiner_Post')).toBe('Occ St P');
+    expect(cephaloShortPointName('Pog_hard')).toBe('Pog os');
   });
 
   it('renders each desktop point as a small, outlined, persistent core without editing coordinates', () => {
