@@ -317,6 +317,31 @@ class CheckpointCAdversarialSynthetic(unittest.TestCase):
                 b_head, {"method": "HEAD"}, l.c.challenged_head(nonce),
                 nonce, l.b_pin, l.c_pin)
 
+    def test_c_head_non_json_nested_objects_fail_closed(self):
+        l = self.lab
+        nonce = secrets.token_hex(16)
+        valid = l.c.challenged_head(nonce)
+        for bad in (float("nan"), float("inf"), b"not-json", {1, 2, 3},
+                    object()):
+            with self.subTest(non_json=type(bad).__name__, repr=repr(bad)):
+                mutant = {"response": {**valid["response"], "anchor": bad},
+                          "signature_b64": valid["signature_b64"]}
+                with self.assertRaisesRegex(CasRefusal, "C_HEAD_CANONICAL_REFUSE"):
+                    verify_challenged_c_head(mutant, nonce, l.c_pin,
+                                             l.b_pin, l.scope)
+
+    def test_c_head_nested_valid_json_wrong_anchor_refused(self):
+        l = self.lab
+        nonce = secrets.token_hex(16)
+        valid = l.c.challenged_head(nonce)
+        for bad in (None, [], {}, 42, "wrong", {"other": "value"}):
+            with self.subTest(value=str(bad)):
+                mutant = {"response": {**valid["response"], "anchor": bad},
+                          "signature_b64": valid["signature_b64"]}
+                with self.assertRaises(CasRefusal):
+                    verify_challenged_c_head(mutant, nonce, l.c_pin,
+                                             l.b_pin, l.scope)
+
     def test_different_B_scope_signed_head_refused(self):
         l = self.lab
         b_head, req = l.fresh_head()
