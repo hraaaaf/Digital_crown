@@ -11,7 +11,7 @@ Example, from repo root with disposable T2 flags explicitly enabled there:
   T2_PASSWORD='synthetic' T2_PATIENT_ID=7 \
   python scripts/ci/crownbot_cb00_t2_read_evidence.py --out /tmp/cb00-read.json
 Optional negative T2 fixtures: T2_DENIED_USER, T2_DENIED_PASSWORD,
-T2_FOREIGN_PATIENT_ID. Never record real names, passwords, tokens or responses.
+T2_FOREIGN_PATIENT_ID, T2_DENIED_COMMAND. Never store names, credentials, tokens or responses.
 """
 import argparse
 import json
@@ -74,6 +74,8 @@ def require_t2_environment(args) -> tuple[str, str, str, int]:
         raise ValueError('REFUSED: denied identity fixture must have user and password')
     if denied_user and not denied_user.startswith('t2-'):
         raise ValueError('REFUSED: denied identity is not synthetic')
+    if os.getenv('T2_DENIED_COMMAND', '/rdv') not in ('/patient', '/rdv', '/devis'):
+        raise ValueError('REFUSED: denied command not in supported capabilities')
     foreign_id = os.getenv('T2_FOREIGN_PATIENT_ID', '')
     if foreign_id and not re.fullmatch(r'[1-9]\d{0,9}', foreign_id):
         raise ValueError('REFUSED: foreign patient fixture must be synthetic positive ID')
@@ -167,12 +169,12 @@ def run(args):
     denied_user = os.getenv('T2_DENIED_USER', '')
     if denied_user:
         denied_token = login(api, denied_user, os.environ['T2_DENIED_PASSWORD'])
-        status, payload, _ = http_json(endpoint, {'messages': ['/rdv']}, denied_token)
+        status, payload, _ = http_json(endpoint, {'messages': [os.getenv('T2_DENIED_COMMAND', '/rdv')]}, denied_token)
         if status != 403 or 'patient' in payload or 'proposal' in payload:
-            raise RuntimeError('FAIL CLOSED: denied agenda permission is not isolated')
-        checks['agenda_no_permission_403'] = 'PASS'
+            raise RuntimeError('FAIL CLOSED: denied permission is not isolated')
+        checks['permission_denied_403'] = 'PASS'
     else:
-        checks['agenda_no_permission_403'] = 'NOT_RUN_NO_FIXTURE'
+        checks['permission_denied_403'] = 'NOT_RUN_NO_FIXTURE'
     foreign_id = os.getenv('T2_FOREIGN_PATIENT_ID', '')
     if foreign_id:
         status, payload, _ = http_json(
