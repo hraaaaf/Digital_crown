@@ -61,7 +61,7 @@ def lookup_patient_candidates(
             candidates[patient.id] = patient
     if by_dossier:
         for patient in base.filter(
-            models.Patient.numero_dossier.collate("NOCASE") == raw
+            func.lower(models.Patient.numero_dossier) == raw.lower()
         ).limit(MAX_CHOICES + 1):
             candidates[patient.id] = patient
 
