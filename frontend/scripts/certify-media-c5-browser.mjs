@@ -78,21 +78,43 @@ for (const viewport of viewports) {
   // the panel itself, otherwise it can hide or manufacture a sticky-header defect.
   await page.waitForTimeout(400);
   const visualFrame = await page.evaluate(() => {
-    const header = document.querySelector('header.sticky');
+    // Tailwind's "lg:sticky" is a literal class token; "header.sticky"
+    // never matched this patient header, making every viewport fail with null.
+    const header = document.querySelector('header[class~="lg:sticky"]');
     const panel = document.querySelector('[data-testid="media-compare-panel"]');
     const workspace = document.querySelector('[data-testid="patient-media-timeline"]');
     if (!(header instanceof HTMLElement) || !(panel instanceof HTMLElement) || !(workspace instanceof HTMLElement)) {
-      return { stickyOverlap: true, workspaceOverlap: true, headerBottom: null, panelTop: null, workspaceTop: null };
+      return {
+        missing: { header: !(header instanceof HTMLElement), panel: !(panel instanceof HTMLElement), workspace: !(workspace instanceof HTMLElement) },
+        headerModeCorrect: false, stickyOverlap: true, workspaceOverlap: true,
+        headerBottom: null, panelTop: null, workspaceTop: null,
+      };
     }
-    const headerBottom = Math.round(header.getBoundingClientRect().bottom);
-    const panelTop = Math.round(panel.getBoundingClientRect().top);
-    const workspaceTop = Math.round(workspace.getBoundingClientRect().top);
+    const headerBox = header.getBoundingClientRect();
+    const panelBox = panel.getBoundingClientRect();
+    const workspaceBox = workspace.getBoundingClientRect();
+    const headerPosition = getComputedStyle(header).position;
+    const headerExpectedSticky = matchMedia('(min-width: 1024px)').matches;
+    // Both axes must genuinely intersect by >2 CSS pixels. Merely being
+    // within 8px of the header is not overlap. Check only visible geometry.
+    const overlapsHeader = (box) => (
+      headerBox.bottom > 0 && headerBox.top < innerHeight &&
+      box.bottom > 0 && box.top < innerHeight &&
+      Math.min(headerBox.right, box.right) - Math.max(headerBox.left, box.left) > 2 &&
+      Math.min(headerBox.bottom, box.bottom) - Math.max(headerBox.top, box.top) > 2
+    );
     return {
-      stickyOverlap: panelTop < headerBottom + 8,
-      workspaceOverlap: workspaceTop < headerBottom + 8,
-      headerBottom,
-      panelTop,
-      workspaceTop,
+      headerPosition,
+      headerExpectedSticky,
+      headerModeCorrect: headerExpectedSticky ? headerPosition === 'sticky' : headerPosition === 'static',
+      stickyOverlap: overlapsHeader(panelBox),
+      workspaceOverlap: overlapsHeader(workspaceBox),
+      headerTop: Math.round(headerBox.top),
+      headerBottom: Math.round(headerBox.bottom),
+      panelTop: Math.round(panelBox.top),
+      panelBottom: Math.round(panelBox.bottom),
+      workspaceTop: Math.round(workspaceBox.top),
+      workspaceBottom: Math.round(workspaceBox.bottom),
     };
   });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
@@ -106,6 +128,7 @@ await browser.close();
 await api.dispose();
 const invalid = evidence.flatMap((row) => [
   ...(row.overflow ? [{ viewport: row.viewport, reason: 'overflow' }] : []),
+  ...(!row.visualFrame?.headerModeCorrect ? [{ viewport: row.viewport, reason: 'header-mode-or-DOM-mismatch', visualFrame: row.visualFrame }] : []),
   ...(row.visualFrame?.stickyOverlap ? [{ viewport: row.viewport, reason: 'sticky-overlap', visualFrame: row.visualFrame }] : []),
   ...(row.visualFrame?.workspaceOverlap ? [{ viewport: row.viewport, reason: 'workspace-sticky-overlap', visualFrame: row.visualFrame }] : []),
   ...row.pageErrors.map((error) => ({ viewport: row.viewport, reason: 'pageerror', error })),
