@@ -243,6 +243,50 @@ def run():
         ).count() == 0
     print("CLINICAL_REAL_EIGHT_HOUR_OVERLAP: PASS")
 
+    # Strict half-open endpoints: 11:00–11:20 and 11:20–11:40 are
+    # BOTH bookable; 11:19 overlaps and must still fail closed.
+    adjacent_slot = (first_slot + timedelta(days=13)).replace(
+        hour=11, minute=0, second=0, microsecond=0,
+    )
+    with database.SessionLocal() as db:
+        resource = models.AgendaResource(
+            employer_id=doctor_id, name="Synthetic Boundary Chair",
+            resource_type="CHAIR", is_active=True,
+        )
+        db.add(resource)
+        db.commit()
+        resource_id = resource.id
+    def _adjacent_http(at, label):
+        return api.post("/api/appointments/", headers=authorization, json={
+            "patient_name": label, "praticien_id": doctor_id,
+            "resource_id": resource_id,
+            "datetime_start": at.isoformat(), "duration_minutes": 20,
+        })
+    first_adjacent = _adjacent_http(adjacent_slot, "Synthetic first adjacent")
+    assert first_adjacent.status_code == 200, first_adjacent.text
+    second_adjacent = _adjacent_http(
+        adjacent_slot + timedelta(minutes=20), "Synthetic second adjacent",
+    )
+    assert second_adjacent.status_code == 200, second_adjacent.text
+    rejected_overlap = _adjacent_http(
+        adjacent_slot + timedelta(minutes=19), "Synthetic one-minute overlap",
+    )
+    assert rejected_overlap.status_code == 409, rejected_overlap.text
+    from backend.services.agenda_resource_conflicts import find_resource_conflict
+    with database.SessionLocal() as db:
+        assert find_resource_conflict(
+            db, employer_id=doctor_id, resource_id=resource_id,
+            datetime_start=adjacent_slot + timedelta(minutes=40),
+            duration_minutes=20,
+        ) is None
+        assert find_resource_conflict(
+            db, employer_id=doctor_id, resource_id=resource_id,
+            datetime_start=adjacent_slot + timedelta(minutes=19),
+            duration_minutes=20,
+        ) is not None
+    print("CLINICAL_REAL_EXACT_ADJACENT_SLOTS_AND_RESOURCE: PASS")
+
+
     # An expired request is NOT a copyable offer of an available slot.
     expired_slot = first_slot + timedelta(days=7)
     expired_response = api.post(
@@ -436,6 +480,7 @@ def run():
                 "patient_name": f"Synthetic archive {i}",
                 "employer_id": doctor_id,
                 "praticien_id": doctor_id,
+                "resource_id": resource_id,
                 "datetime_start": old_start + timedelta(days=i % 900),
                 "duration_minutes": 30,
                 "status": models.AppointmentStatus.PREVU,
@@ -449,26 +494,44 @@ def run():
         # Check both correctness and bounded runtime, with a generous CI
         # threshold. Log actual timings; do not claim realistic scale.
         durations = []
+        resource_durations = []
         for _ in range(5):
             start_clock = time.perf_counter()
             matches = _find_conflicts(db, doctor_id, doctor_id, candidate, 30)
             durations.append(time.perf_counter() - start_clock)
             assert not matches
+            start_clock = time.perf_counter()
+            resource_conflict = find_resource_conflict(
+                db, employer_id=doctor_id, resource_id=resource_id,
+                datetime_start=candidate, duration_minutes=30,
+            )
+            resource_durations.append(time.perf_counter() - start_clock)
+            assert resource_conflict is None
         assert max(durations) < 5.0, f"SQL end index query too slow: {durations}"
+        assert max(resource_durations) < 5.0, (
+            f"Indexed resource query too slow: {resource_durations}"
+        )
         if db.get_bind().dialect.name == "sqlite":
             index_rows = db.execute(text(
                 "PRAGMA index_list('appointments')"
             )).all()
             assert "ix_appointments_tenant_clinical_end" in {row[1] for row in index_rows}
+            assert "ix_appointments_resource_clinical_end" in {row[1] for row in index_rows}
         else:
             indexed = db.execute(text(
                 "SELECT count(*) FROM pg_indexes WHERE tablename='appointments' "
                 "AND indexname='ix_appointments_tenant_clinical_end'"
             )).scalar()
             assert indexed == 1
+            resource_indexed = db.execute(text(
+                "SELECT count(*) FROM pg_indexes WHERE tablename='appointments' "
+                "AND indexname='ix_appointments_resource_clinical_end'"
+            )).scalar()
+            assert resource_indexed == 1
         print("CLINICAL_REAL_INDEXED_OVERLAP_ARCHIVE: PASS",
               "historical_rows=", count,
-              "max_lookup_ms=", round(max(durations) * 1000, 2))
+              "max_lookup_ms=", round(max(durations) * 1000, 2),
+              "max_resource_lookup_ms=", round(max(resource_durations) * 1000, 2))
 
 
     print("CLINICAL_FULL_SCHEMA_HTTP_GATE: PASS migrated schema, HTTP, real database transaction")
