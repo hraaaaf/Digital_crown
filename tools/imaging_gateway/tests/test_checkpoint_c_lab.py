@@ -83,8 +83,7 @@ class CheckpointCSyntheticTests(unittest.TestCase):
         two = self.c.anchor(receipt2)
         self.assertEqual(two["checkpoint"]["seq"], 2)
         self.assertEqual(two["checkpoint"]["prev_checkpoint_sha256"],
-                         hashlib.sha256(__import__("tools.imaging_gateway.durable_cas_lab",
-                            fromlist=["canonical"]).canonical(one)).hexdigest())
+                         hashlib.sha256(canonical(one)).hexdigest())
         self.assertEqual(self.verdict().status, "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
 
     def test_gap_or_fork_in_anchor_refused(self):
