@@ -146,21 +146,26 @@ try {
       }
       await page.keyboard.press('Enter');
       await sidecar.waitFor({state:'visible'});
-      const reopenClose=page.getByRole('button',{name:'Réduire le panneau Crown Bot'});
-      await reopenClose.click();
-      await sidecar.waitFor({state:'detached'});
-      if(!await launcher.evaluate(el=>el===document.activeElement)) {
-        throw new Error('FAIL: reduce button did not restore keyboard focus');
-      }
-      // 200% reflow PROXY: 1/2 the CSS viewport width. This is NOT actual
-      // browser Ctrl+Plus / OS accessibility zoom; name evidence precisely.
+      // Keep an unfinished clinical search draft while the browser equivalent
+      // of 200% zoom makes the sidebar switch into narrow floating mode.
+      const sidecarPreview=sidecar.getByRole('region',{name:'Simulation ZERO-LLM Crown Bot'});
+      await sidecarPreview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
+      await sidecarPreview.getByRole('button',{name:'/patient'}).click();
+      const inProgressDraft='dossier:BROUILLON-NON-SOUMIS';
+      await sidecarPreview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(inProgressDraft);
       const proxyWidth=Math.floor(width/2);
+      // Reflow PROXY: half the CSS viewport width; NOT native Chrome zoom.
       await page.setViewportSize({width:proxyWidth,height});
-      await page.getByRole('button',{name:'Ouvrir CrownBot'}).focus();
-      await page.keyboard.press('Enter');
       await overlay.waitFor({state:'visible'});
       if(await sidecar.count()) {
         throw new Error('FAIL: desktop sidecar did not reflow to web floating fallback');
+      }
+      const floatingPreview=overlay.getByRole('region',{name:'Simulation ZERO-LLM Crown Bot'});
+      const floatingDraft=await floatingPreview.getByRole('textbox',{
+        name:'Votre réponse de simulation',
+      }).inputValue();
+      if(floatingDraft!==inProgressDraft) {
+        throw new Error('FAIL: 200% CSS reflow discarded unfinished patient-search draft');
       }
       const reflow=await page.evaluate(() => {
         const root=document.documentElement;
@@ -180,7 +185,21 @@ try {
       await page.screenshot({
         path:path.join(output,'reflow-proxy-200-'+width+'.png'),
       });
+      // Reverse the viewport change. The same draft and conversation must
+      // remain on screen; do not silently restart the patient lookup.
+      await page.setViewportSize({width,height});
+      await sidecar.waitFor({state:'visible'});
+      if(await sidecar.getByRole('textbox',{name:'Votre réponse de simulation'}).inputValue()
+          !==inProgressDraft) {
+        throw new Error('FAIL: restoring desktop viewport lost patient-search draft');
+      }
+      await page.getByRole('button',{name:'Réduire le panneau Crown Bot'}).click();
+      await sidecar.waitFor({state:'detached'});
+      if(!await launcher.evaluate(el=>el===document.activeElement)) {
+        throw new Error('FAIL: reducer did not restore focus after CSS reflow');
+      }
       evidence[evidence.length-1].keyboard='PASS_ESCAPE_ENTER_RESTORE_FOCUS';
+      evidence[evidence.length-1].draftSurvivesReflow='PASS_BOTH_DIRECTIONS';
       evidence[evidence.length-1].zoom200ReflowProxy=reflow;
     }
     await context.close();
