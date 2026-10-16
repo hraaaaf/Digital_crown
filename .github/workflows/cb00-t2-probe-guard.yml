@@ -1,0 +1,46 @@
+name: CB-00 T2 Probe Guard (REQUIRED for CB-00 harness only)
+
+on:
+  pull_request:
+    paths:
+      - scripts/ci/crownbot_cb00_t2_read_evidence.py
+      - tests/test_cb00_t2_read_evidence_guard.py
+      - .github/workflows/cb00-t2-probe-guard.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-guard:
+    name: CB-00 synthetic localhost and workstation probe safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout exact PR source HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Prove exact checkout SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          echo "Source SHA: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned pytest
+        run: python -m pip install pytest==8.4.2
+      - name: Compile actual committed probe and guard tests
+        run: python -m py_compile scripts/ci/crownbot_cb00_t2_read_evidence.py tests/test_cb00_t2_read_evidence_guard.py
+      - name: Execute exact-HEAD synthetic guard tests
+        run: python -m pytest -q -ra tests/test_cb00_t2_read_evidence_guard.py
+      - name: Scope caveat
+        if: always()
+        run: |
+          echo "Only static/loopback synthetic harness tests; no real T2 server, DOM, production or patient data." >> "$GITHUB_STEP_SUMMARY"
+          echo "CB-00 remains OPEN until T2 + visual + 12 scenario evidence." >> "$GITHUB_STEP_SUMMARY"
