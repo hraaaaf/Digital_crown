@@ -307,11 +307,35 @@ async function captureViewport(viewport,attempt){
         &&focusVisibility.position==='fixed'&&focusVisibility.onTop&&focusVisibility.svgVisible
         &&focusedMode==='steiner'&&restoredMode==='steiner'};
   }
+  // Desktop clinical landmark inspection: all names must be navigable without
+  // changing the geometry of any displayed editable landmark.
+  let desktopPointInspectorProof=null;
+  if(viewport.width>=1280){
+    const inspector=page.locator('[data-cephalo-desktop-landmark-inspector]');
+    const inspectorVisible=await inspector.isVisible();
+    const readCoordinates=()=>page.locator('[data-ceph03b-drag-handle]').evaluateAll(nodes=>
+      nodes.map(node=>{
+        const circle=node.querySelector('circle');
+        return [node.getAttribute('data-ceph03b-drag-handle'),circle?.getAttribute('cx'),circle?.getAttribute('cy')];
+      }));
+    const coordinatesBefore=await readCoordinates();
+    await inspector.locator('summary').click();
+    const availableNames=await inspector.locator('[data-r23-point-select]').count();
+    await inspector.locator('[data-r23-point-select="N"]').click();
+    await page.locator('[data-ceph03b-focus-ring="N"]').waitFor({state:'attached',timeout:4000});
+    const focused=await page.locator('[data-ceph03b-focus-ring="N"]').count()===1;
+    const coordinatesAfter=await readCoordinates();
+    const geometryUnchanged=JSON.stringify(coordinatesBefore)===JSON.stringify(coordinatesAfter);
+    const screenshot=`after-desktop-N-inspected-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,screenshot),fullPage:false});
+    desktopPointInspectorProof={inspectorVisible,availableNames,focused,geometryUnchanged,screenshot,
+      valid:inspectorVisible&&availableNames===29&&focused&&geometryUnchanged};
+  }
   const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)
     &&selectorChecks.length===3&&selectorChecks.every(s=>s.valid)
     &&(viewport.width<1280 ? mobileImageFirstProof?.valid===true
-      : (focusProof?.valid===true&&imageFirstProof?.valid===true));
-  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states,focusProof,imageFirstProof,mobileImageFirstProof};
+      : (focusProof?.valid===true&&imageFirstProof?.valid===true&&desktopPointInspectorProof?.valid===true));
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states,focusProof,imageFirstProof,mobileImageFirstProof,desktopPointInspectorProof};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }

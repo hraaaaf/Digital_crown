@@ -168,7 +168,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <ScanFace size={16} aria-hidden="true" />
           <span className="hidden xl:inline xl:ml-1">{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</span>
         </button>
-        <details ref={pointMenuRef} data-r23-mobile-point-directory className="relative xl:hidden">
+        <details ref={pointMenuRef} data-r23-mobile-point-directory data-cephalo-desktop-landmark-inspector className="relative">
           <summary aria-label="Parcourir les repères anatomiques" className="flex min-h-10 cursor-pointer list-none items-center justify-center rounded-xl border px-2 text-[11px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
             style={{ background: props.P.bgCard, borderColor: props.P.border, color: props.P.text }}>
             Repères <span className="ml-1 tabular-nums">{localLandmarks.length}</span>
