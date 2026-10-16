@@ -7,6 +7,7 @@ import secrets
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
