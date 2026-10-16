@@ -45,3 +45,6 @@ jobs:
         run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_independent_witness_lab.py' -v
       - name: Regression LOT06-M durable CAS
         run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_durable_cas_lab.py' -v
+      - name: Complete Imaging Gateway synthetic suite on raw branch HEAD
+        if: matrix.hashseed == '0'
+        run: python -m unittest discover -s tools/imaging_gateway/tests -v
