@@ -133,6 +133,7 @@ jobs:
           import fs from 'node:fs';
           import path from 'node:path';
           import crypto from 'node:crypto';
+          import os from 'node:os';
           import { chromium, request } from 'playwright';
 
           const out = path.resolve('../artifacts/v15-07-g1-two-views-t0t1');
@@ -226,6 +227,28 @@ jobs:
                     if (await page.locator('[data-testid="patient-media-timeline"]').count() !== 1)
                       throw Error('Existing real media module should be mounted exactly once');
                     if(expectedSplit) {
+                      // Synthetic T2 patient lacks medical history, so the
+                      // authenticated NBA advice must appear *inline* above
+                      // the split, not as a floating global notification.
+                      const inlineNBA=page.locator('[data-v15-07-g1-inline-nba]');
+                      await inlineNBA.waitFor({state:'visible',timeout:15000});
+                      const nbaContent=(await inlineNBA.innerText()).trim();
+                      if(!nbaContent.includes('Dossier à compléter') || !nbaContent.includes('Antécédents médicaux') || !nbaContent.includes('Action : Compléter Dossier'))
+                        throw Error('G1 clinical NBA advice missing or incomplete: '+nbaContent);
+                      const nbaBox=await inlineNBA.boundingBox();
+                      const splitBox=await page.locator('[data-v15-07-split-container]').boundingBox();
+                      if(!nbaBox || !splitBox || nbaBox.y + nbaBox.height > splitBox.y + 1)
+                        throw Error('G1 clinical NBA must be inline and not overlap views');
+                      const legacyFloatingNBA=await page.evaluate(()=>{
+                        const advice=document.querySelector('[data-v15-07-g1-inline-nba]');
+                        return Array.from(document.querySelectorAll('[role="status"]'))
+                          .filter(n=>n!==advice && n.textContent?.includes('Dossier à compléter')).length;
+                      });
+                      if(legacyFloatingNBA)throw Error('Legacy floating clinical NBA still obscures the pilot');
+                      if(size.key === 'desktop1440')desktopQA.push({
+                        check:'real clinical NBA preserved inline with no floating toast',
+                        pass:true,example:nbaContent,inlineBottom:Math.round(nbaBox.y + nbaBox.height),splitTop:Math.round(splitBox.y)
+                      });
                       const summary = page.locator('[data-v15-07-real-dossier]');
                       await summary.waitFor({state:'visible',timeout:25000});
                       if(!(await summary.innerText()).includes(patient.numero_dossier))
@@ -414,6 +437,60 @@ jobs:
                 await page.close();
               }
               await context.close();
+            }
+            // Native Chromium *page* zoom via isolated profile HostZoomMap.
+            // Unlike CSS zoom or CDP PageScaleFactor this is the same browser
+            // zoom state controlled by the Chrome 200% setting / Ctrl+Plus.
+            // A synthetic, disposable profile only. Never claim that actual
+            // Ctrl+Plus keystrokes were sent (they are not in headless Chrome).
+            const zoomDir=fs.mkdtempSync(path.join(os.tmpdir(),'g1-native-chrome-zoom-'));
+            fs.mkdirSync(path.join(zoomDir,'Default'),{recursive:true});
+            const nativeLevel=Math.log(2)/Math.log(1.2);
+            fs.writeFileSync(path.join(zoomDir,'Default','Preferences'),
+              JSON.stringify({partition:{default_zoom_level:{x:nativeLevel}}}));
+            let zoomContext;
+            try {
+              zoomContext=await chromium.launchPersistentContext(zoomDir,{
+                headless:true,channel:'chromium',viewport:null,locale:'fr-FR',
+                args:['--window-size=1440,900','--no-first-run','--no-default-browser-check']
+              });
+              const bootstrapState=await api.storageState();
+              if(!bootstrapState.cookies?.length)throw Error('Zoom context missing enrolled workstation credentials');
+              await zoomContext.addCookies(bootstrapState.cookies);
+              const zoomPage=await zoomContext.newPage();
+              await zoomPage.addInitScript(({access,refresh})=>{
+                localStorage.setItem('token',access);
+                localStorage.setItem('refresh_token',refresh||'');
+                localStorage.setItem('appMode','prod');
+              },{access:tokens.access_token,refresh:tokens.refresh_token});
+              await zoomPage.goto('http://127.0.0.1:5173/patients/'+patient.id,{waitUntil:'domcontentloaded',timeout:90000});
+              await zoomPage.getByText(fixturePatientName,{exact:false}).first().waitFor({state:'visible',timeout:60000});
+              await zoomPage.getByRole('button',{name:'Imagerie',exact:true}).click();
+              await zoomPage.getByRole('button',{name:'Médiathèque',exact:true}).click();
+              await zoomPage.getByText('Médiathèque clinique',{exact:true}).first().waitFor({state:'visible',timeout:25000});
+              const nativeMetrics=await zoomPage.evaluate(()=>({
+                innerWidth,outerWidth,devicePixelRatio,visualScale:visualViewport?.scale||1,
+                splitCount:document.querySelectorAll('[data-v15-07-two-views]').length,
+                mediaCount:document.querySelectorAll('[data-testid="patient-media-timeline"]').length,
+                overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2
+              }));
+              // Fail closed: a preference JSON alone is not proof. Genuine
+              // browser page zoom must halve CSS width *and* double DPR while
+              // the visual compositor scale remains 1.
+              const nativePass=nativeMetrics.devicePixelRatio>=1.9
+                && nativeMetrics.innerWidth>=600&&nativeMetrics.innerWidth<=850
+                && nativeMetrics.outerWidth>=1200
+                && nativeMetrics.visualScale===1
+                && nativeMetrics.splitCount===0&&nativeMetrics.mediaCount===1&&!nativeMetrics.overflow;
+              const nativeEntry={check:'NATIVE Chromium browser page zoom 200% via profile default zoom',
+                configuredPercent:200,nativeLevel,nativePass,pass:nativePass,...nativeMetrics,
+                method:'isolated Chrome native HostZoomMap profile setting (not literal Ctrl+Plus keypress)'};
+              desktopQA.push(nativeEntry);
+              if(!nativePass)throw Error('Chromium profile zoom did not prove real 200%: '+JSON.stringify(nativeEntry));
+              await zoomPage.screenshot({path:path.join(out,'imagerie-browser-NATIVE-pagezoom200-desktop1440.png'),fullPage:false});
+            } finally {
+              await zoomContext?.close();
+              fs.rmSync(zoomDir,{recursive:true,force:true});
             }
           } finally {await browser.close(); await api.dispose();}
           const critical=evidence.filter(e=>e.failure||e.pageErrors.length||e.http5xx.length);
