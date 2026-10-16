@@ -49,6 +49,9 @@ export interface CephaloTracingLayerProps {
   viewZoom?: number;
   viewPan?: { x: number; y: number };
   compactLabels?: boolean;
+  /** Keep the duplicate floating analysis tabs only on desktop or fullscreen.
+   *  The accessible analysis selector remains always available on mobile. */
+  showStageTabs?: boolean;
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
   onKeyboardNudgeLandmark?: (id: string, dx: number, dy: number, imageWidth: number, imageHeight: number) => void;
   /** Transient rendering-only drag preview; never stored or committed here. */

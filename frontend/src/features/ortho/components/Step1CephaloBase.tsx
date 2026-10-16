@@ -325,7 +325,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   // Transformed/grid ancestors can clip a position:fixed descendant.
   // React's portal preserves store, editor callbacks and anatomical points.
   const stageContent = (
-    <div ref={step1ContainerRef} data-cephalo-stage-root="true" className={`flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'relative h-[82vh] w-full'}`} style={{ ...themeVars, background: '#020617', boxShadow: P.shadowLg, border: `1px solid ${isStep1Fullscreen ? '#1e293b' : P.border}`, zIndex: isStep1Fullscreen ? 9999 : undefined }}>
+    <div ref={step1ContainerRef} data-cephalo-stage-root="true" className={`flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'relative h-[max(460px,66svh)] sm:h-[82vh] w-full'}`} style={{ ...themeVars, background: '#020617', boxShadow: P.shadowLg, border: `1px solid ${isStep1Fullscreen ? '#1e293b' : P.border}`, zIndex: isStep1Fullscreen ? 9999 : undefined }}>
       <div className="absolute inset-2 z-0 overflow-hidden rounded-[1.15rem] border border-slate-800 bg-slate-950 shadow-lg sm:inset-2">
         <CephaloTracingLayer
           imageSrc={imageSrc}
@@ -338,6 +338,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           viewZoom={activeViewZoom}
           viewPan={activeViewZoom > 1 ? viewPan : { x: 0, y: 0 }}
           compactLabels={embedded && desktopZoomAvailable}
+          showStageTabs={isStep1Fullscreen || desktopZoomAvailable}
           activeAnalysis={activeAnalysis}
           onUpdateLandmarks={updateLandmarksOptimistic}
           onKeyboardNudgeLandmark={nudgeLandmarkFromKeyboard}

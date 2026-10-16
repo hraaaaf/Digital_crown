@@ -93,7 +93,7 @@ async function captureViewport(viewport,attempt){
   const theme=await page.evaluate(()=>document.body.dataset.theme||document.documentElement.dataset.theme||'default');
   if(theme!==CAPTURE_THEME) throw new Error(`Unexpected capture theme: ${theme}`);
   await page.getByRole('heading',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:30000});
-  await page.locator('[aria-label="Analyse du tracé"]').waitFor({state:'visible',timeout:10000});
+  await page.locator('[aria-label="Analyse du tracé"]').waitFor({state:viewport.width>=1280 ? 'visible' : 'attached',timeout:10000});
   await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:10000});
   // Exercise the left-hand ready-made selector, not only the floating tracing tabs.
   const selectorChecks=[];
@@ -143,6 +143,8 @@ async function captureViewport(viewport,attempt){
     const stage=page.locator('[data-r20-radiograph-stage]');
     const rail=page.locator('[data-r20-workbench-sidebar]');
     const top=await stage.evaluate(el=>el.getBoundingClientRect().top);
+    const stageHeight=await stage.evaluate(el=>el.getBoundingClientRect().height);
+    const overlayTabsInitiallyHidden=!(await page.locator('[aria-label="Analyse du tracé"]').isVisible());
     const folded=await rail.evaluate(el=>getComputedStyle(el).display==='none');
     const selectorWidth=await page.locator('#cephalo-ready-analysis').evaluate(el=>el.getBoundingClientRect().width);
     const stepSelector=page.locator('[data-cephalo-mobile-step-selector]');
@@ -170,6 +172,7 @@ async function captureViewport(viewport,attempt){
     // changing shared portal/canvas CSS. A hidden SVG or a stuck overlay is red.
     await page.locator('[data-cephalo-stage-root] button[title="Plein écran"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:6000});
+    const overlayTabsInFocus=await page.locator('[aria-label="Analyse du tracé"]').isVisible();
     const fullscreen=await page.evaluate(()=>{
       const root=document.querySelector('[data-cephalo-stage-root]');
       const svg=root?.querySelector('svg[data-cephalo-viewport="base"]');
@@ -184,9 +187,11 @@ async function captureViewport(viewport,attempt){
     await page.locator('[data-cephalo-stage-root] button[title="Quitter plein écran"]').click();
     await page.waitForFunction(()=>!document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:5000});
     const fullscreenRestored=await page.locator('[data-cephalo-stage-root]').evaluate(el=>getComputedStyle(el).position!=='fixed');
-    mobileImageFirstProof={top,folded,opened,restored,selectorWidth,compactStepProof,menuNames,firstId,selectedVisible,bgCount,screenShot,fullscreen,mobileFocusShot,fullscreenRestored,
+    mobileImageFirstProof={top,stageHeight,overlayTabsInitiallyHidden,overlayTabsInFocus,folded,opened,restored,selectorWidth,compactStepProof,menuNames,firstId,selectedVisible,bgCount,screenShot,fullscreen,mobileFocusShot,fullscreenRestored,
       valid:top>0&&top<viewport.height*.56
+        &&overlayTabsInitiallyHidden&&overlayTabsInFocus
         &&(viewport.width>=768||(compactStepProof?.visible&&compactStepProof.options===4&&compactStepProof.value==='1'))
+        &&(viewport.width>=768||stageHeight<=viewport.height*.72)
         &&folded&&opened&&restored&&selectorWidth>=141
         &&menuNames===29&&selectedVisible&&bgCount===0
         &&fullscreen.width>=viewport.width-2&&fullscreen.height>=viewport.height-2
@@ -194,7 +199,8 @@ async function captureViewport(viewport,attempt){
   }
   const states=[];
   for(const mode of modes){
-   await page.locator(`[data-analysis="${mode}"]`).click();
+   if(viewport.width>=1280) await page.locator(`[data-analysis="${mode}"]`).click();
+   else await page.locator('#cephalo-ready-analysis').selectOption(mode);
    await page.waitForFunction(expected=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')===expected && document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')===expected,mode,{timeout:5000});
    if(mode==='com'){
      await page.locator('[data-r19-metric="I_Francfort"]').click();

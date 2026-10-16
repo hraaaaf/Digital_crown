@@ -213,6 +213,8 @@ try {
         await page.setViewportSize(size);
         await page.locator('[data-r20-workbench-layout]').waitFor();
         const markers=await page.locator('[data-ceph03b-drag-handle]').count();
+        const overlayTabsInitiallyHidden=!(await page.locator('[aria-label="Analyse du tracé"]').isVisible());
+        const mobileStageHeight=await page.locator('[data-r20-radiograph-stage]').evaluate(el=>el.getBoundingClientRect().height);
         const menu=page.locator('[data-r23-mobile-point-directory]');
         await menu.locator('summary').click();
         const names=await menu.locator('[data-r23-point-select]').count();
@@ -224,8 +226,10 @@ try {
         const filename=film+'-mobile-'+size.width+'x'+size.height+'-N-selected.png';
         await page.screenshot({path:path.join(out,filename),animations:'disabled',fullPage:false});
         const proof={film,size:size.width+'x'+size.height,markers,names,selectedLabel,noBackgrounds,
-          stageTop:entry?.y??null,filename,
+          overlayTabsInitiallyHidden,mobileStageHeight,stageTop:entry?.y??null,filename,
           valid:markers===38&&names===38&&selectedLabel&&noBackgrounds&&entry!==null
+            &&overlayTabsInitiallyHidden
+            &&(size.width>=768||mobileStageHeight<=size.height*.72)
             &&entry.y>=0&&entry.y<size.height*.56};
         assert(proof.valid,'REAL FILM MOBILE POINT DIRECTORY, LABEL OR FOLD FAILURE '+JSON.stringify(proof));
         mobileWitness.push(proof);
