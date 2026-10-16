@@ -82,3 +82,53 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
     expect(post).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe('CB-00 scoped patient selectors', () => {
+  it('shows dossier matches and explicitly selects a homonym by internal ID', async () => {
+    post
+      .mockResolvedValueOnce({ data: { status: 'clarification', message: 'Nom ou dossier ?' } } as never)
+      .mockResolvedValueOnce({ data: {
+        status: 'disambiguation', message: 'Plusieurs patients correspondent. Choisissez le bon dossier.',
+        proposal: null, candidates: [
+          { id: 5, nom: 'Benali', prenom: 'Amina', numero_dossier: 'B-001' },
+          { id: 8, nom: 'Benali', prenom: 'Salma', numero_dossier: 'B-002' },
+        ],
+      } } as never)
+      .mockResolvedValueOnce({ data: {
+        status: 'read', message: 'Patient identifié dans votre cabinet.',
+        proposal: null, patient: { id: 8, nom: 'Benali', prenom: 'Salma', numero_dossier: 'B-002' },
+      } } as never);
+    render(<CrownBotWorkflowPreview />);
+    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    await screen.findByText('Nom ou dossier ?');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Votre réponse de simulation' }), {
+      target: { value: 'Mme Benali' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
+    await screen.findByText(/Plusieurs patients correspondent/);
+    const candidate = screen.getByRole('button', { name: /Salma Benali.*B-002/ });
+    fireEvent.click(candidate);
+    await screen.findByText(/Dossier B-002/);
+    expect(post).toHaveBeenLastCalledWith('/bot/workflows/preview', {
+      messages: ['/patient', 'id:8'],
+    });
+    expect(post).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
+  });
+
+  it('renders missing dossier error without implying a disabled feature', async () => {
+    post.mockResolvedValueOnce({ data: {
+      status: 'clarification', message: 'Patient ?',
+    } } as never).mockRejectedValueOnce({
+      response: { status: 404, data: { detail: 'Patient introuvable.' } },
+    });
+    render(<CrownBotWorkflowPreview />);
+    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    await screen.findByText('Patient ?');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Votre réponse de simulation' }), {
+      target: { value: 'dossier:INCONNU-102' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/aucun dossier correspondant/i);
+  });
+});
