@@ -110,7 +110,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   React.useEffect(() => {
     const onAnalysis = (event: Event) => {
       const value = (event as CustomEvent<CephaloAnalysisMode>).detail;
-      if (value) setAnalysis(value);
+      if (value) { setAnalysis(value); setShowAllPointMarkers(false); }
     };
     window.addEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysis as EventListener);
     return () => window.removeEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysis as EventListener);
@@ -191,6 +191,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <span className="hidden xl:inline xl:ml-1">{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</span>
         </button>
         <button type="button" data-cephalo-all-points-toggle
+          disabled={analysis==='all'||pointContract.ids===null}
           aria-pressed={showAllPointMarkers}
           aria-label={showAllPointMarkers ? 'Revenir aux points de cette analyse' : 'Afficher tous les points anatomiques'}
           title={showAllPointMarkers ? 'Revenir au filtre de points de cette analyse' : 'Afficher les 38 points sans changer les calculs'}
@@ -252,7 +253,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         ><Maximize2 size={15} aria-hidden="true" />Focus</button>
       </div>
       {analysis!=='all' && missingManualIds.length>0 && (
-        <details data-cephalo-missing-manual className="rounded-lg border px-3 py-2 text-xs xl:col-span-full"
+        <details data-cephalo-missing-manual className="hidden rounded-lg border px-3 py-2 text-xs xl:col-span-full xl:block"
           style={{background:props.P.bgCard,borderColor:props.P.border,color:props.P.textMuted}}>
           <summary className="cursor-pointer font-bold">
             {missingManualIds.length} repère{missingManualIds.length>1?'s':''} manuel{missingManualIds.length>1?'s':''} à placer · {ANALYSIS_LABELS[analysis]}
