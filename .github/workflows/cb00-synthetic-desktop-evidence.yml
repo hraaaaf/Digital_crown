@@ -1,0 +1,170 @@
+name: CB-00 Synthetic Desktop Evidence (EXPERIMENTAL)
+
+on:
+  pull_request:
+    paths:
+      - frontend/scripts/certify-cb00-desktop-existing-preview.mjs
+      - scripts/ci/crownbot_cb00_t2_read_evidence.py
+      - .github/workflows/cb00-synthetic-desktop-evidence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cb00-desktop:
+    name: Synthetic existing preview 1280 / 1440 / 1920 (NOT B)
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: crown-bot-cb00-lab-only-secret-000001-long-enough
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: 'true'
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: 'true'
+      T2_DENIED_USER: t2-restricted@cabinet.ma
+      T2_DENIED_COMMAND: /patient
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Confirm exact tested source
+        shell: bash
+        env:
+          EXPECTED: \${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED"
+          echo "CB00_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
+          echo "Exact checkout SHA $EXPECTED" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Create disposable user password only
+        shell: bash
+        run: |
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+      - name: Install isolated backend
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb00-requirements.txt
+          pip install -r /tmp/cb00-requirements.txt
+      - name: Install isolated frontend and Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start disposable synthetic T2 backend
+        shell: bash
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/cb00-synthetic-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 70 /tmp/cb00-synthetic-backend.log
+          exit 1
+      - name: Read seeded synthetic patient ID and snapshot clinical counts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from backend import database, models
+          with database.SessionLocal() as db:
+              p = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'T2-0001').first()
+              assert p is not None and p.employer_id is not None
+              before = {
+                  'appointments': db.query(models.Appointment).count(),
+                  'pending_actions': db.query(models.BotPendingAction).count(),
+              }
+          with open('/tmp/cb00-clinical-before.json', 'w') as f:
+              json.dump(before, f)
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write('T2_PATIENT_ID=' + str(p.id) + '\n')
+              f.write('T2_DENIED_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
+          print('Synthetic fixture + two-table clinical count baseline ready')
+          PY
+      - name: Measure useful HTTP patient read p50 / p95
+        shell: bash
+        run: |
+          python scripts/ci/crownbot_cb00_t2_read_evidence.py \
+            --api http://127.0.0.1:8005 --n 30 \
+            --out /tmp/cb00-synthetic-http.json
+      - name: Start isolated existing flagged-preview web UI
+        shell: bash
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/cb00-synthetic-frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 70 /tmp/cb00-synthetic-frontend.log
+          exit 1
+      - name: Measure browser click to useful DOM and capture existing flagged preview
+        working-directory: frontend
+        shell: bash
+        run: |
+          node scripts/run-with-t2-workstation.mjs \
+            scripts/certify-cb00-desktop-existing-preview.mjs
+      - name: Compare actual appointment and pending-action counts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from backend import database, models
+          with database.SessionLocal() as db:
+              after = {
+                  'appointments': db.query(models.Appointment).count(),
+                  'pending_actions': db.query(models.BotPendingAction).count(),
+              }
+          before = json.load(open('/tmp/cb00-clinical-before.json'))
+          if before != after:
+              raise SystemExit('FAIL: change in appointment or pending-action counts')
+          print('PASS: appointment and pending-action counts unchanged; not full DB diff')
+          PY
+      - name: Record performance evidence for artifact
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/cb00-http
+          if test -f /tmp/cb00-synthetic-http.json; then
+            cp /tmp/cb00-synthetic-http.json artifacts/cb00-http/http-summary.json
+          fi
+          echo "## CB-00 caveats" >> "$GITHUB_STEP_SUMMARY"
+          echo "Synthetic CI-only T2. Existing flagged preview, NOT owner-selected B." >> "$GITHUB_STEP_SUMMARY"
+          echo "Does not certify production BEFORE, 12 staff E2E, clinical validation, or deployed UI." >> "$GITHUB_STEP_SUMMARY"
+      - name: Print bounded failure logs only
+        if: failure()
+        shell: bash
+        run: |
+          tail -n 80 /tmp/cb00-synthetic-backend.log || true
+          tail -n 80 /tmp/cb00-synthetic-frontend.log || true
+      - name: Upload synthetic CB-00 desktop proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb00-synthetic-desktop-evidence
+          path: |
+            artifacts/cb00-desktop-existing-preview
+            artifacts/cb00-http
+          if-no-files-found: warn
+          retention-days: 14
