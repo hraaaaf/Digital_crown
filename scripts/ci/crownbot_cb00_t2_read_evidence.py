@@ -23,14 +23,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
-from urllib.request import Request, HTTPRedirectHandler, build_opener
+from http.cookiejar import CookieJar
+from urllib.request import Request, HTTPRedirectHandler, HTTPCookieProcessor, build_opener
 
 class _NoRedirect(HTTPRedirectHandler):
     # Prevent auth header forwarding to any redirect destination.
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
-_NO_REDIRECT_OPENER = build_opener(_NoRedirect)
+_NO_REDIRECT_OPENER = build_opener(_NoRedirect, HTTPCookieProcessor(CookieJar()))
+_ANONYMOUS_OPENER = build_opener(_NoRedirect)
 
 
 def percentile(values: list[float], ratio: float) -> float:
@@ -80,7 +82,7 @@ def require_t2_environment(args) -> tuple[str, str, str, int]:
     return api, user, password, int(raw_id)
 
 
-def http_json(url: str, data: dict, bearer: str | None = None, form=False):
+def http_json(url: str, data: dict, bearer: str | None = None, form=False, anonymous=False):
     encoded = (urlencode(data).encode('utf-8') if form
                else json.dumps(data, separators=(',', ':')).encode('utf-8'))
     headers = {'Content-Type': 'application/x-www-form-urlencoded' if form
@@ -90,7 +92,7 @@ def http_json(url: str, data: dict, bearer: str | None = None, form=False):
     request = Request(url, data=encoded, headers=headers, method='POST')
     started = time.perf_counter_ns()
     try:
-        with _NO_REDIRECT_OPENER.open(request, timeout=15) as response:
+        with (_ANONYMOUS_OPENER if anonymous else _NO_REDIRECT_OPENER).open(request, timeout=15) as response:
             raw = response.read()
             status = response.status
     except HTTPError as exc:
@@ -114,6 +116,15 @@ def login(api, user, password):
     token = payload.get('access_token')
     if status != 200 or not isinstance(token, str) or not token:
         raise RuntimeError('Synthetic T2 login failed (check workstation session)')
+    # Workstation identity is a separate production authorization boundary.
+    # Preserve HttpOnly workstation cookies in the restricted localhost opener.
+    enroll_status, _, _ = http_json(
+        f'{api}/api/workstation/enroll',
+        {'accountPassword': password},
+        token,
+    )
+    if enroll_status != 200:
+        raise RuntimeError('T2 workstation enrollment denied; no measurements accepted')
     return token
 
 
@@ -137,7 +148,7 @@ def run(args):
     token = login(api, user, password)
     endpoint = f'{api}/api/bot/workflows/preview'
     # Permission and route gate: missing token must fail, never silently pass.
-    unauth_status, _, _ = http_json(endpoint, {'messages': ['/patient', str(patient_id)]})
+    unauth_status, _, _ = http_json(endpoint, {'messages': ['/patient', str(patient_id)]}, anonymous=True)
     if unauth_status != 401:
         raise RuntimeError('FAIL CLOSED: anonymous preview did not return 401')
     status, payload, _ = http_json(endpoint, {'messages': ['/patient']}, token)
