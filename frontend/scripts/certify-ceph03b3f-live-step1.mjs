@@ -421,10 +421,17 @@ try {
       await page.getByRole('button',{name:'Historique',exact:true}).first().click();
       await page.getByText('Analyse enregistrée').first().waitFor({timeout:30000}).catch(async error=>{
         const body=(await page.locator('body').innerText().catch(()=>'' )).slice(0,2800);
+        const retryActive=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-analyses').catch(()=>null);
+        const retryTrash=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-trash').catch(()=>null);
         const diagnostic={film,patient,analysisId:id,
           historyActiveIds:activeHistory.map(record=>record.id),
           historyTrashIds:trashHistory.map(record=>record.id),
-          pageUrl:page.url(),body};
+          pageUrl:page.url(),body,
+          retryActiveStatus:retryActive?.status()??null,
+          retryTrashStatus:retryTrash?.status()??null,
+          browserHttpErrors:badResponses.slice(-20),
+          pageErrors:consoleErrors.slice(-20),
+          browserApiRequests:reqs.filter(q=>q.film===film).slice(-20)};
         await writeFile(path.join(out,film+'-history-ui-failure.json'),JSON.stringify(diagnostic,null,2));
         await page.screenshot({path:path.join(out,film+'-history-ui-failure.png'),fullPage:false}).catch(()=>{});
         throw new Error('History UI did not render verified active analysis '+id+': '+body.slice(0,800),{cause:error});
@@ -465,6 +472,11 @@ try {
         deniedAnonymousPatient:anonPatient.status(),deniedAnonymousUpload:anonUpload.status(),
         deniedAnonymousRead:anonRead.status(),deniedAnonymousMedia:anonMedia.status(),
         realHttpApi:filmApi,valid:true});
+    }catch(filmError){
+      // Continue with the second public film to preserve independent visual
+      // evidence, but ALWAYS fail the final aggregate gate if either film
+      // fails the history/auth/persistence path. Never turn red into green.
+      errors.push(film+': '+String(filmError));
     }finally{
       await anon.close();
       await context.close();

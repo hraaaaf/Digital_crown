@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import type { Landmark } from '../cephaloShared';
 import { cephaloLabelFontSize, layoutCephaloLandmarkLabels, layoutCephaloAnatomicalLabels } from './cephaloLabelLayout';
@@ -93,13 +93,13 @@ export const CephaloLandmarkReticles = ({
       ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
     shownLabels, priorityId, imageWidth, imageHeight,
   );
-  const anatomicalLabels = compactLabels
+  const anatomicalLabels = useMemo(() => compactLabels
     ? layoutCephaloAnatomicalLabels(
         landmarks.map(point => activeDragPos?.id === point.id
           ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
         labelViewport, unitsPerPixel,
       )
-    : new Map();
+    : new Map(), [compactLabels, landmarks, activeDragPos, labelViewport, unitsPerPixel]);
   const labelFontSize = compactLabels
     ? 16 * Math.max(0.1, Math.min(unitsPerPixel, 30))
     : cephaloLabelFontSize(imageWidth, imageHeight);
@@ -352,10 +352,10 @@ export const CephaloLandmarkReticles = ({
                   textAnchor="start"
                   fontSize={labelFontSize}
                   fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
-                  fontWeight={emphasized ? 800 : 600}
+                  fontWeight={emphasized ? 800 : 700}
                   className="select-none"
                   fill={emphasized ? '#fef08a' : '#f8fafc'}
-                  style={{ paintOrder: 'stroke', stroke: '#0b1220', strokeWidth: '2.1px' }}
+                  style={{ paintOrder: 'stroke', stroke: '#0b1220', strokeWidth: '3px' }}
                 >{point.id}</text>
               </g>
             );
