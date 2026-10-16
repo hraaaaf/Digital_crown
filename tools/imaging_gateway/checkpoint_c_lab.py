@@ -156,6 +156,7 @@ def classify_challenged_heads(witness_packet: dict | None, b_head_request: dict,
     its trusted high-watermark cannot be rolled back. This LAB cannot do so.
     """
     _refuse(type(b_head_request) is dict and b_head_request.get("method") == "HEAD"
+            and _hex(b_head_request.get("scope"), HEX32)
             and _hex(c_challenge, HEX32), "C_DUAL_CHALLENGE_REFUSE")
     if witness_packet is None or c_head_packet is None:
         return AnchorDecision("UNKNOWN_NO_INDEPENDENT_CURRENT_C_LAB")
