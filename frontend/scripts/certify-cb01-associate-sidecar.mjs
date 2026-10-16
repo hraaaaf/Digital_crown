@@ -146,9 +146,15 @@ try {
       }
       await page.keyboard.press('Enter');
       await sidecar.waitFor({state:'visible'});
+      // Opening a new CrownBotChat starts in its default tab. The user must
+      // navigate back to Chat before a preview control can exist. This checks
+      // actual UI navigation instead of assuming the previous tab persisted
+      // across an intentional close/reopen.
+      await sidecar.getByRole('button',{name:'Chat',exact:true}).click();
       // Keep an unfinished clinical search draft while the browser equivalent
       // of 200% zoom makes the sidebar switch into narrow floating mode.
       const sidecarPreview=sidecar.getByRole('region',{name:'Simulation ZERO-LLM Crown Bot'});
+      await sidecarPreview.waitFor({state:'visible',timeout:15000});
       await sidecarPreview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
       await sidecarPreview.getByRole('button',{name:'/patient'}).click();
       const inProgressDraft='dossier:BROUILLON-NON-SOUMIS';
