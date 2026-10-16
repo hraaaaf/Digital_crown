@@ -340,3 +340,40 @@ def test_expired_frontdesk_request_never_emits_availability_message(
         models.AuditLog.resource_id == str(request.id),
         models.AuditLog.action == "FRONTDESK_APPOINTMENT_EXPIRED",
     ).count() == 1
+
+
+@pytest.mark.parametrize("duration", [20, 30, 45, 480])
+def test_adjacent_half_open_slots_never_conflict_on_sqlite(db, dentiste, duration):
+    from backend.routers.appointments import _find_conflicts
+    from backend.services.agenda_resource_conflicts import find_resource_conflict
+    start = _slot(26, 9)
+    first = _appointment(db, dentiste, start)
+    first.duration_minutes = duration
+    resource = models.AgendaResource(
+        employer_id=dentiste.get_employer_id(),
+        name=f"Synthetic chair {duration}", resource_type="CHAIR",
+        is_active=True,
+    )
+    db.add(resource)
+    db.flush()
+    first.resource_id = resource.id
+    db.commit()
+    candidate = start + timedelta(minutes=duration)
+    assert _find_conflicts(
+        db, dentiste.get_employer_id(), dentiste.id, candidate, 20
+    ) == []
+    assert find_resource_conflict(
+        db, employer_id=dentiste.get_employer_id(),
+        resource_id=resource.id, datetime_start=candidate,
+        duration_minutes=20,
+    ) is None
+    overlap = candidate - timedelta(seconds=1)
+    assert [x.id for x in _find_conflicts(
+        db, dentiste.get_employer_id(), dentiste.id, overlap, 20
+    )] == [first.id]
+    conflict = find_resource_conflict(
+        db, employer_id=dentiste.get_employer_id(),
+        resource_id=resource.id, datetime_start=overlap,
+        duration_minutes=20,
+    )
+    assert conflict is not None and conflict.id == first.id
