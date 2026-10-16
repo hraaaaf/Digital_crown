@@ -220,6 +220,17 @@ jobs:
               ||x.focusProof.some(p=>!p.valid||p.focused<=0||p.focused>=38
                 ||p.expanded!==38||p.restored!==p.focused)))
             throw Error('Real desktop progressive label evidence missing');
+          for(const x of r.progressiveLabelProof){
+            for(const witness of x.focusProof){
+              for(const [key,resolution] of [
+                ['focusedScreenshot','1280x900'],['focused1600','1600x1000']]){
+                const data=await readFile(dir+witness[key]);
+                if(data.length<300||data.subarray(1,4).toString()!=='PNG'
+                  ||data.readUInt32BE(16)+'x'+data.readUInt32BE(20)!==resolution)
+                  throw Error('Clinical per-analysis Focus witness PNG missing '+x.film+' '+witness.mode+' '+key);
+              }
+            }
+          }
           for(const x of r.progressiveLabelProof)for(const [key,resolution] of [
             ['essential1280','1280x900'],['full1280','1280x900'],['essential1600','1600x1000']]){
             const data=await readFile(dir+x[key]);

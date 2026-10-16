@@ -388,8 +388,11 @@ try {
       progressiveLabelProof.push({film,essentialCount:essential100.visible,fullCount:all100.visible,
         handles:38,visualPoints,conciseNames,hoverLabel,hoverCleared,focusLabel,focusCleared,editedByDisclosure:false,
         essential1280,full1280,valid:true});
-      // R23-F: source-backed per-analysis display + complete reversible 38-point
-      // recovery while preserving authenticated source geometry and analysis.
+      // R23-F: exact-mode BEFORE/AFTER on both PUBLIC radiographs.
+      // The default Focus must be captured with "Tous les noms" OFF.
+      await nameToggle.click();
+      assert(await nameToggle.getAttribute('aria-pressed')==='false',
+        'Expected compact labels for actual real-film Focus preview '+film);
       const focusProof=[];
       const pointToggle=page.locator('[data-cephalo-all-points-toggle]');
       for(const mode of ['steiner','tweed','mcnamara','ricketts']){
@@ -403,6 +406,8 @@ try {
           const missing=await page.locator('[data-cephalo-missing-manual-id="Occ_Steiner_Ant"]').count();
           assert(missing===1,'Missing Steiner manual identity not declared '+film);
         }
+        await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+        const focusedScreenshot=await shot(page,film,mode,'1280x900','focused-points');
         await pointToggle.click();
         const expanded=await verifySvg(page,expected);
         assert(expanded===38&&await pointToggle.getAttribute('aria-pressed')==='true',
@@ -419,9 +424,12 @@ try {
         await pointToggle.click();
         const restored=await page.locator('[data-ceph03b-drag-handle]').count();
         assert(restored===focused,'Point subset not restored '+film+' '+mode);
-        focusProof.push({mode,focused,expanded,restored,source,valid:true});
+        focusProof.push({mode,focused,expanded,restored,source,focusedScreenshot,valid:true});
       }
       await setMode(page,'all');
+      await nameToggle.click();
+      assert(await nameToggle.getAttribute('aria-pressed')==='true',
+        'Exhaustive labels not restored after 1280 Focus witnesses '+film);
       assert((await verifySvg(page,expected))===38,
         'Focus must never delete canonical points '+film);
       progressiveLabelProof[progressiveLabelProof.length-1].focusProof=focusProof;
@@ -511,6 +519,24 @@ try {
               '1600 full names not restored '+film);
           }
           cases.push({film,mode,viewport:size,screenshot:file,handles:count,valid:true,analysisId:id});
+        }
+        if(viewport.width===1600){
+          await nameToggle.click();
+          assert(await nameToggle.getAttribute('aria-pressed')==='false',
+            'Expected compact names before 1600 point-focus captures '+film);
+          for(const mode of ['steiner','tweed','mcnamara','ricketts']){
+            await setMode(page,mode);
+            const witness=focusProof.find(entry=>entry.mode===mode);
+            const count=await page.locator('[data-ceph03b-drag-handle]').count();
+            assert(witness&&count===witness.focused,
+              'Focus markers changed by desktop viewport size '+film+' '+mode);
+            await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+            witness.focused1600=await shot(page,film,mode,size,'focused-points');
+          }
+          await setMode(page,'all');
+          await nameToggle.click();
+          assert(await nameToggle.getAttribute('aria-pressed')==='true',
+            'Full-label diagnostics not restored after 1600 captures '+film);
         }
       }
       await setMode(page,'all');
