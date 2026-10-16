@@ -166,7 +166,8 @@ class SyntheticCheckpointC:
                 and body["after_seq"] == self._head_seq + 1
                 and _hex(body["after_mac"], HEX64),
                 "C_STALE_FORK_OR_GAP_REFUSE")
-        _refuse(self._head_seq < 256, "C_ANCHOR_LIMIT_REFUSE")\n        previous_sha = hashlib.sha256(canonical(self._latest)).hexdigest()
+        _refuse(self._head_seq < 256, "C_ANCHOR_LIMIT_REFUSE")
+        previous_sha = hashlib.sha256(canonical(self._latest)).hexdigest()
         self._head_seq, self._head_mac = body["after_seq"], body["after_mac"]
         result = self._sign(op_id, hashlib.sha256(receipt).hexdigest(), previous_sha)
         # This is ONLY in-process ordering, not an atomic/durable C/WORM proof.
