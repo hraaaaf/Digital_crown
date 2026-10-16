@@ -1,5 +1,6 @@
 """Synthetic disposable SQLite CAS and process-death matrix; no patient or physical hardware."""
 import base64
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 import json
 import os
@@ -130,7 +131,7 @@ class DurableCasSyntheticTests(unittest.TestCase):
     def test_corrupt_ledger_receipt_refused_audit_and_query(self):
         e = self.e()
         apply(self.path, e, self.signer)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE decisions SET receipt_bytes=?", (b"{}",))
         with self.assertRaises(CasRefusal):
             lookup(self.path, self.scope, e["op_id"], self.pub)
@@ -140,7 +141,7 @@ class DurableCasSyntheticTests(unittest.TestCase):
     def test_torn_ledger_head_detected(self):
         e = self.e()
         apply(self.path, e, self.signer)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE authority_head SET seq=100")
         with self.assertRaisesRegex(CasRefusal, "HEAD_LEDGER_DIVERGENCE"):
             audit(self.path, self.scope, self.pub)
@@ -221,12 +222,12 @@ class DurableCasSyntheticTests(unittest.TestCase):
     def test_writer_refuses_to_extend_tampered_existing_head_or_ledger(self):
         e = self.e()
         apply(self.path, e, self.signer)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE decisions SET request_bytes=?", (b"{}",))
         follow = self.e(before_seq=1, before_mac=e["after_mac"])
         with self.assertRaises(CasRefusal):
             apply(self.path, follow, self.signer)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0], 1)
 
     def test_zero_width_schema_and_bad_enrollment_refused(self):
@@ -261,17 +262,17 @@ class DurableCasSyntheticTests(unittest.TestCase):
         first = self.e()
         apply(self.path, first, self.signer)
         follow = self.e(before_seq=1, before_mac=first["after_mac"])
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE decisions SET request_bytes=?", (b'not-json',))
         with self.assertRaisesRegex(CasRefusal, "LEDGER_EVENT_REFUSE"):
             apply(self.path, follow, self.signer)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0], 1)
 
     def test_closed_reader_handles_tampered_signed_decision(self):
         original = self.e()
         apply(self.path, original, self.signer)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE decisions SET receipt_bytes=?", (b'{"x":"y"}',))
         with self.assertRaises(CasRefusal):
             lookup(self.path, self.scope, original["op_id"], self.pub)
