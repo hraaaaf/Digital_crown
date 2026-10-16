@@ -1,0 +1,27 @@
+name: UI Visual Approval Contract
+
+# No write token or secrets: pure mocked GitHub API regression contract.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ui-human-visual-approval.yml'
+      - '.github/workflows/ui-visual-approval-contract.yml'
+      - 'scripts/ci/visual-approval-gate.mjs'
+      - 'scripts/ci/visual-approval-gate.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  human-approval-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Mocked GitHub contract negative/positive tests
+        run: node --test scripts/ci/visual-approval-gate.test.mjs
