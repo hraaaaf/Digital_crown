@@ -12,7 +12,7 @@ Example, from repo root with disposable T2 flags explicitly enabled there:
   python scripts/ci/crownbot_cb00_t2_read_evidence.py --out /tmp/cb00-read.json
 Optional negative T2 fixtures: T2_DENIED_USER, T2_DENIED_PASSWORD,
 T2_FOREIGN_PATIENT_ID, T2_UNKNOWN_PATIENT_ID, T2_DENIED_COMMAND,
-T2_S06_USER and T2_S06_PASSWORD (separate no-agenda secretary). Never store names, credentials, tokens or responses.
+T2_S06_USER/T2_S06_PASSWORD and T2_S05_USER/T2_S05_PASSWORD (synthetic staff fixtures). Never store names, credentials, tokens or responses.
 """
 import argparse
 import json
@@ -82,6 +82,13 @@ def require_t2_environment(args) -> tuple[str, str, str, int]:
     if s06_user and (not s06_user.startswith('t2-')
                      or s06_user in (user, denied_user)):
         raise ValueError('REFUSED: S06 user must be a distinct synthetic T2 identity')
+    s05_user = os.getenv('T2_S05_USER', '')
+    s05_password = os.getenv('T2_S05_PASSWORD', '')
+    if bool(s05_user) != bool(s05_password):
+        raise ValueError('REFUSED: S05 staff identity needs both credentials')
+    if s05_user and (not s05_user.startswith('t2-')
+                     or s05_user in (user, denied_user, s06_user)):
+        raise ValueError('REFUSED: S05 user must be a distinct synthetic T2 identity')
     if os.getenv('T2_DENIED_COMMAND', '/rdv') not in ('/patient', '/rdv', '/devis'):
         raise ValueError('REFUSED: denied command not in supported capabilities')
     foreign_id = os.getenv('T2_FOREIGN_PATIENT_ID', '')
@@ -160,6 +167,51 @@ def assert_clarification(status, payload):
         raise RuntimeError('FAIL CLOSED: unexpected clarification contract')
 
 
+def assert_non_executable_proposal(status, payload, *, command, patient_id, when=None):
+    proposal = payload.get('proposal')
+    if (status != 200 or payload.get('status') != 'proposal_only'
+            or not isinstance(proposal, dict)
+            or not isinstance(proposal.get('params'), dict)
+            or 'patient' in payload
+            or 'non exécutée' not in payload.get('message', '')):
+        raise RuntimeError('FAIL CLOSED: unsafe or missing preview-only proposal')
+
+    expected_type = ('CREATE_APPOINTMENT' if command == '/rdv'
+                     else 'OPEN_DEVIS_EDITOR')
+    params = proposal['params']
+    if proposal.get('type') != expected_type or params.get('patient_id') != patient_id:
+        raise RuntimeError('FAIL CLOSED: wrong preview patient or action')
+    if command == '/rdv' and not (
+        params.get('datetime_start') == when
+        and params.get('duration_minutes') == 30
+        and params.get('motif') == 'CONSULTATION'
+    ):
+        raise RuntimeError('FAIL CLOSED: unexpected appointment parameters')
+    if command == '/devis' and not (
+        params.get('procedure') == 'COURONNE'
+        and params.get('draft_only') is True
+    ):
+        raise RuntimeError('FAIL CLOSED: unexpected quote draft parameters')
+    # IDs are forbidden at any level, never let preview return a usable action.
+    forbidden = {'pending_action_id', 'pendingActionId', 'action_id',
+                 'actionId', 'action_uuid'}
+    def has_executable_id(obj):
+        if isinstance(obj, dict):
+            return bool(forbidden.intersection(obj)) or any(
+                has_executable_id(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(has_executable_id(v) for v in obj)
+        return False
+    if has_executable_id(payload):
+        raise RuntimeError('FAIL CLOSED: executable action identifier in preview')
+
+
+def assert_confirmation_required(status, payload):
+    if (status != 200 or payload.get('status') != 'confirmation_required'
+            or payload.get('proposal') is not None or 'patient' in payload):
+        raise RuntimeError('FAIL CLOSED: proposal before explicit confirmation')
+
+
 def run(args):
     api, user, password, patient_id = require_t2_environment(args)
     token = login(api, user, password)
@@ -181,6 +233,15 @@ def run(args):
         timings.append(elapsed)
     checks = {'anonymous_401': 'PASS', 'clarification_no_patient': 'PASS',
               'useful_read_no_proposal': 'PASS'}
+    # S08: owner may preview only a draft quote; never create a quote/action.
+    s08_prefix = ['/devis', str(patient_id), 'couronne']
+    status, payload, _ = http_json(endpoint, {'messages': s08_prefix}, token)
+    assert_confirmation_required(status, payload)
+    status, payload, _ = http_json(
+        endpoint, {'messages': s08_prefix + ['CONFIRMER']}, token)
+    assert_non_executable_proposal(
+        status, payload, command='/devis', patient_id=patient_id)
+    checks['s08_crown_draft_proposal_only'] = 'PASS'
     # Check tenant isolation while the owner session cookie still owns the jar.
     foreign_id = os.getenv('T2_FOREIGN_PATIENT_ID', '')
     if foreign_id:
@@ -201,7 +262,28 @@ def run(args):
     else:
         checks['foreign_patient_404'] = 'NOT_RUN_NO_FIXTURE'
         checks['foreign_unknown_same_404'] = 'NOT_RUN_NO_FIXTURE'
-    # Run denied-role login LAST: it replaces the HttpOnly access cookie.
+    # S05: real (synthetic) reception role with patients AND agenda rights.
+    # Keep this AFTER the owner-only S08/tenant checks: shared HttpOnly cookie.
+    s05_user = os.getenv('T2_S05_USER', '')
+    if s05_user:
+        staff_token = login(
+            api, s05_user, os.environ['T2_S05_PASSWORD'],
+            enroll_workstation=False)
+        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        s05_prefix = ['/rdv', str(patient_id), tomorrow, '10:00', '30',
+                      'consultation']
+        status, payload, _ = http_json(
+            endpoint, {'messages': s05_prefix}, staff_token)
+        assert_confirmation_required(status, payload)
+        status, payload, _ = http_json(
+            endpoint, {'messages': s05_prefix + ['CONFIRMER']}, staff_token)
+        assert_non_executable_proposal(
+            status, payload, command='/rdv', patient_id=patient_id,
+            when=tomorrow + 'T10:00:00')
+        checks['s05_reception_rdv_proposal_only'] = 'PASS'
+    else:
+        checks['s05_reception_rdv_proposal_only'] = 'NOT_RUN_NO_FIXTURE'
+    # Run denied-role logins LAST: they replace the HttpOnly access cookie.
     denied_user = os.getenv('T2_DENIED_USER', '')
     if denied_user:
         denied_token = login(api, denied_user, os.environ['T2_DENIED_PASSWORD'], enroll_workstation=False)
