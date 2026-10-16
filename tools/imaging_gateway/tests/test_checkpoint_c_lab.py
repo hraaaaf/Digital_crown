@@ -190,6 +190,16 @@ class CheckpointCSyntheticTests(unittest.TestCase):
         with self.assertRaisesRegex(CasRefusal, "C_EXPECT_HEAD_REFUSE"):
             classify_verified_head(None, None, None, self.b_pin, self.c_pin)
 
+    def test_c_signer_failure_never_advances_anchor_head(self):
+        e, receipt = self.commit_b()
+        with patch.object(self.c, "_sign", side_effect=CasRefusal("C_SIGN_FAILED_LAB")):
+            with self.assertRaisesRegex(CasRefusal, "C_SIGN_FAILED_LAB"):
+                self.c.anchor(receipt)
+        self.assertEqual(self.c.latest["checkpoint"]["seq"], 0)
+        self.assertEqual(self.verdict().status, "PENDING_C_ANCHOR_LAB")
+        self.assertEqual(self.c.anchor(receipt)["checkpoint"]["seq"], 1)
+        self.assertEqual(self.verdict().status, "MATCH_LAB_NOT_GLOBAL_FRESHNESS")
+
     def test_scope_mismatch_is_refused(self):
         _, r1 = self.commit_b()
         anchor = self.c.anchor(r1)
