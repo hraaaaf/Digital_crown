@@ -14,25 +14,25 @@ This lab implements a deliberately **volatile** in-process C checkpoint fixture,
 3. The comparison **assumes** `C_packet` truly represents C's CURRENT trusted high-watermark. The model deliberately does not implement/enforce that assumption. A valid replayed older C checkpoint can match restored older B, demonstrating that **signing C proofs is not sufficient**. A compromised/rolled-back C or common admin domain defeats the claimed independence. Before any use outside LAB, this remains a design BLOCKER.
 4. The C fixture is *not* transactionally coordinated with B. A B commit followed by C timeout must remain `PENDING_ANCHOR`; rollback/restore and partial loss require an independently designed production protocol and a separate human decision. No clinical availability claim.
 
-## Test contracts
-`test_checkpoint_c_lab.py` tests:
+## Contrats de tests synthétiques uniquement
+`test_checkpoint_c_lab.py` exécute des simulations sur clés éphémères, stockage temporaire et processus du runner CI :
 - synthetic signed genesis; sequential proof chain; exact receipt idempotence; replay/gap refuse; wrong C pin, tampered signed checkpoint, wrong B receipt or scope refused;
 - missing C or B proof => unknown; B head signed but ahead of C => pending; signed B fork => conflict; old nonce => refuse;
-- **B9 negative**: copy B SQLite at sequence 1, commit B seq2, anchor C seq2, restore B from seq1 and retain valid B signer; fresh valid signed B head seq1 is correctly labeled `B_ROLLBACK_DETECTED_LAB` against C seq2;
+- **Rollback simulé (scénario LAB B9)** : copier la fixture SQLite temporaire B à la séquence 1, atteindre la séquence 2, puis restaurer uniquement la copie de test B ; le comparateur doit obtenir `B_ROLLBACK_DETECTED_LAB` si la fixture C reste à la séquence 2 ;
 - **counterexample**: replay old genuine C seq1 proof as well => B seq1 and C seq1 produce `MATCH_LAB_NOT_GLOBAL_FRESHNESS`. This is a negative result, not a safety success. No external WORM / freshness is proven.
 - all patients/media/scope are random synthetic data in disposable temporary paths; no service is created or connected to a clinical environment.
 
-## CI classification, physical boundary and exit
+## CI et critères d'acceptation — laboratoire synthétique uniquement
 - [synthetic C workflow](../../.github/workflows/v15-06n-checkpoint-c-synthetic.yml): Windows + Ubuntu Python 3.11, checkpoint C tests plus original independent B witness tests and LOT06-M SQLite CAS regression on the **same new head**. The run result is authoritative only once retrieved with exact SHA and per-job/test counts.
 - REQUIRED for this branch LAB: those three test collections and tests not skipped; green CI is not a physical or architectural approval. Legacy imaging CI may run on PR's temporary merge ref and must not be mislabelled exact-head.
-- **LOT10 EXCLUSIVE**: A/B/C real machines, HSM, OS/NTFS/SSD durability, independent-admin reality, C WORM lock & restore, TPM counter, real LAN/power-cut, B0–B9 physical injections, operators, PHYSICAL PASS/NO-GO. Map to LOT10 10.1/10.4/10.7/10.8 and 10.3 where restores overlap. Retain the existing LOT10 13-SP baseline; any additional complexity requires independent LOT10 planning decision. NO pilot hardware in LOT06-N.
-- D-STRICT real independence and `current-C` authentic freshness **UNPROVEN**. Security/reliability independent reviewers NOT present. LOT06 global NOT CONVERGED; HUMAN GATE physical PENDING; clinical NO-GO; no release, purchase, patient, merge, Vercel or cabinet installation.
+- **Exclusion absolue :** aucun essai physique dans cette spécification ni dans ses critères de PASS/NO-GO. Le suivi physique appartient à un dossier distinct LOT10 et ne fait pas partie du laboratoire synthétique.
+- Le protocole de laboratoire ne prouve pas une autorité C indépendante et actuelle. Revue indépendante non réalisée ; portée LAB uniquement, lot global NON CONVERGED et clinique NO-GO. Aucun achat, installation, patient, merge ou déploiement.
 
 ## Known adversarial edges
 - A captured C signature is replayable if the verifier relies only on a caller-provided C packet. `MATCH_LAB_NOT_GLOBAL_FRESHNESS` must not be reinterpreted as an authorization.
 - B/C signer and witness DB share one CI runner: their separate logical identities do not constitute separate administrative or rollback domains.
 - The checkpoint fixture's updates are volatile, in-process and non-atomic with the B CAS transaction. Its integrity does not survive hostile restore or power loss as a promised property.
-- True HSM Ed25519 private key protection and reliable per-decision immutable C checkpoint acknowledgement remain implementation feasibility questions. Real validation exclusively LOT10.
+- Les hypothèses de confiance et de conservation persistante de C ne sont pas établies par ce modèle synthétique et ne sont pas des exigences de réussite de cette suite de tests.
 
 ## ADR §3 / §8 and LOT06-N contract reconciliation — C challenged HEAD, v0.2
 
@@ -49,11 +49,10 @@ This lab implements a deliberately **volatile** in-process C checkpoint fixture,
 | **B and C both restored**, C still has valid old key and signs *new* challenge | `MATCH_LAB_NOT_GLOBAL_FRESHNESS` — **undetected rollback** | **B9 BLOCKER persists** |
 | Receipt, manifest, op_id and previous C checkpoint linkage | C signed anchor carries `receipt_sha256`, `op_id`, `prev_checkpoint_sha256`; fixture checks *on anchor advance* | B/C equality classifier checks only `seq/mac`, not full current receipt history; **NOT a COMMITTED proof** |
 | C signer failure between B commit and C state update | sign first, mutate synthetic C state only afterward; regression | In-process behavior only, not C/WORM durable ack |
-| True Windows/NTFS SSD power-off, independent operators, HSM/WORM lock | Not used and not exercised | **LOT10 EXCLUSIVELY** |
 
 **No approval by a green classification.** The "B current" evidence and "C current" evidence are both signed responses in a harness that controls keys, DB, the source of challenges and recovery snapshots. A returned old signed C anchor **or** a freshly signed C HEAD over a restored old C state remains a counterexample. Even if both report the same seq/mac, the local journal/media/manifest and exact B/C full receipts must be reconciled independently before any future COMMITTED or clinical ACK; not implemented here.
 
-**Gate placement:** all real-device, true-WORM/TPM, cross-admin recovery, unplug/power-cut, physical B0–B9 and installation work stays in existing LOT10 10.1/10.3/10.4/10.7/10.8. LOT06-N remains design + CI LAB only; no new LOT10 sub-lot and no automatic 13-SP increase.
+**Critère de sortie synthétique :** intégrité des messages, signatures, réponses de refus, divergence B/C, concordance des reçus et contre-exemples de rollback simulé, exécutés sous CI sur fixtures isolées. Aucun critère de test physique n'est inclus.
 
 ## v0.3 — Réconciliation des reçus B/C, preuve synthétique non autorisante (2026-10-16)
 
@@ -68,8 +67,8 @@ This lab implements a deliberately **volatile** in-process C checkpoint fixture,
 
 **Contre-exemples et jeux synthétiques :** l'ancien modèle retourne `MATCH_LAB_NOT_GLOBAL_FRESHNESS` sur B/C à `seq/mac` identiques. Après restauration volontaire du SQLite B dans le répertoire LAB, le test re-signe une demande différente avec le **même `op_id`, même `seq` et même `after_mac`** mais un manifeste différent ; la preuve C conserve l'empreinte du reçu initial. Le nouveau contrat détecte `B_C_RECEIPT_HASH_CONFLICT_LAB`. Un second cas signe un nouvel `op_id` avec le même HEAD : le LOOKUP de l'ancien `op_id` reste `UNKNOWN_B_CURRENT_RECEIPT_LAB`. Le rejeu d'une ancienne réponse LOOKUP une fois B avancé devient `B_RECEIPT_HEAD_CONFLICT_LAB`. Le manque de LOOKUP et sa signature modifiée ne deviennent jamais succès.
 
-**Revue SEC, identité :** l'enrôlement C et la vérification de son ancre refusent maintenant explicitement l'usage d'une **même clé Ed25519 pour B et C** (`C_B_SAME_SIGNER_REFUSE`), y compris en LAB. Deux clés différentes ne prouvent pas à elles seules deux domaines d'administration indépendants ; cette preuve reste entièrement absente jusqu'aux essais physiques du LOT10.
+**Revue SEC, identité :** l'enrôlement C et la vérification de son ancre refusent maintenant explicitement l'usage d'une **même clé Ed25519 pour B et C** (`C_B_SAME_SIGNER_REFUSE`), y compris en LAB. Deux clés différentes ne prouvent pas deux domaines de confiance indépendants ; le laboratoire n'affirme pas cette propriété.
 
 **Frontière prouvée :** le B LOOKUP et les HEAD sont synthétiques, signés par clés de test détenues par un seul harnais ; aucune session/réseau réel ni propriété de snapshot distribué. Trois réponses valides produites à des instants différents ne constituent pas une lecture atomique ; seules des séquences/empreintes strictement liées sont acceptables comme constat LAB. Le checkpoint C reste en mémoire, révocable et restaurable ; une compromission simultanée B+C, le repli d'une époque, l'altération du stockage physique et l'administration commune demeurent des risques non résolus. Le reçu et la chaîne complète DC6A/DC6B ainsi que les médias/manifestes cliniques A **ne sont pas reconstruits ici**.
 
-**LOT10 exclusivement :** matériel B/C réellement séparé, WORM/TPM/HSM, power-cut/NTFS/SSD, latences, restauration, capteurs, unités de sauvegarde et preuve humaine B0–B9 ; sous-lots existants 10.1/10.3/10.4/10.7/10.8, **13 SP baseline inchangée**. Aucun pilote physique dans LOT06-N.
+**Limite documentaire :** ce dossier décrit et évalue exclusivement des scénarios synthétiques. Les essais physiques relèvent du LOT10, hors de ce protocole, hors de sa matrice et hors de ses scores.
