@@ -20,7 +20,10 @@ for (const u of [apiOrigin, appOrigin]) {
   }
 }
 const user = process.env.T2_USER, password = process.env.T2_PASSWORD;
-if (!user?.startsWith('t2-') || !password) throw new Error('REFUSED: synthetic identity needed');
+const patientId = process.env.T2_PATIENT_ID || '';
+if (!user?.startsWith('t2-') || !password || !/^[1-9][0-9]{0,9}$/.test(patientId)) {
+  throw new Error('REFUSED: synthetic identity and patient ID needed');
+}
 const output = path.resolve('../artifacts/cb01-associate-sidecar');
 fs.mkdirSync(output, { recursive: true });
 const api = await request.newContext({ baseURL: apiOrigin });
@@ -87,8 +90,40 @@ try {
       throw new Error('FAIL: sidecar does not preserve clinical workspace at '+width+
         ' '+JSON.stringify(result));
     }
+    let staffSearchChecks = 'NOT_RUN_WEB_FALLBACK';
+    if (desktop) {
+      // S02/S04 browser-backed synthetic staff scenario, not full human UX.
+      const panel=page.locator('[data-cb01-associate-sidecar]');
+      await panel.getByRole('button',{name:'Chat',exact:true}).click();
+      const preview=panel.getByRole('region',{name:'Simulation ZERO-LLM Crown Bot'});
+      await preview.waitFor({state:'visible'});
+      const findPatient=async selector => {
+        await preview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
+        await preview.getByRole('button',{name:'/patient'}).click();
+        await preview.getByText('Patient : saisissez un identifiant',{exact:false}).waitFor();
+        await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(selector);
+        await preview.getByRole('button',{name:'Envoyer'}).click();
+      };
+      await findPatient('dossier:CB01-N-101');
+      await preview.getByText('Patient identifié dans votre cabinet.').waitFor();
+      await preview.getByText('Patient identifié : AMINA BENALI — Dossier CB01-N-101').waitFor();
+
+      await findPatient('BENALI');
+      await preview.getByText('Plusieurs patients correspondent.',{exact:false}).waitFor();
+      const matches=preview.locator('[aria-label="Choisir le dossier patient"] button');
+      if(await matches.count()!==2) throw new Error('FAIL: homonyms must show both choices');
+      await preview.getByRole('button',{name:/AMINA BENALI.*CB01-N-101/}).click();
+      await preview.getByText('Patient identifié : AMINA BENALI — Dossier CB01-N-101').waitFor();
+
+      await findPatient(patientId);
+      await preview.getByText('Plusieurs patients correspondent.',{exact:false}).waitFor();
+      await preview.getByRole('button',{name:/T2 CERTIFICATION.*T2-0001/}).click();
+      await preview.getByText('Patient identifié : T2 CERTIFICATION — Dossier T2-0001').waitFor();
+      staffSearchChecks='PASS_DOSSIER_HOMONYMS_NUMERIC_COLLISION';
+    }
     await page.screenshot({path:path.join(output,'after-'+width+'.png')});
     evidence.push({width,mode:desktop?'sidecar-reflow':'web-floating-fallback',
+      staffSearchChecks,
       result,errors:errors.length,writes:writes.length});
     if(desktop) {
       await page.getByRole('button',{name:'Réduire le panneau Crown Bot'}).click();
