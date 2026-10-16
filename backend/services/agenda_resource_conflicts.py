@@ -41,22 +41,29 @@ def find_resource_conflict(
     """Return the first overlapping exact-time appointment for one capacity-1 resource."""
     if resource_id is None:
         return None
+    from backend.services.agenda_interval_overlap import (
+        indexed_end_after, exact_half_open_overlap,
+    )
     candidate_end = datetime_start + timedelta(minutes=duration_minutes)
+    # SQL-side tenant/resource/status/time filtering uses a matching
+    # expression index; no hydration of the entire historical resource.
+    # Exact Python check guards SQLite/SQLCipher floating-point boundaries.
     query = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
         models.Appointment.resource_id == resource_id,
         models.Appointment.deleted_at.is_(None),
+        models.Appointment.status.in_(OCCUPYING_APPOINTMENT_STATUSES),
+        models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
         models.Appointment.datetime_start < candidate_end,
+        indexed_end_after(db, datetime_start),
     )
     if exclude_appointment_id is not None:
         query = query.filter(models.Appointment.id != exclude_appointment_id)
     for appointment in query.all():
-        if appointment.status not in OCCUPYING_APPOINTMENT_STATUSES:
-            continue
-        if _status_value(getattr(appointment, "scheduling_type", "exact_time")) not in {"exact_time", "exact-time", "exact"}:
-            continue
-        existing_end = appointment.datetime_start + timedelta(minutes=appointment.duration_minutes)
-        if datetime_start < existing_end:
+        if exact_half_open_overlap(
+            appointment.datetime_start, appointment.duration_minutes,
+            datetime_start, candidate_end,
+        ):
             return appointment
     return None
 
