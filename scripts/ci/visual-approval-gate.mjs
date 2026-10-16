@@ -50,12 +50,22 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel}){
   // Even if the changed-file list no longer contains frontend/, a new HEAD
   // must revoke any existing visual label and CONFIRM it disappeared.
   if(action==='synchronize'){
+    const actual=await head(api,number);
+    if(actual!==eventHead)throw new Error('Stale synchronize event: HEAD differs from PR HEAD');
+    const files=await pages(api,`/pulls/${number}/files`);
+    const touchesUI=files.some(x=>typeof x?.filename==='string'&&x.filename.startsWith('frontend/'));
+    const priorLabel=await hasLabel(api,number);
+    // Do not block back-end/docs PRs that have never needed visual approval.
+    // An existing label, even on a non-UI PR, must still be revoked.
+    if(!touchesUI&&!priorLabel)return {state:'skipped-non-ui',head:actual};
     try{ await api.delete(`/issues/${number}/labels/${APPROVAL_LABEL}`); }
     catch(error){
       if(error?.status!==404)throw new Error('Failed to revoke stale visual approval',{cause:error});
     }
     if(await hasLabel(api,number))
       throw new Error('Stale visual approval label still present after DELETE');
+    if((await head(api,number))!==actual)
+      throw new Error('PR HEAD changed during approval revocation');
     throw new Error('PR HEAD changed: approval revoked; new screenshots and explicit approval required');
   }
 

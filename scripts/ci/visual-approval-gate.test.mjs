@@ -87,6 +87,17 @@ test('synchronize revokes even with non-frontend diff',async()=>{
   const f=fixture({frontend:false});await assert.rejects(f.run('synchronize'),/approval revoked/);
   assert.equal(f.d.labels.size,0);
 });
+test('non-UI synchronize without visual label stays green',async()=>{
+  const f=fixture({frontend:false,label:false});
+  assert.deepEqual(await f.run('synchronize'),{state:'skipped-non-ui',head:old});
+  assert.equal(f.deletes,0);
+});
+test('stale synchronize webhook cannot revoke approval for a newer HEAD',async()=>{
+  const f=fixture({head:next});
+  await assert.rejects(f.run('synchronize'),/Stale synchronize event/);
+  assert.equal(f.deletes,0);
+  assert.equal(f.d.labels.has(APPROVAL_LABEL),true);
+});
 test('negative DELETE 403 must not silently pass',async()=>{
   const f=fixture({deleteError:403});
   await assert.rejects(f.run('synchronize'),/Failed to revoke stale visual approval/);
