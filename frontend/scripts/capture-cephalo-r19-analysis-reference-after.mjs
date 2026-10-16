@@ -324,12 +324,13 @@ async function captureViewport(viewport,attempt){
     await inspector.locator('[data-r23-point-select="N"]').click();
     await page.locator('[data-ceph03b-focus-ring="N"]').waitFor({state:'attached',timeout:4000});
     const focused=await page.locator('[data-ceph03b-focus-ring="N"]').count()===1;
+    const focusedNameEmphasized=await page.locator('[data-ceph03b-landmark-label="N"]').evaluate(el=>el.getAttribute('fill')==='#fef08a');
     const coordinatesAfter=await readCoordinates();
     const geometryUnchanged=JSON.stringify(coordinatesBefore)===JSON.stringify(coordinatesAfter);
     const screenshot=`after-desktop-N-inspected-${viewport.name}.png`;
     await page.screenshot({path:path.join(OUTPUT_DIR,screenshot),fullPage:false});
-    desktopPointInspectorProof={inspectorVisible,availableNames,focused,geometryUnchanged,screenshot,
-      valid:inspectorVisible&&availableNames===29&&focused&&geometryUnchanged};
+    desktopPointInspectorProof={inspectorVisible,availableNames,focused,focusedNameEmphasized,geometryUnchanged,screenshot,
+      valid:inspectorVisible&&availableNames===29&&focused&&focusedNameEmphasized&&geometryUnchanged};
   }
   const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)
     &&selectorChecks.length===3&&selectorChecks.every(s=>s.valid)

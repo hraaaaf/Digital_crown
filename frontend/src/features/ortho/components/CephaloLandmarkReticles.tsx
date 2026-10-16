@@ -317,7 +317,8 @@ export const CephaloLandmarkReticles = ({
             const place = anatomicalLabels.get(point.id);
             if (!place) return null;
             const emphasized = point.id === activeDragId || point.id === activePointId
-              || point.id === keyboardFocusedId || point.id === hoveredPointId;
+              || point.id === keyboardFocusedId || point.id === hoveredPointId
+              || point.id === focusedPointId;
             return (
               <g key={point.id}>
                 {place.leaderNeeded && <line
