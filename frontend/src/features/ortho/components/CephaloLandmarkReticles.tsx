@@ -14,6 +14,8 @@ interface CephaloLandmarkReticlesProps {
   imageHeight: number;
   /** Display-only labels, enabled in the desktop embedded workbench only. */
   compactLabels?: boolean;
+  /** Undefined keeps legacy all-name mode; otherwise show only these names + actively inspected names. */
+  prominentPointIds?: readonly string[];
   unitsPerPixel?: number;
   labelViewport?: string;
   isCalibrating: boolean;
@@ -51,6 +53,7 @@ export const CephaloLandmarkReticles = ({
   imageWidth,
   imageHeight,
   compactLabels = false,
+  prominentPointIds,
   unitsPerPixel = 1,
   labelViewport = '',
   isCalibrating,
@@ -83,7 +86,8 @@ export const CephaloLandmarkReticles = ({
   const priorityId = activeDragId ?? keyboardFocusedId ?? focusedPointId ?? hoveredPointId ?? activePointId ?? null;
   const shownLabels = new Set<string>();
   for (const point of landmarks) {
-    if (compactLabels || (isHoverActive && hoveredIds.has(point.id.toLowerCase()))
+    if ((compactLabels && !prominentPointIds) || prominentPointIds?.includes(point.id)
+      || (isHoverActive && hoveredIds.has(point.id.toLowerCase()))
       || point.id === keyboardFocusedId || point.id === focusedPointId
       || point.id === activeDragId || point.id === hoveredPointId
       || point.id === activePointId) shownLabels.add(point.id);
@@ -315,7 +319,7 @@ export const CephaloLandmarkReticles = ({
         <g data-cephalo-anatomical-labels="true" pointerEvents="none">
           {landmarks.map(point => {
             const place = anatomicalLabels.get(point.id);
-            if (!place) return null;
+            if (!place || (prominentPointIds && !shownLabels.has(point.id))) return null;
             const emphasized = point.id === activeDragId || point.id === activePointId
               || point.id === keyboardFocusedId || point.id === hoveredPointId
               || point.id === focusedPointId;

@@ -49,6 +49,8 @@ export interface CephaloTracingLayerProps {
   viewZoom?: number;
   viewPan?: { x: number; y: number };
   compactLabels?: boolean;
+  /** Names to persist in desktop progressive-label mode; undefined exposes all. */
+  prominentPointIds?: readonly string[];
   /** Keep the duplicate floating analysis tabs only on desktop or fullscreen.
    *  The accessible analysis selector remains always available on mobile. */
   showStageTabs?: boolean;
@@ -165,6 +167,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   viewZoom = 1,
   viewPan,
   compactLabels = false,
+  prominentPointIds,
   onUpdateLandmarks,
   onKeyboardNudgeLandmark,
   onLandmarkDragPreview,
@@ -849,6 +852,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           imageWidth={imageWidth}
           imageHeight={imageHeight}
           compactLabels={compactLabels}
+          prominentPointIds={prominentPointIds}
           unitsPerPixel={unitsPerPixel}
           labelViewport={getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan)}
           isCalibrating={isCalibrating}

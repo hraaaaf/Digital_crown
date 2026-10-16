@@ -20,7 +20,7 @@ const palette = {
 
 const clientToSVG = (x: number, y: number) => ({ x, y });
 
-function Fixture({ onUpdate, calibrating = false }: { onUpdate: (pts: Landmark[]) => void; calibrating?: boolean }) {
+function Fixture({ onUpdate, calibrating = false, compactLabels = false, prominentPointIds }: { onUpdate: (pts: Landmark[]) => void; calibrating?: boolean; compactLabels?: boolean; prominentPointIds?: readonly string[] }) {
   const [points, setPoints] = useState(baseline.map(point => ({ ...point })));
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [activeDragPos, setActiveDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -32,6 +32,9 @@ function Fixture({ onUpdate, calibrating = false }: { onUpdate: (pts: Landmark[]
         landmarks={points}
         imageWidth={180}
         imageHeight={180}
+        compactLabels={compactLabels}
+        prominentPointIds={prominentPointIds}
+        labelViewport="0 0 1200 1600"
         isCalibrating={calibrating}
         baseOpacity={1}
         activeDragId={activeDragId}
@@ -261,6 +264,27 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     fireEvent.blur(handle);
     expect(document.querySelectorAll('[data-ceph03b-focus-ring]')).toHaveLength(0);
     expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(0);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('desktop priority disclosure keeps both handles, reveals secondary on hover/focus, and never edits', () => {
+    const onUpdate = vi.fn();
+    const view = render(<Fixture onUpdate={onUpdate} compactLabels prominentPointIds={['N']} />);
+    expect(document.querySelectorAll('[data-ceph03b-drag-handle]')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-cephalo-landmark-label]')).toHaveLength(1);
+    expect(document.querySelector('[data-cephalo-landmark-label="N"]')).not.toBeNull();
+    const secondary = document.querySelector('[data-ceph03b-drag-handle="S"]') as SVGGElement;
+    fireEvent.pointerEnter(secondary);
+    expect(document.querySelector('[data-cephalo-landmark-label="S"]')).not.toBeNull();
+    fireEvent.pointerLeave(secondary);
+    expect(document.querySelector('[data-cephalo-landmark-label="S"]')).toBeNull();
+    fireEvent.focus(secondary);
+    expect(document.querySelector('[data-cephalo-landmark-label="S"]')).not.toBeNull();
+    fireEvent.blur(secondary);
+    expect(document.querySelector('[data-cephalo-landmark-label="S"]')).toBeNull();
+    expect(onUpdate).not.toHaveBeenCalled();
+    view.rerender(<Fixture onUpdate={onUpdate} compactLabels />);
+    expect(document.querySelectorAll('[data-cephalo-landmark-label]')).toHaveLength(2);
     expect(onUpdate).not.toHaveBeenCalled();
   });
 

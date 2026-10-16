@@ -45,6 +45,17 @@ const ANALYSIS_LABELS: Record<CephaloAnalysisMode, string> = {
 };
 
 
+// Read-only display priority per analysis, using anatomical IDs already present
+// in the two real 38-point source films. This is not an interpretation/diagnosis.
+const MAJOR_LANDMARK_IDS: Record<CephaloAnalysisMode, readonly string[]> = {
+  all: ['S', 'N', 'A', 'B', 'Po', 'Or', 'Go', 'Me', 'U1_incisal', 'L1_incisal'],
+  steiner: ['S', 'N', 'A', 'B', 'Go', 'Gn', 'U1_incisal', 'U1_apex', 'L1_incisal', 'L1_apex'],
+  tweed: ['Po', 'Or', 'Go', 'Me', 'L1_incisal', 'L1_apex', 'Pog', 'Pog_soft', 'Ls_soft'],
+  mcnamara: ['N', 'A', 'B', 'Po', 'Or', 'Co', 'Gn', 'Me', 'Ptm'],
+  com: ['S', 'N', 'A', 'B', 'Po', 'Or', 'Go', 'Me', 'U1_incisal', 'L1_incisal'],
+  ricketts: ['Po', 'Or', 'N', 'A', 'B', 'Pog', 'Gn', 'Go', 'Me', 'Co'],
+};
+
 /**
  * R20 workbench composition.
  *
@@ -84,6 +95,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   // stacked utility tools; no settings or analysis controls are removed.
   const [desktopToolsOpen, setDesktopToolsOpen] = React.useState(false);
   const [measuresOpen, setMeasuresOpen] = React.useState(true);
+  const [showAllLandmarkNames, setShowAllLandmarkNames] = React.useState(false);
 
   React.useEffect(() => {
     const onAnalysis = (event: Event) => {
@@ -167,6 +179,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
          aria-label={measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}>
           <ScanFace size={16} aria-hidden="true" />
           <span className="hidden xl:inline xl:ml-1">{measuresOpen ? 'Masquer les mesures' : 'Afficher les mesures'}</span>
+        </button>
+        <button type="button" data-cephalo-all-names-toggle
+          aria-pressed={showAllLandmarkNames}
+          aria-label={showAllLandmarkNames ? 'Revenir aux noms majeurs des repères' : 'Afficher tous les noms des repères'}
+          title={showAllLandmarkNames ? 'Afficher uniquement les noms majeurs ; autres au survol' : 'Afficher les 38 noms anatomiques'}
+          onClick={() => setShowAllLandmarkNames(value => !value)}
+          className="hidden min-h-10 items-center justify-center rounded-xl border px-3 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 xl:inline-flex"
+          style={{ background: showAllLandmarkNames ? props.P.bgInput : props.P.bgCard,
+            borderColor: showAllLandmarkNames ? props.P.borderFocus : props.P.border, color: props.P.text }}>
+          {showAllLandmarkNames ? 'Noms essentiels' : 'Tous les noms'}
         </button>
         <details ref={pointMenuRef} data-r23-mobile-point-directory data-cephalo-desktop-landmark-inspector className="relative">
           <summary aria-label="Parcourir les repères anatomiques" className="flex min-h-10 cursor-pointer list-none items-center justify-center rounded-xl border px-2 text-[11px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -446,7 +468,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         className="min-w-0"
         style={{ '--cephalo-scientific-anchor': props.P.text } as React.CSSProperties}
       >
-        <Step1CephaloBase {...props} embedded activeAnalysis={analysis} inspectedPointId={inspectedPointId} />
+        <Step1CephaloBase {...props} embedded activeAnalysis={analysis} inspectedPointId={inspectedPointId}
+          prominentPointIds={showAllLandmarkNames ? undefined : MAJOR_LANDMARK_IDS[analysis]} />
       </div>
 
       <div data-r20-measures-panel id="cephalo-r23-measure-rail" className={`min-w-0 h-[68vh] xl:h-[82vh] ${measuresOpen ? '' : 'hidden'}`}>
