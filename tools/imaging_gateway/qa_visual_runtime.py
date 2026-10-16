@@ -7,6 +7,7 @@ registry, NOT a product screen or a clinical workflow. No PHI or live service.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import hashlib
 import html
 import json
@@ -64,6 +65,17 @@ def collect(root: Path) -> list[dict]:
 
 def signature(row: dict) -> tuple[str, tuple[str, ...]]:
     return str(row["path"]), tuple(row["methods"])
+
+
+def route_delta(before: list[tuple[str, tuple[str, ...]]],
+                after: list[tuple[str, tuple[str, ...]]]
+                ) -> tuple[list[tuple[str, tuple[str, ...]]], list[tuple[str, tuple[str, ...]]]]:
+    """Multiset diff: duplicate registered routes cannot masquerade as no delta."""
+    old_counts, new_counts = Counter(before), Counter(after)
+    return (
+        sorted((new_counts - old_counts).elements()),
+        sorted((old_counts - new_counts).elements()),
+    )
 
 
 def render(phase: str, sha: str, before_count: int, after_count: int,
@@ -149,8 +161,7 @@ def main() -> None:
     apre = sum(x == (PREFLIGHT, ("POST",)) for x in new)
     bimp = sum(x[0] == EXISTING_IMPORT and "POST" in x[1] for x in old)
     aimp = sum(x[0] == EXISTING_IMPORT and "POST" in x[1] for x in new)
-    extra = sorted(set(new) - set(old))
-    missing = sorted(set(old) - set(new))
+    extra, missing = route_delta(old, new)
     if (bpre, apre, bimp, aimp) != (0, 1, 1, 1):
         raise AssertionError("PREFLIGHT_OR_LEGACY_ROUTE_INVARIANT_FAILURE")
     if extra != [(PREFLIGHT, ("POST",))] or missing:
