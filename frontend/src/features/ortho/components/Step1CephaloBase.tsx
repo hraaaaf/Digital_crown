@@ -6,6 +6,7 @@ import {
   Upload, Loader2, AlertCircle, Sun, Target, RefreshCw, Maximize2, Minimize2, ZoomIn, ZoomOut, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Activity, CheckCircle2, Info, Aperture, MousePointer2, Settings2, SlidersHorizontal, Wand2
 } from 'lucide-react';
 import { CephaloTracingLayer } from '../CephaloTracingLayer';
+import type { CephaloAnalysisMode } from '../cephaloAnalysisBridge';
 import type { 
   UIMode, VTOSettings, ImageFilters 
 } from '../cephaloShared';
@@ -38,11 +39,12 @@ interface ThemePalette {
 interface Step1CephaloProps {
   P: ThemePalette; // Theme palette
   embedded?: boolean; // Shared desktop workbench hosts controls outside the image.
+  activeAnalysis?: CephaloAnalysisMode; // Presentation selection survives a fullscreen portal switch.
   fileRef: React.RefObject<HTMLInputElement | null>;
   step1ContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1ContainerRef, embedded = false }) => {
+export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1ContainerRef, embedded = false, activeAnalysis }) => {
   const store = useOrthoStore();
 
   const [showTip, setShowTip] = React.useState(false);
@@ -322,7 +324,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   // Transformed/grid ancestors can clip a position:fixed descendant.
   // React's portal preserves store, editor callbacks and anatomical points.
   const stageContent = (
-    <div ref={step1ContainerRef} className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[82vh] w-full'}`} style={{ ...themeVars, background: cbg, boxShadow: P.shadowLg, border: `1px solid ${P.border}` }}>
+    <div ref={step1ContainerRef} data-cephalo-stage-root="true" className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[82vh] w-full'}`} style={{ ...themeVars, background: cbg, boxShadow: P.shadowLg, border: `1px solid ${P.border}` }}>
       <div className="absolute inset-2 z-0 overflow-hidden rounded-[1.15rem] border border-[var(--ceph-ui-border)] bg-[var(--ceph-ui-panel)] shadow-lg sm:inset-2">
         <CephaloTracingLayer
           imageSrc={imageSrc}
@@ -335,6 +337,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           viewZoom={activeViewZoom}
           viewPan={activeViewZoom > 1 ? viewPan : { x: 0, y: 0 }}
           compactLabels={embedded && desktopZoomAvailable}
+          activeAnalysis={activeAnalysis}
           onUpdateLandmarks={updateLandmarksOptimistic}
           onKeyboardNudgeLandmark={nudgeLandmarkFromKeyboard}
           activePointId={activePointId}

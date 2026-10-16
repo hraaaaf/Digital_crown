@@ -184,28 +184,30 @@ async function captureViewport(viewport,attempt){
    }
    states.push({mode,valid,metrics});
   }
-  // Browser-level proof of the first-time clinical focus workflow. Desktop
-  // only: mobile has its own display contract and is not changed in this lot.
+  // Browser-level proof: the same stage moves to the fullscreen portal,
+  // remains visible and retains the selected clinical analysis after Escape.
   let focusProof=null;
   if(viewport.width>=1280){
-    await page.locator('[data-analysis="all"]').click();
-    const beforeWidth=await page.locator('[data-r20-radiograph-stage] > div').evaluate(el=>el.getBoundingClientRect().width);
+    await page.locator('[data-analysis="steiner"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='steiner'
+      &&document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')==='steiner',null,{timeout:6000});
+    const beforeWidth=await page.locator('[data-cephalo-stage-root]').evaluate(el=>el.getBoundingClientRect().width);
     const focusButton=page.getByRole('button',{name:'Activer le mode Focus radiographie',exact:true});
     await focusButton.click();
-    await page.waitForFunction(()=>{
-      const stage=document.querySelector('[data-r20-radiograph-stage] > div');
-      return stage?.classList.contains('fixed');
-    },null,{timeout:6000});
-    const focusedWidth=await page.locator('[data-r20-radiograph-stage] > div').evaluate(el=>el.getBoundingClientRect().width);
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:6000});
+    const focusedWidth=await page.locator('[data-cephalo-stage-root]').evaluate(el=>el.getBoundingClientRect().width);
+    const focusedMode=await page.locator('[data-cephalo-analysis]').getAttribute('data-cephalo-analysis');
     const focusScreenshot=`after-focus-radiograph-${viewport.name}.png`;
     await page.screenshot({path:path.join(OUTPUT_DIR,focusScreenshot),fullPage:false});
     await page.keyboard.press('Escape');
-    await page.waitForFunction(()=>!document.querySelector('[data-r20-radiograph-stage] > div')?.classList.contains('fixed'),null,{timeout:5000});
-    const restoredWidth=await page.locator('[data-r20-radiograph-stage] > div').evaluate(el=>el.getBoundingClientRect().width);
-    focusProof={beforeWidth,focusedWidth,restoredWidth,focusScreenshot,
+    await page.waitForFunction(()=>!document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:5000});
+    const restoredWidth=await page.locator('[data-cephalo-stage-root]').evaluate(el=>el.getBoundingClientRect().width);
+    const restoredMode=await page.locator('[data-cephalo-analysis]').getAttribute('data-cephalo-analysis');
+    focusProof={beforeWidth,focusedWidth,restoredWidth,focusedMode,restoredMode,focusScreenshot,
       valid:focusedWidth>=viewport.width*.9
         &&focusedWidth>beforeWidth+200
-        &&Math.abs(restoredWidth-beforeWidth)<5};
+        &&Math.abs(restoredWidth-beforeWidth)<5
+        &&focusedMode==='steiner'&&restoredMode==='steiner'};
   }
   const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)
     &&selectorChecks.length===3&&selectorChecks.every(s=>s.valid)

@@ -38,7 +38,8 @@ vi.mock('../stores/useOrthoStore',()=>({
   useOrthoStore:(selector:any)=>selector(state),
 }));
 vi.mock('./Step1CephaloBase',()=>({
-  Step1Cephalo:({ embedded }: { embedded?: boolean }) => <div data-embedded={embedded ? 'true' : 'false'}>Cephalo base stage</div>,
+  Step1Cephalo:({ embedded, activeAnalysis }: { embedded?: boolean; activeAnalysis?: string }) =>
+    <div data-embedded={embedded ? 'true' : 'false'} data-active-analysis={activeAnalysis}>Cephalo base stage</div>,
 }));
 vi.mock('./CephaloAnalysisWorkbenchPanel',()=>({
   CephaloAnalysisWorkbenchPanel:({analysis}:any)=><div>Workbench analysis: {analysis}</div>,
@@ -96,6 +97,12 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     expect(selector.className).toContain('text-[13px]');
     expect(Array.from(selector.options).find(o=>o.value==='all')?.textContent).toBe('Toutes analyses');
     expect(document.querySelector('[data-r20-radiograph-stage]')).toBeTruthy();
+  });
+
+  it('keeps the selected analysis in the actual stage when the workbench selector changes',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    fireEvent.change(screen.getByRole('combobox',{name:'Analyse clé en main'}),{target:{value:'steiner'}});
+    expect(screen.getByText('Cephalo base stage').getAttribute('data-active-analysis')).toBe('steiner');
   });
 
   it('renders the registry-driven layer manager and keeps planned anatomy fail-closed',()=>{

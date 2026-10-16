@@ -386,7 +386,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         className="min-w-0"
         style={{ '--cephalo-scientific-anchor': props.P.text } as React.CSSProperties}
       >
-        <Step1CephaloBase {...props} embedded />
+        <Step1CephaloBase {...props} embedded activeAnalysis={analysis} />
       </div>
 
       <div data-r20-measures-panel className="min-w-0 h-[68vh] xl:h-[82vh]">
