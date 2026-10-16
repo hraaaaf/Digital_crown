@@ -1,6 +1,8 @@
 """LAB-only background worker contract: no hardware or patient access."""
 import asyncio
 import base64
+import hashlib
+import json
 import sqlite3
 from pathlib import Path
 import tempfile
@@ -15,6 +17,13 @@ PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
     "AAAAFklEQVR4nGPkEpFjYGBgYmBgYGBgAAAC5gBAXKUgWwAAAABJRU5ErkJggg=="
 )
+
+
+def mark_complete(photo: Path, content: bytes) -> None:
+    marker = photo.with_name(photo.name + ".ready")
+    marker.write_text(json.dumps({
+        "version": 1, "size": len(content), "sha256": hashlib.sha256(content).hexdigest()
+    }), encoding="utf-8")
 
 
 class BridgeLabConfigTests(unittest.TestCase):
@@ -71,6 +80,7 @@ class BridgeLabConfigTests(unittest.TestCase):
         collector = make_lab_collector(self.env)
         photo = self.root / "incoming" / "fake_photo.png"
         photo.write_bytes(PNG)
+        mark_complete(photo, PNG)
         self.assertEqual(collector.scan_once()["unstable"], 1)
         self.assertEqual(collector.scan_once()["staged"], 1)
         items = collector.items()
@@ -80,9 +90,27 @@ class BridgeLabConfigTests(unittest.TestCase):
         self.assertEqual(photo.read_bytes(), PNG)
         self.assertNotIn(PNG, next((self.root / "private" / "spool").iterdir()).read_bytes())
 
+    def test_unfinished_photo_is_never_staged(self):
+        collector = make_lab_collector(self.env)
+        photo = self.root / "incoming" / "fake_photo.png"
+        photo.write_bytes(PNG)
+        collector.scan_once()
+        self.assertEqual(collector.scan_once()["staged"], 0)
+        self.assertEqual(collector.items(), [])
+        # Even with a completion claim, a corrupt hash must never be accepted.
+        mark_complete(photo, PNG + b"mismatch")
+        self.assertEqual(collector.scan_once()["staged"], 0)
+        self.assertEqual(collector.items(), [])
+        mark_complete(photo, PNG)
+        self.assertEqual(collector.scan_once()["staged"], 1)
+        self.assertEqual(len(collector.items()), 1)
+
     def test_invalid_media_is_quarantined_not_confirmed(self):
         collector = make_lab_collector(self.env)
-        (self.root / "incoming" / "fake_photo.png").write_bytes(b"invalid synthetic data")
+        photo = self.root / "incoming" / "fake_photo.png"
+        invalid = b"invalid synthetic data"
+        photo.write_bytes(invalid)
+        mark_complete(photo, invalid)
         collector.scan_once()
         self.assertEqual(collector.scan_once()["quarantine"], 1)
         self.assertEqual(collector.items()[0]["state"], "QUARANTINED")
@@ -114,6 +142,7 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             incoming.mkdir()
             photo = incoming / "fictitious.png"
             photo.write_bytes(PNG)
+            mark_complete(photo, PNG)
             env = {
                 "DC_V15_06_BRIDGE_LAB": "1",
                 "ENVIRONMENT": "test",

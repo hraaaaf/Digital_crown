@@ -74,7 +74,8 @@ def make_lab_collector(environ: Mapping[str, str] | None = None):
 
     # Import only after the hard-disabled-by-default isolation boundary.
     from tools.imaging_gateway import Config, HotFolder
-    return HotFolder(Config("lab_cabinet", "lab_station", incoming, private, key))
+    return HotFolder(Config("lab_cabinet", "lab_station", incoming, private, key,
+                            require_ready_manifest=True))
 
 
 async def poll_lab_collector(collector, stop: asyncio.Event, *, interval: float = 0.25) -> None:
