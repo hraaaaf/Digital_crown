@@ -290,8 +290,10 @@ class CheckpointCSyntheticTests(unittest.TestCase):
             self.c.challenged_head("bad")
         with self.assertRaisesRegex(CasRefusal, "C_HEAD_PACKET_SHAPE_REFUSE"):
             verify_challenged_c_head({}, nonce, self.c_pin, self.b_pin, self.scope)
+        b_pkt, b_req = self.fresh_head()
         with self.assertRaisesRegex(CasRefusal, "C_DUAL_CHALLENGE_REFUSE"):
-            self.dual(challenge="wrong")
+            classify_challenged_heads(b_pkt, b_req, None, "wrong",
+                                     self.b_pin, self.c_pin)
 
     def test_scope_mismatch_is_refused(self):
         _, r1 = self.commit_b()
