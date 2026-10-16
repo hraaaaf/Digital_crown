@@ -6,6 +6,7 @@ No attachment, upload, media creation, server receipt or device credential.
 from __future__ import annotations
 
 import os
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -55,8 +56,15 @@ def preflight(
     current_user: models.User = Depends(get_current_user),
 ):
     # Explicit Bearer header avoids cookie-only CSRF exposure for this proposal API.
-    if not request.headers.get("authorization", "").startswith("Bearer "):
+    authorization = request.headers.get("authorization", "")
+    if not authorization.startswith("Bearer ") or not authorization[7:].strip():
         raise HTTPException(status_code=401, detail="EXPLICIT_STAFF_BEARER_REQUIRED")
+    # Canonical get_current_user prefers an access cookie to the Bearer header.
+    # If both exist, require they identify the same credential; a forged
+    # "Bearer anything" must never borrow a valid cookie's authority.
+    cookie_token = request.cookies.get("access_token")
+    if cookie_token and not secrets.compare_digest(authorization[7:], cookie_token):
+        raise HTTPException(status_code=401, detail="EXPLICIT_STAFF_BEARER_MISMATCH")
     if not has_permission(current_user, "patients"):
         raise HTTPException(status_code=403, detail="PATIENT_PERMISSION_REQUIRED")
     if not _isolated_lab_enabled():

@@ -182,6 +182,24 @@ def test_cookie_only_post_is_rejected(client, db, dentiste, auth_headers, monkey
     assert r.status_code in {401, 403}
 
 
+def test_forged_bearer_cannot_borrow_valid_access_cookie(client, db, dentiste, auth_headers, monkeypatch):
+    workstation = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    # Login fixture sets a real HttpOnly access cookie; the header is deliberately fake.
+    assert client.cookies.get("access_token")
+    payload = _proposal(workstation)
+    response = client.post(
+        "/api/imaging-acquisitions/preflight",
+        json=payload,
+        headers={"Authorization": "Bearer forged-not-a-jwt"},
+    )
+    assert response.status_code == 401, response.text
+    assert response.json()["detail"] == "EXPLICIT_STAFF_BEARER_MISMATCH"
+    # A real matching header remains accepted in the isolated LAB.
+    valid = _post(client, auth_headers, payload)
+    assert valid.status_code == 200, valid.text
+    assert valid.json()["upload_permitted"] is False
+
+
 def test_unsupported_content_metadata_and_extra_fields_denied(client, db, dentiste, auth_headers, monkeypatch):
     workstation = _lab(client, db, dentiste, auth_headers, monkeypatch)
     assert _post(client, auth_headers, _proposal(workstation, mime_type="application/dicom")).status_code == 422
