@@ -132,3 +132,66 @@ def test_denied_role_reuses_owner_station_without_enrollment(
     assert called == [
         "http://127.0.0.1:8005" + suffix for suffix in expected_suffixes
     ]
+
+
+@pytest.mark.parametrize("same_404", [True, False])
+def test_existing_foreign_patient_must_match_unknown_404(monkeypatch, tmp_path, same_404):
+    """No leak if a valid OTHER-tenant patient exists: indistinguishable 404."""
+    vals = {
+        "DIGITALCROWN_ISOLATED_RUNTIME": "1",
+        "T2_USER": "t2-dentist@example.test",
+        "T2_PASSWORD": "fictional-only",
+        "T2_PATIENT_ID": "1",
+        "T2_FOREIGN_PATIENT_ID": "3",
+        "T2_UNKNOWN_PATIENT_ID": "10003",
+        "T2_SOURCE_HEAD": "synthetic-test-head",
+    }
+    for name, value in vals.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.delenv("T2_DENIED_USER", raising=False)
+    monkeypatch.delenv("T2_DENIED_PASSWORD", raising=False)
+    monkeypatch.setattr(probe, "login", lambda *args: "fictional-only-token")
+    seen = []
+
+    def fake_http(url, data, bearer=None, form=False, anonymous=False):
+        messages = data["messages"]
+        seen.append(messages)
+        if anonymous:
+            return 401, {"detail": "Unauthorized"}, 1.0
+        if messages == ["/patient"]:
+            return 200, {"status": "clarification", "proposal": None}, 1.0
+        if messages == ["/patient", "1"]:
+            return 200, {"status": "read", "proposal": None, "patient": {"id": 1}}, 1.0
+        if messages == ["/patient", "3"]:
+            return 404, {"detail": "Patient introuvable."}, 1.0
+        if messages == ["/patient", "10003"]:
+            return 404, {
+                "detail": "Patient introuvable." if same_404 else "Patient externe"
+            }, 1.0
+        raise AssertionError("unexpected request")
+
+    monkeypatch.setattr(probe, "http_json", fake_http)
+    args = SimpleNamespace(api="http://127.0.0.1:8005", n=30,
+                           out=str(tmp_path / "evidence.json"))
+    if same_404:
+        result = probe.run(args)
+        assert result["checks"]["foreign_patient_404"] == "PASS"
+        assert result["checks"]["foreign_unknown_same_404"] == "PASS"
+        assert ["/patient", "3"] in seen and ["/patient", "10003"] in seen
+    else:
+        with pytest.raises(RuntimeError, match="tenant 404 differs"):
+            probe.run(args)
+        assert not (tmp_path / "evidence.json").exists()
+
+
+def test_missing_foreign_pair_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    monkeypatch.setenv("T2_USER", "t2-dentist@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    monkeypatch.setenv("T2_FOREIGN_PATIENT_ID", "3")
+    monkeypatch.delenv("T2_UNKNOWN_PATIENT_ID", raising=False)
+    with pytest.raises(ValueError, match="both foreign and unknown"):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json")
+        ))
