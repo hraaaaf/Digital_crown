@@ -106,7 +106,12 @@ def verify_challenged_c_head(packet: dict, challenge: str, c_pin: bytes,
     _refuse(type(signature) is str and len(signature) <= 128
             and type(c_pin) is bytes and len(c_pin) == 32,
             "C_HEAD_SIGNATURE_SHAPE_REFUSE")
-    message = HEAD_DOMAIN + canonical(response)
+    # Never let caller-controlled non-JSON values escape as raw Python
+    # serializer exceptions. Malformed envelopes are protocol refusals.
+    try:
+        message = HEAD_DOMAIN + canonical(response)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise CasRefusal("C_HEAD_CANONICAL_REFUSE") from exc
     _refuse(len(message) <= 4096, "C_HEAD_WIRE_LIMIT_REFUSE")
     try:
         sig = base64.b64decode(signature, validate=True)
