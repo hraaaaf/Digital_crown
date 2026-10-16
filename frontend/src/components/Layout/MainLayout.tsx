@@ -77,6 +77,8 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     && import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
   const showAssociateSidecar = associateSidecarEnabled && isWideDesktop;
   const sidecarCloseButtonRef = React.useRef<HTMLButtonElement>(null);
+  const associatePanelRef = React.useRef<HTMLDivElement>(null);
+  const wasSidecarOpenRef = React.useRef(false);
   const crownBotLauncherRef = React.useRef<HTMLButtonElement>(null);
   const restoreSidecarFocusRef = React.useRef(false);
   const closeAssociateSidecar = () => {
@@ -84,14 +86,18 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     setIsBotOpen(false);
   };
   useEffect(() => {
-    if (showAssociateSidecar && isBotOpen) {
+    const sidecarOpen = showAssociateSidecar && isBotOpen;
+    if (sidecarOpen && !wasSidecarOpenRef.current) {
       sidecarCloseButtonRef.current?.focus();
-      return;
-    }
-    if (!isBotOpen && restoreSidecarFocusRef.current) {
+    } else if (isBotOpen && wasSidecarOpenRef.current && !sidecarOpen) {
+      // A 200% zoom / viewport reflow must not strand keyboard focus when
+      // the desktop-only reducer disappears; the same Chat stays mounted.
+      associatePanelRef.current?.focus();
+    } else if (!isBotOpen && restoreSidecarFocusRef.current) {
       restoreSidecarFocusRef.current = false;
       crownBotLauncherRef.current?.focus();
     }
+    wasSidecarOpenRef.current = sidecarOpen;
   }, [showAssociateSidecar, isBotOpen]);
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -158,38 +164,53 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      {showAssociateSidecar && isBotOpen && (
-        <aside
-          data-cb01-associate-sidecar
-          aria-label="Crown Bot — assistant latéral expérimental"
+      {associateSidecarEnabled && isBotOpen && (
+        <div
+          ref={associatePanelRef}
+          tabIndex={-1}
+          data-cb01-associate-sidecar={showAssociateSidecar ? true : undefined}
+          data-ux1-c-crownbot-overlay={!showAssociateSidecar ? true : undefined}
+          role={showAssociateSidecar ? 'complementary' : undefined}
+          aria-label={showAssociateSidecar ? 'Crown Bot — assistant latéral expérimental' : undefined}
           onKeyDown={event => {
-            if (event.key === 'Escape') {
+            if (showAssociateSidecar && event.key === 'Escape') {
               event.preventDefault();
               event.stopPropagation();
               closeAssociateSidecar();
             }
           }}
-          className="relative z-20 hidden h-full min-h-0 w-[clamp(360px,30vw,480px)] shrink-0 flex-col border-l border-slate-200 bg-white shadow-2xl xl:flex"
+          className={showAssociateSidecar
+            ? 'relative z-20 flex h-full min-h-0 w-[clamp(360px,30vw,480px)] shrink-0 flex-col border-l border-slate-200 bg-white shadow-2xl'
+            : `fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
+                isPatientRoute
+                  ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
+                  : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
+              }`}
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-800">Crown Bot · Associate</p>
-              <p className="text-[11px] text-slate-500">Aperçu expérimental — aucune écriture</p>
+          {showAssociateSidecar && (
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800">Crown Bot · Associate</p>
+                <p className="text-[11px] text-slate-500">Aperçu expérimental — aucune écriture</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Réduire le panneau Crown Bot"
+                ref={sidecarCloseButtonRef}
+                onClick={closeAssociateSidecar}
+                className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                Réduire
+              </button>
             </div>
-            <button
-              type="button"
-              aria-label="Réduire le panneau Crown Bot"
-              ref={sidecarCloseButtonRef}
-              onClick={closeAssociateSidecar}
-              className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              Réduire
-            </button>
+          )}
+          <div className={showAssociateSidecar ? 'min-h-0 flex-1' : 'h-full'}>
+            <CrownBotChat
+              onClose={showAssociateSidecar ? closeAssociateSidecar : () => setIsBotOpen(false)}
+              onUnreadChange={setGhostUnreadCount}
+            />
           </div>
-          <div className="min-h-0 flex-1">
-            <CrownBotChat onClose={closeAssociateSidecar} onUnreadChange={setGhostUnreadCount} />
-          </div>
-        </aside>
+        </div>
       )}
 
       <div
@@ -213,7 +234,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <AnimatePresence>
-        {isBotOpen && !showAssociateSidecar && (
+        {isBotOpen && !associateSidecarEnabled && (
           <motion.div
             data-ux1-c-crownbot-overlay
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
