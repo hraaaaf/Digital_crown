@@ -200,4 +200,4 @@ def test_print_audit_ddl_is_installed_by_both_operator_baselines():
     assert "install_append_only_print_audit_guards(op.get_bind())" in migration
     assert "install_append_only_print_audit_guards(connection)" in pg
     assert "install_append_only_print_audit_guards(connection)" in sqlite
-    assert '"neo000000031"' in source("backend/core/schema_runtime.py")
+    assert '"neo000000032"' in source("backend/core/schema_runtime.py")

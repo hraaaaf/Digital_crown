@@ -16,6 +16,8 @@ from backend.services.agenda_availability import (
     get_practitioner_day_availability,
     validate_appointment_availability,
 )
+from backend.services.agenda_transaction_lock import lock_cabinet_booking
+from backend.services.agenda_booking_occupancy import OCCUPYING_APPOINTMENT_STATUSES
 from backend.services.agenda_resource_conflicts import assert_resource_available, find_resource_conflict, validate_assignable_resource
 
 router = APIRouter(tags=["Appointments"])
@@ -92,14 +94,19 @@ def _find_conflicts(
     """
     datetime_start = _naive_datetime(datetime_start)
     end = datetime_start + timedelta(minutes=duration_minutes)
-    window_start = datetime_start - timedelta(hours=4)
+    # Indexed conservative SQL prefilter; final Python interval check is exact.
+    from backend.services.agenda_interval_overlap import (
+        indexed_end_after, exact_half_open_overlap,
+    )
+    overlaps = indexed_end_after(db, datetime_start)
+
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
-        models.Appointment.status != models.AppointmentStatus.ANNULE,
+        models.Appointment.status.in_(OCCUPYING_APPOINTMENT_STATUSES),
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
-        models.Appointment.datetime_start >= window_start,
+        overlaps,
     )
     if practitioner_id is not None:
         q = q.filter(
@@ -110,12 +117,12 @@ def _find_conflicts(
         )
     if exclude_id:
         q = q.filter(models.Appointment.id != exclude_id)
-    rows = q.all()
     return [
-        appointment
-        for appointment in rows
-        if _naive_datetime(appointment.datetime_start) + timedelta(minutes=appointment.duration_minutes) > datetime_start
-        and _naive_datetime(appointment.datetime_start) < end
+        row for row in q.all()
+        if exact_half_open_overlap(
+            _naive_datetime(row.datetime_start), row.duration_minutes,
+            datetime_start, end,
+        )
     ]
 
 
@@ -156,10 +163,43 @@ def create_appointment(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("agenda")),
 ):
+    """Public booking path; always commits and emits the canonical audit."""
+    return _create_appointment_validated(
+        appt, db, current_user, defer_commit=False,
+    )
+
+
+def _create_appointment_validated(
+    appt: schemas.AppointmentCreate,
+    db: Session,
+    current_user: models.User,
+    *,
+    defer_commit: bool = False,
+):
+    """Shared validators; defer_commit keeps booking in caller's transaction.
+
+    Crown Bot combines the booking insert with pending->executed in one commit.
+    The normal public route keeps its existing commit/audit semantics.
+    """
     if appt.patient_id:
-        assert_patient_access(appt.patient_id, current_user, db)
+        if defer_commit:
+            # A rejected access check must NOT call audit_service.log(), whose
+            # own commit would accidentally commit bot's executing claim.
+            scoped_patient = db.query(models.Patient).filter(
+                models.Patient.id == appt.patient_id,
+                models.Patient.employer_id == current_user.get_employer_id(),
+                models.Patient.deleted_at.is_(None),
+            ).first()
+            if scoped_patient is None:
+                raise HTTPException(status_code=404, detail="Patient introuvable.")
+        else:
+            assert_patient_access(appt.patient_id, current_user, db)
 
     employer_id = current_user.get_employer_id()
+    # Serialize check+insert across independent actions and the normal API.
+    # PG xact lock is held until commit; the next READ COMMITTED transaction
+    # sees the previous confirmed slot before validating conflicts.
+    lock_cabinet_booking(db, employer_id)
     practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, appt.praticien_id)
     validate_assignable_resource(db, employer_id, appt.resource_id)
     normalized_start = _naive_datetime(appt.datetime_start)
@@ -192,17 +232,30 @@ def create_appointment(
     appt_data["praticien_id"] = practitioner_id
     db_appt = models.Appointment(**appt_data)
     db.add(db_appt)
-    db.commit()
-    db.refresh(db_appt)
-    audit_service.log(
-        db=db,
+    if defer_commit:
+        # Flush only: crash before final caller COMMIT rolls back appointment,
+        # audit event and bot action status together.
+        db.flush()
+        db.add(models.AuditLog(
+            user_id=current_user.id,
+            employer_id=employer_id,
+            action="CREATE",
+            resource_type="Appointment",
+            resource_id=str(db_appt.id),
+            details=f"RDV patient {appt.patient_id} (bot transaction)",
+        ))
+        return db_appt
+    db.flush()
+    db.add(models.AuditLog(
         user_id=current_user.id,
         employer_id=employer_id,
         action="CREATE",
         resource_type="Appointment",
         resource_id=str(db_appt.id),
         details=f"RDV patient {appt.patient_id}",
-    )
+    ))
+    db.commit()  # appointment and audit survive (or roll back) together
+    db.refresh(db_appt)
     return db_appt
 
 
@@ -235,6 +288,9 @@ def update_appointment(
         validate_assignable_resource(db, employer_id, update_data["resource_id"])
 
     if any(key in update_data for key in ("datetime_start", "duration_minutes", "scheduling_type", "praticien_id", "resource_id")):
+        # Shared with single/bulk/bot/mobile/companion: lock before rechecking
+        # an alternate time/resource to avoid a cross-entry lost reservation.
+        lock_cabinet_booking(db, employer_id)
         effective_start = _naive_datetime(update_data.get("datetime_start", db_appt.datetime_start))
         effective_duration = update_data.get("duration_minutes", db_appt.duration_minutes)
         effective_type = update_data.get("scheduling_type", db_appt.scheduling_type)
@@ -269,17 +325,16 @@ def update_appointment(
     for key, value in update_data.items():
         setattr(db_appt, key, value)
 
-    db.commit()
-    db.refresh(db_appt)
-    audit_service.log(
-        db=db,
+    db.add(models.AuditLog(
         user_id=current_user.id,
         employer_id=employer_id,
         action="UPDATE",
         resource_type="Appointment",
         resource_id=str(id),
         details=f"Champs: {', '.join(update_data.keys())}",
-    )
+    ))
+    db.commit()  # rescheduling and audit are a single clinical transaction
+    db.refresh(db_appt)
     return db_appt
 
 
@@ -382,6 +437,9 @@ def create_bulk_appointments(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = current_user.get_employer_id()
+    # One transaction-scoped lock for the entire batch, including conflict
+    # checks against other ingress routes and all subsequent inserts.
+    lock_cabinet_booking(db, employer_id)
     prepared = []
 
     for index, item in enumerate(payload.appointments):

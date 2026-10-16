@@ -69,6 +69,14 @@ def bootstrap_empty_postgresql_to_head(
     # revision scripts, so install its guards explicitly before stamping.
     from backend.core.print_audit_ddl import install_append_only_print_audit_guards
     install_append_only_print_audit_guards(connection)
+    # Empty databases are baselined directly to Alembic HEAD via create_all().
+    # They must still receive migration-defined clinical triggers and indexes.
+    from backend.core.appointment_revision_ddl import (
+        install_appointment_overlap_index,
+        install_appointment_revision_guard,
+    )
+    install_appointment_revision_guard(connection)
+    install_appointment_overlap_index(connection)
 
     actual_tables = set(sa.inspect(connection).get_table_names(schema="public"))
     expected_tables = {

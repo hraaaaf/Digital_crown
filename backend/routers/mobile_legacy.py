@@ -54,7 +54,7 @@ def _decode_mobile_identity(authorization: str, db: Session):
         if not jti:
             raise err
         from backend.security import token_blacklist
-        if token_blacklist.is_revoked(jti, db):
+        if token_blacklist.is_revoked(jti, db, mobile_epoch=payload.get("mobile_epoch")):
             raise err
         user_id = int(payload["sub"])
         tenant_id = int(payload["tenant_id"])
@@ -684,6 +684,7 @@ class MobileAppointmentCreate(BaseModel):
     phone: Optional[str] = None
     motif: str
     duration_minutes: int
+    praticien_id: Optional[int] = None  # required when authenticated actor isn't assignable practitioner
 
 @router.get('/appointments', summary='Recuperer les RDV sur une periode')
 def get_mobile_appointments(
@@ -734,19 +735,26 @@ def create_mobile_appointment(
     if not patient_name:
         raise HTTPException(status_code=422, detail='Nom patient requis')
 
-    new_apt = models.Appointment(
-        employer_id=employer_id,
-        patient_id=patient.id if patient else None,
-        patient_name=patient_name,
-        phone=None if patient else body.phone,
-        motif=body.motif,
-        datetime_start=dt_start,
-        duration_minutes=body.duration_minutes,
-        status=models.AppointmentStatus.PREVU
+    # Mobile must share the same practitioner, opening-hours, closure,
+    # tenant, resource and conflict validation as Agenda and Crown Bot.
+    # A secretary must provide the destination practitioner explicitly.
+    from backend.routers.appointments import _create_appointment_validated
+    from backend.schemas.appointments import AppointmentCreate
+    new_apt = _create_appointment_validated(
+        appt=AppointmentCreate(
+            patient_id=patient.id if patient else None,
+            patient_name=patient_name,
+            phone=None if patient else body.phone,
+            motif=body.motif,
+            datetime_start=dt_start,
+            duration_minutes=body.duration_minutes,
+            praticien_id=body.praticien_id,
+            status=models.AppointmentStatus.PREVU,
+            source="mobile",
+        ),
+        db=db,
+        current_user=_mobile_user,
     )
-    db.add(new_apt)
-    db.commit()
-    db.refresh(new_apt)
     return {'id': new_apt.id, 'status': 'created'}
 
 @router.delete('/appointments/{appointment_id}')

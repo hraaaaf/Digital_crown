@@ -65,6 +65,7 @@ def _create_mobile_jwt(
         "mobile_key_version": MOBILE_KEY_VERSION,
         "role": role,
         "jti": _mobile_jti(tenant_id, now),
+        "mobile_epoch": token_blacklist.current_mobile_epoch(tenant_id),
         "iat": now,
         "exp": now + timedelta(hours=24),
     }
@@ -86,6 +87,7 @@ def _create_mobile_refresh_jwt(
         "mobile_key_version": MOBILE_KEY_VERSION,
         "role": role,
         "jti": _mobile_jti(int(employer_id), now),
+        "mobile_epoch": token_blacklist.current_mobile_epoch(int(employer_id)),
         "iat": now,
         "exp": now + MOBILE_REFRESH_TTL,
     }
@@ -499,7 +501,9 @@ def refresh_mobile_credentials(
             raise err
         jti = payload.get('jti')
         device_id = payload.get('device_id')
-        if not jti or not device_id or token_blacklist.is_revoked(jti, db):
+        if not jti or not device_id or token_blacklist.is_revoked(
+            jti, db, mobile_epoch=payload.get("mobile_epoch")
+        ):
             raise err
         user_id = int(payload['sub'])
         tenant_id = int(payload['tenant_id'])

@@ -276,8 +276,11 @@ class AgendaResource(Base):
 
 class Appointment(Base):
     __tablename__ = "appointments"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    # Database trigger increments on ALL changes, including bulk/raw SQL:
+    # guards Crown Bot confirmation against stale snapshots and ABA.
+    clinical_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     patient_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True) # Utilisé si patient_id est nul (rdv rapide)
     
