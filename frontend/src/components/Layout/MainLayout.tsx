@@ -76,6 +76,23 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     import.meta.env.VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED === 'true'
     && import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
   const showAssociateSidecar = associateSidecarEnabled && isWideDesktop;
+  const sidecarCloseButtonRef = React.useRef<HTMLButtonElement>(null);
+  const crownBotLauncherRef = React.useRef<HTMLButtonElement>(null);
+  const restoreSidecarFocusRef = React.useRef(false);
+  const closeAssociateSidecar = () => {
+    restoreSidecarFocusRef.current = true;
+    setIsBotOpen(false);
+  };
+  useEffect(() => {
+    if (showAssociateSidecar && isBotOpen) {
+      sidecarCloseButtonRef.current?.focus();
+      return;
+    }
+    if (!isBotOpen && restoreSidecarFocusRef.current) {
+      restoreSidecarFocusRef.current = false;
+      crownBotLauncherRef.current?.focus();
+    }
+  }, [showAssociateSidecar, isBotOpen]);
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
@@ -145,6 +162,13 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         <aside
           data-cb01-associate-sidecar
           aria-label="Crown Bot — assistant latéral expérimental"
+          onKeyDown={event => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              event.stopPropagation();
+              closeAssociateSidecar();
+            }
+          }}
           className="relative z-20 hidden h-full min-h-0 w-[clamp(360px,30vw,480px)] shrink-0 flex-col border-l border-slate-200 bg-white shadow-2xl xl:flex"
         >
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
@@ -155,14 +179,15 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
             <button
               type="button"
               aria-label="Réduire le panneau Crown Bot"
-              onClick={() => setIsBotOpen(false)}
+              ref={sidecarCloseButtonRef}
+              onClick={closeAssociateSidecar}
               className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               Réduire
             </button>
           </div>
           <div className="min-h-0 flex-1">
-            <CrownBotChat onClose={() => setIsBotOpen(false)} onUnreadChange={setGhostUnreadCount} />
+            <CrownBotChat onClose={closeAssociateSidecar} onUnreadChange={setGhostUnreadCount} />
           </div>
         </aside>
       )}
@@ -172,6 +197,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         className={`${showAssociateSidecar && isBotOpen ? 'hidden lg:hidden' : (isPatientRoute ? 'hidden lg:block' : '')} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
       >
         <button
+          ref={crownBotLauncherRef}
           onClick={() => setIsBotOpen(!isBotOpen)}
           aria-label={isBotOpen ? 'Fermer CrownBot' : 'Ouvrir CrownBot'}
           aria-expanded={isBotOpen}
