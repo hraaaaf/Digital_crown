@@ -51,13 +51,27 @@ class BridgeLabConfigTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[3] / "backend" / "main.py").read_text(
             encoding="utf-8")
         tree = ast.parse(source)
-        imports = [(n, p) for p in ast.walk(tree)
-                   if isinstance(p, ast.If) for n in p.body
-                   if isinstance(n, ast.ImportFrom)
-                   and n.module == "tools.imaging_gateway.bridge_background_lab"]
-        self.assertEqual(len(imports), 1)
-        for _, conditional in imports:
-            self.assertIn("DC_V15_06_BRIDGE_LAB", ast.unparse(conditional.test))
+        module = "tools.imaging_gateway.bridge_background_lab"
+        imports = [alias.name for node in ast.walk(tree)
+                   if isinstance(node, ast.ImportFrom) and node.module == module
+                   for alias in node.names]
+        self.assertCountEqual(imports, ["start_if_enabled", "stop_bridge_lab"])
+        # Start must be guarded by an explicit opt-in, and shutdown must
+        # require an existing handle. Both imports are intentionally present.
+        start_guards = [node for node in ast.walk(tree)
+                        if isinstance(node, ast.If)
+                        and "DC_V15_06_BRIDGE_LAB" in ast.unparse(node.test)
+                        and any(isinstance(stmt, ast.ImportFrom) and stmt.module == module
+                                and any(a.name == "start_if_enabled" for a in stmt.names)
+                                for stmt in node.body)]
+        stop_guards = [node for node in ast.walk(tree)
+                       if isinstance(node, ast.If)
+                       and "imaging_bridge_lab_handle is not None" in ast.unparse(node.test)
+                       and any(isinstance(stmt, ast.ImportFrom) and stmt.module == module
+                               and any(a.name == "stop_bridge_lab" for a in stmt.names)
+                               for stmt in node.body)]
+        self.assertEqual(len(start_guards), 1)
+        self.assertEqual(len(stop_guards), 1)
 
     def test_disabled_by_default_has_no_collector(self):
         self.assertFalse(lab_requested({}))
@@ -86,6 +100,18 @@ class BridgeLabConfigTests(unittest.TestCase):
             **self.env, "DC_V15_06_BRIDGE_LAB_ROOT": str(alias),
         })
         self.assertEqual(collector.items(), [])
+
+    def test_symlinked_fixture_rejected_even_inside_temp(self):
+        alias = self.root.with_name(self.root.name + "-link")
+        try:
+            alias.symlink_to(self.root, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("fixture symlinks unavailable on this runner")
+        self.addCleanup(alias.unlink)
+        with self.assertRaisesRegex(BridgeLabConfigurationError, "UNSAFE_FIXTURE_ROOT"):
+            make_lab_collector({
+                **self.env, "DC_V15_06_BRIDGE_LAB_ROOT": str(alias),
+            })
 
     def test_rejects_missing_marker(self):
         (self.root / ".digitalcrown-imaging-lab-only").unlink()

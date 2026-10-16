@@ -10,6 +10,7 @@ import asyncio
 from dataclasses import dataclass
 import logging
 import os
+import stat
 from pathlib import Path
 import tempfile
 from typing import Mapping
@@ -52,20 +53,26 @@ def make_lab_collector(environ: Mapping[str, str] | None = None):
     try:
         root = configured.resolve(strict=True)
         temp = Path(tempfile.gettempdir()).resolve(strict=True)
-        # Windows resolves some TEMP roots using different letter casing. Keep
-        # the strict same-path and TEMP containment checks, but compare using
-        # the filesystem's case normalization instead of Path spelling.
-        raw_norm = os.path.normcase(os.path.abspath(str(configured)))
-        root_norm = os.path.normcase(str(root))
-        temp_norm = os.path.normcase(str(temp))
-        try:
-            inside_temp = (
-                root_norm != temp_norm
-                and os.path.commonpath((root_norm, temp_norm)) == temp_norm
-            )
-        except ValueError:
-            inside_temp = False  # Different Windows drives are never accepted.
-        if raw_norm != root_norm or not inside_temp or not root.is_dir():
+        # Compare filesystem identity, not lexical paths: Windows TEMP and
+        # resolved paths can use different case, short names or drive spelling.
+        # A syntactically nested string alone is never enough for confinement.
+        if not root.is_dir() or not any(p.samefile(temp) for p in root.parents):
+            raise BridgeLabConfigurationError("IMAGING_BRIDGE_UNSAFE_FIXTURE_ROOT")
+        # Also reject symlinks/junctions in the *supplied* path between the
+        # fixture and the actual TEMP root. Path.resolve alone would follow
+        # a reparse point even if its target happened to be inside TEMP.
+        reached_temp = False
+        for component in (configured, *configured.parents):
+            if component.samefile(temp):
+                reached_temp = True
+                break
+            info = component.lstat()
+            if (stat.S_ISLNK(info.st_mode) or
+                    (os.name == "nt" and
+                     bool(getattr(info, "st_file_attributes", 0) &
+                          stat.FILE_ATTRIBUTE_REPARSE_POINT))):
+                raise BridgeLabConfigurationError("IMAGING_BRIDGE_UNSAFE_FIXTURE_ROOT")
+        if not reached_temp:
             raise BridgeLabConfigurationError("IMAGING_BRIDGE_UNSAFE_FIXTURE_ROOT")
         if (root / _MARKER).is_symlink() or (root / _MARKER).read_text(encoding="utf-8") != _MARKER_VALUE:
             raise BridgeLabConfigurationError("IMAGING_BRIDGE_FIXTURE_MARKER_REQUIRED")

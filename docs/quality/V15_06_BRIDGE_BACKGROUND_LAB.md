@@ -25,3 +25,6 @@ The optional LAB module import in `backend.main.lifespan` is guarded by the expl
 
 ### CI repair 2026-10-16
 Both Python 3.11 OS runners use `unittest` without `pytest`; route-registry regression tests are now `unittest.TestCase` tests collected and executed on both. The isolated root guard retains strict canonical equality and OS temp containment while normalizing Windows path casing (with a Windows-only case-alias test). The import-scope AST negative test counts only direct guarded imports, not nested `If` duplicates. None of these changes enable acquisition in a cabinet.
+
+### CI repair follow-up — filesystem identity
+The earlier normalization-only Windows fix remained red. LAB confinement now validates TEMP ancestry using `Path.samefile` (true directory identity) instead of lexical `commonpath`, and explicitly rejects any supplied component with symlink or Windows reparse-point attributes. The startup AST test checks both valid imports independently: `start_if_enabled` guarded by the explicit LAB flag and `stop_bridge_lab` guarded by an existing worker handle. Neither test is skipped or weakened.
