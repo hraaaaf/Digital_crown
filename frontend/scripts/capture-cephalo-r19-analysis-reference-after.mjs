@@ -144,14 +144,36 @@ async function captureViewport(viewport,attempt){
     const rail=page.locator('[data-r20-workbench-sidebar]');
     const top=await stage.evaluate(el=>el.getBoundingClientRect().top);
     const folded=await rail.evaluate(el=>getComputedStyle(el).display==='none');
+    const selectorWidth=await page.locator('#cephalo-ready-analysis').evaluate(el=>el.getBoundingClientRect().width);
     const screenShot=`after-image-first-entry-${viewport.name}.png`;
     await page.screenshot({path:path.join(OUTPUT_DIR,screenShot),fullPage:false});
     await page.locator('[data-r23-tools-toggle]').click();
     const opened=await rail.evaluate(el=>getComputedStyle(el).display!=='none');
     await page.locator('[data-r23-tools-toggle]').click();
     const restored=await rail.evaluate(el=>getComputedStyle(el).display==='none');
-    mobileImageFirstProof={top,folded,opened,restored,screenShot,
-      valid:top>0&&top<viewport.height*.7&&folded&&opened&&restored};
+
+    // Mobile fullscreen existed before R23-A: explicitly exercise it after
+    // changing shared portal/canvas CSS. A hidden SVG or a stuck overlay is red.
+    await page.locator('[data-cephalo-stage-root] button[title="Plein écran"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:6000});
+    const fullscreen=await page.evaluate(()=>{
+      const root=document.querySelector('[data-cephalo-stage-root]');
+      const svg=root?.querySelector('svg[data-cephalo-viewport="base"]');
+      const r=root?.getBoundingClientRect(),sr=svg?.getBoundingClientRect();
+      const top=document.elementFromPoint(innerWidth/2,innerHeight/2);
+      return {width:r?.width??0,height:r?.height??0,
+        topmost:Boolean(root&&top&&root.contains(top)),
+        visible:Boolean(sr&&sr.width>160&&sr.height>160&&sr.bottom>0&&sr.top<innerHeight)};
+    });
+    const mobileFocusShot=`after-mobile-focus-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,mobileFocusShot),fullPage:false});
+    await page.locator('[data-cephalo-stage-root] button[title="Quitter plein écran"]').click();
+    await page.waitForFunction(()=>!document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:5000});
+    const fullscreenRestored=await page.locator('[data-cephalo-stage-root]').evaluate(el=>getComputedStyle(el).position!=='fixed');
+    mobileImageFirstProof={top,folded,opened,restored,selectorWidth,screenShot,fullscreen,mobileFocusShot,fullscreenRestored,
+      valid:top>0&&top<viewport.height*.7&&folded&&opened&&restored&&selectorWidth>=159
+        &&fullscreen.width>=viewport.width-2&&fullscreen.height>=viewport.height-2
+        &&fullscreen.topmost&&fullscreen.visible&&fullscreenRestored};
   }
   const states=[];
   for(const mode of modes){

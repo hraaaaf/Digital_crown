@@ -134,6 +134,13 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
     expect(screen.getByRole('combobox',{name:'Analyse clé en main'})).toBeTruthy();
   });
 
+  it('keeps the selected analysis name readable at mobile width',()=>{
+    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const selector=screen.getByRole('combobox',{name:'Analyse clé en main'}) as HTMLSelectElement;
+    expect(selector.className).toContain('min-w-[160px]');
+    expect(selector.value).toBe('all');
+  });
+
   it('keeps the selected analysis in the actual stage when the workbench selector changes',()=>{
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Analyse clé en main'}),{target:{value:'steiner'}});

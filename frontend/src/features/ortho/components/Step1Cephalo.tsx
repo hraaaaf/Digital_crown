@@ -139,7 +139,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           id="cephalo-ready-analysis"
           value={analysis}
           onChange={(event) => publishCephaloAnalysis(event.target.value as CephaloAnalysisMode)}
-          className="min-h-10 min-w-0 flex-1 rounded-xl border px-2 text-[13px] font-semibold sm:max-w-[215px] focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="min-h-11 min-w-[160px] flex-1 rounded-xl border px-2 text-[13px] font-semibold sm:min-w-0 sm:max-w-[215px] focus-visible:outline-2 focus-visible:outline-offset-2"
           style={{ borderColor: props.P.borderFocus, background: props.P.bgCard, color: props.P.text }}
         >
           {(Object.keys(ANALYSIS_LABELS) as CephaloAnalysisMode[]).map((mode) => (
