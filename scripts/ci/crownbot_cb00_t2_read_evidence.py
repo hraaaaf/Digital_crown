@@ -11,7 +11,8 @@ Example, from repo root with disposable T2 flags explicitly enabled there:
   T2_PASSWORD='synthetic' T2_PATIENT_ID=7 \
   python scripts/ci/crownbot_cb00_t2_read_evidence.py --out /tmp/cb00-read.json
 Optional negative T2 fixtures: T2_DENIED_USER, T2_DENIED_PASSWORD,
-T2_FOREIGN_PATIENT_ID, T2_UNKNOWN_PATIENT_ID, T2_DENIED_COMMAND. Never store names, credentials, tokens or responses.
+T2_FOREIGN_PATIENT_ID, T2_UNKNOWN_PATIENT_ID, T2_DENIED_COMMAND,
+T2_S06_USER and T2_S06_PASSWORD (separate no-agenda secretary). Never store names, credentials, tokens or responses.
 """
 import argparse
 import json
@@ -19,7 +20,7 @@ import os
 import platform
 import re
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
@@ -74,6 +75,13 @@ def require_t2_environment(args) -> tuple[str, str, str, int]:
         raise ValueError('REFUSED: denied identity fixture must have user and password')
     if denied_user and not denied_user.startswith('t2-'):
         raise ValueError('REFUSED: denied identity is not synthetic')
+    s06_user = os.getenv('T2_S06_USER', '')
+    s06_password = os.getenv('T2_S06_PASSWORD', '')
+    if bool(s06_user) != bool(s06_password):
+        raise ValueError('REFUSED: S06 no-agenda identity needs both credentials')
+    if s06_user and (not s06_user.startswith('t2-')
+                     or s06_user in (user, denied_user)):
+        raise ValueError('REFUSED: S06 user must be a distinct synthetic T2 identity')
     if os.getenv('T2_DENIED_COMMAND', '/rdv') not in ('/patient', '/rdv', '/devis'):
         raise ValueError('REFUSED: denied command not in supported capabilities')
     foreign_id = os.getenv('T2_FOREIGN_PATIENT_ID', '')
@@ -203,6 +211,34 @@ def run(args):
         checks['permission_denied_403'] = 'PASS'
     else:
         checks['permission_denied_403'] = 'NOT_RUN_NO_FIXTURE'
+    # S06 must test REAL agenda permission (not patients permission).
+    # Restricted-role logins share an HttpOnly station cookie; run S06 last.
+    s06_user = os.getenv('T2_S06_USER', '')
+    if s06_user:
+        s06_token = login(
+            api, s06_user, os.environ['T2_S06_PASSWORD'],
+            enroll_workstation=False,
+        )
+        expected_denial = {'detail': 'Accès refusé.'}
+        simple_status, simple_payload, _ = http_json(
+            endpoint, {'messages': ['/rdv']}, s06_token)
+        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        full_status, full_payload, _ = http_json(
+            endpoint,
+            {'messages': ['/rdv', str(patient_id), tomorrow, '14:30',
+                          '30', 'consultation', 'CONFIRMER']},
+            s06_token,
+        )
+        if (simple_status != 403 or full_status != 403
+                or simple_payload != expected_denial
+                or full_payload != expected_denial):
+            raise RuntimeError(
+                'FAIL CLOSED: S06 agenda denial differs or leaks content')
+        checks['s06_no_agenda_403'] = 'PASS'
+        checks['s06_full_proposal_denied_403'] = 'PASS'
+    else:
+        checks['s06_no_agenda_403'] = 'NOT_RUN_NO_FIXTURE'
+        checks['s06_full_proposal_denied_403'] = 'NOT_RUN_NO_FIXTURE'
     data = {
         'scope': 'SYNTHETIC_LOCALHOST_T2',
         'measurement': 'full HTTP response for an authorized useful patient read',
