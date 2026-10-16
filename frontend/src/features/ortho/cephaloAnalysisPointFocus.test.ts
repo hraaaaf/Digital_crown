@@ -52,5 +52,6 @@ describe('R23-F read-only clinical per-analysis landmark focus',()=>{
     expect(r.ids).toContain('Pog_soft');
     expect(r.ids).not.toContain('U1_apex');
     expect(new Set(r.ids).size).toBe(r.ids?.length);
+    expect(resolveCephaloAnalysisPointContract('ricketts',['Ligne_E_Ls','UNKNOWN'],present).ids).toBeNull();
   });
 });

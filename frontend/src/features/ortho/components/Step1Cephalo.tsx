@@ -251,6 +251,21 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           style={{ background: props.P.bgCard, borderColor: props.P.borderFocus, color: props.P.text }}
         ><Maximize2 size={15} aria-hidden="true" />Focus</button>
       </div>
+      {analysis!=='all' && missingManualIds.length>0 && (
+        <details data-cephalo-missing-manual className="rounded-lg border px-3 py-2 text-xs xl:col-span-full"
+          style={{background:props.P.bgCard,borderColor:props.P.border,color:props.P.textMuted}}>
+          <summary className="cursor-pointer font-bold">
+            {missingManualIds.length} repère{missingManualIds.length>1?'s':''} manuel{missingManualIds.length>1?'s':''} à placer · {ANALYSIS_LABELS[analysis]}
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-2" role="list" aria-label="Identités anatomiques manuelles manquantes">
+            {missingManualIds.map(id=><span key={id} data-cephalo-missing-manual-id={id} role="listitem"
+              className="rounded-lg border px-2 py-1" style={{borderColor:props.P.border}}>
+              {cephaloShortPointName(id)} · À placer
+            </span>)}
+          </div>
+          <p className="mt-2">Aucune coordonnée supposée. Utilisez les outils du protocole pour placer ces repères.</p>
+        </details>
+      )}
       <aside
         data-r20-workbench-sidebar
         id="cephalo-r23-utility-rail"
@@ -502,21 +517,6 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           showAllPointMarkers={showAllPointMarkers} />
       </div>
 
-      {analysis!=='all' && missingManualIds.length>0 && (
-        <details data-cephalo-missing-manual className="rounded-lg border px-3 py-2 text-xs xl:col-span-full"
-          style={{background:props.P.bgCard,borderColor:props.P.border,color:props.P.textMuted}}>
-          <summary className="cursor-pointer font-bold">
-            {missingManualIds.length} repère{missingManualIds.length>1?'s':''} manuel{missingManualIds.length>1?'s':''} à placer · {ANALYSIS_LABELS[analysis]}
-          </summary>
-          <div className="mt-2 flex flex-wrap gap-2" role="list" aria-label="Identités anatomiques manuelles manquantes">
-            {missingManualIds.map(id=><span key={id} data-cephalo-missing-manual-id={id} role="listitem"
-              className="rounded-lg border px-2 py-1" style={{borderColor:props.P.border}}>
-              {cephaloShortPointName(id)} · À placer
-            </span>)}
-          </div>
-          <p className="mt-2">Aucune coordonnée supposée. Utilisez les outils du protocole pour placer ces repères.</p>
-        </details>
-      )}
       <div data-r20-measures-panel id="cephalo-r23-measure-rail" className={`min-w-0 h-[68vh] xl:h-[82vh] ${measuresOpen ? '' : 'hidden'}`}>
         <CephaloAnalysisWorkbenchPanel P={props.P} analysis={analysis} />
       </div>
