@@ -127,12 +127,12 @@ class SyntheticCheckpointC:
         self._previous_sha = "0" * 64
         self._latest = self._sign("0" * 32, "0" * 64, self._previous_sha)
 
-    def _sign(self, op_id: str, receipt_sha: str, prev_sha: str) -> dict:
+    def _sign(self, op_id: str, receipt_sha: str, prev_sha: str,\n              *, seq: int | None = None, mac: str | None = None) -> dict:
         body = {
             "protocol": PROTOCOL, "authority_id": AUTHORITY, "epoch": EPOCH,
             "scope": self.scope,
             "witness_pin_sha256": hashlib.sha256(self.witness_pin).hexdigest(),
-            "seq": self._head_seq, "mac": self._head_mac,
+            "seq": self._head_seq if seq is None else seq,\n            "mac": self._head_mac if mac is None else mac,
             "op_id": op_id, "receipt_sha256": receipt_sha,
             "prev_checkpoint_sha256": prev_sha,
         }
