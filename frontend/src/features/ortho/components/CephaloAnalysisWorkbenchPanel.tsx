@@ -219,6 +219,12 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
   const definitions = React.useMemo(() => ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]), [analysis]);
   const availableCount = definitions.filter(definition => readValue(metricFromResults(anglesData, definition)) !== null).length;
   const unavailableCount = definitions.length - availableCount;
+  // An available geometric value is not automatically clinically classifiable.
+  // Never infer a reference distribution from missing norm metadata.
+  const unreferencedCount = definitions.filter(definition => {
+    const record = metricFromResults(anglesData, definition);
+    return readValue(record) !== null && typeof record?.norm_mean !== 'number';
+  }).length;
   const [selectedKey, setSelectedKey] = React.useState(definitions[0]?.key ?? '');
   const [hoverKey, setHoverKey] = React.useState<string | null>(null);
 
@@ -286,6 +292,11 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
           <span className="rounded-lg border px-2 py-1 font-bold" style={{ borderColor: P.border, color: availableCount > 0 ? P.accentSuccess : P.accentWarning }}>{availableCount}/{definitions.length} mesures calculées</span>
           {unavailableCount > 0 && <span className="rounded-lg border px-2 py-1" style={{ borderColor: P.border, color: P.textMuted }}>{unavailableCount} non calculables</span>}
         </div>
+        {unreferencedCount > 0 && (
+          <p data-cephalo-reference-caveat className="mt-1.5 text-[11px] leading-snug" style={{ color: P.textMuted }}>
+            Référence absente : « — » ne signifie pas normal. Valeurs brutes, sans classification clinique déduite.
+          </p>
+        )}
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1" aria-label="Code couleur céphalométrique">
           {FAMILY_LEGEND.map(([family, label]) => (
             <span key={family} className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: P.textMuted }}>

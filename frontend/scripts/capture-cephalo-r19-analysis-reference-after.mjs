@@ -184,8 +184,33 @@ async function captureViewport(viewport,attempt){
    }
    states.push({mode,valid,metrics});
   }
-  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)&&selectorChecks.length===3&&selectorChecks.every(s=>s.valid);
-  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states};
+  // Browser-level proof of the first-time clinical focus workflow. Desktop
+  // only: mobile has its own display contract and is not changed in this lot.
+  let focusProof=null;
+  if(viewport.width>=1280){
+    await page.locator('[data-analysis="all"]').click();
+    const beforeWidth=await page.locator('[data-r20-radiograph-stage] > div').evaluate(el=>el.getBoundingClientRect().width);
+    const focusButton=page.getByRole('button',{name:'Agrandir la radiographie en mode focus'});
+    await focusButton.click();
+    await page.waitForFunction(()=>{
+      const stage=document.querySelector('[data-r20-radiograph-stage] > div');
+      return stage?.classList.contains('fixed');
+    },null,{timeout:6000});
+    const focusedWidth=await page.locator('[data-r20-radiograph-stage] > div').evaluate(el=>el.getBoundingClientRect().width);
+    const focusScreenshot=`after-focus-radiograph-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,focusScreenshot),fullPage:false});
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>!document.querySelector('[data-r20-radiograph-stage] > div')?.classList.contains('fixed'),null,{timeout:5000});
+    const restoredWidth=await page.locator('[data-r20-radiograph-stage] > div').evaluate(el=>el.getBoundingClientRect().width);
+    focusProof={beforeWidth,focusedWidth,restoredWidth,focusScreenshot,
+      valid:focusedWidth>=viewport.width*.9
+        &&focusedWidth>beforeWidth+200
+        &&Math.abs(restoredWidth-beforeWidth)<5};
+  }
+  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)
+    &&selectorChecks.length===3&&selectorChecks.every(s=>s.valid)
+    &&(viewport.width<1280||focusProof?.valid===true);
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states,focusProof};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }
