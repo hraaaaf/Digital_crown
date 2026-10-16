@@ -143,12 +143,17 @@ def test_devis_preview_never_creates_document_or_action(client, db, dentiste, au
     assert db.query(models.BotPendingAction).count() == before
 
 
-def test_partial_transcript_never_resolves_patient(client, auth_headers):
+def test_partial_transcript_never_resolves_patient(client, db, dentiste, auth_headers):
+    patient = _patient(db, dentiste)
     with patch.object(settings, "CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED", True):
-        resp = client.post(URL, headers=auth_headers, json={"messages": ["/rdv", "1"]})
+        resp = client.post(
+            URL, headers=auth_headers,
+            json={"messages": ["/rdv", f"id:{patient.id}"]},
+        )
     assert resp.status_code == 200
     assert resp.json()["status"] == "clarification"
     assert resp.json()["proposal"] is None
+    assert "patient" not in resp.json()
 
 
 def test_transcript_is_strictly_bounded(client, auth_headers):
