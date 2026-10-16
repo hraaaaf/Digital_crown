@@ -59,6 +59,11 @@ try {
     if (desktop) {
       await sidecar.waitFor({state:'visible',timeout:15000});
       if(await overlay.count()) throw new Error('FAIL: hidden duplicate chatbot mounted');
+      const initialClose=page.getByRole('button',{name:'Réduire le panneau Crown Bot'});
+      await initialClose.waitFor({state:'visible'});
+      if (!await initialClose.evaluate(el=>el===document.activeElement)) {
+        throw new Error('FAIL: focus not moved into opened sidecar on initial launch');
+      }
     } else {
       await overlay.waitFor({state:'visible',timeout:15000});
       if(await sidecar.count()) throw new Error('FAIL: sidecar wrongly mounted on fallback');
@@ -128,9 +133,9 @@ try {
     if(desktop) {
       const closeButton=page.getByRole('button',{name:'Réduire le panneau Crown Bot'});
       await closeButton.waitFor({state:'visible'});
-      if(!await closeButton.evaluate(el=>el===document.activeElement)) {
-        throw new Error('FAIL: keyboard focus not moved into opened sidecar');
-      }
+      // The staff scenario ended with focus on its patient-selection control.
+      // Put focus back on the reducer before verifying a keyboard Escape.
+      await closeButton.focus();
       // Press Escape, confirm that a keyboard-only user can close and reopen.
       await page.keyboard.press('Escape');
       await sidecar.waitFor({state:'detached'});
