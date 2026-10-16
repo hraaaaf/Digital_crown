@@ -44,7 +44,7 @@ const Fixture: React.FC = () => {
           onUpdateLandmarks={next => { setLandmarks(next); setCommitCount(n => n + 1); }}
           activeAnalysis={mode}
           magnifierEnabled={false}
-          vto={{ enabled: false, showGhostFace: false, showSoftTissue: false }}
+          vto={{ enabled: false, showGhostFace: false, showSoftTissue: false, u1_offset: { x: 0, y: 0 }, l1_offset: { x: 0, y: 0 }, mand_offset: { x: 0, y: 0 } }}
           layerPresentation={{
             visibility: { ...createDefaultLayerVisibility(), landmarks: true, plans: showPlans, measurements: true, t1: true },
             opacity: createDefaultLayerOpacity(),

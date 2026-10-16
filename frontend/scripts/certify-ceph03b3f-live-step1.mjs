@@ -31,7 +31,7 @@ const server=await createServer({
     proxy:{'/api':{target:'http://127.0.0.1:8005',changeOrigin:true,secure:false}} },
 });
 let browser;
-const cases=[];const errors=[];
+const cases=[];const zoomProof=[];const labelProof=[];const progressiveLabelProof=[];const errors=[];
 const reqs=[];
 const waitFor=async(fn,label,timeoutMs=30000)=>{
   const start=Date.now();
@@ -63,11 +63,15 @@ const verifySvg=async(page,expected)=>{
   return handles.length;
 };
 const setMode=async(page,mode)=>{
-  if(await page.locator('[data-cephalo-analysis="'+mode+'"]').count())return;
-  const name=mode==='com'?'COM':'Tous';
-  const button=page.locator('[data-cephalo-analysis] button').filter({hasText:new RegExp('^'+name+'$')}).first();
-  await button.click();
-  await page.locator('[data-cephalo-analysis="'+mode+'"]').waitFor({timeout:10000});
+  const analysis=page.locator('[data-cephalo-analysis="'+mode+'"]');
+  if(await analysis.count())return;
+  // The real Cabinet analysis selector is the single source for all six
+  // requested modes: never click "Tous" when certifying another analysis.
+  const chooser=page.locator('#cephalo-ready-analysis');
+  await chooser.selectOption(mode);
+  await analysis.waitFor({state:'visible',timeout:10000});
+  assert(await chooser.inputValue()===mode,
+    'Clinical analysis selector failed to retain '+mode);
 };
 const shot=async(page,film,mode,size,stage)=>{
   const name=film+'-'+mode+'-'+size+'-'+stage+'.png';
@@ -122,17 +126,32 @@ try {
       const page=await context.newPage();
       const consoleErrors=[];
       const badResponses=[];
+      const failedResponseBodies=[];
+      let browserPhase='initial-navigation';
       page.on('response',response=>{
-        if(response.status()>=400)badResponses.push({
-          status:response.status(),method:response.request().method(),
-          url:new URL(response.url()).pathname,resourceType:response.request().resourceType(),
-        });
+        if(response.status()>=400){
+          const record={
+            status:response.status(),method:response.request().method(),
+            url:new URL(response.url()).pathname,resourceType:response.request().resourceType(),
+            phase:browserPhase,observedAt:new Date().toISOString(),
+          };
+          badResponses.push(record);
+          if(record.url.startsWith('/api/')){
+            // Diagnostic only; no request is ignored and the strict HTTP
+            // certification still FAILS on every failed authenticated call.
+            const bodyPromise=response.text().then(text=>({
+              ...record,body:text.slice(0,900),
+            })).catch(error=>({...record,bodyReadError:String(error).slice(0,180)}));
+            failedResponseBodies.push(bodyPromise);
+          }
+        }
       });
       page.on('pageerror',err=>consoleErrors.push(String(err)));
       page.on('console',msg=>{if(msg.type()==='error')consoleErrors.push(msg.text())});
       page.on('request',r=>{if(r.url().includes('/api/'))reqs.push({film,url:new URL(r.url()).pathname,method:r.method()})});
       await page.goto(origin+'/ceph03b3f-live-step1.html?patient='+patient,{waitUntil:'domcontentloaded',timeout:60000});
       await page.getByText('Uploader une radiographie').waitFor({timeout:30000});
+      browserPhase='radio-upload';
       const uploadDone=page.waitForResponse(resp=>
         resp.url().includes('/api/ia/upload-radio') && resp.request().method()==='POST',
         {timeout:120000});
@@ -173,8 +192,17 @@ try {
         console.error('DC_CEPH03B3F_LIVE_STEP1_BLOCKER',JSON.stringify(diagnostic).slice(0,6500));
         throw original;
       });
+      const workbenchLabel=await page.locator('[data-ortho-workspace-patient]').innerText();
+      assert(workbenchLabel.includes('RADIOGRAPHIE PUBLIQUE')
+        && workbenchLabel.includes('DOSSIER FICTIF')
+        && workbenchLabel.includes('AUCUN PATIENT RÉEL'),
+        'Public radiograph attribution and disposable patient status must be explicit');
+      const desktopStage=await page.locator('[data-r20-radiograph-stage]').boundingBox();
+      assert(desktopStage && desktopStage.width >= 625,
+        'Radiograph stage too narrow at desktop 1280: '+JSON.stringify(desktopStage));
       await page.locator('[data-ceph03b-drag-handle="N"]').waitFor({timeout:60000});
       await page.locator('svg[viewBox="0 0 '+radio.width+' '+radio.height+'"]').first().waitFor({timeout:45000});
+      browserPhase='initial-analysis-read';
       const initialGet=await context.request.get(origin+pathForId(id));
       assert(initialGet.status()===200,'Initial authenticated GET failed');
       const initial=await initialGet.json();
@@ -184,10 +212,293 @@ try {
         'SQLite GET lost calibrated source provenance/no-mm invariant');
       assert(initial.landmarks_data.length===38,'Initial SQLite GET not 38 landmarks');
       let expected=initial.landmarks_data;
+      const mobileWitness=[];
+      for(const size of [{width:390,height:844},{width:768,height:1024}]){
+        await page.setViewportSize(size);
+        await page.locator('[data-r20-workbench-layout]').waitFor();
+        const markers=await page.locator('[data-ceph03b-drag-handle]').count();
+        const overlayTabsInitiallyHidden=!(await page.locator('[aria-label="Analyse du tracé"]').isVisible());
+        const mobileStageHeight=await page.locator('[data-r20-radiograph-stage]').evaluate(el=>el.getBoundingClientRect().height);
+        const menu=page.locator('[data-r23-mobile-point-directory]');
+        await menu.locator('summary').click();
+        const names=await menu.locator('[data-r23-point-select]').count();
+        await menu.locator('[data-r23-point-select="N"]').click();
+        await page.locator('[data-ceph03b-landmark-label="N"]').waitFor();
+        const noBackgrounds=await page.locator('[data-ceph03b-label-background]').count()===0;
+        const selectedLabel=await page.locator('[data-ceph03b-landmark-label="N"]').count()===1;
+        const entry=await page.locator('[data-r20-radiograph-stage]').boundingBox();
+        const filename=film+'-mobile-'+size.width+'x'+size.height+'-N-selected.png';
+        await page.screenshot({path:path.join(out,filename),animations:'disabled',fullPage:false});
+        const proof={film,size:size.width+'x'+size.height,markers,names,selectedLabel,noBackgrounds,
+          overlayTabsInitiallyHidden,mobileStageHeight,stageTop:entry?.y??null,filename,
+          valid:markers===38&&names===38&&selectedLabel&&noBackgrounds&&entry!==null
+            &&overlayTabsInitiallyHidden
+            &&(size.width>=768||mobileStageHeight<=size.height*.72)
+            &&entry.y>=0&&entry.y<size.height*.56};
+        assert(proof.valid,'REAL FILM MOBILE POINT DIRECTORY, LABEL OR FOLD FAILURE '+JSON.stringify(proof));
+        mobileWitness.push(proof);
+      }
+      cases.push({film,stage:'mobile-point-directory',witnesses:mobileWitness,valid:true});
+      await page.setViewportSize({width:1280,height:900});
+      await page.waitForFunction(()=>matchMedia('(min-width: 1280px)').matches);
       const originalN=persistedPoint(initial,'N');
       assert(originalN,'N absent from SRPose38 output');
       assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
         'Live Step1 browser N not equal to authenticated GET');
+
+      // Observational browser proof: actual screen-space label rectangles.
+      // Record collisions and clipping without prematurely claiming a PASS.
+      const labelMetrics=()=>page.evaluate(()=>{
+        const svg=document.querySelector('svg[data-cephalo-viewport="base"]');
+        if(!svg)return {error:'MISSING_BASE_SVG'};
+        const stage=svg.getBoundingClientRect();
+        const labels=[...svg.querySelectorAll('[data-cephalo-landmark-label]')].map(el=>{
+          const r=el.getBoundingClientRect();
+          return {id:el.getAttribute('data-cephalo-landmark-label'),left:r.left,top:r.top,
+            right:r.right,bottom:r.bottom,width:r.width,height:r.height,
+            inStage:r.right>stage.left&&r.left<stage.right&&r.bottom>stage.top&&r.top<stage.bottom};
+        });
+        const invalid=labels.filter(x=>![x.left,x.right,x.top,x.bottom,x.width,x.height]
+          .every(Number.isFinite)||x.width<=0||x.height<=0).map(x=>x.id);
+        const visible=labels.filter(x=>x.inStage&&x.width>0&&x.height>0);
+        // Intersecting the SVG is not the same as being legible: floating
+        // native controls can cover text even while all 38 nodes exist.
+        const clipped=visible.filter(x=>
+          x.left<stage.left-.5||x.right>stage.right+.5
+          ||x.top<stage.top-.5||x.bottom>stage.bottom+.5).map(x=>x.id);
+        const controls=[...document.querySelectorAll('button')].filter(el=>{
+          // Native closed <details> contents are inaccessible even when an
+          // absolutely positioned descendant retains a nonzero DOM rect.
+          // Keep collision checks for ALL genuinely exposed controls.
+          if(el.closest('details:not([open])')) return false;
+          const style=getComputedStyle(el),r=el.getBoundingClientRect();
+          return style.display!=='none'&&style.visibility!=='hidden'
+            &&r.width>0&&r.height>0;
+        }).map(el=>({rect:el.getBoundingClientRect(),
+          name:el.getAttribute('aria-label')||el.getAttribute('title')
+            ||el.textContent?.trim().slice(0,45)||'unnamed button'}));
+        const controlCollisions=[];
+        for(const x of visible)for(const {rect:r,name} of controls){
+          if(x.left<r.right-.5&&x.right>r.left+.5
+            &&x.top<r.bottom-.5&&x.bottom>r.top+.5)
+            controlCollisions.push(x.id+' : '+name);
+        }
+        const collisions=[];
+        for(let i=0;i<visible.length;i++)for(let j=i+1;j<visible.length;j++){
+          const a=visible[i],b=visible[j];
+          if(a.left<b.right-.5&&a.right>b.left+.5&&a.top<b.bottom-.5&&a.bottom>b.top+.5)
+            collisions.push(a.id+' : '+b.id);
+        }
+        return {total:labels.length,visible:visible.length,offStage:labels.length-visible.length,
+          minCssPx:visible.length?Math.min(...visible.map(x=>x.height)):null,
+          invalid,clipped,controlCollisions,collisions,ids:visible.map(x=>x.id)};
+      });
+      const assertNames=(metric,expected,stage)=>{
+        assert(!metric.error && metric.invalid.length===0
+          && metric.total===expected && metric.visible===expected
+          && metric.offStage===0 && metric.minCssPx>=16
+          && metric.collisions.length===0 && metric.clipped.length===0
+          && metric.controlCollisions.length===0,
+          'ALL NAMES MUST BE SIMULTANEOUS, TEXT-ONLY, COLLISION-FREE '+film+
+          ' '+stage+' expected='+expected+' actual='+JSON.stringify(metric));
+      };
+      // Anatomical proximity oracle: block a silent return to distant rails.
+      const proximity=()=>page.evaluate(()=>{
+        const svg=document.querySelector('svg[data-cephalo-viewport="base"]');
+        const m=svg?.getScreenCTM();
+        if(!svg||!m)return {error:'SCREEN_MATRIX_MISSING'};
+        const nodes=[...svg.querySelectorAll('[data-cephalo-landmark-label]')];
+        const ds=nodes.map(el=>{
+          const id=el.getAttribute('data-cephalo-landmark-label');
+          const handle=svg.querySelector('[data-ceph03b-drag-handle="'+id+'"] circle');
+          if(!handle)return NaN;
+          const x=Number(handle.getAttribute('cx')),y=Number(handle.getAttribute('cy'));
+          const p=new DOMPoint(x,y).matrixTransform(m);
+          const r=el.getBoundingClientRect();
+          return Math.hypot(Math.max(r.left-p.x,0,p.x-r.right),
+            Math.max(r.top-p.y,0,p.y-r.bottom));
+        }).sort((a,b)=>a-b);
+        return {total:ds.length,finite:ds.every(Number.isFinite),
+          medianPx:ds[Math.floor(ds.length/2)]??null,maxPx:Math.max(0,...ds)};
+      });
+      const noBoxes=async()=>page.locator('[data-ceph03b-label-background]').count();
+      // Desktop progressive disclosure on both REAL public films: all handles
+      // and full 38-name fallback must remain available without any API edit.
+      const nameToggle=page.locator('[data-cephalo-all-names-toggle]');
+      assert(await nameToggle.isVisible() &&await nameToggle.getAttribute('aria-pressed')==='false',
+        'Desktop progressive label mode not the default '+film);
+      const essential100=await labelMetrics();
+      const essentialNames=['S','N','A','B','Po','Or','Go','Me','U1_incisal','L1_incisal'];
+      assert(essential100.total===essentialNames.length&&essential100.visible===essentialNames.length
+        &&essential100.collisions.length===0&&essential100.clipped.length===0
+        &&essential100.controlCollisions.length===0
+        &&essentialNames.every(id=>essential100.ids.includes(id))
+        &&await page.locator('[data-ceph03b-drag-handle]').count()===38,
+        'Desktop 38-point essential-only display invalid '+film+' '+JSON.stringify(essential100));
+      // Actual rendered SVG points must remain clearly visible, small and
+      // contrast outlined at the final desktop CSS scale. Source coordinates
+      // continue to be tested independently against authenticated SQLite.
+      const visualPoints=await page.locator('[data-cephalo-point-core]').evaluateAll(nodes=>({
+        count:nodes.length,
+        sizes:nodes.map(el=>Number(el.getBoundingClientRect().width.toFixed(2))),
+        darkContours:nodes.every(el=>el.getAttribute('stroke')==='#020617'),
+        allFinite:nodes.every(el=>['cx','cy','r'].every(k=>Number.isFinite(Number(el.getAttribute(k))))),
+      }));
+      assert(visualPoints.count===38&&visualPoints.darkContours&&visualPoints.allFinite
+        &&visualPoints.sizes.every(px=>px>=4&&px<=8),
+        'REAL FILM DESKTOP POINT SIZE/VISIBILITY REGRESSION '+film+' '+JSON.stringify(visualPoints));
+      const essential1280=await shot(page,film,'all','1280x900','essential-names');
+      const secondary=page.locator('[data-ceph03b-drag-handle="Prn"]');
+      assert(await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0,
+        'Secondary name Prn must be initially hidden '+film);
+      await secondary.dispatchEvent('pointerover',{pointerId:1});
+      const hoverLabel=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===1;
+      await secondary.dispatchEvent('pointerout',{pointerId:1});
+      const hoverCleared=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+      await secondary.focus();
+      const focusLabel=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===1;
+      await secondary.evaluate(el=>el.blur());
+      const focusCleared=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+      assert(hoverLabel&&hoverCleared&&focusLabel&&focusCleared,
+        'Secondary name hover/focus lifecycle invalid '+film);
+      assert((await verifySvg(page,expected))===38,
+        'Hover/focus altered authenticated anatomical coordinates '+film);
+      const editRequestsBeforeLabelToggle=reqs.filter(x=>x.film===film
+        &&x.method==='PUT'&&x.url===pathForId(id)).length;
+      assert(editRequestsBeforeLabelToggle===0,'Name inspection caused a clinical PUT '+film);
+      await nameToggle.click();
+      assert(await nameToggle.getAttribute('aria-pressed')==='true','All-name toggle not activated '+film);
+      const all100=await labelMetrics();
+      assertNames(all100,38,'ALL100');
+      const fullDisplayNames=await page.locator('[data-cephalo-landmark-label]').evaluateAll(nodes=>
+        nodes.map(el=>el.textContent?.trim()??''));
+      const mandatoryAbbreviations=['U1','L1','U1 A','L1 A','N′','Pog′','ENA','ENP'];
+      const conciseNames=fullDisplayNames.length===38
+        &&mandatoryAbbreviations.every(name=>fullDisplayNames.includes(name))
+        &&fullDisplayNames.every(name=>name.length<=5&&!name.includes('_'))
+        &&new Set(fullDisplayNames).size===38;
+      assert(conciseNames,'French short labels must be unique and source-ID backed on '+film
+        +' '+JSON.stringify(fullDisplayNames));
+      await nameToggle.click();
+      assert(await nameToggle.getAttribute('aria-pressed')==='false'
+        &&(await labelMetrics()).visible===essentialNames.length,
+        'Essential names not restored '+film);
+      await nameToggle.click(); // Existing 38/38 and COM 9/9 at 150%/pan remain strict.
+      const full1280=await shot(page,film,'all','1280x900','all-names');
+      progressiveLabelProof.push({film,essentialCount:essential100.visible,fullCount:all100.visible,
+        handles:38,visualPoints,conciseNames,hoverLabel,hoverCleared,focusLabel,focusCleared,editedByDisclosure:false,
+        essential1280,full1280,valid:true});
+      // R23-F: exact-mode BEFORE/AFTER on both PUBLIC radiographs.
+      // The default Focus must be captured with "Tous les noms" OFF.
+      await nameToggle.click();
+      assert(await nameToggle.getAttribute('aria-pressed')==='false',
+        'Expected compact labels for actual real-film Focus preview '+film);
+      const focusProof=[];
+      const pointToggle=page.locator('[data-cephalo-all-points-toggle]');
+      for(const mode of ['steiner','tweed','mcnamara','ricketts']){
+        await setMode(page,mode);
+        const focused=await page.locator('[data-ceph03b-drag-handle]').count();
+        const source=await page.locator('[data-cephalo-points-focus-count]').getAttribute('data-cephalo-point-source');
+        assert(focused>0&&focused<38
+          &&(source==='LOT06'||source==='legacy-display'),
+          'ANALYSIS POINT FOCUS invalid '+film+' '+mode+' '+focused+' '+source);
+        if(mode==='steiner'){
+          const missing=await page.locator('[data-cephalo-missing-manual-id="Occ_Steiner_Ant"]').count();
+          assert(missing===1,'Missing Steiner manual identity not declared '+film);
+        }
+        await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+        const focusedScreenshot=await shot(page,film,mode,'1280x900','focused-points');
+        await pointToggle.click();
+        const expanded=await verifySvg(page,expected);
+        assert(expanded===38&&await pointToggle.getAttribute('aria-pressed')==='true',
+          'Full 38-point override missing '+film+' '+mode);
+        if(mode==='ricketts'){
+          const projectionLeak=await page.locator('svg[data-cephalo-viewport="base"] text')
+            .evaluateAll(nodes=>nodes.filter(n=>["A'","B'"].includes(n.textContent?.trim()??'')).length);
+          assert(projectionLeak===0,
+            'Ricketts full-markers override leaked McNamara A/B prime projections '+film);
+        }
+        if(mode==='steiner'){
+          await shot(page,film,mode,'1280x900','all-points');
+        }
+        await pointToggle.click();
+        const restored=await page.locator('[data-ceph03b-drag-handle]').count();
+        assert(restored===focused,'Point subset not restored '+film+' '+mode);
+        focusProof.push({mode,focused,expanded,restored,source,focusedScreenshot,valid:true});
+      }
+      await setMode(page,'all');
+      await nameToggle.click();
+      assert(await nameToggle.getAttribute('aria-pressed')==='true',
+        'Exhaustive labels not restored after 1280 Focus witnesses '+film);
+      assert((await verifySvg(page,expected))===38,
+        'Focus must never delete canonical points '+film);
+      progressiveLabelProof[progressiveLabelProof.length-1].focusProof=focusProof;
+      const anatomicalProof=await proximity();
+      assert(anatomicalProof.finite&&anatomicalProof.total===38&&anatomicalProof.medianPx<125,
+        'BEFORE 2.0 spatial proximity failed '+film+' '+JSON.stringify(anatomicalProof));
+      assert((await noBoxes())===0,'Desktop landmark labels must have NO background containers '+film);
+
+      // Cross-layer zoom regression witness on the ACTUAL public film, clinical
+      // browser and authenticated session. View-only: no analysis PUT is issued.
+      await setMode(page,'com');
+      const com100=await labelMetrics();
+      assertNames(com100,9,'COM100');
+      const readZoom=()=>page.evaluate(()=>{
+        const base=document.querySelector('svg[data-cephalo-viewport="base"]');
+        const overlay=document.querySelector('svg[data-cephalo-viewport="overlay"]');
+        return {
+          base:base?.getAttribute('viewBox')??null,
+          overlay:overlay?.getAttribute('viewBox')??null,
+          level:document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()??null,
+        };
+      });
+      const originalZoom=await readZoom();
+      const imageView='0 0 '+radio.width+' '+radio.height;
+      assert(originalZoom.base===imageView && originalZoom.overlay===imageView && originalZoom.level?.includes('100'),
+        'Base and overlay must both start at the full image on '+film+': '+JSON.stringify(originalZoom));
+      const zoomIn=page.getByRole('button',{name:'Agrandir la radiographie',exact:true});
+      await zoomIn.click(); await zoomIn.click();
+      const magnified=await readZoom();
+      const crop=(value)=>String(value||'').split(' ').map(Number);
+      const crop150=crop(magnified.base);
+      assert(magnified.base===magnified.overlay && magnified.level?.includes('150')
+        && crop150.length===4 && crop150.every(Number.isFinite)
+        && Math.abs(crop150[2]-radio.width/1.5)<0.001
+        && Math.abs(crop150[3]-radio.height/1.5)<0.001,
+        '150% overlay/base crop mismatch on '+film+': '+JSON.stringify(magnified));
+      const com150=await labelMetrics();
+      assertNames(com150,9,'COM150');
+      await setMode(page,'all');
+      const all150=await labelMetrics();
+      assertNames(all150,38,'ALL150');
+      assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
+        'Zoom unexpectedly changed landmark X on '+film);
+      await setMode(page,'com');
+      assert((await readZoom()).base===magnified.base && (await readZoom()).overlay===magnified.overlay,
+        'Mode switch must not reset COM zoom on '+film);
+      await page.getByRole('button',{name:'Déplacer la radiographie à droite'}).click();
+      const panned=await readZoom();
+      const shifted=crop(panned.base);
+      assert(panned.base===panned.overlay && shifted[0]>crop150[0],
+        'Pan must move both viewBoxes without skew on '+film+': '+JSON.stringify(panned));
+      const comPan=await labelMetrics();
+      assertNames(comPan,9,'COMPAN');
+      await setMode(page,'all');
+      const allPan=await labelMetrics();
+      assertNames(allPan,38,'ALLPAN');
+      await setMode(page,'com');
+      const zoomShot=await shot(page,film,'com','1280x900','zoom150-pan');
+      await page.getByRole('button',{name:'Afficher toute la radiographie'}).click();
+      const reset=await readZoom();
+      assert(reset.base===imageView && reset.overlay===imageView && reset.level?.includes('100'),
+        'Zoom reset did not restore complete image on '+film);
+      await setMode(page,'all');
+      assert(Math.abs(await getPointX(page)-originalN.x)<0.0001,
+        'View-only pan/reset mutated anatomical N on '+film);
+      zoomProof.push({film,viewport:'1280x900',originalZoom,magnified,panned,reset,
+        screenshot:zoomShot,valid:true});
+      labelProof.push({film,viewport:'1280x900',all100,all150,allPan,com100,com150,comPan,boxCount:0,valid:true});
+      browserPhase='screenshots-all-com';
       for(const viewport of [{width:1280,height:900},{width:1600,height:1000}]){
         await page.setViewportSize(viewport);
         const size=viewport.width+'x'+viewport.height;
@@ -196,10 +507,40 @@ try {
           const count=await verifySvg(page,expected);
           assert(mode!=='all'||count===38,'All mode must display 38 editable landmarks');
           const file=await shot(page,film,mode,size,'uploaded');
+          if(viewport.width===1600&&mode==='all'){
+            await nameToggle.click();
+            assert(await nameToggle.getAttribute('aria-pressed')==='false'
+              &&(await labelMetrics()).visible===10,
+              '1600 desktop essential landmark names missing '+film);
+            const essential1600=await shot(page,film,'all',size,'essential-names');
+            progressiveLabelProof[progressiveLabelProof.length-1].essential1600=essential1600;
+            await nameToggle.click();
+            assert(await nameToggle.getAttribute('aria-pressed')==='true',
+              '1600 full names not restored '+film);
+          }
           cases.push({film,mode,viewport:size,screenshot:file,handles:count,valid:true,analysisId:id});
+        }
+        if(viewport.width===1600){
+          await nameToggle.click();
+          assert(await nameToggle.getAttribute('aria-pressed')==='false',
+            'Expected compact names before 1600 point-focus captures '+film);
+          for(const mode of ['steiner','tweed','mcnamara','ricketts']){
+            await setMode(page,mode);
+            const witness=focusProof.find(entry=>entry.mode===mode);
+            const count=await page.locator('[data-ceph03b-drag-handle]').count();
+            assert(witness&&count===witness.focused,
+              'Focus markers changed by desktop viewport size '+film+' '+mode);
+            await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+            witness.focused1600=await shot(page,film,mode,size,'focused-points');
+          }
+          await setMode(page,'all');
+          await nameToggle.click();
+          assert(await nameToggle.getAttribute('aria-pressed')==='true',
+            'Full-label diagnostics not restored after 1600 captures '+film);
         }
       }
       await setMode(page,'all');
+      browserPhase='keyboard-correction';
       const point=page.locator('[data-ceph03b-drag-handle="N"]');
       await point.focus();
       assert(await point.getAttribute('data-ceph03b-keyboard-focused')==='true','Real Step1 DOM focus missing');
@@ -219,6 +560,22 @@ try {
       await edit('ArrowRight',originalN.x+1,'arrow1');
       expected=(await edit('Shift+ArrowRight',originalN.x+11,'shift10')).landmarks_data;
       assert(Math.abs(await getPointX(page)-(originalN.x+11))<0.0001,'Keyboard store lost rapid edits');
+      // R23-A starts image-first: the correction-history tools remain
+      // available behind an explicit reversible button. Exercise that user
+      // journey before the real authenticated undo/redo PUT transactions.
+      const toolsToggle=page.locator('[data-r23-tools-toggle]');
+      const utilityRail=page.locator('[data-r20-workbench-sidebar]');
+      assert(await utilityRail.evaluate(el=>getComputedStyle(el).display==='none'),
+        'R23-A initial utility rail should be folded on desktop');
+      await toolsToggle.click();
+      assert(await utilityRail.isVisible(),'R23-A cannot reopen clinical edit tools');
+      assert(await toolsToggle.getAttribute('aria-expanded')==='true',
+        'R23-A tools disclosure accessibility state invalid');
+      const historyDisclosure=page.locator('details').filter({has:page.locator('[data-ortho-edit-history]')});
+      assert(await historyDisclosure.count()===1,'Expected one accessible correction history disclosure');
+      await historyDisclosure.locator('summary').click();
+      assert(await historyDisclosure.evaluate(el=>el.open),'Correction history not expanded');
+      browserPhase='undo-correction';
       const undoWait=page.waitForResponse(resp=>resp.url().includes('/api/ia/analyses/'+id)
         &&resp.request().method()==='PUT',{timeout:60000});
       await page.getByRole('button',{name:'Annuler dernière correction'}).click();
@@ -227,6 +584,7 @@ try {
         const res=await context.request.get(origin+pathForId(id));
         return res.status()===200 && Math.abs(persistedPoint(await res.json(),'N').x-(originalN.x+1))<0.0001;
       },'undo committed');
+      browserPhase='redo-correction';
       const redoWait=page.waitForResponse(resp=>resp.url().includes('/api/ia/analyses/'+id)
         &&resp.request().method()==='PUT',{timeout:60000});
       await page.getByRole('button',{name:'Rétablir correction'}).click();
@@ -241,16 +599,53 @@ try {
         && redone.angles_data?.calibration_source_resolution?.applied_to_analysis===false
         && redone.mm_per_pixel===null && redone.is_calibrated===false,
         'Refined SQLite record discarded immutable calibration source evidence');
+      await toolsToggle.click();
+      assert(await utilityRail.evaluate(el=>getComputedStyle(el).display==='none')
+        &&await toolsToggle.getAttribute('aria-expanded')==='false',
+        'R23-A utility rail failed to close after live edit and redo');
       const anonRead=await anon.request.get(origin+pathForId(id));
       const anonMedia=await anon.request.get(origin+'/'+uploaded.image_path);
       assert([401,403].includes(anonRead.status()),'Anonymous GET leaked persisted landmark analysis');
       assert([401,403].includes(anonMedia.status()),'Anonymous GET leaked protected image');
       const beforeReload=await shot(page,film,'all','1600x1000','edited');
+      // Fail closed on the real patient-scoped active/trash history API before
+      // asking the actual History UI to hydrate the persisted analysis.
+      browserPhase='history-api-preflight';
+      const activeHistoryResponse=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-analyses');
+      const trashHistoryResponse=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-trash');
+      assert(activeHistoryResponse.status()===200 && trashHistoryResponse.status()===200,
+        'Patient history API failed: active='+activeHistoryResponse.status()+
+        ' trash='+trashHistoryResponse.status()+' film='+film);
+      const activeHistory=await activeHistoryResponse.json();
+      const trashHistory=await trashHistoryResponse.json();
+      assert(Array.isArray(activeHistory)&&Array.isArray(trashHistory)
+        &&activeHistory.some(record=>record.id===id)&&!trashHistory.some(record=>record.id===id),
+        'Persisted analysis not active in patient history: '+film+
+        ' expected='+id+' activeIds='+JSON.stringify(Array.isArray(activeHistory)?activeHistory.map(x=>x.id):activeHistory)+
+        ' trashIds='+JSON.stringify(Array.isArray(trashHistory)?trashHistory.map(x=>x.id):trashHistory));
       // Real product rehydration: fresh browser navigation -> actual History UI
       // -> authenticated GET -> real store, no imported JSON snapshots.
+      browserPhase='browser-reload';
       await page.reload({waitUntil:'domcontentloaded'});
       await page.getByRole('button',{name:'Historique',exact:true}).first().click();
-      await page.getByText('Analyse enregistrée').first().waitFor({timeout:30000});
+      await page.getByText('Analyse enregistrée').first().waitFor({timeout:30000}).catch(async error=>{
+        const body=(await page.locator('body').innerText().catch(()=>'' )).slice(0,2800);
+        const retryActive=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-analyses').catch(()=>null);
+        const retryTrash=await context.request.get(origin+'/api/ia/patients/'+patient+'/cephalo-trash').catch(()=>null);
+        const diagnostic={film,patient,analysisId:id,
+          historyActiveIds:activeHistory.map(record=>record.id),
+          historyTrashIds:trashHistory.map(record=>record.id),
+          pageUrl:page.url(),body,
+          retryActiveStatus:retryActive?.status()??null,
+          retryTrashStatus:retryTrash?.status()??null,
+          browserHttpErrors:badResponses.slice(-20),
+          pageErrors:consoleErrors.slice(-20),
+          browserApiRequests:reqs.filter(q=>q.film===film).slice(-20)};
+        await writeFile(path.join(out,film+'-history-ui-failure.json'),JSON.stringify(diagnostic,null,2));
+        await page.screenshot({path:path.join(out,film+'-history-ui-failure.png'),fullPage:false}).catch(()=>{});
+        throw new Error('History UI did not render verified active analysis '+id+': '+body.slice(0,800),{cause:error});
+      });
+      browserPhase='history-record-open';
       const reloadGet=page.waitForResponse(resp=>resp.url().includes(pathForId(id))
         &&resp.request().method()==='GET',{timeout:30000});
       await page.getByText('Analyse enregistrée').first().click();
@@ -260,6 +655,7 @@ try {
       assert(Math.abs(await getPointX(page)-(originalN.x+11))<0.0001,
         'History reload did not show durable SQLite correction');
       assert((await verifySvg(page,redone.landmarks_data))===38,'History image-space mismatch');
+      browserPhase='after-history-reload-capture';
       const afterReload=await shot(page,film,'all','1600x1000','api-reload');
       // Allow non-fatal font fetch console messages, but never API 401/403
       // during authenticated product use (negative probes use anon context).
@@ -267,8 +663,13 @@ try {
       const criticalHttp=badResponses.filter(r=>r.url.startsWith('/api/') ||
         (r.resourceType==='script' && r.status>=400));
       if(relevantErrors.length || criticalHttp.length || badResponses.length){
+        const evidence=await Promise.all(failedResponseBodies);
+        const authenticatedConfirm=await context.request.get(origin+pathForId(id))
+          .then(async response=>({status:response.status(),body:(await response.text()).slice(0,160)}))
+          .catch(error=>({error:String(error).slice(0,160)}));
         await writeFile(path.join(out,film+'-browser-http-diagnostic.json'),
-          JSON.stringify({film,relevantErrors,criticalHttp,badResponses},null,2));
+          JSON.stringify({film,phaseAtEvaluation:browserPhase,relevantErrors,
+            criticalHttp,badResponses,evidence,authenticatedConfirm},null,2));
       }
       assert(relevantErrors.length===0 && criticalHttp.length===0,'Browser errors '+film+': '+relevantErrors.join(' | ').slice(0,700)
         +' HTTP='+JSON.stringify(badResponses).slice(0,1800));
@@ -287,12 +688,26 @@ try {
         deniedAnonymousPatient:anonPatient.status(),deniedAnonymousUpload:anonUpload.status(),
         deniedAnonymousRead:anonRead.status(),deniedAnonymousMedia:anonMedia.status(),
         realHttpApi:filmApi,valid:true});
+    }catch(filmError){
+      // Continue with the second public film to preserve independent visual
+      // evidence, but ALWAYS fail the final aggregate gate if either film
+      // fails the history/auth/persistence path. Never turn red into green.
+      errors.push(film+': '+String(filmError));
     }finally{
       await anon.close();
       await context.close();
     }
   }
 }finally{
+  // Evidence must survive a red backend/browser run, never mark it as PASS.
+  // Labels remain observation-only until an exact-HEAD certification gate.
+  if(cases.length!==12 || labelProof.length!==2 || errors.length){
+    await writeFile(path.join(out,'partial-report.json'),JSON.stringify({
+      head:process.env.GITHUB_SHA || 'unknown',
+      status:'INCOMPLETE_NOT_CERTIFIED',
+      cases,zoomProof,labelProof,progressiveLabelProof,errors,
+    },null,2));
+  }
   if(browser)await browser.close();
   await server.close();
 }
@@ -302,9 +717,9 @@ const report={
   model:'SRPose38 actual unpatched ONNX, no clinical accuracy assertion',
   browserEntry:'CephaloWorkspace -> Step1Cephalo -> useOrthoStore -> cephaloRepository -> Axios',
   backend:'FastAPI app real HTTP /api, authenticated HttpOnly cookie, in-memory SQLite',
-  untested:'Product /login visual screen, mobile UI, clinical anatomical accuracy, physical calibration',
-  cases,errors,invalidCount:cases.filter(x=>!x.valid).length,
+  untested:'Product /login visual screen, 38 simultaneous mobile text labels (mobile tests only 38 selectable points and one highlighted name), clinical anatomical accuracy, physical calibration',
+  cases,zoomProof,labelProof,progressiveLabelProof,errors,invalidCount:cases.filter(x=>!x.valid).length,
 };
 await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
-assert(cases.length===10&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
+assert(cases.length===12&&zoomProof.length===2&&zoomProof.every(x=>x.valid)&&labelProof.length===2&&progressiveLabelProof.length===2&&progressiveLabelProof.every(x=>x.valid&&x.essential1600)&&report.invalidCount===0&&errors.length===0,'Incomplete live Step1 evidence');
 console.log('DC_CEPH03B3F_REAL_STEP1_HTTP_TWO_RADIOS_8_SCENES_4_EDIT_TRANSACTIONS_PER_FILM_PASS');

@@ -1,8 +1,11 @@
 import React from 'react';
+import { CEPHALO_COM_CONSTRUCTION_ONLY_IDS } from './cephaloAnalysisPointFocus';
+import { cephaloShortPointName } from './components/CephaloLandmarkReticles';
 import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracingLayerBase';
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
 import { projectPointOnLine } from './cephaloMath';
+import { getCephaloConstructionViewport, getCephaloZoomViewBox } from './cephaloConstructionViewport';
 import { getCephaloPalette } from './cephaloTheme';
 import {
   CEPHALO_SCIENTIFIC_COLORS,
@@ -10,6 +13,7 @@ import {
 } from './cephaloVisualSemantics';
 import {
   CEPHALO_METRIC_FOCUS_EVENT,
+  CEPHALO_ANALYSIS_CHANGE_EVENT,
   publishCephaloAnalysis,
   type CephaloAnalysisMode,
   type CephaloMetricFocus,
@@ -58,7 +62,10 @@ const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
   ]),
 };
 
-const COM_BASE_SUPPRESSED_LANDMARKS = new Set(['n', 'nasion', 'a', 'point_a', 'b', 'point_b']);
+const COM_BASE_SUPPRESSED_LANDMARKS = new Set([
+  ...CEPHALO_COM_CONSTRUCTION_ONLY_IDS.map(id=>id.toLowerCase()),
+  'nasion','point_a','point_b',
+]);
 
 const normalizeMode = (value?: string): AnalysisMode => {
   const normalized = (value || 'all').trim().toLowerCase();
@@ -107,6 +114,11 @@ const unitAxis = (start?: Landmark, end?: Landmark) => {
  */
 export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) => {
   const P = getCephaloPalette();
+  const extendedClipId = React.useId().replace(/:/g, '');
+  const extendedFrame = React.useMemo(
+    () => getCephaloConstructionViewport(props.landmarks, props.imageWidth, props.imageHeight),
+    [props.landmarks, props.imageWidth, props.imageHeight],
+  );
   const layerVisible = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.visibility[id] ?? true;
   const layerOpacity = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.opacity[id] ?? 1;
   const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
@@ -131,6 +143,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     publishCephaloAnalysis(mode);
   }, [mode]);
 
+  // The ready-made analysis selector is a peer control of the overlay tabs.
+  // Both surfaces must update the same tracing mode without changing any geometry.
+  React.useEffect(() => {
+    const onAnalysisChange = (event: Event) => {
+      const requested = normalizeMode((event as CustomEvent<CephaloAnalysisMode>).detail);
+      setMode(current => current === requested ? current : requested);
+    };
+    window.addEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysisChange as EventListener);
+    return () => window.removeEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysisChange as EventListener);
+  }, []);
+
   React.useEffect(() => {
     const onMetric = (event: Event) => {
       setMetricFocus((event as CustomEvent<CephaloMetricFocus | null>).detail ?? null);
@@ -143,10 +166,20 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     if (props.hoveredMetric) setMetricFocus(props.hoveredMetric);
   }, [props.hoveredMetric]);
 
-  const filteredLandmarks = React.useMemo(
-    () => filterLandmarks(props.landmarks, mode),
-    [props.landmarks, mode],
-  );
+  // R23-F: only on desktop, replace historical hardcoded point masks with
+  // source-backed display contracts. Keep mobile rendering byte-identical.
+  const filteredLandmarks = React.useMemo(() => {
+    if(!props.compactLabels) return filterLandmarks(props.landmarks,mode);
+    if(props.showAllPointMarkers || mode==='all' || !props.analysisPointIds)
+      return props.landmarks;
+    const ids=new Set(props.analysisPointIds);
+    // Inspector/keyboard-active points must never become unselectable when
+    // switching an analysis; hide only their *other* filtered siblings.
+    if(props.focusedPointId) ids.add(props.focusedPointId);
+    if(props.activePointId) ids.add(props.activePointId);
+    return props.landmarks.filter(point=>ids.has(point.id));
+  }, [props.landmarks,mode,props.compactLabels,props.showAllPointMarkers,
+      props.analysisPointIds,props.focusedPointId,props.activePointId]);
 
   const filteredGhosts = React.useMemo<GhostData[]>(
     () => (props.ghosts || []).map(ghost => ({
@@ -157,10 +190,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   );
 
   const baseLandmarks = React.useMemo(
-    () => mode === 'com'
+    () => mode === 'com' && !(props.compactLabels && props.showAllPointMarkers)
       ? filteredLandmarks.filter(item => !COM_BASE_SUPPRESSED_LANDMARKS.has(item.id.toLowerCase()))
       : filteredLandmarks,
-    [filteredLandmarks, mode],
+    [filteredLandmarks, mode, props.compactLabels, props.showAllPointMarkers],
   );
 
   const baseGhosts = React.useMemo<GhostData[]>(
@@ -276,11 +309,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
 
       {(showRickettsHard || showCom) && (layerVisible('plans') || layerVisible('landmarks') || layerVisible('measurements')) && props.imageWidth > 0 && props.imageHeight > 0 && (
         <svg
-          viewBox={`0 0 ${props.imageWidth} ${props.imageHeight}`}
+          data-cephalo-viewport="overlay"
+          viewBox={getCephaloZoomViewBox(props.imageWidth, props.imageHeight, props.viewZoom, props.viewPan)}
           preserveAspectRatio="xMidYMid meet"
           className="pointer-events-none absolute inset-0 z-[28] h-full w-full"
           aria-hidden="true"
         >
+          <defs>
+            <clipPath id={extendedClipId} data-cephalo-extended-clip="true" clipPathUnits="userSpaceOnUse">
+              <rect x={extendedFrame.x} y={extendedFrame.y} width={extendedFrame.width} height={extendedFrame.height} />
+            </clipPath>
+          </defs>
           {layerVisible('plans') && showRickettsHard && po && orPoint && (
             <line
               data-r18-construction="ricketts-frankfort"
@@ -312,7 +351,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 <circle cx={p.x} cy={p.y} r="3.4" fill={P.bgInput} stroke={CEPHALO_SCIENTIFIC_COLORS.skeletal} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
                 {/* Ricketts identification appears on metric focus rather than overprinting every marker. */}
                 {metricFocus && focusedPointIds.has(p.id.toLowerCase()) && (
-                  <text x={p.x + 10} y={p.y - 10} fill={P.text} fontSize="10" fontWeight="800">{p.id}</text>
+                  <text x={p.x + 10} y={p.y - 10} fill={P.text} fontSize="10" fontWeight="800">{cephaloShortPointName(p.id)}</text>
                 )}
               </g>
             );
@@ -336,7 +375,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
           })()}
           {showCom && nVerticalStart && nVerticalEnd && (() => {
             const style = comStyle({ constructions: ['NASION_VERTICAL_FH_V1'] }, 'mcnamara_perp');
-            return <line data-r19-construction="com-nasion-vertical" x1={nVerticalStart.x} y1={nVerticalStart.y} x2={nVerticalEnd.x} y2={nVerticalEnd.y} strokeDasharray="7,5" {...style} vectorEffect="non-scaling-stroke" />;
+            return <line data-r19-construction="com-nasion-vertical" data-cephalo-extended-line="com-nasion" clipPath={`url(#${extendedClipId})`} x1={nVerticalStart.x} y1={nVerticalStart.y} x2={nVerticalEnd.x} y2={nVerticalEnd.y} strokeDasharray="7,5" {...style} vectorEffect="non-scaling-stroke" />;
           })()}
           {showCom && a && aOnNVertical && (() => {
             const style = comStyle({ constructions: ['NASION_VERTICAL_FH_V1'], points: ['A'] }, 'situation_a');
@@ -378,7 +417,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 <circle cx={p.x} cy={p.y} r="3.2" fill={P.bgInput} stroke={P.text} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
                 {/* Keep COM reference coordinates; show names only for explicit canonical focus. */}
                 {hasCanonicalFocus && focusedPointIds.has(p.id.toLowerCase()) && (
-                  <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{p.id}</text>
+                  <text x={p.x + 8} y={p.y - 8} fill={P.text} fontSize="9" fontWeight="800">{cephaloShortPointName(p.id)}</text>
                 )}
               </g>
             );
@@ -388,13 +427,13 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
         </svg>
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-36 z-40 flex justify-center px-3 sm:top-16">
+      <div className={`pointer-events-none absolute inset-x-0 top-36 z-40 justify-center px-3 sm:top-16 ${props.showStageTabs === false ? 'hidden' : 'flex'}`}>
         <div
           aria-label="Analyse du tracé"
           className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border p-1 shadow-2xl backdrop-blur-xl sm:gap-1"
           style={{ background: P.bgPanel, borderColor: P.border, boxShadow: P.shadowLg }}
         >
-          <span className="hidden shrink-0 px-2 text-[9px] font-black uppercase tracking-[0.18em] sm:inline" style={{ color: P.textDim }}>Tracé</span>
+          <span className="hidden shrink-0 px-2 text-[9px] font-black uppercase tracking-[0.18em] 2xl:inline" style={{ color: P.textDim }}>Tracé</span>
           {ANALYSIS_OPTIONS.map(option => {
             const selected = mode === option.id;
             return (
@@ -404,7 +443,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
                 data-analysis={option.id}
                 aria-pressed={selected}
                 onClick={() => setMode(option.id)}
-                className="shrink-0 rounded-xl border px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.04em] transition-all sm:px-3 sm:text-[10px] sm:tracking-[0.08em]"
+                className="shrink-0 rounded-xl border px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.03em] transition-all sm:px-2 sm:text-[10px] sm:tracking-[0.03em] 2xl:px-3 2xl:text-xs"
                 style={{
                   background: selected ? `${P.accent}18` : 'transparent',
                   borderColor: selected ? P.borderFocus : 'transparent',

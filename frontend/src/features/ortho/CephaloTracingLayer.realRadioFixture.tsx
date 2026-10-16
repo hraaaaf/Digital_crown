@@ -65,7 +65,7 @@ const initial: Landmark[] = bridge
 const layers = { ...createDefaultLayerVisibility(), t1: true, t2: true };
 useOrthoStore.setState({
   patientId: null,
-  analysisId: null,
+  analysisId: undefined,
   local: { landmarks: initial, version: 1 },
   landmarkEditTimeline: createLandmarkEditTimeline(initial),
   layerVisibility: layers,

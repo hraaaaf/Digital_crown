@@ -48,12 +48,12 @@ const anglesData={
  visual_debug:{}, calibration_status:'verified'
 };
 useOrthoStore.setState({
- patientId: 919, patientName: 'Patient Démo R19', analysisId: 9919, imageSrc: fixture,
+ patientId: 919, patientName: 'SIMULATION R19 · IMAGE SVG ET VALEURS FICTIVES', analysisId: 9919, imageSrc: fixture,
  imgDim:{w:1200,h:1600}, local:{landmarks,version:1}, mmPerPixel:0.2, isCalibrated:true,
  completedSteps:new Set([1]), step:1, anglesData,
  etape3Data:{...useOrthoStore.getState().etape3Data,selectedAnalysis:'COM'}
 });
-ReactDOM.createRoot(document.getElementById('root')).render(<MemoryRouter><div style={{height:'100vh'}}><CephaloWorkspace patientId={919} patientName="Patient Démo R19" /></div></MemoryRouter>);
+ReactDOM.createRoot(document.getElementById('root')).render(<MemoryRouter><div style={{height:'100vh'}}><CephaloWorkspace patientId={919} patientName="SIMULATION R19 · IMAGE SVG ET VALEURS FICTIVES" /></div></MemoryRouter>);
 `;
 const htmlSource = `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Cephalo R19 AFTER</title><style>html,body,#root{width:100%;height:100%;margin:0}</style></head><body><div id="root"></div><script type="module" src="/src/cephalo-r19-analysis-reference-after-entry.tsx"></script></body></html>`;
 
@@ -61,14 +61,24 @@ function json(body,status=200){return{status,contentType:'application/json',body
 async function waitForServer(url,timeoutMs=30000){const start=Date.now();while(Date.now()-start<timeoutMs){try{const r=await fetch(url);if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,250))}throw new Error(`Vite unavailable ${url}`)}
 
 function modeContract(mode, metrics) {
-  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow) return false;
+  if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk || !metrics.sourceDisclosureOk || !metrics.extendedRayClippingOk) return false;
   if (metrics.selectorButtons.length !== 6) return false;
   const labels = new Set(metrics.landmarkLabels);
-  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10;
+  if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10 && (metrics.viewportWidth < 1280 || metrics.boundedClipCount >= 1);
   if (mode === 'steiner') return metrics.panelRows === 15 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   if (mode === 'tweed') return metrics.panelRows === 4 && metrics.svgLines >= 6 && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
-  if (mode === 'mcnamara') return labels.has('McNamara') && labels.has("A'") && labels.has("B'") && metrics.panelRows === 3 && metrics.comConstructionCount === 0;
-  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && labels.has('Po') && labels.has('Or') && labels.has('S') && labels.has('N');
+  if (mode === 'mcnamara') {
+    // Mobile inherited Cabinet behavior must remain unchanged; R23-F is
+    // desktop-only. The desktop E2E now requires the five displayed
+    // source-backed anchors and absence of unrelated A′/B′ projections.
+    if(metrics.viewportWidth<1280)
+      return labels.has('McNamara') && labels.has("A'") && labels.has("B'")
+        && metrics.panelRows===3 && metrics.comConstructionCount===0;
+    return ['A','Co','Gn','Me','ENA'].every(label => labels.has(label))
+      && !labels.has("A'") && !labels.has("B'") && metrics.landmarkHandles===5
+      && metrics.panelRows===3 && metrics.comConstructionCount===0;
+  }
+  if (mode === 'com') return metrics.panelRows === 10 && metrics.comConstructionCount >= 10 && metrics.legacyMcNamaraLeakCount === 0 && ['Po','Or','S','N'].every(id => metrics.comReferencePointIds.includes(id)) && (metrics.viewportWidth < 1280 || metrics.boundedClipCount >= 1);
   if (mode === 'ricketts') return metrics.panelRows === 2 && metrics.rickettsConstructionCount >= 1 && metrics.comConstructionCount === 0 && metrics.legacyMcNamaraLeakCount === 0;
   return false;
 }
@@ -93,11 +103,216 @@ async function captureViewport(viewport,attempt){
   const theme=await page.evaluate(()=>document.body.dataset.theme||document.documentElement.dataset.theme||'default');
   if(theme!==CAPTURE_THEME) throw new Error(`Unexpected capture theme: ${theme}`);
   await page.getByRole('heading',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:30000});
-  await page.locator('[aria-label="Analyse du tracé"]').waitFor({state:'visible',timeout:10000});
+  await page.locator('[aria-label="Analyse du tracé"]').waitFor({state:viewport.width>=1280 ? 'visible' : 'attached',timeout:10000});
   await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:10000});
+  // Exercise the left-hand ready-made selector, not only the floating tracing tabs.
+  const selectorChecks=[];
+  for(const requested of ['steiner','com','all']){
+   await page.locator('#cephalo-ready-analysis').selectOption(requested);
+   await page.waitForFunction(mode=>{
+    const overlay=document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis');
+    const panel=document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel');
+    const select=document.querySelector('#cephalo-ready-analysis');
+    return overlay===mode && panel===mode && select?.value===mode;
+   },requested,{timeout:6000});
+   const result=await page.evaluate(()=>({
+    chosen:document.querySelector('#cephalo-ready-analysis')?.value,
+    overlay:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis'),
+    panel:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')
+   }));
+   selectorChecks.push({requested,...result,valid:result.chosen===requested&&result.overlay===requested&&result.panel===requested});
+   if(requested==='steiner') await page.screenshot({path:path.join(OUTPUT_DIR,`after-selector-steiner-${viewport.name}.png`),fullPage:false});
+  }
+  // R23-A desktop: verify tools are folded on first use, the anatomical
+  // image claims the recovered width, and both panels can be restored.
+  let imageFirstProof=null;
+  if(viewport.width>=1280){
+    const grid=page.locator('[data-r20-workbench-layout]');
+    const stage=page.locator('[data-r20-radiograph-stage]');
+    const utility=page.locator('[data-r20-workbench-sidebar]');
+    const initialWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    const initiallyFolded=await grid.getAttribute('data-r23-image-first');
+    const utilityDisplay=await utility.evaluate(el=>getComputedStyle(el).display);
+    await page.locator('[data-r23-tools-toggle]').click();
+    const expandedWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    const utilityDisplayOpen=await utility.evaluate(el=>getComputedStyle(el).display);
+    await page.locator('[data-r23-tools-toggle]').click();
+    await page.locator('[data-r23-measures-toggle]').click();
+    const readingWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    await page.screenshot({path:path.join(OUTPUT_DIR,`after-image-first-reading-${viewport.name}.png`),fullPage:false});
+    await page.locator('[data-r23-measures-toggle]').click();
+    const restoredWidth=await stage.evaluate(el=>el.getBoundingClientRect().width);
+    // R23 progressive desktop disclosure: retain all 29 handles and an
+    // explicit reversible full-name oracle, not 29 always-on name assertions.
+    // Guard against selecting landmarks absent from an analysis. In
+    // particular Ricketts uses tissue-profile points, not Steiner nuclei.
+    const expectedModeNames={all:['S','N','A','B','Po','Or','Go','Me','U1_incisal','L1_incisal'],
+      steiner:['S','N','A','B','U1_incisal','U1_apex','L1_incisal','L1_apex'],
+      tweed:['Or','Go','Me','L1_incisal','L1_apex','Pog_soft','Ls_soft','Li_soft'],
+      mcnamara:['A','Co','Gn','Me','ANS'],
+      ricketts:['Prn','Ls_soft','Li_soft','Pog_soft']};
+    const analysisMajorProof=[];
+    for(const [mode,names] of Object.entries(expectedModeNames)){
+      await page.locator('#cephalo-ready-analysis').selectOption(mode);
+      await page.waitForFunction(m=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')===m,mode,{timeout:5000});
+      const found=await page.locator('[data-cephalo-landmark-label]').evaluateAll(els=>els.map(el=>el.getAttribute('data-cephalo-landmark-label')));
+      const count=await page.locator('[data-ceph03b-drag-handle]').count();
+      const counter=await page.locator('[data-cephalo-points-focus-count]').textContent();
+      const visibleNumber=Number(counter?.trim().split('/')[0]);
+      const source=await page.locator('[data-cephalo-points-focus-count]').getAttribute('data-cephalo-point-source');
+      analysisMajorProof.push({mode,expected:names,found,count,visibleNumber,source,
+        valid:visibleNumber===count&&found.length===names.length&&names.every(id=>found.includes(id))
+          &&(mode==='all'?count===29:count>0&&count<29)
+          &&(mode==='all'?source==='all':source==='LOT06'||source==='legacy-display')});
+    }
+    await page.locator('#cephalo-ready-analysis').selectOption('all');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='all',null,{timeout:5000});
+    // Desktop focus is reversible independently of the 'Tous les noms' switch.
+    await page.locator('#cephalo-ready-analysis').selectOption('steiner');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='steiner',null,{timeout:5000});
+    const focusedSteiner=await page.locator('[data-ceph03b-drag-handle]').count();
+    const manualMissing=await page.locator('[data-cephalo-missing-manual-id]').evaluateAll(nodes=>
+      nodes.map(el=>el.getAttribute('data-cephalo-missing-manual-id')));
+    const pointToggle=page.locator('[data-cephalo-all-points-toggle]');
+    await pointToggle.click();
+    const expandedSteiner=await page.locator('[data-ceph03b-drag-handle]').count();
+    const allPointsPressed=await pointToggle.getAttribute('aria-pressed');
+    const expandedPointScreenshot=`after-desktop-steiner-all-points-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,expandedPointScreenshot),fullPage:false});
+    await pointToggle.click();
+    const restoredSteiner=await page.locator('[data-ceph03b-drag-handle]').count();
+    await page.locator('#cephalo-ready-analysis').selectOption('all');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='all',null,{timeout:5000});
+    const pointFocusProof={focusedSteiner,expandedSteiner,restoredSteiner,allPointsPressed,
+      manualMissing,expandedPointScreenshot,
+      valid:focusedSteiner>0&&focusedSteiner<29&&expandedSteiner===29
+        &&restoredSteiner===focusedSteiner&&allPointsPressed==='true'
+        &&manualMissing.includes('Occ_Steiner_Ant')&&manualMissing.includes('Occ_Steiner_Post')};
+    let assertRickettsIsolated=false;
+    // Turning on every point must not restore McNamara A′/B′ projections
+    // under the Ricketts E-line analysis.
+    await page.locator('#cephalo-ready-analysis').selectOption('ricketts');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='ricketts',null,{timeout:5000});
+    await pointToggle.click();
+    const noRickettsMcNamaraLeak=await page.locator('svg[data-cephalo-viewport="base"] text')
+      .evaluateAll(nodes=>!nodes.some(n=>["A'","B'"].includes(n.textContent?.trim()??'')));
+    const allRickettsMarkers=await page.locator('[data-ceph03b-drag-handle]').count();
+    await pointToggle.click();
+    await page.locator('#cephalo-ready-analysis').selectOption('all');
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='all',null,{timeout:5000});
+    assertRickettsIsolated= noRickettsMcNamaraLeak && allRickettsMarkers===29;
+    const nameToggle=page.locator('[data-cephalo-all-names-toggle]');
+    const labelNodes=page.locator('svg[data-cephalo-viewport="base"] [data-cephalo-landmark-label]');
+    const defaultNames=await labelNodes.count();
+    const allHandles=await page.locator('[data-ceph03b-drag-handle]').count();
+    const dotWitness=await page.locator('[data-cephalo-point-core]').evaluateAll(nodes=>({
+      count:nodes.length,
+      diameters:nodes.map(el=>Number(el.getBoundingClientRect().width.toFixed(2))),
+      darkContours:nodes.every(el=>el.getAttribute('stroke')==='#020617'),
+      allFinite:nodes.every(el=>['cx','cy','r'].every(k=>Number.isFinite(Number(el.getAttribute(k))))),
+    }));
+    const essentialScreenshot=`after-desktop-essential-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,essentialScreenshot),fullPage:false});
+    const secondary=page.locator('[data-ceph03b-drag-handle="Prn"]');
+    const secondaryDefaultHidden=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+    await secondary.dispatchEvent('pointerover',{pointerId:1});
+    const hoverExposesName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===1;
+    await secondary.dispatchEvent('pointerout',{pointerId:1});
+    const hoverClearsName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+    await secondary.focus();
+    const focusExposesName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===1;
+    await secondary.evaluate(el=>el.blur());
+    const focusClearsName=await page.locator('[data-cephalo-landmark-label="Prn"]').count()===0;
+    await nameToggle.click();
+    const fullNames=await labelNodes.count();
+    const renderedShortNames=await labelNodes.evaluateAll(nodes=>nodes.map(el=>el.textContent?.trim()??''));
+    const shortNameWitness=['U1','L1','U1 A','L1 A','N′','Pog′'].every(x=>renderedShortNames.includes(x))
+      &&renderedShortNames.every(x=>x.length<=8&&!x.includes('_'));
+    const allPressed=await nameToggle.getAttribute('aria-pressed');
+    const exhaustiveScreenshot=`after-desktop-all-names-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,exhaustiveScreenshot),fullPage:false});
+    await nameToggle.click();
+    const restoredNames=await labelNodes.count();
+    const defaultPressed=await nameToggle.getAttribute('aria-pressed');
+    await nameToggle.click(); // Retain old all-name evidence for every analysis below.
+    const progressiveProof={defaultNames,allHandles,analysisMajorProof,pointFocusProof,assertRickettsIsolated,dotWitness,shortNameWitness,secondaryDefaultHidden,hoverExposesName,
+      hoverClearsName,focusExposesName,focusClearsName,fullNames,restoredNames,
+      allPressed,defaultPressed,essentialScreenshot,exhaustiveScreenshot,
+      valid:analysisMajorProof.every(mode=>mode.valid)&&pointFocusProof.valid&&assertRickettsIsolated&&allHandles===29&&defaultNames===10
+        &&dotWitness.count===29&&dotWitness.darkContours&&dotWitness.allFinite
+        &&dotWitness.diameters.every(px=>px>=4&&px<=8)&&shortNameWitness
+        &&secondaryDefaultHidden&&hoverExposesName&&hoverClearsName
+        &&focusExposesName&&focusClearsName&&fullNames===29
+        &&restoredNames===defaultNames&&allPressed==='true'&&defaultPressed==='false'};
+    const mobileMaintained=true;
+    imageFirstProof={initialWidth,expandedWidth,readingWidth,restoredWidth,initiallyFolded,utilityDisplay,utilityDisplayOpen,mobileMaintained,progressiveProof,
+      valid:initiallyFolded==='tools-collapsed'&&utilityDisplay==='none'&&utilityDisplayOpen!=='none'
+        &&initialWidth>expandedWidth+100&&readingWidth>initialWidth+250
+        &&Math.abs(restoredWidth-initialWidth)<5&&progressiveProof.valid};
+  }
+  let mobileImageFirstProof=null;
+  if(viewport.width<1280){
+    const stage=page.locator('[data-r20-radiograph-stage]');
+    const rail=page.locator('[data-r20-workbench-sidebar]');
+    const top=await stage.evaluate(el=>el.getBoundingClientRect().top);
+    const stageHeight=await stage.evaluate(el=>el.getBoundingClientRect().height);
+    const overlayTabsInitiallyHidden=!(await page.locator('[aria-label="Analyse du tracé"]').isVisible());
+    const folded=await rail.evaluate(el=>getComputedStyle(el).display==='none');
+    const selectorWidth=await page.locator('#cephalo-ready-analysis').evaluate(el=>el.getBoundingClientRect().width);
+    const stepSelector=page.locator('[data-cephalo-mobile-step-selector]');
+    const compactStepProof=viewport.width<768
+      ? { visible:await stepSelector.isVisible(),
+          options:await stepSelector.locator('option').count(),
+          value:await stepSelector.inputValue()}
+      : null;
+    const screenShot=`after-image-first-entry-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,screenShot),fullPage:false});
+    const list=page.locator('[data-r23-mobile-point-directory]');
+    await list.locator('summary').click();
+    const menuNames=await list.locator('[data-r23-point-select]').count();
+    const firstId=await list.locator('[data-r23-point-select]').first().getAttribute('data-r23-point-select');
+    await list.locator('[data-r23-point-select]').first().click();
+    await page.locator('[data-ceph03b-landmark-label="'+firstId+'"]').waitFor({timeout:3000});
+    const selectedVisible=await page.locator('[data-ceph03b-landmark-label="'+firstId+'"]').count()===1;
+    const bgCount=await page.locator('[data-ceph03b-label-background]').count();
+    await page.locator('[data-r23-tools-toggle]').click();
+    const opened=await rail.evaluate(el=>getComputedStyle(el).display!=='none');
+    await page.locator('[data-r23-tools-toggle]').click();
+    const restored=await rail.evaluate(el=>getComputedStyle(el).display==='none');
+
+    // Mobile fullscreen existed before R23-A: explicitly exercise it after
+    // changing shared portal/canvas CSS. A hidden SVG or a stuck overlay is red.
+    await page.locator('[data-cephalo-stage-root] button[title="Plein écran"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:6000});
+    const overlayTabsInFocus=await page.locator('[aria-label="Analyse du tracé"]').isVisible();
+    const fullscreen=await page.evaluate(()=>{
+      const root=document.querySelector('[data-cephalo-stage-root]');
+      const svg=root?.querySelector('svg[data-cephalo-viewport="base"]');
+      const r=root?.getBoundingClientRect(),sr=svg?.getBoundingClientRect();
+      const top=document.elementFromPoint(innerWidth/2,innerHeight/2);
+      return {width:r?.width??0,height:r?.height??0,
+        topmost:Boolean(root&&top&&root.contains(top)),
+        visible:Boolean(sr&&sr.width>160&&sr.height>160&&sr.bottom>0&&sr.top<innerHeight)};
+    });
+    const mobileFocusShot=`after-mobile-focus-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,mobileFocusShot),fullPage:false});
+    await page.locator('[data-cephalo-stage-root] button[title="Quitter plein écran"]').click();
+    await page.waitForFunction(()=>!document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:5000});
+    const fullscreenRestored=await page.locator('[data-cephalo-stage-root]').evaluate(el=>getComputedStyle(el).position!=='fixed');
+    mobileImageFirstProof={top,stageHeight,overlayTabsInitiallyHidden,overlayTabsInFocus,folded,opened,restored,selectorWidth,compactStepProof,menuNames,firstId,selectedVisible,bgCount,screenShot,fullscreen,mobileFocusShot,fullscreenRestored,
+      valid:top>0&&top<viewport.height*.56
+        &&overlayTabsInitiallyHidden&&overlayTabsInFocus
+        &&(viewport.width>=768||(compactStepProof?.visible&&compactStepProof.options===4&&compactStepProof.value==='1'))
+        &&(viewport.width>=768||stageHeight<=viewport.height*.72)
+        &&folded&&opened&&restored&&selectorWidth>=141
+        &&menuNames===29&&selectedVisible&&bgCount===0
+        &&fullscreen.width>=viewport.width-2&&fullscreen.height>=viewport.height-2
+        &&fullscreen.topmost&&fullscreen.visible&&fullscreenRestored};
+  }
   const states=[];
   for(const mode of modes){
-   await page.locator(`[data-analysis="${mode}"]`).click();
+   if(viewport.width>=1280) await page.locator(`[data-analysis="${mode}"]`).click();
+   else await page.locator('#cephalo-ready-analysis').selectOption(mode);
    await page.waitForFunction(expected=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')===expected && document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')===expected,mode,{timeout:5000});
    if(mode==='com'){
      await page.locator('[data-r19-metric="I_Francfort"]').click();
@@ -105,7 +320,33 @@ async function captureViewport(viewport,attempt){
    }
    await page.waitForTimeout(80);
    const metrics=await page.evaluate(()=>{
+    const tabs=Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button'));
+    const tabBar=document.querySelector('[aria-label="Analyse du tracé"]');
+    const barRect=tabBar?.getBoundingClientRect();
+    const tabsFullyVisible=Boolean(barRect && tabs.length===6 && tabs.every(tab=>{const rect=tab.getBoundingClientRect();return rect.left>=barRect.left-1 && rect.right<=barRect.right+1;}));
+    const panel=document.querySelector('[data-r19-analysis-panel]');
+    const detail=document.querySelector('[data-r19-measure-detail]');
+    const panelRect=panel?.getBoundingClientRect();
+    const detailRect=detail?.getBoundingClientRect();
+    const detailContained=Boolean(panelRect && detailRect && detailRect.top>=panelRect.top-1 && detailRect.bottom<=panelRect.bottom+1);
     const landmarkLabels=Array.from(document.querySelectorAll('svg text')).map(n=>n.textContent?.trim()).filter(Boolean);
+    const stage=document.querySelector('[data-r20-radiograph-stage]')?.getBoundingClientRect();
+    const evidenceLabel=document.querySelector('[data-ortho-workspace-patient]')?.textContent??'';
+    const extendedRays=Array.from(document.querySelectorAll('[data-cephalo-extended-line]'));
+    const clipNodes=Array.from(document.querySelectorAll('clipPath[data-cephalo-extended-clip]'));
+    const extendedRayClippingOk=extendedRays.every(ray=>{
+      const attr=ray.getAttribute('clip-path')??'';
+      const clipId=attr.startsWith('url(#')&&attr.endsWith(')')?attr.slice(5,-1):null;
+      return Boolean(clipId && clipNodes.some(node=>node.id===clipId));
+    });
+    const boundedClipCount=clipNodes.filter(node=>{
+      const rect=node.querySelector('rect');
+      const outer=node.ownerSVGElement?.viewBox?.baseVal;
+      return Boolean(rect && outer && (
+        Number(rect.getAttribute('width')) < outer.width - 1 ||
+        Number(rect.getAttribute('height')) < outer.height - 1
+      ));
+    }).length;
     const legacyMcNamaraLeakCount=landmarkLabels.filter(label=>label==='McNamara'||label==="A'"||label==="B'").length;
     return {
       analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
@@ -113,13 +354,23 @@ async function captureViewport(viewport,attempt){
       hasAnalysisSelector:Boolean(document.querySelector('[aria-label="Analyse du tracé"]')),
       selectorButtons:Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button')).map(n=>n.getAttribute('data-analysis')),
       panelRows:document.querySelectorAll('[data-r19-metric]').length,
+      landmarkHandles:document.querySelectorAll('[data-ceph03b-drag-handle]').length,
+      comReferencePointIds:Array.from(document.querySelectorAll('[data-r19-point]')).map(el=>el.getAttribute('data-r19-point')).filter(Boolean),
       svgLines:document.querySelectorAll('svg line').length,
       landmarkLabels,
       rickettsConstructionCount:document.querySelectorAll('[data-r18-construction^="ricketts-"]').length,
       comConstructionCount:document.querySelectorAll('[data-r19-construction^="com-"]').length,
       legacyMcNamaraLeakCount,
       selectedDetail:document.querySelector('[data-r19-measure-detail]')?.getAttribute('data-r19-measure-detail')||null,
-      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
+      horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
+      viewportWidth:innerWidth,
+      imageStageWidth:stage?.width??0,
+      sourceDisclosureOk:evidenceLabel.includes('SIMULATION R19') && evidenceLabel.includes('VALEURS FICTIVES'),
+      extendedRayClippingOk,
+      boundedClipCount,
+      tabsFullyVisible,
+      detailContained,
+      desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && detailContained && (stage?.width??0)>=625)
     };
    });
    const valid=modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort');
@@ -130,14 +381,119 @@ async function captureViewport(viewport,attempt){
    }
    states.push({mode,valid,metrics});
   }
-  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid);
-  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,states};
+  // Browser-level proof: the same stage moves to the fullscreen portal,
+  // remains visible and retains the selected clinical analysis after Escape.
+  let focusProof=null;
+  if(viewport.width>=1280){
+    await page.locator('[data-analysis="steiner"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')==='steiner'
+      &&document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')==='steiner',null,{timeout:6000});
+    const beforeWidth=await page.locator('[data-cephalo-stage-root]').evaluate(el=>el.getBoundingClientRect().width);
+    const focusButton=page.getByRole('button',{name:'Activer le mode Focus radiographie',exact:true});
+    await focusButton.click();
+    await page.waitForFunction(()=>document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:6000});
+    const focusedWidth=await page.locator('[data-cephalo-stage-root]').evaluate(el=>el.getBoundingClientRect().width);
+    const focusedMode=await page.locator('[data-cephalo-analysis]').getAttribute('data-cephalo-analysis');
+    // Prove visible topmost radiograph, not merely a wide detached DOM node.
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const focusVisibility=await page.evaluate(()=>{
+      const root=document.querySelector('[data-cephalo-stage-root]');
+      const svg=root?.querySelector('svg[data-cephalo-viewport="base"]');
+      const style=root?getComputedStyle(root):null;
+      const top=document.elementFromPoint(innerWidth/2,innerHeight/2);
+      const r=svg?.getBoundingClientRect();
+      return {position:style?.position??null,zIndex:style?.zIndex??null,
+        onTop:Boolean(root&&top&&root.contains(top)),
+        svgVisible:Boolean(r&&r.width>300&&r.height>300&&r.left<innerWidth&&r.top<innerHeight&&r.bottom>0&&r.right>0)};
+    });
+    const focusScreenshot=`after-focus-radiograph-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,focusScreenshot),fullPage:false});
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>!document.querySelector('[data-cephalo-stage-root]')?.classList.contains('fixed'),null,{timeout:5000});
+    const restoredWidth=await page.locator('[data-cephalo-stage-root]').evaluate(el=>el.getBoundingClientRect().width);
+    const restoredMode=await page.locator('[data-cephalo-analysis]').getAttribute('data-cephalo-analysis');
+    focusProof={beforeWidth,focusedWidth,restoredWidth,focusedMode,restoredMode,focusVisibility,focusScreenshot,
+      valid:focusedWidth>=viewport.width*.9
+        &&focusedWidth>beforeWidth+200
+        &&Math.abs(restoredWidth-beforeWidth)<5
+        &&focusVisibility.position==='fixed'&&focusVisibility.onTop&&focusVisibility.svgVisible
+        &&focusedMode==='steiner'&&restoredMode==='steiner'};
+  }
+  // Desktop clinical landmark inspection: all names must be navigable without
+  // changing the geometry of any displayed editable landmark.
+  let desktopPointInspectorProof=null;
+  if(viewport.width>=1280){
+    const inspector=page.locator('[data-cephalo-desktop-landmark-inspector]');
+    const inspectorVisible=await inspector.isVisible();
+    const readCoordinates=()=>page.locator('[data-ceph03b-drag-handle]').evaluateAll(nodes=>
+      nodes.map(node=>{
+        const circle=node.querySelector('circle');
+        return [node.getAttribute('data-ceph03b-drag-handle'),circle?.getAttribute('cx'),circle?.getAttribute('cy')];
+      }));
+    const coordinatesBefore=await readCoordinates();
+    await inspector.locator('summary').click();
+    const availableNames=await inspector.locator('[data-r23-point-select]').count();
+    await inspector.locator('[data-r23-point-select="N"]').click();
+    await page.locator('[data-ceph03b-focus-ring="N"]').waitFor({state:'attached',timeout:4000});
+    const focused=await page.locator('[data-ceph03b-focus-ring="N"]').count()===1;
+    const focusedNameEmphasized=await page.locator('[data-ceph03b-landmark-label="N"]').evaluate(el=>el.getAttribute('fill')==='#fef08a');
+    const coordinatesAfter=await readCoordinates();
+    const geometryUnchanged=JSON.stringify(coordinatesBefore)===JSON.stringify(coordinatesAfter);
+    const screenshot=`after-desktop-N-inspected-${viewport.name}.png`;
+    await page.screenshot({path:path.join(OUTPUT_DIR,screenshot),fullPage:false});
+    desktopPointInspectorProof={inspectorVisible,availableNames,focused,focusedNameEmphasized,geometryUnchanged,screenshot,
+      valid:inspectorVisible&&availableNames===29&&focused&&focusedNameEmphasized&&geometryUnchanged};
+  }
+  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)
+    &&selectorChecks.length===3&&selectorChecks.every(s=>s.valid)
+    &&(viewport.width<1280 ? mobileImageFirstProof?.valid===true
+      : (focusProof?.valid===true&&imageFirstProof?.valid===true&&desktopPointInspectorProof?.valid===true));
+  return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states,focusProof,imageFirstProof,mobileImageFirstProof,desktopPointInspectorProof};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
 }
 
+async function prewarmViteDependencies() {
+  // The isolated Vite dev server can add late Workbox optimizations, causing
+  // HTTP 504 (Outdated Optimize Dep) in its initial browsing session.
+  // Preheat outside evidence collection; certified runs still reject errors.
+  let browser;
+  try {
+    browser=await chromium.launch({headless:true});
+    const page=await browser.newPage({viewport:{width:1280,height:900}});
+    await page.route('**/*',route=>{
+      const u=new URL(route.request().url());
+      if(u.hostname==='127.0.0.1'&&u.port===String(PORT))return route.continue();
+      if(u.hostname==='127.0.0.1'&&u.port==='8005'&&u.pathname==='/api/patients/919')return route.fulfill(json({id:919,age:34,sexe:'M'}));
+      if(u.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:''});
+      return route.abort('blockedbyclient');
+    });
+    for(let attempt=1;attempt<=3;attempt++){
+      const errors=[];
+      const listener=msg=>{if(msg.type()==='error')errors.push(msg.text())};
+      page.on('console',listener);
+      try{
+        const response=await page.goto(`${BASE_URL}/cephalo-r19-analysis-reference-after.html`,{waitUntil:'domcontentloaded',timeout:30000});
+        await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:20000});
+        await page.waitForLoadState('networkidle',{timeout:15000});
+        const optimizeErrors=errors.filter(e=>e.includes('Outdated Optimize Dep'));
+        if(response?.status()===200 && optimizeErrors.length===0){
+          console.log('VITE_DEP_PREWARM_STABLE',attempt);
+          return;
+        }
+        console.log('VITE_DEP_PREWARM_RETRY',attempt,optimizeErrors.length);
+      }catch(e){
+        if(attempt===3)throw e;
+        console.log('VITE_DEP_PREWARM_RETRY',attempt,String(e).slice(0,200));
+      }finally{page.off('console',listener)}
+    }
+    throw new Error('Vite optimizer did not stabilize before exact-head screenshot capture');
+  }finally{if(browser)await browser.close().catch(()=>{})}
+}
+
 try{
  await waitForServer(`${BASE_URL}/cephalo-r19-analysis-reference-after.html`);
+ await prewarmViteDependencies();
  for(const viewport of viewports){
   const attempts=[await captureViewport(viewport,1)];
   if(!attempts[0].valid)attempts.push(await captureViewport(viewport,2));

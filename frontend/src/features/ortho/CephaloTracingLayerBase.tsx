@@ -23,6 +23,8 @@ import { CephaloCalibrationOverlay } from './components/CephaloCalibrationOverla
 import { CephaloMagnifierOverlay } from './components/CephaloMagnifierOverlay';
 import { CephaloLandmarkReticles } from './components/CephaloLandmarkReticles';
 import { CephaloSvgDefs } from './components/CephaloSvgDefs';
+import { getCephaloConstructionViewport, getCephaloZoomViewBox } from './cephaloConstructionViewport';
+import { useCephaloUnitsPerPixel } from './components/useCephaloUnitsPerPixel';
 import { useCephaloInteraction } from './hooks/useCephaloInteraction';
 import type { OrthoLayerId, OrthoLayerOpacity, OrthoLayerVisibility } from './orthoLayerRegistry';
 
@@ -43,6 +45,17 @@ export interface CephaloTracingLayerProps {
   ghosts?: GhostData[];
   imageWidth: number;
   imageHeight: number;
+  /** Visual crop only. Clinical coordinates are never scaled or rewritten. */
+  viewZoom?: number;
+  viewPan?: { x: number; y: number };
+  compactLabels?: boolean;
+  /** Names to persist in desktop progressive-label mode; undefined exposes all. */
+  prominentPointIds?: readonly string[];
+  analysisPointIds?: readonly string[];
+  showAllPointMarkers?: boolean;
+  /** Keep the duplicate floating analysis tabs only on desktop or fullscreen.
+   *  The accessible analysis selector remains always available on mobile. */
+  showStageTabs?: boolean;
   onUpdateLandmarks: (newLandmarks: Landmark[]) => void;
   onKeyboardNudgeLandmark?: (id: string, dx: number, dy: number, imageWidth: number, imageHeight: number) => void;
   /** Transient rendering-only drag preview; never stored or committed here. */
@@ -153,6 +166,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   ghosts = [],
   imageWidth,
   imageHeight,
+  viewZoom = 1,
+  viewPan,
+  compactLabels = false,
+  prominentPointIds,
   onUpdateLandmarks,
   onKeyboardNudgeLandmark,
   onLandmarkDragPreview,
@@ -174,6 +191,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   layerPresentation,
 }) => {
   const P = getTracingPalette(uiMode);
+  const extendedClipId = React.useId().replace(/:/g, '');
+  const extendedFrame = React.useMemo(
+    () => getCephaloConstructionViewport(landmarks, imageWidth, imageHeight),
+    [landmarks, imageWidth, imageHeight],
+  );
   const isLayerVisible = (id: OrthoLayerId) => layerPresentation?.visibility[id] ?? true;
   const layerOpacityFor = (id: OrthoLayerId) => layerPresentation?.opacity[id] ?? 1;
   const isPro = uiMode === 'pro';
@@ -199,6 +221,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     onEmptyAreaClick,
   });
 
+  const unitsPerPixel = useCephaloUnitsPerPixel(
+    svgRef, compactLabels, getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan),
+  );
   const isHoverActive = !!hoveredMetric;
   const isLineHovered = (lineId: string) =>
     isHoverActive && hoveredMetric!.lines.map(l => l.toLowerCase()).includes(lineId.toLowerCase());
@@ -621,7 +646,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     <div className="absolute inset-0 w-full h-full z-20">
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${imageWidth} ${imageHeight}`}
+        data-cephalo-viewport="base"
+        viewBox={getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan)}
         preserveAspectRatio="xMidYMid meet"
         className={cn('w-full h-full', isCalibrating ? 'cursor-crosshair' : 'cursor-default')}
         onClick={handleSvgClick}
@@ -635,6 +661,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         }}
       >
         <CephaloSvgDefs magX={magX} magY={magY} MAG_R={MAG_R} isPro={isPro} />
+        <defs>
+          <clipPath id={extendedClipId} data-cephalo-extended-clip="true" clipPathUnits="userSpaceOnUse">
+            <rect x={extendedFrame.x} y={extendedFrame.y} width={extendedFrame.width} height={extendedFrame.height} />
+          </clipPath>
+        </defs>
 
         {imageSrc && (
           <image
@@ -675,8 +706,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
                 className="pointer-events-none"
               />
             ))}
-            {isLayerVisible('plans') && francfortLineExtended && (
+            {isLayerVisible('plans') && ['tweed', 'mcnamara'].includes(activeAnalysis.toLowerCase()) && francfortLineExtended && (
               <line
+                data-cephalo-extended-line="frankfort"
+                clipPath={`url(#${extendedClipId})`}
                 x1={francfortLineExtended.x1} y1={francfortLineExtended.y1}
                 x2={francfortLineExtended.x2} y2={francfortLineExtended.y2}
                 stroke={cephaloGeometryColor('fh')}
@@ -689,9 +722,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         </motion.g>
 
-        {isLayerVisible('plans') && mcNamaraLine && nPrime && nPrimeTick && (
+        {isLayerVisible('plans') && activeAnalysis.toLowerCase() === 'mcnamara' && mcNamaraLine && nPrime && nPrimeTick && (
           <g opacity={layerOpacityFor('plans')} data-ortho-layer="plans">
             <line
+              data-cephalo-extended-line="mcnamara"
+              clipPath={`url(#${extendedClipId})`}
               x1={mcNamaraLine.x1} y1={mcNamaraLine.y1}
               x2={mcNamaraLine.x2} y2={mcNamaraLine.y2}
               stroke={cephaloGeometryColor('mcnamara_perp')}
@@ -720,7 +755,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {isLayerVisible('measurements') && aPrime && ptA && aPrimeTick && (
+        {isLayerVisible('measurements') && ['all','mcnamara'].includes(activeAnalysis.toLowerCase()) && aPrime && ptA && aPrimeTick && (
           <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptA.x} y1={ptA.y}
@@ -751,7 +786,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {isLayerVisible('measurements') && bPrime && ptB && bPrimeTick && (
+        {isLayerVisible('measurements') && ['all','mcnamara'].includes(activeAnalysis.toLowerCase()) && bPrime && ptB && bPrimeTick && (
           <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptB.x} y1={ptB.y}
@@ -818,6 +853,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           landmarks={landmarks}
           imageWidth={imageWidth}
           imageHeight={imageHeight}
+          compactLabels={compactLabels}
+          prominentPointIds={prominentPointIds}
+          unitsPerPixel={unitsPerPixel}
+          labelViewport={getCephaloZoomViewBox(imageWidth, imageHeight, viewZoom, viewPan)}
           isCalibrating={isCalibrating}
           baseOpacity={baseOpacity}
           activeDragId={activeDragId}

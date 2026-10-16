@@ -1,7 +1,33 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import type { Landmark } from '../cephaloShared';
-import { cephaloLabelFontSize, layoutCephaloLandmarkLabels } from './cephaloLabelLayout';
+import { cephaloLabelFontSize, layoutCephaloLandmarkLabels, layoutCephaloAnatomicalLabels } from './cephaloLabelLayout';
+
+
+/**
+ * Display-only French shorthand for the 38 pinned source identifiers.
+ * No source ID, clinical coordinate, analysis record or export is renamed.
+ */
+const SHORT_ANATOMICAL_LABELS: Readonly<Record<string,string>> = Object.freeze({
+  S:'S', N:'N', Or:'Or', Po:'Po', A:'A', B:'B', Pog:'Pog',
+  Me:'Me', Gn:'Gn', Go:'Go', L1_incisal:'L1', U1_incisal:'U1',
+  Ls_soft:'Ls', Li_soft:'Li', Sn_soft:'Sn', Pog_soft:'Pog′',
+  PNS:'ENP', ANS:'ENA', Ar:'Ar', D_point:'D',
+  U1_apex:'U1 A', L1_apex:'L1 A', Cm:'Cm', Ptm:'Ptm',
+  Co:'Co', Prn:'Prn', Ba:'Ba', PT_point:'PT', Bo:'Bo',
+  Ls2:'Ls2', Li2:'Li2', Gn_soft:'Gn′', Me_soft:'Me′',
+  G_soft:'G′', N_soft:'N′', A_soft:'A′', B_soft:'B′', C_point:'C', U6:'U6', L6:'L6',
+  U1_facial_surface:'U1 V', L1_facial_surface:'L1 V',
+  Po_anatomic:'Po a', Gn_anatomic:'Gn a',
+  Pog_hard:'Pog os', D_Steiner_1959:'D St',
+  Occ_Steiner_Ant:'Occ St A', Occ_Steiner_Post:'Occ St P',
+  Occ_Ant:'Occ A', Occ_Post:'Occ P',
+});
+
+/** Unknown/manual identities stay exact: never invent a clinical shorthand. */
+export function cephaloShortPointName(id: string): string {
+  return SHORT_ANATOMICAL_LABELS[id] ?? id;
+}
 
 const SOFT_TISSUE_IDS = new Set([
   'ul', 'll', 'sn', 'stpog', 'ls', 'li', 'prn', 'cm', 'g_soft', 'n_soft', 'a_soft', 'st', 'b_soft', 'pog_soft', 'me_soft', 'g-soft', 'n-soft'
@@ -12,6 +38,12 @@ interface CephaloLandmarkReticlesProps {
   /** Anatomical image-space bounds, not CSS/viewBox viewport pixels. */
   imageWidth: number;
   imageHeight: number;
+  /** Display-only labels, enabled in the desktop embedded workbench only. */
+  compactLabels?: boolean;
+  /** Undefined keeps legacy all-name mode; otherwise show only these names + actively inspected names. */
+  prominentPointIds?: readonly string[];
+  unitsPerPixel?: number;
+  labelViewport?: string;
   isCalibrating: boolean;
   baseOpacity: number;
   activeDragId: string | null;
@@ -46,6 +78,10 @@ export const CephaloLandmarkReticles = ({
   landmarks,
   imageWidth,
   imageHeight,
+  compactLabels = false,
+  prominentPointIds,
+  unitsPerPixel = 1,
+  labelViewport = '',
   isCalibrating,
   baseOpacity,
   activeDragId,
@@ -76,17 +112,28 @@ export const CephaloLandmarkReticles = ({
   const priorityId = activeDragId ?? keyboardFocusedId ?? focusedPointId ?? hoveredPointId ?? activePointId ?? null;
   const shownLabels = new Set<string>();
   for (const point of landmarks) {
-    if ((isHoverActive && hoveredIds.has(point.id.toLowerCase()))
+    if ((compactLabels && !prominentPointIds) || prominentPointIds?.includes(point.id)
+      || (isHoverActive && hoveredIds.has(point.id.toLowerCase()))
       || point.id === keyboardFocusedId || point.id === focusedPointId
       || point.id === activeDragId || point.id === hoveredPointId
       || point.id === activePointId) shownLabels.add(point.id);
   }
-  const labelPositions = layoutCephaloLandmarkLabels(
+  const labelPositions = compactLabels ? new Map() : layoutCephaloLandmarkLabels(
     landmarks.map(point => activeDragPos?.id === point.id
       ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
     shownLabels, priorityId, imageWidth, imageHeight,
   );
-  const labelFontSize = cephaloLabelFontSize(imageWidth, imageHeight);
+  const anatomicalLabels = useMemo(() => compactLabels
+    ? layoutCephaloAnatomicalLabels(
+        landmarks.map(point => activeDragPos?.id === point.id
+          ? { ...point, x: activeDragPos.x, y: activeDragPos.y } : point),
+        labelViewport, unitsPerPixel, imageWidth, cephaloShortPointName,
+      )
+    : new Map(), [compactLabels, landmarks, activeDragPos, labelViewport, unitsPerPixel, imageWidth]);
+  const markerScale = Math.max(0.1, Math.min(unitsPerPixel, 30));
+  const labelFontSize = compactLabels
+    ? 16 * Math.max(0.1, Math.min(unitsPerPixel, 30))
+    : cephaloLabelFontSize(imageWidth, imageHeight);
 
   return (
     <>
@@ -111,7 +158,7 @@ export const CephaloLandmarkReticles = ({
 
         const ptOp = activeDragId
           ? (isDragged ? 1 : P.isolationDim)
-          : (isFocused || isActive ? 1 : (isHovMetric ? baseOpacity * 0.92 : baseOpacity * 0.50));
+          : (isFocused || isActive ? 1 : (isHovMetric ? Math.min(1, baseOpacity) : (compactLabels ? Math.min(1, baseOpacity * 0.96) : baseOpacity * 0.50)));
 
         const glowStyle = isPro && (isDragged || isFocused || isHovMetric)
           ? { filter: `drop-shadow(0 0 6px ${renderColor})` } : {};
@@ -127,7 +174,7 @@ export const CephaloLandmarkReticles = ({
               data-ceph03b-keyboard-focused={isFocused ? 'true' : undefined}
               tabIndex={0}
               role="button"
-              aria-label={`Point anatomique ${pt.id}, flèches pour déplacer de 1 pixel image, Maj et flèches pour 10 pixels`}
+              aria-label={`Point anatomique ${cephaloShortPointName(pt.id)}, flèches pour déplacer de 1 pixel image, Maj et flèches pour 10 pixels`}
               aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight"
               onFocus={() => setKeyboardFocusedId(pt.id)}
               onBlur={() => setKeyboardFocusedId(previous => previous === pt.id ? null : previous)}
@@ -231,17 +278,20 @@ export const CephaloLandmarkReticles = ({
               <circle cx={dispX} cy={dispY} r={20} fill="transparent" stroke="transparent" />
               {isFocused && (
                 <g data-ceph03b-focus-ring={pt.id} pointerEvents="none">
-                  <circle cx={dispX} cy={dispY} r={19} fill="none"
-                    stroke="#0b1220" strokeWidth="7" vectorEffect="non-scaling-stroke" />
-                  <circle cx={dispX} cy={dispY} r={19} fill="none"
-                    stroke="#ffffff" strokeWidth="3.5" vectorEffect="non-scaling-stroke" />
+                  <circle cx={dispX} cy={dispY} r={compactLabels ? 6.5 * markerScale : 19} fill="none"
+                    stroke="#0b1220" strokeWidth={compactLabels ? 2.5 : 7} vectorEffect="non-scaling-stroke" />
+                  <circle cx={dispX} cy={dispY} r={compactLabels ? 6.5 * markerScale : 19} fill="none"
+                    stroke="#ffffff" strokeWidth={compactLabels ? 1.4 : 3.5} vectorEffect="non-scaling-stroke" />
                 </g>
               )}
               <circle
+                data-cephalo-point-core={pt.id}
                 cx={dispX}
                 cy={dispY}
-                r={isFocused || isDragged ? 5 : 3.5}
+                r={compactLabels ? (isFocused || isDragged ? 3.1 : 2.5) * markerScale : (isFocused || isDragged ? 5 : 3.5)}
                 fill={renderColor}
+                stroke={compactLabels ? '#020617' : 'none'}
+                strokeWidth={compactLabels ? 1.5 : 0}
                 vectorEffect="non-scaling-stroke"
               />
 
@@ -250,7 +300,7 @@ export const CephaloLandmarkReticles = ({
                   <circle
                     cx={dispX}
                     cy={dispY}
-                    r={9}
+                    r={compactLabels ? 5.5 * markerScale : 9}
                     fill="none"
                     stroke={renderColor}
                     strokeWidth="1.5"
@@ -261,7 +311,7 @@ export const CephaloLandmarkReticles = ({
                     <motion.circle
                       cx={dispX}
                       cy={dispY}
-                      r={15}
+                      r={compactLabels ? 8 * markerScale : 15}
                       fill="none"
                       stroke={renderColor}
                       strokeWidth="0.8"
@@ -273,25 +323,11 @@ export const CephaloLandmarkReticles = ({
                 </>
               )}
 
-              {labelPosition && (
+              {!compactLabels && labelPosition && (
                 <>
-                <rect
-                  data-ceph03b-label-background={pt.id}
-                  x={labelPosition.x - labelFontSize * 0.18}
-                  y={labelPosition.y - labelPosition.height}
-                  width={labelPosition.width + labelFontSize * 0.36}
-                  height={labelPosition.height + labelFontSize * 0.26}
-                  rx={labelFontSize * 0.18}
-                  fill="#07111f"
-                  fillOpacity="0.92"
-                  stroke="#e2e8f0"
-                  strokeOpacity="0.65"
-                  strokeWidth="1.25"
-                  vectorEffect="non-scaling-stroke"
-                  pointerEvents="none"
-                />
                 <text
                   data-ceph03b-landmark-label={pt.id}
+                  data-cephalo-landmark-label={compactLabels ? pt.id : undefined}
                   x={labelPosition.x}
                   y={labelPosition.y}
                   fontSize={labelFontSize}
@@ -299,9 +335,9 @@ export const CephaloLandmarkReticles = ({
                   fontWeight="900"
                   className="pointer-events-none select-none"
                   fill="#f8fafc"
-                  style={{ paintOrder: 'stroke', stroke: '#07111f', strokeWidth: labelFontSize * 0.1 }}
+                  style={{ paintOrder: 'stroke', stroke: '#020617', strokeWidth: Math.max(2.8, labelFontSize * 0.12) }}
                 >
-                  {pt.id}
+                  {cephaloShortPointName(pt.id)}
                 </text>
                 </>
               )}
@@ -309,6 +345,44 @@ export const CephaloLandmarkReticles = ({
           </motion.g>
         );
       })}
+      {compactLabels && !isCalibrating && baseOpacity > 0.08 && (
+        <g data-cephalo-anatomical-labels="true" pointerEvents="none">
+          {landmarks.map(point => {
+            const place = anatomicalLabels.get(point.id);
+            if (!place || (prominentPointIds && !shownLabels.has(point.id))) return null;
+            const emphasized = point.id === activeDragId || point.id === activePointId
+              || point.id === keyboardFocusedId || point.id === hoveredPointId
+              || point.id === focusedPointId;
+            return (
+              <g key={point.id}>
+                {place.leaderNeeded && <line
+                  data-cephalo-label-leader={point.id}
+                  x1={place.sourceX} y1={place.sourceY}
+                  x2={place.leaderEndX} y2={place.leaderEndY}
+                  stroke={emphasized ? '#fef08a' : '#93c5fd'}
+                  strokeOpacity={emphasized ? 0.50 : 0.18}
+                  strokeWidth={emphasized ? 1.2 : 0.65}
+                  vectorEffect="non-scaling-stroke"
+                />}
+                <text
+                  data-ceph03b-landmark-label={point.id}
+                  data-cephalo-landmark-label={point.id}
+                  x={place.x}
+                  y={place.y}
+                  textAnchor="start"
+                  fontSize={labelFontSize}
+                  fontFamily="'IBM Plex Mono','JetBrains Mono',monospace"
+                  fontWeight={emphasized ? 800 : 700}
+                  className="select-none"
+                  fill={emphasized ? '#fef08a' : '#ffffff'}
+                  strokeLinejoin="round"
+                  style={{ paintOrder: 'stroke', stroke: '#020617', strokeWidth: '3.5px' }}
+                >{cephaloShortPointName(point.id)}</text>
+              </g>
+            );
+          })}
+        </g>
+      )}
     </>
   );
 };

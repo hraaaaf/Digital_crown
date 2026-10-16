@@ -285,7 +285,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const workspaceWidthClass = viewMode === 'history'
     ? 'max-w-5xl'
     : step === 1
-      ? 'max-w-7xl'
+      ? 'max-w-[1480px]'
       : step >= 3
         ? 'max-w-6xl'
         : 'max-w-5xl';
@@ -339,12 +339,12 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-6 md:flex-row md:flex-wrap md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
+      <div className="flex flex-col gap-1.5 border-b px-3 py-2 sm:gap-3 sm:px-6 sm:py-3 md:flex-row md:flex-wrap md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
         <div className="min-w-0">
           <h2 data-ortho-workspace-title className="text-lg font-bold leading-tight" style={{ color: P.text }}>Céphalométrie</h2>
           <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName}</p>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-3">
           <div className="flex shrink-0 rounded-xl p-1" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
              <button type="button" aria-pressed={viewMode === 'studio'} onClick={() => setViewMode('studio')} className="min-h-9 rounded-lg px-3 text-xs font-bold transition-all" style={{ background: viewMode === 'studio' ? P.bgCard : 'transparent', color: viewMode === 'studio' ? P.text : P.textMuted, boxShadow: viewMode === 'studio' ? P.shadow : 'none' }}>Actuel</button>
              <button type="button" aria-pressed={viewMode === 'history'} onClick={() => setViewMode('history')} className="min-h-9 rounded-lg px-3 text-xs font-bold transition-all" style={{ background: viewMode === 'history' ? P.bgCard : 'transparent', color: viewMode === 'history' ? P.text : P.textMuted, boxShadow: viewMode === 'history' ? P.shadow : 'none' }}>Historique</button>
@@ -354,6 +354,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
             type="button"
             onClick={handleSave}
             disabled={!analysisId || isSaving}
+            aria-busy={isSaving}
+            aria-label={isSaving ? "Sauvegarde de l’analyse en cours" : "Sauvegarder l’analyse céphalométrique"}
             className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-all disabled:opacity-50 shadow-sm hover:shadow-md sm:px-4"
             style={{ background: P.bgCard, border: `1px solid ${P.border}`, color: P.text }}
           >
@@ -363,14 +365,35 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         </div>
       </div>
 
-      <div data-tour="cephalo-stepper" className="flex max-w-full flex-wrap items-center gap-2 px-4 py-3 sm:px-6" style={{ background: P.bg }}>
-        <StepTab id={1} label="Céphalométrie" isActive={step === 1} isCompleted={completedSteps.has(1)} onClick={() => goToStep(1)} P={P} />
-        <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
-        <StepTab id={2} label="Moulages" isActive={step === 2} isCompleted={completedSteps.has(2)} onClick={() => goToStep(2)} P={P} />
-        <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
-        <StepTab id={3} label="Synthèse clinique" isActive={step === 3} isCompleted={completedSteps.has(3)} onClick={() => goToStep(3)} P={P} />
-        <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
-        <StepTab id={4} label="Documents & stratégie" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
+      <p className="sr-only" id="cephalo-keyboard-help">
+        Navigation clavier : Tab et Maj Tab pour parcourir les commandes, Entrée ou Espace pour activer.
+        Dans les corrections de repères : Ctrl ou Commande plus Z pour annuler, Ctrl ou Commande plus Maj plus Z pour rétablir.
+        Échap quitte le plein écran.
+      </p>
+      <div data-tour="cephalo-stepper" aria-label="Étapes du chantier céphalométrique" aria-describedby="cephalo-keyboard-help" className="max-w-full px-3 py-1.5 sm:px-6 sm:py-3" style={{ background: P.bg }}>
+        <div className="flex items-center gap-2 md:hidden">
+          <label htmlFor="cephalo-mobile-step" className="shrink-0 text-xs font-semibold" style={{ color: P.textMuted }}>Étape</label>
+          <select id="cephalo-mobile-step" data-cephalo-mobile-step-selector
+            aria-label="Naviguer entre les étapes céphalométriques"
+            value={step}
+            onChange={event => goToStep(Number(event.target.value) as StepId)}
+            className="min-h-10 min-w-0 flex-1 rounded-lg border px-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+            style={{ background: P.bgPanel, color: P.text, borderColor: P.borderFocus }}>
+            <option value={1}>1 · Céphalométrie</option>
+            <option value={2}>2 · Moulages</option>
+            <option value={3}>3 · Synthèse clinique</option>
+            <option value={4}>4 · Documents et stratégie</option>
+          </select>
+        </div>
+        <div className="hidden flex-wrap items-center gap-2 md:flex">
+          <StepTab id={1} label="Céphalométrie" isActive={step === 1} isCompleted={completedSteps.has(1)} onClick={() => goToStep(1)} P={P} />
+          <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
+          <StepTab id={2} label="Moulages" isActive={step === 2} isCompleted={completedSteps.has(2)} onClick={() => goToStep(2)} P={P} />
+          <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
+          <StepTab id={3} label="Synthèse clinique" isActive={step === 3} isCompleted={completedSteps.has(3)} onClick={() => goToStep(3)} P={P} />
+          <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
+          <StepTab id={4} label="Documents & stratégie" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
+        </div>
       </div>
 
       <AnimatePresence>
@@ -384,7 +407,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      <div ref={scrollContainerRef} className="min-w-0 flex-1 overflow-auto p-3 scroll-smooth sm:p-6" style={{ background: P.bg }}>
+      <div ref={scrollContainerRef} className="min-w-0 flex-1 overflow-auto p-2 scroll-smooth sm:p-6" style={{ background: P.bg }}>
         <div className={`mx-auto w-full min-w-0 ${workspaceWidthClass}`}>
           {viewMode === 'studio' ? (
             <>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Landmark } from '../cephaloShared';
-import { CephaloLandmarkReticles } from './CephaloLandmarkReticles';
+import { CephaloLandmarkReticles, cephaloShortPointName } from './CephaloLandmarkReticles';
 import { CephaloTracingLayer as CephaloTracingLayerBase } from '../CephaloTracingLayerBase';
 
 const baseline: Landmark[] = [{ id: 'N', x: 30, y: 40 }, { id: 'S', x: 60, y: 70 }];
@@ -20,7 +20,7 @@ const palette = {
 
 const clientToSVG = (x: number, y: number) => ({ x, y });
 
-function Fixture({ onUpdate, calibrating = false }: { onUpdate: (pts: Landmark[]) => void; calibrating?: boolean }) {
+function Fixture({ onUpdate, calibrating = false, compactLabels = false, prominentPointIds }: { onUpdate: (pts: Landmark[]) => void; calibrating?: boolean; compactLabels?: boolean; prominentPointIds?: readonly string[] }) {
   const [points, setPoints] = useState(baseline.map(point => ({ ...point })));
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [activeDragPos, setActiveDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -32,6 +32,9 @@ function Fixture({ onUpdate, calibrating = false }: { onUpdate: (pts: Landmark[]
         landmarks={points}
         imageWidth={180}
         imageHeight={180}
+        compactLabels={compactLabels}
+        prominentPointIds={prominentPointIds}
+        labelViewport="0 0 1200 1600"
         isCalibrating={calibrating}
         baseOpacity={1}
         activeDragId={activeDragId}
@@ -82,7 +85,7 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
         configurable: true, writable: true, value: originalCapture,
       });
     } else {
-      delete (Element.prototype as Element & { setPointerCapture?: unknown }).setPointerCapture;
+      Reflect.deleteProperty(Element.prototype, 'setPointerCapture');
     }
     for (const [name, original] of [
       ['createSVGPoint', originalSvgPoint],
@@ -161,7 +164,7 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
         onUpdateLandmarks={onUpdate}
         magnifierEnabled={false}
         activeAnalysis="steiner"
-        vto={{ enabled: true, showGhostFace: false, showSoftTissue: false }}
+        vto={{ enabled: true, showGhostFace: false, showSoftTissue: false, u1_offset: { x: 0, y: 0 }, l1_offset: { x: 0, y: 0 }, mand_offset: { x: 0, y: 0 } }}
       />,
     );
 
@@ -249,7 +252,7 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     fireEvent.pointerEnter(handle);
     expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(1);
     expect(document.querySelector('[data-ceph03b-landmark-label="N"]')).not.toBeNull();
-    expect(document.querySelectorAll('[data-ceph03b-label-background="N"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-ceph03b-label-background="N"]')).toHaveLength(0);
     expect(Number(document.querySelector('[data-ceph03b-landmark-label="N"]')?.getAttribute('font-size'))).toBeGreaterThanOrEqual(42);
     fireEvent.pointerLeave(handle);
     expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(0);
@@ -261,6 +264,71 @@ describe('DC-CEPH03B desktop landmark drag lifecycle', () => {
     fireEvent.blur(handle);
     expect(document.querySelectorAll('[data-ceph03b-focus-ring]')).toHaveLength(0);
     expect(document.querySelectorAll('[data-ceph03b-landmark-label]')).toHaveLength(0);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('desktop priority disclosure keeps both handles, reveals secondary on hover/focus, and never edits', () => {
+    const onUpdate = vi.fn();
+    const view = render(<Fixture onUpdate={onUpdate} compactLabels prominentPointIds={['N']} />);
+    expect(document.querySelectorAll('[data-ceph03b-drag-handle]')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-cephalo-landmark-label]')).toHaveLength(1);
+    expect(document.querySelector('[data-cephalo-landmark-label="N"]')).not.toBeNull();
+    const secondary = document.querySelector('[data-ceph03b-drag-handle="S"]') as SVGGElement;
+    fireEvent.pointerEnter(secondary);
+    expect(document.querySelector('[data-cephalo-landmark-label="S"]')).not.toBeNull();
+    fireEvent.pointerLeave(secondary);
+    expect(document.querySelector('[data-cephalo-landmark-label="S"]')).toBeNull();
+    fireEvent.focus(secondary);
+    expect(document.querySelector('[data-cephalo-landmark-label="S"]')).not.toBeNull();
+    fireEvent.blur(secondary);
+    expect(document.querySelector('[data-cephalo-landmark-label="S"]')).toBeNull();
+    expect(onUpdate).not.toHaveBeenCalled();
+    view.rerender(<Fixture onUpdate={onUpdate} compactLabels />);
+    expect(document.querySelectorAll('[data-cephalo-landmark-label]')).toHaveLength(2);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+
+  it('has 38 distinct, concise French display aliases for pinned SRPose38 IDs', () => {
+    const source = ['S','N','Or','Po','A','B','Pog','Me','Gn','Go',
+      'L1_incisal','U1_incisal','Ls_soft','Li_soft','Sn_soft','Pog_soft',
+      'PNS','ANS','Ar','D_point','U1_apex','L1_apex','Cm','Ptm','Co',
+      'Prn','Ba','PT_point','Bo','Ls2','Li2','Gn_soft','Me_soft',
+      'G_soft','N_soft','C_point','U6','L6'];
+    const labels = source.map(cephaloShortPointName);
+    expect(source).toHaveLength(38);
+    expect(new Set(labels).size).toBe(38);
+    expect(labels.every(label => label.length<=5 && !label.includes('_'))).toBe(true);
+    expect(cephaloShortPointName('L1_incisal')).toBe('L1');
+    expect(cephaloShortPointName('U1_incisal')).toBe('U1');
+    expect(cephaloShortPointName('L1_apex')).toBe('L1 A');
+    expect(cephaloShortPointName('U1_apex')).toBe('U1 A');
+    expect(cephaloShortPointName('N_soft')).toBe('N′');
+    expect(cephaloShortPointName('Pog_soft')).toBe('Pog′');
+    expect(cephaloShortPointName('ANS')).toBe('ENA');
+    expect(cephaloShortPointName('PNS')).toBe('ENP');
+    expect(cephaloShortPointName('UNKNOWN_CLINICAL_ID')).toBe('UNKNOWN_CLINICAL_ID');
+    // Canonical manual identities can coexist with automatic SRPose38 points.
+    // Display must neither collide nor leak raw English-like technical IDs.
+    const optionalManual=['Gn_anatomic','U1_facial_surface','L1_facial_surface',
+      'D_Steiner_1959','Occ_Steiner_Ant','Occ_Steiner_Post','Pog_hard'];
+    const optionalLabels=optionalManual.map(cephaloShortPointName);
+    expect(optionalLabels.every(label=>label.length<=8&&!label.includes('_'))).toBe(true);
+    expect(new Set([...labels,...optionalLabels]).size).toBe(labels.length+optionalLabels.length);
+    expect(cephaloShortPointName('Occ_Steiner_Ant')).toBe('Occ St A');
+    expect(cephaloShortPointName('Occ_Steiner_Post')).toBe('Occ St P');
+    expect(cephaloShortPointName('Pog_hard')).toBe('Pog os');
+  });
+
+  it('renders each desktop point as a small, outlined, persistent core without editing coordinates', () => {
+    const onUpdate = vi.fn();
+    render(<Fixture onUpdate={onUpdate} compactLabels prominentPointIds={['N']} />);
+    const circles = Array.from(document.querySelectorAll('[data-cephalo-point-core]'));
+    expect(circles).toHaveLength(2);
+    expect(circles.every(circle=>circle.getAttribute('stroke')==='#020617')).toBe(true);
+    expect(circles.every(circle=>Number(circle.getAttribute('r'))===2.5)).toBe(true);
+    expect(circles.map(circle=>[circle.getAttribute('cx'),circle.getAttribute('cy')]))
+      .toEqual([['30','40'],['60','70']]);
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
