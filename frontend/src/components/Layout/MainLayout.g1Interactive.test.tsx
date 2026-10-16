@@ -178,3 +178,38 @@ describe('CB-01 Associate Sidecar: double gating and no hidden duplicate', () =>
     expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeTruthy();
   });
 });
+
+
+describe('CB-01 keyboard and reflow safeguards', () => {
+  it('focuses the reduction control on open, closes with Escape and restores launcher focus', async () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    simulateViewport(true);
+    const result = renderAt('/dashboard');
+    const launcher = screen.getByRole('button', { name: 'Ouvrir CrownBot' });
+    launcher.focus();
+    fireEvent.click(launcher);
+    const closeButton = screen.getByRole('button', { name: 'Réduire le panneau Crown Bot' });
+    await waitFor(() => expect(document.activeElement).toBe(closeButton));
+    const sidecar = result.container.querySelector('[data-cb01-associate-sidecar]');
+    expect(sidecar).toBeTruthy();
+    fireEvent.keyDown(sidecar as Element, { key: 'Escape' });
+    await waitFor(() => expect(sidecar?.isConnected).toBe(false));
+    expect(document.activeElement).toBe(launcher);
+    expect(screen.getByText('Page content')).toBeTruthy();
+  });
+
+  it('collapsing with its native button restores keyboard focus to the launcher', async () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    simulateViewport(true);
+    renderAt('/dashboard');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    const closeButton = screen.getByRole('button', { name: 'Réduire le panneau Crown Bot' });
+    await waitFor(() => expect(document.activeElement).toBe(closeButton));
+    fireEvent.click(closeButton);
+    await waitFor(() => expect(
+      document.activeElement,
+    ).toBe(screen.getByRole('button', { name: 'Ouvrir CrownBot' })));
+  });
+});
