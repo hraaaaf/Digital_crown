@@ -63,11 +63,15 @@ const verifySvg=async(page,expected)=>{
   return handles.length;
 };
 const setMode=async(page,mode)=>{
-  if(await page.locator('[data-cephalo-analysis="'+mode+'"]').count())return;
-  const name=mode==='com'?'COM':'Tous';
-  const button=page.locator('[data-cephalo-analysis] button').filter({hasText:new RegExp('^'+name+'$')}).first();
-  await button.click();
-  await page.locator('[data-cephalo-analysis="'+mode+'"]').waitFor({timeout:10000});
+  const analysis=page.locator('[data-cephalo-analysis="'+mode+'"]');
+  if(await analysis.count())return;
+  // The real Cabinet analysis selector is the single source for all six
+  // requested modes: never click "Tous" when certifying another analysis.
+  const chooser=page.locator('#cephalo-ready-analysis');
+  await chooser.selectOption(mode);
+  await analysis.waitFor({state:'visible',timeout:10000});
+  assert(await chooser.inputValue()===mode,
+    'Clinical analysis selector failed to retain '+mode);
 };
 const shot=async(page,film,mode,size,stage)=>{
   const name=film+'-'+mode+'-'+size+'-'+stage+'.png';
