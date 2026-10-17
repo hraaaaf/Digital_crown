@@ -10,10 +10,10 @@ vi.mock('../services/api', () => ({
   API_BASE: 'http://127.0.0.1:8005',
 }));
 
-const authState = vi.hoisted(() => ({ employerId: 42 }));
+const authState = vi.hoisted(() => ({ employerId: 42, userId: 9 }));
 vi.mock('../stores/useAuthStore', () => ({
   useAuthStore: () => ({
-    user: { id: 9, employer_id: authState.employerId },
+    user: { id: authState.userId, employer_id: authState.employerId },
   }),
 }));
 
@@ -72,6 +72,7 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     vi.clearAllMocks();
     FakeWebSocket.instances = [];
     authState.employerId = 42;
+    authState.userId = 9;
     localStorage.setItem('token', 'g9-token');
     vi.stubGlobal('WebSocket', FakeWebSocket as any);
     postMock.mockResolvedValue({ data: { status: 'read' } } as any);
@@ -201,6 +202,20 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     await act(async () => { resolveOldAck?.({ data: { status: 'read' } }); });
     expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
     expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+  });
+
+  it('S12: switching staff within one cabinet clears data and re-authenticates WS', async () => {
+    const { rerender } = await renderSeededWidget();
+    authState.userId = 10;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')).toBeNull();
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    expect(FakeWebSocket.instances[1].url).toContain('/ghost-insights/42?token=');
   });
 
   it('removes the insight only after backend ACK', async () => {
