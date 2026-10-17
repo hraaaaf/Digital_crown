@@ -25,12 +25,11 @@ def lock_cabinet_appointment_writes(db: Session, employer_id: int) -> None:
             key = (_PG_LOCK_NAMESPACE << 32) | (int(employer_id) & 0xFFFFFFFF)
             db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": key})
         elif dialect == "sqlite":
-            # A read dependency may have opened an ORM transaction already.
-            # This is called at the very start of each write endpoint, before
-            # any pending appointment write. BEGIN IMMEDIATE acquires SQLite's
-            # RESERVED writer lock, serializing the following check and commit.
-            db.commit()
-            db.execute(text("BEGIN IMMEDIATE"))
+            # Acquire SQLite's writer lock without an implicit COMMIT: Patient
+            # Companion already owns an uncommitted replay receipt and its
+            # booking must commit/rollback atomically with that receipt.
+            # A no-op UPDATE still acquires the SQLite writer reservation.
+            db.execute(text("UPDATE appointments SET id=id WHERE 1=0"))
         else:
             raise HTTPException(
                 status_code=503,

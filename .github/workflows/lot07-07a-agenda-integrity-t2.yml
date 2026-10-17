@@ -61,6 +61,7 @@ jobs:
           pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/lot07-agenda-integrity-reqs.txt
           pip install -r /tmp/lot07-agenda-integrity-reqs.txt
+          pip install 'email-validator>=2,<3'
       - name: Exercise duration-aware overlaps and negative contracts on isolated SQLite
         run: |
           python -m pytest backend/tests/test_lot07_07a_overlap_remediation.py backend/tests/test_agenda_a4_resource_conflicts.py -q
@@ -132,7 +133,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install isolated locking test dependencies
-        run: python -m pip install 'fastapi>=0.115,<1' 'sqlalchemy>=2,<2.1' 'psycopg[binary]>=3.2,<4'
+        run: python -m pip install 'fastapi>=0.115,<1' 'sqlalchemy>=2,<2.1' 'psycopg[binary]>=3.2,<4' 'email-validator>=2,<3'
       - name: Exercise actual PostgreSQL same-cabinet serialization
         env:
           PG_DSN: postgresql+psycopg://synthetic:synthetic_ci_only@127.0.0.1:5432/dc_agenda_synthetic

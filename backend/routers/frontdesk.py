@@ -8,6 +8,10 @@ from backend.database import get_db
 from backend import models, schemas
 from backend.routers.auth import get_current_user, has_permission
 from backend.services.audit_service import audit_service
+from backend.services.agenda_write_lock import lock_cabinet_appointment_writes
+from backend.services.agenda_availability import validate_appointment_availability
+from backend.services.agenda_resource_conflicts import assert_resource_available
+from backend.routers.appointments import _find_conflicts, _naive_datetime
 
 router = APIRouter(tags=["frontdesk"])
 
@@ -23,10 +27,22 @@ async def create_appointment_request(
         raise HTTPException(status_code=403, detail="Permission refusée.")
 
     employer_id = current_user.get_employer_id()
+    # The existing Agenda oracle treats EN_ATTENTE_* as capacity blockers;
+    # preserve that contract rather than inventing a new pending policy.
+    lock_cabinet_appointment_writes(db, employer_id)
+    start = _naive_datetime(req.requested_start)
+    unavailable = validate_appointment_availability(
+        db, employer_id, start, req.duration_minutes, models.SchedulingType.EXACT_TIME,
+        practitioner_id=None,
+    )
+    if unavailable:
+        raise HTTPException(status_code=422, detail=unavailable)
+    if _find_conflicts(db, employer_id, None, start, req.duration_minutes):
+        raise HTTPException(status_code=409, detail="Créneau déjà occupé")
 
     appointment = models.Appointment(
         patient_name=f"{req.last_name} {req.first_name}",
-        datetime_start=req.requested_start,
+        datetime_start=start,
         duration_minutes=req.duration_minutes,
         motif=req.appointment_reason,
         status=schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
@@ -168,9 +184,13 @@ async def confirm_appointment(
         raise HTTPException(status_code=403, detail="Permission refusée.")
 
     employer_id = current_user.get_employer_id()
+    # Locks are per cabinet across Frontdesk, Agenda, Bot and Patient Companion.
+    # Re-read status and effective capacity only after acquiring the lock.
+    lock_cabinet_appointment_writes(db, employer_id)
     appt = db.query(models.Appointment).filter(
         models.Appointment.id == appointment_id,
         models.Appointment.employer_id == employer_id,
+        models.Appointment.deleted_at.is_(None),
     ).first()
 
     if not appt:
@@ -186,6 +206,24 @@ async def confirm_appointment(
         appt.status = schemas.AppointmentStatus.EXPIRE
         db.commit()
         raise HTTPException(status_code=410, detail="Demande expirée.")
+
+    if appt.scheduling_type == models.SchedulingType.EXACT_TIME:
+        unavailable = validate_appointment_availability(
+            db, employer_id, appt.datetime_start, appt.duration_minutes,
+            models.SchedulingType.EXACT_TIME, practitioner_id=appt.praticien_id,
+        )
+        if unavailable:
+            raise HTTPException(status_code=422, detail=unavailable)
+        if _find_conflicts(
+            db, employer_id, appt.praticien_id, appt.datetime_start,
+            appt.duration_minutes, exclude_id=appt.id,
+        ):
+            raise HTTPException(status_code=409, detail="Créneau déjà occupé")
+        assert_resource_available(
+            db, employer_id=employer_id, resource_id=appt.resource_id,
+            datetime_start=appt.datetime_start, duration_minutes=appt.duration_minutes,
+            exclude_appointment_id=appt.id,
+        )
 
     appt.status = schemas.AppointmentStatus.CONFIRME
     appt.confirmed_by_id = current_user.id
