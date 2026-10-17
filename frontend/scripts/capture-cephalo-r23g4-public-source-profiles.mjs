@@ -183,9 +183,22 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
     fail('G6 reset did not restore the original viewBox '+viewportName);
   if(![zoomed,panned,restored].every(x=>x.documentWidth-x.viewportWidth<=2&&x.focusUnavailable))
     fail('G6 overflow or unauthorized scientific Focus '+viewportName);
+  // A Vite dev hot-navigation can briefly produce an all-white frame between
+  // the reset click and its next paint. Require a *stable* rendered SVG before
+  // capturing; never accept a blank screenshot as proof.
+  await page.waitForTimeout(550);
+  await page.locator('svg[data-cephalo-viewport="base"] image').waitFor({state:'visible',timeout:15000});
+  await stage.scrollIntoViewIfNeeded();
+  const stableRestored=await snapshot();
+  if(stableRestored.base!==initial.base||stableRestored.overlay!==initial.overlay||
+    stableRestored.label!=='100 %'||
+    JSON.stringify(stableRestored.storeLandmarks)!==JSON.stringify(initial.storeLandmarks))
+    fail('G6 post-render reset state changed unexpectedly '+viewportName);
   const screenshotReset=phase.toLowerCase()+'-g6-'+viewportName+'-reset.png';
   await page.screenshot({path:path.join(out,screenshotReset),fullPage:false});
-  return {mobile:isMobile,available:true,initial,zoomed,panned,restored,screenshots:[untouched,screenshot200,screenshotPan,screenshotReset]};
+  const resetBytes=(await stat(path.join(out,screenshotReset))).size;
+  if(resetBytes<10000)fail('G6 reset captured blank or incomplete viewport '+viewportName+' bytes='+resetBytes);
+  return {mobile:isMobile,available:true,initial,zoomed,panned,restored:stableRestored,screenshots:[untouched,screenshot200,screenshotPan,screenshotReset]};
 }
 async function capture(v){
  const viewportName=v.width+'x'+v.height;
