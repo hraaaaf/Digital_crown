@@ -56,10 +56,18 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Existing agenda behavior plus new concurrency contract
+      - name: Agenda behavior and Casablanca calendar regressions
         working-directory: frontend
+        env:
+          TZ: Africa/Casablanca
         run: |
           npx vitest run src/features/agenda/AgendaStudio.g3Interactive.test.tsx src/AgendaClinicA2.test.ts src/features/agenda/agendaDayOverlapLayout.test.ts src/features/agenda/agendaClinicLocalDate.test.ts --maxWorkers=1 --fileParallelism=false
+      - name: Separate west-of-UTC process regression
+        working-directory: frontend
+        env:
+          TZ: America/New_York
+        run: |
+          npx vitest run src/features/agenda/agendaClinicLocalDateOtherTZ.test.ts --maxWorkers=1 --fileParallelism=false
       - name: Typecheck and Vite build without deployment
         working-directory: frontend
         run: |
