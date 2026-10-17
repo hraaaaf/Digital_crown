@@ -1,8 +1,10 @@
 import React from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { publishCephaloMetricFocus } from '../cephaloAnalysisBridge';
 import {
   readCephaloR23G2Protocol,
+  resolveR23G3RuntimeFocus,
   type R23G2Analysis,
   type R23G2ProtocolRow,
   type R23G2RickettsVersion,
@@ -55,6 +57,15 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
     [anglesData, analysis, version],
   );
   const rows = profile?.rows ?? [];
+  const [selectedMeasurementId, setSelectedMeasurementId] = React.useState<string | null>(null);
+  const selectedRow = rows.find(row => row.canonical_measurement_id === selectedMeasurementId);
+  const currentFocus = resolveR23G3RuntimeFocus(selectedRow);
+  // Same semantic event already observed by CephaloTracingLayer; no
+  // invented SVG geometry is emitted. A blocked factor clears old focus.
+  React.useEffect(() => {
+    publishCephaloMetricFocus(currentFocus);
+    return () => publishCephaloMetricFocus(null);
+  }, [currentFocus?.canonicalMeasurementId, currentFocus?.points.join('|'), currentFocus?.constructionIds?.join('|')]);
   const available = rows.filter(row => row.availability_status === 'AVAILABLE' && row.value !== null).length;
   return (
     <aside
@@ -77,7 +88,7 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                 data-r23g2-ricketts-version={id}
                 aria-pressed={version === id}
                 className="min-h-10 rounded-lg border px-2 py-1.5 text-xs font-semibold"
-                onClick={() => setVersion(id)}
+                onClick={() => { setSelectedMeasurementId(null); setVersion(id); }}
                 style={{ borderColor: version === id ? P.accent : P.border, background: version === id ? P.bgCard : P.bgPanel, color: P.text }}
               >{label}</button>
             ))}
@@ -92,7 +103,7 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
           {profile ? String(available) + '/' + String(rows.length) + ' valeurs disponibles · ' + String(rows.length) + ' facteurs documentés' : 'Profil non vérifié — mesures désactivées'}
         </p>
         <p className="mt-1 text-[11px]" style={{ color: P.textMuted }}>
-          Focus par facteur et tracés complets : en cours de construction (R23-G3). Les repères restent accessibles dans le répertoire anatomique.
+          Sélectionnez un facteur pour cibler ses repères seulement si les preuves actives les identifient. Tracés complets en cours de construction ; aucun plan n’est simulé.
         </p>
       </div>
       {!profile ? (
@@ -114,9 +125,16 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
               {rows.map(row => (
                 <tr key={row.canonical_measurement_id} data-r23g2-measurement-id={row.canonical_measurement_id} className="border-b" style={{ borderColor: P.border }}>
                   <th scope="row" className="break-words px-3 py-2 align-top text-[11px] font-semibold" style={{ color: P.text }}>
+                    <button type="button"
+                      data-r23g3-focus-select={row.canonical_measurement_id}
+                      aria-pressed={selectedMeasurementId === row.canonical_measurement_id}
+                      onClick={() => setSelectedMeasurementId(row.canonical_measurement_id)}
+                      className="min-h-9 w-full rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-1"
+                      style={{ color: selectedMeasurementId === row.canonical_measurement_id ? P.accent : P.text }}>
                     <span className="block break-words">{row.label === row.canonical_measurement_id
                       ? row.canonical_measurement_id.replace(/^M_/, '').replace(/_(?:DEG|MM)_V\d+$/, '').replaceAll('_', ' ').toLowerCase()
                       : row.label}</span>
+                    </button>
                     <span className="block break-all font-mono text-[9px] font-normal" style={{ color: P.textMuted }} title={row.canonical_measurement_id}>{row.canonical_measurement_id}</span>
                   </th>
                   <td className="px-1 py-2 align-top text-xs font-semibold tabular-nums" style={{ color: row.value === null ? P.textMuted : P.accentSuccess }}>
@@ -127,6 +145,14 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                     {row.value === null && <span className="block">{statusExplanation(row)}</span>}
                     {row.contract_gate && <span className="block break-all text-[10px]" title={row.contract_gate}>Gate : {row.contract_gate}</span>}
                     <span className="block text-[10px]">Contrat : {row.contract_state}</span>
+                    {selectedMeasurementId === row.canonical_measurement_id && (
+                      <span data-r23g3-focus-source={currentFocus ? 'active-runtime' : 'not-authorized'}
+                        className="mt-1 block font-semibold">
+                        {currentFocus
+                          ? 'Focus prouvé : ' + currentFocus.points.join(', ') + (currentFocus.constructionIds?.length ? ' · constructions : ' + currentFocus.constructionIds.join(', ') : '')
+                          : 'Focus géométrique non autorisé sans preuve active exacte.'}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
