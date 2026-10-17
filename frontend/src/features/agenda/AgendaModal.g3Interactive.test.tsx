@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AgendaModal } from './AgendaModal';
 import { api } from '../../services/api';
+import toast from 'react-hot-toast';
 
 const elite = vi.hoisted(() => ({
   suggestedAppointment: null as any,
@@ -130,6 +131,33 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: 'Nouveau Rendez-vous' })).toBeTruthy();
+  });
+
+  it('S10: 409 booking conflict keeps draft open, reports refusal, and only acknowledges a fresh retry', async () => {
+    const conflict={response:{status:409,data:{detail:'Créneau déjà occupé : vérifiez la disponibilité.'}}};
+    vi.mocked(api.post)
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce({data:{id:100}} as never);
+    const {onClose,onSaved}=renderCreate();
+    const procedure=await screen.findByPlaceholderText("Saisir l'acte ou rechercher dans le catalogue...");
+    fireEvent.change(procedure,{target:{value:'Consultation'}});
+    const confirm=screen.getByRole('button',{name:'Confirmer le RDV'});
+
+    fireEvent.click(confirm);
+    await waitFor(()=>expect(api.post).toHaveBeenCalledTimes(1));
+    await waitFor(()=>expect(toast.error).toHaveBeenCalledWith('Créneau déjà occupé : vérifiez la disponibilité.'));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog',{name:'Nouveau Rendez-vous'})).toBeInTheDocument();
+    expect((procedure as HTMLInputElement).value).toBe('Consultation');
+
+    // Explicit retry after operator keeps/corrects draft; never auto-resubmit.
+    fireEvent.click(confirm);
+    await waitFor(()=>expect(api.post).toHaveBeenCalledTimes(2));
+    await waitFor(()=>expect(toast.success).toHaveBeenCalledWith('Rendez-vous créé.'));
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('edits the historical appointment through PUT and preserves the edit boundary', async () => {
