@@ -85,7 +85,7 @@ def _identity_from_handle(kernel, ctypes, handle, FileInfo):
 def _open_root(path):
     ctypes, wintypes, kernel, ntdll, info, uni, attrs, ios = _win_api()
     handle = kernel.CreateFileW(
-        str(Path(path).absolute()), 0x80, 0x1 | 0x2 | 0x4,
+        str(Path(path).absolute()), 0x001000A1, 0x1 | 0x2 | 0x4,
         None, 3, 0x02000000 | 0x00200000, None,
     )
     if handle in (None, ctypes.c_void_p(-1).value):
