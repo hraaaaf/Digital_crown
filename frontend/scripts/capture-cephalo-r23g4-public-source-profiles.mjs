@@ -114,6 +114,53 @@ async function waitServer(){
     await new Promise(r=>setTimeout(r,250))}
   fail('Vite not responding');
 }
+// Avoid verifying screenshots while the Vite dev optimizer is re-bundling.
+// This is a fixture-only preflight. It never counts as a clinical/visual PASS:
+// all strict per-viewport checks run *afterwards* in new browser contexts.
+async function prewarmViteFixture(){
+  const history=[];
+  for(let attempt=1;attempt<=3;attempt++){
+    const browser=await chromium.launch({headless:true});
+    const context=await browser.newContext({viewport:{width:1280,height:900},locale:'fr-FR',reducedMotion:'reduce'});
+    const page=await context.newPage();const errors=[];
+    page.on('pageerror',e=>errors.push(e.message));
+    page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+    await page.route('**/*',allowed);
+    try{
+      const response=await page.goto(base+'/cephalo-r23g4-public.html',{waitUntil:'domcontentloaded',timeout:45000});
+      if(response?.status()!==200)throw Error('Vite prewarm response '+response?.status());
+      await page.getByRole('heading',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:15000});
+      for(const mode of ['mcnamara','ricketts','com']){
+        await page.locator('#cephalo-ready-analysis').selectOption(mode,{timeout:12000});
+        const selector=mode==='com'?'[data-r19-analysis-panel="com"]':'[data-r23g2-protocol-panel="'+mode+'"]';
+        await page.locator(selector).waitFor({state:'attached',timeout:12000});
+      }
+      await page.waitForTimeout(350);
+      if(errors.length)throw Error('Vite prewarm console: '+errors.join(' | ').slice(0,800));
+      history.push({attempt,valid:true,errors:[]});
+      report.vitePrewarm=history;
+      return;
+    }catch(e){
+      const all=[...errors,String(e)];
+      history.push({attempt,valid:false,errors:all});
+      const isTransient=all.every(err=>
+        err.includes('504 (Outdated Optimize Dep)')||
+        err.includes('Execution context was destroyed')||
+        err.includes('navigation to finish')||
+        err.includes('Cannot find context with specified id')||
+        err.includes('Vite prewarm console:')
+      )&&all.some(err=>
+        err.includes('504 (Outdated Optimize Dep)')||
+        err.includes('navigation')||
+        err.includes('Cannot find context with specified id')
+      );
+      if(!isTransient || attempt===3){
+        report.vitePrewarm=history;
+        throw Error('Vite dependency prewarm FAILED (no visual assertions waived) '+JSON.stringify(history).slice(0,1400));
+      }
+    }finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
+  }
+}
 async function capture(v){
  const viewportName=v.width+'x'+v.height;
  const browser=await chromium.launch({headless:true});
@@ -205,6 +252,7 @@ async function capture(v){
 }
 try {
  await waitServer();
+ await prewarmViteFixture();
  // One browser context per viewport, with a deterministic synthetic fixture.
  for(const v of viewports){
   const first=await capture(v);
