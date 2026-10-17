@@ -10,6 +10,8 @@ on:
       - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
       - frontend/scripts/certify-cb01-associate-sidecar.mjs
       - frontend/scripts/certify-cb01-s01-s12-matrix.mjs
+      - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
+      - frontend/src/components/GhostBrainWidget.g9Interactive.test.tsx
       - .github/workflows/cb01-associate-sidecar-visual.yml
   workflow_dispatch:
 
@@ -98,6 +100,55 @@ jobs:
         shell: bash
         run: |
           npx vitest run src/components/Layout/MainLayout.g1Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
+      - name: S07/S12 scoped isolated backend evidence (adjacent, overlap, GhostBrain ACK)
+        shell: bash
+        run: |
+          python -m pytest -q \
+            backend/tests/test_appointments_extended.py::TestCheckConflictsEdgeCases::test_non_overlapping_adjacent_slots_no_conflict \
+            backend/tests/test_appointments_m5b.py::TestConflictDetection::test_conflict_overlapping_appointment \
+            backend/tests/test_ai_feedback_router.py::TestGhostInsights::test_mark_nonexistent_insight_returns_404 \
+            backend/tests/test_ai_feedback_router.py::TestGhostInsights::test_mark_insight_read
+      - name: S10/S12 scoped frontend evidence (409 recovery mock, GhostBrain ACK)
+        shell: bash
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/agenda/AgendaModal.g3Interactive.test.tsx \
+            src/components/GhostBrainWidget.g9Interactive.test.tsx
+      - name: Record explicit S07/S09/S10/S12 technical coverage and gaps
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          sha=os.environ.get('CB01_SOURCE_HEAD','')
+          assert len(sha)==40 and all(c in '0123456789abcdef' for c in sha)
+          checks=[
+            dict(id='S07',status='PARTIAL_SYNTHETIC',tests=[
+              'test_non_overlapping_adjacent_slots_no_conflict',
+              'test_conflict_overlapping_appointment'],
+              limitation='Two deterministic HTTP overlap/adjacent checks; parallel booking race not executed'),
+            dict(id='S09',status='NOT_RUN',tests=[],
+              limitation='CB-01 proposal-only; no executable stale booking CAS/ABA endpoint certified'),
+            dict(id='S10',status='PARTIAL_MOCKED_UI',tests=[
+              'S10: 409 booking conflict keeps draft open, reports refusal, and only acknowledges a fresh retry'],
+              limitation='Mocked 409 and ACK in AgendaModal; real multi-user 409 race and human UI not executed'),
+            dict(id='S12',status='PARTIAL_SYNTHETIC',tests=[
+              'GhostBrainWidget G9 read-ack truth',
+              'test_mark_nonexistent_insight_returns_404',
+              'test_mark_insight_read'],
+              limitation='UI simulated ACK/refusal plus backend synthetic ACK/404; no live human WebSocket journey'),
+          ]
+          out=Path('artifacts/cb01-associate-sidecar/technical-gap-evidence.json')
+          out.parent.mkdir(parents=True,exist_ok=True)
+          out.write_text(json.dumps({
+            'schema':'CB01_TECHNICAL_GAP_EVIDENCE_V1',
+            'sourceHead':sha,'kind':'CI_SCOPED_TESTS_NOT_HUMAN_E2E',
+            'testsExecutedInPreviousTwoSuccessfulSteps':True,
+            'humanE2EValidated':0,'scenarios':checks,
+          },indent=2)+'\n',encoding='utf-8')
+          print('CB01_TECHNICAL_GAPS: 3 PARTIAL, 1 NOT_RUN; no human E2E claims')
+          PY
       - name: Start disposable synthetic T2 backend
         shell: bash
         run: |
@@ -316,6 +367,9 @@ jobs:
           echo "## CB-01 caveats" >> "$GITHUB_STEP_SUMMARY"
           echo "Synthetic CI-only T2: B sidecar shell experimental, no cabinet production activation." >> "$GITHUB_STEP_SUMMARY"
           echo "Does not certify production BEFORE, 200% browser zoom, 12 staff E2E, clinical validation or deployed UI." >> "$GITHUB_STEP_SUMMARY"
+          if test -f artifacts/cb01-associate-sidecar/technical-gap-evidence.json; then
+            echo "### S07/S09/S10/S12 scoped follow-up: 3 PARTIAL technical, S09 NOT_RUN. No parallel booking race or human journey certified." >> "$GITHUB_STEP_SUMMARY"
+          fi
           if test -f artifacts/cb01-associate-sidecar/s01-s12-synthetic-matrix.json; then
             python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
