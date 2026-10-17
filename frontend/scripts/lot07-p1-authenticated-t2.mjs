@@ -147,17 +147,33 @@ async function checkPage(page,theme,width,zoomNative=false){
       ['media',page.locator('[data-testid="patient-media-timeline"]'),90,0.15],
     ]){
       await locator.scrollIntoViewIfNeeded();
+      // scrollIntoViewIfNeeded does not center an element ALREADY visible near
+      // the viewport bottom. Reposition the real MainLayout scrolling surface,
+      // so the screenshot proves its clinical CONTENT rather than only a header.
+      await locator.evaluate(el=>{
+        const scroller=el.closest('main.custom-scrollbar');
+        if(!scroller)throw Error('Missing real patient route scrolling container at native 200%');
+        const r=el.getBoundingClientRect();
+        const clip=scroller.getBoundingClientRect();
+        const delta=r.height<=clip.height
+          ? r.top+r.height/2-(clip.top+clip.height/2)
+          : r.top-clip.top-16;
+        scroller.scrollTo({top:scroller.scrollTop+delta,behavior:'instant'});
+      });
       const geometry=await locator.evaluate(el=>{
         const r=el.getBoundingClientRect();
         const view={width:innerWidth,height:innerHeight};
-        const visibleTop=Math.max(0,r.top);
-        const visibleBottom=Math.min(view.height,r.bottom);
+        const scroller=el.closest('main.custom-scrollbar');
+        const clip=scroller?.getBoundingClientRect();
+        const visibleTop=Math.max(0,r.top,clip?.top??0);
+        const visibleBottom=Math.min(view.height,r.bottom,clip?.bottom??view.height);
         const visibleHeight=Math.max(0,visibleBottom-visibleTop);
-        const visibleWidth=Math.max(0,Math.min(view.width,r.right)-Math.max(0,r.left));
-        const centerX=Math.max(1,Math.min(view.width-2,(Math.max(0,r.left)+Math.min(view.width,r.right))/2));
+        const visibleLeft=Math.max(0,r.left,clip?.left??0);
+        const visibleRight=Math.min(view.width,r.right,clip?.right??view.width);
+        const visibleWidth=Math.max(0,visibleRight-visibleLeft);
+        const centerX=Math.max(1,Math.min(view.width-2,(visibleLeft+visibleRight)/2));
         const centerY=Math.max(1,Math.min(view.height-2,(visibleTop+visibleBottom)/2));
         const onTop=document.elementFromPoint(centerX,centerY);
-        const scroller=el.closest('main.custom-scrollbar');
         return {view,rect:{x:r.x,y:r.y,width:r.width,height:r.height},
           visibleHeight,visibleWidth,visibleFraction:r.height?visibleHeight/r.height:0,
           unobstructed:Boolean(onTop&&(el===onTop||el.contains(onTop))),
@@ -167,9 +183,16 @@ async function checkPage(page,theme,width,zoomNative=false){
       // Store deterministic diagnostic even on failure. Artifacts remain
       // restricted to synthetic test-patient geometry, never credentials.
       await fs.writeFile(path.join(out,'native200-'+kind+'-geometry.json'),JSON.stringify(geometry,null,2));
-      if(geometry.visibleHeight<minPixels||geometry.visibleFraction<minFraction
+      // A 95.5px-tall status cannot satisfy a fixed 110px visible-height
+      // minimum even when 100% of its real pixels are visible. Bound minimums
+      // by intrinsic element height AND the 200%-zoom scroll viewport.
+      const clipHeight=geometry.scroll?.height||geometry.view.height;
+      const requiredPixels=Math.min(minPixels,geometry.rect.height*0.75,clipHeight*0.5);
+      const requiredFraction=Math.min(minFraction,0.7*clipHeight/Math.max(1,geometry.rect.height));
+      if(!geometry.scroll||geometry.visibleHeight<requiredPixels
+        ||geometry.visibleFraction<requiredFraction
         ||geometry.visibleWidth<100||!geometry.unobstructed){
-        throw Error('Native 200% clinical content not viewable '+kind+' '+JSON.stringify(geometry));
+        throw Error('Native 200% clinical content not viewable '+kind+' '+JSON.stringify({requiredPixels,requiredFraction,...geometry}));
       }
       const proofFile='elite-1440-native200-'+kind+'-viewport.png';
       await page.screenshot({path:path.join(out,proofFile),animations:'disabled',fullPage:false});
