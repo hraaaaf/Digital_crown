@@ -378,6 +378,27 @@ def exercise():
         assert receipt_count(idem) == 1 and not consumed(alternate_id)
         print("F05_PC_HTTP_R1_CHANGED_PAYLOAD_REJECTED", changed[0], flush=True)
 
+        # Two different clinical intents compete under the SAME idempotency
+        # key on independent FastAPI workers. One ACK must be accepted, and
+        # the changed intent must be rejected rather than reusing that ACK.
+        slot_a, id_a = new_slot(18)
+        slot_b, id_b = new_slot(19)
+        race_key = uuid.uuid4()
+        sig_a, _ = sign_command("agenda.create", {"slot_ref": slot_a}, race_key)
+        sig_b, _ = sign_command("agenda.create", {"slot_ref": slot_b}, race_key)
+        outcome_a, outcome_b = race(
+            lambda: remote(0, sig_a), lambda: remote(1, sig_b),
+        )
+        assert sorted([outcome_a[0], outcome_b[0]]) == [200, 400], (
+            "F05_R1_DIFFERENT_INTENTS_RACE", outcome_a, outcome_b,
+        )
+        assert count(18) + count(19) == 1
+        assert int(consumed(id_a)) + int(consumed(id_b)) == 1
+        assert receipt_count(race_key) == 1
+        print("F05_PC_HTTP_R1_DIFFERENT_INTENT_RACE",
+              sorted([outcome_a[0], outcome_b[0]]), "SQL", count(18) + count(19),
+              "RECEIPT", receipt_count(race_key), flush=True)
+
         # Reprogramming of an existing patient reservation participates in the
         # same lock as a new staff booking in the other FastAPI process.
         with Session() as db:
@@ -445,6 +466,32 @@ def exercise():
         assert consumed(fresh_slot_id)
         print("F05_PC_HTTP_PATIENT_WINS_RESCHEDULE", "PATIENT", "ACCEPTED",
               "STAFF", staff_after[0], "SQL", count(16), flush=True)
+
+        new_target, new_target_id = new_slot(20)
+        idem_resched = uuid.uuid4()
+        ok_move, _ = sign_command(
+            "agenda.reschedule",
+            {"appointment_ref": appointment_ref, "slot_ref": new_target},
+            idem_resched,
+        )
+        first_move = remote(0, ok_move)
+        assert first_move[0] == 200 and first_move[1]["status"] == "ACCEPTED", first_move
+        changed_target, changed_target_id = new_slot(21)
+        changed_move, _ = sign_command(
+            "agenda.reschedule",
+            {"appointment_ref": appointment_ref, "slot_ref": changed_target},
+            idem_resched,
+        )
+        changed_outcome = remote(1, changed_move)
+        assert changed_outcome[0] == 400, (
+            "F05_R1_RESCHEDULE_CHANGED_INTENT", changed_outcome,
+        )
+        with Session() as db:
+            assert db.get(models.Appointment, original_id).datetime_start == datetime(2030, 1, 3, 20)
+        assert consumed(new_target_id) and not consumed(changed_target_id)
+        assert receipt_count(idem_resched) == 1
+        print("F05_PC_HTTP_R1_RESCHEDULE_CHANGED_INTENT",
+              changed_outcome[0], "SQL_RECEIPTS", receipt_count(idem_resched), flush=True)
 
         # Signed staff JWT cannot be substituted for patient credentials.
         token, _ = sign_command("agenda.create", {"slot_ref": slot_ref})
