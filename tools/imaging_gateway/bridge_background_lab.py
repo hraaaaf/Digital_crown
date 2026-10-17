@@ -152,6 +152,7 @@ def start_if_enabled(
                  "DC_V15_06_BRIDGE_LAB_KEY_HEX", "ENVIRONMENT",
                  "DIGITALCROWN_ISOLATED_RUNTIME"):
         child_env[name] = env[name]
+    child_env["DC_V15_06_BRIDGE_LAB_PARENT_PID"] = str(os.getpid())
     launch_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     proc = subprocess.Popen(
         [sys.executable, "-m", "tools.imaging_gateway.process_lab"],
