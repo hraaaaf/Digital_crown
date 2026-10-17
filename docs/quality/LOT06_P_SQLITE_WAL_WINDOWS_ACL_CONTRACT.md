@@ -28,6 +28,27 @@ Those are fail-closed **observations**, not a race-free Windows sandbox.
 F01 remains **MAJOR OPEN** until a native Windows process/ACL boundary or a
 proven handle-anchored SQLite VFS covers every database I/O.
 
+## Additional Windows LAB namespace pin (EXPERIMENTAL, NOT F01 CLOSED)
+
+The source-only F01 experiment holds a native Windows HANDLE on the original
+`private` directory and the existing main SQLite database during each
+`HotFolder._db()` context. It verifies NT volume/file identity and opens the
+main DB through an NT RootDirectory-relative handle. Both handles share READ
+and WRITE, deliberately **not DELETE**. This is intended to deny ordinary
+renames/replacements during a live SQLite connection without preventing WAL
+writes. Native Windows CI must actually attempt both renames during an active
+transaction and demonstrate durable replay; merely mocking the helper is not
+evidence.
+
+**Boundary remains incomplete:** initial bootstrap may create a previously
+missing main DB while only its root is pinned; ancestor-directory attacks,
+in-place modification, sidecar WAL/SHM/journal creation/replacement, malicious
+same-user writers, and SQL VFS path opens remain. OS share modes are defense in
+depth, **not protected DACL, service SID, or a custom handle-rooted SQLite
+VFS**. Windows installer, effective permissions, physical Windows PC, and
+device verification remain deferred to LOT10. Never call F01 CONVERGED from
+this source change alone.
+
 ## Commercial installer / Windows DACL CONTRACT (future, not executed)
 
 **Installer prerequisites (REQUIRED):**

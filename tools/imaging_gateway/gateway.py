@@ -27,7 +27,7 @@ from tools.imaging_gateway.media_validation import validated_mime
 from tools.imaging_gateway.windows_scoped_read_lab import directory_identity, open_relative_read
 from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
 from tools.imaging_gateway.sqlite_boundary_lab import (
-    SQLiteBoundaryError, inspect_sqlite_boundary, pin_windows_sqlite_path,
+    SQLiteBoundaryError, inspect_sqlite_boundary, pin_windows_sqlite_path, pin_windows_sqlite_namespace,
 )
 
 
@@ -249,8 +249,15 @@ class HotFolder:
         # and same-user attacks still require actual OS ACL isolation.
         try:
             with pin_windows_sqlite_path(self.private, self._windows_private_identity):
-                with self._db_on_pinned_path() as db:
-                    yield db
+                # Parent/ancestor components are pinned by the outer guard.
+                # Hold a verified *main database file* HANDLE too; SQLite
+                # WAL/SHM VFS path operations still need service ACLs.
+                with pin_windows_sqlite_namespace(
+                    self.private, self.db_file, self._windows_private_identity,
+                    require_database=self._db_file_identity is not None,
+                ):
+                    with self._db_on_pinned_path() as db:
+                        yield db
         except SQLiteBoundaryError as error:
             raise GatewayError("SQLite LAB path pin refused: " + str(error)) from None
 
