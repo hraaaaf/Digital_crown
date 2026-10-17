@@ -125,13 +125,27 @@ class BridgeLabConfigTests(unittest.TestCase):
                 ["cmd", "/c", "mklink", "/J", str(incoming), outside],
                 capture_output=True, text=True, check=False,
             )
-            if result.returncode:
-                self.skipTest("NTFS mklink /J unsupported on runner")
+            self.assertEqual(result.returncode, 0, "NTFS junction creation must run")
             try:
                 with self.assertRaisesRegex(BridgeLabConfigurationError, "UNSAFE_FIXTURE_FOLDERS"):
                     make_lab_collector(self.env)
             finally:
                 os.rmdir(incoming)  # Removes junction itself, never its target.
+
+    @unittest.skipUnless(os.name == "nt", "NTFS junction regression only on Windows")
+    def test_windows_junction_private_rejected(self):
+        with tempfile.TemporaryDirectory(prefix="dc-spool-outside-") as outside:
+            private = self.root / "private"
+            result = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(private), outside],
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, "NTFS junction creation must run")
+            try:
+                with self.assertRaisesRegex(BridgeLabConfigurationError, "UNSAFE_FIXTURE_FOLDERS"):
+                    make_lab_collector(self.env)
+            finally:
+                os.rmdir(private)  # Remove the junction, not the external folder.
 
     def test_rejects_missing_marker(self):
         (self.root / ".digitalcrown-imaging-lab-only").unlink()
