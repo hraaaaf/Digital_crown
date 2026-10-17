@@ -234,6 +234,44 @@ class GatewayTests(unittest.TestCase):
         held.rename(source)
         self.assertEqual(self.agent.audit(0), ["SYNTHETIC_NATIVE_DB_PIN"])
 
+    @unittest.skipUnless(os.name == "nt", "native Windows cross-process file sharing only")
+    def test_windows_sqlite_main_pin_refuses_other_process_rename(self):
+        """A distinct unprivileged TEST process cannot rename the live main DB."""
+        source = self.agent.db_file
+        moved = self.private / "acquisitions.sqlite3-synthetic-moved"
+        child_script = (
+            "import sys\\n"
+            "from pathlib import Path\\n"
+            "try:\\n"
+            "    Path(sys.argv[1]).rename(Path(sys.argv[2]))\\n"
+            "except OSError:\\n"
+            "    print('DENIED')\\n"
+            "else:\\n"
+            "    print('MOVED')\\n"
+        ).replace("\\n", "\n")
+
+        def attempt_rename():
+            return subprocess.run(
+                [sys.executable, "-c", child_script, str(source), str(moved)],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+
+        try:
+            with self.agent._db() as db:
+                result = attempt_rename()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), "DENIED")
+                self.assertFalse(moved.exists())
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM items").fetchone()[0], 0)
+            result = attempt_rename()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "MOVED")
+            self.assertTrue(moved.exists())
+        finally:
+            if moved.exists() and not source.exists():
+                moved.rename(source)
+        self.assertEqual(self.agent.items(), [])
+
     def test_sqlite_bootstrap_schema_failure_is_atomic(self):
         """Malformed existing scope schema must not leave half-created tables."""
         with tempfile.TemporaryDirectory() as root:
