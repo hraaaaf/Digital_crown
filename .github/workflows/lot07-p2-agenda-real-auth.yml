@@ -153,8 +153,18 @@ jobs:
              await month.getByRole('button',{name:/Nouveau RV/}).click();
              const dialog=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
              await dialog.waitFor({state:'visible',timeout:20000});
-             const date=await dialog.locator('input[type="date"]').inputValue();
-             if(date!=='2026-10-17')throw Error('Midnight date drift on actual authenticated Agenda '+JSON.stringify({width,date}));
+             // The modal mounts before its date-form initialization effect fires.
+             // Assert the eventually initialized date, not the first empty input.
+             const dateInput=dialog.locator('input[type="date"]');
+             await dateInput.waitFor({state:'visible',timeout:20000});
+             const initialized=await page.waitForFunction(() => {
+               const modal=document.querySelector('[role="dialog"][aria-label="Nouveau Rendez-vous"]')
+                 ||Array.from(document.querySelectorAll('[role="dialog"]')).find(n=>n.getAttribute('aria-label')==='Nouveau Rendez-vous');
+               return Boolean(modal?.querySelector('input[type="date"]')?.value);
+             },null,{timeout:10000}).then(()=>true,()=>false);
+             const date=await dateInput.inputValue();
+             if(!initialized||date!=='2026-10-17')
+               throw Error('Midnight date drift on actual authenticated Agenda '+JSON.stringify({width,date,initialized}));
              if(writes.length)throw Error('Unexpected appointment mutation '+JSON.stringify(writes));
              if(errors.length)throw Error('Agenda page error '+JSON.stringify(errors));
              await dialog.getByRole('button',{name:'Fermer'}).click();
