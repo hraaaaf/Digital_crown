@@ -6,6 +6,7 @@ on:
   pull_request:
     branches:
       - audit/dc-ceph-facad-parity-p2bis-http-pdf-20261017
+      - fix/ceph-fac-parity-p2ter-analysis-bound-pdf-20261017
 permissions:
   contents: read
 jobs:
@@ -113,6 +114,26 @@ jobs:
                           assert 590 < page.rect.width < 600 and 838 < page.rect.height < 845
                           if index<8:
                               page.get_pixmap(matrix=fitz.Matrix(1,1),alpha=False).save(root/(label+'-'+kind+'-page-'+str(index+1)+'.png'))
+          PY
+      - name: Verify clicked archives persisted same old study and scientific revision
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import fitz
+          from backend import database, models
+          source=json.loads(Path('artifacts/ceph-p2ter-authenticated-desktop/report.json').read_text())
+          studied=json.loads(next(line.split('=',1)[1] for line in Path('/tmp/p2ter-seed.log').read_text().splitlines() if line.startswith('P2TER_SYNTHETIC_STUDIES=')))
+          with database.SessionLocal() as db:
+              rows=db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id==studied['patient_id'], models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO).all()
+              assert len(rows)==2, f"Expected 1 clicked archive per viewport, got {len(rows)}"
+              assert all(row.analysis_id==studied['older_id'] and row.clinical_data.get('cephalo_analysis_revision')==2 for row in rows)
+          for viewport in source['viewports']:
+              assert any('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_' in check for check in viewport['checks'])
+              pdf=Path('artifacts/ceph-p2ter-authenticated-desktop')/(viewport['viewport']+'-older-click-archived.pdf')
+              with fitz.open(pdf) as doc:
+                  assert len(doc)>=2 and all(590 < page.rect.width < 600 and 838 < page.rect.height < 845 for page in doc)
+          print('P2TER_CLICK_ARCHIVE_DB_FK_REVISION_AND_A4_PASS')
           PY
       - name: Dump isolated runtime diagnostic on failure
         if: failure()

@@ -189,6 +189,66 @@ def test_stale_revision_and_corrupted_evidence_reject_pdf_and_prevalidation(
     assert len(list(tmp_path.glob("*.pdf"))) == 1
 
 
+
+def test_archiving_revision_changed_after_successful_prevalidation_fails_closed(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Distinct HTTP calls: prevalidate revision 1, save revision 2, archive old revision.
+
+    This tests a stale prevalidation boundary, NOT a simultaneous SQL row-lock race.
+    """
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, old, points = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    pre = client.get(
+        f"/api/patients/{patient.id}/cephalo-validation",
+        params={"analysis_id": old.id, "expected_revision": 1},
+        headers=headers,
+    )
+    assert pre.status_code == 200, pre.text
+    assert pre.json()["analysis_id"] == old.id
+    assert pre.json()["analysis_revision"] == 1
+    edited = deepcopy(points)
+    next(p for p in edited if p["id"] == "A")["x"] += 2
+    update = client.put(PATH + str(old.id), json={"landmarks": edited}, headers=headers)
+    assert update.status_code == 200, update.text
+    assert _read(client, old.id, headers)[1]["revision"] == 2
+    stale = _request(client, patient.id, old.id, headers, revision=1, archive=True)
+    assert stale.status_code == 409
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+    assert list(tmp_path.glob("*.pdf")) == []
+
+
+def test_structural_consistency_failure_refuses_archive_without_writing_pdf(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """A synthetic structural refusal checks real FastAPI status and no write.
+
+    An injected inconsistent validation result is *not* a scientific approval.
+    """
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _data: SimpleNamespace(is_valid=False, fatals=["Discordance structurelle synthétique"], warnings=[]),
+    )
+    rejected = _request(client, patient.id, study.id, headers, archive=True)
+    assert rejected.status_code == 422
+    assert "Discordance structurelle synthétique" in rejected.json()["detail"]["fatals"]
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+    assert list(tmp_path.glob("*.pdf")) == []
+
+
 def test_archive_failure_is_not_silenced(client, db, dentiste, monkeypatch, tmp_path):
     _temporary_pdf_output(monkeypatch, tmp_path)
     _cabinet(db, dentiste)

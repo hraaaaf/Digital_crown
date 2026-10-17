@@ -6,6 +6,7 @@ on:
   pull_request:
     branches:
       - audit/dc-ceph-facad-parity-p2bis-http-pdf-20261017
+      - fix/ceph-fac-parity-p2ter-analysis-bound-pdf-20261017
 
 permissions:
   contents: read
@@ -77,7 +78,7 @@ jobs:
         working-directory: frontend
         run: |
           set -o pipefail
-          npx vitest run src/features/ortho/cephaloDocumentSource.test.ts src/features/ortho/cephaloRepository.document.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts | tee ../p2ter-react-results.log
+          npx vitest run src/features/ortho/cephaloArchiveGate.test.ts src/features/ortho/cephaloDocumentSource.test.ts src/features/ortho/cephaloRepository.document.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts | tee ../p2ter-react-results.log
       - name: TypeScript application check
         working-directory: frontend
         run: |

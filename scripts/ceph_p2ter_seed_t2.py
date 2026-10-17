@@ -9,6 +9,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -28,6 +29,9 @@ from backend.services.cephalo_runtime_evidence import (
     EVIDENCE_GRAPH_KEY, build_cephalo_runtime_evidence_payload,
 )
 from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
+from backend.services.cephalo_landmark_correction_evidence import rebuild_evidence_after_landmark_edit
+from backend.services.cephalo_runtime_chain import project_runtime_chain_read_path
+from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
 
 with database.SessionLocal() as db:
     owner = db.query(models.User).filter(models.User.email == "t2-browser@cabinet.ma").one()
@@ -70,10 +74,39 @@ with database.SessionLocal() as db:
             calibration_data=calibration,
             case_id=f"p2ter:synthetic:{patient.id}:{suffix}",
         )
+        # A real SRPose38 acquisition intentionally has only 38 automated points.
+        # Complete the UI's two additional occlusal anchors as synthetic *manual*
+        # corrections with provenance in this disposable test case only.
+        # Never pretend SRPose38 automatically predicted Occ_Ant or Occ_Post.
+        manual_points = [
+            *points,
+            {"id": "Occ_Ant", "x": 145.0, "y": 165.0},
+            {"id": "Occ_Post", "x": 185.0, "y": 195.0},
+        ]
+        corrected_result = cephalo_safe_engine.calculate_metrics(
+            {p["id"]: (p["x"], p["y"]) for p in manual_points},
+            custom_mm_ratio=ratio,
+        )
+        corrected_graph = rebuild_evidence_after_landmark_edit(
+            previous_payload=graph,
+            patient_id=patient.id,
+            image_record_id=image,
+            result=corrected_result,
+            runtime_landmarks=manual_points,
+            clinician_id=str(owner.id),  # disposable T2 user, not a clinical sign-off
+            validated_at=datetime.now(timezone.utc),
+        )
+        data = {**corrected_result.model_dump(), EVIDENCE_GRAPH_KEY: corrected_graph}
+        scientific = project_runtime_chain_read_path(data, patient_id=patient.id)
+        assert scientific["scientific_read_path"]["revision"] == 2
+        assert scientific["scientific_read_path"]["active_chain"] == "VERIFIED"
+        validation = cephalo_consistency_validator.validate(data)
+        if not validation.is_valid:
+            raise RuntimeError("Synthetic manual occlusal fixture inconsistent: " + repr(validation.fatals))
         study = models.CephaloAnalysis(
             patient_id=patient.id, image_original_path=image,
-            landmarks_data=points,
-            angles_data={**result.model_dump(), EVIDENCE_GRAPH_KEY: graph},
+            landmarks_data=manual_points,
+            angles_data=data,
             is_calibrated=True, mm_per_pixel=ratio, calibration_data=calibration,
         )
         db.add(study)
