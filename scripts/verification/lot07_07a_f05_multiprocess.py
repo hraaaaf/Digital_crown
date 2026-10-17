@@ -431,7 +431,40 @@ def exercise():
           "anonymous":anonymous.status_code,"request":requested.status_code,
           "other_tenant":not_owner.status_code,"confirm":confirmed.status_code,
         },"ROWS",len(rows_at(t,root)),flush=True)
-        print("F05_MP_AUTH_MODE","HEADER_OVERRIDE_FOR_80_RACES;REAL_LOGIN_JWT_FOR_1_RACE",flush=True)
+        # One more real-login JWT replay for the canonical Crown Bot entrypoint.
+        clear()
+        with SessionLocal() as db:
+            s=models.BotSession(employer_id=root,user_id=root,
+                                title="F05 JWT synthetic Bot")
+            db.add(s);db.flush()
+            a=models.BotPendingAction(
+                session_id=s.id,user_id=root,employer_id=root,
+                action_type="CREATE_APPOINTMENT",
+                params_json={"patient_id":None,"patient_name":"F05 JWT Bot",
+                             "datetime_start":t,"duration_minutes":30,"motif":"LAB"},
+                status="pending",expires_at=datetime.utcnow()+timedelta(minutes=10))
+            db.add(a);db.flush()
+            jwt_action_id=a.id
+            db.commit()
+        jwt_sync=Barrier(2)
+        def real_race_request(port,route,payload):
+            jwt_sync.wait(timeout=8)
+            with httpx.Client(timeout=20) as cli:
+                response=cli.post(
+                    f"http://127.0.0.1:{port}/real-auth{route}",
+                    json=payload,headers={"Authorization":f"Bearer {access_token}"})
+                return response.status_code,response.text[:140]
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            a1=ex.submit(real_race_request,18061,
+                         "/api/appointments/",book(t)[4])
+            a2=ex.submit(real_race_request,18062,
+                         "/api/bot/execute",{"pending_action_id":str(jwt_action_id)})
+            bot_http=[a1.result(timeout=25),a2.result(timeout=25)]
+        assert sorted(x[0] for x in bot_http)==[200,409],bot_http
+        assert len(rows_at(t,root))==1
+        print("F05_MP_REAL_JWT_CROWN_BOT",sorted(x[0] for x in bot_http),
+              "SQL_COUNT",len(rows_at(t,root)),flush=True)
+        print("F05_MP_AUTH_MODE","HEADER_OVERRIDE_FOR_90_RACES;REAL_PASSWORD_JWT_AGENDA_FRONTDESK_BOT",flush=True)
         print("F05_MP_PC_MODE","DIRECT_DOMAIN_ADAPTER_NOT_REMOTE_RECEIPT",flush=True)
         print("F05_MP_RESULT","LIMITED_PASS_NOT_F05_CERTIFICATION",flush=True)
     finally:
