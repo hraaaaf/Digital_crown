@@ -118,3 +118,30 @@ def test_duration_aware_sql_predicate_under_representative_history(db):
 def test_end_to_end_overlap_boundary_is_strict(db):
     record(db,start=datetime(2026,10,19,9),duration=330)  # ends 14:30
     assert find(db) == []
+
+
+def test_naive_day_read_keeps_0200_and_late_midnight_rows(db):
+    """The API query for a selected cabinet civil day cannot shift with browser TZ."""
+    from types import SimpleNamespace
+    from backend.routers.appointments import get_appointments
+    early=record(db,start=datetime(2026,10,19,2),duration=30)
+    late=record(db,start=datetime(2026,10,19,23,59),duration=1,practitioner=11)
+    prev=record(db,start=datetime(2026,10,18,23,59),duration=1)
+    user=SimpleNamespace(get_employer_id=lambda: 1)
+    rows=get_appointments(
+       start_date="2026-10-19T00:00:00",
+       end_date="2026-10-19T23:59:59.999999",
+       praticien_id=None, db=db, current_user=user,
+    )
+    ids={r.id for r in rows}
+    assert {early.id,late.id} <= ids
+    assert prev.id not in ids
+
+
+def test_multi_serializer_source_includes_resource_id():
+    """Resource identity must round-trip through Multi editing (source-level guard)."""
+    from pathlib import Path
+    source=Path("backend/routers/appointments.py").read_text(encoding="utf-8")
+    serializer=source.split("    def serialize(a: models.Appointment) -> dict:",1)[1]
+    serializer=serializer.split("\n    result = [",1)[0]
+    assert '"resource_id": a.resource_id' in serializer
