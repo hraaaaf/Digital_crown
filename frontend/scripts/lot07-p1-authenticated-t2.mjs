@@ -34,18 +34,22 @@ if(typeof record.antecedents_medicaux==='string'&&record.antecedents_medicaux.tr
 const name=[patient.nom,patient.prenom].filter(Boolean).join(' ');
 const browser=await chromium.launch({headless:true});
 const evidence=[];
-async function inject(page){
-  await page.addInitScript(({access,refresh})=>{
+async function inject(page,theme){
+  await page.addInitScript(({access,refresh,theme})=>{
     localStorage.setItem('token',access);
     localStorage.setItem('refresh_token',refresh||'');
     localStorage.setItem('appMode','prod');
-  },{access:tokens.access_token,refresh:tokens.refresh_token});
+    // Match App.tsx: cabinet theme is restored from this key to BODY.
+    // Do not force data-theme on HTML: that hid the actual runtime mismatch.
+    if(theme==='dark') localStorage.setItem('digitalcrown_theme','dark');
+    else localStorage.removeItem('digitalcrown_theme');
+  },{access:tokens.access_token,refresh:tokens.refresh_token,theme});
 }
 async function checkPage(page,theme,width,zoomNative=false){
   const errors=[],failures=[];
   page.on('pageerror',e=>errors.push(String(e.message).slice(0,280)));
   page.on('response',r=>{if(r.status()>=500)failures.push({status:r.status(),path:new URL(r.url()).pathname});});
-  await inject(page);
+  await inject(page,theme);
   await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'?tab=radiology&radioTab=media',{waitUntil:'domcontentloaded',timeout:90000});
   await page.getByText(name,{exact:false}).first().waitFor({state:'visible',timeout:60000});
   await page.getByRole('status',{name:'Antécédents médicaux non renseignés'}).waitFor({state:'visible',timeout:30000});
@@ -69,12 +73,37 @@ async function checkPage(page,theme,width,zoomNative=false){
     if(!info||!btn||btn.y<info.y+info.height-1)throw Error('Mobile P1 CTA overlaps medical context');
   }
   if(theme==='dark'){
-    await page.evaluate(()=>document.documentElement.setAttribute('data-theme','dark'));
-    for(const target of [page.locator('h1').first(),page.getByRole('button',{name:'Imagerie',exact:true}),page.getByRole('button',{name:'Médiathèque',exact:true})]){
+    // Real application theme host is BODY (App.tsx), not the HTML root.
+    await page.waitForFunction(()=>document.body?.dataset.theme==='dark',null,{timeout:10000});
+    const colors=await page.evaluate(()=>{
+      const bodyStyle=getComputedStyle(document.body);
+      const card=document.createElement('span');
+      card.style.backgroundColor='var(--card-bg)';
+      document.body.appendChild(card);
+      const surface=getComputedStyle(card).backgroundColor;
+      card.remove();
+      return {surface,bodyTheme:document.body.dataset.theme,htmlTheme:document.documentElement.dataset.theme||null,
+        tokens:{primary:bodyStyle.getPropertyValue('--primary').trim(),main:bodyStyle.getPropertyValue('--text-main').trim()}};
+    });
+    const rgb=(value)=>{
+      const match=value.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+      return match?[Number(match[1]),Number(match[2]),Number(match[3])]:null;
+    };
+    const luminance=channels=>channels.map(c=>{
+      const n=c/255;return n<=0.04045?n/12.92:((n+0.055)/1.055)**2.4;
+    }).reduce((sum,n,i)=>sum+n*[0.2126,0.7152,0.0722][i],0);
+    const background=rgb(colors.surface);
+    if(!background)throw Error('Unparseable real Dark card surface '+JSON.stringify(colors));
+    for(const [name,target] of [['patient header',page.locator('h1').first()],
+      ['Imagerie active tab',page.getByRole('button',{name:'Imagerie',exact:true})],
+      ['Médiathèque active tab',page.getByRole('button',{name:'Médiathèque',exact:true})]]){
       const ink=await target.evaluate(el=>getComputedStyle(el).color);
-      const channels=ink.match(/\d+/g)?.slice(0,3).map(Number);
-      if(!channels || Math.min(...channels)<185)
-        throw Error('Dark patient/active-tab text has insufficient brightness: '+ink);
+      const foreground=rgb(ink);
+      if(!foreground)throw Error('Unparseable Dark ink '+name+': '+ink);
+      const hi=Math.max(luminance(foreground),luminance(background));
+      const lo=Math.min(luminance(foreground),luminance(background));
+      const contrast=(hi+0.05)/(lo+0.05);
+      if(contrast<4.5)throw Error('Dark '+name+' contrast '+contrast.toFixed(2)+':1 below 4.5:1 '+JSON.stringify({ink,...colors}));
     }
   }
   const metrics=await page.evaluate(()=>({
