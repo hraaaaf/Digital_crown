@@ -111,6 +111,8 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         setActSearch(editingAppointment.motif || '');
         setSelectedAct(null);
         setStatus(editingAppointment.status);
+        // Restore the persisted scheduling semantics; opening an edit must not convert flexible appointments.
+        setSchedulingType(editingAppointment.scheduling_type ?? 'EXACT_TIME');
         if (editingAppointment.patient_id) {
           setSelectedPatient({ id: editingAppointment.patient_id, nom: editingAppointment.patient_name?.split(' ')[0] || '', prenom: editingAppointment.patient_name?.split(' ')[1] || '' });
           setPatientSearch('');
@@ -874,7 +876,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />
                   <span>
                     Chevauchement avec {conflicts.length} RDV :&nbsp;
-                    {conflicts.map(c => `${c.patient_name || 'Patient'} (${new Date(c.datetime_start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})`).join(', ')}
+                    {conflicts.map(c => `${c.patient_name || 'Patient'} (${clinicAppointmentFormFields(c.datetime_start).time})`).join(', ')}
                   </span>
                 </div>
               )}
