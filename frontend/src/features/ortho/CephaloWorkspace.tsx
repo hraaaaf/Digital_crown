@@ -54,6 +54,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
   const [patientDataError, setPatientDataError] = useState(false);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
+  const historySelectionVersion = useRef(0);
 
   const resolveImageSrc = (imagePath?: string) => {
     if (!imagePath) return undefined;
@@ -62,8 +63,10 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   };
 
   const handleSelectHistory = async (analysis: any) => {
+    const version = ++historySelectionVersion.current;
     try {
       const loaded = await cephaloRepository.getAnalysis(analysis.id);
+      if (version !== historySelectionVersion.current || useOrthoStore.getState().patientId !== patientId || loaded?.id !== analysis.id) return;
       const landmarks = loaded.landmarks_data || [];
       const anglesData = loaded.angles_data || {};
 
@@ -98,6 +101,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   };
 
   const handleDeleteHistory = (analysisId: number) => {
+    historySelectionVersion.current += 1;
     if (store.analysisId === analysisId) {
       store.setAnalysisId(undefined as any);
     }
@@ -111,7 +115,11 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
     syncTheme();
-    return () => observer.disconnect();
+    return () => {
+      // Invalidate any in-flight history GET on patient change or unmount.
+      historySelectionVersion.current += 1;
+      observer.disconnect();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, patientName]);
 
@@ -342,7 +350,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       <div className="flex flex-col gap-1.5 border-b px-3 py-2 sm:gap-3 sm:px-6 sm:py-3 md:flex-row md:flex-wrap md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
         <div className="min-w-0">
           <h2 data-ortho-workspace-title className="text-lg font-bold leading-tight" style={{ color: P.text }}>Céphalométrie</h2>
-          <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName}</p>
+          <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName} {analysisId ? <span data-cephalo-selected-analysis-id={analysisId}>· Étude #{analysisId}</span> : '· Aucune étude sélectionnée'}</p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-3">
           <div className="flex shrink-0 rounded-xl p-1" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>

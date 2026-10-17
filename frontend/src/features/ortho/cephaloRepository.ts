@@ -75,10 +75,21 @@ export const cephaloRepository = {
   /**
    * Génère le rapport PDF complet.
    */
-  async generatePDF(patientId: number | string, payload: any) {
-    const res = await api.post(`/patients/${patientId}/pdf`, payload, { 
-      responseType: 'blob' as any
+  async generatePDF(
+    patientId: number | string,
+    payload: { analysis_id: number; expected_revision: number; archive?: boolean; [key: string]: unknown },
+  ) {
+    if (!Number.isSafeInteger(payload.analysis_id) || payload.analysis_id <= 0
+      || !Number.isSafeInteger(payload.expected_revision) || payload.expected_revision <= 0) {
+      throw new Error("Identité ou révision de l'étude non vérifiée.");
+    }
+    const res = await api.post(`/patients/${patientId}/pdf`, payload, {
+      responseType: 'blob' as any,
     });
+    if (String(res.headers?.['x-cephalo-analysis-id'] ?? '') !== String(payload.analysis_id)
+      || String(res.headers?.['x-cephalo-revision'] ?? '') !== String(payload.expected_revision)) {
+      throw new Error("Le PDF reçu ne correspond pas à l'étude sélectionnée.");
+    }
     return res.data;
   }
 };
