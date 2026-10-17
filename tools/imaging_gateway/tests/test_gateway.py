@@ -270,6 +270,38 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0].lower(), "wal")
         self.assertEqual(self.agent.items(), [])
 
+    def test_sqlite_authorizer_refuses_wal_and_durability_policy_changes(self):
+        """SQL from a compromised LAB caller cannot downgrade connection safety."""
+        with self.agent._db() as db:
+            self.assertEqual(db.execute("PRAGMA synchronous").fetchone()[0], 2)
+            self.assertGreater(db.execute(
+                "PRAGMA wal_autocheckpoint").fetchone()[0], 0)
+            for statement in (
+                "PRAGMA synchronous=OFF",
+                "PRAGMA locking_mode=EXCLUSIVE",
+                "PRAGMA wal_autocheckpoint=0",
+                "PRAGMA journal_size_limit=0",
+                "PRAGMA cache_size=1",
+                "PRAGMA mmap_size=1048576",
+                "PRAGMA wal_checkpoint(TRUNCATE)",
+                "PRAGMA wal_checkpoint",
+                "PRAGMA optimize",
+            ):
+                with self.subTest(statement=statement):
+                    with self.assertRaises(sqlite3.DatabaseError):
+                        db.execute(statement).fetchall()
+            # A refused policy change must not poison normal guarded writes.
+            self.assertEqual(db.execute("PRAGMA synchronous").fetchone()[0], 2)
+            self.assertEqual(db.execute(
+                "PRAGMA journal_mode").fetchone()[0].lower(), "wal")
+            self.assertGreater(db.execute(
+                "PRAGMA wal_autocheckpoint").fetchone()[0], 0)
+            db.execute(
+                "INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                ("SYNTHETIC_POLICY_GUARDED",),
+            )
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_POLICY_GUARDED"])
+
     def test_sqlite_wal_committed_row_recovers_after_abrupt_writer_exit(self):
         """Real separate Python process terminates without closing SQLite."""
         script = (
