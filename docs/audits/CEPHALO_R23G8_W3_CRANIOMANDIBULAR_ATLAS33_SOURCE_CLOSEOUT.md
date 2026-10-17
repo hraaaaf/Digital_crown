@@ -31,6 +31,8 @@ Primary project source: `backend/data/cephalometry/ricketts_atlas2009_complete33
 - `RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1` = `Ba,N,Pt_Ricketts` (Pt manual) and constructed **Gn**. Full transitive IDs are `Ba,N,Pt_Ricketts,Pog_hard,Go,Me`. **CC→Gn; NOT CC→PTV and NOT Pt_Ricketts=PR_Ricketts_PTV**.
 - `RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1` = `MP_ANGLE_INFERIOR_Ricketts,Me` (explicit source point; do not invent a manual origin gate if the current backend does not require it).
 
+**Indirect manually controlled landmarks in constructed dependencies:** Xi requires R1–R4 manual/manual-corrected; PTV and therefore CF require manual `PR_Ricketts_PTV`; CC requires manual `Pt_Ricketts` (which is NOT `PR_Ricketts_PTV`). The direct landmark requirements remain separate. A source name cannot be silently interpreted as an automatically validated patient position.
+
 Every construction requires its original source-image and availability authority. Every unit mm requires verified source calibration. "Present landmark IDs" in a frontend display are **not** active graph provenance, manual validation or scientific truth.
 
 ### Actual changed components
