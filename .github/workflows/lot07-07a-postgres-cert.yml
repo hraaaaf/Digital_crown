@@ -67,7 +67,7 @@ jobs:
       - name: Real FastAPI PostgreSQL 120 concurrent scenario races and lock interruption
         run: |
           set -euo pipefail
-          python scripts/verification/lot07_07a_postgres_cert.py
+          python -m scripts.verification.lot07_07a_postgres_cert
       - name: Report sanitized failure diagnostics
         if: failure()
         run: |
