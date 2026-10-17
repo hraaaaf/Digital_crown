@@ -86,8 +86,8 @@ async function checkPage(page,theme,width,zoomNative=false){
         tokens:{primary:bodyStyle.getPropertyValue('--primary').trim(),main:bodyStyle.getPropertyValue('--text-main').trim()}};
     });
     const rgb=(value)=>{
-      const match=value.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
-      return match?[Number(match[1]),Number(match[2]),Number(match[3])]:null;
+      const channels=value.match(/[0-9]+/g)?.slice(0,3).map(Number);
+      return channels?.length===3?channels:null;
     };
     const luminance=channels=>channels.map(c=>{
       const n=c/255;return n<=0.04045?n/12.92:((n+0.055)/1.055)**2.4;
