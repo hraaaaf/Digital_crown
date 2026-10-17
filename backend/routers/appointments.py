@@ -18,6 +18,7 @@ from backend.services.agenda_availability import (
 )
 from backend.services.agenda_resource_conflicts import assert_resource_available, find_resource_conflict, validate_assignable_resource
 from backend.services.agenda_overlap_sql import existing_end_after
+from backend.services.agenda_write_lock import lock_cabinet_appointment_writes
 
 router = APIRouter(tags=["Appointments"])
 
@@ -178,6 +179,7 @@ def create_appointment(
         assert_patient_access(appt.patient_id, current_user, db)
 
     employer_id = current_user.get_employer_id()
+    lock_cabinet_appointment_writes(db, employer_id)
     practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, appt.praticien_id)
     validate_assignable_resource(db, employer_id, appt.resource_id)
     normalized_start = _naive_datetime(appt.datetime_start)
@@ -232,6 +234,7 @@ def update_appointment(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = current_user.get_employer_id()
+    lock_cabinet_appointment_writes(db, employer_id)
     db_appt = db.query(models.Appointment).filter(
         models.Appointment.id == id,
         models.Appointment.employer_id == employer_id,
@@ -400,6 +403,7 @@ def create_bulk_appointments(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = current_user.get_employer_id()
+    lock_cabinet_appointment_writes(db, employer_id)
     prepared = []
 
     for index, item in enumerate(payload.appointments):
