@@ -59,8 +59,15 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
         '-File', ('"' + $Script + '"'), '-Mode',$Stage,
         '-WorkRoot', ('"' + $Root + '"'), '-OwnerSid',$Owner,'-PeerSid',$Peer
     )
-    $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -Credential $Credential -ArgumentList $arguments -WorkingDirectory $Root -PassThru -Wait -WindowStyle Hidden
-    Assert-F01 ($process.ExitCode -eq 0) ('CHILD_' + $Stage + '_FAILED')
+    $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -Credential $Credential -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle Hidden
+    try {
+        if (-not $process.WaitForExit(30000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw ('F01_CHILD_' + $Stage + '_TIMEOUT')
+        }
+        $exitCode = $process.ExitCode
+    } finally { $process.Dispose() }
+    Assert-F01 ($exitCode -eq 0) ('CHILD_' + $Stage + '_FAILED')
     $report = Join-Path $Root ('report-' + $Stage + '.json')
     Assert-F01 (Test-Path -LiteralPath $report -PathType Leaf) ('MISSING_REPORT_' + $Stage)
     Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
@@ -183,14 +190,7 @@ try {
         Assert-F01 ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -eq $hashes[$file]) 'HASH_CHANGED'
     }
     Assert-F01 (-not (Test-Path -LiteralPath (Private-Path 'new-peer-created.txt'))) 'PEER_CREATED_FILE'
-    Write-Host 'F01_CROSS_SID_LAB=PASS'
-    Write-Host 'F01_DISTINCT_STANDARD_USER_TOKENS=PASS'
-    Write-Host 'F01_PROTECTED_NTFS_DACL=PASS'
-    Write-Host 'F01_OWNER_POSITIVE_FILE_IO=6/6'
-    Write-Host 'F01_PEER_NEGATIVE_FILE_IO=19/19'
-    Write-Host 'F01_SYNTHETIC_SHA256_UNCHANGED=6/6'
-    Write-Host 'F01_SCM_SERVICE_SID=NOT_TESTED'
-    Write-Host 'F01_COMMERCIAL_CERTIFICATION=NOT_AUTHORIZED'
+    # Never report a PASS before account/file cleanup finishes.
 } catch {
     $mainFailure = $_
 } finally {
@@ -209,3 +209,11 @@ try {
 }
 if ($cleanupFailure) { throw $cleanupFailure }
 if ($mainFailure) { throw $mainFailure }
+    Write-Host 'F01_CROSS_SID_LAB=PASS'
+    Write-Host 'F01_DISTINCT_STANDARD_USER_TOKENS=PASS'
+    Write-Host 'F01_PROTECTED_NTFS_DACL=PASS'
+    Write-Host 'F01_OWNER_POSITIVE_FILE_IO=6/6'
+    Write-Host 'F01_PEER_NEGATIVE_FILE_IO=19/19'
+    Write-Host 'F01_SYNTHETIC_SHA256_UNCHANGED=6/6'
+    Write-Host 'F01_SCM_SERVICE_SID=NOT_TESTED'
+    Write-Host 'F01_COMMERCIAL_CERTIFICATION=NOT_AUTHORIZED'
