@@ -70,17 +70,22 @@ EXPECTED = {
 
 
 def _literal_assignment(source: str, identifier: str):
-    tree = ast.parse(source)
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-            isinstance(target, ast.Name) and target.id == identifier for target in node.targets
-        ):
-            try:
-                return ast.literal_eval(node.value)
-            except (ValueError, TypeError, SyntaxError):
-                raise ValueError("W3 nonliteral canonical source tuple " + identifier) from None
-    raise ValueError("W3 missing canonical source tuple " + identifier)
-
+    # Exactly one literal tuple assignment (the backend names one tuple per
+    # method). Extract the line, not a partial function body: parse only the
+    # tuple AST; AST-parsing a cut-off block would be invalid by construction.
+    match = re.search(
+        r"\b" + re.escape(identifier) + r"\s*=\s*(\([^\n]*\))",
+        source,
+    )
+    if match is None:
+        raise ValueError("W3 missing canonical source tuple " + identifier)
+    try:
+        value = ast.literal_eval(match.group(1))
+    except (ValueError, TypeError, SyntaxError):
+        raise ValueError("W3 nonliteral canonical source tuple " + identifier) from None
+    if not isinstance(value, tuple):
+        raise ValueError("W3 source is not an explicit tuple " + identifier)
+    return value
 
 def build_w3_ledger() -> dict:
     previous = build_w2_ledger()
