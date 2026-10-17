@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AgendaModal } from './AgendaModal';
 import { api } from '../../services/api';
+import toast from 'react-hot-toast';
 
 vi.mock('../../services/api', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }));
 vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }));
@@ -108,6 +109,32 @@ describe('LOT07 07-A — Agenda conflict fail-closed integrated modal', () => {
     await screen.findByRole('button', { name: 'Relancer la vérification' });
     expect(confirm().disabled).toBe(true);
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('renders a safe human-readable error and refreshes conflicts when POST races to a structured 409', async () => {
+    let checks = 0;
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/appointments/check-conflicts') {
+        checks += 1;
+        return { data: checks === 1 ? { has_conflict: false, conflicts: [] }
+          : { has_conflict: true, conflicts: [{ id: 77, datetime_start: '2026-10-19T09:00:00' }] } } as never;
+      }
+      return { data: [] } as never;
+    });
+    vi.mocked(api.post).mockRejectedValueOnce({
+      response: { status: 409, data: { detail: {
+        message: 'Créneau en conflit avec un autre rendez-vous', conflicts: [{ id: 77 }]
+      } } }
+    });
+    mount();
+    await waitFor(() => expect(confirm().disabled).toBe(false), { timeout: 4000 });
+    fireEvent.change(screen.getByPlaceholderText("Saisir l'acte ou rechercher dans le catalogue..."),
+      { target: { value: 'Consultation T2' } });
+    fireEvent.click(confirm());
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Créneau en conflit avec un autre rendez-vous'));
+    await waitFor(() => expect(confirm().disabled).toBe(true), { timeout: 4000 });
+    await waitFor(() => expect(screen.getByText(/Créneau occupé : enregistrement bloqué/)).toBeTruthy());
+    expect(checks).toBeGreaterThanOrEqual(2);
   });
 
   it('fails closed when backend sends a malformed conflict response', async () => {
