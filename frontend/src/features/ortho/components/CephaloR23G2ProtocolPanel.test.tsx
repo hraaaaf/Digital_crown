@@ -230,4 +230,39 @@ describe('R23-G2 full read-only profile tables', () => {
     }
   });
 
+  it('W3 CC/Gn obligations are source-only and clear after switching from Atlas to Gregoret',()=>{
+    const original=useOrthoStore.getState().anglesData;
+    const atlas:any=profile('atlas');
+    atlas.rows[26]={
+      ...atlas.rows[26],
+      canonical_measurement_id:'M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1',
+      label:'Longueur crânienne antérieure',
+      contract_state:'CONDITIONAL_EXECUTABLE',
+      contract_gate:'ATLAS2009_CC_FROM_MANUAL_PT_RICKETTS_AND_CONSTRUCTED_GN_VERIFIED_CALIBRATION_REQUIRED',
+    };
+    const events:Array<CephaloMetricFocus|null>=[];
+    const onFocus=(e:Event)=>events.push((e as CustomEvent<CephaloMetricFocus|null>).detail);
+    window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT,onFocus);
+    useOrthoStore.setState({anglesData:{
+      scientific_read_path:{
+        authority:'EVIDENCE_GRAPH_V1',active_chain:'VERIFIED',
+        protocol_profiles:{ricketts_atlas2009:atlas,ricketts_gregoret13:profile('gregoret')}
+      }
+    }});
+    try{
+      render(<CephaloAnalysisWorkbenchPanel P={P} analysis="ricketts" />);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1"]')!);
+      expect(document.querySelector('[data-r23g8-w3-cranio-gate="M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1"]')).toBeTruthy();
+      expect(screen.getByText(/chaîne de constructions/)).toBeTruthy();
+      expect(document.querySelector('[data-r23g3-focus-source="not-authorized"]')).toBeTruthy();
+      expect(events.at(-1)).toBeNull();
+      fireEvent.click(screen.getByRole('button',{name:'Gregoret · 13 facteurs'}));
+      expect(document.querySelector('[data-r23g8-w3-cranio-gate]')).toBeNull();
+      expect(events.at(-1)).toBeNull();
+    }finally{
+      window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT,onFocus);
+      useOrthoStore.setState({anglesData:original});
+    }
+  });
+
 });
