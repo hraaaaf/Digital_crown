@@ -24,9 +24,31 @@ The LAB mitigates this by:
 - verifying SQLite reports exactly the expected main DB and no attachment;
 - aborting before SQLite operations if an existing sidecar or root is unsafe.
 
-Those are fail-closed **observations**, not a race-free Windows sandbox.
-F01 remains **MAJOR OPEN** until a native Windows process/ACL boundary or a
-proven handle-anchored SQLite VFS covers every database I/O.
+### Additional Windows handle-sharing protections in the synthetic LAB
+
+On native Windows, the LAB now holds `CreateFileW` handles on the verified
+SQLite private **directory ancestry** and the existing **main DB leaf**,
+with `FILE_SHARE_DELETE` deliberately omitted, until the database connection
+has closed. These narrow OS sharing protections are more than path observations:
+native negative tests prove directory/main-DB rename denial while the handles
+are held, release after connection close, and main-DB rename refusal when
+attempted by a **second disposable Python process** (CI 06-A Windows).
+The database identity and observed sidecar safety guards remain necessary.
+
+**Limitations still MAJOR:** the stdlib SQLite VFS itself remains path-based.
+The held main-DB handle does not prevent **in-place content writes by a process
+with sufficient access**, the creation/replacement of unpinned
+`acquisitions.sqlite3-wal`, `-shm` or `-journal` names, or all filesystem
+races during initial database creation. Directory sharing is not equivalent
+to a per-service protected NTFS ACL. No installed Windows service SID,
+hostile-effective-user access matrix, real-PC trial or physical device testing
+has been performed. Do not classify F01 as closed because the synthetic
+interprocess rename test passes.
+
+Other checks remain fail-closed **observations**, not a race-free Windows
+sandbox. F01 remains **MAJOR OPEN** until a demonstrably protected native
+Windows process/ACL boundary or a proven, comprehensively handle-anchored
+SQLite VFS covers the threat model and every relevant database I/O.
 
 ## Commercial installer / Windows DACL CONTRACT (future, not executed)
 
