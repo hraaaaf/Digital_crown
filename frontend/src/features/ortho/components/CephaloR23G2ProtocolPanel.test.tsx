@@ -124,4 +124,39 @@ describe('R23-G2 full read-only profile tables', () => {
     }
   });
 
+  it('renders source-only Atlas U1 dependencies without activating geometry, and clears them on Gregoret', () => {
+    const old = useOrthoStore.getState().anglesData;
+    const atlas: any = profile('atlas');
+    atlas.rows[10] = {
+      ...atlas.rows[10],
+      canonical_measurement_id: 'M_RICKETTS_U1_APOG_PROTRUSION_MM_V1',
+      label: 'Incisive supérieure vers A-Pog',
+      contract_state: 'EXECUTABLE',
+      contract_gate: 'U1_INCISAL_EDGE_PERPENDICULAR_APOG__ANTERIOR_POSITIVE__VERIFIED_CALIBRATION_REQUIRED',
+    };
+    const events: Array<CephaloMetricFocus | null> = [];
+    const receive = (event: Event) => events.push((event as CustomEvent<CephaloMetricFocus | null>).detail);
+    window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT, receive);
+    useOrthoStore.setState({ anglesData: {
+      scientific_read_path: {
+        authority: 'EVIDENCE_GRAPH_V1', active_chain: 'VERIFIED',
+        protocol_profiles: { ricketts_atlas2009: atlas, ricketts_gregoret13: profile('gregoret') },
+      },
+    } });
+    try {
+      render(<CephaloAnalysisWorkbenchPanel P={P} analysis="ricketts" />);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_RICKETTS_U1_APOG_PROTRUSION_MM_V1"]')!);
+      expect(document.querySelector('[data-r23g7-atlas-gate="M_RICKETTS_U1_APOG_PROTRUSION_MM_V1"]')).toBeTruthy();
+      expect(screen.getByText(/sans autorisation de mesure/)).toBeTruthy();
+      expect(document.querySelector('[data-r23g3-focus-source="not-authorized"]')).toBeTruthy();
+      expect(events.at(-1)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Gregoret · 13 facteurs' }));
+      expect(document.querySelector('[data-r23g7-atlas-gate]')).toBeNull();
+      expect(events.at(-1)).toBeNull();
+    } finally {
+      window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT, receive);
+      useOrthoStore.setState({ anglesData: old });
+    }
+  });
+
 });
