@@ -304,7 +304,7 @@ async function runModalUX(page,theme,width,height,zoom=false){
   await page.waitForFunction(()=>Array.from(document.querySelectorAll('button')).some(
     e=>e.textContent?.includes('Confirmer le RDV')&&!e.disabled),null,{timeout:12000});
   if(!await submit.isEnabled())throw Error('Modal retry did not restore submit '+theme+width);
-  if(attempts.length!==2||attempts.some(q=>!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:00$/.test(q||'')))
+  if(attempts.length!==2||attempts.some(q=>!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/.test(q||'')))
     throw Error('Modal wire/retry regression '+JSON.stringify({attempts,theme,width}));
   await submit.scrollIntoViewIfNeeded();
   const readyFile='agenda-'+theme+'-modal-recovered-'+suffix+'.png';
