@@ -1,17 +1,24 @@
 """R23-G2: source-profile completeness is a presentation contract, not a calculation."""
+import importlib.util
 import json
 from pathlib import Path
 
 import pytest
 
-from backend.services.cephalo_protocol_projection import (
-    project_mcnamara_reference_protocol,
-    project_com_reference_protocol,
-    project_ricketts_atlas2009_protocol,
-    project_ricketts_gregoret13_protocol,
-)
-
+# This isolated contract test imports the stdlib-only projector directly.
+# Importing backend/__init__.py would initialize the entire clinical app and
+# require unrelated SQLAlchemy/runtime dependencies in this focused CI gate.
 ROOT = Path(__file__).resolve().parents[2]
+_spec = importlib.util.spec_from_file_location(
+    "r23g2_protocol_projection", ROOT / "backend/services/cephalo_protocol_projection.py"
+)
+assert _spec and _spec.loader
+_projection = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_projection)
+project_mcnamara_reference_protocol = _projection.project_mcnamara_reference_protocol
+project_com_reference_protocol = _projection.project_com_reference_protocol
+project_ricketts_atlas2009_protocol = _projection.project_ricketts_atlas2009_protocol
+project_ricketts_gregoret13_protocol = _projection.project_ricketts_gregoret13_protocol
 AUDIT = ROOT / "docs/audits/schemas"
 RUNTIME = ROOT / "backend/data/cephalometry"
 
