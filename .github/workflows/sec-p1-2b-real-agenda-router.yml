@@ -1,0 +1,60 @@
+name: SEC-P1.2b EXPERIMENTAL Real Agenda Router Native Parity
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "scripts/security/sec_p1_2b_agenda_router_lab.py"
+      - ".github/workflows/sec-p1-2b-real-agenda-router.yml"
+      - "docs/security/SEC_P1_2B_REAL_AGENDA_LAB.md"
+      - "backend/routers/agenda_resources.py"
+      - "backend/schemas/agenda_resources.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sec-p1-2b-agenda-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-agenda-router:
+    name: EXPERIMENTAL real agenda router parity (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact checked-out SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Select Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install minimal pinned test dependencies
+        run: >-
+          python -m pip install Nuitka==4.3 fastapi==0.115.6
+          starlette==0.41.3 pydantic==2.6.3
+          httpx==0.28.1 SQLAlchemy==2.0.28
+
+      - name: Validate dependency contracts
+        run: python -m pip check
+
+      - name: Compare actual Agenda Resources router over synthetic HTTP
+        run: python scripts/security/sec_p1_2b_agenda_router_lab.py
