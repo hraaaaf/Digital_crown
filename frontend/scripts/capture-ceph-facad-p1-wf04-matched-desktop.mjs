@@ -76,7 +76,7 @@ try{
   const context=await browser.newContext({viewport,locale:'fr-FR',reducedMotion:'reduce'});
   const page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('console',x=>{if(x.type()==='error')errors.push(x.text())});
-  await page.route('**/*',route=>{const url=new URL(route.request().url());return url.hostname==='127.0.0.1'&&url.port==='5217'?route.continue():route.abort('blockedbyclient')});
+  await page.route('**/*',route=>{const url=new URL(route.request().url());if(url.hostname==='127.0.0.1'&&url.port==='5217')return route.continue();if(url.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:''});if(url.hostname==='fonts.gstatic.com')return route.fulfill({status:204,body:''});report.browserErrors.push('unexpected external request: '+url.origin+url.pathname);return route.abort('blockedbyclient')});
   try{
    const response=await page.goto('http://127.0.0.1:5217/ceph-facad-p1.html',{waitUntil:'domcontentloaded',timeout:45000});
    if(response?.status()!==200)throw Error('Bad HTTP');
@@ -95,5 +95,5 @@ try{
  await writeFile(path.join(out,'preview.log'),serverLog);
  await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
 }
-if(report.viewports.length!==2||report.viewports.some(v=>!v.valid))throw Error('P1 matched browser evidence FAILED: '+JSON.stringify(report.viewports));
+if(report.browserErrors.length||report.viewports.length!==2||report.viewports.some(v=>!v.valid))throw Error('P1 matched browser evidence FAILED: '+JSON.stringify(report.viewports));
 console.log(JSON.stringify(report));
