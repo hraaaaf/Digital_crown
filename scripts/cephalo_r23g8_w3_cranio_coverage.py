@@ -157,8 +157,16 @@ def build_w3_ledger() -> dict:
             raise ValueError(f"W3 backend literal landmark identity drift at {order}")
         if 'method="'+method+'"' not in section:
             raise ValueError(f"W3 canonical backend method drift at {order}")
-        if not all('constructions.get('+CONSTRUCTIONS[d][0]+')' in section for d in deps):
-            raise ValueError(f"W3 backend construction retrieval missing at {order}")
+        # CC is preloaded immediately BEFORE the #27 local landmark tuple.
+        # Verify that precise lexical link rather than incorrectly claiming
+        # the method has no construction just because it uses ricketts_cc.
+        for d in deps:
+            retrieval = 'constructions.get('+CONSTRUCTIONS[d][0]+')'
+            if order == 27 and d == CC:
+                if retrieval not in backend[max(0,start-700):start] or 'ricketts_cc' not in section:
+                    raise ValueError("W3 Atlas CC provenance preload missing")
+            elif retrieval not in section:
+                raise ValueError(f"W3 backend construction retrieval missing at {order}")
         if manual and "LandmarkOrigin.MANUAL" not in section:
             raise ValueError(f"W3 runtime manual landmark gate lost at {order}")
         if calib and "_calibrated_px(" not in section:
