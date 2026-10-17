@@ -192,6 +192,42 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.agent.scan_once()["rejected"], 1)
             self.assertEqual(self.agent.items(), [])
 
+    @unittest.skipUnless(os.name == "nt", "Windows handle-anchored spool test")
+    def test_windows_spool_write_rename_is_anchored_and_collision_safe(self):
+        from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
+        name = "a" * 64 + ".dc6"
+        root = self.agent.spool
+        identity = self.agent._windows_spool_identity
+        write_ciphertext(root, name, b"ciphertext-fixture-only", identity)
+        self.assertEqual((root / name).read_bytes(), b"ciphertext-fixture-only")
+        with self.assertRaises(OSError):
+            write_ciphertext(root, name, b"overwrite-must-fail", identity)
+        self.assertEqual((root / name).read_bytes(), b"ciphertext-fixture-only")
+        self.assertEqual(
+            sorted(x.name for x in root.iterdir()), [name],
+            "temp files must be cleaned after denied collision",
+        )
+
+    @unittest.skipUnless(os.name == "nt", "Windows handle-anchored spool test")
+    def test_windows_spool_writer_rejects_replaced_directory_before_write(self):
+        from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
+        root = self.agent.spool
+        previous = root.with_name("original-spool")
+        root.rename(previous)
+        try:
+            root.mkdir()
+            with self.assertRaises(OSError):
+                write_ciphertext(
+                    root, "b" * 64 + ".dc6", b"not-clinical-media",
+                    self.agent._windows_spool_identity,
+                )
+            self.assertEqual(list(root.iterdir()), [])
+            self.assertEqual(list(previous.iterdir()), [])
+        finally:
+            if root.exists():
+                root.rmdir()
+            previous.rename(root)
+
     @unittest.skipUnless(os.name == "nt", "NT-relative watch identity regression")
     def test_windows_nt_relative_open_rejects_swapped_root_before_read(self):
         from tools.imaging_gateway.windows_scoped_read_lab import open_relative_read
