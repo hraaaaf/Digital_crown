@@ -6,6 +6,7 @@ on:
       - 'backend/tests/test_lot07_07a_overlap_remediation.py'
       - 'backend/routers/appointments.py'
       - 'backend/services/agenda_overlap_sql.py'
+      - 'backend/services/agenda_write_lock.py'
       - 'frontend/scripts/lot07-07a-agenda-integrity-t2.mjs'
       - '.github/workflows/lot07-07a-agenda-integrity-t2.yml'
   workflow_dispatch:
