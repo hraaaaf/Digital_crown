@@ -29,14 +29,24 @@ const TypewriterText = ({ text, delay = 5 }: { text: string, delay?: number }) =
 };
 
 export const GhostBrainWidget = () => {
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [insights, setInsights] = useState<any[]>([]);
+  // Keep the server snapshot and local acknowledged removals atomic. A delayed
+  // HTTP ACK must not decrement a newer WebSocket snapshot's unread count.
+  const { user } = useAuthStore();
+  const employerId = user?.employer_id || user?.id;
+  const scopeKey = `${employerId ?? ''}:${user?.id ?? ''}`;
+  // A -> B -> A can restore the same scopeKey while an A-era HTTP read ACK
+  // is still pending. A monotonically increasing epoch prevents that old
+  // response from acknowledging A's new session with colliding insight IDs.
+  const scopeEpochRef = useRef(0);
+  const [alertState, setAlertState] = useState<{ scopeKey: string; insights: any[]; unreadCount: number }>({
+    scopeKey: '', insights: [], unreadCount: 0,
+  });
+  // Never render a previous cabinet's alerts during principal changes.
+  const { insights, unreadCount } = alertState.scopeKey === scopeKey
+    ? alertState : { insights: [], unreadCount: 0 };
   const [isOpen, setIsOpen] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuthStore();
   const navigate = useNavigate();
-  
-  const employerId = user?.employer_id || user?.id;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -47,6 +57,13 @@ export const GhostBrainWidget = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    // New principal session: do not resurrect an earlier A snapshot when
+    // returning to A before the new socket provides authoritative data.
+    setAlertState({ scopeKey, insights: [], unreadCount: 0 });
+    return () => { scopeEpochRef.current += 1; };
+  }, [scopeKey]);
 
   useEffect(() => {
     if (!employerId) return;
@@ -62,16 +79,19 @@ export const GhostBrainWidget = () => {
       if (retryCount >= MAX_RETRIES) return;
 
       const wsUrl = buildGhostBrainWsUrl(employerId);
-      ws = new WebSocket(wsUrl);
+      const currentSocket = new WebSocket(wsUrl);
+      ws = currentSocket;
 
-      ws.onopen = () => { retryCount = 0; };
+      ws.onopen = () => { if (!isCleaned && ws === currentSocket) retryCount = 0; };
 
       ws.onmessage = (event) => {
+        // Stale events from a disposed principal or reconnected socket must
+        // never overwrite a fresh cabinet's snapshot.
+        if (isCleaned || ws !== currentSocket) return;
         try {
           const data = JSON.parse(event.data);
           if (data.insights) {
-            setInsights(data.insights);
-            setUnreadCount(data.unread_count);
+            setAlertState({ scopeKey, insights: data.insights, unreadCount: data.unread_count });
           }
         } catch (err) {
           console.error("GhostBrain WS Parse Error:", err);
@@ -79,7 +99,7 @@ export const GhostBrainWidget = () => {
       };
 
       ws.onclose = () => {
-        if (isCleaned) return;
+        if (isCleaned || ws !== currentSocket) return;
         retryCount++;
         const delay = Math.min(5000 * retryCount, 60000);
         reconnectTimer = setTimeout(connectWS, delay);
@@ -97,13 +117,31 @@ export const GhostBrainWidget = () => {
         ws = null;
       }
     };
-  }, [employerId]);
+  }, [employerId, scopeKey]);
 
   const markAsRead = async (logId: number) => {
+    const requestEpoch = scopeEpochRef.current;
     try {
-      await api.post(`/ai/ghost-insights/${logId}/read`);
-      setInsights(prev => prev.filter(i => i.id !== logId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      const ack = await api.post(`/ai/ghost-insights/${logId}/read`);
+      // The backend contract is {"status":"read"}. A 2xx response with a
+      // missing/wrong receipt must never silently hide an unread clinical alert.
+      if (ack?.data?.status !== 'read') {
+        throw new Error('GhostBrain read acknowledgement missing');
+      }
+      setAlertState(prev => {
+        // Ignore an ACK for an alert no longer in the latest WS snapshot.
+        // This also makes duplicate acknowledgements idempotent locally.
+        // An earlier principal's ACK must not touch a newer cabinet snapshot,
+        // even when local numeric insight IDs happen to collide.
+        if (scopeEpochRef.current !== requestEpoch
+          || prev.scopeKey !== scopeKey
+          || !prev.insights.some(i => i.id === logId)) return prev;
+        return {
+          scopeKey: prev.scopeKey,
+          insights: prev.insights.filter(i => i.id !== logId),
+          unreadCount: Math.max(0, prev.unreadCount - 1),
+        };
+      });
     } catch (err) {
       console.error("Failed to mark as read:", err);
     }

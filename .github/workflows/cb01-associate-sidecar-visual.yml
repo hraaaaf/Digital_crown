@@ -1,0 +1,596 @@
+name: CB-01 Associate Sidecar Visual (EXPERIMENTAL)
+
+on:
+  pull_request:
+    paths:
+      - frontend/src/components/Layout/MainLayout.tsx
+      - frontend/src/components/Layout/MainLayout.g1Interactive.test.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
+      - frontend/scripts/certify-cb01-associate-sidecar.mjs
+      - frontend/scripts/certify-cb01-s01-s12-matrix.mjs
+      - scripts/ci/cb01_s07_s09_http_pg.py
+      - scripts/ci/cb01_evidence_ledger.py
+      - frontend/src/features/agenda/AgendaModal.tsx
+      - scripts/ci/cb01_s07_s09_sqlcipher.py
+      - scripts/ci/cb01_s07_s09_postgres.py
+      - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
+      - backend/routers/ai_feedback.py
+      - backend/tests/test_ai_feedback_router.py
+      - frontend/src/components/GhostBrainWidget.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+      - frontend/src/components/GhostBrainWidget.g9Interactive.test.tsx
+      - .github/workflows/cb01-associate-sidecar-visual.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cb01-associate:
+    name: Synthetic CB-01 floating 390/430/1280/1440 + sidecar 1600/1920
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cb01_http
+          POSTGRES_PASSWORD: cb01-synthetic-ci-only
+          POSTGRES_DB: cb01_http_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cb01_http -d cb01_http_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: crown-bot-cb00-lab-only-secret-000001-long-enough
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: 'true'
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: 'true'
+      VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED: 'true'
+      T2_DENIED_USER: t2-restricted@cabinet.ma
+      T2_DENIED_COMMAND: /patient
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Confirm exact tested source
+        shell: bash
+        env:
+          EXPECTED: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED"
+          echo "CB01_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
+          echo "T2_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
+          echo "Exact checkout SHA $EXPECTED" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Create masked disposable auth password and independent SQLCipher key
+        shell: bash
+        run: |
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          storage_key="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$password"
+          echo "::add-mask::$storage_key"
+          {
+            echo "T2_USER=t2-browser@cabinet.ma"
+            printf 'T2_PASSWORD=%s\n' "$password"
+            printf 'SQLCIPHER_KEY_HEX=%s\n' "$storage_key"
+          } >> "$GITHUB_ENV"
+      - name: Install isolated backend
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb00-requirements.txt
+          pip install -r /tmp/cb00-requirements.txt
+      - name: Install isolated frontend and Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Test scoped patient resolution against real isolated backend models
+        shell: bash
+        run: |
+          pip install pytest==8.4.2
+          python -m pytest -q backend/tests/test_cb00_patient_selectors.py
+      - name: Test flagged preview dossier disambiguation UI
+        shell: bash
+        working-directory: frontend
+        run: npx vitest run src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+      - name: Verify CB-01 safe shell regressions in Vitest
+        working-directory: frontend
+        shell: bash
+        run: |
+          npx vitest run src/components/Layout/MainLayout.g1Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
+      - name: S07/S12 scoped isolated backend evidence (adjacent, overlap, GhostBrain ACK)
+        shell: bash
+        run: |
+          python -m pytest -q \
+            backend/tests/test_appointments_extended.py::TestCheckConflictsEdgeCases::test_non_overlapping_adjacent_slots_no_conflict \
+            backend/tests/test_appointments_m5b.py::TestConflictDetection::test_conflict_overlapping_appointment \
+            backend/tests/test_ai_feedback_router.py::TestGhostInsights::test_mark_nonexistent_insight_returns_404 \
+            backend/tests/test_ai_feedback_router.py::TestGhostInsights::test_mark_insight_read \
+            backend/tests/test_ai_feedback_router.py::TestGhostSnapshotDiff::test_same_unread_count_with_replaced_id_broadcasts_new_patient_alert
+      - name: S10/S12 scoped frontend evidence (409 recovery mock, GhostBrain ACK)
+        shell: bash
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/agenda/AgendaModal.g3Interactive.test.tsx \
+            src/components/GhostBrainWidget.g9Interactive.test.tsx
+      - name: Record explicit S07/S09/S10/S12 technical coverage and gaps
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          sha=os.environ.get('CB01_SOURCE_HEAD','')
+          assert len(sha)==40 and all(c in '0123456789abcdef' for c in sha)
+          checks=[
+            dict(id='S07',status='PARTIAL_SYNTHETIC',tests=[
+              'test_non_overlapping_adjacent_slots_no_conflict',
+              'test_conflict_overlapping_appointment'],
+              limitation='Two deterministic HTTP overlap/adjacent checks; parallel booking race not executed'),
+            dict(id='S09',status='NOT_RUN',tests=[],
+              limitation='CB-01 proposal-only; no executable stale booking CAS/ABA endpoint certified'),
+            dict(id='S10',status='PARTIAL_MOCKED_UI',tests=[
+              'S10: 409 booking conflict keeps draft open, reports refusal, and only acknowledges a fresh retry'],
+              limitation='Mocked 409 and ACK in AgendaModal; real multi-user 409 race and human UI not executed'),
+            dict(id='S12',status='PARTIAL_SYNTHETIC',tests=[
+              'GhostBrainWidget G9 read-ack truth',
+              'test_mark_nonexistent_insight_returns_404',
+              'test_mark_insight_read'],
+              limitation='UI simulated ACK/refusal plus backend synthetic ACK/404; no live human WebSocket journey'),
+          ]
+          out=Path('artifacts/cb01-associate-sidecar/technical-gap-evidence.json')
+          out.parent.mkdir(parents=True,exist_ok=True)
+          out.write_text(json.dumps({
+            'schema':'CB01_TECHNICAL_GAP_EVIDENCE_V1',
+            'sourceHead':sha,'kind':'CI_SCOPED_TESTS_NOT_HUMAN_E2E',
+            'testsExecutedInPreviousTwoSuccessfulSteps':True,
+            'humanE2EValidated':0,'scenarios':checks,
+          },indent=2)+'\n',encoding='utf-8')
+          print('CB01_TECHNICAL_GAPS: 3 PARTIAL, 1 NOT_RUN; no human E2E claims')
+          PY
+      - name: S07/S09 real FastAPI HTTP handlers over full Alembic PostgreSQL (isolated)
+        shell: bash
+        env:
+          ENVIRONMENT: rehearsal
+          DATABASE_URL: postgresql://cb01_http:cb01-synthetic-ci-only@127.0.0.1:5432/cb01_http_lab
+        run: |
+          # Process-local attestation for this disposable host / PostgreSQL target.
+          # No mutable application/clinical DB, remote host or prod credentials.
+          export DIGITALCROWN_ISOLATION_DB_FINGERPRINT="$(python -c 'import hashlib;print(hashlib.sha256(b"postgresql://cb01_http@loopback:5432/cb01_http_lab").hexdigest())')"
+          # Rehearsal refuses real/implicit media paths. Use a brand-new job-only root.
+          export MEDIA_ROOT="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cb01-rehearsal-media-XXXXXX")"
+          trap 'rm -rf -- "$MEDIA_ROOT"' EXIT
+          python -m alembic upgrade head
+          PYTHONPATH=. python scripts/ci/cb01_s07_s09_http_pg.py
+      - name: Summarize scoped S07/S09 HTTP PostgreSQL proof
+        if: always()
+        shell: bash
+        run: |
+          if test -f artifacts/cb01-associate-sidecar/http-pg-s07-s09-evidence.json; then
+            echo "### S07/S09 real FastAPI HTTP on full Alembic PostgreSQL: PASS integration; no human E2E or SQLCipher certification." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: S07/S09 SQLCipher encrypted-file writer lock and ABA (isolated)
+        shell: bash
+        run: |
+          python scripts/ci/cb01_s07_s09_sqlcipher.py
+          echo "### S07/S09 SQLCipher temporary encrypted DB primitives: PASS if step succeeds; NOT human E2E or full cabinet SQLCipher migration." >> "$GITHUB_STEP_SUMMARY"
+      - name: Start disposable synthetic T2 backend
+        shell: bash
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/cb00-synthetic-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 70 /tmp/cb00-synthetic-backend.log
+          exit 1
+      - name: Read seeded synthetic patient ID and snapshot clinical counts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime
+          from backend import database, models
+          from backend.security import get_password_hash
+          from backend.routers.auth import has_permission
+          with database.SessionLocal() as db:
+              owner = db.query(models.User).filter(
+                  models.User.email == 't2-browser@cabinet.ma').one()
+              s06_email = 't2-s06-no-agenda@cabinet.ma'
+              no_agenda = db.query(models.User).filter(
+                  models.User.email == s06_email).one_or_none()
+              if no_agenda is None:
+                  no_agenda = models.User(
+                      email=s06_email,
+                      hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
+                      role=models.UserRole.SECRETAIRE,
+                      nom_complet='T2 S06 Synthetic Reception',
+                      is_active=True, is_licensed=True,
+                      approval_status=models.ApprovalStatus.APPROVED.value,
+                      employer_id=owner.id,
+                      permissions={
+                          'agenda': False, 'patients': True, 'accounting': False,
+                          'admin': False, 'clinical': False,
+                      },
+                  )
+                  db.add(no_agenda)
+                  db.commit()
+                  db.refresh(no_agenda)
+              assert no_agenda.employer_id == owner.id
+              assert has_permission(no_agenda, 'patients') is True
+              assert has_permission(no_agenda, 'agenda') is False
+              assert has_permission(no_agenda, 'accounting') is False
+              # Distinct S05 reception role may prepare appointment proposals,
+              # but cannot access accounting and cannot execute any preview.
+              s05_email = 't2-s05-reception@cabinet.ma'
+              reception = db.query(models.User).filter(
+                  models.User.email == s05_email).one_or_none()
+              if reception is None:
+                  reception = models.User(
+                      email=s05_email,
+                      hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
+                      role=models.UserRole.SECRETAIRE,
+                      nom_complet='T2 S05 Synthetic Reception',
+                      is_active=True, is_licensed=True,
+                      approval_status=models.ApprovalStatus.APPROVED.value,
+                      employer_id=owner.id,
+                      permissions={
+                          'agenda': True, 'patients': True, 'accounting': False,
+                          'admin': False, 'clinical': False,
+                      },
+                  )
+                  db.add(reception)
+                  db.commit()
+                  db.refresh(reception)
+              assert reception.id != no_agenda.id
+              assert reception.employer_id == owner.id
+              assert has_permission(reception, 'patients') is True
+              assert has_permission(reception, 'agenda') is True
+              assert has_permission(reception, 'accounting') is False
+              foreign_owner = db.query(models.User).filter(
+                  models.User.email == 't2-setup-390@cabinet.ma').one()
+              assert owner.id != foreign_owner.id, 'T2 owners must be isolated'
+              p = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'T2-0001',
+                  models.Patient.employer_id == owner.id).one()
+              foreign = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'CB00-FR-0001',
+                  models.Patient.employer_id == foreign_owner.id).one_or_none()
+              if foreign is None:
+                  foreign = models.Patient(
+                      numero_dossier='CB00-FR-0001', nom='FICTIF',
+                      prenom='EXTERNE', date_naissance=datetime(1990, 1, 1),
+                      sexe='F', employer_id=foreign_owner.id)
+                  db.add(foreign)
+                  db.commit()
+                  db.refresh(foreign)
+              assert foreign.id != p.id
+              assert foreign.employer_id == foreign_owner.id
+              assert foreign.employer_id != p.employer_id
+              assert foreign.deleted_at is None
+              unknown = db.query(models.Patient).order_by(
+                  models.Patient.id.desc()).first().id + 10000
+              assert 0 < unknown < 10 ** 10
+              assert db.query(models.Patient).filter(
+                  models.Patient.id == unknown).first() is None
+              before = {
+                  'appointments': db.query(models.Appointment).count(),
+                  'pending_actions': db.query(models.BotPendingAction).count(),
+              }
+              patient_id, foreign_id = p.id, foreign.id
+          with open('/tmp/cb00-clinical-before.json', 'w') as f:
+              json.dump(before, f)
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write('T2_PATIENT_ID=' + str(patient_id) + '\n')
+              f.write('T2_FOREIGN_PATIENT_ID=' + str(foreign_id) + '\n')
+              f.write('T2_UNKNOWN_PATIENT_ID=' + str(unknown) + '\n')
+              f.write('T2_DENIED_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
+              f.write('T2_S06_USER=' + s06_email + '\n')
+              f.write('T2_S06_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
+              f.write('T2_S05_USER=' + s05_email + '\n')
+              f.write('T2_S05_PASSWORD=' + os.environ['T2_PASSWORD'] + '\n')
+          print('PASS: two seeded T2 cabinet owners are distinct, foreign patient exists in DB; unknown ID absent; baseline taken after synthetic fixture')
+          print('PASS: S06 synthetic secretary patients=true, agenda=false, employer scoped to T2 owner')
+          print('PASS: S05 synthetic reception patients=true, agenda=true, accounting=false, employer scoped')
+          PY
+      - name: Measure useful HTTP patient read p50 / p95
+        shell: bash
+        run: |
+          python scripts/ci/crownbot_cb00_t2_read_evidence.py \
+            --api http://127.0.0.1:8005 --n 30 \
+            --out /tmp/cb00-synthetic-http.json
+      - name: Seed CB-01 browser homonyms after CB-00 reference probe
+        shell: bash
+        run: |
+          # A numeric dossier equal to an internal ID MUST NOT corrupt the
+          # legacy baseline read probe. Seed this collision after the probe.
+          python - <<'PY'
+          from datetime import datetime
+          from backend import database, models
+          with database.SessionLocal() as db:
+              owner = db.query(models.User).filter(
+                  models.User.email == 't2-browser@cabinet.ma').one()
+              p = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'T2-0001',
+                  models.Patient.employer_id == owner.id).one()
+              # CB-01 browser-only synthetic staff scenarios: same surname,
+              # explicit dossier lookup and numeric dossier/global-ID collision.
+              named = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == 'CB01-N-101',
+                  models.Patient.employer_id == owner.id).one_or_none()
+              if named is None:
+                  named = models.Patient(
+                      numero_dossier='CB01-N-101', nom='BENALI',
+                      prenom='AMINA', date_naissance=datetime(1990, 1, 1),
+                      sexe='F', employer_id=owner.id)
+                  db.add(named)
+                  db.commit()
+                  db.refresh(named)
+              numeric = db.query(models.Patient).filter(
+                  models.Patient.numero_dossier == str(p.id),
+                  models.Patient.employer_id == owner.id).one_or_none()
+              if numeric is None:
+                  numeric = models.Patient(
+                      numero_dossier=str(p.id), nom='BENALI',
+                      prenom='SALMA', date_naissance=datetime(1990, 1, 1),
+                      sexe='F', employer_id=owner.id)
+                  db.add(numeric)
+                  db.commit()
+                  db.refresh(numeric)
+              assert named.id != numeric.id != p.id
+              assert named.employer_id == numeric.employer_id == p.employer_id
+              assert named.deleted_at is None and numeric.deleted_at is None
+          print('PASS: CB-01 browser fixtures seeded AFTER CB-00 reference HTTP probe')
+          PY
+      - name: Start isolated existing flagged-preview web UI
+        shell: bash
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/cb00-synthetic-frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 70 /tmp/cb00-synthetic-frontend.log
+          exit 1
+      - name: Verify B sidecar workspace reflow and capture synthetic BEFORE/AFTER
+        working-directory: frontend
+        shell: bash
+        run: |
+          node scripts/run-with-t2-workstation.mjs \
+            scripts/certify-cb01-associate-sidecar.mjs
+      - name: Certify scoped S01-S12 (7 API + 1 Agenda browser, 4 untested)
+        working-directory: frontend
+        shell: bash
+        run: |
+          node scripts/certify-cb01-s01-s12-matrix.mjs
+      - name: Reconcile real PostgreSQL/SQLCipher and frontend proof without human promotion
+        shell: bash
+        run: |
+          python scripts/ci/cb01_evidence_ledger.py
+          echo '### S07/S09/S10/S12: real PG HTTP + SQLCipher primitives + React mocked transport, 0/12 human E2E; see cross-gate-evidence.json.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Compare actual appointment and pending-action counts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from backend import database, models
+          with database.SessionLocal() as db:
+              after = {
+                  'appointments': db.query(models.Appointment).count(),
+                  'pending_actions': db.query(models.BotPendingAction).count(),
+              }
+          before = json.load(open('/tmp/cb00-clinical-before.json'))
+          if before != after:
+              raise SystemExit('FAIL: change in appointment or pending-action counts')
+          print('PASS: appointment and pending-action counts unchanged; not full DB diff')
+          PY
+      - name: Record performance evidence for artifact
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/cb00-http
+          if test -f /tmp/cb00-synthetic-http.json; then
+            cp /tmp/cb00-synthetic-http.json artifacts/cb00-http/http-summary.json
+          fi
+          echo "## CB-01 caveats" >> "$GITHUB_STEP_SUMMARY"
+          echo "Synthetic CI-only T2: B sidecar shell experimental, no cabinet production activation." >> "$GITHUB_STEP_SUMMARY"
+          echo "Does not certify production BEFORE, 200% browser zoom, 12 staff E2E, clinical validation or deployed UI." >> "$GITHUB_STEP_SUMMARY"
+          if test -f artifacts/cb01-associate-sidecar/cross-gate-evidence.json; then
+            echo "### Cross-gate S07/S09/S10/S12 technical proofs: read cross-gate-evidence.json. Human journeys remain NOT_RUN (0/12)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if test -f artifacts/cb01-associate-sidecar/s01-s12-synthetic-matrix.json; then
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          path = 'artifacts/cb01-associate-sidecar/s01-s12-synthetic-matrix.json'
+          data = json.load(open(path, encoding='utf-8'))
+          counts = data['counts']
+          print('### S01–S12: scoped synthetic coverage, NOT human E2E')
+          print(f"Synthetic API: {counts['passedSynthetic']} PASS; Agenda browser: {counts['passedBrowserSynthetic']} PASS; partial: {counts['partialSynthetic']}; NOT_RUN: {counts['notRun']}; human E2E: {counts['humanE2EValidated']}/12.")
+          print('Never promote PARTIAL or NOT_RUN to PASS. See JSON artifact for exact case labels.')
+          PY
+          fi
+      - name: Print bounded failure logs only
+        if: failure()
+        shell: bash
+        run: |
+          tail -n 80 /tmp/cb00-synthetic-backend.log || true
+          tail -n 80 /tmp/cb00-synthetic-frontend.log || true
+      - name: Upload synthetic CB-01 sidecar proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-synthetic-associate-sidecar-evidence
+          path: |
+            artifacts/cb01-associate-sidecar
+            artifacts/cb00-http
+          if-no-files-found: warn
+          retention-days: 14
+ 
+  cb01-windows-ui-regressions:
+    name: Windows hosted UI regression truth (NOT T2 or native zoom)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CB01_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: 'true'
+      VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED: 'true'
+    steps:
+      - name: Checkout exact PR HEAD without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Refuse mismatched checkout
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:CB01_SOURCE_HEAD) {
+            throw 'REFUSED: GitHub hosted Windows source SHA mismatch'
+          }
+          "Tested Windows checkout HEAD: $actual" >> $env:GITHUB_STEP_SUMMARY
+      - name: Setup Node.js 22 on hosted Windows
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend from frozen lockfile
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify Windows S10 S12 and guarded Crown Bot interactions
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npx vitest run src/components/Layout/MainLayout.g1Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx src/components/GhostBrainWidget.g9Interactive.test.tsx src/features/agenda/AgendaModal.g3Interactive.test.tsx --reporter=default --reporter=json --outputFile=cb01-windows-vitest.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Assert complete Windows regression evidence and record limitations
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'cb01-windows-vitest.json')) {
+            throw 'FAIL: Windows test report missing'
+          }
+          $report = Get-Content 'cb01-windows-vitest.json' -Raw | ConvertFrom-Json
+          $required = @(
+            'MainLayout.g1Interactive.test.tsx',
+            'CrownBotWorkflowPreview.test.tsx',
+            'CrownBotChat.g9Interactive.test.tsx',
+            'GhostBrainWidget.g9Interactive.test.tsx',
+            'AgendaModal.g3Interactive.test.tsx'
+          )
+          foreach ($file in $required) {
+            $found = @($report.testResults | Where-Object { $_.name -like "*$file" })
+            if ($found.Count -ne 1) { throw "FAIL: Windows test suite missing or repeated: $file" }
+          }
+          if ($report.numFailedTests -ne 0 -or $report.numPassedTests -lt 30) {
+            throw 'FAIL: insufficient passing Windows interactive tests'
+          }
+          $proof = [ordered]@{
+            schema = 'CB01_WINDOWS_HOSTED_UI_V1'
+            sourceHead = $env:CB01_SOURCE_HEAD
+            os = 'windows-latest'
+            kind = 'VITEST_JSDOM_AUTOMATED_UI_ONLY'
+            passed = [int]$report.numPassedTests
+            failed = [int]$report.numFailedTests
+            suites = $required
+            humanE2EValidated = 0
+            nativeBrowserZoom200Percent = 'NOT_RUN'
+            cabinetWorkstation = 'NOT_USED'
+            converged = $false
+          }
+          $proof | ConvertTo-Json -Depth 4 | Set-Content 'cb01-windows-attestation.json' -Encoding utf8
+          "### Windows hosted CB-01 regressions: $($report.numPassedTests) passing, 0 failed; exact HEAD $env:CB01_SOURCE_HEAD" >> $env:GITHUB_STEP_SUMMARY
+          'Windows JSDOM UI regressions only: no native Chrome browser zoom, no human staff E2E, no cabinet device, no clinical activation.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload Windows regression attestation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-windows-ui-regressions
+          path: |
+            frontend/cb01-windows-attestation.json
+            frontend/cb01-windows-vitest.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  cb01-pg-concurrency-primitives:
+    name: S07/S09 isolated PostgreSQL lock and ABA primitives (EXPERIMENTAL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cb01_ci
+          POSTGRES_PASSWORD: isolated-ci-only
+          POSTGRES_DB: cb01_booking_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cb01_ci -d cb01_booking_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CB01_PG_LAB_URL: postgresql://cb01_ci:isolated-ci-only@127.0.0.1:5432/cb01_booking_lab
+      CB01_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact HEAD with no persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only PostgreSQL primitive test dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'SQLAlchemy>=2.0,<2.1' 'psycopg2-binary>=2.9,<3'
+      - name: Assert actual PostgreSQL booking race and monotonic ABA revision
+        shell: bash
+        run: |
+          PYTHONPATH=. python scripts/ci/cb01_s07_s09_postgres.py
+          echo '## CB-01 S07/S09 PostgreSQL primitives' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Two independent PostgreSQL transactions; one same-slot insert, adjacent allowed, ABA stale CAS refused. NOT full HTTP workflow or cabinet E2E.' >> "$GITHUB_STEP_SUMMARY"
+          echo "HEAD: $CB01_SOURCE_HEAD" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload isolated PostgreSQL technical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-pg-concurrency-primitives
+          path: artifacts/cb01-concurrency
+          retention-days: 14
+          if-no-files-found: warn

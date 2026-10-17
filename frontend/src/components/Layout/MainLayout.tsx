@@ -36,6 +36,15 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
   const { profile, fetchProfile } = useSettingsStore();
   const { user } = useAuthStore();
+  // A principal, cabinet, role or permission switch must discard the whole
+  // CrownBotChat tree (sessions, insights, patient previews). Revoking a right
+  // without logging out must not leave cached patient data on-screen.
+  // The key remains stable across viewport resize, preserving in-progress drafts.
+  const crownBotEffectiveRights = (['patients', 'agenda', 'accounting'] as const)
+    .map(permission => hasAccess(user, permission) ? '1' : '0').join('');
+  const crownBotPrincipalKey = user
+    ? `${user.id}:${user.employer_id ?? user.id}:${user.role}:${crownBotEffectiveRights}`
+    : 'anonymous';
   const canReadSettings = hasAccess(user, 'settings');
   const [animatedBg, setAnimatedBg] = React.useState(() => safeStorage.get('app_background_animated') === 'true');
 
@@ -55,7 +64,68 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
   const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
   const [isBotOpen, setIsBotOpen] = useState(false);
-  const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
+  // Only one CrownBotChat can mount at a time: the hidden duplicate would
+  // otherwise open a second websocket and duplicate effectful API reads.
+  const [isWideDesktop, setIsWideDesktop] = useState(
+    () => typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(min-width: 1600px)').matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(min-width: 1600px)');
+    const onChange = () => setIsWideDesktop(query.matches);
+    onChange();
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  // CB-01 experiment: permanent sidecar only from 1600 CSS px. At 1280/1440,
+  // real Agenda/PatientDetails screenshots showed clipped patient tabs and
+  // crowded clinical controls; use dismissible floating web fallback instead.
+  // Desktop web only, double opt-in; cabinet stays on the old floating UI.
+  const associateSidecarEnabled =
+    import.meta.env.VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED === 'true'
+    && import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
+  const showAssociateSidecar = associateSidecarEnabled && isWideDesktop;
+  const sidecarCloseButtonRef = React.useRef<HTMLButtonElement>(null);
+  const associatePanelRef = React.useRef<HTMLDivElement>(null);
+  const wasSidecarOpenRef = React.useRef(false);
+  const crownBotLauncherRef = React.useRef<HTMLButtonElement>(null);
+  const restoreSidecarFocusRef = React.useRef(false);
+  const closeAssociateSidecar = () => {
+    restoreSidecarFocusRef.current = true;
+    setIsBotOpen(false);
+  };
+  useEffect(() => {
+    const sidecarOpen = showAssociateSidecar && isBotOpen;
+    if (sidecarOpen && !wasSidecarOpenRef.current) {
+      sidecarCloseButtonRef.current?.focus();
+    } else if (isBotOpen && wasSidecarOpenRef.current && !sidecarOpen) {
+      // A 200% zoom / viewport reflow must not strand keyboard focus when
+      // the desktop-only reducer disappears; the same Chat stays mounted.
+      associatePanelRef.current?.focus();
+    } else if (!isBotOpen && restoreSidecarFocusRef.current) {
+      restoreSidecarFocusRef.current = false;
+      crownBotLauncherRef.current?.focus();
+    }
+    wasSidecarOpenRef.current = sidecarOpen;
+  }, [showAssociateSidecar, isBotOpen]);
+  // Parent badge survives a closed chat: scope its state to the exact
+  // principal/rights key, not just the keyed CrownBotChat subtree. When
+  // changing tenants the old count is hidden on the FIRST render.
+  const [ghostUnreadState, setGhostUnreadState] = useState({
+    principalKey: crownBotPrincipalKey,
+    count: 0,
+  });
+  const ghostUnreadCount = ghostUnreadState.principalKey === crownBotPrincipalKey
+    ? ghostUnreadState.count : 0;
+  useEffect(() => {
+    setGhostUnreadState({ principalKey: crownBotPrincipalKey, count: 0 });
+  }, [crownBotPrincipalKey]);
+  const onCrownBotUnreadChange = React.useCallback((count: number) => {
+    // An old unmounted chat can only update its own scope, never B's badge.
+    setGhostUnreadState({ principalKey: crownBotPrincipalKey, count: Math.max(0, count) });
+  }, [crownBotPrincipalKey]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
@@ -120,11 +190,62 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
+      {associateSidecarEnabled && isBotOpen && (
+        <div
+          ref={associatePanelRef}
+          tabIndex={-1}
+          data-cb01-associate-sidecar={showAssociateSidecar ? true : undefined}
+          data-ux1-c-crownbot-overlay={!showAssociateSidecar ? true : undefined}
+          role={showAssociateSidecar ? 'complementary' : undefined}
+          aria-label={showAssociateSidecar ? 'Crown Bot — assistant latéral expérimental' : undefined}
+          onKeyDown={event => {
+            if (showAssociateSidecar && event.key === 'Escape') {
+              event.preventDefault();
+              event.stopPropagation();
+              closeAssociateSidecar();
+            }
+          }}
+          className={showAssociateSidecar
+            ? 'relative z-20 flex h-full min-h-0 w-[clamp(360px,30vw,480px)] shrink-0 flex-col border-l border-slate-200 bg-white shadow-2xl'
+            : `fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
+                isPatientRoute
+                  ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
+                  : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
+              }`}
+        >
+          {showAssociateSidecar && (
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800">Crown Bot · Associate</p>
+                <p className="text-[11px] text-slate-500">Aperçu expérimental — aucune écriture</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Réduire le panneau Crown Bot"
+                ref={sidecarCloseButtonRef}
+                onClick={closeAssociateSidecar}
+                className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                Réduire
+              </button>
+            </div>
+          )}
+          <div className={showAssociateSidecar ? 'min-h-0 flex-1' : 'h-full'}>
+            <CrownBotChat
+              key={crownBotPrincipalKey}
+              onClose={showAssociateSidecar ? closeAssociateSidecar : () => setIsBotOpen(false)}
+              onUnreadChange={onCrownBotUnreadChange}
+            />
+          </div>
+        </div>
+      )}
+
       <div
         data-ux1-c-crownbot-floating
-        className={`${isPatientRoute ? 'hidden lg:block' : ''} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
+        className={`${showAssociateSidecar && isBotOpen ? 'hidden lg:hidden' : (isPatientRoute ? 'hidden lg:block' : '')} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
       >
         <button
+          ref={crownBotLauncherRef}
           onClick={() => setIsBotOpen(!isBotOpen)}
           aria-label={isBotOpen ? 'Fermer CrownBot' : 'Ouvrir CrownBot'}
           aria-expanded={isBotOpen}
@@ -132,7 +253,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         >
           <Bot size={24} />
           {ghostUnreadCount > 0 && !isBotOpen && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 text-slate-900 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse shadow-lg">
+            <span data-cb01-parent-unread className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 text-slate-900 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse shadow-lg">
               {ghostUnreadCount}
             </span>
           )}
@@ -140,7 +261,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <AnimatePresence>
-        {isBotOpen && (
+        {isBotOpen && !associateSidecarEnabled && (
           <motion.div
             data-ux1-c-crownbot-overlay
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -153,7 +274,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
                 : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
             }`}
           >
-            <CrownBotChat onClose={() => setIsBotOpen(false)} onUnreadChange={setGhostUnreadCount} />
+            <CrownBotChat key={crownBotPrincipalKey} onClose={() => setIsBotOpen(false)} onUnreadChange={onCrownBotUnreadChange} />
           </motion.div>
         )}
       </AnimatePresence>

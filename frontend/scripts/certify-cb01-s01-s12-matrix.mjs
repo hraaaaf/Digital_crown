@@ -1,0 +1,362 @@
+/**
+ * CB-01 isolated GitHub Actions staff evidence ledger, NOT a human T2 certification.
+ *
+ * Seven scoped HTTP assertions and one tomorrow-agenda browser read are
+ * executed against a disposable synthetic T2. S07/S09/S10/S12 remain NOT_RUN
+ * as full user journeys; other gate evidence is not silently imported.
+ * Never create
+ * appointments, mutate clinical records or call /bot/execute.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium, request } from 'playwright';
+
+if (process.env.DIGITALCROWN_ISOLATED_RUNTIME !== '1') {
+  throw new Error('REFUSED: disposable isolated T2 required');
+}
+const origin = process.env.CB01_T2_API_URL || 'http://127.0.0.1:8005';
+const appOrigin=process.env.CB01_T2_APP_URL || 'http://127.0.0.1:5173';
+for(const candidate of [origin,appOrigin]) {
+  const url=new URL(candidate);
+  if(url.protocol!=='http:' || !['localhost','127.0.0.1'].includes(url.hostname)
+      || !url.port || url.username || url.password || url.search || url.hash
+      || (url.pathname !== '/' && url.pathname !== '')) {
+    throw new Error('REFUSED: loopback-only synthetic origin');
+  }
+}
+const owner=process.env.T2_USER;
+const receptionist=process.env.T2_S05_USER;
+const denied=process.env.T2_S06_USER;
+const sourceHead=process.env.CB01_SOURCE_HEAD || '';
+const patientId=Number(process.env.T2_PATIENT_ID);
+const foreignId=Number(process.env.T2_FOREIGN_PATIENT_ID);
+const unknownId=Number(process.env.T2_UNKNOWN_PATIENT_ID);
+if (![owner,receptionist,denied].every(v=>v?.startsWith('t2-'))
+    || new Set([owner,receptionist,denied]).size !== 3
+    || ![patientId,foreignId,unknownId].every(v=>Number.isSafeInteger(v)&&v>0)
+    || new Set([patientId,foreignId,unknownId]).size !== 3
+    || !/^[0-9a-f]{40}$/.test(sourceHead)
+    || !process.env.T2_PASSWORD || !process.env.T2_S05_PASSWORD
+    || !process.env.T2_S06_PASSWORD) {
+  throw new Error('REFUSED: complete distinct synthetic fixtures and exact source SHA required');
+}
+
+const statusById=new Map();
+for (const [id,title,reason] of [
+  ['S01','Dentist agenda tomorrow','NOT_RUN: tomorrow day switch requires a real browser success'],
+  ['S07','Adjacent appointment slots','NOT_RUN: booking concurrency belongs to separate integration gates, no clinical booking in CB-01'],
+  ['S09','Stale booking ABA conflict','NOT_RUN: PostgreSQL/SQLCipher concurrency checked separately, not an end-to-end UI journey'],
+  ['S10','Reception conflict 409 recovery','NOT_RUN: mocked Vitest 409 recovery exists, real concurrent 409 UX not simulated here'],
+  ['S12','GhostBrain mark-as-read','NOT_RUN: mock read-ack unit test exists, human alert journey not executed here'],
+]) statusById.set(id,{id,title,status:'NOT_RUN',reason,humanE2E:'NOT_RUN'});
+
+// Per-user API contexts prevent access_token cookies from silently changing
+// the authenticated principal (the backend correctly prefers an auth cookie
+// over any Bearer header). Never use one context for three users' logins.
+const api=await request.newContext({baseURL:origin,ignoreHTTPSErrors:false});
+const staffContexts=[];
+const output=path.resolve('../artifacts/cb01-associate-sidecar/s01-s12-synthetic-matrix.json');
+const failures=[];
+const noActionIdentifiers=(obj)=>{
+  const serialized=JSON.stringify(obj);
+  if (/(?:pending_action_id|pendingActionId|action_id|actionId)/.test(serialized)) {
+    throw new Error('executable action identifier leaked');
+  }
+};
+const assert=(condition,label)=>{if(!condition)throw new Error(label)};
+async function login(context,email,password) {
+  const response=await context.post('/api/auth/login',{form:{username:email,password}});
+  assert(response.status()===200,'synthetic login rejected');
+  const json=await response.json();
+  assert(typeof json.access_token==='string'&&json.access_token.length>10,
+    'missing synthetic access token');
+  return json.access_token;
+}
+async function preview(context,token,messages){
+  assert(Array.isArray(messages)&&messages.length>=1&&messages.length<=8,
+    'bounded preview transcript violated');
+  const response=await context.post('/api/bot/workflows/preview',{
+    data:{messages},headers:{Authorization:'Bearer '+token},
+    maxRedirects:0,
+  });
+  const code=response.status();
+  let json;
+  try { json=await response.json(); } catch {
+    throw new Error('HTTP_'+code+'_INVALID_JSON');
+  }
+  // Diagnostic metadata only: NO request payload, token, patient name,
+  // candidate, dossier, response body or authorization header in CI logs.
+  const safeStatus=['read','disambiguation','clarification',
+    'proposal_only','confirmation_required','cancelled'].includes(json?.status)
+    ? json.status : code===403 ? 'DENIED' : code===404 ? 'NOT_FOUND' : 'OTHER';
+  console.log('CB01_MATRIX_HTTP '+JSON.stringify({
+    workflow:messages[0],code,status:safeStatus,
+  }));
+  noActionIdentifiers(json);
+  return {code,body:json};
+}
+async function check(id,title,fn){
+  try {
+    await fn();
+    statusById.set(id,{id,title,status:'PASS_SYNTHETIC',humanE2E:'NOT_RUN',
+      scope:'Synthetic scoped HTTP contract only; no human end-to-end journey'});
+  } catch(error) {
+    // Whitelist script-owned assertion reasons. An arbitrary Playwright error
+    // can include URLs or request headers, so never log it verbatim.
+    const knownReasons=new Set([
+      'bounded preview transcript violated',
+      'executable action identifier leaked',
+      'homonyms not disambiguated',
+      'expected two synthetic dossiers',
+      'authorized patient read failed',
+      'exact surname homonyms not safely handled',
+      'S05 returned no safe appointment proposal',
+      'S06 denied permission leaked identity or changed response',
+      'S08 preview unexpectedly actionable or unavailable',
+      'S11 foreign patient existence leakage',
+      'S01_ADMISSION_DID_NOT_REACH_AGENDA',
+      'S01_TOMORROW_DATE_LABEL_INCORRECT',
+      'S01_TOMORROW_APPOINTMENT_READ_NOT_AUTHORIZED',
+      'S01_LAYOUT_OR_CLINICAL_WRITE_FAILURE',
+    ]);
+    const raw=String(error?.message||'');
+    const reason=knownReasons.has(raw) ? raw
+      : /^HTTP_[0-9]{3}_INVALID_JSON$/.test(raw) ? raw
+      : 'UNEXPECTED_TRANSPORT_OR_RUNTIME';
+    statusById.set(id,{id,title,status:'FAIL',humanE2E:'NOT_RUN',
+      diagnosticCode:reason,
+      scope:'Synthetic scoped HTTP assertion failed; no raw clinical responses logged'});
+    console.log('CB01_MATRIX_FAIL '+JSON.stringify({scenario:id,diagnosticCode:reason}));
+    failures.push(id);
+  }
+}
+try {
+  const dentist=await login(api,owner,process.env.T2_PASSWORD);
+  // The preceding visual step has already enrolled a DIFFERENT request
+  // context for this disposable tenant. Reusing a bare bearer token without
+  // its dc_workstation cookie MUST return HTTP 423. Enroll this synthetic
+  // owner through the ordinary password-verified workstation endpoint;
+  // the opaque cookie stays only in Playwright's private context jar, never
+  // in logs, a JSON artifact or env vars. No clinical table is mutated.
+  const enrollment=await api.post('/api/workstation/enroll',{
+    headers:{Authorization:'Bearer '+dentist},
+    data:{accountPassword:process.env.T2_PASSWORD},
+    maxRedirects:0,
+  });
+  assert(enrollment.status()===200,
+    'synthetic owner workstation enrollment denied');
+  const enrollmentState=await enrollment.json();
+  assert(typeof enrollmentState.workstationId==='string'
+    && enrollmentState.workstationId.length>0
+    && enrollmentState.enrollmentRequired===false
+    && enrollmentState.stationLocked!==true,
+    'synthetic workstation identity not activated safely');
+  const bootstrap=await api.get('/api/workstation/bootstrap',{
+    headers:{Authorization:'Bearer '+dentist},maxRedirects:0,
+  });
+  assert(bootstrap.status()===200,
+    'synthetic workstation bootstrap failed');
+  const workstation=await bootstrap.json();
+  assert(workstation.workstationId===enrollmentState.workstationId
+    && workstation.enrollmentRequired===false
+    && workstation.stationLocked!==true,
+    'synthetic request context lost workstation authority');
+  // Share ONLY the authorized workstation identity with synthetic staff.
+  // The owner's access_token and refresh_token must never be exported to a
+  // receptionist session. Each role logs in inside its OWN cookie jar.
+  const ownerState=await api.storageState();
+  const workstationCookies=ownerState.cookies.filter(cookie=>
+    cookie.name==='dc_workstation');
+  assert(workstationCookies.length===1,
+    'enrollment did not provide one scoped workstation cookie');
+  const newStaffContext=async(email,password)=>{
+    const context=await request.newContext({
+      baseURL:origin,ignoreHTTPSErrors:false,
+      storageState:{cookies:workstationCookies,origins:[]},
+    });
+    staffContexts.push(context);
+    const token=await login(context,email,password);
+    const probe=await context.get('/api/workstation/bootstrap',{
+      headers:{Authorization:'Bearer '+token},maxRedirects:0,
+    });
+    assert(probe.status()===200,'staff workstation bootstrap refused');
+    const state=await probe.json();
+    assert(state.workstationId===enrollmentState.workstationId
+      && state.stationLocked!==true&&state.enrollmentRequired===false,
+      'staff workstation cookie is not shared with authorized tenant');
+    return {context,token};
+  };
+  const s05=await newStaffContext(receptionist,process.env.T2_S05_PASSWORD);
+  const s06=await newStaffContext(denied,process.env.T2_S06_PASSWORD);
+  console.log('CB01_MATRIX_WORKSTATION: OWNER_AND_DISTINCT_STAFF_CONTEXTS_ENROLLED');
+  // S01 = an actual Chromium navigation and scoped read, not just a layout
+  // screenshot. No appointment is created; date progression and authorized
+  // tomorrow-only appointment fetch must both be observed in the DOM/network.
+  await check('S01','Dentist day-view agenda navigation to tomorrow',async()=>{
+    const browser=await chromium.launch({headless:true});
+    let context;
+    try {
+      context=await browser.newContext({viewport:{width:1280,height:900},locale:'fr-FR'});
+      const ownerBrowserState=await api.storageState();
+      await context.addCookies(ownerBrowserState.cookies);
+      await context.addInitScript(({token})=>{
+        localStorage.setItem('token',token);
+        localStorage.setItem('appMode','prod');
+      },{token:dentist});
+      const page=await context.newPage();
+      const writes=[],pageErrors=[];
+      page.on('request',req=>{
+        if(req.method()!=='GET' && /\/api\/(appointments|patients|devis|bot\/execute)/.test(req.url()))
+          writes.push(req.method());
+      });
+      page.on('pageerror',err=>pageErrors.push(err.name));
+      await page.goto(appOrigin+'/agenda',{waitUntil:'domcontentloaded',timeout:90000});
+      if(new URL(page.url()).pathname!=='/agenda') {
+        throw new Error('S01_ADMISSION_DID_NOT_REACH_AGENDA');
+      }
+      const header=page.locator('[data-tour="agenda-header"]');
+      await header.getByRole('button',{name:'Jour',exact:true}).click();
+      const dateLabel=header.locator('h1').locator('..').locator('span').first();
+      const before=(await dateLabel.innerText()).replace(/\s+/g,' ').trim();
+      const next=header.locator('h1').locator('..').locator('button').nth(1);
+      const target=await page.evaluate(()=>{
+        const d=new Date();
+        d.setDate(d.getDate()+1);
+        const label=d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})
+          .replace(/\s+/g,' ').trim().toLocaleUpperCase('fr-FR');
+        const start=new Date(d);start.setHours(0,0,0,0);
+        const end=new Date(d);end.setHours(23,59,59,999);
+        return {label,start:start.toISOString(),end:end.toISOString()};
+      });
+      const [response]=await Promise.all([
+        page.waitForResponse(response=>{
+          const u=new URL(response.url());
+          return response.request().method()==='GET'
+            && u.pathname==='/api/appointments/'
+            && u.searchParams.get('start_date')===target.start
+            && u.searchParams.get('end_date')===target.end;
+        },{timeout:30000}),
+        next.click(),
+      ]);
+      const after=(await dateLabel.innerText()).replace(/\s+/g,' ')
+        .trim().toLocaleUpperCase('fr-FR');
+      if(after===before.toLocaleUpperCase('fr-FR')||after!==target.label)
+        throw new Error('S01_TOMORROW_DATE_LABEL_INCORRECT');
+      if(response.status()!==200 || !Array.isArray(await response.json()))
+        throw new Error('S01_TOMORROW_APPOINTMENT_READ_NOT_AUTHORIZED');
+      const geometry=await page.evaluate(()=>({
+        mainVisible:Boolean(document.querySelector('main')?.getBoundingClientRect().width),
+        overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,
+      }));
+      if(!geometry.mainVisible||geometry.overflow||writes.length||pageErrors.length)
+        throw new Error('S01_LAYOUT_OR_CLINICAL_WRITE_FAILURE');
+      await page.screenshot({path:path.resolve('../artifacts/cb01-associate-sidecar/s01-agenda-tomorrow-1280.png')});
+      console.log('CB01_S01_TOMORROW_BROWSER: PASS_SCOPED_READ_ONLY');
+    } finally {
+      await context?.close();
+      await browser.close();
+    }
+  });
+  // S01 has a stronger browser-backed proof than API-only cases, but still
+  // NOT a genuine Windows/cabinet staff E2E or human clinical acceptance.
+  if(statusById.get('S01')?.status==='PASS_SYNTHETIC')
+    statusById.set('S01',{...statusById.get('S01'),status:'PASS_SYNTHETIC_BROWSER',
+      scope:'Chromium Agenda Jour -> lendemain, authorized read, DOM+network, no clinical writes; not human T2'});
+  await check('S02','Benali homonyms, explicit patient identity',async()=>{
+    const r=await preview(api,dentist,['/patient','BENALI']);
+    assert(r.code===200&&r.body.status==='disambiguation'
+      && r.body.proposal===null
+      && r.body.candidates?.length===2,'homonyms not disambiguated');
+    const dossiers=new Set(r.body.candidates.map(p=>p.numero_dossier));
+    assert(dossiers.has('CB01-N-101')&&dossiers.has(String(patientId)),
+      'expected two synthetic dossiers');
+  });
+  await check('S03','Dentist lookup of authorized synthetic patient',async()=>{
+    const r=await preview(api,dentist,['/patient','dossier:T2-0001']);
+    assert(r.code===200&&r.body.status==='read'
+      && r.body.patient?.id===patientId&&r.body.proposal===null,
+      'authorized patient read failed');
+  });
+  await check('S04','Mme Benali surname selection and no auto-choice',async()=>{
+    const r=await preview(api,dentist,['/patient','Mme Benali']);
+    assert(r.code===200&&r.body.status==='disambiguation'
+      && r.body.candidates?.length===2&&r.body.proposal===null,
+      'exact surname homonyms not safely handled');
+  });
+  const proposal=['/rdv','dossier:CB01-N-101','2099-01-01','10:00',
+    '30','consultation','CONFIRMER'];
+  await check('S05','Reception prepares non-executable appointment',async()=>{
+    const r=await preview(s05.context,s05.token,proposal);
+    assert(r.code===200&&r.body.status==='proposal_only'
+      && r.body.proposal?.type==='CREATE_APPOINTMENT'
+      && Number.isInteger(r.body.proposal?.params?.patient_id)
+      && r.body.proposal?.params?.datetime_start==='2099-01-01T10:00:00'
+      && r.body.proposal?.params?.duration_minutes===30
+      && r.body.proposal?.params?.motif==='CONSULTATION',
+      'S05 returned no safe appointment proposal');
+  });
+  await check('S06','Reception without agenda permission fails closed',async()=>{
+    const early=await preview(s06.context,s06.token,['/rdv']);
+    const full=await preview(s06.context,s06.token,proposal);
+    assert(early.code===403&&full.code===403
+      && early.body.detail==='Accès refusé.'
+      && JSON.stringify(early.body)===JSON.stringify(full.body),
+      'S06 denied permission leaked identity or changed response');
+  });
+  await check('S08','Dentist crown estimate is only a non-executable draft',async()=>{
+    const r=await preview(api,dentist,[
+      '/devis','dossier:CB01-N-101','couronne','CONFIRMER',
+    ]);
+    assert(r.code===200&&r.body.status==='proposal_only'
+      && r.body.proposal?.type==='OPEN_DEVIS_EDITOR'
+      && r.body.proposal?.params?.procedure==='COURONNE'
+      && r.body.proposal?.params?.draft_only===true,
+      'S08 preview unexpectedly actionable or unavailable');
+  });
+  await check('S11','Foreign patient and unknown ID indistinguishable',async()=>{
+    const results=await Promise.all([
+      preview(api,dentist,['/patient','id:'+foreignId]),
+      preview(api,dentist,['/patient','id:'+unknownId]),
+      preview(api,dentist,['/patient','dossier:CB00-FR-0001']),
+    ]);
+    assert(results.every(x=>x.code===404
+      && x.body.detail==='Patient introuvable.'
+      && JSON.stringify(x.body)===JSON.stringify(results[0].body)),
+      'S11 foreign patient existence leakage');
+  });
+} finally {
+  await Promise.allSettled(staffContexts.map(context=>context.dispose()));
+  await api.dispose();
+}
+const cases=Array.from({length:12},(_,i)=>{
+  const key='S'+String(i+1).padStart(2,'0');
+  const entry=statusById.get(key);
+  if(!entry) throw new Error('FAIL: incomplete evidence manifest '+key);
+  return entry;
+});
+const counters={
+  passedSynthetic:cases.filter(c=>c.status==='PASS_SYNTHETIC').length,
+  passedBrowserSynthetic:cases.filter(c=>c.status==='PASS_SYNTHETIC_BROWSER').length,
+  partialSynthetic:cases.filter(c=>c.status==='PARTIAL_SYNTHETIC').length,
+  notRun:cases.filter(c=>c.status==='NOT_RUN').length,
+  failed:cases.filter(c=>c.status==='FAIL').length,
+  humanE2EValidated:0,
+};
+const report={
+  schema:'CB01_S01_S12_MACHINE_MATRIX_V1',
+  kind:'DISPOSABLE_GITHUB_ACTIONS_SYNTHETIC_ONLY',
+  exactHead:sourceHead,
+  humanWorkstation:'NOT_CONNECTED',
+  browserNativeZoom200:'NOT_TESTED',
+  databaseFullDiff:'NOT_TESTED',
+  noClinicalBookingPerformed:true,
+  scenarios:cases,counts:counters,
+};
+fs.mkdirSync(path.dirname(output),{recursive:true});
+fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n',{mode:0o600});
+if(counters.passedSynthetic!==7||counters.passedBrowserSynthetic!==1
+    ||counters.partialSynthetic!==0||counters.notRun!==4||counters.failed>0) {
+  throw new Error('FAIL: incomplete or failed S01-S12 synthetic certification matrix ('+
+    failures.join(',')+')');
+}
+console.log('CB01_S01_S12_SYNTHETIC: PASS '+JSON.stringify(counters));

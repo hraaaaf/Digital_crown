@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AgendaModal } from './AgendaModal';
 import { api } from '../../services/api';
+import toast from 'react-hot-toast';
 
 const elite = vi.hoisted(() => ({
   suggestedAppointment: null as any,
@@ -130,6 +131,62 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: 'Nouveau Rendez-vous' })).toBeTruthy();
+  });
+
+  it('S10: 409 booking conflict keeps draft open, reports refusal, and only acknowledges a fresh retry', async () => {
+    // Exact API shape: appointments._conflict_detail -> HTTPException(409,detail={message, conflicts}).
+    const conflict={response:{status:409,data:{detail:{
+      message:'Créneau en conflit avec un autre rendez-vous',
+      conflicts:[{id:41,patient_id:7,patient_name:'BENALI Sara',
+        praticien_id:9,datetime_start:'2026-09-21T10:00:00',duration_minutes:30}],
+    }}}};
+    vi.mocked(api.post)
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce({data:{id:100}} as never);
+    const {onClose,onSaved,container}=renderCreate();
+    const procedure=await screen.findByPlaceholderText("Saisir l'acte ou rechercher dans le catalogue...");
+    fireEvent.change(procedure,{target:{value:'Consultation'}});
+    const confirm=screen.getByRole('button',{name:'Confirmer le RDV'});
+
+    fireEvent.click(confirm);
+    await waitFor(()=>expect(api.post).toHaveBeenCalledTimes(1));
+    await waitFor(()=>expect(toast.error).toHaveBeenCalledWith(
+      'Créneau en conflit avec un autre rendez-vous Choisissez un autre créneau avant de réessayer.',
+    ));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog',{name:'Nouveau Rendez-vous'})).toBeTruthy();
+    expect((procedure as HTMLInputElement).value).toBe('Consultation');
+
+    // Operator selects a NEW slot before retry; no automatic submission.
+    const timeInput=container.querySelector('input[type="time"]');
+    expect(timeInput).toBeTruthy();
+    fireEvent.change(timeInput!,{target:{value:'11:00'}});
+    fireEvent.click(confirm);
+    await waitFor(()=>expect(api.post).toHaveBeenCalledTimes(2));
+    const firstPayload=vi.mocked(api.post).mock.calls[0][1] as {datetime_start:string};
+    const retriedPayload=vi.mocked(api.post).mock.calls[1][1] as {datetime_start:string};
+    expect(retriedPayload.datetime_start).not.toBe(firstPayload.datetime_start);
+    await waitFor(()=>expect(toast.success).toHaveBeenCalledWith('Rendez-vous créé.'));
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('S10: a malformed 409 conflict detail never reaches toast as a React object', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce({response:{
+      status:409,data:{detail:{conflicts:[{id:3}]}},
+    }});
+    const {onClose,onSaved}=renderCreate();
+    fireEvent.change(await screen.findByPlaceholderText(
+      "Saisir l'acte ou rechercher dans le catalogue...",
+    ),{target:{value:'Détartrage'}});
+    fireEvent.click(screen.getByRole('button',{name:'Confirmer le RDV'}));
+    await waitFor(()=>expect(toast.error).toHaveBeenCalledWith(
+      'Erreur lors de la sauvegarde du rendez-vous. Choisissez un autre créneau avant de réessayer.',
+    ));
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('edits the historical appointment through PUT and preserves the edit boundary', async () => {
