@@ -86,6 +86,21 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
 
 
 describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture seule', () => {
+  it('filters a clinician programme to their authenticated practitioner and never submits an appointment', async () => {
+    get.mockResolvedValueOnce({ data: [] } as never);
+    render(<CrownBotWorkflowPreview practitionerId={19} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    await screen.findByRole('status', { name: 'Programme du jour' });
+    expect(get).toHaveBeenCalledWith('/appointments/', {
+      params: {
+        start_date: expect.any(String),
+        end_date: expect.any(String),
+        praticien_id: 19,
+      },
+    });
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it('reads the canonical authorized Agenda endpoint with bounded local-day dates and a truthful source', async () => {
     get.mockResolvedValueOnce({ data: [
       { id: 72, datetime_start: '2026-10-17T10:00:00', patient_name: 'BENALI TEST', motif: 'Consultation', status: 'PRÉVU' },
