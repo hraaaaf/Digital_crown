@@ -36,7 +36,7 @@ import { Step2BlockerModal } from './components/Step2BlockerModal';
 import { CephaloHistory } from './CephaloHistory';
 import { useOrthoStore } from './stores/useOrthoStore';
 import { cephaloRepository } from './cephaloRepository';
-import { API_BASE, api } from '../../services/api';
+import { API_BASE, api, getRuntimeAuthToken } from '../../services/api';
 import toast from 'react-hot-toast';
 
 export interface CephaloWorkspaceProps {
@@ -58,7 +58,14 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
   const resolveImageSrc = (imagePath?: string) => {
     if (!imagePath) return undefined;
-    if (/^https?:\/\//i.test(imagePath)) return imagePath;
+    // Never send the Cabinet access token to an untrusted absolute media origin.
+    if (/^https?:\/\//i.test(imagePath)) {
+      try {
+        const imageURL = new URL(imagePath);
+        if (imageURL.origin !== new URL(API_BASE).origin) return undefined;
+        return imageURL.href;
+      } catch { return undefined; }
+    }
     return `${API_BASE.replace(/\/$/, '')}/${imagePath.replace(/^\//, '')}`;
   };
 
@@ -260,23 +267,43 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
     let cancelled = false;
     let createdBlobUrl: string | null = null;
-    // A↔B history selection unmounts or replaces the previous image source.
-    // Abort only that obsolete XHR. Axios identifies this as cancellation, so the
-    // global network-error toast stays active for any genuinely failed live request.
+    // Media is not a clinical API command. Native fetch with the same Cabinet
+    // JWT/cookie boundary succeeds on the real protected-media endpoint; Axios
+    // XHR has shown intermittent CORS failures that wrongly trigger its generic
+    // "Serveur injoignable" response interceptor even when PDFs succeed.
+    // Keep live failures visible as image-specific errors; do not disable global
+    // network errors for real API calls.
     const controller = new AbortController();
+    const fetchImage = async () => {
+      const token = getRuntimeAuthToken();
+      const response = await fetch(imageSrc, {
+        signal: controller.signal,
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error(`Image HTTP ${response.status}`);
+      const imageBlob = await response.blob();
+      if (!imageBlob.type.startsWith('image/')) throw new Error('Format image inattendu');
+      return imageBlob;
+    };
 
-    api.get(imageSrc, { responseType: 'blob', signal: controller.signal })
-      .then(response => {
-        if (cancelled) return;
-        const blobUrl = URL.createObjectURL(response.data as Blob);
+    void fetchImage()
+      .then(imageBlob => {
+        if (cancelled || controller.signal.aborted) return;
+        const blobUrl = URL.createObjectURL(imageBlob);
         createdBlobUrl = blobUrl;
         store.setImageSrc(blobUrl);
         createdBlobUrl = null;
       })
       .catch(() => {
-        if (cancelled) return;
+        if (cancelled || controller.signal.aborted) return;
+        // Legacy image fallback: only report an error when both transports fail.
         const img = new Image();
         img.onload = () => { if (!cancelled) setImgDim({ w: img.naturalWidth, h: img.naturalHeight }); };
+        img.onerror = () => {
+          if (!cancelled && !controller.signal.aborted)
+            toast.error('Image céphalométrique inaccessible.', { id: 'cephalo-media-error' });
+        };
         img.src = imageSrc;
       });
 
