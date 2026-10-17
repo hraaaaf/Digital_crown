@@ -1,4 +1,4 @@
-name: Cephalo R23-G4 Public Radiograph Visual Audit (experimental)
+name: Cephalo R23-G4 Public Radiograph Desktop Visual Audit (experimental)
 on:
   pull_request:
     paths:
@@ -64,14 +64,14 @@ jobs:
           cd /tmp/dc-r23g4-before/frontend
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
-      - name: Capture BEFORE exact G4 predecessor for both public radios and five viewports
+      - name: Capture BEFORE both public radios at two supported desktop viewports
         run: |
           cd /tmp/dc-r23g4-before/frontend
           PRODUCT_HEAD="$G4_BEFORE_SHA" CEPHALO_G4_PHASE=BEFORE CEPHALO_PUBLIC_CASE=anug node scripts/capture-cephalo-r23g4-public-source-profiles.mjs
           PRODUCT_HEAD="$G4_BEFORE_SHA" CEPHALO_G4_PHASE=BEFORE CEPHALO_PUBLIC_CASE=challiyan node scripts/capture-cephalo-r23g4-public-source-profiles.mjs
           mkdir -p "$GITHUB_WORKSPACE/frontend/cephalo-r23g4-public-evidence/before"
           cp -a cephalo-r23g4-public-evidence/before/. "$GITHUB_WORKSPACE/frontend/cephalo-r23g4-public-evidence/before/"
-      - name: Capture AFTER exact PR HEAD for both public radios and five viewports
+      - name: Capture AFTER both public radios at two supported desktop viewports
         working-directory: frontend
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -94,7 +94,8 @@ jobs:
               const license=JSON.parse(await readFile(dir+'PUBLIC-SOURCE-LICENSE.json','utf8'));
               const expected=phase==='before'?baseline:process.env.PRODUCT_HEAD;
               if(r.productHead!==expected||r.phase!==phase.toUpperCase()||r.caseId!==id||r.invalidCount!==0||r.blockedRequests.length)throw Error(id+'/'+phase+':invalid run');
-              if(r.viewports.length!==5||r.viewports.some(v=>!v.valid||v.states.length!==4||v.states.some(s=>!s.valid)))throw Error(id+'/'+phase+':viewports/protocol coverage');
+              if(r.viewports.length!==2||r.viewports.some(v=>!v.valid||v.states.length!==4||v.states.some(s=>!s.valid))||
+                 r.viewports.map(v=>v.viewportName).join('|')!=='1280x900|1600x1000')throw Error(id+'/'+phase+':desktop viewports/protocol coverage');
               if(license.actualSha1!==license.sha1||license.license!=='CC BY-SA 4.0'||!license.caveat.includes('UNREGISTERED'))throw Error(id+'/'+phase+':source/caveat');
               for(const viewport of r.viewports){
                 for(const state of viewport.states){
@@ -110,7 +111,7 @@ jobs:
               }
               reports[phase]=r;
             }
-            for(let i=0;i<5;i++){
+            for(let i=0;i<2;i++){
               const a=reports.before.viewports[i],b=reports.after.viewports[i];
               if(a.viewportName!==b.viewportName||
                  a.states.map(s=>s.kind+'/'+s.variant).join('|')!==b.states.map(s=>s.kind+'/'+s.variant).join('|'))
