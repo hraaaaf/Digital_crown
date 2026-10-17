@@ -134,7 +134,7 @@ jobs:
     timeout-minutes: 30
     env:
       SECRET_KEY: g5-ci-synthetic-secret-key-minimum-32-chars
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: 'sqlite:///:memory:'
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
       TELEMETRY_ENABLED: 'false'
