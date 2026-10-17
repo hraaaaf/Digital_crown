@@ -612,7 +612,12 @@ export function CrownBotChat({
 
       {/* ── TAB: CHAT — Bientôt disponible ── */}
       {activeTab === 'chat' && zeroLlmPreviewEnabled && (
-        <CrownBotWorkflowPreview />
+        // Clinical safety: route or staff identity changes invalidate a prior
+        // patient's scoped read/proposal. A responsive 200% reflow leaves the
+        // key unchanged and therefore preserves the unfinished draft.
+        <CrownBotWorkflowPreview
+          key={`${user?.id ?? 'unknown'}:${employerId ?? 'unknown'}:${location.pathname}`}
+        />
       )}
       {activeTab === 'chat' && !zeroLlmPreviewEnabled && (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
