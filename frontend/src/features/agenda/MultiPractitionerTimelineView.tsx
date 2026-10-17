@@ -336,7 +336,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   const gridColumns = `${TIME_AXIS_WIDTH}px repeat(${dentists.length}, minmax(${LANE_MIN_WIDTH}px, 1fr))`;
 
   return (
-    <div className="bg-white/70 backdrop-blur-2xl border border-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
+    <div className="p2-agenda-surface bg-white/70 backdrop-blur-2xl border border-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-wider text-slate-500">
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-300 bg-white" /> Libre</span>
