@@ -123,8 +123,9 @@ async function runMatrix(page,theme,width,height,zoom=false){
       if(mobile){
         const dates=await page.locator('[data-p2-month-day]').count();
         const buttons=await page.locator('[data-p2-month-appointment]').filter({visible:true}).count();
-        if(dates<1||buttons!==all.length)
-          throw Error('P2 month missing actual dated appointment text '+JSON.stringify({theme,width,dates,buttons,expected:all.length}));
+        const picker=page.locator('[data-p2-month-date-picker]');
+        if(dates<1||buttons!==all.length||!(await picker.isVisible())||!(await picker.isEnabled()))
+          throw Error('P2 month missing dated appointments or create-on-any-date control '+JSON.stringify({theme,width,dates,buttons,expected:all.length}));
       }
     }
     if(theme==='dark'){
