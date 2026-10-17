@@ -172,6 +172,35 @@ class GatewayTests(unittest.TestCase):
         with self.assertRaises(GatewayError):
             self.agent.scan_once()
 
+    def test_sqlite_precommit_boundary_abort_rolls_back(self):
+        live_guard = self.agent._sqlite_guard
+        calls = 0
+
+        def fail_before_commit():
+            nonlocal calls
+            calls += 1
+            if calls == 4:
+                raise GatewayError("SYNTHETIC_GUARD_PRECOMMIT_DENIAL")
+            return live_guard()
+
+        with patch.object(self.agent, "_sqlite_guard", side_effect=fail_before_commit):
+            with self.assertRaisesRegex(GatewayError, "PRECOMMIT_DENIAL"):
+                with self.agent._db() as db:
+                    db.execute("INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                               ("SYNTHETIC_ROLLBACK",))
+        self.assertEqual(calls, 4)
+        self.assertEqual(self.agent.audit(0), [], "failed guard must not commit data")
+
+    def test_successful_commit_has_no_fallible_postcommit_guard(self):
+        with patch.object(self.agent, "_sqlite_guard",
+                          wraps=self.agent._sqlite_guard) as watched:
+            with self.agent._db() as db:
+                db.execute("INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                           ("SYNTHETIC_COMMIT",))
+            self.assertEqual(watched.call_count, 4,
+                             "must not raise after a durable SQLite commit")
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_COMMIT"])
+
     def test_sqlite_wal_full_sync_and_no_external_attachments(self):
         with self.agent._db() as db:
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0].lower(), "wal")

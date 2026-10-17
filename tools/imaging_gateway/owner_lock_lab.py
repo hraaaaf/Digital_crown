@@ -59,6 +59,12 @@ class LabOwnerLock:
             os.close(fd)
             raise
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+
     def close(self):
         fd, self._fd = self._fd, None
         if fd is not None:
