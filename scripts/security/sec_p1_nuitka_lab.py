@@ -37,7 +37,8 @@ def invoke(module: dict | object, method: str, args: tuple, environment: dict[st
             return ("ERR", type(exc).__name__, str(exc))
 
 
-def run_lab() -> None:
+def verify_native_extension(library: Path) -> None:
+    """Run parity inside a short-lived process so Windows releases the .pyd."""
     if not SOURCE.is_file():
         raise RuntimeError("Expected backend/core/key_material.py missing")
 
@@ -77,6 +78,55 @@ def run_lab() -> None:
         }),
     ]
 
+
+    # Verify that the compiler produced the platform's native extension,
+    # rather than a renamed Python file or a portable bytecode archive.
+    with library.open("rb") as stream:
+        header = stream.read(4)
+    system = platform.system()
+    if system == "Windows":
+        if library.suffix.lower() != ".pyd" or not header.startswith(b"MZ"):
+            raise AssertionError("Expected a Windows PE .pyd extension")
+        print("SEC_P1_NATIVE_FORMAT=PE/PYD")
+    elif system == "Linux":
+        if not header.startswith(b"\x7fELF"):
+            raise AssertionError("Expected a Linux ELF native extension")
+        print("SEC_P1_NATIVE_FORMAT=ELF")
+    else:
+        raise RuntimeError(f"Unsupported experimental lab platform: {system}")
+    spec = importlib.util.spec_from_file_location(MODULE_NAME, library)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Native extension cannot be imported")
+    native = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(native)
+
+    # These assertions are behavioral guardrails, not proof of IP protection.
+    count = 0
+    for title, method, args, fake_env in cases:
+        expected = invoke(original, method, args, fake_env)
+        actual = invoke(native, method, args, fake_env)
+        if expected != actual:
+            raise AssertionError(f"Native/Python behavioral mismatch: {title}")
+        count += 1
+        print(f"PARITY PASS: {title}")
+    if invoke(native, "sqlcipher_passphrase", (), {"SQLCIPHER_KEY_HEX": "11" * 32}) != (
+        "OK", "11" * 32
+    ):
+        raise AssertionError("Dedicated storage key does not match fixture")
+
+    print(f"SEC_P1_NUITKA_PARITY={count}/{len(cases)}")
+    print(f"SEC_P1_NATIVE_EXTENSION_SHA256={hashlib.sha256(library.read_bytes()).hexdigest()}")
+    print(f"SEC_P1_NATIVE_EXTENSION_BYTES={library.stat().st_size}")
+    print(f"SEC_P1_PYTHON={platform.python_version()}")
+    print(f"SEC_P1_PLATFORM={platform.system()}")
+    print("SEC_P1_RELEASE_PACKAGING_CHANGED=NO")
+
+
+def run_lab() -> None:
+    """Compile and verify outside the parent process, then clean up reliably."""
+    if not SOURCE.is_file():
+        raise RuntimeError("Expected backend/core/key_material.py missing")
+
     with tempfile.TemporaryDirectory(prefix="dc-sec-p1-nuitka-") as name:
         work = Path(name)
         module_source = work / f"{MODULE_NAME}.py"
@@ -107,48 +157,27 @@ def run_lab() -> None:
         if len(candidates) != 1:
             raise RuntimeError(f"Expected one native extension; found {len(candidates)}")
         library = candidates[0]
-        # Verify that the compiler produced the platform's native extension,
-        # rather than a renamed Python file or a portable bytecode archive.
-        with library.open("rb") as stream:
-            header = stream.read(4)
-        system = platform.system()
-        if system == "Windows":
-            if library.suffix.lower() != ".pyd" or not header.startswith(b"MZ"):
-                raise AssertionError("Expected a Windows PE .pyd extension")
-            print("SEC_P1_NATIVE_FORMAT=PE/PYD")
-        elif system == "Linux":
-            if not header.startswith(b"\x7fELF"):
-                raise AssertionError("Expected a Linux ELF native extension")
-            print("SEC_P1_NATIVE_FORMAT=ELF")
-        else:
-            raise RuntimeError(f"Unsupported experimental lab platform: {system}")
-        spec = importlib.util.spec_from_file_location(MODULE_NAME, library)
-        if spec is None or spec.loader is None:
-            raise RuntimeError("Native extension cannot be imported")
-        native = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(native)
 
-        # These assertions are behavioral guardrails, not proof of IP protection.
-        count = 0
-        for title, method, args, fake_env in cases:
-            expected = invoke(original, method, args, fake_env)
-            actual = invoke(native, method, args, fake_env)
-            if expected != actual:
-                raise AssertionError(f"Native/Python behavioral mismatch: {title}")
-            count += 1
-            print(f"PARITY PASS: {title}")
-        if invoke(native, "sqlcipher_passphrase", (), {"SQLCIPHER_KEY_HEX": "11" * 32}) != (
-            "OK", "11" * 32
-        ):
-            raise AssertionError("Dedicated storage key does not match fixture")
-
-        print(f"SEC_P1_NUITKA_PARITY={count}/{len(cases)}")
-        print(f"SEC_P1_NATIVE_EXTENSION_SHA256={hashlib.sha256(library.read_bytes()).hexdigest()}")
-        print(f"SEC_P1_NATIVE_EXTENSION_BYTES={library.stat().st_size}")
-        print(f"SEC_P1_PYTHON={platform.python_version()}")
-        print(f"SEC_P1_PLATFORM={platform.system()}")
-        print("SEC_P1_RELEASE_PACKAGING_CHANGED=NO")
+        # Windows refuses to unlink a loaded .pyd. Import and test it in a
+        # separate Python process; its exit releases the DLL before cleanup.
+        worker = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), "--verify-native", str(library)],
+            cwd=str(work), text=True, capture_output=True, timeout=120, check=False,
+        )
+        if worker.returncode:
+            raise RuntimeError(
+                "Native parity worker failed (exit "
+                + str(worker.returncode)
+                + "):\\n"
+                + (worker.stdout + "\\n" + worker.stderr)[-3500:]
+            )
+        print(worker.stdout, end="")
 
 
 if __name__ == "__main__":
-    run_lab()
+    if len(sys.argv) == 3 and sys.argv[1] == "--verify-native":
+        verify_native_extension(Path(sys.argv[2]))
+    elif len(sys.argv) == 1:
+        run_lab()
+    else:
+        raise SystemExit("SEC-P1: unsupported lab invocation")
