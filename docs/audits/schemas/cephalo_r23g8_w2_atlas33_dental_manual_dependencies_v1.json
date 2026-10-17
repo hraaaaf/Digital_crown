@@ -30,7 +30,13 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 2,
@@ -55,7 +61,13 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 3,
@@ -77,7 +89,13 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 5,
@@ -99,7 +117,13 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 9,
@@ -124,7 +148,14 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1": [
+          "PR_Ricketts_PTV",
+          "Po_anatomic",
+          "Or"
+        ]
+      }
     },
     {
       "source_order": 15,
@@ -153,7 +184,21 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ],
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts",
+          "Po_anatomic",
+          "Or"
+        ]
+      }
     },
     {
       "source_order": 17,
@@ -175,7 +220,8 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_upstream_landmarks": {}
     }
   ]
 }
