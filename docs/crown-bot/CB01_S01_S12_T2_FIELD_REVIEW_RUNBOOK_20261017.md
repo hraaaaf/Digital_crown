@@ -10,6 +10,12 @@ La CI Ubuntu + Chromium exécute, sur base SQLite jetable isolée, les contrats 
 
 Le contrôle métier réel nécessite le poste **DESKTOP-3MAJEEH** reconnecté, isolé, expressément autorisé, avec identités/tenants fictifs. Ce poste était OFFLINE lors du dernier contrôle. Pas de synchronisation des données d'un cabinet réel.
 
+### Alternative GitHub Actions si DESKTOP-3MAJEEH est hors ligne
+
+La [CI expérimentale CB-01](https://github.com/hraaaaf/Digital_crown/actions/workflows/cb01-associate-sidecar-visual.yml) exécute un job **Ubuntu/Chromium synthétique** avec fausses identités et fixtures jetables, ainsi qu'un job **Windows hébergé GitHub**. Ce dernier lance sous Windows les suites Vitest JSDOM MainLayout, CrownBotWorkflowPreview, CrownBotChat, GhostBrainWidget S12 et AgendaModal S10 ; il vérifie le SHA exact de la PR, impose un ensemble complet de tests, conserve JSON + attestation comme artefact, et atteste explicitement **0 parcours humains**, **zoom navigateur natif non exécuté**, **cabinet clinique non utilisé**. Ces jobs permettent de continuer à coder et qualifier les régressions Windows sans attendre le poste T2.
+
+**Règle de preuve :** un runner Windows n'est pas le poste du cabinet. Un test JSDOM ne mesure ni le navigateur Windows avec zoom natif 200 %, ni l'accessibilité observée par un praticien, ni les interactions S01–S12 end-to-end. Les screenshots Chromium Ubuntu sont synthétiques (390/430/1280/1440/1600/1920) ; aucune validation humaine n'en résulte. Les deux reviewers humains indépendants et les traces opérateurs restent requis par le gate CONVERGED, quel que soit le nombre de workflows GREEN. Ne pas activer Pocket, ne pas activer de flag en production et ne pas simuler de preuve humaine.
+
 ## 2. Préalables fail-closed
 
 1. Lire HEAD de #904 et #903 et vérifier le SHA du binaire T2 effectivement exécuté ; aucune extrapolation à partir d'un vieux run.
