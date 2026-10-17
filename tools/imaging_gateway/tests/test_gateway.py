@@ -519,8 +519,11 @@ class GatewayTests(unittest.TestCase):
         source = self.watch / "fixture.png"
         source.write_bytes(SYNTHETIC)
         self.agent.scan_once()
-        with patch("tools.imaging_gateway.gateway.os.replace",
-                   side_effect=OSError(errno.ENOSPC, "synthetic disk full")):
+        # Test the actual platform-specific final-publish operation:
+        # Windows uses an NT root-relative handle/rename, not os.replace.
+        publish = ("tools.imaging_gateway.gateway.write_ciphertext"
+                   if os.name == "nt" else "tools.imaging_gateway.gateway.os.replace")
+        with patch(publish, side_effect=OSError(errno.ENOSPC, "synthetic disk full")):
             result = self.agent.scan_once()
         self.assertEqual(result["deferred"], 1)
         self.assertEqual(self.agent.storage_health()["last_capacity_issue"], "DISK_FULL")
