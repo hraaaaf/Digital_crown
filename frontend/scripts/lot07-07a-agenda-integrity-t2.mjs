@@ -113,6 +113,33 @@ ensure(resourceCheck.status()===200&&(await resourceCheck.json()).has_conflict==
 const resourceCollision=await client.post('/api/appointments/',{headers,data:{...payload(sameResource),resource_id:resourceId}});
 ensure(resourceCollision.status()===409,'Shared capacity-one resource collision not refused');
 
+// F02: real bulk insertion must reject overlaps and remain atomic.
+const bulkBase=date+'T16:45:00',bulkOverlap=date+'T16:50:00';
+const bulkInvalid=await client.post('/api/appointments/bulk',{headers,data:{appointments:[
+ {patient_name:'SYNTHETIC BULK INVALID',datetime_start:bulkBase,duration_minutes:0}
+]}});
+ensure(bulkInvalid.status()===422,'Bulk accepted nonpositive duration '+bulkInvalid.status());
+const bulkInternal=await client.post('/api/appointments/bulk',{headers,data:{appointments:[
+ {patient_name:'SYNTHETIC BULK ONE',datetime_start:bulkBase,duration_minutes:30},
+ {patient_name:'SYNTHETIC BULK TWO',datetime_start:bulkOverlap,duration_minutes:30}
+]}});
+ensure(bulkInternal.status()===409,'Bulk accepted overlapping internal appointments '+bulkInternal.status());
+const listAfterBulkRejection=await client.get('/api/appointments/',{headers});
+ensure((await listAfterBulkRejection.json()).every(x=>x.datetime_start!==bulkBase),
+ 'Bulk overlap rejection persisted partial data');
+const bulkAllowed=await client.post('/api/appointments/bulk',{headers,data:{appointments:[
+ {patient_name:'SYNTHETIC BULK ALLOWED',datetime_start:bulkBase,duration_minutes:30}
+]}});
+ensure(bulkAllowed.status()===200,'Valid bulk appointment failed '+bulkAllowed.status());
+const bulkExisting=await client.post('/api/appointments/bulk',{headers,data:{appointments:[
+ {patient_name:'SYNTHETIC BULK COLLISION',datetime_start:bulkOverlap,duration_minutes:30}
+]}});
+ensure(bulkExisting.status()===409,'Bulk ignored persisted overlapping appointment '+bulkExisting.status());
+// F03: an explicit resource reassignment must persist on edit.
+const clearingResource=await client.put('/api/appointments/'+resourceRow.id,{headers,data:{resource_id:null}});
+ensure(clearingResource.status()===200&&(await clearingResource.json()).resource_id===null,
+ 'Explicit resource unassignment was not persisted safely');
+
 // F05: genuine simultaneous REST requests through the running disposable FastAPI.
 // This is a race observation, not proof that all schedules/engines are serializable.
 const concurrencyStart='2026-10-22T15:00:00';
