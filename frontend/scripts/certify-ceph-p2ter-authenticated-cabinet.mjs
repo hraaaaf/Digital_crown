@@ -356,6 +356,27 @@ async function viewportRun(viewport){
     await shot('stale-revision-archive-refusal-visible');
     record.checks.push('REVISION_CHANGED_AFTER_PREVALIDATION_ARCHIVE_409_TOAST_VISIBLE');
   }
+  // The normal end-to-end flow must not report unreachable backend on a
+  // canceled obsolete study-image request.
+  const falseToasts=await page.evaluate(()=>window.__p2terSeenToasts||[]);
+  if(falseToasts.length)throw Error('False server-unreachable toast during successful Cabinet flow: '+JSON.stringify(falseToasts));
+  record.checks.push('NO_FALSE_SERVER_UNREACHABLE_TOAST_DURING_SUCCESSFUL_FLOW');
+
+  // A genuinely failed active clinical request MUST still surface the network
+  // error. This fault is intentionally injected only AFTER all successful checks.
+  const activeFailureRoute=route=>route.abort('failed');
+  await page.route('**/api/ia/analyses/*',activeFailureRoute);
+  try {
+    await page.getByRole('button',{name:'Historique',exact:true}).click();
+    const oldStudy=page.locator('[data-cephalo-history-analysis-id="'+identities.older_id+'"]');
+    await oldStudy.waitFor({state:'visible'});
+    await oldStudy.click();
+    await page.waitForFunction(()=>Boolean(window.__p2terSeenToasts?.length),null,{timeout:10000});
+    record.checks.push('GENUINE_ACTIVE_REQUEST_NETWORK_ERROR_STILL_DISPLAYS_TOAST');
+    await shot('injected-active-network-failure-toast');
+  } finally {
+    await page.unroute('**/api/ia/analyses/*',activeFailureRoute);
+  }
   record.observedToasts=await page.evaluate(()=>window.__p2terSeenToasts||[]);
   console.log('P2TER_NETWORK_DIAGNOSTIC',JSON.stringify({viewport:record.viewport,failedRequests:record.failedRequests,httpErrors:record.httpErrors,observedToasts:record.observedToasts}));
   if(record.pageErrors.length)throw Error('React exceptions '+JSON.stringify(record.pageErrors));
