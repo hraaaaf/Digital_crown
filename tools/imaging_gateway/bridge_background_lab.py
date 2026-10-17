@@ -11,6 +11,8 @@ import contextlib
 from dataclasses import dataclass
 import logging
 import os
+import subprocess
+import sys
 import stat
 from pathlib import Path
 import tempfile
@@ -31,6 +33,7 @@ class BridgeLabConfigurationError(RuntimeError):
 class BridgeLabHandle:
     stop: asyncio.Event
     task: asyncio.Task
+    process: subprocess.Popen | None = None
 
 
 def lab_requested(environ: Mapping[str, str] | None = None) -> bool:
@@ -135,8 +138,35 @@ def start_if_enabled(
     collector = make_lab_collector(env)
     if collector is None:
         return None
+    # Start a supervised internal process. The old to_thread helper remains
+    # exclusively for isolated unit fixtures; backend runtime never uses it.
+    # Explicitly pass only LAB vars and minimal OS loader/temp variables:
+    # never inherit backend patient/cloud/auth credentials into this child.
+    child_env = {key: value for key, value in os.environ.items()
+                 if key.upper() in {"SYSTEMROOT", "WINDIR", "PATH", "PATHEXT",
+                                     "TMP", "TEMP", "TMPDIR", "HOME",
+                                     "USERPROFILE", "SYSTEMDRIVE"}}
+    for name in ("DC_V15_06_BRIDGE_LAB", "DC_V15_06_BRIDGE_LAB_ROOT",
+                 "DC_V15_06_BRIDGE_LAB_KEY_HEX", "ENVIRONMENT",
+                 "DIGITALCROWN_ISOLATED_RUNTIME"):
+        child_env[name] = env[name]
+    launch_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "tools.imaging_gateway.process_lab"],
+        cwd=Path(__file__).resolve().parents[2],
+        env=child_env, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, creationflags=launch_flags,
+    )
     stop = asyncio.Event()
-    return BridgeLabHandle(stop=stop, task=asyncio.create_task(poll_lab_collector(collector, stop)))
+
+    async def monitor():
+        while not stop.is_set():
+            if proc.poll() is not None:
+                raise BridgeLabConfigurationError("IMAGING_LAB_PROCESS_EXITED")
+            await asyncio.sleep(0.05)
+
+    return BridgeLabHandle(stop=stop, task=asyncio.create_task(monitor()),
+                           process=proc)
 
 
 async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> bool:
@@ -150,6 +180,41 @@ async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> b
     if not 0.01 <= timeout <= 30.0:
         raise ValueError("invalid LAB shutdown deadline")
     handle.stop.set()
+    if handle.process is not None:
+        # The real backend uses a separate LAB process; a blocked OS scan
+        # cannot prevent the parent from killing/reaping the child.
+        proc = handle.process
+        clean = proc.poll() is None
+        try:
+            if proc.stdin is not None and not proc.stdin.closed:
+                try:
+                    proc.stdin.write(b"STOP\\n".replace(b"\\n", bytes([10])))
+                    proc.stdin.flush()
+                except (OSError, ValueError):
+                    clean = False
+            try:
+                await asyncio.to_thread(proc.wait, timeout=timeout)
+            except subprocess.TimeoutExpired:
+                clean = False
+                proc.kill()
+                await asyncio.to_thread(proc.wait, timeout=2)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                await asyncio.to_thread(proc.wait, timeout=2)
+            if proc.stdin is not None:
+                proc.stdin.close()
+            if not handle.task.done():
+                handle.task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, BridgeLabConfigurationError):
+                await handle.task
+        if proc.returncode != 0:
+            clean = False
+        if not clean:
+            logger.error("Imaging LAB child terminated or failed; no acquisition confirmed")
+        return clean
+    # Compatibility-only helper used by low-level unit fixtures, never the
+    # active backend path. It cannot kill a blocked thread.
     try:
         await asyncio.wait_for(asyncio.shield(handle.task), timeout=timeout)
         return True
