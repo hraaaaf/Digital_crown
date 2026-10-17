@@ -7,9 +7,9 @@ Test whether Nuitka can compile **one existing, dependency-free backend module**
 without changing its observable behavior. This is NOT a new Digital Crown EXE
 and is NOT a licensed/security-certified release.
 
-The experiment uses `Nuitka==4.3`, Python 3.12, Ubuntu, a temporary copy of
-the source, and **synthetic** hexadecimal test fixtures only. All compiled
-artifacts are automatically deleted after the comparison.
+The experiment uses `Nuitka==4.3`, Python 3.12, Ubuntu **and Windows**, a temporary
+copy of the source, and **synthetic** hexadecimal test fixtures only. All
+compiled artifacts are automatically deleted after the comparison.
 
 ## Run
 
@@ -18,12 +18,13 @@ python -m pip install Nuitka==4.3
 python scripts/security/sec_p1_nuitka_lab.py
 ```
 
-Evidence target: a real native extension (`.so`) can be compiled and imported;
+Evidence target on **each OS**: a real native extension (`.so` with ELF signature
+on Linux, `.pyd` with PE/MZ signature on Windows) can be compiled and imported;
 11 comparisons of normal and rejection paths match the Python implementation,
 including SQLCipher key separation and mobile key derivation. The script prints
-the extension SHA-256 digest and size but not the fixture key values.
+the native format, extension SHA-256 digest and size, without secrets.
 
-[Experimental Linux workflow](../../.github/workflows/sec-p1-nuitka-parity-lab.yml)
+[Experimental Linux/Windows workflow](../../.github/workflows/sec-p1-nuitka-parity-lab.yml)
 is **EXPERIMENTAL** and is not a release or required gate for unrelated PRs.
 
 ## Boundaries and security non-claims
@@ -33,9 +34,10 @@ is **EXPERIMENTAL** and is not a release or required gate for unrelated PRs.
 - This prototype does not run the entire FastAPI backend as a compiled EXE.
 - Nuitka compilation does **not** make reverse engineering impossible and
   provides no standalone enforcement of commercial licensing.
-- No performance, startup-time, binary-signing, antimalware, full Windows,
+- No performance, startup-time, binary-signing, antimalware, Windows installer,
   native imaging, SQLCipher database runtime, frontend/mobile, or full
-  FastAPI compatibility claims can be made from this lab.
+  FastAPI compatibility claims can be made from this lab. Successful Windows
+  extension tests would not certify a complete Windows backend.
 - No patient data, credentials or privileged Firebase service accounts are
   stored, read or emitted in this workflow.
 - The original module retains its historical compatibility behavior; this
@@ -46,8 +48,9 @@ is **EXPERIMENTAL** and is not a release or required gate for unrelated PRs.
 
 ## Follow-on gates (not achieved here)
 
-1. Linux native extension parity (this lab).
-2. Windows native extension parity in isolated CI with pinned toolchain.
+1. Linux native extension parity (experimental CI).
+2. Windows native extension parity in isolated CI (experimental CI); verify
+   real PE/PYD output plus the same 11 parity cases before claiming a pass.
 3. Representative FastAPI/SQLCipher/scientific runtime parity.
 4. Installer signing, provenance, recovery, update/rollback rehearsals and
    actual distribution tests on supported Windows machines.
