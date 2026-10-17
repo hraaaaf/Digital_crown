@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/security/sec_p1_4_signed_license_reference.py"
       - "scripts/security/test_sec_p1_4_signed_license_reference.py"
+      - "scripts/security/sec_p1_4_architecture_guards.py"
       - ".github/workflows/sec-p1-4-signed-license-lab.yml"
       - "docs/security/SEC_P1_4_SIGNED_LICENSE_PACKAGING_ADR.md"
   workflow_dispatch:
