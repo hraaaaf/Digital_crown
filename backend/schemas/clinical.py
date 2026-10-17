@@ -168,7 +168,7 @@ class CephaloPDFRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     analysis_id: int = Field(strict=True, gt=0)
     # An active typed graph must be bound to the revision that the clinician saw.
-    expected_revision: Optional[int] = Field(default=None, strict=True, gt=0)
+    expected_revision: int = Field(strict=True, gt=0)
     ai_diagnostic: Optional[Dict[str, str]] = None
     clinical_data: Optional[ClinicalData] = None
     archive: bool = False
