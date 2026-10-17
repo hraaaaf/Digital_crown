@@ -1,0 +1,63 @@
+name: SEC-P1.4 EXPERIMENTAL Signed Licence Architecture
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "scripts/security/sec_p1_4_signed_license_reference.py"
+      - "scripts/security/test_sec_p1_4_signed_license_reference.py"
+      - "scripts/security/sec_p1_4_architecture_guards.py"
+      - ".github/workflows/sec-p1-4-signed-license-lab.yml"
+      - "docs/security/SEC_P1_4_SIGNED_LICENSE_PACKAGING_ADR.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sec-p1-4-signed-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  signature-policy-contract:
+    name: EXPERIMENTAL Ed25519 licence policy (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUTF8: "1"
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Use Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned verifier dependency only
+        run: python -m pip install cryptography==49.0.0
+
+      - name: Check dependency closure
+        run: python -m pip check
+
+      - name: Run fail-closed reference verifier adversarial tests
+        run: python scripts/security/test_sec_p1_4_signed_license_reference.py
+
+      - name: Check reference is not wired into runtime and key material is not committed
+        run: python scripts/security/sec_p1_4_architecture_guards.py
