@@ -344,6 +344,18 @@ try {
           const main=document.querySelector('main');
           return Boolean(main && (main.innerText||'').trim().length>10);
         },null,{timeout:30000});
+        // The app's left navigation auto-expands on hover with a 340ms
+        // width transition (68 -> 288px). Chromium initially places its
+        // mouse at 0,0 over this nav. Move it into the clinical canvas and
+        // wait for the actual collapsed geometry BEFORE measuring either
+        // screenshot; a mid-transition baseline is not a layout regression.
+        // Do not loosen the strict <=3px before/after workspace assertion.
+        await page.mouse.move(width-12,450);
+        await page.waitForFunction(()=>{
+          const sidebar=document.querySelector('aside.sidebar-shell');
+          return sidebar?.getAttribute('data-expanded')==='false'
+            && Math.abs(sidebar.getBoundingClientRect().width-68)<1;
+        },null,{timeout:15000});
         const baseline=await page.evaluate(()=>{
           const main=document.querySelector('main')?.getBoundingClientRect();
           return main?{left:main.left,right:main.right,width:main.width}:null;
