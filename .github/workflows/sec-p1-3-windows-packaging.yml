@@ -1,0 +1,63 @@
+name: SEC-P1.3 Experimental Windows Packaging Comparison
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "scripts/security/sec_p1_3_windows_probe_entry.py"
+      - "scripts/security/sec_p1_3_windows_packaging_compare.py"
+      - ".github/workflows/sec-p1-3-windows-packaging.yml"
+      - "docs/security/SEC_P1_3_WINDOWS_PACKAGING_LAB.md"
+      - "backend/core/key_material.py"
+      - "DigitalCrown.spec"
+      - "run.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sec-p1-3-windows-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packaging-compare:
+    name: EXPERIMENTAL Windows PyInstaller vs Nuitka probe
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUTF8: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - name: Checkout exact PR HEAD with no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify immutable checkout SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Select Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned nonclinical probe compiler/runtime
+        run: >-
+          python -m pip install Nuitka==4.3
+          PyInstaller==6.16.0
+          fastapi==0.115.6 starlette==0.41.3
+          pydantic==2.6.3 httpx==0.28.1
+
+      - name: Validate dependency consistency
+        run: python -m pip check
+
+      - name: Build and smoke-test both isolated Windows executable technologies
+        run: python scripts/security/sec_p1_3_windows_packaging_compare.py
