@@ -107,6 +107,21 @@ def run_lab() -> None:
         if len(candidates) != 1:
             raise RuntimeError(f"Expected one native extension; found {len(candidates)}")
         library = candidates[0]
+        # Verify that the compiler produced the platform's native extension,
+        # rather than a renamed Python file or a portable bytecode archive.
+        with library.open("rb") as stream:
+            header = stream.read(4)
+        system = platform.system()
+        if system == "Windows":
+            if library.suffix.lower() != ".pyd" or not header.startswith(b"MZ"):
+                raise AssertionError("Expected a Windows PE .pyd extension")
+            print("SEC_P1_NATIVE_FORMAT=PE/PYD")
+        elif system == "Linux":
+            if not header.startswith(b"\x7fELF"):
+                raise AssertionError("Expected a Linux ELF native extension")
+            print("SEC_P1_NATIVE_FORMAT=ELF")
+        else:
+            raise RuntimeError(f"Unsupported experimental lab platform: {system}")
         spec = importlib.util.spec_from_file_location(MODULE_NAME, library)
         if spec is None or spec.loader is None:
             raise RuntimeError("Native extension cannot be imported")
