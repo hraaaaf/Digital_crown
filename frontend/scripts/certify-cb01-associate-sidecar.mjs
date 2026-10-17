@@ -336,7 +336,7 @@ try {
         await page.goto(appOrigin+spec.pathname,{
           waitUntil:'domcontentloaded',timeout:90000,
         });
-        await page.locator('main').waitFor({state:'visible',timeout:30000});
+        await page.locator('main').first().waitFor({state:'visible',timeout:30000});
         if (new URL(page.url()).pathname!==spec.pathname) {
           throw new Error('FAIL: clinical route redirected unexpectedly: '+spec.slug);
         }
@@ -416,7 +416,10 @@ try {
         if(!expectedSidecar) {
           await overlay.getByRole('button',{name:'Fermer Crown Bot'}).click();
           await overlay.waitFor({state:'detached'});
-          const restored=await page.locator('main').boundingBox();
+          // PatientDetails nests its own <main> inside MainLayout's clinical
+          // <main>. Compare the same OUTER workspace used by querySelector
+          // in baseline/AFTER, rather than a strict locator matching both.
+          const restored=await page.locator('main').first().boundingBox();
           if(!restored || Math.abs(restored.width-baseline.width)>3
               || errors.length || writes.length) {
             throw new Error('FAIL: floating assistant close did not restore clinic page '+
