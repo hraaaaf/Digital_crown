@@ -10,6 +10,7 @@ on:
       - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
       - frontend/scripts/certify-cb01-associate-sidecar.mjs
       - frontend/scripts/certify-cb01-s01-s12-matrix.mjs
+      - scripts/ci/cb01_s07_s09_postgres.py
       - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
       - frontend/src/components/GhostBrainWidget.g9Interactive.test.tsx
       - .github/workflows/cb01-associate-sidecar-visual.yml
@@ -397,3 +398,56 @@ jobs:
             artifacts/cb00-http
           if-no-files-found: warn
           retention-days: 14
+ 
+  cb01-pg-concurrency-primitives:
+    name: S07/S09 isolated PostgreSQL lock and ABA primitives (EXPERIMENTAL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cb01_ci
+          POSTGRES_PASSWORD: isolated-ci-only
+          POSTGRES_DB: cb01_booking_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cb01_ci -d cb01_booking_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CB01_PG_LAB_URL: postgresql://cb01_ci:isolated-ci-only@127.0.0.1:5432/cb01_booking_lab
+      CB01_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact HEAD with no persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only PostgreSQL primitive test dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'SQLAlchemy>=2.0,<2.1' 'psycopg2-binary>=2.9,<3'
+      - name: Assert actual PostgreSQL booking race and monotonic ABA revision
+        shell: bash
+        run: |
+          python scripts/ci/cb01_s07_s09_postgres.py
+          echo '## CB-01 S07/S09 PostgreSQL primitives' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Two independent PostgreSQL transactions; one same-slot insert, adjacent allowed, ABA stale CAS refused. NOT full HTTP workflow or cabinet E2E.' >> "$GITHUB_STEP_SUMMARY"
+          echo "HEAD: $CB01_SOURCE_HEAD" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload isolated PostgreSQL technical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-pg-concurrency-primitives
+          path: artifacts/cb01-concurrency
+          retention-days: 14
+          if-no-files-found: warn
