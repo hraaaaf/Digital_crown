@@ -21,6 +21,10 @@ from backend.services.cephalo_canonical_method_bridge import project_canonical_m
 from backend.services.cephalo_protocol_projection import (
     project_steiner_static_protocol,
     project_tweed_merrifield_protocol,
+    project_mcnamara_reference_protocol,
+    project_com_reference_protocol,
+    project_ricketts_atlas2009_protocol,
+    project_ricketts_gregoret13_protocol,
 )
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_typed_read import (
@@ -184,6 +188,10 @@ def project_runtime_chain_read_path(
         "protocol_profiles": {
             "steiner": project_steiner_static_protocol(canonical_projection["measurements"]),
             "tweed_merrifield": project_tweed_merrifield_protocol(canonical_projection["measurements"]),
+            "mcnamara": project_mcnamara_reference_protocol(canonical_projection["measurements"]),
+            "com": project_com_reference_protocol(canonical_projection["measurements"]),
+            "ricketts_atlas2009": project_ricketts_atlas2009_protocol(canonical_projection["measurements"]),
+            "ricketts_gregoret13": project_ricketts_gregoret13_protocol(canonical_projection["measurements"]),
         },
     }
     return projected
