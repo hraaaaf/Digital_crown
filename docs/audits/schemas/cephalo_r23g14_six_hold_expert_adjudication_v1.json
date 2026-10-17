@@ -1,0 +1,237 @@
+{
+  "schema_version": "CEPHALO_R23G14_ATLAS33_SIX_HOLD_REVIEW_PACK_V1",
+  "source_profile_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "upstream_g13_ledger": "docs/audits/schemas/cephalo_r23g13_source_specific_landmark_guides_v1.json",
+  "scientific_status": "DOCUMENTARY_CORROBORATION_ONLY__NO_ATLAS_PIXEL_CONVERGENCE",
+  "local_atlas_primary_source_chapter_manually_checked": false,
+  "independent_reviewer_credentials_verified": false,
+  "independent_reviewer_a_signed": false,
+  "independent_reviewer_b_signed": false,
+  "image_calibration_verified": false,
+  "image_orientation_verified": false,
+  "clinical_release": false,
+  "atlas33_clinical_measurements_validated": 0,
+  "external_sources_are_scope_limited_general_evidence": true,
+  "hold_count": 6,
+  "unlockable_hold_ids": [],
+  "cards": [
+    {
+      "id": "Ba",
+      "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+      "source_lock_excerpt": "Required scientific identities: Ba, N, explicit `Pt_Ricketts`, constructed Ricketts Gn.",
+      "current_definition_fr": "Le dépôt utilise Ba pour la ligne Ba–N, mais ne fige pas dans ce contrat l'endroit précis où cliquer sur son contour.",
+      "interpretation_status": "ANATOMICAL_CONCEPT_ONLY__PIXEL_RULE_UNPROVEN",
+      "proposed_annotation_rule_is_not_authoritative": true,
+      "provisional_questionnaire_fr": [
+        "Quel point exact du contour osseux retenir sur téléradio latérale et en cas de superposition ?",
+        "Le chapitre Atlas2009 définit-il explicitement la même convention que la littérature généraliste ?",
+        "Quelle stratégie pour une image non visualisable ?"
+      ],
+      "candidate_rule_for_expert_discussion_only_fr": "Repérer la marge antérieure du foramen magnum sur la ligne médiane ; candidat générique seulement, non validé pour ce profil Atlas2009.",
+      "unresolved_reason_en": "Ba is used as cranial-base Ba–N endpoint in Atlas33, but generic basion definitions do not establish the edition-specific 2-D film pixel rule.",
+      "external_corroboration_not_atlas_authority": [
+        {
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11010784/",
+          "kind": "PEER_REVIEWED_GENERAL_CEPH_DEFINITION",
+          "scope": "Basion sur la marge antérieure du foramen magnum en pratique céphalométrique, mais identité Ricketts non spécifiée."
+        },
+        {
+          "url": "https://www.ncbi.nlm.nih.gov/books/NBK526041/",
+          "kind": "NCBI_ANATOMICAL_GENERAL",
+          "scope": "Basion au point médian du bord antérieur du foramen magnum en anatomie générale."
+        }
+      ],
+      "extra_forbidden_aliases": [
+        "opisthion",
+        "Ba_auto",
+        "random_foramen_magnum_pixel"
+      ],
+      "reviewer_a_independent_source_check": false,
+      "reviewer_b_independent_source_check": false,
+      "illustrated_example_source_locked": false,
+      "ambiguity_and_not_visible_policy_accepted": false,
+      "interobserver_consensus_verified": false,
+      "clinical_use_authorized": false,
+      "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
+    },
+    {
+      "id": "FOP_MOLAR_Ricketts",
+      "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
+      "source_lock_excerpt": "- `FOP_MOLAR_Ricketts`",
+      "current_definition_fr": "Zone d'occlusion molaire de la construction FOP bicuspide-molaire. L'intercuspidation exacte et son point opératoire doivent être fixés par les experts avant le clic.",
+      "interpretation_status": "ANATOMICAL_CONCEPT_ONLY__PIXEL_RULE_UNPROVEN",
+      "proposed_annotation_rule_is_not_authoritative": true,
+      "provisional_questionnaire_fr": [
+        "Quel contact molaire précis est ciblé par la représentation Atlas2009 ?",
+        "Comment tracer si plusieurs cuspides/contact overlays peuvent donner des points distincts ?",
+        "Est-il permis d'utiliser le contact incisobuccal décrit chez Ricketts 1978 pour cette construction ?"
+      ],
+      "candidate_rule_for_expert_discussion_only_fr": "Pré-enregistrer quelle intercuspidation molaire choisir, quelles surfaces maxillaires et mandibulaires contribuent au contact, et comment traiter les chevauchements.",
+      "unresolved_reason_en": "Ricketts functional occlusal plane is defined in repo via premolar–molar contact instead of incisal midpoint; molar occlusal anchor remains site-selection ambiguous.",
+      "external_corroboration_not_atlas_authority": [
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/281884/",
+          "kind": "RICKETTS_PRIMARY_OCCLUSION_CONCEPT",
+          "scope": "Article primaire sur la ligne d'occlusion ; ne démontre pas que tous ses points sont les ancrages du FOP précis d'Atlas2009."
+        }
+      ],
+      "extra_forbidden_aliases": [
+        "UMT",
+        "LMT",
+        "Occ_Post",
+        "molar_cusp"
+      ],
+      "reviewer_a_independent_source_check": false,
+      "reviewer_b_independent_source_check": false,
+      "illustrated_example_source_locked": false,
+      "ambiguity_and_not_visible_policy_accepted": false,
+      "interobserver_consensus_verified": false,
+      "clinical_use_authorized": false,
+      "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
+    },
+    {
+      "id": "FOP_PREMOLAR_Ricketts",
+      "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
+      "source_lock_excerpt": "- `FOP_PREMOLAR_Ricketts`",
+      "current_definition_fr": "Zone d'occlusion prémolaire de la FOP. Le choix du contact précis reste à préenregistrer, sans prendre une cuspide Aariz comme substitut.",
+      "interpretation_status": "ANATOMICAL_CONCEPT_ONLY__PIXEL_RULE_UNPROVEN",
+      "proposed_annotation_rule_is_not_authoritative": true,
+      "provisional_questionnaire_fr": [
+        "Contact anatomique incisobuccal exact ou milieu d'intercuspidation, selon quelle source primaire et quelle figure ?",
+        "Choix lorsque la prémolaire est absente, incluse, superposée ou hors occlusion ?",
+        "Le repère de G13 est-il réellement un seul point 2-D reproductible ?"
+      ],
+      "candidate_rule_for_expert_discussion_only_fr": "Pré-enregistrer la sélection d'un contact intercuspidien prémolaire précisément identifié (dents, contours superposés, absences/prothèses). Ne pas cliquer sans règle clinique qualifiée.",
+      "unresolved_reason_en": "Digital Crown source lock specifies functional posterior occlusal plane through premolar AND molar occlusion, not a generic cusp/UPM or Steiner anterior plane.",
+      "external_corroboration_not_atlas_authority": [
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/281884/",
+          "kind": "RICKETTS_PRIMARY_OCCLUSION_CONCEPT",
+          "scope": "Article Ricketts 1978 sur ligne d'occlusion ; résumé ne spécifie PAS un pixel 2-D premolaire déterministe."
+        }
+      ],
+      "extra_forbidden_aliases": [
+        "UPM",
+        "LPM",
+        "Occ_Ant",
+        "Steiner_OP"
+      ],
+      "reviewer_a_independent_source_check": false,
+      "reviewer_b_independent_source_check": false,
+      "illustrated_example_source_locked": false,
+      "ambiguity_and_not_visible_policy_accepted": false,
+      "interobserver_consensus_verified": false,
+      "clinical_use_authorized": false,
+      "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
+    },
+    {
+      "id": "GO_Ricketts_PFH",
+      "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+      "source_lock_excerpt": "`GO_Ricketts_PFH` is a source-specific clinician-controlled Gonion identity:",
+      "current_definition_fr": "Repère GO spécifique à la mesure Go–CF. Le dépôt impose le manuel, sans localiser assez précisément son point de contour pour un clic non arbitré.",
+      "interpretation_status": "ANATOMICAL_CONCEPT_ONLY__PIXEL_RULE_UNPROVEN",
+      "proposed_annotation_rule_is_not_authoritative": true,
+      "provisional_questionnaire_fr": [
+        "La source définit-elle GO_PFH comme point tracé sur les tangentes ou point contour ?",
+        "À quelle intersection projeter le point au cas d'un contour mandibulaire bilatéralement doublé ?",
+        "La procédure Go–CF est-elle reproductible indépendamment des plans mandibulaires d'autres analyses ?"
+      ],
+      "candidate_rule_for_expert_discussion_only_fr": "Comparer au chapitre Atlas2009 la convention de Gonion requise pour GO→CF (tracé des tangentes, bisectrice, ou point inférieur du contour), sans inférer qu'elle correspond au Go générique.",
+      "unresolved_reason_en": "Atlas33 source lock explicitly requires a clinician-controlled source-specific Go for Go–CF. Generic geometrically constructed Gonion in literature is NOT proven same ID.",
+      "external_corroboration_not_atlas_authority": [
+        {
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11010784/",
+          "kind": "PEER_REVIEWED_GENERIC_GONION",
+          "scope": "Exemple publié de Gonion construit par bisectrice des tangentes ; cela ne valide PAS l'équivalence avec GO_Ricketts_PFH."
+        }
+      ],
+      "extra_forbidden_aliases": [
+        "Go",
+        "Go-Me",
+        "Gonion_generic",
+        "MP_ANGLE_INFERIOR_Ricketts"
+      ],
+      "reviewer_a_independent_source_check": false,
+      "reviewer_b_independent_source_check": false,
+      "illustrated_example_source_locked": false,
+      "ambiguity_and_not_visible_policy_accepted": false,
+      "interobserver_consensus_verified": false,
+      "clinical_use_authorized": false,
+      "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
+    },
+    {
+      "id": "L6_DISTAL_Ricketts",
+      "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+      "source_lock_excerpt": "- `L6_DISTAL_Ricketts`: MANUAL or MANUAL_CORRECTED;",
+      "current_definition_fr": "Repère de la face distale de la couronne de la première molaire inférieure, pour la relation molaire FOP; définition opératoire tangentielle à confirmer.",
+      "interpretation_status": "ANATOMICAL_CONCEPT_ONLY__PIXEL_RULE_UNPROVEN",
+      "proposed_annotation_rule_is_not_authoritative": true,
+      "provisional_questionnaire_fr": [
+        "Quelle définition propre au L6 est explicitement illustrée dans Atlas2009, indépendamment d'A6 supérieure ?",
+        "La zone distale supérieure ou inférieure est-elle déterminée par une tangente à FOP ou une autre convention ?",
+        "Comment traiter contours doubles, molaires basculées, absentes ou restaurées ?"
+      ],
+      "candidate_rule_for_expert_discussion_only_fr": "Documenter une construction précise et indépendante du point distal couronnaire L6 sur le plan FOP à partir des surfaces distales visibles, et sa règle de projection.",
+      "unresolved_reason_en": "Atlas33 Wave A requires lower first-molar distal crown reference projected to source-locked FOP; upper A6 has a separate tangent rule which cannot be copied automatically to L6.",
+      "external_corroboration_not_atlas_authority": [
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24696824/",
+          "kind": "PEER_REVIEWED_RICKETTS_MEASUREMENTS",
+          "scope": "La littérature confirme la famille de relation molaire, sans prouver le choix de l'ancrage L6 source-spécifique dans le dépôt."
+        }
+      ],
+      "extra_forbidden_aliases": [
+        "L6_cusp",
+        "LMT",
+        "L6_centroid",
+        "U6_DISTAL_Ricketts"
+      ],
+      "reviewer_a_independent_source_check": false,
+      "reviewer_b_independent_source_check": false,
+      "illustrated_example_source_locked": false,
+      "ambiguity_and_not_visible_policy_accepted": false,
+      "interobserver_consensus_verified": false,
+      "clinical_use_authorized": false,
+      "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
+    },
+    {
+      "id": "PNS_Ricketts",
+      "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+      "source_lock_excerpt": "`PNS_Ricketts` remains source-specific; generic PNS is not promoted silently.",
+      "current_definition_fr": "Le dépôt requiert PNS_Ricketts pour la ligne ANS–PNS, mais ne prouve pas l'équivalence d'un clic générique PNS.",
+      "interpretation_status": "ANATOMICAL_CONCEPT_ONLY__PIXEL_RULE_UNPROVEN",
+      "proposed_annotation_rule_is_not_authoritative": true,
+      "provisional_questionnaire_fr": [
+        "PNS_Ricketts est-il défini sur la pointe osseuse, sur la jonction contour palatin/ptérygoïdien ou un point construit ?",
+        "Comment traiter contour difficile à isoler ou deux ombres osseuses ?",
+        "La définition NCBI générique suffit-elle à une équivalence avec le protocole Atlas ?"
+      ],
+      "candidate_rule_for_expert_discussion_only_fr": "Identifier d'abord l'extrémité osseuse postérieure de l'épine nasale postérieure, puis faire arbitrer la distinction Atlas2009/générique et les contours superposés.",
+      "unresolved_reason_en": "Wave B requires PNS_Ricketts in ANS–PNS palatal plane; external generic posterior nasal spine descriptions do not certify equivalence or point selection on overlapping films.",
+      "external_corroboration_not_atlas_authority": [
+        {
+          "url": "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/",
+          "kind": "NCBI_GENERAL_CEPHALOMETRIC_DEFINITION",
+          "scope": "PNS = pointe de l'épine nasale postérieure dans la définition générale ; non preuve d'alias à PNS_Ricketts."
+        },
+        {
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11869799/",
+          "kind": "PEER_REVIEWED_GENERAL_BONY_PALATE",
+          "scope": "Autre définition publiée : point le plus postérieur du palais osseux ; nécessite protocole d'adjudication pour Atlas2009."
+        }
+      ],
+      "extra_forbidden_aliases": [
+        "PNS",
+        "posterior_hard_palate_generic",
+        "PNS_Aariz"
+      ],
+      "reviewer_a_independent_source_check": false,
+      "reviewer_b_independent_source_check": false,
+      "illustrated_example_source_locked": false,
+      "ambiguity_and_not_visible_policy_accepted": false,
+      "interobserver_consensus_verified": false,
+      "clinical_use_authorized": false,
+      "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
+    }
+  ]
+}
