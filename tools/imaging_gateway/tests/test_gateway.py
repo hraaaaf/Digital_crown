@@ -13,6 +13,7 @@ import tempfile
 import unittest
 
 from tools.imaging_gateway import Config, HotFolder, GatewayError
+from tools.imaging_gateway.media_validation import valid_png
 
 
 SYNTHETIC = base64.b64decode(
@@ -73,6 +74,30 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.agent.scan_once()["unstable"], 1)
         self.assertEqual(self.agent.scan_once()["staged"], 1)
         self.assertEqual(len(self.agent.items()), 2)
+
+    def test_corrupt_png_magic_and_truncated_png_are_quarantined(self):
+        self.assertTrue(valid_png(SYNTHETIC))
+        broken = b"\\x89PNG\\r\\n\\x1a\\n".decode("unicode_escape").encode("latin1") + b"invalid"
+        self.assertFalse(valid_png(broken))
+        self.assertFalse(valid_png(SYNTHETIC[:-9]))
+        self.assertEqual(self.stage("fake.png", broken)["quarantine"], 1)
+        self.assertEqual(self.agent.items()[0]["state"], "QUARANTINED")
+
+    def test_unvalidated_jpeg_webp_pdf_are_not_accepted_by_magic_header(self):
+        for extension, data in (
+            ("jpg", bytes.fromhex("ffd8ff") + b"fakejpeg"),
+            ("pdf", b"%PDF-1.7\\nnot-a-pdf"),
+            ("webp", b"RIFF" + bytes.fromhex("04000000") + b"WEBPfake"),
+        ):
+            with self.subTest(extension=extension):
+                with tempfile.TemporaryDirectory() as root:
+                    watch, private = Path(root)/"watch", Path(root)/"private"
+                    watch.mkdir()
+                    worker = HotFolder(Config("strict", "station", watch, private, b"k"*32))
+                    (watch / ("fake." + extension)).write_bytes(data)
+                    worker.scan_once()
+                    self.assertEqual(worker.scan_once()["quarantine"], 1)
+                    self.assertEqual(worker.items()[0]["state"], "QUARANTINED")
 
     def test_wrong_extension_quarantined(self):
         self.assertEqual(self.stage("fixture.jpg")["quarantine"], 1)
