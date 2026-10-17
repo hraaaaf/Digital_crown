@@ -369,6 +369,30 @@ class GatewayTests(unittest.TestCase):
         self.assertFalse(self.private.with_name("private-hijacked").exists())
 
     @unittest.skipUnless(os.name == "nt", "native Windows SQLite HANDLE test")
+    def test_windows_main_db_pin_is_active_before_sqlite_connect(self):
+        """Proof of integration: no SQLite-owned DB HANDLE can mask a failure."""
+        real_connect = sqlite3.connect
+        called = []
+
+        def attack_at_open(*args, **kwargs):
+            moved = self.private / "attacker-moved-main.sqlite3"
+            try:
+                self.agent.db_file.rename(moved)
+            except OSError:
+                called.append("rename-refused-before-sqlite")
+            else:
+                # Restore the synthetic test sandbox before reporting failure.
+                moved.rename(self.agent.db_file)
+                self.fail("SQLite main file could move BEFORE sqlite3.connect")
+            return real_connect(*args, **kwargs)
+
+        with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                   side_effect=attack_at_open):
+            self.assertEqual(self.agent.items(), [])
+        self.assertEqual(called, ["rename-refused-before-sqlite"])
+        self.assertFalse((self.private / "attacker-moved-main.sqlite3").exists())
+
+    @unittest.skipUnless(os.name == "nt", "native Windows SQLite HANDLE test")
     def test_windows_native_pin_denies_rename_without_sqlite_own_open(self):
         """Independent oracle: only the guard, not SQLite, holds file locks."""
         from tools.imaging_gateway.sqlite_boundary_lab import pin_windows_sqlite_namespace
