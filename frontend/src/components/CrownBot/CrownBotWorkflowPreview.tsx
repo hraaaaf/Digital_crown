@@ -32,12 +32,15 @@ const MAX_TURNS = 8;
  * NEVER feed a preview proposal to /bot/execute.
  * Transcript lives only in component memory, not persistent chat history.
  */
-export function CrownBotWorkflowPreview() {
+export function CrownBotWorkflowPreview({ practitionerId }: {
+  practitionerId?: number;
+} = {}) {
   const [transcript, setTranscript] = useState<string[]>([]);
   const [answer, setAnswer] = useState<PreviewResponse | null>(null);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [lastPreviewReadAt, setLastPreviewReadAt] = useState<string | null>(null);
   const [programme, setProgramme] = useState<{
     items: ProgrammeAppointment[]; day: string; consultedAt: string;
   } | null>(null);
@@ -51,6 +54,7 @@ export function CrownBotWorkflowPreview() {
     setBusy(true);
     setError('');
     setAnswer(null);
+    setLastPreviewReadAt(null);
     setProgramme(null);
     setTranscript([]);
     setInput('');
@@ -61,7 +65,11 @@ export function CrownBotWorkflowPreview() {
       const end = new Date(now);
       end.setHours(23, 59, 59, 999);
       const response = await api.get<ProgrammeAppointment[]>('/appointments/', {
-        params: { start_date: start.toISOString(), end_date: end.toISOString() },
+        params: {
+          start_date: start.toISOString(), end_date: end.toISOString(),
+          ...(practitionerId && Number.isSafeInteger(practitionerId)
+            ? { praticien_id: practitionerId } : {}),
+        },
       });
       if (!Array.isArray(response.data) || !response.data.every(item =>
         Number.isSafeInteger(item?.id) && typeof item.datetime_start === 'string')) {
@@ -92,6 +100,7 @@ export function CrownBotWorkflowPreview() {
     if (inFlight.current) return;
     setTranscript([]);
     setAnswer(null);
+    setLastPreviewReadAt(null);
     setProgramme(null);
     setError('');
     setInput('');
@@ -118,6 +127,7 @@ export function CrownBotWorkflowPreview() {
     setBusy(true);
     setError('');
     setProgramme(null);
+    setLastPreviewReadAt(null);
     // Never show an old patient's successful result as the result of a new
     // workflow (or a subsequent request that fails). Preserve only validated
     // steps when retrying within the same workflow.
@@ -132,6 +142,9 @@ export function CrownBotWorkflowPreview() {
       });
       setTranscript(next);
       setAnswer(response.data);
+      setLastPreviewReadAt(new Date().toLocaleTimeString('fr-FR', {
+        hour: '2-digit', minute: '2-digit',
+      }));
       setInput('');
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number; data?: { detail?: string } } })?.response?.status;
@@ -217,7 +230,9 @@ export function CrownBotWorkflowPreview() {
         <div role="status" className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
           <p className="break-words text-sm text-slate-800">{answer.message}</p>
           <p className="mt-1 text-xs text-slate-500">
-            Source : consultation du serveur du cabinet · Aucun changement enregistré
+            Source : consultation du serveur du cabinet
+            {lastPreviewReadAt ? ` · Réponse reçue à ${lastPreviewReadAt}` : ''}
+            {' · Aucun changement enregistré'}
           </p>
           {answer.patient && (
             <p className="mt-2 break-words text-xs">
