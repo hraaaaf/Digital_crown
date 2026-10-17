@@ -1,0 +1,402 @@
+name: G1 PR896 Native Zoom200 Authenticated Evidence (Frozen Source)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/g1-pr896-native200.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g1-pr896-native200-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authenticated-media-pilot:
+    name: Authenticated Cabinet G1 frame / existing media route / isolated T2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      # Source is the unchanged, already-owner-approved PR #896 product commit.
+      # The PR branch contains CI/evidence files ONLY and MUST never be
+      # executed as product code by this workflow.
+      SOURCE_HEAD: 84150ec5412df8e436ff5afb19c05c6ddfbe90c7
+      EVIDENCE_WORKFLOW_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_V15_07_G1_MEDIA_FRAME_PILOT: '1'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      T2_USER: t2-browser@cabinet.ma
+    steps:
+      - name: Checkout exact candidate product commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+          persist-credentials: false
+      - name: Attest exact immutable source
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          echo "Immutable approved product source: $SOURCE_HEAD"
+          echo "Separate evidence workflow revision: $EVIDENCE_WORKFLOW_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          echo "PRODUCT_SHA=$SOURCE_HEAD" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Isolated synthetic T2 password
+        shell: bash
+        run: |
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Install server dependencies for disposable fixture DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/v15-07-g1-req.txt
+          pip install -r /tmp/v15-07-g1-req.txt
+      - name: Install real frontend and Chromium (Playwright isolated from product npm graph)
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          mkdir -p /tmp/v15-07-g1-playwright
+          npm install --prefix /tmp/v15-07-g1-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          test -d /tmp/v15-07-g1-playwright/node_modules/playwright
+          test -d /tmp/v15-07-g1-playwright/node_modules/playwright-core
+          ln -s /tmp/v15-07-g1-playwright/node_modules/playwright node_modules/playwright
+          /tmp/v15-07-g1-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Attest disposable test database target (do not bypass boot policy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint, is_known_cabinet_database
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["ENVIRONMENT"] == "test"
+          assert os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] == "1"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target), "Never start on known clinic data"
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(target))
+          PY
+      - name: Start isolated FastAPI fixture runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${DIGITALCROWN_ISOLATION_DB_FINGERPRINT:-}"
+          test "$DATABASE_URL" = "sqlite:///./t2-runtime-cert.db"
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/v15-07-g1-backend.log 2>&1 &
+          backend_pid=$!
+          for i in {1..100}; do
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              echo "Isolated backend process exited before /health"
+              tail -100 /tmp/v15-07-g1-backend.log
+              exit 1
+            fi
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/v15-07-g1-backend.log
+          exit 1
+      - name: Start actual pilot frontend with opt-in
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/v15-07-g1-frontend.log 2>&1 &
+          for i in {1..100}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/v15-07-g1-frontend.log
+          exit 1
+      - name: Test Desktop-only pilot and unchanged media module in Vitest
+        working-directory: frontend
+        run: npx vitest run src/features/multiview/CabinetMediaViewPilot.test.tsx
+      - name: Materialize ephemeral browser evidence script (not product code)
+        working-directory: frontend
+        shell: bash
+        run: |
+          cat > scripts/v15-07-g1-cabinet-media-pilot.mjs <<'EVIDENCE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import os from 'node:os';
+          import { chromium, request } from 'playwright';
+
+          const out = path.resolve('../artifacts/v15-07-g1-cabinet-media-pilot');
+          fs.mkdirSync(out, { recursive: true });
+          const sourceHead = process.env.SOURCE_HEAD;
+          const user = process.env.T2_USER;
+          const password = process.env.T2_PASSWORD;
+          if (!sourceHead || !user || !password) throw Error('Missing isolated G1 identity');
+          const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
+          const login = await api.post('/api/auth/login', { form: { username:user, password } });
+          if (!login.ok()) throw Error('Disposable T2 authentication failed HTTP ' + login.status());
+          const tokens = await login.json();
+          const headers = { Authorization: 'Bearer ' + tokens.access_token };
+          const response = await api.get('/api/patients/', { headers });
+          if (!response.ok()) throw Error('Cannot read isolated fixture patients HTTP ' + response.status());
+          const rows = await response.json();
+          const patient = rows.find(x => x.numero_dossier === 'T2-0001') || rows[0];
+          if (!patient) throw Error('No isolated T2 patient fixture');
+          const fixturePatientName = [patient.nom, patient.prenom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+          if (!fixturePatientName) throw Error('T2 fixture has no displayable patient name');
+
+          const screens = [
+            {key:'dashboard',path:'/dashboard'},
+            {key:'agenda',path:'/agenda'},
+            {key:'dossier',path:'/patients/' + patient.id},
+            {key:'imagerie',path:'/patients/' + patient.id,imaging:true},
+          ];
+          const sizes = [
+            {key:'desktop1280',width:1280,height:900},
+            {key:'desktop1440',width:1440,height:900},
+            {key:'desktop1920',width:1920,height:1080},
+            {key:'desktop2560',width:2560,height:1080},
+            {key:'cssZoom200Proxy',width:1280,height:900,cssZoom:2},
+            {key:'mobile390Regression',width:390,height:844},
+            {key:'mobile430Regression',width:430,height:932},
+            {key:'tablet768Regression',width:768,height:1024},
+          ];
+          const evidence = [];
+          const nativeZoomEvidence = [];
+          const browser = await chromium.launch({headless:true});
+          try {
+            for (const size of sizes) {
+              const context = await browser.newContext({viewport:{width:size.width,height:size.height},locale:'fr-FR',colorScheme:'light'});
+              for (const screen of screens) {
+                const page = await context.newPage();
+                const errors=[], http5xx=[];
+                page.on('pageerror',err=>errors.push(String(err).slice(0,350)));
+                page.on('response',res=>{if(res.status()>=500)http5xx.push({status:res.status(),path:new URL(res.url()).pathname});});
+                let failure=null, actualUrl=null, dom=null, screenshot=null, hash=null, patientReadyMs=null;
+                try {
+                  await page.addInitScript(({access,refresh})=>{
+                    localStorage.setItem('token',access);
+                    localStorage.setItem('refresh_token',refresh||'');
+                    localStorage.setItem('appMode','prod');
+                  },{access:tokens.access_token,refresh:tokens.refresh_token});
+                  const navigationStartedAt = Date.now();
+                  await page.goto('http://127.0.0.1:5173'+screen.path,{waitUntil:'domcontentloaded',timeout:90000});
+                  await page.locator('main').first().waitFor({state:'visible',timeout:30000});
+                  if(screen.key === 'dossier' || screen.imaging){
+                    // Lazy-loaded patient dossier: visible <main> may still be an empty splash.
+                    // Wait for the real, uniquely identified fictitious patient header before assessing content.
+                    await page.locator('main').getByText(fixturePatientName,{exact:false})
+                      .first().waitFor({state:'visible',timeout:60000});
+                    patientReadyMs = Date.now() - navigationStartedAt;
+                  }
+                  if(screen.imaging){
+                    await page.getByRole('button',{name:'Imagerie',exact:true}).click({timeout:20000});
+                    await page.getByRole('button',{name:'Médiathèque',exact:true}).click({timeout:20000});
+                    await page.getByText('Médiathèque clinique',{exact:true}).first().waitFor({state:'visible',timeout:20000});
+                    await page.locator('[data-testid="patient-media-timeline"]').first().waitFor({state:'visible',timeout:30000});
+                    // The genuine patient route owns auth, patient context and media API.
+                    // G1 pilot only adds a dormant token-aware frame on desktop.
+                    const expectedFrame = size.width >= 1280;
+                    const frameCount = await page.locator('[data-v15-07-theme-slot]').count();
+                    if(frameCount !== Number(expectedFrame))
+                      throw Error('G1 Desktop opt-in frame mismatch: expected='+expectedFrame+',count='+frameCount+',viewport='+size.width);
+                    if(expectedFrame){
+                      const frame = page.locator('[data-v15-07-theme-slot]').first();
+                      const observed = await frame.evaluate(el => {
+                        const s = getComputedStyle(el);
+                        return { background:s.backgroundColor,text:s.color,border:s.borderTopColor };
+                      });
+                      if(!observed.background || observed.background === 'rgba(0, 0, 0, 0)')
+                        throw Error('G1 frame is not receiving semantic card background');
+                      if(size.key === 'desktop1440'){
+                        await page.evaluate(() => {
+                          document.documentElement.dataset.theme='prestige';
+                          document.body.dataset.theme='prestige';
+                        });
+                        await page.waitForTimeout(650);
+                        const darkBg=await frame.evaluate(el=>getComputedStyle(el).backgroundColor);
+                        if(darkBg === observed.background) throw Error('G1 live theme change did not recolor real media frame');
+                        await page.screenshot({path:path.join(out,'imagerie-theme-prestige-desktop1440.png'),fullPage:false});
+                        await page.evaluate(() => {
+                          document.documentElement.dataset.theme='';
+                          document.body.dataset.theme='';
+                        });
+                        await page.waitForTimeout(650);
+                      }
+                    }
+                  }
+                  if(size.cssZoom) {
+                    await page.evaluate(z=>{document.documentElement.style.zoom=String(z)},size.cssZoom);
+                  }
+                  await page.waitForTimeout(1250);
+                  actualUrl=new URL(page.url()).pathname;
+                  dom=await page.evaluate(()=>{
+                    const main=document.querySelector('main');
+                    return {title:document.title,heading:document.querySelector('main h1')?.textContent?.trim().slice(0,120)||null,
+                      mainVisible:!!main&&main.getBoundingClientRect().height>0,
+                      mainTextLength:(main?.innerText||'').trim().length,
+                      viewportWidth:innerWidth,docScrollWidth:document.documentElement.scrollWidth,
+                      horizontalOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,
+                      visibleButtons:Array.from(document.querySelectorAll('main button')).filter(e=>e.getBoundingClientRect().width>0).length};
+                  });
+                  if(actualUrl!==screen.path||!dom.mainVisible||dom.mainTextLength<12)failure='route/visible-app validation: '+JSON.stringify({actualUrl,expected:screen.path,dom});
+                  const name=screen.key+'-'+size.key+'.png';
+                  screenshot=name;
+                  const bytes=await page.screenshot({path:path.join(out,name),fullPage:false,timeout:30000});
+                  hash=crypto.createHash('sha256').update(bytes).digest('hex');
+                } catch(e){failure=String(e).slice(0,600); actualUrl=actualUrl||new URL(page.url()).pathname;}
+                evidence.push({screen:screen.key,size:size.key,viewport:{width:size.width,height:size.height},
+                  zoom:size.cssZoom?'CSS zoom proxy only, NOT browser 200%': '1x',
+                  intendedPath:screen.path,actualUrl,dom,screenshot,sha256:hash,
+                  pageErrors:errors,http5xx,failure,patientReadyMs});
+                await page.close();
+              }
+              await context.close();
+            }
+          // Independent physical browser-zoom proof. The approved product source
+          // remains exactly PR #896; only this evidence-only workflow is new.
+          // Chrome's stored default page zoom is 2x (not CSS zoom, not a
+          // Playwright page scale, not DPR emulation). A 1440px physical
+          // window becomes ~720px CSS viewport, so desktop-only G1 frame MUST
+          // correctly fall back to the existing media timeline.
+          const profile=fs.mkdtempSync(path.join(os.tmpdir(),'dc-g1-pr896-native200-'));
+          fs.mkdirSync(path.join(profile,'Default'),{recursive:true});
+          fs.writeFileSync(path.join(profile,'Default','Preferences'),
+            JSON.stringify({partition:{default_zoom_level:{x:Math.log(2)/Math.log(1.2)}}}));
+          let nativeContext;
+          try{
+            nativeContext=await chromium.launchPersistentContext(profile,{
+              headless:true,channel:'chromium',viewport:null,
+              locale:'fr-FR',timezoneId:'Africa/Casablanca',
+              args:['--window-size=1440,900','--no-first-run','--no-default-browser-check']
+            });
+            for(const theme of ['elite','dark']){
+              const page=await nativeContext.newPage();
+              const errors=[],http5xx=[];
+              page.on('pageerror',e=>errors.push(String(e).slice(0,300)));
+              page.on('response',r=>{if(r.status()>=500)http5xx.push(r.status()+' '+new URL(r.url()).pathname);});
+              try{
+                await page.addInitScript(({access,refresh})=>{
+                  localStorage.setItem('token',access);
+                  localStorage.setItem('refresh_token',refresh||'');
+                  localStorage.setItem('appMode','prod');
+                },{access:tokens.access_token,refresh:tokens.refresh_token});
+                await page.goto('http://127.0.0.1:5173/patients/'+patient.id,{
+                  waitUntil:'domcontentloaded',timeout:90000
+                });
+                await page.locator('main').getByText(fixturePatientName,{exact:false})
+                  .first().waitFor({state:'visible',timeout:60000});
+                await page.getByRole('button',{name:'Imagerie',exact:true}).click({timeout:20000});
+                await page.getByRole('button',{name:'Médiathèque',exact:true}).click({timeout:20000});
+                const timeline=page.locator('[data-testid="patient-media-timeline"]').first();
+                await timeline.waitFor({state:'visible',timeout:30000});
+                if(theme==='dark'){
+                  await page.evaluate(()=>{
+                    document.documentElement.dataset.theme='dark';
+                    document.body.dataset.theme='dark';
+                  });
+                }
+                await timeline.scrollIntoViewIfNeeded();
+                await page.waitForTimeout(600);
+                const geometry=await page.evaluate(()=>({
+                  innerWidth,innerHeight,outerWidth,outerHeight,
+                  devicePixelRatio,visualScale:visualViewport?.scale??-1,
+                  cssZoom:document.documentElement.style.zoom,
+                  pageOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,
+                  timelineCount:document.querySelectorAll('[data-testid="patient-media-timeline"]').length,
+                  desktopFrameCount:document.querySelectorAll('[data-v15-07-theme-slot]').length,
+                  path:location.pathname,
+                  theme:document.body.dataset.theme||'elite'
+                }));
+                if(geometry.innerWidth<600||geometry.innerWidth>850
+                  ||geometry.outerWidth<1200||geometry.devicePixelRatio<1.9
+                  ||geometry.visualScale!==1||geometry.cssZoom!=='')
+                  throw Error('G1 native browser 200% proof FAIL '+JSON.stringify(geometry));
+                if(geometry.pageOverflow||geometry.desktopFrameCount!==0
+                  ||geometry.timelineCount!==1||geometry.path!=='/patients/'+patient.id)
+                  throw Error('G1 200% real responsive/auth regression '+JSON.stringify(geometry));
+                const cdp=await nativeContext.newCDPSession(page);
+                const nativeShot=await cdp.send('Page.captureScreenshot',{
+                  format:'png',captureBeyondViewport:false,fromSurface:true
+                });
+                const buffer=Buffer.from(nativeShot.data,'base64');
+                if(buffer.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')
+                  throw Error('200% CDP compositor screenshot invalid PNG');
+                const physical={width:buffer.readUInt32BE(16),height:buffer.readUInt32BE(20)};
+                if(physical.width<1200||physical.height<500)
+                  throw Error('Physical 200% screenshot wrongly cropped '+JSON.stringify({physical,geometry}));
+                if(errors.length||http5xx.length)
+                  throw Error('Errors on authenticated native zoom '+JSON.stringify({errors,http5xx}));
+                const file='imagerie-'+theme+'-nativeBrowser200-compositor.png';
+                fs.writeFileSync(path.join(out,file),buffer);
+                nativeZoomEvidence.push({theme,file,sha256:crypto.createHash('sha256').update(buffer).digest('hex'),
+                  physical,geometry,sourceHead,realAuthenticatedFastApi:true,
+                  cssZoomProxy:false});
+              }finally{await page.close();}
+            }
+          }finally{
+            await nativeContext?.close();
+            fs.rmSync(profile,{force:true,recursive:true});
+          }
+          } finally {await browser.close(); await api.dispose();}
+          const critical=evidence.filter(e=>e.failure||e.pageErrors.length||e.http5xx.length);
+          const report={sourceHead,runnerHead:process.env.GITHUB_SHA,fixture:'isolated T2 only',
+            authentication:'real API credentials with enrolled disposable workstation',
+            method:'real Vite React UI + disposable FastAPI + Playwright chromium, no routes mocked',
+            cssZoomWarning:'Original 32 scene CSS zoom proxy is NOT browser 200%; dedicated nativeZoomEvidence proves real 200% independently',
+            humanApproval:false,physicalEvidence:nativeZoomEvidence.length===2,
+            nativeZoomEvidence,featureGate:'VITE_V15_07_G1_MEDIA_FRAME_PILOT=1',
+            expected:32,captured:evidence.filter(e=>e.screenshot&&e.sha256).length,
+            errors:critical.length,records:evidence};
+          fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(report,null,2));
+          console.log('V15_07_G1_MEDIA_CAPTURE_SUMMARY '+JSON.stringify({sourceHead,expected:report.expected,captured:report.captured,critical:critical.length,
+            failures:critical.slice(0,8).map(e=>({screen:e.screen,size:e.size,error:e.failure,pageErrors:e.pageErrors,http5xx:e.http5xx}))}));
+          if(report.captured!==32||critical.length||nativeZoomEvidence.length!==2)
+            process.exitCode=1;
+          console.log('G1_PR896_NATIVE200_CONTRACT '+JSON.stringify({
+            immutableProductSHA:sourceHead,workflowHead:process.env.EVIDENCE_WORKFLOW_HEAD,
+            scenes:report.captured,native: nativeZoomEvidence.length,
+            nativePhysical:nativeZoomEvidence.map(x=>x.physical),
+            nativeViewport:nativeZoomEvidence.map(x=>x.geometry.innerWidth)
+          }));
+          EVIDENCE
+          node --check scripts/v15-07-g1-cabinet-media-pilot.mjs
+      - name: Execute real actual auth Cabinet pilot screen matrix (product feature flag isolated)
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ../artifacts
+          node scripts/run-with-t2-workstation.mjs scripts/v15-07-g1-cabinet-media-pilot.mjs 2>&1 | tee ../artifacts/v15-07-g1-cabinet-media-pilot.log
+      - name: Capture failure diagnostics (sanitized)
+        if: failure()
+        shell: bash
+        run: |
+          tail -80 /tmp/v15-07-g1-backend.log || true
+          tail -80 /tmp/v15-07-g1-frontend.log || true
+      - name: Upload manifest and real screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g1-pr896-approved-source-auth-native200
+          path: |
+            artifacts/v15-07-g1-cabinet-media-pilot
+            artifacts/v15-07-g1-cabinet-media-pilot.log
+          retention-days: 30
+          if-no-files-found: warn
