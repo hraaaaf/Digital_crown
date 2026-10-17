@@ -41,6 +41,8 @@ def test_legacy_unassigned_blocks_companion_and_keeps_slot_unconsumed(db, dentis
         scheduling_type=models.SchedulingType.EXACT_TIME, praticien_id=None,
     ))
     db.flush()
+    # The legacy row and opaque slot must be durable before the writer starts.
+    db.commit()
     # Distinguish an invalid/revoked opaque fixture from a real cross-channel
     # conflict regression; do not weaken the expected SLOT_CONFLICT contract.
     from backend.services.patient_companion_agenda import _slot_for_ref
