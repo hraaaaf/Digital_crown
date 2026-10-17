@@ -8,8 +8,10 @@ describe('agenda clinic A2 synchronized multi-practitioner grid', () => {
     const studio = read('./features/agenda/AgendaStudio.tsx');
 
     expect(studio).toContain("viewMode === 'day' || viewMode === 'multi'");
-    expect(studio).toContain('start.setHours(0, 0, 0, 0)');
-    expect(studio).toContain('end.setHours(23, 59, 59, 999)');
+    expect(studio).toContain('const day = clinicCalendarDay(selectedDate)');
+    expect(studio).toContain('start_date: `${day}T00:00:00`');
+    expect(studio).toContain('end_date: `${day}T23:59:59.999999`');
+    expect(studio).not.toContain('start.toISOString()');
     expect(studio).toContain('<MultiPractitionerTimelineView');
   });
 

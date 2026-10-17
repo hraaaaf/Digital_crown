@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Users, CalendarClock, AlertCircle } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -13,6 +13,7 @@ import { MultiPractitionerTimelineView } from './MultiPractitionerTimelineView';
 import { api } from '../../services/api';
 import { usePractitionerContextStore } from '../clinic/practitionerContext';
 import './AgendaP2Readability.css';
+import { clinicCalendarDay } from './agendaClinicLocalDate';
 
 export type AgendaViewMode = 'day' | 'week' | 'month' | 'multi';
 
@@ -31,6 +32,7 @@ export const AgendaStudio: React.FC = () => {
   const [exceptions, setExceptions] = useState<any[]>([]);
   const [multiData, setMultiData] = useState<any>(null);
   const [loadingMulti, setLoadingMulti] = useState(false);
+  const multiRequestSerial = useRef(0);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
   // Préremplissage patient (CTA "Prendre RDV" depuis le dossier patient) — modale
@@ -92,27 +94,28 @@ export const AgendaStudio: React.FC = () => {
   };
 
   const fetchMulti = async () => {
+    const requestId = ++multiRequestSerial.current;
     setLoadingMulti(true);
+    setMultiData(null);
     try {
-      const start = new Date(selectedDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(selectedDate);
-      end.setHours(23, 59, 59, 999);
+      // Backend filters timezone-naive cabinet wall times: never serialize browser instants.
+      const day = clinicCalendarDay(selectedDate);
       const res = await api.get('/appointments/multi-practitioner', {
-        params: { start_date: start.toISOString(), end_date: end.toISOString() }
+        params: { start_date: `${day}T00:00:00`, end_date: `${day}T23:59:59.999999` }
       });
-      setMultiData(res.data);
+      if (multiRequestSerial.current === requestId) setMultiData(res.data);
     } catch (err: any) {
-      if (err?.response?.status === 403) {
-        setMultiData({ error: 'PREMIUM' });
+      if (multiRequestSerial.current === requestId) {
+        setMultiData({ error: err?.response?.status === 403 ? 'PREMIUM' : 'NETWORK' });
       }
     } finally {
-      setLoadingMulti(false);
+      if (multiRequestSerial.current === requestId) setLoadingMulti(false);
     }
   };
 
   useEffect(() => {
     if (viewMode === 'multi') fetchMulti();
+    return () => { multiRequestSerial.current += 1; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, selectedDate]);
 

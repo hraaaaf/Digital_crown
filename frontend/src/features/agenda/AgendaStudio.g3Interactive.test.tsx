@@ -16,8 +16,8 @@ vi.mock('./DailyView', () => ({ DailyView: () => <div>Day view</div> }));
 vi.mock('./WeeklyView', () => ({ WeeklyView: () => <div>Week view</div> }));
 vi.mock('./MonthlyView', () => ({ MonthlyView: () => <div>Month view</div> }));
 vi.mock('./MultiPractitionerTimelineView', () => ({
-  MultiPractitionerTimelineView: ({ loading, data }: { loading: boolean; data: unknown }) =>
-    <div>{loading ? 'Multi loading' : data ? 'Multi view' : 'Multi empty'}</div>,
+  MultiPractitionerTimelineView: ({ loading, data }: { loading: boolean; data: any }) =>
+    <div>{loading ? 'Multi loading' : data ? <><span>Multi view</span><span data-testid="multi-status">{data.error || data.dentists?.[0]?.dentist_name || ''}</span></> : 'Multi empty'}</div>,
 }));
 vi.mock('./GoogleImportModal', () => ({
   GoogleImportModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
@@ -73,7 +73,51 @@ describe('AgendaStudio G3 interactive shell matrix', () => {
       '/appointments/multi-practitioner',
       expect.objectContaining({ params: expect.objectContaining({ start_date: expect.any(String), end_date: expect.any(String) }) }),
     ));
+    const multiQuery = vi.mocked(api.get).mock.calls.find(call => call[0] === '/appointments/multi-practitioner');
+    const params = multiQuery?.[1]?.params as { start_date: string; end_date: string };
+    expect(params.start_date).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00$/);
+    expect(params.end_date).toMatch(/^\d{4}-\d{2}-\d{2}T23:59:59\.999999$/);
+    expect(params.start_date.slice(0, 10)).toBe(params.end_date.slice(0, 10));
     expect(await screen.findByText('Multi view')).toBeTruthy();
+  });
+
+  it('discards stale multi-view responses when navigating to a different day', async () => {
+    let resolveOld!: (value: unknown) => void;
+    let resolveNew!: (value: unknown) => void;
+    let count = 0;
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/appointments/multi-practitioner') {
+        count += 1;
+        return new Promise(resolve => { if (count === 1) resolveOld = resolve; else resolveNew = resolve; }) as never;
+      }
+      if (url === '/agenda/upcoming-holidays' || url === '/agenda/exceptions') return Promise.resolve({ data: [] }) as never;
+      if (url === '/agenda/settings') return Promise.resolve({ data: {} }) as never;
+      if (url === '/appointments/pending') return Promise.resolve({ data: [] }) as never;
+      throw Error('unexpected GET '+url);
+    });
+    render(<MemoryRouter><AgendaStudio /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /Multi$/i }));
+    await waitFor(() => expect(count).toBe(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Période suivante' }));
+    await waitFor(() => expect(count).toBe(2));
+    resolveNew({ data: { dentists: [{ dentist_id: 2, dentist_name: 'CURRENT', appointments: [] }] } });
+    await waitFor(() => expect(screen.getByTestId('multi-status').textContent).toBe('CURRENT'));
+    resolveOld({ data: { dentists: [{ dentist_id: 1, dentist_name: 'STALE', appointments: [] }] } });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(screen.getByTestId('multi-status').textContent).toBe('CURRENT');
+  });
+
+  it('shows an explicit error state instead of stale multi-view data after network failure', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/appointments/multi-practitioner') throw Error('Synthetic outage');
+      if (url === '/agenda/upcoming-holidays' || url === '/agenda/exceptions') return { data: [] } as never;
+      if (url === '/agenda/settings') return { data: {} } as never;
+      if (url === '/appointments/pending') return { data: [] } as never;
+      throw Error('unexpected GET '+url);
+    });
+    render(<MemoryRouter><AgendaStudio /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /Multi$/i }));
+    await waitFor(() => expect(screen.getByTestId('multi-status').textContent).toBe('NETWORK'));
   });
 
   it('opens and closes frontdesk and Google import modals', async () => {

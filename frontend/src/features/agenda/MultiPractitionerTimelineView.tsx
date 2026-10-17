@@ -312,6 +312,17 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
     return <div className="py-20 text-center text-slate-400 font-bold animate-pulse">Chargement…</div>;
   }
   if (!data) return null;
+  if (data.error === 'NETWORK') {
+    return (
+      <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-6 text-center text-amber-900">
+        <p className="mb-3 font-bold">Impossible de charger les rendez-vous des praticiens. La liste affichée n’est pas à jour.</p>
+        <button type="button" onClick={onSaved}
+          className="rounded-xl border border-amber-600 px-4 py-2 font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+          Réessayer le chargement
+        </button>
+      </div>
+    );
+  }
   if (data.error === 'PREMIUM') {
     return (
       <div className="py-20 flex flex-col items-center gap-4">

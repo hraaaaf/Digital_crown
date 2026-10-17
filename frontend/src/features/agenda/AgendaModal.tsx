@@ -68,6 +68,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [loading, setLoading] = useState(false);
   const [dateValue, setDateValue] = useState('');
   const [conflictReview, setConflictReview] = useState<{ key: string; status: 'checking' | 'ready' | 'error'; conflicts: any[]; hasConflict: boolean } | null>(null);
+  const [conflictRetrySequence, setConflictRetrySequence] = useState(0);
   const [smartIntel, setSmartIntel] = useState<any>(null);
   const [loadingIntel, setLoadingIntel] = useState(false);
   const [showGhostPanel, setShowGhostPanel] = useState(false);
@@ -293,7 +294,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
   // The backend owns conflict validation. An unavailable/malformed response must
   // never be presented as "no conflicts". Keep checks tied to the exact form.
-  const conflictKey = `${dateValue}|${time}|${duration}|${schedulingType}|${editingAppointment?.id ?? 'new'}|${isOpen}`;
+  const conflictKey = `${dateValue}|${time}|${duration}|${schedulingType}|${editingAppointment?.id ?? 'new'}|${isOpen}|${conflictRetrySequence}`;
   const currentReview = conflictReview?.key === conflictKey ? conflictReview : null;
   const conflicts = currentReview?.status === 'ready' ? currentReview.conflicts : [];
   const canSaveExact = schedulingType !== 'EXACT_TIME' ||
@@ -319,6 +320,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         if (cancelled) return;
         if (!res.data || !Array.isArray(res.data.conflicts) || typeof res.data.has_conflict !== 'boolean')
           throw new Error('Invalid backend conflict response');
+        // A contradictory API payload must never unlock a booking while displaying an overlap.
+        if (res.data.conflicts.length > 0 && !res.data.has_conflict)
+          throw new Error('Contradictory backend conflict response');
         setConflictReview({ key: conflictKey, status: 'ready', conflicts: res.data.conflicts, hasConflict: res.data.has_conflict });
       } catch {
         if (!cancelled) setConflictReview({ key: conflictKey, status: 'error', conflicts: [], hasConflict: false });
@@ -384,7 +388,15 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       setSchedulingType('EXACT_TIME');
     } catch (err: any) {
       console.error("Erreur saving appt", err);
-      toast.error(err?.response?.data?.detail || "Erreur lors de la sauvegarde du rendez-vous.");
+      const detail = err?.response?.data?.detail;
+      const feedback = typeof detail === 'string' ? detail
+        : typeof detail?.message === 'string' ? detail.message
+        : "Erreur lors de la sauvegarde du rendez-vous.";
+      // The backend may reject an appointment after a successful preflight when
+      // another user books in the meantime. Refresh the gate, never render a
+      // structured FastAPI error object as a React toast child.
+      if (err?.response?.status === 409) setConflictRetrySequence(n => n + 1);
+      toast.error(feedback);
     } finally {
       setLoading(false);
     }
@@ -416,7 +428,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             
             {/* PATIENT SEARCH */}
             <div className="relative" ref={patientRef}>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Patient</label>
+              <label htmlFor="agenda-patient-search" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Patient</label>
               <div className="relative group">
                 {selectedPatient ? (
                   <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-blue-50/50 border-2 border-blue-500 rounded-2xl text-sm font-black text-[#003380]">
@@ -436,6 +448,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   <>
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                     <input 
+                      id="agenda-patient-search"
                       type="text" 
                       required
                       placeholder="Rechercher ou saisir un nom..."
@@ -585,7 +598,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
             {/* ACT / MOTIF SEARCH */}
             <div className="relative" ref={actRef}>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Acte / Motif</label>
+              <label htmlFor="agenda-act-search" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Acte / Motif</label>
               <div className="relative group">
                 {selectedAct ? (
                   <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-emerald-50/50 border-2 border-emerald-500 rounded-2xl text-sm font-black text-emerald-700">
@@ -601,6 +614,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   <>
                     <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                     <input 
+                      id="agenda-act-search"
                       type="text" 
                       required
                       placeholder="Saisir l'acte ou rechercher dans le catalogue..."
@@ -693,10 +707,11 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Date</label>
+                <label htmlFor="agenda-date" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Date</label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input 
+                    id="agenda-date"
                     type="date" 
                     required
                     value={dateValue}
@@ -736,10 +751,11 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             {schedulingType === 'EXACT_TIME' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Début</label>
+                  <label htmlFor="agenda-time" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Début</label>
                   <div className="relative">
                     <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
+                      id="agenda-time"
                       type="time" 
                       required
                       value={time}
@@ -749,8 +765,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Durée Prévue</label>
+                  <label htmlFor="agenda-duration" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Durée Prévue</label>
                   <select 
+                    id="agenda-duration"
                     value={duration} 
                     onChange={e => setDuration(Number(e.target.value))}
                     className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
@@ -839,6 +856,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   {currentReview?.status === 'error'
                     ? 'Vérification des conflits indisponible : enregistrement bloqué. Modifiez le créneau ou réessayez.'
                     : 'Vérification des conflits en cours…'}
+                  {currentReview?.status === 'error' && (
+                    <button type="button" onClick={() => setConflictRetrySequence(n => n + 1)}
+                      className="ml-auto shrink-0 rounded-md border border-amber-500 px-2 py-1 font-black underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700">
+                      Relancer la vérification
+                    </button>
+                  )}
                 </div>
               )}
               {schedulingType === 'EXACT_TIME' && currentReview?.hasConflict && (

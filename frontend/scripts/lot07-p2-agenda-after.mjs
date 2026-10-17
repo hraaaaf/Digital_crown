@@ -69,6 +69,7 @@ await vite.listen();
 const browser=await chromium.launch({headless:true});
 const rows=[];
 const midnightResults=[];
+const modalResults=[];
 const report={phase:'AFTER',source:'real AgendaPage/AgendaStudio React with synthetic intercepted API, NOT authenticated backend',
   sourceHead:head,p1Parent:parent,fixture:'synthetic 2026-09-16, six appointments, three practitioners and one legacy unassigned',
   themes:['elite','dark'],viewports:sizes,modes:modes.map(x=>x[0]),captures:rows};
@@ -273,12 +274,59 @@ async function runMatrix(page,theme,width,height,zoom=false){
       file:filename,bytes:image.size,unhandledSyntheticEndpoints:[...new Set(violations)]});
   }
 }
+
+async function runModalUX(page,theme,width,height,zoom=false){
+  const issues=[],attempts=[];
+  page.on('pageerror',e=>issues.push(e.message));
+  await attachFixture(page,issues);
+  await page.route('**/api/appointments/check-conflicts**',async route=>{
+    const u=new URL(route.request().url()),wire=u.searchParams.get('datetime_start');
+    attempts.push(wire);
+    if(attempts.length===1)
+      return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Synthetic network outage"}'});
+    return route.fulfill(json({has_conflict:false,conflicts:[]}));
+  });
+  await page.clock.setFixedTime(new Date(fixtureNow));
+  await page.goto('http://127.0.0.1:4217/lot07-p2-after.html?theme='+theme,{waitUntil:'domcontentloaded',timeout:60000});
+  await page.getByRole('heading',{name:'Agenda',exact:true}).waitFor({state:'visible',timeout:45000});
+  await page.getByRole('button',{name:/Nouveau RV/}).first().click();
+  const modal=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
+  await modal.waitFor({state:'visible',timeout:15000});
+  const retry=modal.getByRole('button',{name:'Relancer la vérification'});
+  await retry.waitFor({state:'visible',timeout:25000});
+  const submit=modal.getByRole('button',{name:'Confirmer le RDV'});
+  if(await submit.isEnabled())throw Error('Modal unexpectedly enabled submit on failed check '+theme+width);
+  await retry.scrollIntoViewIfNeeded();
+  const suffix=zoom?'native200':width+'x'+height;
+  const errorFile='agenda-'+theme+'-modal-error-'+suffix+'.png';
+  await page.screenshot({path:path.join(out,errorFile),animations:'disabled'});
+  await retry.click();
+  await page.waitForFunction(()=>Array.from(document.querySelectorAll('button')).some(
+    e=>e.textContent?.includes('Confirmer le RDV')&&!e.disabled),null,{timeout:12000});
+  if(!await submit.isEnabled())throw Error('Modal retry did not restore submit '+theme+width);
+  if(attempts.length!==2||attempts.some(q=>!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/.test(q||'')))
+    throw Error('Modal wire/retry regression '+JSON.stringify({attempts,theme,width}));
+  await submit.scrollIntoViewIfNeeded();
+  const readyFile='agenda-'+theme+'-modal-recovered-'+suffix+'.png';
+  await page.screenshot({path:path.join(out,readyFile),animations:'disabled'});
+  if(issues.length)throw Error('Modal JS failure '+JSON.stringify(issues));
+  modalResults.push({theme,width,height,zoomNative:zoom,timezone:(await page.evaluate(()=>Intl.DateTimeFormat().resolvedOptions().timeZone)),
+    attempts,failedSaveDisabled:true,retryRestoredSave:true,files:[errorFile,readyFile]});
+}
 try {
   for(const theme of ['elite','dark']){
     for(const [w,h] of sizes){
       const context=await browser.newContext({viewport:{width:w,height:h},locale:'fr-FR',timezoneId:'Africa/Casablanca'});
       try{await runMatrix(await context.newPage(),theme,w,h);}
       finally{await context.close();}
+    }
+  }
+  // New UX review B: actual modal at matching viewports, error and recovery.
+  for(const theme of ['elite','dark']){
+    for(const [w,h] of [[390,844],[430,932],[768,1024],[1280,900]]){
+      const ctx=await browser.newContext({viewport:{width:w,height:h},locale:'fr-FR',timezoneId:'America/New_York'});
+      try{await runModalUX(await ctx.newPage(),theme,w,h);}
+      finally{await ctx.close();}
     }
   }
   // Root regression: a normal "Nouveau RV" click at 00:20 clinic-local
@@ -331,15 +379,18 @@ try {
     native=await chromium.launchPersistentContext(profile,{headless:true,channel:'chromium',
       viewport:null,locale:'fr-FR',timezoneId:'Africa/Casablanca',
       args:['--window-size=1440,900','--no-first-run','--no-default-browser-check']});
-    try{await runMatrix(await native.newPage(),theme,1440,900,true);}
+    try{
+      await runMatrix(await native.newPage(),theme,1440,900,true);
+      await runModalUX(await native.newPage(),theme,1440,900,true);
+    }
     finally{await native.close();native=null;}
   }
 }finally{await native?.close();await fs.rm(profile,{force:true,recursive:true});await vite.close();}
 if(rows.length!==64||rows.filter(r=>r.zoomContent?.file).length!==8)
   throw Error('AFTER requires 64 baseline scenes plus 8 scrolled zoom200 content proofs: '+rows.length);
 await fs.writeFile(path.join(out,'manifest.json'),JSON.stringify({
-  ...report,sceneCount:rows.length,totalScreenshots:rows.length+8,midnightResults,
+  ...report,sceneCount:rows.length,totalScreenshots:rows.length+8+modalResults.length*2,midnightResults,modalResults,
   note:'64 baseline scenes plus 8 real native-200 scrolled-to-agenda compositor views'
 },null,2));
 console.log('LOT07_P2_AGENDA_AFTER_SUCCESS '+JSON.stringify({head,baseline:parent,screens:rows.length+8,
-  overflowCases:rows.filter(r=>r.metric.pageOverflow).map(r=>r.file),zoom:true,zoomContent:8,midnightChecks:midnightResults.length}));
+  overflowCases:rows.filter(r=>r.metric.pageOverflow).map(r=>r.file),zoom:true,zoomContent:8,midnightChecks:midnightResults.length,modalCaptures:modalResults.length*2}));
