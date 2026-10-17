@@ -34,6 +34,10 @@ export const GhostBrainWidget = () => {
   const { user } = useAuthStore();
   const employerId = user?.employer_id || user?.id;
   const scopeKey = `${employerId ?? ''}:${user?.id ?? ''}`;
+  // A -> B -> A can restore the same scopeKey while an A-era HTTP read ACK
+  // is still pending. A monotonically increasing epoch prevents that old
+  // response from acknowledging A's new session with colliding insight IDs.
+  const scopeEpochRef = useRef(0);
   const [alertState, setAlertState] = useState<{ scopeKey: string; insights: any[]; unreadCount: number }>({
     scopeKey: '', insights: [], unreadCount: 0,
   });
@@ -53,6 +57,13 @@ export const GhostBrainWidget = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    // New principal session: do not resurrect an earlier A snapshot when
+    // returning to A before the new socket provides authoritative data.
+    setAlertState({ scopeKey, insights: [], unreadCount: 0 });
+    return () => { scopeEpochRef.current += 1; };
+  }, [scopeKey]);
 
   useEffect(() => {
     if (!employerId) return;
@@ -109,6 +120,7 @@ export const GhostBrainWidget = () => {
   }, [employerId, scopeKey]);
 
   const markAsRead = async (logId: number) => {
+    const requestEpoch = scopeEpochRef.current;
     try {
       const ack = await api.post(`/ai/ghost-insights/${logId}/read`);
       // The backend contract is {"status":"read"}. A 2xx response with a
@@ -121,7 +133,9 @@ export const GhostBrainWidget = () => {
         // This also makes duplicate acknowledgements idempotent locally.
         // An earlier principal's ACK must not touch a newer cabinet snapshot,
         // even when local numeric insight IDs happen to collide.
-        if (prev.scopeKey !== scopeKey || !prev.insights.some(i => i.id === logId)) return prev;
+        if (scopeEpochRef.current !== requestEpoch
+          || prev.scopeKey !== scopeKey
+          || !prev.insights.some(i => i.id === logId)) return prev;
         return {
           scopeKey: prev.scopeKey,
           insights: prev.insights.filter(i => i.id !== logId),
