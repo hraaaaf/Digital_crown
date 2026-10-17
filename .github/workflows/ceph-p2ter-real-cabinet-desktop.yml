@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - fix/ceph-fac-parity-p2ter-*
+  pull_request:
+    branches:
+      - audit/dc-ceph-facad-parity-p2bis-http-pdf-20261017
 permissions:
   contents: read
 jobs:
@@ -19,11 +22,11 @@ jobs:
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"
       ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
-      PRODUCT_HEAD: ${{ github.sha }}
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Require exact HEAD in T2 lab
         run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
       - uses: actions/setup-python@v5
@@ -94,7 +97,7 @@ jobs:
           import fitz,json
           root=Path('artifacts/ceph-p2ter-authenticated-desktop')
           report=json.loads((root/'report.json').read_text())
-          assert report['head']=='${{ github.sha }}' and len(report['viewports'])==2
+          assert report['head']=='${{ github.event.pull_request.head.sha || github.sha }}' and len(report['viewports'])==2
           assert all(item['valid'] for item in report['viewports'])
           for label in ('1280x900','1600x1000'):
               for kind in ('older','newer'):
@@ -114,7 +117,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ceph-p2ter-real-cabinet-${{ github.sha }}
+          name: ceph-p2ter-real-cabinet-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/ceph-p2ter-authenticated-desktop/
           if-no-files-found: warn
           retention-days: 30
