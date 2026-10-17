@@ -1,0 +1,98 @@
+name: Cephalo Facad P1 WF04 Matched Desktop (experimental)
+on:
+  push:
+    branches:
+      - audit/dc-ceph-facad-parity-p1-*
+  pull_request:
+    branches:
+      - feat/dc-ceph-r23g2-profile-projection-20261017
+
+permissions:
+  contents: read
+
+env:
+  BEFORE_SHA: b593e56e4fd488701a982fcaeef245a27c14f939
+
+jobs:
+  before-after-react:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact audit HEAD and ancestry
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Assert same audit HEAD with G2 and predecessor
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          git merge-base --is-ancestor "$BEFORE_SHA" HEAD
+          git merge-base --is-ancestor d86d2963e3b31e6cacc2b77838f93d509460dfd1 HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install AFTER toolchain
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Test AFTER scientific read-only component and projection
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts
+      - name: Checkout BEFORE from PR 878 with identical test script
+        run: |
+          git worktree add /tmp/dc-ceph-p1-before "$BEFORE_SHA"
+          test "$(git -C /tmp/dc-ceph-p1-before rev-parse HEAD)" = "$BEFORE_SHA"
+          cp frontend/scripts/capture-ceph-facad-p1-wf04-matched-desktop.mjs /tmp/dc-ceph-p1-before/frontend/scripts/
+      - name: Prepare BEFORE toolchain
+        working-directory: /tmp/dc-ceph-p1-before/frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+      - name: Capture real React BEFORE 1280 and 1600 desktop
+        working-directory: /tmp/dc-ceph-p1-before/frontend
+        run: |
+          PRODUCT_HEAD="$BEFORE_SHA" PARITY_PHASE=BEFORE node scripts/capture-ceph-facad-p1-wf04-matched-desktop.mjs
+          mkdir -p "$GITHUB_WORKSPACE/frontend/ceph-facad-p1-wf04-evidence/before"
+          cp -a ceph-facad-p1-wf04-evidence/before/. "$GITHUB_WORKSPACE/frontend/ceph-facad-p1-wf04-evidence/before/"
+      - name: Capture real React AFTER 1280 and 1600 desktop
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: PARITY_PHASE=AFTER node scripts/capture-ceph-facad-p1-wf04-matched-desktop.mjs
+      - name: Reconcile identical fixture, viewport and two versions
+        working-directory: frontend
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFile,writeFile} from 'node:fs/promises';
+          const root='ceph-facad-p1-wf04-evidence/';
+          const before=JSON.parse(await readFile(root+'before/report.json'));
+          const after=JSON.parse(await readFile(root+'after/report.json'));
+          if(before.productHead!==process.env.BEFORE_SHA || after.productHead!==process.env.EXPECTED_SHA)throw Error('HEAD mismatch');
+          if(before.fixture!==after.fixture||before.viewports.length!==2||after.viewports.length!==2)throw Error('Not same fixture/viewport count');
+          const output={before_sha:before.productHead,after_sha:after.productHead,fixture:before.fixture,comparisons:[],facad_action_executed:false,patient_data:false,clinical_go:false};
+          for(let i=0;i<2;i++){
+            const a=before.viewports[i],b=after.viewports[i];
+            if(!a.valid||!b.valid||a.viewport!==b.viewport||!['1280x900','1600x1000'].includes(a.viewport))throw Error('Viewport mismatch');
+            const pick=(x,k)=>x.states.find(s=>s.mode===k)?.rows;
+            if(pick(a,'mcnamara')!==3||pick(a,'ricketts')!==2||pick(b,'mcnamara')!==13||pick(b,'atlas')!==33||pick(b,'gregoret')!==13)throw Error('Wrong row counts');
+            output.comparisons.push({viewport:a.viewport,before:{mcnamara:3,ricketts:2},after:{mcnamara:13,ricketts_atlas:33,ricketts_gregoret:13},matched:true});
+          }
+          await writeFile(root+'reconciled.json',JSON.stringify(output,null,2));
+          console.log('P1 MATCHED DESKTOP READ-ONLY COMPARISON',JSON.stringify(output));
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ceph-facad-p1-wf04-matched-desktop-${{ github.sha }}
+          path: frontend/ceph-facad-p1-wf04-evidence
+          if-no-files-found: warn
+          retention-days: 30
