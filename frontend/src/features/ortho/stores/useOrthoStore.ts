@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { cephaloRepository } from '../cephaloRepository';
-import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
+import { prepareBoundCephaloDocumentSource, type BoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { API_BASE } from '../../../services/api';
 import {
   buildPayload, computeMcNamaraProjections, initializeDefaultApexes,
@@ -130,7 +130,7 @@ interface OrthoState {
   updateLandmarksOptimistic: (newLms: Landmark[]) => void;
   nudgeLandmarkFromKeyboard: (id: string, dx: number, dy: number, imageWidth: number, imageHeight: number) => void;
   handlePreview: () => Promise<void>;
-  handlePrint: () => Promise<void>;
+  handlePrint: (prevalidatedSource?: BoundCephaloDocumentSource) => Promise<void>;
   handlePhotoUpload: (id: string, file: File) => void;
   goToStep: (target: StepId) => Promise<void>;
 }
@@ -717,15 +717,18 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       set({ isPreviewLoading: false });
     }
   },
-  handlePrint: async () => {
+  handlePrint: async (prevalidatedSource?: BoundCephaloDocumentSource) => {
     const s = get();
     if (!s.analysisId || !s.patientId) return;
     set({ isPrinting: true });
     const stillSelected = () => get().analysisId === s.analysisId && get().patientId === s.patientId;
     try {
-      const bound = await prepareBoundCephaloDocumentSource(
+      const bound = prevalidatedSource ?? await prepareBoundCephaloDocumentSource(
         s.patientId, s.analysisId, stillSelected, () => s.silentSave(s.analysisId, true),
       );
+      if (!stillSelected() || bound.analysis_id !== s.analysisId) {
+        throw new Error("Le PDF ne correspond pas à l'étude prévalidée.");
+      }
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
       const impa = computeLocalImpa(s.local.landmarks);
