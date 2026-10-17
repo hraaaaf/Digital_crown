@@ -314,6 +314,24 @@ def _runner():
         confirm=(0,"POST",f"/api/appointments/{request_id}/confirm",owner_tokens[0],{})
         results=race(confirm,bot_pending(t))
         verify("FRONTDESK_CONFIRM_VS_BOT",results,[200,409],t,1)
+        # Confirm/reject and confirm/expire are mutually exclusive transitions.
+        # No stale read may demote a confirmed appointment after COMMIT.
+        for verb, status_if_competitor_wins in (("reject","REFUSÉ"),("expire","EXPIRÉ")):
+            reset()
+            created=api(*frontdesk(0,t))
+            assert created[0]==200,created
+            request_id=json.loads(created[1])["id"]
+            confirm=(0,"POST",f"/api/appointments/{request_id}/confirm",owner_tokens[0],{})
+            competitor=(1,"POST",f"/api/appointments/{request_id}/{verb}",owner_tokens[1],{})
+            results=race(confirm,competitor)
+            assert sorted(code for code,_ in results)==[200,409],(verb,results)
+            with Session() as db:
+                final=db.execute(text("SELECT status FROM appointments WHERE id=:id"),
+                                 {"id":request_id}).scalar_one()
+            target="CONFIRMÉ" if results[0][0]==200 else status_if_competitor_wins
+            assert final==target,(verb,results,final,target)
+            print("F05_STATUS_RACE","CONFIRM_VS_"+verb.upper(),
+                  "HTTP",sorted(x[0] for x in results),"PERSISTED",final,flush=True)
         # Frontdesk expiry and HTTP confirmation via a second FastAPI PID.
         reset()
         t="2030-01-02T17:00:00"
@@ -334,7 +352,7 @@ def _runner():
             assert len(rows)==2,rows
         print("F05_EXPIRED_REQUEST_CONFIRM", "HTTP",sorted(s for s,_ in results),
               "SQL_ROWS",len(rows),flush=True)
-        print("F05_MULTIPROCESS_RACES",rounds*9+3,flush=True)
+        print("F05_MULTIPROCESS_RACES",rounds*9+5,flush=True)
         print("F05_PC_AUTH","SUBSTITUTED_STAFF_JWT_LAB_WRAPPER_NOT_DEVICE_JWE",flush=True)
         print("F05_RECEIPTS","UNTESTED_BY_THIS_LAB",flush=True)
     finally:
