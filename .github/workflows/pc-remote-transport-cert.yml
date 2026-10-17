@@ -8,6 +8,7 @@ on:
       - "backend/services/patient_companion_remote_*.py"
       - "backend/services/patient_companion_relay_*.py"
       - "backend/services/patient_companion_agenda.py"
+      - "backend/services/agenda_availability.py"
       - "backend/routers/patient_companion_pairing.py"
       - "backend/routers/patient_companion_agenda.py"
       - "backend/routers/patient_companion_shares.py"
