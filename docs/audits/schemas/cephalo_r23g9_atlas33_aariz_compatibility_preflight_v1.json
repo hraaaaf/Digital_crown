@@ -1,0 +1,902 @@
+{
+  "schema_version": "CEPHALO_R23G9_ATLAS33_AARIZ_SOURCE_COMPATIBILITY_PREFLIGHT_V1",
+  "parent_pr": 911,
+  "parent_head_sha": "d86d2963e3b31e6cacc2b77838f93d509460dfd1",
+  "profile_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "reference_source": "10.6084/m9.figshare.27986417.v1",
+  "reference_manifest_sha256": "73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df",
+  "scope": "DESCRIPTOR_ONLY_NO_PATIENT_IMAGES_NO_RESULTS",
+  "strict_literal_reference_mapping_not_approved_for_clinical_use": [
+    "A",
+    "ANS",
+    "Ar",
+    "B",
+    "Co",
+    "Gn",
+    "Go",
+    "L1_apex",
+    "L1_incisal",
+    "Li_soft",
+    "Ls_soft",
+    "Me",
+    "N",
+    "N_soft",
+    "Or",
+    "PNS",
+    "Po",
+    "Pog",
+    "Pog_soft",
+    "Prn",
+    "S",
+    "Sn_soft",
+    "U1_apex",
+    "U1_incisal"
+  ],
+  "counts": {
+    "atlas_rows": 33,
+    "groups": {
+      "lot06": 8,
+      "g7": 3,
+      "w1": 4,
+      "w2": 7,
+      "w3": 11
+    },
+    "unique_source_identities_without_strict_aariz_label": 21,
+    "rows_with_all_literal_reference_candidates": 1,
+    "clinically_validated_atlas_measurements": 0
+  },
+  "identities_without_strict_mapping": [
+    "Ba",
+    "DC_Ricketts",
+    "FOP_MOLAR_Ricketts",
+    "FOP_PREMOLAR_Ricketts",
+    "GO_Ricketts_PFH",
+    "L3_CUSP_Ricketts",
+    "L6_DISTAL_Ricketts",
+    "LABIAL_COMMISSURE_Ricketts",
+    "MP_ANGLE_INFERIOR_Ricketts",
+    "PNS_Ricketts",
+    "PR_Ricketts_PTV",
+    "Pm_Ricketts",
+    "Po_anatomic",
+    "Pog_hard",
+    "Pt_Ricketts",
+    "R1_Ricketts",
+    "R2_Ricketts",
+    "R3_Ricketts",
+    "R4_Ricketts",
+    "U3_CUSP_Ricketts",
+    "U6_DISTAL_Ricketts"
+  ],
+  "clinical_release": false,
+  "independent_clinical_review": false,
+  "annotation_reliability_for_atlas33_not_established": true,
+  "semantic_aliasing_authorized": false,
+  "rows": [
+    {
+      "order": 1,
+      "measurement_id": "M_RICKETTS_MOLAR_RELATION_FOP_MM_V1",
+      "source_descriptor_group": "w2",
+      "required_source_landmarks": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "L6_DISTAL_Ricketts",
+        "U6_DISTAL_Ricketts"
+      ],
+      "literal_candidate_ids_only": [],
+      "identities_not_in_strict_aariz_mapping": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "L6_DISTAL_Ricketts",
+        "U6_DISTAL_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 2,
+      "measurement_id": "M_RICKETTS_CANINE_RELATION_FOP_MM_V1",
+      "source_descriptor_group": "w2",
+      "required_source_landmarks": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "L3_CUSP_Ricketts",
+        "U3_CUSP_Ricketts"
+      ],
+      "literal_candidate_ids_only": [],
+      "identities_not_in_strict_aariz_mapping": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "L3_CUSP_Ricketts",
+        "U3_CUSP_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 3,
+      "measurement_id": "M_RICKETTS_OVERJET_FOP_MM_V1",
+      "source_descriptor_group": "w2",
+      "required_source_landmarks": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "L1_incisal",
+        "U1_incisal"
+      ],
+      "literal_candidate_ids_only": [
+        "L1_incisal",
+        "U1_incisal"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 4,
+      "measurement_id": "M_RICKETTS_OVERBITE_FOP_MM_V1",
+      "source_descriptor_group": "w1",
+      "required_source_landmarks": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "L1_incisal",
+        "U1_incisal"
+      ],
+      "literal_candidate_ids_only": [
+        "L1_incisal",
+        "U1_incisal"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 5,
+      "measurement_id": "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",
+      "source_descriptor_group": "w2",
+      "required_source_landmarks": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "L1_apex",
+        "L1_incisal"
+      ],
+      "literal_candidate_ids_only": [
+        "L1_apex",
+        "L1_incisal"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 6,
+      "measurement_id": "M_INTERINCISAL_DEG_V1",
+      "source_descriptor_group": "lot06",
+      "required_source_landmarks": [
+        "L1_apex",
+        "L1_incisal",
+        "U1_apex",
+        "U1_incisal"
+      ],
+      "literal_candidate_ids_only": [
+        "L1_apex",
+        "L1_incisal",
+        "U1_apex",
+        "U1_incisal"
+      ],
+      "identities_not_in_strict_aariz_mapping": [],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 7,
+      "measurement_id": "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
+      "source_descriptor_group": "lot06",
+      "required_source_landmarks": [
+        "A",
+        "N",
+        "Or",
+        "Po_anatomic",
+        "Pog_hard"
+      ],
+      "literal_candidate_ids_only": [
+        "A",
+        "N",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Po_anatomic",
+        "Pog_hard"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 8,
+      "measurement_id": "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "ANS",
+        "Or",
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "ANS",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 9,
+      "measurement_id": "M_U6_PTV_MM_V1",
+      "source_descriptor_group": "w2",
+      "required_source_landmarks": [
+        "Or",
+        "PR_Ricketts_PTV",
+        "Po_anatomic",
+        "U6_DISTAL_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "PR_Ricketts_PTV",
+        "Po_anatomic",
+        "U6_DISTAL_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 10,
+      "measurement_id": "M_L1_EDGE_APOG_MM_V1",
+      "source_descriptor_group": "lot06",
+      "required_source_landmarks": [
+        "A",
+        "L1_incisal",
+        "Or",
+        "Po_anatomic",
+        "Pog_hard"
+      ],
+      "literal_candidate_ids_only": [
+        "A",
+        "L1_incisal",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Po_anatomic",
+        "Pog_hard"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 11,
+      "measurement_id": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
+      "source_descriptor_group": "g7",
+      "required_source_landmarks": [
+        "A",
+        "Or",
+        "Po_anatomic",
+        "Pog_hard",
+        "U1_incisal"
+      ],
+      "literal_candidate_ids_only": [
+        "A",
+        "Or",
+        "U1_incisal"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Po_anatomic",
+        "Pog_hard"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 12,
+      "measurement_id": "M_RICKETTS_L1_APOG_INCLINATION_DEG_V1",
+      "source_descriptor_group": "lot06",
+      "required_source_landmarks": [
+        "A",
+        "L1_apex",
+        "L1_incisal",
+        "Pog_hard"
+      ],
+      "literal_candidate_ids_only": [
+        "A",
+        "L1_apex",
+        "L1_incisal"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Pog_hard"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 13,
+      "measurement_id": "M_RICKETTS_U1_APOG_INCLINATION_DEG_V1",
+      "source_descriptor_group": "g7",
+      "required_source_landmarks": [
+        "A",
+        "Pog_hard",
+        "U1_apex",
+        "U1_incisal"
+      ],
+      "literal_candidate_ids_only": [
+        "A",
+        "U1_apex",
+        "U1_incisal"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Pog_hard"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 14,
+      "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1",
+      "source_descriptor_group": "w1",
+      "required_source_landmarks": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "Or",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 15,
+      "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1",
+      "source_descriptor_group": "w2",
+      "required_source_landmarks": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "Or",
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 16,
+      "measurement_id": "M_LI_EPLANE_MM_V1",
+      "source_descriptor_group": "lot06",
+      "required_source_landmarks": [
+        "Li_soft",
+        "Or",
+        "Po_anatomic",
+        "Pog_soft",
+        "Prn"
+      ],
+      "literal_candidate_ids_only": [
+        "Li_soft",
+        "Or",
+        "Pog_soft",
+        "Prn"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Po_anatomic"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 17,
+      "measurement_id": "M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1",
+      "source_descriptor_group": "w2",
+      "required_source_landmarks": [
+        "ANS",
+        "LABIAL_COMMISSURE_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "ANS"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "LABIAL_COMMISSURE_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 18,
+      "measurement_id": "M_RICKETTS_COMMISSURE_FOP_MM_V1",
+      "source_descriptor_group": "w1",
+      "required_source_landmarks": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "LABIAL_COMMISSURE_Ricketts"
+      ],
+      "literal_candidate_ids_only": [],
+      "identities_not_in_strict_aariz_mapping": [
+        "FOP_MOLAR_Ricketts",
+        "FOP_PREMOLAR_Ricketts",
+        "LABIAL_COMMISSURE_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 19,
+      "measurement_id": "M_RICKETTS_FACIAL_DEPTH_NPOG_FH_POSTERIOR_DEG_V1",
+      "source_descriptor_group": "lot06",
+      "required_source_landmarks": [
+        "N",
+        "Or",
+        "Po_anatomic",
+        "Pog_hard"
+      ],
+      "literal_candidate_ids_only": [
+        "N",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Po_anatomic",
+        "Pog_hard"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 20,
+      "measurement_id": "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+      "source_descriptor_group": "lot06",
+      "required_source_landmarks": [
+        "Ba",
+        "Go",
+        "Me",
+        "N",
+        "Pog_hard",
+        "Pt_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "Go",
+        "Me",
+        "N"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Ba",
+        "Pog_hard",
+        "Pt_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [
+        "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
+      ],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 21,
+      "measurement_id": "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "MP_ANGLE_INFERIOR_Ricketts",
+        "Me",
+        "N",
+        "Pog_hard"
+      ],
+      "literal_candidate_ids_only": [
+        "Me",
+        "N"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "MP_ANGLE_INFERIOR_Ricketts",
+        "Pog_hard"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 22,
+      "measurement_id": "M_RICKETTS_MAXILLARY_DEPTH_NA_FH_DEG_V1",
+      "source_descriptor_group": "lot06",
+      "required_source_landmarks": [
+        "A",
+        "N",
+        "Or",
+        "Po_anatomic"
+      ],
+      "literal_candidate_ids_only": [
+        "A",
+        "N",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Po_anatomic"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [
+        "FH_PO_OR_V1"
+      ],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 23,
+      "measurement_id": "M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "A",
+        "N",
+        "Or",
+        "PR_Ricketts_PTV",
+        "Po_anatomic"
+      ],
+      "literal_candidate_ids_only": [
+        "A",
+        "N",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "PR_Ricketts_PTV",
+        "Po_anatomic"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 24,
+      "measurement_id": "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
+      "source_descriptor_group": "w1",
+      "required_source_landmarks": [
+        "ANS",
+        "Or",
+        "PNS_Ricketts",
+        "Po_anatomic"
+      ],
+      "literal_candidate_ids_only": [
+        "ANS",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "PNS_Ricketts",
+        "Po_anatomic"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 25,
+      "measurement_id": "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "MP_ANGLE_INFERIOR_Ricketts",
+        "Me",
+        "Or",
+        "Po_anatomic"
+      ],
+      "literal_candidate_ids_only": [
+        "Me",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "MP_ANGLE_INFERIOR_Ricketts",
+        "Po_anatomic"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 26,
+      "measurement_id": "M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1",
+      "source_descriptor_group": "g7",
+      "required_source_landmarks": [
+        "Ba",
+        "N",
+        "Or",
+        "Po_anatomic"
+      ],
+      "literal_candidate_ids_only": [
+        "N",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Ba",
+        "Po_anatomic"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 27,
+      "measurement_id": "M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "Ba",
+        "Go",
+        "Me",
+        "N",
+        "Pog_hard",
+        "Pt_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "Go",
+        "Me",
+        "N"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Ba",
+        "Pog_hard",
+        "Pt_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 28,
+      "measurement_id": "M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "GO_Ricketts_PFH",
+        "Or",
+        "PR_Ricketts_PTV",
+        "Po_anatomic"
+      ],
+      "literal_candidate_ids_only": [
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "GO_Ricketts_PFH",
+        "PR_Ricketts_PTV",
+        "Po_anatomic"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 29,
+      "measurement_id": "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "Ba",
+        "N",
+        "Or",
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "N",
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Ba",
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 30,
+      "measurement_id": "M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "Or",
+        "PR_Ricketts_PTV",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "PR_Ricketts_PTV",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 31,
+      "measurement_id": "M_RICKETTS_PORION_LOCATION_PTV_MM_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "Or",
+        "PR_Ricketts_PTV",
+        "Po_anatomic"
+      ],
+      "literal_candidate_ids_only": [
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "PR_Ricketts_PTV",
+        "Po_anatomic"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 32,
+      "measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "DC_Ricketts",
+        "Or",
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "DC_Ricketts",
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    },
+    {
+      "order": 33,
+      "measurement_id": "M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1",
+      "source_descriptor_group": "w3",
+      "required_source_landmarks": [
+        "Or",
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "literal_candidate_ids_only": [
+        "Or"
+      ],
+      "identities_not_in_strict_aariz_mapping": [
+        "Pm_Ricketts",
+        "Po_anatomic",
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "construction_upstream_not_covered_by_these_descriptors": [],
+      "clinical_measurement_validated": false,
+      "active_focus_authorized": false,
+      "expert_anatomical_review": false
+    }
+  ]
+}
