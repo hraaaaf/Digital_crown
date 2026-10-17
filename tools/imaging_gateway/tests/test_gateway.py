@@ -183,6 +183,21 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.agent.scan_once()["rejected"], 1)
             self.assertEqual(self.agent.items(), [])
 
+    def test_watch_directory_replaced_after_initialization_fails_closed(self):
+        original = self.watch.parent / "watch-moved"
+        self.watch.rename(original)
+        try:
+            try:
+                self.watch.symlink_to(original, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("directory symlink creation unsupported")
+            with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                self.agent.scan_once()
+        finally:
+            if self.watch.is_symlink():
+                self.watch.unlink()
+            original.rename(self.watch)
+
     def test_original_is_unchanged(self):
         self.stage()
         self.assertEqual((self.watch / "fixture.png").read_bytes(), SYNTHETIC)
