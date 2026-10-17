@@ -1,7 +1,7 @@
 # V1.5-07A — Desktop Experience & MultiView | Foundation Contract
 
-**Status: DRAFT / CONTRACT-ONLY / NOT IMPLEMENTED.**
-**Baseline verified:** `master@9158902e034c22b162873d5fd44ea7afd45f3e16` (2026-10-15).
+**Status: DRAFT / CONTRACT-ONLY IN THIS PR.** Pilots exist on other **OPEN, UNMERGED** PR branches; no runtime rollout or complete MultiView engine is delivered by this contract.
+**Original baseline (historical):** `master@9158902e034c22b162873d5fd44ea7afd45f3e16` (2026-10-15). **Latest live master verified for this reconciliation (2026-10-17):** `d36a921e4b910a84cbce305bd501a3d046cfbb62`; the original baseline is 2 commits behind it. G0 BEFORE proofs retain their respective immutable baseline and must be rerun/reconciled against integration HEAD when merging.
 **Canonical authority:** [ROADMAP UNIQUE V1.5](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb) and [LOT07 decisions](https://app.notion.com/p/3e677c66336281639049f4cc7be1e5ae).
 **Isolation:** LOT06 [PR #851](https://github.com/hraaaaf/Digital_crown/pull/851), LOT04/05, Queue, scientific engines, database and deployment remain out of scope. No runtime/UI activation in 07-A.
 
@@ -15,6 +15,21 @@
 - Experience selection (Core / Iconic / Command) and MultiView layout selection are two **separate settings scoped per authenticated user AND trusted workstation**; no sync across PCs or cabinet-wide selection.
 - Keep the existing clinic `selected_theme` palette independent, fully backwards-compatible and still available to its current Pocket/mobile consumers.
 - The prior three-pack/theme-only product description and original 10-SP estimate are **historical and superseded**; no automatic new estimate or certification.
+
+## 1.1. Implementation inventory (17 October 2026 — branches only; not master)
+
+This is **status reconciliation, not acceptance**. The initially correct "not implemented" status described **this contract PR**, but must not be read as denying the separate work already developed. The listed SHA/CI statements concern isolated branches only, and they are not transferable after a new HEAD or an integration merge.
+
+| Scope | Candidate PRs / state | Evidence and qualification |
+| --- | --- | --- |
+| G0/G1 → P1 → P2 stack | [#895](https://github.com/hraaaaf/Digital_crown/pull/895) → [#896](https://github.com/hraaaaf/Digital_crown/pull/896) → [#897](https://github.com/hraaaaf/Digital_crown/pull/897) → [#913](https://github.com/hraaaaf/Digital_crown/pull/913) → [#915](https://github.com/hraaaaf/Digital_crown/pull/915); **all OPEN / UNMERGED** | #916 [run #39033605478](https://github.com/hraaaaf/Digital_crown/actions/runs/39033605478) SUCCESS on the frozen #896 source, genuine authenticated browser native 200%; P1 and P2 separate CI/visual proofs, but **not a full nine-layout MultiView engine**. |
+| P1 clinical notice, 200% visibility | [#925](https://github.com/hraaaaf/Digital_crown/pull/925), DRAFT, based on #913, HEAD `8e9cd88e` | [T2 authenticated #39040893372](https://github.com/hraaaaf/Digital_crown/actions/runs/39040893372) SUCCESS; replaces automatic 7-second obstruction with patient-scoped inline advice. Fresh owner visual approval and independent reviews missing. |
+| P2 local Agenda date correctness | [#923](https://github.com/hraaaaf/Digital_crown/pull/923), DRAFT, based on #915, HEAD `82d7f3c9` | [AFTER #39041538848](https://github.com/hraaaaf/Digital_crown/actions/runs/39041538848) SUCCESS (React visual, 72 captured scenes, mocked APIs). Additional [#926 audit #39041982878](https://github.com/hraaaaf/Digital_crown/actions/runs/39041982878) SUCCESS: immutable #923 source, real FastAPI authenticated GET 200 at 390/1280, date 2026-10-17. **Does not test a real appointment write**; not release certification. |
+| Dashboard accessibility | [#910](https://github.com/hraaaaf/Digital_crown/pull/910) OPEN / UNMERGED | P0 scoped visual regression complete on its own HEAD; master integration not validated. |
+| Visual Human Gate security | [#914](https://github.com/hraaaaf/Digital_crown/pull/914) OPEN / UNMERGED | Fail-closed synchronize behavior tested in branch, **not yet installed on trusted master**. Approval logic on master must be corrected before treating new UI approval events as reliable. |
+| Documentation and safety | [#893](https://github.com/hraaaaf/Digital_crown/pull/893) (this PR), DRAFT / UNMERGED | Contract only, no implementation or release. |
+
+**Hard stop**: no independent formal GitHub review on the three new P1/P2/audit PRs as checked on 2026-10-17; neither Human Gate nor `CONVERGED` may be inferred from automated screenshots. Existing responsive/mobile functionality is protected through regression checks, **not extended** by Desktop Experience/MultiView. Current scoped pilot displays only a G1 imaging two-panel subset; full generic registry, nine layouts, safe windows and physical two-monitor behavior are still open.
 
 ## 2. Architecture and components to reuse
 
@@ -77,4 +92,4 @@
 
 Stop if a layout could mix A/B patient contexts, leak PHI or tokens via preference/URL/log/window, lose drafts, bypass server RBAC, silently change real patient data, overwrite existing clinic/mobile themes, or mislabel a projection as actual outcome. UI attractiveness or green docs CI is not proof of runtime UI.
 
-**This PR remains contract-only.** Next: execute G0 verified Core BEFORE on current master, then scoped G1 prototype only after the UX/security contract is approved. All product implementation, mergers and release decisions remain separate.
+**This PR remains contract-only.** G0/G1/P1/P2 branches below supply partial isolated evidence, not a complete, released or merged product. Next: secure independent reviewers, close the exact-HEAD Human Gates and significant defects, reconcile the changing master baseline and integrate with explicit authorization. No full 07.1 acceptance follows from the two-pane imaging pilot. All mergers and deployment decisions remain separate.
