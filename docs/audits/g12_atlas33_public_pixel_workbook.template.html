@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Digital Crown — Atelier expérimental de repérage Atlas33</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,Arial,sans-serif;background:#081a2a;color:#edf5fc}
+*{box-sizing:border-box}body{margin:0}.header{background:#10283d;border-bottom:1px solid #426078;padding:17px 25px}
+h1{margin:0 0 6px;font-size:23px}h2{font-size:17px;margin:0 0 13px}p{margin:5px 0;font-size:13px;line-height:1.45;color:#bacee1}
+.note{color:#ffdf9d}.layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;margin:16px}
+.panel{border:1px solid #31536c;border-radius:13px;background:#11283b;padding:16px;min-width:0}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:13px}
+label{font-size:13px;font-weight:600;color:#deebfa}select,input,button{border:1px solid #5a7790;border-radius:7px;background:#18364f;color:#f4f8ff;font-size:14px;padding:9px}
+select{max-width:100%}button{cursor:pointer}button:hover{background:#275272}button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:#008eac;color:white;border-color:#00b7d2;font-weight:700}
+.shelf{height:min(64vh,750px);min-height:320px;overflow:auto;background:#030c13;border:1px solid #31536c;border-radius:8px;text-align:center}
+#tracing{display:block;margin:0 auto;cursor:crosshair;touch-action:pan-x pan-y;user-select:none}
+#scan{pointer-events:none}#markers{pointer-events:none}.marker{fill:#ffcd44;stroke:#070d18;stroke-width:3}
+.marker-label{font:700 19px system-ui;fill:#ffe59b;paint-order:stroke;stroke:#06131b;stroke-width:4}
+.badge{display:inline-block;font-size:12px;font-weight:800;background:#7d3c24;color:#fff4e0;padding:5px 9px;border-radius:5px}
+.small{font-size:12px}.fields{display:flex;flex-direction:column;gap:8px}#point-list{max-height:310px;overflow:auto;font-size:12px;list-style:none;padding:0}
+#point-list li{border-bottom:1px solid #31506a;padding:5px 3px;display:flex;justify-content:space-between;gap:6px}#point-list button{font-size:11px;padding:2px 6px}
+.status{min-height:20px;font-size:12px;color:#ffe19a;margin-top:12px}hr{border:0;border-top:1px solid #36536a;margin:13px 0}
+a{color:#8dd4f7}.foot{margin:0 16px 16px;color:#b0c6d7}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.shelf{height:55vh}}
+</style></head><body>
+<header class="header"><h1>Digital Crown · Atelier Atlas33 / images publiques</h1>
+<p><span class="badge">DÉMO DE RECHERCHE — PAS DE VALIDATION CLINIQUE</span></p>
+<p>Vraies images Wikimedia, 21 identités Ricketts spécifiques, saisie manuelle en pixels. <strong>Aucune mesure en mm, aucun diagnostic.</strong></p></header>
+<main class="layout"><section class="panel"><div class="controls">
+<label for="case">Téléradio</label><select id="case" data-testid="case"></select>
+<label for="zoom">Zoom</label><select id="zoom" data-testid="zoom">
+<option value="1">100 %</option><option value="1.5">150 %</option><option value="2">200 %</option>
+</select></div>
+<div class="shelf" id="shelf"><svg id="tracing" role="img" aria-label="Radiographie publique à marquer manuellement">
+<image id="scan" x="0" y="0"></image><g id="markers"></g></svg></div>
+<p id="source"></p>
+<p class="note">Clics opérateur NON vérifiés. Pas d'étalonnage physique, pas d'orientation clinique confirmée. Aucune correspondance Aariz revendiquée.</p>
+</section><aside class="panel"><h2>Annotation manuelle — brouillon local</h2>
+<div class="fields"><label for="operator">Jeton pseudonyme d'opérateur (pas un nom)</label>
+<input id="operator" data-testid="operator" maxlength="48" placeholder="expert_demo_01" autocomplete="off" spellcheck="false">
+<label for="landmark">Identité anatomique exacte</label>
+<select id="landmark" data-testid="landmark"></select>
+<button id="undo" data-testid="undo">Supprimer le point sélectionné</button>
+<button id="clear" data-testid="clear">Effacer les points de ce cliché</button>
+</div><hr><p id="counter" data-testid="counter"></p><ul id="point-list" aria-live="polite"></ul>
+<button class="primary" id="export" data-testid="export">Exporter le brouillon JSON local</button>
+<p class="small">Export uniquement sur clic. Pas d'API, pas de cloud ni de localStorage. Session séparée par opérateur.</p>
+<div class="status" id="status" role="status" data-testid="status"></div></aside></main>
+<footer class="foot"><p>Attribution Wikimedia Commons / auteurs originaux — CC BY-SA 4.0. Les œuvres dérivées respectent cette licence.</p></footer>
+<script>
+"use strict";
+const SOURCE_CATALOG=/*__SOURCE_CATALOG__*/;
+const el={case:document.getElementById('case'),zoom:document.getElementById('zoom'),
+  svg:document.getElementById('tracing'),scan:document.getElementById('scan'),
+  markers:document.getElementById('markers'),landmark:document.getElementById('landmark'),
+  operator:document.getElementById('operator'),status:document.getElementById('status'),
+  source:document.getElementById('source'),counter:document.getElementById('counter'),
+  list:document.getElementById('point-list'),shelf:document.getElementById('shelf')};
+const SCANS=Object.freeze(SOURCE_CATALOG.cases),LANDMARKS=Object.freeze(SOURCE_CATALOG.required_source_ids);
+const pointStore=Object.fromEntries(SCANS.map(s=>[s.id,Object.create(null)]));
+let selectedCase=SCANS[0].id,lockedOperator=null;
+const makeEl=tag=>document.createElementNS('http://www.w3.org/2000/svg',tag);
+const currentScan=()=>SCANS.find(s=>s.id===selectedCase);
+const setStatus=message=>{el.status.textContent=message;};
+for(const src of SCANS){const o=document.createElement('option');o.value=src.id;o.textContent=src.id+' — '+src.author;el.case.append(o);}
+for(const id of LANDMARKS){const o=document.createElement('option');o.value=id;o.textContent=id;el.landmark.append(o);}
+function refresh(){
+ const src=currentScan();
+ el.svg.setAttribute('viewBox','0 0 '+src.width+' '+src.height);
+ el.svg.setAttribute('width',String(src.width));el.svg.setAttribute('height',String(src.height));
+ el.svg.style.width=String(100*Number(el.zoom.value))+'%';el.svg.style.height='auto';
+ el.scan.setAttribute('width',String(src.width));el.scan.setAttribute('height',String(src.height));
+ el.scan.setAttribute('href','images/'+src.filename);
+ el.source.textContent=src.author+' ('+src.year+') · '+src.width+' × '+src.height+'px · '+src.license+' · '+src.page+' · SHA256 '+src.sha256;
+ el.markers.replaceChildren();el.list.replaceChildren();
+ for(const id of LANDMARKS){
+   const pt=pointStore[src.id][id],item=document.createElement('li'),label=document.createElement('span');
+   label.textContent=pt?id+': ('+pt.x+', '+pt.y+') px':id+': non placé';item.append(label);
+   if(pt){
+     const node=makeEl('g'),circle=makeEl('circle'),text=makeEl('text');
+     circle.setAttribute('cx',pt.x);circle.setAttribute('cy',pt.y);circle.setAttribute('r','8');circle.setAttribute('class','marker');
+     text.setAttribute('x',pt.x+14);text.setAttribute('y',pt.y-12);text.textContent=id;text.setAttribute('class','marker-label');
+     node.append(circle,text);el.markers.append(node);
+     const del=document.createElement('button');del.textContent='Retirer';
+     del.addEventListener('click',()=>{delete pointStore[src.id][id];refresh();});item.append(del);
+   }el.list.append(item);
+ }
+ el.counter.textContent=Object.keys(pointStore[src.id]).length+' / '+LANDMARKS.length+' repères placés sur '+src.id+' · NON CLINIQUES';
+}
+function lockOperator(){
+ const token=el.operator.value.trim();
+ if(!/^[A-Za-z0-9_-]{3,48}$/.test(token)){setStatus('Jeton attendu : 3 à 48 caractères A-Z, a-z, 0-9, _ ou -.');return false;}
+ if(lockedOperator!==null&&lockedOperator!==token){setStatus('Brouillon associé à un autre jeton. Recharger la page pour une autre session.');return false;}
+ lockedOperator=token;el.operator.disabled=true;return true;
+}
+el.svg.addEventListener('click',event=>{
+ if(!lockOperator())return;
+ const point=el.svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;
+ const matrix=el.svg.getScreenCTM();if(!matrix){setStatus('Repère image non résolu');return;}
+ const xy=point.matrixTransform(matrix.inverse()),src=currentScan();
+ if(!Number.isFinite(xy.x)||!Number.isFinite(xy.y)||xy.x<0||xy.y<0||xy.x>src.width||xy.y>src.height){
+   setStatus('Clic hors image : ignoré');return;
+ }
+ const id=el.landmark.value;if(!LANDMARKS.includes(id)){setStatus('Identité non autorisée');return;}
+ pointStore[selectedCase][id]={x:Math.round(xy.x*100)/100,y:Math.round(xy.y*100)/100};
+ setStatus('Point provisoire '+id+' placé sur '+src.id+' — AUCUNE validation anatomique.');refresh();
+});
+el.case.addEventListener('change',()=>{selectedCase=el.case.value;el.shelf.scrollTo(0,0);refresh();});
+el.zoom.addEventListener('change',refresh);
+document.getElementById('undo').addEventListener('click',()=>{delete pointStore[selectedCase][el.landmark.value];refresh();setStatus('Point retiré');});
+document.getElementById('clear').addEventListener('click',()=>{pointStore[selectedCase]=Object.create(null);refresh();setStatus('Points de ce cliché effacés');});
+document.getElementById('export').addEventListener('click',()=>{
+ if(!lockOperator())return;
+ const cases=SCANS.map(s=>{
+   const points=Object.fromEntries(LANDMARKS.filter(id=>Object.hasOwn(pointStore[s.id],id)).map(id=>[id,pointStore[s.id][id]]));
+   return {source_case:s.id,source_image_sha256:s.sha256,source_image_dimensions_px:{width:s.width,height:s.height},
+     coordinate_system:'ORIGINAL_IMAGE_PIXEL_X_RIGHT_Y_DOWN',landmarks:points,
+     missing_source_specific_ids:LANDMARKS.filter(id=>!Object.hasOwn(points,id)),
+     annotation_status:'MANUAL_DRAFT_UNVERIFIED',image_orientation_verified:false,calibration_mm_per_pixel:null,
+     is_ricketts_goldset_reference:false};
+ });
+ const payload={schema_version:'CEPHALO_R23G12_PUBLIC_PIXEL_ANNOTATION_DRAFT_V1',scope:'PUBLIC_WIKIMEDIA_IMAGES_ONLY',
+   operator_token:lockedOperator,source_profile_id:SOURCE_CATALOG.profile_id,
+   clinical_release:false,independent_expert_authentication:false,expert_goldset_ready:false,
+   atlas33_measurements_validated:0,reference_group:'NO_REFERENCE',
+   note:'Manual unverified pixels only; no clinical use or expert verification',cases};
+ const blob=new Blob([JSON.stringify(payload,null,2)+'\n'],{type:'application/json'});
+ const url=URL.createObjectURL(blob),anchor=document.createElement('a');
+ anchor.href=url;anchor.download='atlas33-public-pixel-draft-'+lockedOperator+'.json';
+ document.body.append(anchor);anchor.click();anchor.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),3000);
+ setStatus('Brouillon JSON exporté localement — non clinique.');
+});
+refresh();
+</script></body></html>
