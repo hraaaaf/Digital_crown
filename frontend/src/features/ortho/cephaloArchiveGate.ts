@@ -14,7 +14,19 @@ export async function cephaloArchiveErrorMessage(error: unknown): Promise<string
   const response = (error as { response?: { data?: unknown; status?: number } })?.response;
   let body: unknown = response?.data;
   if (typeof Blob !== 'undefined' && body instanceof Blob) {
-    try { body = JSON.parse(await body.text()); } catch { body = null; }
+    try {
+      // Native Blob.text() works in browsers, but jsdom's Blob lacks it.
+      // FileReader preserves the same observable response contract in both.
+      const raw = typeof body.text === 'function'
+        ? await body.text()
+        : await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result ?? ''));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsText(body as Blob);
+        });
+      body = JSON.parse(raw);
+    } catch { body = null; }
   }
   const detail = body && typeof body === 'object' && 'detail' in body
     ? (body as { detail: unknown }).detail : null;
