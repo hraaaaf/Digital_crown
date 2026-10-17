@@ -145,3 +145,50 @@ def test_multi_serializer_source_includes_resource_id():
     serializer=source.split("    def serialize(a: models.Appointment) -> dict:",1)[1]
     serializer=serializer.split("\n    result = [",1)[0]
     assert '"resource_id": a.resource_id' in serializer
+
+
+def test_sqlite_cabinet_writer_lock_serializes_independent_connections(tmp_path):
+    """One writer owns BEGIN IMMEDIATE until commit; next writer cannot preflight."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    from backend.services.agenda_write_lock import lock_cabinet_appointment_writes
+
+    engine=create_engine(
+        f"sqlite:///{tmp_path / 'synthetic-agenda-lock.db'}",
+        connect_args={"timeout": 3},
+    )
+    Base.metadata.create_all(engine)
+    sessions=sessionmaker(bind=engine)
+    locked=Event()
+    release=Event()
+    second_started=Event()
+    second_acquired=Event()
+
+    def first_writer():
+        with sessions() as session:
+            lock_cabinet_appointment_writes(session,1)
+            locked.set()
+            assert release.wait(2), "test release synchronization timed out"
+            session.commit()
+
+    def second_writer():
+        assert locked.wait(2)
+        with sessions() as session:
+            second_started.set()
+            lock_cabinet_appointment_writes(session,1)
+            second_acquired.set()
+            session.rollback()
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            a=pool.submit(first_writer)
+            b=pool.submit(second_writer)
+            assert second_started.wait(2)
+            assert not second_acquired.wait(0.1), "second transaction obtained writer lock before first committed"
+            release.set()
+            a.result(timeout=4)
+            b.result(timeout=4)
+        assert second_acquired.is_set()
+    finally:
+        release.set()
+        engine.dispose()
