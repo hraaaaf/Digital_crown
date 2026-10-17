@@ -1,135 +1,185 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {runGate,attestationMarker,APPROVAL_LABEL} from './visual-approval-gate.mjs';
+import { runGate, APPROVAL_LABEL, APPROVER_LOGIN } from './visual-approval-gate.mjs';
 
-const repo='hraaaaf/Digital_crown',pr=878,old='a'.repeat(40),next='b'.repeat(40);
-const signed=(sha=old,bot='github-actions[bot]')=>({
-  user:{login:bot},body:attestationMarker(repo,pr,sha)+'\nVerified visual approval.',
-});
-function fixture(o={}){
-  const d={head:o.head??old,labels:new Set(o.label===false?[]:[APPROVAL_LABEL]),
-    comments:[...(o.comments??[])],frontend:o.frontend!==false,gets:0};
-  let posts=0,deletes=0;
-  const api={
-    async get(route){
-      if(o.failGet)throw Object.assign(new Error('GET unavailable'),{status:503});
-      if(route===`/pulls/${pr}`){
-        d.gets++;if(o.race&&d.gets>1)d.head=next;
-        return {head:{sha:d.head}};
-      }
-      if(route.startsWith(`/pulls/${pr}/files?`)){
-        if(o.overflow)return Array(100).fill({filename:'frontend/a.tsx'});
-        return [{filename:d.frontend?'frontend/a.tsx':'backend/a.py'}];
-      }
-      if(route.startsWith(`/issues/${pr}/labels?`))
-        return [...d.labels].map(name=>({name}));
-      if(route.startsWith(`/issues/${pr}/comments?`))return [...d.comments];
-      throw Error('Unexpected GET '+route);
-    },
-    async delete(route){
-      assert.equal(route,`/issues/${pr}/labels/${APPROVAL_LABEL}`);
-      deletes++;
-      if(o.deleteError)throw Object.assign(new Error('DELETE forbidden'),{status:o.deleteError});
-      if(o.deleteNoop)return;
-      if(!d.labels.has(APPROVAL_LABEL))throw Object.assign(new Error('404'),{status:404});
-      d.labels.delete(APPROVAL_LABEL);
-    },
-    async post(route,payload){
-      assert.equal(route,`/issues/${pr}/comments`);
-      posts++;
-      if(o.postError)throw Error('POST forbidden');
-      d.comments.push({user:{login:'github-actions[bot]'},body:payload.body});
-    }
+const repo = 'hraaaaf/Digital_crown';
+const pr = 910;
+const old = 'a'.repeat(40);
+const next = 'b'.repeat(40);
+
+function fixture(options = {}) {
+  const state = {
+    sha: options.sha ?? old,
+    labels: new Set(options.label === false ? [] : [APPROVAL_LABEL]),
+    frontend: options.frontend !== false,
+    gets: 0,
   };
-  const run=(action,extra={})=>runGate({api,repo,number:pr,action,eventHead:old,...extra});
-  return {d,run,get posts(){return posts},get deletes(){return deletes}};
+  let deletes = 0;
+  let posts = 0;
+  const api = {
+    async get(route) {
+      if (options.failGet) throw Object.assign(new Error('GET unavailable'), { status: 503 });
+      if (route === `/pulls/${pr}`) {
+        state.gets++;
+        if (options.race && state.gets > 1) state.sha = next;
+        return { head: { sha: state.sha } };
+      }
+      if (route.startsWith(`/pulls/${pr}/files?`)) {
+        if (options.overflow) return Array(100).fill({ filename: 'frontend/a.tsx' });
+        return [{ filename: state.frontend ? 'frontend/a.tsx' : 'backend/a.py' }];
+      }
+      if (route.startsWith(`/issues/${pr}/labels?`))
+        return [...state.labels].map(name => ({ name }));
+      throw Error('Unexpected GET ' + route);
+    },
+    async delete(route) {
+      assert.equal(route, `/issues/${pr}/labels/${APPROVAL_LABEL}`);
+      deletes++;
+      if (options.deleteError) throw Object.assign(new Error('DELETE forbidden'), { status: options.deleteError });
+      if (options.deleteNoop) return;
+      if (!state.labels.has(APPROVAL_LABEL)) throw Object.assign(new Error('404'), { status: 404 });
+      state.labels.delete(APPROVAL_LABEL);
+    },
+    async post() {
+      posts++;
+      throw Error('SECURITY BLOCKER: no attestation writes allowed');
+    },
+  };
+  const run = (action, more = {}) => runGate({
+    api, repo, number: pr, action, eventHead: old,
+    eventLabel: APPROVAL_LABEL, eventSender: APPROVER_LOGIN, ...more,
+  });
+  return {
+    state, run,
+    get deletes() { return deletes; },
+    get posts() { return posts; },
+  };
 }
-test('positive approved exact HEAD creates trusted SHA attestation',async()=>{
-  const f=fixture();
-  assert.deepEqual(await f.run('labeled',{eventLabel:APPROVAL_LABEL}),{state:'approved',head:old});
-  assert.equal(f.posts,1);assert.equal(f.d.comments[0].body.split('\n')[0],attestationMarker(repo,pr,old));
+
+test('approves only the genuine owner labeled webhook for the exact SHA, without POST', async () => {
+  const f = fixture();
+  assert.deepEqual(await f.run('labeled'), { state: 'approved', head: old });
+  assert.equal(f.posts, 0);
+  assert.equal(f.deletes, 0);
 });
-test('positive subsequent unrelated label uses existing matching bot attestation',async()=>{
-  const f=fixture({comments:[signed()]});
-  assert.equal((await f.run('labeled',{eventLabel:'unrelated'})).state,'approved');
-  assert.equal(f.posts,0);
+
+test('fails closed for a label added by anyone other than the repo owner', async () => {
+  const f = fixture();
+  await assert.rejects(f.run('labeled', { eventSender: 'untrusted-contributor' }), /authorized owner/);
+  assert.equal(f.posts, 0);
 });
-test('negative unrelated label cannot approve bare stale label',async()=>{
-  const f=fixture();await assert.rejects(f.run('labeled',{eventLabel:'unrelated'}),/no trusted bot attestation/);
-  assert.equal(f.posts,0);
+
+test('fails closed for absent webhook sender', async () => {
+  const f = fixture();
+  await assert.rejects(f.run('labeled', { eventSender: undefined }), /authorized owner/);
 });
-test('negative old SHA attestation rejected for newer PR HEAD',async()=>{
-  const f=fixture({head:next,comments:[signed(old)]});
-  await assert.rejects(f.run('reopened',{eventHead:next}),/no trusted bot attestation/);
+
+test('fails closed when an unrelated label triggers the workflow', async () => {
+  const f = fixture();
+  await assert.rejects(f.run('labeled', { eventLabel: 'green-build' }), /Fresh explicit/);
+  assert.equal(f.posts, 0);
 });
-test('negative forged untrusted-user comment is not an approval',async()=>{
-  const f=fixture({comments:[signed(old,'attacker')]});
-  await assert.rejects(f.run('reopened'),/no trusted bot attestation/);
+
+test('a stale label plus PR reopened event never blesses a head', async () => {
+  const f = fixture();
+  await assert.rejects(f.run('reopened'), /Fresh explicit/);
 });
-test('negative old webhook HEAD cannot approve newer server HEAD',async()=>{
-  const f=fixture({head:next});
-  await assert.rejects(f.run('labeled',{eventLabel:APPROVAL_LABEL}),/Stale webhook event/);
-  assert.equal(f.posts,0);
+
+test('an unrelated label event cannot reuse old approval from the same SHA', async () => {
+  const f = fixture();
+  await assert.rejects(f.run('labeled', { eventLabel: 'unrelated' }), /Fresh explicit/);
 });
-test('negative mid-run PR HEAD drift rejects the approval',async()=>{
-  const f=fixture({race:true});
-  await assert.rejects(f.run('labeled',{eventLabel:APPROVAL_LABEL}),/HEAD changed during/);
+
+test('an unlabeled event is never itself approval', async () => {
+  const f = fixture();
+  await assert.rejects(f.run('unlabeled'), /Fresh explicit/);
 });
-test('negative missing visual approval label fails',async()=>{
-  const f=fixture({label:false,comments:[signed()]});
-  await assert.rejects(f.run('labeled',{eventLabel:APPROVAL_LABEL}),/require explicit visual approval label/);
+
+test('missing visual label rejects even an owner labeled webhook', async () => {
+  const f = fixture({ label: false });
+  await assert.rejects(f.run('labeled'), /require explicit visual approval label/);
 });
-test('synchronize revokes label, checks absence and deliberately fails',async()=>{
-  const f=fixture();await assert.rejects(f.run('synchronize'),/approval revoked/);
-  assert.equal(f.d.labels.size,0);assert.equal(f.deletes,1);
+
+test('stale webhook SHA can never approve a different current HEAD', async () => {
+  const f = fixture({ sha: next });
+  await assert.rejects(f.run('labeled'), /Stale webhook event/);
 });
-test('synchronize revokes even with non-frontend diff',async()=>{
-  const f=fixture({frontend:false});await assert.rejects(f.run('synchronize'),/approval revoked/);
-  assert.equal(f.d.labels.size,0);
+
+test('a HEAD race after label inspection fails closed', async () => {
+  const f = fixture({ race: true });
+  await assert.rejects(f.run('labeled'), /HEAD changed during/);
 });
-test('non-UI synchronize without visual label stays green',async()=>{
-  const f=fixture({frontend:false,label:false});
-  assert.deepEqual(await f.run('synchronize'),{state:'skipped-non-ui',head:old});
-  assert.equal(f.deletes,0);
+
+test('synchronize rejects changed UI HEAD, revokes label and confirms absence', async () => {
+  const f = fixture();
+  await assert.rejects(f.run('synchronize'), /approval revoked/);
+  assert.equal(f.deletes, 1);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
 });
-test('stale synchronize webhook cannot revoke approval for a newer HEAD',async()=>{
-  const f=fixture({head:next});
-  await assert.rejects(f.run('synchronize'),/Stale synchronize event/);
-  assert.equal(f.deletes,0);
-  assert.equal(f.d.labels.has(APPROVAL_LABEL),true);
+
+test('synchronize removes stale label even when the new diff is non-UI', async () => {
+  const f = fixture({ frontend: false });
+  await assert.rejects(f.run('synchronize'), /approval revoked/);
+  assert.equal(f.deletes, 1);
 });
-test('negative DELETE 403 must not silently pass',async()=>{
-  const f=fixture({deleteError:403});
-  await assert.rejects(f.run('synchronize'),/Failed to revoke stale visual approval/);
-  assert.equal(f.d.labels.size,1);
+
+test('a non-UI synchronize without label skips safely', async () => {
+  const f = fixture({ frontend: false, label: false });
+  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-ui', head: old });
 });
-test('negative DELETE success response but label still present fails',async()=>{
-  const f=fixture({deleteNoop:true});
-  await assert.rejects(f.run('synchronize'),/label still present/);
+
+test('synchronize with stale webhook fails without revoking a newer HEAD', async () => {
+  const f = fixture({ sha: next });
+  await assert.rejects(f.run('synchronize'), /Stale synchronize event/);
+  assert.equal(f.deletes, 0);
 });
-test('DELETE 404 and verified absent label safely rejects old approval',async()=>{
-  const f=fixture({label:false});await assert.rejects(f.run('synchronize'),/approval revoked/);
+
+test('label DELETE 403 must fail closed: no fake successful revocation', async () => {
+  const f = fixture({ deleteError: 403 });
+  await assert.rejects(f.run('synchronize'), /Failed to revoke stale visual approval/);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), true);
 });
-test('negative GET 503 fails closed',async()=>{
-  const f=fixture({failGet:true});await assert.rejects(f.run('synchronize'),/GET unavailable/);
+
+test('label DELETE success without actual removal fails closed', async () => {
+  const f = fixture({ deleteNoop: true });
+  await assert.rejects(f.run('synchronize'), /label still present/);
 });
-test('negative posting attestation failure rejects approval',async()=>{
-  const f=fixture({postError:true});
-  await assert.rejects(f.run('labeled',{eventLabel:APPROVAL_LABEL}),/POST forbidden/);
+
+test('label DELETE 404 for an already-absent label still rejects the stale run', async () => {
+  const f = fixture({ label: false });
+  await assert.rejects(f.run('synchronize'), /approval revoked/);
 });
-test('negative pagination overflow is not interpreted as success',async()=>{
-  const f=fixture({overflow:true});await assert.rejects(f.run('reopened'),/pagination exceeds/);
+
+test('GitHub GET 503 is not mistaken for approval', async () => {
+  const f = fixture({ failGet: true });
+  await assert.rejects(f.run('labeled'), /GET unavailable/);
 });
-test('non-UI PR can skip human signoff without labels',async()=>{
-  const f=fixture({frontend:false,label:false});
-  assert.deepEqual(await f.run('opened'),{state:'skipped-non-ui',head:old});
+
+test('GitHub pagination overflow fails closed', async () => {
+  const f = fixture({ overflow: true });
+  await assert.rejects(f.run('labeled'), /pagination exceeds/);
 });
-test('static privilege boundary never checks out pull_request head',async()=>{
-  const {readFile}=await import('node:fs/promises');
-  const content=await readFile(new URL('../../.github/workflows/ui-human-visual-approval.yml',import.meta.url),'utf8');
-  assert.match(content,/pull_request_target:/);
-  assert.match(content,/ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
-  assert.match(content,/persist-credentials: false/);
-  assert.doesNotMatch(content,/ref:\s*\$\{\{\s*github\.event\.pull_request\.head/);
-  assert.match(content,/node scripts\/ci\/visual-approval-gate\.mjs/);
+
+test('non-UI open PR does not require visual approval', async () => {
+  const f = fixture({ frontend: false, label: false });
+  assert.deepEqual(await f.run('opened'), { state: 'skipped-non-ui', head: old });
+});
+
+test('the trusted gate workflow checks out ONLY the default-branch code', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const workflow = await readFile(new URL('../../.github/workflows/ui-human-visual-approval.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /pull_request_target:/);
+  assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.match(workflow, /persist-credentials: false/);
+  assert.doesNotMatch(workflow, /ref:\s*\$\{\{\s*github\.event\.pull_request\.head/);
+  assert.match(workflow, /node scripts\/ci\/visual-approval-gate\.mjs/);
+});
+
+test('trusted gate never tries posting an issue comment during approval', async () => {
+  const f = fixture();
+  await f.run('labeled');
+  assert.equal(f.posts, 0);
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('./visual-approval-gate.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /request\('POST',/);
 });

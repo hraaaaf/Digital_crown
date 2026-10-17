@@ -1,0 +1,43 @@
+name: Visual Gate Security Regression
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/ci/visual-approval-gate.mjs'
+      - 'scripts/ci/visual-approval-gate.test.mjs'
+      - '.github/workflows/ui-human-visual-approval.yml'
+      - '.github/workflows/visual-gate-security-cert.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-gate-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    name: Trusted label attestation — fail-closed unit matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout candidate for isolated tests only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify all gate security cases
+        run: node --test scripts/ci/visual-approval-gate.test.mjs
+      - name: Assert no comment POST and default branch privileged checkout unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -n "request('POST'" scripts/ci/visual-approval-gate.mjs
+          grep -E 'ref: .*github[.]event[.]repository[.]default_branch' .github/workflows/ui-human-visual-approval.yml
+          grep -F 'persist-credentials: false' .github/workflows/ui-human-visual-approval.yml
+          echo 'No privileged code checkout or issue-comment write in visual attestation gate'
