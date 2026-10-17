@@ -73,6 +73,11 @@ describe('AgendaStudio G3 interactive shell matrix', () => {
       '/appointments/multi-practitioner',
       expect.objectContaining({ params: expect.objectContaining({ start_date: expect.any(String), end_date: expect.any(String) }) }),
     ));
+    const multiQuery = vi.mocked(api.get).mock.calls.find(call => call[0] === '/appointments/multi-practitioner');
+    const params = multiQuery?.[1]?.params as { start_date: string; end_date: string };
+    expect(params.start_date).toMatch(/^\\d{4}-\\d{2}-\\d{2}T00:00:00$/);
+    expect(params.end_date).toMatch(/^\\d{4}-\\d{2}-\\d{2}T23:59:59\\.999999$/);
+    expect(params.start_date.slice(0, 10)).toBe(params.end_date.slice(0, 10));
     expect(await screen.findByText('Multi view')).toBeTruthy();
   });
 
