@@ -41,8 +41,18 @@ def test_legacy_unassigned_blocks_companion_and_keeps_slot_unconsumed(db, dentis
         scheduling_type=models.SchedulingType.EXACT_TIME, praticien_id=None,
     ))
     db.flush()
+    # The legacy row and opaque slot must be durable before the writer starts.
+    db.commit()
+    # Distinguish an invalid/revoked opaque fixture from a real cross-channel
+    # conflict regression; do not weaken the expected SLOT_CONFLICT contract.
+    from backend.services.patient_companion_agenda import _slot_for_ref
+    visible_before = _slot_for_ref(db, access, slot.public_id) is not None
     result = companion_create(db, access, {"slot_ref": slot.public_id})
-    assert result.status == "REJECTED" and result.response["code"] == "SLOT_CONFLICT"
+    assert result.status == "REJECTED" and result.response["code"] == "SLOT_CONFLICT", (
+        "Synthetic stale-slot fixture is valid before lock?", visible_before,
+        "observed_response", result.response, "slot_revoked", slot.revoked_at is not None,
+        "slot_consumed", slot.consumed_at is not None,
+    )
     db.refresh(slot)
     assert slot.consumed_at is None
 
@@ -56,6 +66,14 @@ def test_pending_counts_under_existing_oracle_and_refused_expired_do_not(db, den
         status=models.AppointmentStatus.EN_ATTENTE_DEMANDE,
     )
     db.add(appointment)
+    db.flush()
+    assert appointment in _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
+    appointment.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.flush()
+    assert not _find_conflicts(db, dentiste.id, dentiste.id, start, 30), (
+        "Expired pending requests must not reserve capacity forever"
+    )
+    appointment.expires_at = datetime.utcnow() + timedelta(minutes=10)
     db.flush()
     assert appointment in _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
     appointment.status = models.AppointmentStatus.REFUSE

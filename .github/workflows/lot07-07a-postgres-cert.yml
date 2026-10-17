@@ -3,11 +3,13 @@ on:
   pull_request:
     paths:
       - 'scripts/verification/lot07_07a_postgres_cert.py'
+      - 'scripts/verification/lot07_07a_f05_multiprocess.py'
       - 'backend/services/bot/action_dispatcher.py'
       - 'backend/services/patient_companion_agenda.py'
       - 'backend/routers/frontdesk.py'
       - 'backend/routers/appointments.py'
       - 'backend/services/agenda_resource_conflicts.py'
+      - 'backend/services/agenda_availability.py'
       - 'backend/services/agenda_write_lock.py'
       - '.github/workflows/lot07-07a-postgres-cert.yml'
   workflow_dispatch:
@@ -71,13 +73,44 @@ jobs:
           pip install -r /tmp/lot07-postgres-reqs.txt
           pip install 'psycopg[binary]>=3.2,<4' 'httpx>=0.27' 'email-validator>=2,<3'
       - name: F05 cross-channel contracts (synthetic SQLite supplemental checks)
+        id: sqlite_contracts
+        # Run the PostgreSQL laboratory even if a supplemental SQLite
+        # contract fails; enforce BOTH results below. No false green.
+        continue-on-error: true
         run: |
           set -euo pipefail
           python -m pytest backend/tests/test_lot07_07a_f05_interchannel.py backend/tests/test_patient_companion_agenda.py backend/tests/test_frontdesk.py backend/tests/test_mobile_frontdesk.py -q
       - name: Real FastAPI PostgreSQL 120 concurrent scenario races and lock interruption
+        id: pg_lab
+        continue-on-error: true
         run: |
           set -euo pipefail
           python -m scripts.verification.lot07_07a_postgres_cert
+      - name: F05 two-process Uvicorn HTTP inter-channel adversarial lab
+        id: pg_multiprocess
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python -m scripts.verification.lot07_07a_f05_multiprocess
+      - name: Require all independent F05 certification stages
+        if: always()
+        env:
+          SQLITE_OUTCOME: ${{ steps.sqlite_contracts.outcome }}
+          POSTGRES_OUTCOME: ${{ steps.pg_lab.outcome }}
+          MULTIPROCESS_OUTCOME: ${{ steps.pg_multiprocess.outcome }}
+        run: |
+          set -euo pipefail
+          echo "F05_SQLITE_CONTRACTS=$SQLITE_OUTCOME"
+          echo "F05_POSTGRES_LAB=$POSTGRES_OUTCOME"
+          echo "F05_TWO_UVICORN_PROCESSES=$MULTIPROCESS_OUTCOME"
+          test "$SQLITE_OUTCOME" = success
+          test "$POSTGRES_OUTCOME" = success
+          test "$MULTIPROCESS_OUTCOME" = success
+          # Agenda/Bot/Frontdesk real login and two-process PostgreSQL probes
+          # are covered separately. Genuine Patient Companion encrypted
+          # remote-envelope, receipt atomicity and independent reviews remain.
+          echo "::error::POSTGRESQL F05 FAIL: genuine Patient Companion encrypted remote envelope and durable receipt races not proven"
+          exit 1
       - name: Report sanitized failure diagnostics
         if: failure()
         run: |

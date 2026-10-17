@@ -121,10 +121,20 @@ def _find_conflicts(
     if exclude_id:
         q = q.filter(models.Appointment.id != exclude_id)
     rows = q.all()
+    now_utc = datetime.utcnow()
+    pending_states = {
+        models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        models.AppointmentStatus.EN_ATTENTE_CONFIRM,
+    }
     return [
         appointment
         for appointment in rows
-        if _naive_datetime(appointment.datetime_start) + timedelta(minutes=appointment.duration_minutes) > datetime_start
+        if not (
+            appointment.status in pending_states
+            and appointment.expires_at is not None
+            and _naive_datetime(appointment.expires_at) <= now_utc
+        )
+        and _naive_datetime(appointment.datetime_start) + timedelta(minutes=appointment.duration_minutes) > datetime_start
         and _naive_datetime(appointment.datetime_start) < end
     ]
 

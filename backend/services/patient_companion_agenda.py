@@ -270,6 +270,8 @@ def reschedule_appointment(db: Session, access: PatientCompanionAccess, payload:
 def cancel_appointment(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
     if set(payload) != {"appointment_ref"}:
         return _reject("INVALID_REQUEST")
+    # Prevent a stale cancel from racing a reschedule on another worker.
+    lock_cabinet_appointment_writes(db, access.employer_id)
     appointment = _appointment_for_ref(db, access, payload.get("appointment_ref"))
     if appointment is None:
         return _reject("APPOINTMENT_NOT_FOUND")
