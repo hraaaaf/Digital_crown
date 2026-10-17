@@ -193,3 +193,21 @@ two **internal** adversarial perspectives, not two external reviewers;
 production F01 SQLite path VFS and Windows installer ACLs remain OPEN,
 and the owner deferred local PC/Codex/real-device trials until LOT10.
 No merge, install or clinical patient attachment is authorized.
+
+## 2026-10-17 — Native CI parent-crash rehearsal without owner PC (LOT06-P)
+
+The synthetic CI now starts a **real Python harness parent** from a freshly
+marked temporary LAB fixture, waits for its true child Bridge PID after the
+READY ACK, then forcibly terminates **only that harness PID** without calling
+application cleanup. On Windows it opens a kernel process-wait handle to the
+actual child and checks that the Job Object closes and terminates it. On Linux
+it checks the child is no longer runnable via `/proc/<pid>/stat` after
+`PR_SET_PDEATHSIG`. In both cases a new owner can acquire the former parent
+lock. All processes and folders belong to the disposable runner fixture.
+This is stronger evidence than the prior test of voluntarily closing an OS
+Job Object, but still **NOT** an installed Windows service, OS power-loss
+trial, or physical clinic/imaging hardware check.
+
+A pass here **must NOT** close the commercial F01 SQLite by-path/ACL gate
+or substitute for independent security and reliability reviews. Owner
+decision persists: remote PC offline, installer/DACL/device trials **LOT10**.
