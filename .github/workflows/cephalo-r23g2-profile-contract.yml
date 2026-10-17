@@ -6,11 +6,17 @@ on:
       - '.github/workflows/cephalo-r23g2-profile-contract.yml'
       - 'backend/services/cephalo_protocol_projection.py'
       - 'backend/services/cephalo_runtime_chain.py'
+      - 'backend/services/cephalo_runtime_focus.py'
+      - 'audit/cephalo_r23g3_contract_tests/test_active_focus.py'
       - 'backend/data/cephalometry/clinical_reference_profiles_v1.json'
       - 'backend/data/cephalometry/ricketts_*_protocol_profile_v1.json'
       - 'audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py'
       - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.ts'
       - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G3PinnedRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G3PointSource.test.ts'
+      - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.tsx'
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx'
       - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
@@ -38,7 +44,7 @@ jobs:
       - name: Install pytest (stdlib-only projector under test)
         run: python -m pip install pytest==9.0.3
       - name: Test source-profile cardinality and fail-closed values
-        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py -q
+        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py -q
 
   typescript-contract:
     runs-on: ubuntu-latest
@@ -62,7 +68,7 @@ jobs:
         run: npm ci
       - name: Run fail-closed clinical profile reader tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx
+        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts
       - name: Full TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
