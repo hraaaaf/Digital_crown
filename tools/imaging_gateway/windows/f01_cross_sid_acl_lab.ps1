@@ -95,7 +95,15 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
             Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_VALUE_PRESENT=' + ($null -ne $clrValue))
             Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_VALUE=' + $clrValue)
         } catch {
+            # Exception types are safe diagnostics: no account names, file
+            # paths, clinical content, or OS exception messages in CI logs.
             Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_READ_FAILED=TRUE')
+            Write-Host ('F01_CHILD_' + $Stage + '_CLR_ERROR_TYPE=' +
+                $_.Exception.GetType().FullName)
+            if ($_.Exception.InnerException) {
+                Write-Host ('F01_CHILD_' + $Stage + '_CLR_INNER_ERROR_TYPE=' +
+                    $_.Exception.InnerException.GetType().FullName)
+            }
         }
     } finally { $process.Dispose() }
     # The child may have completed its synthetic I/O even when Windows
