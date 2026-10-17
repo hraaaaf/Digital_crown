@@ -123,6 +123,36 @@ try {
     login(receptionist,process.env.T2_S05_PASSWORD),
     login(denied,process.env.T2_S06_PASSWORD),
   ]);
+  // The preceding visual step has already enrolled a DIFFERENT request
+  // context for this disposable tenant. Reusing a bare bearer token without
+  // its dc_workstation cookie MUST return HTTP 423. Enroll this synthetic
+  // owner through the ordinary password-verified workstation endpoint;
+  // the opaque cookie stays only in Playwright's private context jar, never
+  // in logs, a JSON artifact or env vars. No clinical table is mutated.
+  const enrollment=await api.post('/api/workstation/enroll',{
+    headers:{Authorization:'Bearer '+dentist},
+    data:{accountPassword:process.env.T2_PASSWORD},
+    maxRedirects:0,
+  });
+  assert(enrollment.status()===200,
+    'synthetic owner workstation enrollment denied');
+  const enrollmentState=await enrollment.json();
+  assert(typeof enrollmentState.workstationId==='string'
+    && enrollmentState.workstationId.length>0
+    && enrollmentState.enrollmentRequired===false
+    && enrollmentState.stationLocked!==true,
+    'synthetic workstation identity not activated safely');
+  const bootstrap=await api.get('/api/workstation/bootstrap',{
+    headers:{Authorization:'Bearer '+dentist},maxRedirects:0,
+  });
+  assert(bootstrap.status()===200,
+    'synthetic workstation bootstrap failed');
+  const workstation=await bootstrap.json();
+  assert(workstation.workstationId===enrollmentState.workstationId
+    && workstation.enrollmentRequired===false
+    && workstation.stationLocked!==true,
+    'synthetic request context lost workstation authority');
+  console.log('CB01_MATRIX_WORKSTATION: ENROLLED_AUTHORIZED_OWNER');
   await check('S02','Benali homonyms, explicit patient identity',async()=>{
     const r=await preview(dentist,['/patient','BENALI']);
     assert(r.code===200&&r.body.status==='disambiguation'
