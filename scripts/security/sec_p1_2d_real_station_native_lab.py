@@ -198,6 +198,7 @@ def exercise(mode: str, native_file: Path | None) -> dict:
         }
         # Revoke only one of two distinct owner access sessions.
         owner_escape_token = security.create_access_token({"sub": users["owner"].email})
+        owner_second_session = security.create_access_token({"sub": users["owner"].email})
         refresh = security.create_refresh_token({"sub": users["allowed"].email})
         security.token_blacklist.revoke(tokens["owner"], db)
 
@@ -277,8 +278,15 @@ def exercise(mode: str, native_file: Path | None) -> dict:
              200, escape=issued_cookie, names=["Chair Synthetic"])
         call(client, "escape-is-bound-to-user", tokens["allowed"], "fixture-owner-ws",
              423, escape=issued_cookie)
-        call(client, "escape-is-bound-to-session", tokens["owner"], "fixture-owner-ws",
-             401, escape=issued_cookie)
+        call(client, "escape-is-bound-to-session", owner_second_session, "fixture-owner-ws",
+             423, escape=issued_cookie)
+        with database.SessionLocal() as db:
+            other_ws = db.query(models.WorkstationMode).filter_by(
+                id="22222222-2222-4222-8222-222222222222"
+            ).one()
+            other_ws.default_experience = "station"
+            other_ws.mode_revision = 1
+            db.commit()
         call(client, "escape-invalid-tenant", tokens["other"], "fixture-other-ws",
              423, escape=issued_cookie)
 
@@ -325,7 +333,8 @@ def exercise(mode: str, native_file: Path | None) -> dict:
     database.engine.dispose()
     print(f"SEC_P1_2D_STATION_SCENARIOS={len(checks)}/{len(checks)}")
     print("SEC_P1_2D_SQLCIPHER_REAL_DISK=PASS")
-    print("SEC_P1_2D_STATION_GATE=REAL")\n    print("SEC_P1_2D_STATION_PIN_ISSUANCE=REAL")
+    print("SEC_P1_2D_STATION_GATE=REAL")
+    print("SEC_P1_2D_STATION_PIN_ISSUANCE=REAL")
     print("SEC_P1_2D_DATA=FICTITIOUS_ONLY")
     print("SEC_P1_2D_PACKAGING_CHANGED=NO")
     return {"calls": checks, "mode": mode}
@@ -405,14 +414,14 @@ def run() -> None:
                         raise AssertionError("Missing scenario result from worker")
                     results.append(json.loads(result_line))
                 for line in test.stdout.splitlines():
-                    if line.startswith(("SEC_P1_2D_", "REAL AUTH PASS:")):
+                    if line.startswith(("SEC_P1_2D_", "REAL STATION PASS:")):
                         print(f"{mode}: {line}")
         # The only expected difference is the build mode itself.
         for record in results:
             record.pop("mode")
         if results[0] != results[1]:
             raise AssertionError("Source/native encrypted auth HTTP behavior diverged")
-        print(f"SEC_P1_2D_SOURCE_NATIVE_PARITY={len(results[0][\\"calls\\"])}/{len(results[0][\\"calls\\"])}")
+        print("SEC_P1_2D_SOURCE_NATIVE_PARITY=" + str(len(results[0]["calls"])) + "/" + str(len(results[0]["calls"])))
         print(f"SEC_P1_2D_NATIVE_PLATFORM={platform.system()}")
         print("SEC_P1_2D_NO_PRODUCTION_DATA=YES")
 
