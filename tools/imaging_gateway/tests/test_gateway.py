@@ -172,6 +172,47 @@ class GatewayTests(unittest.TestCase):
         with self.assertRaises(GatewayError):
             self.agent.scan_once()
 
+    def test_sqlite_bootstrap_schema_failure_is_atomic(self):
+        """Malformed existing scope schema must not leave half-created tables."""
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            watch, private = root / "watch", root / "private"
+            watch.mkdir()
+            private.mkdir()
+            db_file = private / "acquisitions.sqlite3"
+            with sqlite3.connect(db_file) as db:
+                db.execute("CREATE TABLE device_scope(singleton INTEGER PRIMARY KEY)")
+            # Existing incompatible schema makes the scope INSERT fail AFTER
+            # the CREATE statements; executescript used to persist partial DDL.
+            with self.assertRaises(sqlite3.OperationalError):
+                HotFolder(Config("invalidscope", "station", watch, private, b"k" * 32))
+            with sqlite3.connect(db_file) as db:
+                names = {row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )}
+            self.assertEqual(names, {"device_scope"})
+
+    def test_sqlite_sidecar_identity_change_before_commit_rolls_back(self):
+        """A witnessed same-connection WAL substitution must refuse commit."""
+        original = self.agent._sqlite_guard
+        calls = 0
+
+        def synthetic_guard():
+            nonlocal calls
+            found = original()
+            calls += 1
+            # Synthetic injected snapshots, not a claim of racing the VFS:
+            # the WAL identity differs only immediately before commit.
+            return {**found, "-wal": (787, 888 if calls < 4 else 889)}
+
+        with patch.object(self.agent, "_sqlite_guard", side_effect=synthetic_guard):
+            with self.assertRaisesRegex(GatewayError, "sidecar changed"):
+                with self.agent._db() as db:
+                    db.execute("INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                               ("SYNTHETIC_WAL_REPLACEMENT",))
+        self.assertEqual(calls, 4)
+        self.assertEqual(self.agent.audit(0), [], "refused WAL change must not commit")
+
     def test_sqlite_precommit_boundary_abort_rolls_back(self):
         live_guard = self.agent._sqlite_guard
         calls = 0
