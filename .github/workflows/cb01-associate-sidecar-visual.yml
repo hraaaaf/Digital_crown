@@ -16,6 +16,8 @@ on:
       - scripts/ci/cb01_s07_s09_sqlcipher.py
       - scripts/ci/cb01_s07_s09_postgres.py
       - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
+      - frontend/src/components/GhostBrainWidget.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
       - frontend/src/components/GhostBrainWidget.g9Interactive.test.tsx
       - .github/workflows/cb01-associate-sidecar-visual.yml
   workflow_dispatch:
@@ -448,6 +450,95 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
  
+  cb01-windows-ui-regressions:
+    name: Windows hosted UI regression truth (NOT T2 or native zoom)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CB01_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: 'true'
+      VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED: 'true'
+    steps:
+      - name: Checkout exact PR HEAD without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Refuse mismatched checkout
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:CB01_SOURCE_HEAD) {
+            throw 'REFUSED: GitHub hosted Windows source SHA mismatch'
+          }
+          "Tested Windows checkout HEAD: $actual" >> $env:GITHUB_STEP_SUMMARY
+      - name: Setup Node.js 22 on hosted Windows
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend from frozen lockfile
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify Windows S10 S12 and guarded Crown Bot interactions
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npx vitest run src/components/Layout/MainLayout.g1Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx src/components/GhostBrainWidget.g9Interactive.test.tsx src/features/agenda/AgendaModal.g3Interactive.test.tsx --reporter=default --reporter=json --outputFile=cb01-windows-vitest.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Assert complete Windows regression evidence and record limitations
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'cb01-windows-vitest.json')) {
+            throw 'FAIL: Windows test report missing'
+          }
+          $report = Get-Content 'cb01-windows-vitest.json' -Raw | ConvertFrom-Json
+          $required = @(
+            'MainLayout.g1Interactive.test.tsx',
+            'CrownBotWorkflowPreview.test.tsx',
+            'CrownBotChat.g9Interactive.test.tsx',
+            'GhostBrainWidget.g9Interactive.test.tsx',
+            'AgendaModal.g3Interactive.test.tsx'
+          )
+          foreach ($file in $required) {
+            $found = @($report.testResults | Where-Object { $_.name -like "*$file" })
+            if ($found.Count -ne 1) { throw "FAIL: Windows test suite missing or repeated: $file" }
+          }
+          if ($report.numFailedTests -ne 0 -or $report.numPassedTests -lt 30) {
+            throw 'FAIL: insufficient passing Windows interactive tests'
+          }
+          $proof = [ordered]@{
+            schema = 'CB01_WINDOWS_HOSTED_UI_V1'
+            sourceHead = $env:CB01_SOURCE_HEAD
+            os = 'windows-latest'
+            kind = 'VITEST_JSDOM_AUTOMATED_UI_ONLY'
+            passed = [int]$report.numPassedTests
+            failed = [int]$report.numFailedTests
+            suites = $required
+            humanE2EValidated = 0
+            nativeBrowserZoom200Percent = 'NOT_RUN'
+            cabinetWorkstation = 'NOT_USED'
+            converged = $false
+          }
+          $proof | ConvertTo-Json -Depth 4 | Set-Content 'cb01-windows-attestation.json' -Encoding utf8
+          "### Windows hosted CB-01 regressions: $($report.numPassedTests) passing, 0 failed; exact HEAD $env:CB01_SOURCE_HEAD" >> $env:GITHUB_STEP_SUMMARY
+          'Windows JSDOM UI regressions only: no native Chrome browser zoom, no human staff E2E, no cabinet device, no clinical activation.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload Windows regression attestation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-windows-ui-regressions
+          path: |
+            frontend/cb01-windows-attestation.json
+            frontend/cb01-windows-vitest.json
+          if-no-files-found: warn
+          retention-days: 14
+
   cb01-pg-concurrency-primitives:
     name: S07/S09 isolated PostgreSQL lock and ABA primitives (EXPERIMENTAL)
     runs-on: ubuntu-latest
