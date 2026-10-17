@@ -176,7 +176,7 @@ jobs:
           # No mutable application/clinical DB, remote host or prod credentials.
           export DIGITALCROWN_ISOLATION_DB_FINGERPRINT="$(python -c 'import hashlib;print(hashlib.sha256(b"postgresql://cb01_http@loopback:5432/cb01_http_lab").hexdigest())')"
           python -m alembic upgrade head
-          python scripts/ci/cb01_s07_s09_http_pg.py
+          PYTHONPATH=. python scripts/ci/cb01_s07_s09_http_pg.py
       - name: Summarize scoped S07/S09 HTTP PostgreSQL proof
         if: always()
         shell: bash
