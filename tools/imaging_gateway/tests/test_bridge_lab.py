@@ -345,6 +345,113 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             subsequent = LabOwnerLock.acquire(root)
             subsequent.close()
 
+    @unittest.skipUnless(os.name == "nt" or sys.platform.startswith("linux"),
+                         "Native process death checks are Windows/Linux only")
+    async def test_abrupt_parent_death_stops_real_child_and_releases_singleton(self):
+        """Kill ONLY this disposable synthetic parent, never the API/service.
+
+        Windows verifies KILL_ON_JOB_CLOSE via an OS process handle.
+        Linux verifies PR_SET_PDEATHSIG via /proc process state.
+        """
+        from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
+        with tempfile.TemporaryDirectory(prefix="dc-abrupt-lab-parent-") as tmp:
+            root = Path(tmp)
+            (root / ".digitalcrown-imaging-lab-only").write_text(
+                "DIGITALCROWN_IMAGING_LAB_ONLY_V1\n", encoding="utf-8")
+            (root / "incoming").mkdir()
+            pidfile = root / "synthetic-child-pid.txt"
+            # No real image, patient, SDK, credentials or clinic backend.
+            harness_source = """
+import asyncio, os, sys
+from pathlib import Path
+from tools.imaging_gateway.bridge_background_lab import start_if_enabled
+async def main():
+    env = dict(
+        DC_V15_06_BRIDGE_LAB="1",
+        ENVIRONMENT="test",
+        DIGITALCROWN_ISOLATED_RUNTIME="true",
+        DC_V15_06_BRIDGE_LAB_ROOT=sys.argv[1],
+        DC_V15_06_BRIDGE_LAB_KEY_HEX=(b"k" * 32).hex(),
+    )
+    handle = start_if_enabled(env, trusted_environment="test")
+    Path(sys.argv[2]).write_text(str(handle.process.pid), encoding="ascii")
+    await asyncio.sleep(60)
+asyncio.run(main())
+"""
+            minimal_env = {
+                key: value for key, value in os.environ.items()
+                if key.upper() in {"SYSTEMROOT", "WINDIR", "PATH", "PATHEXT",
+                                   "TMP", "TEMP", "TMPDIR", "HOME",
+                                   "USERPROFILE", "SYSTEMDRIVE"}
+            }
+            parent = subprocess.Popen(
+                [sys.executable, "-c", harness_source, str(root), str(pidfile)],
+                cwd=Path(__file__).resolve().parents[3],
+                env=minimal_env, stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            child_handle = None
+            child_pid = None
+            try:
+                deadline = time.monotonic() + 12
+                while time.monotonic() < deadline and not pidfile.exists():
+                    if parent.poll() is not None:
+                        self.fail("isolated synthetic parent exited before READY")
+                    await asyncio.sleep(0.05)
+                self.assertTrue(pidfile.exists(), "real child PID never reported")
+                child_pid = int(pidfile.read_text(encoding="ascii"))
+                self.assertGreater(child_pid, 0)
+                self.assertIsNone(parent.poll())
+
+                if os.name == "nt":
+                    import ctypes
+                    from ctypes import wintypes
+                    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+                    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+                    kernel.OpenProcess.restype = wintypes.HANDLE
+                    kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+                    kernel.WaitForSingleObject.restype = wintypes.DWORD
+                    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+                    kernel.CloseHandle.restype = wintypes.BOOL
+                    child_handle = kernel.OpenProcess(0x00100000, False, child_pid)
+                    self.assertTrue(child_handle, "cannot open synthetic child for wait")
+                    self.assertEqual(kernel.WaitForSingleObject(child_handle, 0), 0x102,
+                                     "child must be living before parent death")
+
+                # Force-kill only the freshly launched test harness parent.
+                # This executes no cleanup handler and simulates backend crash.
+                parent.kill()
+                await asyncio.wait_for(asyncio.to_thread(parent.wait, timeout=4), timeout=5)
+
+                if os.name == "nt":
+                    self.assertEqual(kernel.WaitForSingleObject(child_handle, 8000), 0,
+                                     "Windows Job close did not kill real LAB child")
+                else:
+                    self.assertTrue(Path(f"/proc/{child_pid}/stat").parent.is_dir())
+                    deadline = time.monotonic() + 8
+                    still_running = True
+                    while time.monotonic() < deadline:
+                        try:
+                            fields = Path(f"/proc/{child_pid}/stat").read_text().split()
+                            still_running = fields[2] not in ("Z", "X")
+                        except FileNotFoundError:
+                            still_running = False
+                        if not still_running:
+                            break
+                        await asyncio.sleep(0.05)
+                    self.assertFalse(still_running, "Linux child survived parent SIGKILL")
+
+                # The backend lock must not be stale after the killed parent.
+                with LabOwnerLock.acquire(root):
+                    pass
+            finally:
+                if parent.poll() is None:
+                    parent.kill()
+                    parent.wait(timeout=4)
+                if child_handle:
+                    kernel.CloseHandle(child_handle)
+
     @unittest.skipUnless(os.name == "nt", "Windows Job Object only")
     async def test_windows_job_close_terminates_uncooperative_child(self):
         from tools.imaging_gateway.windows_job_lab import WindowsLabJob
