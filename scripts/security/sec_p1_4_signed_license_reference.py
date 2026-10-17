@@ -101,11 +101,15 @@ def verify_license(
     Passing wall-clock time and mutable client local state here does NOT make
     offline enforcement tamper-proof. No error should remove clinical data.
     """
-    if (
-        type(envelope_json) is not str
-        or len(envelope_json.encode("utf-8")) > MAX_ENVELOPE_BYTES
-        or not envelope_json
-    ):
+    if type(envelope_json) is not str or not envelope_json:
+        raise LicenseRejected("invalid-envelope")
+    try:
+        envelope_size = len(envelope_json.encode("utf-8"))
+    except UnicodeError as exc:
+        # An unpaired Unicode surrogate must fail closed, not escape as an
+        # unexpected UnicodeEncodeError at the public verifier boundary.
+        raise LicenseRejected("invalid-envelope") from exc
+    if envelope_size > MAX_ENVELOPE_BYTES:
         raise LicenseRejected("invalid-envelope")
     if not all(
         isinstance(v, str)
@@ -130,6 +134,8 @@ def verify_license(
     kid = data["kid"]
     if not isinstance(kid, str) or not KID_RE.fullmatch(kid):
         raise LicenseRejected("invalid-key-id")
+    if not isinstance(public_keys, Mapping) or not isinstance(revoked_key_ids, frozenset):
+        raise LicenseRejected("invalid-verifier-context")
     if kid in revoked_key_ids or kid not in public_keys:
         raise LicenseRejected("untrusted-key-id")
     key = public_keys[kid]
@@ -184,9 +190,15 @@ def verify_license(
         raise LicenseRejected("revoked-epoch")
     if trusted_now < signed["not_before"]:
         raise LicenseRejected("not-yet-valid")
-    if trusted_now > signed["expires_at"]:
+    # A signed lease must not claim an online check in the verifier's future.
+    # A trustworthy time source is still REQUIRED; caller wall clocks are not.
+    if signed["last_online_at"] > trusted_now:
+        raise LicenseRejected("future-online-validation")
+    # Standard expires_at semantics are exclusive; do not grant an extra
+    # second of subscription or offline entitlement at either boundary.
+    if trusted_now >= signed["expires_at"]:
         raise LicenseRejected("expired")
-    if trusted_now > signed["offline_until"]:
+    if trusted_now >= signed["offline_until"]:
         raise LicenseRejected("offline-window-exhausted")
 
     return LicenseClaims(
