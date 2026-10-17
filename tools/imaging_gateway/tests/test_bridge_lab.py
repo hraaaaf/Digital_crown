@@ -8,6 +8,7 @@ import json
 import os
 import sqlite3
 import threading
+import time
 import subprocess
 import sys
 from pathlib import Path
@@ -280,11 +281,15 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             job = WindowsLabJob.assign(child)
             self.assertIsNotNone(job)
             self.assertIsNone(child.poll(), "child must still be alive before job close")
+            closed_at = time.monotonic()
             job.close()
             job = None
             await asyncio.wait_for(asyncio.to_thread(child.wait, timeout=3), timeout=4)
+            elapsed = time.monotonic() - closed_at
             self.assertIsNotNone(child.returncode)
-            self.assertNotEqual(child.returncode, 0, "job must force terminate child")
+            # Windows can assign exit code 0 to a job-terminated process:
+            # the kill proof is that a live 15s sleeper exits within 4s.
+            self.assertLess(elapsed, 4.0, "job close did not end living child promptly")
         finally:
             if job is not None:
                 job.close()
