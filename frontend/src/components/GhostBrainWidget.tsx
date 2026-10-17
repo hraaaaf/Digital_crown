@@ -101,7 +101,12 @@ export const GhostBrainWidget = () => {
 
   const markAsRead = async (logId: number) => {
     try {
-      await api.post(`/ai/ghost-insights/${logId}/read`);
+      const ack = await api.post(`/ai/ghost-insights/${logId}/read`);
+      // The backend contract is {"status":"read"}. A 2xx response with a
+      // missing/wrong receipt must never silently hide an unread clinical alert.
+      if (ack?.data?.status !== 'read') {
+        throw new Error('GhostBrain read acknowledgement missing');
+      }
       setInsights(prev => prev.filter(i => i.id !== logId));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
