@@ -128,6 +128,38 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     expect(screen.getByText('Aucune nouvelle déduction.')).toBeInTheDocument();
   });
 
+  it('S12: delayed ACK for an obsolete insight preserves newer WS unread badge', async () => {
+    await renderSeededWidget();
+    let resolveRead: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => {
+      resolveRead = resolve;
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+
+    // A new server snapshot no longer contains 601, but has an unrelated
+    // unread alert 602. The 601 response must not acknowledge 602.
+    act(() => {
+      FakeWebSocket.instances.at(-1)?.emit({
+        unread_count: 1,
+        insights: [{
+          id: 602,
+          insight_type: 'AGENDA',
+          content: 'Nouveau rendez-vous à vérifier',
+          patient_id: null,
+          created_at: '2026-09-24T10:01:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    await act(async () => { resolveRead?.({ data: { status: 'read' } }); });
+
+    // A list without a visible unread badge is a false-negative alert state.
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+  });
+
   it('removes the insight only after backend ACK', async () => {
     await renderSeededWidget();
 
