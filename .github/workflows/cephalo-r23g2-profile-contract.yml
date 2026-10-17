@@ -12,6 +12,7 @@ on:
       - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.ts'
       - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts'
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.tsx'
+      - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx'
       - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
       - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
 
@@ -61,7 +62,7 @@ jobs:
         run: npm ci
       - name: Run fail-closed clinical profile reader tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts
+        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx
       - name: Full TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
