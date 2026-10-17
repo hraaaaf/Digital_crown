@@ -152,6 +152,13 @@ jobs:
           const login = await api.post('/api/auth/login', { form: { username:user, password } });
           if (!login.ok()) throw Error('Disposable T2 authentication failed HTTP ' + login.status());
           const tokens = await login.json();
+          // The caller run-with-t2-workstation already completed genuine T2
+          // enrollment, and injects its storageState into browser.newContext.
+          // Native persistent Chromium bypasses that wrapper; use the actual
+          // enrolled request context's cookies/localStorage, not a fake pairing.
+          const pairedStorage=await api.storageState();
+          if(!pairedStorage.cookies?.length && !pairedStorage.origins?.length)
+            throw Error('T2 enrolled workstation storage unexpectedly empty');
           const headers = { Authorization: 'Bearer ' + tokens.access_token };
           const response = await api.get('/api/patients/', { headers });
           if (!response.ok()) throw Error('Cannot read isolated fixture patients HTTP ' + response.status());
@@ -287,6 +294,16 @@ jobs:
                 timezoneId:'Africa/Casablanca',
                 args:['--window-size='+physicalWidth+',900','--no-first-run','--no-default-browser-check']
               });
+              // restore genuine T2 pairing from the already enrolled context
+              // without relaxing /hub gating or product authentication.
+              if(pairedStorage.cookies?.length)
+                await nativeContext.addCookies(pairedStorage.cookies);
+              for(const origin of (pairedStorage.origins||[])){
+                await nativeContext.addInitScript(({originUrl,entries})=>{
+                  if(location.origin===originUrl)for(const item of entries)
+                    localStorage.setItem(item.name,item.value);
+                },{originUrl:origin.origin,entries:origin.localStorage||[]});
+              }
               for(const theme of ['elite','dark']){
                 const page=await nativeContext.newPage();
                 const errors=[],http5xx=[];
