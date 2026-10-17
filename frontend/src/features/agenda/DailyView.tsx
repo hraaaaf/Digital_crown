@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -37,6 +37,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [initialTime, setInitialTime] = useState('09:00');
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const dayScrollRef = useRef<HTMLDivElement>(null);
   
   const daySchedule = getDaySchedule(selectedDate, agendaSettings);
   const exception = getExceptionForDate(selectedDate, exceptions);
@@ -192,6 +193,29 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
         </div>
       )}
 
+      {/* At mobile widths the visual lanes do NOT overlap, but can require a
+          horizontal internal scroll. Make the additional concurrent visit
+          discoverable rather than silently hiding it offscreen. */}
+      {maxDayLanes > 1 && (
+        <div data-p2-day-scroll-hint className="sm:hidden rounded-2xl border border-border-main bg-card p-3 text-text-main">
+          <p className="text-sm font-semibold">
+            {maxDayLanes} rendez-vous simultanés : consultez toutes les colonnes.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" aria-label="Voir les rendez-vous à gauche"
+              onClick={() => dayScrollRef.current?.scrollBy({left:-220,behavior:'instant'})}
+              className="min-h-11 flex-1 rounded-xl border border-border-main bg-card px-3 text-sm font-bold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+              ← Précédents
+            </button>
+            <button type="button" data-p2-next-day-lane aria-label="Voir les rendez-vous à droite"
+              onClick={() => dayScrollRef.current?.scrollBy({left:220,behavior:'instant'})}
+              className="min-h-11 flex-1 rounded-xl border border-border-main bg-card px-3 text-sm font-bold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+              Suivants →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* CSS GRID AGENDA */}
       <div className="p2-agenda-surface bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         
@@ -248,7 +272,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
             <p className="font-bold tracking-widest uppercase text-xs">Chargement des créneaux...</p>
           </div>
         ) : (
-          <div data-p2-day-scroll role="region" aria-label="Grille horaire des rendez-vous, défilement interne"
+          <div ref={dayScrollRef} data-p2-day-scroll role="region" aria-label="Grille horaire des rendez-vous, défilement interne"
             tabIndex={0} className="flex relative overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             style={{ height: '700px' }}>
             
