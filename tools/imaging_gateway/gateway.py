@@ -25,6 +25,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from tools.imaging_gateway.media_validation import validated_mime
 from tools.imaging_gateway.windows_scoped_read_lab import directory_identity, open_relative_read
+from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
 
 
 class GatewayError(RuntimeError):
@@ -163,6 +164,7 @@ class HotFolder:
         self._windows_watch_identity = directory_identity(config.watch)
         self._private_identity = self._directory_identity(self.private)
         self._spool_identity = self._directory_identity(self.spool)
+        self._windows_spool_identity = directory_identity(self.spool)
         with self._db() as db:
             db.executescript("""
             CREATE TABLE IF NOT EXISTS items(
@@ -325,7 +327,15 @@ class HotFolder:
         # No unbounded allocation if a local actor plants a huge spool file.
         if not 33 <= target.stat().st_size <= self.config.max_bytes + 32:
             raise GatewayError("spool size invalid")
-        data = target.read_bytes()
+        if os.name == "nt":
+            fd = open_relative_read(self.spool, blob, self._windows_spool_identity)
+            try:
+                with os.fdopen(fd, "rb", closefd=False) as reader:
+                    data = reader.read(self.config.max_bytes + 33)
+            finally:
+                os.close(fd)
+        else:
+            data = target.read_bytes()
         if len(data) > self.config.max_bytes + 32:
             raise GatewayError("spool size changed")
         if not data.startswith(b"DC6A") or len(data) < 33:
@@ -348,6 +358,11 @@ class HotFolder:
         nonce = secrets.token_bytes(12)
         encrypted = b"DC6A" + nonce + AESGCM(self.config.key).encrypt(
             nonce, content, self._aad(identity))
+        if os.name == "nt":
+            # Temp creation and atomic rename are both relative to the same
+            # verified native directory handle. No path-based os.replace.
+            write_ciphertext(self.spool, blob, encrypted, self._windows_spool_identity)
+            return
         fd, tmp = tempfile.mkstemp(prefix=".partial-", dir=self.spool)
         try:
             if os.name != "nt":
