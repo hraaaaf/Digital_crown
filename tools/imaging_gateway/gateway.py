@@ -24,6 +24,7 @@ import time
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from tools.imaging_gateway.media_validation import validated_mime
+from tools.imaging_gateway.windows_scoped_read_lab import directory_identity, open_relative_read
 
 
 class GatewayError(RuntimeError):
@@ -159,6 +160,7 @@ class HotFolder:
         if _is_unsafe_path_component(self.db_file):
             raise GatewayError("database symlink rejected")
         self._watch_identity = self._directory_identity(Path(config.watch))
+        self._windows_watch_identity = directory_identity(config.watch)
         self._private_identity = self._directory_identity(self.private)
         self._spool_identity = self._directory_identity(self.spool)
         with self._db() as db:
@@ -252,7 +254,8 @@ class HotFolder:
 
     def _read(self, path, initial):
         flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
-        fd = os.open(path, flags)
+        fd = (open_relative_read(self.config.watch, path.name, self._windows_watch_identity)
+              if os.name == "nt" else os.open(path, flags))
         try:
             opened = os.fstat(fd)
             if not stat.S_ISREG(opened.st_mode) or self._source_signature(opened) != initial:
@@ -283,7 +286,8 @@ class HotFolder:
                     before.st_nlink != 1):
                 return None
             flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
-            fd = os.open(marker, flags)
+            fd = (open_relative_read(self.config.watch, marker.name, self._windows_watch_identity)
+                  if os.name == "nt" else os.open(marker, flags))
             try:
                 opened = os.fstat(fd)
                 if (not stat.S_ISREG(opened.st_mode) or
