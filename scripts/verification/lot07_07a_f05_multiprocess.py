@@ -403,6 +403,34 @@ def exercise():
                 headers={"Authorization":f"Bearer {other_token}"})
         assert denied.status_code==404,("REAL_AUTH_TENANT_DENIAL",denied.status_code,denied.text[:150])
         print("F05_MP_REAL_JWT_OTHER_TENANT_UPDATE",denied.status_code,flush=True)
+        clear()
+        headers={"Authorization":f"Bearer {access_token}"}
+        with httpx.Client(timeout=16) as cli:
+            anonymous=cli.post(
+                "http://127.0.0.1:18061/real-auth/api/frontdesk/appointment-request",
+                json=front(t)[4])
+            requested=cli.post(
+                "http://127.0.0.1:18061/real-auth/api/frontdesk/appointment-request",
+                json=front(t)[4],headers=headers)
+        assert anonymous.status_code==401 and requested.status_code==200,(
+            "FRONTDESK_REAL_AUTH",anonymous.status_code,requested.status_code,
+            requested.text[:160])
+        fid=requested.json()["id"]
+        with httpx.Client(timeout=16) as cli:
+            not_owner=cli.post(
+                f"http://127.0.0.1:18062/real-auth/api/appointments/{fid}/confirm",
+                headers={"Authorization":f"Bearer {other_token}"})
+            confirmed=cli.post(
+                f"http://127.0.0.1:18062/real-auth/api/appointments/{fid}/confirm",
+                headers=headers)
+        assert not_owner.status_code==404 and confirmed.status_code==200,(
+            "FRONTDESK_REAL_AUTH_CONFIRM",not_owner.status_code,confirmed.status_code,
+            confirmed.text[:160])
+        assert len(rows_at(t,root))==1
+        print("F05_MP_REAL_JWT_FRONTDESK",{
+          "anonymous":anonymous.status_code,"request":requested.status_code,
+          "other_tenant":not_owner.status_code,"confirm":confirmed.status_code,
+        },"ROWS",len(rows_at(t,root)),flush=True)
         print("F05_MP_AUTH_MODE","HEADER_OVERRIDE_FOR_80_RACES;REAL_LOGIN_JWT_FOR_1_RACE",flush=True)
         print("F05_MP_PC_MODE","DIRECT_DOMAIN_ADAPTER_NOT_REMOTE_RECEIPT",flush=True)
         print("F05_MP_RESULT","LIMITED_PASS_NOT_F05_CERTIFICATION",flush=True)
