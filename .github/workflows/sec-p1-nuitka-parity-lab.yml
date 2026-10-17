@@ -19,9 +19,13 @@ concurrency:
 
 jobs:
   native-key-material-parity:
-    name: EXPERIMENTAL Nuitka native parity (Linux only)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    name: EXPERIMENTAL Nuitka native parity (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
@@ -47,5 +51,5 @@ jobs:
       - name: Install isolated native compiler dependency
         run: python -m pip install Nuitka==4.3
 
-      - name: Native compilation plus 11 synthetic parity scenarios
+      - name: Native extension format and 11 synthetic parity scenarios
         run: python scripts/security/sec_p1_nuitka_lab.py
