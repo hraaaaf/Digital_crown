@@ -144,9 +144,9 @@ def verify_license(
         raise LicenseRejected("invalid-payload")
     if not isinstance(signed["device_binding_hash"], str) or not SHA256_RE.fullmatch(signed["device_binding_hash"]):
         raise LicenseRejected("invalid-payload")
-    if signed["pack"] not in PACKS or type(signed["pack"]) is not str:
+    if type(signed["pack"]) is not str or signed["pack"] not in PACKS:
         raise LicenseRejected("invalid-pack")
-    if signed["channel"] not in CHANNELS or type(signed["channel"]) is not str:
+    if type(signed["channel"]) is not str or signed["channel"] not in CHANNELS:
         raise LicenseRejected("invalid-channel")
     features = signed["features"]
     if not (isinstance(features, list) and features
