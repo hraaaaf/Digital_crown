@@ -1,0 +1,129 @@
+name: LOT07 P1 Actual Authenticated T2 — G1 and Native Zoom
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/components/PatientClinicalContextNotice.tsx'
+      - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
+      - 'frontend/scripts/lot07-p1-authenticated-t2.mjs'
+      - '.github/workflows/lot07-p1-real-auth-t2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-p1-real-auth-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  t2-clinic:
+    name: Real T2 authenticated Dossier / G1 MultiView / native 200%
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      VITE_V15_07_G1_MEDIA_FRAME_PILOT: '1'
+      VITE_V15_07_G1_TWO_VIEWS_PILOT: '1'
+      T2_USER: t2-browser@cabinet.ma
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+    steps:
+      - name: Checkout immutable candidate, never clinic data
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+          persist-credentials: false
+      - name: Verify immutable exact source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate disposable test-only login
+        run: |
+          value="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$value"
+          echo "T2_PASSWORD=$value" >> "$GITHUB_ENV"
+      - name: Install real backend with CPU-only machine learning dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/lot07-p1-auth-requirements.txt
+          pip install -r /tmp/lot07-p1-auth-requirements.txt
+      - name: Install locked frontend and isolated browser runtime
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci
+          mkdir -p /tmp/lot07-p1-playwright
+          npm install --prefix /tmp/lot07-p1-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          ln -s /tmp/lot07-p1-playwright/node_modules/playwright node_modules/playwright
+          /tmp/lot07-p1-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Prove isolated DB is not a clinic database
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint,is_known_cabinet_database
+          target="sqlite:///./t2-runtime-cert.db"
+          assert os.environ["ENVIRONMENT"]=="test"
+          assert os.environ["DIGITALCROWN_ISOLATED_RUNTIME"]=="1"
+          assert os.environ["DATABASE_URL"]==target
+          assert not is_known_cabinet_database(target)
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT="+database_target_fingerprint(target))
+          PY
+      - name: Start disposable FastAPI and await health
+        run: |
+          set -euo pipefail
+          test -n "${DIGITALCROWN_ISOLATION_DB_FINGERPRINT:-}"
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/lot07-p1-fastapi.log 2>&1 &
+          for i in {1..100}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/lot07-p1-fastapi.log
+          exit 1
+      - name: Start actual React app with G1 test opt-in
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/lot07-p1-vite.log 2>&1 &
+          for i in {1..100}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/lot07-p1-vite.log
+          exit 1
+      - name: Actual authenticated route and native 200 percent browser zoom
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          node scripts/run-with-t2-workstation.mjs scripts/lot07-p1-authenticated-t2.mjs
+      - name: Failure diagnostics (sanitized, no tokens)
+        if: failure()
+        run: |
+          tail -70 /tmp/lot07-p1-fastapi.log || true
+          tail -70 /tmp/lot07-p1-vite.log || true
+      - name: Upload evidence and exact SHA manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-p1-authenticated-t2-evidence
+          path: artifacts/lot07-p1-actual-t2/
+          retention-days: 14
+          if-no-files-found: warn
