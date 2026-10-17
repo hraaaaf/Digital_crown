@@ -106,9 +106,10 @@ jobs:
           test "$SQLITE_OUTCOME" = success
           test "$POSTGRES_OUTCOME" = success
           test "$MULTIPROCESS_OUTCOME" = success
-          # F05 is still missing authenticated PostgreSQL and actual encrypted
-          # PC envelope + durable receipt races. This is not a certification.
-          echo "::error::POSTGRESQL F05 FAIL: real auth/PC encrypted receipts not proven"
+          # Agenda/Bot/Frontdesk real login and two-process PostgreSQL probes
+          # are covered separately. Genuine Patient Companion encrypted
+          # remote-envelope, receipt atomicity and independent reviews remain.
+          echo "::error::POSTGRESQL F05 FAIL: genuine Patient Companion encrypted remote envelope and durable receipt races not proven"
           exit 1
       - name: Report sanitized failure diagnostics
         if: failure()
