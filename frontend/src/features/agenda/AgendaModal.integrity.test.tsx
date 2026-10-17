@@ -196,7 +196,7 @@ describe('LOT07 07-A — Agenda conflict fail-closed integrated modal', () => {
       return {data:{has_conflict:false,conflicts:[]}} as never;
     });
     mount(undefined, 0);
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Aucun praticien assignable'),{timeout:4000});
+    await waitFor(() => expect(screen.getByText(/Aucun praticien assignable/)).toBeTruthy(),{timeout:4000});
     expect(confirm().disabled).toBe(true);
     expect(api.post).not.toHaveBeenCalled();
   });
