@@ -10,9 +10,10 @@ vi.mock('../services/api', () => ({
   API_BASE: 'http://127.0.0.1:8005',
 }));
 
+const authState = vi.hoisted(() => ({ employerId: 42 }));
 vi.mock('../stores/useAuthStore', () => ({
   useAuthStore: () => ({
-    user: { id: 9, employer_id: 42 },
+    user: { id: 9, employer_id: authState.employerId },
   }),
 }));
 
@@ -41,7 +42,7 @@ class FakeWebSocket {
 }
 
 async function renderSeededWidget() {
-  render(
+  const view = render(
     <MemoryRouter initialEntries={['/dashboard']}>
       <GhostBrainWidget />
     </MemoryRouter>,
@@ -63,12 +64,14 @@ async function renderSeededWidget() {
 
   fireEvent.click(screen.getByTitle('Synthèse contextuelle'));
   await screen.findByRole('button', { name: /^Marquer comme lu$/i });
+  return view;
 }
 
 describe('GhostBrainWidget G9 read-ack truth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     FakeWebSocket.instances = [];
+    authState.employerId = 42;
     localStorage.setItem('token', 'g9-token');
     vi.stubGlobal('WebSocket', FakeWebSocket as any);
     postMock.mockResolvedValue({ data: { status: 'read' } } as any);
@@ -158,6 +161,46 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
     expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
     expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+  });
+
+  it('S12: tenant switch hides prior insights and rejects a colliding late ACK', async () => {
+    const { rerender } = await renderSeededWidget();
+    let resolveOldAck: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => {
+      resolveOldAck = resolve;
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+
+    // Same mounted widget, different tenant: old data must disappear BEFORE
+    // the new WebSocket delivers its first snapshot.
+    authState.employerId = 43;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Aucune nouvelle déduction.')).toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')).toBeNull();
+
+    await waitFor(() => expect(FakeWebSocket.instances.length).toBe(2));
+    act(() => {
+      FakeWebSocket.instances.at(-1)?.emit({
+        unread_count: 1,
+        insights: [{
+          id: 601, // Deliberate ID collision with tenant 42.
+          insight_type: 'AGENDA',
+          content: 'Nouvelle alerte du cabinet B',
+          patient_id: null,
+          created_at: '2026-09-24T10:01:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    await act(async () => { resolveOldAck?.({ data: { status: 'read' } }); });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
   });
 
   it('removes the insight only after backend ACK', async () => {
