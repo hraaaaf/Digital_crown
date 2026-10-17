@@ -78,6 +78,10 @@ async function attachFixture(page,violations){
     const req=route.request(),u=new URL(req.url()),p=u.pathname;
     if(req.method()!=='GET'){violations.push('unexpected mutation '+req.method()+' '+p);
       return route.fulfill({status:409,contentType:'application/json',body:'{"error":"AFTER must not mutate"}'});}
+    if(p==='/api/appointments/assignable-practitioners')return route.fulfill(json([
+      {id:1,name:'Dr Lina Alaoui'},{id:2,name:'Dr Youssef Benali'},{id:3,name:'Dr Salma Idrissi'}
+    ]));
+    if(p==='/api/agenda/resources')return route.fulfill(json([{id:1,name:'Fauteuil test'}]));
     if(p==='/api/appointments/multi-practitioner')return route.fulfill(json(multi));
     if(p==='/api/appointments/'||p.startsWith('/api/appointments?'))return route.fulfill(json(all));
     if(p==='/api/agenda/settings')return route.fulfill(json(settings));
@@ -292,6 +296,11 @@ async function runModalUX(page,theme,width,height,zoom=false){
   await page.getByRole('button',{name:/Nouveau RV/}).first().click();
   const modal=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
   await modal.waitFor({state:'visible',timeout:15000});
+  // Some entry routes do not have a selected practitioner; choose one explicitly,
+  // without treating an arbitrary member of the directory as an implicit assignment.
+  const provider=modal.getByLabel('Praticien');
+  await provider.waitFor({state:'visible',timeout:15000});
+  if(!(await provider.inputValue()))await provider.selectOption('1');
   const retry=modal.getByRole('button',{name:'Relancer la vérification'});
   await retry.waitFor({state:'visible',timeout:25000});
   const submit=modal.getByRole('button',{name:'Confirmer le RDV'});
