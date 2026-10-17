@@ -1,0 +1,51 @@
+name: Cephalo R23-G5 Real Authenticated API Contract (experimental)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g5-authenticated-api.yml'
+      - 'backend/tests/test_cephalo_r23g5_authenticated_api.py'
+      - 'backend/routers/cephalo_analysis_read.py'
+      - 'backend/routers/cephalo_landmark_refinement.py'
+      - 'backend/services/cephalo_runtime_chain.py'
+      - 'backend/services/cephalo_runtime_focus.py'
+      - 'backend/services/cephalo_service.py'
+      - 'backend/utils/access_control.py'
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-real-jwt-fastapi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SECRET_KEY: r23g5-isolated-jwt-contract-only-32char-plus
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Require exact tested PR head
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated FastAPI/SQLAlchemy/cephalo dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/r23g5-requirements.txt
+          pip install -r /tmp/r23g5-requirements.txt
+          python -m pip check
+      - name: Execute real login JWT GET PUT GET tenant and stale-graph HTTP tests
+        run: |
+          python -m pytest backend/tests/test_cephalo_r23g5_authenticated_api.py -q
+      - name: Scientific read/route and calibration regression
+        run: |
+          python -m pytest backend/tests/test_cephalo_typed_read_route.py backend/tests/test_cephalo_runtime_chain.py -q
