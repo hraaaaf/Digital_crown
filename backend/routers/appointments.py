@@ -127,6 +127,22 @@ def _appointments_overlap(start_a: datetime, duration_a: int, start_b: datetime,
     return start_a < start_b + timedelta(minutes=duration_b) and start_b < start_a + timedelta(minutes=duration_a)
 
 
+@router.get("/assignable-practitioners")
+def list_assignable_practitioners(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    """Tenant-scoped authoritative choices for the appointment editor, regardless of plan."""
+    employer_id = current_user.get_employer_id()
+    candidates = db.query(models.User).filter(
+        or_(models.User.id == employer_id, models.User.employer_id == employer_id)
+    ).all()
+    return [
+        {"id": user.id, "name": user.nom_complet or user.email}
+        for user in candidates if _is_assignable_practitioner(user, employer_id)
+    ]
+
+
 @router.get("/", response_model=List[schemas.AppointmentOut])
 def get_appointments(
     start_date: Optional[str] = None,
