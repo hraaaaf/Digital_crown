@@ -92,6 +92,33 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
   });
 
+  it('S12: a real-shaped HTTP 404 keeps the GhostBrain alert unread', async () => {
+    await renderSeededWidget();
+    postMock.mockRejectedValueOnce({
+      response: { status: 404, data: { detail: 'Insight introuvable' } },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
+    expect(screen.queryByText('Aucune nouvelle déduction.')).not.toBeInTheDocument();
+  });
+
+  it('S12: keeps the notification until a delayed persisted HTTP read ACK', async () => {
+    await renderSeededWidget();
+    let resolveRead: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => {
+      resolveRead = resolve;
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
+    await act(async () => { resolveRead?.({ data: { status: 'read' } }); });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Aucune nouvelle déduction.')).toBeInTheDocument();
+  });
+
   it('removes the insight only after backend ACK', async () => {
     await renderSeededWidget();
 
