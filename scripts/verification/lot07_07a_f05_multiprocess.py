@@ -31,7 +31,7 @@ from backend.models_patient_companion import (
     PatientCompanionIdentity, PatientCompanionAccess,
     PatientCompanionAgendaSlot, PatientCompanionAppointmentRef,
 )
-from backend.routers import appointments, frontdesk, auth as auth_routes
+from backend.routers import appointments, frontdesk, bot as bot_routes, auth as auth_routes
 from backend.security import get_password_hash
 from backend.services import patient_companion_agenda as pc
 
@@ -41,11 +41,13 @@ SessionLocal = database.SessionLocal
 app = FastAPI()
 app.include_router(appointments.router, prefix="/api/appointments")
 app.include_router(frontdesk.router, prefix="/api")
+app.include_router(bot_routes.router, prefix="/api/bot")
 # Separate ASGI subapp: no dependency overrides. The product's real JWT,
 # permission and workstation dependencies run against disposable PostgreSQL.
 real_auth_app = FastAPI()
 real_auth_app.include_router(appointments.router, prefix="/api/appointments")
 real_auth_app.include_router(frontdesk.router, prefix="/api")
+real_auth_app.include_router(bot_routes.router, prefix="/api/bot")
 real_auth_app.include_router(auth_routes.router, prefix="/api/auth")
 app.mount("/real-auth", real_auth_app)
 
@@ -69,7 +71,7 @@ def lab_actor(request: Request):
         return user
 
 app.dependency_overrides[database.get_db] = lab_db
-for module in (frontdesk, appointments):
+for module in (frontdesk, appointments, bot_routes):
     if hasattr(module, "get_db"):
         app.dependency_overrides[module.get_db] = lab_db
 for route in app.routes:
@@ -240,6 +242,24 @@ def exercise():
             assert_case("FRONTDESK_REQUEST_VS_REQUEST",race(
                 (18061,*front(t)[1:]),front(t)),[200,409],t,root)
             clear()
+            with SessionLocal() as db:
+                session=models.BotSession(employer_id=root,user_id=root,
+                                          title="F05 synthetic bot")
+                db.add(session);db.flush()
+                pending_bot=models.BotPendingAction(
+                    session_id=session.id,user_id=root,employer_id=root,
+                    action_type="CREATE_APPOINTMENT",
+                    params_json={"patient_id":None,"patient_name":"F05 synthetic Bot",
+                                 "datetime_start":t,"duration_minutes":30,"motif":"LAB"},
+                    status="pending",expires_at=datetime.utcnow()+timedelta(minutes=10))
+                db.add(pending_bot);db.flush()
+                action_id=pending_bot.id
+                db.commit()
+            bot_op=(18062,"POST","/api/bot/execute","A",
+                    {"pending_action_id":str(action_id)})
+            assert_case("CROWN_BOT_VS_AGENDA_TWO_WORKERS",race(
+                book(t),bot_op),[200,409],t,root)
+            clear()
             pending=request(*front(t))
             assert pending[0]==200,pending
             confirm=(18062,"POST",f"/api/appointments/{pending[1]['id']}/confirm","A",{})
@@ -273,7 +293,7 @@ def exercise():
             assert_case("TWO_CABINETS",race(book(t),(18062,*right[1:])),
                         [200,200],t,root)
             assert len(rows_at(t))==2
-        print("F05_MP_TOTAL_RACES",80,flush=True)
+        print("F05_MP_TOTAL_RACES",90,flush=True)
         clear()
         with SessionLocal() as db:
             ref=slot(db,root,root,t)
