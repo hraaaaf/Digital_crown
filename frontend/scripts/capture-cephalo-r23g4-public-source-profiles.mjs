@@ -119,6 +119,10 @@ async function waitServer(){
 }
 async function auditG6ZoomPan(page, viewport, viewportName) {
   const isMobile=viewport.width<1280;
+  // G4 ends in COM mode, which intentionally filters landmark handles. G6 must
+  // inspect the full 38 source points, so return to Ricketts before snapshots.
+  await page.locator('#cephalo-ready-analysis').selectOption('ricketts');
+  await page.locator('[data-r23g2-protocol-panel="ricketts"]').waitFor({state:'attached',timeout:10000});
   // BEFORE is a *known* technical limitation: mobile controls disabled, desktop active.
   const expectedControls=phase==='AFTER'||!isMobile;
   const stage=page.locator('[data-r20-radiograph-stage]');
