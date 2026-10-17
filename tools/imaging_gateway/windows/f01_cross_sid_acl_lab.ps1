@@ -76,6 +76,12 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
     $stderr = Join-Path (Evidence-Directory $Stage) 'stderr.txt'
     $stdout = Join-Path (Evidence-Directory $Stage) 'stdout.txt'
     $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -Credential $Credential -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardError $stderr -RedirectStandardOutput $stdout
+    # PowerShell/PowerShell#5421: with redirected streams, ExitCode may become
+    # unavailable if the native process handle was never materialized BEFORE
+    # WaitForExit. Cache the existing handle without changing logon/launch.
+    # Fail closed if Windows does not expose a real, usable handle.
+    $childHandle = $process.Handle
+    Assert-F01 ($childHandle -ne [IntPtr]::Zero) 'CHILD_PROCESS_HANDLE_INVALID'
     try {
         if (-not $process.WaitForExit(90000)) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
