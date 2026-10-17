@@ -20,6 +20,14 @@ def main() -> int:
     except Exception:
         return 2  # Do not leak configured paths or key values to stderr.
 
+    # Child must not read any capture until the parent has assigned its
+    # Windows KILL_ON_JOB_CLOSE lifetime guard.
+    try:
+        if sys.stdin.buffer.readline() != b"GO\n":
+            return 3
+    except (OSError, ValueError):
+        return 3
+
     stopped = threading.Event()
 
     def await_parent():
