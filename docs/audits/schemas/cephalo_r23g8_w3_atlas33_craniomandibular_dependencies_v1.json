@@ -46,7 +46,15 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 21,
@@ -80,7 +88,10 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1": []
+      }
     },
     {
       "source_order": 23,
@@ -116,7 +127,12 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV"
+        ]
+      }
     },
     {
       "source_order": 25,
@@ -152,7 +168,10 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1": []
+      }
     },
     {
       "source_order": 27,
@@ -190,7 +209,12 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1": [
+          "Pt_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 28,
@@ -227,7 +251,12 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV"
+        ]
+      }
     },
     {
       "source_order": 29,
@@ -268,7 +297,15 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 30,
@@ -316,7 +353,18 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV"
+        ],
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 31,
@@ -350,7 +398,12 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1": [
+          "PR_Ricketts_PTV"
+        ]
+      }
     },
     {
       "source_order": 32,
@@ -391,7 +444,15 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
     },
     {
       "source_order": 33,
@@ -430,7 +491,15 @@
         "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
         "backend/services/cephalo_canonical_analysis_v2.py",
         "backend/services/cephalo_canonical_constructions_v2.py"
-      ]
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
     }
   ]
 }
