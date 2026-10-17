@@ -71,13 +71,29 @@ jobs:
           pip install -r /tmp/lot07-postgres-reqs.txt
           pip install 'psycopg[binary]>=3.2,<4' 'httpx>=0.27' 'email-validator>=2,<3'
       - name: F05 cross-channel contracts (synthetic SQLite supplemental checks)
+        id: sqlite_contracts
+        # Run the PostgreSQL laboratory even if a supplemental SQLite
+        # contract fails; enforce BOTH results below. No false green.
+        continue-on-error: true
         run: |
           set -euo pipefail
           python -m pytest backend/tests/test_lot07_07a_f05_interchannel.py backend/tests/test_patient_companion_agenda.py backend/tests/test_frontdesk.py backend/tests/test_mobile_frontdesk.py -q
       - name: Real FastAPI PostgreSQL 120 concurrent scenario races and lock interruption
+        id: pg_lab
         run: |
           set -euo pipefail
           python -m scripts.verification.lot07_07a_postgres_cert
+      - name: Require all independent F05 certification stages
+        if: always()
+        env:
+          SQLITE_OUTCOME: ${{ steps.sqlite_contracts.outcome }}
+          POSTGRES_OUTCOME: ${{ steps.pg_lab.outcome }}
+        run: |
+          set -euo pipefail
+          echo "F05_SQLITE_CONTRACTS=$SQLITE_OUTCOME"
+          echo "F05_POSTGRES_LAB=$POSTGRES_OUTCOME"
+          test "$SQLITE_OUTCOME" = success
+          test "$POSTGRES_OUTCOME" = success
       - name: Report sanitized failure diagnostics
         if: failure()
         run: |
