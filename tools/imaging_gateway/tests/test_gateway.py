@@ -189,6 +189,26 @@ class GatewayTests(unittest.TestCase):
         self.assertTrue(marker.exists())
         self.assertEqual((self.watch / "fixture.png").read_bytes(), SYNTHETIC)
 
+    def test_ready_mode_duplicate_avoids_source_reads_and_spool_decrypt(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.ready_marker()
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+        # The first capture was hashed and encrypted; subsequent polls should
+        # use the SQLite receipt rather than rereading bytes + decrypting.
+        with patch.object(self.agent, "_read", side_effect=AssertionError("repeat source read")), \
+             patch.object(self.agent, "_decrypt", side_effect=AssertionError("repeat decrypt")):
+            for _ in range(12):
+                self.assertEqual(self.agent.scan_once()["duplicate"], 1)
+        restarted = HotFolder(self.agent.config)
+        self.assertEqual(restarted.scan_once()["unstable"], 1)
+        with patch.object(restarted, "_read", side_effect=AssertionError("replay re-read")), \
+             patch.object(restarted, "_decrypt", side_effect=AssertionError("replay decrypt")):
+            self.assertEqual(restarted.scan_once()["duplicate"], 1)
+        self.assertEqual(len(restarted.items()), 1)
+        self.assertEqual(restarted.read_verified(1), SYNTHETIC)
+
     def test_ready_mode_does_not_quarantine_marker_as_media(self):
         self.enable_ready_mode()
         self.ready_marker()
