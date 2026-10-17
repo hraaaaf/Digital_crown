@@ -32,25 +32,21 @@ def _arm_parent_death_on_linux() -> bool:
 
 
 def main() -> int:
-    try:
-        collector = make_lab_collector()
-        if collector is None:
-            return 2  # No silent startup without explicit isolated LAB flag.
-    except Exception:
-        return 2  # Do not leak configured paths or key values to stderr.
-
-    # Child must not read any capture until the parent has assigned its
-    # Windows KILL_ON_JOB_CLOSE lifetime guard.
+    # Parent controls ALL filesystem mutations: GO arrives only after OS
+    # lifetime supervision and singleton LAB lock are established.
     try:
         if sys.stdin.buffer.readline() != b"GO\n":
             return 3
     except (OSError, ValueError):
         return 3
-
-    # Linux PR_SET_PDEATHSIG is kernel-enforced even if scan_once blocks.
-    # The parent PID check closes the race if it already exited on startup.
     if not _arm_parent_death_on_linux():
         return 3
+    try:
+        collector = make_lab_collector()
+        if collector is None:
+            return 2
+    except Exception:
+        return 2  # No fixture path, exception or key in child output.
 
     stopped = threading.Event()
 
@@ -62,12 +58,22 @@ def main() -> int:
             stopped.set()
 
     threading.Thread(target=await_parent, daemon=True, name="dc-lab-control").start()
+    try:
+        sys.stdout.buffer.write(b"READY\n")
+        sys.stdout.buffer.flush()
+    except (BrokenPipeError, OSError):
+        return 3
+    consecutive_errors = 0
     while not stopped.is_set():
         try:
             collector.scan_once()
+            consecutive_errors = 0
         except Exception:
-            # Untrusted exception text can contain fixture paths.
-            pass
+            # Never silently spin after permanent SQLite/filesystem failures.
+            # Supervisor sees nonzero exit and emits non-PHI error/status.
+            consecutive_errors += 1
+            if consecutive_errors >= 3:
+                return 4
         stopped.wait(0.25)
     return 0
 
