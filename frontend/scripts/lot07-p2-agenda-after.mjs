@@ -128,19 +128,26 @@ async function runMatrix(page,theme,width,height,zoom=false){
       }
     }
     if(theme==='dark'){
-      const contrast=await page.evaluate(()=>{
-        const heading=document.querySelector('[data-tour="agenda-header"] h1');
-        const panel=document.querySelector('[data-tour="agenda-header"]');
-        if(!heading||!panel)return null;
+      const contrasts=await page.evaluate(()=>{
+        const header=document.querySelector('[data-tour="agenda-header"]');
+        const heading=header?.querySelector('h1');
+        const date=header?.querySelector('span.text-slate-600');
+        const inactive=header?.querySelector('[data-tour="agenda-view-switcher"] button[aria-pressed="false"]');
+        if(!heading||!header||!date||!inactive)return null;
         const rgb=s=>{const a=s.match(/\d+(?:\.\d+)?/g);return a&&a.length>=3?a.slice(0,3).map(Number):null;};
-        const fg=rgb(getComputedStyle(heading).color),bg=rgb(getComputedStyle(panel).backgroundColor);
-        if(!fg||!bg)return null;
         const lum=ch=>{const v=ch/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
         const L=c=>.2126*lum(c[0])+.7152*lum(c[1])+.0722*lum(c[2]);
-        const a=L(fg),b=L(bg);return {ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05),fg,bg};
+        const panelColor=rgb(getComputedStyle(header).backgroundColor);
+        if(!panelColor)return null;
+        return [['title',heading],['date',date],['inactive-mode',inactive]].map(([label,el])=>{
+          const foreground=rgb(getComputedStyle(el).color);
+          if(!foreground)return {label,ratio:0};
+          const a=L(foreground),b=L(panelColor);
+          return {label,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
+        });
       });
-      if(!contrast||contrast.ratio<4.5)
-        throw Error('P2 Dark agenda heading WCAG <4.5:1 '+JSON.stringify({mode,width,contrast}));
+      if(!contrasts||contrasts.length!==3||contrasts.some(c=>c.ratio<4.5))
+        throw Error('P2 Dark header title/date/inactive-mode WCAG <4.5:1 '+JSON.stringify({mode,width,contrasts}));
     }
     const filename='agenda-'+theme+'-'+mode+'-'+(zoom?'native200':width+'x'+height)+'.png';
     const target=path.join(out,filename);
