@@ -181,7 +181,7 @@ try {
         viewport:root.clientWidth,
         overflow:root.scrollWidth>root.clientWidth+2,
         main:rect(main),sidecar:rect(sidecar),overlay:rect(overlay),
-        chatCount:document.querySelectorAll('[data-cb01-associate-sidecar] [aria-label="Simulation ZERO-LLM Crown Bot"], [data-ux1-c-crownbot-overlay] [aria-label="Simulation ZERO-LLM Crown Bot"]').length,
+        chatCount:document.querySelectorAll('[data-cb01-associate-sidecar] [aria-label="Assistant Crown Bot — consultation"], [data-ux1-c-crownbot-overlay] [aria-label="Assistant Crown Bot — consultation"]').length,
       };
     });
     if (errors.length || writes.length || result.overflow) {
@@ -199,11 +199,26 @@ try {
       // S02/S04 browser-backed synthetic staff scenario, not full human UX.
       const panel=page.locator('[data-cb01-associate-sidecar]');
       await panel.getByRole('button',{name:'Chat',exact:true}).click();
-      const preview=panel.getByRole('region',{name:'Simulation ZERO-LLM Crown Bot'});
+      const preview=panel.getByRole('region',{name:'Assistant Crown Bot — consultation'});
       await preview.waitFor({state:'visible'});
+      // CB-01 FIRST_VALUE_UI: the one-click "Mon programme" is a real
+      // tenant-scoped GET from the canonical agenda, not a bot mock or write.
+      const programmeRead=page.waitForResponse(resp=>
+        new URL(resp.url()).pathname==='/api/appointments/'
+        && resp.request().method()==='GET',{timeout:15000});
+      await preview.getByRole('button',{name:'Mon programme'}).click();
+      const programmeResult=await programmeRead;
+      if(programmeResult.status()!==200) {
+        throw new Error('FAIL: Mon programme returned '+programmeResult.status());
+      }
+      const programme=preview.getByRole('status',{name:'Programme du jour'});
+      await programme.waitFor({state:'visible'});
+      if(!await programme.getByText(/Source : Agenda du cabinet.*Lecture serveur à/).count()) {
+        throw new Error('FAIL: successful programme has no truthful server source');
+      }
       const findPatient=async selector => {
         await preview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
-        await preview.getByRole('button',{name:'/patient'}).click();
+        await preview.getByRole('button',{name:'Trouver un patient'}).click();
         await preview.getByText('Patient : saisissez un identifiant',{exact:false}).waitFor();
         await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(selector);
         await preview.getByRole('button',{name:'Envoyer'}).click();
@@ -228,7 +243,7 @@ try {
       // Owner browser: dossier lookup -> non-executable future appointment.
       // /rdv is NEVER a booking; capture actual HTTP payload and forbid action IDs.
       await preview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
-      await preview.getByRole('button',{name:'/rdv'}).click();
+      await preview.getByRole('button',{name:'Préparer un RDV'}).click();
       const nextStep=async (value,expectedPrompt) => {
         await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(value);
         await preview.getByRole('button',{name:'Envoyer'}).click();
@@ -290,10 +305,10 @@ try {
       await sidecar.getByRole('button',{name:'Chat',exact:true}).click();
       // Keep an unfinished clinical search draft while the browser equivalent
       // of 200% zoom makes the sidebar switch into narrow floating mode.
-      const sidecarPreview=sidecar.getByRole('region',{name:'Simulation ZERO-LLM Crown Bot'});
+      const sidecarPreview=sidecar.getByRole('region',{name:'Assistant Crown Bot — consultation'});
       await sidecarPreview.waitFor({state:'visible',timeout:15000});
       await sidecarPreview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
-      await sidecarPreview.getByRole('button',{name:'/patient'}).click();
+      await sidecarPreview.getByRole('button',{name:'Trouver un patient'}).click();
       const inProgressDraft='dossier:BROUILLON-NON-SOUMIS';
       await sidecarPreview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(inProgressDraft);
       const proxyWidth=Math.floor(width/2);
@@ -303,7 +318,7 @@ try {
       if(await sidecar.count()) {
         throw new Error('FAIL: desktop sidecar did not reflow to web floating fallback');
       }
-      const floatingPreview=overlay.getByRole('region',{name:'Simulation ZERO-LLM Crown Bot'});
+      const floatingPreview=overlay.getByRole('region',{name:'Assistant Crown Bot — consultation'});
       const floatingDraft=await floatingPreview.getByRole('textbox',{
         name:'Votre réponse de simulation',
       }).inputValue();
