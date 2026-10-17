@@ -272,6 +272,69 @@ class GatewayTests(unittest.TestCase):
                 moved.rename(source)
         self.assertEqual(self.agent.items(), [])
 
+    @unittest.skipUnless(os.name == "nt", "native Windows same-identity write sharing only")
+    def test_windows_peer_can_write_same_byte_in_place_on_db_wal_shm(self):
+        """OPEN F01 characterization: rename pin is not a write-access boundary.
+
+        This writes only the original first byte of synthetic SQLite files.
+        A PASS is evidence of SAME-CI-IDENTITY write capability, NOT security.
+        No SID change, ACL modification, installation or corruption is attempted.
+        """
+        with self.agent._db() as reader:
+            # Commit via a separate guarded connection while the reader remains
+            # open so the WAL and SHM sidecars exist and contain real data.
+            with self.agent._db() as writer:
+                writer.execute(
+                    "INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                    ("SYNTHETIC_F01_INPLACE_PROBE",),
+                )
+            names = (
+                self.agent.db_file.name,
+                self.agent.db_file.name + "-wal",
+                self.agent.db_file.name + "-shm",
+            )
+            paths = [self.private / name for name in names]
+            for path in paths:
+                self.assertTrue(path.is_file(), f"missing synthetic probe leaf: {path.name}")
+                self.assertGreater(path.stat().st_size, 0, path.name)
+            before = {path.name: hashlib.sha256(path.read_bytes()).digest()
+                      for path in paths}
+            child_script = "\n".join((
+                "from pathlib import Path",
+                "import sys",
+                "for raw in sys.argv[1:]:",
+                "    path = Path(raw)",
+                "    with path.open('r+b', buffering=0) as stream:",
+                "        original = stream.read(1)",
+                "        if len(original) != 1:",
+                "            raise RuntimeError('empty-synthetic-probe-file')",
+                "        stream.seek(0)",
+                "        if stream.write(original) != 1:",
+                "            raise RuntimeError('short-synthetic-probe-write')",
+                "    print(path.name + ':SAME_BYTE_WRITE_GRANTED')",
+            ))
+            peer = subprocess.run(
+                [sys.executable, "-c", child_script, *(str(path) for path in paths)],
+                capture_output=True, text=True, timeout=15, check=False,
+            )
+            self.assertEqual(peer.returncode, 0, peer.stderr)
+            self.assertEqual(
+                peer.stdout.strip().splitlines(),
+                [name + ":SAME_BYTE_WRITE_GRANTED" for name in names],
+                "Unexpected Windows sharing behavior: inspect sidecars and ACLs",
+            )
+            self.assertEqual(
+                {path.name: hashlib.sha256(path.read_bytes()).digest()
+                 for path in paths},
+                before, "Probe must not change any synthetic SQLite file bytes",
+            )
+            self.assertEqual(
+                reader.execute("SELECT COUNT(*) FROM audit WHERE event=?",
+                               ("SYNTHETIC_F01_INPLACE_PROBE",)).fetchone()[0],
+                1,
+            )
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_F01_INPLACE_PROBE"])
+
     def test_sqlite_bootstrap_schema_failure_is_atomic(self):
         """Malformed existing scope schema must not leave half-created tables."""
         with tempfile.TemporaryDirectory() as root:
