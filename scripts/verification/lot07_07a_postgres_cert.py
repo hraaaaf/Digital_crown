@@ -373,28 +373,28 @@ def _synthetic_pc_reschedule(body: dict, db=Depends(database.get_db)):
     )
 
 
-def _mp_worker(operation, gate, ready, answer):
+def _mp_worker(operation_index, operation, gate, ready, answer):
     # fork inherited an Engine pool: discard it without touching the parent's
     # real connection; this forces independent PostgreSQL sessions per PID.
     engine.dispose(close=False)
     pid = _os.getpid()
     ready.put(pid)
     if not gate.wait(timeout=20):
-        answer.put((pid, 599, "race gate timeout"))
+        answer.put((operation_index, pid, 599, "race gate timeout"))
         return
     try:
         response = call(*operation)
-        answer.put((pid, response[0], response[1]))
+        answer.put((operation_index, pid, response[0], response[1]))
     except BaseException as exc:
-        answer.put((pid, 599, type(exc).__name__))
+        answer.put((operation_index, pid, 599, type(exc).__name__))
 
 
 def _mp_race(first, second):
     ctx = _multiprocessing.get_context("fork")  # explicit Ubuntu/Linux runner only
     gate, ready, answer = ctx.Event(), ctx.Queue(), ctx.Queue()
     processes = [
-        ctx.Process(target=_mp_worker, args=(op, gate, ready, answer))
-        for op in (first, second)
+        ctx.Process(target=_mp_worker, args=(idx, op, gate, ready, answer))
+        for idx, op in enumerate((first, second))
     ]
     try:
         for proc in processes:
@@ -406,8 +406,10 @@ def _mp_race(first, second):
         for proc in processes:
             proc.join(timeout=15)
             assert proc.exitcode == 0, (proc.pid, proc.exitcode)
-        assert len({row[0] for row in results}) == 2, results
-        return [(row[1], row[2]) for row in results], sorted(pids)
+        assert len({row[1] for row in results}) == 2, results
+        ordered = sorted(results, key=lambda row: row[0])
+        assert [row[0] for row in ordered] == [0, 1], ordered
+        return [(row[2], row[3]) for row in ordered], sorted(pids)
     finally:
         gate.set()
         for proc in processes:
