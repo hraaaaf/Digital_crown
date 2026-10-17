@@ -209,6 +209,24 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(db.execute("PRAGMA temp_store").fetchone()[0], 2)
             self.assertEqual(len(db.execute("PRAGMA database_list").fetchall()), 1)
 
+    def test_sqlite_authorizer_denies_external_database_attachment(self):
+        with self.agent._db() as db:
+            with self.assertRaises(sqlite3.DatabaseError):
+                db.execute("ATTACH DATABASE ':memory:' AS attacker")
+            self.assertEqual(len(db.execute("PRAGMA database_list").fetchall()), 1)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_authorizer_denies_unsafe_pragma_mutations(self):
+        with self.agent._db() as db:
+            for statement in ("PRAGMA writable_schema=ON",
+                              "PRAGMA trusted_schema=ON",
+                              "PRAGMA journal_mode=DELETE"):
+                with self.subTest(statement=statement):
+                    with self.assertRaises(sqlite3.DatabaseError):
+                        db.execute(statement)
+            self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0].lower(), "wal")
+        self.assertEqual(self.agent.items(), [])
+
     def test_sqlite_wal_committed_row_recovers_after_abrupt_writer_exit(self):
         """Real separate Python process terminates without closing SQLite."""
         script = (

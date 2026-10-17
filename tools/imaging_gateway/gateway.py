@@ -254,6 +254,20 @@ class HotFolder:
             db.execute("PRAGMA synchronous=FULL")
             db.execute("PRAGMA trusted_schema=OFF")
             db.execute("PRAGMA temp_store=MEMORY")
+            # A compromised caller must not attach a second SQLite file or
+            # change writable_schema while the LAB connection is active.
+            # Authorizer is per connection and installed after trusted PRAGMAs.
+            forbidden = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH}
+            def authorize(action, arg1, arg2, db_name, trigger):
+                if action in forbidden:
+                    return sqlite3.SQLITE_DENY
+                if (action == sqlite3.SQLITE_PRAGMA
+                        and str(arg1).lower() in {"writable_schema", "journal_mode",
+                                                   "trusted_schema", "temp_store"}
+                        and arg2 is not None):
+                    return sqlite3.SQLITE_DENY
+                return sqlite3.SQLITE_OK
+            db.set_authorizer(authorize)
             self._sqlite_guard()
             yield db
             # All fallible policy checks must happen BEFORE the durable
