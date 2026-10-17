@@ -5,6 +5,9 @@ on:
     paths:
       - frontend/src/components/Layout/MainLayout.tsx
       - frontend/src/components/Layout/MainLayout.g1Interactive.test.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
       - frontend/scripts/certify-cb01-associate-sidecar.mjs
       - .github/workflows/cb01-associate-sidecar-visual.yml
   workflow_dispatch:
@@ -93,7 +96,7 @@ jobs:
         working-directory: frontend
         shell: bash
         run: |
-          npx vitest run src/components/Layout/MainLayout.g1Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+          npx vitest run src/components/Layout/MainLayout.g1Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
       - name: Start disposable synthetic T2 backend
         shell: bash
         run: |
