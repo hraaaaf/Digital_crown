@@ -165,6 +165,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
   // Geometry only: when multiple practitioners share one time slot, show every
   // appointment side-by-side. The appointment/practitioner payload stays intact.
   const dayLanes = layoutAgendaDayOverlaps(exactAppointments);
+  const maxDayLanes = Math.max(1,...Array.from(dayLanes.values(),value=>value.lanes));
 
   return (
     <div data-testid="agenda-day-view" className="w-full space-y-6">
@@ -247,7 +248,9 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
             <p className="font-bold tracking-widest uppercase text-xs">Chargement des créneaux...</p>
           </div>
         ) : (
-          <div className="flex relative overflow-y-auto" style={{ height: '700px' }}>
+          <div data-p2-day-scroll role="region" aria-label="Grille horaire des rendez-vous, défilement interne"
+            tabIndex={0} className="flex relative overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            style={{ height: '700px' }}>
             
             {/* Colonne des heures (gauche) */}
             <div className="w-20 flex-shrink-0 border-r border-slate-100 bg-slate-50/50 sticky left-0 z-20">
@@ -263,8 +266,11 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
               className="flex-1 relative bg-white/30 cursor-crosshair group" 
               onClick={handleGridClick}
               style={{
+                // Avoid zero-width patient names when 2+ appointments share a
+                // slot at 390px. Scroll INSIDE the Day region, never the page.
+                minWidth: `${maxDayLanes*220}px`,
                 backgroundImage: 'linear-gradient(to bottom, transparent 95%, rgba(226, 232, 240, 0.5) 95%)',
-                backgroundSize: '100% 6rem' 
+                backgroundSize: '100% 6rem'
               }}
             >
               
