@@ -363,6 +363,21 @@ def exercise():
         print("F05_PC_HTTP_IDEMPOTENT_JWE_RACE", "HTTP", a[0], b[0],
               "SQL", count(13), "RECEIPTS", receipt_count(idem), flush=True)
 
+        # F05-R1 adversarial RED-first: an idempotency key is a promise about
+        # one exact clinical intent, not just access and operation. Reusing K
+        # with a different slot MUST NOT acknowledge the old appointment.
+        alternate_slot, alternate_id = new_slot(17)
+        changed_token, _ = sign_command(
+            "agenda.create", {"slot_ref": alternate_slot}, idem,
+        )
+        changed = remote(1, changed_token)
+        assert changed[0] == 400, (
+            "F05_R1_UNBOUND_IDEMPOTENCY_KEY", changed,
+        )
+        assert count(13) == 1 and count(17) == 0
+        assert receipt_count(idem) == 1 and not consumed(alternate_id)
+        print("F05_PC_HTTP_R1_CHANGED_PAYLOAD_REJECTED", changed[0], flush=True)
+
         # Reprogramming of an existing patient reservation participates in the
         # same lock as a new staff booking in the other FastAPI process.
         with Session() as db:
