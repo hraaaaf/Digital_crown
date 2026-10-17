@@ -43,6 +43,14 @@ interface AgendaModalProps {
   initialPatientPrenom?: string;
 }
 
+// Conflict payloads can be partial (e.g. resource-only blockers). Rendering
+// must never throw, even when the backend response is malformed.
+const safeConflictClock = (value: unknown): string => {
+  if (typeof value !== 'string') return 'heure indisponible';
+  try { return clinicAppointmentFormFields(value).time; }
+  catch { return 'heure indisponible'; }
+};
+
 export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSaved, selectedDate, initialTime, initialPractitionerId, editingAppointment, initialPatientId, initialPatientNom, initialPatientPrenom }) => {
   const navigate = useNavigate();
   const contextPractitionerId = usePractitionerContextStore(state =>
@@ -965,7 +973,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />
                   <span>
                     Chevauchement avec {conflicts.length} RDV :&nbsp;
-                    {conflicts.map(c => `${c.patient_name || 'Patient'} (${clinicAppointmentFormFields(c.datetime_start).time})`).join(', ')}
+                    {conflicts.map(c => `${c?.patient_name || 'Patient'} (${safeConflictClock(c?.datetime_start)})`).join(', ')}
                   </span>
                 </div>
               )}
