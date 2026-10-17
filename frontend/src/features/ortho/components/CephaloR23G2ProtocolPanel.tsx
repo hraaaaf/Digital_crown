@@ -2,6 +2,7 @@ import React from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import { findR23G3PinnedRequirements } from '../cephaloR23G3PinnedRequirements';
+import { findR23G7AtlasSourceRequirements } from '../cephaloR23G7AtlasSourceRequirements';
 import { publishCephaloMetricFocus } from '../cephaloAnalysisBridge';
 import {
   readCephaloR23G2Protocol,
@@ -68,6 +69,14 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
     selectedRow.canonical_measurement_id,
     landmarks.map(item => item.id),
   ) : null;
+  // Atlas source-contract preview, never a source of SVG Focus or clinical values.
+  const atlasRequirements = analysis === 'ricketts' && version === 'atlas' && selectedRow
+    ? findR23G7AtlasSourceRequirements(
+        profile?.protocol_profile_id ?? '',
+        selectedRow.canonical_measurement_id,
+        landmarks.map(item => item.id),
+      )
+    : null;
   const currentFocus = resolveR23G3RuntimeFocus(selectedRow);
   // Same semantic event already observed by CephaloTracingLayer; no
   // invented SVG geometry is emitted. A blocked factor clears old focus.
@@ -168,8 +177,18 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                               : ' · tous les repères listés sont présents'}
                             {' · gate : ' + requirements.availabilityGate}
                           </span>
+                        ) : atlasRequirements ? (
+                          <span className="mt-1 block" data-r23g7-atlas-gate={atlasRequirements.measurementId}>
+                            Contrat Atlas 2009 (repères à vérifier, sans autorisation de mesure) :
+                            {' ' + atlasRequirements.requiredLandmarks.join(', ')}
+                            {atlasRequirements.missingLandmarks.length > 0
+                              ? ' · absents : ' + atlasRequirements.missingLandmarks.join(', ')
+                              : ' · repères listés présents (insuffisant pour calcul/Focus)'}
+                            {' · gate : ' + atlasRequirements.availabilityGate}
+                            {' · valeur et tracé toujours soumis à la preuve active.'}
+                          </span>
                         ) : (
-                          <span className="mt-1 block">Hors registre de dépendances LOT06 publié : aucun repère requis supplémentaire n’est supposé.</span>
+                          <span className="mt-1 block">Hors registre de dépendances LOT06 ou extension Atlas publiée : aucun repère requis supplémentaire n’est supposé.</span>
                         )}
                       </span>
                     )}
