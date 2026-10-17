@@ -134,7 +134,12 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
   });
 
   it('S10: 409 booking conflict keeps draft open, reports refusal, and only acknowledges a fresh retry', async () => {
-    const conflict={response:{status:409,data:{detail:'Créneau déjà occupé : vérifiez la disponibilité.'}}};
+    // Exact API shape: appointments._conflict_detail -> HTTPException(409,detail={message, conflicts}).
+    const conflict={response:{status:409,data:{detail:{
+      message:'Créneau en conflit avec un autre rendez-vous',
+      conflicts:[{id:41,patient_id:7,patient_name:'BENALI Sara',
+        praticien_id:9,datetime_start:'2026-09-21T10:00:00',duration_minutes:30}],
+    }}}};
     vi.mocked(api.post)
       .mockRejectedValueOnce(conflict)
       .mockResolvedValueOnce({data:{id:100}} as never);
@@ -145,7 +150,9 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
 
     fireEvent.click(confirm);
     await waitFor(()=>expect(api.post).toHaveBeenCalledTimes(1));
-    await waitFor(()=>expect(toast.error).toHaveBeenCalledWith('Créneau déjà occupé : vérifiez la disponibilité.'));
+    await waitFor(()=>expect(toast.error).toHaveBeenCalledWith(
+      'Créneau en conflit avec un autre rendez-vous Choisissez un autre créneau avant de réessayer.',
+    ));
     expect(toast.success).not.toHaveBeenCalled();
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
@@ -164,6 +171,22 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     await waitFor(()=>expect(toast.success).toHaveBeenCalledWith('Rendez-vous créé.'));
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('S10: a malformed 409 conflict detail never reaches toast as a React object', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce({response:{
+      status:409,data:{detail:{conflicts:[{id:3}]}},
+    }});
+    const {onClose,onSaved}=renderCreate();
+    fireEvent.change(await screen.findByPlaceholderText(
+      "Saisir l'acte ou rechercher dans le catalogue...",
+    ),{target:{value:'Détartrage'}});
+    fireEvent.click(screen.getByRole('button',{name:'Confirmer le RDV'}));
+    await waitFor(()=>expect(toast.error).toHaveBeenCalledWith(
+      'Erreur lors de la sauvegarde du rendez-vous. Choisissez un autre créneau avant de réessayer.',
+    ));
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('edits the historical appointment through PUT and preserves the edit boundary', async () => {
