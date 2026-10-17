@@ -70,9 +70,21 @@ async function preview(token,messages){
     data:{messages},headers:{Authorization:'Bearer '+token},
     maxRedirects:0,
   });
-  const json=await response.json();
+  const code=response.status();
+  let json;
+  try { json=await response.json(); } catch {
+    throw new Error('HTTP_'+code+'_INVALID_JSON');
+  }
+  // Diagnostic metadata only: NO request payload, token, patient name,
+  // candidate, dossier, response body or authorization header in CI logs.
+  const safeStatus=['read','disambiguation','clarification',
+    'proposal_only','confirmation_required','cancelled'].includes(json?.status)
+    ? json.status : code===403 ? 'DENIED' : code===404 ? 'NOT_FOUND' : 'OTHER';
+  console.log('CB01_MATRIX_HTTP '+JSON.stringify({
+    workflow:messages[0],code,status:safeStatus,
+  }));
   noActionIdentifiers(json);
-  return {code:response.status(),body:json};
+  return {code,body:json};
 }
 async function check(id,title,fn){
   try {
@@ -80,8 +92,28 @@ async function check(id,title,fn){
     statusById.set(id,{id,title,status:'PASS_SYNTHETIC',humanE2E:'NOT_RUN',
       scope:'Synthetic scoped HTTP contract only; no human end-to-end journey'});
   } catch(error) {
+    // Whitelist script-owned assertion reasons. An arbitrary Playwright error
+    // can include URLs or request headers, so never log it verbatim.
+    const knownReasons=new Set([
+      'bounded preview transcript violated',
+      'executable action identifier leaked',
+      'homonyms not disambiguated',
+      'expected two synthetic dossiers',
+      'authorized patient read failed',
+      'exact surname homonyms not safely handled',
+      'S05 returned no safe appointment proposal',
+      'S06 denied permission leaked identity or changed response',
+      'S08 preview unexpectedly actionable or unavailable',
+      'S11 foreign patient existence leakage',
+    ]);
+    const raw=String(error?.message||'');
+    const reason=knownReasons.has(raw) ? raw
+      : /^HTTP_[0-9]{3}_INVALID_JSON$/.test(raw) ? raw
+      : 'UNEXPECTED_TRANSPORT_OR_RUNTIME';
     statusById.set(id,{id,title,status:'FAIL',humanE2E:'NOT_RUN',
-      scope:'Synthetic scoped HTTP assertion failed (details intentionally withheld)'});
+      diagnosticCode:reason,
+      scope:'Synthetic scoped HTTP assertion failed; no raw clinical responses logged'});
+    console.log('CB01_MATRIX_FAIL '+JSON.stringify({scenario:id,diagnosticCode:reason}));
     failures.push(id);
   }
 }
