@@ -21,6 +21,9 @@ on:
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx'
       - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
       - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
+      - 'backend/tests/test_cephalo_r23g5_authenticated_api.py'
+      - 'backend/routers/cephalo_landmark_refinement.py'
+      - 'backend/routers/cephalo_analysis_read.py'
 
 permissions:
   contents: read
@@ -72,3 +75,38 @@ jobs:
       - name: Full TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
+
+  authenticated-api-r23g5:
+    name: Real JWT GET PUT GET and tenancy (experimental)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SECRET_KEY: r23g5-ci-only-isolated-jwt-secret-32
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - name: Checkout exact product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Require exact HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-g5-isolated.txt
+          pip install -r /tmp/requirements-g5-isolated.txt
+          python -m pip check
+      - name: JWT auth GET PUT GET, cross-cabinet denial, stale evidence
+        run: python -m pytest backend/tests/test_cephalo_r23g5_authenticated_api.py -q
+      - name: Existing canonical GET and runtime graph regressions
+        run: python -m pytest backend/tests/test_cephalo_typed_read_route.py backend/tests/test_cephalo_runtime_chain.py -q
