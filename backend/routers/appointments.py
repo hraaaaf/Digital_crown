@@ -664,6 +664,7 @@ def get_multi_practitioner_appointments(
             "patient_name": a.patient_name,
             "patient_id": a.patient_id,
             "praticien_id": a.praticien_id,
+            "resource_id": a.resource_id,
             "datetime_start": a.datetime_start.isoformat(),
             "duration_minutes": a.duration_minutes,
             "motif": a.motif,
