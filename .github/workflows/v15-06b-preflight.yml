@@ -8,6 +8,8 @@ on:
       - 'backend/services/imaging_acquisition_preflight_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
+      - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
+      - 'tools/imaging_gateway/bridge_background_lab.py'
       - 'backend/main.py'
       - '.github/workflows/v15-06b-preflight.yml'
   pull_request:
@@ -15,6 +17,8 @@ on:
       - 'backend/services/imaging_acquisition_preflight_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
+      - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
+      - 'tools/imaging_gateway/bridge_background_lab.py'
       - 'backend/main.py'
       - '.github/workflows/v15-06b-preflight.yml'
   workflow_dispatch:
@@ -56,11 +60,15 @@ jobs:
           python -m py_compile backend/services/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/routers/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_acquisition_preflight_v15.py
+          python -m py_compile backend/tests/test_imaging_bridge_lifespan_v15.py
           python -m py_compile backend/main.py
           python -m py_compile tools/imaging_gateway/qa_visual_runtime.py
           python -m py_compile tools/imaging_gateway/tests/test_qa_visual_runtime.py
       - name: Preflight negative scenarios and Media Core regressions
         run: python -m pytest backend/tests/test_imaging_acquisition_preflight_v15.py backend/tests/test_media_core_ingestion_api.py tools/imaging_gateway/tests/test_qa_visual_runtime.py -q
+
+      - name: Real FastAPI lifespan + isolated Imaging Bridge synthetic integration
+        run: python -m pytest backend/tests/test_imaging_bridge_lifespan_v15.py -q
 
       - name: Install isolated browser for operational route evidence
         if: github.event_name == 'pull_request'
