@@ -68,6 +68,7 @@ const vite=await createServer({
 await vite.listen();
 const browser=await chromium.launch({headless:true});
 const rows=[];
+const midnightResults=[];
 const report={phase:'AFTER',source:'real AgendaPage/AgendaStudio React with synthetic intercepted API, NOT authenticated backend',
   sourceHead:head,p1Parent:parent,fixture:'synthetic 2026-09-16, six appointments, three practitioners and one legacy unassigned',
   themes:['elite','dark'],viewports:sizes,modes:modes.map(x=>x[0]),captures:rows};
@@ -280,6 +281,35 @@ try {
       finally{await context.close();}
     }
   }
+  // Root regression: a normal "Nouveau RV" click at 00:20 clinic-local
+  // must not prefill the previous UTC date. Real React, mocked APIs only.
+  for(const width of [390,1280]){
+    const context=await browser.newContext({
+      viewport:{width,height:900},locale:'fr-FR',timezoneId:'Africa/Casablanca'
+    });
+    try{
+      const page=await context.newPage();
+      const violations=[];
+      await attachFixture(page,violations);
+      await page.clock.setFixedTime(new Date('2026-10-17T00:20:00+01:00'));
+      await page.goto('http://127.0.0.1:4217/lot07-p2-after.html?theme=elite',{
+        waitUntil:'domcontentloaded',timeout:60000
+      });
+      await page.getByRole('heading',{name:'Agenda',exact:true}).waitFor({state:'visible',timeout:45000});
+      await page.getByRole('button',{name:'Mois',exact:true}).click();
+      const view=page.getByTestId('agenda-month-view');
+      await view.waitFor({state:'visible',timeout:30000});
+      await view.getByRole('button',{name:/Nouveau RV/}).click();
+      const dialog=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
+      await dialog.waitFor({state:'visible',timeout:15000});
+      const date=await dialog.locator('input[type="date"]').inputValue();
+      if(date!=='2026-10-17')
+        throw Error('P2 create-new at Casablanca midnight shows wrong date '+JSON.stringify({width,date}));
+      if(violations.some(v=>v.startsWith('unexpected mutation')))
+        throw Error('Midnight check attempted data mutation '+JSON.stringify({width,violations}));
+      midnightResults.push({width,clinicTime:'2026-10-17T00:20:00+01:00',selectedDate:date,passed:true});
+    }finally{await context.close();}
+  }
 }finally{await browser.close();}
 const profile=await fs.mkdtemp(path.join(os.tmpdir(),'dc-p2-after-native-'));
 await fs.mkdir(path.join(profile,'Default'),{recursive:true});
@@ -297,8 +327,8 @@ try {
 if(rows.length!==64||rows.filter(r=>r.zoomContent?.file).length!==8)
   throw Error('AFTER requires 64 baseline scenes plus 8 scrolled zoom200 content proofs: '+rows.length);
 await fs.writeFile(path.join(out,'manifest.json'),JSON.stringify({
-  ...report,sceneCount:rows.length,totalScreenshots:rows.length+8,
+  ...report,sceneCount:rows.length,totalScreenshots:rows.length+8,midnightResults,
   note:'64 baseline scenes plus 8 real native-200 scrolled-to-agenda compositor views'
 },null,2));
 console.log('LOT07_P2_AGENDA_AFTER_SUCCESS '+JSON.stringify({head,baseline:parent,screens:rows.length+8,
-  overflowCases:rows.filter(r=>r.metric.pageOverflow).map(r=>r.file),zoom:true,zoomContent:8}));
+  overflowCases:rows.filter(r=>r.metric.pageOverflow).map(r=>r.file),zoom:true,zoomContent:8,midnightChecks:midnightResults.length}));
