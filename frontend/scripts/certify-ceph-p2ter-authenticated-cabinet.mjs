@@ -214,6 +214,74 @@ async function viewportRun(viewport){
     throw Error('Late old-A PDF overwrote B selection or triggered stale download');
   record.checks.push('SWITCH_A_TO_B_WHILE_OLDER_PDF_IN_FLIGHT_REFUSES_STALE_DOWNLOAD');
   await shot('late-old-A-response-B-still-selected');
+  // Revalidation TOCTOU: pause archive POST after its real successful prevalidation,
+  // edit synthetic study B through authenticated FastAPI, then demand HTTP 409
+  // and a comprehensible refusal toast; no archive may be persisted.
+  if(viewport.width===1600){
+    await page.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
+    const staleArchiveButton=page.getByRole('button',{name:'Archiver le bilan'});
+    await page.waitForFunction(()=>{
+      const b=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Archiver le bilan'));
+      return Boolean(b && !b.disabled);
+    },null,{timeout:25000});
+    let releaseStale;
+    let heldStale;
+    let requestRevision;
+    const staleHeld=new Promise(resolve=>{heldStale=resolve});
+    const staleGate=new Promise(resolve=>{releaseStale=resolve});
+    const staleRoute=async route=>{
+      const payload=route.request().postDataJSON();
+      if(payload?.archive===true && payload?.analysis_id===identities.latest_id){
+        requestRevision=payload.expected_revision;
+        heldStale();
+        await staleGate;
+      }
+      await route.continue();
+    };
+    await page.route('**/api/patients/*/pdf',staleRoute);
+    const staleValidation=page.waitForResponse(r=>
+      new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/cephalo-validation'
+      && r.request().method()==='GET' && r.status()===200,{timeout:45000});
+    const staleResponse=page.waitForResponse(r=>
+      new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf'
+      && r.request().method()==='POST' && r.request().postDataJSON()?.archive===true,
+      {timeout:45000});
+    try {
+      await staleArchiveButton.click();
+      await staleHeld;
+      const prevalidated=await staleValidation;
+      const params=new URL(prevalidated.url()).searchParams;
+      if(Number(params.get('analysis_id'))!==identities.latest_id ||
+        Number(params.get('expected_revision'))!==requestRevision)
+        throw Error('Prevalidation identity mismatch for TOCTOU test');
+      const update=await page.evaluate(async ({apiRoot,study})=>{
+        const token=localStorage.getItem('token');
+        if(!token)throw Error('No Cabinet auth in revision-race test');
+        const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
+        const get=await fetch(apiRoot+'/api/ia/analyses/'+study,{headers,credentials:'include'});
+        if(!get.ok)throw Error('Revision setup GET HTTP '+get.status);
+        const record=await get.json();
+        const points=record.landmarks_data||record.landmarks;
+        if(!Array.isArray(points)||points.length===0)throw Error('No editable synthetic landmarks');
+        const edited=points.map((p,i)=>i===0?{...p,x:p.x+1}:p);
+        const put=await fetch(apiRoot+'/api/ia/analyses/'+study,
+          {method:'PUT',headers,credentials:'include',body:JSON.stringify({landmarks:edited})});
+        if(!put.ok)throw Error('Revision mutation HTTP '+put.status+' '+(await put.text()).slice(0,300));
+        const newer=await fetch(apiRoot+'/api/ia/analyses/'+study,{headers,credentials:'include'});
+        return {status:put.status,revision:(await newer.json()).angles_data?.scientific_read_path?.revision};
+      },{apiRoot:backend,study:identities.latest_id});
+      if(!(Number.isSafeInteger(update.revision) && update.revision>requestRevision))
+        throw Error('Revision did not increment before delayed archive '+JSON.stringify(update));
+    } finally {
+      releaseStale();
+    }
+    const stale=await staleResponse;
+    await page.unroute('**/api/patients/*/pdf',staleRoute);
+    if(stale.status()!==409)throw Error('Stale post-prevalidation archive did not fail-closed: '+stale.status());
+    await page.getByText(/modifiée|changé|périmée/i).first().waitFor({state:'visible',timeout:10000});
+    await shot('stale-revision-archive-refusal-visible');
+    record.checks.push('REVISION_CHANGED_AFTER_PREVALIDATION_ARCHIVE_409_TOAST_VISIBLE');
+  }
   record.observedToasts=await page.evaluate(()=>window.__p2terSeenToasts||[]);
   console.log('P2TER_NETWORK_DIAGNOSTIC',JSON.stringify({viewport:record.viewport,failedRequests:record.failedRequests,httpErrors:record.httpErrors,observedToasts:record.observedToasts}));
   if(record.pageErrors.length)throw Error('React exceptions '+JSON.stringify(record.pageErrors));
