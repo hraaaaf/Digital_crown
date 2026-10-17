@@ -4,9 +4,14 @@ MUST run only with ENVIRONMENT=test and DIGITALCROWN_ISOLATED_RUNTIME=true.
 Never modifies real patient databases or the clinical algorithm.
 """
 import os
+import sys
 import shutil
 from copy import deepcopy
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 if os.environ.get("ENVIRONMENT") != "test" or os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME", "").lower() not in {"true", "1"}:
     raise SystemExit("P2TER E2E fixture refused: not an isolated synthetic runtime")
