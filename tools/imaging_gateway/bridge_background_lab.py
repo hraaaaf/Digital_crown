@@ -215,7 +215,8 @@ def start_if_enabled(
             if job is not None:
                 job.close()
             if proc is not None and proc.stdin is not None:
-                proc.stdin.close()
+                with contextlib.suppress(OSError, ValueError):
+                    proc.stdin.close()
             if proc is not None and proc.stdout is not None and not proc.stdout.closed:
                 proc.stdout.close()
             owner.close()
@@ -271,7 +272,8 @@ async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> b
             if handle.job is not None:
                 handle.job.close()
             if proc.stdin is not None:
-                proc.stdin.close()
+                with contextlib.suppress(OSError, ValueError):
+                    proc.stdin.close()
             if handle.owner is not None:
                 handle.owner.close()
             if not handle.task.done():

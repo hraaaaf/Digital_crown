@@ -53,7 +53,10 @@ def main() -> int:
     def await_parent():
         try:
             # EOF also stops the worker when the parent process disappears.
-            sys.stdin.buffer.readline()
+            # Unbuffered fd read: a daemon blocked in BufferedReader.readline
+            # can trigger a fatal interpreter-shutdown lock on child exit.
+            # Parent STOP or EOF both wake the control thread.
+            os.read(sys.stdin.fileno(), 1)
         finally:
             stopped.set()
 
