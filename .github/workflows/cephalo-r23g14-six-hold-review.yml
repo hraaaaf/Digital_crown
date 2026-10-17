@@ -1,0 +1,103 @@
+name: R23-G14 Six HOLD Independent Review Packet (experimental)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g14-six-hold-review.yml'
+      - 'docs/audits/schemas/cephalo_r23g14_six_hold_expert_adjudication_v1.json'
+      - 'docs/audits/CEPHALO_R23G14_SIX_HOLD_EXPERT_DECISION_PROTOCOL.md'
+      - 'scripts/cephalo_r23g14_six_hold_review_workbook.py'
+      - 'audit/cephalo_r23g14_contract_tests/**'
+      - 'docs/audits/schemas/cephalo_r23g13_source_specific_landmark_guides_v1.json'
+      - 'scripts/cephalo_r23g13_public_source_guided_workbook.py'
+      - 'scripts/cephalo_r23g12_public_manual_workbook.py'
+      - 'docs/audits/schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  six-review-pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Exact HEAD evidence gate
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fetch two public ORIGINAL JPEGs with hashes (never patient or Aariz dataset)
+        run: |
+          mkdir -p /tmp/dc-g14-public-originals
+          curl -fL --retry 4 --retry-delay 3 --max-time 90 -A 'DigitalCrown-SourceAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG' -o /tmp/dc-g14-public-originals/anug.jpg
+          curl -fL --retry 4 --retry-delay 3 --max-time 90 -A 'DigitalCrown-SourceAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg' -o /tmp/dc-g14-public-originals/challiyan.jpg
+          echo '2a284993c666790a72d0c004044b35a92534ce9d  /tmp/dc-g14-public-originals/anug.jpg' | sha1sum -c -
+          echo '66c74c588af3c54dfc581f8a870c5276c3427498  /tmp/dc-g14-public-originals/challiyan.jpg' | sha1sum -c -
+      - name: Verify six exact repo source citations and build G14 NO-GO packet
+        run: |
+          python -m scripts.cephalo_r23g14_six_hold_review_workbook \
+            --input-dir /tmp/dc-g14-public-originals --output-dir /tmp/dc-g14-review
+      - name: G14 source-only tests and G13/G12 strict regressions
+        run: |
+          python -m unittest discover -s audit/cephalo_r23g14_contract_tests -p 'test_*.py' -v
+          python -m unittest discover -s audit/cephalo_r23g13_contract_tests -p 'test_*.py' -v
+          python -m unittest discover -s audit/cephalo_r23g12_contract_tests -p 'test_*.py' -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install isolated Chromium Playwright
+        run: |
+          npm install --prefix /tmp/dc-g14-playwright --no-audit --no-fund playwright@1.55.0
+          /tmp/dc-g14-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Real G12, G13, G14 browser checks — two real JPEGs, 2 desktop viewports, 6 HOLD
+        env:
+          G12_PLAYWRIGHT_MODULE: /tmp/dc-g14-playwright/node_modules/playwright
+          G12_URL: http://127.0.0.1:8765/
+          G12_EVIDENCE_DIR: /tmp/dc-g14-g12-regression
+          G13_EVIDENCE_DIR: /tmp/dc-g14-g13-regression
+          G14_EVIDENCE_DIR: /tmp/dc-g14-browser-evidence
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory /tmp/dc-g14-review >/tmp/dc-g14-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 2
+          node audit/cephalo_r23g12_contract_tests/g12_public_browser_e2e.cjs
+          node audit/cephalo_r23g13_contract_tests/g13_source_guide_browser.cjs
+          node audit/cephalo_r23g14_contract_tests/g14_real_public_review_browser.cjs
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.cephalo_r23g11_public_radiograph_smoke import smoke
+          from scripts.cephalo_r23g12_public_manual_workbook import build_catalog,verify_draft
+          root=Path('.')
+          catalog=build_catalog(root,smoke(root,Path('/tmp/dc-g14-public-originals')))
+          for width in (1280,1600):
+              p=Path('/tmp/dc-g14-g12-regression')/f'synthetic_browser_export_{width}.json'
+              check=verify_draft(json.loads(p.read_text(encoding='utf8')),catalog)
+              assert check['manual_draft_pixel_points']==2
+              assert check['anatomical_expertise_verified'] is False
+              assert check['clinical_release'] is False
+              print('G14 G12 EXPORT BACKCOMPATIBILITY: PASS',width)
+          qa=json.loads(Path('/tmp/dc-g14-review/G14_HUMAN_REVIEW_PACK_QA_ONLY.json').read_text())
+          assert qa['review_dossiers']==6 and qa['operational_rules_human_approved']==0
+          assert qa['independent_orthodontist_signatures_verified']==0
+          assert qa['clinical_release'] is False
+          print('G14 SCIENCE LIMIT: SIX HOLD; ZERO INDEPENDENT EXPERTS; CLINICAL NO-GO')
+          PY
+      - name: Upload text-only source review report and attributed public screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g14-six-hold-public-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            /tmp/dc-g14-review/G14_HUMAN_REVIEW_PACK_QA_ONLY.json
+            /tmp/dc-g14-browser-evidence/
+          retention-days: 30
+          if-no-files-found: error
