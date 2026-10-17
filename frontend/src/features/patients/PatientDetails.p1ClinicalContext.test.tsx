@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PatientDetails } from './PatientDetailsInner';
 import { api } from '../../services/api';
 
@@ -106,6 +106,43 @@ describe('LOT07 P1 — actual PatientDetails route and G1 MultiView', () => {
     expect(await screen.findByText('Patient journey')).toBeTruthy();
     expect(screen.queryByRole('status', { name: 'Antécédents médicaux non renseignés' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Compléter les antécédents/ })).toBeNull();
+  });
+
+  it('never renders stale clinical details from patient 7 when URL switches to patient 8', async () => {
+    let resolvePatient8: ((value: { data: unknown }) => void) | undefined;
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/patients/7') return { data: {
+        id: 7, numero_dossier: 'T2-0001', nom: 'CERTIFICATION', prenom: 'T2',
+        date_naissance: '1990-01-01', telephone: '0000', assurance: '',
+        antecedents_medicaux: '', motif_consultation: '', dossier: { is_ortho_active: false },
+      } } as never;
+      if (url === '/patients/8') return new Promise(resolve => {
+        resolvePatient8 = resolve;
+      }) as never;
+      if (url.endsWith('/nba')) return { data: { nba: null } } as never;
+      throw Error('Unexpected GET '+url);
+    });
+    render(
+      <MemoryRouter initialEntries={['/patients/7?tab=tracking']}>
+        <Link to="/patients/8?tab=tracking">Changer de patient</Link>
+        <Routes><Route path="/patients/:id" element={<PatientDetails />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('CERTIFICATION T2')).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Changer de patient' }));
+    expect(screen.queryByText('CERTIFICATION T2')).toBeNull();
+    expect(screen.queryByRole('status', { name: 'Antécédents médicaux non renseignés' })).toBeNull();
+    await act(async () => {
+      resolvePatient8?.({ data: {
+        id: 8, numero_dossier: 'T2-0002', nom: 'AUTRE', prenom: 'B',
+        date_naissance: '1992-01-01', telephone: '0001', assurance: '',
+        antecedents_medicaux: 'Donnée réelle', motif_consultation: '',
+        dossier: { is_ortho_active: false },
+      } });
+    });
+    expect(await screen.findByText('AUTRE B')).toBeTruthy();
+    expect(screen.queryByText('CERTIFICATION T2')).toBeNull();
+    expect(screen.queryByRole('status', { name: 'Antécédents médicaux non renseignés' })).toBeNull();
   });
 
   it('shows the sourced NBA in G1 as a non-executable suggestion, not a clinical action button', async () => {
