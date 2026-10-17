@@ -5,6 +5,7 @@ import { findR23G3PinnedRequirements } from '../cephaloR23G3PinnedRequirements';
 import { findR23G7AtlasSourceRequirements } from '../cephaloR23G7AtlasSourceRequirements';
 import { findR23G8W1OrientationRequirements } from '../cephaloR23G8W1OrientationRequirements';
 import { findR23G8W2DentalRequirements } from '../cephaloR23G8W2DentalRequirements';
+import { findR23G8W3CranioRequirements } from '../cephaloR23G8W3CranioRequirements';
 import { publishCephaloMetricFocus } from '../cephaloAnalysisBridge';
 import {
   readCephaloR23G2Protocol,
@@ -88,6 +89,13 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
     : null;
   const dentalRequirements = analysis === 'ricketts' && version === 'atlas' && selectedRow
     ? findR23G8W2DentalRequirements(
+        profile?.protocol_profile_id ?? '',
+        selectedRow.canonical_measurement_id,
+        landmarks.map(item => item.id),
+      )
+    : null;
+  const cranioRequirements = analysis === 'ricketts' && version === 'atlas' && selectedRow
+    ? findR23G8W3CranioRequirements(
         profile?.protocol_profile_id ?? '',
         selectedRow.canonical_measurement_id,
         landmarks.map(item => item.id),
@@ -242,8 +250,28 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                             {' · gate : ' + dentalRequirements.availabilityGate}
                             {' · Aucune valeur ni Focus autorisé par cette description.'}
                           </span>
+                        ) : cranioRequirements ? (
+                          <span className="mt-1 block" data-r23g8-w3-cranio-gate={cranioRequirements.measurementId}>
+                            Contrat Atlas W3 — dépendances cranio-mandibulaires SOURCE UNIQUEMENT, non validées sur cette étude.
+                            {' · repères directs : ' + cranioRequirements.requiredLandmarks.join(', ')}
+                            {cranioRequirements.missingLandmarks.length
+                              ? ' · absents : ' + cranioRequirements.missingLandmarks.join(', ')
+                              : ' · repères listés présents (preuve clinique insuffisante)'}
+                            {' · constructions : ' + cranioRequirements.requiredConstructions.join(', ')}
+                            {' · sources géométriques indirectes : ' + Object.entries(cranioRequirements.constructionTransitiveLandmarks)
+                              .map(([id, points]) => id + ' (' + points.join(', ') + ')').join(' ; ')}
+                            {' · chaîne de constructions : ' + Object.entries(cranioRequirements.constructionDependencyChain)
+                              .map(([id, chain]) => id + ' via ' + chain.join(' → ')).join(' ; ')}
+                            {cranioRequirements.requiredManualLandmarks.length
+                              ? ' · repères manuels directs : ' + cranioRequirements.requiredManualLandmarks.join(', ')
+                              : ''}
+                            {cranioRequirements.requiresCalibration ? ' · calibration mm vérifiée obligatoire' : ''}
+                            {' · source_image_ref et provenance des constructions à valider.'}
+                            {' · gate : ' + cranioRequirements.availabilityGate}
+                            {' · Aucune valeur, diagnostic ni Focus autorisé par cette description.'}
+                          </span>
                         ) : (
-                          <span className="mt-1 block">Hors registre de dépendances LOT06 ou extension Atlas publiée : aucun repère requis supplémentaire n’est supposé.</span>
+                          <span className="mt-1 block">Hors registre de dépendances Atlas publié : aucune obligation supplémentaire supposée.</span>
                         )}
                       </span>
                     )}
