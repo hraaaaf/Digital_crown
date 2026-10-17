@@ -365,7 +365,17 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       setSchedulingType('EXACT_TIME');
     } catch (err: any) {
       console.error("Erreur saving appt", err);
-      toast.error(err?.response?.data?.detail || "Erreur lors de la sauvegarde du rendez-vous.");
+      // The real appointment API returns 409.detail as {message, conflicts}.
+      // Never pass that object directly into toast (React child/render error).
+      const detail = err?.response?.data?.detail;
+      const errorText = typeof detail === 'string'
+        ? detail
+        : detail && typeof detail.message === 'string'
+          ? detail.message
+          : 'Erreur lors de la sauvegarde du rendez-vous.';
+      toast.error(err?.response?.status === 409
+        ? `${errorText} Choisissez un autre créneau avant de réessayer.`
+        : errorText);
     } finally {
       setLoading(false);
     }
