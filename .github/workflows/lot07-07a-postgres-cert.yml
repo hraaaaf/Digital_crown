@@ -1,0 +1,74 @@
+name: LOT07 07-A PostgreSQL Isolation Certification Laboratory
+on:
+  pull_request:
+    paths:
+      - 'scripts/verification/lot07_07a_postgres_cert.py'
+      - '.github/workflows/lot07-07a-postgres-cert.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-real-fastapi:
+    name: PostgreSQL 16 real appointments router synthetic concurrency
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: synthetic
+          POSTGRES_PASSWORD: synthetic_ci_only
+          POSTGRES_DB: dc_agenda_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synthetic -d dc_agenda_synthetic"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      PG_CERT_LAB: '1'
+      DATABASE_URL: postgresql+psycopg://synthetic:synthetic_ci_only@127.0.0.1:5432/dc_agenda_synthetic
+      SECRET_KEY: isolated-postgres-ci-never-production-key-2026
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact synthetic audit HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+          persist-credentials: false
+      - name: Confirm isolated test target
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$PG_CERT_LAB" = 1
+          [[ "$DATABASE_URL" == postgresql+psycopg://synthetic:*@127.0.0.1:5432/dc_agenda_synthetic ]]
+          echo "CERT_EXACT_HEAD=$SOURCE_HEAD"
+          echo "CERT_TARGET=synthetic PostgreSQL service only"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install genuine backend dependencies and PostgreSQL driver
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/lot07-postgres-reqs.txt
+          pip install -r /tmp/lot07-postgres-reqs.txt
+          pip install 'psycopg[binary]>=3.2,<4' 'httpx>=0.27'
+      - name: Real FastAPI PostgreSQL 120 concurrent scenario races and lock interruption
+        run: |
+          set -euo pipefail
+          python scripts/verification/lot07_07a_postgres_cert.py
+      - name: Report sanitized failure diagnostics
+        if: failure()
+        run: |
+          echo "PostgreSQL certification incomplete. No production target accessed."
