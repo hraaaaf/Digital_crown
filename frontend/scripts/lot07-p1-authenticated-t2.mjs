@@ -78,6 +78,7 @@ async function checkPage(page,theme,width,zoomNative=false){
     &&metrics.outerWidth>=1200&&metrics.visualScale===1&&split===0))
     throw Error('Native 200% zoom not demonstrated '+JSON.stringify(metrics));
   const file=theme+'-'+width+(zoomNative?'-native200':'')+'.png';
+  if(zoomNative)await page.getByRole('status',{name:'Antécédents médicaux non renseignés'}).scrollIntoViewIfNeeded();
   await page.screenshot({path:path.join(out,file),animations:'disabled',fullPage:false});
   const image=await fs.stat(path.join(out,file));
   if(image.size<12000)throw Error('Blank image evidence '+file+' size='+image.size);
