@@ -1,0 +1,83 @@
+name: SEC-P1.2d EXPERIMENTAL Real Station JWT SQLCipher Native Parity
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "scripts/security/sec_p1_2d_real_station_native_lab.py"
+      - ".github/workflows/sec-p1-2d-real-station-sqlcipher.yml"
+      - "docs/security/SEC_P1_2C_AUTH_SQLCIPHER_LAB.md"
+      - "backend/core/key_material.py"
+      - "backend/routers/auth.py"
+      - "backend/routers/workstation_mode.py"
+      - "backend/models_platform.py"
+      - "backend/database.py"
+      - "backend/security.py"
+      - "backend/routers/agenda_resources.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sec-p1-2d-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-key-sqlcipher-auth:
+    name: EXPERIMENTAL real Station JWT SQLCipher native key (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Confirm SHA identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Select Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install SQLCipher Linux compilation dependency
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+
+      - name: Install pinned real authentication and encrypted database dependencies
+        run: >-
+          python -m pip install Nuitka==4.3
+          pytest sqlalchemy==2.0.48 alembic==1.20.0 passlib==1.7.4
+          bcrypt==3.2.2 python-jose==3.5.0 fastapi==0.115.6
+          pydantic==2.6.3 pydantic-settings==2.2.1 python-dotenv==1.2.2
+          email-validator==2.3.0 httpx==0.28.1 python-multipart==0.0.22
+          cryptography==49.0.0 sqlcipher3==0.6.2
+
+      - name: Install actual auth/router support imports (no AI engine or services)
+        run: >-
+          python -m pip install
+          qrcode psutil requests uvicorn
+          firebase-admin==7.5.0 jwcrypto==1.6.1
+          sentry-sdk python-bidi PyPDF2
+          arabic-reshaper
+
+      - name: Validate installed dependency contract
+        run: python -m pip check
+
+      - name: Verify real WorkstationMode gate and PIN-issued escape source versus native SQLCipher
+        run: python scripts/security/sec_p1_2d_real_station_native_lab.py
