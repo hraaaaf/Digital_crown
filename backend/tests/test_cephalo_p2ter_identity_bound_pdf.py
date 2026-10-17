@@ -85,6 +85,20 @@ def test_two_studies_older_selection_generates_exact_study_and_revision(
     assert pdf_a.status_code == 200, pdf_a.text[:500] if pdf_a.status_code != 200 else ""
     assert pdf_a.headers["X-Cephalo-Analysis-Id"] == str(study_a.id)
     assert pdf_a.headers["X-Cephalo-Revision"] == "1"
+    # Export A4 images from the exact PDF bytes for human QA; synthetic only.
+    import os
+    evidence_dir = os.getenv("P2TER_EVIDENCE_DIR")
+    if evidence_dir:
+        out = Path(evidence_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "selected-old-study-a.pdf").write_bytes(pdf_a.content)
+        with fitz.open(stream=pdf_a.content, filetype="pdf") as pages:
+            for index, page in enumerate(pages):
+                assert 590 < page.rect.width < 600 and 838 < page.rect.height < 845
+                if index < 12:
+                    page.get_pixmap(matrix=fitz.Matrix(1.2, 1.2), alpha=False).save(
+                        out / f"selected-old-study-a-page-{index+1:02}.png"
+                    )
     text_a = _compact(_text(pdf_a))
     assert _compact(f"ÉTUDE CÉPHALO ID : {study_a.id}") in text_a
     assert _compact(f"ÉTUDE CÉPHALO ID : {study_b.id}") not in text_a
@@ -200,3 +214,41 @@ def test_archive_failure_is_not_silenced(client, db, dentiste, monkeypatch, tmp_
         assert response.status_code == 500
     except HTTPException as exc:
         assert exc.status_code == 500
+
+
+def test_archive_persists_selected_study_fk_and_revision_on_synthetic_fixture(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, original, _ = _case(db, dentiste)
+    newer = _second(db, original)
+    headers = _jwt(client, dentiste)
+
+    # Force only the consistency-validator branch to pass so that the archive
+    # I/O contract can be tested. This is NEVER clinical approval.
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _data: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "isolated-archives")
+
+    older_pdf = _request(client, patient.id, original.id, headers, archive=True)
+    assert older_pdf.status_code == 200, older_pdf.text[:700] if older_pdf.status_code != 200 else ""
+    assert older_pdf.headers["X-Cephalo-Analysis-Id"] == str(original.id)
+    archived = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).all()
+    assert len(archived) == 1
+    assert archived[0].analysis_id == original.id
+    assert archived[0].analysis_id != newer.id
+    assert archived[0].clinical_data["cephalo_analysis_id"] == original.id
+    assert archived[0].clinical_data["cephalo_analysis_revision"] == 1
+    assert archived[0].file_path.startswith("static/archives/")
+    relative = archived[0].file_path.removeprefix("static/archives/")
+    saved = (tmp_path / "isolated-archives" / relative).read_bytes()
+    assert saved == older_pdf.content
+    assert _compact(f"ÉTUDE CÉPHALO ID : {original.id}") in _compact(_text(older_pdf))
