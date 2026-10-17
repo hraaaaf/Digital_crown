@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
 import { getDayBounds, getDaySchedule, getExceptionForDate, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
 import { PatientAvatar } from '../patients/components/PatientAvatar';
+import { layoutAgendaDayOverlaps } from './agendaDayOverlapLayout';
 
 export type AppointmentStatus = 'PRÉVU' | 'EN_S_ATTENTE' | 'EN_FAUTEUIL' | 'TERMINÉ' | 'ANNULÉ' | 'EN_ATTENTE_DEMANDE' | 'EN_ATTENTE_CONFIRM' | 'CONFIRMÉ' | 'REFUSÉ' | 'EXPIRÉ' | 'ABSENT';
 
@@ -36,6 +37,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [initialTime, setInitialTime] = useState('09:00');
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const dayScrollRef = useRef<HTMLDivElement>(null);
   
   const daySchedule = getDaySchedule(selectedDate, agendaSettings);
   const exception = getExceptionForDate(selectedDate, exceptions);
@@ -64,7 +66,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
     setIsModalOpen(true);
   };
 
-  const handleEditClick = (e: React.MouseEvent, appt: Appointment) => {
+  const handleEditClick = (e: React.SyntheticEvent, appt: Appointment) => {
     e.stopPropagation();
     setEditingAppointment(appt);
     setIsModalOpen(true);
@@ -161,13 +163,17 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
 
   const exactAppointments = appointments.filter(a => !a.scheduling_type || a.scheduling_type === 'EXACT_TIME');
   const flexAppointments = appointments.filter(a => a.scheduling_type && a.scheduling_type !== 'EXACT_TIME');
+  // Geometry only: when multiple practitioners share one time slot, show every
+  // appointment side-by-side. The appointment/practitioner payload stays intact.
+  const dayLanes = layoutAgendaDayOverlaps(exactAppointments);
+  const maxDayLanes = Math.max(1,...Array.from(dayLanes.values(),value=>value.lanes));
 
   return (
     <div data-testid="agenda-day-view" className="w-full space-y-6">
       
       {/* QUICK ACTIONS BAR */}
       <div className="flex justify-end gap-3 px-2">
-        <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
+        <button onClick={fetchAppointments} aria-label="Actualiser la journée" className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-primary")} />
         </button>
         <button 
@@ -187,8 +193,31 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
         </div>
       )}
 
+      {/* At mobile widths the visual lanes do NOT overlap, but can require a
+          horizontal internal scroll. Make the additional concurrent visit
+          discoverable rather than silently hiding it offscreen. */}
+      {maxDayLanes > 1 && (
+        <div data-p2-day-scroll-hint className="sm:hidden rounded-2xl border border-border-main bg-card p-3 text-text-main">
+          <p className="text-sm font-semibold">
+            {maxDayLanes} rendez-vous simultanés : consultez toutes les colonnes.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" aria-label="Voir les rendez-vous à gauche"
+              onClick={() => dayScrollRef.current?.scrollBy({left:-220,behavior:'instant'})}
+              className="min-h-11 flex-1 rounded-xl border border-border-main bg-card px-3 text-sm font-bold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+              ← Précédents
+            </button>
+            <button type="button" data-p2-next-day-lane aria-label="Voir les rendez-vous à droite"
+              onClick={() => dayScrollRef.current?.scrollBy({left:220,behavior:'instant'})}
+              className="min-h-11 flex-1 rounded-xl border border-border-main bg-card px-3 text-sm font-bold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+              Suivants →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* CSS GRID AGENDA */}
-      <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+      <div className="p2-agenda-surface bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         
         {/* FLEXIBLE APPOINTMENTS HEADER */}
         {flexAppointments.length > 0 && (
@@ -243,7 +272,9 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
             <p className="font-bold tracking-widest uppercase text-xs">Chargement des créneaux...</p>
           </div>
         ) : (
-          <div className="flex relative overflow-y-auto" style={{ height: '700px' }}>
+          <div ref={dayScrollRef} data-p2-day-scroll role="region" aria-label="Grille horaire des rendez-vous, défilement interne"
+            tabIndex={0} className="flex relative overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            style={{ height: '700px' }}>
             
             {/* Colonne des heures (gauche) */}
             <div className="w-20 flex-shrink-0 border-r border-slate-100 bg-slate-50/50 sticky left-0 z-20">
@@ -259,8 +290,11 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
               className="flex-1 relative bg-white/30 cursor-crosshair group" 
               onClick={handleGridClick}
               style={{
+                // Avoid zero-width patient names when 2+ appointments share a
+                // slot at 390px. Scroll INSIDE the Day region, never the page.
+                minWidth: `${maxDayLanes*220}px`,
                 backgroundImage: 'linear-gradient(to bottom, transparent 95%, rgba(226, 232, 240, 0.5) 95%)',
-                backgroundSize: '100% 6rem' 
+                backgroundSize: '100% 6rem'
               }}
             >
               
@@ -282,6 +316,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
               {exactAppointments.map((appt) => {
                 const rowStart = getSlotRow(appt.datetime_start);
                 const span = getDurationSpan(appt.duration_minutes);
+                const lane = dayLanes.get(appt.id) ?? {lane:0,lanes:1,leftPercent:0,widthPercent:100};
                 
                 // Si out of bounds
                 if (rowStart < 0 || rowStart >= totalSlots) return null;
@@ -292,14 +327,23 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
                 return (
                   <div 
                     key={appt.id}
+                    data-p2-day-appointment={appt.id}
+                    data-p2-day-lane={lane.lane}
+                    data-p2-day-lanes={lane.lanes}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Modifier le rendez-vous de ${appt.patient_name || 'patient'}`}
+                    onKeyDown={(event) => { if(event.key === 'Enter' || event.key === ' ') {event.preventDefault(); handleEditClick(event,appt);} }}
                     onClick={(e) => handleEditClick(e, appt)}
                     className={cn(
-                      "appointment-item absolute left-2 right-4 p-3 rounded-xl border border-l-4 shadow-sm cursor-pointer transition-all z-10 flex flex-col hover:scale-[1.01] hover:shadow-md",
+                      "appointment-item absolute p-2 sm:p-3 rounded-xl border border-l-4 shadow-sm cursor-pointer transition-all z-10 flex flex-col hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                       getStatusColor(appt.status)
                     )}
                     style={{ 
                       top: `${topPixel}px`, 
                       height: `${heightPixel - 4}px`, // -4px pour laisser de l'espace margin
+                      left: `calc(${lane.leftPercent}% + 8px)`,
+                      width: `calc(${lane.widthPercent}% - 16px)`,
                       borderLeftColor: 'currentColor'
                     }}
                   >

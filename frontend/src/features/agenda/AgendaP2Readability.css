@@ -1,0 +1,63 @@
+/*
+ * LOT07 07-A P2 — Agenda-only contrast and viewport treatment.
+ * Existing Dark and Elite tokens are NOT changed. This stylesheet is inert
+ * outside AgendaStudio, and has no effect on non-Dark themes.
+ */
+.p2-agenda-root button:focus-visible,
+.p2-agenda-root [role="button"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .p2-agenda-surface {
+  background: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main);
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .p2-agenda-switcher,
+:is(html, body)[data-theme='dark'] .p2-agenda-root :is(
+  [class~='bg-slate-50'],[class~='bg-slate-50/30'],[class~='bg-slate-50/50'],[class~='bg-slate-50/60'],
+  [class~='bg-slate-100'],[class~='bg-slate-100/50'],[class~='bg-slate-100/60'],[class~='bg-slate-100/80']) {
+  background-color: var(--glass-bg) !important;
+  border-color: var(--border-color) !important;
+}
+/* Match actual background utility tokens, never hover:bg-white: the latter
+ * appears on primary-colored clinical action buttons and must not turn them
+ * into dark cards even when their default background is brand-primary. */
+:is(html, body)[data-theme='dark'] .p2-agenda-root :is(
+  [class~='bg-white'],[class~='bg-white/20'],[class~='bg-white/30'],[class~='bg-white/40'],
+  [class~='bg-white/50'],[class~='bg-white/60'],[class~='bg-white/70'],
+  [class~='bg-white/80'],[class~='bg-white/90'],[class~='bg-white/95']) {
+  background-color: var(--card-bg) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='border-white'] {
+  border-color: var(--border-color) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-primary,
+:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='text-indigo-'],
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-700,
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-800,
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-900 {
+  color: var(--text-main) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-400,
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-500,
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-600 {
+  /* Dark's muted token is too dim for the small Agenda nav/time labels.
+   * Reuse the EXISTING high-contrast Dark ink; no new token, palette change
+   * or impact outside Agenda. Keep computed RGB directly auditable in CI. */
+  color: var(--text-main) !important;
+}
+/* Status cards keep their semantic backgrounds and colors. The default blue
+ * "new appointment" buttons retain their existing primary surface, so never
+ * overwrite white or on-primary text inside a primary background. */
+:is(html, body)[data-theme='dark'] .p2-agenda-root .bg-primary .text-primary {
+  color: var(--text-on-primary) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .p2-agenda-nav {
+  color: var(--text-main) !important;
+}
+/* Keep the full-page Month layout unchanged on tablets/desktops, while the
+ * <640px dated list is an explicit mobile alternative rather than tiny cells. */
+.p2-agenda-root [data-p2-month-day] button {
+  overflow-wrap: anywhere;
+}

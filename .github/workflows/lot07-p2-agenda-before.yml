@@ -1,0 +1,73 @@
+name: LOT07 07-A P2 Agenda BEFORE Visual Matrix
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/scripts/lot07-p2-agenda-before.mjs'
+      - '.github/workflows/lot07-p2-agenda-before.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-p2-agenda-before-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  before:
+    # BEFORE is immutable at ae8e8d... and was certified on run #39019753633.
+    # Once P2 product AFTER work starts, don't accidentally overwrite the
+    # baseline or fail because frontend/src is intentionally different.
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha == 'ae8e8d117f823a3efc5fe17efd405099507a4c3a' }}
+    name: Actual React Agenda Elite Dark day week month multi viewport matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      BASELINE_P1_HEAD: e7a359040840deb02c17c69593e982cfc192483e
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+    steps:
+      - name: Checkout immutable candidate HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Assert P2 stacked on approved P1 and product unchanged
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          git merge-base --is-ancestor "$BASELINE_P1_HEAD" HEAD
+          git diff --quiet "$BASELINE_P1_HEAD" HEAD -- frontend/src frontend/index.html frontend/index.css backend
+          echo 'P2 BEFORE only: no tracked app/backend changes'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked React and browser
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Reuse existing Agenda functional tests
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/agenda/AgendaStudio.g3Interactive.test.tsx src/AgendaClinicA2.test.ts --maxWorkers=1 --fileParallelism=false
+      - name: Capture REAL current React Agenda BEFORE, all themes and views
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          node scripts/lot07-p2-agenda-before.mjs
+      - name: Upload raw BEFORE screenshots and exact SHA manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-p2-agenda-before-evidence
+          path: artifacts/lot07-p2-agenda-before/
+          retention-days: 14
+          if-no-files-found: warn

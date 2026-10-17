@@ -1,0 +1,80 @@
+name: LOT07 07-A P2 Agenda AFTER Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/features/agenda/**'
+      - 'frontend/scripts/lot07-p2-agenda-after.mjs'
+      - '.github/workflows/lot07-p2-agenda-after.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-p2-agenda-after-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  after:
+    name: P2 Agenda functional accessibility and 72 real React AFTER captures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      BASELINE_P1_HEAD: e7a359040840deb02c17c69593e982cfc192483e
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout immutable P2 head
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Restrict product modifications to Agenda UX
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          git merge-base --is-ancestor "$BASELINE_P1_HEAD" HEAD
+          while IFS= read -r changed; do
+            case "$changed" in
+              frontend/src/features/agenda/*|frontend/scripts/lot07-p2-agenda-before.mjs|frontend/scripts/lot07-p2-agenda-after.mjs|.github/workflows/lot07-p2-agenda-before.yml|.github/workflows/lot07-p2-agenda-after.yml) ;;
+              *) echo "::error::Unexpected P2 cross-boundary path: $changed"; exit 1 ;;
+            esac
+          done < <(git diff --name-only "$BASELINE_P1_HEAD" HEAD)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install browser and locked React
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Existing agenda behavior plus new concurrency contract
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/agenda/AgendaStudio.g3Interactive.test.tsx src/AgendaClinicA2.test.ts src/features/agenda/agendaDayOverlapLayout.test.ts --maxWorkers=1 --fileParallelism=false
+      - name: Typecheck and Vite build without deployment
+        working-directory: frontend
+        run: |
+          npx tsc --noEmit
+          npx vite build --outDir dist-lot07-p2-cert
+      - name: Capture same-fixture AFTER and enforce visual contracts
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          node scripts/lot07-p2-agenda-after.mjs
+      - name: Upload actual AFTER screenshots and immutable manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-p2-agenda-after-evidence
+          path: artifacts/lot07-p2-agenda-after/
+          retention-days: 14
+          if-no-files-found: warn

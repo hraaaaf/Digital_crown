@@ -19,7 +19,14 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
 
   const handleDayClick = (day: Date) => {
     setEditingAppointment(null);
-    setModalDate(day);
+    // A calendar day is a *local* clinic date, not a UTC midnight instant.
+    // AgendaModal currently serializes selectedDate with toISOString().
+    // Passing local midnight would select the PREVIOUS day in Africa/Casablanca.
+    // Noon preserves the requested local calendar date without changing
+    // backend contracts or global timezone logic (A5 remains out of scope).
+    const localCalendarDate = new Date(day);
+    localCalendarDate.setHours(12, 0, 0, 0);
+    setModalDate(localCalendarDate);
     setIsModalOpen(true);
   };
 
@@ -49,6 +56,18 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
   };
 
   const days = getMonthDays(selectedDate);
+  // The seven-column calendar is useful on desktop but too narrow to show
+  // patient names at 390px. A mobile-only chronological list uses exactly
+  // the same fetched appointments, dates and existing edit flow.
+  const monthDaysWithAppointments = days.filter(day =>
+    day.getMonth() === selectedDate.getMonth() &&
+    appointments.some(a => new Date(a.datetime_start).toDateString() === day.toDateString())
+  );
+  const chosenDate = [
+    selectedDate.getFullYear(),
+    String(selectedDate.getMonth()+1).padStart(2,'0'),
+    String(selectedDate.getDate()).padStart(2,'0')
+  ].join('-');
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -80,7 +99,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
   return (
     <div data-testid="agenda-month-view" className="w-full space-y-6">
       <div className="flex justify-end gap-3 px-2">
-        <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
+        <button aria-label="Actualiser le mois" onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-blue-500")} />
         </button>
         <button onClick={() => { setEditingAppointment(null); setModalDate(selectedDate); setIsModalOpen(true); }} className="px-6 py-3 bg-[#003380] text-white font-bold rounded-2xl shadow-xl shadow-blue-900/10 hover:bg-blue-900 transition-all flex items-center gap-2">
@@ -88,7 +107,62 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
         </button>
       </div>
 
-      <div className="bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[700px]">
+      <div data-p2-mobile-month-list className="sm:hidden space-y-3">
+        <h2 className="px-1 text-base font-bold text-text-main">Rendez-vous du mois</h2>
+        {/* The desktop grid allows picking any date (including an empty day)
+            to create a visit. Keep that exact operation accessible on mobile. */}
+        <div className="p2-agenda-surface flex flex-wrap items-center gap-2 rounded-xl border border-border-main bg-card p-3">
+          <label htmlFor="p2-month-choose-day" className="flex-1 text-sm font-semibold text-text-main">Créer un RDV à une date</label>
+          <input id="p2-month-choose-day" data-p2-month-date-picker type="date"
+            value={chosenDate}
+            onChange={e=>{
+              if(!e.target.value)return;
+              const date=new Date(e.target.value+'T12:00:00');
+              if(!Number.isNaN(date.getTime()))handleDayClick(date);
+            }}
+            className="min-h-11 max-w-full rounded-lg border border-border-main bg-card px-2 text-sm font-semibold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            aria-label="Choisir un jour pour créer un rendez-vous"
+          />
+        </div>
+        {loading && appointments.length === 0 && <p role="status" className="p-4 text-text-muted">Chargement des rendez-vous…</p>}
+        {!loading && monthDaysWithAppointments.length === 0 && (
+          <p className="p-4 rounded-xl border border-border-main bg-card text-text-muted">Aucun rendez-vous pour ce mois.</p>
+        )}
+        {monthDaysWithAppointments.map(day => {
+          const dayAppointments=appointments
+            .filter(a=>new Date(a.datetime_start).toDateString() === day.toDateString())
+            .sort((a,b)=>new Date(a.datetime_start).getTime()-new Date(b.datetime_start).getTime()||a.id-b.id);
+          return (
+            <section key={day.toISOString()} data-p2-month-day className="p2-agenda-surface rounded-2xl border border-border-main bg-card p-3 shadow-sm">
+              <h3 className="mb-2 px-1 text-sm font-bold text-text-main capitalize">
+                {day.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}
+                <span className="ml-2 text-xs font-semibold text-text-muted">{dayAppointments.length} RDV</span>
+              </h3>
+              <div className="space-y-2">
+                {dayAppointments.map(a=>{
+                  const when=new Date(a.datetime_start).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+                  const timeLabel=a.scheduling_type==='FULL_DAY'?'Journée'
+                    :a.scheduling_type==='MORNING'?'Matin'
+                    :a.scheduling_type==='AFTERNOON'?'Après-midi':when;
+                  return (
+                    <button key={a.id} type="button" data-m4d-month-appointment data-p2-month-appointment
+                      onClick={e=>handleAppointmentClick(e,a)}
+                      aria-label={`Modifier le rendez-vous de ${a.patient_name || 'patient'} à ${timeLabel}`}
+                      className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-border-main bg-card p-3 text-left text-text-main shadow-sm hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                      <span className="w-14 shrink-0 text-sm font-bold text-text-main">{timeLabel}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{a.patient_name || 'Patient'}</span>
+                        {a.motif && <span className="block truncate text-xs text-text-muted">{a.motif}</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      <div data-p2-month-grid className="p2-agenda-surface hidden sm:block bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[700px]">
         <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
           {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
             <div key={d} className="p-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 last:border-0">{d}</div>
