@@ -144,6 +144,30 @@ async function viewportRun(viewport){
   await shot('archive-after');
   record.checks.push('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_'+identities.older_id+'_REV_'+archivedPayload.expected_revision);
   record.checks.push('POINTER_DOUBLE_CLICK_SINGLE_ARCHIVE_POST');
+  // UI transport regression only: mock a synthetic 422 response on the real
+  // authenticated button. Backend 422 and zero archive are asserted in pytest.
+  const clinicalRefusal='Discordance structurelle synthétique';
+  const deny422=async route=>{
+    const payload=route.request().postDataJSON();
+    if(payload?.archive!==true || payload.analysis_id!==identities.older_id)
+      throw Error('Unexpected intercepted clinical refusal request');
+    await route.fulfill({status:422,contentType:'application/json',
+      body:JSON.stringify({detail:{message:'Archivage refusé',fatals:[clinicalRefusal],warnings:[]}})});
+  };
+  await page.route('**/api/patients/*/pdf',deny422);
+  try {
+    const refusalResponse=page.waitForResponse(r=>
+      new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
+      r.request().postDataJSON()?.archive===true,{timeout:30000});
+    await archiveButton.click();
+    const refusal=await refusalResponse;
+    if(refusal.status()!==422)throw Error('Clinical refusal response expected 422');
+    await page.getByText(new RegExp(clinicalRefusal)).first().waitFor({state:'visible',timeout:10000});
+    await shot('synthetic-clinical-422-refusal-visible');
+    record.checks.push('SIMULATED_422_BLOB_REFUSAL_VISIBLE_NO_SERVER_ARCHIVE');
+  } finally {
+    await page.unroute('**/api/patients/*/pdf',deny422);
+  }
   // Concurrent authenticated tabs must retain different selected study identities.
   const tabB=await context.newPage();
   await tabB.goto(root+'/patients/'+identities.patient_id+'?tab=radiology&radioTab=cephalo',
