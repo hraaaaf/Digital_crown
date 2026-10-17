@@ -8,6 +8,7 @@ import type { R23G3PinnedDependency } from './cephaloR23G3PinnedRequirements';
 export interface R23G8W2DentalRequirement extends R23G3PinnedDependency {
   readonly requiredManualLandmarks: readonly string[];
   readonly indirectConstructionManualLandmarks: readonly string[];
+  readonly constructionUpstreamLandmarks: Readonly<Record<string, readonly string[]>>;
   readonly requiresCalibration: boolean;
   readonly requiresSameImageSource: true;
   readonly clinicalEvidenceVerifiedByThisPreview: false;
@@ -31,6 +32,7 @@ export function findR23G8W2DentalRequirements(
     requiredConstructions: [...row.required_constructions],
     requiredManualLandmarks: [...row.required_manual_landmarks],
     indirectConstructionManualLandmarks: [...row.indirect_construction_manual_landmarks],
+    constructionUpstreamLandmarks: Object.fromEntries(Object.entries(row.construction_upstream_landmarks).map(([id,points]) => [id, [...points]])),
     requiresCalibration: row.requires_calibration,
     requiresSameImageSource: true,
     clinicalEvidenceVerifiedByThisPreview: false,
