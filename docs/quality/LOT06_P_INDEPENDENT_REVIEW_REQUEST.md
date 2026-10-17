@@ -27,10 +27,16 @@ Prove or disprove:
 - Native Windows `NtCreateFile RootDirectory` source + `.ready` reads,
   `NtSetInformationFile` relative spool create/rename/read, collision
   refusal and handle-based cleanup under directory substitutions/reparse.
-- SQLite VFS `sqlite3.connect` **still opens by path**. Do new sidecar checks
-  meaningfully refuse junction/symlink/hardlink/root swaps and a replaced
-  `acquisitions.sqlite3`? Can a same-user adversary win TOCTOU between
-  checks and SQLite open/commit? What is the actual threat boundary?
+- SQLite VFS `sqlite3.connect` **still opens by path**. Verify the
+  new Windows no-`FILE_SHARE_DELETE` directory/main-DB HANDLE lifetime,
+  including a real **second-process** main-file rename denial and rename
+  succeeding after close. The test is narrow: actively try a same-user
+  in-place write, unpinned WAL/SHM/journal replacement, first-bootstrap
+  name creation race, hardlink/symlink/reparse, and path-identity ABA race.
+  Examine whether native APIs/handle lifetimes interfere with SQLite's
+  own WAL checkpoint/close. State exactly what is and is not stopped by
+  filesystem sharing; do not mistake no-rename for full ACL isolation.
+  Can an adversary win TOCTOU between checks and SQLite open/commit?
 - SQLite WAL/SHM/journal plus checkpoint/rollback, temp SQLite files and
   named external attaches: any paths escaping private root, PHI or secrets?
 - Windows DACL installer contract is unimplemented; explicitly state that
@@ -49,7 +55,10 @@ Prove or disprove:
   parent disappearance, OS child release/reap; Linux PDEATHSIG equivalent.
 - Single-process ownership with multi-Uvicorn worker or restart after crash.
 - WAL FULL durability, checkpoint/recovery, out-of-space, SQLite busy locks,
-  stale sidecars, database identity reuse after legitimate restarts.
+  stale sidecars, database identity reuse after legitimate restarts;
+  assess Windows per-connection ancestry/main-DB no-delete-sharing for
+  lock-order inversion, denied checkpoint/unlink, handle leaks, concurrent
+  worker contention, normal shutdown, and restart.
 - Encryption/nonce/AAD/isolated lab, no duplicate replay, source unchanged,
   actual protocol/media format fail-closed.
 - Windows package/service and ACL gate remains **NOT TESTED / DEFERRED LOT10**.
