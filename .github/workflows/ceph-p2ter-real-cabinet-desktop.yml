@@ -1,0 +1,120 @@
+name: CEPH P2ter Real Cabinet Authenticated Desktop (experimental)
+on:
+  push:
+    branches:
+      - fix/ceph-fac-parity-p2ter-*
+permissions:
+  contents: read
+jobs:
+  cabinet-real-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: p2ter-t2-disposable-only-secret-key-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      PRODUCT_HEAD: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Require exact HEAD in T2 lab
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate disposable T2 password (masked)
+        run: |
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Install backend isolated
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/p2ter-cabinet-dependencies.txt
+          pip install -r /tmp/p2ter-cabinet-dependencies.txt
+          python -m pip check
+      - name: Install frontend and Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start isolated T2 FastAPI runtime (real JWT and workstation)
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/p2ter-backend.log 2>&1 &
+          echo $! > /tmp/p2ter-backend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/p2ter-backend.log
+          exit 1
+      - name: Seed two synthetic versioned studies on disposable test DB
+        run: |
+          python scripts/ceph_p2ter_seed_t2.py | tee /tmp/p2ter-seed.log
+          studies="$(python - <<'PY'
+          import json
+          text=open('/tmp/p2ter-seed.log').read()
+          line=next(x.split('=',1)[1] for x in text.splitlines() if x.startswith('P2TER_SYNTHETIC_STUDIES='))
+          print(json.dumps(json.loads(line),separators=(',',':')))
+          PY
+          )"
+          echo "P2TER_STUDIES=$studies" >> "$GITHUB_ENV"
+      - name: Start real Cabinet React frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p2ter-frontend.log 2>&1 &
+          echo $! > /tmp/p2ter-frontend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/p2ter-frontend.log
+          exit 1
+      - name: REAL UI login, history study A/B, JWT PDF at two desktops
+        working-directory: frontend
+        run: node scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+      - name: Verify A4 PDF identity and rendered nonclinical pages
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import fitz,json
+          root=Path('artifacts/ceph-p2ter-authenticated-desktop')
+          report=json.loads((root/'report.json').read_text())
+          assert report['head']=='${{ github.sha }}' and len(report['viewports'])==2
+          assert all(item['valid'] for item in report['viewports'])
+          for label in ('1280x900','1600x1000'):
+              for kind in ('older','newer'):
+                  p=root/(label+'-'+kind+'-selected-study.pdf')
+                  with fitz.open(p) as doc:
+                      assert len(doc)>=2
+                      for index,page in enumerate(doc):
+                          assert 590 < page.rect.width < 600 and 838 < page.rect.height < 845
+                          if index<8:
+                              page.get_pixmap(matrix=fitz.Matrix(1,1),alpha=False).save(root/(label+'-'+kind+'-page-'+str(index+1)+'.png'))
+          PY
+      - name: Dump isolated runtime diagnostic on failure
+        if: failure()
+        run: |
+          tail -100 /tmp/p2ter-backend.log || true
+          tail -100 /tmp/p2ter-frontend.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ceph-p2ter-real-cabinet-${{ github.sha }}
+          path: artifacts/ceph-p2ter-authenticated-desktop/
+          if-no-files-found: warn
+          retention-days: 30
