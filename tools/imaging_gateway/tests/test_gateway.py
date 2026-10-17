@@ -8,6 +8,7 @@ import hashlib
 import zlib
 import os
 import subprocess
+import shutil
 import sys
 from pathlib import Path
 import tempfile
@@ -15,7 +16,6 @@ import unittest
 
 from tools.imaging_gateway import Config, HotFolder, GatewayError
 from tools.imaging_gateway.media_validation import valid_png
-from tools.imaging_gateway.windows_directory_pin import pin_directories
 
 
 SYNTHETIC = base64.b64decode(
@@ -192,17 +192,29 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.agent.scan_once()["rejected"], 1)
             self.assertEqual(self.agent.items(), [])
 
-    @unittest.skipUnless(os.name == "nt", "Windows directory pin regression")
-    def test_ntfs_pin_blocks_rename_for_entire_live_scan(self):
-        # This verifies an actual Windows kernel no-share-delete handle,
-        # rather than only a Python path/symlink check.
-        replacement = self.watch.with_name("watch-rename-attempt")
-        with pin_directories((self.watch,)):
-            with self.assertRaises(OSError):
-                self.watch.rename(replacement)
-        self.watch.rename(replacement)
-        replacement.rename(self.watch)
-        self.assertEqual(self.agent.scan_once()["unstable"], 0)
+    def test_root_replaced_during_capture_read_is_never_committed(self):
+        file = self.watch / "fixture.png"
+        file.write_bytes(SYNTHETIC)
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        moved = self.watch.with_name("watch-moved-during-capture")
+        actual_read = self.agent._read
+
+        def move_after_read(path, initial):
+            content = actual_read(path, initial)
+            self.watch.rename(moved)
+            self.watch.mkdir()
+            (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+            return content
+
+        try:
+            with patch.object(self.agent, "_read", side_effect=move_after_read):
+                with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                    self.agent.scan_once()
+            self.assertEqual(self.agent.items(), [])
+        finally:
+            if moved.exists():
+                shutil.rmtree(self.watch)
+                moved.rename(self.watch)
 
     def test_watch_directory_replaced_after_initialization_fails_closed(self):
         original = self.watch.parent / "watch-moved"
