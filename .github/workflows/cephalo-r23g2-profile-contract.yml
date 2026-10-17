@@ -30,6 +30,12 @@ on:
       - 'audit/cephalo_r23g8_w2_contract_tests/test_dental_manual_source_coverage.py'
       - 'frontend/src/features/ortho/cephaloR23G8W2DentalRequirements.ts'
       - 'frontend/src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W3CranioRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W3CranioRequirements.test.ts'
+      - 'docs/audits/schemas/cephalo_r23g8_w3_atlas33_craniomandibular_dependencies_v1.json'
+      - 'scripts/cephalo_r23g8_w3_cranio_coverage.py'
+      - 'audit/cephalo_r23g8_w3_contract_tests/test_craniomandibular_source_coverage.py'
+      - 'backend/services/cephalo_canonical_constructions_v2.py'
       - 'backend/tests/test_cephalo_lot08_image_orientation_evidence.py'
       - 'backend/services/cephalo_canonical_analysis_v2.py'
       - 'backend/schemas/cephalo_evidence.py'
@@ -66,7 +72,7 @@ jobs:
       - name: Install pytest (stdlib-only projector under test)
         run: python -m pip install pytest==9.0.3
       - name: Test source-profile cardinality and fail-closed values
-        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py audit/cephalo_r23g8_w2_contract_tests/test_dental_manual_source_coverage.py -q
+        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py audit/cephalo_r23g8_w2_contract_tests/test_dental_manual_source_coverage.py audit/cephalo_r23g8_w3_contract_tests/test_craniomandibular_source_coverage.py -q
       - name: Write exact Atlas33 8 plus 3 preview plus 22 hold source ledger
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -79,6 +85,18 @@ jobs:
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: python -m scripts.cephalo_r23g8_w2_dental_coverage --output audit/cephalo_r23g8_w2_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Publish W3 complete Atlas33 source dependency descriptors (NO clinical approval)
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python -m scripts.cephalo_r23g8_w3_cranio_coverage --output audit/cephalo_r23g8_w3_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Upload complete 33 source descriptors / clinical NO-GO report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g8-w3-atlas33-source-ledger-${{ github.event.pull_request.head.sha }}
+          path: audit/cephalo_r23g8_w3_evidence/
+          retention-days: 30
+          if-no-files-found: warn
       - name: Upload W2 source dependency ledger
         if: always()
         uses: actions/upload-artifact@v4
@@ -126,7 +144,7 @@ jobs:
         run: npm ci
       - name: Run fail-closed clinical profile reader tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts
+        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts src/features/ortho/cephaloR23G8W3CranioRequirements.test.ts
       - name: Full TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
@@ -167,6 +185,11 @@ jobs:
         run: python -m pytest backend/tests/test_cephalo_typed_read_route.py backend/tests/test_cephalo_runtime_chain.py -q
       - name: Signed Ricketts orientation actual backend schema and rotation/mirror regressions
         run: python -m pytest backend/tests/test_cephalo_lot08_image_orientation_evidence.py -q
+      - name: Ricketts Atlas W3 real cranio-mandibular constructors and method safety tests
+        run: |
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_c.py -q
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_b.py -q
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_profile.py -q
       - name: Ricketts Atlas W2 real dental/manual method safety tests
         run: |
           python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_a.py -k "molar_canine_and_overjet or reject_auto_authority or dental_projection_requires_calibration_and_same_image or generic_molar_canine_aliases" -q
