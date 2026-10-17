@@ -1,0 +1,105 @@
+{
+  "schema_version": "CEPHALO_R23G8_W1_ORIENTATION_SOURCE_DEPENDENCIES_V1",
+  "protocol_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "authority": "SOURCE_ORIENTATION_OBLIGATIONS_PREVIEW_ONLY__NOT_RUNTIME_MEASUREMENT_AUTHORITY",
+  "source_atlas": "backend/data/cephalometry/ricketts_atlas2009_complete33_protocol_profile_v1.json",
+  "source_orientation": "docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md",
+  "source_implementation": "backend/services/cephalo_canonical_analysis_v2.py",
+  "orientation_requirement": {
+    "model": "ImageOrientationEvidence",
+    "source_ref": "exact_current_source_image_ref",
+    "provenance": "source_or_verified_clinician_validation",
+    "axes": "finite_non_degenerate_orthogonal_anterior_superior",
+    "is_mirrored": "explicit",
+    "active_evidence": "required_not_inferred_from_screen_axes",
+    "source_graph": "references_valid_and_single_active_orientation"
+  },
+  "rule": "DESCRIPTIONS_ONLY__NO_ACTIVE_ORIENTATION_ASSERTION__NO_NUMERIC_OR_SVG_FOCUS_PROMOTION",
+  "measurements": [
+    {
+      "source_order": 4,
+      "measurement_id": "M_RICKETTS_OVERBITE_FOP_MM_V1",
+      "method_id": "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
+      "required_landmarks": [
+        "U1_incisal",
+        "L1_incisal"
+      ],
+      "required_constructions": [
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1"
+      ],
+      "requires_calibration": true,
+      "requires_same_image_orientation": true,
+      "required_manual_landmarks": [],
+      "availability_gate": "VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_D_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py"
+      ]
+    },
+    {
+      "source_order": 14,
+      "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XI_MM_V1",
+      "method_id": "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
+      "required_landmarks": [],
+      "required_constructions": [
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1",
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+      ],
+      "requires_calibration": true,
+      "requires_same_image_orientation": true,
+      "required_manual_landmarks": [],
+      "availability_gate": "VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_D_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py"
+      ]
+    },
+    {
+      "source_order": 18,
+      "measurement_id": "M_RICKETTS_COMMISSURE_FOP_MM_V1",
+      "method_id": "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2",
+      "required_landmarks": [
+        "LABIAL_COMMISSURE_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1"
+      ],
+      "requires_calibration": true,
+      "requires_same_image_orientation": true,
+      "required_manual_landmarks": [
+        "LABIAL_COMMISSURE_Ricketts"
+      ],
+      "availability_gate": "VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_D_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py"
+      ]
+    },
+    {
+      "source_order": 24,
+      "measurement_id": "M_RICKETTS_PALATAL_PLANE_FH_DEG_V1",
+      "method_id": "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or",
+        "ANS",
+        "PNS_Ricketts"
+      ],
+      "required_constructions": [],
+      "requires_calibration": false,
+      "requires_same_image_orientation": true,
+      "required_manual_landmarks": [
+        "PNS_Ricketts"
+      ],
+      "availability_gate": "VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_D_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py"
+      ]
+    }
+  ]
+}
