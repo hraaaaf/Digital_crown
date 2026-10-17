@@ -13,6 +13,7 @@ import { MultiPractitionerTimelineView } from './MultiPractitionerTimelineView';
 import { api } from '../../services/api';
 import { usePractitionerContextStore } from '../clinic/practitionerContext';
 import './AgendaP2Readability.css';
+import { clinicCalendarDay } from './agendaClinicLocalDate';
 
 export type AgendaViewMode = 'day' | 'week' | 'month' | 'multi';
 
@@ -94,12 +95,10 @@ export const AgendaStudio: React.FC = () => {
   const fetchMulti = async () => {
     setLoadingMulti(true);
     try {
-      const start = new Date(selectedDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(selectedDate);
-      end.setHours(23, 59, 59, 999);
+      // Backend filters timezone-naive cabinet wall times: never serialize browser instants.
+      const day = clinicCalendarDay(selectedDate);
       const res = await api.get('/appointments/multi-practitioner', {
-        params: { start_date: start.toISOString(), end_date: end.toISOString() }
+        params: { start_date: `${day}T00:00:00`, end_date: `${day}T23:59:59.999999` }
       });
       setMultiData(res.data);
     } catch (err: any) {
