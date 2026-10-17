@@ -55,41 +55,6 @@
       "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
     },
     {
-      "id": "FOP_PREMOLAR_Ricketts",
-      "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
-      "source_lock_excerpt": "- `FOP_PREMOLAR_Ricketts`",
-      "current_definition_fr": "Zone d'occlusion prémolaire de la FOP. Le choix du contact précis reste à préenregistrer, sans prendre une cuspide Aariz comme substitut.",
-      "interpretation_status": "ANATOMICAL_CONCEPT_ONLY__PIXEL_RULE_UNPROVEN",
-      "proposed_annotation_rule_is_not_authoritative": true,
-      "provisional_questionnaire_fr": [
-        "Contact anatomique incisobuccal exact ou milieu d'intercuspidation, selon quelle source primaire et quelle figure ?",
-        "Choix lorsque la prémolaire est absente, incluse, superposée ou hors occlusion ?",
-        "Le repère de G13 est-il réellement un seul point 2-D reproductible ?"
-      ],
-      "candidate_rule_for_expert_discussion_only_fr": "Pré-enregistrer la sélection d'un contact intercuspidien prémolaire précisément identifié (dents, contours superposés, absences/prothèses). Ne pas cliquer sans règle clinique qualifiée.",
-      "unresolved_reason_en": "Digital Crown source lock specifies functional posterior occlusal plane through premolar AND molar occlusion, not a generic cusp/UPM or Steiner anterior plane.",
-      "external_corroboration_not_atlas_authority": [
-        {
-          "url": "https://pubmed.ncbi.nlm.nih.gov/281884/",
-          "kind": "RICKETTS_PRIMARY_OCCLUSION_CONCEPT",
-          "scope": "Article Ricketts 1978 sur ligne d'occlusion ; résumé ne spécifie PAS un pixel 2-D premolaire déterministe."
-        }
-      ],
-      "extra_forbidden_aliases": [
-        "UPM",
-        "LPM",
-        "Occ_Ant",
-        "Steiner_OP"
-      ],
-      "reviewer_a_independent_source_check": false,
-      "reviewer_b_independent_source_check": false,
-      "illustrated_example_source_locked": false,
-      "ambiguity_and_not_visible_policy_accepted": false,
-      "interobserver_consensus_verified": false,
-      "clinical_use_authorized": false,
-      "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
-    },
-    {
       "id": "FOP_MOLAR_Ricketts",
       "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
       "source_lock_excerpt": "- `FOP_MOLAR_Ricketts`",
@@ -115,6 +80,41 @@
         "LMT",
         "Occ_Post",
         "molar_cusp"
+      ],
+      "reviewer_a_independent_source_check": false,
+      "reviewer_b_independent_source_check": false,
+      "illustrated_example_source_locked": false,
+      "ambiguity_and_not_visible_policy_accepted": false,
+      "interobserver_consensus_verified": false,
+      "clinical_use_authorized": false,
+      "decision": "HOLD__EXTERNAL_HUMAN_ADJUDICATION_REQUIRED"
+    },
+    {
+      "id": "FOP_PREMOLAR_Ricketts",
+      "source_lock_path": "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
+      "source_lock_excerpt": "- `FOP_PREMOLAR_Ricketts`",
+      "current_definition_fr": "Zone d'occlusion prémolaire de la FOP. Le choix du contact précis reste à préenregistrer, sans prendre une cuspide Aariz comme substitut.",
+      "interpretation_status": "ANATOMICAL_CONCEPT_ONLY__PIXEL_RULE_UNPROVEN",
+      "proposed_annotation_rule_is_not_authoritative": true,
+      "provisional_questionnaire_fr": [
+        "Contact anatomique incisobuccal exact ou milieu d'intercuspidation, selon quelle source primaire et quelle figure ?",
+        "Choix lorsque la prémolaire est absente, incluse, superposée ou hors occlusion ?",
+        "Le repère de G13 est-il réellement un seul point 2-D reproductible ?"
+      ],
+      "candidate_rule_for_expert_discussion_only_fr": "Pré-enregistrer la sélection d'un contact intercuspidien prémolaire précisément identifié (dents, contours superposés, absences/prothèses). Ne pas cliquer sans règle clinique qualifiée.",
+      "unresolved_reason_en": "Digital Crown source lock specifies functional posterior occlusal plane through premolar AND molar occlusion, not a generic cusp/UPM or Steiner anterior plane.",
+      "external_corroboration_not_atlas_authority": [
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/281884/",
+          "kind": "RICKETTS_PRIMARY_OCCLUSION_CONCEPT",
+          "scope": "Article Ricketts 1978 sur ligne d'occlusion ; résumé ne spécifie PAS un pixel 2-D premolaire déterministe."
+        }
+      ],
+      "extra_forbidden_aliases": [
+        "UPM",
+        "LPM",
+        "Occ_Ant",
+        "Steiner_OP"
       ],
       "reviewer_a_independent_source_check": false,
       "reviewer_b_independent_source_check": false,
