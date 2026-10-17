@@ -28,6 +28,8 @@ ul { margin:4px 0 4px 18px; padding:0; }
 
 <div class="meta">
 <strong>Patient :</strong> {{ patient_nom.upper() }} {{ patient_prenom.capitalize() }} &nbsp; | &nbsp;
+<strong>Étude Céphalo ID :</strong> {{ cephalo_source_analysis_id or 'NON VÉRIFIÉ' }} &nbsp; | &nbsp;
+<strong>Révision :</strong> {{ cephalo_source_analysis_revision or 'NON VÉRIFIÉE' }}<br>
 <strong>Âge :</strong> {{ patient_age }} ans &nbsp; | &nbsp;
 <strong>Date :</strong> {{ date_analyse }}<br>
 <strong>Autorité :</strong> {{ authority or 'indisponible' }}<br>
