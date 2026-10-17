@@ -363,7 +363,7 @@ export const PatientDetails = () => {
           <PatientClinicalContextNotice
             medicalHistory={patient.antecedents_medicaux}
             showHistoryStatus={activeTab === 'tracking' || activeTab === 'clinical' || activeTab === 'radiology'}
-            advice={inlineAdvice?.patientId === id ? inlineAdvice.advice : null}
+            advice={inlineAdvice && inlineAdvice.patientId === id ? inlineAdvice.advice : null}
             onEdit={() => navigate(`/patients/${id}/edit`)}
           />
         )}
