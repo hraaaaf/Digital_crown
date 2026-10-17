@@ -41,7 +41,7 @@ class SignedLicenceContractTests(unittest.TestCase):
             "channel": "pilot",
             "issued_at": NOW - 120,
             "not_before": NOW - 100,
-            "expires_at": NOW + 2 * 86400,
+            "expires_at": NOW + 6 * 86400,
             "last_online_at": NOW - 100,
             "offline_until": NOW - 100 + 72 * 3600,
             "revocation_epoch": 3,
