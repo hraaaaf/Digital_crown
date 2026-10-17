@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 from dataclasses import dataclass
 from datetime import datetime
@@ -33,6 +35,19 @@ def _json(value: dict) -> str:
     return json.dumps(value, separators=(",", ":"), sort_keys=True)
 
 
+def _intent_sha256(message: RelayInnerMessage) -> str:
+    """Bind one idempotency key to the operation and canonical JSON payload.
+
+    Transport-level message_id, sent_at and expires_at vary on a legitimate
+    retry, but are not part of the clinical request intent.
+    """
+    canonical = json.dumps(
+        {"operation": message.operation, "payload": message.payload},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def claim_remote_command(
     db: Session,
     *,
@@ -52,6 +67,7 @@ def claim_remote_command(
         message_id=str(message.message_id),
         idempotency_key=str(message.idempotency_key),
         operation=message.operation,
+        intent_sha256=_intent_sha256(message),
         status="PROCESSING",
     )
 
@@ -88,6 +104,12 @@ def claim_remote_command(
         raise RuntimeError("remote idempotency constraint conflict without matching receipt")
     if same_intent.operation != message.operation:
         raise RemoteReplayDetected("idempotency key reused for a different operation")
+    if same_intent.intent_sha256 is None:
+        # No reliable request fingerprint exists for a pre-upgrade receipt.
+        # Fail closed; never guess or return an old clinical ACK as new.
+        raise RemoteReplayDetected("legacy remote command intent unverifiable")
+    if not hmac.compare_digest(same_intent.intent_sha256, _intent_sha256(message)):
+        raise RemoteReplayDetected("idempotency key reused for a different request intent")
     if same_intent.status == "PROCESSING":
         raise RemoteCommandBusy("remote command with this idempotency key is already processing")
     return RemoteCommandClaim(kind="idempotent_result", receipt=same_intent)
