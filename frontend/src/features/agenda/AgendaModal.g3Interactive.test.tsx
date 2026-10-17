@@ -149,7 +149,7 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     expect(toast.success).not.toHaveBeenCalled();
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog',{name:'Nouveau Rendez-vous'})).toBeInTheDocument();
+    expect(screen.getByRole('dialog',{name:'Nouveau Rendez-vous'})).toBeTruthy();
     expect((procedure as HTMLInputElement).value).toBe('Consultation');
 
     // Explicit retry after operator keeps/corrects draft; never auto-resubmit.
