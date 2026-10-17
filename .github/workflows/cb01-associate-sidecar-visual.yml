@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   cb01-associate:
-    name: Synthetic B sidecar at 1280 / 1440 / 1920 + web fallback 390 / 430
+    name: Synthetic CB-01 floating 390/430/1280/1440 + sidecar 1600/1920
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
