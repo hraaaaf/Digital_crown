@@ -105,6 +105,17 @@ def _find_conflicts(
             ]),
         ),
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
+        # A timed-out Frontdesk pending request no longer owns capacity even
+        # when its expiry worker has not yet persisted status EXPIRE.
+        or_(
+            models.Appointment.status.is_(None),
+            models.Appointment.status.notin_([
+                models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+                models.AppointmentStatus.EN_ATTENTE_CONFIRM,
+            ]),
+            models.Appointment.expires_at.is_(None),
+            models.Appointment.expires_at > datetime.utcnow(),
+        ),
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
     )
