@@ -141,7 +141,9 @@ async function capture(v){
     document.body.append(label);
   },{phase,author:radio.author});
   for(const kind of ['mcnamara','ricketts']){
-    await page.locator('[data-analysis="'+kind+'"]').click();
+    // On narrow Cabinet layouts the floating tracing tabs are not visible.
+    // The actual accessible workflow entrypoint is the ready-analysis select.
+    await page.locator('#cephalo-ready-analysis').selectOption(kind);
     const panel=page.locator('[data-r23g2-protocol-panel="'+kind+'"]');
     await panel.waitFor({state:'attached',timeout:10000});
     const variants=kind==='ricketts'?['atlas','gregoret']:['historical'];
@@ -170,21 +172,29 @@ async function capture(v){
         documentWidth:document.documentElement.scrollWidth,viewportWidth:document.documentElement.clientWidth
       }));
       if(scroll.documentWidth-scroll.viewportWidth>2)fail('Document horizontal overflow '+JSON.stringify(scroll));
+      // Preserve BOTH the actual public radiograph viewport and the table:
+      // scrolling mobile to the table must never masquerade as proof of image UX.
+      await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+      const stageFilename=phase.toLowerCase()+'-'+kind+'-'+variant+'-radiograph-'+viewportName+'.png';
+      await page.screenshot({path:path.join(out,stageFilename),fullPage:false});
       await panel.scrollIntoViewIfNeeded();
       const filename=phase.toLowerCase()+'-'+kind+'-'+variant+'-'+viewportName+'.png';
       await page.screenshot({path:path.join(out,filename),fullPage:false});
-      states.push({kind,variant,rows:count,handles,geometry,scroll,focus:'not-authorized',filename,valid:true});
+      states.push({kind,variant,rows:count,handles,geometry,scroll,focus:'not-authorized',filename,stageFilename,valid:true});
     }
   }
-  await page.locator('[data-analysis="com"]').click();
+  await page.locator('#cephalo-ready-analysis').selectOption('com');
   const com=page.locator('[data-r19-analysis-panel="com"]');
   await com.waitFor({state:'attached',timeout:10000});
   const comRows=await com.locator('[data-r19-metric]').count();
   if(comRows!==10)fail('COM legacy regression: '+comRows);
+  await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+  const comStage=phase.toLowerCase()+'-com-legacy-radiograph-'+viewportName+'.png';
+  await page.screenshot({path:path.join(out,comStage),fullPage:false});
   await com.scrollIntoViewIfNeeded();
   const comFile=phase.toLowerCase()+'-com-legacy-'+viewportName+'.png';
   await page.screenshot({path:path.join(out,comFile),fullPage:false});
-  states.push({kind:'com',variant:'legacy',rows:comRows,filename:comFile,valid:true});
+  states.push({kind:'com',variant:'legacy',rows:comRows,filename:comFile,stageFilename:comStage,valid:true});
   if(errors.length)fail('Page errors: '+errors.join(' | ').slice(0,1200));
   return{viewportName,decoded,valid:true,states,pageErrors:errors};
  }catch(e){
