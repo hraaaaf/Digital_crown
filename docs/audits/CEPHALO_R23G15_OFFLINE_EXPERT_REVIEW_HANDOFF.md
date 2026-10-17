@@ -60,7 +60,7 @@ Le rapport de sortie contient **uniquement les statuts de chaque relecteur et le
 
 **Ces tests ne concernent pas l'affichage mobile de l'application Digital Crown elle-même** : uniquement le formulaire autonome hors ligne. L'existence d'une fonction mobile de repérage dans Digital Crown n'a pas été revendiquée.
 
-Les artefacts CI, si le run aboutit, doivent contenir **uniquement une copie d'écran marquée SYNTHÉTIQUE et un rapport agrégé SYNTHÉTIQUE**. Les deux réponses intégrales utilisées pour l'e2e restent privées et éphémères sur le runner et ne sont pas publiées.
+Les artefacts CI, si le run aboutit, comprennent **deux formulaires A/B VIERGES** et les consignes de distribution, en plus d'**une copie d'écran marquée SYNTHÉTIQUE et d'un rapport agrégé SYNTHÉTIQUE**. Les formulaires vierges ne contiennent aucun avis ni identité. Les deux réponses intégrales simulées utilisées pour l'e2e restent éphémères sur le runner et **ne sont pas publiées**. Télécharger l'artefact exact HEAD avant de distribuer A et B séparément.
 
 ## Conditions de levée future des HOLD (hors G15)
 
