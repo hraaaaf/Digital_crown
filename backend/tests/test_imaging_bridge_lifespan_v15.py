@@ -4,6 +4,8 @@ Isolated fake image only. All optional external observers are patched out;
 no real camera, patient attachment, cloud calls, Windows service or installer.
 """
 from contextlib import ExitStack, closing, contextmanager
+import asyncio
+import pytest
 import base64
 import hashlib
 import json
@@ -15,7 +17,7 @@ from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
-from backend.main import app
+from backend.main import app, lifespan
 from backend.models_media_core import ClinicalAsset
 from tools.imaging_gateway.bridge_background_lab import (
     start_if_enabled as real_start, stop_bridge_lab as real_stop,
@@ -121,3 +123,34 @@ def test_full_fastapi_lifespan_does_not_start_bridge_without_opt_in(monkeypatch,
         with _real_backend_lifespan() as client:
             assert client.get("/openapi.json").status_code == 200
         start_spy.assert_not_called()
+
+
+def test_actual_fastapi_lifespan_finally_stops_bridge_on_exception(monkeypatch, db):
+    with tempfile.TemporaryDirectory(prefix="dc-abnormal-lifespan-") as tmp:
+        root = Path(tmp)
+        _lab_root(root)
+        monkeypatch.setenv("DC_V15_06_BRIDGE_LAB", "1")
+        monkeypatch.setenv("DC_V15_06_BRIDGE_LAB_ROOT", str(root))
+        monkeypatch.setenv("DC_V15_06_BRIDGE_LAB_KEY_HEX", (b"k" * 32).hex())
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
+        async def exercise_failure():
+            async with lifespan(app):
+                raise RuntimeError("SYNTHETIC_LIFESPAN_ABORT")
+
+        with ExitStack() as stack:
+            stack.enter_context(patch("backend.main.panoramic_engine.initialize", new_callable=AsyncMock))
+            stack.enter_context(patch("backend.main.run_full_seed", return_value=None))
+            stack.enter_context(patch("backend.main.seed_clinical_data", return_value=None))
+            stack.enter_context(patch("backend.main.seed_admin_user", return_value=None))
+            stack.enter_context(patch("backend.main.sync_manager.start_listening", return_value=None))
+            stack.enter_context(patch("backend.main._sync_all_licenses_from_firebase", new_callable=AsyncMock))
+            stack.enter_context(patch("backend.services.daily_scheduler.start_daily_scheduler", return_value=None))
+            stack.enter_context(patch("backend.services.fts_indexer.bulk_index_unindexed_patients", return_value=None))
+            spy = stack.enter_context(patch(
+                "tools.imaging_gateway.bridge_background_lab.stop_bridge_lab", wraps=real_stop
+            ))
+            with pytest.raises(RuntimeError, match="SYNTHETIC_LIFESPAN_ABORT"):
+                asyncio.run(exercise_failure())
+            assert spy.await_count == 1
+            assert spy.await_args.args[0].task.done()
