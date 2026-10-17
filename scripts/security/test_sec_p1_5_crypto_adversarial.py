@@ -132,8 +132,11 @@ class IndependentAdversarialEdges(unittest.TestCase):
         self.expect_reason(json.dumps(altered), "bad-signature")
 
     def test_client_cannot_extend_signed_offline_window(self):
-        altered = json.loads(self.signed())
-        altered["payload"]["offline_until"] += 1
+        # Keep the tampered claim inside the 72-hour policy window;
+        # otherwise schema validation refuses it before signature checking.
+        original = self.claims(offline_until=NOW - 200 + 70 * 3600)
+        altered = json.loads(self.signed(original))
+        altered["payload"]["offline_until"] += 3600
         self.expect_reason(json.dumps(altered), "bad-signature")
 
     def test_invalid_context_cannot_enable_unknown_feature(self):
