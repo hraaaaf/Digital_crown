@@ -122,9 +122,18 @@ async function viewportRun(viewport){
     r.request().method()==='POST' && r.request().postDataJSON()?.archive===true,
     {timeout:45000});
   page.once('dialog',dialog=>dialog.dismiss());
+  const archivePosts=[];
+  const auditArchiveRequest=req=>{
+    if(req.method()==='POST' && new URL(req.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
+        req.postDataJSON()?.archive===true) archivePosts.push(req.postDataJSON());
+  };
+  page.on('request',auditArchiveRequest);
   await shot('archive-before');
-  await archiveButton.click();
+  await archiveButton.dblclick(); // actual Chromium pointer double click: one logical archive request
   const archivedResponse=await archiveResponsePromise;
+  await page.waitForTimeout(250);
+  page.off('request',auditArchiveRequest);
+  if(archivePosts.length!==1)throw Error('Double click created '+archivePosts.length+' archive requests instead of one');
   const archivedPayload=archivedResponse.request().postDataJSON();
   if(archivedResponse.status()!==200 ||
       archivedPayload.analysis_id!==identities.older_id ||
@@ -134,6 +143,37 @@ async function viewportRun(viewport){
   await fs.writeFile(path.join(output,record.viewport+'-older-click-archived.pdf'),await archivedResponse.body());
   await shot('archive-after');
   record.checks.push('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_'+identities.older_id+'_REV_'+archivedPayload.expected_revision);
+  record.checks.push('POINTER_DOUBLE_CLICK_SINGLE_ARCHIVE_POST');
+  // Concurrent authenticated tabs must retain different selected study identities.
+  const tabB=await context.newPage();
+  await tabB.goto(root+'/patients/'+identities.patient_id+'?tab=radiology&radioTab=cephalo',
+    {waitUntil:'domcontentloaded',timeout:45000});
+  await tabB.locator('[data-ortho-workspace-title]').waitFor({state:'visible'});
+  await tabB.getByRole('button',{name:'Historique',exact:true}).click();
+  await tabB.locator('[data-cephalo-history-analysis-id="'+identities.latest_id+'"]').click();
+  await tabB.locator('[data-cephalo-selected-analysis-id="'+identities.latest_id+'"]').waitFor({state:'visible'});
+  await tabB.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
+  const tabAResponse=page.waitForResponse(r=>
+    new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
+    r.request().method()==='POST' && r.request().postDataJSON()?.archive===false,{timeout:45000});
+  const tabBResponse=tabB.waitForResponse(r=>
+    new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
+    r.request().method()==='POST' && r.request().postDataJSON()?.archive===false,{timeout:45000});
+  await Promise.all([
+    page.getByRole('button',{name:'Brouillon PDF'}).click(),
+    tabB.getByRole('button',{name:'Brouillon PDF'}).click(),
+  ]);
+  const [aPdf,bPdf]=await Promise.all([tabAResponse,tabBResponse]);
+  if(aPdf.status()!==200 || bPdf.status()!==200 ||
+      aPdf.request().postDataJSON().analysis_id!==identities.older_id ||
+      bPdf.request().postDataJSON().analysis_id!==identities.latest_id ||
+      aPdf.headers()['x-cephalo-analysis-id']!==String(identities.older_id) ||
+      bPdf.headers()['x-cephalo-analysis-id']!==String(identities.latest_id))
+    throw Error('Two authenticated tabs crossed study identity on concurrent drafts');
+  record.checks.push('TWO_AUTHENTICATED_TABS_DIFFERENT_STUDY_CONCURRENT_PDFS');
+  await tabB.screenshot({path:path.join(output,record.viewport+'-two-tabs-B-after.png'),animations:'disabled'});
+  record.shots.push(record.viewport+'-two-tabs-B-after.png');
+  await tabB.close();
   record.observedToasts=await page.evaluate(()=>window.__p2terSeenToasts||[]);
   console.log('P2TER_NETWORK_DIAGNOSTIC',JSON.stringify({viewport:record.viewport,failedRequests:record.failedRequests,httpErrors:record.httpErrors,observedToasts:record.observedToasts}));
   if(record.pageErrors.length)throw Error('React exceptions '+JSON.stringify(record.pageErrors));
