@@ -115,7 +115,11 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
     syncTheme();
-    return () => observer.disconnect();
+    return () => {
+      // Invalidate any in-flight history GET on patient change or unmount.
+      historySelectionVersion.current += 1;
+      observer.disconnect();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, patientName]);
 
