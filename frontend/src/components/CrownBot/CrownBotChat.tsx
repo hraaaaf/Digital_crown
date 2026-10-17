@@ -683,6 +683,7 @@ export function CrownBotChat({
         // key unchanged and therefore preserves the unfinished draft.
         <CrownBotWorkflowPreview
           key={`${user?.id ?? 'unknown'}:${employerId ?? 'unknown'}:${location.pathname}`}
+          practitionerId={user?.role === 'DENTISTE' ? Number(user.id) : undefined}
         />
       )}
       {activeTab === 'chat' && !zeroLlmPreviewEnabled && (
