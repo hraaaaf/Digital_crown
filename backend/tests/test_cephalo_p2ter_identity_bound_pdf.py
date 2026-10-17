@@ -285,3 +285,41 @@ def test_unversioned_historical_study_cannot_be_archived_as_authoritative(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 0
     assert not list(tmp_path.glob("*.pdf"))
+
+
+def test_legacy_document_pdf_route_uses_same_explicit_historical_study(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, older, _ = _case(db, dentiste)
+    newer = _second(db, older)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _source: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    path = f"/api/documents/patients/{patient.id}/report"
+    wrong = client.post(path, json={"archive": False}, headers=headers)
+    assert wrong.status_code == 422
+    right = client.post(
+        path,
+        json={"analysis_id": older.id, "expected_revision": 1, "archive": False},
+        headers=headers,
+    )
+    assert right.status_code == 200, right.text[:600] if right.status_code != 200 else ""
+    assert right.headers["X-Cephalo-Analysis-Id"] == str(older.id)
+    assert right.headers["X-Cephalo-Revision"] == "1"
+    text = _compact(_text(right))
+    assert _compact(f"ÉTUDE CÉPHALO ID : {older.id}") in text
+    assert _compact(f"ÉTUDE CÉPHALO ID : {newer.id}") not in text
+    # Old document route never archives silently.
+    assert client.post(
+        path, json={"analysis_id": older.id, "expected_revision": 1, "archive": True},
+        headers=headers,
+    ).status_code == 422
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
