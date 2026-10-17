@@ -258,6 +258,32 @@ describe('CB-01 draft survives responsive 200% reflow', () => {
 
 
 describe('CB-01 principal scope clinical confidentiality', () => {
+
+  it('wipes cached patient draft when the same secretary account loses patient permission', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    simulateViewport(true);
+    mockUser = {
+      id: 55, employer_id: 101, role: 'SECRETAIRE', nom_complet: 'T2 Staff',
+      permissions: {patients: true, agenda: true, accounting: false},
+    };
+    const view=renderAt('/dashboard');
+    fireEvent.click(screen.getByRole('button',{name:'Ouvrir CrownBot'}));
+    const previousDraft=screen.getByRole('textbox',{name:'Brouillon Crown Bot'}) as HTMLInputElement;
+    fireEvent.change(previousDraft,{target:{value:'dossier:STAFF-CONFIDENTIEL'}});
+    expect(previousDraft.value).toBe('dossier:STAFF-CONFIDENTIEL');
+
+    mockUser = {
+      ...mockUser,
+      permissions: {patients: false, agenda: false, accounting: false},
+    };
+    view.rerender(shellAt('/dashboard'));
+    const nextDraft=screen.getByRole('textbox',{name:'Brouillon Crown Bot'}) as HTMLInputElement;
+    expect(nextDraft).not.toBe(previousDraft);
+    expect(previousDraft.isConnected).toBe(false);
+    expect(nextDraft.value).toBe('');
+    expect(screen.queryByDisplayValue('dossier:STAFF-CONFIDENTIEL')).toBeNull();
+  });
   it('clears old chat draft when switching logged-in clinician and cabinet without a page reload', () => {
     vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
     vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
