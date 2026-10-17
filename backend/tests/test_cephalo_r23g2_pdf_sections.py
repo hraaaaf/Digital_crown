@@ -5,6 +5,8 @@ from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
+import fitz  # real PDF text extraction: verifies rendered pages, not just a valid header
+
 from backend.services.cephalo_r23g2_pdf_sections import (
     _PROFILES, project_r23g2_pdf_sections,
 )
@@ -127,3 +129,13 @@ def test_real_pdf_template_contains_all_canonical_ids_and_explicit_nc(tmp_path):
     generator._generate_reportlab(vm, str(output), projection=projection)
     assert output.read_bytes().startswith(b"%PDF")
     assert output.stat().st_size > 1000
+    with fitz.open(output) as doc:
+        assert len(doc) >= 2
+        extracted = "\n".join(page.get_text() for page in doc)
+    normalized = "".join(ch for ch in extracted if ch.isalnum())
+    for section in context["r23g2_protocols"]:
+        assert "".join(ch for ch in section["title"] if ch.isalnum()) in normalized
+        for row in section["rows"]:
+            canonical = "".join(ch for ch in row["canonical_measurement_id"] if ch.isalnum())
+            assert canonical in normalized, row["canonical_measurement_id"]
+    assert "non calculable" in extracted
