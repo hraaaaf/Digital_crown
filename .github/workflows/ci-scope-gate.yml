@@ -132,7 +132,7 @@ jobs:
     timeout-minutes: 30
     env:
       SECRET_KEY: r23g5-only-ci-test-secret-key-over-32-characters
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: 'sqlite:///:memory:'
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
       TELEMETRY_ENABLED: 'false'
