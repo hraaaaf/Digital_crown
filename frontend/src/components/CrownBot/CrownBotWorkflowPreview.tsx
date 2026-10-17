@@ -54,6 +54,14 @@ export function CrownBotWorkflowPreview() {
     inFlight.current = true;
     setBusy(true);
     setError('');
+    // Never show an old patient's successful result as the result of a new
+    // workflow (or a subsequent request that fails). Preserve only validated
+    // steps when retrying within the same workflow.
+    setAnswer(null);
+    if (newWorkflow) {
+      setTranscript([]);
+      setInput('');
+    }
     try {
       const response = await api.post<PreviewResponse>('/bot/workflows/preview', {
         messages: next,
