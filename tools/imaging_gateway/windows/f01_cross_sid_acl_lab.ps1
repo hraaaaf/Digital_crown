@@ -224,6 +224,15 @@ try {
     $trusted = Get-Acl -LiteralPath $work
     Assert-F01 $trusted.AreAccessRulesProtected 'TRUSTED_ROOT_DACL_NOT_PROTECTED'
     Check-Acl $work @($owner,$peer,'S-1-5-18','S-1-5-32-544')
+    # The source file was copied BEFORE the parent's DACL was protected.
+    # Explicitly reset its own inherited ACEs; parent ACLs do not retroactively
+    # strip inherited entries already recorded on an existing child file.
+    Invoke-Icacls -Arguments @($runner, '/inheritance:r')
+    Invoke-Icacls -Arguments @($runner, '/grant:r',
+        ('*' + $owner + ':RX'), ('*' + $peer + ':RX'),
+        '*S-1-5-18:F', '*S-1-5-32-544:F')
+    Assert-F01 (Get-Acl -LiteralPath $runner).AreAccessRulesProtected 'SCRIPT_DACL_NOT_PROTECTED'
+    Check-Acl $runner @($owner,$peer,'S-1-5-18','S-1-5-32-544')
     $evidenceRoot = Join-Path $work 'evidence'
     New-Item -Path $evidenceRoot -ItemType Directory | Out-Null
     foreach ($stageAndSid in @(@('Owner',$owner), @('Peer',$peer))) {
