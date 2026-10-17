@@ -248,9 +248,11 @@ class HotFolder:
             db.execute("PRAGMA temp_store=MEMORY")
             self._sqlite_guard()
             yield db
+            # All fallible policy checks must happen BEFORE the durable
+            # commit. A post-commit guard can report failure even though the
+            # transaction was already saved and rollback cannot undo it.
             self._sqlite_guard()
             db.commit()
-            self._sqlite_guard()
         except BaseException:
             db.rollback()
             raise
