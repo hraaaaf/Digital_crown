@@ -153,3 +153,43 @@ installation. In LOT06-P focus only on code/CI, SQLite/WAL boundary
 hardening, the commercial Windows ACL contract and genuinely independent
 code reviews. The commercial DACL and Windows SQLite root-relative VFS are
 NOT implemented. F01/LOT06-P remain OPEN even when CI succeeds.
+
+## 2026-10-17 — Follow-up of internal adversarial reviews A/B (synthetic LAB only)
+
+- **B1 repeated scan failure:** no more `except Exception: pass` forever.
+  The child exits with a nonzero code after **three consecutive exceptions**;
+  the parent monitor logs a *fixed non-PHI* operational failure. A synthetic
+  injected scan exception is allowed **only with positive TEST/LAB isolation**
+  and is exercised on Windows/Ubuntu; production never uses this path.
+  Health reporting to the dentist and an automatic restart policy are **not**
+  part of this LAB, and remain open for commercial integration.
+- **B2 cross-process ownership:** before the parent initializes a SQLite
+  collector, it obtains an OS-advisory exclusive lock on a synthetic fixture
+  root file (POSIX `flock`, Windows `msvcrt.locking`). A second parent
+  refuses startup before creating any worker. Lock lifetime follows the
+  backend OS file descriptor, and the parent closes it on normal stop and
+  refused child startup. No stale PID-file cleaning. This is a **LAB-only
+  singleton**, not a secure service-principal or installer DACL: a malicious
+  same-user account with write access to the root can still subvert it.
+- **B4 startup acknowledgment:** the child performs **no collection or
+  SQLite initialization until GO**, which the parent only issues after
+  Windows Job Object assignment; it sends `READY\n` after isolated setup,
+  and the parent requires that exact acknowledgment within a bounded window.
+  Timeout/bad ACK/early failure kills/reaps and refuses startup. There is
+  still no full production supervision or patient-imaging device status UI.
+- **B3 commit semantics:** the SQLite transaction's final root/sidecar
+  policy check now runs **before** `db.commit()` rather than afterward.
+  Rejected precommit changes roll back; the parent never labels a successful
+  durable commit as failure because of a *postcommit guard*. Durable
+  transaction errors and OS power interruptions still need recovery and
+  idempotency analysis for clinical workflows.
+- Native OS regression includes duplicate startup **in different Python
+  processes**, restart after releasing OS owner lock, worker error after
+  three synthetic failures, and policy exception before commit. Existing
+  native Windows junction/reparse/ciphertext tests remain active.
+
+**Independent-review status unchanged:** the preceding reviews A/B were
+two **internal** adversarial perspectives, not two external reviewers;
+production F01 SQLite path VFS and Windows installer ACLs remain OPEN,
+and the owner deferred local PC/Codex/real-device trials until LOT10.
+No merge, install or clinical patient attachment is authorized.
