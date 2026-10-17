@@ -8,6 +8,8 @@ from typing import Callable, Literal
 
 from sqlalchemy.orm import Session
 
+from jwcrypto.common import JWException
+
 from backend import models
 from backend.models_patient_companion import (
     PatientCompanionAccess,
@@ -168,13 +170,18 @@ def process_remote_envelope(
     encryption_private = load_cabinet_private_jwk(cabinet_encryption, unprotect=unprotect)
     signing_private = load_cabinet_private_jwk(cabinet_signing, unprotect=unprotect)
 
-    decoded = decrypt_and_verify(
-        compact_jwe,
-        recipient_encryption_private_jwk=encryption_private,
-        sender_signing_public_jwk=_public_jwk(keyset.patient_signing_public_jwk_json),
-        expected_sender_signing_kid=keyset.patient_signing_kid,
-        expected_recipient_encryption_kid=keyset.cabinet_encryption_kid,
-    )
+    try:
+        decoded = decrypt_and_verify(
+            compact_jwe,
+            recipient_encryption_private_jwk=encryption_private,
+            sender_signing_public_jwk=_public_jwk(keyset.patient_signing_public_jwk_json),
+            expected_sender_signing_kid=keyset.patient_signing_kid,
+            expected_recipient_encryption_kid=keyset.cabinet_encryption_kid,
+        )
+    except (ValueError, JWException) as exc:
+        # Cryptographic authentication failure is an invalid patient command,
+        # never an unhandled HTTP 500 or a partially claimed replay receipt.
+        raise RemoteTransportRejected("remote application envelope invalid") from exc
     try:
         message = RelayInnerMessage.model_validate(decoded)
         message.assert_fresh()
