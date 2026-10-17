@@ -299,10 +299,18 @@ try {
   // Vite's first dependency optimization may navigate a page while
   // Chromium decodes the public JPEG. Retry ONLY that transient navigation
   // with a NEW browser context; preserve both attempts in the evidence.
-  const navigationRace=!first.valid && first.pageErrors.some(
-    error=>error.includes('Execution context was destroyed') &&
-      error.includes('navigation')
-  );
+  const navigationRace=!first.valid && first.pageErrors.some(error=>(
+    // Vite's dependency optimizer can hot-navigate the fixture after its
+    // initial load. Only these EXACT transient browser-readiness signatures
+    // qualify for ONE fresh-context attempt, never scientific/UX assertions.
+    (error.includes('Execution context was destroyed') && error.includes('navigation')) ||
+    (error.includes('TimeoutError: locator.waitFor') &&
+      error.includes("heading") && error.includes('Céphalométrie')) ||
+    (error.includes('TimeoutError: locator.tap') &&
+      error.includes('element was detached from the DOM') &&
+      error.includes('navigation to finish') &&
+      error.includes('/cephalo-r23g4-public.html'))
+  ));
   const retry=navigationRace ? await capture(v) : null;
   const result=retry ?? first;
   report.viewports.push({
