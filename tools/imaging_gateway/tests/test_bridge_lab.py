@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import threading
 import subprocess
 from pathlib import Path
 import tempfile
@@ -245,6 +246,29 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             # remains open. Explicitly prove the final read connection closed.
             with self.assertRaises(sqlite3.ProgrammingError):
                 db.execute("SELECT 1")
+
+    async def test_blocking_scan_reports_bounded_shutdown_without_false_success(self):
+        started = threading.Event()
+        release = threading.Event()
+
+        class HeldCollector:
+            def scan_once(self):
+                started.set()
+                release.wait(timeout=1.0)
+                return {"staged": 0}
+
+        from tools.imaging_gateway.bridge_background_lab import BridgeLabHandle
+        stop = asyncio.Event()
+        task = asyncio.create_task(poll_lab_collector(HeldCollector(), stop, interval=0.01))
+        handle = BridgeLabHandle(stop, task)
+        try:
+            self.assertTrue(await asyncio.to_thread(started.wait, 0.5))
+            with self.assertLogs("tools.imaging_gateway.bridge_background_lab", level="ERROR"):
+                result = await asyncio.wait_for(stop_bridge_lab(handle, timeout=0.02), timeout=0.8)
+            self.assertFalse(result)
+            self.assertTrue(task.done())
+        finally:
+            release.set()
 
     async def test_start_is_silent_when_not_requested(self):
         self.assertIsNone(start_if_enabled({}))
