@@ -61,12 +61,17 @@ def isolated_environment(work: Path) -> dict[str, str]:
 
 def load_native(path: Path) -> None:
     """Inject byte-for-byte Nuitka build before production DB imports."""
-    spec = importlib.util.spec_from_file_location(MODULE, path)
+    # A CPython extension must be imported under its compiled PyInit_* name.
+    native_name = path.name.split(".", 1)[0]
+    spec = importlib.util.spec_from_file_location(native_name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError("Could not load native key material")
     native = importlib.util.module_from_spec(spec)
-    sys.modules[MODULE] = native
+    sys.modules[native_name] = native
     spec.loader.exec_module(native)
+    # The production database's normal from-import now resolves this exact
+    # native implementation, without editing its source or DB initialization.
+    sys.modules[MODULE] = native
 
 
 def isolate_router_package() -> None:
