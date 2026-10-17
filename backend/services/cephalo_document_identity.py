@@ -32,6 +32,16 @@ def resolve_document_analysis(db: Session, *, patient_id: int, analysis_id: int,
         raise HTTPException(status_code=404, detail="Analyse introuvable dans ce dossier")
     if not hmac.compare_digest(analysis_source_revision(analysis), source_revision):
         raise HTTPException(status_code=409, detail="Révision céphalométrique périmée : rechargez l'étude avant export")
+    # The selected *persisted* evidence chain must be readable before any PDF
+    # is generated. Legacy incomplete studies remain unvalidated drafts, but
+    # contradictory typed evidence is never downgraded to a silently safe PDF.
+    if isinstance(analysis.angles_data, dict):
+        from backend.services.cephalo_runtime_chain import project_runtime_chain_read_path
+        from backend.services.cephalo_typed_read import CephaloTypedReadError
+        try:
+            project_runtime_chain_read_path(analysis.angles_data, patient_id=patient_id)
+        except CephaloTypedReadError as exc:
+            raise HTTPException(status_code=409, detail="Chaîne scientifique céphalométrique persistée invalide") from exc
     return analysis
 
 def cephalo_document_identity(analysis: models.CephaloAnalysis) -> dict:

@@ -1,0 +1,63 @@
+name: CEPH P2ter identity-bound PDF & React (experimental)
+on:
+  push:
+    branches:
+      - 'fix/ceph-fac-p2ter-identity-bound-*'
+  pull_request:
+    branches:
+      - 'audit/dc-ceph-facad-parity-p2bis-http-pdf-20261017'
+permissions:
+  contents: read
+jobs:
+  backend-jwt-pdf-binary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SECRET_KEY: p2ter-ci-synthetic-secret-key-minimum-32-chars
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify checkout SHA
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install synthetic test environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/p2ter-requirements.txt
+          pip install -r /tmp/p2ter-requirements.txt
+          python -m pip check
+      - name: Exact study + real JWT + PDF bytes + archive contract
+        run: |
+          set -o pipefail
+          python -m pytest backend/tests/test_cephalo_p2ter_identity_e2e.py backend/tests/test_cephalo_p2bis_http_pdf_continuity.py backend/tests/test_document_provenance_p3.py -q | tee p2ter-backend.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2ter-backend-${{ github.sha }}
+          path: p2ter-backend.log
+  react-typescript-and-document-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify checkout SHA
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - name: TypeScript typecheck
+        run: npx --prefix frontend tsc --noEmit -p frontend/tsconfig.app.json
+      - name: Ortho document component tests
+        run: npm --prefix frontend test -- src/features/ortho/components/Step4Documents.g4Interactive.test.tsx
+      - name: Isolated frontend test build
+        run: npm --prefix frontend run build:test
