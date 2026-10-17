@@ -172,6 +172,80 @@ class GatewayTests(unittest.TestCase):
         with self.assertRaises(GatewayError):
             self.agent.scan_once()
 
+    def test_sqlite_wal_full_sync_and_no_external_attachments(self):
+        with self.agent._db() as db:
+            self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0].lower(), "wal")
+            self.assertEqual(db.execute("PRAGMA synchronous").fetchone()[0], 2)
+            self.assertEqual(db.execute("PRAGMA trusted_schema").fetchone()[0], 0)
+            self.assertEqual(db.execute("PRAGMA temp_store").fetchone()[0], 2)
+            self.assertEqual(len(db.execute("PRAGMA database_list").fetchall()), 1)
+
+    def test_sqlite_hardlinked_database_is_refused_before_sql(self):
+        outside = self.private.parent / "linked-acquisitions.sqlite3"
+        os.link(self.agent.db_file, outside)
+        try:
+            with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                       side_effect=AssertionError("untrusted db must never open")):
+                with self.assertRaisesRegex(GatewayError, "SQLite LAB boundary rejected"):
+                    self.agent.items()
+        finally:
+            outside.unlink()
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_replaced_database_identity_is_refused(self):
+        path = self.agent.db_file
+        old = self.private / "acquisitions.sqlite3-original"
+        path.rename(old)
+        try:
+            shutil.copyfile(old, path)
+            with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                       side_effect=AssertionError("replaced db must never open")):
+                with self.assertRaisesRegex(GatewayError, "database identity changed"):
+                    self.agent.items()
+        finally:
+            path.unlink()
+            old.rename(path)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_wal_shm_journal_sidecars_symlinks_fail_closed(self):
+        for suffix in ("-wal", "-shm", "-journal"):
+            with self.subTest(suffix=suffix):
+                sidecar = Path(str(self.agent.db_file) + suffix)
+                outside = self.private.parent / ("outside" + suffix)
+                outside.write_bytes(b"not-sqlite-or-patient-data")
+                self.assertFalse(sidecar.exists(), "fixture must not replace existing sidecar")
+                try:
+                    sidecar.symlink_to(outside)
+                except (NotImplementedError, OSError):
+                    outside.unlink()
+                    self.skipTest("file symlinks unavailable to this test account")
+                try:
+                    with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                               side_effect=AssertionError("sidecar attack must not open db")):
+                        with self.assertRaisesRegex(GatewayError, "SQLite LAB boundary rejected"):
+                            self.agent.items()
+                    self.assertEqual(outside.read_bytes(), b"not-sqlite-or-patient-data")
+                finally:
+                    sidecar.unlink()
+                    outside.unlink()
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_private_dir_replaced_rejected_before_connect(self):
+        root = self.private
+        previous = root.with_name("private-swap-saved")
+        root.rename(previous)
+        try:
+            root.mkdir()
+            with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                       side_effect=AssertionError("swapped root must not open db")):
+                with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                    self.agent.items()
+            self.assertEqual(list(root.iterdir()), [])
+        finally:
+            root.rmdir()
+            previous.rename(root)
+        self.assertEqual(self.agent.items(), [])
+
     def test_cross_workstation_spool_read_fails(self):
         self.stage()
         with self.assertRaises(GatewayError):
