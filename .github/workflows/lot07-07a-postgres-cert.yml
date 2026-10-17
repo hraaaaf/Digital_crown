@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/verification/lot07_07a_postgres_cert.py'
+      - 'backend/services/bot/action_dispatcher.py'
       - '.github/workflows/lot07-07a-postgres-cert.yml'
   workflow_dispatch:
 permissions:
