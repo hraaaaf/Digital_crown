@@ -114,3 +114,32 @@ does not scan before the parent has installed OS lifetime supervision:
 a deterministic root replacement are defensive controls, not a Windows
 handle-relative, race-free file *read and write* authorization contract.
 Avoid calling the directory pinning experiment a fix: native CI disproved it.
+
+## F01 native Windows encrypted spool write — 2026-10-17
+
+- In the TEST-only Bridge, Windows now opens the `spool` root via a
+  filesystem handle and verifies its original volume/file ID. New ciphertext
+  gets a randomized temporary leaf using `NtCreateFile` relative to that
+  handle. Once written and fsynced, `NtSetInformationFile` class
+  `FileRenameInformation` publishes a new `.dc6` leaf relative to the same
+  handle, **without replacing an existing entry**. Cleanup uses the source
+  file's handle on failure, never a path-based unlink. Stored ciphertext reads
+  use the same anchored root, as source and `.ready` reads already do.
+- An initial attempt using `SetFileInformationByHandle(FileRenameInfo)`
+  returned WinError 87 on actual Windows CI because its Win32 wrapper did not
+  preserve a non-NULL `RootDirectory` with a relative target. Replaced with
+  true `NtSetInformationFile`, not with an unsafe absolute-path rename.
+- Native Windows regression tests verify that a real encrypted capture can
+  publish and decrypt, collision cannot overwrite, and a replaced spool
+  directory is rejected **before writing**; ENOSPC fault injection is now
+  at the native publish seam on Windows. Ubuntu preserves the preexisting
+  non-Windows code path.
+- **Remaining security limitations / F01 still OPEN:** SQLite database, WAL,
+  quota observations, installer filesystem ACLs, shared user permissions,
+  multi-process ownership and crash recovery are not fully anchored or
+  certified. These synthetic checks cannot attest that a real clinical
+  service has an adequate Windows privilege boundary.
+- **Codex local sandbox:** Use `docs/quality/LOT06_P_CODEX_WINDOWS_ISOLATED_LAB_RUNBOOK.md` for safe,
+  intentionally temporary Windows-only LAB verification after candidate CI
+  is green. Never start a clinical driver or place a real patient acquisition
+  in this laboratory.
