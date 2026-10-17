@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, AlertTriangle, Archive, Camera, CheckCircle2, ChevronDown,
   ChevronUp, Eye, FileText, Loader2, Shield, XCircle,
@@ -8,6 +8,7 @@ import { api } from '../../../services/api';
 import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { cephaloRepository } from '../cephaloRepository';
 import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
+import { canArchiveCephaloValidation, cephaloArchiveErrorMessage, type CephaloArchiveValidation } from '../cephaloArchiveGate';
 import { useOrthoStore } from '../stores/useOrthoStore';
 
 interface Step4DocumentsProps {
@@ -29,11 +30,7 @@ function isMmMetric(name: string): boolean {
   return MM_KEYWORDS.some(kw => n.includes(kw));
 }
 
-interface ValidationResult {
-  is_valid: boolean;
-  fatals: string[];
-  warnings: string[];
-}
+type ValidationResult = CephaloArchiveValidation;
 
 const AngleCard: React.FC<{
   card: typeof ANGLE_CARDS[number];
@@ -101,6 +98,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const archiveInFlight = useRef(false); // React state alone cannot block two clicks in one tick.
   const [isBrouillon, setIsBrouillon] = useState(false);
 
   const hasImage = Boolean(imageSrc);
@@ -189,7 +187,8 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   };
 
   const handleArchiveBilan = async () => {
-    if (!patientId || !analysisId) return;
+    if (!patientId || !analysisId || archiveInFlight.current) return;
+    archiveInFlight.current = true;
     setIsArchiving(true);
     try {
       const stillSelected = () => useOrthoStore.getState().patientId === patientId
@@ -204,8 +203,8 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
         throw Error("Prévalidation liée à une autre étude");
       }
       setValidation(vResult);
-      if ((vResult.fatals?.length ?? 0) > 0) {
-        toast.error(`Impossible d'archiver : ${vResult.fatals[0]}`);
+      if (!canArchiveCephaloValidation(vResult)) {
+        toast.error(`Impossible d'archiver : ${vResult.fatals?.[0] || 'prévalidation non autorisée'}`);
         return;
       }
       if ((vResult.warnings?.length ?? 0) > 0) {
@@ -216,13 +215,14 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       // another silent save here could silently invalidate that gate.
       await onGeneratePDF(source);
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Erreur lors de l\'archivage.');
+      toast.error(await cephaloArchiveErrorMessage(e));
     } finally {
+      archiveInFlight.current = false;
       setIsArchiving(false);
     }
   };
 
-  const canArchive = Boolean(validation?.is_valid) && !isValidating && !hasFatals && hasImage && landmarksOk;
+  const canArchive = canArchiveCephaloValidation(validation) && !isValidating && !hasFatals && hasImage && landmarksOk;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
