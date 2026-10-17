@@ -1,0 +1,95 @@
+name: R23-G13 Atlas33 21 Source Guides / Expert HOLD Browser (experimental)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g13-source-guides.yml'
+      - 'docs/audits/schemas/cephalo_r23g13_source_specific_landmark_guides_v1.json'
+      - 'docs/audits/CEPHALO_R23G13_SOURCE_GUIDED_EXPERT_CAMPAIGN.md'
+      - 'scripts/cephalo_r23g13_public_source_guided_workbook.py'
+      - 'audit/cephalo_r23g13_contract_tests/**'
+      - 'docs/audits/CEPHALO_LOT08_RICKETTS_*SOURCE_LOCK.md'
+      - 'docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md'
+      - 'docs/audits/schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json'
+      - 'scripts/cephalo_r23g12_public_manual_workbook.py'
+      - 'docs/audits/g12_atlas33_public_pixel_workbook.template.html'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  two-source-bound-public-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Exact G13 HEAD guard
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fetch both ORIGINAL G11 cephalograms and verify source hashes
+        run: |
+          mkdir -p /tmp/dc-g13-originals
+          curl -fL --retry 4 --retry-delay 3 --max-time 90 -A 'DigitalCrown-SourceAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG' -o /tmp/dc-g13-originals/anug.jpg
+          curl -fL --retry 4 --retry-delay 3 --max-time 90 -A 'DigitalCrown-SourceAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg' -o /tmp/dc-g13-originals/challiyan.jpg
+          echo '2a284993c666790a72d0c004044b35a92534ce9d  /tmp/dc-g13-originals/anug.jpg' | sha1sum -c -
+          echo '66c74c588af3c54dfc581f8a870c5276c3427498  /tmp/dc-g13-originals/challiyan.jpg' | sha1sum -c -
+      - name: Generate source-locked G13 annotated handbook, with six blocked points
+        run: |
+          python -m scripts.cephalo_r23g13_public_source_guided_workbook \
+            --input-dir /tmp/dc-g13-originals --output-dir /tmp/dc-g13-workbook
+      - name: Source exact text contract plus G12 pixel draft test suite
+        run: |
+          python -m unittest discover -s audit/cephalo_r23g13_contract_tests -p 'test_*.py' -v
+          python -m unittest discover -s audit/cephalo_r23g12_contract_tests -p 'test_*.py' -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install isolated Playwright Chromium
+        run: |
+          npm install --prefix /tmp/dc-g13-playwright --no-audit --no-fund playwright@1.55.0
+          /tmp/dc-g13-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Real browser legacy G12 plus G13 guide/HOLD checks, 2 viewports, 2 actual JPEGs
+        env:
+          G12_PLAYWRIGHT_MODULE: /tmp/dc-g13-playwright/node_modules/playwright
+          G12_URL: http://127.0.0.1:8765/
+          G12_EVIDENCE_DIR: /tmp/dc-g13-browser-evidence
+          G13_EVIDENCE_DIR: /tmp/dc-g13-browser-evidence
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory /tmp/dc-g13-workbook >/tmp/dc-g13-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 2
+          node audit/cephalo_r23g12_contract_tests/g12_public_browser_e2e.cjs
+          node audit/cephalo_r23g13_contract_tests/g13_source_guide_browser.cjs
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.cephalo_r23g11_public_radiograph_smoke import smoke
+          from scripts.cephalo_r23g12_public_manual_workbook import build_catalog,verify_draft
+          root=Path('.')
+          catalog=build_catalog(root,smoke(root,Path('/tmp/dc-g13-originals')))
+          for size in (1280,1600):
+              f=Path(f'/tmp/dc-g13-browser-evidence/synthetic_browser_export_{size}.json')
+              verdict=verify_draft(json.loads(f.read_text(encoding='utf-8')),catalog)
+              assert verdict['manual_draft_pixel_points']==2
+              assert verdict['anatomical_expertise_verified'] is False
+              print('G13 G12-EXPORT BACKCOMPAT PASS',size,verdict)
+          PY
+      - name: Preserve source-only and attributed synthetic click evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g13-public-source-guides-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            /tmp/dc-g13-workbook/G13_SOURCE_GUIDE_ONLY_REPORT.json
+            /tmp/dc-g13-browser-evidence/
+          retention-days: 30
+          if-no-files-found: error
