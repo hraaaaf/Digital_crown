@@ -118,7 +118,7 @@ export const PatientDetails = () => {
 
   const requestedRadioTab = (searchParams.get('radioTab') as RadioTab | null) || 'rvg';
   const radioTab: RadioTab = availableRadioTabs.includes(requestedRadioTab) ? requestedRadioTab : 'rvg';
-  const g1MediaPilot = import.meta.env.VITE_V15_07_G1_TWO_VIEWS_PILOT === '1' && activeTab === 'radiology' && radioTab === 'media';
+  const isCompanionTab = activeTab === 'companion';
   const handleRadioTabChange = (value: RadioTab) => {
     if (!availableRadioTabs.includes(value)) return;
     setSearchParams(prev => {
@@ -135,7 +135,7 @@ export const PatientDetails = () => {
   const [fetchError, setFetchError] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotifSummary[]>([]);
-  const [g1InlineAdvice, setG1InlineAdvice] = useState<PatientNextBestAction | null>(null);
+  const [inlineAdvice, setInlineAdvice] = useState<{ patientId: string; advice: PatientNextBestAction } | null>(null);
   const lastEditingDoc = useRef(null);
   const flowContentRef = useRef<HTMLElement>(null);
   const flowHandoff = useFlowHandoff();
@@ -215,25 +215,23 @@ export const PatientDetails = () => {
   }, [patient?.motif_consultation]);
 
   useEffect(() => {
-    // The actual clinical NBA is never suppressed. In the opt-in G1 imaging
-    // route only, display it in document flow instead of obscuring a view.
-    // All other routes retain their existing toast contract.
-    setG1InlineAdvice(null);
-    if (!id || activeTab === 'companion') return;
+    // Source-first clinical advice is non-modal on every patient tab.
+    // Switching between tabs must never cover the imaging filters at 200% zoom.
+    // Attach its identity to the patient ID to prevent a stale advice leak.
+    setInlineAdvice(null);
+    if (!id || isCompanionTab) return;
     let cancelled = false;
     const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
         if (cancelled || !res.data.nba) return;
         const nba = res.data.nba as PatientNextBestAction;
-        if (g1MediaPilot) {
-          setG1InlineAdvice({ title: nba.title, message: nba.message, action: nba.action });
-        } else {
-          toast(`💡 ${nba.title} — ${nba.message}${nba.action ? ` · Action : ${nba.action}` : ''}`, { duration: 7000 });
-        }
+        setInlineAdvice({ patientId: id, advice: {
+          title: nba.title, message: nba.message, action: nba.action,
+        } });
       }).catch(() => {});
     }, 1500);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [id, activeTab, g1MediaPilot]);
+  }, [id, isCompanionTab]);
 
   useEffect(() => {
     if (!canClinical && activeTab === 'clinical') {
@@ -361,10 +359,11 @@ export const PatientDetails = () => {
       </header>
 
       <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : isRadiology ? 'flex-1 px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 space-y-2' : 'flex-1 px-3 py-3 sm:px-4 sm:py-6 md:px-8 md:py-8 space-y-4 sm:space-y-6')}>
-        {(activeTab === 'tracking' || activeTab === 'clinical' || activeTab === 'radiology') && (
+        {!isCompanionTab && (
           <PatientClinicalContextNotice
             medicalHistory={patient.antecedents_medicaux}
-            advice={g1MediaPilot ? g1InlineAdvice : null}
+            showHistoryStatus={activeTab === 'tracking' || activeTab === 'clinical' || activeTab === 'radiology'}
+            advice={inlineAdvice?.patientId === id ? inlineAdvice.advice : null}
             onEdit={() => navigate(`/patients/${id}/edit`)}
           />
         )}
