@@ -132,7 +132,7 @@ async function runMatrix(page,theme,width,height,zoom=false){
         const heading=document.querySelector('[data-tour="agenda-header"] h1');
         const panel=document.querySelector('[data-tour="agenda-header"]');
         if(!heading||!panel)return null;
-        const rgb=s=>{const a=s.match(/[\\d.]+/g);return a&&a.length>=3?a.slice(0,3).map(Number):null;};
+        const rgb=s=>{const a=s.match(/\d+(?:\.\d+)?/g);return a&&a.length>=3?a.slice(0,3).map(Number):null;};
         const fg=rgb(getComputedStyle(heading).color),bg=rgb(getComputedStyle(panel).backgroundColor);
         if(!fg||!bg)return null;
         const lum=ch=>{const v=ch/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
