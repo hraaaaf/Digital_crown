@@ -348,6 +348,58 @@ class GatewayTests(unittest.TestCase):
             )
         self.assertEqual(self.agent.audit(0), ["SYNTHETIC_POLICY_GUARDED"])
 
+    @unittest.skipUnless(os.name == "nt", "native Windows SQLite HANDLE test")
+    def test_windows_sqlite_namespace_pin_blocks_rename_during_wal_write(self):
+        """A live connection pins the original private root and DB main file."""
+        with self.agent._db() as db:
+            db.execute(
+                "INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                ("SYNTHETIC_WINDOWS_PIN",),
+            )
+            # Attack attempts are real filesystem operations, NOT monkeypatch.
+            # If either succeeds on the Windows runner, the security claim
+            # fails. No real patient/cabinet files are involved.
+            with self.assertRaises(OSError, msg="main SQLite DB was movable"):
+                self.agent.db_file.rename(self.private / "stolen.sqlite3")
+            with self.assertRaises(OSError, msg="private root was movable"):
+                self.private.rename(self.private.with_name("private-hijacked"))
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM audit").fetchone()[0], 1)
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_WINDOWS_PIN"])
+        self.assertFalse((self.private / "stolen.sqlite3").exists())
+        self.assertFalse(self.private.with_name("private-hijacked").exists())
+
+    @unittest.skipUnless(os.name == "nt", "native Windows SQLite HANDLE test")
+    def test_windows_native_pin_denies_rename_without_sqlite_own_open(self):
+        """Independent oracle: only the guard, not SQLite, holds file locks."""
+        from tools.imaging_gateway.sqlite_boundary_lab import pin_windows_sqlite_namespace
+        with pin_windows_sqlite_namespace(
+            self.private, self.agent.db_file, self.agent._windows_private_identity,
+            require_database=True,
+        ):
+            # SQLite has been closed since HotFolder construction; if this
+            # fails, our HANDLE pin itself blocked the rename.
+            with self.assertRaises(OSError, msg="pin did not protect DB name"):
+                self.agent.db_file.rename(self.private / "stolen.sqlite3")
+            with self.assertRaises(OSError, msg="pin did not protect root name"):
+                self.private.rename(self.private.with_name("private-hijacked"))
+        self.assertFalse((self.private / "stolen.sqlite3").exists())
+        self.assertFalse(self.private.with_name("private-hijacked").exists())
+        self.assertEqual(self.agent.items(), [])
+
+    @unittest.skipUnless(os.name == "nt", "native Windows SQLite HANDLE test")
+    def test_windows_sqlite_namespace_pin_refuses_wrong_root_identity(self):
+        """Verify native handle identity before any actual sqlite3 connection."""
+        from tools.imaging_gateway.sqlite_boundary_lab import (
+            SQLiteBoundaryError, pin_windows_sqlite_namespace,
+        )
+        with self.assertRaisesRegex(SQLiteBoundaryError, "ROOT_PIN_CHANGED"):
+            with pin_windows_sqlite_namespace(
+                self.private, self.agent.db_file, (-1, -1),
+                require_database=True,
+            ):
+                self.fail("unverified root was allowed into SQLite")
+        self.assertEqual(self.agent.items(), [])
+
     def test_sqlite_wal_committed_row_recovers_after_abrupt_writer_exit(self):
         """Real separate Python process terminates without closing SQLite."""
         script = (
