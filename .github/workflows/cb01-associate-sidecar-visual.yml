@@ -11,6 +11,8 @@ on:
       - frontend/scripts/certify-cb01-associate-sidecar.mjs
       - frontend/scripts/certify-cb01-s01-s12-matrix.mjs
       - scripts/ci/cb01_s07_s09_http_pg.py
+      - scripts/ci/cb01_evidence_ledger.py
+      - frontend/src/features/agenda/AgendaModal.tsx
       - scripts/ci/cb01_s07_s09_sqlcipher.py
       - scripts/ci/cb01_s07_s09_postgres.py
       - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
@@ -383,6 +385,11 @@ jobs:
         shell: bash
         run: |
           node scripts/certify-cb01-s01-s12-matrix.mjs
+      - name: Reconcile real PostgreSQL/SQLCipher and frontend proof without human promotion
+        shell: bash
+        run: |
+          python scripts/ci/cb01_evidence_ledger.py
+          echo '### S07/S09/S10/S12: real PG HTTP + SQLCipher primitives + React mocked transport, 0/12 human E2E; see cross-gate-evidence.json.' >> "$GITHUB_STEP_SUMMARY"
       - name: Compare actual appointment and pending-action counts
         shell: bash
         run: |
@@ -410,8 +417,8 @@ jobs:
           echo "## CB-01 caveats" >> "$GITHUB_STEP_SUMMARY"
           echo "Synthetic CI-only T2: B sidecar shell experimental, no cabinet production activation." >> "$GITHUB_STEP_SUMMARY"
           echo "Does not certify production BEFORE, 200% browser zoom, 12 staff E2E, clinical validation or deployed UI." >> "$GITHUB_STEP_SUMMARY"
-          if test -f artifacts/cb01-associate-sidecar/technical-gap-evidence.json; then
-            echo "### S07/S09/S10/S12 scoped follow-up: 3 PARTIAL technical, S09 NOT_RUN. No parallel booking race or human journey certified." >> "$GITHUB_STEP_SUMMARY"
+          if test -f artifacts/cb01-associate-sidecar/cross-gate-evidence.json; then
+            echo "### Cross-gate S07/S09/S10/S12 technical proofs: read cross-gate-evidence.json. Human journeys remain NOT_RUN (0/12)." >> "$GITHUB_STEP_SUMMARY"
           fi
           if test -f artifacts/cb01-associate-sidecar/s01-s12-synthetic-matrix.json; then
             python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
