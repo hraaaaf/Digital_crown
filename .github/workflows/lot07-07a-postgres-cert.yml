@@ -4,6 +4,7 @@ on:
     paths:
       - 'scripts/verification/lot07_07a_postgres_cert.py'
       - 'scripts/verification/lot07_07a_f05_multiprocess.py'
+      - 'scripts/verification/lot07_07a_f05_pg_faults.py'
       - 'backend/services/bot/action_dispatcher.py'
       - 'backend/services/patient_companion_agenda.py'
       - 'backend/routers/frontdesk.py'
@@ -80,6 +81,11 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/verification/lot07_07a_f05_multiprocess.py
           python -m scripts.verification.lot07_07a_f05_multiprocess
+      - name: PostgreSQL encrypted Patient Companion remote receipt and controlled SQL deadlock
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/verification/lot07_07a_f05_pg_faults.py
+          python -m scripts.verification.lot07_07a_f05_pg_faults
       - name: Real FastAPI PostgreSQL 120 concurrent scenario races and lock interruption
         run: |
           set -euo pipefail
