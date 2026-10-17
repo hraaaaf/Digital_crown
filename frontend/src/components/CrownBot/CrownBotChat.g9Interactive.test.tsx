@@ -92,6 +92,17 @@ describe('CrownBot G9 reachable interaction truth', () => {
     vi.unstubAllEnvs();
   });
 
+  it('CB-01 FIRST_VALUE: opt-in opens directly on the three business actions without a server write', () => {
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    renderCrownBot();
+    expect(screen.getByRole('region', { name: 'Assistant Crown Bot — consultation' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mon programme' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trouver un patient' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Préparer un RDV' })).toBeInTheDocument();
+    expect(postMock).not.toHaveBeenCalled();
+    expect(getMock).not.toHaveBeenCalledWith('/appointments/', expect.anything());
+  });
+
   it('keeps an insight visible and unread when backend read-ack is refused', async () => {
     const onUnreadChange = renderCrownBot();
     await seedInsight();
