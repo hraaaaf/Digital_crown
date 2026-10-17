@@ -205,8 +205,23 @@ try {
  await waitServer();
  // One browser context per viewport, with a deterministic synthetic fixture.
  for(const v of viewports){
-  const result=await capture(v);
-  report.viewports.push(result);
+  const first=await capture(v);
+  // Vite's first dependency optimization may navigate a page while
+  // Chromium decodes the public JPEG. Retry ONLY that transient navigation
+  // with a NEW browser context; preserve both attempts in the evidence.
+  const navigationRace=!first.valid && first.pageErrors.some(
+    error=>error.includes('Execution context was destroyed') &&
+      error.includes('navigation')
+  );
+  const retry=navigationRace ? await capture(v) : null;
+  const result=retry ?? first;
+  report.viewports.push({
+    ...result,
+    recoveredTransientNavigation:Boolean(retry?.valid),
+    attempts:retry
+      ? [{valid:first.valid,errors:first.pageErrors}, {valid:retry.valid,errors:retry.pageErrors}]
+      : [{valid:first.valid,errors:first.pageErrors}],
+  });
   if(!result.valid)report.invalidCount++;
  }
 }finally{
