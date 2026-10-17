@@ -587,6 +587,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       await cephaloRepository.saveAnalysis(aid, buildPayload(s.local.landmarks, max, mand, real, s.diag, projections, s.mmPerPixel, s.etape2Data, s.etape3Data));
     } catch (err) {
       console.warn('Silent save failed:', err);
+      throw err;
     }
   },
   handleSave: async () => {
@@ -678,14 +679,19 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     const s = get();
     if (!s.analysisId || !s.patientId) return;
     set({ isPreviewLoading: true, previewPdfUrl: null });
-    await s.silentSave();
     try {
+      await s.silentSave();
+      const identity = await cephaloRepository.documentIdentity(s.patientId, s.analysisId);
+      if (get().patientId !== s.patientId || get().analysisId !== s.analysisId) {
+        throw new Error('Sélection d’étude modifiée pendant la prévisualisation');
+      }
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
       const impa = computeLocalImpa(s.local.landmarks);
       const ceph = calcDDMCephalo(impa);
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const data = await cephaloRepository.generatePDF(s.patientId, {
+        ...identity,
         ai_diagnostic: {
           diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
           analyse_moulages: s.diag.analyse_moulages || '',
@@ -702,6 +708,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         },
         archive: false,
       });
+      if (get().patientId !== s.patientId || get().analysisId !== s.analysisId) {
+        throw new Error('Réponse PDF abandonnée : sélection modifiée');
+      }
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       set({ previewPdfUrl: url, isPreviewLoading: false });
@@ -714,14 +723,19 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     const s = get();
     if (!s.analysisId || !s.patientId) return;
     set({ isPrinting: true });
-    await s.silentSave();
     try {
+      await s.silentSave();
+      const identity = await cephaloRepository.documentIdentity(s.patientId, s.analysisId);
+      if (get().patientId !== s.patientId || get().analysisId !== s.analysisId) {
+        throw new Error('Sélection d’étude modifiée pendant la génération');
+      }
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
       const impa = computeLocalImpa(s.local.landmarks);
       const ceph = calcDDMCephalo(impa);
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const data = await cephaloRepository.generatePDF(s.patientId, {
+        ...identity,
         ai_diagnostic: {
           diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
           analyse_moulages: s.diag.analyse_moulages || '',
@@ -738,6 +752,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         },
         archive: true,
       });
+      if (get().patientId !== s.patientId || get().analysisId !== s.analysisId) {
+        throw new Error('Réponse PDF abandonnée : sélection modifiée');
+      }
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const userChoice = window.confirm(

@@ -98,6 +98,8 @@ def get_analysis(analysis_id: int, db: Session = Depends(database.get_db), curre
     assert_patient_access(analysis.patient_id, current_user, db)
 
     out = schemas.CephaloAnalysisOut.model_validate(analysis)
+    from backend.services.cephalo_document_identity import analysis_source_revision
+    out.source_revision = analysis_source_revision(analysis)
     # Analyses legacy créées avant l'introduction de calibration_status : dérivé de
     # is_calibrated à la lecture, sans migration ni écriture (copie, jamais de mutation
     # de l'ORM/JSON persisté).

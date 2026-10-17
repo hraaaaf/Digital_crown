@@ -76,7 +76,7 @@ def test_real_jwt_get_put_get_pdf_preserves_59_canonical_ids(
     assert total_profile_rows == sum(_PROFILE_COUNTS.values())
     assert expected
 
-    response = client.post(f"/api/patients/{patient.id}/pdf", json={"archive": False}, headers=headers)
+    response = client.post(f"/api/patients/{patient.id}/pdf", json={"patient_id": patient.id, "analysis_id": analysis.id, "source_revision": after["source_revision"], "archive": False}, headers=headers)
     assert response.status_code == 200, response.text[:600] if response.status_code != 200 else ""
     assert response.headers["content-type"].startswith("application/pdf")
     assert response.content.startswith(b"%PDF")
@@ -107,7 +107,7 @@ def test_report_http_denies_unauthorized_tenant_and_stale_data(
 
     outsider = make_user(db, email="p2bis-other-cabinet@cabinet.invalid")
     unauthorized = client.post(
-        f"/api/patients/{patient.id}/pdf", json={"archive": False},
+        f"/api/patients/{patient.id}/pdf", json={"patient_id": patient.id, "analysis_id": analysis.id, "source_revision": "sha256:" + "0" * 64, "archive": False},
         headers=_jwt(client, outsider),
     )
     assert unauthorized.status_code == 403
@@ -122,11 +122,13 @@ def test_report_http_denies_unauthorized_tenant_and_stale_data(
     db.expire_all()
 
     original_owner_headers = _jwt(client, dentiste)
+    from backend.services.cephalo_document_identity import analysis_source_revision
+    current_revision = analysis_source_revision(db.get(models.CephaloAnalysis, analysis.id))
     broken_read = client.get(PATH + str(analysis.id), headers=original_owner_headers)
     assert broken_read.status_code == 409
 
     draft = client.post(
-        f"/api/patients/{patient.id}/pdf", json={"archive": False},
+        f"/api/patients/{patient.id}/pdf", json={"patient_id": patient.id, "analysis_id": analysis.id, "source_revision": current_revision, "archive": False},
         headers=original_owner_headers,
     )
     # A safe, incomplete draft is allowed; a clinically authoritative

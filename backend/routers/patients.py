@@ -1375,23 +1375,23 @@ def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: S
 
 # --- GÉNÉRATION RAPPORTS (COMPATIBILITÉ) ---
 
+from backend.services.cephalo_document_identity import resolve_document_analysis, cephalo_document_identity
+
 @router.get("/{patient_id}/cephalo-validation")
 def validate_cephalo_before_pdf(
     patient_id: int,
+    analysis_id: int,
+    source_revision: str,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("cephalo")),
 ):
     """Pré-valide les mesures céphalo avant génération PDF. Retourne fatals + warnings."""
     assert_patient_access(patient_id, current_user, db)
-    last_analysis = db.query(models.CephaloAnalysis).filter(
-        models.CephaloAnalysis.patient_id == patient_id
-    ).order_by(models.CephaloAnalysis.id.desc()).first()
-    if not last_analysis:
-        raise HTTPException(status_code=404, detail="Aucune analyse céphalométrique trouvée")
-
+    selected = resolve_document_analysis(db, patient_id=patient_id, analysis_id=analysis_id,
+        source_revision=source_revision, current_user=current_user)
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
-    result = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
-    return result.to_dict()
+    result = cephalo_consistency_validator.validate(selected.angles_data or {})
+    return {**result.to_dict(), "document_identity": cephalo_document_identity(selected)}
 
 
 @router.post("/{patient_id}/pdf")
@@ -1406,17 +1406,14 @@ def generate_cephalo_pdf(
     from fastapi.responses import FileResponse
     
     assert_patient_access(patient_id, current_user, db)
+    if req.patient_id != patient_id:
+        raise HTTPException(status_code=422, detail="Patient documentaire incohérent")
+    selected = resolve_document_analysis(db, patient_id=patient_id, analysis_id=req.analysis_id,
+        source_revision=req.source_revision, current_user=current_user)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    
-    last_analysis = db.query(models.CephaloAnalysis).filter(
-        models.CephaloAnalysis.patient_id == patient_id
-    ).order_by(models.CephaloAnalysis.id.desc()).first()
-    
-    if not last_analysis:
-        raise HTTPException(status_code=404, detail="Aucune analyse céphalométrique trouvée pour ce patient")
 
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
-    validation = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
+    validation = cephalo_consistency_validator.validate(selected.angles_data or {})
     # Bloquer uniquement l'archivage officiel — le brouillon (archive=False) reste accessible
     if req.archive and not validation.is_valid:
         raise HTTPException(
@@ -1428,13 +1425,14 @@ def generate_cephalo_pdf(
             },
         )
 
+    from copy import deepcopy
+    identity = cephalo_document_identity(selected)
     analysis_data = {
-        "id": last_analysis.id,
-        "image_path": last_analysis.image_original_path,
-        "results": last_analysis.angles_data or {},
-        "landmarks": last_analysis.landmarks_data,
-        "_is_pre_bilan": not req.archive,
-        "_validation_warnings": validation.warnings
+        "id": selected.id, "image_path": selected.image_original_path,
+        "results": deepcopy(selected.angles_data or {}),
+        "landmarks": deepcopy(selected.landmarks_data),
+        "_is_pre_bilan": not req.archive, "_validation_warnings": validation.warnings,
+        "_document_identity": identity,
     }
 
     if req.ai_diagnostic:
@@ -1460,11 +1458,16 @@ def generate_cephalo_pdf(
                 doc_type=models.DocumentType.RAPPORT_CEPHALO,
                 uploaded_by_id=current_user.id,
                 title="Bilan Céphalométrique et Plan ODF",
-                clinical_data=analysis_data.get("results", {}).get("clinical_data", {}),
+                clinical_data={
+                    **(analysis_data.get("results", {}).get("clinical_data") or {}),
+                    "cephalo_document_identity": identity,
+                },
+                analysis_id=selected.id,
                 on_conflict=ConflictResolution.CREATE_VERSION
             )
-        except Exception as e:
-            logger.warning("Archivage du rapport céphalo ignoré (doublon ou erreur) : %s", e)
+        except Exception:
+            logger.exception("Archivage du rapport céphalo échoué")
+            raise HTTPException(status_code=500, detail="Archivage du bilan impossible")
             
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
 

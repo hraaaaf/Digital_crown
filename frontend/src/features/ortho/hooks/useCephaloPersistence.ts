@@ -220,7 +220,10 @@ export const useCephaloPersistence = (
     const mand = ddm.mandibulaire === '' ? null : Number(ddm.mandibulaire);
     const real = (max !== null && mand !== null) ? (max + mand) : null;
 
+    if (!analysisId) throw new Error("Analyse non sélectionnée");
+    const identity = await cephaloRepository.documentIdentity(patientId, analysisId);
     return await cephaloRepository.generatePDF(patientId, {
+      ...identity,
       ai_diagnostic: {
         analyse_dentaire: diag.analyse_dentaire || '',
         diagnostic_squelettique: diag.diagnostic_squelettique || '',
@@ -238,7 +241,7 @@ export const useCephaloPersistence = (
       },
       archive: !preview,
     });
-  }, [patientId, ddm, diag, etape3Data]);
+  }, [patientId, analysisId, ddm, diag, etape3Data]);
 
   const handlePreview = useCallback(async () => {
     if (!analysisId || !allLandmarksPlaced) return;

@@ -707,16 +707,19 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
     if not has_permission(current_user, "cephalo"):
         raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : cephalo.")
     assert_patient_access(patient_id, current_user, db)
+    if req.patient_id != patient_id:
+        raise HTTPException(status_code=422, detail="Patient documentaire incohérent")
+    from backend.services.cephalo_document_identity import resolve_document_analysis, cephalo_document_identity
+    selected = resolve_document_analysis(db, patient_id=patient_id, analysis_id=req.analysis_id,
+        source_revision=req.source_revision, current_user=current_user)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    last_analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(models.CephaloAnalysis.id.desc()).first()
-    if not last_analysis: raise HTTPException(status_code=404, detail="Aucune analyse")
 
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
-    validation = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
+    validation = cephalo_consistency_validator.validate(selected.angles_data or {})
     if not validation.is_valid:
         audit_service.log(
             db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
-            action="CEPHALO_PDF_BLOCKED", resource_type="CephaloAnalysis", resource_id=str(last_analysis.id),
+            action="CEPHALO_PDF_BLOCKED", resource_type="CephaloAnalysis", resource_id=str(selected.id),
             severity="WARNING",
             details=f"PDF céphalo refusé (patient {patient_id}) : {'; '.join(validation.fatals)}",
         )
@@ -729,14 +732,20 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
             },
         )
 
-    analysis_data = {"id": last_analysis.id, "image_path": last_analysis.image_original_path, "results": last_analysis.angles_data or {}, "landmarks": last_analysis.landmarks_data}
+    from copy import deepcopy
+    analysis_data = {
+        "id": selected.id, "image_path": selected.image_original_path,
+        "results": deepcopy(selected.angles_data or {}),
+        "landmarks": deepcopy(selected.landmarks_data),
+        "_document_identity": cephalo_document_identity(selected),
+    }
     if req.ai_diagnostic: analysis_data["results"]["ai_diagnostic"] = req.ai_diagnostic
     if req.clinical_data: analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
 
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
     audit_service.log(
         db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
-        action="CEPHALO_PDF_GENERATED", resource_type="CephaloAnalysis", resource_id=str(last_analysis.id),
+        action="CEPHALO_PDF_GENERATED", resource_type="CephaloAnalysis", resource_id=str(selected.id),
         severity="INFO", details=f"PDF céphalo généré (patient {patient_id})",
     )
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
