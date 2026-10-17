@@ -66,6 +66,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     const desktop = window.matchMedia('(min-width: 1280px)');
     const sync = () => {
       setDesktopZoomAvailable(desktop.matches);
+      if (!desktop.matches) { setZoomPercent(100); setViewPan({ x: 0, y: 0 }); }
     };
     sync();
     desktop.addEventListener('change', sync);
@@ -75,9 +76,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     setZoomPercent(100);
     setViewPan({ x: 0, y: 0 });
   }, [store.imageSrc]);
-  // R23-G6: same visual-only viewBox control on Cabinet mobile and desktop.
-  // Pan uses explicit buttons so touches on anatomical handles never become a swipe.
-  const activeViewZoom = embedded ? zoomPercent / 100 : 1;
+  const activeViewZoom = embedded && desktopZoomAvailable ? zoomPercent / 100 : 1;
 
   React.useEffect(() => {
     if (!store.imageSrc) {
@@ -399,12 +398,12 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
       </div>
 
 
-      {embedded && (
+      {embedded && desktopZoomAvailable && (
         <div
           data-cephalo-zoom-controls
           aria-label="Grossissement de la radiographie"
           role="group"
-          className="absolute bottom-3 left-3 right-3 z-40 flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-center gap-1 rounded-xl border px-1.5 py-1 shadow-lg backdrop-blur-md sm:right-auto sm:bottom-6 sm:left-6"
+          className="absolute bottom-3 left-3 z-40 flex items-center gap-1 rounded-xl border px-1.5 py-1 shadow-lg backdrop-blur-md sm:bottom-6 sm:left-6"
           style={{ borderColor: P.border, background: P.bgPanel, color: P.text }}
         >
           <button type="button" aria-label="Réduire la radiographie"
