@@ -17,12 +17,13 @@ from backend.services.patient_companion_agenda import create_appointment as comp
 def test_legacy_unassigned_blocks_companion_and_keeps_slot_unconsumed(db, dentiste):
     # A legacy NULL practitioner reservation is a cabinet-wide blocker.
     from backend.models_patient_companion import PatientCompanionAccess
-    patient = models.Patient(nom="F05", prenom="Synthetic", employer_id=dentiste.id)
-    db.add(patient)
+    patient = models.Patient(numero_dossier="F05-LEGACY", nom="F05", prenom="Synthetic", date_naissance=datetime(2010, 1, 1), sexe="F", employer_id=dentiste.id)
+    identity = PatientCompanionIdentity(provider="local_bridge", subject=f"f05:{uuid.uuid4()}")
+    db.add_all([patient, identity])
     db.flush()
     access = PatientCompanionAccess(
         public_id=str(uuid.uuid4()), patient_id=patient.id,
-        employer_id=dentiste.id, identity_id=None,
+        employer_id=dentiste.id, identity_id=identity.id, relationship_type="SELF",
     )
     db.add(access)
     db.flush()
@@ -66,17 +67,18 @@ def test_pending_counts_under_existing_oracle_and_refused_expired_do_not(db, den
 
 
 def test_direct_canonical_call_checks_permission_not_only_fastapi_dependency(db, dentiste):
-    # FastAPI Depends is not run when Bot or Mobile calls the function in Python.
-    original = dentiste.permissions
-    try:
-        dentiste.permissions = {"agenda": False}
-        db.flush()
-        with pytest.raises(HTTPException) as raised:
-            create_appointment(
-                AppointmentCreate(patient_name="Synthetic", datetime_start=datetime(2030, 1, 2, 10)),
-                db,
-                dentiste,
-            )
-        assert raised.value.status_code == 403
-    finally:
-        dentiste.permissions = original
+    # A direct call must not trust a FastAPI dependency that was never executed.
+    secretary = models.User(
+        email="f05-denied@example.invalid", hashed_password="synthetic",
+        employer_id=dentiste.id, role=models.UserRole.SECRETAIRE,
+        permissions={"agenda": False}, is_active=True,
+    )
+    db.add(secretary)
+    db.flush()
+    with pytest.raises(HTTPException) as raised:
+        create_appointment(
+            AppointmentCreate(patient_name="Synthetic", datetime_start=datetime(2030, 1, 2, 10)),
+            db,
+            secretary,
+        )
+    assert raised.value.status_code == 403
