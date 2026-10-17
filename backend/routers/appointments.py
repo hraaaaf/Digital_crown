@@ -17,6 +17,7 @@ from backend.services.agenda_availability import (
     validate_appointment_availability,
 )
 from backend.services.agenda_resource_conflicts import assert_resource_available, find_resource_conflict, validate_assignable_resource
+from backend.services.agenda_overlap_sql import existing_end_after
 
 router = APIRouter(tags=["Appointments"])
 
@@ -92,15 +93,16 @@ def _find_conflicts(
     """
     datetime_start = _naive_datetime(datetime_start)
     end = datetime_start + timedelta(minutes=duration_minutes)
-    window_start = datetime_start - timedelta(hours=4)
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
         models.Appointment.status != models.AppointmentStatus.ANNULE,
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
-        models.Appointment.datetime_start >= window_start,
     )
+    overlap_candidate = existing_end_after(db, datetime_start)
+    if overlap_candidate is not None:
+        q = q.filter(overlap_candidate)
     if practitioner_id is not None:
         q = q.filter(
             or_(
