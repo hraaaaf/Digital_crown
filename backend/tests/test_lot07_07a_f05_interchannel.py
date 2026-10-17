@@ -68,6 +68,14 @@ def test_pending_counts_under_existing_oracle_and_refused_expired_do_not(db, den
     db.add(appointment)
     db.flush()
     assert appointment in _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
+    appointment.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.flush()
+    assert not _find_conflicts(db, dentiste.id, dentiste.id, start, 30), (
+        "Expired pending requests must not reserve capacity forever"
+    )
+    appointment.expires_at = datetime.utcnow() + timedelta(minutes=10)
+    db.flush()
+    assert appointment in _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
     appointment.status = models.AppointmentStatus.REFUSE
     db.flush()
     assert not _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
