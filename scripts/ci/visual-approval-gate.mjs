@@ -104,7 +104,6 @@ export function githubApiClient({token,repo}){
   };
   return {
     get:r=>request('GET',r),
-    post:(r,b)=>request('POST',r,b),
     delete:r=>request('DELETE',r),
   };
 }
