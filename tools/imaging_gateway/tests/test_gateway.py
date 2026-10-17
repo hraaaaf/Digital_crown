@@ -236,7 +236,7 @@ class GatewayTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "nt", "native Windows cross-process file sharing only")
     def test_windows_sqlite_main_pin_refuses_other_process_rename(self):
-        """A distinct unprivileged TEST process cannot rename the live main DB."""
+        """A separate TEST process with the CI job identity cannot rename the live DB."""
         source = self.agent.db_file
         moved = self.private / "acquisitions.sqlite3-synthetic-moved"
         child_script = (
