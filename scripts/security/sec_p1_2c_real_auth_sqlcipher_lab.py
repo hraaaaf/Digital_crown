@@ -20,6 +20,12 @@ import types
 from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[2]
+# A direct child invocation sets sys.path[0] to scripts/security rather than
+# the checkout root, even when subprocess cwd points at ROOT.
+# Only the current immutable checkout is imported, never installed packages
+# under a matching "backend" name elsewhere on the runner.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 MODULE = "backend.core.key_material"
 SOURCE = ROOT / "backend/core/key_material.py"
 FIXED = datetime(2026, 1, 2, 12, 0, 0)
