@@ -19,6 +19,12 @@ function Assert-F01([bool]$Good, [string]$Code) {
 function Private-Path([string]$Leaf) {
     Join-Path (Join-Path $WorkRoot 'private') $Leaf
 }
+function Evidence-Directory([string]$Stage) {
+    Join-Path (Join-Path $WorkRoot 'evidence') $Stage
+}
+function Evidence-Report([string]$Stage) {
+    Join-Path (Evidence-Directory $Stage) 'report.json'
+}
 function F01-Files {
     @(
         (Private-Path 'acquisitions.sqlite3'),
@@ -40,7 +46,7 @@ function Write-Report([string]$Stage, [int]$Assertions) {
         standard_user = (-not $principal.IsInRole(
             [Security.Principal.WindowsBuiltInRole]::Administrator))
     }
-    [IO.File]::WriteAllText((Join-Path $WorkRoot ('report-' + $Stage + '.json')),
+    [IO.File]::WriteAllText((Evidence-Report $Stage),
         (ConvertTo-Json $report -Compress), [Text.Encoding]::UTF8)
 }
 function Require-Denied([scriptblock]$Attempt, [string]$Name) {
@@ -67,8 +73,8 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
         '-File', ('"' + $Script + '"'), '-Mode',$Stage,
         '-WorkRoot', ('"' + $Root + '"'), '-OwnerSid',$Owner,'-PeerSid',$Peer
     )
-    $stderr = Join-Path $Root ('f01-child-' + $Stage + '.stderr.txt')
-    $stdout = Join-Path $Root ('f01-child-' + $Stage + '.stdout.txt')
+    $stderr = Join-Path (Evidence-Directory $Stage) 'stderr.txt'
+    $stdout = Join-Path (Evidence-Directory $Stage) 'stdout.txt'
     $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -Credential $Credential -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardError $stderr -RedirectStandardOutput $stdout
     try {
         if (-not $process.WaitForExit(90000)) {
@@ -84,7 +90,7 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
         }
     }
     Assert-F01 ($exitCode -eq 0) ('CHILD_' + $Stage + '_FAILED')
-    $report = Join-Path $Root ('report-' + $Stage + '.json')
+    $report = Evidence-Report $Stage
     Assert-F01 (Test-Path -LiteralPath $report -PathType Leaf) ('MISSING_REPORT_' + $Stage)
     Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
 }
@@ -144,6 +150,19 @@ if ($Mode -eq 'Peer') {
         [IO.File]::WriteAllText((Private-Path 'new-peer-created.txt'), 'synthetic')
     } 'CREATE_NEW'
     $n++
+    # Validate the adversarial user cannot rewrite source or OWNER evidence.
+    Require-Denied {
+        $stream = [IO.File]::Open((Join-Path $WorkRoot 'f01-probe.ps1'),
+            [IO.FileMode]::Open, [IO.FileAccess]::Write)
+        $stream.Dispose()
+    } 'TAMPER_TRUSTED_SCRIPT'
+    $n++
+    Require-Denied {
+        $stream = [IO.File]::Open((Evidence-Report 'Owner'),
+            [IO.FileMode]::Open, [IO.FileAccess]::Write)
+        $stream.Dispose()
+    } 'TAMPER_OWNER_REPORT'
+    $n++
     Write-Report 'Peer' $n
     return
 }
@@ -178,8 +197,30 @@ try {
     New-Item -Path $work -ItemType Directory | Out-Null
     $runner = Join-Path $work 'f01-probe.ps1'
     Copy-Item -LiteralPath $PSCommandPath -Destination $runner
-    Invoke-Icacls -Arguments @($work, '/grant', ('*' + $owner + ':(OI)(CI)M'),
-        ('*' + $peer + ':(OI)(CI)M'))
+    # Trusted script/root: test accounts get read/execute only, never MODIFY.
+    # No parent DELETE_CHILD permissions over code or evidence directories.
+    Invoke-Icacls -Arguments @($work, '/inheritance:r')
+    Invoke-Icacls -Arguments @($work, '/grant:r',
+        ('*' + $owner + ':(OI)(CI)RX'), ('*' + $peer + ':(OI)(CI)RX'),
+        '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F')
+    $trusted = Get-Acl -LiteralPath $work
+    Assert-F01 $trusted.AreAccessRulesProtected 'TRUSTED_ROOT_DACL_NOT_PROTECTED'
+    Check-Acl $work @($owner,$peer,'S-1-5-18','S-1-5-32-544')
+    $evidenceRoot = Join-Path $work 'evidence'
+    New-Item -Path $evidenceRoot -ItemType Directory | Out-Null
+    foreach ($stageAndSid in @(@('Owner',$owner), @('Peer',$peer))) {
+        $stage = $stageAndSid[0]
+        $sid = $stageAndSid[1]
+        $folder = Evidence-Directory $stage
+        New-Item -Path $folder -ItemType Directory | Out-Null
+        Invoke-Icacls -Arguments @($folder, '/inheritance:r')
+        Invoke-Icacls -Arguments @($folder, '/grant:r',
+            ('*' + $sid + ':(OI)(CI)M'),
+            '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F')
+        $stageAcl = Get-Acl -LiteralPath $folder
+        Assert-F01 $stageAcl.AreAccessRulesProtected 'STAGE_DACL_NOT_PROTECTED'
+        Check-Acl $folder @($sid,'S-1-5-18','S-1-5-32-544')
+    }
     $private = Join-Path $work 'private'
     New-Item -Path $private -ItemType Directory | Out-Null
     Invoke-Icacls -Arguments @($private, '/inheritance:r')
@@ -194,6 +235,7 @@ try {
     Check-Acl $private $allowed
     $yes = Invoke-Child 'Owner' $ownerCredential $runner $work $owner $peer
     Assert-F01 ($yes.sid -eq $owner -and $yes.standard_user -and [int]$yes.assertions -eq 6) 'OWNER_POSITIVE_FAILED'
+    Check-Acl (Evidence-Report 'Owner') @($owner,'S-1-5-18','S-1-5-32-544')
     $hashes = @{}
     foreach ($file in F01-Files) {
         Assert-F01 (Test-Path -LiteralPath $file -PathType Leaf) 'MISSING_FILE'
@@ -201,7 +243,8 @@ try {
         $hashes[$file] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
     }
     $no = Invoke-Child 'Peer' $peerCredential $runner $work $owner $peer
-    Assert-F01 ($no.sid -eq $peer -and $no.standard_user -and [int]$no.assertions -eq 19) 'PEER_DENIAL_FAILED'
+    Assert-F01 ($no.sid -eq $peer -and $no.standard_user -and [int]$no.assertions -eq 21) 'PEER_DENIAL_FAILED'
+    Check-Acl (Evidence-Report 'Peer') @($peer,'S-1-5-18','S-1-5-32-544')
     foreach ($file in F01-Files) {
         Assert-F01 ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -eq $hashes[$file]) 'HASH_CHANGED'
     }
@@ -233,7 +276,8 @@ Write-Host 'F01_DISPOSABLE_USER_AND_ROOT_CLEANUP=PASS'
     Write-Host 'F01_DISTINCT_STANDARD_USER_TOKENS=PASS'
     Write-Host 'F01_PROTECTED_NTFS_DACL=PASS'
     Write-Host 'F01_OWNER_POSITIVE_FILE_IO=6/6'
-    Write-Host 'F01_PEER_NEGATIVE_FILE_IO=19/19'
+    Write-Host 'F01_PEER_NEGATIVE_FILE_IO=21/21'
+    Write-Host 'F01_TRUSTED_SCRIPT_AND_OWNER_REPORT_PEER_WRITE_DENIED=PASS'
     Write-Host 'F01_SYNTHETIC_SHA256_UNCHANGED=6/6'
     Write-Host 'F01_SCM_SERVICE_SID=NOT_TESTED'
     Write-Host 'F01_COMMERCIAL_CERTIFICATION=NOT_AUTHORIZED'
