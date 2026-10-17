@@ -103,7 +103,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   // hide source landmarks behind the pre-existing 2/3-item legacy UI masks.
   // This only affects presentation: all stored source coordinates remain intact.
   const pointContract = React.useMemo(() => {
-    if (analysis==='mcnamara'||analysis==='com'||analysis==='ricketts') {
+    if (analysis==='mcnamara'||analysis==='ricketts') {
       return { ids: null, source: 'unverified' as const, missing: [] as string[], count: localLandmarks.length };
     }
     return resolveCephaloAnalysisPointContract(
