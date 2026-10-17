@@ -41,7 +41,9 @@ class BilanOrthoPDFGenerator(BaseTemplate):
     ):
         if not filename:
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"BILAN_ORTHO_{vm.patient_nom.upper()}_{date_str}.pdf"
+            identity = ("_ETUDE_" + str(projection["analysis_id"])) if projection and isinstance(projection.get("analysis_id"), int) else ""
+            version = ("_REV_" + str(projection["analysis_revision"])) if projection and isinstance(projection.get("analysis_revision"), int) else ""
+            filename = f"BILAN_ORTHO_{vm.patient_nom.upper()}{identity}{version}_{date_str}.pdf"
         file_path = os.path.join(self.output_dir, filename)
 
         # Fail closed even for non-product direct calls: absence of the backend
@@ -145,6 +147,9 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "patient_nom": vm.patient_nom,
             "patient_prenom": vm.patient_prenom,
             "patient_age": vm.patient_age,
+            "cephalo_source_patient_id": projection.get("patient_id"),
+            "cephalo_source_analysis_id": projection.get("analysis_id"),
+            "cephalo_source_analysis_revision": projection.get("analysis_revision"),
             "date_analyse": vm.date_generation,
             "doctor_name": vm.doctor_name,
             "is_pre_bilan": vm.is_pre_bilan,
@@ -242,6 +247,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         elements = [
             Paragraph("BILAN ORTHODONTIQUE - RESTITUTION AUTORITAIRE", title),
+            Paragraph(f"ÉTUDE CÉPHALO ID : {escape(str(context.get('cephalo_source_analysis_id') or 'NON VÉRIFIÉ'))} | RÉVISION : {escape(str(context.get('cephalo_source_analysis_revision') or 'NON VÉRIFIÉE'))}", body),
             Paragraph(
                 f"Patient : {escape(str(vm.patient_nom).upper())} {escape(str(vm.patient_prenom).capitalize())} - Âge : {escape(str(vm.patient_age))} ans",
                 body,
