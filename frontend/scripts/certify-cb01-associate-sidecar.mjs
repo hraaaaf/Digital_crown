@@ -308,10 +308,85 @@ try {
     }
     await context.close();
   }
+  // CB-01 synthetic layout-only clinical views: these are the REAL routed
+  // React Agenda and PatientDetails screens, not a dashboard mockup. The tests
+  // check that their clinical workspace remains visible beside the shell.
+  // They do NOT prove that staff completed a clinical workflow or that
+  // records/appointments were written, confirmed, or usable at native 200%.
+  const clinicalRouteEvidence=[];
+  for (const width of [1280,1440,1920]) {
+    for (const spec of [
+      {slug:'agenda',pathname:'/agenda'},
+      {slug:'patient',pathname:'/patients/'+patientId},
+    ]) {
+      const context=await browser.newContext({viewport:{width,height:900}});
+      try {
+        await context.addInitScript(({access,refresh}) => {
+          localStorage.setItem('token',access);
+          localStorage.setItem('refresh_token',refresh||'');
+          localStorage.setItem('appMode','prod');
+        },{access:tokens.access_token,refresh:tokens.refresh_token});
+        const page=await context.newPage();
+        const errors=[],writes=[];
+        page.on('pageerror',error=>errors.push(String(error)));
+        page.on('request',req=>{
+          if (/\/api\/(bot\/execute|appointments\/?|patients\/?|devis\/?)/.test(req.url())
+              && req.method()!=='GET') writes.push(req.method());
+        });
+        await page.goto(appOrigin+spec.pathname,{
+          waitUntil:'domcontentloaded',timeout:90000,
+        });
+        await page.locator('main').waitFor({state:'visible',timeout:30000});
+        if (new URL(page.url()).pathname!==spec.pathname) {
+          throw new Error('FAIL: clinical route redirected unexpectedly: '+spec.slug);
+        }
+        await page.waitForFunction(()=>{
+          const main=document.querySelector('main');
+          return Boolean(main && (main.innerText||'').trim().length>10);
+        },null,{timeout:30000});
+        await page.screenshot({path:path.join(output,
+          'clinical-'+spec.slug+'-before-'+width+'.png')});
+        const opener=page.locator('button[aria-label="Ouvrir CrownBot"]:visible').first();
+        await opener.waitFor({state:'visible',timeout:20000});
+        await opener.click();
+        const panel=page.locator('[data-cb01-associate-sidecar]');
+        await panel.waitFor({state:'visible',timeout:15000});
+        const geometry=await page.evaluate(()=>{
+          const main=document.querySelector('main')?.getBoundingClientRect();
+          const pane=document.querySelector('[data-cb01-associate-sidecar]')?.getBoundingClientRect();
+          const root=document.documentElement;
+          return {
+            overflow:root.scrollWidth>root.clientWidth+2,
+            main:main?{left:main.left,right:main.right,width:main.width}:null,
+            sidecar:pane?{left:pane.left,right:pane.right,width:pane.width}:null,
+            visibleClinicalText:(document.querySelector('main')?.innerText||'').trim().length>10,
+          };
+        });
+        if (!geometry.main || !geometry.sidecar || !geometry.visibleClinicalText
+            || geometry.overflow || geometry.main.width<400
+            || geometry.main.right>geometry.sidecar.left+3
+            || geometry.sidecar.right>width+3
+            || writes.length>0 || errors.length>0) {
+          throw new Error('FAIL: real clinical route shell overlap/write/error at '+
+            spec.slug+' '+width+' '+JSON.stringify({
+              geometry,errors:errors.length,writes:writes.length,
+            }));
+        }
+        await page.screenshot({path:path.join(output,
+          'clinical-'+spec.slug+'-after-'+width+'.png')});
+        clinicalRouteEvidence.push({
+          route:spec.slug,width,status:'PASS_SYNTHETIC_LAYOUT_ONLY',
+          geometry,errors:0,writes:0,
+        });
+      } finally {
+        await context.close();
+      }
+    }
+  }
   const summary={kind:'CB01_SYNTHETIC_PREVIEW_ONLY',flagDependent:true,
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
     browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
-    roleChecks,evidence};
+    roleChecks,evidence,clinicalRouteEvidence};
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2));
   console.log('CB01_ASSOCIATE_SIDECAR_VISUAL: PASS',JSON.stringify(evidence));
 } finally {
