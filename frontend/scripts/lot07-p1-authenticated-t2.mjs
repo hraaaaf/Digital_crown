@@ -68,7 +68,15 @@ async function checkPage(page,theme,width,zoomNative=false){
     const btn=await cta.boundingBox();
     if(!info||!btn||btn.y<info.y+info.height-1)throw Error('Mobile P1 CTA overlaps medical context');
   }
-  if(theme==='dark')await page.evaluate(()=>document.documentElement.setAttribute('data-theme','dark'));
+  if(theme==='dark'){
+    await page.evaluate(()=>document.documentElement.setAttribute('data-theme','dark'));
+    for(const target of [page.locator('h1').first(),page.getByRole('button',{name:'Imagerie',exact:true}),page.getByRole('button',{name:'Médiathèque',exact:true})]){
+      const ink=await target.evaluate(el=>getComputedStyle(el).color);
+      const channels=ink.match(/\d+/g)?.slice(0,3).map(Number);
+      if(!channels || Math.min(...channels)<185)
+        throw Error('Dark patient/active-tab text has insufficient brightness: '+ink);
+    }
+  }
   const metrics=await page.evaluate(()=>({
     width:innerWidth,dpr:devicePixelRatio,outerWidth,visualScale:visualViewport?.scale||1,
     overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,
