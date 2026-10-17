@@ -1,3 +1,4 @@
+import type { CephaloMetricFocus } from './cephaloAnalysisBridge';
 /** R23-G2 read-only protocol rows. UI never calculates geometry or selects norms. */
 export type R23G2Analysis = 'mcnamara' | 'com' | 'ricketts';
 export type R23G2RickettsVersion = 'atlas' | 'gregoret';
@@ -15,6 +16,16 @@ export interface R23G2ProtocolRow {
   value_authority_method_id?: string | null;
   source_contract: string;
   classification_authority: false;
+  /** R23-G3: only exact active typed provenance, never inferred from labels. */
+  focus_evidence?: {
+    authority: 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1';
+    canonical_measurement_id: string;
+    measurement_ref: string;
+    value_authority_method_id: string;
+    landmark_ids: string[];
+    construction_ids: string[];
+    calibration_required: boolean;
+  };
 }
 
 export interface R23G2Protocol {
@@ -64,6 +75,45 @@ export function readCephaloR23G2Protocol(
         && (!Number.isFinite(row.value) || !row.value_authority_method_id
             || !Array.isArray(row.measurement_refs) || row.measurement_refs.length === 0)) return null;
     if (row.availability_status !== 'AVAILABLE' && row.value !== null) return null;
+    const evidence = row.focus_evidence;
+    if (evidence !== undefined) {
+      if (row.availability_status !== 'AVAILABLE' || row.value === null
+          || evidence?.authority !== 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
+          || evidence.canonical_measurement_id !== row.canonical_measurement_id
+          || evidence.value_authority_method_id !== row.value_authority_method_id
+          || !row.measurement_refs?.includes(evidence.measurement_ref)
+          || !Array.isArray(evidence.landmark_ids)
+          || !Array.isArray(evidence.construction_ids)
+          || (evidence.landmark_ids.length + evidence.construction_ids.length) === 0
+          || typeof evidence.calibration_required !== 'boolean'
+          || [...evidence.landmark_ids, ...evidence.construction_ids].some(id => typeof id !== 'string' || !id.trim())
+          || new Set(evidence.landmark_ids).size !== evidence.landmark_ids.length
+          || new Set(evidence.construction_ids).size !== evidence.construction_ids.length) return null;
+    }
   }
   return profile as R23G2Protocol;
+}
+
+/** A visual focus is authorized only by this row's verified measurement evidence.
+ * A blocked/unmapped Atlas factor remains selectable as a TABLE row, but
+ * never receives an invented focus line or substituted anatomical source. */
+export function resolveR23G3RuntimeFocus(row: R23G2ProtocolRow | null | undefined): CephaloMetricFocus | null {
+  if (!row || row.availability_status !== 'AVAILABLE' || row.value === null || !Number.isFinite(row.value)) return null;
+  const e = row.focus_evidence;
+  if (!e || e.authority !== 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
+      || e.canonical_measurement_id !== row.canonical_measurement_id
+      || e.value_authority_method_id !== row.value_authority_method_id
+      || !row.measurement_refs?.includes(e.measurement_ref)
+      || !Array.isArray(e.landmark_ids) || !Array.isArray(e.construction_ids)
+      || e.landmark_ids.length + e.construction_ids.length === 0) return null;
+  return {
+    key: row.canonical_measurement_id,
+    points: [...e.landmark_ids],
+    lines: [], // Exact UI SVG line IDs are not supplied by the runtime chain.
+    canonicalMeasurementId: row.canonical_measurement_id,
+    constructionIds: [...e.construction_ids],
+    sourceContracts: [row.source_contract],
+    availabilityGate: row.contract_gate ?? 'ACTIVE_TYPED_EVIDENCE_AVAILABLE',
+    authority: 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1',
+  };
 }
