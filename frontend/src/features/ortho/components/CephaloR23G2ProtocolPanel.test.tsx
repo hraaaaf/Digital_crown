@@ -159,4 +159,40 @@ describe('R23-G2 full read-only profile tables', () => {
     }
   });
 
+  it('shows W1 same-image orientation obligations without claiming evidence or focus', () => {
+    const old = useOrthoStore.getState().anglesData;
+    const atlas: any = profile('atlas');
+    atlas.rows[23] = {
+      ...atlas.rows[23],
+      canonical_measurement_id: 'M_RICKETTS_PALATAL_PLANE_FH_DEG_V1',
+      label: 'Plan palatin–Frankfort',
+      contract_state: 'CONDITIONAL_EXECUTABLE',
+      contract_gate: 'VERSIONED_IMAGE_ORIENTATION_EVIDENCE_REQUIRED',
+    };
+    const events: Array<CephaloMetricFocus | null> = [];
+    const receive = (event: Event) => events.push((event as CustomEvent<CephaloMetricFocus | null>).detail);
+    window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT, receive);
+    useOrthoStore.setState({ anglesData: {
+      scientific_read_path: {
+        authority: 'EVIDENCE_GRAPH_V1', active_chain: 'VERIFIED',
+        protocol_profiles: { ricketts_atlas2009: atlas, ricketts_gregoret13: profile('gregoret') },
+      },
+    } });
+    try {
+      render(<CephaloAnalysisWorkbenchPanel P={P} analysis="ricketts" />);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_RICKETTS_PALATAL_PLANE_FH_DEG_V1"]')!);
+      expect(document.querySelector('[data-r23g8-w1-orientation-gate="M_RICKETTS_PALATAL_PLANE_FH_DEG_V1"]')).toBeTruthy();
+      expect(screen.getByText(/orientation anatomique obligatoire et NON vérifiée/)).toBeTruthy();
+      expect(screen.getByText(/Aucune valeur ni Focus autorisé par cet aperçu/)).toBeTruthy();
+      expect(document.querySelector('[data-r23g3-focus-source="not-authorized"]')).toBeTruthy();
+      expect(events.at(-1)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Gregoret · 13 facteurs' }));
+      expect(document.querySelector('[data-r23g8-w1-orientation-gate]')).toBeNull();
+      expect(events.at(-1)).toBeNull();
+    } finally {
+      window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT, receive);
+      useOrthoStore.setState({ anglesData: old });
+    }
+  });
+
 });
