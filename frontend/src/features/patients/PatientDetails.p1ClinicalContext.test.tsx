@@ -192,4 +192,47 @@ describe('LOT07 P1 — actual PatientDetails route and G1 MultiView', () => {
     expect(toast).not.toHaveBeenCalled();
   });
 
+  it.each(['late-success', 'late-failure'])('never replaces patient B when patient A finishes after navigation (%s)', async ending => {
+    let settleA: ((value: { data: unknown }) => void) | undefined;
+    let failA: ((reason: Error) => void) | undefined;
+    const pendingA = new Promise<{ data: unknown }>((resolve, reject) => {
+      settleA = resolve;
+      failA = reject;
+    });
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/patients/7') return pendingA as never;
+      if (url === '/patients/8') return { data: {
+        id: 8, numero_dossier: 'T2-0002', nom: 'PATIENT', prenom: 'B',
+        date_naissance: '1990-01-01', telephone: '0008', assurance: '',
+        antecedents_medicaux: 'Historique réel patient B', motif_consultation: '',
+        dossier: { is_ortho_active: false },
+      } } as never;
+      if (url.endsWith('/nba')) return { data: { nba: null } } as never;
+      throw Error('Unexpected GET '+url);
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/patients/7?tab=tracking']}>
+        <Link to="/patients/8?tab=tracking">Ouvrir patient B</Link>
+        <Routes><Route path="/patients/:id" element={<PatientDetails />} /></Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Ouvrir patient B' }));
+    expect(await screen.findByText('PATIENT B')).toBeTruthy();
+    expect(screen.getByText('Historique réel patient B')).toBeTruthy();
+    await act(async () => {
+      if (ending === 'late-failure') failA?.(new Error('Old patient request failed'));
+      else settleA?.({ data: {
+        id: 7, numero_dossier: 'T2-0001', nom: 'STALE', prenom: 'A',
+        date_naissance: '1990-01-01', telephone: '0007', assurance: '',
+        antecedents_medicaux: 'Never render A', motif_consultation: '',
+      } });
+      await Promise.resolve();
+    });
+    expect(screen.getByText('PATIENT B')).toBeTruthy();
+    expect(screen.getByText('Historique réel patient B')).toBeTruthy();
+    expect(screen.queryByText('Never render A')).toBeNull();
+    expect(screen.queryByText('STALE A')).toBeNull();
+  });
+
 });
