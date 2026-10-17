@@ -275,7 +275,7 @@ try {
           JSON.stringify(finalPayload))) {
         throw new Error('FAIL: S05 dossier appointment preview not fail-closed non-executable');
       }
-      await preview.getByText('Proposition CREATE_APPOINTMENT : simulation uniquement, non exécutable.').waitFor();
+      await preview.getByText('Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable.').waitFor();
       staffSearchChecks+='|PASS_OWNER_DOSSIER_RDV_PROPOSAL_ONLY';
     }
     await page.screenshot({path:path.join(output,'after-'+width+'.png')});
