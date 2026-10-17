@@ -9,6 +9,7 @@ import os
 import sqlite3
 import threading
 import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -238,6 +239,8 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             }
             handle = start_if_enabled(env, trusted_environment="test")
             self.assertIsNotNone(handle)
+            self.assertIsNotNone(handle.process)
+            self.assertNotEqual(handle.process.pid, os.getpid())
             db_path = root / "private" / "acquisitions.sqlite3"
             try:
                 async def was_staged():
@@ -250,7 +253,9 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
                         await asyncio.sleep(0.05)
                 await asyncio.wait_for(was_staged(), timeout=8)
             finally:
-                await stop_bridge_lab(handle)
+                completed = await stop_bridge_lab(handle)
+            self.assertTrue(completed, "child did not stop gracefully")
+            self.assertIsNotNone(handle.process.poll(), "child not reaped")
             self.assertTrue(handle.task.done())
             self.assertEqual(photo.read_bytes(), PNG)
             with closing(sqlite3.connect(db_path)) as db:
@@ -260,6 +265,29 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             # remains open. Explicitly prove the final read connection closed.
             with self.assertRaises(sqlite3.ProgrammingError):
                 db.execute("SELECT 1")
+
+    async def test_supervised_child_force_kills_and_reaps_stuck_process(self):
+        from tools.imaging_gateway.bridge_background_lab import BridgeLabHandle
+        child = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(15)"],
+            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        stop = asyncio.Event()
+        monitor = asyncio.create_task(stop.wait())
+        handle = BridgeLabHandle(stop, monitor, child)
+        try:
+            with self.assertLogs("tools.imaging_gateway.bridge_background_lab", level="ERROR"):
+                completed = await asyncio.wait_for(
+                    stop_bridge_lab(handle, timeout=0.12), timeout=4)
+            self.assertFalse(completed, "forced kill must not claim graceful exit")
+            self.assertIsNotNone(child.poll(), "uninterruptible child was not reaped")
+            self.assertTrue(monitor.done())
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=3)
 
     async def test_blocking_scan_reports_bounded_shutdown_without_false_success(self):
         started = threading.Event()
