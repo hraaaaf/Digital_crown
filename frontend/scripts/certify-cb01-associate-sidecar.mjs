@@ -140,6 +140,29 @@ try {
       if (!await initialClose.evaluate(el=>el===document.activeElement)) {
         throw new Error('FAIL: Shift+Tab did not return to Reduce');
       }
+      // B-NEW-01: real Chromium keyboard navigation of the History drawer.
+      // The operator must enter History, dismiss it with Escape and return
+      // to the original trigger without closing the entire sidecar.
+      const historyToggle=sidecar.getByRole('button',{name:"Ouvrir l'historique Crown Bot"});
+      await historyToggle.focus();
+      await page.keyboard.press('Enter');
+      const historyClose=sidecar.getByRole('button',{name:"Fermer l'historique Crown Bot"});
+      await historyClose.waitFor({state:'visible'});
+      if(!await historyClose.evaluate(el=>el===document.activeElement)) {
+        throw new Error('FAIL: History open did not move focus to its close control');
+      }
+      const historyDrawer=sidecar.locator('[data-cb01-history-drawer]');
+      if(await historyDrawer.getAttribute('aria-hidden')!=='false'
+          || await historyDrawer.getAttribute('inert')!==null) {
+        throw new Error('FAIL: open History drawer remained hidden or inert');
+      }
+      await page.keyboard.press('Escape');
+      if(await historyDrawer.getAttribute('aria-hidden')!=='true'
+          || await historyDrawer.getAttribute('inert')===null
+          || !await historyToggle.evaluate(el=>el===document.activeElement)
+          || !await sidecar.isVisible()) {
+        throw new Error('FAIL: History Escape did not restore focus without closing sidecar');
+      }
     } else {
       await overlay.waitFor({state:'visible',timeout:15000});
       if(await sidecar.count()) throw new Error('FAIL: sidecar wrongly mounted on fallback');
