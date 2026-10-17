@@ -98,6 +98,24 @@ Les données absentes, non calculables ou non validées restent explicitement no
 </table>
 {% endif %}
 
+{% for section in r23g2_protocols %}
+<h2>Analyse protocolaire {{ section.title }}</h2>
+<div class="notice">
+<strong>{{ section.protocol_profile_id }}</strong> — {{ section.warning }}
+{% if section.verified %}<div class="small">{{ section.expected_rows }} facteurs documentés — aucun diagnostic ni norme déduits.</div>{% endif %}
+</div>
+{% if section.verified %}
+<table>
+<thead><tr><th>ID canonique</th><th>Mesure source</th><th>Valeur</th><th>État</th><th>Contrat</th></tr></thead>
+<tbody>
+{% for row in section.rows %}
+<tr><td>{{ row.canonical_measurement_id }}</td><td>{{ row.label }}</td><td>{{ row.value }}</td><td>{{ row.availability_status }}</td><td>{{ row.contract_state }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endif %}
+{% endfor %}
+
 <h2>Chaîne clinique R11 → R14</h2>
 {% for stage in stages %}
 <div class="stage">
