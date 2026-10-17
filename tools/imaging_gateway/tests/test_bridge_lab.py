@@ -187,6 +187,40 @@ class BridgeLabConfigTests(unittest.TestCase):
         self.assertEqual(contender().returncode, 0,
                          "OS lock must be reusable after release")
 
+    def test_invalid_ready_ack_kills_child_and_releases_owner(self):
+        """A live but untrusted child ACK must never activate a LAB Bridge."""
+        from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
+        real_popen = subprocess.Popen
+        children = []
+
+        def wrong_ack_child(*args, **kwargs):
+            # The child sends an invalid ACK and remains alive unless killed.
+            child = real_popen([
+                sys.executable, "-c",
+                "import sys,time; "
+                "sys.stdin.buffer.readline(); "
+                "sys.stdout.buffer.write(b'WRONG\\n'); "
+                "sys.stdout.buffer.flush(); time.sleep(15)"
+            ], **kwargs)
+            children.append(child)
+            return child
+
+        try:
+            with patch("tools.imaging_gateway.bridge_background_lab.subprocess.Popen",
+                       side_effect=wrong_ack_child):
+                with self.assertRaisesRegex(BridgeLabConfigurationError,
+                                            "IMAGING_LAB_SUPERVISION_START_FAILED"):
+                    start_if_enabled(self.env, trusted_environment="test")
+            self.assertEqual(len(children), 1)
+            self.assertIsNotNone(children[0].poll(), "child must be killed and reaped")
+            with LabOwnerLock.acquire(self.root):
+                pass
+        finally:
+            for child in children:
+                if child.poll() is None:
+                    child.kill()
+                    child.wait(timeout=3)
+
     def test_failed_start_releases_owner_lock(self):
         from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
         with patch("tools.imaging_gateway.bridge_background_lab.subprocess.Popen",
@@ -421,6 +455,14 @@ asyncio.run(main())
                     self.assertTrue(child_handle, "cannot open synthetic child for wait")
                     self.assertEqual(kernel.WaitForSingleObject(child_handle, 0), 0x102,
                                      "child must be living before parent death")
+                else:
+                    # Require the original child was running BEFORE the parent
+                    # was killed; otherwise a preexisting child failure would
+                    # be incorrectly counted as a PDEATHSIG success.
+                    before_stat = Path(f"/proc/{child_pid}/stat").read_text().split()
+                    self.assertNotIn(before_stat[2], ("Z", "X"),
+                                     "child already dead before parent crash")
+                    before_starttime = before_stat[21]
 
                 # Force-kill only the freshly launched test harness parent.
                 # This executes no cleanup handler and simulates backend crash.
@@ -431,13 +473,17 @@ asyncio.run(main())
                     self.assertEqual(kernel.WaitForSingleObject(child_handle, 8000), 0,
                                      "Windows Job close did not kill real LAB child")
                 else:
-                    # /proc/<pid> may already be gone: that is a valid kill proof.
+                    # A vanished /proc entry is success; a reused PID is not
+                    # evidence the original child remained alive.
                     deadline = time.monotonic() + 8
                     still_running = True
                     while time.monotonic() < deadline:
                         try:
                             fields = Path(f"/proc/{child_pid}/stat").read_text().split()
-                            still_running = fields[2] not in ("Z", "X")
+                            still_running = (
+                                fields[2] not in ("Z", "X")
+                                and fields[21] == before_starttime
+                            )
                         except FileNotFoundError:
                             still_running = False
                         if not still_running:
