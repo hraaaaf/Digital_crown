@@ -1,0 +1,339 @@
+{
+  "schema_version": "CEPHALO_R23G13_ATLAS33_SOURCE_GUIDE_V1",
+  "profile_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "upstream_ledger": "docs/audits/schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json",
+  "scope": "PUBLIC_WORKBOOK_EDUCATIONAL_SOURCE_BOUND_GUIDE_ONLY",
+  "source_edition": "Atlas2009",
+  "clinical_release": false,
+  "operator_anatomy_verified": false,
+  "atlas33_measurements_validated": 0,
+  "independent_expert_review": false,
+  "source_text_as_published_in_repo_not_new_primary_verification": true,
+  "rows": [
+    {
+      "id": "Ba",
+      "label_fr": "Basion — ligne craniale Ba–N",
+      "definition_fr": "Le dépôt utilise Ba pour la ligne Ba–N, mais ne fige pas dans ce contrat l'endroit précis où cliquer sur son contour.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_GREGORET13_SOURCE_LOCK.md",
+      "evidence_excerpt": "Required scientific identities: Ba, N, explicit `Pt_Ricketts`, constructed Ricketts Gn.",
+      "forbidden_aliases": [
+        "Ba↔autre base du crâne non prouvée"
+      ],
+      "annotation_ui_status": "HOLD__EXPERT_PIXEL_RULE_REQUIRED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "DC_Ricketts",
+      "label_fr": "Centre du col condylien haut",
+      "definition_fr": "Repérer la bissectrice du col condylien aussi haut que visible sous la fosse; ne pas utiliser la tête du condyle.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_DC_MANDIBULAR_ARC_SOURCE_LOCK.md",
+      "evidence_excerpt": "Ricketts 1972 defines `Dc` as a point at the bisection of the condylar neck, taken as high as visible in the cephalometric film below the fossa.",
+      "forbidden_aliases": [
+        "DC",
+        "Co",
+        "Co_anatomic",
+        "D_point"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "FOP_MOLAR_Ricketts",
+      "label_fr": "Ancrage occlusal molaire Ricketts",
+      "definition_fr": "Zone d'occlusion molaire de la construction FOP bicuspide-molaire. L'intercuspidation exacte et son point opératoire doivent être fixés par les experts avant le clic.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
+      "evidence_excerpt": "- `FOP_MOLAR_Ricketts`",
+      "forbidden_aliases": [
+        "Occ_Post",
+        "Steiner_OP",
+        "molar_cusp"
+      ],
+      "annotation_ui_status": "HOLD__EXPERT_PIXEL_RULE_REQUIRED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "FOP_PREMOLAR_Ricketts",
+      "label_fr": "Ancrage occlusal prémolaire Ricketts",
+      "definition_fr": "Zone d'occlusion prémolaire de la FOP. Le choix du contact précis reste à préenregistrer, sans prendre une cuspide Aariz comme substitut.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
+      "evidence_excerpt": "- `FOP_PREMOLAR_Ricketts`",
+      "forbidden_aliases": [
+        "Occ_Ant",
+        "Steiner_OP",
+        "UPM",
+        "LPM"
+      ],
+      "annotation_ui_status": "HOLD__EXPERT_PIXEL_RULE_REQUIRED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "GO_Ricketts_PFH",
+      "label_fr": "Gonion propre à la hauteur faciale postérieure",
+      "definition_fr": "Repère GO spécifique à la mesure Go–CF. Le dépôt impose le manuel, sans localiser assez précisément son point de contour pour un clic non arbitré.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+      "evidence_excerpt": "`GO_Ricketts_PFH` is a source-specific clinician-controlled Gonion identity:",
+      "forbidden_aliases": [
+        "Go",
+        "Go_constructed",
+        "mandibular_angle_generic"
+      ],
+      "annotation_ui_status": "HOLD__EXPERT_PIXEL_RULE_REQUIRED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "L3_CUSP_Ricketts",
+      "label_fr": "Pointe cuspidienne canine mandibulaire",
+      "definition_fr": "Repérer la pointe de cuspide de la canine inférieure et vérifier les superpositions; projeter sur FOP seulement après source certifiée.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+      "evidence_excerpt": "- `L3_CUSP_Ricketts`: MANUAL or MANUAL_CORRECTED;",
+      "forbidden_aliases": [
+        "L3_generic",
+        "LMT",
+        "L6"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "L6_DISTAL_Ricketts",
+      "label_fr": "Surface distale première molaire mandibulaire",
+      "definition_fr": "Repère de la face distale de la couronne de la première molaire inférieure, pour la relation molaire FOP; définition opératoire tangentielle à confirmer.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+      "evidence_excerpt": "- `L6_DISTAL_Ricketts`: MANUAL or MANUAL_CORRECTED;",
+      "forbidden_aliases": [
+        "L6",
+        "LMT",
+        "L6_cusp",
+        "L6_centroid"
+      ],
+      "annotation_ui_status": "HOLD__EXPERT_PIXEL_RULE_REQUIRED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "LABIAL_COMMISSURE_Ricketts",
+      "label_fr": "Commissure labiale",
+      "definition_fr": "Repérer la commissure labiale anatomique, distincte du stomion ou du vermillon; localisation en téléradio latérale à revoir si occultée.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+      "evidence_excerpt": "straight-line distance between anterior nasal spine (ANS/ENA) and the labial commissure.",
+      "forbidden_aliases": [
+        "Stomion",
+        "Em",
+        "mouth_center",
+        "Ls_soft"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "MP_ANGLE_INFERIOR_Ricketts",
+      "label_fr": "Bord inférieur de l'angle mandibulaire",
+      "definition_fr": "Repérer le point inférieur de l'angle mandibulaire servant à la droite avec Me; ne pas substituer le Gonion générique.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_FOP_MANDIBULAR_PLANE_SOURCE_LOCK.md",
+      "evidence_excerpt": "- `MP_ANGLE_INFERIOR_Ricketts` — source-specific inferior mandibular-angle point used by this plane.",
+      "forbidden_aliases": [
+        "Go",
+        "Go-Me",
+        "Go-Gn",
+        "Tweed_FMA"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "PNS_Ricketts",
+      "label_fr": "Épine nasale postérieure pour le plan palatin Atlas",
+      "definition_fr": "Le dépôt requiert PNS_Ricketts pour la ligne ANS–PNS, mais ne prouve pas l'équivalence d'un clic générique PNS.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+      "evidence_excerpt": "`PNS_Ricketts` remains source-specific; generic PNS is not promoted silently.",
+      "forbidden_aliases": [
+        "PNS",
+        "generic_palatal_endpoint"
+      ],
+      "annotation_ui_status": "HOLD__EXPERT_PIXEL_RULE_REQUIRED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "PR_Ricketts_PTV",
+      "label_fr": "Contour postérieur de la fosse ptérygo-palatine",
+      "definition_fr": "Repère postérieur de la fosse ptérygo-palatine, origine de la PTV perpendiculaire au Frankfort anatomique. Pas le Pt de l'axe facial.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_U6_PTV_SOURCE_LOCK.md",
+      "evidence_excerpt": "point `PR` at the most posterior outline of the pterygo-palatine fossa.",
+      "forbidden_aliases": [
+        "Pt_Ricketts",
+        "PT_point",
+        "Ptm",
+        "generic_PTV"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "Pm_Ricketts",
+      "label_fr": "Protuberance menti — dépression supra-pogoniale",
+      "definition_fr": "Repérer la concavité au-dessus de Pog_hard associée à la protuberance menti, sans utiliser B, Me ni Pog.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_XI_PM_SOURCE_LOCK.md",
+      "evidence_excerpt": "protuberance menti (Pm) as the recessive area above pogonion.",
+      "forbidden_aliases": [
+        "Pm",
+        "Pog_hard",
+        "B",
+        "Me"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "Po_anatomic",
+      "label_fr": "Porion anatomique",
+      "definition_fr": "Contour supérieur du méat auditif externe anatomique, distinct d'un porion machine ou de la tige auriculaire.",
+      "source_path": "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md",
+      "evidence_excerpt": "- Po_anatomic: anatomical porion; never machine/ear-rod porion.",
+      "forbidden_aliases": [
+        "Po_machine",
+        "Po_earrod",
+        "generic_Po"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "Pog_hard",
+      "label_fr": "Pogonion osseux",
+      "definition_fr": "Point le plus antérieur du menton osseux, sans utiliser le contour des tissus mous.",
+      "source_path": "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md",
+      "evidence_excerpt": "- Pog_hard: hard-tissue pogonion; never soft-tissue Pog'.",
+      "forbidden_aliases": [
+        "Pog_soft",
+        "Pog'",
+        "Pog_generic"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "Pt_Ricketts",
+      "label_fr": "Pt du foramen rotundum/fissure ptérygomaxillaire",
+      "definition_fr": "Intersection du bord inférieur du foramen rotundum avec la paroi postérieure de la fissure ptérygomaxillaire; identité différente du PR de PTV.",
+      "source_path": "docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md",
+      "evidence_excerpt": "the intersection of the inferior border of the foramen rotundum with the",
+      "forbidden_aliases": [
+        "PR_Ricketts_PTV",
+        "PT_point",
+        "PTM_McNamara",
+        "Ptm"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "R1_Ricketts",
+      "label_fr": "Limite ramale antérieure R1",
+      "definition_fr": "Repérer l'incisure sous-coronoïdienne la plus profonde (R1), première limite du rectangle de Xi.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_XI_PM_SOURCE_LOCK.md",
+      "evidence_excerpt": "R1 at the deepest subcoronoid incisure",
+      "forbidden_aliases": [
+        "R",
+        "Go",
+        "Xi",
+        "generic_ramus"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "R2_Ricketts",
+      "label_fr": "Limite ramale postérieure R2",
+      "definition_fr": "Repérer le contour ramal postérieur directement opposé à R1 selon la construction Ricketts.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_XI_PM_SOURCE_LOCK.md",
+      "evidence_excerpt": "R2 directly opposite on the posterior ramal border",
+      "forbidden_aliases": [
+        "R",
+        "Go",
+        "Xi",
+        "generic_ramus"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "R3_Ricketts",
+      "label_fr": "Limite ramale supérieure R3",
+      "definition_fr": "Repérer le fond de l'échancrure sigmoïde, borne supérieure pour construire Xi.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_XI_PM_SOURCE_LOCK.md",
+      "evidence_excerpt": "R3 at the depth of the sigmoid notch",
+      "forbidden_aliases": [
+        "R",
+        "Co",
+        "Xi",
+        "generic_ramus"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "R4_Ricketts",
+      "label_fr": "Limite ramale inférieure R4",
+      "definition_fr": "Repérer le bord inférieur mandibulaire directement sous R3, seconde borne verticale.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_XI_PM_SOURCE_LOCK.md",
+      "evidence_excerpt": "R4 directly inferior on the lower border.",
+      "forbidden_aliases": [
+        "R",
+        "Go",
+        "Xi",
+        "generic_ramus"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "U3_CUSP_Ricketts",
+      "label_fr": "Pointe cuspidienne canine maxillaire",
+      "definition_fr": "Repérer la pointe de cuspide de la canine supérieure, sans prendre un centre couronnaire ou un repère générique.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+      "evidence_excerpt": "- `U3_CUSP_Ricketts`: MANUAL or MANUAL_CORRECTED;",
+      "forbidden_aliases": [
+        "U3_generic",
+        "UIT",
+        "U6"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    },
+    {
+      "id": "U6_DISTAL_Ricketts",
+      "label_fr": "A6 — tangente à la couronne distale première molaire maxillaire",
+      "definition_fr": "Le point A6 provient du contact de la tangente perpendiculaire à FOP sur la face distale de la couronne de la première molaire supérieure. Ce n'est pas la cuspide ou le pixel le plus distal.",
+      "source_path": "docs/audits/CEPHALO_LOT08_RICKETTS_U6_PTV_SOURCE_LOCK.md",
+      "evidence_excerpt": "point on the occlusal plane determined by a perpendicular tangent to the distal surface",
+      "forbidden_aliases": [
+        "U6",
+        "UMT",
+        "U6_cusp",
+        "U6_centroid"
+      ],
+      "annotation_ui_status": "SOURCE_DESCRIBED__NOT_EXPERT_VERIFIED",
+      "clinical_definition_verified": false,
+      "expert_consensus_complete": false
+    }
+  ]
+}
