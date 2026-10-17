@@ -140,12 +140,27 @@ class DocumentFactory:
             is_pre_bilan = analysis.get("_is_pre_bilan", False) if isinstance(analysis, dict) else False
             validation_warnings = analysis.get("_validation_warnings", []) if isinstance(analysis, dict) else []
 
+            # R23-G5 runtime may attach transport-only keys (e.g.
+            # ai_diagnostic.is_fallback) that the legacy PDF ViewModel
+            # explicitly forbids. The scientific PDF projection above
+            # is already built from the UNMODIFIED authoritative payload.
+            # Adapt only the non-authoritative legacy presentation schema.
+            legacy_results = results_dict
+            if isinstance(results_dict, dict) and isinstance(results_dict.get("ai_diagnostic"), dict):
+                legacy_results = {
+                    **results_dict,
+                    "ai_diagnostic": {
+                        key: value for key, value in results_dict["ai_diagnostic"].items()
+                        if key in schemas.DiagnosticSLM.model_fields
+                    },
+                }
+
             vm = schemas.CephaloViewModel(
                 patient_nom=patient.nom,
                 patient_prenom=patient.prenom,
                 patient_age=str(self._calculate_age(patient.date_naissance)),
                 patient_id=patient_id,
-                analysis=schemas.CephaloAnalysisResult.model_validate(results_dict),
+                analysis=schemas.CephaloAnalysisResult.model_validate(legacy_results),
                 cabinet_config={
                     "primary_color": cabinet.primary_color if cabinet else "#1A365D",
                     "secondary_color": cabinet.secondary_color if cabinet else "#64748B",
