@@ -83,7 +83,13 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
         }
         $exitCode = $process.ExitCode
     } finally { $process.Dispose() }
+    # The child may have completed its synthetic I/O even when Windows
+    # reports a failure. Record the actual exit status before rejecting it.
+    Write-Host ('F01_CHILD_' + $Stage + '_EXIT_CODE=' + $exitCode)
     if ($exitCode -ne 0) {
+        $reportPresent = Test-Path -LiteralPath (Evidence-Report $Stage) -PathType Leaf
+        Write-Host ('F01_CHILD_' + $Stage + '_REPORT_PRESENT=' +
+            $reportPresent.ToString().ToUpperInvariant())
         # No clinical content ever enters this synthetic-only harness.
         if (Test-Path -LiteralPath $stderr) {
             Get-Content -LiteralPath $stderr -Tail 15 | ForEach-Object { Write-Host ('F01_CHILD_' + $Stage + '_DIAGNOSTIC=' + $_) }
