@@ -26,6 +26,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from tools.imaging_gateway.media_validation import validated_mime
 from tools.imaging_gateway.windows_scoped_read_lab import directory_identity, open_relative_read
 from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
+from tools.imaging_gateway.sqlite_boundary_lab import SQLiteBoundaryError, inspect_sqlite_boundary
 
 
 class GatewayError(RuntimeError):
@@ -163,6 +164,8 @@ class HotFolder:
         self._watch_identity = self._directory_identity(Path(config.watch))
         self._windows_watch_identity = directory_identity(config.watch)
         self._private_identity = self._directory_identity(self.private)
+        self._windows_private_identity = directory_identity(self.private)
+        self._db_file_identity = None  # Pinned after first authorized open.
         self._spool_identity = self._directory_identity(self.spool)
         self._windows_spool_identity = directory_identity(self.spool)
         with self._db() as db:
@@ -202,14 +205,52 @@ class HotFolder:
             if active != (config.cabinet, config.workstation):
                 raise GatewayError("state directory belongs to another cabinet/workstation")
 
+    def _sqlite_guard(self):
+        """Best-effort LAB gate; path-based SQLite VFS still needs OS ACLs."""
+        self._assert_live_directories()
+        try:
+            found = inspect_sqlite_boundary(
+                self.private, self.db_file, self._private_identity,
+                self._windows_private_identity,
+            )
+        except SQLiteBoundaryError as error:
+            raise GatewayError("SQLite LAB boundary rejected: " + str(error)) from None
+        if (self._db_file_identity is not None
+                and found.get("") != self._db_file_identity):
+            raise GatewayError("SQLite LAB database identity changed")
+        return found
+
     @contextmanager
     def _db(self):
+        before = self._sqlite_guard()
         db = sqlite3.connect(self.db_file, timeout=10)
         try:
-            db.execute("PRAGMA journal_mode=WAL")
+            # Even a successful sqlite3.connect might have followed a swapped
+            # root; reject any now-observable substitution before executing SQL.
+            after = self._sqlite_guard()
+            if before.get("") is not None and after.get("") != before[""]:
+                raise GatewayError("SQLite LAB database switched during open")
+            if after.get("") is None:
+                raise GatewayError("SQLite LAB database missing after open")
+            if self._db_file_identity is None:
+                self._db_file_identity = after[""]
+            locations = db.execute("PRAGMA database_list").fetchall()
+            expected = os.path.normcase(str(self.db_file.absolute()))
+            if (len(locations) != 1 or locations[0][1] != "main"
+                    or os.path.normcase(os.path.abspath(locations[0][2])) != expected):
+                raise GatewayError("SQLite LAB unexpected database attachment/path")
+            # Do not silently downgrade from WAL to rollback journaling.
+            mode = db.execute("PRAGMA journal_mode=WAL").fetchone()
+            if not mode or str(mode[0]).lower() != "wal":
+                raise GatewayError("SQLite LAB WAL mode unavailable")
             db.execute("PRAGMA synchronous=FULL")
+            db.execute("PRAGMA trusted_schema=OFF")
+            db.execute("PRAGMA temp_store=MEMORY")
+            self._sqlite_guard()
             yield db
+            self._sqlite_guard()
             db.commit()
+            self._sqlite_guard()
         except BaseException:
             db.rollback()
             raise
