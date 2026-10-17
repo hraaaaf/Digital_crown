@@ -8,6 +8,7 @@ on:
       - 'backend/routers/frontdesk.py'
       - 'backend/routers/appointments.py'
       - 'backend/services/agenda_resource_conflicts.py'
+      - 'backend/services/agenda_availability.py'
       - 'backend/services/agenda_write_lock.py'
       - '.github/workflows/lot07-07a-postgres-cert.yml'
   workflow_dispatch:
