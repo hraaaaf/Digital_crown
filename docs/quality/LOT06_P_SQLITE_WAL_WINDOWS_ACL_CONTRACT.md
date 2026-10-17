@@ -50,6 +50,39 @@ sandbox. F01 remains **MAJOR OPEN** until a demonstrably protected native
 Windows process/ACL boundary or a proven, comprehensively handle-anchored
 SQLite VFS covers the threat model and every relevant database I/O.
 
+## F01 Windows adversarial test matrix — 2026-10-17
+
+This is a **capability matrix, not a security certification**. Synthetic
+temporary fixtures only; no patient, installed service, installer or physical
+PC. A diagnostic test that PASSES while showing an unauthorized-write
+capability is a **negative security finding**, not a protective control.
+
+| Target / attack | Oracle / test evidence | Classification | Closure boundary |
+| --- | --- | --- | --- |
+| Rename main DB by other process while DB open | Denied during live connection, allowed after close; `test_windows_sqlite_main_pin_refuses_other_process_rename` | REQUIRED Windows LAB, same CI Windows identity only | No inference about different SIDs |
+| In-place DB write by peer | New `test_windows_peer_can_write_same_byte_in_place_on_db_wal_shm`: subprocess writes **the identical original first byte**, confirms unchanged SHA-256 / working ledger | EXPERIMENTAL diagnostic, Windows native only; actual result requires fresh CI logs | If granted, F01 write confinement is **not** achieved; no corruption simulated |
+| WAL / SHM sidecar write by peer | Same test, WAL/SHM must be present and nonempty during a separate live connection; write identical byte without renaming | EXPERIMENTAL diagnostic, Windows native only | This does not test malicious WAL injection, checkpoint race or replacement |
+| Main DB and sidecar identity changes at guard checkpoints | Existing guard and injected precommit WAL-substitution test | REQUIRED synthetic unit coverage | Path-to-handle race/ABA not excluded |
+| Other SID / interactive user negative write, delete, rename / POSITIVE dedicated service SID | Distinct, effective Windows access tokens and protected DACL on DB, WAL, SHM, journal, spool, key | NOT EXECUTED; LOT10 installer / authorized Windows environment | Required before any claim of commercial isolation |
+| Admin / SYSTEM / compromised service, hardlinks, reparse swaps, in-place tampering of key/spool | Specific threat-model and restore/upgrade evidence | NOT EXECUTED | Privileged principals cannot be declared contained solely by file-sharing |
+| WAL checkpoint, power interruption, restart, backup/restore | Independent on-disk invariant and recovery/restore tests with actual service boundaries | Partially LAB for crash; LOT10 for installed/runtime | No clinical availability or persistence certification |
+
+**Decision rule:** a successful same-identity in-place probe is expected to
+expose F01 as **MAJOR OPEN**; do not present a green test badge as a protection.
+If the probe cannot open a file, diagnose sharing behavior independently;
+failure to write as the *same CI identity* is not proof of effective DACL
+isolation against a distinct ordinary Windows user. The next architectural
+gate is a verified dedicated service identity plus protected, inherited-rights-
+free DACL for all SQLite leaves and key/spool, with tests under genuinely
+distinct SIDs. Native service/installer/PC trials remain deferred to LOT10
+unless the owner separately authorizes them.
+
+Reference implementation constraints:
+- Microsoft `CreateFileW` sharing distinguishes WRITE from DELETE:
+  https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
+- Microsoft `SERVICE_SID_INFO` defines service SID types:
+  https://learn.microsoft.com/en-us/windows/win32/api/winsvc/ns-winsvc-service_sid_info
+
 ## Commercial installer / Windows DACL CONTRACT (future, not executed)
 
 **Installer prerequisites (REQUIRED):**
