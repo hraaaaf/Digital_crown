@@ -253,6 +253,19 @@ export function CrownBotChat({
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const historyToggleRef = useRef<HTMLButtonElement>(null);
+  const historyCloseRef = useRef<HTMLButtonElement>(null);
+  const historyWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (isSidebarOpen) {
+      historyCloseRef.current?.focus();
+    } else if (historyWasOpenRef.current) {
+      // Return focus after Escape, selection or the close button. It remains
+      // visible in both sidecar and floating web layouts.
+      historyToggleRef.current?.focus();
+    }
+    historyWasOpenRef.current = isSidebarOpen;
+  }, [isSidebarOpen]);
 
   // Tab & Mémoire contextuelle state
   const [activeTab, setActiveTab] = useState<Tab>('brain');
@@ -567,13 +580,22 @@ export function CrownBotChat({
       <div data-cb01-history-drawer
         inert={!isSidebarOpen}
         aria-hidden={!isSidebarOpen}
+        onKeyDown={event => {
+          // Do not propagate Escape to the enclosing desktop sidecar:
+          // closing History must not close the whole Crown Bot panel.
+          if (isSidebarOpen && event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsSidebarOpen(false);
+          }
+        }}
         className={cn(
           'absolute left-0 top-0 bottom-0 w-64 bg-slate-50 border-r border-slate-200 z-50 flex flex-col transition-transform duration-300',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}>
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Historique</h3>
-          <button aria-label="Fermer l'historique Crown Bot" onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-slate-200 rounded-md">
+          <button type="button" ref={historyCloseRef} aria-label="Fermer l'historique Crown Bot" onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-slate-200 rounded-md">
             <X size={16} className="text-slate-500" />
           </button>
         </div>
@@ -586,16 +608,19 @@ export function CrownBotChat({
           {sessions.length === 0
             ? <p className="text-xs text-center text-slate-400 mt-4">Aucune conversation</p>
             : sessions.map(session => (
-              <div key={session.id} onClick={() => loadSession(session.id)}
-                className={cn('group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors',
+              <div key={session.id}
+                className={cn('group flex items-center gap-1 p-1 rounded-lg transition-colors',
                   currentSessionId === session.id ? 'bg-primary/10 text-primary' : 'hover:bg-slate-200 text-slate-700')}
               >
-                <div className="flex items-center gap-2 overflow-hidden">
+                <button type="button" onClick={() => { void loadSession(session.id); }}
+                  aria-label={`Ouvrir la conversation ${session.title}`}
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                   <MessageSquare size={14} className="shrink-0" />
                   <span className="text-sm truncate">{session.title}</span>
-                </div>
-                <button onClick={(e) => archiveSession(session.id, e)} title="Archiver"
-                  className="p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                </button>
+                <button type="button" onClick={(e) => { void archiveSession(session.id, e); }}
+                  aria-label={`Archiver la conversation ${session.title}`}
+                  className="min-h-11 min-w-11 rounded-md p-2 text-slate-500 hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                   <Archive size={14} />
                 </button>
               </div>
@@ -608,7 +633,7 @@ export function CrownBotChat({
       <div className="flex flex-col bg-primary text-white shrink-0">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-3">
-            <button aria-label="Ouvrir l'historique Crown Bot" onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
+            <button type="button" ref={historyToggleRef} aria-label="Ouvrir l'historique Crown Bot" aria-expanded={isSidebarOpen} onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
               <Menu size={18} />
             </button>
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
