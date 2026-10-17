@@ -77,8 +77,11 @@ const normalizeMode = (value?: string): AnalysisMode => {
   return 'all';
 };
 
-const filterLandmarks = (landmarks: Landmark[], mode: AnalysisMode) => {
-  if (mode === 'all') return landmarks;
+export const filterCephaloAnalysisLandmarks = (landmarks: Landmark[], mode: AnalysisMode) => {
+  // R23-G3: McNamara13/Atlas33/Gregoret13 have no complete pinned LOT06
+  // point subset. Never apply their old 3/2-factor landmark whitelists,
+  // including at mobile viewports (compactLabels=false).
+  if (mode === 'all' || mode === 'mcnamara' || mode === 'ricketts') return landmarks;
   const allowed = MODE_LANDMARKS[mode];
   return landmarks.filter(item => allowed.has(item.id.toLowerCase()));
 };
@@ -169,7 +172,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   // R23-F: only on desktop, replace historical hardcoded point masks with
   // source-backed display contracts. Keep mobile rendering byte-identical.
   const filteredLandmarks = React.useMemo(() => {
-    if(!props.compactLabels) return filterLandmarks(props.landmarks,mode);
+    if(!props.compactLabels) return filterCephaloAnalysisLandmarks(props.landmarks,mode);
     if(props.showAllPointMarkers || mode==='all' || !props.analysisPointIds)
       return props.landmarks;
     const ids=new Set(props.analysisPointIds);
@@ -184,7 +187,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   const filteredGhosts = React.useMemo<GhostData[]>(
     () => (props.ghosts || []).map(ghost => ({
       ...ghost,
-      landmarks: filterLandmarks(ghost.landmarks, mode),
+      landmarks: filterCephaloAnalysisLandmarks(ghost.landmarks, mode),
     })),
     [props.ghosts, mode],
   );
