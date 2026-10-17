@@ -82,15 +82,24 @@ def write_ciphertext(root_path: Path, name: str, data: bytes, expected_root) -> 
         file_info.RootDirectory = parent
         file_info.FileNameLength = len(name) * ct.sizeof(wt.WCHAR)
         file_info.FileName = name
-        kernel.SetFileInformationByHandle.argtypes = [
-            wt.HANDLE, ct.c_int, ct.c_void_p, wt.DWORD,
+        # Win32 SetFileInformationByHandle(FileRenameInfo) can convert a
+        # relative target name to an absolute one while retaining a non-NULL
+        # RootDirectory (WinError 87). NtSetInformationFile class 10 accepts
+        # an actual relative name and this SAME verified directory handle.
+        ntdll.NtSetInformationFile.argtypes = [
+            wt.HANDLE, ct.POINTER(IoStatusBlock), ct.c_void_p,
+            wt.ULONG, ct.c_int,
         ]
-        kernel.SetFileInformationByHandle.restype = wt.BOOL
+        ntdll.NtSetInformationFile.restype = ct.c_long
         file_os_handle = wt.HANDLE(msvcrt.get_osfhandle(fd))
-        if not kernel.SetFileInformationByHandle(
-            file_os_handle, 3, ct.byref(file_info), ct.sizeof(file_info)
-        ):
-            raise OSError(ct.get_last_error(), "IMAGING_SPOOL_ATOMIC_RENAME_FAILED")
+        rename_status = IoStatusBlock()
+        result = ntdll.NtSetInformationFile(
+            file_os_handle, ct.byref(rename_status),
+            ct.byref(file_info), ct.sizeof(file_info), 10,
+        )
+        if result < 0:
+            raise OSError("IMAGING_SPOOL_ATOMIC_RENAME_NTSTATUS_%08X" %
+                          (result & 0xFFFFFFFF))
         published = True
     finally:
         if fd is not None:
