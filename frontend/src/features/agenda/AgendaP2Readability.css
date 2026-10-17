@@ -1,0 +1,53 @@
+/*
+ * LOT07 07-A P2 — Agenda-only contrast and viewport treatment.
+ * Existing Dark and Elite tokens are NOT changed. This stylesheet is inert
+ * outside AgendaStudio, and has no effect on non-Dark themes.
+ */
+.p2-agenda-root button:focus-visible,
+.p2-agenda-root [role="button"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .p2-agenda-surface {
+  background: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main);
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .p2-agenda-switcher,
+:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='bg-slate-50'],
+:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='bg-slate-100'] {
+  background-color: var(--glass-bg) !important;
+  border-color: var(--border-color) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='bg-white'] {
+  background-color: var(--card-bg) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='border-white'] {
+  border-color: var(--border-color) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-primary,
+:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='text-indigo-'],
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-700,
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-800,
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-900 {
+  color: var(--text-main) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-400,
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-500,
+:is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-600 {
+  color: var(--text-muted) !important;
+}
+/* Status cards keep their semantic backgrounds and colors. The default blue
+ * "new appointment" buttons retain their existing primary surface, so never
+ * overwrite white or on-primary text inside a primary background. */
+:is(html, body)[data-theme='dark'] .p2-agenda-root .bg-primary .text-primary {
+  color: var(--text-on-primary) !important;
+}
+:is(html, body)[data-theme='dark'] .p2-agenda-root .p2-agenda-nav {
+  color: var(--text-main) !important;
+}
+/* Keep the full-page Month layout unchanged on tablets/desktops, while the
+ * <640px dated list is an explicit mobile alternative rather than tiny cells. */
+.p2-agenda-root [data-p2-month-day] button {
+  overflow-wrap: anywhere;
+}
