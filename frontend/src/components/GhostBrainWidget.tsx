@@ -33,7 +33,7 @@ export const GhostBrainWidget = () => {
   // HTTP ACK must not decrement a newer WebSocket snapshot's unread count.
   const { user } = useAuthStore();
   const employerId = user?.employer_id || user?.id;
-  const scopeKey = String(employerId ?? '');
+  const scopeKey = `${employerId ?? ''}:${user?.id ?? ''}`;
   const [alertState, setAlertState] = useState<{ scopeKey: string; insights: any[]; unreadCount: number }>({
     scopeKey: '', insights: [], unreadCount: 0,
   });
@@ -102,7 +102,7 @@ export const GhostBrainWidget = () => {
         ws = null;
       }
     };
-  }, [employerId]);
+  }, [employerId, scopeKey]);
 
   const markAsRead = async (logId: number) => {
     try {
