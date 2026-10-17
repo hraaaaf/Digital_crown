@@ -132,7 +132,7 @@ def exercise():
         # A second synthetic patient identity in another cabinet must never
         # authorize access to this patient's remote booking context.
         other_patient = models.Patient(
-            numero_dossier=f"F05PC-OTHER-{suffix}", nom="Other", prenom="Synthetic",
+            numero_dossier=f"F05O-{suffix}", nom="Other", prenom="Synthetic",
             date_naissance=datetime(2011, 1, 1), sexe="F", employer_id=other.id,
         )
         other_identity = PatientCompanionIdentity(
