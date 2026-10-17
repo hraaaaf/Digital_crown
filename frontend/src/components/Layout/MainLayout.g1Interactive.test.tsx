@@ -43,14 +43,17 @@ vi.mock('../../features/admin/Settings/hooks/useSettingsStore', () => ({
 vi.mock('../../hooks/useLocalStorage', () => ({ safeStorage: { get: vi.fn(() => 'false') } }));
 vi.mock('../../features/admin/constants', () => ({ PREMIUM_FONTS: [{ id: 'inter', class: 'font-sans' }] }));
 
-function renderAt(path: string) {
-  return render(
+function shellAt(path: string) {
+  return (
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="*" element={<MainLayout><div>Page content</div></MainLayout>} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+function renderAt(path: string) {
+  return render(shellAt(path));
 }
 
 beforeEach(() => {
@@ -250,5 +253,31 @@ describe('CB-01 draft survives responsive 200% reflow', () => {
     expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeNull();
     expect(screen.getByRole('textbox', { name: 'Brouillon Crown Bot' })).toBe(draft);
     expect(draft.value).toBe('dossier:BEN-2026');
+  });
+});
+
+
+describe('CB-01 principal scope clinical confidentiality', () => {
+  it('clears old chat draft when switching logged-in clinician and cabinet without a page reload', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    simulateViewport(true);
+    mockUser = { id: 1, employer_id: 101, role: 'DENTISTE', nom_complet: 'T2 Owner A' };
+    const view = renderAt('/patients/42');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    const previousDraft=screen.getByRole('textbox', { name: 'Brouillon Crown Bot' }) as HTMLInputElement;
+    fireEvent.change(previousDraft, { target: { value: 'dossier:CONFIDENTIEL-CABINET-A' } });
+    expect(previousDraft.value).toBe('dossier:CONFIDENTIEL-CABINET-A');
+
+    // In-memory account switching is an especially strict regression case:
+    // protected route redirects normally unmount the shell, but must not be
+    // the sole mechanism relied on to erase a previous account's context.
+    mockUser = { id: 2, employer_id: 202, role: 'DENTISTE', nom_complet: 'T2 Owner B' };
+    view.rerender(shellAt('/patients/42'));
+    const newDraft=screen.getByRole('textbox', { name: 'Brouillon Crown Bot' }) as HTMLInputElement;
+    expect(newDraft).not.toBe(previousDraft);
+    expect(previousDraft.isConnected).toBe(false);
+    expect(newDraft.value).toBe('');
+    expect(screen.queryByDisplayValue('dossier:CONFIDENTIEL-CABINET-A')).toBeNull();
   });
 });
