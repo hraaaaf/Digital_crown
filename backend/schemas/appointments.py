@@ -12,7 +12,7 @@ class AppointmentBase(BaseModel):
     praticien_id: Optional[int] = None
     resource_id: Optional[int] = None
     datetime_start: datetime.datetime
-    duration_minutes: int = Field(default=30, gt=0)
+    duration_minutes: int = 30
     motif: Optional[str] = None
     status: AppointmentStatus = AppointmentStatus.PREVU
     scheduling_type: SchedulingType = SchedulingType.EXACT_TIME
@@ -30,7 +30,7 @@ class AppointmentBase(BaseModel):
 
 
 class AppointmentCreate(AppointmentBase):
-    pass
+    duration_minutes: int = Field(default=30, gt=0)
 
 
 class AppointmentUpdate(BaseModel):
