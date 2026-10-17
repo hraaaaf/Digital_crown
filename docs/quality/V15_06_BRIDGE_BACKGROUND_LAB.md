@@ -31,3 +31,48 @@ The earlier normalization-only Windows fix remained red. LAB confinement now val
 
 ## FastAPI lifespan end-to-end synthetic proof
 `backend/tests/test_imaging_bridge_lifespan_v15.py` uses the **real** `backend.main.app` and FastAPI lifespan through `TestClient`. The test explicitly enables a TEMP-marked LAB fixture with a synthetic, SHA-256-completed PNG, waits for its local `PENDING_CONFIRMATION` state, verifies zero additional ClinicalAsset records, exits the real FastAPI lifespan, and asserts the Bridge worker was joined and the tempfile safely removed. A second test leaves the LAB switch absent and asserts the real app does **not** start a Bridge. Unrelated Firebase, indexing, scheduler and panorama side effects are patched (the app's lifespan is **not patched**). Runner: heavy-dependency existing 06-B isolated Ubuntu job. This is not a test of installed Windows service/real hardware or actual product launch package.
+
+## Independent audit (external) — 2026-10-17: FAIL; remediation scope
+
+An independent adversarial review rejected closure of LOT06-P (FAIL, 5 MAJOR;
+security 4.5/10, reliability 4.0/10). The earlier green CI established only
+nominal LAB tests and should not be described as certification. Corrections
+on PR #909 since `a6483264`:
+
+- **F01 (NTFS junction escape) — mitigated, OPEN pending native retest/review.**
+  Detect Windows reparse points at incoming/private, watch/private/spool and
+  ancestor level; check canonical roots and per-scan directory identities.
+  Windows CI includes actual `mklink /J` attacks for both LAB subdirectories
+  (creation is mandatory, not silently skipped) and a post-init root swap test.
+  A TOCTOU replacement between checking and opening a file remains possible
+  without Windows anchored handles and ACL/process isolation.
+- **F02 (FastAPI shutdown absent on exceptional exit) — corrected in code,
+  CI proof pending.** The actual `yield` is now inside a `try` with a
+  `finally` that stops the LAB handle and cancels/joins pre-existing async
+  tasks. The startup logger does not stringify the exception. A test raises
+  inside the actual FastAPI `lifespan(app)` and asserts the Bridge stops.
+- **F03 (re-reading all already received files) — optimized manifest mode,
+  CI proof pending.** Look up completed source signatures and producer SHA
+  in the durable indexed SQLite ledger, check bounded spool metadata, skip
+  repeated input read, hash and AES-GCM decrypt. The first capture still
+  checks source bytes and SHA; `read_verified()` reauthenticates on use.
+  The older no-manifest mode remains unchanged; periodic spool scrub and
+  high-volume soak profiling are NOT implemented.
+- **F04 (blocked OS I/O prevents shutdown) — partially mitigated, MAJOR
+  OPEN.** The LAB API shutdown wait is bounded and explicitly returns False
+  with a generic warning if a thread is stuck. Python `to_thread` CANNOT
+  forcibly terminate an in-flight OS read. A supervised process with native
+  Windows cancellation/kill/reap is required for real devices before
+  clinical release. No claim of true resource disposal after a timeout.
+- **F05 (magic-only media accepted) — conservative fail-closed correction,
+  CI proof pending.** Only structurally parsed 8-bit non-interlaced PNG can
+  reach PENDING_CONFIRMATION in this LAB: chunk lengths and CRC, critical
+  chunks, IHDR size/pixel cap, bounded decompression and row filter checks.
+  JPEG/WebP/PDF (and DICOM) are QUARANTINED until their own validators exist.
+  This is an intentional functional limitation, not clinical image decoding
+  certification.
+
+Gates: new exact-SHA Windows/Ubuntu CI, preflight+lifespan CI, two fresh
+independent external reviews on the SAME final HEAD, installer/ACL confinement,
+real-device compatibility and explicit patient linking are **OPEN**.
+PR #909 is DRAFT; no merge, no install, no clinical activation.
