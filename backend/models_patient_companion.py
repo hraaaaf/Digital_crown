@@ -331,6 +331,9 @@ class PatientCompanionRemoteReceipt(Base):
     message_id: Mapped[str] = mapped_column(String(36), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(36), nullable=False)
     operation: Mapped[str] = mapped_column(String(64), nullable=False)
+    # NULL marks pre-upgrade receipts: their original intent is unknown.
+    # A legacy receipt must NEVER be silently replayed as a new command.
+    intent_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="PROCESSING", index=True)
     response_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
