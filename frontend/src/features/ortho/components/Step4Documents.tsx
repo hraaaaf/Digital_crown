@@ -165,9 +165,8 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       const source = await prepareBoundCephaloDocumentSource(
         patientId, analysisId, stillSelected, () => store.silentSave(analysisId, true),
       );
-      const { data } = await api.post(`/patients/${patientId}/pdf`, {
-        ...source, archive: false,
-      }, { responseType: 'arraybuffer' });
+      // All PDF entrypoints must verify the response's study/revision headers.
+      const data = await cephaloRepository.generatePDF(patientId, { ...source, archive: false });
       if (!stillSelected()) throw Error("L'étude a changé pendant la génération du brouillon");
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
