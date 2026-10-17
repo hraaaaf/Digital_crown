@@ -69,6 +69,19 @@ def main() -> int:
     consecutive_errors = 0
     while not stopped.is_set():
         try:
+            # Deliberately uncooperative TEST-only scan: stdin EOF sets stop
+            # in another thread but CANNOT interrupt this blocked main loop.
+            # Enables actual OS parent-death kill proof in synthetic CI.
+            if os.environ.get("DC_V15_06_BRIDGE_LAB_BLOCK_SCAN") == "1":
+                from pathlib import Path
+                marker = Path(os.environ["DC_V15_06_BRIDGE_LAB_ROOT"]) / ".bridge-synthetic-scan-blocked"
+                with marker.open("xb") as proof:
+                    proof.write(b"BLOCKED\n")
+                    proof.flush()
+                    os.fsync(proof.fileno())
+                threading.Event().wait(90)
+                # No real scan or patient data, even if 90s expires.
+                return 5
             # Only an already isolated, opt-in TEST fixture can set this
             # synthetic failure injection. Never enabled on normal startup.
             if os.environ.get("DC_V15_06_BRIDGE_LAB_FORCE_SCAN_ERRORS") == "1":

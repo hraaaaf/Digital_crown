@@ -382,18 +382,22 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
     @unittest.skipUnless(os.name == "nt" or sys.platform.startswith("linux"),
                          "Native process death checks are Windows/Linux only")
     async def test_abrupt_parent_death_stops_real_child_and_releases_singleton(self):
-        """Kill ONLY this disposable synthetic parent, never the API/service.
+        """Prove OS kill of a *blocked* child that cannot obey stdin EOF.
 
-        Windows verifies KILL_ON_JOB_CLOSE via an OS process handle.
-        Linux verifies PR_SET_PDEATHSIG via /proc process state.
+        Kill ONLY the disposable test harness parent. A static fixture marker
+        proves the child entered a 90s noninterruptible-by-EOF scan wait.
+        Windows waits on the original child process handle; Linux tracks
+        the original PID and process starttime. No clinic/backend/device.
         """
         from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
+        import signal
         with tempfile.TemporaryDirectory(prefix="dc-abrupt-lab-parent-") as tmp:
             root = Path(tmp)
             (root / ".digitalcrown-imaging-lab-only").write_text(
                 "DIGITALCROWN_IMAGING_LAB_ONLY_V1\n", encoding="utf-8")
             (root / "incoming").mkdir()
             pidfile = root / "synthetic-child-pid.txt"
+            blocked_marker = root / ".bridge-synthetic-scan-blocked"
             # No real image, patient, SDK, credentials or clinic backend.
             harness_source = """
 import asyncio, os, sys
@@ -406,6 +410,7 @@ async def main():
         DIGITALCROWN_ISOLATED_RUNTIME="true",
         DC_V15_06_BRIDGE_LAB_ROOT=sys.argv[1],
         DC_V15_06_BRIDGE_LAB_KEY_HEX=(b"k" * 32).hex(),
+        DC_V15_06_BRIDGE_LAB_BLOCK_SCAN="1",
     )
     handle = start_if_enabled(env, trusted_environment="test")
     evidence = Path(sys.argv[2])
@@ -430,6 +435,7 @@ asyncio.run(main())
             )
             child_handle = None
             child_pid = None
+            before_starttime = None
             try:
                 deadline = time.monotonic() + 12
                 while time.monotonic() < deadline and not pidfile.exists():
@@ -440,18 +446,28 @@ asyncio.run(main())
                 child_pid = int(pidfile.read_text(encoding="ascii"))
                 self.assertGreater(child_pid, 0)
                 self.assertIsNone(parent.poll())
+                deadline = time.monotonic() + 8
+                while time.monotonic() < deadline and not blocked_marker.exists():
+                    if parent.poll() is not None:
+                        self.fail("LAB parent died before child was blocked")
+                    await asyncio.sleep(0.05)
+                self.assertTrue(blocked_marker.exists(), "child never entered blocked scan")
+                self.assertEqual(blocked_marker.read_bytes(), b"BLOCKED\n")
+                self.assertIsNone(parent.poll())
 
                 if os.name == "nt":
                     import ctypes
                     from ctypes import wintypes
                     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
                     kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+                    kernel.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+                    kernel.TerminateProcess.restype = wintypes.BOOL
                     kernel.OpenProcess.restype = wintypes.HANDLE
                     kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
                     kernel.WaitForSingleObject.restype = wintypes.DWORD
                     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
                     kernel.CloseHandle.restype = wintypes.BOOL
-                    child_handle = kernel.OpenProcess(0x00100000, False, child_pid)
+                    child_handle = kernel.OpenProcess(0x00100001, False, child_pid)
                     self.assertTrue(child_handle, "cannot open synthetic child for wait")
                     self.assertEqual(kernel.WaitForSingleObject(child_handle, 0), 0x102,
                                      "child must be living before parent death")
@@ -499,7 +515,20 @@ asyncio.run(main())
                     parent.kill()
                     parent.wait(timeout=4)
                 if child_handle:
+                    # If an OS kill regression occurs, don't leak a LAB process
+                    # blocked for 90s into later CI jobs. Handle is PID-reuse-safe.
+                    if kernel.WaitForSingleObject(child_handle, 0) == 0x102:
+                        kernel.TerminateProcess(child_handle, 5)
+                        kernel.WaitForSingleObject(child_handle, 3000)
                     kernel.CloseHandle(child_handle)
+                elif (sys.platform.startswith("linux") and child_pid is not None
+                      and before_starttime is not None):
+                    try:
+                        state = Path(f"/proc/{child_pid}/stat").read_text().split()
+                        if state[21] == before_starttime and state[2] not in ("Z", "X"):
+                            os.kill(child_pid, signal.SIGKILL)
+                    except (FileNotFoundError, ProcessLookupError):
+                        pass
 
     @unittest.skipUnless(os.name == "nt", "Windows Job Object only")
     async def test_windows_job_close_terminates_uncooperative_child(self):

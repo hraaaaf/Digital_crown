@@ -169,6 +169,8 @@ def start_if_enabled(
         child_env[name] = env[name]
     if env.get("DC_V15_06_BRIDGE_LAB_FORCE_SCAN_ERRORS") == "1":
         child_env["DC_V15_06_BRIDGE_LAB_FORCE_SCAN_ERRORS"] = "1"
+    if env.get("DC_V15_06_BRIDGE_LAB_BLOCK_SCAN") == "1":
+        child_env["DC_V15_06_BRIDGE_LAB_BLOCK_SCAN"] = "1"
     child_env["DC_V15_06_BRIDGE_LAB_PARENT_PID"] = str(os.getpid())
     launch_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     proc = None
