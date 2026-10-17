@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -55,6 +55,13 @@ def find_resource_conflict(
         query = query.filter(models.Appointment.id != exclude_appointment_id)
     for appointment in query.all():
         if _status_value(appointment.status) in _INACTIVE_STATUSES:
+            continue
+        if (
+            _status_value(appointment.status) in {"en_attente_demande", "en_attente_confirm"}
+            and appointment.expires_at is not None
+            and appointment.expires_at <= datetime.utcnow()
+        ):
+            # The resource and practitioner oracles must agree on pending expiry.
             continue
         if _status_value(getattr(appointment, "scheduling_type", "exact_time")) not in {"exact_time", "exact-time", "exact"}:
             continue
