@@ -78,7 +78,7 @@ export const IntelligenceAlerts = ({
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {alerts.map(alert => (
-                <article key={alert.id} data-testid="dashboard-proactive-alert" className="flex items-start gap-3 p-3 bg-white/25 backdrop-blur-md border border-border-main rounded-elite-sm transition-all">
+                <article key={alert.id} data-testid="dashboard-proactive-alert" className="flex items-start gap-3 p-3 bg-card-bg border border-border-main rounded-elite-sm transition-all">
                   <span className={cn(
                     'w-2 h-2 rounded-full shrink-0 mt-2.5',
                     alert.priority === 1 ? 'bg-red-500' : 'bg-amber-400',
@@ -92,19 +92,19 @@ export const IntelligenceAlerts = ({
                         type="button"
                         onClick={() => onNavigatePatient(alert.patient_id!)}
                         aria-label={`Ouvrir le dossier pour l’alerte : ${alert.title}`}
-                        className="block w-full rounded-md text-left text-xs font-bold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        className="block w-full rounded-md text-left text-sm font-bold text-text-main hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                       >
                         {alert.nom ? <>{alert.nom} {alert.prenom} — </> : null}{alert.title}
                       </button>
                     ) : (
-                      <p className="text-xs font-bold text-text-main">{alert.title}</p>
+                      <p className="text-sm font-bold text-text-main">{alert.title}</p>
                     )}
-                    <p className="text-xs leading-relaxed text-text-muted break-words">{alert.action || alert.message}</p>
+                    <p className="text-sm leading-relaxed text-text-main/90 break-words">{alert.action || alert.message}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => onSnooze(alert.id)}
-                    className="min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-primary hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    className="min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-text-main hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     title="Reporter 24h"
                     aria-label={`Reporter l’alerte ${alert.title} de 24h`}
                   >
@@ -113,7 +113,7 @@ export const IntelligenceAlerts = ({
                   <button
                     type="button"
                     onClick={() => onMarkRead(alert.id)}
-                    className="min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-primary hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    className="min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-text-main hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     title="Marquer comme lu"
                     aria-label={`Marquer l’alerte ${alert.title} comme lue`}
                   >
