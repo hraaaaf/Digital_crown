@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user, require_permission
+from backend.routers.auth import get_current_user, require_permission, has_permission
 from backend.routers.workstation_mode import _find_workstation
 from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
@@ -96,7 +96,14 @@ def _find_conflicts(
     end = datetime_start + timedelta(minutes=duration_minutes)
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
-        models.Appointment.status != models.AppointmentStatus.ANNULE,
+        or_(
+            models.Appointment.status.is_(None),
+            models.Appointment.status.notin_([
+                models.AppointmentStatus.ANNULE,
+                models.AppointmentStatus.REFUSE,
+                models.AppointmentStatus.EXPIRE,
+            ]),
+        ),
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
@@ -175,6 +182,9 @@ def create_appointment(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("agenda")),
 ):
+    # A direct Python invocation (Bot/Mobile) does not execute FastAPI Depends.
+    if not has_permission(current_user, "agenda"):
+        raise HTTPException(status_code=403, detail="Permission agenda refusée")
     if appt.patient_id:
         assert_patient_access(appt.patient_id, current_user, db)
 

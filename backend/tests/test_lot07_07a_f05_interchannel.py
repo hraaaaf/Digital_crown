@@ -1,0 +1,82 @@
+"""F05 channel-invariant regression tests. Synthetic DB fixtures only."""
+from datetime import datetime, timedelta
+import uuid
+
+from fastapi import HTTPException
+import pytest
+
+from backend import models
+from backend.models_patient_companion import (
+    PatientCompanionAccess, PatientCompanionAgendaSlot, PatientCompanionIdentity,
+)
+from backend.routers.appointments import _find_conflicts, create_appointment
+from backend.schemas.appointments import AppointmentCreate
+from backend.services.patient_companion_agenda import create_appointment as companion_create
+
+
+def test_legacy_unassigned_blocks_companion_and_keeps_slot_unconsumed(db, dentiste):
+    # A legacy NULL practitioner reservation is a cabinet-wide blocker.
+    from backend.models_patient_companion import PatientCompanionAccess
+    patient = models.Patient(nom="F05", prenom="Synthetic", employer_id=dentiste.id)
+    db.add(patient)
+    db.flush()
+    access = PatientCompanionAccess(
+        public_id=str(uuid.uuid4()), patient_id=patient.id,
+        employer_id=dentiste.id, identity_id=None,
+    )
+    db.add(access)
+    db.flush()
+    slot = PatientCompanionAgendaSlot(
+        public_id=str(uuid.uuid4()), employer_id=dentiste.id,
+        practitioner_id=dentiste.id, resource_id=None,
+        datetime_start=datetime(2030, 1, 2, 10), duration_minutes=30,
+        expires_at=datetime.utcnow() + timedelta(minutes=15),
+    )
+    db.add(slot)
+    db.add(models.Appointment(
+        patient_name="Legacy F05", employer_id=dentiste.id,
+        datetime_start=slot.datetime_start, duration_minutes=60,
+        status=models.AppointmentStatus.PREVU,
+        scheduling_type=models.SchedulingType.EXACT_TIME, praticien_id=None,
+    ))
+    db.flush()
+    result = companion_create(db, access, {"slot_ref": slot.public_id})
+    assert result.status == "REJECTED" and result.response["code"] == "SLOT_CONFLICT"
+    db.refresh(slot)
+    assert slot.consumed_at is None
+
+
+def test_pending_counts_under_existing_oracle_and_refused_expired_do_not(db, dentiste):
+    start = datetime(2030, 1, 2, 10)
+    appointment = models.Appointment(
+        patient_name="Pending F05", employer_id=dentiste.id,
+        praticien_id=None, datetime_start=start, duration_minutes=30,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+        status=models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+    )
+    db.add(appointment)
+    db.flush()
+    assert appointment in _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
+    appointment.status = models.AppointmentStatus.REFUSE
+    db.flush()
+    assert not _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
+    appointment.status = models.AppointmentStatus.EXPIRE
+    db.flush()
+    assert not _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
+
+
+def test_direct_canonical_call_checks_permission_not_only_fastapi_dependency(db, dentiste):
+    # FastAPI Depends is not run when Bot or Mobile calls the function in Python.
+    original = dentiste.permissions
+    try:
+        dentiste.permissions = {"agenda": False}
+        db.flush()
+        with pytest.raises(HTTPException) as raised:
+            create_appointment(
+                AppointmentCreate(patient_name="Synthetic", datetime_start=datetime(2030, 1, 2, 10)),
+                db,
+                dentiste,
+            )
+        assert raised.value.status_code == 403
+    finally:
+        dentiste.permissions = original

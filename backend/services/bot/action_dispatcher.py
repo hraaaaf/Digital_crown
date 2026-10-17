@@ -129,6 +129,9 @@ class ActionDispatcher:
     ) -> BotResponse:
         """Crée réellement le rendez-vous en base."""
         from datetime import datetime as dt
+        from backend.routers.auth import has_permission
+        if not has_permission(user, "agenda"):
+            raise HTTPException(status_code=403, detail="Permission agenda refusée")
 
         patient_id = params.get("patient_id")
         patient_name = params.get("patient_name", "")

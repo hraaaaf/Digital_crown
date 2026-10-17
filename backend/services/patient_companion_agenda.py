@@ -15,6 +15,7 @@ from backend.models_patient_companion import (
 )
 from backend.services.agenda_availability import validate_appointment_availability
 from backend.services.agenda_resource_conflicts import assert_resource_available
+from backend.services.agenda_write_lock import lock_cabinet_appointment_writes
 from backend.services.patient_companion_remote_worker import RemoteDomainResult
 
 ACTIVE_CANCEL_BLOCKERS = {
@@ -73,26 +74,21 @@ def _appointment_for_ref(db: Session, access: PatientCompanionAccess, public_id:
 
 
 def _validate_exact_slot(db: Session, access: PatientCompanionAccess, *, start: datetime, duration: int, practitioner_id: int, resource_id: int | None, exclude_id: int | None = None) -> str | None:
+    # One oracle shared with the canonical staff/mobile/Bot writer. It includes
+    # legacy NULL practitioner rows, real duration, exact-time and tenant scope.
+    from backend.routers.appointments import _find_conflicts, _validate_practitioner
+    try:
+        _validate_practitioner(db, access.employer_id, practitioner_id)
+    except HTTPException:
+        return "SLOT_UNAVAILABLE"
     error = validate_appointment_availability(
         db, access.employer_id, start, duration, models.SchedulingType.EXACT_TIME,
         practitioner_id=practitioner_id,
     )
     if error:
         return "SLOT_UNAVAILABLE"
-    end = start + timedelta(minutes=duration)
-    q = db.query(models.Appointment).filter(
-        models.Appointment.employer_id == access.employer_id,
-        models.Appointment.deleted_at.is_(None),
-        models.Appointment.status != models.AppointmentStatus.ANNULE,
-        models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
-        models.Appointment.datetime_start < end,
-        models.Appointment.praticien_id == practitioner_id,
-    )
-    if exclude_id is not None:
-        q = q.filter(models.Appointment.id != exclude_id)
-    for existing in q.all():
-        if existing.datetime_start + timedelta(minutes=existing.duration_minutes) > start:
-            return "SLOT_CONFLICT"
+    if _find_conflicts(db, access.employer_id, practitioner_id, start, duration, exclude_id):
+        return "SLOT_CONFLICT"
     try:
         assert_resource_available(
             db,
@@ -201,6 +197,9 @@ def _slot_error(db: Session, access: PatientCompanionAccess, slot: PatientCompan
 def create_appointment(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
     if set(payload) != {"slot_ref"}:
         return _reject("INVALID_REQUEST")
+    # Lock precedes the final slot read, conflict oracle and atomic claim.
+    # The caller's remote receipt completes in the SAME transaction.
+    lock_cabinet_appointment_writes(db, access.employer_id)
     slot = _slot_for_ref(db, access, payload.get("slot_ref"))
     if slot is None:
         return _reject("SLOT_NOT_FOUND")
@@ -237,6 +236,7 @@ def create_appointment(db: Session, access: PatientCompanionAccess, payload: dic
 def reschedule_appointment(db: Session, access: PatientCompanionAccess, payload: dict) -> RemoteDomainResult:
     if set(payload) != {"appointment_ref", "slot_ref"}:
         return _reject("INVALID_REQUEST")
+    lock_cabinet_appointment_writes(db, access.employer_id)
     appointment = _appointment_for_ref(db, access, payload.get("appointment_ref"))
     if appointment is None:
         return _reject("APPOINTMENT_NOT_FOUND")

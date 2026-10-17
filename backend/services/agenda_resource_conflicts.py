@@ -7,7 +7,7 @@ from backend import models
 from backend.models import AgendaResource
 from backend.services.agenda_overlap_sql import existing_end_after
 
-_CANCELLED_STATUSES = {"annule", "cancelled", "canceled"}
+_INACTIVE_STATUSES = {"annule", "cancelled", "canceled", "refuse", "expire", "refusé", "expiré"}
 
 
 def _status_value(status) -> str:
@@ -54,7 +54,7 @@ def find_resource_conflict(
     if exclude_appointment_id is not None:
         query = query.filter(models.Appointment.id != exclude_appointment_id)
     for appointment in query.all():
-        if _status_value(appointment.status) in _CANCELLED_STATUSES:
+        if _status_value(appointment.status) in _INACTIVE_STATUSES:
             continue
         if _status_value(getattr(appointment, "scheduling_type", "exact_time")) not in {"exact_time", "exact-time", "exact"}:
             continue
