@@ -41,6 +41,11 @@ def test_legacy_unassigned_blocks_companion_and_keeps_slot_unconsumed(db, dentis
         scheduling_type=models.SchedulingType.EXACT_TIME, praticien_id=None,
     ))
     db.flush()
+    # Simulate an already published slot and existing legacy appointment, as
+    # the real remote worker operates on previously committed cabinet state.
+    db.commit()
+    db.refresh(slot)
+    assert db.query(PatientCompanionAgendaSlot).filter_by(public_id=slot.public_id).count() == 1
     result = companion_create(db, access, {"slot_ref": slot.public_id})
     assert result.status == "REJECTED" and result.response["code"] == "SLOT_CONFLICT"
     db.refresh(slot)
@@ -58,6 +63,14 @@ def test_pending_counts_under_existing_oracle_and_refused_expired_do_not(db, den
     db.add(appointment)
     db.flush()
     assert appointment in _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
+    # A pending request with an elapsed expires_at is no longer a blocker,
+    # even before a background task changes its persisted status to EXPIRE.
+    appointment.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.flush()
+    assert not _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
+    appointment.status = models.AppointmentStatus.EN_ATTENTE_CONFIRM
+    db.flush()
+    assert not _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
     appointment.status = models.AppointmentStatus.REFUSE
     db.flush()
     assert not _find_conflicts(db, dentiste.id, dentiste.id, start, 30)
@@ -82,3 +95,78 @@ def test_direct_canonical_call_checks_permission_not_only_fastapi_dependency(db,
             secretary,
         )
     assert raised.value.status_code == 403
+
+
+def test_bot_status_reactivation_rechecks_capacity(db, dentiste):
+    """Bot must not resurrect a cancelled appointment over a live reservation."""
+    from backend.services.bot.action_dispatcher import ActionDispatcher
+
+    start = datetime(2030, 1, 2, 10)
+    current = models.Appointment(
+        patient_name="F05 current", employer_id=dentiste.id,
+        praticien_id=dentiste.id, datetime_start=start, duration_minutes=30,
+        status=models.AppointmentStatus.PREVU,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+    )
+    cancelled = models.Appointment(
+        patient_name="F05 cancelled", employer_id=dentiste.id,
+        praticien_id=dentiste.id, datetime_start=start, duration_minutes=30,
+        status=models.AppointmentStatus.ANNULE,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+    )
+    db.add_all([current, cancelled]); db.flush()
+    # Model a prior committed booking; the shared in-memory SQLite fixture
+    # cannot faithfully reproduce an already committed writer via flush alone.
+    db.commit()
+    db.refresh(cancelled)
+    with pytest.raises(HTTPException) as raised:
+        ActionDispatcher()._exec_change_status(
+            {"appointment_id": cancelled.id, "status": "PREVU"}, db, dentiste,
+        )
+    assert raised.value.status_code == 409
+    db.refresh(cancelled)
+    assert cancelled.status == models.AppointmentStatus.ANNULE
+
+
+def test_bot_status_direct_call_denies_user_without_agenda(db, dentiste):
+    from backend.services.bot.action_dispatcher import ActionDispatcher
+    denied = models.User(
+        email="f05-bot-denied@example.invalid", hashed_password="synthetic",
+        employer_id=dentiste.id, role=models.UserRole.SECRETAIRE,
+        permissions={"agenda": False}, is_active=True,
+    )
+    db.add(denied); db.flush()
+    with pytest.raises(HTTPException) as raised:
+        ActionDispatcher()._exec_change_status(
+            {"appointment_id": 1, "status": "PREVU"}, db, denied,
+        )
+    assert raised.value.status_code == 403
+
+
+def test_expired_pending_releases_shared_resource_without_touching_slot(db, dentiste):
+    from backend.services.agenda_resource_conflicts import find_resource_conflict
+    chair = models.AgendaResource(
+        employer_id=dentiste.id, name="F05 synthetic chair",
+        resource_type="CHAIR", is_active=True,
+    )
+    db.add(chair); db.flush()
+    start = datetime(2030, 1, 2, 10)
+    pending = models.Appointment(
+        patient_name="F05 expired request", employer_id=dentiste.id,
+        praticien_id=None, resource_id=chair.id,
+        datetime_start=start, duration_minutes=30,
+        status=models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+        expires_at=datetime.utcnow() - timedelta(seconds=1),
+    )
+    db.add(pending); db.flush()
+    assert find_resource_conflict(
+        db, employer_id=dentiste.id, resource_id=chair.id,
+        datetime_start=start, duration_minutes=30,
+    ) is None
+    pending.expires_at = datetime.utcnow() + timedelta(minutes=15)
+    db.flush()
+    assert find_resource_conflict(
+        db, employer_id=dentiste.id, resource_id=chair.id,
+        datetime_start=start, duration_minutes=30,
+    ) is pending

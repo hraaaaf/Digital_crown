@@ -134,6 +134,8 @@ async def request_patient_confirmation(
         raise HTTPException(status_code=403, detail="Permission refusée.")
 
     employer_id = current_user.get_employer_id()
+    # Serialize status transitions with CONFIRM and all appointment producers.
+    lock_cabinet_appointment_writes(db, employer_id)
     appt = db.query(models.Appointment).filter(
         models.Appointment.id == appointment_id,
         models.Appointment.employer_id == employer_id,
@@ -260,6 +262,8 @@ async def reject_appointment(
         raise HTTPException(status_code=403, detail="Permission refusée.")
 
     employer_id = current_user.get_employer_id()
+    # Serialize status transitions with CONFIRM and all appointment producers.
+    lock_cabinet_appointment_writes(db, employer_id)
     appt = db.query(models.Appointment).filter(
         models.Appointment.id == appointment_id,
         models.Appointment.employer_id == employer_id,
@@ -303,6 +307,8 @@ async def expire_appointment(
         raise HTTPException(status_code=403, detail="Permission refusée.")
 
     employer_id = current_user.get_employer_id()
+    # Serialize status transitions with CONFIRM and all appointment producers.
+    lock_cabinet_appointment_writes(db, employer_id)
     appt = db.query(models.Appointment).filter(
         models.Appointment.id == appointment_id,
         models.Appointment.employer_id == employer_id,
