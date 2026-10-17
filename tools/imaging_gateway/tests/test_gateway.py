@@ -180,6 +180,29 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(db.execute("PRAGMA temp_store").fetchone()[0], 2)
             self.assertEqual(len(db.execute("PRAGMA database_list").fetchall()), 1)
 
+    def test_sqlite_wal_committed_row_recovers_after_abrupt_writer_exit(self):
+        """Real separate Python process terminates without closing SQLite."""
+        script = (
+            "import os,sqlite3,sys;"
+            "db=sqlite3.connect(sys.argv[1]);"
+            "assert db.execute('PRAGMA journal_mode=WAL').fetchone()[0]=='wal';"
+            "db.execute('INSERT INTO audit(item_id,event,at) VALUES(0,?,1)',"
+            "('SYNTHETIC_WAL_CRASH_RECOVERY',));"
+            "db.commit();os._exit(23)"
+        )
+        child = subprocess.run(
+            [sys.executable, "-c", script, str(self.agent.db_file)],
+            capture_output=True, timeout=6, check=False,
+        )
+        self.assertEqual(child.returncode, 23)
+        self.assertIn("SYNTHETIC_WAL_CRASH_RECOVERY", self.agent.audit(0))
+        self.assertEqual(self.agent.items(), [])
+        # Reopening the same isolated CABINET/STATION is allowed; no
+        # reconstructed patient attachment or duplicate image is created.
+        restarted = HotFolder(self.config)
+        self.assertEqual(restarted.audit(0), ["SYNTHETIC_WAL_CRASH_RECOVERY"])
+        self.assertEqual(restarted.items(), [])
+
     def test_sqlite_hardlinked_database_is_refused_before_sql(self):
         outside = self.private.parent / "linked-acquisitions.sqlite3"
         os.link(self.agent.db_file, outside)
