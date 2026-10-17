@@ -218,6 +218,52 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     expect(FakeWebSocket.instances[1].url).toContain('/ghost-insights/42?token=');
   });
 
+  it('S12: A-B-A cabinet return cannot let a former A-session ACK remove the new A insight with same ID', async () => {
+    const { rerender } = await renderSeededWidget();
+    let resolveOldRead: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => {
+      resolveOldRead = resolve;
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+
+    // Switch to another tenant, then return to the original tenant without
+    // destroying the React widget instance. Database-local IDs may collide.
+    authState.employerId = 43;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    authState.employerId = 42;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(3));
+    // Before the new A socket replies, an old A alert must not reappear.
+    expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
+    act(() => {
+      FakeWebSocket.instances[2].emit({
+        unread_count: 1,
+        insights: [{
+          id: 601,
+          insight_type: 'AGENDA',
+          content: 'Alerte actuelle du nouveau contexte A',
+          patient_id: null,
+          created_at: '2026-09-24T10:02:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    await act(async () => { resolveOldRead?.({ data: { status: 'read' } }); });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+  });
+
   it('S12: reading one of two alerts keeps the other alert and its badge visible', async () => {
     await renderSeededWidget();
     act(() => {
