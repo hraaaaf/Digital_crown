@@ -47,6 +47,15 @@ medical records, real license, or patient information are loaded or packaged.
 - The synthetic HTTP app does not listen on any port, interact with actual
   Windows installations, or use external patient/device data.
 - Temporary env is narrowed before running the executables.
+- **Experimental CI supply-chain exception**: Nuitka 4.3 Windows standalone
+  requires Dependency Walker, which was absent on the disposable runner.
+  The test uses `--assume-yes-for-downloads` so the non-interactive laboratory
+  may retrieve it; Nuitka does **not** pin and verify a cryptographic digest
+  for downloaded tools. Do **not** copy this setting into a release,
+  elevated environment, signing workflow, or build with privileged credentials.
+  A future certified build must provision any external tool with independently
+  pinned, verified checksums and restricted execution. See upstream
+  [Nuitka issue #3997](https://github.com/Nuitka/Nuitka/issues/3997).
 - No compiler/packaging alone prevents reverse engineering or cracking.
   Private commercial license signing keys must remain external to client
   installers, even if the backend is compiled with Nuitka.
