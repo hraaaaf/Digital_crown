@@ -253,3 +253,35 @@ def test_archive_persists_selected_study_fk_and_revision_on_synthetic_fixture(
     saved = (tmp_path / "isolated-archives" / relative).read_bytes()
     assert saved == older_pdf.content
     assert _compact(f"ÉTUDE CÉPHALO ID : {original.id}") in _compact(_text(older_pdf))
+
+
+def test_unversioned_historical_study_cannot_be_archived_as_authoritative(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    persisted = db.get(models.CephaloAnalysis, study.id)
+    angles = deepcopy(persisted.angles_data)
+    angles.pop(EVIDENCE_GRAPH_KEY)
+    persisted.angles_data = angles
+    db.commit()
+    # The historical identity itself still exists, but cannot become an official
+    # archived PDF without an active versioned chain, even if legacy checks pass.
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    answer = client.post(
+        f"/api/patients/{patient.id}/pdf",
+        json={"analysis_id": study.id, "archive": True},
+        headers=headers,
+    )
+    assert answer.status_code == 409
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+    assert not list(tmp_path.glob("*.pdf"))
