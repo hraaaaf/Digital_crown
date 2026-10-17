@@ -83,6 +83,20 @@ Reference implementation constraints:
 - Microsoft `SERVICE_SID_INFO` defines service SID types:
   https://learn.microsoft.com/en-us/windows/win32/api/winsvc/ns-winsvc-service_sid_info
 
+## F01 principal / service-SID architecture design gate
+
+The current interactive packaged Uvicorn backend has **no verified SCM service
+identity**, and the Windows autostart strategy in `backend/core/platform.py` is
+Task Scheduler, **not a Windows service SID**. Therefore adding a service-SID
+ACE to the existing interactive LAB path cannot establish isolation.
+
+Proposed options, mandatory human topology gate, process-to-token proof,
+per-resource DACL matrix, installer/upgrade safety oracles and two **internal**
+adversarial reviews are documented in
+[`LOT06_P_F01_WINDOWS_PRINCIPAL_DACL_ADR.md`](LOT06_P_F01_WINDOWS_PRINCIPAL_DACL_ADR.md).
+This **design-only ADR does not authorize creating a new service**; doing so
+would change PR #909's expressly limited scope. F01 is **MAJOR OPEN**.
+
 ## Commercial installer / Windows DACL CONTRACT (future, not executed)
 
 **Installer prerequisites (REQUIRED):**
