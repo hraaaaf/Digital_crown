@@ -166,7 +166,7 @@ def _runner():
             with httpx.Client(timeout=25) as client:
                 r = client.request(method, urls[port_idx]+path,
                                    headers={"Authorization": f"Bearer {token_value}"}, json=body)
-                return r.status_code, r.text[:180]
+                return r.status_code, r.text[:2048]
         def race(first, second):
             barrier = Barrier(2)
             with ThreadPoolExecutor(max_workers=2) as pool:
