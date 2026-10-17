@@ -12,11 +12,32 @@ from sqlalchemy import (BigInteger, Column, DateTime, Integer, MetaData, String,
                         Table, create_engine, inspect, select, update)
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
-from backend.core.appointment_revision_ddl import (
-    install_appointment_overlap_index, install_appointment_revision_guard)
-from backend.services.agenda_interval_overlap import (
-    exact_half_open_overlap, indexed_end_after)
-from backend.services.agenda_transaction_lock import lock_cabinet_booking
+# Load the exact checked-out PRODUCTION modules by file path. Importing the
+# backend package itself bootstraps unrelated app schemas/third-party ML deps,
+# which are intentionally absent from this narrow DB-only CI job.
+from importlib.util import module_from_spec, spec_from_file_location
+repo_root = Path(__file__).resolve().parents[2]
+
+def _load_source_module(relative_path, module_name):
+    path = repo_root / relative_path
+    spec = spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError('REFUSED: production source module missing')
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+revision = _load_source_module(
+    'backend/core/appointment_revision_ddl.py', 'cb01_prod_revision')
+interval = _load_source_module(
+    'backend/services/agenda_interval_overlap.py', 'cb01_prod_interval')
+transaction = _load_source_module(
+    'backend/services/agenda_transaction_lock.py', 'cb01_prod_lock')
+install_appointment_overlap_index = revision.install_appointment_overlap_index
+install_appointment_revision_guard = revision.install_appointment_revision_guard
+exact_half_open_overlap = interval.exact_half_open_overlap
+indexed_end_after = interval.indexed_end_after
+lock_cabinet_booking = transaction.lock_cabinet_booking
 
 if os.environ.get('DIGITALCROWN_ISOLATED_RUNTIME') != '1':
     raise RuntimeError('REFUSED: isolated runtime required')
