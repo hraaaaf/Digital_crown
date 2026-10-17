@@ -174,6 +174,46 @@ async function viewportRun(viewport){
   await tabB.screenshot({path:path.join(output,record.viewport+'-two-tabs-B-after.png'),animations:'disabled'});
   record.shots.push(record.viewport+'-two-tabs-B-after.png');
   await tabB.close();
+  // Hold an actual PDF request while switching old A -> newer B in the same tab.
+  // A late A response must never be downloaded or re-select the wrong study.
+  let releaseLatePDF;
+  let signalHeldPDF;
+  const heldPDF=new Promise(resolve=>{signalHeldPDF=resolve});
+  const lateGate=new Promise(resolve=>{releaseLatePDF=resolve});
+  let lateDownloadCount=0;
+  const lateDownloadListener=()=>{lateDownloadCount++};
+  page.on('download',lateDownloadListener);
+  const lateRoute=async route=>{
+    const payload=route.request().postDataJSON();
+    if(payload?.archive===false && payload?.analysis_id===identities.older_id) {
+      signalHeldPDF();
+      await lateGate;
+    }
+    await route.continue();
+  };
+  await page.route('**/api/patients/*/pdf',lateRoute);
+  const lateAResponse=page.waitForResponse(r=>
+    new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
+    r.request().method()==='POST' && r.request().postDataJSON()?.archive===false &&
+    r.request().postDataJSON()?.analysis_id===identities.older_id,{timeout:45000});
+  try {
+    await page.getByRole('button',{name:'Brouillon PDF'}).click();
+    await heldPDF;
+    await page.getByRole('button',{name:'Historique',exact:true}).click();
+    await page.locator('[data-cephalo-history-analysis-id="'+identities.latest_id+'"]').click();
+    await page.locator('[data-cephalo-selected-analysis-id="'+identities.latest_id+'"]').waitFor({state:'visible'});
+  } finally {
+    releaseLatePDF();
+  }
+  const completedLateA=await lateAResponse;
+  await page.unroute('**/api/patients/*/pdf',lateRoute);
+  await page.waitForTimeout(200);
+  page.off('download',lateDownloadListener);
+  if(completedLateA.status()!==200 || lateDownloadCount!==0 ||
+      !await page.locator('[data-cephalo-selected-analysis-id="'+identities.latest_id+'"]').isVisible())
+    throw Error('Late old-A PDF overwrote B selection or triggered stale download');
+  record.checks.push('SWITCH_A_TO_B_WHILE_OLDER_PDF_IN_FLIGHT_REFUSES_STALE_DOWNLOAD');
+  await shot('late-old-A-response-B-still-selected');
   record.observedToasts=await page.evaluate(()=>window.__p2terSeenToasts||[]);
   console.log('P2TER_NETWORK_DIAGNOSTIC',JSON.stringify({viewport:record.viewport,failedRequests:record.failedRequests,httpErrors:record.httpErrors,observedToasts:record.observedToasts}));
   if(record.pageErrors.length)throw Error('React exceptions '+JSON.stringify(record.pageErrors));
