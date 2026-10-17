@@ -134,6 +134,34 @@ async function checkPage(page,theme,width,zoomNative=false){
     &&metrics.outerWidth>=1200&&metrics.visualScale===1&&split===0))
     throw Error('Native 200% zoom not demonstrated '+JSON.stringify(metrics));
   const file=theme+'-'+width+(zoomNative?'-native200':'')+'.png';
+  // At Chrome's real 200% zoom, page.screenshot() serializes a CSS-sized PNG
+  // while painting DPR2 pixels, effectively cropping the physical viewport to
+  // its upper-left quadrant. Evidence must capture the COMPLETE compositor.
+  // CDP uses the same authenticated browser and native zoom, not a simulated
+  // CSS scale or new test-only route.
+  const nativeCapture=zoomNative?await page.context().newCDPSession(page):null;
+  const captureViewport=async(fileName)=>{
+    const target=path.join(out,fileName);
+    if(!nativeCapture){
+      await page.screenshot({path:target,animations:'disabled',fullPage:false});
+      return {bytes:(await fs.stat(target)).size};
+    }
+    const response=await nativeCapture.send('Page.captureScreenshot',{
+      format:'png',captureBeyondViewport:false,fromSurface:true,
+    });
+    const image=Buffer.from(response.data,'base64');
+    if(image.length<24||image.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')
+      throw Error('Native 200% compositor screenshot is not PNG '+fileName);
+    const size={width:image.readUInt32BE(16),height:image.readUInt32BE(20)};
+    const cssHeight=await page.evaluate(()=>innerHeight);
+    const expected={width:Math.round(metrics.width*metrics.dpr),
+      height:Math.round(cssHeight*metrics.dpr)};
+    if(Math.abs(size.width-expected.width)>4||Math.abs(size.height-expected.height)>6)
+      throw Error('Native 200% PNG does not cover physical browser viewport '+
+        JSON.stringify({fileName,size,expected,cssWidth:metrics.width,cssHeight,dpr:metrics.dpr}));
+    await fs.writeFile(target,image);
+    return {bytes:image.length,physicalPixels:size,expected};
+  };
   let nativeZoomClinicalProof=null;
   if(zoomNative){
     // The Chrome 200% DPR check above proves zoom, NOT the ability to read
@@ -195,20 +223,19 @@ async function checkPage(page,theme,width,zoomNative=false){
         throw Error('Native 200% clinical content not viewable '+kind+' '+JSON.stringify({requiredPixels,requiredFraction,...geometry}));
       }
       const proofFile='elite-1440-native200-'+kind+'-viewport.png';
-      await page.screenshot({path:path.join(out,proofFile),animations:'disabled',fullPage:false});
-      const proofStat=await fs.stat(path.join(out,proofFile));
-      if(proofStat.size<9000)throw Error('Empty native 200% clinical proof '+proofFile);
-      nativeZoomClinicalProof.push({kind,file:proofFile,bytes:proofStat.size,geometry});
+      const proof=await captureViewport(proofFile);
+      if(proof.bytes<9000)throw Error('Empty native 200% clinical proof '+proofFile);
+      nativeZoomClinicalProof.push({kind,file:proofFile,bytes:proof.bytes,
+        physicalPixels:proof.physicalPixels,geometry});
     }
     if(nativeZoomClinicalProof.length!==3)
       throw Error('Missing 200% clinical status, advice or media viewport evidence');
   }
-  await page.screenshot({path:path.join(out,file),animations:'disabled',fullPage:false});
-  const image=await fs.stat(path.join(out,file));
-  if(image.size<12000)throw Error('Blank image evidence '+file+' size='+image.size);
+  const image=await captureViewport(file);
+  if(image.bytes<12000)throw Error('Blank image evidence '+file+' size='+image.bytes);
   if(errors.length||failures.length)throw Error('Browser errors '+JSON.stringify({errors,failures}));
-  evidence.push({theme,width,zoomNative,split,media,metrics,file,imageBytes:image.size,
-    nativeZoomClinicalProof,
+  evidence.push({theme,width,zoomNative,split,media,metrics,file,imageBytes:image.bytes,
+    nativeZoomPhysicalPixels:image.physicalPixels||null,nativeZoomClinicalProof,
     description:'Authentic authenticated protected React patient route, disposable T2 FastAPI, no HTTP mocks'});
 }
 try{
