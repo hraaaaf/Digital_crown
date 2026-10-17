@@ -1,4 +1,5 @@
 """LOT06-I isolated versioned envelope, failure/replay abuse fixtures."""
+import base64
 import hashlib
 from pathlib import Path
 from contextlib import closing
@@ -14,7 +15,12 @@ from tools.imaging_gateway import spool_version_lab as v
 
 class VersionedEnvelopeTests(unittest.TestCase):
     def setUp(self):
-        self.clear = b"\x89PNG\r\n\x1a\n" + b"synthetic-only-test-payload"
+        # A complete, CRC-valid 2x2 PNG. The HotFolder must reject mere
+        # magic-header placeholders after F05 structural validation.
+        self.clear = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
+            "AAAAFklEQVR4nGPkEpFjYGBgYmBgYGBgAAAC5gBAXKUgWwAAAABJRU5ErkJggg=="
+        )
         self.digest = hashlib.sha256(self.clear).hexdigest()
         self.identity = "a" * 64
         self.kid1 = "0123456789abcdef" * 2
@@ -163,6 +169,8 @@ class VersionedEnvelopeTests(unittest.TestCase):
     def test_real_hotfolder_v1_ciphertext_compatibility_and_no_mutation(self):
         # Independent oracle: the actual LOT06-A HotFolder writes the DC6A blob.
         from tools.imaging_gateway import Config, HotFolder
+        from tools.imaging_gateway.media_validation import valid_png
+        self.assertTrue(valid_png(self.clear))
         with tempfile.TemporaryDirectory(prefix="dc06i-synthetic-") as tmp:
             watch = Path(tmp) / "watch"
             private = Path(tmp) / "private"
