@@ -36,11 +36,15 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
   const { profile, fetchProfile } = useSettingsStore();
   const { user } = useAuthStore();
-  // A principal switch must discard the entire CrownBotChat tree (sessions,
-  // insights, patient previews), not just the patient-preview transcript.
-  // A viewport resize keeps this key stable and therefore preserves drafts.
+  // A principal, cabinet, role or permission switch must discard the whole
+  // CrownBotChat tree (sessions, insights, patient previews). Revoking a right
+  // without logging out must not leave cached patient data on-screen.
+  // The key remains stable across viewport resize, preserving in-progress drafts.
+  const crownBotEffectiveRights = (['patients', 'agenda', 'accounting'] as const)
+    .map(permission => hasAccess(user, permission) ? '1' : '0').join('');
   const crownBotPrincipalKey = user
-    ? `${user.id}:${user.employer_id ?? user.id}` : 'anonymous';
+    ? `${user.id}:${user.employer_id ?? user.id}:${user.role}:${crownBotEffectiveRights}`
+    : 'anonymous';
   const canReadSettings = hasAccess(user, 'settings');
   const [animatedBg, setAnimatedBg] = React.useState(() => safeStorage.get('app_background_animated') === 'true');
 
