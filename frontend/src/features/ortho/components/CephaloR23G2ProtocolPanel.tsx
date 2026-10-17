@@ -3,6 +3,7 @@ import { ShieldAlert } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import { findR23G3PinnedRequirements } from '../cephaloR23G3PinnedRequirements';
 import { findR23G7AtlasSourceRequirements } from '../cephaloR23G7AtlasSourceRequirements';
+import { findR23G8W1OrientationRequirements } from '../cephaloR23G8W1OrientationRequirements';
 import { publishCephaloMetricFocus } from '../cephaloAnalysisBridge';
 import {
   readCephaloR23G2Protocol,
@@ -72,6 +73,13 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
   // Atlas source-contract preview, never a source of SVG Focus or clinical values.
   const atlasRequirements = analysis === 'ricketts' && version === 'atlas' && selectedRow
     ? findR23G7AtlasSourceRequirements(
+        profile?.protocol_profile_id ?? '',
+        selectedRow.canonical_measurement_id,
+        landmarks.map(item => item.id),
+      )
+    : null;
+  const orientationRequirements = analysis === 'ricketts' && version === 'atlas' && selectedRow
+    ? findR23G8W1OrientationRequirements(
         profile?.protocol_profile_id ?? '',
         selectedRow.canonical_measurement_id,
         landmarks.map(item => item.id),
@@ -186,6 +194,22 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                               : ' · repères listés présents (insuffisant pour calcul/Focus)'}
                             {' · gate : ' + atlasRequirements.availabilityGate}
                             {' · valeur et tracé toujours soumis à la preuve active.'}
+                          </span>
+                        ) : orientationRequirements ? (
+                          <span className="mt-1 block" data-r23g8-w1-orientation-gate={orientationRequirements.measurementId}>
+                            Contrat Atlas W1 — orientation anatomique obligatoire et NON vérifiée dans cet aperçu.
+                            {' · Repères directs : ' + (orientationRequirements.requiredLandmarks.join(', ') || 'aucun (constructions uniquement)')}
+                            {orientationRequirements.missingLandmarks.length
+                              ? ' · absents : ' + orientationRequirements.missingLandmarks.join(', ')
+                              : ' · repères déclarés présents (preuve clinique insuffisante)'}
+                            {' · constructions exigées : ' + (orientationRequirements.requiredConstructions.join(', ') || 'aucune')}
+                            {orientationRequirements.requiredManualLandmarks.length
+                              ? ' · validation manuelle : ' + orientationRequirements.requiredManualLandmarks.join(', ')
+                              : ''}
+                            {orientationRequirements.requiresCalibration ? ' · calibration mm vérifiée requise' : ''}
+                            {' · ImageOrientationEvidence de la MÊME image, axes antérieur/supérieur explicites, miroir et provenance audités.'}
+                            {' · gate : ' + orientationRequirements.availabilityGate}
+                            {' · Aucune valeur ni Focus autorisé par cet aperçu.'}
                           </span>
                         ) : (
                           <span className="mt-1 block">Hors registre de dépendances LOT06 ou extension Atlas publiée : aucun repère requis supplémentaire n’est supposé.</span>
