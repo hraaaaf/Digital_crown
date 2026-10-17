@@ -92,9 +92,29 @@ const entry=[
 const html="<!doctype html><html lang='fr'><head><meta charset='UTF-8'/><meta name='viewport' content='width=device-width,initial-scale=1.0'/><title>R23-G4 source-only UX</title><style>html,body,#root{width:100%;height:100%;margin:0}</style></head><body><div id='root'></div><script type='module' src='/src/cephalo-r23g4-public-entry.tsx'></script></body></html>";
 await writeFile(path.join(frontend,'src/cephalo-r23g4-public-entry.tsx'),entry);
 await writeFile(path.join(frontend,'cephalo-r23g4-public.html'),html);
+// Compile exactly the fixture into static assets before opening Chromium.
+// Vite dev's optimizer/HMR mutates dependency hashes mid-capture (504, lost
+// browsing contexts). Static preview eliminates that nondeterministic source,
+// without changing or bypassing any anatomical/visual assertions.
 const port=5197;const base='http://127.0.0.1:'+port;
 const vite=path.join(frontend,'node_modules/vite/bin/vite.js');
-const server=spawn(process.execPath,[vite,'--host','127.0.0.1','--port',String(port)],{cwd:frontend,env:{...process.env,VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
+const staticConfigPath=path.join(frontend,'cephalo-r23g4-static.config.mjs');
+const staticOutDir=path.join(frontend,'cephalo-r23g4-static');
+await writeFile(staticConfigPath,[
+  "import { defineConfig } from 'vite';",
+  "import react from '@vitejs/plugin-react';",
+  "export default defineConfig({plugins:[react()],build:{outDir:'cephalo-r23g4-static',emptyOutDir:true,rollupOptions:{input:'cephalo-r23g4-public.html'}},preview:{host:'127.0.0.1',port:5197,strictPort:true}});"
+].join('\\n'));
+const build=spawn(process.execPath,[vite,'build','--config',staticConfigPath],{
+  cwd:frontend,env:{...process.env,VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']
+});
+let buildLog='';build.stdout.on('data',x=>buildLog+=x);build.stderr.on('data',x=>buildLog+=x);
+const [buildExit]=await once(build,'close');
+await writeFile(path.join(out,'vite-build.log'),buildLog);
+if(buildExit!==0)throw new Error('Cephalo test-only static build FAILED: '+buildLog.slice(-2500));
+const server=spawn(process.execPath,[vite,'preview','--config',staticConfigPath,'--host','127.0.0.1','--port',String(port)],{
+  cwd:frontend,env:{...process.env,VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']
+});
 let viteLog='';server.stdout.on('data',x=>viteLog+=x);server.stderr.on('data',x=>viteLog+=x);
 // PRODUCT SCOPE: cephalometry is desktop-only. Do not certify smartphone or
 // tablet viewports as clinical product surfaces (user-confirmed 2026-10-17).
@@ -112,55 +132,11 @@ const fail=(message)=>{throw new Error(message)};
 async function waitServer(){
   for(let i=0;i<100;i++){try{const r=await fetch(base+'/cephalo-r23g4-public.html');if(r.ok)return}catch{}
     await new Promise(r=>setTimeout(r,250))}
-  fail('Vite not responding');
+  fail('Static preview not responding');
 }
 // Avoid verifying screenshots while the Vite dev optimizer is re-bundling.
 // This is a fixture-only preflight. It never counts as a clinical/visual PASS:
 // all strict per-viewport checks run *afterwards* in new browser contexts.
-async function prewarmViteFixture(){
-  const history=[];
-  for(let attempt=1;attempt<=3;attempt++){
-    const browser=await chromium.launch({headless:true});
-    const context=await browser.newContext({viewport:{width:1280,height:900},locale:'fr-FR',reducedMotion:'reduce'});
-    const page=await context.newPage();const errors=[];
-    page.on('pageerror',e=>errors.push(e.message));
-    page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
-    await page.route('**/*',allowed);
-    try{
-      const response=await page.goto(base+'/cephalo-r23g4-public.html',{waitUntil:'domcontentloaded',timeout:45000});
-      if(response?.status()!==200)throw Error('Vite prewarm response '+response?.status());
-      await page.getByRole('heading',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:15000});
-      for(const mode of ['mcnamara','ricketts','com']){
-        await page.locator('#cephalo-ready-analysis').selectOption(mode,{timeout:12000});
-        const selector=mode==='com'?'[data-r19-analysis-panel="com"]':'[data-r23g2-protocol-panel="'+mode+'"]';
-        await page.locator(selector).waitFor({state:'attached',timeout:12000});
-      }
-      await page.waitForTimeout(350);
-      if(errors.length)throw Error('Vite prewarm console: '+errors.join(' | ').slice(0,800));
-      history.push({attempt,valid:true,errors:[]});
-      report.vitePrewarm=history;
-      return;
-    }catch(e){
-      const all=[...errors,String(e)];
-      history.push({attempt,valid:false,errors:all});
-      const isTransient=all.every(err=>
-        err.includes('504 (Outdated Optimize Dep)')||
-        err.includes('Execution context was destroyed')||
-        err.includes('navigation to finish')||
-        err.includes('Cannot find context with specified id')||
-        err.includes('Vite prewarm console:')
-      )&&all.some(err=>
-        err.includes('504 (Outdated Optimize Dep)')||
-        err.includes('navigation')||
-        err.includes('Cannot find context with specified id')
-      );
-      if(!isTransient || attempt===3){
-        report.vitePrewarm=history;
-        throw Error('Vite dependency prewarm FAILED (no visual assertions waived) '+JSON.stringify(history).slice(0,1400));
-      }
-    }finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
-  }
-}
 async function capture(v){
  const viewportName=v.width+'x'+v.height;
  const browser=await chromium.launch({headless:true});
@@ -252,28 +228,17 @@ async function capture(v){
 }
 try {
  await waitServer();
- await prewarmViteFixture();
  // One browser context per viewport, with a deterministic synthetic fixture.
  for(const v of viewports){
   const first=await capture(v);
   // Vite's first dependency optimization may navigate a page while
   // Chromium decodes the public JPEG. Retry ONLY that transient navigation
   // with a NEW browser context; preserve both attempts in the evidence.
-  const navigationRace=!first.valid && first.pageErrors.some(error=>(
-    (error.includes('Execution context was destroyed') && error.includes('navigation')) ||
-    // EXACT Vite dev-page navigation during the synthetic profile panel wait.
-    // Retry one fresh browser context, but never retry failed measurements,
-    // false Focus, overflow, source mismatch or missing clinical evidence.
-    (error.includes('TimeoutError: locator.waitFor') &&
-      error.includes('data-r23g2-protocol-panel') &&
-      error.includes('navigation to finish') &&
-      error.includes('/cephalo-r23g4-public.html')) ||
-    // Vite can return a transient optimizer 504 when a newly discovered
-    // dependency invalidates the in-flight hash. This does NOT waive a
-    // failed measurement, source/clinical assertion or other page error.
-    (first.pageErrors.every(message=>message.includes('504 (Outdated Optimize Dep)')) &&
-      error.includes('504 (Outdated Optimize Dep)'))
-  ));
+  // Keep the historical one-time navigation guard; a static preview has no
+  // dependency optimizer or HMR, so never whitelist 504/console errors.
+  const navigationRace=!first.valid && first.pageErrors.some(
+    error=>error.includes('Execution context was destroyed') && error.includes('navigation')
+  );
   const retry=navigationRace ? await capture(v) : null;
   const result=retry ?? first;
   report.viewports.push({
