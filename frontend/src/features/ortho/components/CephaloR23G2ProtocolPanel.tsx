@@ -262,6 +262,9 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                               .map(([id, points]) => id + ' (' + points.join(', ') + ')').join(' ; ')}
                             {' · chaîne de constructions : ' + Object.entries(cranioRequirements.constructionDependencyChain)
                               .map(([id, chain]) => id + ' via ' + chain.join(' → ')).join(' ; ')}
+                            {' · repères manuels de constructions : ' + Object.entries(cranioRequirements.constructionManualLandmarks)
+                              .filter(([, ids]) => ids.length > 0)
+                              .map(([id, ids]) => id + ' (' + ids.join(', ') + ')').join(' ; ')}
                             {cranioRequirements.requiredManualLandmarks.length
                               ? ' · repères manuels directs : ' + cranioRequirements.requiredManualLandmarks.join(', ')
                               : ''}
