@@ -127,7 +127,7 @@ jobs:
           with database.SessionLocal() as db:
               rows=db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id==studied['patient_id'], models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO).all()
               assert len(rows)==2, f"Expected 1 clicked archive per viewport, got {len(rows)}"
-              assert all(row.analysis_id==studied['older_id'] and row.clinical_data.get('cephalo_analysis_revision')==1 for row in rows)
+              assert all(row.analysis_id==studied['older_id'] and row.clinical_data.get('cephalo_analysis_revision')==2 for row in rows)
           for viewport in source['viewports']:
               assert any('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_' in check for check in viewport['checks'])
               pdf=Path('artifacts/ceph-p2ter-authenticated-desktop')/(viewport['viewport']+'-older-click-archived.pdf')
