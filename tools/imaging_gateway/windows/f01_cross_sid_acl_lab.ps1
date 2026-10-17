@@ -135,7 +135,8 @@ if ($Mode -eq 'Owner') {
     Write-Output 'F01_OWNER_STAGE=FILE_IO_COMPLETED'
     Write-Report 'Owner' $n
     Write-Output 'F01_OWNER_STAGE=REPORT_COMPLETED'
-    return
+    # Child process success is explicit only after six positive assertions and report.
+    exit 0
 }
 if ($Mode -eq 'Peer') {
     Assert-F01 ($identity.User.Value -eq $PeerSid -and $OwnerSid -ne $PeerSid) 'PEER_TOKEN_MISMATCH'
@@ -174,7 +175,8 @@ if ($Mode -eq 'Peer') {
     } 'TAMPER_OWNER_REPORT'
     $n++
     Write-Report 'Peer' $n
-    return
+    # Child process success is explicit only after all peer denials and report.
+    exit 0
 }
 
 Assert-F01 ($env:CI -eq 'true' -and $env:GITHUB_ACTIONS -eq 'true') 'CI_ONLY'
