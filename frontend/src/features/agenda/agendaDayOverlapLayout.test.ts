@@ -16,6 +16,12 @@ describe('LOT07 P2 Agenda day visual-only lane safety',()=>{
     expect(result.get(4)?.lanes).toBe(1);
     expect(new Set([result.get(1)?.lane,result.get(2)?.lane,result.get(3)?.lane]).size).toBe(3);
   });
+  it('uses painted quarter-hour slots so adjacent raw intervals cannot paint over each other',()=>{
+    const result=layoutAgendaDayOverlaps([mk(1,'09:00',20),mk(2,'09:20',15)]);
+    expect(result.get(1)?.lanes).toBe(2);
+    expect(result.get(2)?.lanes).toBe(2);
+    expect(result.get(1)?.lane).not.toBe(result.get(2)?.lane);
+  });
   it('does not mutate backend source or invent practitioners',()=>{
     const source=[mk(1,'09:00',30),mk(2,'09:00',30)];
     const snapshot=JSON.stringify(source);
