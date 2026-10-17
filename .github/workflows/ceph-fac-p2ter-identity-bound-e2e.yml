@@ -21,6 +21,7 @@ jobs:
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
       TELEMETRY_ENABLED: 'false'
       CLOUD_AI_ENABLED: 'false'
+      P2TER_EVIDENCE_DIR: p2ter-pdf-artifacts
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,7 +48,9 @@ jobs:
         if: always()
         with:
           name: ceph-p2ter-backend-${{ github.sha }}
-          path: p2ter-backend-results.log
+          path: |
+            p2ter-backend-results.log
+            p2ter-pdf-artifacts/
           retention-days: 30
           if-no-files-found: warn
 
