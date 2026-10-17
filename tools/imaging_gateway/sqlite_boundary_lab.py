@@ -72,14 +72,15 @@ def inspect_sqlite_boundary(
 
 
 @contextmanager
-def pin_windows_sqlite_path(private: Path, expected_windows_directory):
+def pin_windows_sqlite_path(private: Path, expected_windows_directory, *, database: Path | None = None, require_database: bool = False):
     """Temporarily prevent rename of Windows SQLite directory ancestors.
 
-    Ancestor handles are opened root-to-leaf WITHOUT FILE_SHARE_DELETE and
-    kept open until SQLite has closed its connection. This makes path component
-    renames fail while stdlib SQLite VFS operates, where ordinary Windows file
-    sharing rules apply. This is a partial LAB hardening, NOT a custom VFS or
-    an installer/service ACL solution; main DB/WAL/SHM filenames are unpinned.
+    Ancestor directory handles (and the existing main DB file if provided)
+    are opened WITHOUT FILE_SHARE_DELETE and held until SQLite closes.
+    This blocks ordinary Windows rename/delete sharing of those objects.
+    The WAL/SHM/journal leaves, in-place writes, alternate hardlink actors,
+    installer ACL and malicious same-user interference remain uncontained.
+    This is partial LAB hardening, NOT a custom SQLite VFS.
     """
     if os.name != "nt":
         yield
@@ -112,6 +113,32 @@ def pin_windows_sqlite_path(private: Path, expected_windows_directory):
                 observed = (info.volume, (info.index_high << 32) | info.index_low)
                 if observed != expected_windows_directory:
                     raise SQLiteBoundaryError("SQLITE_PATH_PIN_PRIVATE_ID_CHANGED")
+        if database is not None:
+            database = Path(database).absolute()
+            if database.parent != private:
+                raise SQLiteBoundaryError("SQLITE_PATH_PIN_DB_OUTSIDE_PRIVATE")
+            # Opening the main database for attributes without SHARE_DELETE
+            # prevents rename/unlink of this leaf during sqlite3 VFS activity.
+            # First trusted bootstrap may create a truly missing database;
+            # once identity is pinned, a missing database is always fatal.
+            file_handle = kernel.CreateFileW(
+                str(database), 0x80,  # FILE_READ_ATTRIBUTES
+                0x1 | 0x2,  # SHARE_READ | SHARE_WRITE; NO SHARE_DELETE
+                None, 3,  # OPEN_EXISTING, never create
+                0x00200000,  # FILE_FLAG_OPEN_REPARSE_POINT
+                None,
+            )
+            if file_handle in (None, ctypes.c_void_p(-1).value):
+                err = ctypes.get_last_error()
+                if require_database or err != 2:  # ERROR_FILE_NOT_FOUND
+                    raise SQLiteBoundaryError("SQLITE_PATH_PIN_DB_OPEN_DENIED")
+            else:
+                handles.append(file_handle)
+                details = FileInfo()
+                if not kernel.GetFileInformationByHandle(file_handle, ctypes.byref(details)):
+                    raise SQLiteBoundaryError("SQLITE_PATH_PIN_DB_ID_UNAVAILABLE")
+                if (details.attributes & (0x10 | 0x400) or details.links != 1):
+                    raise SQLiteBoundaryError("SQLITE_PATH_PIN_DB_UNSAFE")
         yield
     finally:
         for handle in reversed(handles):
