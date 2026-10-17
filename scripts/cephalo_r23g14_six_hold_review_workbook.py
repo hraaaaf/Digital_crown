@@ -134,7 +134,7 @@ exacte ; aucune validation de position ou de calibration.</p>
 <p id="g14-references" data-testid="g14-references"></p>
 <p class="small">Candidats destinés aux 2 orthodontistes indépendants — pas un bouton d’approbation.</p>
 </section></aside></main>'''
-    require(html.count(marker)==1 and html.count('id="source-guide"')==1,
+    require(html.count(marker)==1 and html.count('<section id="source-guide"')==1,
             "G13 generated HTML not present")
     html=html.replace(marker,insertion)
     safe=json.dumps(packet,ensure_ascii=False,separators=(",",":")).replace("<","\\u003c").replace(">","\\u003e").replace("&","\\u0026")
