@@ -388,7 +388,15 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       setSchedulingType('EXACT_TIME');
     } catch (err: any) {
       console.error("Erreur saving appt", err);
-      toast.error(err?.response?.data?.detail || "Erreur lors de la sauvegarde du rendez-vous.");
+      const detail = err?.response?.data?.detail;
+      const feedback = typeof detail === 'string' ? detail
+        : typeof detail?.message === 'string' ? detail.message
+        : "Erreur lors de la sauvegarde du rendez-vous.";
+      // The backend may reject an appointment after a successful preflight when
+      // another user books in the meantime. Refresh the gate, never render a
+      // structured FastAPI error object as a React toast child.
+      if (err?.response?.status === 409) setConflictRetrySequence(n => n + 1);
+      toast.error(feedback);
     } finally {
       setLoading(false);
     }
