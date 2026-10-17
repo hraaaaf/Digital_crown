@@ -252,8 +252,8 @@ describe('CrownBot G9 reachable interaction truth', () => {
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Chat', exact: true }));
-    const region=screen.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' });
-    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    const region=screen.getByRole('region', { name: 'Assistant Crown Bot — consultation' });
+    fireEvent.click(screen.getByRole('button', { name: 'Trouver un patient' }));
     await screen.findByText('Patient : saisissez un identifiant');
     fireEvent.change(screen.getByRole('textbox', { name: 'Votre réponse de simulation' }), {
       target: { value: 'dossier:T2-042' },
@@ -265,11 +265,11 @@ describe('CrownBot G9 reachable interaction truth', () => {
     });
     // A changed patient route must never show a previous patient's result.
     fireEvent.click(screen.getByRole('button', { name: 'Autre dossier synthétique' }));
-    const newRegion=screen.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' });
+    const newRegion=screen.getByRole('region', { name: 'Assistant Crown Bot — consultation' });
     expect(newRegion).not.toBe(region);
     expect(screen.queryByText(/Dossier T2-042/)).not.toBeInTheDocument();
     expect(screen.queryByText('Patient identifié dans votre cabinet.')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '/patient' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trouver un patient' })).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Votre réponse de simulation' })).not.toBeInTheDocument();
     expect(postMock).toHaveBeenCalledTimes(2);
     expect(postMock).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
@@ -287,11 +287,11 @@ describe('CrownBot G9 reachable interaction truth', () => {
       .mockRejectedValueOnce({ response: { status: 503 } });
     renderCrownBot();
     fireEvent.click(screen.getByRole('button', { name: 'Chat', exact: true }));
-    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trouver un patient' }));
     await screen.findByText('Patient identifié dans votre cabinet.');
     expect(screen.getByText(/Dossier T2-042/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '/rdv' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
     await screen.findByText('Vérification serveur impossible. Aucune action effectuée.');
     expect(screen.queryByText('Patient identifié dans votre cabinet.')).not.toBeInTheDocument();
     expect(screen.queryByText(/Dossier T2-042/)).not.toBeInTheDocument();
@@ -308,9 +308,9 @@ describe('CrownBot G9 reachable interaction truth', () => {
     renderCrownBot();
     await waitFor(() => expect(getMock).toHaveBeenCalledWith('/bot/sessions'));
     fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
-    expect(screen.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Assistant Crown Bot — consultation' })).toBeInTheDocument();
     expect(screen.getByText(/aucune écriture/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '/rdv' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
     await screen.findByText('Identifiant numérique du patient ?');
     expect(postMock).toHaveBeenCalledWith('/bot/workflows/preview', {
       messages: ['/rdv'],
