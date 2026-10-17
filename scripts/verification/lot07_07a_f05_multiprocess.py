@@ -316,6 +316,62 @@ def exercise():
                   "HTTP",sorted(x[0] for x in outcomes),
                   "PERSISTED",persisted.status.value,flush=True)
         print("F05_MP_ADDITIONAL_STATUS_RACES",2,flush=True)
+        # Crown Bot CHANGE_STATUS can reactivate a cancelled booking. Its
+        # transaction must race against the canonical writer across 2 PIDs.
+        # Count ACTIVE appointments, not all historical rows: the cancelled
+        # appointment legitimately remains persisted when Agenda wins.
+        clear()
+        with SessionLocal() as db:
+            cancelled=models.Appointment(
+                patient_name="F05 BOT REACTIVATE", employer_id=root,
+                praticien_id=root, datetime_start=datetime.fromisoformat(t),
+                duration_minutes=30, status=models.AppointmentStatus.ANNULE,
+                scheduling_type=models.SchedulingType.EXACT_TIME,
+            )
+            db.add(cancelled)
+            db.flush()
+            session=models.BotSession(
+                employer_id=root, user_id=root, title="F05 Bot reactivation race",
+            )
+            db.add(session)
+            db.flush()
+            pending_action=models.BotPendingAction(
+                session_id=session.id, user_id=root, employer_id=root,
+                action_type="CHANGE_STATUS",
+                params_json={"appointment_id":cancelled.id, "status":"PREVU",
+                             "patient_name":"F05 BOT REACTIVATE"},
+                status="pending", expires_at=datetime.utcnow()+timedelta(minutes=10),
+            )
+            db.add(pending_action)
+            db.flush()
+            bot_action_id=pending_action.id
+            cancelled_id=cancelled.id
+            db.commit()
+        reactivate=(18062,"POST","/api/bot/execute","A",
+                    {"pending_action_id":str(bot_action_id)})
+        outcomes=race(book(t),reactivate)
+        assert sorted(x[0] for x in outcomes)==[200,409],outcomes
+        with SessionLocal() as db:
+            statuses=[row.status for row in db.query(models.Appointment).filter(
+                models.Appointment.employer_id==root,
+                models.Appointment.datetime_start==datetime.fromisoformat(t),
+                models.Appointment.deleted_at.is_(None),
+            ).all()]
+            still_cancelled=db.get(models.Appointment,cancelled_id).status
+        active=[state for state in statuses if state not in {
+            models.AppointmentStatus.ANNULE,
+            models.AppointmentStatus.REFUSE,
+            models.AppointmentStatus.EXPIRE,
+        }]
+        assert len(active)==1,(outcomes,statuses)
+        assert still_cancelled==(
+            models.AppointmentStatus.ANNULE if outcomes[0][0]==200
+            else models.AppointmentStatus.PREVU
+        ),(outcomes,still_cancelled)
+        print("F05_MP_BOT_REACTIVATE_VS_AGENDA",
+              "HTTP",sorted(x[0] for x in outcomes),
+              "SQL_ACTIVE",len(active),
+              "CANCELLED_ROW_STATUS",still_cancelled.value,flush=True)
         clear()
         with SessionLocal() as db:
             ref=slot(db,root,root,t)
