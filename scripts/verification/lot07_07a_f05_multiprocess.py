@@ -182,6 +182,26 @@ def _runner():
                     owner_tokens[port],
                     {"first_name":"F05","last_name":"SYNTHETIC",
                      "requested_start":start,"duration_minutes":30})
+        def bot_pending(start):
+            with Session() as db:
+                session=models.BotSession(
+                    employer_id=owner_id,user_id=owner_id,
+                    title="F05 SYNTHETIC multiprocess",
+                )
+                db.add(session);db.flush()
+                pending=models.BotPendingAction(
+                    session_id=session.id,user_id=owner_id,employer_id=owner_id,
+                    action_type="CREATE_APPOINTMENT",
+                    params_json={"patient_id":None,"patient_name":"F05 SYNTHETIC BOT",
+                                 "datetime_start":start,"duration_minutes":30,
+                                 "motif":"F05 only"},
+                    status="pending",expires_at=datetime.utcnow()+timedelta(minutes=10),
+                )
+                db.add(pending);db.flush()
+                action_id=pending.id
+                db.commit()
+            return (1,"POST","/api/bot/execute",owner_tokens[1],
+                    {"pending_action_id":action_id})
         def counts(t):
             with Session() as db:
                 rows=db.execute(text(
@@ -217,6 +237,9 @@ def _runner():
             results=race(frontdesk(0,t),frontdesk(1,t))
             verify("FRONTDESK_REQUEST_VS_REQUEST",results,[200,409],t,1)
             reset()
+            results=race(post(0,t),bot_pending(t))
+            verify("AGENDA_VS_BOT",results,[200,409],t,1)
+            reset()
             results=race(post(0,t,resource=chair_id),
                          post(1,t,who=colleague_token,practitioner=colleague_id,resource=chair_id))
             verify("SHARED_RESOURCE",results,[200,409],t,1)
@@ -238,6 +261,18 @@ def _runner():
             with Session() as db:
                 s=db.query(PatientCompanionAgendaSlot).filter_by(public_id=slot_ref).one()
                 assert (s.consumed_at is not None) == (results[1][0]==200)
+            reset()
+            with Session() as db:
+                bot_slot=PatientCompanionAgendaSlot(
+                    employer_id=owner_id,practitioner_id=owner_id,
+                    datetime_start=datetime.fromisoformat(t),duration_minutes=30,
+                    expires_at=datetime.utcnow()+timedelta(minutes=15))
+                db.add(bot_slot);db.commit()
+                bot_slot_ref=bot_slot.public_id
+            pc_bot=(0,"POST","/_f05_lab/pc/create",owner_tokens[0],
+                    {"access_id":access_id,"slot_ref":bot_slot_ref})
+            results=race(bot_pending(t),pc_bot)
+            verify("BOT_VS_PC_CREATE_LAB_WRAPPER",results,[200,409],t,1)
             reset()
             with Session() as db:
                 source=models.Appointment(
@@ -262,6 +297,23 @@ def _runner():
             with Session() as db:
                 s=db.query(PatientCompanionAgendaSlot).filter_by(public_id=slot_ref).one()
                 assert (s.consumed_at is not None)==(results[1][0]==200)
+        # Frontdesk CONFIRM must race with other producers after REQUEST exists.
+        reset()
+        t="2030-01-02T16:00:00"
+        import json
+        created=api(*frontdesk(0,t))
+        assert created[0]==200,created
+        request_id=json.loads(created[1])["id"]
+        confirm=(1,"POST",f"/api/appointments/{request_id}/confirm",owner_tokens[1],{})
+        results=race(confirm,post(0,t))
+        verify("FRONTDESK_CONFIRM_VS_AGENDA",results,[200,409],t,1)
+        reset()
+        created=api(*frontdesk(0,t))
+        assert created[0]==200,created
+        request_id=json.loads(created[1])["id"]
+        confirm=(0,"POST",f"/api/appointments/{request_id}/confirm",owner_tokens[0],{})
+        results=race(confirm,bot_pending(t))
+        verify("FRONTDESK_CONFIRM_VS_BOT",results,[200,409],t,1)
         # Frontdesk expiry and HTTP confirmation via a second FastAPI PID.
         reset()
         t="2030-01-02T17:00:00"
@@ -282,7 +334,7 @@ def _runner():
             assert len(rows)==2,rows
         print("F05_EXPIRED_REQUEST_CONFIRM", "HTTP",sorted(s for s,_ in results),
               "SQL_ROWS",len(rows),flush=True)
-        print("F05_MULTIPROCESS_RACES",rounds*7+1,flush=True)
+        print("F05_MULTIPROCESS_RACES",rounds*9+3,flush=True)
         print("F05_PC_AUTH","SUBSTITUTED_STAFF_JWT_LAB_WRAPPER_NOT_DEVICE_JWE",flush=True)
         print("F05_RECEIPTS","UNTESTED_BY_THIS_LAB",flush=True)
     finally:
