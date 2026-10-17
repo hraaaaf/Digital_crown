@@ -15,6 +15,7 @@ import unittest
 
 from tools.imaging_gateway import Config, HotFolder, GatewayError
 from tools.imaging_gateway.media_validation import valid_png
+from tools.imaging_gateway.windows_directory_pin import pin_directories
 
 
 SYNTHETIC = base64.b64decode(
@@ -190,6 +191,18 @@ class GatewayTests(unittest.TestCase):
                 return
             self.assertEqual(self.agent.scan_once()["rejected"], 1)
             self.assertEqual(self.agent.items(), [])
+
+    @unittest.skipUnless(os.name == "nt", "Windows directory pin regression")
+    def test_ntfs_pin_blocks_rename_for_entire_live_scan(self):
+        # This verifies an actual Windows kernel no-share-delete handle,
+        # rather than only a Python path/symlink check.
+        replacement = self.watch.with_name("watch-rename-attempt")
+        with pin_directories((self.watch,)):
+            with self.assertRaises(OSError):
+                self.watch.rename(replacement)
+        self.watch.rename(replacement)
+        replacement.rename(self.watch)
+        self.assertEqual(self.agent.scan_once()["unstable"], 0)
 
     def test_watch_directory_replaced_after_initialization_fails_closed(self):
         original = self.watch.parent / "watch-moved"
