@@ -125,7 +125,14 @@ def build_w2_ledger() -> dict:
             raise ValueError("W2 Ricketts PTV manual PR source missing")
         if order == 15 and not all(x in constructions for x in indirect):
             raise ValueError("W2 Ricketts Xi manual R1-R4 source missing")
-        if "source_image_ref" not in segment:
+        if order == 17:
+            # Lip segment relies on _deps for exact same-image ANS/commissure
+            # rather than repeating source_image_ref in its body.
+            if "_deps(landmarks,ricketts_lip_ids)" not in segment or (
+                "if len({x.source_image_ref for x in present})!=1:" not in backend
+            ):
+                raise ValueError("W2 upper-lip exact image source gate missing")
+        elif "source_image_ref" not in segment:
             raise ValueError(f"W2 source-image match enforcement missing at {order}")
 
     w2_ids={v[0] for v in EXPECTED.values()}
