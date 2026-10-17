@@ -78,39 +78,48 @@ export const IntelligenceAlerts = ({
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {alerts.map(alert => (
-                <div key={alert.id} className="flex items-center gap-3 p-3 bg-white/25 backdrop-blur-md border border-border-main rounded-elite-sm hover:bg-white/40 transition-all group">
-                  <div className={cn(
-                    'w-2 h-2 rounded-full flex-shrink-0',
+                <article key={alert.id} data-testid="dashboard-proactive-alert" className="flex items-start gap-3 p-3 bg-card-bg border border-border-main rounded-elite-sm transition-all">
+                  <span className={cn(
+                    'w-2 h-2 rounded-full shrink-0 mt-2.5',
                     alert.priority === 1 ? 'bg-red-500' : 'bg-amber-400',
-                  )} />
-                  <div
-                    className={cn('flex-1 min-w-0', alert.patient_id !== null && 'cursor-pointer')}
-                    onClick={() => alert.patient_id !== null && onNavigatePatient(alert.patient_id)}
-                  >
-                    <p className="text-[11px] font-black text-primary truncate">
-                      {alert.nom
-                        ? <>{alert.nom} {alert.prenom} — <span className="text-amber-500">{alert.title}</span></>
-                        : alert.title}
+                  )} aria-hidden="true" />
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-xs font-black text-text-main">
+                      {alert.priority === 1 ? 'Priorité élevée' : 'À traiter'}
                     </p>
-                    <p className="text-[10px] text-text-muted font-medium truncate">{alert.action}</p>
+                    {alert.patient_id !== null ? (
+                      <button
+                        type="button"
+                        onClick={() => onNavigatePatient(alert.patient_id!)}
+                        aria-label={`Ouvrir le dossier pour l’alerte : ${alert.title}`}
+                        className="block w-full rounded-md text-left text-sm font-bold text-text-main hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      >
+                        {alert.nom ? <>{alert.nom} {alert.prenom} — </> : null}{alert.title}
+                      </button>
+                    ) : (
+                      <p className="text-sm font-bold text-text-main">{alert.title}</p>
+                    )}
+                    <p className="text-sm leading-relaxed text-text-main/90 break-words">{alert.action || alert.message}</p>
                   </div>
                   <button
+                    type="button"
                     onClick={() => onSnooze(alert.id)}
-                    className="p-1 rounded text-text-muted hover:text-amber-500"
+                    className="min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-text-main hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     title="Reporter 24h"
-                    aria-label="Reporter cette alerte de 24h"
+                    aria-label={`Reporter l’alerte ${alert.title} de 24h`}
                   >
-                    <Clock size={14} />
+                    <Clock size={18} aria-hidden="true" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => onMarkRead(alert.id)}
-                    className="p-1 rounded text-text-muted hover:text-emerald-400"
+                    className="min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-text-main hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     title="Marquer comme lu"
-                    aria-label="Marquer cette alerte comme lue"
+                    aria-label={`Marquer l’alerte ${alert.title} comme lue`}
                   >
-                    <CheckCheck size={14} />
+                    <CheckCheck size={18} aria-hidden="true" />
                   </button>
-                </div>
+                </article>
               ))}
             </div>
           </div>

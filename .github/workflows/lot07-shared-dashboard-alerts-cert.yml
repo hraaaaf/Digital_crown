@@ -1,0 +1,51 @@
+name: LOT07 Shared UX — Dashboard Alert Contract
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/features/dashboard/components/IntelligenceAlerts.tsx'
+      - 'frontend/src/features/dashboard/components/IntelligenceAlerts.uxlot07.test.tsx'
+      - '.github/workflows/lot07-shared-dashboard-alerts-cert.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-dashboard-alerts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Alerts semantic contract + isolated build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout exact candidate HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Test alert access, priority and callbacks
+        run: npx vitest run src/features/dashboard/components/IntelligenceAlerts.uxlot07.test.tsx --maxWorkers=1 --fileParallelism=false
+      - name: Run Dashboard orchestration regression
+        run: npx vitest run src/features/dashboard/DashboardPage.g2Interactive.test.tsx --maxWorkers=1 --fileParallelism=false
+      - name: Typecheck and test-only build
+        run: npm run build:test
+      - name: Assert original visual identity tokens are untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --quiet ${{ github.event.pull_request.base.sha || 'HEAD^' }} HEAD -- src/index.css src/features/admin/Settings/hooks/useSettingsStore.ts
+          echo 'Elite default, theme palettes and font tokens unchanged'
