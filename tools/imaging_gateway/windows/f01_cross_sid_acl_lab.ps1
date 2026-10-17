@@ -81,7 +81,12 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             throw ('F01_CHILD_' + $Stage + '_TIMEOUT')
         }
+        # Diagnostic only. No fallback conversion of NULL into success.
+        $process.Refresh()
+        Write-Host ('F01_CHILD_' + $Stage + '_PROCESS_TYPE=' + $process.GetType().FullName)
+        Write-Host ('F01_CHILD_' + $Stage + '_HAS_EXITED=' + $process.HasExited)
         $exitCode = $process.ExitCode
+        Write-Host ('F01_CHILD_' + $Stage + '_EXIT_VALUE_PRESENT=' + ($null -ne $exitCode))
     } finally { $process.Dispose() }
     # The child may have completed its synthetic I/O even when Windows
     # reports a failure. Record the actual exit status before rejecting it.
