@@ -206,7 +206,7 @@ try {
       const page=await context.newPage();
       const writes=[],pageErrors=[];
       page.on('request',req=>{
-        if(req.method()!=='GET' && /\\/api\\/(appointments|patients|devis|bot\\/execute)/.test(req.url()))
+        if(req.method()!=='GET' && /\/api\/(appointments|patients|devis|bot\/execute)/.test(req.url()))
           writes.push(req.method());
       });
       page.on('pageerror',err=>pageErrors.push(err.name));
@@ -217,26 +217,30 @@ try {
       const header=page.locator('[data-tour="agenda-header"]');
       await header.getByRole('button',{name:'Jour',exact:true}).click();
       const dateLabel=header.locator('h1').locator('..').locator('span').first();
-      const before=(await dateLabel.innerText()).replace(/\\s+/g,' ').trim();
+      const before=(await dateLabel.innerText()).replace(/\s+/g,' ').trim();
       const next=header.locator('h1').locator('..').locator('button').nth(1);
-      const expected=await page.evaluate(()=>{
+      const target=await page.evaluate(()=>{
         const d=new Date();
         d.setDate(d.getDate()+1);
-        return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})
-          .replace(/\\s+/g,' ').trim().toLocaleUpperCase('fr-FR');
+        const label=d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})
+          .replace(/\s+/g,' ').trim().toLocaleUpperCase('fr-FR');
+        const start=new Date(d);start.setHours(0,0,0,0);
+        const end=new Date(d);end.setHours(23,59,59,999);
+        return {label,start:start.toISOString(),end:end.toISOString()};
       });
       const [response]=await Promise.all([
         page.waitForResponse(response=>{
           const u=new URL(response.url());
           return response.request().method()==='GET'
             && u.pathname==='/api/appointments/'
-            && u.searchParams.has('start_date') && u.searchParams.has('end_date');
+            && u.searchParams.get('start_date')===target.start
+            && u.searchParams.get('end_date')===target.end;
         },{timeout:30000}),
         next.click(),
       ]);
-      const after=(await dateLabel.innerText()).replace(/\\s+/g,' ')
+      const after=(await dateLabel.innerText()).replace(/\s+/g,' ')
         .trim().toLocaleUpperCase('fr-FR');
-      if(after===before.toLocaleUpperCase('fr-FR')||after!==expected)
+      if(after===before.toLocaleUpperCase('fr-FR')||after!==target.label)
         throw new Error('S01_TOMORROW_DATE_LABEL_INCORRECT');
       if(response.status()!==200 || !Array.isArray(await response.json()))
         throw new Error('S01_TOMORROW_APPOINTMENT_READ_NOT_AUTHORIZED');
