@@ -4,6 +4,7 @@ Isolated fake image only. All optional external observers are patched out;
 no real camera, patient attachment, cloud calls, Windows service or installer.
 """
 from contextlib import ExitStack, closing, contextmanager
+import base64
 import hashlib
 import json
 from pathlib import Path
@@ -20,10 +21,9 @@ from tools.imaging_gateway.bridge_background_lab import (
     start_if_enabled as real_start, stop_bridge_lab as real_stop,
 )
 
-FAKE_PNG = bytes.fromhex(
-    "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a73"
-    "0000001649444154789c63e41291636060606260606060000002e600405ca5205b"
-    "0000000049454e44ae426082"
+FAKE_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
+    "AAAAFklEQVR4nGPkEpFjYGBgYmBgYGBgAAAC5gBAXKUgWwAAAABJRU5ErkJggg=="
 )
 
 
