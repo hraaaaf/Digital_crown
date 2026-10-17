@@ -5,6 +5,7 @@ import json
 import sqlite3
 from unittest.mock import patch
 import hashlib
+import zlib
 import os
 import subprocess
 import sys
@@ -112,7 +113,13 @@ class GatewayTests(unittest.TestCase):
         file = self.watch / "fixture.png"
         file.write_bytes(SYNTHETIC)
         self.assertEqual(self.agent.scan_once()["unstable"], 1)
-        file.write_bytes(SYNTHETIC + b"-changed")
+        # A structural validator correctly rejects trailing garbage; use a
+        # valid PNG with a CRC-protected ancillary chunk instead.
+        text_data = b"Comment\\x00SyntheticChange".replace(b"\\x00", b"\\x00")
+        chunk_type = b"tEXt"
+        text_chunk = (len(text_data).to_bytes(4, "big") + chunk_type +
+                      text_data + zlib.crc32(chunk_type + text_data).to_bytes(4, "big"))
+        file.write_bytes(SYNTHETIC[:-12] + text_chunk + SYNTHETIC[-12:])
         self.assertEqual(self.agent.scan_once()["unstable"], 1)
         self.assertEqual(self.agent.scan_once()["staged"], 1)
 
