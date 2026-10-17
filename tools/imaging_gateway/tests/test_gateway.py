@@ -219,6 +219,21 @@ class GatewayTests(unittest.TestCase):
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM items").fetchone()[0], 0)
             self.assertEqual(pinned.call_count, 1)
 
+    @unittest.skipUnless(os.name == "nt", "native Windows file-share semantics only")
+    def test_windows_sqlite_main_file_rename_blocked_until_close(self):
+        """The existing DB leaf cannot be renamed while its VFS connection runs."""
+        source = self.agent.db_file
+        held = self.private / "acquisitions.sqlite3-held-for-test"
+        with self.agent._db() as db:
+            with self.assertRaises(OSError):
+                source.rename(held)
+            db.execute("INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                       ("SYNTHETIC_NATIVE_DB_PIN",))
+        self.assertFalse(held.exists(), "failed rename must not create an alias")
+        source.rename(held)
+        held.rename(source)
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_NATIVE_DB_PIN"])
+
     def test_sqlite_bootstrap_schema_failure_is_atomic(self):
         """Malformed existing scope schema must not leave half-created tables."""
         with tempfile.TemporaryDirectory() as root:
@@ -377,7 +392,9 @@ class GatewayTests(unittest.TestCase):
         try:
             with patch("tools.imaging_gateway.gateway.sqlite3.connect",
                        side_effect=AssertionError("untrusted db must never open")):
-                with self.assertRaisesRegex(GatewayError, "SQLite LAB boundary rejected"):
+                denial = ("SQLITE_PATH_PIN_DB_UNSAFE" if os.name == "nt"
+                          else "SQLite LAB boundary rejected")
+                with self.assertRaisesRegex(GatewayError, denial):
                     self.agent.items()
         finally:
             outside.unlink()
@@ -389,7 +406,9 @@ class GatewayTests(unittest.TestCase):
         moved = self.private / "acquisitions.sqlite3-held"
         path.rename(moved)
         try:
-            with self.assertRaisesRegex(GatewayError, "database identity changed"):
+            denial = ("SQLITE_PATH_PIN_DB_OPEN_DENIED" if os.name == "nt"
+                      else "database identity changed")
+            with self.assertRaisesRegex(GatewayError, denial):
                 self.agent.items()
             self.assertFalse(path.exists(), "missing DB must not be recreated")
         finally:
