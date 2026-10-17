@@ -227,6 +227,10 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                               ? ' · absents : ' + dentalRequirements.missingLandmarks.join(', ')
                               : ' · repères déclarés présents (preuve clinique insuffisante)'}
                             {' · constructions : ' + (dentalRequirements.requiredConstructions.join(', ') || 'aucune')}
+                            {Object.entries(dentalRequirements.constructionUpstreamLandmarks).length
+                              ? ' · repères sources des constructions : ' + Object.entries(dentalRequirements.constructionUpstreamLandmarks)
+                                .map(([id, ids]) => id + ' (' + ids.join(', ') + ')').join(' ; ')
+                              : ''}
                             {dentalRequirements.requiredManualLandmarks.length
                               ? ' · origine manuelle obligatoire : ' + dentalRequirements.requiredManualLandmarks.join(', ')
                               : ''}
