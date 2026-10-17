@@ -416,6 +416,35 @@ class HotFolder:
             "last_capacity_issue": self._last_capacity_issue,
         }
 
+    def _previous_ready_capture(self, path, signature, ready):
+        """Cheap indexed replay check, without rereading or decrypting content.
+
+        This is only for captures already verified against a producer manifest.
+        read_verified() remains the cryptographic integrity gate before use.
+        """
+        if ready is None or ready[1] != signature[0]:
+            return False
+        identity = self._identity(ready[0], path, signature)
+        with self._db() as db:
+            previous = db.execute(
+                "SELECT blob,digest,size FROM items WHERE dedup_key=?", (identity,)
+            ).fetchone()
+        if previous is None:
+            return False
+        blob, digest, size = previous
+        if digest != ready[0] or size != ready[1]:
+            raise GatewayError("existing acquisition ledger mismatch")
+        target = self.spool / blob
+        if _is_unsafe_path_component(target) or not target.is_file():
+            raise GatewayError("previous spool missing or unsafe")
+        stored_size = target.stat().st_size
+        if not 33 <= stored_size <= size + 32:
+            raise GatewayError("previous spool size invalid")
+        if (self._source_signature(path.lstat()) != signature or
+                self._ready_manifest(path) != ready):
+            return False
+        return True
+
     def scan_once(self):
         outcome = dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0,
                        deferred=0)
@@ -440,6 +469,14 @@ class HotFolder:
             if self.config.require_ready_manifest and ready_before is None:
                 outcome["unstable"] += 1
                 continue
+            if self.config.require_ready_manifest:
+                try:
+                    if self._previous_ready_capture(path, signature, ready_before):
+                        outcome["duplicate"] += 1
+                        continue
+                except (OSError, ValueError):
+                    outcome["unstable"] += 1
+                    continue
             try:
                 content = self._read(path, signature)
             except (GatewayError, OSError):
