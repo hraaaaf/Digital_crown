@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { cephaloRepository } from '../cephaloRepository';
+import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { API_BASE } from '../../../services/api';
 import {
   buildPayload, computeMcNamaraProjections, initializeDefaultApexes,
@@ -123,7 +124,7 @@ interface OrthoState {
   setSyncState: (state: SyncState) => void;
   clearSyncTimer: () => void;
   runAnalysis: (file: File) => Promise<void>;
-  silentSave: (id?: number) => Promise<void>;
+  silentSave: (id?: number, strict?: boolean) => Promise<void>;
   handleSave: () => Promise<void>;
   applyCalibration: () => Promise<void>;
   updateLandmarksOptimistic: (newLms: Landmark[]) => void;
@@ -573,7 +574,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       set({ isUploading: false });
     }
   },
-  silentSave: async (id?: number) => {
+  silentSave: async (id?: number, strict = false) => {
     const s = get();
     const aid = id ?? s.analysisId;
     if (!aid) return;
@@ -587,6 +588,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       await cephaloRepository.saveAnalysis(aid, buildPayload(s.local.landmarks, max, mand, real, s.diag, projections, s.mmPerPixel, s.etape2Data, s.etape3Data));
     } catch (err) {
       console.warn('Silent save failed:', err);
+      if (strict) throw err;
     }
   },
   handleSave: async () => {
@@ -678,14 +680,18 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     const s = get();
     if (!s.analysisId || !s.patientId) return;
     set({ isPreviewLoading: true, previewPdfUrl: null });
-    await s.silentSave();
+    const stillSelected = () => get().analysisId === s.analysisId && get().patientId === s.patientId;
     try {
+      const bound = await prepareBoundCephaloDocumentSource(
+        s.patientId, s.analysisId, stillSelected, () => s.silentSave(s.analysisId, true),
+      );
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
       const impa = computeLocalImpa(s.local.landmarks);
       const ceph = calcDDMCephalo(impa);
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const data = await cephaloRepository.generatePDF(s.patientId, {
+        ...bound,
         ai_diagnostic: {
           diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
           analyse_moulages: s.diag.analyse_moulages || '',
@@ -702,6 +708,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         },
         archive: false,
       });
+      if (!stillSelected()) throw new Error("L'étude a changé pendant la génération.");
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       set({ previewPdfUrl: url, isPreviewLoading: false });
@@ -714,14 +721,18 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     const s = get();
     if (!s.analysisId || !s.patientId) return;
     set({ isPrinting: true });
-    await s.silentSave();
+    const stillSelected = () => get().analysisId === s.analysisId && get().patientId === s.patientId;
     try {
+      const bound = await prepareBoundCephaloDocumentSource(
+        s.patientId, s.analysisId, stillSelected, () => s.silentSave(s.analysisId, true),
+      );
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
       const impa = computeLocalImpa(s.local.landmarks);
       const ceph = calcDDMCephalo(impa);
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const data = await cephaloRepository.generatePDF(s.patientId, {
+        ...bound,
         ai_diagnostic: {
           diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
           analyse_moulages: s.diag.analyse_moulages || '',
@@ -738,6 +749,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         },
         archive: true,
       });
+      if (!stillSelected()) throw new Error("L'étude a changé pendant la génération.");
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const userChoice = window.confirm(
@@ -757,6 +769,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
     } catch (e) {
       console.error('[Print] Erreur:', e);
+      throw e;
     } finally {
       set({ isPrinting: false });
     }
