@@ -16,9 +16,16 @@ export interface AgendaDayLane {
 }
 export function layoutAgendaDayOverlaps<T extends AgendaDayInterval>(appointments: readonly T[]): Map<number, AgendaDayLane> {
   const positioned=appointments.map(appointment=>{
-    const start=new Date(appointment.datetime_start).getTime();
-    if(!Number.isFinite(start))return null;
-    return {id:appointment.id,start,end:start+Math.max(15,appointment.duration_minutes||0)*60000};
+    const time=new Date(appointment.datetime_start);
+    const rawStart=time.getTime();
+    if(!Number.isFinite(rawStart))return null;
+    // Match the existing Day view exactly: start is floored to a 15-minute
+    // display slot, duration is rounded UP to rendered 15-minute rows.
+    // Using raw 20-minute lengths could leave two VISUALLY overlapping cards
+    // in the same lane despite technically disjoint backend intervals.
+    const start=rawStart-((time.getMinutes()%15)*60+time.getSeconds())*1000-time.getMilliseconds();
+    const slots=Math.max(1,Math.ceil((appointment.duration_minutes||0)/15));
+    return {id:appointment.id,start,end:start+slots*15*60000};
   }).filter((item):item is {id:number;start:number;end:number}=>item!==null)
     .sort((a,b)=>a.start-b.start||a.end-b.end||a.id-b.id);
   const positions=new Map<number,AgendaDayLane>();
