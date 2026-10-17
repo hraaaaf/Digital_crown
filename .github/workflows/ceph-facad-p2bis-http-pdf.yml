@@ -1,0 +1,51 @@
+name: Cephalo P2bis Real JWT to PDF HTTP (experimental)
+on:
+  push:
+    branches:
+      - 'audit/dc-ceph-facad-parity-p2bis-http-pdf-*'
+  pull_request:
+    branches:
+      - 'audit/dc-ceph-facad-parity-p1-p2-integration-20261017'
+
+permissions:
+  contents: read
+
+jobs:
+  real-http-jwt-pdf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SECRET_KEY: p2bis-ci-synthetic-secret-key-minimum-32-chars
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert full exact HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-p2bis-requirements.txt
+          pip install -r /tmp/ceph-p2bis-requirements.txt
+          python -m pip check
+      - name: One TestClient session JWT GET PUT GET PDF bytes + tenant denial + stale graph
+        run: |
+          set -o pipefail
+          python -m pytest backend/tests/test_cephalo_p2bis_http_pdf_continuity.py backend/tests/test_cephalo_r23g5_authenticated_api.py backend/tests/test_cephalo_r23g2_pdf_sections.py -q | tee p2bis-http-pdf.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2bis-http-pdf-${{ github.event.pull_request.head.sha || github.sha }}
+          path: p2bis-http-pdf.log
+          retention-days: 30
