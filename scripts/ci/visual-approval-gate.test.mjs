@@ -145,9 +145,31 @@ test('label DELETE success without actual removal fails closed', async () => {
   await assert.rejects(f.run('synchronize'), /label still present/);
 });
 
-test('label DELETE 404 for an already-absent label still rejects the stale run', async () => {
+test('UI synchronize without a prior approval label fails closed but makes no DELETE', async () => {
   const f = fixture({ label: false });
-  await assert.rejects(f.run('synchronize'), /approval revoked/);
+  await assert.rejects(f.run('synchronize'), /visual approval absent/);
+  assert.equal(f.deletes, 0);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
+});
+
+test('missing label never triggers denied DELETE API calls (403), nor becomes approval', async () => {
+  const f = fixture({ label: false, deleteError: 403 });
+  await assert.rejects(f.run('synchronize'), /new screenshots and explicit approval required/);
+  assert.equal(f.deletes, 0);
+  await assert.rejects(f.run('labeled'), /require explicit visual approval label/);
+});
+
+test('non-UI HEAD with stale label still fails closed if DELETE is forbidden', async () => {
+  const f = fixture({ frontend: false, deleteError: 403 });
+  await assert.rejects(f.run('synchronize'), /Failed to revoke stale visual approval/);
+  assert.equal(f.deletes, 1);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), true);
+});
+
+test('UI synchronize without label preserves HEAD race protection', async () => {
+  const f = fixture({ label: false, sha: next });
+  await assert.rejects(f.run('synchronize'), /Stale synchronize event/);
+  assert.equal(f.deletes, 0);
 });
 
 test('GitHub GET 503 is not mistaken for approval', async () => {
