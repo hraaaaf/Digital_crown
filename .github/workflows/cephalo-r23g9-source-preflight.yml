@@ -1,0 +1,30 @@
+name: R23-G9 Atlas33/Aariz Source Compatibility (experimental)
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/cephalo_r23g9_verify_aariz_matrix.py'
+      - 'audit/cephalo_r23g9_contract_tests/**'
+      - '.github/workflows/cephalo-r23g9-source-preflight.yml'
+      - 'docs/audits/schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json'
+      - 'docs/audits/CEPHALO_R23G9_ATLAS33_AARIZ_COMPATIBILITY_PREFLIGHT.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate source inventory against source contracts (no images)
+        run: python -m scripts.cephalo_r23g9_verify_aariz_matrix
+      - name: Test negative clinical and alias gates
+        run: python -m unittest discover -s audit/cephalo_r23g9_contract_tests -p 'test_*.py' -v
