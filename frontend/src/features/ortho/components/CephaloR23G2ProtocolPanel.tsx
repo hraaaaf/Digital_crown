@@ -4,6 +4,7 @@ import { useOrthoStore } from '../stores/useOrthoStore';
 import { findR23G3PinnedRequirements } from '../cephaloR23G3PinnedRequirements';
 import { findR23G7AtlasSourceRequirements } from '../cephaloR23G7AtlasSourceRequirements';
 import { findR23G8W1OrientationRequirements } from '../cephaloR23G8W1OrientationRequirements';
+import { findR23G8W2DentalRequirements } from '../cephaloR23G8W2DentalRequirements';
 import { publishCephaloMetricFocus } from '../cephaloAnalysisBridge';
 import {
   readCephaloR23G2Protocol,
@@ -80,6 +81,13 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
     : null;
   const orientationRequirements = analysis === 'ricketts' && version === 'atlas' && selectedRow
     ? findR23G8W1OrientationRequirements(
+        profile?.protocol_profile_id ?? '',
+        selectedRow.canonical_measurement_id,
+        landmarks.map(item => item.id),
+      )
+    : null;
+  const dentalRequirements = analysis === 'ricketts' && version === 'atlas' && selectedRow
+    ? findR23G8W2DentalRequirements(
         profile?.protocol_profile_id ?? '',
         selectedRow.canonical_measurement_id,
         landmarks.map(item => item.id),
@@ -210,6 +218,25 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                             {' · ImageOrientationEvidence de la MÊME image, axes antérieur/supérieur explicites, miroir et provenance audités.'}
                             {' · gate : ' + orientationRequirements.availabilityGate}
                             {' · Aucune valeur ni Focus autorisé par cet aperçu.'}
+                          </span>
+                        ) : dentalRequirements ? (
+                          <span className="mt-1 block" data-r23g8-w2-dental-gate={dentalRequirements.measurementId}>
+                            Contrat Atlas W2 — obligations dentaires et manuelles non validées pour cette étude.
+                            {' · Repères directs : ' + dentalRequirements.requiredLandmarks.join(', ')}
+                            {dentalRequirements.missingLandmarks.length
+                              ? ' · absents : ' + dentalRequirements.missingLandmarks.join(', ')
+                              : ' · repères déclarés présents (preuve clinique insuffisante)'}
+                            {' · constructions : ' + (dentalRequirements.requiredConstructions.join(', ') || 'aucune')}
+                            {dentalRequirements.requiredManualLandmarks.length
+                              ? ' · origine manuelle obligatoire : ' + dentalRequirements.requiredManualLandmarks.join(', ')
+                              : ''}
+                            {dentalRequirements.indirectConstructionManualLandmarks.length
+                              ? ' · repères manuels nécessaires aux constructions : ' + dentalRequirements.indirectConstructionManualLandmarks.join(', ')
+                              : ''}
+                            {dentalRequirements.requiresCalibration ? ' · calibration millimétrique vérifiée obligatoire' : ''}
+                            {' · même image, provenance et validité du graphe à vérifier.'}
+                            {' · gate : ' + dentalRequirements.availabilityGate}
+                            {' · Aucune valeur ni Focus autorisé par cette description.'}
                           </span>
                         ) : (
                           <span className="mt-1 block">Hors registre de dépendances LOT06 ou extension Atlas publiée : aucun repère requis supplémentaire n’est supposé.</span>
