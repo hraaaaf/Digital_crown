@@ -292,6 +292,11 @@ export const PatientDetails = () => {
     );
   }
 
+  // Never render a previously loaded patient's clinical context while the route
+  // already targets a different patient; wait for the exact-ID API response.
+  if (patient && String(patient.id) !== id) {
+    return <EliteGhostLoader text="Ouverture du dossier clinique..." size="medium" />;
+  }
   if (!patient) return null;
 
   const fullName = `${patient.nom.toUpperCase()} ${patient.prenom}`;
