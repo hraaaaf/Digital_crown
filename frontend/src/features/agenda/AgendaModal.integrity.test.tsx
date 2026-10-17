@@ -176,7 +176,7 @@ describe('LOT07 07-A — Agenda conflict fail-closed integrated modal', () => {
   });
 
   it.each(['EXACT_TIME','MORNING','AFTERNOON','FULL_DAY'])('edit roundtrip preserves %s and all persisted fields', async (kind) => {
-    const existing = { id:74, patient_id:7, patient_name:'CERTIFICATION T2', praticien_id:2,
+    const existing = { id:74, patient_id:7, patient_name:'CERTIFICATION T2 MULTI WORD', praticien_id:2,
       resource_id:5, datetime_start:'2026-10-19T09:45:00', duration_minutes:45,
       scheduling_type:kind, status:'CONFIRMÉ', motif:'Consultation' };
     mount(existing);
@@ -185,7 +185,7 @@ describe('LOT07 07-A — Agenda conflict fail-closed integrated modal', () => {
     fireEvent.click(save);
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/appointments/74',expect.objectContaining({
       praticien_id:2,resource_id:5,datetime_start:'2026-10-19T09:45:00',duration_minutes:45,
-      scheduling_type:kind,status:'CONFIRMÉ',patient_id:7
+      scheduling_type:kind,status:'CONFIRMÉ',patient_id:7,patient_name:'CERTIFICATION T2 MULTI WORD'
     })), {timeout:4000});
   });
 
