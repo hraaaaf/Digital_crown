@@ -60,6 +60,9 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
   );
   const rows = profile?.rows ?? [];
   const [selectedMeasurementId, setSelectedMeasurementId] = React.useState<string | null>(null);
+  // A factor selected under McNamara or Atlas must never remain the focus
+  // after the analysis/profile identity changes.
+  React.useEffect(() => setSelectedMeasurementId(null), [analysis, version]);
   const selectedRow = rows.find(row => row.canonical_measurement_id === selectedMeasurementId);
   const requirements = selectedRow ? findR23G3PinnedRequirements(
     selectedRow.canonical_measurement_id,
