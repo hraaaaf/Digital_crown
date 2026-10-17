@@ -87,3 +87,30 @@ PR #909 is DRAFT; no merge, no install, no clinical activation.
 
 ## F01 native Windows proof correction — 2026-10-17
 The first native Windows CI [run #39013786582](https://github.com/hraaaaf/Digital_crown/actions/runs/39013786582) demonstrated that a watched directory **could be renamed despite a handle opened without FILE_SHARE_DELETE**. That initial handle-pin idea was **not** a valid confinement proof. We therefore **revert the pin abstraction instead of hiding or skipping the failing test**. `scan_once` performs strict identity/reparse checks again immediately **after reading** and around spool writes; a new test performs an actual mid-read watch-folder replacement and requires fail-closed without a DB item. This detects several races but is **not full Windows kernel-level confinement**. F01 remains MAJOR/OPEN until directory-relative handle-based opens and ACL isolation are independently reviewed and tested. The old claim in the preceding experimental-batch paragraph is superseded by this correction.
+
+## F04 parent-death hardening, experimental LAB (2026-10-17)
+
+The child waits for an explicit `GO` control message from the parent, and
+does not scan before the parent has installed OS lifetime supervision:
+
+- Windows 8+ (LAB): `WindowsLabJob.assign` creates an unnamed Job Object,
+  configures `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, and assigns the
+  blocked child before GO. The *parent alone* retains the Job Object
+  handle; kernel closure on abnormal parent process death kills the child.
+  Windows CI must run the native uncooperative-child job-close test; if
+  assignment fails on an unsupported Windows job hierarchy, startup fails
+  closed rather than launching unsupervised capture.
+- Linux (LAB): child installs `prctl(PR_SET_PDEATHSIG, SIGKILL)` and verifies
+  the expected parent PID before scanning, avoiding the signal-registration
+  race. Non-Linux POSIX platforms retain the stdin EOF guard, **not** a
+  kernel-enforced parent death contract, and are not certified.
+- Normal shutdown still uses STOP/timeout/kill+reap. Neither this protocol
+  nor unit tests certify Windows packaged installers, production ACLs,
+  real device drivers, session/patient attachment, or concurrent worker
+  ownership. Startup acknowledgment and health guarantees are separate
+  future gates.
+
+**F01 remains OPEN:** identity/reparse checks and no-ledger-commit after
+a deterministic root replacement are defensive controls, not a Windows
+handle-relative, race-free file *read and write* authorization contract.
+Avoid calling the directory pinning experiment a fix: native CI disproved it.
