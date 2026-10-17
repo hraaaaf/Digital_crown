@@ -68,11 +68,15 @@ export const GhostBrainWidget = () => {
       if (retryCount >= MAX_RETRIES) return;
 
       const wsUrl = buildGhostBrainWsUrl(employerId);
-      ws = new WebSocket(wsUrl);
+      const currentSocket = new WebSocket(wsUrl);
+      ws = currentSocket;
 
-      ws.onopen = () => { retryCount = 0; };
+      ws.onopen = () => { if (!isCleaned && ws === currentSocket) retryCount = 0; };
 
       ws.onmessage = (event) => {
+        // Stale events from a disposed principal or reconnected socket must
+        // never overwrite a fresh cabinet's snapshot.
+        if (isCleaned || ws !== currentSocket) return;
         try {
           const data = JSON.parse(event.data);
           if (data.insights) {
@@ -84,7 +88,7 @@ export const GhostBrainWidget = () => {
       };
 
       ws.onclose = () => {
-        if (isCleaned) return;
+        if (isCleaned || ws !== currentSocket) return;
         retryCount++;
         const delay = Math.min(5000 * retryCount, 60000);
         reconnectTimer = setTimeout(connectWS, delay);
@@ -119,6 +123,7 @@ export const GhostBrainWidget = () => {
         // even when local numeric insight IDs happen to collide.
         if (prev.scopeKey !== scopeKey || !prev.insights.some(i => i.id === logId)) return prev;
         return {
+          scopeKey: prev.scopeKey,
           insights: prev.insights.filter(i => i.id !== logId),
           unreadCount: Math.max(0, prev.unreadCount - 1),
         };
