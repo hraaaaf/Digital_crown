@@ -12,7 +12,7 @@ const ids = (n: number) => Array.from({ length: n }, (_, i) => ({
   source_contract: 'RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1',
   classification_authority: false,
 }));
-const atlas = { protocol_profile_id: 'RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1', profile_status: 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__ALL_33_EXECUTABLE_OR_CONDITIONAL', rows: ids(33) };
+const atlas = { protocol_profile_id: 'RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1', profile_status: 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__ALL_33_EXECUTABLE_OR_CONDITIONAL', source_lock_gate: 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED', classification_authority: false, rows: ids(33) };
 const data = (profile = atlas) => ({ scientific_read_path: { authority: 'EVIDENCE_GRAPH_V1', active_chain: 'VERIFIED', protocol_profiles: { ricketts_atlas2009: profile } } });
 
 describe('R23-G2 fail-closed clinical presentation', () => {
