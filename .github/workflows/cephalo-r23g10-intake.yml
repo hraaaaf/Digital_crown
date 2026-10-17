@@ -1,0 +1,36 @@
+name: R23-G10 Atlas33 Expert Annotation Intake (experimental)
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/cephalo_r23g10_annotation_intake.py'
+      - 'audit/cephalo_r23g10_contract_tests/**'
+      - '.github/workflows/cephalo-r23g10-intake.yml'
+      - 'docs/audits/CEPHALO_R23G10_ATLAS33_EXPERT_ANNOTATION_INTAKE_PROTOCOL.md'
+      - 'docs/audits/schemas/cephalo_r23g10_atlas33_annotation_intake_template_v1.json'
+      - 'docs/audits/schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json'
+      - 'docs/audits/schemas/cephalo_vnext_lot02_aariz_qualification.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-intake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact checked-out HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify empty zero-case intake stays clinical NO-GO
+        run: python -m scripts.cephalo_r23g10_annotation_intake --intake docs/audits/schemas/cephalo_r23g10_atlas33_annotation_intake_template_v1.json
+      - name: Negative privacy/source identity and clinical-escalation tests
+        run: python -m unittest discover -s audit/cephalo_r23g10_contract_tests -p 'test_*.py' -v
