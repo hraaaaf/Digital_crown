@@ -56,6 +56,11 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
     day.getMonth() === selectedDate.getMonth() &&
     appointments.some(a => new Date(a.datetime_start).toDateString() === day.toDateString())
   );
+  const chosenDate = [
+    selectedDate.getFullYear(),
+    String(selectedDate.getMonth()+1).padStart(2,'0'),
+    String(selectedDate.getDate()).padStart(2,'0')
+  ].join('-');
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -97,6 +102,21 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
 
       <div data-p2-mobile-month-list className="sm:hidden space-y-3">
         <h2 className="px-1 text-base font-bold text-text-main">Rendez-vous du mois</h2>
+        {/* The desktop grid allows picking any date (including an empty day)
+            to create a visit. Keep that exact operation accessible on mobile. */}
+        <div className="p2-agenda-surface flex flex-wrap items-center gap-2 rounded-xl border border-border-main bg-card p-3">
+          <label htmlFor="p2-month-choose-day" className="flex-1 text-sm font-semibold text-text-main">Créer un RDV à une date</label>
+          <input id="p2-month-choose-day" data-p2-month-date-picker type="date"
+            value={chosenDate}
+            onChange={e=>{
+              if(!e.target.value)return;
+              const date=new Date(e.target.value+'T12:00:00');
+              if(!Number.isNaN(date.getTime()))handleDayClick(date);
+            }}
+            className="min-h-11 max-w-full rounded-lg border border-border-main bg-card px-2 text-sm font-semibold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            aria-label="Choisir un jour pour créer un rendez-vous"
+          />
+        </div>
         {loading && appointments.length === 0 && <p role="status" className="p-4 text-text-muted">Chargement des rendez-vous…</p>}
         {!loading && monthDaysWithAppointments.length === 0 && (
           <p className="p-4 rounded-xl border border-border-main bg-card text-text-muted">Aucun rendez-vous pour ce mois.</p>
