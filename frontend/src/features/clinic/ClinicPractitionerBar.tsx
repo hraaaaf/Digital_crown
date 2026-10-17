@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { cn } from '../../utils/cn';
+import { clinicCalendarDay } from '../agenda/agendaClinicLocalDate';
 import {
   type ClinicPractitioner,
   usePractitionerContextStore,
@@ -76,8 +77,8 @@ export const ClinicPractitionerBar: React.FC = () => {
 
         const response = await api.get('/appointments/multi-practitioner', {
           params: {
-            start_date: start.toISOString(),
-            end_date: end.toISOString(),
+            start_date: `${clinicCalendarDay(start)}T00:00:00`,
+            end_date: `${clinicCalendarDay(end)}T23:59:59.999999`,
           },
         });
 

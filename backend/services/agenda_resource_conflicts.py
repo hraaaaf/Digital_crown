@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.models import AgendaResource
+from backend.services.agenda_overlap_sql import existing_end_after
 
 _CANCELLED_STATUSES = {"annule", "cancelled", "canceled"}
 
@@ -47,6 +48,9 @@ def find_resource_conflict(
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < candidate_end,
     )
+    candidate = existing_end_after(db, datetime_start)
+    if candidate is not None:
+        query = query.filter(candidate)
     if exclude_appointment_id is not None:
         query = query.filter(models.Appointment.id != exclude_appointment_id)
     for appointment in query.all():

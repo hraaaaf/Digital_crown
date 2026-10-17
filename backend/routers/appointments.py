@@ -17,6 +17,8 @@ from backend.services.agenda_availability import (
     validate_appointment_availability,
 )
 from backend.services.agenda_resource_conflicts import assert_resource_available, find_resource_conflict, validate_assignable_resource
+from backend.services.agenda_overlap_sql import existing_end_after
+from backend.services.agenda_write_lock import lock_cabinet_appointment_writes
 
 router = APIRouter(tags=["Appointments"])
 
@@ -92,15 +94,16 @@ def _find_conflicts(
     """
     datetime_start = _naive_datetime(datetime_start)
     end = datetime_start + timedelta(minutes=duration_minutes)
-    window_start = datetime_start - timedelta(hours=4)
     q = db.query(models.Appointment).filter(
         models.Appointment.employer_id == employer_id,
         models.Appointment.status != models.AppointmentStatus.ANNULE,
         models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
         models.Appointment.deleted_at.is_(None),
         models.Appointment.datetime_start < end,
-        models.Appointment.datetime_start >= window_start,
     )
+    overlap_candidate = existing_end_after(db, datetime_start)
+    if overlap_candidate is not None:
+        q = q.filter(overlap_candidate)
     if practitioner_id is not None:
         q = q.filter(
             or_(
@@ -123,6 +126,22 @@ def _appointments_overlap(start_a: datetime, duration_a: int, start_b: datetime,
     start_a = _naive_datetime(start_a)
     start_b = _naive_datetime(start_b)
     return start_a < start_b + timedelta(minutes=duration_b) and start_b < start_a + timedelta(minutes=duration_a)
+
+
+@router.get("/assignable-practitioners")
+def list_assignable_practitioners(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("agenda")),
+):
+    """Tenant-scoped authoritative choices for the appointment editor, regardless of plan."""
+    employer_id = current_user.get_employer_id()
+    candidates = db.query(models.User).filter(
+        or_(models.User.id == employer_id, models.User.employer_id == employer_id)
+    ).all()
+    return [
+        {"id": user.id, "name": user.nom_complet or user.email}
+        for user in candidates if _is_assignable_practitioner(user, employer_id)
+    ]
 
 
 @router.get("/", response_model=List[schemas.AppointmentOut])
@@ -160,6 +179,7 @@ def create_appointment(
         assert_patient_access(appt.patient_id, current_user, db)
 
     employer_id = current_user.get_employer_id()
+    lock_cabinet_appointment_writes(db, employer_id)
     practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, appt.praticien_id)
     validate_assignable_resource(db, employer_id, appt.resource_id)
     normalized_start = _naive_datetime(appt.datetime_start)
@@ -214,6 +234,7 @@ def update_appointment(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = current_user.get_employer_id()
+    lock_cabinet_appointment_writes(db, employer_id)
     db_appt = db.query(models.Appointment).filter(
         models.Appointment.id == id,
         models.Appointment.employer_id == employer_id,
@@ -382,6 +403,7 @@ def create_bulk_appointments(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = current_user.get_employer_id()
+    lock_cabinet_appointment_writes(db, employer_id)
     prepared = []
 
     for index, item in enumerate(payload.appointments):
@@ -532,7 +554,22 @@ def check_conflicts(
     except ValueError:
         raise HTTPException(status_code=422, detail="Format datetime invalide")
     employer_id = current_user.get_employer_id()
-    practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, praticien_id)
+    if exclude_id is not None:
+        existing = db.query(models.Appointment).filter(
+            models.Appointment.id == exclude_id,
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.deleted_at.is_(None),
+        ).first()
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+        # Historical unassigned appointments must remain unassigned when merely edited.
+        # A supplied new practitioner is explicitly validated, never inferred.
+        practitioner_id = (
+            _resolve_practitioner_id(db, employer_id, current_user, praticien_id)
+            if praticien_id is not None else existing.praticien_id
+        )
+    else:
+        practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, praticien_id)
     availability_error = validate_appointment_availability(
         db,
         employer_id,
@@ -631,6 +668,7 @@ def get_multi_practitioner_appointments(
             "patient_name": a.patient_name,
             "patient_id": a.patient_id,
             "praticien_id": a.praticien_id,
+            "resource_id": a.resource_id,
             "datetime_start": a.datetime_start.isoformat(),
             "duration_minutes": a.duration_minutes,
             "motif": a.motif,

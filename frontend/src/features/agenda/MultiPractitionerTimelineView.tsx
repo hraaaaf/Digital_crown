@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Users } from 'lucide-react';
-import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
+import { clinicCalendarDay, clinicAppointmentFormFields } from './agendaClinicLocalDate';
 import type { Appointment } from './DailyView';
 import { PatientAvatar } from '../patients/components/PatientAvatar';
 import {
@@ -90,37 +90,16 @@ const isExact = (appointment: MultiAppointment) =>
   !appointment.scheduling_type || appointment.scheduling_type === 'EXACT_TIME';
 
 const isSameLocalDay = (value: string, selectedDate: Date) => {
-  const date = new Date(value);
-  return date.getFullYear() === selectedDate.getFullYear()
-    && date.getMonth() === selectedDate.getMonth()
-    && date.getDate() === selectedDate.getDate();
+  return clinicAppointmentFormFields(value).date === clinicCalendarDay(selectedDate);
 };
 
-const formatClock = (date: Date) =>
-  date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+const formatClock = (value: string) => clinicAppointmentFormFields(value).time;
 
 const schedulingLabel = (appointment: MultiAppointment) => {
   if (appointment.scheduling_type === 'MORNING') return 'Matin';
   if (appointment.scheduling_type === 'AFTERNOON') return 'Après-midi';
   if (appointment.scheduling_type === 'FULL_DAY') return 'Toute la journée';
   return 'Flexible';
-};
-
-const addPractitionerToPayload = (payload: unknown, practitionerId: number) => {
-  if (!payload) return { praticien_id: practitionerId };
-  if (typeof payload === 'string') {
-    try {
-      const parsed = JSON.parse(payload);
-      return JSON.stringify({ ...parsed, praticien_id: parsed.praticien_id ?? practitionerId });
-    } catch {
-      return payload;
-    }
-  }
-  if (typeof payload === 'object' && !Array.isArray(payload)) {
-    const objectPayload = payload as Record<string, unknown>;
-    return { ...objectPayload, praticien_id: objectPayload.praticien_id ?? practitionerId };
-  }
-  return payload;
 };
 
 const slotDate = (selectedDate: Date, time: string) => {
@@ -196,7 +175,6 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   const [initialTime, setInitialTime] = useState('09:00');
   const [editingAppointment, setEditingAppointment] = useState<MultiAppointment | null>(null);
   const [modalPractitioner, setModalPractitioner] = useState<{ id?: number; name: string } | null>(null);
-  const createInterceptorId = useRef<number | null>(null);
 
   const dentists = useMemo(() => data?.dentists || [], [data]);
   const legacy = useMemo(
@@ -233,8 +211,8 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
     ];
 
     for (const appointment of exactAppointments) {
-      const start = new Date(appointment.datetime_start);
-      const startMinutes = start.getHours() * 60 + start.getMinutes();
+      const [hours, minutes] = clinicAppointmentFormFields(appointment.datetime_start).time.split(':').map(Number);
+      const startMinutes = hours * 60 + minutes;
       const endMinutes = startMinutes + Math.max(1, appointment.duration_minutes || 0);
       startHour = Math.min(startHour, Math.floor(startMinutes / 60));
       endHour = Math.max(endHour, Math.ceil(endMinutes / 60));
@@ -250,42 +228,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   const timelineHeight = totalHours * HOUR_HEIGHT;
   const gridMinWidth = TIME_AXIS_WIDTH + Math.max(1, dentists.length) * LANE_MIN_WIDTH;
 
-  const clearCreateInterceptor = () => {
-    if (createInterceptorId.current === null) return;
-    api.interceptors.request.eject(createInterceptorId.current);
-    createInterceptorId.current = null;
-  };
-
-  const installCreateInterceptor = (practitionerId: number) => {
-    clearCreateInterceptor();
-    createInterceptorId.current = api.interceptors.request.use((config) => {
-      const method = (config.method || 'get').toLowerCase();
-      const url = (config.url || '').split('?')[0];
-
-      if (method === 'get' && url === '/appointments/check-conflicts') {
-        config.params = {
-          ...(config.params || {}),
-          praticien_id: config.params?.praticien_id ?? practitionerId,
-        };
-      }
-
-      if (method === 'post' && url === '/appointments/') {
-        config.data = addPractitionerToPayload(config.data, practitionerId);
-      }
-
-      return config;
-    });
-  };
-
-  useEffect(() => () => {
-    if (createInterceptorId.current !== null) {
-      api.interceptors.request.eject(createInterceptorId.current);
-      createInterceptorId.current = null;
-    }
-  }, []);
-
   const openCreate = (dentist: PractitionerLane, time: string) => {
-    installCreateInterceptor(dentist.dentist_id);
     setEditingAppointment(null);
     setInitialTime(time);
     setModalPractitioner({ id: dentist.dentist_id, name: dentist.dentist_name });
@@ -293,7 +236,6 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   };
 
   const openEdit = (appointment: MultiAppointment, practitioner?: PractitionerLane) => {
-    clearCreateInterceptor();
     setEditingAppointment(appointment);
     setModalPractitioner(practitioner
       ? { id: practitioner.dentist_id, name: practitioner.dentist_name }
@@ -302,7 +244,6 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   };
 
   const closeModal = () => {
-    clearCreateInterceptor();
     setIsModalOpen(false);
     setEditingAppointment(null);
     setModalPractitioner(null);
@@ -475,8 +416,8 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                       </div>
 
                       {exactAppointments.map((appointment) => {
-                        const start = new Date(appointment.datetime_start);
-                        const startMinutes = start.getHours() * 60 + start.getMinutes();
+                        const [hours, minutes] = clinicAppointmentFormFields(appointment.datetime_start).time.split(':').map(Number);
+                        const startMinutes = hours * 60 + minutes;
                         const top = ((startMinutes - timelineBounds.startHour * 60) / 60) * HOUR_HEIGHT;
                         const height = Math.max(18, (appointment.duration_minutes / 60) * HOUR_HEIGHT - 2);
                         return (
@@ -492,7 +433,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                           >
                             <span className="flex min-w-0 items-center gap-1.5 font-black">
                               {appointment.patient_id ? <PatientAvatar patientId={appointment.patient_id} fullName={appointment.patient_name} resolveFromDirectory className="w-5 h-5 rounded text-[7px]" /> : null}
-                              <span className="truncate">{formatClock(start)} · {appointment.patient_name || 'Patient'}</span>
+                              <span className="truncate">{formatClock(appointment.datetime_start)} · {appointment.patient_name || 'Patient'}</span>
                             </span>
                             {height >= 34 && (
                               <span className="block truncate text-[9px] opacity-70">
@@ -508,8 +449,8 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
               </div>
 
               {exactLegacy.map((appointment) => {
-                const start = new Date(appointment.datetime_start);
-                const startMinutes = start.getHours() * 60 + start.getMinutes();
+                const [hours, minutes] = clinicAppointmentFormFields(appointment.datetime_start).time.split(':').map(Number);
+                const startMinutes = hours * 60 + minutes;
                 const top = ((startMinutes - timelineBounds.startHour * 60) / 60) * HOUR_HEIGHT;
                 const height = Math.max(20, (appointment.duration_minutes / 60) * HOUR_HEIGHT - 2);
                 return (
@@ -519,11 +460,11 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                     onClick={() => openEdit(appointment)}
                     className="absolute left-0 right-0 z-30 overflow-hidden border-y-2 border-orange-400 bg-orange-50/95 px-3 text-left text-[10px] font-black text-orange-800 shadow-sm"
                     style={{ top: `${top}px`, height: `${height}px` }}
-                    aria-label={`Rendez-vous non assigné à ${formatClock(start)}, bloque tous les praticiens`}
+                    aria-label={`Rendez-vous non assigné à ${formatClock(appointment.datetime_start)}, bloque tous les praticiens`}
                   >
                     <span className="sticky left-2 inline-flex h-full items-center whitespace-nowrap">
                       {appointment.patient_id ? <PatientAvatar patientId={appointment.patient_id} fullName={appointment.patient_name} resolveFromDirectory className="mr-1.5 w-5 h-5 rounded text-[7px]" /> : null}
-                      Non assigné · {formatClock(start)} · {appointment.patient_name || 'Patient'} · bloque tous les praticiens
+                      Non assigné · {formatClock(appointment.datetime_start)} · {appointment.patient_name || 'Patient'} · bloque tous les praticiens
                     </span>
                   </button>
                 );
@@ -548,6 +489,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
         }}
         selectedDate={selectedDate}
         initialTime={initialTime}
+        initialPractitionerId={modalPractitioner?.id}
         editingAppointment={editingAppointment}
       />
     </div>

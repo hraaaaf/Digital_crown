@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
+import { clinicCalendarDay, clinicAppointmentFormFields, clinicAppointmentWallTime } from './agendaClinicLocalDate';
 import { getDayBounds, getDaySchedule, getExceptionForDate, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
 import { PatientAvatar } from '../patients/components/PatientAvatar';
 import { layoutAgendaDayOverlaps } from './agendaDayOverlapLayout';
@@ -19,6 +20,8 @@ export interface Appointment {
   status: AppointmentStatus;
   scheduling_type?: 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY';
   notes?: string | null;
+  praticien_id?: number | null;
+  resource_id?: number | null;
   reminder_sent?: boolean;
   reminder_sent_at?: string | null;
 }
@@ -76,16 +79,12 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
   const fetchAppointments = async () => {
     setLoading(true);
     try {
-      const startOfDay = new Date(selectedDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(selectedDate);
-      endOfDay.setHours(23, 59, 59, 999);
+      const day = clinicCalendarDay(selectedDate);
 
       const res = await api.get('/appointments/', {
         params: {
-          start_date: startOfDay.toISOString(),
-          end_date: endOfDay.toISOString()
+          start_date: `${day}T00:00:00`,
+          end_date: `${day}T23:59:59.999999`
         }
       });
       setAppointments(res.data);
@@ -143,9 +142,8 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
 
   // Convertit une datetime backend en index de row (0 à totalSlots-1)
   const getSlotRow = (isoString: string) => {
-    const date = new Date(isoString);
-    const hour = date.getHours();
-    const min = date.getMinutes();
+    const { time } = clinicAppointmentFormFields(isoString);
+    const [hour, min] = time.split(':').map(Number);
     
     // Si hors plage, limite
     if (hour < startHour) return 0;
@@ -372,7 +370,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
                 <div 
                   className="absolute left-0 right-0 border-t-2 border-rose-500 z-30 pointer-events-none"
                   style={{
-                    top: `${getSlotRow(new Date().toISOString()) * 24}px`
+                    top: `${getSlotRow(clinicAppointmentWallTime(clinicCalendarDay(new Date()), new Date().getHours(), new Date().getMinutes())) * 24}px`
                   }}
                 >
                   <div className="absolute -top-1.5 -left-1.5 w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.8)]"></div>

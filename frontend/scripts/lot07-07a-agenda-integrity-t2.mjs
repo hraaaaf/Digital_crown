@@ -85,6 +85,88 @@ const otherClient=await request.newContext({baseURL:'http://127.0.0.1:8005',stor
 const otherList=await otherClient.get('/api/appointments/',{headers:{Authorization:'Bearer '+otherToken}});
 ensure(otherList.status()===200&&!((await otherList.json()).some(row=>row.id===record.id)),
  'Cross-tenant appointment became readable or other-tenant session invalid '+otherList.status());
+// F03: backend directory/resource contract is authoritative and tenant-scoped.
+const directory=await client.get('/api/appointments/assignable-practitioners',{headers});
+ensure(directory.status()===200,'Assignable practitioner directory failed '+directory.status());
+const practitioners=await directory.json();
+ensure(Array.isArray(practitioners)&&practitioners.some(p=>p.id===record.praticien_id),
+ 'Authenticated practitioner missing from assignable directory');
+const resources=await client.get('/api/agenda/resources',{headers});
+ensure(resources.status()===200&&Array.isArray(await resources.json()),
+ 'Tenant-scoped resource directory unavailable');
+const resourceCreated=await client.post('/api/agenda/resources',{headers,data:{name:'T2 SYNTHETIC ROOM',resource_type:'ROOM'}});
+ensure([201,409].includes(resourceCreated.status()),'T2 synthetic resource creation failed '+resourceCreated.status());
+let resourceId;
+if(resourceCreated.status()===201)resourceId=(await resourceCreated.json()).id;
+else resourceId=(await resources.json()).find(r=>r.name==='T2 SYNTHETIC ROOM')?.id;
+ensure(Number.isSafeInteger(resourceId),'Synthetic resource identity unavailable');
+const sharedStart=date+'T15:30:00',sameResource=date+'T15:45:00';
+const withResource=await client.post('/api/appointments/',{headers,data:{...payload(sharedStart),resource_id:resourceId}});
+ensure(withResource.status()===200,'Real resource-specific POST failed '+withResource.status());
+const resourceRow=await withResource.json();
+ensure(resourceRow.resource_id===resourceId,'Resource silently changed at persistence');
+const resourceCheck=await client.get('/api/appointments/check-conflicts',{headers,params:{
+ datetime_start:sameResource,duration_minutes:30,praticien_id:record.praticien_id,resource_id:resourceId,
+}});
+ensure(resourceCheck.status()===200&&(await resourceCheck.json()).has_conflict===true,
+ 'Capacity-one resource overlap missing in check-conflicts');
+const resourceCollision=await client.post('/api/appointments/',{headers,data:{...payload(sameResource),resource_id:resourceId}});
+ensure(resourceCollision.status()===409,'Shared capacity-one resource collision not refused');
+
+// F02: real bulk insertion must reject overlaps and remain atomic.
+const bulkBase=date+'T16:45:00',bulkOverlap=date+'T16:50:00';
+const bulkInvalid=await client.post('/api/appointments/bulk',{headers,data:{appointments:[
+ {patient_name:'SYNTHETIC BULK INVALID',datetime_start:bulkBase,duration_minutes:0}
+]}});
+ensure(bulkInvalid.status()===422,'Bulk accepted nonpositive duration '+bulkInvalid.status());
+const bulkInternal=await client.post('/api/appointments/bulk',{headers,data:{appointments:[
+ {patient_name:'SYNTHETIC BULK ONE',datetime_start:bulkBase,duration_minutes:30},
+ {patient_name:'SYNTHETIC BULK TWO',datetime_start:bulkOverlap,duration_minutes:30}
+]}});
+ensure(bulkInternal.status()===409,'Bulk accepted overlapping internal appointments '+bulkInternal.status());
+const listAfterBulkRejection=await client.get('/api/appointments/',{headers});
+ensure((await listAfterBulkRejection.json()).every(x=>x.datetime_start!==bulkBase),
+ 'Bulk overlap rejection persisted partial data');
+const bulkAllowed=await client.post('/api/appointments/bulk',{headers,data:{appointments:[
+ {patient_name:'SYNTHETIC BULK ALLOWED',datetime_start:bulkBase,duration_minutes:30}
+]}});
+ensure(bulkAllowed.status()===200,'Valid bulk appointment failed '+bulkAllowed.status());
+const bulkExisting=await client.post('/api/appointments/bulk',{headers,data:{appointments:[
+ {patient_name:'SYNTHETIC BULK COLLISION',datetime_start:bulkOverlap,duration_minutes:30}
+]}});
+ensure(bulkExisting.status()===409,'Bulk ignored persisted overlapping appointment '+bulkExisting.status());
+// F03: an explicit resource reassignment must persist on edit.
+const clearingResource=await client.put('/api/appointments/'+resourceRow.id,{headers,data:{resource_id:null}});
+ensure(clearingResource.status()===200&&(await clearingResource.json()).resource_id===null,
+ 'Explicit resource unassignment was not persisted safely');
+
+// F05: genuine simultaneous REST requests through the running disposable FastAPI.
+// This is a race observation, not proof that all schedules/engines are serializable.
+const concurrencyStart='2026-10-22T15:00:00';
+const concurrentPosts=await Promise.all([0,1].map(i=>client.post('/api/appointments/',{
+  headers,data:{...payload(concurrencyStart),patient_name:'SYNTHETIC CONCURRENT '+i},
+})));
+const postStatuses=concurrentPosts.map(x=>x.status()).sort((a,b)=>a-b);
+const concurrencyList=await client.get('/api/appointments/',{headers});
+const storedConcurrent=(await concurrencyList.json()).filter(x=>x.datetime_start===concurrencyStart);
+const noDouble=storedConcurrent.length===1 && postStatuses.join(',')==='200,409';
+console.log('LOT07_F05_CONCURRENCY_POST_POST '+JSON.stringify({postStatuses,stored:storedConcurrent.length,noDouble}));
+ensure(noDouble,'F05 unsafe concurrent POST/POST or unexpected transaction error '+JSON.stringify({postStatuses,stored:storedConcurrent.length}));
+const updateRaceTime='2026-10-22T16:00:00';
+const updateRace=await Promise.all([
+ client.put('/api/appointments/'+record.id,{headers,data:{datetime_start:updateRaceTime,duration_minutes:30}}),
+ client.post('/api/appointments/',{headers,data:{...payload(updateRaceTime),patient_name:'SYNTHETIC POST PUT'}})
+]);
+const updateRaceStatuses=updateRace.map(x=>x.status()).sort((a,b)=>a-b);
+const afterRace=await client.get('/api/appointments/',{headers});
+const sameSlot=(await afterRace.json()).filter(x=>x.datetime_start===updateRaceTime);
+const noDoublePut=sameSlot.length===1 && updateRaceStatuses.join(',')==='200,409';
+console.log('LOT07_F05_CONCURRENCY_PUT_POST '+JSON.stringify({statuses:updateRaceStatuses,stored:sameSlot.length,noDouble:noDoublePut}));
+ensure(noDoublePut,'F05 unsafe concurrent PUT/POST '+JSON.stringify({statuses:updateRaceStatuses,stored:sameSlot.length}));
+
+const otherDirectory=await otherClient.get('/api/appointments/assignable-practitioners',{headers:{Authorization:'Bearer '+otherToken}});
+ensure(otherDirectory.status()===200&&!(await otherDirectory.json()).some(p=>p.id===record.praticien_id),
+ 'Another tenant can enumerate current practitioner');
 await otherClient.dispose();
 await clean.dispose();
 await client.dispose();

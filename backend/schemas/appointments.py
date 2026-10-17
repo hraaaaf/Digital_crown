@@ -30,7 +30,7 @@ class AppointmentBase(BaseModel):
 
 
 class AppointmentCreate(AppointmentBase):
-    pass
+    duration_minutes: int = Field(default=30, gt=0)
 
 
 class AppointmentUpdate(BaseModel):
@@ -40,7 +40,7 @@ class AppointmentUpdate(BaseModel):
     praticien_id: Optional[int] = None
     resource_id: Optional[int] = None
     datetime_start: Optional[datetime.datetime] = None
-    duration_minutes: Optional[int] = None
+    duration_minutes: Optional[int] = Field(default=None, gt=0)
     motif: Optional[str] = None
     status: Optional[AppointmentStatus] = None
     scheduling_type: Optional[SchedulingType] = None
@@ -66,7 +66,7 @@ class AppointmentOut(AppointmentBase):
 class AppointmentImportItem(BaseModel):
     patient_name: str
     datetime_start: datetime.datetime
-    duration_minutes: int
+    duration_minutes: int = Field(..., gt=0)
     notes: Optional[str] = None
     patient_id: Optional[int] = None
     praticien_id: Optional[int] = None
