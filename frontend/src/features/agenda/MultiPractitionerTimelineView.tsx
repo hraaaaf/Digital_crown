@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Users } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -104,23 +104,6 @@ const schedulingLabel = (appointment: MultiAppointment) => {
   return 'Flexible';
 };
 
-const addPractitionerToPayload = (payload: unknown, practitionerId: number) => {
-  if (!payload) return { praticien_id: practitionerId };
-  if (typeof payload === 'string') {
-    try {
-      const parsed = JSON.parse(payload);
-      return JSON.stringify({ ...parsed, praticien_id: parsed.praticien_id ?? practitionerId });
-    } catch {
-      return payload;
-    }
-  }
-  if (typeof payload === 'object' && !Array.isArray(payload)) {
-    const objectPayload = payload as Record<string, unknown>;
-    return { ...objectPayload, praticien_id: objectPayload.praticien_id ?? practitionerId };
-  }
-  return payload;
-};
-
 const slotDate = (selectedDate: Date, time: string) => {
   const [hours, minutes] = time.split(':').map(Number);
   const value = new Date(selectedDate);
@@ -194,7 +177,6 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   const [initialTime, setInitialTime] = useState('09:00');
   const [editingAppointment, setEditingAppointment] = useState<MultiAppointment | null>(null);
   const [modalPractitioner, setModalPractitioner] = useState<{ id?: number; name: string } | null>(null);
-  const createInterceptorId = useRef<number | null>(null);
 
   const dentists = useMemo(() => data?.dentists || [], [data]);
   const legacy = useMemo(
@@ -248,42 +230,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   const timelineHeight = totalHours * HOUR_HEIGHT;
   const gridMinWidth = TIME_AXIS_WIDTH + Math.max(1, dentists.length) * LANE_MIN_WIDTH;
 
-  const clearCreateInterceptor = () => {
-    if (createInterceptorId.current === null) return;
-    api.interceptors.request.eject(createInterceptorId.current);
-    createInterceptorId.current = null;
-  };
-
-  const installCreateInterceptor = (practitionerId: number) => {
-    clearCreateInterceptor();
-    createInterceptorId.current = api.interceptors.request.use((config) => {
-      const method = (config.method || 'get').toLowerCase();
-      const url = (config.url || '').split('?')[0];
-
-      if (method === 'get' && url === '/appointments/check-conflicts') {
-        config.params = {
-          ...(config.params || {}),
-          praticien_id: config.params?.praticien_id ?? practitionerId,
-        };
-      }
-
-      if (method === 'post' && url === '/appointments/') {
-        config.data = addPractitionerToPayload(config.data, practitionerId);
-      }
-
-      return config;
-    });
-  };
-
-  useEffect(() => () => {
-    if (createInterceptorId.current !== null) {
-      api.interceptors.request.eject(createInterceptorId.current);
-      createInterceptorId.current = null;
-    }
-  }, []);
-
   const openCreate = (dentist: PractitionerLane, time: string) => {
-    installCreateInterceptor(dentist.dentist_id);
     setEditingAppointment(null);
     setInitialTime(time);
     setModalPractitioner({ id: dentist.dentist_id, name: dentist.dentist_name });
@@ -291,7 +238,6 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   };
 
   const openEdit = (appointment: MultiAppointment, practitioner?: PractitionerLane) => {
-    clearCreateInterceptor();
     setEditingAppointment(appointment);
     setModalPractitioner(practitioner
       ? { id: practitioner.dentist_id, name: practitioner.dentist_name }
@@ -546,6 +492,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
         }}
         selectedDate={selectedDate}
         initialTime={initialTime}
+        initialPractitionerId={modalPractitioner?.id}
         editingAppointment={editingAppointment}
       />
     </div>
