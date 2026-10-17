@@ -123,7 +123,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
       
       {/* QUICK ACTIONS BAR */}
       <div className="flex justify-end gap-3 px-2">
-        <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
+        <button onClick={fetchAppointments} aria-label="Actualiser la semaine" className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-blue-500")} />
         </button>
         <button onClick={() => setIsModalOpen(true)} className="px-6 py-3 bg-[#003380] text-white font-bold rounded-2xl shadow-xl shadow-blue-900/10 hover:bg-blue-900 transition-all flex items-center gap-2">
@@ -186,7 +186,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
         })}
       </div>
 
-      <div className="hidden md:block bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">
+      <div className="p2-agenda-surface hidden md:block bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="grid grid-cols-8 border-b border-slate-100 bg-slate-50/50">
           <div className="p-4 border-r border-slate-100"></div>
           {weekDays.map((date, i) => {
