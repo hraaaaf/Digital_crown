@@ -1,22 +1,16 @@
 /**
- * Visual approval is valid only for the exact HEAD attested by the trusted bot.
- * This module runs on pull_request_target from a TRUSTED BASE checkout only.
+ * The trusted pull_request_target:labeled workflow run itself attests the approved
+ * PR HEAD, without requiring a separate GitHub API issue-comment write.
+ * The runner MUST execute this script from the trusted default branch only.
  */
 import { readFile } from 'node:fs/promises';
 
 export const APPROVAL_LABEL='visual-approved-by-achraf';
-export const ATTESTATION_PREFIX='dc-human-visual-approval:v1';
+export const APPROVER_LOGIN='hraaaaf';
 const SHA=/^[0-9a-f]{40}$/;
 const REPO=/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const BOT='github-actions[bot]';
 
 function valid(v,test,which){ if(!test) throw new Error('Invalid '+which); return v; }
-export function attestationMarker(repo,number,head){
-  valid(repo,REPO.test(repo),'repository');
-  valid(number,Number.isSafeInteger(number)&&number>0,'PR number');
-  valid(head,SHA.test(head),'head SHA');
-  return `<!-- ${ATTESTATION_PREFIX} repo=${repo} pr=${number} sha=${head} -->`;
-}
 async function pages(api,url) {
   const all=[];
   for(let page=1;page<=100;page++){
@@ -33,15 +27,8 @@ const head=async(api,pr)=>{
 };
 const hasLabel=async(api,pr)=>
   (await pages(api,`/issues/${pr}/labels`)).some(x=>x?.name===APPROVAL_LABEL);
-const hasAttestation=async(api,repo,pr,sha)=>{
-  const marker=attestationMarker(repo,pr,sha);
-  return (await pages(api,`/issues/${pr}/comments`)).some(x=>
-    x?.user?.login===BOT && typeof x.body==='string' &&
-    x.body.split('\n')[0]===marker);
-};
-
-/** An unrelated label action can NEVER bless a stale approval label. */
-export async function runGate({api,repo,number,action,eventHead,eventLabel}){
+/** Only the trusted, owner-created approval label event may approve a UI HEAD. */
+export async function runGate({api,repo,number,action,eventHead,eventLabel,eventSender}){
   valid(repo,REPO.test(repo),'repository');
   valid(number,Number.isSafeInteger(number)&&number>0,'PR number');
   valid(eventHead,SHA.test(eventHead),'event HEAD');
@@ -77,18 +64,18 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel}){
   if(actual!==eventHead)throw new Error('Stale webhook event: PR HEAD differs from event HEAD');
   if(!(await hasLabel(api,number)))throw new Error('UI changes require explicit visual approval label');
 
-  if(action==='labeled'&&eventLabel===APPROVAL_LABEL){
-    const marker=attestationMarker(repo,number,actual);
-    await api.post(`/issues/${number}/comments`,{
-      body:`${marker}\nVisual approval label accepted for exact PR HEAD \`${actual}\`. New commits invalidate it.`,
-    });
-  }
-  if(!(await hasAttestation(api,repo,number,actual)))
-    throw new Error('Approval label has no trusted bot attestation for current HEAD');
+  // The trusted GitHub Actions check is the durable SHA-bound attestation.
+  // No PR comment writes; event identity + SHA come from GitHub's webhook,
+  // never from untrusted PR code.
+  if(action!=='labeled'||eventLabel!==APPROVAL_LABEL)
+    throw new Error('Fresh explicit visual approval label event required');
+  if(eventSender!==APPROVER_LOGIN)
+    throw new Error('Visual approval label must be added by the authorized owner');
   if((await head(api,number))!==actual)
     throw new Error('PR HEAD changed during visual approval checks');
   if(!(await hasLabel(api,number)))
     throw new Error('Visual approval label disappeared during verification');
+
   return {state:'approved',head:actual};
 }
 
@@ -129,9 +116,9 @@ async function main(){
       api:githubApiClient({token:process.env.GH_TOKEN,repo}),
       repo,number:payload?.pull_request?.number,
       action:payload?.action,eventHead:payload?.pull_request?.head?.sha,
-      eventLabel:payload?.label?.name,
+      eventLabel:payload?.label?.name,eventSender:payload?.sender?.login,
     });
-    console.log(`PASS visual gate: ${result.state}, PR HEAD ${result.head}`);
+    console.log(`PASS trusted GitHub Action attestation: ${result.state}, PR HEAD ${result.head}`);
   }catch(error){
     console.error(`::error::Visual gate fails closed: ${error.message}`);
     process.exitCode=1;
