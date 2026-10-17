@@ -11,6 +11,14 @@ MATRIX = ROOT / "docs/audits/data/CEPH_FACAD_PARITY_P0_DESKTOP_EVIDENCE_MATRIX_2
 MENU_NAMES = ("File", "Edit", "Tracing", "View", "Cephalometry", "Image", "Tools", "Window", "Help")
 GROUPS = {"calibration_measure": 5, "planning_transform": 7, "tracing_construction": 6, "display": 4, "patient_session_document": 8}
 BASE = "d36a921e4b910a84cbce305bd501a3d046cfbb62"
+VENDOR_SOURCE = "https://github.com/hraaaaf/Digital_crown/blob/068d30a5437a4bf0fe8a46a96391fa3cd8a6428d/docs/audits/FACAD_314_FULL_APPLICATION_COVERAGE_CONTRACT.md"
+CONTROLS = {
+    "calibration_measure": "Calibrate Measure_distance Measure_distance_to_line Measure_angle_3pt_Par Measure_angle_4pt_Par",
+    "planning_transform": "Plan Split_hard_tissue Place_distractor Paint Create_profile_line Match_images Adjust_tracing_position",
+    "tracing_construction": "SelectMove Place_marker Draw_hard_tissue Manual_draw Draw_implant_line Place_tooth",
+    "display": "Zoom BrightnessContrast Reset_Zoom Blend_images",
+    "patient_session_document": "Patient_Work_List New_patient Open_patient Save_Patient Close_patient Print_active_window Copy Undo",
+}
 
 
 def require(condition, message):
@@ -27,10 +35,13 @@ def validate(data):
     menu = data.get("menus", [])
     require([x.get("name") for x in menu] == list(MENU_NAMES), "menu census")
     require([x.get("id") for x in menu] == ["FAC_MENU_%02d" % n for n in range(1, 10)], "menu ids")
-    require(all(x.get("menu_leaf_functional_parity") == "NOT_PROVEN" and x.get("clinical_release") is False for x in menu), "menu false parity")
+    require(data.get("provenance", {}).get("vendor_ui_inventory_url") == VENDOR_SOURCE, "vendor source changed")
+    require(all(x.get("menu_leaf_functional_parity") == "NOT_PROVEN" and x.get("clinical_release") is False and x.get("source_url") == VENDOR_SOURCE for x in menu), "menu false parity")
     bars = data.get("toolbar", [])
     require(len(bars) == 30 and len({x.get("id") for x in bars}) == 30, "toolbar census")
     require({k: sum(x.get("group") == k for x in bars) for k in GROUPS} == GROUPS, "toolbar groups")
+    expected = [(group, "FCD_" + suffix) for group, names in CONTROLS.items() for suffix in names.split()]
+    require([(x.get("group"), x.get("id")) for x in bars] == expected, "toolbar source-locked identity/order")
     for x in bars:
         require(x.get("id", "").startswith("FCD_"), "vendor control identity")
         require(x.get("vendor_action_verdict") == "NOT_YET_TESTED", "vendor action not observed")
@@ -64,6 +75,8 @@ def validate(data):
 def negative_checks(data):
     edits = [
         lambda d: d["menus"].pop(),
+        lambda d: d["menus"][0].update({"source_url": "fake"}),
+        lambda d: d["toolbar"][0].update({"id": "FCD_Fake"}),
         lambda d: d["toolbar"].pop(),
         lambda d: d["toolbar"][0].update({"facad_to_dc_equivalence_verified": True}),
         lambda d: d["toolbar"][0].update({"vendor_action_verdict": "TESTED"}),
