@@ -87,6 +87,7 @@ const entry=[
 "const profiles="+JSON.stringify(fakeProfiles)+";",
 "const anglesData={metrics:{analyse_dentaire:{},analyse_osseuse:{},analyse_esthetique:{}},scientific_read_path:{authority:'EVIDENCE_GRAPH_V1',active_chain:'VERIFIED',protocol_profiles:profiles},calibration_status:'unverified',visual_debug:{}};",
 "window.__cephaloG4Audit={synthetic:true,events:[]};",
+"Object.assign(window,{__cephaloG6Evidence:()=>useOrthoStore.getState().local.landmarks.map(p=>({id:p.id,x:p.x,y:p.y}))});",
 "window.addEventListener('digital-crown:cephalo-metric',ev=>window.__cephaloG4Audit.events.push(ev.detail));",
 "useOrthoStore.setState({patientId:919,patientName:'R23-G4 · UX FICTIVE',analysisId:9919,imageSrc:source,imgDim:{w:"+radio.width+",h:"+radio.height+"},local:{landmarks:points,version:1},completedSteps:new Set([1]),step:1,anglesData,isCalibrated:false,mmPerPixel:null});",
 "ReactDOM.createRoot(document.getElementById('root')).render(<MemoryRouter><div style={{height:'100vh'}}><CephaloWorkspace patientId={919} patientName='R23-G4 · UX FICTIVE'/></div></MemoryRouter>);"
@@ -134,6 +135,7 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
       base:base?.getAttribute('viewBox')??null,
       overlay:overlay?.getAttribute('viewBox')??null,
       handles,
+      storeLandmarks:typeof window.__cephaloG6Evidence==='function'?window.__cephaloG6Evidence():null,
       documentWidth:document.documentElement.scrollWidth,
       viewportWidth:document.documentElement.clientWidth,
       label:document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()??null,
@@ -141,7 +143,7 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
     };
   });
   const initial=await snapshot();
-  if(!initial.base||initial.base!==initial.overlay||initial.handles.length!==38)
+  if(!initial.base||initial.base!==initial.overlay||initial.handles.length!==38||initial.storeLandmarks?.length!==38)
     fail('G6 initial SVG/handle alignment invalid '+viewportName);
   const untouched=phase.toLowerCase()+'-g6-'+viewportName+'-100.png';
   await page.screenshot({path:path.join(out,untouched),fullPage:false});
@@ -156,7 +158,8 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
   const [,,zw,zh]=zoomed.base.split(/\s+/).map(Number);
   if(Math.abs(zw-iw/2)>0.01||Math.abs(zh-ih/2)>0.01)
     fail('G6 expected exact 200% viewBox crop '+viewportName);
-  if(JSON.stringify(initial.handles)!==JSON.stringify(zoomed.handles))
+  if(JSON.stringify(initial.handles)!==JSON.stringify(zoomed.handles)||
+    JSON.stringify(initial.storeLandmarks)!==JSON.stringify(zoomed.storeLandmarks))
     fail('G6 zoom changed anatomical SVG coordinates '+viewportName);
   const screenshot200=phase.toLowerCase()+'-g6-'+viewportName+'-200.png';
   await page.screenshot({path:path.join(out,screenshot200),fullPage:false});
@@ -164,13 +167,15 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
   const panned=await snapshot();
   if(panned.base===zoomed.base||panned.base!==panned.overlay)
     fail('G6 pan movement or overlay desync '+viewportName);
-  if(JSON.stringify(initial.handles)!==JSON.stringify(panned.handles))
+  if(JSON.stringify(initial.handles)!==JSON.stringify(panned.handles)||
+    JSON.stringify(initial.storeLandmarks)!==JSON.stringify(panned.storeLandmarks))
     fail('G6 pan changed anatomical SVG coordinates '+viewportName);
   const screenshotPan=phase.toLowerCase()+'-g6-'+viewportName+'-pan.png';
   await page.screenshot({path:path.join(out,screenshotPan),fullPage:false});
   await activate('Afficher toute la radiographie');
   const restored=await snapshot();
-  if(restored.label!=='100 %'||restored.base!==initial.base||restored.overlay!==initial.overlay)
+  if(restored.label!=='100 %'||restored.base!==initial.base||restored.overlay!==initial.overlay||
+    JSON.stringify(restored.storeLandmarks)!==JSON.stringify(initial.storeLandmarks))
     fail('G6 reset did not restore the original viewBox '+viewportName);
   if(![zoomed,panned,restored].every(x=>x.documentWidth-x.viewportWidth<=2&&x.focusUnavailable))
     fail('G6 overflow or unauthorized scientific Focus '+viewportName);
