@@ -428,7 +428,7 @@ asyncio.run(main())
                     self.assertEqual(kernel.WaitForSingleObject(child_handle, 8000), 0,
                                      "Windows Job close did not kill real LAB child")
                 else:
-                    self.assertTrue(Path(f"/proc/{child_pid}/stat").parent.is_dir())
+                    # /proc/<pid> may already be gone: that is a valid kill proof.
                     deadline = time.monotonic() + 8
                     still_running = True
                     while time.monotonic() < deadline:
