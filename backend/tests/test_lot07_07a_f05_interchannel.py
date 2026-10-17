@@ -115,6 +115,10 @@ def test_bot_status_reactivation_rechecks_capacity(db, dentiste):
         scheduling_type=models.SchedulingType.EXACT_TIME,
     )
     db.add_all([current, cancelled]); db.flush()
+    # Model a prior committed booking; the shared in-memory SQLite fixture
+    # cannot faithfully reproduce an already committed writer via flush alone.
+    db.commit()
+    db.refresh(cancelled)
     with pytest.raises(HTTPException) as raised:
         ActionDispatcher()._exec_change_status(
             {"appointment_id": cancelled.id, "status": "PREVU"}, db, dentiste,
