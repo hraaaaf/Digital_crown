@@ -5,6 +5,7 @@ on:
       - 'scripts/verification/lot07_07a_postgres_cert.py'
       - 'scripts/verification/lot07_07a_f05_multiprocess.py'
       - 'scripts/verification/lot07_07a_f05_pg_faults.py'
+      - 'scripts/verification/lot07_07a_f05_pc_http.py'
       - 'backend/services/bot/action_dispatcher.py'
       - 'backend/services/patient_companion_agenda.py'
       - 'backend/routers/frontdesk.py'
@@ -100,6 +101,13 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/verification/lot07_07a_f05_pg_faults.py
           python -m scripts.verification.lot07_07a_f05_pg_faults
+      - name: Actual Patient Companion HTTP route with JOSE receipt across two Uvicorn processes
+        id: pc_http
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/verification/lot07_07a_f05_pc_http.py
+          python -m scripts.verification.lot07_07a_f05_pc_http
       - name: Require all independent F05 certification stages
         if: always()
         env:
@@ -107,21 +115,26 @@ jobs:
           POSTGRES_OUTCOME: ${{ steps.pg_lab.outcome }}
           MULTIPROCESS_OUTCOME: ${{ steps.pg_multiprocess.outcome }}
           PG_FAULTS_OUTCOME: ${{ steps.pg_faults.outcome }}
+          PC_HTTP_OUTCOME: ${{ steps.pc_http.outcome }}
         run: |
           set -euo pipefail
           echo "F05_SQLITE_CONTRACTS=$SQLITE_OUTCOME"
           echo "F05_POSTGRES_LAB=$POSTGRES_OUTCOME"
           echo "F05_TWO_UVICORN_PROCESSES=$MULTIPROCESS_OUTCOME"
           echo "F05_ENCRYPTED_RECEIPTS_DIRECT_WORKER=$PG_FAULTS_OUTCOME"
+          echo "F05_PATIENT_COMPANION_REAL_ROUTE_HTTP=$PC_HTTP_OUTCOME"
           test "$SQLITE_OUTCOME" = success
           test "$POSTGRES_OUTCOME" = success
           test "$MULTIPROCESS_OUTCOME" = success
           test "$PG_FAULTS_OUTCOME" = success
+          test "$PC_HTTP_OUTCOME" = success
           # Agenda/Bot/Frontdesk real login and two-process PostgreSQL probes
           # are covered separately. Genuine Patient Companion encrypted
           # remote-envelope, receipt atomicity and independent reviews remain.
-          echo "::error::POSTGRESQL F05 FAIL: genuine Patient Companion encrypted remote envelope with two HTTP workers and durable receipt races not proven"
-          exit 1
+          # This Linux lab substitutes Windows DPAPI key unprotect; completion
+          # is evidence for the actual HTTP route and PostgreSQL invariants,
+          # not a device/hardware or production activation approval.
+          echo "F05_PASS_LAB_ONLY=all isolated PostgreSQL HTTP/JOSE/receipt stages successful; Windows OS key integration remains separate"
       - name: Report sanitized failure diagnostics
         if: failure()
         run: |
