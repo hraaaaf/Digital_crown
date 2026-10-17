@@ -115,10 +115,16 @@ def folder_metrics(exe: Path) -> dict:
         raise AssertionError("Expected a genuine Windows PE executable")
     forbidden = [
         p.relative_to(folder).as_posix() for p in files
-        if p.name.lower() in {".env", "firebase_creds.json", "service-account.json"}
+        if p.name.lower() in {
+            ".env", "firebase_creds.json", "service-account.json",
+            "private_key.pem", "private-key.pem", "signing_key.pem",
+        }
         or "firebase_creds" in p.name.lower()
         or p.name.lower().endswith(".key")
-        or p.name.lower().endswith(".pem")
+        or (
+            p.name.lower().endswith(".pem")
+            and any(word in p.name.lower() for word in ("private", "secret", "signing"))
+        )
     ]
     if forbidden:
         raise AssertionError(f"Forbidden credential-looking packaged file names: {forbidden}")
