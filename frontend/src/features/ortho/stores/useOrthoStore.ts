@@ -366,6 +366,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       set({
         imageSrc: undefined,
         analysisId: undefined,
+        previewPdfUrl: null,
+        isPreviewLoading: false,
         local: { landmarks: [], version: 0 },
         landmarkEditTimeline: createLandmarkEditTimeline(),
         anglesData: {},
@@ -406,7 +408,15 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       try { set({ etape3Data: JSON.parse(savedE3) }); } catch (err) { console.warn(err); }
     }
   },
-  setAnalysisId: (id) => set({ analysisId: id }),
+  setAnalysisId: (id) => {
+    const current = get();
+    if (current.analysisId === id) return;
+    if (current.previewPdfUrl?.startsWith('blob:')
+      && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+      URL.revokeObjectURL(current.previewPdfUrl);
+    }
+    set({ analysisId: id, previewPdfUrl: null, isPreviewLoading: false });
+  },
   setImageSrc: (src) => set({ imageSrc: src }),
   setLocal: (updater) => set((state) => ({ local: typeof updater === 'function' ? updater(state.local) : updater })),
   setActivePointId: (id) => set({ activePointId: id }),
