@@ -163,6 +163,25 @@ def test_signed_ricketts_contracts_unlock_with_same_image_orientation():
         assert item.orientation_ref in item.evidence_refs
 
 
+def test_signed_ricketts_contracts_reject_inactive_orientation_on_same_image():
+    # W1: matching source and correct numerical axes are NOT sufficient if the
+    # orientation evidence was explicitly invalidated/staled by the active graph.
+    orientation = _orientation().model_copy(update={
+        "availability_status": AvailabilityStatus.INVALID,
+    })
+    output = _materialize(orientation=orientation)
+    for method in (
+        "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
+        "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
+        "RICKETTS_COMMISSURE_FOP_CANONICAL_MM_V2",
+        "RICKETTS_PALATAL_PLANE_FH_CANONICAL_DEG_V2",
+    ):
+        measurement = output[method]
+        assert measurement.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+        assert measurement.value is None
+        assert measurement.orientation_ref is None
+
+
 def test_orientation_evidence_must_match_source_image():
     out = _materialize(orientation=_orientation("source:other"))
     for method in (
