@@ -260,8 +260,12 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
     let cancelled = false;
     let createdBlobUrl: string | null = null;
+    // A↔B history selection unmounts or replaces the previous image source.
+    // Abort only that obsolete XHR. Axios identifies this as cancellation, so the
+    // global network-error toast stays active for any genuinely failed live request.
+    const controller = new AbortController();
 
-    api.get(imageSrc, { responseType: 'blob' })
+    api.get(imageSrc, { responseType: 'blob', signal: controller.signal })
       .then(response => {
         if (cancelled) return;
         const blobUrl = URL.createObjectURL(response.data as Blob);
@@ -278,6 +282,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
     return () => {
       cancelled = true;
+      controller.abort();
       if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl);
     };
   }, [imageSrc, setImgDim]); // eslint-disable-line react-hooks/exhaustive-deps
