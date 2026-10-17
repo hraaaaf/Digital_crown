@@ -29,8 +29,12 @@ const TypewriterText = ({ text, delay = 5 }: { text: string, delay?: number }) =
 };
 
 export const GhostBrainWidget = () => {
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [insights, setInsights] = useState<any[]>([]);
+  // Keep the server snapshot and local acknowledged removals atomic. A delayed
+  // HTTP ACK must not decrement a newer WebSocket snapshot's unread count.
+  const [alertState, setAlertState] = useState<{ insights: any[]; unreadCount: number }>({
+    insights: [], unreadCount: 0,
+  });
+  const { insights, unreadCount } = alertState;
   const [isOpen, setIsOpen] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
@@ -70,8 +74,7 @@ export const GhostBrainWidget = () => {
         try {
           const data = JSON.parse(event.data);
           if (data.insights) {
-            setInsights(data.insights);
-            setUnreadCount(data.unread_count);
+            setAlertState({ insights: data.insights, unreadCount: data.unread_count });
           }
         } catch (err) {
           console.error("GhostBrain WS Parse Error:", err);
@@ -107,8 +110,15 @@ export const GhostBrainWidget = () => {
       if (ack?.data?.status !== 'read') {
         throw new Error('GhostBrain read acknowledgement missing');
       }
-      setInsights(prev => prev.filter(i => i.id !== logId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setAlertState(prev => {
+        // Ignore an ACK for an alert no longer in the latest WS snapshot.
+        // This also makes duplicate acknowledgements idempotent locally.
+        if (!prev.insights.some(i => i.id === logId)) return prev;
+        return {
+          insights: prev.insights.filter(i => i.id !== logId),
+          unreadCount: Math.max(0, prev.unreadCount - 1),
+        };
+      });
     } catch (err) {
       console.error("Failed to mark as read:", err);
     }
