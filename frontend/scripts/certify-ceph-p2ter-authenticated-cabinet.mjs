@@ -24,9 +24,10 @@ const browser=await chromium.launch({headless:true});
 const root='http://127.0.0.1:5173', backend='http://127.0.0.1:8005';
 
 async function viewportRun(viewport){
- const record={viewport:viewport.width+'x'+viewport.height,checks:[],shots:[],pageErrors:[],failedRequests:[],httpErrors:[],observedToasts:[],valid:false};
+ const record={viewport:viewport.width+'x'+viewport.height,checks:[],shots:[],pageErrors:[],failedRequests:[],httpErrors:[],observedToasts:[],consoleErrors:[],archiveGateDiagnostics:[],valid:false};
  const api=await request.newContext({baseURL:backend});
  let context;
+ let page;
  try{
   const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
   if(login.status()!==200)throw Error('Bootstrap auth failed '+login.status());
@@ -36,8 +37,9 @@ async function viewportRun(viewport){
   if(station.length!==1)throw Error('Workstation enrollment missing');
   context=await browser.newContext({viewport,acceptDownloads:true,reducedMotion:'reduce',
     storageState:{cookies:station,origins:[]}});
-  const page=await context.newPage();
+  page=await context.newPage();
   page.on('pageerror',e=>record.pageErrors.push(e.message));
+  page.on('console',message=>{ if(message.type()==='error')record.consoleErrors.push(message.text().slice(0,450)); });
   page.on('requestfailed',req=>record.failedRequests.push({
     method:req.method(), url:req.url(), failure:req.failure()?.errorText||'unknown',
   }));
@@ -113,10 +115,22 @@ async function viewportRun(viewport){
   await page.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
   const archiveButton=page.getByRole('button',{name:'Archiver le bilan'});
   await archiveButton.waitFor({state:'visible'});
-  await page.waitForFunction(()=>{
-    const b=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Archiver le bilan'));
-    return Boolean(b && !b.disabled);
-  },null,{timeout:20000});
+  try {
+    await page.waitForFunction(()=>{
+      const b=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Archiver le bilan'));
+      return Boolean(b && !b.disabled);
+    },null,{timeout:20000});
+  } catch(e) {
+    const diagnosis=await page.evaluate(()=>{
+      const btn=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Archiver le bilan'));
+      return {disabled:btn?.disabled, title:btn?.outerHTML.slice(0,700),
+        checklist:document.body.innerText.match(/Landmarks complets[^\\n]*/)?.[0]||null,
+        validation:document.body.innerText.match(/Cohérence des mesures[^\\n]*/)?.[0]||null,
+        image:document.body.innerText.match(/Image céphalométrique chargée[^\\n]*/)?.[0]||null};
+    });
+    record.archiveGateDiagnostics.push(diagnosis);
+    throw Error('Archive gate disabled '+JSON.stringify(diagnosis)+' / '+String(e));
+  }
   const archiveResponsePromise=page.waitForResponse(r=>
     new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
     r.request().method()==='POST' && r.request().postDataJSON()?.archive===true,
@@ -311,7 +325,10 @@ async function viewportRun(viewport){
   if(record.pageErrors.length)throw Error('React exceptions '+JSON.stringify(record.pageErrors));
   record.valid=true;
  }catch(error){record.error=String(error);}
- finally{await context?.close().catch(()=>{});await api.dispose();}
+ finally{
+  if(page && !page.isClosed())record.observedToasts=await page.evaluate(()=>window.__p2terSeenToasts||[]).catch(()=>[]);
+  await context?.close().catch(()=>{});await api.dispose();
+ }
  return record;
 }
 try{
