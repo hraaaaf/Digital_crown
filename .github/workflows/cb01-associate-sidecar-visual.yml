@@ -284,7 +284,7 @@ jobs:
         run: |
           node scripts/run-with-t2-workstation.mjs \
             scripts/certify-cb01-associate-sidecar.mjs
-      - name: Certify scoped S01-S12 synthetic staff matrix (7 HTTP PASS, 5 gaps)
+      - name: Certify scoped S01-S12 (7 API + 1 Agenda browser, 4 untested)
         working-directory: frontend
         shell: bash
         run: |
@@ -323,7 +323,7 @@ jobs:
           data = json.load(open(path, encoding='utf-8'))
           counts = data['counts']
           print('### S01–S12: scoped synthetic coverage, NOT human E2E')
-          print(f"Synthetic API: {counts['passedSynthetic']}/12 PASS; partial layout: {counts['partialSynthetic']}; NOT_RUN: {counts['notRun']}; human E2E: 0/12.")
+          print(f"Synthetic API: {counts['passedSynthetic']} PASS; Agenda browser: {counts['passedBrowserSynthetic']} PASS; partial: {counts['partialSynthetic']}; NOT_RUN: {counts['notRun']}; human E2E: {counts['humanE2EValidated']}/12.")
           print('Never promote PARTIAL or NOT_RUN to PASS. See JSON artifact for exact case labels.')
           PY
           fi
