@@ -27,7 +27,7 @@ This must **never** be described as unlocking four patient measurements. Publish
 
 ## Audit and test gates
 
-`python scripts/cephalo_r23g8_w1_orientation_coverage.py --output <path>` compares: exact 33 Atlas identities, prior G7 8/3/22 registry, exact W1 source order 4/14/18/24 and original gates, backend canonical method IDs and direct landmark tuples, canonical construction constants, original manual requirements and same-source/ref gating. It fails on drift, identity aliases and unauthorized clinical promotion. New summary should equal:
+`python -m scripts.cephalo_r23g8_w1_orientation_coverage --output <path>` compares: exact 33 Atlas identities, prior G7 8/3/22 registry, exact W1 source order 4/14/18/24 and original gates, backend canonical method IDs and direct landmark tuples, canonical construction constants, original manual requirements and same-source/ref gating. It fails on drift, identity aliases and unauthorized clinical promotion. New summary should equal:
 
 | Published frontend source obligations | Count |
 |---|---:|
