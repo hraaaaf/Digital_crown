@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:
-      SOURCE_HEAD: 9a18bca96074259a250c39fa8a8945808198c86c
+      SOURCE_HEAD: 82d7f3c93471dcca9c00bcd9fb4471831d399efe
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: '1'
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
@@ -25,22 +25,15 @@ jobs:
       - name: Checkout pinned product commit (NOT proof branch)
         uses: actions/checkout@v4
         with:
-          ref: 9a18bca96074259a250c39fa8a8945808198c86c
+          ref: 82d7f3c93471dcca9c00bcd9fb4471831d399efe
           persist-credentials: false
-      - name: Attest immutable product and isolated DB target
+      - name: Attest immutable product before dependency install
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
-          python - <<'PY' >> "$GITHUB_ENV"
-          import os
-          from backend.core.runtime_safety import is_known_cabinet_database,database_target_fingerprint
-          target='sqlite:///./t2-runtime-cert.db'
-          assert os.environ['ENVIRONMENT']=='test'
-          assert os.environ['DIGITALCROWN_ISOLATED_RUNTIME']=='1'
-          assert os.environ['DATABASE_URL']==target
-          assert not is_known_cabinet_database(target)
-          print('DIGITALCROWN_ISOLATION_DB_FINGERPRINT='+database_target_fingerprint(target))
-          PY
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -61,6 +54,18 @@ jobs:
           pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/lot07-p2-t2-reqs.txt
           pip install -r /tmp/lot07-p2-t2-reqs.txt
+      - name: Attest isolated fingerprint after backend dependencies are installed
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import is_known_cabinet_database,database_target_fingerprint
+          target='sqlite:///./t2-runtime-cert.db'
+          assert os.environ['ENVIRONMENT']=='test'
+          assert os.environ['DIGITALCROWN_ISOLATED_RUNTIME']=='1'
+          assert os.environ['DATABASE_URL']==target
+          assert not is_known_cabinet_database(target)
+          print('DIGITALCROWN_ISOLATION_DB_FINGERPRINT='+database_target_fingerprint(target))
+          PY
       - name: Install actual frontend and isolated browser
         working-directory: frontend
         run: |
@@ -97,7 +102,7 @@ jobs:
           import path from 'node:path';
           import { chromium, request } from 'playwright';
           const sha=process.env.SOURCE_HEAD;
-          if(sha!=='9a18bca96074259a250c39fa8a8945808198c86c'
+          if(sha!=='82d7f3c93471dcca9c00bcd9fb4471831d399efe'
             ||process.env.ENVIRONMENT!=='test'||process.env.DIGITALCROWN_ISOLATED_RUNTIME!=='1'
             ||process.env.DATABASE_URL!=='sqlite:///./t2-runtime-cert.db')
             throw Error('Refuse non-pinned or non-disposable T2 certification');
