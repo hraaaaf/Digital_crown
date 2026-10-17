@@ -72,6 +72,36 @@ describe('LOT07 07-A — Agenda conflict fail-closed integrated modal', () => {
     })), {timeout:4000});
   });
 
+  it('allows an explicit retry after a failed conflict check without changing the date or time', async () => {
+    let attempts = 0;
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/appointments/check-conflicts') {
+        attempts += 1;
+        if (attempts === 1) throw Error('Network unavailable');
+        return { data: { has_conflict: false, conflicts: [] } } as never;
+      }
+      return { data: [] } as never;
+    });
+    mount();
+    const retry = await screen.findByRole('button', { name: 'Relancer la vérification' });
+    expect(confirm().disabled).toBe(true);
+    fireEvent.click(retry);
+    await waitFor(() => expect(confirm().disabled).toBe(false), { timeout: 4000 });
+    expect(attempts).toBe(2);
+  });
+
+  it('refuses an inconsistent API response with conflicts but has_conflict=false', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/appointments/check-conflicts')
+        return { data: { has_conflict: false, conflicts: [{ id: 99, datetime_start: '2026-10-19T09:00:00' }] } } as never;
+      return { data: [] } as never;
+    });
+    mount();
+    await screen.findByRole('button', { name: 'Relancer la vérification' });
+    expect(confirm().disabled).toBe(true);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('fails closed when backend sends a malformed conflict response', async () => {
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if(url==='/appointments/check-conflicts')return {data:{conflicts:[]}} as never;
