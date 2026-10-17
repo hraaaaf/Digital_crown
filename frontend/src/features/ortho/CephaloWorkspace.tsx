@@ -346,7 +346,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       <div className="flex flex-col gap-1.5 border-b px-3 py-2 sm:gap-3 sm:px-6 sm:py-3 md:flex-row md:flex-wrap md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
         <div className="min-w-0">
           <h2 data-ortho-workspace-title className="text-lg font-bold leading-tight" style={{ color: P.text }}>Céphalométrie</h2>
-          <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName}</p>
+          <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName} {analysisId ? <span data-cephalo-selected-analysis-id={analysisId}>· Étude #{analysisId}</span> : '· Aucune étude sélectionnée'}</p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-3">
           <div className="flex shrink-0 rounded-xl p-1" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
