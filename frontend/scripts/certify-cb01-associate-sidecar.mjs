@@ -80,8 +80,8 @@ for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
 const browser = await chromium.launch({ headless:true });
 const evidence = [];
 try {
-  for (const width of [390, 430, 1280, 1440, 1920]) {
-    const desktop = width >= 1280;
+  for (const width of [390, 430, 1280, 1440, 1600, 1920]) {
+    const desktop = width >= 1600;
     const height = desktop ? 900 : 844;
     const context = await browser.newContext({ viewport:{width,height} });
     await context.addInitScript(({access,refresh}) => {
@@ -310,11 +310,11 @@ try {
   }
   // CB-01 synthetic layout-only clinical views: these are the REAL routed
   // React Agenda and PatientDetails screens, not a dashboard mockup. The tests
-  // check that their clinical workspace remains visible beside the shell.
+  // preserve the full workspace at 1280/1440 (floating) and sidecar >=1600.
   // They do NOT prove that staff completed a clinical workflow or that
   // records/appointments were written, confirmed, or usable at native 200%.
   const clinicalRouteEvidence=[];
-  for (const width of [1280,1440,1920]) {
+  for (const width of [1280,1440,1600,1920]) {
     for (const spec of [
       {slug:'agenda',pathname:'/agenda'},
       {slug:'patient',pathname:'/patients/'+patientId},
@@ -344,39 +344,66 @@ try {
           const main=document.querySelector('main');
           return Boolean(main && (main.innerText||'').trim().length>10);
         },null,{timeout:30000});
+        const baseline=await page.evaluate(()=>{
+          const main=document.querySelector('main')?.getBoundingClientRect();
+          return main?{left:main.left,right:main.right,width:main.width}:null;
+        });
+        if(!baseline || baseline.width<720) {
+          throw new Error('FAIL: clinical BASELINE screen unexpectedly constrained '+
+            spec.slug+' '+width+' '+JSON.stringify(baseline));
+        }
         await page.screenshot({path:path.join(output,
           'clinical-'+spec.slug+'-before-'+width+'.png')});
         const opener=page.locator('button[aria-label="Ouvrir CrownBot"]:visible').first();
         await opener.waitFor({state:'visible',timeout:20000});
         await opener.click();
-        const panel=page.locator('[data-cb01-associate-sidecar]');
-        await panel.waitFor({state:'visible',timeout:15000});
+        const expectedSidecar=width>=1600;
+        const sidecar=page.locator('[data-cb01-associate-sidecar]');
+        const overlay=page.locator('[data-ux1-c-crownbot-overlay]');
+        await (expectedSidecar?sidecar:overlay).waitFor({
+          state:'visible',timeout:15000,
+        });
+        if(await (expectedSidecar?overlay:sidecar).count()) {
+          throw new Error('FAIL: wrong assistant mode at clinical width '+width);
+        }
         const geometry=await page.evaluate(()=>{
-          const main=document.querySelector('main')?.getBoundingClientRect();
-          const pane=document.querySelector('[data-cb01-associate-sidecar]')?.getBoundingClientRect();
+          const rect=el=>{
+            const r=el?.getBoundingClientRect();
+            return r?{left:r.left,right:r.right,width:r.width}:null;
+          };
           const root=document.documentElement;
           return {
             overflow:root.scrollWidth>root.clientWidth+2,
-            main:main?{left:main.left,right:main.right,width:main.width}:null,
-            sidecar:pane?{left:pane.left,right:pane.right,width:pane.width}:null,
+            main:rect(document.querySelector('main')),
+            sidecar:rect(document.querySelector('[data-cb01-associate-sidecar]')),
+            overlay:rect(document.querySelector('[data-ux1-c-crownbot-overlay]')),
             visibleClinicalText:(document.querySelector('main')?.innerText||'').trim().length>10,
           };
         });
-        if (!geometry.main || !geometry.sidecar || !geometry.visibleClinicalText
-            || geometry.overflow || geometry.main.width<400
+        const commonFailure=!geometry.main || !geometry.visibleClinicalText
+          || geometry.overflow || writes.length>0 || errors.length>0;
+        const layoutFailure=expectedSidecar
+          ? (!geometry.sidecar || geometry.overlay
+            || geometry.main.width<780
             || geometry.main.right>geometry.sidecar.left+3
-            || geometry.sidecar.right>width+3
-            || writes.length>0 || errors.length>0) {
-          throw new Error('FAIL: real clinical route shell overlap/write/error at '+
+            || geometry.sidecar.right>width+3)
+          : (!geometry.overlay || geometry.sidecar
+            || Math.abs(geometry.main.width-baseline.width)>3
+            || geometry.overlay.left < -1 || geometry.overlay.right>width+1);
+        if(commonFailure || layoutFailure) {
+          throw new Error('FAIL: clinical width safety '+
             spec.slug+' '+width+' '+JSON.stringify({
-              geometry,errors:errors.length,writes:writes.length,
+              baseline,geometry,errors:errors.length,writes:writes.length,
             }));
         }
         await page.screenshot({path:path.join(output,
           'clinical-'+spec.slug+'-after-'+width+'.png')});
         clinicalRouteEvidence.push({
-          route:spec.slug,width,status:'PASS_SYNTHETIC_LAYOUT_ONLY',
-          geometry,errors:0,writes:0,
+          route:spec.slug,width,
+          status:expectedSidecar
+            ? 'PASS_SYNTHETIC_SIDECAR_LAYOUT_ONLY'
+            : 'PASS_SYNTHETIC_FLOATING_NO_CLINICAL_SHRINK',
+          baseline,geometry,errors:0,writes:0,
         });
       } finally {
         await context.close();
