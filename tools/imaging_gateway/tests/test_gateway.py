@@ -115,7 +115,7 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.agent.scan_once()["unstable"], 1)
         # A structural validator correctly rejects trailing garbage; use a
         # valid PNG with a CRC-protected ancillary chunk instead.
-        text_data = b"Comment\\x00SyntheticChange".replace(b"\\x00", b"\\x00")
+        text_data = b"Comment" + bytes([0]) + b"SyntheticChange"
         chunk_type = b"tEXt"
         text_chunk = (len(text_data).to_bytes(4, "big") + chunk_type +
                       text_data + zlib.crc32(chunk_type + text_data).to_bytes(4, "big"))
