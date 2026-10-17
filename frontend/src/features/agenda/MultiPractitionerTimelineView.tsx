@@ -93,8 +93,7 @@ const isSameLocalDay = (value: string, selectedDate: Date) => {
   return clinicAppointmentFormFields(value).date === clinicCalendarDay(selectedDate);
 };
 
-const formatClock = (date: Date) =>
-  date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+const formatClock = (value: string) => clinicAppointmentFormFields(value).time;
 
 const schedulingLabel = (appointment: MultiAppointment) => {
   if (appointment.scheduling_type === 'MORNING') return 'Matin';
@@ -417,8 +416,8 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                       </div>
 
                       {exactAppointments.map((appointment) => {
-                        const start = new Date(appointment.datetime_start);
-                        const startMinutes = start.getHours() * 60 + start.getMinutes();
+                        const [hours, minutes] = clinicAppointmentFormFields(appointment.datetime_start).time.split(':').map(Number);
+                        const startMinutes = hours * 60 + minutes;
                         const top = ((startMinutes - timelineBounds.startHour * 60) / 60) * HOUR_HEIGHT;
                         const height = Math.max(18, (appointment.duration_minutes / 60) * HOUR_HEIGHT - 2);
                         return (
@@ -434,7 +433,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                           >
                             <span className="flex min-w-0 items-center gap-1.5 font-black">
                               {appointment.patient_id ? <PatientAvatar patientId={appointment.patient_id} fullName={appointment.patient_name} resolveFromDirectory className="w-5 h-5 rounded text-[7px]" /> : null}
-                              <span className="truncate">{formatClock(start)} · {appointment.patient_name || 'Patient'}</span>
+                              <span className="truncate">{formatClock(appointment.datetime_start)} · {appointment.patient_name || 'Patient'}</span>
                             </span>
                             {height >= 34 && (
                               <span className="block truncate text-[9px] opacity-70">
@@ -450,8 +449,8 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
               </div>
 
               {exactLegacy.map((appointment) => {
-                const start = new Date(appointment.datetime_start);
-                const startMinutes = start.getHours() * 60 + start.getMinutes();
+                const [hours, minutes] = clinicAppointmentFormFields(appointment.datetime_start).time.split(':').map(Number);
+                const startMinutes = hours * 60 + minutes;
                 const top = ((startMinutes - timelineBounds.startHour * 60) / 60) * HOUR_HEIGHT;
                 const height = Math.max(20, (appointment.duration_minutes / 60) * HOUR_HEIGHT - 2);
                 return (
@@ -461,11 +460,11 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                     onClick={() => openEdit(appointment)}
                     className="absolute left-0 right-0 z-30 overflow-hidden border-y-2 border-orange-400 bg-orange-50/95 px-3 text-left text-[10px] font-black text-orange-800 shadow-sm"
                     style={{ top: `${top}px`, height: `${height}px` }}
-                    aria-label={`Rendez-vous non assigné à ${formatClock(start)}, bloque tous les praticiens`}
+                    aria-label={`Rendez-vous non assigné à ${formatClock(appointment.datetime_start)}, bloque tous les praticiens`}
                   >
                     <span className="sticky left-2 inline-flex h-full items-center whitespace-nowrap">
                       {appointment.patient_id ? <PatientAvatar patientId={appointment.patient_id} fullName={appointment.patient_name} resolveFromDirectory className="mr-1.5 w-5 h-5 rounded text-[7px]" /> : null}
-                      Non assigné · {formatClock(start)} · {appointment.patient_name || 'Patient'} · bloque tous les praticiens
+                      Non assigné · {formatClock(appointment.datetime_start)} · {appointment.patient_name || 'Patient'} · bloque tous les praticiens
                     </span>
                   </button>
                 );
