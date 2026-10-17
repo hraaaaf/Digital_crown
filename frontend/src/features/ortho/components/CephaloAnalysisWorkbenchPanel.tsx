@@ -438,10 +438,10 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
   );
 };
 
-/** R23-G2 wraps legacy Steiner/Tweed unchanged while the full source profiles
+/** R23-G2 wraps legacy Steiner/Tweed/COM unchanged while the full source profiles
  * stay read-only until R23-G3 proves per-measure construction/Focus links. */
 export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = props =>
-  props.analysis === 'mcnamara' || props.analysis === 'com' || props.analysis === 'ricketts'
+  props.analysis === 'mcnamara' || props.analysis === 'ricketts'
     ? <CephaloR23G2ProtocolPanel P={props.P} analysis={props.analysis} />
     : <CephaloLegacyAnalysisWorkbenchPanel {...props} />;
 
