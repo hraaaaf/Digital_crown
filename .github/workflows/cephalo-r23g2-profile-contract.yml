@@ -21,10 +21,15 @@ on:
       - 'audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py'
       - 'frontend/src/features/ortho/cephaloR23G3PointSource.test.ts'
       - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.ts'
-      - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts'
       - 'docs/audits/schemas/cephalo_r23g8_w1_atlas33_orientation_dependencies_v1.json'
       - 'scripts/cephalo_r23g8_w1_orientation_coverage.py'
       - 'audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py'
+      - 'docs/audits/schemas/cephalo_r23g8_w2_atlas33_dental_manual_dependencies_v1.json'
+      - 'scripts/cephalo_r23g8_w2_dental_coverage.py'
+      - 'audit/cephalo_r23g8_w2_contract_tests/test_dental_manual_source_coverage.py'
+      - 'frontend/src/features/ortho/cephaloR23G8W2DentalRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts'
       - 'backend/tests/test_cephalo_lot08_image_orientation_evidence.py'
       - 'backend/services/cephalo_canonical_analysis_v2.py'
       - 'backend/schemas/cephalo_evidence.py'
@@ -61,7 +66,7 @@ jobs:
       - name: Install pytest (stdlib-only projector under test)
         run: python -m pip install pytest==9.0.3
       - name: Test source-profile cardinality and fail-closed values
-        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py -q
+        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py audit/cephalo_r23g8_w2_contract_tests/test_dental_manual_source_coverage.py -q
       - name: Write exact Atlas33 8 plus 3 preview plus 22 hold source ledger
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -70,6 +75,18 @@ jobs:
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: python -m scripts.cephalo_r23g8_w1_orientation_coverage --output audit/cephalo_r23g8_w1_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Publish W2 exact seven manual/dental source obligations (not clinical approval)
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python -m scripts.cephalo_r23g8_w2_dental_coverage --output audit/cephalo_r23g8_w2_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Upload W2 source dependency ledger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g8-w2-dental-source-ledger-${{ github.event.pull_request.head.sha }}
+          path: audit/cephalo_r23g8_w2_evidence/
+          retention-days: 30
+          if-no-files-found: warn
       - name: Upload W1 orientation source obligations (EXPERIMENTAL, no clinical GO)
         if: always()
         uses: actions/upload-artifact@v4
