@@ -374,7 +374,10 @@ async def main():
         DC_V15_06_BRIDGE_LAB_KEY_HEX=(b"k" * 32).hex(),
     )
     handle = start_if_enabled(env, trusted_environment="test")
-    Path(sys.argv[2]).write_text(str(handle.process.pid), encoding="ascii")
+    evidence = Path(sys.argv[2])
+    partial = evidence.with_suffix(".writing")
+    partial.write_text(str(handle.process.pid), encoding="ascii")
+    os.replace(partial, evidence)
     await asyncio.sleep(60)
 asyncio.run(main())
 """
