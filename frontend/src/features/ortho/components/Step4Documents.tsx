@@ -213,7 +213,9 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
         toast(`Attention : ${vResult.warnings.length} avertissement(s). Archivage en cours...`, { icon: '⚠️' });
       }
       if (!stillSelected()) throw Error("L'étude a changé avant l'archivage");
-      await onGeneratePDF();
+      // Archive the *same* exact revision which just passed prevalidation;
+      // another silent save here could silently invalidate that gate.
+      await onGeneratePDF(source);
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || 'Erreur lors de l\'archivage.');
     } finally {
