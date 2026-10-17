@@ -1,0 +1,86 @@
+name: CEPH Facad Parity P0 / WF04 Proof (experimental)
+
+on:
+  push:
+    branches:
+      - audit/dc-ceph-facad-parity-p0-*
+  pull_request:
+    branches: [master]
+    paths:
+      - 'docs/audits/data/CEPH_FACAD_PARITY_P0_DESKTOP_EVIDENCE_MATRIX_2026-10-17.json'
+      - 'audit/ceph_facad_parity_p0_validate.py'
+      - '.github/workflows/ceph-facad-parity-p0-wf04.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  p0-source-and-wf04:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact HEAD and P0 source negative checks
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python -m audit.ceph_facad_parity_p0_validate
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install nonclinical browser harness
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Check original R19 product panel contract
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx
+      - name: Run REAL React Chromium desktop fixture
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/capture-cephalo-r19-analysis-reference-after.mjs
+      - name: WF04 nonclinical finding / avoid false parity
+        working-directory: frontend
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          const r=JSON.parse(await readFile('cephalo-r19-analysis-reference-after-artifacts/report.json','utf8'));
+          if(r.productHead!==process.env.EXPECTED_SHA || r.invalidCount!==0) throw Error('HEAD or browser evidence invalid');
+          const desktop=r.captures.find(c=>c.viewport==='1280x900');
+          if(!desktop || !desktop.valid) throw Error('Real desktop React viewport not verified');
+          const mc=desktop.states.find(s=>s.mode==='mcnamara');
+          const ri=desktop.states.find(s=>s.mode==='ricketts');
+          if(!mc || !ri || !mc.valid || !ri.valid || mc.metrics?.panelRows!==3 || ri.metrics?.panelRows!==2) {
+            throw Error('WF04 expected incomplete old UI not observed');
+          }
+          for(const mode of ['mcnamara','ricketts']){
+            const file='cephalo-r19-analysis-reference-after-artifacts/after-reference-'+mode+'-1280x900.png';
+            if(!(await readFile(file)).length)throw Error('Missing screenshot '+file);
+          }
+          const finding={
+            head:r.productHead, viewport:'1280x900',
+            ui_component:'CephaloAnalysisWorkbenchPanel', fixture:'R19 synthetic, unauthenticated',
+            mcnamara_visible_rows:mc.metrics.panelRows,ricketts_visible_rows:ri.metrics.panelRows,
+            wf04_gap_observed:true,vendor_runtime_executed:false,vendor_numeric_parity:false,
+            authenticated_product_e2e:false,clinical_release:false
+          };
+          await writeFile('cephalo-r19-analysis-reference-after-artifacts/wf04-finding.json',JSON.stringify(finding,null,2));
+          console.log('WF04 REACT DESKTOP OBSERVED NONCLINICAL',finding);
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ceph-facad-p0-wf04-browser-${{ github.sha }}
+          path: frontend/cephalo-r19-analysis-reference-after-artifacts
+          if-no-files-found: warn
+          retention-days: 30
