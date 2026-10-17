@@ -158,6 +158,9 @@ class HotFolder:
         self.db_file = self.private / "acquisitions.sqlite3"
         if _is_unsafe_path_component(self.db_file):
             raise GatewayError("database symlink rejected")
+        self._watch_identity = self._directory_identity(Path(config.watch))
+        self._private_identity = self._directory_identity(self.private)
+        self._spool_identity = self._directory_identity(self.spool)
         with self._db() as db:
             db.executescript("""
             CREATE TABLE IF NOT EXISTS items(
@@ -212,6 +215,28 @@ class HotFolder:
     @staticmethod
     def _source_signature(st):
         return (st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_dev, st.st_ino)
+
+    @staticmethod
+    def _directory_identity(path):
+        meta = path.stat()
+        return (meta.st_dev, meta.st_ino)
+
+    def _assert_live_directories(self):
+        """Best-effort fail-closed check for roots replaced after initialization.
+
+        This catches deterministic junction and directory swaps between polls.
+        It does not close a kernel-level Windows rename race during I/O;
+        supported hardware must use secure directory handles/ACLs or isolation.
+        """
+        for root, expected in (
+            (Path(self.config.watch), self._watch_identity),
+            (self.private, self._private_identity),
+            (self.spool, self._spool_identity),
+        ):
+            if (not root.is_dir() or _is_unsafe_path_component(root) or
+                    self._directory_identity(root) != expected or
+                    any(_is_unsafe_path_component(parent) for parent in root.parents)):
+                raise GatewayError("imaging root replaced or unsafe")
 
     def _identity(self, digest, path, signature):
         # Replayed captures retain identity; distinct file generations do not coalesce.
@@ -448,6 +473,7 @@ class HotFolder:
         return True
 
     def scan_once(self):
+        self._assert_live_directories()
         outcome = dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0,
                        deferred=0)
         self._last_capacity_issue = None
@@ -479,6 +505,7 @@ class HotFolder:
                 except (OSError, ValueError):
                     outcome["unstable"] += 1
                     continue
+            self._assert_live_directories()
             try:
                 content = self._read(path, signature)
             except (GatewayError, OSError):
