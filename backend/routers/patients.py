@@ -1412,8 +1412,9 @@ def _bound_cephalo_study(
             raise HTTPException(status_code=409, detail="Révision de l'analyse obligatoire pour ce document")
         if revision != expected_revision:
             raise HTTPException(status_code=409, detail="L'analyse a été modifiée : rechargez l'étude")
-    elif expected_revision is not None:
-        raise HTTPException(status_code=409, detail="Révision fournie sans preuve scientifique active")
+    else:
+        # P2ter must not produce a versionless PDF even for a legacy study.
+        raise HTTPException(status_code=409, detail="Chaîne scientifique active absente : aucun bilan généré")
     return selected, revision
 
 
@@ -1421,7 +1422,7 @@ def _bound_cephalo_study(
 def validate_cephalo_before_pdf(
     patient_id: int,
     analysis_id: int,
-    expected_revision: Optional[int] = None,
+    expected_revision: int,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("cephalo")),
 ):
