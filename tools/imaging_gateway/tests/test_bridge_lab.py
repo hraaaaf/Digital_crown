@@ -322,30 +322,28 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             root = Path(tmp)
             (root / ".digitalcrown-imaging-lab-only").write_text(
                 "DIGITALCROWN_IMAGING_LAB_ONLY_V1\n", encoding="utf-8")
-            incoming = root / "incoming"
-            incoming.mkdir()
+            (root / "incoming").mkdir()
             env = {
                 "DC_V15_06_BRIDGE_LAB": "1",
                 "ENVIRONMENT": "test",
                 "DIGITALCROWN_ISOLATED_RUNTIME": "true",
                 "DC_V15_06_BRIDGE_LAB_ROOT": str(root),
                 "DC_V15_06_BRIDGE_LAB_KEY_HEX": (b"k" * 32).hex(),
+                "DC_V15_06_BRIDGE_LAB_FORCE_SCAN_ERRORS": "1",
             }
-            with self.assertLogs("tools.imaging_gateway.bridge_background_lab", level="ERROR") as logs:
+            with self.assertLogs("tools.imaging_gateway.bridge_background_lab",
+                                 level="ERROR") as logs:
                 handle = start_if_enabled(env, trusted_environment="test")
-                moved = root / "incoming-previous"
                 try:
-                    incoming.rename(moved)
-                    incoming.mkdir()
                     await asyncio.wait_for(handle.task, timeout=4)
                     self.assertEqual(handle.process.poll(), 4)
                 finally:
-                    stopped = await stop_bridge_lab(handle)
-                    self.assertFalse(stopped, "persistent scan errors must not report healthy")
-                    incoming.rmdir()
-                    moved.rename(incoming)
+                    self.assertFalse(await stop_bridge_lab(handle))
             self.assertTrue(any("exited unexpectedly" in msg for msg in logs.output))
-            self.assertTrue(all("incoming-previous" not in msg for msg in logs.output))
+            self.assertTrue(all("SCAN_FAILURE" not in msg for msg in logs.output))
+            from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
+            subsequent = LabOwnerLock.acquire(root)
+            subsequent.close()
 
     @unittest.skipUnless(os.name == "nt", "Windows Job Object only")
     async def test_windows_job_close_terminates_uncooperative_child(self):

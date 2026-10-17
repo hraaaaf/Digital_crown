@@ -69,6 +69,10 @@ def main() -> int:
     consecutive_errors = 0
     while not stopped.is_set():
         try:
+            # Only an already isolated, opt-in TEST fixture can set this
+            # synthetic failure injection. Never enabled on normal startup.
+            if os.environ.get("DC_V15_06_BRIDGE_LAB_FORCE_SCAN_ERRORS") == "1":
+                raise RuntimeError("SYNTHETIC_LAB_SCAN_FAILURE")
             collector.scan_once()
             consecutive_errors = 0
         except Exception:
