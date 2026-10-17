@@ -101,7 +101,8 @@ jobs:
                     if(state.rows!==expectedCount)throw Error(id+'/'+phase+':wrong profile rows');
                   }else if(state.rows!==10)throw Error(id+'/'+phase+':COM regression');
                   const img=await stat(dir+state.filename);
-                  if(img.size<10000)throw Error(id+'/'+phase+':screenshot missing');
+                  const stage=await stat(dir+state.stageFilename);
+                  if(img.size<10000||stage.size<10000)throw Error(id+'/'+phase+':radiograph or panel screenshot missing');
                 }
               }
               reports[phase]=r;
