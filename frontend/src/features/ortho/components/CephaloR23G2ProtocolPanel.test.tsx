@@ -195,4 +195,39 @@ describe('R23-G2 full read-only profile tables', () => {
     }
   });
 
+  it('shows W2 dental manual source only, never publishes active Focus and clears on Gregoret',()=>{
+    const original=useOrthoStore.getState().anglesData;
+    const a:any=profile('atlas');
+    a.rows[8]={
+      ...a.rows[8],
+      canonical_measurement_id:'M_U6_PTV_MM_V1',
+      label:'Molaire supérieure vers PTV',
+      contract_state:'CONDITIONAL_EXECUTABLE',
+      contract_gate:'MANUAL_U6_DISTAL_MANUAL_PR_PTV_VERIFIED_CALIBRATION',
+    };
+    const focused:Array<CephaloMetricFocus|null>=[];
+    const onFocus=(event:Event)=>focused.push((event as CustomEvent<CephaloMetricFocus|null>).detail);
+    window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT,onFocus);
+    useOrthoStore.setState({anglesData:{
+      scientific_read_path:{
+        authority:'EVIDENCE_GRAPH_V1',active_chain:'VERIFIED',
+        protocol_profiles:{ricketts_atlas2009:a,ricketts_gregoret13:profile('gregoret')},
+      }
+    }});
+    try{
+      render(<CephaloAnalysisWorkbenchPanel P={P} analysis="ricketts" />);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_U6_PTV_MM_V1"]')!);
+      expect(document.querySelector('[data-r23g8-w2-dental-gate="M_U6_PTV_MM_V1"]')).toBeTruthy();
+      expect(screen.getByText(/repères manuels nécessaires aux constructions/)).toBeTruthy();
+      expect(document.querySelector('[data-r23g3-focus-source="not-authorized"]')).toBeTruthy();
+      expect(focused.at(-1)).toBeNull();
+      fireEvent.click(screen.getByRole('button',{name:'Gregoret · 13 facteurs'}));
+      expect(document.querySelector('[data-r23g8-w2-dental-gate]')).toBeNull();
+      expect(focused.at(-1)).toBeNull();
+    }finally{
+      window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT,onFocus);
+      useOrthoStore.setState({anglesData:original});
+    }
+  });
+
 });
