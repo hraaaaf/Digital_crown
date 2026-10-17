@@ -24,7 +24,7 @@ const browser=await chromium.launch({headless:true});
 const root='http://127.0.0.1:5173', backend='http://127.0.0.1:8005';
 
 async function viewportRun(viewport){
- const record={viewport:viewport.width+'x'+viewport.height,checks:[],shots:[],pageErrors:[],valid:false};
+ const record={viewport:viewport.width+'x'+viewport.height,checks:[],shots:[],pageErrors:[],failedRequests:[],httpErrors:[],observedToasts:[],valid:false};
  const api=await request.newContext({baseURL:backend});
  let context;
  try{
@@ -38,6 +38,23 @@ async function viewportRun(viewport){
     storageState:{cookies:station,origins:[]}});
   const page=await context.newPage();
   page.on('pageerror',e=>record.pageErrors.push(e.message));
+  page.on('requestfailed',req=>record.failedRequests.push({
+    method:req.method(), url:req.url(), failure:req.failure()?.errorText||'unknown',
+  }));
+  page.on('response',res=>{
+    if(res.status()>=400)record.httpErrors.push({status:res.status(),url:res.url()});
+  });
+  await page.addInitScript(()=>{
+    window.__p2terSeenToasts=[];
+    const inspect=()=>{
+      if(document.body?.innerText?.includes('Serveur injoignable') &&
+          window.__p2terSeenToasts.length<10)
+        window.__p2terSeenToasts.push({time:Date.now(),page:location.pathname});
+    };
+    document.addEventListener('DOMContentLoaded',()=>{
+      new MutationObserver(inspect).observe(document.body,{childList:true,subtree:true,characterData:true});
+    });
+  });
   const shot=async name=>{
    const filename=record.viewport+'-'+name+'.png';
    await page.screenshot({path:path.join(output,filename),fullPage:false,animations:'disabled'});
@@ -88,6 +105,8 @@ async function viewportRun(viewport){
    await shot(label+'-pdf-finished');
    record.checks.push('REAL_JWT_HTTP_PDF_'+label.toUpperCase()+'_STUDY_'+study+'_REV_'+body.expected_revision);
   }
+  record.observedToasts=await page.evaluate(()=>window.__p2terSeenToasts||[]);
+  console.log('P2TER_NETWORK_DIAGNOSTIC',JSON.stringify({viewport:record.viewport,failedRequests:record.failedRequests,httpErrors:record.httpErrors,observedToasts:record.observedToasts}));
   if(record.pageErrors.length)throw Error('React exceptions '+JSON.stringify(record.pageErrors));
   record.valid=true;
  }catch(error){record.error=String(error);}
