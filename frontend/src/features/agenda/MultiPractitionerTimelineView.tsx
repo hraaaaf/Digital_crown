@@ -3,6 +3,7 @@ import { AlertTriangle, Users } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
+import { clinicCalendarDay, clinicAppointmentFormFields } from './agendaClinicLocalDate';
 import type { Appointment } from './DailyView';
 import { PatientAvatar } from '../patients/components/PatientAvatar';
 import {
@@ -90,10 +91,7 @@ const isExact = (appointment: MultiAppointment) =>
   !appointment.scheduling_type || appointment.scheduling_type === 'EXACT_TIME';
 
 const isSameLocalDay = (value: string, selectedDate: Date) => {
-  const date = new Date(value);
-  return date.getFullYear() === selectedDate.getFullYear()
-    && date.getMonth() === selectedDate.getMonth()
-    && date.getDate() === selectedDate.getDate();
+  return clinicAppointmentFormFields(value).date === clinicCalendarDay(selectedDate);
 };
 
 const formatClock = (date: Date) =>
@@ -233,8 +231,8 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
     ];
 
     for (const appointment of exactAppointments) {
-      const start = new Date(appointment.datetime_start);
-      const startMinutes = start.getHours() * 60 + start.getMinutes();
+      const [hours, minutes] = clinicAppointmentFormFields(appointment.datetime_start).time.split(':').map(Number);
+      const startMinutes = hours * 60 + minutes;
       const endMinutes = startMinutes + Math.max(1, appointment.duration_minutes || 0);
       startHour = Math.min(startHour, Math.floor(startMinutes / 60));
       endHour = Math.max(endHour, Math.ceil(endMinutes / 60));
