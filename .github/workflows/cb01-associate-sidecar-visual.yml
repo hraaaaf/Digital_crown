@@ -9,6 +9,7 @@ on:
       - frontend/src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
       - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
       - frontend/scripts/certify-cb01-associate-sidecar.mjs
+      - frontend/scripts/certify-cb01-s01-s12-matrix.mjs
       - .github/workflows/cb01-associate-sidecar-visual.yml
   workflow_dispatch:
 
@@ -283,6 +284,11 @@ jobs:
         run: |
           node scripts/run-with-t2-workstation.mjs \
             scripts/certify-cb01-associate-sidecar.mjs
+      - name: Certify scoped S01-S12 synthetic staff matrix (7 HTTP PASS, 5 gaps)
+        working-directory: frontend
+        shell: bash
+        run: |
+          node scripts/certify-cb01-s01-s12-matrix.mjs
       - name: Compare actual appointment and pending-action counts
         shell: bash
         run: |
@@ -310,6 +316,17 @@ jobs:
           echo "## CB-01 caveats" >> "$GITHUB_STEP_SUMMARY"
           echo "Synthetic CI-only T2: B sidecar shell experimental, no cabinet production activation." >> "$GITHUB_STEP_SUMMARY"
           echo "Does not certify production BEFORE, 200% browser zoom, 12 staff E2E, clinical validation or deployed UI." >> "$GITHUB_STEP_SUMMARY"
+          if test -f artifacts/cb01-associate-sidecar/s01-s12-synthetic-matrix.json; then
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          path = 'artifacts/cb01-associate-sidecar/s01-s12-synthetic-matrix.json'
+          data = json.load(open(path, encoding='utf-8'))
+          counts = data['counts']
+          print('### S01–S12: scoped synthetic coverage, NOT human E2E')
+          print(f"Synthetic API: {counts['passedSynthetic']}/12 PASS; partial layout: {counts['partialSynthetic']}; NOT_RUN: {counts['notRun']}; human E2E: 0/12.")
+          print('Never promote PARTIAL or NOT_RUN to PASS. See JSON artifact for exact case labels.')
+          PY
+          fi
       - name: Print bounded failure logs only
         if: failure()
         shell: bash
