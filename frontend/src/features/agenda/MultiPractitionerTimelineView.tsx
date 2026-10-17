@@ -246,7 +246,6 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   };
 
   const closeModal = () => {
-    clearCreateInterceptor();
     setIsModalOpen(false);
     setEditingAppointment(null);
     setModalPractitioner(null);
