@@ -101,8 +101,14 @@ jobs:
                 if(!info||!cta||cta.y<info.y+info.height-1)throw Error('P1 mobile CTA overlaps clinical status text');
                 if(cta.width<width-70)throw Error('P1 mobile CTA is not a full row');
               }
-              const heading=page.locator('[data-testid="patient-media-timeline"] h2').first();
-              if(!(await heading.getAttribute('class'))?.includes('text-text-main'))throw Error('Media heading must use readable semantic theme text');
+              if(width>=1280){
+                const panelHeading=page.locator('[data-v15-07-theme-slot]').getByRole('heading',{name:'Médiathèque clinique'});
+                if(await panelHeading.count()!==1)throw Error('G1 compact desktop must use exactly one panel media heading');
+                if(!(await panelHeading.getAttribute('class'))?.includes('text-text-main'))throw Error('G1 panel heading lacks semantic ink');
+              }else{
+                const mobileHeading=page.locator('[data-testid="patient-media-timeline"] h2').first();
+                if(!(await mobileHeading.getAttribute('class'))?.includes('text-text-main'))throw Error('Mobile fallback media heading lacks readable semantic ink');
+              }
               const x=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
               if(x.scroll>x.viewport+1)throw Error('horizontal overflow '+JSON.stringify({theme,width,x}));
               const filename=theme+'-'+width+'-p1.png';
