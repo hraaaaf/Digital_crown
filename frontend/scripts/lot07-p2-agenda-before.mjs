@@ -118,9 +118,37 @@ async function runMatrix(page,theme,width,height,zoom=false){
     }else await page.screenshot({path:target,fullPage:true,animations:'disabled'});
     const image=await fs.stat(target);
     if(image.size<5000)throw Error('Blank Agenda BEFORE image '+filename);
+    let zoomContent=null;
+    if(cdp){
+      // A full native physical screenshot can still contain only the header:
+      // a 380px CSS viewport at zoom200 has no room for the full agenda below.
+      // Keep that viewport AND an actual scroll-to-content compositor image.
+      await area.evaluate(el=>{
+        const r=el.getBoundingClientRect();
+        window.scrollTo({top:Math.max(0,window.scrollY+r.top-8),behavior:'instant'});
+      });
+      const location=await area.evaluate(el=>{
+        const r=el.getBoundingClientRect();
+        return {top:r.top,bottom:r.bottom,height:r.height,scrollY:window.scrollY,
+          viewport:innerHeight,visibleHeight:Math.max(0,Math.min(innerHeight,r.bottom)-Math.max(0,r.top))};
+      });
+      if(location.visibleHeight<Math.min(120,location.viewport*0.3))
+        throw Error('Zoom200 Agenda content not in browser viewport '+JSON.stringify({mode,theme,location}));
+      const contentFile='agenda-'+theme+'-'+mode+'-native200-content.png';
+      const shot=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false,fromSurface:true});
+      const buf=Buffer.from(shot.data,'base64');
+      if(buf.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')
+        throw Error('Zoom200 scrolled content compositor is not PNG '+contentFile);
+      const pixels={width:buf.readUInt32BE(16),height:buf.readUInt32BE(20)};
+      if(Math.abs(pixels.width-physical.width)>4||Math.abs(pixels.height-physical.height)>6)
+        throw Error('Zoom200 scrolled content screenshot physically cropped '+JSON.stringify({pixels,physical}));
+      if(buf.length<5000)throw Error('Blank zoom200 scrolled Agenda '+contentFile);
+      await fs.writeFile(path.join(out,contentFile),buf);
+      zoomContent={file:contentFile,bytes:buf.length,pixels,location};
+    }
     if(failures.length)throw Error('Agenda JS errors '+JSON.stringify(failures));
     if(violations.some(v=>v.startsWith('unexpected mutation')))throw Error('Agenda BEFORE attempted mutation '+JSON.stringify(violations));
-    rows.push({theme,mode,viewport:{width,height},zoomNative:zoom,css,metric,physical,
+    rows.push({theme,mode,viewport:{width,height},zoomNative:zoom,css,metric,physical,zoomContent,
       file:filename,bytes:image.size,unhandledSyntheticEndpoints:[...new Set(violations)]});
   }
 }
@@ -146,7 +174,11 @@ try {
     finally{await native.close();native=null;}
   }
 }finally{await native?.close();await fs.rm(profile,{force:true,recursive:true});await vite.close();}
-if(rows.length!==64)throw Error('BEFORE evidence must include all 64 mode × theme × viewport images: '+rows.length);
-await fs.writeFile(path.join(out,'manifest.json'),JSON.stringify({...report,totalScreenshots:rows.length},null,2));
-console.log('LOT07_P2_AGENDA_BEFORE_SUCCESS '+JSON.stringify({head,baseline:parent,screens:rows.length,
-  overflowCases:rows.filter(r=>r.metric.pageOverflow).map(r=>r.file),zoom:true}));
+if(rows.length!==64||rows.filter(r=>r.zoomContent?.file).length!==8)
+  throw Error('BEFORE requires 64 baseline scenes plus 8 scrolled zoom200 content proofs: '+rows.length);
+await fs.writeFile(path.join(out,'manifest.json'),JSON.stringify({
+  ...report,sceneCount:rows.length,totalScreenshots:rows.length+8,
+  note:'64 baseline scenes plus 8 real native-200 scrolled-to-agenda compositor views'
+},null,2));
+console.log('LOT07_P2_AGENDA_BEFORE_SUCCESS '+JSON.stringify({head,baseline:parent,screens:rows.length+8,
+  overflowCases:rows.filter(r=>r.metric.pageOverflow).map(r=>r.file),zoom:true,zoomContent:8}));
