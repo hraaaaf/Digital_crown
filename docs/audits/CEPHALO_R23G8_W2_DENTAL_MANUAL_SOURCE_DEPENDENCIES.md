@@ -18,6 +18,16 @@ The canonical backend already implements these seven conditional methods in `bac
 
 **Every factor additionally requires SAME `source_image_ref` for its direct landmarks and the exact canonical constructions**, current provenance, availability statuses, and calibration if declared. Constructed FOP (premolar→molar directional plane) must come from its source-specific landmarks; neither a generic occlusal line nor an inferred tooth label is accepted. PTV and Xi have their own manual upstream landmarks which W2 lists as **indirect** construction obligations, not direct measurement landmarks. This avoids false assertions when only the direct IDs appear in the UI.
 
+## Canonical construction dependency expansion (source-verified)
+
+The canonical construction **definitions**, not their guessed screen shapes, declare these exact upstream landmark identities:
+
+- `RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1`: `FOP_PREMOLAR_Ricketts`, `FOP_MOLAR_Ricketts`. The materializer checks same-image sourcing and nondegenerate line direction; an arbitrary drawn occlusal line is not interchangeable.
+- `RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1`: `PR_Ricketts_PTV` (manual/manual-corrected), `Po_anatomic`, `Or`. A generic Pt, PTM or Porion does not substitute.
+- `RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1`: `R1_Ricketts`, `R2_Ricketts`, `R3_Ricketts`, `R4_Ricketts` (all manual/manual-corrected), `Po_anatomic`, `Or`. A generic `Xi` point is not an independent source of evidence.
+
+These *indirect construction landmarks* are displayed separately from each measurement's direct landmarks. The audit requires the literal tuple in `backend/services/cephalo_canonical_constructions_v2.py` to match the contract exactly. Displaying their IDs is not evidence that they were placed or validated on a patient source.
+
 ## Deliverables and evidence
 
 - `docs/audits/schemas/cephalo_r23g8_w2_atlas33_dental_manual_dependencies_v1.json`: 7 exact factor identifiers / method names, direct landmarks, source construction definition IDs, manual flags, indirect manual upstream landmarks, calibration gates, Atlas exact gate and source references.
