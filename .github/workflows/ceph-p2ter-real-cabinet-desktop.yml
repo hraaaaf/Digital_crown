@@ -6,6 +6,7 @@ on:
   pull_request:
     branches:
       - audit/dc-ceph-facad-parity-p2bis-http-pdf-20261017
+      - fix/ceph-fac-parity-p2ter-analysis-bound-pdf-20261017
 permissions:
   contents: read
 jobs:
