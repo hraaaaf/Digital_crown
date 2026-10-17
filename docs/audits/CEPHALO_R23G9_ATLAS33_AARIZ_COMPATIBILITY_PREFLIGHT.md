@@ -54,7 +54,7 @@ Les deux images publiques de la capture G4 (ANUG et Challiyan) ont des points sy
 | 32 | W3 | 7 | `DC_Ricketts`, `Pm_Ricketts`, `Po_anatomic`, `R1_Ricketts`, `R2_Ricketts`, `R3_Ricketts`, `R4_Ricketts` |
 | 33 | W3 | 6 | `Pm_Ricketts`, `Po_anatomic`, `R1_Ricketts`, `R2_Ricketts`, `R3_Ricketts`, `R4_Ricketts` |
 
-La trace machine est le fichier versionné [JSON G9](../schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json). Aucune image ou donnée patient n'entre dans ce document ou ce JSON.
+La trace machine est le fichier versionné [JSON G9](schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json). Aucune image ou donnée patient n'entre dans ce document ou ce JSON.
 
 ## Gates réels restant ouverts
 
