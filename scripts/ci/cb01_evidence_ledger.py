@@ -34,7 +34,7 @@ if (http['S07']['status']!='PASS_HTTP_ROUTER_PG_INTEGRATION'
     or http['S12']['otherTenantHttpStatus']!=404
     or http['S12']['authorizedAckStatus']!=200):
     raise SystemExit('FAIL: expected technical S07/S09/S10/S12 proof absent')
-cases=matrix.get('cases')
+cases=matrix.get('scenarios')
 if isinstance(cases,dict):
     by_id=cases
 elif isinstance(cases,list):
