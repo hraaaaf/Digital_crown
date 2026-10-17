@@ -54,16 +54,16 @@ try {
     await page.screenshot({ path: path.join(output, before) });
 
     await page.getByRole('button', { name: 'Chat', exact: true }).click();
-    const preview = page.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' });
+    const preview = page.getByRole('region', { name: 'Assistant Crown Bot — consultation' });
     await preview.waitFor({ state: 'visible' });
-    await preview.getByRole('button', { name: '/patient' }).click();
+    await preview.getByRole('button', { name: 'Trouver un patient' }).click();
     await preview.getByText('Patient : saisissez un identifiant, un nom/prénom exact ou un numéro de dossier', { exact: false }).waitFor({
       state: 'visible', timeout: 15000,
     });
     const after = `crownbot-after-${width}.png`;
     await page.screenshot({ path: path.join(output, after) });
     const geometry = await page.evaluate(() => {
-      const preview = document.querySelector('[aria-label="Simulation ZERO-LLM Crown Bot"]');
+      const preview = document.querySelector('[aria-label="Assistant Crown Bot — consultation"]');
       const rect = preview?.getBoundingClientRect();
       return {
         documentOverflow: document.documentElement.scrollWidth
