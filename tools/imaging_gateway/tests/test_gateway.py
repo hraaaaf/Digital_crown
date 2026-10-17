@@ -84,6 +84,14 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.stage("fake.png", broken)["quarantine"], 1)
         self.assertEqual(self.agent.items()[0]["state"], "QUARANTINED")
 
+    def test_png_oversized_dimensions_rejected_before_decompression(self):
+        crafted = bytearray(SYNTHETIC)
+        # IHDR width at byte 16. Recompute CRC to avoid merely testing CRC.
+        crafted[16:20] = (1_000_000).to_bytes(4, "big")
+        crafted[29:33] = zlib.crc32(b"IHDR" + crafted[16:29]).to_bytes(4, "big")
+        self.assertFalse(valid_png(bytes(crafted)))
+        self.assertEqual(self.stage("oversized.png", bytes(crafted))["quarantine"], 1)
+
     def test_unvalidated_jpeg_webp_pdf_are_not_accepted_by_magic_header(self):
         for extension, data in (
             ("jpg", bytes.fromhex("ffd8ff") + b"fakejpeg"),
