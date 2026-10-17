@@ -169,31 +169,39 @@ class HotFolder:
         self._spool_identity = self._directory_identity(self.spool)
         self._windows_spool_identity = directory_identity(self.spool)
         with self._db() as db:
-            db.executescript("""
+            # executescript() commits DDL in autocommit mode and can leave an
+            # incomplete ledger when later schema/scope validation fails.
+            # Keep ALL first-boot schema and device_scope writes atomic.
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("""
             CREATE TABLE IF NOT EXISTS items(
-                id INTEGER PRIMARY KEY,
-                dedup_key TEXT NOT NULL UNIQUE,
-                digest TEXT NOT NULL,
-                size INTEGER NOT NULL,
-                mime TEXT,
-                category TEXT NOT NULL,
-                state TEXT NOT NULL,
-                blob TEXT NOT NULL,
-                retries INTEGER NOT NULL DEFAULT 0,
-                due INTEGER,
-                created_at INTEGER NOT NULL
-            );
+                            id INTEGER PRIMARY KEY,
+                            dedup_key TEXT NOT NULL UNIQUE,
+                            digest TEXT NOT NULL,
+                            size INTEGER NOT NULL,
+                            mime TEXT,
+                            category TEXT NOT NULL,
+                            state TEXT NOT NULL,
+                            blob TEXT NOT NULL,
+                            retries INTEGER NOT NULL DEFAULT 0,
+                            due INTEGER,
+                            created_at INTEGER NOT NULL
+                        )
+            """)
+            db.execute("""
             CREATE TABLE IF NOT EXISTS audit(
-                id INTEGER PRIMARY KEY,
-                item_id INTEGER NOT NULL,
-                event TEXT NOT NULL,
-                at INTEGER NOT NULL
-            );
+                            id INTEGER PRIMARY KEY,
+                            item_id INTEGER NOT NULL,
+                            event TEXT NOT NULL,
+                            at INTEGER NOT NULL
+                        )
+            """)
+            db.execute("""
             CREATE TABLE IF NOT EXISTS device_scope(
-                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
-                cabinet TEXT NOT NULL,
-                workstation TEXT NOT NULL
-            );
+                            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                            cabinet TEXT NOT NULL,
+                            workstation TEXT NOT NULL
+                        )
             """)
             db.execute(
                 "INSERT OR IGNORE INTO device_scope(singleton,cabinet,workstation) VALUES(1,?,?)",
@@ -220,6 +228,18 @@ class HotFolder:
             raise GatewayError("SQLite LAB database identity changed")
         return found
 
+    @staticmethod
+    def _reject_changed_sidecars(previous, current):
+        """Detect observed WAL/SHM/journal replacement within ONE connection.
+
+        Absence/recreation between snapshots and sub-check races remain possible;
+        this does NOT turn the path-based SQLite VFS into a secure sandbox.
+        """
+        for suffix in ("-wal", "-shm", "-journal"):
+            if (suffix in previous and suffix in current
+                    and previous[suffix] != current[suffix]):
+                raise GatewayError("SQLite LAB sidecar changed during connection")
+
     @contextmanager
     def _db(self):
         before = self._sqlite_guard()
@@ -236,6 +256,7 @@ class HotFolder:
             # Even a successful sqlite3.connect might have followed a swapped
             # root; reject any now-observable substitution before executing SQL.
             after = self._sqlite_guard()
+            self._reject_changed_sidecars(before, after)
             if before.get("") is not None and after.get("") != before[""]:
                 raise GatewayError("SQLite LAB database switched during open")
             if after.get("") is None:
@@ -268,12 +289,14 @@ class HotFolder:
                     return sqlite3.SQLITE_DENY
                 return sqlite3.SQLITE_OK
             db.set_authorizer(authorize)
-            self._sqlite_guard()
+            verified = self._sqlite_guard()
+            self._reject_changed_sidecars(after, verified)
             yield db
             # All fallible policy checks must happen BEFORE the durable
             # commit. A post-commit guard can report failure even though the
             # transaction was already saved and rollback cannot undo it.
-            self._sqlite_guard()
+            precommit = self._sqlite_guard()
+            self._reject_changed_sidecars(verified, precommit)
             db.commit()
         except BaseException:
             db.rollback()
