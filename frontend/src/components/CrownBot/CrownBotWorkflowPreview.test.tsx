@@ -3,13 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 vi.mock('../../services/api', () => ({
-  api: { post: vi.fn() },
+  api: { post: vi.fn(), get: vi.fn() },
 }));
 
 import { api } from '../../services/api';
 import { CrownBotWorkflowPreview } from './CrownBotWorkflowPreview';
 
 const post = vi.mocked(api.post);
+const get = vi.mocked(api.get);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -29,7 +30,7 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
       } } as never);
     render(<CrownBotWorkflowPreview />);
     expect(screen.getByText(/aucune écriture/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trouver un patient' }));
     await screen.findByText('Identifiant numérique du patient ?');
     expect(post).toHaveBeenCalledWith('/bot/workflows/preview', { messages: ['/patient'] });
     fireEvent.change(screen.getByRole('textbox', { name: 'Votre réponse de simulation' }), {
@@ -49,7 +50,7 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
       proposal: { type: 'CREATE_APPOINTMENT', params: { patient_id: 7 } },
     } } as never);
     render(<CrownBotWorkflowPreview />);
-    fireEvent.click(screen.getByRole('button', { name: '/rdv' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
     await screen.findByText(/Proposition CREATE_APPOINTMENT : simulation uniquement/i);
     expect(screen.queryByRole('button', { name: 'Confirmer' })).not.toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
@@ -60,7 +61,7 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
       data: { status: 'clarification', message: 'Identifiant numérique du patient ?' },
     } as never).mockRejectedValueOnce({ response: { status: 409 } });
     render(<CrownBotWorkflowPreview />);
-    fireEvent.click(screen.getByRole('button', { name: '/rdv' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
     await screen.findByText('Identifiant numérique du patient ?');
     fireEvent.change(screen.getByRole('textbox', { name: 'Votre réponse de simulation' }), {
       target: { value: '7' },
@@ -76,13 +77,64 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
   it('fails closed when the backend flag is OFF (404)', async () => {
     post.mockRejectedValueOnce({ response: { status: 404 } });
     render(<CrownBotWorkflowPreview />);
-    fireEvent.click(screen.getByRole('button', { name: '/devis' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
     await screen.findByRole('alert');
     expect(screen.getByRole('alert')).toHaveTextContent(/indisponible sur ce serveur/i);
     expect(post).toHaveBeenCalledTimes(1);
   });
 });
 
+
+describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture seule', () => {
+  it('reads the canonical authorized Agenda endpoint with bounded local-day dates and a truthful source', async () => {
+    get.mockResolvedValueOnce({ data: [
+      { id: 72, datetime_start: '2026-10-17T10:00:00', patient_name: 'BENALI TEST', motif: 'Consultation', status: 'PRÉVU' },
+    ] } as never);
+    render(<CrownBotWorkflowPreview />);
+    expect(screen.getByRole('button', { name: 'Mon programme' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trouver un patient' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Préparer un RDV' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '/devis' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    const programme = await screen.findByRole('status', { name: 'Programme du jour' });
+    expect(programme).toHaveTextContent('BENALI TEST');
+    expect(programme).toHaveTextContent(/Source : Agenda du cabinet · Lecture serveur à/);
+    expect(get).toHaveBeenCalledWith('/appointments/', {
+      params: {
+        start_date: expect.any(String),
+        end_date: expect.any(String),
+      },
+    });
+    const arg = get.mock.calls[0][1]?.params as { start_date: string; end_date: string };
+    expect(new Date(arg.start_date).getTime()).toBeLessThan(new Date(arg.end_date).getTime());
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('fails closed and discards an old program when authorization is revoked', async () => {
+    get.mockResolvedValueOnce({ data: [
+      { id: 8, datetime_start: '2026-10-17T08:30:00', patient_name: 'Dossier confidentiel' },
+    ] } as never).mockRejectedValueOnce({ response: { status: 403 } });
+    render(<CrownBotWorkflowPreview />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    await screen.findByText(/Dossier confidentiel/);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Accès Agenda refusé/);
+    expect(screen.queryByText(/Dossier confidentiel/)).not.toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('does not confuse stale programme or patient result with a new preparation', async () => {
+    get.mockResolvedValueOnce({ data: [] } as never);
+    post.mockResolvedValueOnce({ data: { status: 'clarification', message: 'Patient ?' } } as never);
+    render(<CrownBotWorkflowPreview />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    expect(await screen.findByRole('status', { name: 'Programme du jour' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
+    await screen.findByText('Patient ?');
+    expect(screen.queryByRole('status', { name: 'Programme du jour' })).not.toBeInTheDocument();
+    expect(post).toHaveBeenCalledWith('/bot/workflows/preview', { messages: ['/rdv'] });
+  });
+});
 
 describe('CB-00 scoped patient selectors', () => {
   it('shows dossier matches and explicitly selects a homonym by internal ID', async () => {
@@ -100,7 +152,7 @@ describe('CB-00 scoped patient selectors', () => {
         proposal: null, patient: { id: 8, nom: 'Benali', prenom: 'Salma', numero_dossier: 'B-002' },
       } } as never);
     render(<CrownBotWorkflowPreview />);
-    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trouver un patient' }));
     await screen.findByText('Nom ou dossier ?');
     fireEvent.change(screen.getByRole('textbox', { name: 'Votre réponse de simulation' }), {
       target: { value: 'Mme Benali' },
@@ -123,7 +175,7 @@ describe('CB-00 scoped patient selectors', () => {
       response: { status: 404, data: { detail: 'Patient introuvable.' } },
     });
     render(<CrownBotWorkflowPreview />);
-    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trouver un patient' }));
     await screen.findByText('Patient ?');
     fireEvent.change(screen.getByRole('textbox', { name: 'Votre réponse de simulation' }), {
       target: { value: 'dossier:INCONNU-102' },
