@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
+import react from '@vitejs/plugin-react';
 
 const head=process.env.SOURCE_HEAD;
 const parent=process.env.BASELINE_P1_HEAD;
@@ -52,7 +53,18 @@ await fs.writeFile('src/lot07-p2-after.tsx',[
   "useAuthStore.setState({user:{id:1,email:'p2-fixture@test.invalid',nom_complet:'Dr Lina Alaoui',role:'ADMIN',is_superadmin:false,permissions:{}} as any,isAuthenticated:true,isLoading:false,error:null});",
   "createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/agenda']}><div data-lot07-p2-after className='min-h-screen min-w-0 p-3 sm:p-4 lg:p-6' style={{backgroundColor:'var(--bg-main,#f8fafc)',color:'var(--text-main)'}}><AgendaPage/></div></MemoryRouter>);"
 ].join('\n'));
-const vite=await createServer({server:{host:'127.0.0.1',port:4217,strictPort:true},clearScreen:false});
+// Render the actual product React module and unchanged CSS in Vite, but do
+// not load the *unrelated dev PWA plugin*. The product vite.config.ts enables
+// VitePWA devOptions which hot-reoptimizes workbox-window, forcing reloads and
+// transient /node_modules/.vite/deps HTTP 504 in the 72-scene evidence runner.
+// An unstable dev-only service worker cannot be evidence about Agenda. Keep
+// strict 5xx/pageerror checks for every AFTER scene; never discard failures.
+const vite=await createServer({
+  configFile:false,
+  plugins:[react()],
+  server:{host:'127.0.0.1',port:4217,strictPort:true},
+  clearScreen:false
+});
 await vite.listen();
 const browser=await chromium.launch({headless:true});
 const rows=[];
