@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PatientDetails } from './PatientDetailsInner';
 import { api } from '../../services/api';
+import toast from 'react-hot-toast';
+
+vi.mock('react-hot-toast', () => ({
+  default: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
+}));
 
 const fixtures = vi.hoisted(() => ({
   user: { role: 'ADMIN', employer_id: null as number | null, permissions: {} as Record<string, boolean> },
@@ -158,4 +163,33 @@ describe('LOT07 P1 — actual PatientDetails route and G1 MultiView', () => {
     expect(advice.textContent).toContain('non exécutée');
     expect(screen.queryByRole('button', { name: 'Vérifier avec le patient' })).toBeNull();
   });
+  it('shows a sourced NBA inline in ordinary imaging, never as an obstructing toast', async () => {
+    vi.stubEnv('VITE_V15_07_G1_TWO_VIEWS_PILOT', '0');
+    fixtures.advice = {
+      title: 'Vérification nécessaire',
+      message: 'Information médicale à confirmer',
+      action: 'Interroger le patient',
+    };
+    vi.useFakeTimers();
+    renderDetails('/patients/7?tab=radiology&radioTab=rvg');
+    await act(async () => { await vi.advanceTimersByTimeAsync(1600); });
+    const note = screen.getByRole('note', { name: 'Conseil clinique du dossier' });
+    expect(note.textContent).toContain('Information médicale à confirmer');
+    expect(note.textContent).toContain('Interroger le patient');
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it('keeps sourced advice accessible on documents without adding a missing-history banner', async () => {
+    fixtures.advice = {
+      title: 'Dossier à compléter', message: 'Consulter le patient',
+    };
+    vi.useFakeTimers();
+    renderDetails('/patients/7?tab=admin');
+    await act(async () => { await vi.advanceTimersByTimeAsync(1600); });
+    expect(screen.getByRole('note', { name: 'Conseil clinique du dossier' }).textContent)
+      .toContain('Dossier à compléter');
+    expect(screen.queryByRole('status', { name: 'Antécédents médicaux non renseignés' })).toBeNull();
+    expect(toast).not.toHaveBeenCalled();
+  });
+
 });
