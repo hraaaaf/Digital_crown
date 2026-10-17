@@ -143,3 +143,13 @@ Avoid calling the directory pinning experiment a fix: native CI disproved it.
   intentionally temporary Windows-only LAB verification after candidate CI
   is green. Never start a clinical driver or place a real patient acquisition
   in this laboratory.
+
+## Current execution boundary — 2026-10-17
+
+The owner has **deferred the remote Windows Codex LAB run and all physical
+hardware trials to LOT10** because the remote PC is offline. The old local
+runbook is now marked **HOLD**, not permission to perform a later autonomous
+installation. In LOT06-P focus only on code/CI, SQLite/WAL boundary
+hardening, the commercial Windows ACL contract and genuinely independent
+code reviews. The commercial DACL and Windows SQLite root-relative VFS are
+NOT implemented. F01/LOT06-P remain OPEN even when CI succeeds.

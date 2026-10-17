@@ -1,5 +1,14 @@
 # Digital Crown — LOT06-P: Codex Windows isolated Bridge LAB rehearsal
 
+> **HOLD / REPORTÉ AU LOT10 (décision utilisateur 2026-10-17).**
+> Le PC distant est hors ligne. Ce runbook constitue une référence pour les
+> futures simulations locales et les essais matériels du LOT10 ; **ne pas
+> déclencher Codex, créer de sandbox Windows, installer quoi que ce soit ni
+> tenter d'accéder au PC pendant LOT06-P**. Quand LOT10 sera autorisé, il
+> faudra épingler un **nouveau SHA relu et testé** (pas réutiliser
+> aveuglément l'ancien SHA de cet exemple).
+
+
 > **Scope**: validate **only** the synthetic Imaging Bridge on the owner's
 > authorized Windows computer after GitHub CI is green. This is not the
 > installation or activation of Digital Crown's commercial clinical product.
