@@ -114,12 +114,28 @@ try {
       // Browser keyboard traversal, not a jsdom approximation: the next
       // Tab must enter the chat and Shift+Tab must return to Reduce.
       await page.keyboard.press('Tab');
+      // B01: a translated-offscreen History drawer can still contain buttons.
+      // Merely being a descendant of sidecar is NOT proof of visible focus.
       const tabbableInSidecar=await page.evaluate(() => {
         const el=document.activeElement;
-        return Boolean(el && el.matches('button, input, a, select, textarea')
-          && el.closest('[data-cb01-associate-sidecar]'));
+        const panel=document.querySelector('[data-cb01-associate-sidecar]');
+        const hiddenHistory=document.querySelector('[data-cb01-history-drawer]');
+        if (!el || !panel || !hiddenHistory || !hiddenHistory.hasAttribute('inert')
+            || hiddenHistory.getAttribute('aria-hidden')!=='true') return false;
+        const rect=el.getBoundingClientRect();
+        const frame=panel.getBoundingClientRect();
+        const style=getComputedStyle(el);
+        return Boolean(el.matches('button, input, a, select, textarea')
+          && el.closest('[data-cb01-associate-sidecar]')
+          && !el.closest('[inert], [aria-hidden="true"]')
+          && rect.width>0 && rect.height>0
+          && rect.left>=frame.left-2 && rect.right<=frame.right+2
+          && rect.top>=frame.top-2 && rect.bottom<=frame.bottom+2
+          && style.visibility!=='hidden' && style.display!=='none');
       });
-      if (!tabbableInSidecar) throw new Error('FAIL: Tab escaped sidecar unexpectedly');
+      if (!tabbableInSidecar) {
+        throw new Error('FAIL: Tab focus not visibly reachable or closed History drawer still tabbable');
+      }
       await page.keyboard.press('Shift+Tab');
       if (!await initialClose.evaluate(el=>el===document.activeElement)) {
         throw new Error('FAIL: Shift+Tab did not return to Reduce');
