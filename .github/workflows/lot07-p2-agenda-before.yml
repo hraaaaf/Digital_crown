@@ -16,6 +16,10 @@ concurrency:
 
 jobs:
   before:
+    # BEFORE is immutable at ae8e8d... and was certified on run #39019753633.
+    # Once P2 product AFTER work starts, don't accidentally overwrite the
+    # baseline or fail because frontend/src is intentionally different.
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha == 'ae8e8d117f823a3efc5fe17efd405099507a4c3a' }}
     name: Actual React Agenda Elite Dark day week month multi viewport matrix
     runs-on: ubuntu-24.04
     timeout-minutes: 40
