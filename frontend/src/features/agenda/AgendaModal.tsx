@@ -424,7 +424,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
       const payload = {
         patient_id: selectedPatient?.id || null,
-        patient_name: selectedPatient ? `${selectedPatient.nom} ${selectedPatient.prenom}` : patientSearch,
+        patient_name: editingAppointment && selectedPatient?.id === editingAppointment.patient_id
+          ? editingAppointment.patient_name
+          : selectedPatient ? `${selectedPatient.nom} ${selectedPatient.prenom}`.trim() : patientSearch,
         motif: selectedAct ? selectedAct.name : (actSearch || motif),
         datetime_start: startDateTime,
         duration_minutes: duration,
