@@ -45,7 +45,11 @@ for (const [id,title,reason] of [
   ['S12','GhostBrain mark-as-read','NOT_RUN: mock read-ack unit test exists, human alert journey not executed here'],
 ]) statusById.set(id,{id,title,status:id==='S01'?'PARTIAL_SYNTHETIC':'NOT_RUN',reason,humanE2E:'NOT_RUN'});
 
+// Per-user API contexts prevent access_token cookies from silently changing
+// the authenticated principal (the backend correctly prefers an auth cookie
+// over any Bearer header). Never use one context for three users' logins.
 const api=await request.newContext({baseURL:origin,ignoreHTTPSErrors:false});
+const staffContexts=[];
 const output=path.resolve('../artifacts/cb01-associate-sidecar/s01-s12-synthetic-matrix.json');
 const failures=[];
 const noActionIdentifiers=(obj)=>{
@@ -55,18 +59,18 @@ const noActionIdentifiers=(obj)=>{
   }
 };
 const assert=(condition,label)=>{if(!condition)throw new Error(label)};
-async function login(email,password) {
-  const response=await api.post('/api/auth/login',{form:{username:email,password}});
+async function login(context,email,password) {
+  const response=await context.post('/api/auth/login',{form:{username:email,password}});
   assert(response.status()===200,'synthetic login rejected');
   const json=await response.json();
   assert(typeof json.access_token==='string'&&json.access_token.length>10,
     'missing synthetic access token');
   return json.access_token;
 }
-async function preview(token,messages){
+async function preview(context,token,messages){
   assert(Array.isArray(messages)&&messages.length>=1&&messages.length<=8,
     'bounded preview transcript violated');
-  const response=await api.post('/api/bot/workflows/preview',{
+  const response=await context.post('/api/bot/workflows/preview',{
     data:{messages},headers:{Authorization:'Bearer '+token},
     maxRedirects:0,
   });
@@ -118,11 +122,7 @@ async function check(id,title,fn){
   }
 }
 try {
-  const [dentist,s05,s06]=await Promise.all([
-    login(owner,process.env.T2_PASSWORD),
-    login(receptionist,process.env.T2_S05_PASSWORD),
-    login(denied,process.env.T2_S06_PASSWORD),
-  ]);
+  const dentist=await login(api,owner,process.env.T2_PASSWORD);
   // The preceding visual step has already enrolled a DIFFERENT request
   // context for this disposable tenant. Reusing a bare bearer token without
   // its dc_workstation cookie MUST return HTTP 423. Enroll this synthetic
@@ -152,9 +152,36 @@ try {
     && workstation.enrollmentRequired===false
     && workstation.stationLocked!==true,
     'synthetic request context lost workstation authority');
-  console.log('CB01_MATRIX_WORKSTATION: ENROLLED_AUTHORIZED_OWNER');
+  // Share ONLY the authorized workstation identity with synthetic staff.
+  // The owner's access_token and refresh_token must never be exported to a
+  // receptionist session. Each role logs in inside its OWN cookie jar.
+  const ownerState=await api.storageState();
+  const workstationCookies=ownerState.cookies.filter(cookie=>
+    cookie.name==='dc_workstation');
+  assert(workstationCookies.length===1,
+    'enrollment did not provide one scoped workstation cookie');
+  const newStaffContext=async(email,password)=>{
+    const context=await request.newContext({
+      baseURL:origin,ignoreHTTPSErrors:false,
+      storageState:{cookies:workstationCookies,origins:[]},
+    });
+    staffContexts.push(context);
+    const token=await login(context,email,password);
+    const probe=await context.get('/api/workstation/bootstrap',{
+      headers:{Authorization:'Bearer '+token},maxRedirects:0,
+    });
+    assert(probe.status()===200,'staff workstation bootstrap refused');
+    const state=await probe.json();
+    assert(state.workstationId===enrollmentState.workstationId
+      && state.stationLocked!==true&&state.enrollmentRequired===false,
+      'staff workstation cookie is not shared with authorized tenant');
+    return {context,token};
+  };
+  const s05=await newStaffContext(receptionist,process.env.T2_S05_PASSWORD);
+  const s06=await newStaffContext(denied,process.env.T2_S06_PASSWORD);
+  console.log('CB01_MATRIX_WORKSTATION: OWNER_AND_DISTINCT_STAFF_CONTEXTS_ENROLLED');
   await check('S02','Benali homonyms, explicit patient identity',async()=>{
-    const r=await preview(dentist,['/patient','BENALI']);
+    const r=await preview(api,dentist,['/patient','BENALI']);
     assert(r.code===200&&r.body.status==='disambiguation'
       && r.body.proposal===null
       && r.body.candidates?.length===2,'homonyms not disambiguated');
@@ -163,13 +190,13 @@ try {
       'expected two synthetic dossiers');
   });
   await check('S03','Dentist lookup of authorized synthetic patient',async()=>{
-    const r=await preview(dentist,['/patient','dossier:T2-0001']);
+    const r=await preview(api,dentist,['/patient','dossier:T2-0001']);
     assert(r.code===200&&r.body.status==='read'
       && r.body.patient?.id===patientId&&r.body.proposal===null,
       'authorized patient read failed');
   });
   await check('S04','Mme Benali surname selection and no auto-choice',async()=>{
-    const r=await preview(dentist,['/patient','Mme Benali']);
+    const r=await preview(api,dentist,['/patient','Mme Benali']);
     assert(r.code===200&&r.body.status==='disambiguation'
       && r.body.candidates?.length===2&&r.body.proposal===null,
       'exact surname homonyms not safely handled');
@@ -177,7 +204,7 @@ try {
   const proposal=['/rdv','dossier:CB01-N-101','2099-01-01','10:00',
     '30','consultation','CONFIRMER'];
   await check('S05','Reception prepares non-executable appointment',async()=>{
-    const r=await preview(s05,proposal);
+    const r=await preview(s05.context,s05.token,proposal);
     assert(r.code===200&&r.body.status==='proposal_only'
       && r.body.proposal?.type==='CREATE_APPOINTMENT'
       && Number.isInteger(r.body.proposal?.params?.patient_id)
@@ -187,15 +214,15 @@ try {
       'S05 returned no safe appointment proposal');
   });
   await check('S06','Reception without agenda permission fails closed',async()=>{
-    const early=await preview(s06,['/rdv']);
-    const full=await preview(s06,proposal);
+    const early=await preview(s06.context,s06.token,['/rdv']);
+    const full=await preview(s06.context,s06.token,proposal);
     assert(early.code===403&&full.code===403
       && early.body.detail==='Accès refusé.'
       && JSON.stringify(early.body)===JSON.stringify(full.body),
       'S06 denied permission leaked identity or changed response');
   });
   await check('S08','Dentist crown estimate is only a non-executable draft',async()=>{
-    const r=await preview(dentist,[
+    const r=await preview(api,dentist,[
       '/devis','dossier:CB01-N-101','couronne','CONFIRMER',
     ]);
     assert(r.code===200&&r.body.status==='proposal_only'
@@ -206,9 +233,9 @@ try {
   });
   await check('S11','Foreign patient and unknown ID indistinguishable',async()=>{
     const results=await Promise.all([
-      preview(dentist,['/patient','id:'+foreignId]),
-      preview(dentist,['/patient','id:'+unknownId]),
-      preview(dentist,['/patient','dossier:CB00-FR-0001']),
+      preview(api,dentist,['/patient','id:'+foreignId]),
+      preview(api,dentist,['/patient','id:'+unknownId]),
+      preview(api,dentist,['/patient','dossier:CB00-FR-0001']),
     ]);
     assert(results.every(x=>x.code===404
       && x.body.detail==='Patient introuvable.'
@@ -216,6 +243,7 @@ try {
       'S11 foreign patient existence leakage');
   });
 } finally {
+  await Promise.allSettled(staffContexts.map(context=>context.dispose()));
   await api.dispose();
 }
 const cases=Array.from({length:12},(_,i)=>{
