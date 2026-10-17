@@ -161,3 +161,41 @@ jobs:
             frontend/cephalo-v1-04-after/
           if-no-files-found: error
           retention-days: 30
+
+  # R23-G5 is an EXPERIMENTAL, PR-911-scoped verification, not a new
+  # repository-wide required gate or a change to the R18 scientific contract.
+  r23g5-authenticated-api:
+    name: EXPERIMENTAL R23-G5 real JWT GET PUT GET
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 911
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SECRET_KEY: r23g5-isolated-only-ci-key-32-chars-long
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - name: Checkout exact feature HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Assert exact feature HEAD
+        env:
+          EXPECTED: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/r23g5-requirements.txt
+          pip install -r /tmp/r23g5-requirements.txt
+          python -m pip check
+      - name: Real HTTP/JWT multi-tenant GET PUT GET regression
+        run: python -m pytest backend/tests/test_cephalo_r23g5_authenticated_api.py -q
+      - name: Typed scientific read and evidence-chain regressions
+        run: python -m pytest backend/tests/test_cephalo_typed_read_route.py backend/tests/test_cephalo_runtime_chain.py -q
