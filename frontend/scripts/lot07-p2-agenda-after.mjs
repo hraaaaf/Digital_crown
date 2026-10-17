@@ -104,6 +104,14 @@ async function runMatrix(page,theme,width,height,zoom=false){
         theme:document.body.dataset.theme||'elite'};
     });
     if(mode==='day'){
+      if(css.width<640){
+        const dayScroll=await page.locator('[data-p2-day-scroll]').evaluate(el=>({
+          clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,
+          maxScroll:el.scrollWidth-el.clientWidth
+        }));
+        if(dayScroll.maxScroll<=0)
+          throw Error('P2 simultaneous mobile Day lacks internal horizontal scroll '+JSON.stringify({width,dayScroll}));
+      }
       const concurrent=await page.evaluate(()=>{
         const a=document.querySelector('[data-p2-day-appointment="201"]')?.getBoundingClientRect();
         const b=document.querySelector('[data-p2-day-appointment="211"]')?.getBoundingClientRect();
