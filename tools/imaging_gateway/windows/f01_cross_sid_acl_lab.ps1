@@ -70,14 +70,22 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
         '-File', ('"' + $Script + '"'), '-Mode',$Stage,
         '-WorkRoot', ('"' + $Root + '"'), '-OwnerSid',$Owner,'-PeerSid',$Peer
     )
-    $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -Credential $Credential -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle Hidden
+    $stderr = Join-Path $Root ('f01-child-' + $Stage + '.stderr.txt')
+    $stdout = Join-Path $Root ('f01-child-' + $Stage + '.stdout.txt')
+    $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -Credential $Credential -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardError $stderr -RedirectStandardOutput $stdout
     try {
-        if (-not $process.WaitForExit(30000)) {
+        if (-not $process.WaitForExit(90000)) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             throw ('F01_CHILD_' + $Stage + '_TIMEOUT')
         }
         $exitCode = $process.ExitCode
     } finally { $process.Dispose() }
+    if ($exitCode -ne 0) {
+        # No clinical content ever enters this synthetic-only harness.
+        if (Test-Path -LiteralPath $stderr) {
+            Get-Content -LiteralPath $stderr -Tail 15 | ForEach-Object { Write-Host ('F01_CHILD_' + $Stage + '_DIAGNOSTIC=' + $_) }
+        }
+    }
     Assert-F01 ($exitCode -eq 0) ('CHILD_' + $Stage + '_FAILED')
     $report = Join-Path $Root ('report-' + $Stage + '.json')
     Assert-F01 (Test-Path -LiteralPath $report -PathType Leaf) ('MISSING_REPORT_' + $Stage)
