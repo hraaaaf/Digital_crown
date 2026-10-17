@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/PatientDetails.p1Contrast.css'
       - 'frontend/src/features/patients/components/PatientClinicalContextNotice.tsx'
       - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
       - 'frontend/scripts/lot07-p1-authenticated-t2.mjs'
