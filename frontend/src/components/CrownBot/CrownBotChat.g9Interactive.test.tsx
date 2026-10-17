@@ -180,6 +180,31 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(postMock).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
   });
 
+  it('S10 UX: failed new preview never keeps the previous successful patient response visible', async () => {
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    postMock
+      .mockResolvedValueOnce({ data: {
+        status: 'read',
+        message: 'Patient identifié dans votre cabinet.',
+        patient: { id: 42, nom: 'ANCIEN', prenom: 'DOSSIER', numero_dossier: 'T2-042' },
+        proposal: null,
+      } } as any)
+      .mockRejectedValueOnce({ response: { status: 503 } });
+    renderCrownBot();
+    fireEvent.click(screen.getByRole('button', { name: 'Chat', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    await screen.findByText('Patient identifié dans votre cabinet.');
+    expect(screen.getByText(/Dossier T2-042/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '/rdv' }));
+    await screen.findByText('Vérification serveur impossible. Aucune action effectuée.');
+    expect(screen.queryByText('Patient identifié dans votre cabinet.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dossier T2-042/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Étapes saisies : 1/8')).not.toBeInTheDocument();
+    expect(postMock).toHaveBeenLastCalledWith('/bot/workflows/preview', { messages: ['/rdv'] });
+    expect(postMock).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
+  });
+
   it('exposes safe ZERO-LLM preview inside existing mobile-responsive Chat only when frontend opt-in is explicit', async () => {
     vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
     postMock.mockResolvedValue({ data: {
