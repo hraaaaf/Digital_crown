@@ -235,6 +235,8 @@ export function CrownBotChat({
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const employerId = user?.employer_id || user?.id;
+  const ghostScopeKey = `${employerId ?? ''}:${user?.id ?? ''}`;
+  const ghostEpochRef = useRef(0);
 
   const pageCtx = getPageContext(location.pathname);
   // Explicit opt-in on BOTH frontend and server. OFF means the existing screen
@@ -254,8 +256,18 @@ export function CrownBotChat({
 
   // Tab & Mémoire contextuelle state
   const [activeTab, setActiveTab] = useState<Tab>('brain');
-  const [insights, setInsights] = useState<GhostInsight[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // One atomic server snapshot; never decrement the unread badge without
+  // removing the corresponding insight from the same authoritative version.
+  const [ghostState, setGhostState] = useState<{
+    scopeKey: string; insights: GhostInsight[]; unreadCount: number
+  }>({ scopeKey: '', insights: [], unreadCount: 0 });
+  const { insights, unreadCount } = ghostState.scopeKey === ghostScopeKey
+    ? ghostState : { insights: [], unreadCount: 0 };
+
+  useEffect(() => {
+    setGhostState({ scopeKey: ghostScopeKey, insights: [], unreadCount: 0 });
+    return () => { ghostEpochRef.current += 1; };
+  }, [ghostScopeKey]);
 
   // Reset welcome message when route changes
   useEffect(() => {
@@ -281,21 +293,31 @@ export function CrownBotChat({
     const connectWS = () => {
       if (isCleaned || retryCount >= MAX_RETRIES) return;
       const wsUrl = buildGhostBrainWsUrl(employerId);
-      ws = new WebSocket(wsUrl);
-      ws.onopen = () => { retryCount = 0; };
+      const currentSocket = new WebSocket(wsUrl);
+      ws = currentSocket;
+      ws.onopen = () => {
+        if (!isCleaned && ws === currentSocket) retryCount = 0;
+      };
       ws.onmessage = (event) => {
+        // Disposed tenant sockets and abandoned reconnects cannot push
+        // patient alerts into the current principal's browser session.
+        if (isCleaned || ws !== currentSocket) return;
         try {
           const data = JSON.parse(event.data);
-          if (data.insights) {
-            setInsights(data.insights);
-            setUnreadCount(data.unread_count);
+          if (Array.isArray(data.insights) && Number.isSafeInteger(data.unread_count)
+              && data.unread_count >= 0) {
+            setGhostState({
+              scopeKey: ghostScopeKey,
+              insights: data.insights,
+              unreadCount: data.unread_count,
+            });
           }
         } catch (err) {
           console.error('GhostBrain WS parse error:', err);
         }
       };
       ws.onclose = () => {
-        if (isCleaned) return;
+        if (isCleaned || ws !== currentSocket) return;
         retryCount++;
         reconnectTimer = setTimeout(connectWS, Math.min(5000 * retryCount, 60000));
       };
@@ -307,7 +329,7 @@ export function CrownBotChat({
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) { ws.onclose = null; ws.close(); }
     };
-  }, [employerId]);
+  }, [employerId, ghostScopeKey]);
 
   // Chat scroll
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -495,10 +517,26 @@ export function CrownBotChat({
 
   // Mémoire contextuelle actions
   const markAsRead = async (logId: number) => {
+    const requestEpoch = ghostEpochRef.current;
     try {
-      await api.post(`/ai/ghost-insights/${logId}/read`);
-      setInsights(prev => prev.filter(i => i.id !== logId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      const receipt = await api.post(`/ai/ghost-insights/${logId}/read`);
+      if (receipt?.data?.status !== 'read') {
+        throw new Error('GhostBrain read acknowledgement missing');
+      }
+      setGhostState(previous => {
+        // A late ACK from an obsolete principal or an older WS snapshot
+        // must never acknowledge a different patient's notification.
+        if (ghostEpochRef.current !== requestEpoch
+            || previous.scopeKey !== ghostScopeKey
+            || !previous.insights.some(insight => insight.id === logId)) {
+          return previous;
+        }
+        return {
+          scopeKey: previous.scopeKey,
+          insights: previous.insights.filter(insight => insight.id !== logId),
+          unreadCount: Math.max(0, previous.unreadCount - 1),
+        };
+      });
     } catch (err) {
       console.error('markAsRead error:', err);
     }
@@ -526,13 +564,16 @@ export function CrownBotChat({
       )}
 
       {/* Sidebar */}
-      <div className={cn(
-        'absolute left-0 top-0 bottom-0 w-64 bg-slate-50 border-r border-slate-200 z-50 flex flex-col transition-transform duration-300',
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
-      )}>
+      <div data-cb01-history-drawer
+        inert={!isSidebarOpen}
+        aria-hidden={!isSidebarOpen}
+        className={cn(
+          'absolute left-0 top-0 bottom-0 w-64 bg-slate-50 border-r border-slate-200 z-50 flex flex-col transition-transform duration-300',
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}>
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Historique</h3>
-          <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-slate-200 rounded-md">
+          <button aria-label="Fermer l'historique Crown Bot" onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-slate-200 rounded-md">
             <X size={16} className="text-slate-500" />
           </button>
         </div>
@@ -567,7 +608,7 @@ export function CrownBotChat({
       <div className="flex flex-col bg-primary text-white shrink-0">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
+            <button aria-label="Ouvrir l'historique Crown Bot" onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
               <Menu size={18} />
             </button>
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
