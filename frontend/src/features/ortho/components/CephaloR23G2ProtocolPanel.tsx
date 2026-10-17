@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { findR23G3PinnedRequirements } from '../cephaloR23G3PinnedRequirements';
 import { publishCephaloMetricFocus } from '../cephaloAnalysisBridge';
 import {
   readCephaloR23G2Protocol,
@@ -51,6 +52,7 @@ const prettyUnit = (unit: string | null) => unit === 'deg' ? '°' : unit || '';
 
 const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Analysis }> = ({ P, analysis }) => {
   const anglesData = useOrthoStore(state => state.anglesData);
+  const landmarks = useOrthoStore(state => state.local.landmarks);
   const [version, setVersion] = React.useState<R23G2RickettsVersion>('atlas');
   const profile = React.useMemo(
     () => readCephaloR23G2Protocol(anglesData, analysis, version),
@@ -59,6 +61,10 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
   const rows = profile?.rows ?? [];
   const [selectedMeasurementId, setSelectedMeasurementId] = React.useState<string | null>(null);
   const selectedRow = rows.find(row => row.canonical_measurement_id === selectedMeasurementId);
+  const requirements = selectedRow ? findR23G3PinnedRequirements(
+    selectedRow.canonical_measurement_id,
+    landmarks.map(item => item.id),
+  ) : null;
   const currentFocus = resolveR23G3RuntimeFocus(selectedRow);
   // Same semantic event already observed by CephaloTracingLayer; no
   // invented SVG geometry is emitted. A blocked factor clears old focus.
@@ -151,6 +157,17 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                         {currentFocus
                           ? 'Focus prouvé : ' + currentFocus.points.join(', ') + (currentFocus.constructionIds?.length ? ' · constructions : ' + currentFocus.constructionIds.join(', ') : '')
                           : 'Focus géométrique non autorisé sans preuve active exacte.'}
+                        {requirements ? (
+                          <span className="mt-1 block" data-r23g3-pinned-gate={requirements.measurementId}>
+                            Contrat LOT06 · repères requis : {requirements.requiredLandmarks.join(', ')}
+                            {requirements.missingLandmarks.length > 0
+                              ? ' · absents : ' + requirements.missingLandmarks.join(', ')
+                              : ' · tous les repères listés sont présents'}
+                            {' · gate : ' + requirements.availabilityGate}
+                          </span>
+                        ) : (
+                          <span className="mt-1 block">Hors registre de dépendances LOT06 publié : aucun repère requis supplémentaire n’est supposé.</span>
+                        )}
                       </span>
                     )}
                   </td>
