@@ -280,3 +280,44 @@ print("PG_CERT_TOTAL_RACES", rounds * 6)
 print("PG_CERT_HTTP_500", 0)
 print("PG_CERT_DB_SQL_ASSERTIONS", "ALL_PASS")
 print("PG_CERT_RESULT", "PASS_WITH_SYNTHETIC_AUTH_NO_MULTI_PROCESS_WORKERS")
+
+# Adversarial cross-entrypoint: a separate real Bot HTTP route must not bypass
+# the exact same practitioner's canonical appointment write lock.
+from datetime import timedelta
+from backend.routers import bot as bot_routes
+
+app.include_router(bot_routes.router, prefix="/api/bot")
+app.dependency_overrides[bot_routes.get_db] = db_override
+app.dependency_overrides[bot_routes.get_current_user] = fake_user
+
+clear_appointments()
+bot_slot = "2026-11-03T11:00:00"
+primary = call(*post(bot_slot))
+assert primary[0] == 200, primary
+with Session() as s:
+    session = models.BotSession(employer_id=A, user_id=A, title="Synthetic PG cross writer")
+    s.add(session)
+    s.flush()
+    action = models.BotPendingAction(
+        session_id=session.id, user_id=A, employer_id=A, action_type="CREATE_APPOINTMENT",
+        params_json={"patient_id": None, "patient_name": "PG SYNTHETIC BOT",
+                     "datetime_start": bot_slot, "duration_minutes": 30,
+                     "motif": "test only"},
+        status="pending", expires_at=datetime.utcnow() + timedelta(minutes=10))
+    s.add(action)
+    s.flush()
+    action_id = action.id
+    s.commit()
+
+second = call("POST", "/api/bot/execute", "A", {"pending_action_id": action_id})
+rows = persisted()
+duplicates = [r for r in rows if r["employer_id"] == A
+              and r["datetime_start"].isoformat() == bot_slot]
+print("PG_CERT_CROSS_ENTRY_BOT", "HTTP", [primary[0],second[0]],
+      "PERSISTED_SAME_CABINET_SAME_SLOT", len(duplicates),
+      "PRACTITIONERS", [r["praticien_id"] for r in duplicates],
+      flush=True)
+assert second[0] == 409 and len(duplicates) == 1, (
+    "BLOCKER: bot /execute bypasses PostgreSQL advisory booking lock; "
+    f"HTTP={primary[0],second[0]} same-slot={len(duplicates)}")
+print("PG_CERT_CROSS_ENTRY_BOT", "PASS", flush=True)
