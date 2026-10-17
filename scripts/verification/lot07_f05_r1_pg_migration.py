@@ -73,6 +73,13 @@ def main() -> None:
             )).scalar_one() == "a" * 64
             print("F05_R1_PG_MIGRATION", "ADDITIVE", "LEGACY_PRESERVED",
                   "NULL_LEGACY_FAIL_CLOSED", "NEW_FINGERPRINT_WRITABLE", flush=True)
+            try:
+                module.downgrade()
+            except RuntimeError as error:
+                assert "outside isolated certification" in str(error)
+                print("F05_R1_PG_DOWNGRADE_DENIED_OUTSIDE_SCHEMA_CERT", True, flush=True)
+            else:
+                raise AssertionError("F05_R1_UNSAFE_DOWNGRADE_ACCEPTED")
         finally:
             # A second-level synthetic schema is created and destroyed as one
             # transaction. Nothing is persisted even in the isolated CI DB.
