@@ -38,6 +38,12 @@ SessionLocal = database.SessionLocal
 app = FastAPI()
 app.include_router(appointments.router, prefix="/api/appointments")
 app.include_router(frontdesk.router, prefix="/api")
+# Separate ASGI subapp: no dependency overrides. The product's real JWT,
+# permission and workstation dependencies run against disposable PostgreSQL.
+real_auth_app = FastAPI()
+real_auth_app.include_router(appointments.router, prefix="/api/appointments")
+real_auth_app.include_router(frontdesk.router, prefix="/api")
+app.mount("/real-auth", real_auth_app)
 
 def lab_db():
     with SessionLocal() as db:
@@ -309,7 +315,49 @@ def exercise():
             outcomes=[f.result(timeout=18) for f in futures]
         assert sorted(outcomes)==["40P01","ACQUIRED"],outcomes
         print("F05_MP_DEADLOCK",outcomes,"ROLLBACK_RELEASED",flush=True)
-        print("F05_MP_AUTH_MODE","LAB_HEADER_OVERRIDE_NOT_REAL_JWT",flush=True)
+        # Authenticated HTTP replay: unlike earlier races, these requests go
+        # through the unchanged backend.auth.get_current_user JWT verification.
+        # Synthetic bearer tokens are minted directly, not via password login.
+        from backend.security import create_access_token
+        access_token=create_access_token({"sub":"f05-a@example.invalid"})
+        other_token=create_access_token({"sub":"f05-c@example.invalid"})
+        clear()
+        target="http://127.0.0.1:18061/real-auth/api/appointments/"
+        with httpx.Client(timeout=15) as client:
+            missing=client.post(target,json=book(t)[4])
+            forged=client.post(target,json=book(t)[4],
+                               headers={"Authorization":"Bearer malformed"})
+        assert missing.status_code==401 and forged.status_code==401,(
+            "REAL_AUTH_REJECT",missing.status_code,forged.status_code)
+        signed_barrier=Barrier(2)
+        def signed_request(port,token):
+            signed_barrier.wait(timeout=8)
+            with httpx.Client(timeout=18) as cli:
+                response=cli.post(
+                    f"http://127.0.0.1:{port}/real-auth/api/appointments/",
+                    json=book(t)[4],
+                    headers={"Authorization":f"Bearer {token}"})
+                return response.status_code,response.text[:150]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f1=pool.submit(signed_request,18061,access_token)
+            f2=pool.submit(signed_request,18062,access_token)
+            signed=[f1.result(timeout=22),f2.result(timeout=22)]
+        assert sorted(v[0] for v in signed)==[200,409],signed
+        assert len(rows_at(t,root))==1
+        with httpx.Client(timeout=18) as cli:
+            second_tenant=cli.post(
+                "http://127.0.0.1:18062/real-auth/api/appointments/",
+                json=book(t)[4],headers={"Authorization":f"Bearer {other_token}"})
+        assert second_tenant.status_code==200,second_tenant.text[:160]
+        assert len(rows_at(t))==2
+        print("F05_MP_REAL_JWT_HTTP",{
+             "missing":missing.status_code, "malformed":forged.status_code,
+             "race":sorted(v[0] for v in signed),
+             "other_tenant":second_tenant.status_code},
+             "SQL",len(rows_at(t)),"AUTH_IMPL","backend.routers.auth.get_current_user",
+             "TOKEN_ORIGIN","LAB_DIRECT_MINT_NOT_LOGIN",
+             flush=True)
+        print("F05_MP_AUTH_MODE","HEADER_OVERRIDE_FOR_80_RACES;REAL_JWT_FOR_1_RACE",flush=True)
         print("F05_MP_PC_MODE","DIRECT_DOMAIN_ADAPTER_NOT_REMOTE_RECEIPT",flush=True)
         print("F05_MP_RESULT","LIMITED_PASS_NOT_F05_CERTIFICATION",flush=True)
     finally:
