@@ -49,12 +49,9 @@ function Require-Denied([scriptblock]$Attempt, [string]$Name) {
         $rootCause = $_.Exception
         while ($rootCause.InnerException) { $rootCause = $rootCause.InnerException }
         if ($rootCause -is [System.UnauthorizedAccessException]) { return }
-        # NTFS may conceal the source name during Move when directory READ is denied.
-        # This is NOT an ACL-denial oracle alone. The elevated harness checks
-        # SHA-256 and existence before AND after the attempted peer rename.
-        if ($Name -eq 'RENAME' -and $rootCause -is [System.IO.FileNotFoundException]) {
-            return
-        }
+        # FileNotFoundException is NOT an access-denial proof, even if
+        # the elevated parent later observes an unchanged existing file.
+        # An unrelated bad source path must fail the experiment explicitly.
         throw
     }
     throw ('F01_PEER_ACCESS_NOT_DENIED_' + $Name)
