@@ -316,7 +316,7 @@ def _runner():
         verify("FRONTDESK_CONFIRM_VS_BOT",results,[200,409],t,1)
         # Confirm/reject and confirm/expire are mutually exclusive transitions.
         # No stale read may demote a confirmed appointment after COMMIT.
-        for verb, status_if_competitor_wins in (("reject","REFUSÉ"),("expire","EXPIRÉ")):
+        for verb, status_if_competitor_wins in (("reject","REFUSE"),("expire","EXPIRE")):
             reset()
             created=api(*frontdesk(0,t))
             assert created[0]==200,created
@@ -328,7 +328,7 @@ def _runner():
             with Session() as db:
                 final=db.execute(text("SELECT status FROM appointments WHERE id=:id"),
                                  {"id":request_id}).scalar_one()
-            target="CONFIRMÉ" if results[0][0]==200 else status_if_competitor_wins
+            target="CONFIRME" if results[0][0]==200 else status_if_competitor_wins
             assert final==target,(verb,results,final,target)
             print("F05_STATUS_RACE","CONFIRM_VS_"+verb.upper(),
                   "HTTP",sorted(x[0] for x in results),"PERSISTED",final,flush=True)
