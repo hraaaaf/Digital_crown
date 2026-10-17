@@ -51,7 +51,7 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
     } } as never);
     render(<CrownBotWorkflowPreview />);
     fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
-    await screen.findByText(/Proposition CREATE_APPOINTMENT : simulation uniquement/i);
+    await screen.findByText(/Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable/i);
     expect(screen.queryByRole('button', { name: 'Confirmer' })).not.toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
   });
