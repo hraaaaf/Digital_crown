@@ -23,6 +23,8 @@ import time
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from tools.imaging_gateway.media_validation import validated_mime
+
 
 class GatewayError(RuntimeError):
     pass
@@ -492,7 +494,8 @@ class HotFolder:
                     continue
             identity = self._identity(digest, path, signature)
             mime = sniff(content)
-            accepted = mime is not None and path.suffix.lower() in SUPPORTED[mime]
+            accepted = (mime is not None and path.suffix.lower() in SUPPORTED[mime]
+                        and validated_mime(content, mime))
             state = "PENDING_CONFIRMATION" if accepted else "QUARANTINED"
             blob = identity + ".dc6"
             try:
