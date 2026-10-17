@@ -58,6 +58,25 @@ def _is_disk_full(error):
     )
 
 
+
+def _is_unsafe_path_component(path: Path) -> bool:
+    """Detect symlinks and NTFS junction/reparse points, including Python 3.11.
+
+    This initial check does not replace kernel-handle/ACL confinement in a
+    future supported clinical capture driver.
+    """
+    try:
+        meta = path.lstat()
+    except FileNotFoundError:
+        return False
+    return (
+        stat.S_ISLNK(meta.st_mode)
+        or (os.name == "nt" and bool(
+            getattr(meta, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+        ))
+    )
+
 def sniff(data: bytes) -> str | None:
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
@@ -108,10 +127,17 @@ class Config:
         # Windows may canonicalize harmless 8.3 paths, drive casing and volume aliases.
         # Check actual symbolic links instead of rejecting differing path spellings.
         ancestors = (*w.parents, *p.parents)
-        if (w.is_symlink() or not w.is_dir() or p.is_symlink() or
-                any(parent.is_symlink() for parent in ancestors)):
+        if (not w.is_dir() or
+                any(_is_unsafe_path_component(item) for item in (w, p, *ancestors))):
             raise GatewayError("unsafe watch/private root or symlink ancestor")
+        # Reparse points must not make resolved watch and private overlap.
+        resolved_w, resolved_p = w.resolve(strict=True), p.resolve(strict=False)
+        if (resolved_w == resolved_p or resolved_w in resolved_p.parents or
+                resolved_p in resolved_w.parents):
+            raise GatewayError("watch and private canonical paths overlap")
         p.mkdir(parents=True, exist_ok=True)
+        if _is_unsafe_path_component(p):
+            raise GatewayError("unsafe private root after creation")
 
 
 class HotFolder:
@@ -121,14 +147,14 @@ class HotFolder:
         self._last_capacity_issue = None  # diagnostic only; no patient/file info
         self.private = Path(config.private).absolute()
         self.spool = self.private / "spool"
-        if self.spool.is_symlink():
+        if _is_unsafe_path_component(self.spool):
             raise GatewayError("spool symlink rejected")
         self.spool.mkdir(mode=0o700, exist_ok=True)
         if os.name != "nt":
             os.chmod(self.private, 0o700)
             os.chmod(self.spool, 0o700)
         self.db_file = self.private / "acquisitions.sqlite3"
-        if self.db_file.is_symlink():
+        if _is_unsafe_path_component(self.db_file):
             raise GatewayError("database symlink rejected")
         with self._db() as db:
             db.executescript("""

@@ -308,24 +308,30 @@ async def lifespan(app: FastAPI):
             from tools.imaging_gateway.bridge_background_lab import start_if_enabled
             imaging_bridge_lab_handle = start_if_enabled(trusted_environment=str(_cfg.ENVIRONMENT))
 
+        # Shutdown is part of the same guarded lifetime: normal completion,
+        # request exception, task cancellation and failed partial startup.
+        yield
     except asyncio.CancelledError:
         raise
-    except Exception as e:
-        logger.error(f"Erreur Initialisation : {e}")
+    except Exception:
+        # Exception objects may contain clinical paths/filenames; the caller
+        # receives the exception, but startup logging never repeats its text.
+        logger.error("Erreur initialisation ou execution Digital Crown; arret controle")
         raise
-
-    yield
-
-    if firebase_sync_task is not None:
-        firebase_sync_task.cancel()
-    if patient_relay_task is not None:
-        patient_relay_task.cancel()
-    if station_ttl_cleanup_task is not None:
-        station_ttl_cleanup_task.cancel()
-    if imaging_bridge_lab_handle is not None:
-        from tools.imaging_gateway.bridge_background_lab import stop_bridge_lab
-        await stop_bridge_lab(imaging_bridge_lab_handle)
-    logger.info("Arret de l'API...")
+    finally:
+        try:
+            if imaging_bridge_lab_handle is not None:
+                from tools.imaging_gateway.bridge_background_lab import stop_bridge_lab
+                await stop_bridge_lab(imaging_bridge_lab_handle)
+        finally:
+            active = [task for task in (
+                firebase_sync_task, patient_relay_task, station_ttl_cleanup_task
+            ) if task is not None]
+            for task in active:
+                task.cancel()
+            if active:
+                await asyncio.gather(*active, return_exceptions=True)
+            logger.info("Arret de l'API...")
 
 
 async def _sync_all_licenses_from_firebase() -> None:

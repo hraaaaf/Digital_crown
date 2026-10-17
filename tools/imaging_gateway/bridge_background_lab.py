@@ -15,6 +15,8 @@ from pathlib import Path
 import tempfile
 from typing import Mapping
 
+from tools.imaging_gateway.gateway import _is_unsafe_path_component
+
 logger = logging.getLogger(__name__)
 _MARKER = ".digitalcrown-imaging-lab-only"
 _MARKER_VALUE = "DIGITALCROWN_IMAGING_LAB_ONLY_V1\n"
@@ -74,12 +76,19 @@ def make_lab_collector(environ: Mapping[str, str] | None = None):
                 raise BridgeLabConfigurationError("IMAGING_BRIDGE_UNSAFE_FIXTURE_ROOT")
         if not reached_temp:
             raise BridgeLabConfigurationError("IMAGING_BRIDGE_UNSAFE_FIXTURE_ROOT")
-        if (root / _MARKER).is_symlink() or (root / _MARKER).read_text(encoding="utf-8") != _MARKER_VALUE:
+        if (_is_unsafe_path_component(root / _MARKER) or
+                (root / _MARKER).read_text(encoding="utf-8") != _MARKER_VALUE):
             raise BridgeLabConfigurationError("IMAGING_BRIDGE_FIXTURE_MARKER_REQUIRED")
         incoming = root / "incoming"
         private = root / "private"
-        if (not incoming.is_dir() or incoming.is_symlink() or
-                private.is_symlink() or (private.exists() and not private.is_dir())):
+        # A Windows NTFS junction is *not* necessarily Path.is_symlink().
+        # Constrain both nested roots by reparse attributes and real parent.
+        if (not incoming.is_dir() or _is_unsafe_path_component(incoming) or
+                _is_unsafe_path_component(private) or
+                (private.exists() and not private.is_dir()) or
+                not incoming.resolve(strict=True).parent.samefile(root) or
+                (private.exists() and
+                 not private.resolve(strict=True).parent.samefile(root))):
             raise BridgeLabConfigurationError("IMAGING_BRIDGE_UNSAFE_FIXTURE_FOLDERS")
     except (OSError, ValueError, UnicodeError):
         raise BridgeLabConfigurationError("IMAGING_BRIDGE_FIXTURE_INVALID") from None

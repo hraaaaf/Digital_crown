@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -113,6 +114,23 @@ class BridgeLabConfigTests(unittest.TestCase):
             make_lab_collector({
                 **self.env, "DC_V15_06_BRIDGE_LAB_ROOT": str(alias),
             })
+
+    @unittest.skipUnless(os.name == "nt", "NTFS junction regression only on Windows")
+    def test_windows_junction_incoming_rejected(self):
+        with tempfile.TemporaryDirectory(prefix="dc-outside-fixture-") as outside:
+            incoming = self.root / "incoming"
+            incoming.rmdir()
+            result = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(incoming), outside],
+                capture_output=True, text=True, check=False,
+            )
+            if result.returncode:
+                self.skipTest("NTFS mklink /J unsupported on runner")
+            try:
+                with self.assertRaisesRegex(BridgeLabConfigurationError, "UNSAFE_FIXTURE_FOLDERS"):
+                    make_lab_collector(self.env)
+            finally:
+                os.rmdir(incoming)  # Removes junction itself, never its target.
 
     def test_rejects_missing_marker(self):
         (self.root / ".digitalcrown-imaging-lab-only").unlink()
