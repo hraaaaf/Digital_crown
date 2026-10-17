@@ -26,18 +26,33 @@ describe('agenda clinic A2 synchronized multi-practitioner grid', () => {
     expect(view).toContain('data-testid="multi-practitioner-scroll"');
   });
 
-  it('binds the clicked practitioner before opening create, and never on edit PUTs', () => {
+  it('sends the clicked provider explicitly with both preflight and write, never via a global interceptor', () => {
     const view = read('./features/agenda/MultiPractitionerTimelineView.tsx');
+    const modal = read('./features/agenda/AgendaModal.tsx');
+    expect(view).toContain('setModalPractitioner({ id: dentist.dentist_id, name: dentist.dentist_name })');
+    expect(view).toContain('initialPractitionerId={modalPractitioner?.id}');
+    expect(view).not.toContain('api.interceptors.request');
+    expect(view).not.toContain('installCreateInterceptor');
+    expect(modal).toContain('praticien_id: practitionerId');
+    expect(modal).toContain('resource_id: resourceId');
+    expect(modal).toContain('const submitInProgress = useRef(false)');
+  });
 
-    expect(view).toContain("url === '/appointments/check-conflicts'");
-    expect(view).toContain('praticien_id: config.params?.praticien_id ?? practitionerId');
-    expect(view).toContain("method === 'post' && url === '/appointments/'");
-    expect(view).toContain('addPractitionerToPayload(config.data, practitionerId)');
-    expect(view).toContain('installCreateInterceptor(dentist.dentist_id);');
-    expect(view.indexOf('installCreateInterceptor(dentist.dentist_id);')).toBeLessThan(view.indexOf('setIsModalOpen(true);'));
-    expect(view).toContain('const openEdit =');
-    expect(view).toContain('clearCreateInterceptor();');
-    expect(view).not.toContain("method === 'put' && url === '/appointments/'");
+  it('reads Day/Week/Month and header with cabinet day bounds rather than browser UTC instants', () => {
+    const paths=[
+      './features/agenda/DailyView.tsx',
+      './features/agenda/WeeklyView.tsx',
+      './features/agenda/MonthlyView.tsx',
+      './features/clinic/ClinicPractitionerBar.tsx',
+    ];
+    for(const path of paths){
+      const source=read(path);
+      expect(source).toContain('clinicCalendarDay(');
+      expect(source).toContain('T00:00:00');
+      expect(source).toContain('T23:59:59.999999');
+      expect(source).not.toContain('start.toISOString()');
+      expect(source).not.toContain('end.toISOString()');
+    }
   });
 
   it('preserves flexible appointments without inventing an exact hour', () => {
