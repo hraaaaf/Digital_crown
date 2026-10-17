@@ -96,7 +96,9 @@ const port=5197;const base='http://127.0.0.1:'+port;
 const vite=path.join(frontend,'node_modules/vite/bin/vite.js');
 const server=spawn(process.execPath,[vite,'--host','127.0.0.1','--port',String(port)],{cwd:frontend,env:{...process.env,VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
 let viteLog='';server.stdout.on('data',x=>viteLog+=x);server.stderr.on('data',x=>viteLog+=x);
-const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900},{width:1600,height:1000}];
+// PRODUCT SCOPE: cephalometry is desktop-only. Do not certify smartphone or
+// tablet viewports as clinical product surfaces (user-confirmed 2026-10-17).
+const viewports=[{width:1280,height:900},{width:1600,height:1000}];
 const report={phase,caseId,productHead:head,provenance:attribution,viewports:[],blockedRequests:[],invalidCount:0};
 const allowed=async route=>{
   const req=route.request();const u=new URL(req.url());
@@ -217,7 +219,12 @@ try {
     (error.includes('TimeoutError: locator.waitFor') &&
       error.includes('data-r23g2-protocol-panel') &&
       error.includes('navigation to finish') &&
-      error.includes('/cephalo-r23g4-public.html'))
+      error.includes('/cephalo-r23g4-public.html')) ||
+    // Vite can return a transient optimizer 504 when a newly discovered
+    // dependency invalidates the in-flight hash. This does NOT waive a
+    // failed measurement, source/clinical assertion or other page error.
+    (first.pageErrors.every(message=>message.includes('504 (Outdated Optimize Dep)')) &&
+      error.includes('504 (Outdated Optimize Dep)'))
   ));
   const retry=navigationRace ? await capture(v) : null;
   const result=retry ?? first;
