@@ -65,6 +65,7 @@ class AnalysisMetrics(BaseModel):
 class CephaloAnalysisOut(BaseModel):
     id: int
     image_original_path: str
+    source_revision: Optional[str] = None
     angles_data: Optional[Any] = None
     landmarks_data: Optional[Any] = None
     ai_diagnostic: Optional[DiagnosticSLM] = None
@@ -164,6 +165,9 @@ class CephaloViewModel(BaseModel):
 
 
 class CephaloPDFRequest(BaseModel):
+    patient_id: int = Field(gt=0)
+    analysis_id: int = Field(gt=0)
+    source_revision: str = Field(min_length=71, max_length=71, pattern=r"^sha256:[0-9a-f]{64}$")
     ai_diagnostic: Optional[Dict[str, str]] = None
     clinical_data: Optional[ClinicalData] = None
     archive: bool = False

@@ -2,6 +2,7 @@ import os
 import logging
 from typing import Optional, Any
 from datetime import datetime
+from uuid import uuid4
 from xml.sax.saxutils import escape
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -41,7 +42,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
     ):
         if not filename:
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"BILAN_ORTHO_{vm.patient_nom.upper()}_{date_str}.pdf"
+            filename = f"BILAN_ORTHO_{vm.patient_nom.upper()}_{date_str}_{uuid4().hex[:12]}.pdf"
         file_path = os.path.join(self.output_dir, filename)
 
         # Fail closed even for non-product direct calls: absence of the backend
@@ -150,6 +151,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "is_pre_bilan": vm.is_pre_bilan,
             "validation_warnings": list(vm.validation_warnings or []),
             "document_state": projection.get("document_state", "INCOMPLETE"),
+            "document_identity": dict(projection.get("document_identity") or {}),
             "contract_version": projection.get("contract_version"),
             "authority": projection.get("authority"),
             "active_runtime_chain_verified": bool(projection.get("active_runtime_chain_verified")),
@@ -248,6 +250,9 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             ),
             Paragraph(f"État documentaire : <b>{escape(str(context['document_state']))}</b>", body),
             Paragraph(f"Contrat : {escape(str(context['contract_version'] or 'non disponible'))}", body),
+            Paragraph(f"Patient ID: {context['document_identity'].get('patient_id', 'NON LIÉ')} | Analysis ID: {context['document_identity'].get('analysis_id', 'NON LIÉ')}", body),
+            Paragraph(f"Révision documentaire: {escape(str(context['document_identity'].get('source_revision') or 'NON LIÉE'))}", body),
+            Paragraph(f"Référence étude SHA256: {escape(str(context['document_identity'].get('study_reference_sha256') or 'NON LIÉE'))}", body),
         ]
 
         if context["document_state"] != "COMPLETE":

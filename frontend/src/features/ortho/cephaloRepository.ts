@@ -73,6 +73,18 @@ export const cephaloRepository = {
   },
 
   /**
+   * Resolve a persisted study identity. Caller must cancel if selection changed.
+   * The backend rechecks patient authorization and revision at PDF generation.
+   */
+  async documentIdentity(patientId: number, analysisId: number) {
+    const loaded = await this.getAnalysis(analysisId);
+    if (loaded.id !== analysisId || !/^sha256:[0-9a-f]{64}$/.test(loaded.source_revision || '')) {
+      throw new Error('Identité ou révision de l’étude indisponible');
+    }
+    return { patient_id: patientId, analysis_id: analysisId, source_revision: loaded.source_revision as string };
+  },
+
+  /**
    * Génère le rapport PDF complet.
    */
   async generatePDF(patientId: number | string, payload: any) {

@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Step4Documents } from './Step4Documents';
 import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { api } from '../../../services/api';
+import { cephaloRepository } from '../cephaloRepository';
+
+const identity = {patient_id:7,analysis_id:99,source_revision:'sha256:'+'1'.repeat(64)};
+const validationArgs = {params:{analysis_id:99,source_revision:identity.source_revision}};
 
 const state = vi.hoisted(() => ({
   photos:[
@@ -29,7 +33,10 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('../stores/useOrthoStore',()=>({
-  useOrthoStore:()=>state,
+  useOrthoStore:Object.assign(()=>state,{getState:()=>state}),
+}));
+vi.mock('../cephaloRepository',()=>({
+  cephaloRepository:{documentIdentity:vi.fn()},
 }));
 vi.mock('../../../services/api',()=>({
   api:{get:vi.fn(),post:vi.fn()},
@@ -59,6 +66,7 @@ beforeEach(()=>{
   state.silentSave.mockResolvedValue(undefined);
   state.handlePrint.mockResolvedValue(undefined);
   state.handlePreview.mockResolvedValue(undefined);
+  vi.mocked(cephaloRepository.documentIdentity).mockResolvedValue(identity);
 
   vi.mocked(api.get).mockResolvedValue({data:{is_valid:true,fatals:[],warnings:[]}} as never);
   vi.mocked(api.post).mockResolvedValue({data:new Uint8Array([1,2,3])} as never);
@@ -75,7 +83,7 @@ describe('Cephalo Step4 G4 document controls',()=>{
     state.imageSrc=undefined;
     state.local={landmarks:[]};
     render(<Step4Documents P={P}/>);
-    await waitFor(()=>expect(api.get).toHaveBeenCalledWith('/patients/7/cephalo-validation'));
+    await waitFor(()=>expect(api.get).toHaveBeenCalledWith('/patients/7/cephalo-validation', validationArgs));
 
     expect((screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/Aucune image uploadée/i)).toBeTruthy();
@@ -108,7 +116,7 @@ describe('Cephalo Step4 G4 document controls',()=>{
     fireEvent.click(screen.getByRole('button',{name:/Brouillon PDF/i}));
 
     await waitFor(()=>expect(state.silentSave).toHaveBeenCalledTimes(1));
-    expect(api.post).toHaveBeenCalledWith('/patients/7/pdf',{}, {responseType:'arraybuffer'});
+    await waitFor(()=>expect(api.post).toHaveBeenCalledWith('/patients/7/pdf',{...identity,archive:false}, {responseType:'arraybuffer'}));
     expect(click).toHaveBeenCalledTimes(1);
     expect(state.handlePrint).not.toHaveBeenCalled();
   });
@@ -150,6 +158,21 @@ describe('Cephalo Step4 G4 document controls',()=>{
     const refresh=await screen.findByRole('button',{name:'Actualiser'});
     fireEvent.click(refresh);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(2));
+  });
+
+  it('refuses to send a draft when selection changes during identity resolution',async()=>{
+    render(<Step4Documents P={P}/>);
+    await waitFor(()=>expect(api.get).toHaveBeenCalled());
+    let resume!:(value:typeof identity)=>void;
+    vi.mocked(cephaloRepository.documentIdentity).mockImplementationOnce(
+      ()=>new Promise(resolve=>{resume=resolve;})
+    );
+    fireEvent.click(screen.getByRole('button',{name:/Brouillon PDF/i}));
+    await waitFor(()=>expect(state.silentSave).toHaveBeenCalledTimes(1));
+    state.analysisId=100;
+    resume(identity);
+    await waitFor(()=>expect(cephaloRepository.documentIdentity).toHaveBeenCalledTimes(2));
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('wires photo upload and practitioner-entered therapeutic metadata explicitly',async()=>{

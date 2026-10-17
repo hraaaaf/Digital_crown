@@ -6,6 +6,7 @@ from backend import database, models, schemas
 from backend.routers.auth import require_permission
 from backend.services.cephalo_runtime_chain import project_runtime_chain_read_path
 from backend.services.cephalo_typed_read import CephaloTypedReadError
+from backend.services.cephalo_document_identity import analysis_source_revision
 from backend.utils.access_control import assert_patient_access
 
 router = APIRouter()
@@ -27,6 +28,7 @@ def get_analysis_with_typed_read_path(
     assert_patient_access(analysis.patient_id, current_user, db)
 
     out = schemas.CephaloAnalysisOut.model_validate(analysis)
+    out.source_revision = analysis_source_revision(analysis)
     if isinstance(out.angles_data, dict):
         try:
             out.angles_data = project_runtime_chain_read_path(

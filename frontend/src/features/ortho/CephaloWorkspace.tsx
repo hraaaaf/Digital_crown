@@ -54,6 +54,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
   const [patientDataError, setPatientDataError] = useState(false);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
+  const historyRequest = useRef(0);
 
   const resolveImageSrc = (imagePath?: string) => {
     if (!imagePath) return undefined;
@@ -62,8 +63,14 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   };
 
   const handleSelectHistory = async (analysis: any) => {
+    const request = ++historyRequest.current;
+    const selectedPatient = patientId;
+    // The previously opened study is no longer the active selection while a
+    // historical study is loading. PDF buttons must fail closed during this gap.
+    store.setAnalysisId(undefined);
     try {
       const loaded = await cephaloRepository.getAnalysis(analysis.id);
+      if (request !== historyRequest.current || useOrthoStore.getState().patientId !== selectedPatient || loaded.id !== analysis.id) return;
       const landmarks = loaded.landmarks_data || [];
       const anglesData = loaded.angles_data || {};
 
@@ -104,6 +111,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   };
 
   useEffect(() => {
+    historyRequest.current += 1;
     store.setPatientInfo(patientId, patientName);
 
     const syncTheme = () => setThemeRevision(revision => revision + 1);

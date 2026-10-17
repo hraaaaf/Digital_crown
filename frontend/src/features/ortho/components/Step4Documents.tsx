@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
+import { cephaloRepository } from '../cephaloRepository';
 import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { useOrthoStore } from '../stores/useOrthoStore';
 
@@ -110,13 +111,18 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const diagOk = Boolean(diag.synthese_diagnostique?.trim());
 
   const fetchValidation = useCallback(async () => {
-    if (!patientId || !analysisId) return;
+    if (!patientId || !analysisId) { setValidation(null); return; }
+    setValidation(null);
     setIsValidating(true);
     try {
-      const { data } = await api.get(`/patients/${patientId}/cephalo-validation`);
-      setValidation(data);
+      const identity = await cephaloRepository.documentIdentity(patientId, analysisId);
+      const { data } = await api.get(`/patients/${patientId}/cephalo-validation`, { params: {
+        analysis_id: analysisId, source_revision: identity.source_revision,
+      } });
+      const now = useOrthoStore.getState();
+      if (now.patientId === patientId && now.analysisId === analysisId) setValidation(data);
     } catch {
-      setValidation(null);
+      if (useOrthoStore.getState().patientId === patientId && useOrthoStore.getState().analysisId === analysisId) setValidation(null);
     } finally {
       setIsValidating(false);
     }
@@ -150,7 +156,10 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     setIsBrouillon(true);
     try {
       await store.silentSave();
-      const { data } = await api.post(`/patients/${patientId}/pdf`, {}, { responseType: 'arraybuffer' });
+      const identity = await cephaloRepository.documentIdentity(patientId, analysisId);
+      if (useOrthoStore.getState().patientId !== patientId || useOrthoStore.getState().analysisId !== analysisId) throw new Error('Sélection modifiée');
+      const { data } = await api.post(`/patients/${patientId}/pdf`, { ...identity, archive: false }, { responseType: 'arraybuffer' });
+      if (useOrthoStore.getState().patientId !== patientId || useOrthoStore.getState().analysisId !== analysisId) throw new Error('Réponse obsolète');
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -175,7 +184,11 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     if (!patientId || !analysisId) return;
     setIsArchiving(true);
     try {
-      const { data: vResult } = await api.get<ValidationResult>(`/patients/${patientId}/cephalo-validation`);
+      const identity = await cephaloRepository.documentIdentity(patientId, analysisId);
+      if (useOrthoStore.getState().patientId !== patientId || useOrthoStore.getState().analysisId !== analysisId) throw new Error('Sélection modifiée');
+      const { data: vResult } = await api.get<ValidationResult>(`/patients/${patientId}/cephalo-validation`, { params: {
+        analysis_id: analysisId, source_revision: identity.source_revision,
+      } });
       setValidation(vResult);
       if ((vResult.fatals?.length ?? 0) > 0) {
         toast.error(`Impossible d'archiver : ${vResult.fatals[0]}`);
@@ -184,6 +197,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       if ((vResult.warnings?.length ?? 0) > 0) {
         toast(`Attention : ${vResult.warnings.length} avertissement(s). Archivage en cours...`, { icon: '⚠️' });
       }
+      if (useOrthoStore.getState().patientId !== patientId || useOrthoStore.getState().analysisId !== analysisId) throw new Error('Sélection modifiée');
       await onGeneratePDF();
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || 'Erreur lors de l\'archivage.');

@@ -176,6 +176,11 @@ class DocumentFactory:
                 is_pre_bilan=is_pre_bilan,
                 validation_warnings=validation_warnings
             )
+            identity = analysis.get("_document_identity") if isinstance(analysis, dict) else None
+            if identity:
+                if identity.get("patient_id") != patient_id or identity.get("analysis_id") != analysis_id:
+                    raise ValueError("Identité documentaire incohérente")
+                projection = {**projection, "document_identity": dict(identity)}
             return self.ceph_gen.generate(vm, projection=projection)
         except Exception as e:
             logger.error(f"Erreur rapport céphalo: {e}")

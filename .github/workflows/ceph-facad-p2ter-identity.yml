@@ -1,0 +1,162 @@
+name: CEPH P2ter identity-bound PDF & React (experimental)
+on:
+  push:
+    branches:
+      - 'fix/ceph-fac-p2ter-identity-bound-*'
+  pull_request:
+    branches:
+      - 'audit/dc-ceph-facad-parity-p2bis-http-pdf-20261017'
+permissions:
+  contents: read
+jobs:
+  backend-jwt-pdf-binary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SECRET_KEY: p2ter-ci-synthetic-secret-key-minimum-32-chars
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact child HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install synthetic test environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/p2ter-requirements.txt
+          pip install -r /tmp/p2ter-requirements.txt
+          python -m pip check
+      - name: Exact study + real JWT + PDF bytes + archive contract
+        run: |
+          set -o pipefail
+          python -m pytest backend/tests/test_cephalo_p2ter_identity_e2e.py backend/tests/test_cephalo_p2bis_http_pdf_continuity.py backend/tests/test_document_provenance_p3.py -q | tee p2ter-backend.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2ter-backend-${{ github.sha }}
+          path: p2ter-backend.log
+  react-typescript-and-document-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact child HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - name: TypeScript typecheck
+        run: npx --prefix frontend tsc --noEmit -p frontend/tsconfig.app.json
+      - name: Ortho document component tests
+        run: npm --prefix frontend test -- src/features/ortho/components/Step4Documents.g4Interactive.test.tsx
+      - name: Isolated frontend test build
+        run: npm --prefix frontend run build:test
+
+  authenticated-desktop-cabinet-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: t2-runtime-certification-secret-key-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      T2_USER: t2-browser@cabinet.ma
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact child HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate throwaway Cabinet test password
+        run: |
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Install backend dependencies in isolated runner
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/p2ter-browser-requirements.txt
+          pip install -r /tmp/p2ter-browser-requirements.txt
+          python -m pip check
+      - name: Install React and genuine Chromium browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install chromium
+      - name: Start fully isolated synthetic Cabinet backend
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/p2ter-backend.log 2>&1 &
+          echo $! > /tmp/p2ter-backend.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -150 /tmp/p2ter-backend.log
+          exit 1
+      - name: Seed synthetic patient with distinct studies A and B
+        run: python scripts/t2_p2ter_seed_study_b.py
+      - name: Start real React frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p2ter-frontend.log 2>&1 &
+          echo $! > /tmp/p2ter-frontend.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -150 /tmp/p2ter-frontend.log
+          exit 1
+      - name: Authenticated Cabinet React browser A/B on both desktop viewports
+        working-directory: frontend
+        run: node scripts/run-with-t2-workstation.mjs scripts/certify-ceph-p2ter-desktop.mjs
+      - name: Inspect captured PDFs A4 and screenshot geometry
+        run: python scripts/t2_p2ter_pdf_a4_check.py
+      - name: Dump isolated backend and browser diagnostics on failure
+        if: failure()
+        run: |
+          echo '===== BACKEND ====='
+          tail -200 /tmp/p2ter-backend.log || true
+          echo '===== FRONTEND ====='
+          tail -200 /tmp/p2ter-frontend.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2ter-desktop-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/p2ter-desktop
+          retention-days: 30
+          if-no-files-found: warn

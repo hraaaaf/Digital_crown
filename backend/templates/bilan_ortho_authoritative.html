@@ -30,6 +30,10 @@ ul { margin:4px 0 4px 18px; padding:0; }
 <strong>Patient :</strong> {{ patient_nom.upper() }} {{ patient_prenom.capitalize() }} &nbsp; | &nbsp;
 <strong>Âge :</strong> {{ patient_age }} ans &nbsp; | &nbsp;
 <strong>Date :</strong> {{ date_analyse }}<br>
+<strong>Patient ID :</strong> {{ document_identity.get('patient_id', 'NON LIÉ') }} &nbsp; | &nbsp;
+<strong>Analysis ID :</strong> {{ document_identity.get('analysis_id', 'NON LIÉ') }}<br>
+<strong>Révision documentaire :</strong> {{ document_identity.get('source_revision', 'NON LIÉE') }}<br>
+<strong>Référence étude SHA256 :</strong> {{ document_identity.get('study_reference_sha256', 'NON LIÉE') }}<br>
 <strong>Autorité :</strong> {{ authority or 'indisponible' }}<br>
 <strong>Chaîne typée active :</strong> {{ 'VERIFIED' if active_runtime_chain_verified else 'NON VERIFIED' }}
 </div>
