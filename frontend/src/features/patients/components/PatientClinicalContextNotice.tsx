@@ -45,7 +45,7 @@ export function PatientClinicalContextNotice({
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="inline-flex min-h-11 w-full shrink-0 basis-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary sm:w-auto sm:basis-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             aria-label="Compléter les antécédents dans la fiche patient"
           >
             <FilePenLine size={16} aria-hidden="true" />
