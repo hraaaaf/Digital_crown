@@ -35,6 +35,8 @@ describe('W2 Atlas 2009 dental/manual source obligations, clinical fail-closed',
     expect(overjet?.requiredLandmarks).toEqual(['L1_incisal','U1_incisal']);
     expect(overjet?.requiredConstructions).toEqual(['RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1']);
     expect(overjet?.requiresCalibration).toBe(true);
+    expect(overjet?.constructionUpstreamLandmarks['RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1'])
+      .toEqual(['FOP_PREMOLAR_Ricketts','FOP_MOLAR_Ricketts']);
     expect(get(atlas,ids[3],[])?.requiredLandmarks).toEqual(['L1_incisal','L1_apex']);
   });
   it('requires U6 distal, canonical PTV and upstream manual PR identity',()=>{
@@ -42,6 +44,8 @@ describe('W2 Atlas 2009 dental/manual source obligations, clinical fail-closed',
     expect(u6?.missingLandmarks).toEqual(['U6_DISTAL_Ricketts']);
     expect(u6?.requiredConstructions).toEqual(['RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1']);
     expect(u6?.indirectConstructionManualLandmarks).toEqual(['PR_Ricketts_PTV']);
+    expect(u6?.constructionUpstreamLandmarks['RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1'])
+      .toEqual(['PR_Ricketts_PTV','Po_anatomic','Or']);
   });
   it('requires manual Pm, source Xi and manual Xi upstream R1-R4',()=>{
     const angle=get(atlas,ids[5],['Pm']);
@@ -51,6 +55,8 @@ describe('W2 Atlas 2009 dental/manual source obligations, clinical fail-closed',
       'R1_Ricketts','R2_Ricketts','R3_Ricketts','R4_Ricketts'
     ]);
     expect(angle?.requiresCalibration).toBe(false);
+    expect(angle?.constructionUpstreamLandmarks['RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1'])
+      .toEqual(['R1_Ricketts','R2_Ricketts','R3_Ricketts','R4_Ricketts','Po_anatomic','Or']);
   });
   it('requires exact labial commissure, never replaces with Stomion',()=>{
     const lip=get(atlas,ids[6],['ANS','Stomion']);
