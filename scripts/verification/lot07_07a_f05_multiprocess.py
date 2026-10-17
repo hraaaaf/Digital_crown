@@ -31,8 +31,11 @@ from backend.models_patient_companion import (
     PatientCompanionIdentity, PatientCompanionAccess,
     PatientCompanionAgendaSlot, PatientCompanionAppointmentRef,
 )
-from backend.routers import appointments, frontdesk
+from backend.routers import appointments, frontdesk, auth as auth_routes
+from backend.security import get_password_hash
 from backend.services import patient_companion_agenda as pc
+
+LAB_PASSWORD = "F05_TEST_ONLY_NOT_A_PRODUCTION_CREDENTIAL"
 
 SessionLocal = database.SessionLocal
 app = FastAPI()
@@ -43,6 +46,7 @@ app.include_router(frontdesk.router, prefix="/api")
 real_auth_app = FastAPI()
 real_auth_app.include_router(appointments.router, prefix="/api/appointments")
 real_auth_app.include_router(frontdesk.router, prefix="/api")
+real_auth_app.include_router(auth_routes.router, prefix="/api/auth")
 app.mount("/real-auth", real_auth_app)
 
 def lab_db():
@@ -103,14 +107,14 @@ def companion(operation: str, payload: dict, request: Request,
 def seed():
     models.Base.metadata.create_all(bind=database.engine)
     with SessionLocal() as db:
-        root = models.User(email="f05-a@example.invalid", hashed_password="TEST",
+        root = models.User(email="f05-a@example.invalid", hashed_password=get_password_hash(LAB_PASSWORD),
                            role=models.UserRole.DENTISTE, is_active=True,
                            is_licensed=True, approval_status=models.ApprovalStatus.APPROVED.value)
-        other = models.User(email="f05-c@example.invalid", hashed_password="TEST",
+        other = models.User(email="f05-c@example.invalid", hashed_password=get_password_hash(LAB_PASSWORD),
                             role=models.UserRole.DENTISTE, is_active=True,
                             is_licensed=True, approval_status=models.ApprovalStatus.APPROVED.value)
         db.add_all([root, other]); db.flush()
-        colleague = models.User(email="f05-b@example.invalid", hashed_password="TEST",
+        colleague = models.User(email="f05-b@example.invalid", hashed_password=get_password_hash(LAB_PASSWORD),
                                role=models.UserRole.DENTISTE, employer_id=root.id,
                                is_active=True, is_licensed=True,
                                approval_status=models.ApprovalStatus.APPROVED.value)
@@ -317,10 +321,20 @@ def exercise():
         print("F05_MP_DEADLOCK",outcomes,"ROLLBACK_RELEASED",flush=True)
         # Authenticated HTTP replay: unlike earlier races, these requests go
         # through the unchanged backend.auth.get_current_user JWT verification.
-        # Synthetic bearer tokens are minted directly, not via password login.
-        from backend.security import create_access_token
-        access_token=create_access_token({"sub":"f05-a@example.invalid"})
-        other_token=create_access_token({"sub":"f05-c@example.invalid"})
+        # Real product local-login endpoint issues bearer tokens after checking
+        # synthetic bcrypt password hashes against actual PostgreSQL users.
+        with httpx.Client(timeout=20) as cli:
+            login_a=cli.post("http://127.0.0.1:18061/real-auth/api/auth/login",
+                        data={"username":"f05-a@example.invalid","password":LAB_PASSWORD})
+            login_c=cli.post("http://127.0.0.1:18062/real-auth/api/auth/login",
+                        data={"username":"f05-c@example.invalid","password":LAB_PASSWORD})
+        assert login_a.status_code==200 and login_c.status_code==200,(
+            "REAL_LOGIN_FAILURE",login_a.status_code,login_c.status_code,
+            login_a.text[:110],login_c.text[:110])
+        access_token=login_a.json()["access_token"]
+        other_token=login_c.json()["access_token"]
+        print("F05_MP_REAL_PASSWORD_LOGIN",login_a.status_code,login_c.status_code,
+              "PASSWORD_NOT_LOGGED",flush=True)
         clear()
         target="http://127.0.0.1:18061/real-auth/api/appointments/"
         with httpx.Client(timeout=15) as client:
@@ -355,9 +369,21 @@ def exercise():
              "race":sorted(v[0] for v in signed),
              "other_tenant":second_tenant.status_code},
              "SQL",len(rows_at(t)),"AUTH_IMPL","backend.routers.auth.get_current_user",
-             "TOKEN_ORIGIN","LAB_DIRECT_MINT_NOT_LOGIN",
+             "TOKEN_ORIGIN","REAL_LOCAL_LOGIN_SYNTHETIC_PASSWORD",
              flush=True)
-        print("F05_MP_AUTH_MODE","HEADER_OVERRIDE_FOR_80_RACES;REAL_JWT_FOR_1_RACE",flush=True)
+        with database.engine.connect() as con:
+            protected_id=con.scalar(text(
+                "SELECT id FROM appointments WHERE employer_id=:employer "
+                "AND datetime_start=:dt LIMIT 1"),
+                {"employer":root,"dt":datetime.fromisoformat(t)})
+        with httpx.Client(timeout=18) as cli:
+            denied=cli.put(
+                f"http://127.0.0.1:18062/real-auth/api/appointments/{protected_id}",
+                json={"datetime_start":"2026-11-02T11:00:00"},
+                headers={"Authorization":f"Bearer {other_token}"})
+        assert denied.status_code==404,("REAL_AUTH_TENANT_DENIAL",denied.status_code,denied.text[:150])
+        print("F05_MP_REAL_JWT_OTHER_TENANT_UPDATE",denied.status_code,flush=True)
+        print("F05_MP_AUTH_MODE","HEADER_OVERRIDE_FOR_80_RACES;REAL_LOGIN_JWT_FOR_1_RACE",flush=True)
         print("F05_MP_PC_MODE","DIRECT_DOMAIN_ADAPTER_NOT_REMOTE_RECEIPT",flush=True)
         print("F05_MP_RESULT","LIMITED_PASS_NOT_F05_CERTIFICATION",flush=True)
     finally:
