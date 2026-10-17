@@ -420,7 +420,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             
             {/* PATIENT SEARCH */}
             <div className="relative" ref={patientRef}>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Patient</label>
+              <label htmlFor="agenda-patient-search" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Patient</label>
               <div className="relative group">
                 {selectedPatient ? (
                   <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-blue-50/50 border-2 border-blue-500 rounded-2xl text-sm font-black text-[#003380]">
@@ -440,6 +440,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   <>
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                     <input 
+                      id="agenda-patient-search"
                       type="text" 
                       required
                       placeholder="Rechercher ou saisir un nom..."
@@ -589,7 +590,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
             {/* ACT / MOTIF SEARCH */}
             <div className="relative" ref={actRef}>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Acte / Motif</label>
+              <label htmlFor="agenda-act-search" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Acte / Motif</label>
               <div className="relative group">
                 {selectedAct ? (
                   <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-emerald-50/50 border-2 border-emerald-500 rounded-2xl text-sm font-black text-emerald-700">
@@ -605,6 +606,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   <>
                     <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                     <input 
+                      id="agenda-act-search"
                       type="text" 
                       required
                       placeholder="Saisir l'acte ou rechercher dans le catalogue..."
@@ -697,10 +699,11 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Date</label>
+                <label htmlFor="agenda-date" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Date</label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input 
+                    id="agenda-date"
                     type="date" 
                     required
                     value={dateValue}
@@ -740,10 +743,11 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             {schedulingType === 'EXACT_TIME' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Début</label>
+                  <label htmlFor="agenda-time" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Début</label>
                   <div className="relative">
                     <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
+                      id="agenda-time"
                       type="time" 
                       required
                       value={time}
@@ -753,8 +757,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Durée Prévue</label>
+                  <label htmlFor="agenda-duration" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Durée Prévue</label>
                   <select 
+                    id="agenda-duration"
                     value={duration} 
                     onChange={e => setDuration(Number(e.target.value))}
                     className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
