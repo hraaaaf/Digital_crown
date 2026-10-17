@@ -38,6 +38,6 @@ jobs:
         run: |
           set -euo pipefail
           ! grep -n "request('POST'" scripts/ci/visual-approval-gate.mjs
-          grep -F 'ref: ${{ github.event.repository.default_branch }}' .github/workflows/ui-human-visual-approval.yml
+          grep -E 'ref: .*github[.]event[.]repository[.]default_branch' .github/workflows/ui-human-visual-approval.yml
           grep -F 'persist-credentials: false' .github/workflows/ui-human-visual-approval.yml
           echo 'No privileged code checkout or issue-comment write in visual attestation gate'
