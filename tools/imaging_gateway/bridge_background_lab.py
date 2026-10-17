@@ -7,6 +7,7 @@ Do not treat this laboratory worker as a supported Windows service/installer.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass
 import logging
 import os
@@ -138,7 +139,23 @@ def start_if_enabled(
     return BridgeLabHandle(stop=stop, task=asyncio.create_task(poll_lab_collector(collector, stop)))
 
 
-async def stop_bridge_lab(handle: BridgeLabHandle) -> None:
-    """Let any in-flight synthetic file operation finish before backend exits."""
+async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> bool:
+    """Bound asynchronous shutdown; report, never hide, uninterruptible scans.
+
+    asyncio.to_thread cannot forcefully stop a filesystem operation stuck in
+    the OS. On timeout return False after cancelling the asyncio task; the
+    underlying scan thread may remain. This is NOT clinical-grade process
+    supervision: hardware must eventually run in a supervised child process.
+    """
+    if not 0.01 <= timeout <= 30.0:
+        raise ValueError("invalid LAB shutdown deadline")
     handle.stop.set()
-    await handle.task
+    try:
+        await asyncio.wait_for(asyncio.shield(handle.task), timeout=timeout)
+        return True
+    except asyncio.TimeoutError:
+        logger.error("Imaging LAB stop timeout: underlying scan thread NOT confirmed stopped")
+        handle.task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await handle.task
+        return False
