@@ -163,6 +163,30 @@ class BridgeLabConfigTests(unittest.TestCase):
         next_owner = LabOwnerLock.acquire(self.root)
         next_owner.close()
 
+    def test_single_owner_blocks_a_separate_python_process(self):
+        from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
+        script = (
+            "import sys; from pathlib import Path; "
+            "from tools.imaging_gateway.owner_lock_lab import LabOwnerLock,LabOwnerLockError; "
+            "p=Path(sys.argv[1]); "
+            "lock=LabOwnerLock.acquire(p); lock.close()"
+        )
+        def contender():
+            return subprocess.run(
+                [sys.executable, "-c", script, str(self.root)],
+                cwd=Path(__file__).resolve().parents[3],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=8, check=False,
+            )
+        first = LabOwnerLock.acquire(self.root)
+        try:
+            self.assertNotEqual(contender().returncode, 0,
+                                "a second OS process must not own the LAB")
+        finally:
+            first.close()
+        self.assertEqual(contender().returncode, 0,
+                         "OS lock must be reusable after release")
+
     def test_failed_start_releases_owner_lock(self):
         from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
         with patch("tools.imaging_gateway.bridge_background_lab.subprocess.Popen",
