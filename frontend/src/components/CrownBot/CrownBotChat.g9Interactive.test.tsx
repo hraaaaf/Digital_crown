@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
@@ -129,6 +129,52 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(screen.getByText("Cette fonction n’est pas accessible depuis cet écran.")).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Confirmer' })).not.toBeInTheDocument();
+  });
+
+  it('discards stale patient identity and unsent dossier draft when navigating to another patient', async () => {
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    postMock
+      .mockResolvedValueOnce({ data: {
+        status: 'clarification', message: 'Patient : saisissez un identifiant',
+        proposal: null,
+      } } as any)
+      .mockResolvedValueOnce({ data: {
+        status: 'read', message: 'Patient identifié dans votre cabinet.',
+        patient: { id: 42, nom: 'ANCIEN', prenom: 'DOSSIER', numero_dossier: 'T2-042' },
+        proposal: null,
+      } } as any);
+    const NavigateSyntheticPatient = () => {
+      const navigate=useNavigate();
+      return <button onClick={() => navigate('/patients/43')}>Autre dossier synthétique</button>;
+    };
+    render(
+      <MemoryRouter initialEntries={['/patients/42']}>
+        <CrownBotChat />
+        <NavigateSyntheticPatient />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Chat', exact: true }));
+    const region=screen.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' });
+    fireEvent.click(screen.getByRole('button', { name: '/patient' }));
+    await screen.findByText('Patient : saisissez un identifiant');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Votre réponse de simulation' }), {
+      target: { value: 'dossier:T2-042' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
+    await screen.findByText(/Dossier T2-042/);
+    expect(postMock).toHaveBeenLastCalledWith('/bot/workflows/preview', {
+      messages: ['/patient', 'dossier:T2-042'],
+    });
+    // A changed patient route must never show a previous patient's result.
+    fireEvent.click(screen.getByRole('button', { name: 'Autre dossier synthétique' }));
+    const newRegion=screen.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' });
+    expect(newRegion).not.toBe(region);
+    expect(screen.queryByText(/Dossier T2-042/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Patient identifié dans votre cabinet.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '/patient' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Votre réponse de simulation' })).not.toBeInTheDocument();
+    expect(postMock).toHaveBeenCalledTimes(2);
+    expect(postMock).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
   });
 
   it('exposes safe ZERO-LLM preview inside existing mobile-responsive Chat only when frontend opt-in is explicit', async () => {
