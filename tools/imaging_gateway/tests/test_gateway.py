@@ -244,6 +244,33 @@ class GatewayTests(unittest.TestCase):
             outside.unlink()
         self.assertEqual(self.agent.items(), [])
 
+    def test_sqlite_missing_database_cannot_be_silently_recreated(self):
+        """After bootstrap, a missing SQLite file must never create blank state."""
+        path = self.agent.db_file
+        moved = self.private / "acquisitions.sqlite3-held"
+        path.rename(moved)
+        try:
+            with self.assertRaisesRegex(GatewayError, "database identity changed"):
+                self.agent.items()
+            self.assertFalse(path.exists(), "missing DB must not be recreated")
+        finally:
+            moved.rename(path)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_existing_database_uses_no_create_uri(self):
+        """Verify the actual sqlite3 connector uses mode=rw after bootstrap."""
+        real_connect = sqlite3.connect
+        observed = []
+        def recorded_connect(*args, **kwargs):
+            observed.append((str(args[0]), kwargs))
+            return real_connect(*args, **kwargs)
+        with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                   side_effect=recorded_connect):
+            self.assertEqual(self.agent.items(), [])
+        self.assertEqual(len(observed), 1)
+        self.assertTrue(observed[0][0].endswith("?mode=rw"))
+        self.assertIs(observed[0][1].get("uri"), True)
+
     def test_sqlite_replaced_database_identity_is_refused(self):
         path = self.agent.db_file
         old = self.private / "acquisitions.sqlite3-original"

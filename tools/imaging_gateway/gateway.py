@@ -223,7 +223,15 @@ class HotFolder:
     @contextmanager
     def _db(self):
         before = self._sqlite_guard()
-        db = sqlite3.connect(self.db_file, timeout=10)
+        # After initial trusted creation, NEVER silently recreate a missing
+        # database. A disappeared DB is an integrity incident, not a blank
+        # cabinet. SQLite URI mode=rw refuses implicit file creation.
+        # This is fail-closed recovery, NOT race-free Windows VFS confinement.
+        if self._db_file_identity is None:
+            db = sqlite3.connect(self.db_file, timeout=10)
+        else:
+            db = sqlite3.connect(self.db_file.as_uri() + "?mode=rw",
+                                 timeout=10, uri=True)
         try:
             # Even a successful sqlite3.connect might have followed a swapped
             # root; reject any now-observable substitution before executing SQL.
