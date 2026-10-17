@@ -138,7 +138,7 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     vi.mocked(api.post)
       .mockRejectedValueOnce(conflict)
       .mockResolvedValueOnce({data:{id:100}} as never);
-    const {onClose,onSaved}=renderCreate();
+    const {onClose,onSaved,container}=renderCreate();
     const procedure=await screen.findByPlaceholderText("Saisir l'acte ou rechercher dans le catalogue...");
     fireEvent.change(procedure,{target:{value:'Consultation'}});
     const confirm=screen.getByRole('button',{name:'Confirmer le RDV'});
@@ -152,9 +152,15 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
     expect(screen.getByRole('dialog',{name:'Nouveau Rendez-vous'})).toBeTruthy();
     expect((procedure as HTMLInputElement).value).toBe('Consultation');
 
-    // Explicit retry after operator keeps/corrects draft; never auto-resubmit.
+    // Operator selects a NEW slot before retry; no automatic submission.
+    const timeInput=container.querySelector('input[type="time"]');
+    expect(timeInput).toBeTruthy();
+    fireEvent.change(timeInput!,{target:{value:'11:00'}});
     fireEvent.click(confirm);
     await waitFor(()=>expect(api.post).toHaveBeenCalledTimes(2));
+    const firstPayload=vi.mocked(api.post).mock.calls[0][1] as {datetime_start:string};
+    const retriedPayload=vi.mocked(api.post).mock.calls[1][1] as {datetime_start:string};
+    expect(retriedPayload.datetime_start).not.toBe(firstPayload.datetime_start);
     await waitFor(()=>expect(toast.success).toHaveBeenCalledWith('Rendez-vous créé.'));
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
