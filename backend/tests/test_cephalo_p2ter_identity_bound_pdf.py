@@ -38,7 +38,7 @@ def _text(pdf):
 
 
 def _compact(t):
-    return "".join(c for c in t if c.isalnum())
+    return "".join(c for c in t if c.isalnum()).casefold()
 
 
 def _second(db, first):
