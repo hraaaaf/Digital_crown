@@ -94,3 +94,14 @@ def test_backend_method_drift_is_blocker(tmp_path,monkeypatch):
     monkeypatch.setattr(audit,"BACKEND",file)
     with pytest.raises(ValueError,match="canonical backend method"):
         audit.build_w3_ledger()
+
+
+def test_indirect_manual_source_cannot_disappear(tmp_path,monkeypatch):
+    source=json.loads(audit.SOURCE.read_text(encoding="utf-8"))
+    row=next(x for x in source["measurements"] if x["source_order"]==27)
+    row["construction_manual_landmarks"][audit.CC]=[]
+    file=tmp_path/"false_automatic_pt.json"
+    file.write_text(json.dumps(source),encoding="utf-8")
+    monkeypatch.setattr(audit,"SOURCE",file)
+    with pytest.raises(ValueError,match="transitive manual"):
+        audit.build_w3_ledger()
