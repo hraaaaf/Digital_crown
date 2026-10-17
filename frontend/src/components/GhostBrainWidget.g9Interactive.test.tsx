@@ -218,6 +218,63 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     expect(FakeWebSocket.instances[1].url).toContain('/ghost-insights/42?token=');
   });
 
+  it('S12: reading one of two alerts keeps the other alert and its badge visible', async () => {
+    await renderSeededWidget();
+    act(() => {
+      FakeWebSocket.instances.at(-1)?.emit({
+        unread_count: 2,
+        insights: [
+          { id: 601, insight_type: 'FINANCE', content: 'Impayé à vérifier',
+            patient_id: 4, created_at: '2026-09-24T10:00:00Z' },
+          { id: 602, insight_type: 'AGENDA', content: 'Autre alerte non lue',
+            patient_id: null, created_at: '2026-09-24T10:01:00Z' },
+        ],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })[0]);
+    await waitFor(() => expect(screen.getAllByRole('button', {
+      name: /^Marquer comme lu$/i,
+    })).toHaveLength(1));
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+    expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read');
+  });
+
+  it('S12: disposed tenant websocket cannot overwrite the current tenant snapshot', async () => {
+    const { rerender } = await renderSeededWidget();
+    const disposedSocket = FakeWebSocket.instances[0];
+    authState.employerId = 43;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    act(() => {
+      FakeWebSocket.instances[1].emit({
+        unread_count: 1,
+        insights: [{
+          id: 702, insight_type: 'AGENDA', content: 'Alerte du cabinet B',
+          patient_id: null, created_at: '2026-09-24T10:01:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    act(() => {
+      disposedSocket.emit({
+        unread_count: 1,
+        insights: [{
+          id: 601, insight_type: 'FINANCE', content: 'Rejeu ancien cabinet A',
+          patient_id: 4, created_at: '2026-09-24T10:02:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+  });
+
   it('removes the insight only after backend ACK', async () => {
     await renderSeededWidget();
 
