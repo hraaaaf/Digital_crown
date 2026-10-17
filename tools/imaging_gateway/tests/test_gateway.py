@@ -337,11 +337,15 @@ class GatewayTests(unittest.TestCase):
                 open_relative_read(
                     self.watch, "malicious.png", self.agent._windows_watch_identity
                 )
-            self.assertEqual(self.agent.items(), [])
+            # A replaced root must refuse *both* acquisition and ledger
+            # access, not merely refuse reading the fake image.
+            with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                self.agent.items()
         finally:
             if self.watch.exists():
                 shutil.rmtree(self.watch)
             original.rename(self.watch)
+        self.assertEqual(self.agent.items(), [])
 
     def test_root_replaced_during_capture_read_is_never_committed(self):
         file = self.watch / "fixture.png"
@@ -361,11 +365,13 @@ class GatewayTests(unittest.TestCase):
             with patch.object(self.agent, "_read", side_effect=move_after_read):
                 with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
                     self.agent.scan_once()
-            self.assertEqual(self.agent.items(), [])
+            with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                self.agent.items()
         finally:
             if moved.exists():
                 shutil.rmtree(self.watch)
                 moved.rename(self.watch)
+        self.assertEqual(self.agent.items(), [])
 
     def test_watch_directory_replaced_after_initialization_fails_closed(self):
         original = self.watch.parent / "watch-moved"
