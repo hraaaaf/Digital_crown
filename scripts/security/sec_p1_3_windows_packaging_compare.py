@@ -174,6 +174,10 @@ def main() -> None:
         nroot.mkdir()
         native_build_s = execute([
             sys.executable, "-m", "nuitka", "--mode=standalone",
+            # Only the throwaway, read-only CI laboratory may auto-fetch the
+            # missing Dependency Walker. This MUST NOT be copied into release
+            # builds: Nuitka 4.3 does not verify the tool's content digest.
+            "--assume-yes-for-downloads", "--update-check=never",
             "--msvc=latest", "--follow-imports",
             "--output-dir=" + str(nroot),
             "--output-filename=dc_p13_nuitka.exe",
