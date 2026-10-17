@@ -214,6 +214,7 @@ def test_archive_failure_is_not_silenced(client, db, dentiste, monkeypatch, tmp_
         assert response.status_code == 500
     except HTTPException as exc:
         assert exc.status_code == 500
+    assert list(tmp_path.glob("*.pdf")) == []
 
 
 def test_archive_persists_selected_study_fk_and_revision_on_synthetic_fixture(
