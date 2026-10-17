@@ -42,7 +42,10 @@
 :is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-400,
 :is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-500,
 :is(html, body)[data-theme='dark'] .p2-agenda-root .text-slate-600 {
-  color: var(--text-muted) !important;
+  /* Dark's muted token is intentionally low-emphasis globally but fails the
+   * small Agenda controls on navy. Derive a lighter ink ONLY for Agenda;
+   * do not alter the theme token, brand hue, Elite, or other modules. */
+  color: color-mix(in srgb, var(--text-main) 78%, var(--card-bg)) !important;
 }
 /* Status cards keep their semantic backgrounds and colors. The default blue
  * "new appointment" buttons retain their existing primary surface, so never
