@@ -1,0 +1,35 @@
+{
+  "schema_version": "CEPHALO_R23G10_ATLAS33_EXPERT_ANNOTATION_INTAKE_V1",
+  "profile_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "lot02": {
+    "source_doi": "10.6084/m9.figshare.27986417.v1",
+    "frozen_manifest_sha256": "73c742db47686b0cf8b75b599b6373d3fc707d9b25a440c8d81d3d99ced241df",
+    "local_source_manifest_verified": false
+  },
+  "source_profile": {
+    "source_edition": "Atlas2009",
+    "atlas_profile_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+    "atlas_factor_count": 33
+  },
+  "scope": "LOCAL_ASSIGNMENT_METADATA_ONLY__NO_LANDMARK_COORDINATES",
+  "clinical_release": false,
+  "expert_reference_verified": false,
+  "privacy": {
+    "contains_real_patient_data": false,
+    "contains_coordinates": false,
+    "contains_images_or_paths": false,
+    "upload_allowed": false
+  },
+  "protocol": {
+    "annotation_mode": "MANUAL_SOURCE_SPECIFIC_ATLAS33",
+    "blind_independent_experts": true,
+    "minimum_independent_experts": 2,
+    "intraobserver_repeat_required": true,
+    "same_image_required": true,
+    "adjudication_policy": "PREDECLARED_BEFORE_REFERENCE_UNBLINDING",
+    "allowed_splits": ["train", "valid"],
+    "untouched_test_reserved": true,
+    "calibration_and_orientation_require_external_review": true
+  },
+  "cases": []
+}
