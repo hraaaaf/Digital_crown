@@ -59,7 +59,7 @@ jobs:
       - name: Existing agenda behavior plus new concurrency contract
         working-directory: frontend
         run: |
-          npx vitest run src/features/agenda/AgendaStudio.g3Interactive.test.tsx src/AgendaClinicA2.test.ts src/features/agenda/agendaDayOverlapLayout.test.ts --maxWorkers=1 --fileParallelism=false
+          npx vitest run src/features/agenda/AgendaStudio.g3Interactive.test.tsx src/AgendaClinicA2.test.ts src/features/agenda/agendaDayOverlapLayout.test.ts src/features/agenda/agendaClinicLocalDate.test.ts --maxWorkers=1 --fileParallelism=false
       - name: Typecheck and Vite build without deployment
         working-directory: frontend
         run: |
