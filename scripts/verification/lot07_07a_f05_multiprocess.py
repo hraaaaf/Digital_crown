@@ -224,10 +224,40 @@ def exercise():
             assert_case("FRONTDESK_REQUEST_VS_REQUEST",race(
                 (18061,*front(t)[1:]),front(t)),[200,409],t,root)
             clear()
-            assert_case("TWO_CABINETS",race(book(t),book(t,actor="C")),
+            pending=request(*front(t))
+            assert pending[0]==200,pending
+            confirm=(18062,"POST",f"/api/appointments/{pending[1]['id']}/confirm","A",{})
+            assert_case("FRONTDESK_CONFIRM_VS_AGENDA",race(book(t),confirm),
+                        [200,409],t,root)
+            clear()
+            with SessionLocal() as db:
+                old=models.Appointment(patient_name="F05 MOVABLE",patient_id=patient,
+                                       employer_id=root,praticien_id=root,
+                                       datetime_start=datetime(2026,11,2,8),duration_minutes=30,
+                                       status=models.AppointmentStatus.CONFIRME,
+                                       scheduling_type=models.SchedulingType.EXACT_TIME)
+                db.add(old); db.flush()
+                ref_obj=PatientCompanionAppointmentRef(
+                    public_id=str(uuid.uuid4()), employer_id=root, patient_id=patient,
+                    appointment_id=old.id)
+                ref=slot(db,root,root,t)
+                db.add(ref_obj);db.commit()
+                appointment_ref=ref_obj.public_id
+            move=(18062,"POST","/lab/pc/reschedule","A",
+                  {"appointment_ref":appointment_ref,"slot_ref":ref})
+            assert_case("PC_RESCHEDULE_VS_AGENDA",race(book(t),move),
+                        [200,409],t,root)
+            clear()
+            left=book(t,resource=chair)
+            right=book(t,actor="B",practitioner=colleague,resource=chair)
+            assert_case("CROSS_WORKER_SHARED_RESOURCE",race(
+                left,(18062,*right[1:])),[200,409],t,root)
+            clear()
+            right=book(t,actor="C")
+            assert_case("TWO_CABINETS",race(book(t),(18062,*right[1:])),
                         [200,200],t,root)
             assert len(rows_at(t))==2
-        print("F05_MP_TOTAL_RACES",50,flush=True)
+        print("F05_MP_TOTAL_RACES",80,flush=True)
         clear()
         with SessionLocal() as db:
             ref=slot(db,root,root,t)
