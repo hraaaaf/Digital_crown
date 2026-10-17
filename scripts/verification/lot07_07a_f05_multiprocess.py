@@ -317,6 +317,26 @@ def exercise():
             allowed=request(*book(t))
             assert allowed[0]==200 and len(rows_at(t,root))==2,(inactive,allowed)
             print("F05_MP_INACTIVE",inactive.value,"HTTP",allowed[0],flush=True)
+        # A stale pending row may remain untransitioned after expires_at.
+        clear()
+        with SessionLocal() as db:
+            expired_pending=models.Appointment(
+                patient_name="EXPIRED_PENDING",employer_id=root,
+                datetime_start=datetime.fromisoformat(t),duration_minutes=30,
+                praticien_id=None,status=models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+                scheduling_type=models.SchedulingType.EXACT_TIME,
+                expires_at=datetime.utcnow()-timedelta(minutes=1))
+            db.add(expired_pending);db.flush()
+            stale_id=expired_pending.id
+            db.commit()
+        available=request(*book(t))
+        assert available[0]==200 and len(rows_at(t,root))==2,(
+            "EXPIRED_PENDING_CAPACITY",available)
+        late_confirm=request(18062,"POST",f"/api/appointments/{stale_id}/confirm","A",{})
+        assert late_confirm[0]==410,("EXPIRED_PENDING_CONFIRM",late_confirm)
+        print("F05_MP_STALE_PENDING","BOOK_HTTP",available[0],
+              "LATE_CONFIRM_HTTP",late_confirm[0],"ROWS",len(rows_at(t,root)),
+              flush=True)
         # Controlled PostgreSQL 40P01: two separate sessions, inverted locks.
         # Verify failed transaction rollback releases its advisory lock.
         sync=Barrier(2)
