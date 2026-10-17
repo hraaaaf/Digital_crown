@@ -35,6 +35,14 @@ beforeEach(() => {
 afterEach(()=>cleanup());
 
 describe('LOT07 07-A — Agenda conflict fail-closed integrated modal', () => {
+  it('exposes accessible labels for the editable date, time, duration and clinical act', () => {
+    mount();
+    expect(screen.getByLabelText('Date')).toBeTruthy();
+    expect(screen.getByLabelText('Début')).toBeTruthy();
+    expect(screen.getByLabelText('Durée Prévue')).toBeTruthy();
+    expect(screen.getByLabelText('Acte / Motif')).toBeTruthy();
+  });
+
   it('blocks exact-time save when the API check fails; never claims no conflicts', async () => {
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if(url==='/appointments/check-conflicts') throw Error('Network unavailable');
