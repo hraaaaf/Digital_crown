@@ -149,6 +149,19 @@ async function runMatrix(page,theme,width,height,zoom=false){
         const picker=page.locator('[data-p2-month-date-picker]');
         if(dates<1||buttons!==all.length||!(await picker.isVisible())||!(await picker.isEnabled()))
           throw Error('P2 month missing dated appointments or create-on-any-date control '+JSON.stringify({theme,width,dates,buttons,expected:all.length}));
+        if(theme==='elite' && !zoom && width===390){
+          // Prove the action rather than merely asserting that a date input exists.
+          // A day WITHOUT an existing visit must open a NEW, correctly dated
+          // appointment, with no test-side POST/PUT/DELETE.
+          await picker.fill('2026-09-23');
+          const dialog=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
+          await dialog.waitFor({state:'visible',timeout:15000});
+          const modalDate=await dialog.locator('input[type="date"]').inputValue();
+          if(modalDate!=='2026-09-23')
+            throw Error('P2 month create-on-empty-date did not prefill requested day '+JSON.stringify({modalDate}));
+          await dialog.getByRole('button',{name:'Fermer'}).click();
+          await dialog.waitFor({state:'hidden'});
+        }
       }
     }
     if(theme==='dark'){
