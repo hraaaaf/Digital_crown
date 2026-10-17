@@ -52,25 +52,30 @@ ensure(previous.status()===200&&(await previous.json()).has_conflict===false,
 const movedConflict=await getConflict(hour2,{exclude_id:record.id});
 ensure(movedConflict.status()===200&&(await movedConflict.json()).has_conflict===false,
  'Self-exclusion incorrectly marked edited slot as conflicting');
-const invalidAuth=await client.get('/api/appointments/',{headers:{Authorization:'Bearer invalid-token'}});
+// The T2 workstation bootstrap injects authenticated storageState into client.
+// Negative auth must run in a distinct cookie-free context; otherwise the valid
+// session cookie can legitimately authenticate despite an invalid Bearer value.
+const clean=await request.newContext({baseURL:'http://127.0.0.1:8005',storageState:{cookies:[],origins:[]}});
+const invalidAuth=await clean.get('/api/appointments/',{headers:{Authorization:'Bearer invalid-token'}});
 ensure([401,403].includes(invalidAuth.status()),'Expired/invalid session accepted '+invalidAuth.status());
-const restricted=await client.post('/api/auth/login',{form:{
+const restricted=await clean.post('/api/auth/login',{form:{
  username:'t2-restricted@cabinet.ma',password:process.env.T2_PASSWORD
 }});
 ensure(restricted.status()===200,'Restricted T2 auth fixture failed');
 const rt=(await restricted.json()).access_token;
-const restrictedWrite=await client.post('/api/appointments/',{headers:{Authorization:'Bearer '+rt},
+const restrictedWrite=await clean.post('/api/appointments/',{headers:{Authorization:'Bearer '+rt},
  data:{...payload(date+'T11:30:00'),patient_id:999999}});
 ensure([403,404].includes(restrictedWrite.status()),
  'Unauthorized patient relation unexpectedly permitted '+restrictedWrite.status());
-const other=await client.post('/api/auth/login',{form:{
+const other=await clean.post('/api/auth/login',{form:{
  username:'t2-setup-390@cabinet.ma',password:process.env.T2_PASSWORD
 }});
 ensure(other.status()===200,'Other-tenant T2 auth fixture failed');
 const otherToken=(await other.json()).access_token;
-const otherList=await client.get('/api/appointments/',{headers:{Authorization:'Bearer '+otherToken}});
+const otherList=await clean.get('/api/appointments/',{headers:{Authorization:'Bearer '+otherToken}});
 ensure(otherList.status()===200&&!((await otherList.json()).some(row=>row.id===record.id)),
  'Cross-tenant appointment became readable');
+await clean.dispose();
 await client.dispose();
 console.log('LOT07_AGENDA_INTEGRITY_T2_SUCCESS '+JSON.stringify({
  sourceHead:process.env.SOURCE_HEAD,
