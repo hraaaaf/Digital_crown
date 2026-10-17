@@ -105,6 +105,35 @@ async function viewportRun(viewport){
    await shot(label+'-pdf-finished');
    record.checks.push('REAL_JWT_HTTP_PDF_'+label.toUpperCase()+'_STUDY_'+study+'_REV_'+body.expected_revision);
   }
+  // The archive is exercised through the actual rendered Cabinet button and JWT,
+  // not a direct API substitute. All data and the database are disposable T2.
+  await page.getByRole('button',{name:'Historique',exact:true}).click();
+  await page.locator('[data-cephalo-history-analysis-id="'+identities.older_id+'"]').click();
+  await page.locator('[data-cephalo-selected-analysis-id="'+identities.older_id+'"]').waitFor({state:'visible'});
+  await page.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
+  const archiveButton=page.getByRole('button',{name:'Archiver le bilan'});
+  await archiveButton.waitFor({state:'visible'});
+  await page.waitForFunction(()=>{
+    const b=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Archiver le bilan'));
+    return Boolean(b && !b.disabled);
+  },null,{timeout:20000});
+  const archiveResponsePromise=page.waitForResponse(r=>
+    new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
+    r.request().method()==='POST' && r.request().postDataJSON()?.archive===true,
+    {timeout:45000});
+  page.once('dialog',dialog=>dialog.dismiss());
+  await shot('archive-before');
+  await archiveButton.click();
+  const archivedResponse=await archiveResponsePromise;
+  const archivedPayload=archivedResponse.request().postDataJSON();
+  if(archivedResponse.status()!==200 ||
+      archivedPayload.analysis_id!==identities.older_id ||
+      archivedResponse.headers()['x-cephalo-analysis-id']!==String(identities.older_id) ||
+      archivedResponse.headers()['x-cephalo-revision']!==String(archivedPayload.expected_revision))
+    throw Error('Authenticated archive did not retain selected OLDER study identity, revision and HTTP 200: '+archivedResponse.status());
+  await fs.writeFile(path.join(output,record.viewport+'-older-click-archived.pdf'),await archivedResponse.body());
+  await shot('archive-after');
+  record.checks.push('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_'+identities.older_id+'_REV_'+archivedPayload.expected_revision);
   record.observedToasts=await page.evaluate(()=>window.__p2terSeenToasts||[]);
   console.log('P2TER_NETWORK_DIAGNOSTIC',JSON.stringify({viewport:record.viewport,failedRequests:record.failedRequests,httpErrors:record.httpErrors,observedToasts:record.observedToasts}));
   if(record.pageErrors.length)throw Error('React exceptions '+JSON.stringify(record.pageErrors));
