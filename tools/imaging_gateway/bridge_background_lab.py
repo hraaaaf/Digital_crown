@@ -20,6 +20,7 @@ from typing import Mapping
 
 from tools.imaging_gateway.gateway import _is_unsafe_path_component
 from tools.imaging_gateway.windows_job_lab import WindowsLabJob
+from tools.imaging_gateway.owner_lock_lab import LabOwnerLock, LabOwnerLockError
 
 logger = logging.getLogger(__name__)
 _MARKER = ".digitalcrown-imaging-lab-only"
@@ -36,6 +37,7 @@ class BridgeLabHandle:
     task: asyncio.Task
     process: subprocess.Popen | None = None
     job: WindowsLabJob | None = None
+    owner: LabOwnerLock | None = None
 
 
 def lab_requested(environ: Mapping[str, str] | None = None) -> bool:
@@ -43,7 +45,7 @@ def lab_requested(environ: Mapping[str, str] | None = None) -> bool:
     return env.get("DC_V15_06_BRIDGE_LAB", "") == "1"
 
 
-def make_lab_collector(environ: Mapping[str, str] | None = None):
+def make_lab_collector(environ: Mapping[str, str] | None = None, *, acquire_owner: bool = False):
     """Make a synthetic collector only in an explicitly marked temp fixture.
 
     No ordinary clinical folder is ever discovered or watched automatically.
@@ -107,10 +109,20 @@ def make_lab_collector(environ: Mapping[str, str] | None = None):
     except ValueError:
         raise BridgeLabConfigurationError("IMAGING_BRIDGE_TEST_KEY_INVALID") from None
 
-    # Import only after the hard-disabled-by-default isolation boundary.
-    from tools.imaging_gateway import Config, HotFolder
-    return HotFolder(Config("lab_cabinet", "lab_station", incoming, private, key,
-                            require_ready_manifest=True))
+    # OS-owned parent lock must precede even SQLite bootstrap to avoid
+    # concurrent initializations by two FastAPI workers on one fixture.
+    owner = None
+    try:
+        if acquire_owner:
+            owner = LabOwnerLock.acquire(root)
+        from tools.imaging_gateway import Config, HotFolder
+        collector = HotFolder(Config("lab_cabinet", "lab_station", incoming,
+                                     private, key, require_ready_manifest=True))
+        return (collector, owner) if acquire_owner else collector
+    except BaseException:
+        if owner is not None:
+            owner.close()
+        raise
 
 
 async def poll_lab_collector(collector, stop: asyncio.Event, *, interval: float = 0.25) -> None:
@@ -137,9 +149,12 @@ def start_if_enabled(
     env = os.environ if environ is None else environ
     if lab_requested(env) and str(trusted_environment).lower() != "test":
         raise BridgeLabConfigurationError("IMAGING_BRIDGE_BACKEND_TEST_REQUIRED")
-    collector = make_lab_collector(env)
-    if collector is None:
+    if not lab_requested(env):
         return None
+    try:
+        collector, owner = make_lab_collector(env, acquire_owner=True)
+    except LabOwnerLockError as error:
+        raise BridgeLabConfigurationError(str(error)) from None
     # Start a supervised internal process. The old to_thread helper remains
     # exclusively for isolated unit fixtures; backend runtime never uses it.
     # Explicitly pass only LAB vars and minimal OS loader/temp variables:
@@ -154,39 +169,70 @@ def start_if_enabled(
         child_env[name] = env[name]
     child_env["DC_V15_06_BRIDGE_LAB_PARENT_PID"] = str(os.getpid())
     launch_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "tools.imaging_gateway.process_lab"],
-        cwd=Path(__file__).resolve().parents[2],
-        env=child_env, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL, creationflags=launch_flags,
-    )
+    proc = None
     job = None
     try:
-        # Fail-closed on Windows when job assignment cannot be guaranteed.
-        # A child waiting on stdin does no scanning before this step.
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "tools.imaging_gateway.process_lab"],
+            cwd=Path(__file__).resolve().parents[2],
+            env=child_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, creationflags=launch_flags,
+            close_fds=True,
+        )
+        # No scan is allowed before successful Job assignment AND a READY
+        # handshake from the correctly isolated child process.
         job = WindowsLabJob.assign(proc)
-        if proc.stdin is None:
-            raise BridgeLabConfigurationError("IMAGING_LAB_PARENT_CHANNEL_MISSING")
+        if proc.stdin is None or proc.stdout is None:
+            raise BridgeLabConfigurationError("IMAGING_LAB_CONTROL_CHANNEL_MISSING")
         proc.stdin.write(b"GO\n")
         proc.stdin.flush()
+
+        # Bounded, synchronous setup: this is a LAB opt-in at API startup.
+        # Kill + close the pipe on timeout to unblock the daemon reader.
+        import queue
+        import threading
+        ready_messages = queue.Queue(maxsize=1)
+        def read_ack():
+            try:
+                ready_messages.put(proc.stdout.readline())
+            except (OSError, ValueError):
+                ready_messages.put(b"")
+        threading.Thread(target=read_ack, daemon=True, name="dc-lab-ready").start()
+        try:
+            ready = ready_messages.get(timeout=3)
+        except queue.Empty:
+            raise BridgeLabConfigurationError("IMAGING_LAB_READY_TIMEOUT") from None
+        if ready != b"READY\n" or proc.poll() is not None:
+            raise BridgeLabConfigurationError("IMAGING_LAB_READY_REJECTED")
+        proc.stdout.close()
     except BaseException:
-        proc.kill()
-        proc.wait(timeout=3)
-        if job is not None:
-            job.close()
-        if proc.stdin is not None:
-            proc.stdin.close()
+        try:
+            if proc is not None:
+                if proc.poll() is None:
+                    proc.kill()
+                proc.wait(timeout=3)
+        finally:
+            if job is not None:
+                job.close()
+            if proc is not None and proc.stdin is not None:
+                proc.stdin.close()
+            if proc is not None and proc.stdout is not None and not proc.stdout.closed:
+                proc.stdout.close()
+            owner.close()
         raise BridgeLabConfigurationError("IMAGING_LAB_SUPERVISION_START_FAILED") from None
     stop = asyncio.Event()
 
     async def monitor():
         while not stop.is_set():
             if proc.poll() is not None:
-                raise BridgeLabConfigurationError("IMAGING_LAB_PROCESS_EXITED")
+                # No PHI/filenames/paths, but operational error visible to
+                # application operators. Child uses distinct failure codes.
+                logger.error("Imaging LAB worker exited unexpectedly; acquisitions stopped")
+                return
             await asyncio.sleep(0.05)
 
     return BridgeLabHandle(stop=stop, task=asyncio.create_task(monitor()),
-                           process=proc, job=job)
+                           process=proc, job=job, owner=owner)
 
 
 async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> bool:
@@ -226,6 +272,8 @@ async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> b
                 handle.job.close()
             if proc.stdin is not None:
                 proc.stdin.close()
+            if handle.owner is not None:
+                handle.owner.close()
             if not handle.task.done():
                 handle.task.cancel()
             with contextlib.suppress(asyncio.CancelledError, BridgeLabConfigurationError):
