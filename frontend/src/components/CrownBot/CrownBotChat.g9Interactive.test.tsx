@@ -83,7 +83,7 @@ describe('CrownBot G9 reachable interaction truth', () => {
       configurable: true,
     });
     getMock.mockResolvedValue({ data: [] } as any);
-    postMock.mockResolvedValue({ data: {} } as any);
+    postMock.mockResolvedValue({ data: { status: 'read' } } as any);
   });
 
   afterEach(() => {
@@ -121,6 +121,55 @@ describe('CrownBot G9 reachable interaction truth', () => {
     await waitFor(() => {
       expect(onUnreadChange).toHaveBeenLastCalledWith(0);
     });
+  });
+
+  it('A02: HTTP 200 without persisted read status cannot hide a clinical alert', async () => {
+    const onUnreadChange = renderCrownBot();
+    await seedInsight();
+    await waitFor(() => expect(onUnreadChange).toHaveBeenLastCalledWith(1));
+    postMock.mockResolvedValueOnce({ data: { status: 'pending' } } as any);
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/501/read'));
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
+    expect(onUnreadChange).toHaveBeenLastCalledWith(1);
+  });
+
+  it('A02: delayed read ACK cannot decrement badge for a replacement WS snapshot', async () => {
+    const onUnreadChange = renderCrownBot();
+    await seedInsight();
+    let finishRead: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => { finishRead = resolve; }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/501/read'));
+    act(() => {
+      FakeWebSocket.instances.at(-1)?.emit({
+        unread_count: 1,
+        insights: [{
+          id: 502, insight_type: 'AGENDA', content: 'Nouvelle alerte',
+          patient_id: null, created_at: '2026-10-17T12:00:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    await act(async () => { finishRead?.({ data: { status: 'read' } }); });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(onUnreadChange).toHaveBeenLastCalledWith(1);
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+  });
+
+  it('B01: history drawer is inert and inaccessible while closed, enabled when opened', () => {
+    renderCrownBot();
+    const drawer = document.querySelector('[data-cb01-history-drawer]');
+    expect(drawer).toHaveAttribute('inert');
+    expect(drawer).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByRole('button', { name: 'Nouvelle conversation' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" }));
+    expect(drawer).not.toHaveAttribute('inert');
+    expect(drawer).toHaveAttribute('aria-hidden', 'false');
+    expect(screen.getByRole('button', { name: 'Nouvelle conversation' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: "Fermer l'historique Crown Bot" }));
+    expect(drawer).toHaveAttribute('inert');
+    expect(drawer).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('proves the conversation send/action branch is not reachable from the current Chat tab', async () => {
