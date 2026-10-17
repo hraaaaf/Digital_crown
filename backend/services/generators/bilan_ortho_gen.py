@@ -334,11 +334,20 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             ))
             if not section["verified"]:
                 continue
+            # Canonical IDs and gate descriptions are long; plain Table strings
+            # overflow fixed-width cells. Paragraph cells wrap without truncation.
+            long_cell = ParagraphStyle(
+                "R23G2ContractCell", fontName="Helvetica", fontSize=5.8,
+                leading=7.0, wordWrap="CJK",
+            )
             protocol_rows = [["ID canonique", "Mesure source", "Valeur", "État", "Contrat"]]
             for row in section["rows"]:
                 protocol_rows.append([
-                    row["canonical_measurement_id"], row["label"], row["value"],
-                    row["availability_status"], row["contract_state"],
+                    Paragraph(escape(row["canonical_measurement_id"]), long_cell),
+                    Paragraph(escape(row["label"]), long_cell),
+                    Paragraph(escape(row["value"]), long_cell),
+                    Paragraph(escape(row["availability_status"]), long_cell),
+                    Paragraph(escape(row["contract_state"]), long_cell),
                 ])
             protocol_table = Table(
                 protocol_rows, repeatRows=1,
