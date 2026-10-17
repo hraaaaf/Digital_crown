@@ -23,6 +23,8 @@ export function PatientClinicalContextNotice({
 }) {
   const historyMissing = !medicalHistory?.trim();
   const hasAdvice = Boolean(advice?.title?.trim() || advice?.message?.trim() || advice?.action?.trim());
+  // The same backend fact is already represented by the missing-history status.
+  const repeatsMissingHistory = historyMissing && advice?.message?.trim().toLocaleLowerCase('fr-FR') === 'antécédents médicaux non renseignés';
   if (!historyMissing && !hasAdvice) return null;
 
   return (
@@ -62,7 +64,7 @@ export function PatientClinicalContextNotice({
           <div className="min-w-0 space-y-1">
             <h3 className="text-sm font-bold">Conseil clinique</h3>
             {advice.title?.trim() && <p className="text-sm font-semibold break-words">{advice.title}</p>}
-            {advice.message?.trim() && <p className="text-sm leading-relaxed break-words">{advice.message}</p>}
+            {advice.message?.trim() && !repeatsMissingHistory && <p className="text-sm leading-relaxed break-words">{advice.message}</p>}
             {advice.action?.trim() && (
               <p className="text-sm leading-relaxed break-words">
                 <span className="font-bold">Action conseillée (non exécutée) : </span>
