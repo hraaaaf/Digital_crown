@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
+import { CEPHALO_METRIC_FOCUS_EVENT, type CephaloMetricFocus } from '../cephaloAnalysisBridge';
 
 const P: any = {
   bg: '#fff', bgPanel: '#fff', bgCard: '#f8fafc', bgInput: '#fff',
@@ -78,4 +79,49 @@ describe('R23-G2 full read-only profile tables', () => {
       useOrthoStore.setState({ anglesData: old });
     }
   });
+  it('publishes exact active Co_anatomic focus on selection and clears it for blocked factors', () => {
+    const old = useOrthoStore.getState().anglesData;
+    const item: any = profile('mcnamara');
+    item.rows[0] = {
+      ...item.rows[0],
+      canonical_measurement_id: 'M_CO_A_MM_V1',
+      label: 'Co–A exact',
+      availability_status: 'AVAILABLE',
+      value: 12.3,
+      measurement_refs: ['m:source-1'],
+      value_authority_method_id: 'MCNAMARA_CO_A_CANONICAL_MM_V2',
+      focus_evidence: {
+        authority: 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1',
+        canonical_measurement_id: 'M_CO_A_MM_V1',
+        measurement_ref: 'm:source-1',
+        value_authority_method_id: 'MCNAMARA_CO_A_CANONICAL_MM_V2',
+        landmark_ids: ['Co_anatomic', 'A'],
+        construction_ids: [],
+        calibration_required: true,
+      },
+    };
+    const events: Array<CephaloMetricFocus | null> = [];
+    const receive = (event: Event) => events.push((event as CustomEvent<CephaloMetricFocus | null>).detail);
+    window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT, receive);
+    useOrthoStore.setState({ anglesData: {
+      scientific_read_path: {
+        authority: 'EVIDENCE_GRAPH_V1', active_chain: 'VERIFIED',
+        protocol_profiles: { mcnamara: item },
+      },
+    } });
+    try {
+      render(<CephaloAnalysisWorkbenchPanel P={P} analysis="mcnamara" />);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_CO_A_MM_V1"]')!);
+      expect(events.at(-1)?.points).toEqual(['Co_anatomic','A']);
+      expect(events.at(-1)?.points).not.toContain('Co');
+      expect(events.at(-1)?.lines).toEqual([]);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_TEST_2_MM_V1"]')!);
+      expect(events.at(-1)).toBeNull();
+      expect(document.querySelector('[data-r23g3-focus-source="not-authorized"]')).toBeTruthy();
+    } finally {
+      window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT, receive);
+      useOrthoStore.setState({ anglesData: old });
+    }
+  });
+
 });
