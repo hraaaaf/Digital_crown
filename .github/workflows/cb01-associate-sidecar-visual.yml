@@ -439,7 +439,7 @@ jobs:
       - name: Assert actual PostgreSQL booking race and monotonic ABA revision
         shell: bash
         run: |
-          python scripts/ci/cb01_s07_s09_postgres.py
+          PYTHONPATH=. python scripts/ci/cb01_s07_s09_postgres.py
           echo '## CB-01 S07/S09 PostgreSQL primitives' >> "$GITHUB_STEP_SUMMARY"
           echo 'Two independent PostgreSQL transactions; one same-slot insert, adjacent allowed, ABA stale CAS refused. NOT full HTTP workflow or cabinet E2E.' >> "$GITHUB_STEP_SUMMARY"
           echo "HEAD: $CB01_SOURCE_HEAD" >> "$GITHUB_STEP_SUMMARY"
