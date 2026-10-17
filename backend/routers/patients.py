@@ -1498,6 +1498,7 @@ def generate_cephalo_pdf(
                 doc_type=models.DocumentType.RAPPORT_CEPHALO,
                 uploaded_by_id=current_user.id,
                 title="Bilan Céphalométrique et Plan ODF",
+                analysis_id=selected.id,
                 clinical_data={
                     "cephalo_analysis_id": selected.id,
                     "cephalo_analysis_revision": revision,
