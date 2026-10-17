@@ -24,6 +24,7 @@ import time
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from tools.imaging_gateway.media_validation import validated_mime
+from tools.imaging_gateway.windows_directory_pin import pin_directories
 
 
 class GatewayError(RuntimeError):
@@ -473,97 +474,103 @@ class HotFolder:
         return True
 
     def scan_once(self):
-        self._assert_live_directories()
-        outcome = dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0,
-                       deferred=0)
-        self._last_capacity_issue = None
-        for path in sorted(Path(self.config.watch).iterdir()):
-            if self.config.require_ready_manifest and path.name.endswith(".ready"):
-                continue  # Completion metadata is not an acquisition.
-            if path.is_symlink() or path.name.startswith("."):
-                outcome["rejected"] += 1
-                continue
-            info = path.lstat()
-            if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= self.config.max_bytes:
-                outcome["rejected"] += 1
-                continue
-            signature = self._source_signature(info)
-            token = str(path)
-            if self._observed.get(token) != signature:
-                self._observed[token] = signature
-                outcome["unstable"] += 1
-                continue
-            ready_before = self._ready_manifest(path) if self.config.require_ready_manifest else None
-            if self.config.require_ready_manifest and ready_before is None:
-                outcome["unstable"] += 1
-                continue
-            if self.config.require_ready_manifest:
-                try:
-                    if self._previous_ready_capture(path, signature, ready_before):
-                        outcome["duplicate"] += 1
-                        continue
-                except (OSError, ValueError):
-                    outcome["unstable"] += 1
-                    continue
+        # F01: pin each Windows root with FILE_SHARE_DELETE omitted until
+        # this scan finishes. Recheck the identities *after* handles open.
+        with pin_directories((
+            Path(self.config.watch).parent, self.private.parent,
+            Path(self.config.watch), self.private, self.spool,
+        )):
             self._assert_live_directories()
-            try:
-                content = self._read(path, signature)
-            except (GatewayError, OSError):
-                self._observed.pop(token, None)
-                outcome["unstable"] += 1
-                continue
-            digest = hashlib.sha256(content).hexdigest()
-            if self.config.require_ready_manifest:
-                ready_after = self._ready_manifest(path)
-                if (ready_before != ready_after or
-                        ready_before[0] != digest or ready_before[1] != len(content)):
+            outcome = dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0,
+                           deferred=0)
+            self._last_capacity_issue = None
+            for path in sorted(Path(self.config.watch).iterdir()):
+                if self.config.require_ready_manifest and path.name.endswith(".ready"):
+                    continue  # Completion metadata is not an acquisition.
+                if path.is_symlink() or path.name.startswith("."):
+                    outcome["rejected"] += 1
+                    continue
+                info = path.lstat()
+                if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= self.config.max_bytes:
+                    outcome["rejected"] += 1
+                    continue
+                signature = self._source_signature(info)
+                token = str(path)
+                if self._observed.get(token) != signature:
+                    self._observed[token] = signature
                     outcome["unstable"] += 1
                     continue
-            identity = self._identity(digest, path, signature)
-            mime = sniff(content)
-            accepted = (mime is not None and path.suffix.lower() in SUPPORTED[mime]
-                        and validated_mime(content, mime))
-            state = "PENDING_CONFIRMATION" if accepted else "QUARANTINED"
-            blob = identity + ".dc6"
-            try:
-                with self._db() as db:
-                    db.execute("BEGIN IMMEDIATE")
-                    previous = db.execute(
-                        "SELECT blob,digest FROM items WHERE dedup_key=?", (identity,)
-                    ).fetchone()
-                    if previous:
-                        self._decrypt(previous[0], identity, previous[1])
-                        outcome["duplicate"] += 1
+                ready_before = self._ready_manifest(path) if self.config.require_ready_manifest else None
+                if self.config.require_ready_manifest and ready_before is None:
+                    outcome["unstable"] += 1
+                    continue
+                if self.config.require_ready_manifest:
+                    try:
+                        if self._previous_ready_capture(path, signature, ready_before):
+                            outcome["duplicate"] += 1
+                            continue
+                    except (OSError, ValueError):
+                        outcome["unstable"] += 1
                         continue
-                    # Reserve under the SQLite writer lock, including physical
-                    # orphans from an earlier interrupted file-to-DB commit.
-                    self._check_capacity(db, len(content), blob)
-                    self._store(blob, identity, content, digest)
-                    item = db.execute(
-                        """INSERT INTO items
-                        (dedup_key,digest,size,mime,category,state,blob,created_at)
-                        VALUES(?,?,?,?,?,?,?,?)""",
-                        (identity, digest, len(content), mime, self.config.category,
-                         state, blob, int(time.time())),
-                    )
-                    db.execute(
-                        "INSERT INTO audit(item_id,event,at) VALUES(?,?,?)",
-                        (item.lastrowid, state, int(time.time())),
-                    )
-            except StorageBackpressure as error:
-                self._last_capacity_issue = error.code
-                outcome["deferred"] += 1
-                continue
-            except (OSError, sqlite3.OperationalError) as error:
-                if not _is_disk_full(error):
-                    raise
-                # The DB transaction rolled back; original file stays untouched.
-                # Never synthesize CONFIRMED or silently drop an acquisition.
-                self._last_capacity_issue = "DISK_FULL"
-                outcome["deferred"] += 1
-                continue
-            outcome["staged" if accepted else "quarantine"] += 1
-        return outcome
+                self._assert_live_directories()
+                try:
+                    content = self._read(path, signature)
+                except (GatewayError, OSError):
+                    self._observed.pop(token, None)
+                    outcome["unstable"] += 1
+                    continue
+                digest = hashlib.sha256(content).hexdigest()
+                if self.config.require_ready_manifest:
+                    ready_after = self._ready_manifest(path)
+                    if (ready_before != ready_after or
+                            ready_before[0] != digest or ready_before[1] != len(content)):
+                        outcome["unstable"] += 1
+                        continue
+                identity = self._identity(digest, path, signature)
+                mime = sniff(content)
+                accepted = (mime is not None and path.suffix.lower() in SUPPORTED[mime]
+                            and validated_mime(content, mime))
+                state = "PENDING_CONFIRMATION" if accepted else "QUARANTINED"
+                blob = identity + ".dc6"
+                try:
+                    with self._db() as db:
+                        db.execute("BEGIN IMMEDIATE")
+                        previous = db.execute(
+                            "SELECT blob,digest FROM items WHERE dedup_key=?", (identity,)
+                        ).fetchone()
+                        if previous:
+                            self._decrypt(previous[0], identity, previous[1])
+                            outcome["duplicate"] += 1
+                            continue
+                        # Reserve under the SQLite writer lock, including physical
+                        # orphans from an earlier interrupted file-to-DB commit.
+                        self._check_capacity(db, len(content), blob)
+                        self._store(blob, identity, content, digest)
+                        item = db.execute(
+                            """INSERT INTO items
+                            (dedup_key,digest,size,mime,category,state,blob,created_at)
+                            VALUES(?,?,?,?,?,?,?,?)""",
+                            (identity, digest, len(content), mime, self.config.category,
+                             state, blob, int(time.time())),
+                        )
+                        db.execute(
+                            "INSERT INTO audit(item_id,event,at) VALUES(?,?,?)",
+                            (item.lastrowid, state, int(time.time())),
+                        )
+                except StorageBackpressure as error:
+                    self._last_capacity_issue = error.code
+                    outcome["deferred"] += 1
+                    continue
+                except (OSError, sqlite3.OperationalError) as error:
+                    if not _is_disk_full(error):
+                        raise
+                    # The DB transaction rolled back; original file stays untouched.
+                    # Never synthesize CONFIRMED or silently drop an acquisition.
+                    self._last_capacity_issue = "DISK_FULL"
+                    outcome["deferred"] += 1
+                    continue
+                outcome["staged" if accepted else "quarantine"] += 1
+            return outcome
 
     def items(self):
         """Minimal diagnostics: no patient, appointment or source filename."""
