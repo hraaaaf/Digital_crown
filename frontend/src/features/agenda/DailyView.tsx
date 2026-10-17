@@ -171,7 +171,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
       
       {/* QUICK ACTIONS BAR */}
       <div className="flex justify-end gap-3 px-2">
-        <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
+        <button onClick={fetchAppointments} aria-label="Actualiser la journée" className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-primary")} />
         </button>
         <button 
