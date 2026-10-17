@@ -1,0 +1,505 @@
+{
+  "schema_version": "CEPHALO_R23G8_W3_ATLAS33_CRANIOMANDIBULAR_SOURCE_OBLIGATIONS_V1",
+  "protocol_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "authority": "SOURCE_CRANIOMANDIBULAR_OBLIGATIONS_PREVIEW_ONLY__NO_RUNTIME_AUTHORITY",
+  "clinical_release": false,
+  "rule": "DESCRIPTIONS_ONLY__NO_ACTIVE_VALUES_FOCUS_NOR_NORMS",
+  "source_atlas": "backend/data/cephalometry/ricketts_atlas2009_complete33_protocol_profile_v1.json",
+  "source_backend": "backend/services/cephalo_canonical_analysis_v2.py",
+  "source_constructions": "backend/services/cephalo_canonical_constructions_v2.py",
+  "measurements": [
+    {
+      "source_order": 8,
+      "measurement_id": "M_ORAL_GNOMON_ANS_XI_PM_DEG_V1",
+      "method_id": "RICKETTS_LOWER_FACIAL_HEIGHT_CANONICAL_DEG_V2",
+      "backend_landmark_tuple_var": "ricketts_lfh_ids",
+      "required_landmarks": [
+        "ANS",
+        "Pm_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts",
+          "Po_anatomic",
+          "Or"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+        ]
+      },
+      "required_manual_landmarks": [
+        "Pm_Ricketts"
+      ],
+      "requires_calibration": false,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LOCKED_XI_MANUAL_PM_RICKETTS",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 21,
+      "measurement_id": "M_RICKETTS_FACIAL_TAPER_NPOG_MP_DEG_V1",
+      "method_id": "RICKETTS_FACIAL_TAPER_CANONICAL_DEG_V2",
+      "backend_landmark_tuple_var": "ricketts_taper_ids",
+      "required_landmarks": [
+        "N",
+        "Pog_hard"
+      ],
+      "required_constructions": [
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1": [
+          "MP_ANGLE_INFERIOR_Ricketts",
+          "Me"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1": [
+          "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1"
+        ]
+      },
+      "required_manual_landmarks": [],
+      "requires_calibration": false,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LOCKED_RICKETTS_MANDIBULAR_PLANE_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1": []
+      }
+    },
+    {
+      "source_order": 23,
+      "measurement_id": "M_RICKETTS_MAXILLARY_HEIGHT_NCFA_DEG_V1",
+      "method_id": "RICKETTS_MAXILLARY_HEIGHT_CANONICAL_DEG_V2",
+      "backend_landmark_tuple_var": "ricketts_mx_height_ids",
+      "required_landmarks": [
+        "N",
+        "A"
+      ],
+      "required_constructions": [
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV",
+          "Po_anatomic",
+          "Or"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "RICKETTS_CF_FH_PTV_INTERSECTION_V1",
+          "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
+        ]
+      },
+      "required_manual_landmarks": [],
+      "requires_calibration": false,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LOCKED_CF_FROM_MANUAL_PR_PTV_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV"
+        ]
+      }
+    },
+    {
+      "source_order": 25,
+      "measurement_id": "M_RICKETTS_MANDIBULAR_PLANE_FH_DEG_V1",
+      "method_id": "RICKETTS_MANDIBULAR_PLANE_FH_CANONICAL_DEG_V2",
+      "backend_landmark_tuple_var": "ricketts_mp_ids",
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or",
+        "MP_ANGLE_INFERIOR_Ricketts",
+        "Me"
+      ],
+      "required_constructions": [
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1": [
+          "MP_ANGLE_INFERIOR_Ricketts",
+          "Me"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1": [
+          "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1"
+        ]
+      },
+      "required_manual_landmarks": [],
+      "requires_calibration": false,
+      "requires_same_image_source": true,
+      "availability_gate": "EXPLICIT_RICKETTS_INFERIOR_ANGLE_POINT_ANATOMICAL_FH",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_MANDIBULAR_PLANE_ANGLE_MENTON_V1": []
+      }
+    },
+    {
+      "source_order": 27,
+      "measurement_id": "M_RICKETTS_ANTERIOR_CRANIAL_LENGTH_CC_N_MM_V1",
+      "method_id": "RICKETTS_ANTERIOR_CRANIAL_LENGTH_CANONICAL_MM_V2",
+      "backend_landmark_tuple_var": "ricketts_acl_ids",
+      "required_landmarks": [
+        "N"
+      ],
+      "required_constructions": [
+        "RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1": [
+          "Ba",
+          "N",
+          "Pt_Ricketts",
+          "Pog_hard",
+          "Go",
+          "Me"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1": [
+          "RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1",
+          "RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1"
+        ]
+      },
+      "required_manual_landmarks": [],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "ATLAS2009_CC_FROM_MANUAL_PT_RICKETTS_AND_CONSTRUCTED_GN_VERIFIED_CALIBRATION_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_CC_ATLAS2009_BAN_PTGN_INTERSECTION_V1": [
+          "Pt_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 28,
+      "measurement_id": "M_RICKETTS_POSTERIOR_FACIAL_HEIGHT_GO_CF_MM_V1",
+      "method_id": "RICKETTS_POSTERIOR_FACIAL_HEIGHT_CANONICAL_MM_V2",
+      "backend_landmark_tuple_var": "ricketts_pfh_ids",
+      "required_landmarks": [
+        "GO_Ricketts_PFH"
+      ],
+      "required_constructions": [
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV",
+          "Po_anatomic",
+          "Or"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "RICKETTS_CF_FH_PTV_INTERSECTION_V1",
+          "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
+        ]
+      },
+      "required_manual_landmarks": [
+        "GO_Ricketts_PFH"
+      ],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "MANUAL_GO_RICKETTS_PFH_SOURCE_LOCKED_CF_VERIFIED_CALIBRATION_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV"
+        ]
+      }
+    },
+    {
+      "source_order": 29,
+      "measurement_id": "M_RICKETTS_TOTAL_FACIAL_HEIGHT_BAN_XIPM_DEG_V1",
+      "method_id": "RICKETTS_TOTAL_FACIAL_HEIGHT_CANONICAL_DEG_V2",
+      "backend_landmark_tuple_var": "ricketts_tfh_ids",
+      "required_landmarks": [
+        "Ba",
+        "N",
+        "Pm_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts",
+          "Po_anatomic",
+          "Or"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+        ]
+      },
+      "required_manual_landmarks": [
+        "Pm_Ricketts"
+      ],
+      "requires_calibration": false,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LABEL_CONFLICT_RESOLVED_AS_TOTAL_FACIAL_HEIGHT__CANONICAL_XI_MANUAL_PM_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 30,
+      "measurement_id": "M_RICKETTS_RAMUS_POSITION_FH_CFXI_DEG_V1",
+      "method_id": "RICKETTS_RAMUS_POSITION_CANONICAL_DEG_V2",
+      "backend_landmark_tuple_var": "ricketts_ramus_ids",
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1",
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV",
+          "Po_anatomic",
+          "Or"
+        ],
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts",
+          "Po_anatomic",
+          "Or"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "RICKETTS_CF_FH_PTV_INTERSECTION_V1",
+          "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
+        ],
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+        ]
+      },
+      "required_manual_landmarks": [],
+      "requires_calibration": false,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LOCKED_CF_AND_CANONICAL_XI_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_CF_FH_PTV_INTERSECTION_V1": [
+          "PR_Ricketts_PTV"
+        ],
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 31,
+      "measurement_id": "M_RICKETTS_PORION_LOCATION_PTV_MM_V1",
+      "method_id": "RICKETTS_PORION_LOCATION_CANONICAL_MM_V2",
+      "backend_landmark_tuple_var": "ricketts_porion_ids",
+      "required_landmarks": [
+        "Po_anatomic"
+      ],
+      "required_constructions": [
+        "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1": [
+          "PR_Ricketts_PTV",
+          "Po_anatomic",
+          "Or"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1": [
+          "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
+        ]
+      },
+      "required_manual_landmarks": [],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LOCKED_PTV_ANATOMICAL_PORION_VERIFIED_CALIBRATION_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1": [
+          "PR_Ricketts_PTV"
+        ]
+      }
+    },
+    {
+      "source_order": 32,
+      "measurement_id": "M_RICKETTS_MANDIBULAR_ARC_DCXI_XIPM_DEG_V1",
+      "method_id": "RICKETTS_MANDIBULAR_ARC_CANONICAL_DEG_V2",
+      "backend_landmark_tuple_var": "ricketts_arc_ids",
+      "required_landmarks": [
+        "DC_Ricketts",
+        "Pm_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts",
+          "Po_anatomic",
+          "Or"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+        ]
+      },
+      "required_manual_landmarks": [
+        "DC_Ricketts",
+        "Pm_Ricketts"
+      ],
+      "requires_calibration": false,
+      "requires_same_image_source": true,
+      "availability_gate": "MANUAL_DC_SOURCE_LOCKED_XI_MANUAL_PM",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 33,
+      "measurement_id": "M_RICKETTS_CORPUS_LENGTH_XI_PM_MM_V1",
+      "method_id": "RICKETTS_CORPUS_LENGTH_CANONICAL_MM_V2",
+      "backend_landmark_tuple_var": "ricketts_corpus_ids",
+      "required_landmarks": [
+        "Pm_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+      ],
+      "construction_transitive_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts",
+          "Po_anatomic",
+          "Or"
+        ]
+      },
+      "construction_dependency_chain": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+        ]
+      },
+      "required_manual_landmarks": [
+        "Pm_Ricketts"
+      ],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LOCKED_XI_MANUAL_PM_VERIFIED_CALIBRATION_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_C_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_manual_landmarks": {
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts"
+        ]
+      }
+    }
+  ]
+}

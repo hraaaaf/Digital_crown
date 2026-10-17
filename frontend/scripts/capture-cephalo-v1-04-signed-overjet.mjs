@@ -75,8 +75,28 @@ await mkdir(OUTPUT_DIR, { recursive: true });
 await writeFile(path.join(FRONTEND_DIR, 'src', 'cephalo-v1-04-entry.tsx'), entrySource, 'utf8');
 await writeFile(path.join(FRONTEND_DIR, 'cephalo-v1-04.html'), htmlSource, 'utf8');
 
+// R18's historical V1-04 witness is compiled before capture. Vite's DEV
+// optimizer and HMR can invalidate a Playwright browsing context during
+// locator.evaluate even without a product code change (observed CI red).
+// Do not retry or waive ANY signed overjet, layout or console assertion.
 const viteBin = path.join(FRONTEND_DIR, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite');
-const server = spawn(viteBin, ['--host', '127.0.0.1', '--port', String(PORT)], {
+const staticConfigPath = path.join(FRONTEND_DIR, 'cephalo-v1-04-static.config.mjs');
+const staticOutDir = path.join(FRONTEND_DIR, 'cephalo-v1-04-static');
+await writeFile(staticConfigPath, [
+  "import { defineConfig } from 'vite';",
+  "import react from '@vitejs/plugin-react';",
+  "export default defineConfig({plugins:[react()],build:{outDir:'cephalo-v1-04-static',emptyOutDir:true,rollupOptions:{input:'cephalo-v1-04.html'}},preview:{host:'127.0.0.1',port:" + PORT + ",strictPort:true}});",
+].join('\n'), 'utf8');
+const build = spawn(viteBin, ['build', '--config', staticConfigPath], {
+  cwd: FRONTEND_DIR, env: { ...process.env, BROWSER: 'none' }, stdio: ['ignore', 'pipe', 'pipe'],
+});
+let buildLog = '';
+build.stdout.on('data', chunk => { buildLog += chunk.toString(); });
+build.stderr.on('data', chunk => { buildLog += chunk.toString(); });
+const [buildExit] = await once(build, 'close');
+await writeFile(path.join(OUTPUT_DIR, 'vite-build.log'), buildLog, 'utf8');
+if (buildExit !== 0) throw new Error('Static V1-04 source witness build FAILED: ' + buildLog.slice(-2500));
+const server = spawn(viteBin, ['preview', '--config', staticConfigPath, '--host', '127.0.0.1', '--port', String(PORT)], {
   cwd: FRONTEND_DIR,
   env: { ...process.env, BROWSER: 'none' },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -134,6 +154,8 @@ try {
   await Promise.race([once(server, 'exit'), new Promise(resolve => setTimeout(resolve, 3000))]).catch(() => {});
   await rm(path.join(FRONTEND_DIR, 'src', 'cephalo-v1-04-entry.tsx'), { force: true });
   await rm(path.join(FRONTEND_DIR, 'cephalo-v1-04.html'), { force: true });
+  await rm(staticConfigPath, { force: true });
+  await rm(staticOutDir, { recursive: true, force: true });
   await writeFile(path.join(OUTPUT_DIR, 'vite.log'), serverLog, 'utf8');
 }
 const report = {

@@ -99,9 +99,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const [measuresOpen, setMeasuresOpen] = React.useState(true);
   const [showAllLandmarkNames, setShowAllLandmarkNames] = React.useState(false);
   const [showAllPointMarkers, setShowAllPointMarkers] = React.useState(false);
-  const pointContract = React.useMemo(() => resolveCephaloAnalysisPointContract(
-    analysis, cephaloAnalysisMetricKeys[analysis], localLandmarks.map(point=>point.id)),
-    [analysis, localLandmarks]);
+  // R23-G2: until R23-G3 derives complete per-factor dependencies, never
+  // hide source landmarks behind the pre-existing 2/3-item legacy UI masks.
+  // This only affects presentation: all stored source coordinates remain intact.
+  const pointContract = React.useMemo(() => {
+    if (analysis==='mcnamara'||analysis==='ricketts') {
+      return { ids: null, source: 'unverified' as const, missing: [] as string[], count: localLandmarks.length };
+    }
+    return resolveCephaloAnalysisPointContract(
+      analysis, cephaloAnalysisMetricKeys[analysis], localLandmarks.map(point=>point.id));
+  }, [analysis, localLandmarks]);
   const defaultVisiblePointMarkers = countDefaultVisiblePointMarkers(analysis,pointContract,localLandmarks.map(p=>p.id));
   const missingManualIds = pointContract.missing.filter(id=>
     id==='Po_anatomic'||id==='Pog_hard'||id==='Gn_anatomic'

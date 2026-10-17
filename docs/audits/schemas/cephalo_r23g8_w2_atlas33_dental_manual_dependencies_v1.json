@@ -1,0 +1,227 @@
+{
+  "schema_version": "CEPHALO_R23G8_W2_ATLAS33_DENTAL_MANUAL_SOURCE_OBLIGATIONS_V1",
+  "protocol_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "authority": "SOURCE_DENTAL_MANUAL_OBLIGATIONS_PREVIEW_ONLY__NO_MEASUREMENT_AUTHORITY",
+  "source_atlas": "backend/data/cephalometry/ricketts_atlas2009_complete33_protocol_profile_v1.json",
+  "source_backend": "backend/services/cephalo_canonical_analysis_v2.py",
+  "source_constructions": "backend/services/cephalo_canonical_constructions_v2.py",
+  "rule": "MUST_USE_TYPED_CURRENT_SOURCE_EVIDENCE__NO_INFERRED_FOCUS_OR_VALUES",
+  "measurements": [
+    {
+      "source_order": 1,
+      "measurement_id": "M_RICKETTS_MOLAR_RELATION_FOP_MM_V1",
+      "method_id": "RICKETTS_MOLAR_RELATION_FOP_CANONICAL_MM_V2",
+      "required_landmarks": [
+        "L6_DISTAL_Ricketts",
+        "U6_DISTAL_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1"
+      ],
+      "required_manual_landmarks": [
+        "L6_DISTAL_Ricketts",
+        "U6_DISTAL_Ricketts"
+      ],
+      "indirect_construction_manual_landmarks": [],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "MANUAL_MOLAR_DISTALS_SOURCE_LOCKED_FOP_VERIFIED_CALIBRATION",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 2,
+      "measurement_id": "M_RICKETTS_CANINE_RELATION_FOP_MM_V1",
+      "method_id": "RICKETTS_CANINE_RELATION_FOP_CANONICAL_MM_V2",
+      "required_landmarks": [
+        "L3_CUSP_Ricketts",
+        "U3_CUSP_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1"
+      ],
+      "required_manual_landmarks": [
+        "L3_CUSP_Ricketts",
+        "U3_CUSP_Ricketts"
+      ],
+      "indirect_construction_manual_landmarks": [],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "MANUAL_CANINE_CUSPS_SOURCE_LOCKED_FOP_VERIFIED_CALIBRATION",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 3,
+      "measurement_id": "M_RICKETTS_OVERJET_FOP_MM_V1",
+      "method_id": "RICKETTS_OVERJET_FOP_CANONICAL_MM_V2",
+      "required_landmarks": [
+        "L1_incisal",
+        "U1_incisal"
+      ],
+      "required_constructions": [
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1"
+      ],
+      "required_manual_landmarks": [],
+      "indirect_construction_manual_landmarks": [],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "INCISAL_EDGES_SOURCE_LOCKED_FOP_VERIFIED_CALIBRATION",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 5,
+      "measurement_id": "M_RICKETTS_L1_OCCLUSAL_EXTRUSION_MM_V1",
+      "method_id": "RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2",
+      "required_landmarks": [
+        "L1_incisal",
+        "L1_apex"
+      ],
+      "required_constructions": [
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1"
+      ],
+      "required_manual_landmarks": [],
+      "indirect_construction_manual_landmarks": [],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LOCKED_FOP_L1_AXIS_VERIFIED_CALIBRATION",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ]
+      }
+    },
+    {
+      "source_order": 9,
+      "measurement_id": "M_U6_PTV_MM_V1",
+      "method_id": "RICKETTS_U6_PTV_CANONICAL_MM_V2",
+      "required_landmarks": [
+        "U6_DISTAL_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1"
+      ],
+      "required_manual_landmarks": [
+        "U6_DISTAL_Ricketts"
+      ],
+      "indirect_construction_manual_landmarks": [
+        "PR_Ricketts_PTV"
+      ],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "MANUAL_U6_DISTAL_MANUAL_PR_PTV_VERIFIED_CALIBRATION",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1": [
+          "PR_Ricketts_PTV",
+          "Po_anatomic",
+          "Or"
+        ]
+      }
+    },
+    {
+      "source_order": 15,
+      "measurement_id": "M_RICKETTS_OCCLUSAL_PLANE_XIPM_DEG_V1",
+      "method_id": "RICKETTS_OCCLUSAL_PLANE_XIPM_CANONICAL_DEG_V2",
+      "required_landmarks": [
+        "Pm_Ricketts"
+      ],
+      "required_constructions": [
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1",
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1"
+      ],
+      "required_manual_landmarks": [
+        "Pm_Ricketts"
+      ],
+      "indirect_construction_manual_landmarks": [
+        "R1_Ricketts",
+        "R2_Ricketts",
+        "R3_Ricketts",
+        "R4_Ricketts"
+      ],
+      "requires_calibration": false,
+      "requires_same_image_source": true,
+      "availability_gate": "SOURCE_LOCKED_FOP_CANONICAL_XI_MANUAL_PM_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_upstream_landmarks": {
+        "RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_BICUSPID_MOLAR_V1": [
+          "FOP_PREMOLAR_Ricketts",
+          "FOP_MOLAR_Ricketts"
+        ],
+        "RICKETTS_XI_RAMAL_RECTANGLE_R1_R4_FH_V1": [
+          "R1_Ricketts",
+          "R2_Ricketts",
+          "R3_Ricketts",
+          "R4_Ricketts",
+          "Po_anatomic",
+          "Or"
+        ]
+      }
+    },
+    {
+      "source_order": 17,
+      "measurement_id": "M_RICKETTS_UPPER_LIP_LENGTH_ANS_COMMISSURE_MM_V1",
+      "method_id": "RICKETTS_UPPER_LIP_LENGTH_CANONICAL_MM_V2",
+      "required_landmarks": [
+        "ANS",
+        "LABIAL_COMMISSURE_Ricketts"
+      ],
+      "required_constructions": [],
+      "required_manual_landmarks": [
+        "LABIAL_COMMISSURE_Ricketts"
+      ],
+      "indirect_construction_manual_landmarks": [],
+      "requires_calibration": true,
+      "requires_same_image_source": true,
+      "availability_gate": "MANUAL_LABIAL_COMMISSURE_RICKETTS_VERIFIED_CALIBRATION_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_B_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py",
+        "backend/services/cephalo_canonical_constructions_v2.py"
+      ],
+      "construction_upstream_landmarks": {}
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+name: R23-G2 Profile Contract (experimental)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g2-profile-contract.yml'
+      - 'backend/services/cephalo_protocol_projection.py'
+      - 'backend/services/cephalo_runtime_chain.py'
+      - 'backend/services/cephalo_runtime_focus.py'
+      - 'audit/cephalo_r23g3_contract_tests/test_active_focus.py'
+      - 'backend/data/cephalometry/clinical_reference_profiles_v1.json'
+      - 'backend/data/cephalometry/ricketts_*_protocol_profile_v1.json'
+      - 'audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py'
+      - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.ts'
+      - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G3PinnedRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G7AtlasSourceRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts'
+      - 'docs/audits/schemas/cephalo_r23g7_atlas33_source_dependencies_v1.json'
+      - 'scripts/cephalo_r23g7_source_coverage.py'
+      - 'audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py'
+      - 'frontend/src/features/ortho/cephaloR23G3PointSource.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts'
+      - 'docs/audits/schemas/cephalo_r23g8_w1_atlas33_orientation_dependencies_v1.json'
+      - 'scripts/cephalo_r23g8_w1_orientation_coverage.py'
+      - 'audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py'
+      - 'docs/audits/schemas/cephalo_r23g8_w2_atlas33_dental_manual_dependencies_v1.json'
+      - 'scripts/cephalo_r23g8_w2_dental_coverage.py'
+      - 'audit/cephalo_r23g8_w2_contract_tests/test_dental_manual_source_coverage.py'
+      - 'frontend/src/features/ortho/cephaloR23G8W2DentalRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W3CranioRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W3CranioRequirements.test.ts'
+      - 'docs/audits/schemas/cephalo_r23g8_w3_atlas33_craniomandibular_dependencies_v1.json'
+      - 'scripts/cephalo_r23g8_w3_cranio_coverage.py'
+      - 'audit/cephalo_r23g8_w3_contract_tests/test_craniomandibular_source_coverage.py'
+      - 'backend/services/cephalo_canonical_constructions_v2.py'
+      - 'backend/tests/test_cephalo_lot08_image_orientation_evidence.py'
+      - 'backend/services/cephalo_canonical_analysis_v2.py'
+      - 'backend/schemas/cephalo_evidence.py'
+      - 'docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md'
+      - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
+      - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.tsx'
+      - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx'
+      - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
+      - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
+      - 'backend/tests/test_cephalo_r23g5_authenticated_api.py'
+      - 'backend/routers/cephalo_landmark_refinement.py'
+      - 'backend/routers/cephalo_analysis_read.py'
+
+permissions:
+  contents: read
+
+jobs:
+  python-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Require exact HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pytest (stdlib-only projector under test)
+        run: python -m pip install pytest==9.0.3
+      - name: Test source-profile cardinality and fail-closed values
+        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py audit/cephalo_r23g8_w2_contract_tests/test_dental_manual_source_coverage.py audit/cephalo_r23g8_w3_contract_tests/test_craniomandibular_source_coverage.py -q
+      - name: Write exact Atlas33 8 plus 3 preview plus 22 hold source ledger
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python scripts/cephalo_r23g7_source_coverage.py --output audit/cephalo_r23g7_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Source-locked W1 orientation signed-factor audit ledger (not patient proof)
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python -m scripts.cephalo_r23g8_w1_orientation_coverage --output audit/cephalo_r23g8_w1_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Publish W2 exact seven manual/dental source obligations (not clinical approval)
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python -m scripts.cephalo_r23g8_w2_dental_coverage --output audit/cephalo_r23g8_w2_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Publish W3 complete Atlas33 source dependency descriptors (NO clinical approval)
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python -m scripts.cephalo_r23g8_w3_cranio_coverage --output audit/cephalo_r23g8_w3_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Upload complete 33 source descriptors / clinical NO-GO report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g8-w3-atlas33-source-ledger-${{ github.event.pull_request.head.sha }}
+          path: audit/cephalo_r23g8_w3_evidence/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Upload W2 source dependency ledger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g8-w2-dental-source-ledger-${{ github.event.pull_request.head.sha }}
+          path: audit/cephalo_r23g8_w2_evidence/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Upload W1 orientation source obligations (EXPERIMENTAL, no clinical GO)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g8-w1-orientation-ledger-${{ github.event.pull_request.head.sha }}
+          path: audit/cephalo_r23g8_w1_evidence/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Upload R23-G7 source obligation inventory (not clinical approval)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g7-atlas33-source-ledger-${{ github.event.pull_request.head.sha }}
+          path: audit/cephalo_r23g7_evidence/
+          retention-days: 30
+          if-no-files-found: warn
+
+  typescript-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Require exact HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Run fail-closed clinical profile reader tests
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts src/features/ortho/cephaloR23G8W3CranioRequirements.test.ts
+      - name: Full TypeScript check
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+  authenticated-api-r23g5:
+    name: Real JWT GET PUT GET and tenancy (experimental)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SECRET_KEY: r23g5-ci-only-isolated-jwt-secret-32
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - name: Checkout exact product HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Require exact HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/requirements-g5-isolated.txt
+          pip install -r /tmp/requirements-g5-isolated.txt
+          python -m pip check
+      - name: JWT auth GET PUT GET, cross-cabinet denial, stale evidence
+        run: python -m pytest backend/tests/test_cephalo_r23g5_authenticated_api.py -q
+      - name: Existing canonical GET and runtime graph regressions
+        run: python -m pytest backend/tests/test_cephalo_typed_read_route.py backend/tests/test_cephalo_runtime_chain.py -q
+      - name: Signed Ricketts orientation actual backend schema and rotation/mirror regressions
+        run: python -m pytest backend/tests/test_cephalo_lot08_image_orientation_evidence.py -q
+      - name: Ricketts Atlas W3 real cranio-mandibular constructors and method safety tests
+        run: |
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_c.py -q
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_b.py -q
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_profile.py -q
+      - name: Ricketts Atlas W2 real dental/manual method safety tests
+        run: |
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_a.py -k "molar_canine_and_overjet or reject_auto_authority or dental_projection_requires_calibration_and_same_image or generic_molar_canine_aliases" -q
+          python -m pytest backend/tests/test_cephalo_lot08_ricketts_atlas33_wave_b.py -k "runtime_materializes_only_source_locked_executable_factors or authority_gates_fail_closed or linear_lip_length_requires_verified_calibration or rejects_cross_image_dependencies or generic_soft_tissue" -q
+          python -m pytest backend/tests/test_cephalo_vnext_lot06_canonical_analysis_v2.py -k "ptv_requires_explicit or ptv_does_not_promote or ptv_rejects_mixed_source or source_specific_planes_require_explicit" -q

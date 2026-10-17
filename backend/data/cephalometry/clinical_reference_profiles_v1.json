@@ -1,0 +1,163 @@
+{
+  "schema_version": "CEPHALO_R23G2_CLINICAL_REFERENCE_PROFILE_V1",
+  "status": "WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL",
+  "source_document": "docs/audits/CEPHALO_ANALYSIS_MEASUREMENT_PROFILES.md",
+  "scope": "UI_ROW_PRESENCE_ONLY__NOT_A_SCIENTIFIC_SOURCE_LOCK",
+  "rules": {
+    "no_new_geometry": true,
+    "formula_authority": false,
+    "normative_classification": false,
+    "unmapped_fail_closed": true,
+    "candidate_alias_projection_forbidden": true
+  },
+  "profiles": {
+    "mcnamara": {
+      "protocol_profile_id": "MCNAMARA_1984_SINGLE_FILM_V1",
+      "rows": [
+        {
+          "order": 1,
+          "measurement_id": "M_A_NPERP_MM_V1",
+          "role": "CORE",
+          "contract_state": "LOCKED construction ; contrat dédié à matérialiser"
+        },
+        {
+          "order": 2,
+          "measurement_id": "M_SNA_DEG_V1",
+          "role": "CORE contextuel",
+          "contract_state": "LOCKED"
+        },
+        {
+          "order": 3,
+          "measurement_id": "M_CO_GN_ANATOMIC_MM_V1",
+          "role": "CORE",
+          "contract_state": "LOCKED geometry / auto anatomy non autoritaire"
+        },
+        {
+          "order": 4,
+          "measurement_id": "M_CO_A_MM_V1",
+          "role": "CORE",
+          "contract_state": "LOCKED geometry / auto anatomy non autoritaire"
+        },
+        {
+          "order": 5,
+          "measurement_id": "M_CO_GN_MINUS_CO_A_MM_V1",
+          "role": "CORE",
+          "contract_state": "PRIMITIVE_AVAILABLE"
+        },
+        {
+          "order": 6,
+          "measurement_id": "M_ANS_ME_MM_V1",
+          "role": "CORE",
+          "contract_state": "LOCKED"
+        },
+        {
+          "order": 7,
+          "measurement_id": "M_FH_GOME_DEG_V1",
+          "role": "CORE — mandibular plane angle",
+          "contract_state": "LOCKED geometry"
+        },
+        {
+          "order": 8,
+          "measurement_id": "M_FACIAL_AXIS_MCNAMARA_DEG_V1",
+          "role": "CORE",
+          "contract_state": "IMPLEMENTATION_MISSING"
+        },
+        {
+          "order": 9,
+          "measurement_id": "M_POG_NPERP_MM_V1",
+          "role": "CORE",
+          "contract_state": "PRIMITIVE_AVAILABLE"
+        },
+        {
+          "order": 10,
+          "measurement_id": "M_U1_A_VERTICAL_MM_V1",
+          "role": "CORE",
+          "contract_state": "BLOCKED_LANDMARK"
+        },
+        {
+          "order": 11,
+          "measurement_id": "M_L1_FACIAL_SURFACE_APOG_MM_V1",
+          "role": "CORE",
+          "contract_state": "BLOCKED_LANDMARK"
+        },
+        {
+          "order": 12,
+          "measurement_id": "M_UPPER_PHARYNX_MM_V1",
+          "role": "CORE",
+          "contract_state": "BLOCKED_LANDMARK"
+        },
+        {
+          "order": 13,
+          "measurement_id": "M_LOWER_PHARYNX_MM_V1",
+          "role": "CORE",
+          "contract_state": "BLOCKED_LANDMARK"
+        }
+      ]
+    },
+    "com": {
+      "protocol_profile_id": "COM_DC_LEGACY_V1",
+      "rows": [
+        {
+          "order": 1,
+          "measurement_id": "M_OVERJET_MM_V1",
+          "label": "Surplomb",
+          "contract_state": "LEGACY_TO_AUDIT"
+        },
+        {
+          "order": 2,
+          "measurement_id": "M_OVERBITE_V1",
+          "label": "Recouvrement",
+          "contract_state": "LEGACY_TO_AUDIT"
+        },
+        {
+          "order": 3,
+          "measurement_id": "M_IMPA_GOME_DEG_V1",
+          "label": "IMPA",
+          "contract_state": "LOCKED shared geometry"
+        },
+        {
+          "order": 4,
+          "measurement_id": "M_U1_FH_DEG_V1",
+          "label": "I / Frankfort",
+          "contract_state": "LOCKED geometry"
+        },
+        {
+          "order": 5,
+          "measurement_id": "M_INTERINCISAL_DEG_V1",
+          "label": "Angle interincisif",
+          "contract_state": "LOCKED shared geometry"
+        },
+        {
+          "order": 6,
+          "measurement_id": "M_FH_GOME_DEG_V1",
+          "label": "Angle de Tweed / FMA",
+          "contract_state": "LOCKED shared geometry"
+        },
+        {
+          "order": 7,
+          "measurement_id": "M_AB_PRIME_FH_MM_V1",
+          "label": "Décalage osseux A′B′",
+          "contract_state": "LOCKED internal DC geometry"
+        },
+        {
+          "order": 8,
+          "measurement_id": "M_A_NPERP_MM_V1",
+          "label": "Situation A",
+          "contract_state": "PENDING_EQUIVALENCE : même géométrie candidate, signer/convention à fermer"
+        },
+        {
+          "order": 9,
+          "measurement_id": "M_B_NPERP_MM_V1",
+          "label": "Situation B",
+          "contract_state": "LOCKED internal DC geometry"
+        },
+        {
+          "order": 10,
+          "measurement_id": "M_COM_S_NPERP_DEPTH_MM_V1",
+          "label": "Profondeur faciale DC",
+          "contract_state": "LOCKED internal DC geometry"
+        }
+      ]
+    }
+  }
+}

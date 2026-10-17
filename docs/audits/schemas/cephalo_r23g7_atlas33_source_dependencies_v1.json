@@ -1,0 +1,62 @@
+{
+  "schema_version": "CEPHALO_R23G7_ATLAS33_SOURCE_DEPENDENCIES_V1",
+  "protocol_id": "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+  "authority": "SOURCE_DEPENDENCY_PREVIEW_ONLY__NOT_RUNTIME_MEASUREMENT_AUTHORITY",
+  "source_atlas": "backend/data/cephalometry/ricketts_atlas2009_complete33_protocol_profile_v1.json",
+  "source_method_implementation": "backend/services/cephalo_canonical_analysis_v2.py",
+  "rule": "DO_NOT_PROMOTE_TO_ACTIVE_FOCUS_OR_VALUE_WITHOUT_TYPED_RUNTIME_EVIDENCE",
+  "measurements": [
+    {
+      "measurement_id": "M_RICKETTS_U1_APOG_PROTRUSION_MM_V1",
+      "source_order": 11,
+      "required_landmarks": [
+        "U1_incisal",
+        "A",
+        "Pog_hard",
+        "Po_anatomic",
+        "Or"
+      ],
+      "required_constructions": [],
+      "requires_calibration": true,
+      "availability_gate": "U1_INCISAL_EDGE_PERPENDICULAR_APOG__ANTERIOR_POSITIVE__VERIFIED_CALIBRATION_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py"
+      ]
+    },
+    {
+      "measurement_id": "M_RICKETTS_U1_APOG_INCLINATION_DEG_V1",
+      "source_order": 13,
+      "required_landmarks": [
+        "U1_incisal",
+        "U1_apex",
+        "A",
+        "Pog_hard"
+      ],
+      "required_constructions": [],
+      "requires_calibration": false,
+      "availability_gate": "ALL_REQUIRED_LANDMARKS_EXACT__NO_CLINICAL_CLASSIFICATION",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_ATLAS33_WAVE_A_DENTAL_SOURCE_LOCK.md",
+        "backend/services/cephalo_canonical_analysis_v2.py"
+      ]
+    },
+    {
+      "measurement_id": "M_RICKETTS_CRANIAL_DEFLECTION_FH_BAN_DEG_V1",
+      "source_order": 26,
+      "required_landmarks": [
+        "Po_anatomic",
+        "Or",
+        "Ba",
+        "N"
+      ],
+      "required_constructions": [],
+      "requires_calibration": false,
+      "availability_gate": "ANATOMICAL_FH_BA_N_REQUIRED",
+      "source_contracts": [
+        "docs/audits/CEPHALO_LOT08_RICKETTS_32_13_SOURCE_LOCK_MATRIX.md",
+        "backend/services/cephalo_canonical_analysis_v2.py"
+      ]
+    }
+  ]
+}

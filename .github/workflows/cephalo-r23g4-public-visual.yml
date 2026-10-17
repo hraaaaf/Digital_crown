@@ -1,0 +1,165 @@
+name: Cephalo R23-G4 Public Radiograph Desktop Visual Audit (experimental)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g4-public-visual.yml'
+      - 'frontend/scripts/capture-cephalo-r23g4-public-source-profiles.mjs'
+      - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.tsx'
+      - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.ts'
+      - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
+      - 'backend/tests/test_cephalo_r23g5_authenticated_api.py'
+      - 'backend/routers/cephalo_analysis_read.py'
+      - 'backend/routers/cephalo_landmark_refinement.py'
+
+permissions:
+  contents: read
+
+env:
+  G4_BEFORE_SHA: c608bdd4fbcd1093b7ffb00dbcd72153090b956c
+
+jobs:
+  source-locked-public-browser-ux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact PR HEAD with fixed baseline history
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Assert exact product HEAD and frozen ancestor
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          git merge-base --is-ancestor "$G4_BEFORE_SHA" "$PRODUCT_HEAD"
+          test "$G4_BEFORE_SHA" != "$PRODUCT_HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install AFTER frontend and Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+          npx playwright install --with-deps chromium
+      - name: Fetch publicly licensed cephalograms with source identity verification
+        working-directory: frontend
+        run: |
+          mkdir -p public-radio-input
+          curl -fL --retry 4 --retry-delay 3 --max-time 120 -A 'DigitalCrown-UXAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG' -o public-radio-input/anug.jpg
+          curl -fL --retry 4 --retry-delay 3 --max-time 120 -A 'DigitalCrown-UXAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg' -o public-radio-input/challiyan.jpg
+          echo '2a284993c666790a72d0c004044b35a92534ce9d  public-radio-input/anug.jpg' | sha1sum -c -
+          echo '66c74c588af3c54dfc581f8a870c5276c3427498  public-radio-input/challiyan.jpg' | sha1sum -c -
+      - name: Checkout BEFORE exact frozen baseline, same test script/viewports/inputs
+        run: |
+          git worktree add /tmp/dc-r23g4-before "$G4_BEFORE_SHA"
+          test "$(git -C /tmp/dc-r23g4-before rev-parse HEAD)" = "$G4_BEFORE_SHA"
+          cp frontend/scripts/capture-cephalo-r23g4-public-source-profiles.mjs /tmp/dc-r23g4-before/frontend/scripts/
+          mkdir -p /tmp/dc-r23g4-before/frontend/public-radio-input
+          cp frontend/public-radio-input/*.jpg /tmp/dc-r23g4-before/frontend/public-radio-input/
+          cd /tmp/dc-r23g4-before/frontend
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0 react-is@19.2.0 @testing-library/dom@10.4.1
+      - name: Capture BEFORE both public radios at two supported desktop viewports
+        run: |
+          cd /tmp/dc-r23g4-before/frontend
+          PRODUCT_HEAD="$G4_BEFORE_SHA" CEPHALO_G4_PHASE=BEFORE CEPHALO_PUBLIC_CASE=anug node scripts/capture-cephalo-r23g4-public-source-profiles.mjs
+          PRODUCT_HEAD="$G4_BEFORE_SHA" CEPHALO_G4_PHASE=BEFORE CEPHALO_PUBLIC_CASE=challiyan node scripts/capture-cephalo-r23g4-public-source-profiles.mjs
+          mkdir -p "$GITHUB_WORKSPACE/frontend/cephalo-r23g4-public-evidence/before"
+          cp -a cephalo-r23g4-public-evidence/before/. "$GITHUB_WORKSPACE/frontend/cephalo-r23g4-public-evidence/before/"
+      - name: Capture AFTER both public radios at two supported desktop viewports
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CEPHALO_G4_PHASE=AFTER CEPHALO_PUBLIC_CASE=anug node scripts/capture-cephalo-r23g4-public-source-profiles.mjs
+          CEPHALO_G4_PHASE=AFTER CEPHALO_PUBLIC_CASE=challiyan node scripts/capture-cephalo-r23g4-public-source-profiles.mjs
+      - name: Assert immutable real-image provenance and matched BEFORE/AFTER contracts
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFile,stat} from 'node:fs/promises';
+          const baseline=process.env.G4_BEFORE_SHA;
+          for(const id of ['anug','challiyan']){
+            const reports={};
+            for(const phase of ['before','after']){
+              const dir='cephalo-r23g4-public-evidence/'+phase+'/'+id+'/';
+              const r=JSON.parse(await readFile(dir+'report.json','utf8'));
+              const license=JSON.parse(await readFile(dir+'PUBLIC-SOURCE-LICENSE.json','utf8'));
+              const expected=phase==='before'?baseline:process.env.PRODUCT_HEAD;
+              if(r.productHead!==expected||r.phase!==phase.toUpperCase()||r.caseId!==id||r.invalidCount!==0||r.blockedRequests.length)throw Error(id+'/'+phase+':invalid run');
+              if(r.viewports.length!==2||r.viewports.some(v=>!v.valid||v.states.length!==4||v.states.some(s=>!s.valid))||
+                 r.viewports.map(v=>v.viewportName).join('|')!=='1280x900|1600x1000')throw Error(id+'/'+phase+':desktop viewports/protocol coverage');
+              if(license.actualSha1!==license.sha1||license.license!=='CC BY-SA 4.0'||!license.caveat.includes('UNREGISTERED'))throw Error(id+'/'+phase+':source/caveat');
+              for(const viewport of r.viewports){
+                for(const state of viewport.states){
+                  if(state.kind!=='com'){
+                    if(state.handles!==38||state.focus!=='not-authorized')throw Error(id+'/'+phase+':wrong anatomical source count or false focus');
+                    const expectedCount=state.kind==='ricketts'&&state.variant==='atlas'?33:13;
+                    if(state.rows!==expectedCount)throw Error(id+'/'+phase+':wrong profile rows');
+                  }else if(state.rows!==10)throw Error(id+'/'+phase+':COM regression');
+                  const img=await stat(dir+state.filename);
+                  const stage=await stat(dir+state.stageFilename);
+                  if(img.size<10000||stage.size<10000)throw Error(id+'/'+phase+':radiograph or panel screenshot missing');
+                }
+              }
+              reports[phase]=r;
+            }
+            for(let i=0;i<2;i++){
+              const a=reports.before.viewports[i],b=reports.after.viewports[i];
+              if(a.viewportName!==b.viewportName||
+                 a.states.map(s=>s.kind+'/'+s.variant).join('|')!==b.states.map(s=>s.kind+'/'+s.variant).join('|'))
+                throw Error(id+':before/after comparison mismatch');
+            }
+            console.log('R23-G4 NONCLINICAL PUBLIC UX VERIFIED',id,baseline,process.env.PRODUCT_HEAD);
+          }
+          NODE
+      - name: Upload attributed BEFORE and AFTER screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g4-public-before-after-${{ github.event.pull_request.head.sha }}
+          path: frontend/cephalo-r23g4-public-evidence/
+          retention-days: 30
+          if-no-files-found: warn
+
+  authenticated-api-r23g5:
+    name: R23-G5 Real JWT GET PUT GET and multi-tenant (experimental)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SECRET_KEY: g5-ci-synthetic-secret-key-minimum-32-chars
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Fail closed on stale HEAD
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated FastAPI, ORM and scientific test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-g5-requirements.txt
+          pip install -r /tmp/ceph-g5-requirements.txt
+          python -m pip check
+      - name: Actual JWT FastAPI GET PUT GET, tenant, calibration and stale evidence
+        run: python -m pytest backend/tests/test_cephalo_r23g5_authenticated_api.py -q
+      - name: Scientific read and active evidence chain regression
+        run: python -m pytest backend/tests/test_cephalo_typed_read_route.py backend/tests/test_cephalo_runtime_chain.py -q

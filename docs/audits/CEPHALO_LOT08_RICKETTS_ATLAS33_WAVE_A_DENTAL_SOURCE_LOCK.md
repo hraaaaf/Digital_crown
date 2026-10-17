@@ -23,8 +23,8 @@ Robert M. Ricketts, *Perspectives in the clinical application of cephalometrics.
 
 The paper explicitly treats the denture in horizontal and vertical directions, identifies A-Po as the practical basis for lower-incisor sagittal position, and describes the upper first molar from PTV. It supports Ricketts-specific denture geometry but does not, in the recovered pages, provide every Wave A row definition.
 
-### Peer-reviewed Ricketts implementation — Kim et al. 2014
-Kim et al., Korean J Orthod. 2014;44(2):77-87, DOI `10.4041/kjod.2014.44.2.77`, PMCID `PMC3971129`.
+### Peer-reviewed Ricketts implementation — Bae, Kwon & Kwon (2014)
+Eun-ju Bae, Hye-jin Kwon & Oh-won Kwon, *Changes in longitudinal craniofacial growth in subjects with normal occlusions using the Ricketts analysis*, Korean J Orthod. 2014;44(2):77-87, DOI `10.4041/kjod.2014.44.2.77`, PMCID `PMC3971129`, PMID `24696824`. Source bibliographique : https://pubmed.ncbi.nlm.nih.gov/24696824/.
 
 The published measurement set explicitly includes:
 - molar relationship;

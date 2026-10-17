@@ -77,8 +77,11 @@ const normalizeMode = (value?: string): AnalysisMode => {
   return 'all';
 };
 
-const filterLandmarks = (landmarks: Landmark[], mode: AnalysisMode) => {
-  if (mode === 'all') return landmarks;
+export const filterCephaloAnalysisLandmarks = (landmarks: Landmark[], mode: AnalysisMode) => {
+  // R23-G3: McNamara13/Atlas33/Gregoret13 have no complete pinned LOT06
+  // point subset. Never apply their old 3/2-factor landmark whitelists,
+  // including at mobile viewports (compactLabels=false).
+  if (mode === 'all' || mode === 'mcnamara' || mode === 'ricketts') return landmarks;
   const allowed = MODE_LANDMARKS[mode];
   return landmarks.filter(item => allowed.has(item.id.toLowerCase()));
 };
@@ -169,7 +172,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   // R23-F: only on desktop, replace historical hardcoded point masks with
   // source-backed display contracts. Keep mobile rendering byte-identical.
   const filteredLandmarks = React.useMemo(() => {
-    if(!props.compactLabels) return filterLandmarks(props.landmarks,mode);
+    if(!props.compactLabels) return filterCephaloAnalysisLandmarks(props.landmarks,mode);
     if(props.showAllPointMarkers || mode==='all' || !props.analysisPointIds)
       return props.landmarks;
     const ids=new Set(props.analysisPointIds);
@@ -184,7 +187,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   const filteredGhosts = React.useMemo<GhostData[]>(
     () => (props.ghosts || []).map(ghost => ({
       ...ghost,
-      landmarks: filterLandmarks(ghost.landmarks, mode),
+      landmarks: filterCephaloAnalysisLandmarks(ghost.landmarks, mode),
     })),
     [props.ghosts, mode],
   );
@@ -223,6 +226,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode === 'com' ? 'wits' : mode;
 
   const po = findPointAny(overlayLandmarks, 'Po', 'Porion');
+  // Canonical Ricketts Frankfort and N-Pog overlays are anatomically distinct
+  // from historical Po/Pog points. Never silently substitute those identities.
+  const rickettsPo = findPointAny(overlayLandmarks, 'Po_anatomic');
+  const rickettsPog = findPointAny(overlayLandmarks, 'Pog_hard');
   const orPoint = findPointAny(overlayLandmarks, 'Or', 'Orbitale');
   const n = findPointAny(overlayLandmarks, 'N', 'Nasion');
   const s = findPointAny(overlayLandmarks, 'S', 'Sella');
@@ -236,8 +243,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   const l1i = findPointAny(overlayLandmarks, 'L1_incisal', 'L1i');
   const l1a = findPointAny(overlayLandmarks, 'L1_apex', 'L1a');
 
-  const aOnNPog = a && n && pog
-    ? projectPointOnLine(a.x, a.y, n.x, n.y, pog.x, pog.y)
+  const aOnNPog = a && n && rickettsPog
+    ? projectPointOnLine(a.x, a.y, n.x, n.y, rickettsPog.x, rickettsPog.y)
     : null;
 
   const frankfort = unitAxis(po, orPoint);
@@ -320,18 +327,18 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               <rect x={extendedFrame.x} y={extendedFrame.y} width={extendedFrame.width} height={extendedFrame.height} />
             </clipPath>
           </defs>
-          {layerVisible('plans') && showRickettsHard && po && orPoint && (
+          {layerVisible('plans') && showRickettsHard && rickettsPo && orPoint && (
             <line
               data-r18-construction="ricketts-frankfort"
-              x1={po.x} y1={po.y} x2={orPoint.x} y2={orPoint.y}
+              x1={rickettsPo.x} y1={rickettsPo.y} x2={orPoint.x} y2={orPoint.y}
               stroke={cephaloGeometryColor('fh')} strokeWidth="1.6" strokeDasharray="8,4"
               opacity={0.9 * layerOpacity('plans')} vectorEffect="non-scaling-stroke"
             />
           )}
-          {layerVisible('plans') && showRickettsHard && n && pog && (
+          {layerVisible('plans') && showRickettsHard && n && rickettsPog && (
             <line
               data-r18-construction="ricketts-n-pog"
-              x1={n.x} y1={n.y} x2={pog.x} y2={pog.y}
+              x1={n.x} y1={n.y} x2={rickettsPog.x} y2={rickettsPog.y}
               stroke={cephaloGeometryColor('npog')} strokeWidth="1.8"
               opacity={0.92 * layerOpacity('plans')} vectorEffect="non-scaling-stroke"
             />
@@ -344,7 +351,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               opacity={0.95 * layerOpacity('plans')} vectorEffect="non-scaling-stroke"
             />
           )}
-          {layerVisible('landmarks') && showRickettsMarkers && [po, orPoint, n, pog, a].filter(Boolean).map(point => {
+          {layerVisible('landmarks') && showRickettsMarkers && [rickettsPo, orPoint, n, rickettsPog, a].filter(Boolean).map(point => {
             const p = point as Landmark;
             return (
               <g key={`ricketts-${p.id}`} data-r18-point={p.id} opacity={layerOpacity('landmarks')}>

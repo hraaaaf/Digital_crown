@@ -1,4 +1,5 @@
 import React from 'react';
+import CephaloR23G2ProtocolPanel from './CephaloR23G2ProtocolPanel';
 import { Info, Crosshair, CheckCircle2, AlertTriangle, MapPin, ShieldCheck } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import {
@@ -209,7 +210,7 @@ export interface CephaloAnalysisWorkbenchPanelProps {
   analysis: CephaloAnalysisMode;
 }
 
-export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = ({ P, analysis }) => {
+const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = ({ P, analysis }) => {
   const anglesData = useOrthoStore(state => state.anglesData);
   const landmarks = useOrthoStore(state => state.local.landmarks);
   const activePointId = useOrthoStore(state => state.activePointId);
@@ -436,6 +437,13 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
     </aside>
   );
 };
+
+/** R23-G2 wraps legacy Steiner/Tweed/COM unchanged while the full source profiles
+ * stay read-only until R23-G3 proves per-measure construction/Focus links. */
+export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = props =>
+  props.analysis === 'mcnamara' || props.analysis === 'ricketts'
+    ? <CephaloR23G2ProtocolPanel P={props.P} analysis={props.analysis} />
+    : <CephaloLegacyAnalysisWorkbenchPanel {...props} />;
 
 export const cephaloAnalysisMetricKeys = ANALYSIS_METRICS;
 export { readValue as readCephaloMetricValue, normText as formatCephaloNormText };

@@ -120,3 +120,43 @@ jobs:
             echo "### Decision rule"
             echo "Run only the manual workflow(s) whose scope is demonstrated above. Full matrices are reserved for explicit closeout/release."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Explicit PR #911 ONLY. Experimental side-car: the REQUIRED Scope classifier
+  # retains its own unchanged logic. A failure here MUST NOT silently promote
+  # R23-G5 into a global required gate. Inspect each pytest step, not job green.
+  r23g5-http-evidence:
+    name: EXPERIMENTAL PR911 real JWT API evidence (nonblocking)
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 911
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SECRET_KEY: r23g5-only-ci-test-secret-key-over-32-characters
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - name: Checkout exact PR 911 HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify exact HEAD
+        env:
+          PRODUCT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated Python scientific API runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/r23g5-isolated-requirements.txt
+          pip install -r /tmp/r23g5-isolated-requirements.txt
+          python -m pip check
+      - name: Execute real JWT GET PUT GET synthetic patient and tenant guards
+        run: python -m pytest backend/tests/test_cephalo_r23g5_authenticated_api.py -q
+      - name: Execute typed GET and runtime graph baseline
+        run: python -m pytest backend/tests/test_cephalo_typed_read_route.py backend/tests/test_cephalo_runtime_chain.py -q

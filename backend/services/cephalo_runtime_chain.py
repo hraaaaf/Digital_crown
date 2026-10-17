@@ -18,9 +18,14 @@ from backend.schemas.cephalo_evidence import (
     SourceEvidence,
 )
 from backend.services.cephalo_canonical_method_bridge import project_canonical_measurements
+from backend.services.cephalo_runtime_focus import derive_active_runtime_focus
 from backend.services.cephalo_protocol_projection import (
     project_steiner_static_protocol,
     project_tweed_merrifield_protocol,
+    project_mcnamara_reference_protocol,
+    project_com_reference_protocol,
+    project_ricketts_atlas2009_protocol,
+    project_ricketts_gregoret13_protocol,
 )
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_typed_read import (
@@ -168,6 +173,31 @@ def project_runtime_chain_read_path(
     except ValueError as exc:
         raise CephaloTypedReadError("Typed measurements failed canonical convergence") from exc
 
+    # R23-G3: exact active measurement → source landmark/construction identities.
+    # No UI dependency is inferred from a numeric profile or landmark name.
+    verified_focus_by_id = derive_active_runtime_focus(
+        canonical_projection["measurements"],
+        landmarks=chain.landmarks,
+        constructions=chain.constructions,
+        measurements=chain.measurements,
+    )
+    protocol_profiles = {
+        "steiner": project_steiner_static_protocol(canonical_projection["measurements"]),
+        "tweed_merrifield": project_tweed_merrifield_protocol(canonical_projection["measurements"]),
+        "mcnamara": project_mcnamara_reference_protocol(canonical_projection["measurements"]),
+        "com": project_com_reference_protocol(canonical_projection["measurements"]),
+        "ricketts_atlas2009": project_ricketts_atlas2009_protocol(canonical_projection["measurements"]),
+        "ricketts_gregoret13": project_ricketts_gregoret13_protocol(canonical_projection["measurements"]),
+    }
+    for key in ("mcnamara", "ricketts_atlas2009", "ricketts_gregoret13"):
+        for row in protocol_profiles[key]["rows"]:
+            if row["availability_status"] == "AVAILABLE" and row["value"] is not None:
+                focus = verified_focus_by_id.get(row["canonical_measurement_id"])
+                # Absence of matching exact current evidence leaves geometry
+                # unmapped; a displayed number is not permission to draw it.
+                if focus and focus["value_authority_method_id"] == row["value_authority_method_id"]:
+                    row["focus_evidence"] = focus
+
     projected["scientific_read_path"] = {
         **projected.get("scientific_read_path", {}),
         "active_chain": "VERIFIED",
@@ -181,9 +211,6 @@ def project_runtime_chain_read_path(
         "canonical_measurements": canonical_projection["measurements"],
         "blocked_method_ids": canonical_projection["blocked_method_ids"],
         "unmapped_method_ids": canonical_projection["unmapped_method_ids"],
-        "protocol_profiles": {
-            "steiner": project_steiner_static_protocol(canonical_projection["measurements"]),
-            "tweed_merrifield": project_tweed_merrifield_protocol(canonical_projection["measurements"]),
-        },
+        "protocol_profiles": protocol_profiles,
     }
     return projected
