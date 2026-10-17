@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { RefreshCw, Plus } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
+import { clinicCalendarDay, clinicAppointmentFormFields } from './agendaClinicLocalDate';
 import type { Appointment } from './DailyView';
 import { PatientAvatar } from '../patients/components/PatientAvatar';
 
@@ -20,10 +21,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
   const handleDayClick = (day: Date) => {
     setEditingAppointment(null);
     // A calendar day is a *local* clinic date, not a UTC midnight instant.
-    // AgendaModal currently serializes selectedDate with toISOString().
-    // Passing local midnight would select the PREVIOUS day in Africa/Casablanca.
-    // Noon preserves the requested local calendar date without changing
-    // backend contracts or global timezone logic (A5 remains out of scope).
+    // Preserve the selected civil day for the modal in every browser timezone.
     const localCalendarDate = new Date(day);
     localCalendarDate.setHours(12, 0, 0, 0);
     setModalDate(localCalendarDate);
@@ -61,7 +59,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
   // the same fetched appointments, dates and existing edit flow.
   const monthDaysWithAppointments = days.filter(day =>
     day.getMonth() === selectedDate.getMonth() &&
-    appointments.some(a => new Date(a.datetime_start).toDateString() === day.toDateString())
+    appointments.some(a => clinicAppointmentFormFields(a.datetime_start).date === clinicCalendarDay(day))
   );
   const chosenDate = [
     selectedDate.getFullYear(),
@@ -72,15 +70,13 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
   const fetchAppointments = async () => {
     setLoading(true);
     try {
-      const start = new Date(days[0]);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(days[41]);
-      end.setHours(23, 59, 59, 999);
+      const firstDay = clinicCalendarDay(days[0]);
+      const lastDay = clinicCalendarDay(days[41]);
 
       const res = await api.get('/appointments/', {
         params: {
-          start_date: start.toISOString(),
-          end_date: end.toISOString()
+          start_date: `${firstDay}T00:00:00`,
+          end_date: `${lastDay}T23:59:59.999999`
         }
       });
       setAppointments(res.data);
@@ -130,8 +126,8 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
         )}
         {monthDaysWithAppointments.map(day => {
           const dayAppointments=appointments
-            .filter(a=>new Date(a.datetime_start).toDateString() === day.toDateString())
-            .sort((a,b)=>new Date(a.datetime_start).getTime()-new Date(b.datetime_start).getTime()||a.id-b.id);
+            .filter(a=>clinicAppointmentFormFields(a.datetime_start).date === clinicCalendarDay(day))
+            .sort((a,b)=>a.datetime_start.localeCompare(b.datetime_start)||a.id-b.id);
           return (
             <section key={day.toISOString()} data-p2-month-day className="p2-agenda-surface rounded-2xl border border-border-main bg-card p-3 shadow-sm">
               <h3 className="mb-2 px-1 text-sm font-bold text-text-main capitalize">
@@ -140,7 +136,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
               </h3>
               <div className="space-y-2">
                 {dayAppointments.map(a=>{
-                  const when=new Date(a.datetime_start).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+                  const when=clinicAppointmentFormFields(a.datetime_start).time;
                   const timeLabel=a.scheduling_type==='FULL_DAY'?'Journée'
                     :a.scheduling_type==='MORNING'?'Matin'
                     :a.scheduling_type==='AFTERNOON'?'Après-midi':when;
@@ -173,7 +169,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
           {days.map((day, i) => {
             const isToday = day.toDateString() === new Date().toDateString();
             const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
-            const dayAppts = appointments.filter(a => new Date(a.datetime_start).toDateString() === day.toDateString());
+            const dayAppts = appointments.filter(a => clinicAppointmentFormFields(a.datetime_start).date === clinicCalendarDay(day));
 
             return (
               <div
@@ -197,7 +193,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
 
                 <div className="space-y-1 overflow-hidden">
                   {dayAppts.slice(0, 3).map(a => {
-                    let timeLabel = new Date(a.datetime_start).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                    let timeLabel = clinicAppointmentFormFields(a.datetime_start).time;
                     if (a.scheduling_type === 'FULL_DAY') timeLabel = 'JOUR';
                     if (a.scheduling_type === 'MORNING') timeLabel = 'MATIN';
                     if (a.scheduling_type === 'AFTERNOON') timeLabel = 'APREM';
