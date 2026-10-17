@@ -2,11 +2,13 @@
  * LOT07-P1: foreground contrast only for the EXISTING Dark theme.
  * No theme token, font, palette or Elite visual identity is changed.
  * All other themes retain the exact existing primary-color appearance.
+ * The application persists the theme on BODY; the HTML selector remains for
+ * legacy/capture contexts, but cannot be the sole match for a real patient route.
  */
 .p1-clinical-primary-ink {
   color: var(--primary);
 }
 
-html[data-theme='dark'] .p1-clinical-primary-ink {
+:is(html, body)[data-theme='dark'] .p1-clinical-primary-ink {
   color: var(--text-main);
 }
