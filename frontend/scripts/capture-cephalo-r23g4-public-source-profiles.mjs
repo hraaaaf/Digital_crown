@@ -209,10 +209,16 @@ try {
   // Vite's first dependency optimization may navigate a page while
   // Chromium decodes the public JPEG. Retry ONLY that transient navigation
   // with a NEW browser context; preserve both attempts in the evidence.
-  const navigationRace=!first.valid && first.pageErrors.some(
-    error=>error.includes('Execution context was destroyed') &&
-      error.includes('navigation')
-  );
+  const navigationRace=!first.valid && first.pageErrors.some(error=>(
+    (error.includes('Execution context was destroyed') && error.includes('navigation')) ||
+    // EXACT Vite dev-page navigation during the synthetic profile panel wait.
+    // Retry one fresh browser context, but never retry failed measurements,
+    // false Focus, overflow, source mismatch or missing clinical evidence.
+    (error.includes('TimeoutError: locator.waitFor') &&
+      error.includes('data-r23g2-protocol-panel') &&
+      error.includes('navigation to finish') &&
+      error.includes('/cephalo-r23g4-public.html'))
+  ));
   const retry=navigationRace ? await capture(v) : null;
   const result=retry ?? first;
   report.viewports.push({
