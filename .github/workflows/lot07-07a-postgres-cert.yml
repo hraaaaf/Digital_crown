@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/verification/lot07_07a_postgres_cert.py'
+      - 'scripts/verification/lot07_07a_f05_multiprocess.py'
       - 'backend/services/bot/action_dispatcher.py'
       - 'backend/services/patient_companion_agenda.py'
       - 'backend/routers/frontdesk.py'
@@ -81,20 +82,34 @@ jobs:
           python -m pytest backend/tests/test_lot07_07a_f05_interchannel.py backend/tests/test_patient_companion_agenda.py backend/tests/test_frontdesk.py backend/tests/test_mobile_frontdesk.py -q
       - name: Real FastAPI PostgreSQL 120 concurrent scenario races and lock interruption
         id: pg_lab
+        continue-on-error: true
         run: |
           set -euo pipefail
           python -m scripts.verification.lot07_07a_postgres_cert
+      - name: F05 two-process Uvicorn HTTP inter-channel adversarial lab
+        id: pg_multiprocess
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python -m scripts.verification.lot07_07a_f05_multiprocess
       - name: Require all independent F05 certification stages
         if: always()
         env:
           SQLITE_OUTCOME: ${{ steps.sqlite_contracts.outcome }}
           POSTGRES_OUTCOME: ${{ steps.pg_lab.outcome }}
+          MULTIPROCESS_OUTCOME: ${{ steps.pg_multiprocess.outcome }}
         run: |
           set -euo pipefail
           echo "F05_SQLITE_CONTRACTS=$SQLITE_OUTCOME"
           echo "F05_POSTGRES_LAB=$POSTGRES_OUTCOME"
+          echo "F05_TWO_UVICORN_PROCESSES=$MULTIPROCESS_OUTCOME"
           test "$SQLITE_OUTCOME" = success
           test "$POSTGRES_OUTCOME" = success
+          test "$MULTIPROCESS_OUTCOME" = success
+          # F05 is still missing authenticated PostgreSQL and actual encrypted
+          # PC envelope + durable receipt races. This is not a certification.
+          echo "::error::POSTGRESQL F05 FAIL: real auth/PC encrypted receipts not proven"
+          exit 1
       - name: Report sanitized failure diagnostics
         if: failure()
         run: |
