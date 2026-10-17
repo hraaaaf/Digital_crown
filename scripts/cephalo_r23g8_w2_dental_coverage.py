@@ -51,6 +51,14 @@ CONSTS = {
     XI: "RICKETTS_XI_CONSTRUCTION_ID",
     PTV: "RICKETTS_PTV_CONSTRUCTION_ID",
 }
+UPSTREAM = {
+    FOP: ("RICKETTS_FUNCTIONAL_OCCLUSAL_PLANE_REQUIRED_LANDMARKS",
+          ("FOP_PREMOLAR_Ricketts", "FOP_MOLAR_Ricketts")),
+    XI: ("RICKETTS_XI_REQUIRED_LANDMARKS",
+         ("R1_Ricketts", "R2_Ricketts", "R3_Ricketts", "R4_Ricketts", "Po_anatomic", "Or")),
+    PTV: ("RICKETTS_PTV_REQUIRED_LANDMARKS",
+          ("PR_Ricketts_PTV", "Po_anatomic", "Or")),
+}
 
 
 def build_w2_ledger() -> dict:
@@ -89,6 +97,20 @@ def build_w2_ledger() -> dict:
             raise ValueError(f"W2 canonical manual/dental identities drift: {order}")
         if not row["source_contracts"] or not all((ROOT / x).is_file() for x in row["source_contracts"]):
             raise ValueError("W2 source documents missing")
+        # Publish the COMPLETE explicit landmark identity chain for each
+        # canonical construction, not merely its name or manual subset.
+        expected_upstream = {c: list(UPSTREAM[c][1]) for c in cons}
+        if row.get("construction_upstream_landmarks") != expected_upstream:
+            raise ValueError(f"W2 construction upstream identity mismatch at {order}")
+        for constructor, (const_name, direct_ids) in (
+            (c, UPSTREAM[c]) for c in cons
+        ):
+            match = re.search(
+                r"\\b" + re.escape(const_name) + r"\\s*=\\s*(\\([\\s\\S]*?\\))",
+                constructions,
+            )
+            if match is None or tuple(ast.literal_eval(match.group(1))) != direct_ids:
+                raise ValueError(f"W2 construction source upstream drift for {constructor}")
         if order in (1, 2, 3):
             call = re.search(
                 r'_fop_projection_measure\(\s*name="[^"]+"\s*,\s*method="' +
