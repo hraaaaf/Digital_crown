@@ -26,9 +26,12 @@ vi.mock('../Header', () => ({
 vi.mock('../LicenseBanner', () => ({ LicenseBanner: () => null }));
 vi.mock('../AnimatedBackground', () => ({ AnimatedBackground: () => null }));
 vi.mock('../CrownBot/CrownBotChat', () => ({
-  CrownBotChat: ({ onClose }: { onClose: () => void }) => (
+  CrownBotChat: ({ onClose, onUnreadChange }: {
+    onClose: () => void; onUnreadChange?: (count: number) => void
+  }) => (
     <div>
       <button onClick={onClose}>Close CrownBot</button>
+      <button onClick={() => onUnreadChange?.(3)}>Seed 3 unread alerts</button>
       <input aria-label="Brouillon Crown Bot" defaultValue="" />
     </div>
   ),
@@ -271,6 +274,32 @@ describe('CB-01 draft survives responsive 200% reflow', () => {
 
 
 describe('CB-01 principal scope clinical confidentiality', () => {
+
+  it('A-NEW-01: badge never crosses A-B-A tenants while chat is closed', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    simulateViewport(true);
+    mockUser = { id: 1, employer_id: 101, role: 'DENTISTE', nom_complet: 'Owner A' };
+    const view = renderAt('/dashboard');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Seed 3 unread alerts' }));
+    expect(view.container.querySelector('[data-cb01-parent-unread]')?.textContent).toBe('3');
+    fireEvent.click(screen.getByRole('button', { name: 'Réduire le panneau Crown Bot' }));
+    expect(view.container.querySelector('[data-cb01-parent-unread]')?.textContent).toBe('3');
+
+    // Change the auth-store identity while keeping the same MainLayout mounted.
+    mockUser = { id: 2, employer_id: 202, role: 'DENTISTE', nom_complet: 'Owner B' };
+    view.rerender(shellAt('/dashboard'));
+    expect(view.container.querySelector('[data-cb01-parent-unread]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
+    expect(view.container.querySelector('[data-cb01-parent-unread]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Réduire le panneau Crown Bot' }));
+
+    // Returning to A must not resurrect its previously cached badge.
+    mockUser = { id: 1, employer_id: 101, role: 'DENTISTE', nom_complet: 'Owner A' };
+    view.rerender(shellAt('/dashboard'));
+    expect(view.container.querySelector('[data-cb01-parent-unread]')).toBeNull();
+  });
 
   it('wipes cached patient draft when the same secretary account loses patient permission', () => {
     vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
