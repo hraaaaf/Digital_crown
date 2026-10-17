@@ -111,6 +111,21 @@ async function runMatrix(page,theme,width,height,zoom=false){
         }));
         if(dayScroll.maxScroll<=0)
           throw Error('P2 simultaneous mobile Day lacks internal horizontal scroll '+JSON.stringify({width,dayScroll}));
+        const right=page.getByRole('button',{name:'Voir les rendez-vous à droite'});
+        const left=page.getByRole('button',{name:'Voir les rendez-vous à gauche'});
+        if(!(await page.locator('[data-p2-day-scroll-hint]').isVisible())
+          ||!(await right.isVisible())||!(await left.isVisible()))
+          throw Error('P2 Day simultaneous mobile lanes lack discoverable controls '+JSON.stringify({width,theme}));
+        const scroller=page.locator('[data-p2-day-scroll]');
+        const initial=await scroller.evaluate(el=>el.scrollLeft);
+        await right.click();
+        const shifted=await scroller.evaluate(el=>el.scrollLeft);
+        if(shifted<=initial+20)
+          throw Error('P2 Day next-lane button failed to reveal another appointment '+JSON.stringify({width,initial,shifted}));
+        await left.click();
+        const reset=await scroller.evaluate(el=>el.scrollLeft);
+        if(reset>=shifted-20)
+          throw Error('P2 Day previous-lane button failed to return '+JSON.stringify({width,reset,shifted}));
       }
       const concurrent=await page.evaluate(()=>{
         const a=document.querySelector('[data-p2-day-appointment="201"]')?.getBoundingClientRect();
