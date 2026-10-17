@@ -1375,49 +1375,86 @@ def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: S
 
 # --- GÉNÉRATION RAPPORTS (COMPATIBILITÉ) ---
 
+def _bound_cephalo_study(
+    patient_id: int,
+    analysis_id: int,
+    expected_revision: Optional[int],
+    db: Session,
+    current_user: models.User,
+):
+    """Identity and active revision are read solely from the authorized study."""
+    assert_patient_access(patient_id, current_user, db)
+    selected = db.query(models.CephaloAnalysis).filter(
+        models.CephaloAnalysis.id == analysis_id,
+        models.CephaloAnalysis.patient_id == patient_id,
+    ).first()
+    if selected is None:
+        raise HTTPException(status_code=404, detail="Analyse introuvable pour ce patient")
+
+    from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
+    from backend.services.cephalo_runtime_chain import project_runtime_chain_read_path
+
+    source = selected.angles_data or {}
+    graph = source.get(EVIDENCE_GRAPH_KEY)
+    revision = None
+    if graph is not None:
+        try:
+            projected = project_runtime_chain_read_path(source, patient_id=patient_id)
+            scientific = projected.get("scientific_read_path") or {}
+            if scientific.get("active_chain") != "VERIFIED":
+                raise ValueError("Chaîne scientifique non vérifiée")
+            revision = scientific.get("revision")
+            if type(revision) is not int or revision <= 0:
+                raise ValueError("Révision scientifique absente")
+        except Exception as exc:
+            raise HTTPException(status_code=409, detail="Preuve scientifique périmée ou incohérente") from exc
+        if expected_revision is None:
+            raise HTTPException(status_code=409, detail="Révision de l'analyse obligatoire pour ce document")
+        if revision != expected_revision:
+            raise HTTPException(status_code=409, detail="L'analyse a été modifiée : rechargez l'étude")
+    elif expected_revision is not None:
+        raise HTTPException(status_code=409, detail="Révision fournie sans preuve scientifique active")
+    return selected, revision
+
+
 @router.get("/{patient_id}/cephalo-validation")
 def validate_cephalo_before_pdf(
     patient_id: int,
+    analysis_id: int,
+    expected_revision: Optional[int] = None,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("cephalo")),
 ):
-    """Pré-valide les mesures céphalo avant génération PDF. Retourne fatals + warnings."""
-    assert_patient_access(patient_id, current_user, db)
-    last_analysis = db.query(models.CephaloAnalysis).filter(
-        models.CephaloAnalysis.patient_id == patient_id
-    ).order_by(models.CephaloAnalysis.id.desc()).first()
-    if not last_analysis:
-        raise HTTPException(status_code=404, detail="Aucune analyse céphalométrique trouvée")
-
+    """Prevalidation must match the selected study, never the newest one."""
+    selected, revision = _bound_cephalo_study(
+        patient_id, analysis_id, expected_revision, db, current_user
+    )
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
-    result = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
-    return result.to_dict()
+    result = cephalo_consistency_validator.validate(selected.angles_data or {})
+    return {**result.to_dict(), "analysis_id": selected.id, "analysis_revision": revision}
 
 
 @router.post("/{patient_id}/pdf")
 def generate_cephalo_pdf(
-    patient_id: int, 
-    req: schemas.CephaloPDFRequest, 
-    db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(require_permission("cephalo"))
+    patient_id: int,
+    req: schemas.CephaloPDFRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
 ):
-    """Génération du rapport céphalo PDF (Route de compatibilité Ghost Elite)."""
+    """Generate exactly the explicitly selected analysis, no latest-study fallback."""
     from backend.routers.documents import doc_factory
     from fastapi.responses import FileResponse
-    
-    assert_patient_access(patient_id, current_user, db)
+    from copy import deepcopy
+
+    selected, revision = _bound_cephalo_study(
+        patient_id, req.analysis_id, req.expected_revision, db, current_user
+    )
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    
-    last_analysis = db.query(models.CephaloAnalysis).filter(
-        models.CephaloAnalysis.patient_id == patient_id
-    ).order_by(models.CephaloAnalysis.id.desc()).first()
-    
-    if not last_analysis:
-        raise HTTPException(status_code=404, detail="Aucune analyse céphalométrique trouvée pour ce patient")
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
 
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
-    validation = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
-    # Bloquer uniquement l'archivage officiel — le brouillon (archive=False) reste accessible
+    validation = cephalo_consistency_validator.validate(selected.angles_data or {})
     if req.archive and not validation.is_valid:
         raise HTTPException(
             status_code=422,
@@ -1427,46 +1464,64 @@ def generate_cephalo_pdf(
                 "warnings": validation.warnings,
             },
         )
+    # The archived study identity cannot depend on mutable client diagnosis keys.
+    results = deepcopy(selected.angles_data or {})
+    if req.ai_diagnostic:
+        results["ai_diagnostic"] = req.ai_diagnostic
+    if req.clinical_data:
+        results["clinical_data"] = req.clinical_data.model_dump()
 
     analysis_data = {
-        "id": last_analysis.id,
-        "image_path": last_analysis.image_original_path,
-        "results": last_analysis.angles_data or {},
-        "landmarks": last_analysis.landmarks_data,
+        "id": selected.id,
+        "image_path": selected.image_original_path,
+        "results": results,
+        "landmarks": deepcopy(selected.landmarks_data),
         "_is_pre_bilan": not req.archive,
-        "_validation_warnings": validation.warnings
+        "_validation_warnings": validation.warnings,
     }
 
-    if req.ai_diagnostic:
-        analysis_data["results"]["ai_diagnostic"] = req.ai_diagnostic
-    if req.clinical_data:
-        analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
-
-    pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
-    
+    pdf_path = doc_factory.create_cephalo_report(
+        patient, analysis_data, db=db, user_id=current_user.id
+    )
     if req.archive:
         from backend.services.archive_service import ArchiveService
         from backend.schemas import ConflictResolution
-        
-        with open(pdf_path, 'rb') as f:
-            pdf_bytes = f.read()
-            
-        archive_svc = ArchiveService(db)
+
+        with open(pdf_path, "rb") as pdf_stream:
+            pdf_bytes = pdf_stream.read()
+
         try:
-            archive_svc.archive_document(
+            archived, _ = ArchiveService(db).archive_document(
                 patient_id=patient_id,
                 file_content=pdf_bytes,
                 filename=os.path.basename(pdf_path),
                 doc_type=models.DocumentType.RAPPORT_CEPHALO,
                 uploaded_by_id=current_user.id,
                 title="Bilan Céphalométrique et Plan ODF",
-                clinical_data=analysis_data.get("results", {}).get("clinical_data", {}),
-                on_conflict=ConflictResolution.CREATE_VERSION
+                clinical_data={
+                    "cephalo_analysis_id": selected.id,
+                    "cephalo_analysis_revision": revision,
+                    "clinical_data": results.get("clinical_data", {}),
+                },
+                on_conflict=ConflictResolution.CREATE_VERSION,
             )
-        except Exception as e:
-            logger.warning("Archivage du rapport céphalo ignoré (doublon ou erreur) : %s", e)
-            
-    return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
+            if archived is None:
+                raise RuntimeError("Archive manquante")
+        except Exception as exc:
+            logger.exception("Archivage du bilan de l'analyse %s échoué", selected.id)
+            raise HTTPException(
+                status_code=500, detail="Échec d'archivage : aucun bilan archivé confirmé"
+            ) from exc
+
+    headers = {"X-Cephalo-Analysis-Id": str(selected.id)}
+    if revision is not None:
+        headers["X-Cephalo-Revision"] = str(revision)
+    return FileResponse(
+        path=pdf_path,
+        filename=os.path.basename(pdf_path),
+        media_type="application/pdf",
+        headers=headers,
+    )
 
 # --- MASTER PLAN CLINIQUE ---
 
