@@ -108,6 +108,59 @@ def test_remote_receipt_rejects_parallel_duplicate_intent(db, dentiste):
         claim_remote_command(db, access=access, message=_message(access, idempotency_key=idem))
 
 
+def test_remote_receipt_rejects_changed_payload_for_same_idempotency_key(db, dentiste):
+    access = _access(db, dentiste)
+    idem = uuid.uuid4()
+    original = _message(access, idempotency_key=idem, operation="agenda.create")
+    original.payload = {"slot_ref": "slot-A"}
+    first = claim_remote_command(db, access=access, message=original)
+    assert len(first.receipt.intent_sha256) == 64
+    complete_remote_command(first.receipt, status="ACCEPTED", response={"slot": "slot-A"})
+    db.commit()
+
+    changed = _message(access, idempotency_key=idem, operation="agenda.create")
+    changed.payload = {"slot_ref": "slot-B"}
+    with pytest.raises(RemoteReplayDetected, match="different request intent"):
+        claim_remote_command(db, access=access, message=changed)
+
+    same_payload = _message(access, idempotency_key=idem, operation="agenda.create")
+    same_payload.payload = {"slot_ref": "slot-A"}
+    replay = claim_remote_command(db, access=access, message=same_payload)
+    assert replay.kind == "idempotent_result"
+    assert receipt_response(replay.receipt)["response"] == {"slot": "slot-A"}
+
+
+def test_remote_receipt_canonical_payload_order_preserves_legitimate_retries(db, dentiste):
+    access = _access(db, dentiste)
+    idem = uuid.uuid4()
+    first = _message(access, idempotency_key=idem, operation="agenda.reschedule")
+    first.payload = {"appointment_ref": "old", "slot_ref": "new"}
+    receipt = claim_remote_command(db, access=access, message=first).receipt
+    complete_remote_command(receipt, status="ACCEPTED", response={"status": "moved"})
+    db.commit()
+
+    retry = _message(access, idempotency_key=idem, operation="agenda.reschedule")
+    retry.payload = {"slot_ref": "new", "appointment_ref": "old"}
+    assert claim_remote_command(db, access=access, message=retry).kind == "idempotent_result"
+
+
+def test_remote_receipt_legacy_without_intent_digest_fails_closed(db, dentiste):
+    access = _access(db, dentiste)
+    idem = uuid.uuid4()
+    first = _message(access, idempotency_key=idem, operation="agenda.create")
+    row = claim_remote_command(db, access=access, message=first).receipt
+    complete_remote_command(row, status="ACCEPTED", response={"status": "confirmed"})
+    # Simulate a row predating the additive revision. Its payload was never
+    # stored and cannot be safely reconstructed from its ACK.
+    row.intent_sha256 = None
+    db.commit()
+
+    retry = _message(access, idempotency_key=idem, operation="agenda.create")
+    with pytest.raises(RemoteReplayDetected, match="unverifiable"):
+        claim_remote_command(db, access=access, message=retry)
+    assert row.intent_sha256 is None
+
+
 def test_remote_receipt_rejects_revoked_access(db, dentiste):
     access = _access(db, dentiste)
     access.revoked_at = datetime.utcnow()
