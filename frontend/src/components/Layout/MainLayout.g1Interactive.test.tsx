@@ -283,7 +283,8 @@ describe('CB-01 principal scope clinical confidentiality', () => {
     const view = renderAt('/dashboard');
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
     fireEvent.click(screen.getByRole('button', { name: 'Seed 3 unread alerts' }));
-    expect(view.container.querySelector('[data-cb01-parent-unread]')?.textContent).toBe('3');
+    // The parent badge is intentionally hidden while the assistant is open.
+    expect(view.container.querySelector('[data-cb01-parent-unread]')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Réduire le panneau Crown Bot' }));
     expect(view.container.querySelector('[data-cb01-parent-unread]')?.textContent).toBe('3');
 
