@@ -1510,6 +1510,11 @@ def generate_cephalo_pdf(
                 raise RuntimeError("Archive manquante")
         except Exception as exc:
             logger.exception("Archivage du bilan de l'analyse %s échoué", selected.id)
+            # A failed archive must not leave an unintended public-facing PDF.
+            try:
+                os.remove(pdf_path)
+            except OSError:
+                logger.warning("Nettoyage du PDF non archivé impossible")
             raise HTTPException(
                 status_code=500, detail="Échec d'archivage : aucun bilan archivé confirmé"
             ) from exc
