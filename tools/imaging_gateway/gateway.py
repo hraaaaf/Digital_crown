@@ -244,11 +244,15 @@ class HotFolder:
 
     @contextmanager
     def _db(self):
-        # Windows: directory path components must stay stable from connect
-        # through WAL/SHM usage and final sqlite3.close(). File replacement
-        # and same-user attacks still require actual OS ACL isolation.
+        # Windows: pin the directory ancestry and the existing main DB
+        # against path rename until sqlite3.close(). WAL/SHM filenames and
+        # same-user in-place writes remain outside this narrow LAB safeguard.
         try:
-            with pin_windows_sqlite_path(self.private, self._windows_private_identity):
+            with pin_windows_sqlite_path(
+                self.private, self._windows_private_identity,
+                database=self.db_file,
+                require_database=self._db_file_identity is not None,
+            ):
                 with self._db_on_pinned_path() as db:
                     yield db
         except SQLiteBoundaryError as error:
