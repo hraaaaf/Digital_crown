@@ -37,12 +37,14 @@ describe('W3 Atlas33 cranio-mandibular source contract ONLY, clinical NO-GO',()=
     expect(x?.requiredConstructions).toEqual([CF]);
     expect(x?.constructionTransitiveLandmarks[CF]).toEqual(['PR_Ricketts_PTV','Po_anatomic','Or']);
     expect(x?.constructionDependencyChain[CF]).toEqual([CF,'RICKETTS_PTV_PR_POSTERIOR_PPF_PERP_FH_V1']);
+    expect(x?.constructionManualLandmarks[CF]).toEqual(['PR_Ricketts_PTV']);
   });
   it('CC uses manual Pt_Ricketts plus constructed Gn, not PR_Ricketts_PTV',()=>{
     const x=get(A,IDs[4],['N','Pt','PR_Ricketts_PTV']);
     expect(x?.requiredConstructions).toEqual([CC]);
     expect(x?.constructionTransitiveLandmarks[CC]).toEqual(['Ba','N','Pt_Ricketts','Pog_hard','Go','Me']);
     expect(x?.constructionDependencyChain[CC]).toEqual([CC,'RICKETTS_GN_CONSTRUCTED_NPOG_GOME_V1']);
+    expect(x?.constructionManualLandmarks[CC]).toEqual(['Pt_Ricketts']);
     expect(x?.requiresCalibration).toBe(true);
   });
   it('Xi must use R1-R4 and anatomic FH, not direct generic Xi',()=>{
@@ -52,6 +54,7 @@ describe('W3 Atlas33 cranio-mandibular source contract ONLY, clinical NO-GO',()=
     expect(x?.constructionTransitiveLandmarks[XI]).toEqual([
       'R1_Ricketts','R2_Ricketts','R3_Ricketts','R4_Ricketts','Po_anatomic','Or']);
     expect(x?.requiredManualLandmarks).toEqual(['Pm_Ricketts']);
+    expect(x?.constructionManualLandmarks[XI]).toEqual(['R1_Ricketts','R2_Ricketts','R3_Ricketts','R4_Ricketts']);
   });
   it('keeps factor 28 linear posterior facial height and 29 angular TOTAL facial height',()=>{
     const linear=get(A,IDs[5],[]);
