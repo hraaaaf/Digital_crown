@@ -1,0 +1,190 @@
+name: LOT07 P2 Agenda Authenticated T2 Evidence (Frozen Product)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/lot07-p2-agenda-real-auth.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  t2-agenda:
+    name: Real FastAPI Agenda GET and local date under auth
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      SOURCE_HEAD: 9a18bca96074259a250c39fa8a8945808198c86c
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      T2_USER: t2-browser@cabinet.ma
+    steps:
+      - name: Checkout pinned product commit (NOT proof branch)
+        uses: actions/checkout@v4
+        with:
+          ref: 9a18bca96074259a250c39fa8a8945808198c86c
+          persist-credentials: false
+      - name: Attest immutable product and isolated DB target
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import is_known_cabinet_database,database_target_fingerprint
+          target='sqlite:///./t2-runtime-cert.db'
+          assert os.environ['ENVIRONMENT']=='test'
+          assert os.environ['DIGITALCROWN_ISOLATED_RUNTIME']=='1'
+          assert os.environ['DATABASE_URL']==target
+          assert not is_known_cabinet_database(target)
+          print('DIGITALCROWN_ISOLATION_DB_FINGERPRINT='+database_target_fingerprint(target))
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate disposable T2 password
+        run: |
+          value="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$value"
+          echo "T2_PASSWORD=$value" >> "$GITHUB_ENV"
+      - name: Install disposable FastAPI environment
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/lot07-p2-t2-reqs.txt
+          pip install -r /tmp/lot07-p2-t2-reqs.txt
+      - name: Install actual frontend and isolated browser
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci
+          mkdir -p /tmp/lot07-p2-playwright
+          npm install --prefix /tmp/lot07-p2-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          ln -s /tmp/lot07-p2-playwright/node_modules/playwright node_modules/playwright
+          /tmp/lot07-p2-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Start real disposable FastAPI and actual React
+        run: |
+          set -euo pipefail
+          test -n "${DIGITALCROWN_ISOLATION_DB_FINGERPRINT:-}"
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/lot07-p2-api.log 2>&1 &
+          for i in {1..100}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8005/health >/dev/null
+          (cd frontend && npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/lot07-p2-vite.log 2>&1) &
+          for i in {1..100}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5173 >/dev/null
+      - name: Materialize read-only browser evidence script outside product changes
+        working-directory: frontend
+        shell: bash
+        run: |
+          cat > scripts/lot07-p2-auth-real.mjs <<'EVIDENCE'
+          // Evidence-only: real authenticated FastAPI+React Agenda; no endpoint interceptions.
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+          import { chromium, request } from 'playwright';
+          const sha=process.env.SOURCE_HEAD;
+          if(sha!=='9a18bca96074259a250c39fa8a8945808198c86c'
+            ||process.env.ENVIRONMENT!=='test'||process.env.DIGITALCROWN_ISOLATED_RUNTIME!=='1'
+            ||process.env.DATABASE_URL!=='sqlite:///./t2-runtime-cert.db')
+            throw Error('Refuse non-pinned or non-disposable T2 certification');
+          const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+          const login=await api.post('/api/auth/login',{form:{username:process.env.T2_USER,password:process.env.T2_PASSWORD}});
+          if(!login.ok())throw Error('Authenticated T2 login failed '+login.status());
+          const tokens=await login.json();
+          const auth={Authorization:'Bearer '+tokens.access_token};
+          const get=await api.get('/api/appointments/',{headers:auth,params:{
+           start_date:'2026-10-01T00:00:00.000Z',end_date:'2026-11-02T00:00:00.000Z'
+          }});
+          if(!get.ok())throw Error('Real authenticated appointments API failed '+get.status());
+          const appointments=await get.json();
+          if(!Array.isArray(appointments))throw Error('Real appointments API returned non-array');
+          const out=path.resolve('../artifacts/lot07-p2-authenticated-agenda');
+          await fs.mkdir(out,{recursive:true});
+          const browser=await chromium.launch({headless:true});
+          const rows=[];
+          try{
+           for(const width of [390,1280]){
+            const context=await browser.newContext({viewport:{width,height:900},timezoneId:'Africa/Casablanca',locale:'fr-FR'});
+            try{
+             const page=await context.newPage();
+             const errors=[],writes=[];
+             page.on('pageerror',e=>errors.push(String(e).slice(0,250)));
+             page.on('request',r=>{
+              if(/\/api\/appointments\//.test(new URL(r.url()).pathname) && r.method()!=='GET')
+                writes.push({method:r.method(),path:new URL(r.url()).pathname});
+             });
+             await page.addInitScript(({access,refresh})=>{
+               localStorage.setItem('token',access);
+               localStorage.setItem('refresh_token',refresh||'');
+               localStorage.setItem('appMode','prod');
+             },{access:tokens.access_token,refresh:tokens.refresh_token});
+             await page.clock.setFixedTime(new Date('2026-10-17T00:20:00+01:00'));
+             await page.goto('http://127.0.0.1:5173/agenda',{waitUntil:'domcontentloaded',timeout:90000});
+             await page.getByRole('heading',{name:'Agenda',exact:true}).waitFor({state:'visible',timeout:60000});
+             if(new URL(page.url()).pathname!=='/agenda')throw Error('Agenda unauthenticated redirect '+page.url());
+             const loaded=page.waitForResponse(r=>r.request().method()==='GET'
+                &&new URL(r.url()).pathname==='/api/appointments/',{timeout:45000});
+             await page.getByRole('button',{name:'Mois',exact:true}).click();
+             const response=await loaded;
+             if(!response.ok())throw Error('Real browser Agenda appointments GET '+response.status());
+             const realRows=await response.json();
+             if(!Array.isArray(realRows))throw Error('Backend Agenda data not an array');
+             const month=page.getByTestId('agenda-month-view');
+             await month.waitFor({state:'visible',timeout:30000});
+             await month.getByRole('button',{name:/Nouveau RV/}).click();
+             const dialog=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
+             await dialog.waitFor({state:'visible',timeout:20000});
+             const date=await dialog.locator('input[type="date"]').inputValue();
+             if(date!=='2026-10-17')throw Error('Midnight date drift on actual authenticated Agenda '+JSON.stringify({width,date}));
+             if(writes.length)throw Error('Unexpected appointment mutation '+JSON.stringify(writes));
+             if(errors.length)throw Error('Agenda page error '+JSON.stringify(errors));
+             await dialog.getByRole('button',{name:'Fermer'}).click();
+             await dialog.waitFor({state:'hidden',timeout:10000});
+             const file='agenda-authentic-'+width+'.png';
+             await page.screenshot({path:path.join(out,file),fullPage:false,animations:'disabled'});
+             const metrics=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,
+               clientWidth:document.documentElement.clientWidth}));
+             if(metrics.scrollWidth>metrics.clientWidth+2)throw Error('Horizontal overflow '+JSON.stringify(metrics));
+             rows.push({width,date,appointmentsRead:realRows.length,apiStatus:response.status(),
+                path:'/agenda',sourceHead:sha,realFastAPI:true,intercepted:false,mutations:0,file,metrics});
+            }finally{await context.close();}
+           }
+          }finally{await browser.close();await api.dispose();}
+          if(rows.length!==2)throw Error('Missing expected 390/1280 authenticated scenes');
+          await fs.writeFile(path.join(out,'manifest.json'),JSON.stringify({sourceHead:sha,
+            fixture:'disposable FastAPI SQLite T2',actualAuth:true,interceptions:false,rows},null,2));
+          console.log('LOT07_P2_REAL_AGENDA_AUTH_SUCCESS '+JSON.stringify({sourceHead:sha,checked:rows.length,
+            dates:rows.map(r=>r.date),realApiStatuses:rows.map(r=>r.apiStatus)}));
+          EVIDENCE
+      - name: Execute real workstation-session auth and unmocked Agenda GET
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          node scripts/run-with-t2-workstation.mjs scripts/lot07-p2-auth-real.mjs
+      - name: Sanitized failure diagnostics
+        if: failure()
+        run: |
+          tail -70 /tmp/lot07-p2-api.log || true
+          tail -70 /tmp/lot07-p2-vite.log || true
+      - name: Upload genuine screenshot proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-p2-agenda-real-auth-frozen-source
+          path: artifacts/lot07-p2-authenticated-agenda/
+          retention-days: 14
+          if-no-files-found: warn
