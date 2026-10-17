@@ -70,6 +70,8 @@ jobs:
               page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`)); page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});
               await page.route('**/api/**',async route=>{const req=route.request(), url=new URL(req.url());
                 if(url.pathname==='/api/appointments/multi-practitioner') return route.fulfill(json(multi));
+                if(url.pathname==='/api/appointments/assignable-practitioners') return route.fulfill(json([{id:1,name:'Dr Lina Alaoui'},{id:2,name:'Dr Youssef Benali'},{id:3,name:'Dr Salma Idrissi'}]));
+                if(url.pathname==='/api/agenda/resources') return route.fulfill(json([]));
                 if(url.pathname==='/api/appointments/check-conflicts') return route.fulfill(json({has_conflict:false,conflicts:[]}));
                 if(url.pathname==='/api/appointments/'&&req.method()==='POST'){try{createdBody=req.postDataJSON()}catch{} return route.fulfill(json({id:777,...(createdBody||{})}));}
                 if(url.pathname==='/api/appointments/'||url.pathname.startsWith('/api/appointments?')) return route.fulfill(json(all));
