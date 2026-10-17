@@ -75,3 +75,15 @@ def test_source_method_change_is_refused(tmp_path,monkeypatch):
     monkeypatch.setattr(audit,"BACKEND",target)
     with pytest.raises(ValueError,match="method bridge"):
         audit.build_w2_ledger()
+
+
+def test_generic_fop_upstream_alias_is_forbidden(tmp_path, monkeypatch):
+    data=json.loads(audit.SOURCE.read_text(encoding="utf-8"))
+    row=next(row for row in data["measurements"] if row["source_order"]==3)
+    fop=audit.FOP
+    row["construction_upstream_landmarks"][fop]=["GENERIC_OCCLUSAL_POINT", "FOP_MOLAR_Ricketts"]
+    target=tmp_path/"false_fop.json"
+    target.write_text(json.dumps(data),encoding="utf-8")
+    monkeypatch.setattr(audit,"SOURCE",target)
+    with pytest.raises(ValueError, match="upstream identity"):
+        audit.build_w2_ledger()
