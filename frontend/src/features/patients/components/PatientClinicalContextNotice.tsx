@@ -15,13 +15,15 @@ export interface PatientClinicalAdvice {
 export function PatientClinicalContextNotice({
   medicalHistory,
   advice,
+  showHistoryStatus = true,
   onEdit,
 }: {
   medicalHistory?: string | null;
   advice?: PatientClinicalAdvice | null;
+  showHistoryStatus?: boolean;
   onEdit: () => void;
 }) {
-  const historyMissing = !medicalHistory?.trim();
+  const historyMissing = showHistoryStatus && !medicalHistory?.trim();
   const hasAdvice = Boolean(advice?.title?.trim() || advice?.message?.trim() || advice?.action?.trim());
   // The same backend fact is already represented by the missing-history status.
   const repeatsMissingHistory = historyMissing && advice?.message?.trim().toLocaleLowerCase('fr-FR') === 'antécédents médicaux non renseignés';

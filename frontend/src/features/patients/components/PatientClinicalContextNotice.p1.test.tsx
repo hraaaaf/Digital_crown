@@ -86,4 +86,17 @@ describe('LOT07 P1 — contexte clinique source-first, identité inchangée', ()
     expect(panel.className).toContain('text-text-main');
     expect(container.innerHTML).not.toContain('style=');
   });
+  it('can show a clinical notice on a support tab without duplicating missing-history controls', () => {
+    render(<PatientClinicalContextNotice
+      medicalHistory=""
+      showHistoryStatus={false}
+      advice={{ title: 'Information à confirmer', message: 'Consulter le dossier' }}
+      onEdit={vi.fn()}
+    />);
+    expect(screen.queryByRole('status', { name: 'Antécédents médicaux non renseignés' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Compléter les antécédents/ })).toBeNull();
+    expect(screen.getByRole('note', { name: 'Conseil clinique du dossier' }).textContent)
+      .toContain('Information à confirmer');
+  });
+
 });
