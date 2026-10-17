@@ -88,6 +88,11 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
         if (Test-Path -LiteralPath $stderr) {
             Get-Content -LiteralPath $stderr -Tail 15 | ForEach-Object { Write-Host ('F01_CHILD_' + $Stage + '_DIAGNOSTIC=' + $_) }
         }
+        # Child emits only stage labels, not paths, keys, or user secrets.
+        if (Test-Path -LiteralPath $stdout) {
+            Get-Content -LiteralPath $stdout -Tail 12 | Where-Object { $_ -match '^F01_OWNER_STAGE=' } |
+                ForEach-Object { Write-Host $_ }
+        }
     }
     Assert-F01 ($exitCode -eq 0) ('CHILD_' + $Stage + '_FAILED')
     $report = Evidence-Report $Stage
@@ -107,10 +112,13 @@ $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 Assert-F01 ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) 'WINDOWS_REQUIRED'
 if ($Mode -eq 'Owner') {
+    Write-Output 'F01_OWNER_STAGE=ENTERED'
     Assert-F01 ($identity.User.Value -eq $OwnerSid) 'OWNER_TOKEN_MISMATCH'
+    Write-Output 'F01_OWNER_STAGE=TOKEN_VERIFIED'
     Assert-F01 (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) 'OWNER_NOT_STANDARD'
     [IO.Directory]::CreateDirectory((Private-Path 'spool')) | Out-Null
     [IO.Directory]::CreateDirectory((Private-Path 'keys')) | Out-Null
+    Write-Output 'F01_OWNER_STAGE=PRIVATE_SUBDIRS_CREATED'
     $n = 0
     foreach ($file in F01-Files) {
         [IO.File]::WriteAllBytes($file, [Text.Encoding]::UTF8.GetBytes(
@@ -124,7 +132,9 @@ if ($Mode -eq 'Owner') {
         } finally { $stream.Dispose() }
         $n++
     }
+    Write-Output 'F01_OWNER_STAGE=FILE_IO_COMPLETED'
     Write-Report 'Owner' $n
+    Write-Output 'F01_OWNER_STAGE=REPORT_COMPLETED'
     return
 }
 if ($Mode -eq 'Peer') {
