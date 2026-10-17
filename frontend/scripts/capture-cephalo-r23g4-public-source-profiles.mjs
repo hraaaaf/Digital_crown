@@ -13,6 +13,8 @@ import path from 'node:path';
 
 const head=process.env.PRODUCT_HEAD;
 const phase=process.env.CEPHALO_G4_PHASE;
+// R23-G6 adds a bounded mobile zoom/pan audit to the same public, NONCLINICAL fixture.
+const g6Audit=process.env.CEPHALO_G6_AUDIT==='1';
 const caseId=process.env.CEPHALO_PUBLIC_CASE;
 if(!head || !['BEFORE','AFTER'].includes(phase) || !['anug','challiyan'].includes(caseId))
   throw new Error('PRODUCT_HEAD, CEPHALO_G4_PHASE=BEFORE|AFTER and CEPHALO_PUBLIC_CASE required');
@@ -68,7 +70,7 @@ const basePoints=[
 ];
 if(basePoints.length!==38||new Set(basePoints.map(x=>x[0])).size!==38)throw new Error('Expected 38 unique simulated source handles');
 const scaled=basePoints.map(([id,x,y])=>({id,x:x*radio.width/1200,y:y*radio.height/1600}));
-const out=path.join(frontend,'cephalo-r23g4-public-evidence',phase.toLowerCase(),caseId);
+const out=path.join(frontend,g6Audit?'cephalo-r23g6-mobile-zoom-evidence':'cephalo-r23g4-public-evidence',phase.toLowerCase(),caseId);
 await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});
 const attribution={...radio,sourceCaseId:caseId,actualSha1,sha256,licenseUrl:'https://creativecommons.org/licenses/by-sa/4.0/',phase,productHead:head,
   caveat:'PUBLIC JPEG + UNREGISTERED SYNTHETIC POINTS + NO VERIFIED PATIENT/MEASUREMENT EVIDENCE. VISUAL UX ONLY.'};
@@ -96,8 +98,10 @@ const port=5197;const base='http://127.0.0.1:'+port;
 const vite=path.join(frontend,'node_modules/vite/bin/vite.js');
 const server=spawn(process.execPath,[vite,'--host','127.0.0.1','--port',String(port)],{cwd:frontend,env:{...process.env,VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
 let viteLog='';server.stdout.on('data',x=>viteLog+=x);server.stderr.on('data',x=>viteLog+=x);
-const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900},{width:1600,height:1000}];
-const report={phase,caseId,productHead:head,provenance:attribution,viewports:[],blockedRequests:[],invalidCount:0};
+const viewports=g6Audit
+ ? [{width:390,height:844},{width:430,height:932},{width:1280,height:900}]
+ : [{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900},{width:1600,height:1000}];
+const report={phase,caseId,productHead:head,provenance:attribution,viewports:[],blockedRequests:[],invalidCount:0,g6Audit};
 const allowed=async route=>{
   const req=route.request();const u=new URL(req.url());
   if(u.hostname==='127.0.0.1'&&u.port===String(port))return route.continue();
@@ -111,6 +115,66 @@ async function waitServer(){
   for(let i=0;i<100;i++){try{const r=await fetch(base+'/cephalo-r23g4-public.html');if(r.ok)return}catch{}
     await new Promise(r=>setTimeout(r,250))}
   fail('Vite not responding');
+}
+async function auditG6ZoomPan(page, viewport, viewportName) {
+  const isMobile=viewport.width<1280;
+  // BEFORE is a *known* technical limitation: mobile controls disabled, desktop active.
+  const expectedControls=phase==='AFTER'||!isMobile;
+  const stage=page.locator('[data-r20-radiograph-stage]');
+  await stage.scrollIntoViewIfNeeded();
+  const controls=page.locator('[data-cephalo-zoom-controls]');
+  const present=await controls.count();
+  if(Boolean(present)!==expectedControls)fail('G6 mobile zoom availability mismatch '+viewportName+' '+phase+': '+present);
+  const snapshot=()=>page.evaluate(()=>{
+    const base=document.querySelector('svg[data-cephalo-viewport="base"]');
+    const overlay=document.querySelector('svg[data-cephalo-viewport="overlay"]');
+    const handles=Array.from(document.querySelectorAll('[data-ceph03b-drag-handle]'))
+      .map(x=>[x.getAttribute('data-ceph03b-drag-handle'),x.getAttribute('cx'),x.getAttribute('cy'),x.getAttribute('transform')]);
+    return {
+      base:base?.getAttribute('viewBox')??null,
+      overlay:overlay?.getAttribute('viewBox')??null,
+      handles,
+      documentWidth:document.documentElement.scrollWidth,
+      viewportWidth:document.documentElement.clientWidth,
+      label:document.querySelector('[data-cephalo-zoom-level]')?.textContent?.trim()??null,
+      focusUnavailable:document.querySelectorAll('[data-r23g3-focus-source="active-runtime"]').length===0,
+    };
+  });
+  const initial=await snapshot();
+  if(!initial.base||initial.base!==initial.overlay||initial.handles.length!==38)
+    fail('G6 initial SVG/handle alignment invalid '+viewportName);
+  const untouched=phase.toLowerCase()+'-g6-'+viewportName+'-100.png';
+  await page.screenshot({path:path.join(out,untouched),fullPage:false});
+  if(!expectedControls)return {mobile:isMobile,available:false,initial,fullImageScreenshot:untouched,expectedBlock:'MOBILE_ZOOM_DISABLED_BEFORE'};
+  for(let i=0;i<4;i++)await controls.getByRole('button',{name:'Agrandir la radiographie'}).click();
+  const zoomed=await snapshot();
+  if(zoomed.label!=='200 %'||zoomed.base!==zoomed.overlay)
+    fail('G6 zoom 200% or overlay desync '+viewportName+' '+JSON.stringify(zoomed).slice(0,500));
+  const [,,iw,ih]=initial.base.split(/\s+/).map(Number);
+  const [,,zw,zh]=zoomed.base.split(/\s+/).map(Number);
+  if(Math.abs(zw-iw/2)>0.01||Math.abs(zh-ih/2)>0.01)
+    fail('G6 expected exact 200% viewBox crop '+viewportName);
+  if(JSON.stringify(initial.handles)!==JSON.stringify(zoomed.handles))
+    fail('G6 zoom changed anatomical SVG coordinates '+viewportName);
+  const screenshot200=phase.toLowerCase()+'-g6-'+viewportName+'-200.png';
+  await page.screenshot({path:path.join(out,screenshot200),fullPage:false});
+  await controls.getByRole('button',{name:'Déplacer la radiographie à droite'}).click();
+  const panned=await snapshot();
+  if(panned.base===zoomed.base||panned.base!==panned.overlay)
+    fail('G6 pan movement or overlay desync '+viewportName);
+  if(JSON.stringify(initial.handles)!==JSON.stringify(panned.handles))
+    fail('G6 pan changed anatomical SVG coordinates '+viewportName);
+  const screenshotPan=phase.toLowerCase()+'-g6-'+viewportName+'-pan.png';
+  await page.screenshot({path:path.join(out,screenshotPan),fullPage:false});
+  await controls.getByRole('button',{name:'Afficher toute la radiographie'}).click();
+  const restored=await snapshot();
+  if(restored.label!=='100 %'||restored.base!==initial.base||restored.overlay!==initial.overlay)
+    fail('G6 reset did not restore the original viewBox '+viewportName);
+  if(![zoomed,panned,restored].every(x=>x.documentWidth-x.viewportWidth<=2&&x.focusUnavailable))
+    fail('G6 overflow or unauthorized scientific Focus '+viewportName);
+  const screenshotReset=phase.toLowerCase()+'-g6-'+viewportName+'-reset.png';
+  await page.screenshot({path:path.join(out,screenshotReset),fullPage:false});
+  return {mobile:isMobile,available:true,initial,zoomed,panned,restored,screenshots:[untouched,screenshot200,screenshotPan,screenshotReset]};
 }
 async function capture(v){
  const viewportName=v.width+'x'+v.height;
@@ -195,8 +259,9 @@ async function capture(v){
   const comFile=phase.toLowerCase()+'-com-legacy-'+viewportName+'.png';
   await page.screenshot({path:path.join(out,comFile),fullPage:false});
   states.push({kind:'com',variant:'legacy',rows:comRows,filename:comFile,stageFilename:comStage,valid:true});
+  const zoomEvidence=g6Audit ? await auditG6ZoomPan(page,v,viewportName) : undefined;
   if(errors.length)fail('Page errors: '+errors.join(' | ').slice(0,1200));
-  return{viewportName,decoded,valid:true,states,pageErrors:errors};
+  return{viewportName,decoded,valid:true,states,pageErrors:errors,zoomEvidence};
  }catch(e){
    return{viewportName,valid:false,states,pageErrors:[...errors,String(e)]};
  }finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
