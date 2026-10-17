@@ -5,6 +5,7 @@ import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
 import { getDayBounds, getDaySchedule, getExceptionForDate, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
 import { PatientAvatar } from '../patients/components/PatientAvatar';
+import { layoutAgendaDayOverlaps } from './agendaDayOverlapLayout';
 
 export type AppointmentStatus = 'PRÉVU' | 'EN_S_ATTENTE' | 'EN_FAUTEUIL' | 'TERMINÉ' | 'ANNULÉ' | 'EN_ATTENTE_DEMANDE' | 'EN_ATTENTE_CONFIRM' | 'CONFIRMÉ' | 'REFUSÉ' | 'EXPIRÉ' | 'ABSENT';
 
@@ -161,6 +162,9 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
 
   const exactAppointments = appointments.filter(a => !a.scheduling_type || a.scheduling_type === 'EXACT_TIME');
   const flexAppointments = appointments.filter(a => a.scheduling_type && a.scheduling_type !== 'EXACT_TIME');
+  // Geometry only: when multiple practitioners share one time slot, show every
+  // appointment side-by-side. The appointment/practitioner payload stays intact.
+  const dayLanes = layoutAgendaDayOverlaps(exactAppointments);
 
   return (
     <div data-testid="agenda-day-view" className="w-full space-y-6">
@@ -188,7 +192,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
       )}
 
       {/* CSS GRID AGENDA */}
-      <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+      <div className="p2-agenda-surface bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         
         {/* FLEXIBLE APPOINTMENTS HEADER */}
         {flexAppointments.length > 0 && (
@@ -282,6 +286,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
               {exactAppointments.map((appt) => {
                 const rowStart = getSlotRow(appt.datetime_start);
                 const span = getDurationSpan(appt.duration_minutes);
+                const lane = dayLanes.get(appt.id) ?? {lane:0,lanes:1,leftPercent:0,widthPercent:100};
                 
                 // Si out of bounds
                 if (rowStart < 0 || rowStart >= totalSlots) return null;
@@ -292,14 +297,23 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
                 return (
                   <div 
                     key={appt.id}
+                    data-p2-day-appointment={appt.id}
+                    data-p2-day-lane={lane.lane}
+                    data-p2-day-lanes={lane.lanes}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Modifier le rendez-vous de ${appt.patient_name || 'patient'}`}
+                    onKeyDown={(event) => { if(event.key === 'Enter' || event.key === ' ') {event.preventDefault(); handleEditClick(event,appt);} }}
                     onClick={(e) => handleEditClick(e, appt)}
                     className={cn(
-                      "appointment-item absolute left-2 right-4 p-3 rounded-xl border border-l-4 shadow-sm cursor-pointer transition-all z-10 flex flex-col hover:scale-[1.01] hover:shadow-md",
+                      "appointment-item absolute p-2 sm:p-3 rounded-xl border border-l-4 shadow-sm cursor-pointer transition-all z-10 flex flex-col hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                       getStatusColor(appt.status)
                     )}
                     style={{ 
                       top: `${topPixel}px`, 
                       height: `${heightPixel - 4}px`, // -4px pour laisser de l'espace margin
+                      left: `calc(${lane.leftPercent}% + 8px)`,
+                      width: `calc(${lane.widthPercent}% - 16px)`,
                       borderLeftColor: 'currentColor'
                     }}
                   >
