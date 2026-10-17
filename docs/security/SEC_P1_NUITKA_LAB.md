@@ -9,7 +9,9 @@ and is NOT a licensed/security-certified release.
 
 The experiment uses `Nuitka==4.3`, Python 3.12, Ubuntu **and Windows**, a temporary
 copy of the source, and **synthetic** hexadecimal test fixtures only. All
-compiled artifacts are automatically deleted after the comparison.
+compiled artifacts are automatically deleted after the comparison. On Windows,
+the native extension is imported and compared inside a **child process** which
+must terminate before cleanup, because a loaded `.pyd` cannot be deleted.
 
 ## Run
 
