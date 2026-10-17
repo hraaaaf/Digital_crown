@@ -106,7 +106,7 @@ def build_w2_ledger() -> dict:
             (c, UPSTREAM[c]) for c in cons
         ):
             match = re.search(
-                r"\\b" + re.escape(const_name) + r"\\s*=\\s*(\\([\\s\\S]*?\\))",
+                r"\b" + re.escape(const_name) + r"\s*=\s*(\([\s\S]*?\))",
                 constructions,
             )
             if match is None or tuple(ast.literal_eval(match.group(1))) != direct_ids:
