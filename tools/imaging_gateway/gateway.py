@@ -26,7 +26,9 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from tools.imaging_gateway.media_validation import validated_mime
 from tools.imaging_gateway.windows_scoped_read_lab import directory_identity, open_relative_read
 from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
-from tools.imaging_gateway.sqlite_boundary_lab import SQLiteBoundaryError, inspect_sqlite_boundary
+from tools.imaging_gateway.sqlite_boundary_lab import (
+    SQLiteBoundaryError, inspect_sqlite_boundary, pin_windows_sqlite_path,
+)
 
 
 class GatewayError(RuntimeError):
@@ -242,6 +244,18 @@ class HotFolder:
 
     @contextmanager
     def _db(self):
+        # Windows: directory path components must stay stable from connect
+        # through WAL/SHM usage and final sqlite3.close(). File replacement
+        # and same-user attacks still require actual OS ACL isolation.
+        try:
+            with pin_windows_sqlite_path(self.private, self._windows_private_identity):
+                with self._db_on_pinned_path() as db:
+                    yield db
+        except SQLiteBoundaryError as error:
+            raise GatewayError("SQLite LAB path pin refused: " + str(error)) from None
+
+    @contextmanager
+    def _db_on_pinned_path(self):
         before = self._sqlite_guard()
         # After initial trusted creation, NEVER silently recreate a missing
         # database. A disappeared DB is an integrity incident, not a blank

@@ -173,6 +173,52 @@ class GatewayTests(unittest.TestCase):
         with self.assertRaises(GatewayError):
             self.agent.scan_once()
 
+    @unittest.skipUnless(os.name == "nt", "native Windows sharing semantics only")
+    def test_windows_sqlite_pin_denies_ancestor_rename_and_releases(self):
+        from tools.imaging_gateway.sqlite_boundary_lab import pin_windows_sqlite_path
+        from tools.imaging_gateway.windows_scoped_read_lab import directory_identity
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "pin-parent"
+            private = parent / "private"
+            private.mkdir(parents=True)
+            moved = parent.with_name("pin-parent-renamed")
+            with pin_windows_sqlite_path(private, directory_identity(private)):
+                with self.assertRaises(OSError):
+                    parent.rename(moved)
+            parent.rename(moved)
+            self.assertTrue((moved / "private").is_dir())
+            moved.rename(parent)
+
+    @unittest.skipUnless(os.name == "nt", "native Windows identity only")
+    def test_windows_sqlite_pin_rejects_swapped_root(self):
+        from tools.imaging_gateway.sqlite_boundary_lab import (
+            SQLiteBoundaryError, pin_windows_sqlite_path,
+        )
+        from tools.imaging_gateway.windows_scoped_read_lab import directory_identity
+        with tempfile.TemporaryDirectory() as temporary:
+            private = Path(temporary) / "private"
+            private.mkdir()
+            original = directory_identity(private)
+            moved = private.with_name("old-private")
+            private.rename(moved)
+            private.mkdir()
+            try:
+                with self.assertRaisesRegex(SQLiteBoundaryError, "PRIVATE_ID_CHANGED"):
+                    with pin_windows_sqlite_path(private, original):
+                        self.fail("swapped root must not be accepted")
+            finally:
+                private.rmdir()
+                moved.rename(private)
+
+    @unittest.skipUnless(os.name == "nt", "native Windows runtime guard only")
+    def test_windows_db_connection_uses_held_directory_handles(self):
+        from tools.imaging_gateway.sqlite_boundary_lab import pin_windows_sqlite_path
+        with patch("tools.imaging_gateway.gateway.pin_windows_sqlite_path",
+                   wraps=pin_windows_sqlite_path) as pinned:
+            with self.agent._db() as db:
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM items").fetchone()[0], 0)
+            self.assertEqual(pinned.call_count, 1)
+
     def test_sqlite_bootstrap_schema_failure_is_atomic(self):
         """Malformed existing scope schema must not leave half-created tables."""
         with tempfile.TemporaryDirectory() as root:

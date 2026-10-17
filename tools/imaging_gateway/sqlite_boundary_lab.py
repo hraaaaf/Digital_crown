@@ -7,6 +7,7 @@ A Windows installer must enforce restricted service identity and NTFS ACLs.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 import os
 import stat
@@ -68,3 +69,50 @@ def inspect_sqlite_boundary(
             raise SQLiteBoundaryError("SQLITE_FILE_UNSAFE")
         identities[suffix] = (metadata.st_dev, metadata.st_ino)
     return identities
+
+
+@contextmanager
+def pin_windows_sqlite_path(private: Path, expected_windows_directory):
+    """Temporarily prevent rename of Windows SQLite directory ancestors.
+
+    Ancestor handles are opened root-to-leaf WITHOUT FILE_SHARE_DELETE and
+    kept open until SQLite has closed its connection. This makes path component
+    renames fail while stdlib SQLite VFS operates, where ordinary Windows file
+    sharing rules apply. This is a partial LAB hardening, NOT a custom VFS or
+    an installer/service ACL solution; main DB/WAL/SHM filenames are unpinned.
+    """
+    if os.name != "nt":
+        yield
+        return
+
+    from tools.imaging_gateway.windows_scoped_read_lab import _win_api
+    ctypes, _, kernel, _, FileInfo, *_ = _win_api()
+    private = Path(private).absolute()
+    if expected_windows_directory is None:
+        raise SQLiteBoundaryError("SQLITE_EXPECTED_WINDOWS_DIRECTORY_MISSING")
+    handles = []
+    try:
+        for directory in (*reversed(private.parents), private):
+            handle = kernel.CreateFileW(
+                str(directory), 0x80,  # FILE_READ_ATTRIBUTES
+                0x1 | 0x2,  # SHARE_READ | SHARE_WRITE; intentionally NO SHARE_DELETE
+                None, 3,  # OPEN_EXISTING
+                0x02000000 | 0x00200000,  # BACKUP_SEMANTICS | OPEN_REPARSE_POINT
+                None,
+            )
+            if handle in (None, ctypes.c_void_p(-1).value):
+                raise SQLiteBoundaryError("SQLITE_PATH_PIN_OPEN_DENIED")
+            handles.append(handle)
+            info = FileInfo()
+            if not kernel.GetFileInformationByHandle(handle, ctypes.byref(info)):
+                raise SQLiteBoundaryError("SQLITE_PATH_PIN_ID_UNAVAILABLE")
+            if not info.attributes & 0x10 or info.attributes & 0x400:
+                raise SQLiteBoundaryError("SQLITE_PATH_PIN_UNSAFE_COMPONENT")
+            if directory == private:
+                observed = (info.volume, (info.index_high << 32) | info.index_low)
+                if observed != expected_windows_directory:
+                    raise SQLiteBoundaryError("SQLITE_PATH_PIN_PRIVATE_ID_CHANGED")
+        yield
+    finally:
+        for handle in reversed(handles):
+            kernel.CloseHandle(handle)
