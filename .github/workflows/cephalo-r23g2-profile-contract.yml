@@ -19,7 +19,16 @@ on:
       - 'docs/audits/schemas/cephalo_r23g7_atlas33_source_dependencies_v1.json'
       - 'scripts/cephalo_r23g7_source_coverage.py'
       - 'audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py'
-      - 'frontend/src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G3PointSource.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts'
+      - 'docs/audits/schemas/cephalo_r23g8_w1_atlas33_orientation_dependencies_v1.json'
+      - 'scripts/cephalo_r23g8_w1_orientation_coverage.py'
+      - 'audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py'
+      - 'backend/tests/test_cephalo_lot08_image_orientation_evidence.py'
+      - 'backend/services/cephalo_canonical_analysis_v2.py'
+      - 'backend/schemas/cephalo_evidence.py'
+      - 'docs/audits/CEPHALO_LOT08_IMAGE_ORIENTATION_EVIDENCE_CONTRACT.md'
       - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
       - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.tsx'
@@ -52,11 +61,23 @@ jobs:
       - name: Install pytest (stdlib-only projector under test)
         run: python -m pip install pytest==9.0.3
       - name: Test source-profile cardinality and fail-closed values
-        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py -q
+        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py -q
       - name: Write exact Atlas33 8 plus 3 preview plus 22 hold source ledger
         env:
           PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: python scripts/cephalo_r23g7_source_coverage.py --output audit/cephalo_r23g7_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Source-locked W1 orientation signed-factor audit ledger (not patient proof)
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python scripts/cephalo_r23g8_w1_orientation_coverage.py --output audit/cephalo_r23g8_w1_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Upload W1 orientation source obligations (EXPERIMENTAL, no clinical GO)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g8-w1-orientation-ledger-${{ github.event.pull_request.head.sha }}
+          path: audit/cephalo_r23g8_w1_evidence/
+          retention-days: 30
+          if-no-files-found: warn
       - name: Upload R23-G7 source obligation inventory (not clinical approval)
         if: always()
         uses: actions/upload-artifact@v4
@@ -88,7 +109,7 @@ jobs:
         run: npm ci
       - name: Run fail-closed clinical profile reader tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts
+        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts
       - name: Full TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
@@ -127,3 +148,5 @@ jobs:
         run: python -m pytest backend/tests/test_cephalo_r23g5_authenticated_api.py -q
       - name: Existing canonical GET and runtime graph regressions
         run: python -m pytest backend/tests/test_cephalo_typed_read_route.py backend/tests/test_cephalo_runtime_chain.py -q
+      - name: Signed Ricketts orientation actual backend schema and rotation/mirror regressions
+        run: python -m pytest backend/tests/test_cephalo_lot08_image_orientation_evidence.py -q
