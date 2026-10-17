@@ -11,6 +11,7 @@ on:
       - frontend/scripts/certify-cb01-associate-sidecar.mjs
       - frontend/scripts/certify-cb01-s01-s12-matrix.mjs
       - scripts/ci/cb01_s07_s09_http_pg.py
+      - scripts/ci/cb01_s07_s09_sqlcipher.py
       - scripts/ci/cb01_s07_s09_postgres.py
       - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
       - frontend/src/components/GhostBrainWidget.g9Interactive.test.tsx
@@ -183,6 +184,11 @@ jobs:
           if test -f artifacts/cb01-associate-sidecar/http-pg-s07-s09-evidence.json; then
             echo "### S07/S09 real FastAPI HTTP on full Alembic PostgreSQL: PASS integration; no human E2E or SQLCipher certification." >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: S07/S09 SQLCipher encrypted-file writer lock and ABA (isolated)
+        shell: bash
+        run: |
+          python scripts/ci/cb01_s07_s09_sqlcipher.py
+          echo "### S07/S09 SQLCipher temporary encrypted DB primitives: PASS if step succeeds; NOT human E2E or full cabinet SQLCipher migration." >> "$GITHUB_STEP_SUMMARY"
       - name: Start disposable synthetic T2 backend
         shell: bash
         run: |
