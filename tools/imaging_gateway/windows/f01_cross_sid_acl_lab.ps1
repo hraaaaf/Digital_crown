@@ -45,7 +45,18 @@ function Write-Report([string]$Stage, [int]$Assertions) {
 }
 function Require-Denied([scriptblock]$Attempt, [string]$Name) {
     try { & $Attempt }
-    catch [System.UnauthorizedAccessException] { return }
+    catch {
+        $rootCause = $_.Exception
+        while ($rootCause.InnerException) { $rootCause = $rootCause.InnerException }
+        if ($rootCause -is [System.UnauthorizedAccessException]) { return }
+        # NTFS may conceal the source name during Move when directory READ is denied.
+        # This is NOT an ACL-denial oracle alone. The elevated harness checks
+        # SHA-256 and existence before AND after the attempted peer rename.
+        if ($Name -eq 'RENAME' -and $rootCause -is [System.IO.FileNotFoundException]) {
+            return
+        }
+        throw
+    }
     throw ('F01_PEER_ACCESS_NOT_DENIED_' + $Name)
 }
 function Invoke-Icacls([string[]]$Arguments) {
@@ -209,6 +220,10 @@ try {
 }
 if ($cleanupFailure) { throw $cleanupFailure }
 if ($mainFailure) { throw $mainFailure }
+Assert-F01 (-not (Test-Path -LiteralPath $work)) 'WORK_ROOT_LEFT_BEHIND'
+Assert-F01 (-not (Get-LocalUser -Name $ownerName -ErrorAction SilentlyContinue)) 'OWNER_ACCOUNT_LEFT_BEHIND'
+Assert-F01 (-not (Get-LocalUser -Name $peerName -ErrorAction SilentlyContinue)) 'PEER_ACCOUNT_LEFT_BEHIND'
+Write-Host 'F01_DISPOSABLE_USER_AND_ROOT_CLEANUP=PASS'
     Write-Host 'F01_CROSS_SID_LAB=PASS'
     Write-Host 'F01_DISTINCT_STANDARD_USER_TOKENS=PASS'
     Write-Host 'F01_PROTECTED_NTFS_DACL=PASS'
