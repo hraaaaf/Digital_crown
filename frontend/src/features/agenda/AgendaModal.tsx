@@ -68,6 +68,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [loading, setLoading] = useState(false);
   const [dateValue, setDateValue] = useState('');
   const [conflictReview, setConflictReview] = useState<{ key: string; status: 'checking' | 'ready' | 'error'; conflicts: any[]; hasConflict: boolean } | null>(null);
+  const [conflictRetrySequence, setConflictRetrySequence] = useState(0);
   const [smartIntel, setSmartIntel] = useState<any>(null);
   const [loadingIntel, setLoadingIntel] = useState(false);
   const [showGhostPanel, setShowGhostPanel] = useState(false);
@@ -293,7 +294,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
   // The backend owns conflict validation. An unavailable/malformed response must
   // never be presented as "no conflicts". Keep checks tied to the exact form.
-  const conflictKey = `${dateValue}|${time}|${duration}|${schedulingType}|${editingAppointment?.id ?? 'new'}|${isOpen}`;
+  const conflictKey = `${dateValue}|${time}|${duration}|${schedulingType}|${editingAppointment?.id ?? 'new'}|${isOpen}|${conflictRetrySequence}`;
   const currentReview = conflictReview?.key === conflictKey ? conflictReview : null;
   const conflicts = currentReview?.status === 'ready' ? currentReview.conflicts : [];
   const canSaveExact = schedulingType !== 'EXACT_TIME' ||
@@ -319,6 +320,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         if (cancelled) return;
         if (!res.data || !Array.isArray(res.data.conflicts) || typeof res.data.has_conflict !== 'boolean')
           throw new Error('Invalid backend conflict response');
+        // A contradictory API payload must never unlock a booking while displaying an overlap.
+        if (res.data.conflicts.length > 0 && !res.data.has_conflict)
+          throw new Error('Contradictory backend conflict response');
         setConflictReview({ key: conflictKey, status: 'ready', conflicts: res.data.conflicts, hasConflict: res.data.has_conflict });
       } catch {
         if (!cancelled) setConflictReview({ key: conflictKey, status: 'error', conflicts: [], hasConflict: false });
@@ -839,6 +843,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   {currentReview?.status === 'error'
                     ? 'Vérification des conflits indisponible : enregistrement bloqué. Modifiez le créneau ou réessayez.'
                     : 'Vérification des conflits en cours…'}
+                  {currentReview?.status === 'error' && (
+                    <button type="button" onClick={() => setConflictRetrySequence(n => n + 1)}
+                      className="ml-auto shrink-0 rounded-md border border-amber-500 px-2 py-1 font-black underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700">
+                      Relancer la vérification
+                    </button>
+                  )}
                 </div>
               )}
               {schedulingType === 'EXACT_TIME' && currentReview?.hasConflict && (
