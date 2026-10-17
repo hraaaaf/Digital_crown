@@ -14,12 +14,19 @@
   color: var(--text-main);
 }
 :is(html, body)[data-theme='dark'] .p2-agenda-root .p2-agenda-switcher,
-:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='bg-slate-50'],
-:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='bg-slate-100'] {
+:is(html, body)[data-theme='dark'] .p2-agenda-root :is(
+  [class~='bg-slate-50'],[class~='bg-slate-50/30'],[class~='bg-slate-50/50'],[class~='bg-slate-50/60'],
+  [class~='bg-slate-100'],[class~='bg-slate-100/50'],[class~='bg-slate-100/60'],[class~='bg-slate-100/80']) {
   background-color: var(--glass-bg) !important;
   border-color: var(--border-color) !important;
 }
-:is(html, body)[data-theme='dark'] .p2-agenda-root [class*='bg-white'] {
+/* Match actual background utility tokens, never hover:bg-white: the latter
+ * appears on primary-colored clinical action buttons and must not turn them
+ * into dark cards even when their default background is brand-primary. */
+:is(html, body)[data-theme='dark'] .p2-agenda-root :is(
+  [class~='bg-white'],[class~='bg-white/20'],[class~='bg-white/30'],[class~='bg-white/40'],
+  [class~='bg-white/50'],[class~='bg-white/60'],[class~='bg-white/70'],
+  [class~='bg-white/80'],[class~='bg-white/90'],[class~='bg-white/95']) {
   background-color: var(--card-bg) !important;
 }
 :is(html, body)[data-theme='dark'] .p2-agenda-root [class*='border-white'] {
