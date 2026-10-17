@@ -192,6 +192,24 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.agent.scan_once()["rejected"], 1)
             self.assertEqual(self.agent.items(), [])
 
+    @unittest.skipUnless(os.name == "nt", "NT-relative watch identity regression")
+    def test_windows_nt_relative_open_rejects_swapped_root_before_read(self):
+        from tools.imaging_gateway.windows_scoped_read_lab import open_relative_read
+        original = self.watch.with_name("saved-watch")
+        self.watch.rename(original)
+        try:
+            self.watch.mkdir()
+            (self.watch / "malicious.png").write_bytes(SYNTHETIC)
+            with self.assertRaises(OSError):
+                open_relative_read(
+                    self.watch, "malicious.png", self.agent._windows_watch_identity
+                )
+            self.assertEqual(self.agent.items(), [])
+        finally:
+            if self.watch.exists():
+                shutil.rmtree(self.watch)
+            original.rename(self.watch)
+
     def test_root_replaced_during_capture_read_is_never_committed(self):
         file = self.watch / "fixture.png"
         file.write_bytes(SYNTHETIC)
