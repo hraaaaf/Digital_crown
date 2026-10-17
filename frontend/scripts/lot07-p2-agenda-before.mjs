@@ -93,7 +93,7 @@ async function runMatrix(page,theme,width,height,zoom=false){
     await area.waitFor({state:'visible',timeout:30000});
     if(mode==='multi')await page.getByText('09:00 · Sara El Amrani',{exact:true}).first().waitFor({state:'visible',timeout:20000});
     else if(mode==='month')await area.locator('[data-m4d-month-appointment]').first().waitFor({state:'visible',timeout:20000});
-    else await area.getByText('Sara El Amrani',{exact:false}).first().waitFor({state:'visible',timeout:20000});
+    else await area.getByText('Sara El Amrani',{exact:false}).filter({visible:true}).first().waitFor({state:'visible',timeout:20000});
     const metric=await page.evaluate(()=>{
       const doc=document.documentElement;
       const internal=document.querySelector('[data-testid="multi-practitioner-scroll"]');
