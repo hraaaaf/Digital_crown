@@ -64,7 +64,7 @@ async function viewportRun(viewport){
    await page.locator('[data-cephalo-selected-analysis-id="'+study+'"]').waitFor({state:'visible',timeout:15000});
    record.checks.push('SELECT_'+label.toUpperCase()+'_STUDY_'+study);
    await shot(label+'-selected');
-   await page.getByRole('button',{name:'Documents & stratégie',exact:true}).click();
+   await page.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
    const draft=page.getByRole('button',{name:'Brouillon PDF'});
    await draft.waitFor({state:'visible',timeout:20000});
    const responsePromise=page.waitForResponse(r=>{
