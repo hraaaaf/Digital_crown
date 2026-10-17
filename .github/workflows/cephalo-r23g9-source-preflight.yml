@@ -8,6 +8,14 @@ on:
       - '.github/workflows/cephalo-r23g9-source-preflight.yml'
       - 'docs/audits/schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json'
       - 'docs/audits/CEPHALO_R23G9_ATLAS33_AARIZ_COMPATIBILITY_PREFLIGHT.md'
+      - 'backend/data/cephalometry/ricketts_atlas2009_complete33_protocol_profile_v1.json'
+      - 'docs/audits/schemas/cephalo_vnext_lot06_executable_measurement_contract_v1.json'
+      - 'docs/audits/schemas/cephalo_r23g7_atlas33_source_dependencies_v1.json'
+      - 'docs/audits/schemas/cephalo_r23g8_w1_atlas33_orientation_dependencies_v1.json'
+      - 'docs/audits/schemas/cephalo_r23g8_w2_atlas33_dental_manual_dependencies_v1.json'
+      - 'docs/audits/schemas/cephalo_r23g8_w3_atlas33_craniomandibular_dependencies_v1.json'
+      - 'docs/audits/schemas/cephalo_vnext_lot02_aariz_source.json'
+      - 'docs/audits/schemas/cephalo_vnext_lot02_aariz_qualification.json'
   workflow_dispatch:
 
 permissions:
@@ -21,6 +29,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Verify exact checked out PR HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
