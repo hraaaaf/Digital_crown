@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import userEvent from '@testing-library/user-event';
 
 vi.mock('../../services/api', () => ({
   api: {
@@ -170,6 +171,49 @@ describe('CrownBot G9 reachable interaction truth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Fermer l'historique Crown Bot" }));
     expect(drawer).toHaveAttribute('inert');
     expect(drawer).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('B-NEW-01: keyboard selects a history conversation and Escape restores the opener', async () => {
+    const user = userEvent.setup();
+    getMock.mockImplementation(async url => {
+      if (url === '/bot/sessions') return { data: [
+        { id: 'history-1', title: 'Première session', updated_at: '2026-10-17' },
+        { id: 'history-2', title: 'Deuxième session', updated_at: '2026-10-17' },
+      ] } as any;
+      if (url === '/bot/sessions/history-2/messages') {
+        return { data: [{ id: 'response-2', sender: 'bot', text: 'Historique deuxième session' }] } as any;
+      }
+      return { data: [] } as any;
+    });
+    renderCrownBot();
+    await waitFor(() => expect(getMock).toHaveBeenCalledWith('/bot/sessions'));
+    const toggle = screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" });
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    const close = screen.getByRole('button', { name: "Fermer l'historique Crown Bot" });
+    expect(close).toHaveFocus();
+    const drawer = document.querySelector('[data-cb01-history-drawer]');
+    expect(drawer).not.toHaveAttribute('inert');
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Nouvelle conversation' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Ouvrir la conversation Première session' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Archiver la conversation Première session' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Ouvrir la conversation Deuxième session' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(await screen.findByText('Historique deuxième session')).toBeInTheDocument();
+    expect(getMock).toHaveBeenCalledWith('/bot/sessions/history-2/messages');
+    await waitFor(() => expect(toggle).toHaveFocus());
+    expect(drawer).toHaveAttribute('inert');
+
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('button', { name: "Fermer l'historique Crown Bot" })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(toggle).toHaveFocus();
+    expect(drawer).toHaveAttribute('inert');
+    expect(screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('proves the conversation send/action branch is not reachable from the current Chat tab', async () => {
