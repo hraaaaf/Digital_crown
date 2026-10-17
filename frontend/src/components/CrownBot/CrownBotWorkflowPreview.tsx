@@ -9,7 +9,21 @@ type PreviewResponse = {
   candidates?: Array<{ id: number; nom: string; prenom: string; numero_dossier: string | null }>;
 };
 
-const COMMANDS = ['/patient', '/rdv', '/devis'] as const;
+// Stable, explicit UI intentions; only the two patient-facing commands are
+// translated to their existing deterministic backend protocol.
+const ACTIONS = [
+  { key: 'programme', label: 'Mon programme' },
+  { key: '/patient', label: 'Trouver un patient' },
+  { key: '/rdv', label: 'Préparer un RDV' },
+] as const;
+const ACTION_LABELS: Record<string, string> = {
+  '/patient': 'Trouver un patient',
+  '/rdv': 'Préparer un RDV',
+};
+type ProgrammeAppointment = {
+  id: number; datetime_start: string; patient_name?: string | null;
+  motif?: string | null; status?: string | null;
+};
 const MAX_TURNS = 8;
 
 /**
@@ -24,12 +38,61 @@ export function CrownBotWorkflowPreview() {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [programme, setProgramme] = useState<{
+    items: ProgrammeAppointment[]; day: string; consultedAt: string;
+  } | null>(null);
   const inFlight = useRef(false);
+
+  // Canonical read-only Agenda route; this response is scoped server-side by
+  // require_permission("agenda") and employer_id. Never cache across principals.
+  const readProgramme = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError('');
+    setAnswer(null);
+    setProgramme(null);
+    setTranscript([]);
+    setInput('');
+    try {
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      const response = await api.get<ProgrammeAppointment[]>('/appointments/', {
+        params: { start_date: start.toISOString(), end_date: end.toISOString() },
+      });
+      if (!Array.isArray(response.data) || !response.data.every(item =>
+        Number.isSafeInteger(item?.id) && typeof item.datetime_start === 'string')) {
+        throw new Error('Invalid agenda read contract');
+      }
+      setProgramme({
+        items: [...response.data].sort((a, b) =>
+          a.datetime_start.localeCompare(b.datetime_start)),
+        day: now.toLocaleDateString('fr-FR', {
+          day: 'numeric', month: 'long', year: 'numeric',
+        }),
+        consultedAt: new Date().toLocaleTimeString('fr-FR', {
+          hour: '2-digit', minute: '2-digit',
+        }),
+      });
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(status === 403 ? 'Accès Agenda refusé pour votre compte.'
+        : status === 423 ? 'Poste verrouillé. Aucune donnée Agenda affichée.'
+        : 'Impossible de consulter le programme. Aucune donnée périmée affichée.');
+    } finally {
+      setBusy(false);
+      inFlight.current = false;
+    }
+  };
 
   const reset = () => {
     if (inFlight.current) return;
     setTranscript([]);
     setAnswer(null);
+    setProgramme(null);
     setError('');
     setInput('');
   };
@@ -54,6 +117,7 @@ export function CrownBotWorkflowPreview() {
     inFlight.current = true;
     setBusy(true);
     setError('');
+    setProgramme(null);
     // Never show an old patient's successful result as the result of a new
     // workflow (or a subsequent request that fails). Preserve only validated
     // steps when retrying within the same workflow.
@@ -90,35 +154,71 @@ export function CrownBotWorkflowPreview() {
   const completed = ['read', 'proposal_only', 'cancelled'].includes(answer?.status || '');
   const full = transcript.length >= MAX_TURNS;
   return (
-    <section aria-label="Simulation ZERO-LLM Crown Bot"
+    <section aria-label="Assistant Crown Bot — consultation"
       className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto bg-slate-50 p-3 sm:p-4">
-      <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-900">
-        <p className="text-sm font-bold">Simulation ZERO-LLM — aucune écriture</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-800">
+        <p className="text-sm font-bold">Que souhaitez-vous consulter ?</p>
         <p className="mt-1 text-xs leading-relaxed">
-          Les propositions ne réservent aucun créneau et ne créent ni devis ni dossier.
-          Une validation métier et une confirmation serveur restent indispensables.
+          Aperçu en lecture seule : aucune écriture. Préparer un RDV ne réserve aucun créneau.
+          Les informations proviennent du serveur de votre cabinet après contrôle de vos droits.
         </p>
       </div>
-      <div className="flex flex-wrap gap-2" aria-label="Parcours disponibles">
-        {COMMANDS.map(command => (
-          <button key={command} type="button" disabled={busy}
-            onClick={() => { void send(command, true); }}
-            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">
-            {command}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Actions métier disponibles">
+        {ACTIONS.map(action => (
+          <button key={action.key} type="button" disabled={busy}
+            onClick={() => {
+              if (action.key === 'programme') void readProgramme();
+              else void send(action.key, true);
+            }}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 text-left hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+            {action.label}
           </button>
         ))}
       </div>
+      {programme && (
+        <div role="status" aria-label="Programme du jour" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800">
+          <p className="font-semibold">Programme du {programme.day}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Source : Agenda du cabinet · Lecture serveur à {programme.consultedAt}
+          </p>
+          {programme.items.length === 0 ? (
+            <p className="mt-2 text-sm">Aucun rendez-vous dans ce programme aujourd’hui.</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              <p className="text-xs font-semibold">{programme.items.length} rendez-vous dans l’Agenda du cabinet</p>
+              <ol className="space-y-1">
+                {programme.items.slice(0, 8).map(item => (
+                  <li key={item.id} className="rounded-md border border-slate-100 bg-slate-50 p-2 text-xs">
+                    {item.datetime_start.slice(11, 16)} — {item.patient_name || 'Patient non renseigné'}
+                    {item.motif ? ` · ${item.motif}` : ''}
+                    {item.status ? ` · ${item.status}` : ''}
+                  </li>
+                ))}
+              </ol>
+              {programme.items.length > 8 && (
+                <p className="text-xs text-slate-500">Affichage des 8 premiers rendez-vous. Ouvrez l’Agenda pour la liste complète.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {transcript.length > 0 && (
         <div className="min-w-0 rounded-lg bg-white p-3 text-xs text-slate-700 shadow-sm">
           <p className="mb-2 font-semibold">Étapes saisies : {transcript.length}/{MAX_TURNS}</p>
           <ol className="list-inside list-decimal space-y-1 break-words">
-            {transcript.map((turn, index) => <li key={index}>{turn}</li>)}
+            {transcript.map((turn, index) => (
+              <li key={index}>{ACTION_LABELS[turn] || (turn.startsWith('id:')
+                ? 'Dossier choisi' : turn)}</li>
+            ))}
           </ol>
         </div>
       )}
       {answer && (
         <div role="status" className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
           <p className="break-words text-sm text-slate-800">{answer.message}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Source : consultation du serveur du cabinet · Aucun changement enregistré
+          </p>
           {answer.patient && (
             <p className="mt-2 break-words text-xs">
               Patient identifié : {answer.patient.prenom} {answer.patient.nom}
