@@ -140,11 +140,20 @@ with database.SessionLocal() as db:
     all_appointments = db.query(models.Appointment).filter(
         models.Appointment.employer_id == owner_id).count()
     assert all_appointments == 2, f"S07_APPOINTMENT_COUNT_{all_appointments}"
+    # The real /api/bot/execute path requires its action to belong to an
+    # existing, tenant-scoped BotSession. Preserve the actual FK contract on
+    # full Alembic PostgreSQL instead of inventing an orphan pending action.
+    bot_session_id = str(uuid.uuid4())
+    db.add(models.BotSession(
+        id=bot_session_id, employer_id=owner_id, user_id=owner_id,
+        patient_id=patient_id, title="CB-01 isolated HTTP ABA fixture",
+    ))
+    db.flush()
     # The real /api/bot/execute path will consume this server-side action
     # by UUID only. No action payload is accepted from the HTTP caller.
     stale_action_id = str(uuid.uuid4())
     stale_action = models.BotPendingAction(
-        id=stale_action_id, session_id="cb01-http-synthetic",
+        id=stale_action_id, session_id=bot_session_id,
         user_id=owner_id, employer_id=owner_id,
         action_type="CHANGE_STATUS", status="pending",
         expires_at=datetime.utcnow() + timedelta(minutes=30),
@@ -183,7 +192,7 @@ with database.SessionLocal() as db:
     # Create a NEW action from the CURRENT version, not a retry of stale ID.
     fresh_action_id = str(uuid.uuid4())
     db.add(models.BotPendingAction(
-        id=fresh_action_id, session_id="cb01-http-synthetic",
+        id=fresh_action_id, session_id=bot_session_id,
         user_id=owner_id, employer_id=owner_id,
         action_type="CHANGE_STATUS", status="pending",
         expires_at=datetime.utcnow() + timedelta(minutes=30),
