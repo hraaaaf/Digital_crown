@@ -6,10 +6,29 @@ stuck in an OS read. Never processes patient identities or sends media.
 """
 from __future__ import annotations
 
+import os
+import signal
 import sys
 import threading
 
 from tools.imaging_gateway.bridge_background_lab import make_lab_collector
+
+
+def _arm_parent_death_on_linux() -> bool:
+    if not sys.platform.startswith("linux"):
+        return True
+    try:
+        import ctypes
+        expected = int(os.environ["DC_V15_06_BRIDGE_LAB_PARENT_PID"])
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc.prctl.argtypes = [ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong,
+                              ctypes.c_ulong, ctypes.c_ulong]
+        libc.prctl.restype = ctypes.c_int
+        if libc.prctl(1, signal.SIGKILL, 0, 0, 0) != 0:
+            return False
+        return os.getppid() == expected
+    except (ValueError, KeyError, OSError, AttributeError):
+        return False
 
 
 def main() -> int:
@@ -26,6 +45,11 @@ def main() -> int:
         if sys.stdin.buffer.readline() != b"GO\n":
             return 3
     except (OSError, ValueError):
+        return 3
+
+    # Linux PR_SET_PDEATHSIG is kernel-enforced even if scan_once blocks.
+    # The parent PID check closes the race if it already exited on startup.
+    if not _arm_parent_death_on_linux():
         return 3
 
     stopped = threading.Event()
