@@ -31,16 +31,18 @@ const TypewriterText = ({ text, delay = 5 }: { text: string, delay?: number }) =
 export const GhostBrainWidget = () => {
   // Keep the server snapshot and local acknowledged removals atomic. A delayed
   // HTTP ACK must not decrement a newer WebSocket snapshot's unread count.
-  const [alertState, setAlertState] = useState<{ insights: any[]; unreadCount: number }>({
-    insights: [], unreadCount: 0,
+  const { user } = useAuthStore();
+  const employerId = user?.employer_id || user?.id;
+  const scopeKey = String(employerId ?? '');
+  const [alertState, setAlertState] = useState<{ scopeKey: string; insights: any[]; unreadCount: number }>({
+    scopeKey: '', insights: [], unreadCount: 0,
   });
-  const { insights, unreadCount } = alertState;
+  // Never render a previous cabinet's alerts during principal changes.
+  const { insights, unreadCount } = alertState.scopeKey === scopeKey
+    ? alertState : { insights: [], unreadCount: 0 };
   const [isOpen, setIsOpen] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuthStore();
   const navigate = useNavigate();
-  
-  const employerId = user?.employer_id || user?.id;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -74,7 +76,7 @@ export const GhostBrainWidget = () => {
         try {
           const data = JSON.parse(event.data);
           if (data.insights) {
-            setAlertState({ insights: data.insights, unreadCount: data.unread_count });
+            setAlertState({ scopeKey, insights: data.insights, unreadCount: data.unread_count });
           }
         } catch (err) {
           console.error("GhostBrain WS Parse Error:", err);
@@ -113,7 +115,9 @@ export const GhostBrainWidget = () => {
       setAlertState(prev => {
         // Ignore an ACK for an alert no longer in the latest WS snapshot.
         // This also makes duplicate acknowledgements idempotent locally.
-        if (!prev.insights.some(i => i.id === logId)) return prev;
+        // An earlier principal's ACK must not touch a newer cabinet snapshot,
+        // even when local numeric insight IDs happen to collide.
+        if (prev.scopeKey !== scopeKey || !prev.insights.some(i => i.id === logId)) return prev;
         return {
           insights: prev.insights.filter(i => i.id !== logId),
           unreadCount: Math.max(0, prev.unreadCount - 1),
