@@ -134,12 +134,58 @@ async function checkPage(page,theme,width,zoomNative=false){
     &&metrics.outerWidth>=1200&&metrics.visualScale===1&&split===0))
     throw Error('Native 200% zoom not demonstrated '+JSON.stringify(metrics));
   const file=theme+'-'+width+(zoomNative?'-native200':'')+'.png';
-  if(zoomNative)await page.getByRole('status',{name:'Antécédents médicaux non renseignés'}).scrollIntoViewIfNeeded();
+  let nativeZoomClinicalProof=null;
+  if(zoomNative){
+    // The Chrome 200% DPR check above proves zoom, NOT the ability to read
+    // content. Prove actual scroll-into-viewport access to each clinical fact.
+    // Capture browser viewports (not locator crops, simulated zoom or DOM-only
+    // screenshots), and fail closed when scrolling cannot expose the content.
+    nativeZoomClinicalProof=[];
+    for(const [kind,locator,minPixels,minFraction] of [
+      ['history',page.getByRole('status',{name:'Antécédents médicaux non renseignés'}),110,0.75],
+      ['advice',page.locator('[data-v15-07-g1-inline-nba]'),95,0.55],
+      ['media',page.locator('[data-testid="patient-media-timeline"]'),90,0.15],
+    ]){
+      await locator.scrollIntoViewIfNeeded();
+      const geometry=await locator.evaluate(el=>{
+        const r=el.getBoundingClientRect();
+        const view={width:innerWidth,height:innerHeight};
+        const visibleTop=Math.max(0,r.top);
+        const visibleBottom=Math.min(view.height,r.bottom);
+        const visibleHeight=Math.max(0,visibleBottom-visibleTop);
+        const visibleWidth=Math.max(0,Math.min(view.width,r.right)-Math.max(0,r.left));
+        const centerX=Math.max(1,Math.min(view.width-2,(Math.max(0,r.left)+Math.min(view.width,r.right))/2));
+        const centerY=Math.max(1,Math.min(view.height-2,(visibleTop+visibleBottom)/2));
+        const onTop=document.elementFromPoint(centerX,centerY);
+        const scroller=el.closest('main.custom-scrollbar');
+        return {view,rect:{x:r.x,y:r.y,width:r.width,height:r.height},
+          visibleHeight,visibleWidth,visibleFraction:r.height?visibleHeight/r.height:0,
+          unobstructed:Boolean(onTop&&(el===onTop||el.contains(onTop))),
+          scroll:scroller?{top:scroller.scrollTop,height:scroller.clientHeight,
+            contentHeight:scroller.scrollHeight}:null};
+      });
+      // Store deterministic diagnostic even on failure. Artifacts remain
+      // restricted to synthetic test-patient geometry, never credentials.
+      await fs.writeFile(path.join(out,'native200-'+kind+'-geometry.json'),JSON.stringify(geometry,null,2));
+      if(geometry.visibleHeight<minPixels||geometry.visibleFraction<minFraction
+        ||geometry.visibleWidth<100||!geometry.unobstructed){
+        throw Error('Native 200% clinical content not viewable '+kind+' '+JSON.stringify(geometry));
+      }
+      const proofFile='elite-1440-native200-'+kind+'-viewport.png';
+      await page.screenshot({path:path.join(out,proofFile),animations:'disabled',fullPage:false});
+      const proofStat=await fs.stat(path.join(out,proofFile));
+      if(proofStat.size<9000)throw Error('Empty native 200% clinical proof '+proofFile);
+      nativeZoomClinicalProof.push({kind,file:proofFile,bytes:proofStat.size,geometry});
+    }
+    if(nativeZoomClinicalProof.length!==3)
+      throw Error('Missing 200% clinical status, advice or media viewport evidence');
+  }
   await page.screenshot({path:path.join(out,file),animations:'disabled',fullPage:false});
   const image=await fs.stat(path.join(out,file));
   if(image.size<12000)throw Error('Blank image evidence '+file+' size='+image.size);
   if(errors.length||failures.length)throw Error('Browser errors '+JSON.stringify({errors,failures}));
   evidence.push({theme,width,zoomNative,split,media,metrics,file,imageBytes:image.size,
+    nativeZoomClinicalProof,
     description:'Authentic authenticated protected React patient route, disposable T2 FastAPI, no HTTP mocks'});
 }
 try{
