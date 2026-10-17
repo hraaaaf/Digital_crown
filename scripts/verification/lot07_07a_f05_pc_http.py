@@ -311,13 +311,23 @@ def exercise():
         malformed = remote(0, token, bearer="malformed")
         cross_tenant = remote(0, token, bearer=other_device_token)
         malformed_jwe = remote(0, "x" * 64)
+        # Keep the original protected JWE header intact; flip an encrypted
+        # authentication-tag character to exercise the JOSE library failure
+        # path, not only the obvious malformed-serialization ValueError path.
+        segments = token.split(".")
+        assert len(segments) == 5 and segments[-1]
+        tag = segments[-1]
+        segments[-1] = ("A" if tag[0] != "A" else "B") + tag[1:]
+        tampered_jwe = remote(0, ".".join(segments))
         assert denied[0] == 401 and malformed[0] == 401, (denied, malformed)
         assert cross_tenant[0] == 404 and malformed_jwe[0] == 400, (
             cross_tenant, malformed_jwe,
         )
+        assert tampered_jwe[0] == 400, tampered_jwe
         print("F05_PC_HTTP_PATIENT_AUTH", denied[0], malformed[0],
               "CROSS_TENANT", cross_tenant[0],
-              "INVALID_JWE", malformed_jwe[0], flush=True)
+              "INVALID_JWE", malformed_jwe[0],
+              "INVALID_AUTH_TAG", tampered_jwe[0], flush=True)
 
         # Different FastAPI processes and genuinely encrypted requests compete
         # against the actual canonical appointment API. Both paths share PG lock.
