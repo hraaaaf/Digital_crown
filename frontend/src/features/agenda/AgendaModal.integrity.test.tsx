@@ -193,7 +193,7 @@ describe('LOT07 07-A — Agenda conflict fail-closed integrated modal', () => {
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if(url==='/appointments/assignable-practitioners')return {data:[]} as never;
       if(url==='/agenda/resources')return {data:[]} as never;
-      return {data:{has_conflict:false,conflicts:[]}} as never;
+      return {data:[]} as never;
     });
     mount(undefined, 0);
     await waitFor(() => expect(screen.getByText(/Aucun praticien assignable/)).toBeTruthy(),{timeout:4000});
