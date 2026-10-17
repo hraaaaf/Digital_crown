@@ -1,0 +1,55 @@
+name: R23-G11 Two Public Cephalograms / G10 Intake Fail Closed (experimental)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g11-public-radios.yml'
+      - 'scripts/cephalo_r23g11_public_radiograph_smoke.py'
+      - 'audit/cephalo_r23g11_contract_tests/**'
+      - 'docs/audits/CEPHALO_R23G11_TWO_PUBLIC_RADIOGRAPH_SMOKE.md'
+      - 'docs/audits/schemas/cephalo_r23g11_public_radiographs_v1.json'
+      - 'scripts/cephalo_r23g10_annotation_intake.py'
+      - 'docs/audits/schemas/cephalo_r23g10_atlas33_annotation_intake_template_v1.json'
+      - 'docs/audits/schemas/cephalo_r23g9_atlas33_aariz_compatibility_preflight_v1.json'
+      - 'frontend/scripts/capture-cephalo-r23g4-public-source-profiles.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  two-real-public-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify source and product exact HEAD
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download two ORIGINAL openly licensed lateral cephalograms (ephemeral)
+        run: |
+          mkdir -p /tmp/dc-ceph-g11-public-radios
+          curl -fL --retry 3 --retry-delay 3 --max-time 90 -A 'DigitalCrown-SourceAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG' -o /tmp/dc-ceph-g11-public-radios/anug.jpg
+          curl -fL --retry 3 --retry-delay 3 --max-time 90 -A 'DigitalCrown-SourceAudit/1.0' 'https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg' -o /tmp/dc-ceph-g11-public-radios/challiyan.jpg
+          echo '2a284993c666790a72d0c004044b35a92534ce9d  /tmp/dc-ceph-g11-public-radios/anug.jpg' | sha1sum -c -
+          echo '66c74c588af3c54dfc581f8a870c5276c3427498  /tmp/dc-ceph-g11-public-radios/challiyan.jpg' | sha1sum -c -
+      - name: Check exact bytes, JPEG headers and G10 rejection of non-Aariz public images
+        run: |
+          python -m scripts.cephalo_r23g11_public_radiograph_smoke --input-dir /tmp/dc-ceph-g11-public-radios --report /tmp/dc-ceph-g11-source-result.json
+      - name: Negative integrity, licensing, metadata and clinical promotion tests
+        run: python -m unittest discover -s audit/cephalo_r23g11_contract_tests -p 'test_*.py' -v
+      - name: Attach JSON report WITHOUT radiographs or coordinates
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g11-public-smoke-${{ github.event.pull_request.head.sha || github.sha }}
+          path: /tmp/dc-ceph-g11-source-result.json
+          retention-days: 30
+          if-no-files-found: error
