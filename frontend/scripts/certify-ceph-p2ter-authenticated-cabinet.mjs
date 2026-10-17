@@ -32,6 +32,20 @@ async function viewportRun(viewport){
   const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password}});
   if(login.status()!==200)throw Error('Bootstrap auth failed '+login.status());
   const token=(await login.json()).access_token;
+  // Direct authenticated media probe to distinguish a real server 500 from a
+  // browser CORS symptom, without exposing tokens or weakening network alerts.
+  const mediaProbe=await api.get('/api/static/uploads/radios/t2-cephalo-seeded.png',{
+    headers:{Authorization:'Bearer '+token,Origin:root},
+  });
+  record.mediaProbe={
+    status:mediaProbe.status(),
+    cors:mediaProbe.headers()['access-control-allow-origin']||null,
+    type:mediaProbe.headers()['content-type']||null,
+    error:mediaProbe.status()===200?null:(await mediaProbe.text()).slice(0,300),
+  };
+  console.log('P2TER_PROTECTED_MEDIA_DIAGNOSTIC',JSON.stringify({
+    viewport:record.viewport,mediaProbe:record.mediaProbe,
+  }));
   const enrolled=await enrollT2Workstation(api,token,password);
   const station=enrolled.cookies.filter(c=>c.name==='dc_workstation');
   if(station.length!==1)throw Error('Workstation enrollment missing');
