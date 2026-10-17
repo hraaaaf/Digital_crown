@@ -31,11 +31,38 @@ jobs:
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile('tools/imaging_gateway/windows/f01_cross_sid_acl_lab.ps1', [ref]$tokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count -ne 0) { throw 'F01_POWERSHELL_PARSE_FAILED' }
+      # EXPERIMENTAL check: deliberately not a REQUIRED branch-protection gate.
+      # A real failure must still be RED in Actions, not a misleading SUCCESS.
       - name: Experimental native cross SID proof
         id: oracle
-        continue-on-error: true
         shell: powershell
-        run: .\tools\imaging_gateway\windows\f01_cross_sid_acl_lab.ps1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'f01-cross-sid-evidence.txt'
+          try {
+            & .\tools\imaging_gateway\windows\f01_cross_sid_acl_lab.ps1 *>&1 |
+              Tee-Object -FilePath $evidence
+            $lines = @(Get-Content -LiteralPath $evidence)
+            $required = @(
+              'F01_CROSS_SID_LAB=PASS',
+              'F01_DISTINCT_STANDARD_USER_TOKENS=PASS',
+              'F01_PROTECTED_NTFS_DACL=PASS',
+              'F01_OWNER_POSITIVE_FILE_IO=6/6',
+              'F01_PEER_NEGATIVE_FILE_IO=19/19',
+              'F01_SYNTHETIC_SHA256_UNCHANGED=6/6',
+              'F01_SCM_SERVICE_SID=NOT_TESTED',
+              'F01_COMMERCIAL_CERTIFICATION=NOT_AUTHORIZED',
+              'F01_DISPOSABLE_USER_AND_ROOT_CLEANUP=PASS'
+            )
+            foreach ($marker in $required) {
+              if ($lines -notcontains $marker) {
+                throw "F01_EVIDENCE_MARKER_MISSING:$marker"
+              }
+            }
+            Write-Host 'F01_EXPERIMENTAL_EVIDENCE_VALIDATED=PASS'
+          } finally {
+            Remove-Item -LiteralPath $evidence -Force -ErrorAction SilentlyContinue
+          }
       - name: Explicit experimental evidence state
         if: always()
         shell: powershell
@@ -44,5 +71,6 @@ jobs:
         run: |
           Write-Host "F01_EXPERIMENTAL_ORACLE_OUTCOME=$env:ORACLE_OUTCOME"
           if ($env:ORACLE_OUTCOME -ne 'success') {
-            Write-Warning 'F01_UNPROVEN: experimental oracle failed or unavailable; NEVER security PASS'
+            Write-Error 'F01_UNPROVEN: experimental oracle failed; no SID/DACL proof'
+            exit 1
           }
