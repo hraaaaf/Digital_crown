@@ -5,6 +5,7 @@ on:
     paths:
       - 'frontend/src/features/patients/components/PatientClinicalContextNotice.tsx'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
       - '.github/workflows/lot07-p1-composed-component-visual.yml'
   workflow_dispatch:
 
@@ -93,6 +94,15 @@ jobs:
               if(!msg.includes('Action conseillée (non exécutée)'))throw Error('free-text action safety');
               const status=await page.getByRole('status',{name:'Antécédents médicaux non renseignés'}).innerText();
               if(!status.includes('ne confirme pas leur absence'))throw Error('unknown history safety');
+              const button=page.getByRole('button',{name:'Compléter les antécédents dans la fiche patient'});
+              if(width<600){
+                const info=await page.getByText('Aucune information d’antécédents n’est enregistrée. Cela ne confirme pas leur absence.').boundingBox();
+                const cta=await button.boundingBox();
+                if(!info||!cta||cta.y<info.y+info.height-1)throw Error('P1 mobile CTA overlaps clinical status text');
+                if(cta.width<width-70)throw Error('P1 mobile CTA is not a full row');
+              }
+              const heading=page.locator('[data-testid="patient-media-timeline"] h2').first();
+              if(!(await heading.getAttribute('class'))?.includes('text-text-main'))throw Error('Media heading must use readable semantic theme text');
               const x=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
               if(x.scroll>x.viewport+1)throw Error('horizontal overflow '+JSON.stringify({theme,width,x}));
               const filename=theme+'-'+width+'-p1.png';
