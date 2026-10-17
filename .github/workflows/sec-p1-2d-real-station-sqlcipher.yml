@@ -6,7 +6,7 @@ on:
     paths:
       - "scripts/security/sec_p1_2d_real_station_native_lab.py"
       - ".github/workflows/sec-p1-2d-real-station-sqlcipher.yml"
-      - "docs/security/SEC_P1_2C_AUTH_SQLCIPHER_LAB.md"
+      - "docs/security/SEC_P1_2D_REAL_STATION_LAB.md"
       - "backend/core/key_material.py"
       - "backend/routers/auth.py"
       - "backend/routers/workstation_mode.py"
