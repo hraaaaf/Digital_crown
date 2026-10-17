@@ -19,6 +19,7 @@ import tempfile
 from typing import Mapping
 
 from tools.imaging_gateway.gateway import _is_unsafe_path_component
+from tools.imaging_gateway.windows_job_lab import WindowsLabJob
 
 logger = logging.getLogger(__name__)
 _MARKER = ".digitalcrown-imaging-lab-only"
@@ -34,6 +35,7 @@ class BridgeLabHandle:
     stop: asyncio.Event
     task: asyncio.Task
     process: subprocess.Popen | None = None
+    job: WindowsLabJob | None = None
 
 
 def lab_requested(environ: Mapping[str, str] | None = None) -> bool:
@@ -157,6 +159,23 @@ def start_if_enabled(
         env=child_env, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL, creationflags=launch_flags,
     )
+    job = None
+    try:
+        # Fail-closed on Windows when job assignment cannot be guaranteed.
+        # A child waiting on stdin does no scanning before this step.
+        job = WindowsLabJob.assign(proc)
+        if proc.stdin is None:
+            raise BridgeLabConfigurationError("IMAGING_LAB_PARENT_CHANNEL_MISSING")
+        proc.stdin.write(b"GO\n")
+        proc.stdin.flush()
+    except BaseException:
+        proc.kill()
+        proc.wait(timeout=3)
+        if job is not None:
+            job.close()
+        if proc.stdin is not None:
+            proc.stdin.close()
+        raise BridgeLabConfigurationError("IMAGING_LAB_SUPERVISION_START_FAILED") from None
     stop = asyncio.Event()
 
     async def monitor():
@@ -166,7 +185,7 @@ def start_if_enabled(
             await asyncio.sleep(0.05)
 
     return BridgeLabHandle(stop=stop, task=asyncio.create_task(monitor()),
-                           process=proc)
+                           process=proc, job=job)
 
 
 async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> bool:
@@ -202,6 +221,8 @@ async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> b
             if proc.poll() is None:
                 proc.kill()
                 await asyncio.to_thread(proc.wait, timeout=2)
+            if handle.job is not None:
+                handle.job.close()
             if proc.stdin is not None:
                 proc.stdin.close()
             if not handle.task.done():
