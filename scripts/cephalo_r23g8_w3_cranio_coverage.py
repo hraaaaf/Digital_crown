@@ -128,6 +128,20 @@ def build_w3_ledger() -> dict:
         if (row.get("construction_transitive_landmarks") != expected_upstream or
             row.get("construction_dependency_chain") != expected_chains):
             raise ValueError(f"W3 false transitive construction identities at {order}")
+        # Manual identity in an INDIRECT construction must be displayed as
+        # explicitly as a manual DIRECT measurement landmark. Prevent a
+        # source list alone from being misread as an automatic coordinate.
+        constructor_manual = {
+            XI: ("R1_Ricketts","R2_Ricketts","R3_Ricketts","R4_Ricketts"),
+            PTV: ("PR_Ricketts_PTV",),
+            CF: ("PR_Ricketts_PTV",),
+            CC: ("Pt_Ricketts",),
+            MP: (),
+        }
+        manual_expected = {d:list(constructor_manual[d]) for d in deps}
+        if row.get("construction_manual_landmarks") != manual_expected:
+            raise ValueError(f"W3 transitive manual landmark authority drift at {order}")
+
         if not row["source_contracts"] or not all((ROOT / x).is_file() for x in row["source_contracts"]):
             raise ValueError("W3 canonical source file missing")
         # Exact backend variable's literal tuple, and correct canonical method
