@@ -67,7 +67,7 @@ jobs:
           exit 1
       - name: Seed two synthetic versioned studies on disposable test DB
         run: |
-          python scripts/ceph_p2ter_seed_t2.py | tee /tmp/p2ter-seed.log
+          python -m scripts.ceph_p2ter_seed_t2 | tee /tmp/p2ter-seed.log
           studies="$(python - <<'PY'
           import json
           text=open('/tmp/p2ter-seed.log').read()
