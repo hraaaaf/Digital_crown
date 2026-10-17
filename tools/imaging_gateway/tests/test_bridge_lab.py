@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tools.imaging_gateway.bridge_background_lab import (
     BridgeLabConfigurationError, lab_requested, make_lab_collector,
@@ -149,6 +150,28 @@ class BridgeLabConfigTests(unittest.TestCase):
             finally:
                 os.rmdir(private)  # Remove the junction, not the external folder.
 
+    def test_single_owner_refuses_second_backend_before_spawn(self):
+        from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
+        first = LabOwnerLock.acquire(self.root)
+        try:
+            with patch("tools.imaging_gateway.bridge_background_lab.subprocess.Popen",
+                       side_effect=AssertionError("a second worker must not spawn")):
+                with self.assertRaisesRegex(BridgeLabConfigurationError, "OWNER_ALREADY_ACTIVE"):
+                    start_if_enabled(self.env, trusted_environment="test")
+        finally:
+            first.close()
+        next_owner = LabOwnerLock.acquire(self.root)
+        next_owner.close()
+
+    def test_failed_start_releases_owner_lock(self):
+        from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
+        with patch("tools.imaging_gateway.bridge_background_lab.subprocess.Popen",
+                   side_effect=OSError("synthetic spawn refused")):
+            with self.assertRaisesRegex(BridgeLabConfigurationError, "SUPERVISION_START_FAILED"):
+                start_if_enabled(self.env, trusted_environment="test")
+        with LabOwnerLock.acquire(self.root) as owner:
+            self.assertIsNotNone(owner)
+
     def test_rejects_missing_marker(self):
         (self.root / ".digitalcrown-imaging-lab-only").unlink()
         with self.assertRaises(BridgeLabConfigurationError):
@@ -258,6 +281,9 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(completed, "child did not stop gracefully")
             self.assertIsNotNone(handle.process.poll(), "child not reaped")
             self.assertTrue(handle.task.done())
+            from tools.imaging_gateway.owner_lock_lab import LabOwnerLock
+            reopened = LabOwnerLock.acquire(root)
+            reopened.close()
             self.assertEqual(photo.read_bytes(), PNG)
             with closing(sqlite3.connect(db_path)) as db:
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM items").fetchone()[0], 1)
@@ -266,6 +292,36 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             # remains open. Explicitly prove the final read connection closed.
             with self.assertRaises(sqlite3.ProgrammingError):
                 db.execute("SELECT 1")
+
+    async def test_repeated_scan_failures_exit_worker_and_are_reported(self):
+        with tempfile.TemporaryDirectory(prefix="dc-lab-errors-") as tmp:
+            root = Path(tmp)
+            (root / ".digitalcrown-imaging-lab-only").write_text(
+                "DIGITALCROWN_IMAGING_LAB_ONLY_V1\n", encoding="utf-8")
+            incoming = root / "incoming"
+            incoming.mkdir()
+            env = {
+                "DC_V15_06_BRIDGE_LAB": "1",
+                "ENVIRONMENT": "test",
+                "DIGITALCROWN_ISOLATED_RUNTIME": "true",
+                "DC_V15_06_BRIDGE_LAB_ROOT": str(root),
+                "DC_V15_06_BRIDGE_LAB_KEY_HEX": (b"k" * 32).hex(),
+            }
+            with self.assertLogs("tools.imaging_gateway.bridge_background_lab", level="ERROR") as logs:
+                handle = start_if_enabled(env, trusted_environment="test")
+                moved = root / "incoming-previous"
+                try:
+                    incoming.rename(moved)
+                    incoming.mkdir()
+                    await asyncio.wait_for(handle.task, timeout=4)
+                    self.assertEqual(handle.process.poll(), 4)
+                finally:
+                    stopped = await stop_bridge_lab(handle)
+                    self.assertFalse(stopped, "persistent scan errors must not report healthy")
+                    incoming.rmdir()
+                    moved.rename(incoming)
+            self.assertTrue(any("exited unexpectedly" in msg for msg in logs.output))
+            self.assertTrue(all("incoming-previous" not in msg for msg in logs.output))
 
     @unittest.skipUnless(os.name == "nt", "Windows Job Object only")
     async def test_windows_job_close_terminates_uncooperative_child(self):
