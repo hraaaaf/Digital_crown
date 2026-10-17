@@ -579,7 +579,7 @@ export function CrownBotChat({
             </div>
           </div>
           {onClose && (
-            <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+            <button type="button" aria-label="Fermer Crown Bot" onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
               <X size={16} />
             </button>
           )}
