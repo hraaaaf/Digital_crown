@@ -1,5 +1,6 @@
 """LAB-only background worker contract: no hardware or patient access."""
 import asyncio
+from contextlib import closing
 import ast
 import base64
 import hashlib
@@ -208,7 +209,7 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             try:
                 async def was_staged():
                     while True:
-                        with sqlite3.connect(db_path) as db:
+                        with closing(sqlite3.connect(db_path)) as db:
                             row = db.execute("SELECT state FROM items").fetchone()
                         if row is not None:
                             self.assertEqual(row[0], "PENDING_CONFIRMATION")
@@ -219,8 +220,13 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 await stop_bridge_lab(handle)
             self.assertTrue(handle.task.done())
             self.assertEqual(photo.read_bytes(), PNG)
-            with sqlite3.connect(db_path) as db:
+            with closing(sqlite3.connect(db_path)) as db:
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM items").fetchone()[0], 1)
+            # sqlite3.Connection.__exit__ commits, but does NOT close the
+            # handle. Windows refuses fixture cleanup if even a read handle
+            # remains open. Explicitly prove the final read connection closed.
+            with self.assertRaises(sqlite3.ProgrammingError):
+                db.execute("SELECT 1")
 
     async def test_start_is_silent_when_not_requested(self):
         self.assertIsNone(start_if_enabled({}))
