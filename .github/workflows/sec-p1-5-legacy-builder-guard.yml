@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - "scripts/build_exe.py"
-      - "backend/tests/test_legacy_build_exe_disabled.py"
+      - "scripts/security/test_sec_p1_5_legacy_builder.py"
       - ".github/workflows/sec-p1-5-legacy-builder-guard.yml"
       - "docs/security/SEC_P1_5_LEGACY_BUILDER_REMEDIATION.md"
   workflow_dispatch:
@@ -53,4 +53,4 @@ jobs:
         run: python -m pip check
 
       - name: Prove legacy builder refuses all packaging paths
-        run: python -m pytest -q backend/tests/test_legacy_build_exe_disabled.py
+        run: python -m pytest -q scripts/security/test_sec_p1_5_legacy_builder.py
