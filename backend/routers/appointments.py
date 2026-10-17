@@ -550,7 +550,22 @@ def check_conflicts(
     except ValueError:
         raise HTTPException(status_code=422, detail="Format datetime invalide")
     employer_id = current_user.get_employer_id()
-    practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, praticien_id)
+    if exclude_id is not None:
+        existing = db.query(models.Appointment).filter(
+            models.Appointment.id == exclude_id,
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.deleted_at.is_(None),
+        ).first()
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+        # Historical unassigned appointments must remain unassigned when merely edited.
+        # A supplied new practitioner is explicitly validated, never inferred.
+        practitioner_id = (
+            _resolve_practitioner_id(db, employer_id, current_user, praticien_id)
+            if praticien_id is not None else existing.praticien_id
+        )
+    else:
+        practitioner_id = _resolve_practitioner_id(db, employer_id, current_user, praticien_id)
     availability_error = validate_appointment_availability(
         db,
         employer_id,
