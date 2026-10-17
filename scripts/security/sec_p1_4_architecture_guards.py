@@ -25,9 +25,12 @@ def main() -> None:
         if not path.is_file():
             raise AssertionError(f"Missing experimental file: {relative}")
         content = path.read_text("utf-8")
-        for forbidden in ("-----BEGIN PRIVATE KEY-----", "-----BEGIN OPENSSH PRIVATE KEY-----",
-                          "-----BEGIN EC PRIVATE KEY-----", "-----BEGIN RSA PRIVATE KEY-----"):
-            if forbidden in content:
+        # Construct markers rather than spelling the whole PEM header here:
+        # otherwise the guard falsely flags its own detection rules.
+        pem_prefix = "-----" + "BEGIN "
+        for key_kind in ("PRIVATE KEY", "OPENSSH PRIVATE KEY",
+                         "EC PRIVATE KEY", "RSA PRIVATE KEY"):
+            if pem_prefix + key_kind + "-----" in content:
                 raise AssertionError(f"Private key in SEC-P1.4 experiment file: {relative}")
         if relative.endswith(".py"):
             ast.parse(content, filename=relative)
