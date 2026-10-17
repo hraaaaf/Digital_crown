@@ -65,7 +65,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
     setIsModalOpen(true);
   };
 
-  const handleEditClick = (e: React.MouseEvent, appt: Appointment) => {
+  const handleEditClick = (e: React.SyntheticEvent, appt: Appointment) => {
     e.stopPropagation();
     setEditingAppointment(appt);
     setIsModalOpen(true);
