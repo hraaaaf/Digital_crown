@@ -110,7 +110,22 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     }
     wasSidecarOpenRef.current = sidecarOpen;
   }, [showAssociateSidecar, isBotOpen]);
-  const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
+  // Parent badge survives a closed chat: scope its state to the exact
+  // principal/rights key, not just the keyed CrownBotChat subtree. When
+  // changing tenants the old count is hidden on the FIRST render.
+  const [ghostUnreadState, setGhostUnreadState] = useState({
+    principalKey: crownBotPrincipalKey,
+    count: 0,
+  });
+  const ghostUnreadCount = ghostUnreadState.principalKey === crownBotPrincipalKey
+    ? ghostUnreadState.count : 0;
+  useEffect(() => {
+    setGhostUnreadState({ principalKey: crownBotPrincipalKey, count: 0 });
+  }, [crownBotPrincipalKey]);
+  const onCrownBotUnreadChange = React.useCallback((count: number) => {
+    // An old unmounted chat can only update its own scope, never B's badge.
+    setGhostUnreadState({ principalKey: crownBotPrincipalKey, count: Math.max(0, count) });
+  }, [crownBotPrincipalKey]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
@@ -219,7 +234,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
             <CrownBotChat
               key={crownBotPrincipalKey}
               onClose={showAssociateSidecar ? closeAssociateSidecar : () => setIsBotOpen(false)}
-              onUnreadChange={setGhostUnreadCount}
+              onUnreadChange={onCrownBotUnreadChange}
             />
           </div>
         </div>
@@ -259,7 +274,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
                 : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
             }`}
           >
-            <CrownBotChat key={crownBotPrincipalKey} onClose={() => setIsBotOpen(false)} onUnreadChange={setGhostUnreadCount} />
+            <CrownBotChat key={crownBotPrincipalKey} onClose={() => setIsBotOpen(false)} onUnreadChange={onCrownBotUnreadChange} />
           </motion.div>
         )}
       </AnimatePresence>
