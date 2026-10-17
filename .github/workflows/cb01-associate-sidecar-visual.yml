@@ -16,6 +16,8 @@ on:
       - scripts/ci/cb01_s07_s09_sqlcipher.py
       - scripts/ci/cb01_s07_s09_postgres.py
       - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
+      - backend/routers/ai_feedback.py
+      - backend/tests/test_ai_feedback_router.py
       - frontend/src/components/GhostBrainWidget.tsx
       - frontend/src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
       - frontend/src/components/GhostBrainWidget.g9Interactive.test.tsx
@@ -128,7 +130,8 @@ jobs:
             backend/tests/test_appointments_extended.py::TestCheckConflictsEdgeCases::test_non_overlapping_adjacent_slots_no_conflict \
             backend/tests/test_appointments_m5b.py::TestConflictDetection::test_conflict_overlapping_appointment \
             backend/tests/test_ai_feedback_router.py::TestGhostInsights::test_mark_nonexistent_insight_returns_404 \
-            backend/tests/test_ai_feedback_router.py::TestGhostInsights::test_mark_insight_read
+            backend/tests/test_ai_feedback_router.py::TestGhostInsights::test_mark_insight_read \
+            backend/tests/test_ai_feedback_router.py::TestGhostSnapshotDiff::test_same_unread_count_with_replaced_id_broadcasts_new_patient_alert
       - name: S10/S12 scoped frontend evidence (409 recovery mock, GhostBrain ACK)
         shell: bash
         working-directory: frontend
