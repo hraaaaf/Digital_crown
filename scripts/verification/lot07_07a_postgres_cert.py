@@ -321,3 +321,248 @@ assert second[0] == 409 and len(duplicates) == 1, (
     "BLOCKER: bot /execute bypasses PostgreSQL advisory booking lock; "
     f"HTTP={primary[0],second[0]} same-slot={len(duplicates)}")
 print("PG_CERT_CROSS_ENTRY_BOT", "PASS", flush=True)
+
+
+# F05 adversarial extension: independent operating-system processes. These
+# forks have distinct SQLAlchemy pools and genuine FastAPI/ASGI request handling.
+# Authentication remains an EXPLICIT LAB SUBSTITUTION (X-PG-Lab-Actor); this
+# is not a workstation-authenticated production HTTP or encrypted PC transport.
+import multiprocessing as _multiprocessing
+import os as _os
+import uuid as _uuid
+from fastapi import Depends
+from fastapi.responses import JSONResponse
+from backend.routers import frontdesk as _frontdesk
+from backend.services import patient_companion_agenda as _pc_agenda
+from backend.models_patient_companion import (
+    PatientCompanionIdentity as _Identity,
+    PatientCompanionAccess as _Access,
+    PatientCompanionAgendaSlot as _Slot,
+    PatientCompanionAppointmentRef as _Ref,
+)
+
+app.include_router(_frontdesk.router, prefix="/api")
+app.dependency_overrides[_frontdesk.get_current_user] = fake_user
+
+
+@app.post("/__synthetic_f05__/pc-create")
+def _synthetic_pc_create(body: dict, db=Depends(database.get_db)):
+    access = db.get(_Access, int(body["access_id"]))
+    if access is None:
+        raise HTTPException(404, "synthetic access not found")
+    result = _pc_agenda.create_appointment(db, access, {"slot_ref": body["slot_ref"]})
+    db.commit()
+    return JSONResponse(
+        status_code=200 if result.status == "ACCEPTED" else 409,
+        content={"state": result.status, **result.response},
+    )
+
+
+@app.post("/__synthetic_f05__/pc-reschedule")
+def _synthetic_pc_reschedule(body: dict, db=Depends(database.get_db)):
+    access = db.get(_Access, int(body["access_id"]))
+    if access is None:
+        raise HTTPException(404, "synthetic access not found")
+    result = _pc_agenda.reschedule_appointment(
+        db, access, {"slot_ref": body["slot_ref"], "appointment_ref": body["appointment_ref"]}
+    )
+    db.commit()
+    return JSONResponse(
+        status_code=200 if result.status == "ACCEPTED" else 409,
+        content={"state": result.status, **result.response},
+    )
+
+
+def _mp_worker(operation, gate, ready, answer):
+    # fork inherited an Engine pool: discard it without touching the parent's
+    # real connection; this forces independent PostgreSQL sessions per PID.
+    engine.dispose(close=False)
+    pid = _os.getpid()
+    ready.put(pid)
+    if not gate.wait(timeout=20):
+        answer.put((pid, 599, "race gate timeout"))
+        return
+    try:
+        response = call(*operation)
+        answer.put((pid, response[0], response[1]))
+    except BaseException as exc:
+        answer.put((pid, 599, type(exc).__name__))
+
+
+def _mp_race(first, second):
+    ctx = _multiprocessing.get_context("fork")  # explicit Ubuntu/Linux runner only
+    gate, ready, answer = ctx.Event(), ctx.Queue(), ctx.Queue()
+    processes = [
+        ctx.Process(target=_mp_worker, args=(op, gate, ready, answer))
+        for op in (first, second)
+    ]
+    try:
+        for proc in processes:
+            proc.start()
+        pids = [ready.get(timeout=15) for _ in processes]
+        assert len(set(pids)) == 2 and _os.getpid() not in pids, pids
+        gate.set()
+        results = [answer.get(timeout=30) for _ in processes]
+        for proc in processes:
+            proc.join(timeout=15)
+            assert proc.exitcode == 0, (proc.pid, proc.exitcode)
+        assert len({row[0] for row in results}) == 2, results
+        return [(row[1], row[2]) for row in results], sorted(pids)
+    finally:
+        gate.set()
+        for proc in processes:
+            if proc.is_alive():
+                proc.terminate()
+            proc.join(timeout=3)
+
+
+def _mp_cleanup():
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM patient_companion_appointment_refs"))
+        conn.execute(text("DELETE FROM appointments"))
+
+
+def _pc_slot(session, access, target):
+    slot = _Slot(
+        public_id=str(_uuid.uuid4()), employer_id=A, practitioner_id=A,
+        datetime_start=datetime.fromisoformat(target), duration_minutes=30,
+        expires_at=datetime.utcnow() + timedelta(minutes=15),
+    )
+    session.add(slot)
+    session.flush()
+    return slot.public_id, slot.id
+
+
+with Session() as s:
+    patient = models.Patient(
+        numero_dossier="MP-PC-" + _uuid.uuid4().hex[:10],
+        nom="Synthetic", prenom="CrossChannel",
+        date_naissance=datetime(2010, 1, 1), sexe="F", employer_id=A,
+    )
+    identity = _Identity(provider="local_bridge", subject="mp-" + _uuid.uuid4().hex)
+    s.add_all([patient, identity])
+    s.flush()
+    access = _Access(
+        public_id=str(_uuid.uuid4()), employer_id=A, patient_id=patient.id,
+        identity_id=identity.id, relationship_type="SELF",
+    )
+    s.add(access)
+    s.flush()
+    MP_ACCESS, MP_PATIENT = access.id, patient.id
+    s.commit()
+
+print("F05_MP_AUTH", "SYNTHETIC_ACTOR_OVERRIDE", "PC_REMOTE_ENVELOPE_SUBSTITUTED", flush=True)
+mp_counts = Counter()
+for iteration in range(4):
+    slot_time = "2026-11-04T10:00:00"
+
+    _mp_cleanup()
+    statuses, pids = _mp_race(post(slot_time), post(slot_time))
+    rows = persisted()
+    require_statuses("MP_AGENDA_AGENDA", statuses, [200, 409], rows, iteration)
+    assert len(rows) == 1
+    mp_counts["agenda-agenda"] += 1
+
+    _mp_cleanup()
+    fd = ("POST", "/api/frontdesk/appointment-request", "A", {
+        "first_name": "MP", "last_name": "Synthetic", "requested_start": slot_time,
+        "duration_minutes": 30, "source": "frontdesk"
+    })
+    statuses, pids = _mp_race(post(slot_time), fd)
+    rows = persisted()
+    require_statuses("MP_AGENDA_FRONTDESK_REQUEST", statuses, [200, 409], rows, iteration)
+    assert len(rows) == 1
+    mp_counts["agenda-frontdesk-request"] += 1
+
+    _mp_cleanup()
+    response = call(*fd)
+    assert response[0] == 200, response
+    with engine.connect() as c:
+        pending_id = c.scalar(text(
+            "SELECT id FROM appointments WHERE employer_id=:e AND status='EN_ATTENTE_DEMANDE'"
+        ), {"e": A})
+    assert pending_id is not None
+    confirm = ("POST", f"/api/appointments/{pending_id}/confirm", "A", None)
+    statuses, pids = _mp_race(post(slot_time), confirm)
+    rows = persisted()
+    require_statuses("MP_AGENDA_FRONTDESK_CONFIRM", statuses, [200, 409], rows, iteration)
+    assert len(rows) == 1
+    mp_counts["agenda-frontdesk-confirm"] += 1
+
+    _mp_cleanup()
+    with Session() as s:
+        slot_ref, slot_id = _pc_slot(s, MP_ACCESS, slot_time)
+        s.commit()
+    pc_create = ("POST", "/__synthetic_f05__/pc-create", "A", {
+        "access_id": MP_ACCESS, "slot_ref": slot_ref
+    })
+    statuses, pids = _mp_race(post(slot_time), pc_create)
+    rows = persisted()
+    require_statuses("MP_AGENDA_PC_CREATE", statuses, [200, 409], rows, iteration)
+    assert len(rows) == 1
+    with Session() as s:
+        persisted_slot = s.get(_Slot, slot_id)
+        assert (persisted_slot.consumed_at is not None) == (statuses[1][0] == 200)
+    mp_counts["agenda-pc-create"] += 1
+
+    _mp_cleanup()
+    with Session() as s:
+        old = models.Appointment(
+            patient_id=MP_PATIENT, employer_id=A, praticien_id=A,
+            datetime_start=datetime(2026, 11, 4, 8), duration_minutes=30,
+            status=models.AppointmentStatus.CONFIRME,
+            scheduling_type=models.SchedulingType.EXACT_TIME, source="patient_companion",
+        )
+        s.add(old)
+        s.flush()
+        ref = _Ref(
+            public_id=str(_uuid.uuid4()), appointment_id=old.id,
+            employer_id=A, patient_id=MP_PATIENT,
+        )
+        s.add(ref)
+        slot_ref, slot_id = _pc_slot(s, MP_ACCESS, slot_time)
+        appt_ref = ref.public_id
+        s.commit()
+    pc_move = ("POST", "/__synthetic_f05__/pc-reschedule", "A", {
+        "access_id": MP_ACCESS, "slot_ref": slot_ref, "appointment_ref": appt_ref,
+    })
+    statuses, pids = _mp_race(post(slot_time), pc_move)
+    rows = persisted()
+    require_statuses("MP_AGENDA_PC_RESCHEDULE", statuses, [200, 409], rows, iteration)
+    assert len([row for row in rows if row["datetime_start"].isoformat() == slot_time]) == 1
+    with Session() as s:
+        persisted_slot = s.get(_Slot, slot_id)
+        assert (persisted_slot.consumed_at is not None) == (statuses[1][0] == 200)
+    mp_counts["agenda-pc-reschedule"] += 1
+
+    _mp_cleanup()
+    with Session() as s:
+        bot_session = models.BotSession(
+            employer_id=A, user_id=A, title="MP synthetic",
+        )
+        s.add(bot_session)
+        s.flush()
+        pending = models.BotPendingAction(
+            session_id=bot_session.id, user_id=A, employer_id=A,
+            action_type="CREATE_APPOINTMENT",
+            params_json={
+                "patient_id": None, "patient_name": "MP BOT", "datetime_start": slot_time,
+                "duration_minutes": 30, "motif": "synthetic",
+            },
+            status="pending", expires_at=datetime.utcnow() + timedelta(minutes=10),
+        )
+        s.add(pending)
+        s.flush()
+        action_id = pending.id
+        s.commit()
+    bot_request = ("POST", "/api/bot/execute", "A", {"pending_action_id": action_id})
+    statuses, pids = _mp_race(post(slot_time), bot_request)
+    rows = persisted()
+    require_statuses("MP_AGENDA_BOT", statuses, [200, 409], rows, iteration)
+    assert len(rows) == 1
+    mp_counts["agenda-bot"] += 1
+
+print("F05_MP_RESULTS", dict(mp_counts), "TOTAL", sum(mp_counts.values()), flush=True)
+print("F05_MP_PIDS", "DISTINCT_AT_EACH_RACE", "FASTAPI_ASGI_TESTCLIENT_NOT_UVICORN", flush=True)
+print("F05_MP_SQL", "NO_DUPLICATE_IN_EXECUTED_FIXTURES", "PC_SLOTS_CONSISTENT", flush=True)
+print("F05_MP_RESULT", "PARTIAL_AUTH_AND_REMOTE_TRANSPORT_SUBSTITUTED", flush=True)
