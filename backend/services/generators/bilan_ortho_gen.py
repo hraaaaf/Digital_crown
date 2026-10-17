@@ -7,6 +7,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from backend.services.base_template import BaseTemplate
 from backend import schemas
+from backend.services.cephalo_r23g2_pdf_sections import project_r23g2_pdf_sections
 
 import importlib.util
 
@@ -157,6 +158,10 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "clinical_validation_reason": projection.get("clinical_validation_reason"),
             "blocking_gates": list(projection.get("blocking_gates") or []),
             "measurements": measurements,
+            "r23g2_protocols": project_r23g2_pdf_sections(
+                protocol_profiles,
+                active_runtime_chain_verified=bool(projection.get("active_runtime_chain_verified")),
+            ),
             "steiner_protocol": {
                 "protocol_profile_id": steiner_profile.get("protocol_profile_id"),
                 "source_lock_status": (steiner_profile.get("source_lock_gate") or {}).get("status"),
@@ -317,6 +322,42 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
                 ("FONTSIZE", (0, 0), (-1, -1), 6.6),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            elements.extend([protocol_table, Spacer(1, 0.4*cm)])
+
+        for section in context["r23g2_protocols"]:
+            elements.append(Paragraph(f"Analyse protocolaire {escape(section['title'])}", h2))
+            elements.append(Paragraph(
+                f"{escape(section['protocol_profile_id'])} — "
+                f"{escape(section['warning'])}", body,
+            ))
+            if not section["verified"]:
+                continue
+            # Canonical IDs and gate descriptions are long; plain Table strings
+            # overflow fixed-width cells. Paragraph cells wrap without truncation.
+            long_cell = ParagraphStyle(
+                "R23G2ContractCell", fontName="Helvetica", fontSize=5.8,
+                leading=7.0, wordWrap="CJK",
+            )
+            protocol_rows = [["ID canonique", "Mesure source", "Valeur", "État", "Contrat"]]
+            for row in section["rows"]:
+                protocol_rows.append([
+                    Paragraph(escape(row["canonical_measurement_id"]), long_cell),
+                    Paragraph(escape(row["label"]), long_cell),
+                    Paragraph(escape(row["value"]), long_cell),
+                    Paragraph(escape(row["availability_status"]), long_cell),
+                    Paragraph(escape(row["contract_state"]), long_cell),
+                ])
+            protocol_table = Table(
+                protocol_rows, repeatRows=1,
+                colWidths=[4.1*cm, 3.9*cm, 2.6*cm, 2.3*cm, 4.8*cm],
+            )
+            protocol_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), p_color),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                ("FONTSIZE", (0, 0), (-1, -1), 5.8),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
             elements.extend([protocol_table, Spacer(1, 0.4*cm)])
