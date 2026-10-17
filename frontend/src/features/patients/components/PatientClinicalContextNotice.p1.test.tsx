@@ -51,6 +51,19 @@ describe('LOT07 P1 — contexte clinique source-first, identité inchangée', ()
     expect(onEdit).not.toHaveBeenCalled();
   });
 
+  it('deduplicates an identical NBA missing-history message without suppressing its real advice', () => {
+    render(
+      <PatientClinicalContextNotice
+        medicalHistory=""
+        advice={{ title: 'Dossier à compléter', message: 'Antécédents médicaux non renseignés', action: 'Compléter Dossier' }}
+        onEdit={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByText('Antécédents médicaux non renseignés')).toHaveLength(1);
+    expect(screen.getByText('Dossier à compléter')).toBeTruthy();
+    expect(screen.getByText(/Action conseillée \(non exécutée\) :/)).toBeTruthy();
+  });
+
   it('does not fabricate a severity/urgency score from the untyped NBA payload', () => {
     render(
       <PatientClinicalContextNotice
