@@ -23,7 +23,11 @@ _WEEKDAYS = (
 
 def _agenda_schema_ready(db: Session) -> bool:
     """Read-only check: schema upgrades belong to Settings/startup, never booking writes."""
-    inspector = inspect(db.get_bind())
+    # Inspect within the caller's active transaction: inspecting Engine opens
+    # a second checkout that can ROLLBACK this very SQLite StaticPool
+    # connection, silently discarding uncommitted Patient Companion slots
+    # and replay receipts during availability validation.
+    inspector = inspect(db.connection())
     tables = set(inspector.get_table_names())
     if not {"cabinet_settings", "agenda_exceptions"}.issubset(tables):
         return False
@@ -33,7 +37,11 @@ def _agenda_schema_ready(db: Session) -> bool:
 
 
 def _practitioner_schema_ready(db: Session) -> bool:
-    inspector = inspect(db.get_bind())
+    # Inspect within the caller's active transaction: inspecting Engine opens
+    # a second checkout that can ROLLBACK this very SQLite StaticPool
+    # connection, silently discarding uncommitted Patient Companion slots
+    # and replay receipts during availability validation.
+    inspector = inspect(db.connection())
     tables = set(inspector.get_table_names())
     return {"practitioner_agenda_settings", "practitioner_agenda_exceptions"}.issubset(tables)
 
