@@ -40,7 +40,7 @@ jobs:
           git merge-base --is-ancestor "$BASELINE_P1_HEAD" HEAD
           while IFS= read -r changed; do
             case "$changed" in
-              frontend/src/features/agenda/*|frontend/scripts/lot07-p2-agenda-before.mjs|frontend/scripts/lot07-p2-agenda-after.mjs|.github/workflows/lot07-p2-agenda-before.yml|.github/workflows/lot07-p2-agenda-after.yml) ;;
+              frontend/src/features/agenda/*|.github/workflows/agenda-a2-after-visual-v2.yml|frontend/scripts/lot07-07a-agenda-integrity-t2.mjs|.github/workflows/lot07-07a-agenda-integrity-t2.yml|frontend/scripts/lot07-p2-agenda-before.mjs|frontend/scripts/lot07-p2-agenda-after.mjs|.github/workflows/lot07-p2-agenda-before.yml|.github/workflows/lot07-p2-agenda-after.yml) ;;
               *) echo "::error::Unexpected P2 cross-boundary path: $changed"; exit 1 ;;
             esac
           done < <(git diff --name-only "$BASELINE_P1_HEAD" HEAD)
@@ -61,7 +61,7 @@ jobs:
         env:
           TZ: Africa/Casablanca
         run: |
-          npx vitest run src/features/agenda/AgendaStudio.g3Interactive.test.tsx src/AgendaClinicA2.test.ts src/features/agenda/agendaDayOverlapLayout.test.ts src/features/agenda/agendaClinicLocalDate.test.ts --maxWorkers=1 --fileParallelism=false
+          npx vitest run src/features/agenda/AgendaStudio.g3Interactive.test.tsx src/AgendaClinicA2.test.ts src/features/agenda/agendaDayOverlapLayout.test.ts src/features/agenda/agendaClinicLocalDate.test.ts src/features/agenda/AgendaModal.integrity.test.tsx --maxWorkers=1 --fileParallelism=false
       - name: Separate west-of-UTC process regression
         working-directory: frontend
         env:

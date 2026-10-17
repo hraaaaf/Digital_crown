@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import type { AppointmentStatus } from './DailyView';
 import { cn } from '../../utils/cn';
-import { clinicCalendarDay, clinicLocalAppointmentTime } from './agendaClinicLocalDate';
+import { clinicCalendarDay, clinicAppointmentWallTime, clinicAppointmentFormFields } from './agendaClinicLocalDate';
 export type SchedulingType = 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY';
 
 import { useClinicalRef } from '../clinical-ref/useClinicalRef';
@@ -67,7 +67,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [schedulingType, setSchedulingType] = useState<SchedulingType>('EXACT_TIME');
   const [loading, setLoading] = useState(false);
   const [dateValue, setDateValue] = useState('');
-  const [conflicts, setConflicts] = useState<any[]>([]);
+  const [conflictReview, setConflictReview] = useState<{ key: string; status: 'checking' | 'ready' | 'error'; conflicts: any[]; hasConflict: boolean } | null>(null);
   const [smartIntel, setSmartIntel] = useState<any>(null);
   const [loadingIntel, setLoadingIntel] = useState(false);
   const [showGhostPanel, setShowGhostPanel] = useState(false);
@@ -102,9 +102,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
     initializedFormKeyRef.current = formKey;
 
     if (editingAppointment) {
-        const d = new Date(editingAppointment.datetime_start);
-        setDateValue(clinicCalendarDay(d));
-        setTime(`${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`);
+        const wall = clinicAppointmentFormFields(editingAppointment.datetime_start);
+        setDateValue(wall.date);
+        setTime(wall.time);
         setDuration(editingAppointment.duration_minutes);
         setMotif(editingAppointment.motif || '');
         setActSearch(editingAppointment.motif || '');
@@ -291,25 +291,41 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Détection de chevauchements en temps réel
+  // The backend owns conflict validation. An unavailable/malformed response must
+  // never be presented as "no conflicts". Keep checks tied to the exact form.
+  const conflictKey = `${dateValue}|${time}|${duration}|${schedulingType}|${editingAppointment?.id ?? 'new'}|${isOpen}`;
+  const currentReview = conflictReview?.key === conflictKey ? conflictReview : null;
+  const conflicts = currentReview?.status === 'ready' ? currentReview.conflicts : [];
+  const canSaveExact = schedulingType !== 'EXACT_TIME' ||
+    (currentReview?.status === 'ready' && !currentReview.hasConflict);
   useEffect(() => {
-    if (!isOpen || !dateValue || !time || schedulingType !== 'EXACT_TIME') { setConflicts([]); return; }
+    if (!isOpen || !dateValue || !time || schedulingType !== 'EXACT_TIME') {
+      setConflictReview(null);
+      return;
+    }
+    let cancelled = false;
+    setConflictReview({ key: conflictKey, status: 'checking', conflicts: [], hasConflict: false });
     const timer = setTimeout(async () => {
       try {
         const [h, m] = time.split(':').map(Number);
-        const dt = clinicLocalAppointmentTime(dateValue, h, m);
+        const dt = clinicAppointmentWallTime(dateValue, h, m);
         const res = await api.get('/appointments/check-conflicts', {
           params: {
-            datetime_start: dt.toISOString(),
+            datetime_start: dt,
             duration_minutes: duration,
             ...(editingAppointment ? { exclude_id: editingAppointment.id } : {}),
           }
         });
-        setConflicts(res.data.conflicts || []);
-      } catch { setConflicts([]); }
+        if (cancelled) return;
+        if (!res.data || !Array.isArray(res.data.conflicts) || typeof res.data.has_conflict !== 'boolean')
+          throw new Error('Invalid backend conflict response');
+        setConflictReview({ key: conflictKey, status: 'ready', conflicts: res.data.conflicts, hasConflict: res.data.has_conflict });
+      } catch {
+        if (!cancelled) setConflictReview({ key: conflictKey, status: 'error', conflicts: [], hasConflict: false });
+      }
     }, 500);
-    return () => clearTimeout(timer);
-  }, [dateValue, time, duration, schedulingType, isOpen, editingAppointment]);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [conflictKey, dateValue, time, duration, schedulingType, isOpen, editingAppointment]);
 
   if (!isOpen) return null;
 
@@ -328,17 +344,21 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!dateValue) return;
-    
+    if (!canSaveExact) {
+      toast.error('Vérification des conflits indisponible ou créneau occupé. Réessayez.');
+      return;
+    }
+
     setLoading(true);
     try {
       const [hours, minutes] = time.split(':').map(Number);
-      const startDateTime = clinicLocalAppointmentTime(dateValue, hours, minutes);
+      const startDateTime = clinicAppointmentWallTime(dateValue, hours, minutes);
 
       const payload = {
         patient_id: selectedPatient?.id || null,
         patient_name: selectedPatient ? `${selectedPatient.nom} ${selectedPatient.prenom}` : patientSearch,
         motif: selectedAct ? selectedAct.name : (actSearch || motif),
-        datetime_start: startDateTime.toISOString(),
+        datetime_start: startDateTime,
         duration_minutes: duration,
         status: status,
         scheduling_type: schedulingType
@@ -813,6 +833,19 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
               )}
             </div>
             <div className="flex flex-col w-full sm:w-auto gap-3">
+              {schedulingType === 'EXACT_TIME' && (!currentReview || currentReview.status !== 'ready') && (
+                <div role="alert" className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800">
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  {currentReview?.status === 'error'
+                    ? 'Vérification des conflits indisponible : enregistrement bloqué. Modifiez le créneau ou réessayez.'
+                    : 'Vérification des conflits en cours…'}
+                </div>
+              )}
+              {schedulingType === 'EXACT_TIME' && currentReview?.hasConflict && (
+                <div role="alert" className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800">
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" /> Créneau occupé : enregistrement bloqué.
+                </div>
+              )}
               {conflicts.length > 0 && (
                 <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-700">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />
@@ -828,7 +861,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !canSaveExact}
                   className="w-1/2 sm:w-auto px-6 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-[#003380] to-[#0055d4] text-white rounded-2xl font-black hover:shadow-2xl hover:shadow-blue-900/30 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-50 text-xs sm:text-base"
                 >
                   {loading ? (
