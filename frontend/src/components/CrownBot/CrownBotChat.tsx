@@ -268,7 +268,10 @@ export function CrownBotChat({
   }, [isSidebarOpen]);
 
   // Tab & Mémoire contextuelle state
-  const [activeTab, setActiveTab] = useState<Tab>('brain');
+  // First value in one click when experimental preview is explicitly ON:
+  // display the three useful read-only actions immediately after opening.
+  // Flag OFF preserves the legacy contextual memory tab unchanged.
+  const [activeTab, setActiveTab] = useState<Tab>(zeroLlmPreviewEnabled ? 'chat' : 'brain');
   // One atomic server snapshot; never decrement the unread badge without
   // removing the corresponding insight from the same authoritative version.
   const [ghostState, setGhostState] = useState<{
