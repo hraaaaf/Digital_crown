@@ -73,6 +73,9 @@ async function seedInsight() {
 describe('CrownBot G9 reachable interaction truth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // The CI synthetic preview opt-in is TRUE; explicitly test both ON/OFF
+    // branches instead of inheriting a runner-wide flag by accident.
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'false');
     FakeWebSocket.instances = [];
     vi.stubGlobal('WebSocket', FakeWebSocket as any);
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
