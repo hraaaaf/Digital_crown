@@ -21,7 +21,7 @@ on:
       - 'audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py'
       - 'frontend/src/features/ortho/cephaloR23G3PointSource.test.ts'
       - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.ts'
-      - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts'
       - 'docs/audits/schemas/cephalo_r23g8_w1_atlas33_orientation_dependencies_v1.json'
       - 'scripts/cephalo_r23g8_w1_orientation_coverage.py'
       - 'audit/cephalo_r23g8_w1_contract_tests/test_orientation_dependency_ledger.py'
@@ -126,7 +126,7 @@ jobs:
         run: npm ci
       - name: Run fail-closed clinical profile reader tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts
+        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts
       - name: Full TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
