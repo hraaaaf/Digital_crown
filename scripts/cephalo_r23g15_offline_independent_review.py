@@ -236,7 +236,7 @@ document.getElementById("save").addEventListener("click",()=>{
  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
  status.textContent="Export local créé. Garder ce dossier privé ; validation humaine indépendante toujours requise.";
 });
-</script></body></html>'''.replaceAll("ROLE_PLACEHOLDER",role).replace("DATA_PLACEHOLDER",data)
+</script></body></html>'''.replace("ROLE_PLACEHOLDER",role).replace("DATA_PLACEHOLDER",data)
 
 def prepare(repo_root:Path,out:Path,packet):
     root=repo_root.resolve();output=out.resolve()
