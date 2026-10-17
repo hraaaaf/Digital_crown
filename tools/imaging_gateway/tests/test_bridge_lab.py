@@ -266,6 +266,34 @@ class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(sqlite3.ProgrammingError):
                 db.execute("SELECT 1")
 
+    @unittest.skipUnless(os.name == "nt", "Windows Job Object only")
+    async def test_windows_job_close_terminates_uncooperative_child(self):
+        from tools.imaging_gateway.windows_job_lab import WindowsLabJob
+        child = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(15)"],
+            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        job = None
+        try:
+            job = WindowsLabJob.assign(child)
+            self.assertIsNotNone(job)
+            self.assertIsNone(child.poll(), "child must still be alive before job close")
+            job.close()
+            job = None
+            await asyncio.wait_for(asyncio.to_thread(child.wait, timeout=3), timeout=4)
+            self.assertIsNotNone(child.returncode)
+            self.assertNotEqual(child.returncode, 0, "job must force terminate child")
+        finally:
+            if job is not None:
+                job.close()
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=3)
+            if child.stdin is not None:
+                child.stdin.close()
+
     async def test_supervised_child_force_kills_and_reaps_stuck_process(self):
         from tools.imaging_gateway.bridge_background_lab import BridgeLabHandle
         child = subprocess.Popen(
