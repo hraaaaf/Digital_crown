@@ -71,7 +71,7 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     FakeWebSocket.instances = [];
     localStorage.setItem('token', 'g9-token');
     vi.stubGlobal('WebSocket', FakeWebSocket as any);
-    postMock.mockResolvedValue({ data: {} } as any);
+    postMock.mockResolvedValue({ data: { status: 'read' } } as any);
   });
 
   afterEach(() => {
@@ -97,6 +97,15 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     postMock.mockRejectedValueOnce({
       response: { status: 404, data: { detail: 'Insight introuvable' } },
     });
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
+    expect(screen.queryByText('Aucune nouvelle déduction.')).not.toBeInTheDocument();
+  });
+
+  it('S12: HTTP 200 with absent or malformed read receipt cannot hide an alert', async () => {
+    await renderSeededWidget();
+    postMock.mockResolvedValueOnce({ data: { status: 'pending' } } as any);
     fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
     await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
     expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
