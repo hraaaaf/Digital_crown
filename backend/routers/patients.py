@@ -1449,6 +1449,11 @@ def generate_cephalo_pdf(
     selected, revision = _bound_cephalo_study(
         patient_id, req.analysis_id, req.expected_revision, db, current_user
     )
+    if req.archive and revision is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Archivage officiel refusé : étude sans chaîne scientifique versionnée",
+        )
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     if patient is None:
         raise HTTPException(status_code=404, detail="Patient introuvable")
