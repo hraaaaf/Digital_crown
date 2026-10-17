@@ -8,7 +8,7 @@ on:
       - 'backend/services/cephalo_runtime_chain.py'
       - 'backend/data/cephalometry/clinical_reference_profiles_v1.json'
       - 'backend/data/cephalometry/ricketts_*_protocol_profile_v1.json'
-      - 'backend/tests/test_cephalo_r23g2_protocol_read_projection.py'
+      - 'audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py'
       - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.ts'
       - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts'
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.tsx'
@@ -38,7 +38,7 @@ jobs:
       - name: Install pytest (stdlib-only projector under test)
         run: python -m pip install pytest==9.0.3
       - name: Test source-profile cardinality and fail-closed values
-        run: python -m pytest backend/tests/test_cephalo_r23g2_protocol_read_projection.py -q
+        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py -q
 
   typescript-contract:
     runs-on: ubuntu-latest
