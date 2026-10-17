@@ -275,84 +275,108 @@ jobs:
           // Playwright page scale, not DPR emulation). A 1440px physical
           // window becomes ~720px CSS viewport, so desktop-only G1 frame MUST
           // correctly fall back to the existing media timeline.
-          const profile=fs.mkdtempSync(path.join(os.tmpdir(),'dc-g1-pr896-native200-'));
-          fs.mkdirSync(path.join(profile,'Default'),{recursive:true});
-          fs.writeFileSync(path.join(profile,'Default','Preferences'),
-            JSON.stringify({partition:{default_zoom_level:{x:Math.log(2)/Math.log(1.2)}}}));
-          let nativeContext;
-          try{
-            nativeContext=await chromium.launchPersistentContext(profile,{
-              headless:true,channel:'chromium',viewport:null,
-              locale:'fr-FR',timezoneId:'Africa/Casablanca',
-              args:['--window-size=1440,900','--no-first-run','--no-default-browser-check']
-            });
-            for(const theme of ['elite','dark']){
-              const page=await nativeContext.newPage();
-              const errors=[],http5xx=[];
-              page.on('pageerror',e=>errors.push(String(e).slice(0,300)));
-              page.on('response',r=>{if(r.status()>=500)http5xx.push(r.status()+' '+new URL(r.url()).pathname);});
-              try{
-                await page.addInitScript(({access,refresh})=>{
-                  localStorage.setItem('token',access);
-                  localStorage.setItem('refresh_token',refresh||'');
-                  localStorage.setItem('appMode','prod');
-                },{access:tokens.access_token,refresh:tokens.refresh_token});
-                await page.goto('http://127.0.0.1:5173/patients/'+patient.id,{
-                  waitUntil:'domcontentloaded',timeout:90000
-                });
-                await page.locator('main').getByText(fixturePatientName,{exact:false})
-                  .first().waitFor({state:'visible',timeout:60000});
-                await page.getByRole('button',{name:'Imagerie',exact:true}).click({timeout:20000});
-                await page.getByRole('button',{name:'Médiathèque',exact:true}).click({timeout:20000});
-                const timeline=page.locator('[data-testid="patient-media-timeline"]').first();
-                await timeline.waitFor({state:'visible',timeout:30000});
-                if(theme==='dark'){
-                  await page.evaluate(()=>{
-                    document.documentElement.dataset.theme='dark';
-                    document.body.dataset.theme='dark';
+          for(const physicalWidth of [1440,2560,2880]){
+            const profile=fs.mkdtempSync(path.join(os.tmpdir(),'dc-g1-pr896-native200-'));
+            fs.mkdirSync(path.join(profile,'Default'),{recursive:true});
+            fs.writeFileSync(path.join(profile,'Default','Preferences'),
+              JSON.stringify({partition:{default_zoom_level:{x:Math.log(2)/Math.log(1.2)}}}));
+            let nativeContext;
+            try {
+              nativeContext=await chromium.launchPersistentContext(profile,{
+                headless:true,channel:'chromium',viewport:null,locale:'fr-FR',
+                timezoneId:'Africa/Casablanca',
+                args:['--window-size='+physicalWidth+',900','--no-first-run','--no-default-browser-check']
+              });
+              for(const theme of ['elite','dark']){
+                const page=await nativeContext.newPage();
+                const errors=[],http5xx=[];
+                page.on('pageerror',e=>errors.push(String(e).slice(0,300)));
+                page.on('response',r=>{if(r.status()>=500)http5xx.push(r.status()+' '+new URL(r.url()).pathname);});
+                try{
+                  await page.addInitScript(({access,refresh})=>{
+                    localStorage.setItem('token',access);
+                    localStorage.setItem('refresh_token',refresh||'');
+                    localStorage.setItem('appMode','prod');
+                  },{access:tokens.access_token,refresh:tokens.refresh_token});
+                  await page.goto('http://127.0.0.1:5173/patients/'+patient.id,{
+                    waitUntil:'domcontentloaded',timeout:90000
                   });
-                }
-                await timeline.scrollIntoViewIfNeeded();
-                await page.waitForTimeout(600);
-                const geometry=await page.evaluate(()=>({
-                  innerWidth,innerHeight,outerWidth,outerHeight,
-                  devicePixelRatio,visualScale:visualViewport?.scale??-1,
-                  cssZoom:document.documentElement.style.zoom,
-                  pageOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,
-                  timelineCount:document.querySelectorAll('[data-testid="patient-media-timeline"]').length,
-                  desktopFrameCount:document.querySelectorAll('[data-v15-07-theme-slot]').length,
-                  path:location.pathname,
-                  theme:document.body.dataset.theme||'elite'
-                }));
-                if(geometry.innerWidth<600||geometry.innerWidth>850
-                  ||geometry.outerWidth<1200||geometry.devicePixelRatio<1.9
-                  ||geometry.visualScale!==1||geometry.cssZoom!=='')
-                  throw Error('G1 native browser 200% proof FAIL '+JSON.stringify(geometry));
-                if(geometry.pageOverflow||geometry.desktopFrameCount!==0
-                  ||geometry.timelineCount!==1||geometry.path!=='/patients/'+patient.id)
-                  throw Error('G1 200% real responsive/auth regression '+JSON.stringify(geometry));
-                const cdp=await nativeContext.newCDPSession(page);
-                const nativeShot=await cdp.send('Page.captureScreenshot',{
-                  format:'png',captureBeyondViewport:false,fromSurface:true
-                });
-                const buffer=Buffer.from(nativeShot.data,'base64');
-                if(buffer.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')
-                  throw Error('200% CDP compositor screenshot invalid PNG');
-                const physical={width:buffer.readUInt32BE(16),height:buffer.readUInt32BE(20)};
-                if(physical.width<1200||physical.height<500)
-                  throw Error('Physical 200% screenshot wrongly cropped '+JSON.stringify({physical,geometry}));
-                if(errors.length||http5xx.length)
-                  throw Error('Errors on authenticated native zoom '+JSON.stringify({errors,http5xx}));
-                const file='imagerie-'+theme+'-nativeBrowser200-compositor.png';
-                fs.writeFileSync(path.join(out,file),buffer);
-                nativeZoomEvidence.push({theme,file,sha256:crypto.createHash('sha256').update(buffer).digest('hex'),
-                  physical,geometry,sourceHead,realAuthenticatedFastApi:true,
-                  cssZoomProxy:false});
-              }finally{await page.close();}
+                  // On genuine narrow CSS viewports the patient name HEADER can be
+                  // intentionally hidden; never assume it is visibly rendered.
+                  // Verify protected UI via the authenticated imaging navigation and
+                  // real patient media instead. No auth bypass or endpoint mocks.
+                  await page.getByRole('button',{name:'Imagerie',exact:true})
+                    .waitFor({state:'visible',timeout:60000});
+                  await page.getByRole('button',{name:'Imagerie',exact:true}).click({timeout:20000});
+                  await page.getByRole('button',{name:'Médiathèque',exact:true}).click({timeout:20000});
+                  const timeline=page.locator('[data-testid="patient-media-timeline"]').first();
+                  await timeline.waitFor({state:'visible',timeout:30000});
+                  if(theme==='dark'){
+                    await page.evaluate(()=>{
+                      document.documentElement.dataset.theme='dark';
+                      document.body.dataset.theme='dark';
+                    });
+                  }
+                  await timeline.scrollIntoViewIfNeeded();
+                  await page.waitForTimeout(600);
+                  const geometry=await page.evaluate(()=>({
+                    innerWidth,innerHeight,outerWidth,outerHeight,
+                    devicePixelRatio,visualScale:visualViewport?.scale??-1,
+                    cssZoom:document.documentElement.style.zoom,
+                    pageOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,
+                    timelineCount:document.querySelectorAll('[data-testid="patient-media-timeline"]').length,
+                    desktopFrameCount:document.querySelectorAll('[data-v15-07-theme-slot]').length,
+                    path:location.pathname,theme:document.body.dataset.theme||'elite'
+                  }));
+                  const expectedCSS=physicalWidth/2;
+                  if(Math.abs(geometry.innerWidth-expectedCSS)>90
+                    || geometry.outerWidth<physicalWidth*.83
+                    || geometry.devicePixelRatio<1.9||geometry.visualScale!==1
+                    || geometry.cssZoom!=='')
+                    throw Error('Native browser 200% proof FAIL '+JSON.stringify({physicalWidth,geometry}));
+                  const expectedFrame=geometry.innerWidth>=1280?1:0;
+                  if(physicalWidth===1440&&expectedFrame!==0||physicalWidth===2880&&expectedFrame!==1)
+                    throw Error('Physical zoom breakpoints not exercised '+JSON.stringify({physicalWidth,geometry}));
+                  if(geometry.pageOverflow||geometry.desktopFrameCount!==expectedFrame
+                    ||geometry.timelineCount!==1||geometry.path!=='/patients/'+patient.id)
+                    throw Error('Native 200% responsive authenticated media FAIL '+JSON.stringify({physicalWidth,geometry}));
+                  const cdp=await nativeContext.newCDPSession(page);
+                  const shot=await cdp.send('Page.captureScreenshot',{
+                    format:'png',captureBeyondViewport:false,fromSurface:true
+                  });
+                  const buffer=Buffer.from(shot.data,'base64');
+                  if(buffer.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')
+                    throw Error('Invalid native CDP PNG');
+                  const physical={width:buffer.readUInt32BE(16),height:buffer.readUInt32BE(20)};
+                  if(physical.width<physicalWidth*.83||physical.height<450)
+                    throw Error('Native screenshot cropped '+JSON.stringify({physicalWidth,physical,geometry}));
+                  if(errors.length||http5xx.length)
+                    throw Error('Browser/HTTP failure under native zoom '+JSON.stringify({errors,http5xx}));
+                  const file='imagerie-'+theme+'-nativeBrowser200-physical'+physicalWidth+'.png';
+                  fs.writeFileSync(path.join(out,file),buffer);
+                  nativeZoomEvidence.push({
+                    theme,file,physicalWidth,
+                    sha256:crypto.createHash('sha256').update(buffer).digest('hex'),
+                    physical,geometry,expectedFrame,sourceHead,
+                    realAuthenticatedFastApi:true,cssZoomProxy:false
+                  });
+                }catch(error){
+                  console.error('Native zoom evidence failed, diagnostics (synthetic T2 only)',
+                    JSON.stringify({physicalWidth,theme,path:new URL(page.url()).pathname,
+                      errors,http5xx,reason:String(error).slice(0,600)}));
+                  try{
+                    await page.screenshot({
+                      path:path.join(out,'native-diagnostic-'+theme+'-'+physicalWidth+'.png'),
+                      fullPage:false,timeout:10000
+                    });
+                  }catch{}
+                  throw error;
+                }finally{await page.close();}
+              }
+            }finally{
+              await nativeContext?.close();
+              fs.rmSync(profile,{force:true,recursive:true});
             }
-          }finally{
-            await nativeContext?.close();
-            fs.rmSync(profile,{force:true,recursive:true});
           }
           } finally {await browser.close(); await api.dispose();}
           const critical=evidence.filter(e=>e.failure||e.pageErrors.length||e.http5xx.length);
@@ -360,14 +384,14 @@ jobs:
             authentication:'real API credentials with enrolled disposable workstation',
             method:'real Vite React UI + disposable FastAPI + Playwright chromium, no routes mocked',
             cssZoomWarning:'Original 32 scene CSS zoom proxy is NOT browser 200%; dedicated nativeZoomEvidence proves real 200% independently',
-            humanApproval:false,physicalEvidence:nativeZoomEvidence.length===2,
+            humanApproval:false,physicalEvidence:nativeZoomEvidence.length===6,
             nativeZoomEvidence,featureGate:'VITE_V15_07_G1_MEDIA_FRAME_PILOT=1',
             expected:32,captured:evidence.filter(e=>e.screenshot&&e.sha256).length,
             errors:critical.length,records:evidence};
           fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(report,null,2));
           console.log('V15_07_G1_MEDIA_CAPTURE_SUMMARY '+JSON.stringify({sourceHead,expected:report.expected,captured:report.captured,critical:critical.length,
             failures:critical.slice(0,8).map(e=>({screen:e.screen,size:e.size,error:e.failure,pageErrors:e.pageErrors,http5xx:e.http5xx}))}));
-          if(report.captured!==32||critical.length||nativeZoomEvidence.length!==2)
+          if(report.captured!==32||critical.length||nativeZoomEvidence.length!==6)
             process.exitCode=1;
           console.log('G1_PR896_NATIVE200_CONTRACT '+JSON.stringify({
             immutableProductSHA:sourceHead,workflowHead:process.env.EVIDENCE_WORKFLOW_HEAD,
