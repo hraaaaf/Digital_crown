@@ -14,7 +14,12 @@ on:
       - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.ts'
       - 'frontend/src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts'
       - 'frontend/src/features/ortho/cephaloR23G3PinnedRequirements.ts'
-      - 'frontend/src/features/ortho/cephaloR23G3PointSource.test.ts'
+      - 'frontend/src/features/ortho/cephaloR23G7AtlasSourceRequirements.ts'
+      - 'frontend/src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts'
+      - 'docs/audits/schemas/cephalo_r23g7_atlas33_source_dependencies_v1.json'
+      - 'scripts/cephalo_r23g7_source_coverage.py'
+      - 'audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py'
+      - 'frontend/src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts'
       - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
       - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.tsx'
@@ -47,7 +52,19 @@ jobs:
       - name: Install pytest (stdlib-only projector under test)
         run: python -m pip install pytest==9.0.3
       - name: Test source-profile cardinality and fail-closed values
-        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py -q
+        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py audit/cephalo_r23g7_contract_tests/test_atlas33_source_coverage.py -q
+      - name: Write exact Atlas33 8 plus 3 preview plus 22 hold source ledger
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python scripts/cephalo_r23g7_source_coverage.py --output audit/cephalo_r23g7_evidence/atlas33-${PRODUCT_HEAD}.json
+      - name: Upload R23-G7 source obligation inventory (not clinical approval)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g7-atlas33-source-ledger-${{ github.event.pull_request.head.sha }}
+          path: audit/cephalo_r23g7_evidence/
+          retention-days: 30
+          if-no-files-found: warn
 
   typescript-contract:
     runs-on: ubuntu-latest
