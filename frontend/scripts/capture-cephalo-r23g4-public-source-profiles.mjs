@@ -146,7 +146,9 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
   const untouched=phase.toLowerCase()+'-g6-'+viewportName+'-100.png';
   await page.screenshot({path:path.join(out,untouched),fullPage:false});
   if(!expectedControls)return {mobile:isMobile,available:false,initial,fullImageScreenshot:untouched,expectedBlock:'MOBILE_ZOOM_DISABLED_BEFORE'};
-  for(let i=0;i<4;i++)await controls.getByRole('button',{name:'Agrandir la radiographie'}).click();
+  const activate=async label=>{const btn=controls.getByRole('button',{name:label});
+    return isMobile ? btn.tap() : btn.click();};
+  for(let i=0;i<4;i++)await activate('Agrandir la radiographie');
   const zoomed=await snapshot();
   if(zoomed.label!=='200 %'||zoomed.base!==zoomed.overlay)
     fail('G6 zoom 200% or overlay desync '+viewportName+' '+JSON.stringify(zoomed).slice(0,500));
@@ -158,7 +160,7 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
     fail('G6 zoom changed anatomical SVG coordinates '+viewportName);
   const screenshot200=phase.toLowerCase()+'-g6-'+viewportName+'-200.png';
   await page.screenshot({path:path.join(out,screenshot200),fullPage:false});
-  await controls.getByRole('button',{name:'Déplacer la radiographie à droite'}).click();
+  await activate('Déplacer la radiographie à droite');
   const panned=await snapshot();
   if(panned.base===zoomed.base||panned.base!==panned.overlay)
     fail('G6 pan movement or overlay desync '+viewportName);
@@ -166,7 +168,7 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
     fail('G6 pan changed anatomical SVG coordinates '+viewportName);
   const screenshotPan=phase.toLowerCase()+'-g6-'+viewportName+'-pan.png';
   await page.screenshot({path:path.join(out,screenshotPan),fullPage:false});
-  await controls.getByRole('button',{name:'Afficher toute la radiographie'}).click();
+  await activate('Afficher toute la radiographie');
   const restored=await snapshot();
   if(restored.label!=='100 %'||restored.base!==initial.base||restored.overlay!==initial.overlay)
     fail('G6 reset did not restore the original viewBox '+viewportName);
@@ -179,7 +181,8 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
 async function capture(v){
  const viewportName=v.width+'x'+v.height;
  const browser=await chromium.launch({headless:true});
- const context=await browser.newContext({viewport:v,locale:'fr-FR',reducedMotion:'reduce'});
+ const context=await browser.newContext({viewport:v,locale:'fr-FR',reducedMotion:'reduce',
+  isMobile:g6Audit&&v.width<1280,hasTouch:g6Audit&&v.width<1280});
  const page=await context.newPage();
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
