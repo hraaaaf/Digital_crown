@@ -163,17 +163,27 @@ class ActionDispatcher:
                 action_type="error",
             )
 
-        appt = models.Appointment(
-            patient_id=patient_id,
-            patient_name=patient_name if not patient_id else None,
-            datetime_start=datetime_start,
-            duration_minutes=duration,
-            motif=motif,
-            employer_id=employer_id,
-        )
-        db.add(appt)
-        db.commit()
-        db.refresh(appt)
+        # All confirmed booking writers must share the same per-cabinet
+        # PostgreSQL advisory transaction lock and conflict oracle. The bot
+        # must not insert directly while other FastAPI workers reserve slots.
+        from backend.routers.appointments import create_appointment
+        from backend.schemas.appointments import AppointmentCreate
+        from pydantic import ValidationError
+
+        role = getattr(user.role, "value", user.role)
+        practitioner_id = user.id if role in {"DENTISTE", "ADMIN"} else employer_id
+        try:
+            booking = AppointmentCreate(
+                patient_id=patient_id,
+                patient_name=patient_name if not patient_id else None,
+                praticien_id=practitioner_id,
+                datetime_start=datetime_start,
+                duration_minutes=duration,
+                motif=motif,
+            )
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail="Données de rendez-vous invalides") from exc
+        appt = create_appointment(booking, db, user)
 
         date_label = datetime_start.strftime("%d/%m/%Y à %Hh%M")
         return BotResponse(
