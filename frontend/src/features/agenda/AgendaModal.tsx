@@ -11,6 +11,7 @@ export type SchedulingType = 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY'
 import { useClinicalRef } from '../clinical-ref/useClinicalRef';
 import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
 import { useEliteStore } from '../../stores/useEliteStore';
+import { usePractitionerContextStore } from '../clinic/practitionerContext';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface Patient {
@@ -32,6 +33,7 @@ interface AgendaModalProps {
   onSaved: () => void;
   selectedDate: Date | null;
   initialTime?: string;
+  initialPractitionerId?: number;
   editingAppointment?: any;
   // Préremplissage du patient à l'ouverture (ex. CTA "Prendre RDV" depuis le
   // dossier patient) — 3 props distinctes plutôt qu'une chaîne concaténée, pour
@@ -41,8 +43,12 @@ interface AgendaModalProps {
   initialPatientPrenom?: string;
 }
 
-export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSaved, selectedDate, initialTime, editingAppointment, initialPatientId, initialPatientNom, initialPatientPrenom }) => {
+export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSaved, selectedDate, initialTime, initialPractitionerId, editingAppointment, initialPatientId, initialPatientNom, initialPatientPrenom }) => {
   const navigate = useNavigate();
+  const contextPractitionerId = usePractitionerContextStore(state =>
+    state.practitioners.find(p => p.id === state.selectedPractitionerId)?.isFallback
+      ? null : state.selectedPractitionerId);
+  const submitInProgress = useRef(false);
   const { fetchPatientIntelligence, fetchSuggestedAppointment, suggestedAppointment, isLoading: isLoadingSuggested } = useEliteStore();
   const [patientSearch, setPatientSearch] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -65,6 +71,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [duration, setDuration] = useState(30);
   const [status, setStatus] = useState<AppointmentStatus>('PRÉVU');
   const [schedulingType, setSchedulingType] = useState<SchedulingType>('EXACT_TIME');
+  const [practitionerId, setPractitionerId] = useState<number | null>(null);
+  const [resourceId, setResourceId] = useState<number | null>(null);
+  const [practitionerOptions, setPractitionerOptions] = useState<{id:number;name:string}[]>([]);
+  const [resourceOptions, setResourceOptions] = useState<{id:number;name:string}[]>([]);
+  const [assignmentsReady, setAssignmentsReady] = useState(false);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dateValue, setDateValue] = useState('');
   const [conflictReview, setConflictReview] = useState<{ key: string; status: 'checking' | 'ready' | 'error'; conflicts: any[]; hasConflict: boolean } | null>(null);
@@ -111,6 +123,8 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         setActSearch(editingAppointment.motif || '');
         setSelectedAct(null);
         setStatus(editingAppointment.status);
+        setPractitionerId(editingAppointment.praticien_id ?? null);
+        setResourceId(editingAppointment.resource_id ?? null);
         // Restore the persisted scheduling semantics; opening an edit must not convert flexible appointments.
         setSchedulingType(editingAppointment.scheduling_type ?? 'EXACT_TIME');
         if (editingAppointment.patient_id) {
@@ -128,6 +142,8 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         setActSearch('');
         setSelectedAct(null);
         setStatus('PRÉVU');
+        setPractitionerId(initialPractitionerId ?? contextPractitionerId ?? null);
+        setResourceId(null);
         setSchedulingType('EXACT_TIME');
         if (initialPatientId) {
           setSelectedPatient({ id: initialPatientId, nom: initialPatientNom || '', prenom: initialPatientPrenom || '' });
@@ -137,7 +153,46 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
           setPatientSearch('');
         }
       }
-  }, [isOpen, editingAppointment, initialTime, selectedDate, initialPatientId, initialPatientNom, initialPatientPrenom]);
+  }, [isOpen, editingAppointment, initialTime, selectedDate, initialPractitionerId, contextPractitionerId, initialPatientId, initialPatientNom, initialPatientPrenom]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setAssignmentsReady(false);
+    setAssignmentError(null);
+    Promise.all([
+      api.get('/appointments/assignable-practitioners'),
+      api.get('/agenda/resources'),
+    ]).then(([practitionersResponse, resourcesResponse]) => {
+      if (cancelled) return;
+      const practitioners = practitionersResponse.data;
+      const resources = resourcesResponse.data;
+      if (!Array.isArray(practitioners) || !Array.isArray(resources)) throw Error('Invalid clinical assignment lists');
+      const assignable = practitioners.filter(p => Number.isSafeInteger(p.id) && typeof p.name === 'string');
+      const activeResources = resources.filter(r => Number.isSafeInteger(r.id) && typeof r.name === 'string');
+      setPractitionerOptions(assignable);
+      setResourceOptions(activeResources);
+      const storedId = editingAppointment
+        ? (editingAppointment.praticien_id ?? null)
+        : (initialPractitionerId ?? contextPractitionerId ?? null);
+      const selectedId = storedId ?? (!editingAppointment && assignable.length === 1 ? assignable[0].id : null);
+      setPractitionerId(selectedId);
+      setResourceId(editingAppointment?.resource_id ?? null);
+      if (!assignable.length) setAssignmentError('Aucun praticien assignable dans ce cabinet.');
+      else if (selectedId !== null && !assignable.some(p => p.id === selectedId))
+        setAssignmentError('Le praticien du rendez-vous n’est plus assignable dans ce cabinet.');
+      else if (editingAppointment?.resource_id != null && !activeResources.some(r => r.id === editingAppointment.resource_id))
+        setAssignmentError('La ressource actuelle n’est plus disponible dans ce cabinet.');
+      setAssignmentsReady(true);
+    }).catch(() => {
+      if (!cancelled) {
+        setAssignmentsReady(false);
+        setAssignmentError('Impossible de charger les praticiens et ressources. Réessayez.');
+      }
+    });
+    return () => { cancelled = true; };
+  }, [isOpen, editingAppointment?.id, initialPractitionerId, contextPractitionerId]);
+
 
 
   const patientRef = useRef<HTMLDivElement>(null);
@@ -296,13 +351,17 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
   // The backend owns conflict validation. An unavailable/malformed response must
   // never be presented as "no conflicts". Keep checks tied to the exact form.
-  const conflictKey = `${dateValue}|${time}|${duration}|${schedulingType}|${editingAppointment?.id ?? 'new'}|${isOpen}|${conflictRetrySequence}`;
+  const conflictKey = `${dateValue}|${time}|${duration}|${schedulingType}|${editingAppointment?.id ?? 'new'}|${practitionerId}|${resourceId}|${assignmentsReady}|${isOpen}|${conflictRetrySequence}`;
   const currentReview = conflictReview?.key === conflictKey ? conflictReview : null;
   const conflicts = currentReview?.status === 'ready' ? currentReview.conflicts : [];
-  const canSaveExact = schedulingType !== 'EXACT_TIME' ||
-    (currentReview?.status === 'ready' && !currentReview.hasConflict);
+  const assignmentValid = assignmentsReady && !assignmentError &&
+    (practitionerId !== null || editingAppointment?.praticien_id === null) &&
+    (practitionerId === null || practitionerOptions.some(p => p.id === practitionerId)) &&
+    (resourceId === null || resourceOptions.some(r => r.id === resourceId));
+  const canSaveExact = assignmentValid && (schedulingType !== 'EXACT_TIME' ||
+    (currentReview?.status === 'ready' && !currentReview.hasConflict));
   useEffect(() => {
-    if (!isOpen || !dateValue || !time || schedulingType !== 'EXACT_TIME') {
+    if (!isOpen || !dateValue || !time || !assignmentValid || schedulingType !== 'EXACT_TIME') {
       setConflictReview(null);
       return;
     }
@@ -316,6 +375,8 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
           params: {
             datetime_start: dt,
             duration_minutes: duration,
+            ...(practitionerId !== null ? { praticien_id: practitionerId } : {}),
+            ...(resourceId !== null ? { resource_id: resourceId } : {}),
             ...(editingAppointment ? { exclude_id: editingAppointment.id } : {}),
           }
         });
@@ -331,7 +392,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       }
     }, 500);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [conflictKey, dateValue, time, duration, schedulingType, isOpen, editingAppointment]);
+  }, [conflictKey, dateValue, time, duration, schedulingType, isOpen, editingAppointment, practitionerId, resourceId, assignmentValid]);
 
   if (!isOpen) return null;
 
@@ -349,12 +410,13 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dateValue) return;
+    if (!dateValue || submitInProgress.current) return;
     if (!canSaveExact) {
       toast.error('Vérification des conflits indisponible ou créneau occupé. Réessayez.');
       return;
     }
 
+    submitInProgress.current = true;
     setLoading(true);
     try {
       const [hours, minutes] = time.split(':').map(Number);
@@ -367,7 +429,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         datetime_start: startDateTime,
         duration_minutes: duration,
         status: status,
-        scheduling_type: schedulingType
+        scheduling_type: schedulingType,
+        ...(practitionerId !== null ? { praticien_id: practitionerId } : {}),
+        resource_id: resourceId,
       };
 
       if (editingAppointment) {
@@ -400,6 +464,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       if (err?.response?.status === 409) setConflictRetrySequence(n => n + 1);
       toast.error(feedback);
     } finally {
+      submitInProgress.current = false;
       setLoading(false);
     }
   };
@@ -723,6 +788,28 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                 </div>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="agenda-practitioner" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Praticien</label>
+                <select id="agenda-practitioner" value={practitionerId ?? ''} disabled={!assignmentsReady}
+                  onChange={e => { setPractitionerId(e.target.value ? Number(e.target.value) : null); setAssignmentError(null); }}
+                  className="w-full min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-700">
+                  <option value="">{editingAppointment?.praticien_id === null ? 'Non assigné (historique)' : 'Choisir un praticien'}</option>
+                  {practitionerOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="agenda-resource" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Ressource clinique</label>
+                <select id="agenda-resource" value={resourceId ?? ''} disabled={!assignmentsReady}
+                  onChange={e => { setResourceId(e.target.value ? Number(e.target.value) : null); setAssignmentError(null); }}
+                  className="w-full min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-700">
+                  <option value="">Aucune ressource</option>
+                  {resourceOptions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+            </div>
+            {assignmentError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{assignmentError}</p>}
 
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Type de Planification</label>
