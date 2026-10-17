@@ -456,7 +456,11 @@ class GatewayTests(unittest.TestCase):
             root.mkdir()
             with patch("tools.imaging_gateway.gateway.sqlite3.connect",
                        side_effect=AssertionError("swapped root must not open db")):
-                with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                # Windows native path pin rejects the swap before SQLite is
+                # opened; Linux retains its explicit best-effort root guard.
+                denial = ("SQLITE_PATH_PIN_PRIVATE_ID_CHANGED" if os.name == "nt"
+                          else "root replaced or unsafe")
+                with self.assertRaisesRegex(GatewayError, denial):
                     self.agent.items()
             self.assertEqual(list(root.iterdir()), [])
         finally:
