@@ -65,6 +65,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const handleSelectHistory = async (analysis: any) => {
     const request = ++historyRequest.current;
     const selectedPatient = patientId;
+    // The previously opened study is no longer the active selection while a
+    // historical study is loading. PDF buttons must fail closed during this gap.
+    store.setAnalysisId(undefined);
     try {
       const loaded = await cephaloRepository.getAnalysis(analysis.id);
       if (request !== historyRequest.current || useOrthoStore.getState().patientId !== selectedPatient || loaded.id !== analysis.id) return;

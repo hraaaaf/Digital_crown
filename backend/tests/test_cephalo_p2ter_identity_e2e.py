@@ -85,7 +85,7 @@ def test_select_a_even_if_b_newer_and_binary_is_study_bound(
         payload = _body(patient, study)
         rendered = _pdf_text(client.post(
             f"/api/patients/{patient.id}/pdf", json=payload, headers=headers))
-        assert f"Analysis ID: {study.id}" in rendered, rendered[:1200]
+        assert re.search(rf"Analysis ID\s*:\s*{study.id}(?![0-9])", rendered), rendered[:1200]
         assert _compact(payload["source_revision"]) in _compact(rendered)
         expected_ref = hashlib.sha256(study.image_original_path.encode()).hexdigest()
         assert expected_ref in _compact(rendered)
@@ -190,7 +190,7 @@ def test_archiving_keeps_identity_and_reopens_exact_bytes(
     body = {**_body(patient, a), "archive": True}
     result = client.post(f"/api/patients/{patient.id}/pdf", json=body, headers=h)
     rendered = _pdf_text(result)
-    assert f"Analysis ID: {a.id}" in rendered
+    assert re.search(rf"Analysis ID\s*:\s*{a.id}(?![0-9])", rendered)
     doc = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient.id,
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
@@ -202,4 +202,4 @@ def test_archiving_keeps_identity_and_reopens_exact_bytes(
     assert saved.is_file()
     assert saved.read_bytes() == result.content
     with fitz.open(stream=saved.read_bytes(), filetype="pdf") as archived:
-        assert f"Analysis ID: {a.id}" in "\n".join(page.get_text() for page in archived)
+        assert re.search(rf"Analysis ID\s*:\s*{a.id}(?![0-9])", "\n".join(page.get_text() for page in archived))

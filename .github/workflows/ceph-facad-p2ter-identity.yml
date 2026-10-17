@@ -21,8 +21,12 @@ jobs:
       CLOUD_AI_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v4
-      - name: Verify checkout SHA
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact child HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -47,8 +51,12 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - name: Verify checkout SHA
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact child HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

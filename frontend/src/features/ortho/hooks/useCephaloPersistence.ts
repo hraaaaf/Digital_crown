@@ -19,6 +19,8 @@ export const useCephaloPersistence = (
 ) => {
   // --- States ---
   const [analysisId, setAnalysisId] = useState<number | undefined>();
+  const documentSelectionRef = useRef({ patientId, analysisId });
+  documentSelectionRef.current = { patientId, analysisId };
   const [imageSrc, setImageSrc] = useState<string | undefined>();
   const [anglesData, setAnglesData] = useState<Record<string, any>>({});
   const [visionMetadata, setVisionMetadata] = useState<{
@@ -222,7 +224,11 @@ export const useCephaloPersistence = (
 
     if (!analysisId) throw new Error("Analyse non sélectionnée");
     const identity = await cephaloRepository.documentIdentity(patientId, analysisId);
-    return await cephaloRepository.generatePDF(patientId, {
+    if (documentSelectionRef.current.analysisId !== analysisId ||
+        documentSelectionRef.current.patientId !== patientId) {
+      throw new Error('Sélection céphalométrique devenue obsolète');
+    }
+    const pdf = await cephaloRepository.generatePDF(patientId, {
       ...identity,
       ai_diagnostic: {
         analyse_dentaire: diag.analyse_dentaire || '',
@@ -241,6 +247,11 @@ export const useCephaloPersistence = (
       },
       archive: !preview,
     });
+    if (documentSelectionRef.current.analysisId !== analysisId ||
+        documentSelectionRef.current.patientId !== patientId) {
+      throw new Error('Réponse PDF obsolète');
+    }
+    return pdf;
   }, [patientId, analysisId, ddm, diag, etape3Data]);
 
   const handlePreview = useCallback(async () => {
