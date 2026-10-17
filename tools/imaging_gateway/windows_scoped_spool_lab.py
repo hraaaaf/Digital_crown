@@ -28,7 +28,7 @@ def write_ciphertext(root_path: Path, name: str, data: bytes, expected_root) -> 
     from ctypes import wintypes
 
     (ct, wt, kernel, ntdll, FileInfo, UnicodeString, ObjectAttributes,
-     IoStatusBlock, parent) = _open_root(root_path)
+     IoStatusBlock, parent) = _open_root(root_path, write=True)
     fd = None
     file_handle = None
     published = False
