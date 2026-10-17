@@ -10,6 +10,7 @@ on:
       - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
       - frontend/scripts/certify-cb01-associate-sidecar.mjs
       - frontend/scripts/certify-cb01-s01-s12-matrix.mjs
+      - scripts/ci/cb01_s07_s09_http_pg.py
       - scripts/ci/cb01_s07_s09_postgres.py
       - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
       - frontend/src/components/GhostBrainWidget.g9Interactive.test.tsx
@@ -24,6 +25,20 @@ jobs:
     name: Synthetic CB-01 floating 390/430/1280/1440 + sidecar 1600/1920
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cb01_http
+          POSTGRES_PASSWORD: cb01-synthetic-ci-only
+          POSTGRES_DB: cb01_http_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cb01_http -d cb01_http_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
     env:
       ENVIRONMENT: test
       SECRET_KEY: crown-bot-cb00-lab-only-secret-000001-long-enough
@@ -150,6 +165,24 @@ jobs:
           },indent=2)+'\n',encoding='utf-8')
           print('CB01_TECHNICAL_GAPS: 3 PARTIAL, 1 NOT_RUN; no human E2E claims')
           PY
+      - name: S07/S09 real FastAPI HTTP handlers over full Alembic PostgreSQL (isolated)
+        shell: bash
+        env:
+          ENVIRONMENT: rehearsal
+          DATABASE_URL: postgresql://cb01_http:cb01-synthetic-ci-only@127.0.0.1:5432/cb01_http_lab
+        run: |
+          # Process-local attestation for this disposable host / PostgreSQL target.
+          # No mutable application/clinical DB, remote host or prod credentials.
+          export DIGITALCROWN_ISOLATION_DB_FINGERPRINT="$(python -c 'import hashlib;print(hashlib.sha256(b"postgresql://cb01_http@loopback:5432/cb01_http_lab").hexdigest())')"
+          python -m alembic upgrade head
+          python scripts/ci/cb01_s07_s09_http_pg.py
+      - name: Summarize scoped S07/S09 HTTP PostgreSQL proof
+        if: always()
+        shell: bash
+        run: |
+          if test -f artifacts/cb01-associate-sidecar/http-pg-s07-s09-evidence.json; then
+            echo "### S07/S09 real FastAPI HTTP on full Alembic PostgreSQL: PASS integration; no human E2E or SQLCipher certification." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Start disposable synthetic T2 backend
         shell: bash
         run: |
