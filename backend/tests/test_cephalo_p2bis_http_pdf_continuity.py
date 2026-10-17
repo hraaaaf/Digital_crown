@@ -76,7 +76,7 @@ def test_real_jwt_get_put_get_pdf_preserves_59_canonical_ids(
     assert total_profile_rows == sum(_PROFILE_COUNTS.values())
     assert expected
 
-    response = client.post(f"/api/patients/{patient.id}/pdf", json={"archive": False}, headers=headers)
+    response = client.post(f"/api/patients/{patient.id}/pdf", json={"analysis_id": analysis.id, "expected_revision": scientific["revision"], "archive": False}, headers=headers)
     assert response.status_code == 200, response.text[:600] if response.status_code != 200 else ""
     assert response.headers["content-type"].startswith("application/pdf")
     assert response.content.startswith(b"%PDF")
@@ -101,13 +101,13 @@ def test_report_http_denies_unauthorized_tenant_and_stale_data(
 
     # Absence of JWT never creates a document.
     client.cookies.clear()
-    guest = client.post(f"/api/patients/{patient.id}/pdf", json={"archive": False})
+    guest = client.post(f"/api/patients/{patient.id}/pdf", json={"analysis_id": analysis.id, "expected_revision": 1, "archive": False})
     assert guest.status_code == 401
     assert list(tmp_path.glob("*.pdf")) == []
 
     outsider = make_user(db, email="p2bis-other-cabinet@cabinet.invalid")
     unauthorized = client.post(
-        f"/api/patients/{patient.id}/pdf", json={"archive": False},
+        f"/api/patients/{patient.id}/pdf", json={"analysis_id": analysis.id, "expected_revision": 1, "archive": False},
         headers=_jwt(client, outsider),
     )
     assert unauthorized.status_code == 403
@@ -126,7 +126,7 @@ def test_report_http_denies_unauthorized_tenant_and_stale_data(
     assert broken_read.status_code == 409
 
     draft = client.post(
-        f"/api/patients/{patient.id}/pdf", json={"archive": False},
+        f"/api/patients/{patient.id}/pdf", json={"analysis_id": analysis.id, "expected_revision": 1, "archive": False},
         headers=original_owner_headers,
     )
     # A safe, incomplete draft is allowed; a clinically authoritative
