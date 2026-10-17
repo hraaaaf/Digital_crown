@@ -117,6 +117,14 @@ with ThreadPoolExecutor(max_workers=2) as executor:
     answers = [f.result(timeout=30) for f in futures]
 codes = sorted(r.status_code for r in answers)
 assert codes in ([200, 409], [201, 409]), f"S07_HTTP_EXPECT_ONE_409_GOT_{codes}"
+# Assert the actual 409 JSON contract consumed by AgendaModal S10 UI.
+loser = next(r for r in answers if r.status_code == 409)
+conflict_detail = loser.json().get("detail")
+assert isinstance(conflict_detail, dict), "S10_REAL_409_DETAIL_NOT_OBJECT"
+assert conflict_detail.get("message") == "Créneau en conflit avec un autre rendez-vous", (
+    "S10_REAL_409_MESSAGE_CONTRACT_CHANGED")
+assert isinstance(conflict_detail.get("conflicts"), list) and len(conflict_detail["conflicts"]) == 1, (
+    "S10_REAL_409_CONFLICT_LIST_MISSING")
 
 with database.SessionLocal() as db:
     overlapping = db.query(models.Appointment).filter(
@@ -213,6 +221,52 @@ with database.SessionLocal() as db:
     assert db.get(models.BotPendingAction, fresh_action_id).status == "executed"
     assert db.get(models.BotPendingAction, stale_action_id).status != "executed"
 
+# S12 HTTP: real GhostBrain read-ACK against migrated PostgreSQL.
+# Assert own unread remains after foreign/unrecognized 404, then own 200
+# persists, disappears from subsequent read and other-tenant alert stays unread.
+with database.SessionLocal() as db:
+    other_owner = models.User(
+        email="cb01-foreign-ghost@synthetic.invalid",
+        hashed_password=get_password_hash(password), role=models.UserRole.DENTISTE,
+        nom_complet="Synthetic Foreign Ghost Owner", is_active=True,
+        is_licensed=True, approval_status=models.ApprovalStatus.APPROVED.value,
+    )
+    db.add(other_owner)
+    db.flush()
+    own_insight = models.GhostMemoryLog(
+        employer_id=owner_id, patient_id=None, insight_type="STOCK",
+        content="Synthétique : vérifier un stock fictif",
+        context_hash="c" * 64, is_read=False,
+    )
+    foreign_insight = models.GhostMemoryLog(
+        employer_id=other_owner.id, patient_id=None, insight_type="STOCK",
+        content="Synthétique : alerte d'un autre cabinet",
+        context_hash="d" * 64, is_read=False,
+    )
+    db.add_all([own_insight, foreign_insight])
+    db.commit()
+    own_id, foreign_id = int(own_insight.id), int(foreign_insight.id)
+initial = first_client.get("/api/ai/ghost-insights")
+assert initial.status_code == 200 and any(
+    row["id"] == own_id for row in initial.json().get("insights", [])
+), f"S12_OWN_UNREAD_MISSING_{initial.status_code}"
+missing = first_client.post("/api/ai/ghost-insights/2147483637/read")
+foreign = first_client.post(f"/api/ai/ghost-insights/{foreign_id}/read")
+assert missing.status_code == 404 and foreign.status_code == 404, (
+    f"S12_NONEXISTENT_FOREIGN_GUARD_{missing.status_code}_{foreign.status_code}")
+with database.SessionLocal() as db:
+    assert db.get(models.GhostMemoryLog, own_id).is_read is False, "S12_REFUSAL_MUTATED_OWN"
+    assert db.get(models.GhostMemoryLog, foreign_id).is_read is False, "S12_FOREIGN_READ_LEAK"
+ack = first_client.post(f"/api/ai/ghost-insights/{own_id}/read")
+assert ack.status_code == 200 and ack.json() == {"status": "read"}, (
+    f"S12_OWN_READ_ACK_{ack.status_code}")
+after_ack = first_client.get("/api/ai/ghost-insights")
+assert after_ack.status_code == 200 and not any(
+    row["id"] == own_id for row in after_ack.json().get("insights", [])
+), "S12_READ_ALERT_STILL_IN_FEED"
+with database.SessionLocal() as db:
+    assert db.get(models.GhostMemoryLog, own_id).is_read is True, "S12_ACK_NOT_PERSISTED"
+    assert db.get(models.GhostMemoryLog, foreign_id).is_read is False, "S12_FOREIGN_MUTATED"
 first_client.close()
 second_client.close()
 report = {
@@ -224,6 +278,20 @@ report = {
         "status": "PASS_HTTP_ROUTER_PG_INTEGRATION",
         "simultaneousPostStatuses": codes,
         "identicalSlotCreated": 1, "adjacentSlotCreated": 1,
+    },
+    "S10": {
+        "status": "PASS_REAL_409_RESPONSE_CONTRACT",
+        "httpConflictStatus": 409,
+        "errorFormat": "detail.message+detail.conflicts",
+        "frontendRealBrowserJourney": "NOT_RUN",
+    },
+    "S12": {
+        "status": "PASS_HTTP_READ_ACK_PERSISTENCE",
+        "initialUnread": True, "missingHttpStatus": missing.status_code,
+        "otherTenantHttpStatus": foreign.status_code,
+        "authorizedAckStatus": ack.status_code,
+        "ownUnreadAfterAck": False, "foreignStillUnread": True,
+        "frontendRealWebSocketJourney": "NOT_RUN",
     },
     "S09": {
         "status": "PASS_HTTP_BOT_EXECUTE_ABA_INTEGRATION",
@@ -246,4 +314,4 @@ report = {
 out = Path("artifacts/cb01-associate-sidecar/http-pg-s07-s09-evidence.json")
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-print("CB01_HTTP_PG_S07_S09: PASS_REAL_ROUTERS_FULL_PG_SCHEMA; NOT_STAFF_E2E")
+print("CB01_HTTP_PG_S07_S09_S10_S12: PASS_REAL_ROUTERS_FULL_PG_SCHEMA; NOT_STAFF_E2E")
