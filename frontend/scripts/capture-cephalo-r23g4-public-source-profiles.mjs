@@ -144,7 +144,7 @@ async function auditG6ZoomPan(page, viewport, viewportName) {
   });
   const initial=await snapshot();
   if(!initial.base||initial.base!==initial.overlay||initial.handles.length!==38||initial.storeLandmarks?.length!==38)
-    fail('G6 initial SVG/handle alignment invalid '+viewportName);
+    fail('G6 initial SVG/handle alignment invalid '+viewportName+' '+JSON.stringify({base:initial.base,overlay:initial.overlay,domHandleCount:initial.handles.length,storeCount:initial.storeLandmarks?.length??null,storeType:typeof initial.storeLandmarks}));
   const untouched=phase.toLowerCase()+'-g6-'+viewportName+'-100.png';
   await page.screenshot({path:path.join(out,untouched),fullPage:false});
   if(!expectedControls)return {mobile:isMobile,available:false,initial,fullImageScreenshot:untouched,expectedBlock:'MOBILE_ZOOM_DISABLED_BEFORE'};
