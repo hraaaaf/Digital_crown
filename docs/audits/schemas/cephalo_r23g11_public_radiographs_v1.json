@@ -1,0 +1,38 @@
+{
+  "schema_version": "CEPHALO_R23G11_PUBLIC_RADIOGRAPH_SOURCE_LOCK_V1",
+  "source_scope": "PUBLIC_UX_AND_IMAGE_PROVENANCE_SMOKE_ONLY__NOT_AARIZ_GOLDSET",
+  "clinical_release": false,
+  "patient_reference_verified": false,
+  "cases": [
+    {
+      "id": "anug",
+      "author": "ANUG",
+      "year": 2014,
+      "page": "https://commons.wikimedia.org/wiki/File:Cephalometric_radiograph.JPG",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG",
+      "filename": "anug.jpg",
+      "sha1": "2a284993c666790a72d0c004044b35a92534ce9d",
+      "width": 2272,
+      "height": 1818,
+      "license": "CC BY-SA 4.0",
+      "calibration_verified": false,
+      "orientation_verified": false,
+      "manual_landmarks_verified": false
+    },
+    {
+      "id": "challiyan",
+      "author": "Challiyan",
+      "year": 2023,
+      "page": "https://commons.wikimedia.org/wiki/File:A_lateral_cephalogram_without_true_vertical.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg",
+      "filename": "challiyan.jpg",
+      "sha1": "66c74c588af3c54dfc581f8a870c5276c3427498",
+      "width": 1000,
+      "height": 1255,
+      "license": "CC BY-SA 4.0",
+      "calibration_verified": false,
+      "orientation_verified": false,
+      "manual_landmarks_verified": false
+    }
+  ]
+}
