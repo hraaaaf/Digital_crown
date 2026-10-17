@@ -398,11 +398,24 @@ try {
         }
         await page.screenshot({path:path.join(output,
           'clinical-'+spec.slug+'-after-'+width+'.png')});
+        // At intermediate widths the assistant must remain dismissible.
+        // A named close control is essential for screen readers and makes
+        // the unobstructed clinical page immediately recoverable.
+        if(!expectedSidecar) {
+          await overlay.getByRole('button',{name:'Fermer Crown Bot'}).click();
+          await overlay.waitFor({state:'detached'});
+          const restored=await page.locator('main').boundingBox();
+          if(!restored || Math.abs(restored.width-baseline.width)>3
+              || errors.length || writes.length) {
+            throw new Error('FAIL: floating assistant close did not restore clinic page '+
+              spec.slug+' '+width);
+          }
+        }
         clinicalRouteEvidence.push({
           route:spec.slug,width,
           status:expectedSidecar
             ? 'PASS_SYNTHETIC_SIDECAR_LAYOUT_ONLY'
-            : 'PASS_SYNTHETIC_FLOATING_NO_CLINICAL_SHRINK',
+            : 'PASS_SYNTHETIC_FLOATING_NO_CLINICAL_SHRINK_AND_CLOSE',
           baseline,geometry,errors:0,writes:0,
         });
       } finally {
