@@ -69,18 +69,20 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const [isWideDesktop, setIsWideDesktop] = useState(
     () => typeof window !== 'undefined'
       && typeof window.matchMedia === 'function'
-      && window.matchMedia('(min-width: 1280px)').matches,
+      && window.matchMedia('(min-width: 1600px)').matches,
   );
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
-    const query = window.matchMedia('(min-width: 1280px)');
+    const query = window.matchMedia('(min-width: 1600px)');
     const onChange = () => setIsWideDesktop(query.matches);
     onChange();
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
   }, []);
-  // CB-01 experiment: DESKTOP web only, double opted-in alongside the existing
-  // non-executable preview. The real cabinet defaults to the old floating UI.
+  // CB-01 experiment: permanent sidecar only from 1600 CSS px. At 1280/1440,
+  // real Agenda/PatientDetails screenshots showed clipped patient tabs and
+  // crowded clinical controls; use dismissible floating web fallback instead.
+  // Desktop web only, double opt-in; cabinet stays on the old floating UI.
   const associateSidecarEnabled =
     import.meta.env.VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED === 'true'
     && import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
