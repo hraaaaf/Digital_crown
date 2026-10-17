@@ -187,6 +187,18 @@ async function runMatrix(page,theme,width,height,zoom=false){
           await dialog.getByRole('button',{name:'Fermer'}).click();
           await dialog.waitFor({state:'hidden'});
         }
+      } else if(theme==='elite' && !zoom && width===768){
+        // Regressions must also be caught in the ORIGINAL desktop calendar:
+        // a local midnight 2026-09-23 at Africa/Casablanca is 2026-09-22 UTC.
+        // Clicking an empty calendar cell must create on Sep 23, NOT Sep 22.
+        await page.locator('[data-p2-month-grid]').getByText('23',{exact:true}).click();
+        const dialog=page.getByRole('dialog',{name:'Nouveau Rendez-vous'});
+        await dialog.waitFor({state:'visible',timeout:15000});
+        const selected=await dialog.locator('input[type="date"]').inputValue();
+        if(selected!=='2026-09-23')
+          throw Error('P2 desktop month empty-day UTC regression '+JSON.stringify({selected,expected:'2026-09-23'}));
+        await dialog.getByRole('button',{name:'Fermer'}).click();
+        await dialog.waitFor({state:'hidden'});
       }
     }
     if(theme==='dark'){
