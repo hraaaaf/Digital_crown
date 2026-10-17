@@ -56,6 +56,18 @@ def _worker_with_lab_key_protection(db, **kwargs):
 
 pc_router.process_remote_envelope = _worker_with_lab_key_protection
 
+# The real HTTP route enforces a five-request/10-minute IP default; expand only
+# this isolated load-test threshold, retain the same rate limiter and request
+# identity checks, and never alter production configuration.
+from backend.utils.rate_limit import check_rate_limit as _real_rate_limit
+
+
+def _laboratory_rate_limit(request, scope="auth"):
+    return _real_rate_limit(request, scope=scope, max_attempts=100)
+
+
+pc_router.check_rate_limit = _laboratory_rate_limit
+
 app = FastAPI(title="F05 synthetic Patient Companion actual HTTP route")
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(appointments.router, prefix="/api/appointments")
