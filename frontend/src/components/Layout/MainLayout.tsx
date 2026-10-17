@@ -253,7 +253,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         >
           <Bot size={24} />
           {ghostUnreadCount > 0 && !isBotOpen && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 text-slate-900 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse shadow-lg">
+            <span data-cb01-parent-unread className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 text-slate-900 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse shadow-lg">
               {ghostUnreadCount}
             </span>
           )}
