@@ -8,6 +8,9 @@ on:
       - 'scripts/verification/lot07_07a_f05_pc_http.py'
       - 'backend/services/bot/action_dispatcher.py'
       - 'backend/services/patient_companion_agenda.py'
+      - 'backend/services/patient_companion_remote_worker.py'
+      - 'backend/services/patient_companion_remote_crypto.py'
+      - 'backend/services/patient_companion_remote_receipts.py'
       - 'backend/routers/frontdesk.py'
       - 'backend/routers/appointments.py'
       - 'backend/services/agenda_resource_conflicts.py'
@@ -128,9 +131,9 @@ jobs:
           test "$MULTIPROCESS_OUTCOME" = success
           test "$PG_FAULTS_OUTCOME" = success
           test "$PC_HTTP_OUTCOME" = success
-          # Agenda/Bot/Frontdesk real login and two-process PostgreSQL probes
-          # are covered separately. Genuine Patient Companion encrypted
-          # remote-envelope, receipt atomicity and independent reviews remain.
+          # Actual Patient Companion HTTP route, JOSE, device-token identity,
+          # SQL receipts and multi-process races are covered by pc_http;
+          # Windows DPAPI/real device pairing and independent reviews remain.
           # This Linux lab substitutes Windows DPAPI key unprotect; completion
           # is evidence for the actual HTTP route and PostgreSQL invariants,
           # not a device/hardware or production activation approval.
