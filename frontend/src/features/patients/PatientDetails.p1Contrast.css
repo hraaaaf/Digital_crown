@@ -1,0 +1,12 @@
+/*
+ * LOT07-P1: foreground contrast only for the EXISTING Dark theme.
+ * No theme token, font, palette or Elite visual identity is changed.
+ * All other themes retain the exact existing primary-color appearance.
+ */
+.p1-clinical-primary-ink {
+  color: var(--primary);
+}
+
+html[data-theme='dark'] .p1-clinical-primary-ink {
+  color: var(--text-main);
+}
