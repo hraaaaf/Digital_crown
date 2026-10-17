@@ -1,0 +1,76 @@
+name: V1.5-06P F01 Cross SID ACL Experimental
+
+on:
+  pull_request:
+    paths:
+      - 'tools/imaging_gateway/windows/f01_cross_sid_acl_lab.ps1'
+      - '.github/workflows/v15-06p-f01-cross-sid.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  f01_cross_sid_experimental:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 909 && github.event.pull_request.head.ref == 'feat/v15-06-bridge-background-lab-20261016' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact PR source HEAD
+        shell: powershell
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_SHA) { throw 'F01_EXACT_HEAD_MISMATCH' }
+          Write-Host "F01_EXACT_HEAD=$actual"
+      - name: Parse PowerShell source
+        shell: powershell
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile('tools/imaging_gateway/windows/f01_cross_sid_acl_lab.ps1', [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) { throw 'F01_POWERSHELL_PARSE_FAILED' }
+      # EXPERIMENTAL check: deliberately not a REQUIRED branch-protection gate.
+      # A real failure must still be RED in Actions, not a misleading SUCCESS.
+      - name: Experimental native cross SID proof
+        id: oracle
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'f01-cross-sid-evidence.txt'
+          try {
+            & .\tools\imaging_gateway\windows\f01_cross_sid_acl_lab.ps1 *>&1 |
+              Tee-Object -FilePath $evidence
+            $lines = @(Get-Content -LiteralPath $evidence)
+            $required = @(
+              'F01_CROSS_SID_LAB=PASS',
+              'F01_DISTINCT_STANDARD_USER_TOKENS=PASS',
+              'F01_PROTECTED_NTFS_DACL=PASS',
+              'F01_OWNER_POSITIVE_FILE_IO=6/6',
+              'F01_PEER_NEGATIVE_FILE_IO=19/19',
+              'F01_SYNTHETIC_SHA256_UNCHANGED=6/6',
+              'F01_SCM_SERVICE_SID=NOT_TESTED',
+              'F01_COMMERCIAL_CERTIFICATION=NOT_AUTHORIZED',
+              'F01_DISPOSABLE_USER_AND_ROOT_CLEANUP=PASS'
+            )
+            foreach ($marker in $required) {
+              if ($lines -notcontains $marker) {
+                throw "F01_EVIDENCE_MARKER_MISSING:$marker"
+              }
+            }
+            Write-Host 'F01_EXPERIMENTAL_EVIDENCE_VALIDATED=PASS'
+          } finally {
+            Remove-Item -LiteralPath $evidence -Force -ErrorAction SilentlyContinue
+          }
+      - name: Explicit experimental evidence state
+        if: always()
+        shell: powershell
+        env:
+          ORACLE_OUTCOME: ${{ steps.oracle.outcome }}
+        run: |
+          Write-Host "F01_EXPERIMENTAL_ORACLE_OUTCOME=$env:ORACLE_OUTCOME"
+          if ($env:ORACLE_OUTCOME -ne 'success') {
+            Write-Error 'F01_UNPROVEN: experimental oracle failed; no SID/DACL proof'
+            exit 1
+          }

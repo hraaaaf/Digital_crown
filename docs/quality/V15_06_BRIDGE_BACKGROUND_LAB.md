@@ -1,0 +1,213 @@
+# LOT06 — Imaging Bridge background integration (isolated LAB prototype)
+
+## Goal
+One Digital Crown installation, no second user-facing app. Exercise a synthetic imaging receiver via the existing FastAPI backend lifespan, in the background. This does **not** install, activate, or certify a real Windows service, vendor driver, Wi-Fi camera, RVG device, DICOM node, or any clinical association.
+
+## Scope
+- The existing backend lifespan starts a coroutine **only** when explicitly selected for an isolated test; it joins that coroutine during shutdown. Blocking filesystem scans execute off the API event loop.
+- Disabled by default: all three environment gates must hold: ENVIRONMENT=test, DIGITALCROWN_ISOLATED_RUNTIME=true, DC_V15_06_BRIDGE_LAB=1.
+- Only watch an explicitly prepared fixture within the OS temporary directory. Require an incoming directory, the sentinel .digitalcrown-imaging-lab-only containing DIGITALCROWN_IMAGING_LAB_ONLY_V1, and a synthetic 256-bit lab key via DC_V15_06_BRIDGE_LAB_KEY_HEX. Accepted files additionally require a producer `.ready` sidecar with size+SHA-256 matching completed contents; an ordinary Wi-Fi camera will need an adapter that safely emits this marker.
+- Valid simulated photos remain locally PENDING_CONFIRMATION, invalid media QUARANTINED. No upload, server receipt, patient identity inference, clinical asset, device credentials or real device IO.
+- Do not modify DigitalCrown.spec, Inno Setup, mobile packaging, Windows services or production startup activation.
+
+## Evidence and negative cases
+Default-off; cabinet/non-isolated or backend-settings mismatch denial; fixture sentinel/path/key failures; incomplete/mismatched image cannot stage; completed encrypted synthetic image without patient ID; quarantine unknown content; background worker starts/stops, exceptions do not leak sensitive filenames. Existing LOT06-A GitHub Actions Windows/Ubuntu matrix discovers and executes these unittest cases.
+
+## Gates still open
+Native Windows background process/service lifecycle and INSTALLABLE_CERTIFIED packaging, multi-poste ownership, Wi-Fi/RVG/DICOM/TWAIN/proprietary SDK hardware, certified patient binding and atomic receipt, product/mobile UI, RPG-X separate process actors and RPG-P physical tests. Tests here do not certify any device or claim clinical interoperability.
+
+This is a lab-only prototype on a draft stacked PR. No clinical installation without separate certified release, rehearsal and explicit human approval.
+
+## CI separation
+The existing 06-A imaging matrix has only lightweight spool/cryptography dependencies. This LAB worker lives in `tools.imaging_gateway.bridge_background_lab` and is imported from the product's FastAPI lifespan; the synthetic suite therefore does not import `backend.__init__` or require SQLAlchemy. The 06-B operational route check supports both first-level PRs (preflight 0 -> 1) and stacked descendant PRs (preflight 1 -> 1), retaining strict multiset equality for all other routes.
+
+The optional LAB module import in `backend.main.lifespan` is guarded by the explicit `DC_V15_06_BRIDGE_LAB=1` switch; ordinary installed startup must never require the optional imaging gateway package at boot. A source-level regression asserts this property in the lightweight CI.
+
+### CI repair 2026-10-16
+Both Python 3.11 OS runners use `unittest` without `pytest`; route-registry regression tests are now `unittest.TestCase` tests collected and executed on both. The isolated root guard retains strict canonical equality and OS temp containment while normalizing Windows path casing (with a Windows-only case-alias test). The import-scope AST negative test counts only direct guarded imports, not nested `If` duplicates. None of these changes enable acquisition in a cabinet.
+
+### CI repair follow-up — filesystem identity
+The earlier normalization-only Windows fix remained red. LAB confinement now validates TEMP ancestry using `Path.samefile` (true directory identity) instead of lexical `commonpath`, and explicitly rejects any supplied component with symlink or Windows reparse-point attributes. The startup AST test checks both valid imports independently: `start_if_enabled` guarded by the explicit LAB flag and `stop_bridge_lab` guarded by an existing worker handle. Neither test is skipped or weakened.
+
+## FastAPI lifespan end-to-end synthetic proof
+`backend/tests/test_imaging_bridge_lifespan_v15.py` uses the **real** `backend.main.app` and FastAPI lifespan through `TestClient`. The test explicitly enables a TEMP-marked LAB fixture with a synthetic, SHA-256-completed PNG, waits for its local `PENDING_CONFIRMATION` state, verifies zero additional ClinicalAsset records, exits the real FastAPI lifespan, and asserts the Bridge worker was joined and the tempfile safely removed. A second test leaves the LAB switch absent and asserts the real app does **not** start a Bridge. Unrelated Firebase, indexing, scheduler and panorama side effects are patched (the app's lifespan is **not patched**). Runner: heavy-dependency existing 06-B isolated Ubuntu job. This is not a test of installed Windows service/real hardware or actual product launch package.
+
+## Independent audit (external) — 2026-10-17: FAIL; remediation scope
+
+An independent adversarial review rejected closure of LOT06-P (FAIL, 5 MAJOR;
+security 4.5/10, reliability 4.0/10). The earlier green CI established only
+nominal LAB tests and should not be described as certification. Corrections
+on PR #909 since `a6483264`:
+
+- **F01 (NTFS junction escape) — mitigated, OPEN pending native retest/review.**
+  Detect Windows reparse points at incoming/private, watch/private/spool and
+  ancestor level; check canonical roots and per-scan directory identities.
+  Windows CI includes actual `mklink /J` attacks for both LAB subdirectories
+  (creation is mandatory, not silently skipped) and a post-init root swap test.
+  A TOCTOU replacement between checking and opening a file remains possible
+  without Windows anchored handles and ACL/process isolation.
+- **F02 (FastAPI shutdown absent on exceptional exit) — corrected in code,
+  CI proof pending.** The actual `yield` is now inside a `try` with a
+  `finally` that stops the LAB handle and cancels/joins pre-existing async
+  tasks. The startup logger does not stringify the exception. A test raises
+  inside the actual FastAPI `lifespan(app)` and asserts the Bridge stops.
+- **F03 (re-reading all already received files) — optimized manifest mode,
+  CI proof pending.** Look up completed source signatures and producer SHA
+  in the durable indexed SQLite ledger, check bounded spool metadata, skip
+  repeated input read, hash and AES-GCM decrypt. The first capture still
+  checks source bytes and SHA; `read_verified()` reauthenticates on use.
+  The older no-manifest mode remains unchanged; periodic spool scrub and
+  high-volume soak profiling are NOT implemented.
+- **F04 (blocked OS I/O prevents shutdown) — partially mitigated, MAJOR
+  OPEN.** The LAB API shutdown wait is bounded and explicitly returns False
+  with a generic warning if a thread is stuck. Python `to_thread` CANNOT
+  forcibly terminate an in-flight OS read. A supervised process with native
+  Windows cancellation/kill/reap is required for real devices before
+  clinical release. No claim of true resource disposal after a timeout.
+- **F05 (magic-only media accepted) — conservative fail-closed correction,
+  CI proof pending.** Only structurally parsed 8-bit non-interlaced PNG can
+  reach PENDING_CONFIRMATION in this LAB: chunk lengths and CRC, critical
+  chunks, IHDR size/pixel cap, bounded decompression and row filter checks.
+  JPEG/WebP/PDF (and DICOM) are QUARANTINED until their own validators exist.
+  This is an intentional functional limitation, not clinical image decoding
+  certification.
+
+Gates: new exact-SHA Windows/Ubuntu CI, preflight+lifespan CI, two fresh
+independent external reviews on the SAME final HEAD, installer/ACL confinement,
+real-device compatibility and explicit patient linking are **OPEN**.
+PR #909 is DRAFT; no merge, no install, no clinical activation.
+
+## F01/F04 second hardening batch — supervised LAB child and Windows scan handles
+
+- **F01:** the synthetic scan now enters `pin_directories`, taking `CreateFileW` directory handles with `FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT` and **without** `FILE_SHARE_DELETE` for the watch, private, spool and their parents during each scan. After pins are acquired, the existing directory identities/reparse checks run again. New native Windows test demands that a watched directory cannot be renamed while the handle is held; it can be renamed after the context closes. This reduces a live Windows rename/junction TOCTOU window, but is **not** proof of complete path confinement, file-level reparse protection, a secure ACL policy, or kernel-anchored per-file opens.
+- **F04:** the real backend `start_if_enabled` no longer uses `asyncio.to_thread(scan_once)`; it launches a **hidden**, LAB-only, same-package subprocess via `sys.executable -m tools.imaging_gateway.process_lab`. The child runs with a minimal environment (no other backend credentials), validates the same marker and TEST isolation, monitors a parent-owned stdin channel and gracefully stops at a safe polling boundary. On stop deadline the parent kills and **reaps** the child, returning **False**, never a false success. Tests prove a real child stages a fake PNG and is reaped on normal shutdown, and inject an uncooperative synthetic subprocess that is killed and reaped after timeout on Windows/Ubuntu. No second application is installed or visible.
+- The original in-process `poll_lab_collector` is retained only for direct test compatibility, **not used** in FastAPI. This is laboratory process supervision, **not** a production-certified Windows Job Object/service: parent crash orphan handling, process multi-instance locks, ACL hardening, packaged executable, malicious local administrator and real-device drivers remain OPEN. No patient binding, server receipt, transport or clinical upload.
+- CI for the exact new HEAD must pass before treating these corrections as verified. The independent 5-MAJOR FAIL is **not** overturned by this internal implementation, and a fresh independent reviewer must reassess F01/F04.
+
+
+## F01 native Windows proof correction — 2026-10-17
+The first native Windows CI [run #39013786582](https://github.com/hraaaaf/Digital_crown/actions/runs/39013786582) demonstrated that a watched directory **could be renamed despite a handle opened without FILE_SHARE_DELETE**. That initial handle-pin idea was **not** a valid confinement proof. We therefore **revert the pin abstraction instead of hiding or skipping the failing test**. `scan_once` performs strict identity/reparse checks again immediately **after reading** and around spool writes; a new test performs an actual mid-read watch-folder replacement and requires fail-closed without a DB item. This detects several races but is **not full Windows kernel-level confinement**. F01 remains MAJOR/OPEN until directory-relative handle-based opens and ACL isolation are independently reviewed and tested. The old claim in the preceding experimental-batch paragraph is superseded by this correction.
+
+## F04 parent-death hardening, experimental LAB (2026-10-17)
+
+The child waits for an explicit `GO` control message from the parent, and
+does not scan before the parent has installed OS lifetime supervision:
+
+- Windows 8+ (LAB): `WindowsLabJob.assign` creates an unnamed Job Object,
+  configures `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, and assigns the
+  blocked child before GO. The *parent alone* retains the Job Object
+  handle; kernel closure on abnormal parent process death kills the child.
+  Windows CI must run the native uncooperative-child job-close test; if
+  assignment fails on an unsupported Windows job hierarchy, startup fails
+  closed rather than launching unsupervised capture.
+- Linux (LAB): child installs `prctl(PR_SET_PDEATHSIG, SIGKILL)` and verifies
+  the expected parent PID before scanning, avoiding the signal-registration
+  race. Non-Linux POSIX platforms retain the stdin EOF guard, **not** a
+  kernel-enforced parent death contract, and are not certified.
+- Normal shutdown still uses STOP/timeout/kill+reap. Neither this protocol
+  nor unit tests certify Windows packaged installers, production ACLs,
+  real device drivers, session/patient attachment, or concurrent worker
+  ownership. Startup acknowledgment and health guarantees are separate
+  future gates.
+
+**F01 remains OPEN:** identity/reparse checks and no-ledger-commit after
+a deterministic root replacement are defensive controls, not a Windows
+handle-relative, race-free file *read and write* authorization contract.
+Avoid calling the directory pinning experiment a fix: native CI disproved it.
+
+## F01 native Windows encrypted spool write — 2026-10-17
+
+- In the TEST-only Bridge, Windows now opens the `spool` root via a
+  filesystem handle and verifies its original volume/file ID. New ciphertext
+  gets a randomized temporary leaf using `NtCreateFile` relative to that
+  handle. Once written and fsynced, `NtSetInformationFile` class
+  `FileRenameInformation` publishes a new `.dc6` leaf relative to the same
+  handle, **without replacing an existing entry**. Cleanup uses the source
+  file's handle on failure, never a path-based unlink. Stored ciphertext reads
+  use the same anchored root, as source and `.ready` reads already do.
+- An initial attempt using `SetFileInformationByHandle(FileRenameInfo)`
+  returned WinError 87 on actual Windows CI because its Win32 wrapper did not
+  preserve a non-NULL `RootDirectory` with a relative target. Replaced with
+  true `NtSetInformationFile`, not with an unsafe absolute-path rename.
+- Native Windows regression tests verify that a real encrypted capture can
+  publish and decrypt, collision cannot overwrite, and a replaced spool
+  directory is rejected **before writing**; ENOSPC fault injection is now
+  at the native publish seam on Windows. Ubuntu preserves the preexisting
+  non-Windows code path.
+- **Remaining security limitations / F01 still OPEN:** SQLite database, WAL,
+  quota observations, installer filesystem ACLs, shared user permissions,
+  multi-process ownership and crash recovery are not fully anchored or
+  certified. These synthetic checks cannot attest that a real clinical
+  service has an adequate Windows privilege boundary.
+- **Codex local sandbox:** Use `docs/quality/LOT06_P_CODEX_WINDOWS_ISOLATED_LAB_RUNBOOK.md` for safe,
+  intentionally temporary Windows-only LAB verification after candidate CI
+  is green. Never start a clinical driver or place a real patient acquisition
+  in this laboratory.
+
+## Current execution boundary — 2026-10-17
+
+The owner has **deferred the remote Windows Codex LAB run and all physical
+hardware trials to LOT10** because the remote PC is offline. The old local
+runbook is now marked **HOLD**, not permission to perform a later autonomous
+installation. In LOT06-P focus only on code/CI, SQLite/WAL boundary
+hardening, the commercial Windows ACL contract and genuinely independent
+code reviews. The commercial DACL and Windows SQLite root-relative VFS are
+NOT implemented. F01/LOT06-P remain OPEN even when CI succeeds.
+
+## 2026-10-17 — Follow-up of internal adversarial reviews A/B (synthetic LAB only)
+
+- **B1 repeated scan failure:** no more `except Exception: pass` forever.
+  The child exits with a nonzero code after **three consecutive exceptions**;
+  the parent monitor logs a *fixed non-PHI* operational failure. A synthetic
+  injected scan exception is allowed **only with positive TEST/LAB isolation**
+  and is exercised on Windows/Ubuntu; production never uses this path.
+  Health reporting to the dentist and an automatic restart policy are **not**
+  part of this LAB, and remain open for commercial integration.
+- **B2 cross-process ownership:** before the parent initializes a SQLite
+  collector, it obtains an OS-advisory exclusive lock on a synthetic fixture
+  root file (POSIX `flock`, Windows `msvcrt.locking`). A second parent
+  refuses startup before creating any worker. Lock lifetime follows the
+  backend OS file descriptor, and the parent closes it on normal stop and
+  refused child startup. No stale PID-file cleaning. This is a **LAB-only
+  singleton**, not a secure service-principal or installer DACL: a malicious
+  same-user account with write access to the root can still subvert it.
+- **B4 startup acknowledgment:** the child performs **no collection or
+  SQLite initialization until GO**, which the parent only issues after
+  Windows Job Object assignment; it sends `READY\n` after isolated setup,
+  and the parent requires that exact acknowledgment within a bounded window.
+  Timeout/bad ACK/early failure kills/reaps and refuses startup. There is
+  still no full production supervision or patient-imaging device status UI.
+- **B3 commit semantics:** the SQLite transaction's final root/sidecar
+  policy check now runs **before** `db.commit()` rather than afterward.
+  Rejected precommit changes roll back; the parent never labels a successful
+  durable commit as failure because of a *postcommit guard*. Durable
+  transaction errors and OS power interruptions still need recovery and
+  idempotency analysis for clinical workflows.
+- Native OS regression includes duplicate startup **in different Python
+  processes**, restart after releasing OS owner lock, worker error after
+  three synthetic failures, and policy exception before commit. Existing
+  native Windows junction/reparse/ciphertext tests remain active.
+
+**Independent-review status unchanged:** the preceding reviews A/B were
+two **internal** adversarial perspectives, not two external reviewers;
+production F01 SQLite path VFS and Windows installer ACLs remain OPEN,
+and the owner deferred local PC/Codex/real-device trials until LOT10.
+No merge, install or clinical patient attachment is authorized.
+
+## 2026-10-17 — Native CI parent-crash rehearsal without owner PC (LOT06-P)
+
+The synthetic CI now starts a **real Python harness parent** from a freshly
+marked temporary LAB fixture, waits for its true child Bridge PID after the
+READY ACK, then forcibly terminates **only that harness PID** without calling
+application cleanup. On Windows it opens a kernel process-wait handle to the
+actual child and checks that the Job Object closes and terminates it. On Linux
+it checks the child is no longer runnable via `/proc/<pid>/stat` after
+`PR_SET_PDEATHSIG`. In both cases a new owner can acquire the former parent
+lock. All processes and folders belong to the disposable runner fixture.
+This is stronger evidence than the prior test of voluntarily closing an OS
+Job Object, but still **NOT** an installed Windows service, OS power-loss
+trial, or physical clinic/imaging hardware check.
+
+A pass here **must NOT** close the commercial F01 SQLite by-path/ACL gate
+or substitute for independent security and reliability reviews. Owner
+decision persists: remote PC offline, installer/DACL/device trials **LOT10**.

@@ -3,16 +3,20 @@ import base64
 import errno
 import json
 import sqlite3
+from contextlib import closing
 from unittest.mock import patch
 import hashlib
+import zlib
 import os
 import subprocess
+import shutil
 import sys
 from pathlib import Path
 import tempfile
 import unittest
 
 from tools.imaging_gateway import Config, HotFolder, GatewayError
+from tools.imaging_gateway.media_validation import valid_png
 
 
 SYNTHETIC = base64.b64decode(
@@ -74,6 +78,38 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.agent.scan_once()["staged"], 1)
         self.assertEqual(len(self.agent.items()), 2)
 
+    def test_corrupt_png_magic_and_truncated_png_are_quarantined(self):
+        self.assertTrue(valid_png(SYNTHETIC))
+        broken = b"\\x89PNG\\r\\n\\x1a\\n".decode("unicode_escape").encode("latin1") + b"invalid"
+        self.assertFalse(valid_png(broken))
+        self.assertFalse(valid_png(SYNTHETIC[:-9]))
+        self.assertEqual(self.stage("fake.png", broken)["quarantine"], 1)
+        self.assertEqual(self.agent.items()[0]["state"], "QUARANTINED")
+
+    def test_png_oversized_dimensions_rejected_before_decompression(self):
+        crafted = bytearray(SYNTHETIC)
+        # IHDR width at byte 16. Recompute CRC to avoid merely testing CRC.
+        crafted[16:20] = (1_000_000).to_bytes(4, "big")
+        crafted[29:33] = zlib.crc32(b"IHDR" + crafted[16:29]).to_bytes(4, "big")
+        self.assertFalse(valid_png(bytes(crafted)))
+        self.assertEqual(self.stage("oversized.png", bytes(crafted))["quarantine"], 1)
+
+    def test_unvalidated_jpeg_webp_pdf_are_not_accepted_by_magic_header(self):
+        for extension, data in (
+            ("jpg", bytes.fromhex("ffd8ff") + b"fakejpeg"),
+            ("pdf", b"%PDF-1.7\\nnot-a-pdf"),
+            ("webp", b"RIFF" + bytes.fromhex("04000000") + b"WEBPfake"),
+        ):
+            with self.subTest(extension=extension):
+                with tempfile.TemporaryDirectory() as root:
+                    watch, private = Path(root)/"watch", Path(root)/"private"
+                    watch.mkdir()
+                    worker = HotFolder(Config("strict", "station", watch, private, b"k"*32))
+                    (watch / ("fake." + extension)).write_bytes(data)
+                    worker.scan_once()
+                    self.assertEqual(worker.scan_once()["quarantine"], 1)
+                    self.assertEqual(worker.items()[0]["state"], "QUARANTINED")
+
     def test_wrong_extension_quarantined(self):
         self.assertEqual(self.stage("fixture.jpg")["quarantine"], 1)
         self.assertEqual(self.agent.items()[0]["state"], "QUARANTINED")
@@ -87,7 +123,13 @@ class GatewayTests(unittest.TestCase):
         file = self.watch / "fixture.png"
         file.write_bytes(SYNTHETIC)
         self.assertEqual(self.agent.scan_once()["unstable"], 1)
-        file.write_bytes(SYNTHETIC + b"-changed")
+        # A structural validator correctly rejects trailing garbage; use a
+        # valid PNG with a CRC-protected ancillary chunk instead.
+        text_data = b"Comment" + bytes([0]) + b"SyntheticChange"
+        chunk_type = b"tEXt"
+        text_chunk = (len(text_data).to_bytes(4, "big") + chunk_type +
+                      text_data + zlib.crc32(chunk_type + text_data).to_bytes(4, "big"))
+        file.write_bytes(SYNTHETIC[:-12] + text_chunk + SYNTHETIC[-12:])
         self.assertEqual(self.agent.scan_once()["unstable"], 1)
         self.assertEqual(self.agent.scan_once()["staged"], 1)
 
@@ -131,6 +173,421 @@ class GatewayTests(unittest.TestCase):
         with self.assertRaises(GatewayError):
             self.agent.scan_once()
 
+    @unittest.skipUnless(os.name == "nt", "native Windows sharing semantics only")
+    def test_windows_sqlite_pin_denies_ancestor_rename_and_releases(self):
+        from tools.imaging_gateway.sqlite_boundary_lab import pin_windows_sqlite_path
+        from tools.imaging_gateway.windows_scoped_read_lab import directory_identity
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "pin-parent"
+            private = parent / "private"
+            private.mkdir(parents=True)
+            moved = parent.with_name("pin-parent-renamed")
+            with pin_windows_sqlite_path(private, directory_identity(private)):
+                with self.assertRaises(OSError):
+                    parent.rename(moved)
+            parent.rename(moved)
+            self.assertTrue((moved / "private").is_dir())
+            moved.rename(parent)
+
+    @unittest.skipUnless(os.name == "nt", "native Windows identity only")
+    def test_windows_sqlite_pin_rejects_swapped_root(self):
+        from tools.imaging_gateway.sqlite_boundary_lab import (
+            SQLiteBoundaryError, pin_windows_sqlite_path,
+        )
+        from tools.imaging_gateway.windows_scoped_read_lab import directory_identity
+        with tempfile.TemporaryDirectory() as temporary:
+            private = Path(temporary) / "private"
+            private.mkdir()
+            original = directory_identity(private)
+            moved = private.with_name("old-private")
+            private.rename(moved)
+            private.mkdir()
+            try:
+                with self.assertRaisesRegex(SQLiteBoundaryError, "PRIVATE_ID_CHANGED"):
+                    with pin_windows_sqlite_path(private, original):
+                        self.fail("swapped root must not be accepted")
+            finally:
+                private.rmdir()
+                moved.rename(private)
+
+    @unittest.skipUnless(os.name == "nt", "native Windows runtime guard only")
+    def test_windows_db_connection_uses_held_directory_handles(self):
+        from tools.imaging_gateway.sqlite_boundary_lab import pin_windows_sqlite_path
+        with patch("tools.imaging_gateway.gateway.pin_windows_sqlite_path",
+                   wraps=pin_windows_sqlite_path) as pinned:
+            with self.agent._db() as db:
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM items").fetchone()[0], 0)
+            self.assertEqual(pinned.call_count, 1)
+
+    @unittest.skipUnless(os.name == "nt", "native Windows file-share semantics only")
+    def test_windows_sqlite_main_file_rename_blocked_until_close(self):
+        """The existing DB leaf cannot be renamed while its VFS connection runs."""
+        source = self.agent.db_file
+        held = self.private / "acquisitions.sqlite3-held-for-test"
+        with self.agent._db() as db:
+            with self.assertRaises(OSError):
+                source.rename(held)
+            db.execute("INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                       ("SYNTHETIC_NATIVE_DB_PIN",))
+        self.assertFalse(held.exists(), "failed rename must not create an alias")
+        source.rename(held)
+        held.rename(source)
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_NATIVE_DB_PIN"])
+
+    @unittest.skipUnless(os.name == "nt", "native Windows cross-process file sharing only")
+    def test_windows_sqlite_main_pin_refuses_other_process_rename(self):
+        """A separate TEST process with the CI job identity cannot rename the live DB."""
+        source = self.agent.db_file
+        moved = self.private / "acquisitions.sqlite3-synthetic-moved"
+        child_script = (
+            "import sys\\n"
+            "from pathlib import Path\\n"
+            "try:\\n"
+            "    Path(sys.argv[1]).rename(Path(sys.argv[2]))\\n"
+            "except OSError:\\n"
+            "    print('DENIED')\\n"
+            "else:\\n"
+            "    print('MOVED')\\n"
+        ).replace("\\n", "\n")
+
+        def attempt_rename():
+            return subprocess.run(
+                [sys.executable, "-c", child_script, str(source), str(moved)],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+
+        try:
+            with self.agent._db() as db:
+                result = attempt_rename()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), "DENIED")
+                self.assertFalse(moved.exists())
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM items").fetchone()[0], 0)
+            result = attempt_rename()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "MOVED")
+            self.assertTrue(moved.exists())
+        finally:
+            if moved.exists() and not source.exists():
+                moved.rename(source)
+        self.assertEqual(self.agent.items(), [])
+
+    @unittest.skipUnless(os.name == "nt", "native Windows same-identity write sharing only")
+    def test_windows_peer_can_write_same_byte_in_place_on_db_wal_shm(self):
+        """OPEN F01 characterization: rename pin is not a write-access boundary.
+
+        This writes only the original first byte of synthetic SQLite files.
+        A PASS is evidence of SAME-CI-IDENTITY write capability, NOT security.
+        No SID change, ACL modification, installation or corruption is attempted.
+        """
+        with self.agent._db() as reader:
+            # Commit via a separate guarded connection while the reader remains
+            # open so the WAL and SHM sidecars exist and contain real data.
+            with self.agent._db() as writer:
+                writer.execute(
+                    "INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                    ("SYNTHETIC_F01_INPLACE_PROBE",),
+                )
+            names = (
+                self.agent.db_file.name,
+                self.agent.db_file.name + "-wal",
+                self.agent.db_file.name + "-shm",
+            )
+            paths = [self.private / name for name in names]
+            for path in paths:
+                self.assertTrue(path.is_file(), f"missing synthetic probe leaf: {path.name}")
+                self.assertGreater(path.stat().st_size, 0, path.name)
+            before = {path.name: hashlib.sha256(path.read_bytes()).digest()
+                      for path in paths}
+            child_script = "\n".join((
+                "from pathlib import Path",
+                "import sys",
+                "for raw in sys.argv[1:]:",
+                "    path = Path(raw)",
+                "    with path.open('r+b', buffering=0) as stream:",
+                "        original = stream.read(1)",
+                "        if len(original) != 1:",
+                "            raise RuntimeError('empty-synthetic-probe-file')",
+                "        stream.seek(0)",
+                "        if stream.write(original) != 1:",
+                "            raise RuntimeError('short-synthetic-probe-write')",
+                "    print(path.name + ':SAME_BYTE_WRITE_GRANTED')",
+            ))
+            peer = subprocess.run(
+                [sys.executable, "-c", child_script, *(str(path) for path in paths)],
+                capture_output=True, text=True, timeout=15, check=False,
+            )
+            self.assertEqual(peer.returncode, 0, peer.stderr)
+            self.assertEqual(
+                peer.stdout.strip().splitlines(),
+                [name + ":SAME_BYTE_WRITE_GRANTED" for name in names],
+                "Unexpected Windows sharing behavior: inspect sidecars and ACLs",
+            )
+            self.assertEqual(
+                {path.name: hashlib.sha256(path.read_bytes()).digest()
+                 for path in paths},
+                before, "Probe must not change any synthetic SQLite file bytes",
+            )
+            self.assertEqual(
+                reader.execute("SELECT COUNT(*) FROM audit WHERE event=?",
+                               ("SYNTHETIC_F01_INPLACE_PROBE",)).fetchone()[0],
+                1,
+            )
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_F01_INPLACE_PROBE"])
+
+    def test_sqlite_bootstrap_schema_failure_is_atomic(self):
+        """Malformed existing scope schema must not leave half-created tables."""
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            watch, private = root / "watch", root / "private"
+            watch.mkdir()
+            private.mkdir()
+            db_file = private / "acquisitions.sqlite3"
+            with closing(sqlite3.connect(db_file)) as db:
+                db.execute("CREATE TABLE device_scope(singleton INTEGER PRIMARY KEY)")
+                db.commit()
+            # Existing incompatible schema makes the scope INSERT fail AFTER
+            # the CREATE statements; executescript used to persist partial DDL.
+            with self.assertRaises(sqlite3.OperationalError):
+                HotFolder(Config("invalidscope", "station", watch, private, b"k" * 32))
+            with closing(sqlite3.connect(db_file)) as db:
+                names = {row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )}
+            self.assertEqual(names, {"device_scope"})
+
+    def test_sqlite_sidecar_identity_change_before_commit_rolls_back(self):
+        """A witnessed same-connection WAL substitution must refuse commit."""
+        original = self.agent._sqlite_guard
+        calls = 0
+
+        def synthetic_guard():
+            nonlocal calls
+            found = original()
+            calls += 1
+            # Synthetic injected snapshots, not a claim of racing the VFS:
+            # the WAL identity differs only immediately before commit.
+            return {**found, "-wal": (787, 888 if calls < 4 else 889)}
+
+        with patch.object(self.agent, "_sqlite_guard", side_effect=synthetic_guard):
+            with self.assertRaisesRegex(GatewayError, "sidecar changed"):
+                with self.agent._db() as db:
+                    db.execute("INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                               ("SYNTHETIC_WAL_REPLACEMENT",))
+        self.assertEqual(calls, 4)
+        self.assertEqual(self.agent.audit(0), [], "refused WAL change must not commit")
+
+    def test_sqlite_precommit_boundary_abort_rolls_back(self):
+        live_guard = self.agent._sqlite_guard
+        calls = 0
+
+        def fail_before_commit():
+            nonlocal calls
+            calls += 1
+            if calls == 4:
+                raise GatewayError("SYNTHETIC_GUARD_PRECOMMIT_DENIAL")
+            return live_guard()
+
+        with patch.object(self.agent, "_sqlite_guard", side_effect=fail_before_commit):
+            with self.assertRaisesRegex(GatewayError, "PRECOMMIT_DENIAL"):
+                with self.agent._db() as db:
+                    db.execute("INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                               ("SYNTHETIC_ROLLBACK",))
+        self.assertEqual(calls, 4)
+        self.assertEqual(self.agent.audit(0), [], "failed guard must not commit data")
+
+    def test_successful_commit_has_no_fallible_postcommit_guard(self):
+        with patch.object(self.agent, "_sqlite_guard",
+                          wraps=self.agent._sqlite_guard) as watched:
+            with self.agent._db() as db:
+                db.execute("INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                           ("SYNTHETIC_COMMIT",))
+            self.assertEqual(watched.call_count, 4,
+                             "must not raise after a durable SQLite commit")
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_COMMIT"])
+
+    def test_sqlite_wal_full_sync_and_no_external_attachments(self):
+        with self.agent._db() as db:
+            self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0].lower(), "wal")
+            self.assertEqual(db.execute("PRAGMA synchronous").fetchone()[0], 2)
+            self.assertEqual(db.execute("PRAGMA trusted_schema").fetchone()[0], 0)
+            self.assertEqual(db.execute("PRAGMA temp_store").fetchone()[0], 2)
+            self.assertEqual(len(db.execute("PRAGMA database_list").fetchall()), 1)
+
+    def test_sqlite_authorizer_denies_external_database_attachment(self):
+        with self.agent._db() as db:
+            with self.assertRaises(sqlite3.DatabaseError):
+                db.execute("ATTACH DATABASE ':memory:' AS attacker")
+            self.assertEqual(len(db.execute("PRAGMA database_list").fetchall()), 1)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_authorizer_denies_unsafe_pragma_mutations(self):
+        with self.agent._db() as db:
+            for statement in ("PRAGMA writable_schema=ON",
+                              "PRAGMA trusted_schema=ON",
+                              "PRAGMA journal_mode=DELETE"):
+                with self.subTest(statement=statement):
+                    with self.assertRaises(sqlite3.DatabaseError):
+                        db.execute(statement)
+            self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0].lower(), "wal")
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_authorizer_refuses_wal_and_durability_policy_changes(self):
+        """SQL from a compromised LAB caller cannot downgrade connection safety."""
+        with self.agent._db() as db:
+            self.assertEqual(db.execute("PRAGMA synchronous").fetchone()[0], 2)
+            self.assertGreater(db.execute(
+                "PRAGMA wal_autocheckpoint").fetchone()[0], 0)
+            for statement in (
+                "PRAGMA synchronous=OFF",
+                "PRAGMA locking_mode=EXCLUSIVE",
+                "PRAGMA wal_autocheckpoint=0",
+                "PRAGMA journal_size_limit=0",
+                "PRAGMA cache_size=1",
+                "PRAGMA mmap_size=1048576",
+                "PRAGMA wal_checkpoint(TRUNCATE)",
+                "PRAGMA wal_checkpoint",
+                "PRAGMA optimize",
+            ):
+                with self.subTest(statement=statement):
+                    with self.assertRaises(sqlite3.DatabaseError):
+                        db.execute(statement).fetchall()
+            # A refused policy change must not poison normal guarded writes.
+            self.assertEqual(db.execute("PRAGMA synchronous").fetchone()[0], 2)
+            self.assertEqual(db.execute(
+                "PRAGMA journal_mode").fetchone()[0].lower(), "wal")
+            self.assertGreater(db.execute(
+                "PRAGMA wal_autocheckpoint").fetchone()[0], 0)
+            db.execute(
+                "INSERT INTO audit(item_id,event,at) VALUES(0,?,1)",
+                ("SYNTHETIC_POLICY_GUARDED",),
+            )
+        self.assertEqual(self.agent.audit(0), ["SYNTHETIC_POLICY_GUARDED"])
+
+    def test_sqlite_wal_committed_row_recovers_after_abrupt_writer_exit(self):
+        """Real separate Python process terminates without closing SQLite."""
+        script = (
+            "import os,sqlite3,sys;"
+            "db=sqlite3.connect(sys.argv[1]);"
+            "assert db.execute('PRAGMA journal_mode=WAL').fetchone()[0]=='wal';"
+            "db.execute('INSERT INTO audit(item_id,event,at) VALUES(0,?,1)',"
+            "('SYNTHETIC_WAL_CRASH_RECOVERY',));"
+            "db.commit();os._exit(23)"
+        )
+        child = subprocess.run(
+            [sys.executable, "-c", script, str(self.agent.db_file)],
+            capture_output=True, timeout=6, check=False,
+        )
+        self.assertEqual(child.returncode, 23)
+        self.assertIn("SYNTHETIC_WAL_CRASH_RECOVERY", self.agent.audit(0))
+        self.assertEqual(self.agent.items(), [])
+        # Reopening the same isolated CABINET/STATION is allowed; no
+        # reconstructed patient attachment or duplicate image is created.
+        restarted = HotFolder(self.config)
+        self.assertEqual(restarted.audit(0), ["SYNTHETIC_WAL_CRASH_RECOVERY"])
+        self.assertEqual(restarted.items(), [])
+
+    def test_sqlite_hardlinked_database_is_refused_before_sql(self):
+        outside = self.private.parent / "linked-acquisitions.sqlite3"
+        os.link(self.agent.db_file, outside)
+        try:
+            with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                       side_effect=AssertionError("untrusted db must never open")):
+                denial = ("SQLITE_PATH_PIN_DB_UNSAFE" if os.name == "nt"
+                          else "SQLite LAB boundary rejected")
+                with self.assertRaisesRegex(GatewayError, denial):
+                    self.agent.items()
+        finally:
+            outside.unlink()
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_missing_database_cannot_be_silently_recreated(self):
+        """After bootstrap, a missing SQLite file must never create blank state."""
+        path = self.agent.db_file
+        moved = self.private / "acquisitions.sqlite3-held"
+        path.rename(moved)
+        try:
+            denial = ("SQLITE_PATH_PIN_DB_OPEN_DENIED" if os.name == "nt"
+                      else "database identity changed")
+            with self.assertRaisesRegex(GatewayError, denial):
+                self.agent.items()
+            self.assertFalse(path.exists(), "missing DB must not be recreated")
+        finally:
+            moved.rename(path)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_existing_database_uses_no_create_uri(self):
+        """Verify the actual sqlite3 connector uses mode=rw after bootstrap."""
+        real_connect = sqlite3.connect
+        observed = []
+        def recorded_connect(*args, **kwargs):
+            observed.append((str(args[0]), kwargs))
+            return real_connect(*args, **kwargs)
+        with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                   side_effect=recorded_connect):
+            self.assertEqual(self.agent.items(), [])
+        self.assertEqual(len(observed), 1)
+        self.assertTrue(observed[0][0].endswith("?mode=rw"))
+        self.assertIs(observed[0][1].get("uri"), True)
+
+    def test_sqlite_replaced_database_identity_is_refused(self):
+        path = self.agent.db_file
+        old = self.private / "acquisitions.sqlite3-original"
+        path.rename(old)
+        try:
+            shutil.copyfile(old, path)
+            with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                       side_effect=AssertionError("replaced db must never open")):
+                with self.assertRaisesRegex(GatewayError, "database identity changed"):
+                    self.agent.items()
+        finally:
+            path.unlink()
+            old.rename(path)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_wal_shm_journal_sidecars_symlinks_fail_closed(self):
+        for suffix in ("-wal", "-shm", "-journal"):
+            with self.subTest(suffix=suffix):
+                sidecar = Path(str(self.agent.db_file) + suffix)
+                outside = self.private.parent / ("outside" + suffix)
+                outside.write_bytes(b"not-sqlite-or-patient-data")
+                self.assertFalse(sidecar.exists(), "fixture must not replace existing sidecar")
+                try:
+                    sidecar.symlink_to(outside)
+                except (NotImplementedError, OSError):
+                    outside.unlink()
+                    self.skipTest("file symlinks unavailable to this test account")
+                try:
+                    with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                               side_effect=AssertionError("sidecar attack must not open db")):
+                        with self.assertRaisesRegex(GatewayError, "SQLite LAB boundary rejected"):
+                            self.agent.items()
+                    self.assertEqual(outside.read_bytes(), b"not-sqlite-or-patient-data")
+                finally:
+                    sidecar.unlink()
+                    outside.unlink()
+        self.assertEqual(self.agent.items(), [])
+
+    def test_sqlite_private_dir_replaced_rejected_before_connect(self):
+        root = self.private
+        previous = root.with_name("private-swap-saved")
+        root.rename(previous)
+        try:
+            root.mkdir()
+            with patch("tools.imaging_gateway.gateway.sqlite3.connect",
+                       side_effect=AssertionError("swapped root must not open db")):
+                # Windows native path pin rejects the swap before SQLite is
+                # opened; Linux retains its explicit best-effort root guard.
+                denial = ("SQLITE_PATH_PIN_PRIVATE_ID_CHANGED" if os.name == "nt"
+                          else "root replaced or unsafe")
+                with self.assertRaisesRegex(GatewayError, denial):
+                    self.agent.items()
+            self.assertEqual(list(root.iterdir()), [])
+        finally:
+            root.rmdir()
+            previous.rename(root)
+        self.assertEqual(self.agent.items(), [])
+
     def test_cross_workstation_spool_read_fails(self):
         self.stage()
         with self.assertRaises(GatewayError):
@@ -150,6 +607,105 @@ class GatewayTests(unittest.TestCase):
                 return
             self.assertEqual(self.agent.scan_once()["rejected"], 1)
             self.assertEqual(self.agent.items(), [])
+
+    @unittest.skipUnless(os.name == "nt", "Windows handle-anchored spool test")
+    def test_windows_spool_write_rename_is_anchored_and_collision_safe(self):
+        from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
+        name = "a" * 64 + ".dc6"
+        root = self.agent.spool
+        identity = self.agent._windows_spool_identity
+        write_ciphertext(root, name, b"ciphertext-fixture-only", identity)
+        self.assertEqual((root / name).read_bytes(), b"ciphertext-fixture-only")
+        with self.assertRaises(OSError):
+            write_ciphertext(root, name, b"overwrite-must-fail", identity)
+        self.assertEqual((root / name).read_bytes(), b"ciphertext-fixture-only")
+        self.assertEqual(
+            sorted(x.name for x in root.iterdir()), [name],
+            "temp files must be cleaned after denied collision",
+        )
+
+    @unittest.skipUnless(os.name == "nt", "Windows handle-anchored spool test")
+    def test_windows_spool_writer_rejects_replaced_directory_before_write(self):
+        from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
+        root = self.agent.spool
+        previous = root.with_name("original-spool")
+        root.rename(previous)
+        try:
+            root.mkdir()
+            with self.assertRaises(OSError):
+                write_ciphertext(
+                    root, "b" * 64 + ".dc6", b"not-clinical-media",
+                    self.agent._windows_spool_identity,
+                )
+            self.assertEqual(list(root.iterdir()), [])
+            self.assertEqual(list(previous.iterdir()), [])
+        finally:
+            if root.exists():
+                root.rmdir()
+            previous.rename(root)
+
+    @unittest.skipUnless(os.name == "nt", "NT-relative watch identity regression")
+    def test_windows_nt_relative_open_rejects_swapped_root_before_read(self):
+        from tools.imaging_gateway.windows_scoped_read_lab import open_relative_read
+        original = self.watch.with_name("saved-watch")
+        self.watch.rename(original)
+        try:
+            self.watch.mkdir()
+            (self.watch / "malicious.png").write_bytes(SYNTHETIC)
+            with self.assertRaises(OSError):
+                open_relative_read(
+                    self.watch, "malicious.png", self.agent._windows_watch_identity
+                )
+            # A replaced root must refuse *both* acquisition and ledger
+            # access, not merely refuse reading the fake image.
+            with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                self.agent.items()
+        finally:
+            if self.watch.exists():
+                shutil.rmtree(self.watch)
+            original.rename(self.watch)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_root_replaced_during_capture_read_is_never_committed(self):
+        file = self.watch / "fixture.png"
+        file.write_bytes(SYNTHETIC)
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        moved = self.watch.with_name("watch-moved-during-capture")
+        actual_read = self.agent._read
+
+        def move_after_read(path, initial):
+            content = actual_read(path, initial)
+            self.watch.rename(moved)
+            self.watch.mkdir()
+            (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+            return content
+
+        try:
+            with patch.object(self.agent, "_read", side_effect=move_after_read):
+                with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                    self.agent.scan_once()
+            with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                self.agent.items()
+        finally:
+            if moved.exists():
+                shutil.rmtree(self.watch)
+                moved.rename(self.watch)
+        self.assertEqual(self.agent.items(), [])
+
+    def test_watch_directory_replaced_after_initialization_fails_closed(self):
+        original = self.watch.parent / "watch-moved"
+        self.watch.rename(original)
+        try:
+            try:
+                self.watch.symlink_to(original, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("directory symlink creation unsupported")
+            with self.assertRaisesRegex(GatewayError, "root replaced or unsafe"):
+                self.agent.scan_once()
+        finally:
+            if self.watch.is_symlink():
+                self.watch.unlink()
+            original.rename(self.watch)
 
     def test_original_is_unchanged(self):
         self.stage()
@@ -188,6 +744,26 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.agent.read_verified(1), SYNTHETIC)
         self.assertTrue(marker.exists())
         self.assertEqual((self.watch / "fixture.png").read_bytes(), SYNTHETIC)
+
+    def test_ready_mode_duplicate_avoids_source_reads_and_spool_decrypt(self):
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.ready_marker()
+        self.agent.scan_once()
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+        # The first capture was hashed and encrypted; subsequent polls should
+        # use the SQLite receipt rather than rereading bytes + decrypting.
+        with patch.object(self.agent, "_read", side_effect=AssertionError("repeat source read")), \
+             patch.object(self.agent, "_decrypt", side_effect=AssertionError("repeat decrypt")):
+            for _ in range(12):
+                self.assertEqual(self.agent.scan_once()["duplicate"], 1)
+        restarted = HotFolder(self.agent.config)
+        self.assertEqual(restarted.scan_once()["unstable"], 1)
+        with patch.object(restarted, "_read", side_effect=AssertionError("replay re-read")), \
+             patch.object(restarted, "_decrypt", side_effect=AssertionError("replay decrypt")):
+            self.assertEqual(restarted.scan_once()["duplicate"], 1)
+        self.assertEqual(len(restarted.items()), 1)
+        self.assertEqual(restarted.read_verified(1), SYNTHETIC)
 
     def test_ready_mode_does_not_quarantine_marker_as_media(self):
         self.enable_ready_mode()
@@ -365,8 +941,11 @@ class GatewayTests(unittest.TestCase):
         source = self.watch / "fixture.png"
         source.write_bytes(SYNTHETIC)
         self.agent.scan_once()
-        with patch("tools.imaging_gateway.gateway.os.replace",
-                   side_effect=OSError(errno.ENOSPC, "synthetic disk full")):
+        # Test the actual platform-specific final-publish operation:
+        # Windows uses an NT root-relative handle/rename, not os.replace.
+        publish = ("tools.imaging_gateway.gateway.write_ciphertext"
+                   if os.name == "nt" else "tools.imaging_gateway.gateway.os.replace")
+        with patch(publish, side_effect=OSError(errno.ENOSPC, "synthetic disk full")):
             result = self.agent.scan_once()
         self.assertEqual(result["deferred"], 1)
         self.assertEqual(self.agent.storage_health()["last_capacity_issue"], "DISK_FULL")

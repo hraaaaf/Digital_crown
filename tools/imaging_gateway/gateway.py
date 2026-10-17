@@ -23,6 +23,13 @@ import time
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from tools.imaging_gateway.media_validation import validated_mime
+from tools.imaging_gateway.windows_scoped_read_lab import directory_identity, open_relative_read
+from tools.imaging_gateway.windows_scoped_spool_lab import write_ciphertext
+from tools.imaging_gateway.sqlite_boundary_lab import (
+    SQLiteBoundaryError, inspect_sqlite_boundary, pin_windows_sqlite_path,
+)
+
 
 class GatewayError(RuntimeError):
     pass
@@ -57,6 +64,25 @@ def _is_disk_full(error):
         or getattr(error, "sqlite_errorcode", None) == sqlite3.SQLITE_FULL
     )
 
+
+
+def _is_unsafe_path_component(path: Path) -> bool:
+    """Detect symlinks and NTFS junction/reparse points, including Python 3.11.
+
+    This initial check does not replace kernel-handle/ACL confinement in a
+    future supported clinical capture driver.
+    """
+    try:
+        meta = path.lstat()
+    except FileNotFoundError:
+        return False
+    return (
+        stat.S_ISLNK(meta.st_mode)
+        or (os.name == "nt" and bool(
+            getattr(meta, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+        ))
+    )
 
 def sniff(data: bytes) -> str | None:
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
@@ -108,10 +134,17 @@ class Config:
         # Windows may canonicalize harmless 8.3 paths, drive casing and volume aliases.
         # Check actual symbolic links instead of rejecting differing path spellings.
         ancestors = (*w.parents, *p.parents)
-        if (w.is_symlink() or not w.is_dir() or p.is_symlink() or
-                any(parent.is_symlink() for parent in ancestors)):
+        if (not w.is_dir() or
+                any(_is_unsafe_path_component(item) for item in (w, p, *ancestors))):
             raise GatewayError("unsafe watch/private root or symlink ancestor")
+        # Reparse points must not make resolved watch and private overlap.
+        resolved_w, resolved_p = w.resolve(strict=True), p.resolve(strict=False)
+        if (resolved_w == resolved_p or resolved_w in resolved_p.parents or
+                resolved_p in resolved_w.parents):
+            raise GatewayError("watch and private canonical paths overlap")
         p.mkdir(parents=True, exist_ok=True)
+        if _is_unsafe_path_component(p):
+            raise GatewayError("unsafe private root after creation")
 
 
 class HotFolder:
@@ -121,41 +154,56 @@ class HotFolder:
         self._last_capacity_issue = None  # diagnostic only; no patient/file info
         self.private = Path(config.private).absolute()
         self.spool = self.private / "spool"
-        if self.spool.is_symlink():
+        if _is_unsafe_path_component(self.spool):
             raise GatewayError("spool symlink rejected")
         self.spool.mkdir(mode=0o700, exist_ok=True)
         if os.name != "nt":
             os.chmod(self.private, 0o700)
             os.chmod(self.spool, 0o700)
         self.db_file = self.private / "acquisitions.sqlite3"
-        if self.db_file.is_symlink():
+        if _is_unsafe_path_component(self.db_file):
             raise GatewayError("database symlink rejected")
+        self._watch_identity = self._directory_identity(Path(config.watch))
+        self._windows_watch_identity = directory_identity(config.watch)
+        self._private_identity = self._directory_identity(self.private)
+        self._windows_private_identity = directory_identity(self.private)
+        self._db_file_identity = None  # Pinned after first authorized open.
+        self._spool_identity = self._directory_identity(self.spool)
+        self._windows_spool_identity = directory_identity(self.spool)
         with self._db() as db:
-            db.executescript("""
+            # executescript() commits DDL in autocommit mode and can leave an
+            # incomplete ledger when later schema/scope validation fails.
+            # Keep ALL first-boot schema and device_scope writes atomic.
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("""
             CREATE TABLE IF NOT EXISTS items(
-                id INTEGER PRIMARY KEY,
-                dedup_key TEXT NOT NULL UNIQUE,
-                digest TEXT NOT NULL,
-                size INTEGER NOT NULL,
-                mime TEXT,
-                category TEXT NOT NULL,
-                state TEXT NOT NULL,
-                blob TEXT NOT NULL,
-                retries INTEGER NOT NULL DEFAULT 0,
-                due INTEGER,
-                created_at INTEGER NOT NULL
-            );
+                            id INTEGER PRIMARY KEY,
+                            dedup_key TEXT NOT NULL UNIQUE,
+                            digest TEXT NOT NULL,
+                            size INTEGER NOT NULL,
+                            mime TEXT,
+                            category TEXT NOT NULL,
+                            state TEXT NOT NULL,
+                            blob TEXT NOT NULL,
+                            retries INTEGER NOT NULL DEFAULT 0,
+                            due INTEGER,
+                            created_at INTEGER NOT NULL
+                        )
+            """)
+            db.execute("""
             CREATE TABLE IF NOT EXISTS audit(
-                id INTEGER PRIMARY KEY,
-                item_id INTEGER NOT NULL,
-                event TEXT NOT NULL,
-                at INTEGER NOT NULL
-            );
+                            id INTEGER PRIMARY KEY,
+                            item_id INTEGER NOT NULL,
+                            event TEXT NOT NULL,
+                            at INTEGER NOT NULL
+                        )
+            """)
+            db.execute("""
             CREATE TABLE IF NOT EXISTS device_scope(
-                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
-                cabinet TEXT NOT NULL,
-                workstation TEXT NOT NULL
-            );
+                            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                            cabinet TEXT NOT NULL,
+                            workstation TEXT NOT NULL
+                        )
             """)
             db.execute(
                 "INSERT OR IGNORE INTO device_scope(singleton,cabinet,workstation) VALUES(1,?,?)",
@@ -167,13 +215,117 @@ class HotFolder:
             if active != (config.cabinet, config.workstation):
                 raise GatewayError("state directory belongs to another cabinet/workstation")
 
+    def _sqlite_guard(self):
+        """Best-effort LAB gate; path-based SQLite VFS still needs OS ACLs."""
+        self._assert_live_directories()
+        try:
+            found = inspect_sqlite_boundary(
+                self.private, self.db_file, self._private_identity,
+                self._windows_private_identity,
+            )
+        except SQLiteBoundaryError as error:
+            raise GatewayError("SQLite LAB boundary rejected: " + str(error)) from None
+        if (self._db_file_identity is not None
+                and found.get("") != self._db_file_identity):
+            raise GatewayError("SQLite LAB database identity changed")
+        return found
+
+    @staticmethod
+    def _reject_changed_sidecars(previous, current):
+        """Detect observed WAL/SHM/journal replacement within ONE connection.
+
+        Absence/recreation between snapshots and sub-check races remain possible;
+        this does NOT turn the path-based SQLite VFS into a secure sandbox.
+        """
+        for suffix in ("-wal", "-shm", "-journal"):
+            if (suffix in previous and suffix in current
+                    and previous[suffix] != current[suffix]):
+                raise GatewayError("SQLite LAB sidecar changed during connection")
+
     @contextmanager
     def _db(self):
-        db = sqlite3.connect(self.db_file, timeout=10)
+        # Windows: pin the directory ancestry and the existing main DB
+        # against path rename until sqlite3.close(). WAL/SHM filenames and
+        # same-user in-place writes remain outside this narrow LAB safeguard.
         try:
-            db.execute("PRAGMA journal_mode=WAL")
+            with pin_windows_sqlite_path(
+                self.private, self._windows_private_identity,
+                database=self.db_file,
+                require_database=self._db_file_identity is not None,
+            ):
+                with self._db_on_pinned_path() as db:
+                    yield db
+        except SQLiteBoundaryError as error:
+            raise GatewayError("SQLite LAB path pin refused: " + str(error)) from None
+
+    @contextmanager
+    def _db_on_pinned_path(self):
+        before = self._sqlite_guard()
+        # After initial trusted creation, NEVER silently recreate a missing
+        # database. A disappeared DB is an integrity incident, not a blank
+        # cabinet. SQLite URI mode=rw refuses implicit file creation.
+        # This is fail-closed recovery, NOT race-free Windows VFS confinement.
+        if self._db_file_identity is None:
+            db = sqlite3.connect(self.db_file, timeout=10)
+        else:
+            db = sqlite3.connect(self.db_file.as_uri() + "?mode=rw",
+                                 timeout=10, uri=True)
+        try:
+            # Even a successful sqlite3.connect might have followed a swapped
+            # root; reject any now-observable substitution before executing SQL.
+            after = self._sqlite_guard()
+            self._reject_changed_sidecars(before, after)
+            if before.get("") is not None and after.get("") != before[""]:
+                raise GatewayError("SQLite LAB database switched during open")
+            if after.get("") is None:
+                raise GatewayError("SQLite LAB database missing after open")
+            if self._db_file_identity is None:
+                self._db_file_identity = after[""]
+            locations = db.execute("PRAGMA database_list").fetchall()
+            expected = os.path.normcase(str(self.db_file.absolute()))
+            if (len(locations) != 1 or locations[0][1] != "main"
+                    or os.path.normcase(os.path.abspath(locations[0][2])) != expected):
+                raise GatewayError("SQLite LAB unexpected database attachment/path")
+            # Do not silently downgrade from WAL to rollback journaling.
+            mode = db.execute("PRAGMA journal_mode=WAL").fetchone()
+            if not mode or str(mode[0]).lower() != "wal":
+                raise GatewayError("SQLite LAB WAL mode unavailable")
             db.execute("PRAGMA synchronous=FULL")
+            db.execute("PRAGMA trusted_schema=OFF")
+            db.execute("PRAGMA temp_store=MEMORY")
+            # Only trusted setup may configure durability and journal policy.
+            # This connection-level authorizer is defense in depth, NOT a
+            # filesystem ACL or a Windows handle-relative SQLite VFS.
+            forbidden = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH}
+            protected_pragmas = {
+                "writable_schema", "journal_mode", "trusted_schema",
+                "temp_store", "synchronous", "locking_mode",
+                "wal_autocheckpoint", "journal_size_limit", "cache_size",
+                "mmap_size", "read_uncommitted", "secure_delete",
+                "page_size", "auto_vacuum",
+            }
+            # These PRAGMAs can alter data/files even when no value is passed.
+            side_effect_pragmas = {
+                "wal_checkpoint", "incremental_vacuum", "optimize",
+            }
+            def authorize(action, arg1, arg2, db_name, trigger):
+                if action in forbidden:
+                    return sqlite3.SQLITE_DENY
+                if action == sqlite3.SQLITE_PRAGMA:
+                    name = str(arg1).lower()
+                    if (name in side_effect_pragmas or
+                            (name in protected_pragmas and arg2 is not None)):
+                        return sqlite3.SQLITE_DENY
+                return sqlite3.SQLITE_OK
+            db.set_authorizer(authorize)
+            verified = self._sqlite_guard()
+            self._reject_changed_sidecars(after, verified)
             yield db
+            # All fallible policy checks must happen BEFORE the durable
+            # commit. A post-commit guard can report failure even though the
+            # transaction was already saved and rollback cannot undo it.
+            precommit = self._sqlite_guard()
+            self._reject_changed_sidecars(verified, precommit)
             db.commit()
         except BaseException:
             db.rollback()
@@ -184,6 +336,28 @@ class HotFolder:
     @staticmethod
     def _source_signature(st):
         return (st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_dev, st.st_ino)
+
+    @staticmethod
+    def _directory_identity(path):
+        meta = path.stat()
+        return (meta.st_dev, meta.st_ino)
+
+    def _assert_live_directories(self):
+        """Best-effort fail-closed check for roots replaced after initialization.
+
+        This catches deterministic junction and directory swaps between polls.
+        It does not close a kernel-level Windows rename race during I/O;
+        supported hardware must use secure directory handles/ACLs or isolation.
+        """
+        for root, expected in (
+            (Path(self.config.watch), self._watch_identity),
+            (self.private, self._private_identity),
+            (self.spool, self._spool_identity),
+        ):
+            if (not root.is_dir() or _is_unsafe_path_component(root) or
+                    self._directory_identity(root) != expected or
+                    any(_is_unsafe_path_component(parent) for parent in root.parents)):
+                raise GatewayError("imaging root replaced or unsafe")
 
     def _identity(self, digest, path, signature):
         # Replayed captures retain identity; distinct file generations do not coalesce.
@@ -199,7 +373,8 @@ class HotFolder:
 
     def _read(self, path, initial):
         flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
-        fd = os.open(path, flags)
+        fd = (open_relative_read(self.config.watch, path.name, self._windows_watch_identity)
+              if os.name == "nt" else os.open(path, flags))
         try:
             opened = os.fstat(fd)
             if not stat.S_ISREG(opened.st_mode) or self._source_signature(opened) != initial:
@@ -230,7 +405,8 @@ class HotFolder:
                     before.st_nlink != 1):
                 return None
             flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
-            fd = os.open(marker, flags)
+            fd = (open_relative_read(self.config.watch, marker.name, self._windows_watch_identity)
+                  if os.name == "nt" else os.open(marker, flags))
             try:
                 opened = os.fstat(fd)
                 if (not stat.S_ISREG(opened.st_mode) or
@@ -268,7 +444,15 @@ class HotFolder:
         # No unbounded allocation if a local actor plants a huge spool file.
         if not 33 <= target.stat().st_size <= self.config.max_bytes + 32:
             raise GatewayError("spool size invalid")
-        data = target.read_bytes()
+        if os.name == "nt":
+            fd = open_relative_read(self.spool, blob, self._windows_spool_identity)
+            try:
+                with os.fdopen(fd, "rb", closefd=False) as reader:
+                    data = reader.read(self.config.max_bytes + 33)
+            finally:
+                os.close(fd)
+        else:
+            data = target.read_bytes()
         if len(data) > self.config.max_bytes + 32:
             raise GatewayError("spool size changed")
         if not data.startswith(b"DC6A") or len(data) < 33:
@@ -291,6 +475,11 @@ class HotFolder:
         nonce = secrets.token_bytes(12)
         encrypted = b"DC6A" + nonce + AESGCM(self.config.key).encrypt(
             nonce, content, self._aad(identity))
+        if os.name == "nt":
+            # Temp creation and atomic rename are both relative to the same
+            # verified native directory handle. No path-based os.replace.
+            write_ciphertext(self.spool, blob, encrypted, self._windows_spool_identity)
+            return
         fd, tmp = tempfile.mkstemp(prefix=".partial-", dir=self.spool)
         try:
             if os.name != "nt":
@@ -390,7 +579,37 @@ class HotFolder:
             "last_capacity_issue": self._last_capacity_issue,
         }
 
+    def _previous_ready_capture(self, path, signature, ready):
+        """Cheap indexed replay check, without rereading or decrypting content.
+
+        This is only for captures already verified against a producer manifest.
+        read_verified() remains the cryptographic integrity gate before use.
+        """
+        if ready is None or ready[1] != signature[0]:
+            return False
+        identity = self._identity(ready[0], path, signature)
+        with self._db() as db:
+            previous = db.execute(
+                "SELECT blob,digest,size FROM items WHERE dedup_key=?", (identity,)
+            ).fetchone()
+        if previous is None:
+            return False
+        blob, digest, size = previous
+        if digest != ready[0] or size != ready[1]:
+            raise GatewayError("existing acquisition ledger mismatch")
+        target = self.spool / blob
+        if _is_unsafe_path_component(target) or not target.is_file():
+            raise GatewayError("previous spool missing or unsafe")
+        stored_size = target.stat().st_size
+        if not 33 <= stored_size <= size + 32:
+            raise GatewayError("previous spool size invalid")
+        if (self._source_signature(path.lstat()) != signature or
+                self._ready_manifest(path) != ready):
+            return False
+        return True
+
     def scan_once(self):
+        self._assert_live_directories()
         outcome = dict(staged=0, quarantine=0, duplicate=0, unstable=0, rejected=0,
                        deferred=0)
         self._last_capacity_issue = None
@@ -414,12 +633,23 @@ class HotFolder:
             if self.config.require_ready_manifest and ready_before is None:
                 outcome["unstable"] += 1
                 continue
+            if self.config.require_ready_manifest:
+                try:
+                    if self._previous_ready_capture(path, signature, ready_before):
+                        outcome["duplicate"] += 1
+                        continue
+                except (OSError, ValueError):
+                    outcome["unstable"] += 1
+                    continue
+            self._assert_live_directories()
             try:
                 content = self._read(path, signature)
             except (GatewayError, OSError):
                 self._observed.pop(token, None)
                 outcome["unstable"] += 1
                 continue
+            # Reject a source-root swap that happened *during* the read.
+            self._assert_live_directories()
             digest = hashlib.sha256(content).hexdigest()
             if self.config.require_ready_manifest:
                 ready_after = self._ready_manifest(path)
@@ -429,7 +659,8 @@ class HotFolder:
                     continue
             identity = self._identity(digest, path, signature)
             mime = sniff(content)
-            accepted = mime is not None and path.suffix.lower() in SUPPORTED[mime]
+            accepted = (mime is not None and path.suffix.lower() in SUPPORTED[mime]
+                        and validated_mime(content, mime))
             state = "PENDING_CONFIRMATION" if accepted else "QUARANTINED"
             blob = identity + ".dc6"
             try:
@@ -444,8 +675,10 @@ class HotFolder:
                         continue
                     # Reserve under the SQLite writer lock, including physical
                     # orphans from an earlier interrupted file-to-DB commit.
+                    self._assert_live_directories()
                     self._check_capacity(db, len(content), blob)
                     self._store(blob, identity, content, digest)
+                    self._assert_live_directories()
                     item = db.execute(
                         """INSERT INTO items
                         (dedup_key,digest,size,mime,category,state,blob,created_at)
