@@ -51,6 +51,7 @@ import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { AssuranceBadge } from '../../components/AssuranceBadge';
 import { useFlowHandoff } from '../../hooks/useFlowHandoff';
 import { PatientAvatar } from './components/PatientAvatar';
+import { PatientClinicalContextNotice } from './components/PatientClinicalContextNotice';
 
 interface Patient {
   id: number;
@@ -354,16 +355,12 @@ export const PatientDetails = () => {
       </header>
 
       <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : isRadiology ? 'flex-1 px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 space-y-2' : 'flex-1 px-3 py-3 sm:px-4 sm:py-6 md:px-8 md:py-8 space-y-4 sm:space-y-6')}>
-        {g1MediaPilot && g1InlineAdvice && (
-          <aside data-v15-07-g1-inline-nba role="status" aria-label="Conseil clinique du dossier"
-            className="flex min-w-0 items-start gap-2 rounded-lg border border-border-main bg-card-bg p-2.5 text-text-main">
-            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
-            <div className="min-w-0 text-xs leading-snug">
-              <p className="font-bold">{g1InlineAdvice.title}</p>
-              <p className="mt-0.5 text-text-muted">{g1InlineAdvice.message}</p>
-              {g1InlineAdvice.action && <p className="mt-0.5 font-semibold text-primary">Action : {g1InlineAdvice.action}</p>}
-            </div>
-          </aside>
+        {(activeTab === 'tracking' || activeTab === 'clinical' || activeTab === 'radiology') && (
+          <PatientClinicalContextNotice
+            medicalHistory={patient.antecedents_medicaux}
+            advice={g1MediaPilot ? g1InlineAdvice : null}
+            onEdit={() => navigate(`/patients/${id}/edit`)}
+          />
         )}
         {!isDocuments && (patient.antecedents_medicaux || patient.motif_consultation) && (
           <div className={cn('flex flex-col animate-in fade-in slide-in-from-top-4 duration-500', isRadiology ? 'gap-2' : 'gap-3')}>
