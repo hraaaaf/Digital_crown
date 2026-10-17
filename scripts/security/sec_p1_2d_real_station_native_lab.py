@@ -349,7 +349,9 @@ def assert_reopen(mode: str, native_file: Path | None) -> None:
     from backend.security import TokenBlacklist
     with database.SessionLocal() as db:
         assert db.query(models.User).count() == 5
-        assert db.query(models.AgendaResource).count() == 2\n        assert db.query(models.WorkstationMode).count() == 3\n        assert db.query(models.WorkstationMode).filter_by(revoked_at=FIXED).count() == 2
+        assert db.query(models.AgendaResource).count() == 2
+        assert db.query(models.WorkstationMode).count() == 3
+        assert db.query(models.WorkstationMode).filter_by(revoked_at=FIXED).count() == 2
         from backend.models import RevokedToken
         assert db.query(RevokedToken).count() >= 1
         assert db.query(RevokedToken).first().jti
