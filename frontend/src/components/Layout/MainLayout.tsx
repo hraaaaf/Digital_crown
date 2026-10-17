@@ -36,6 +36,11 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
   const { profile, fetchProfile } = useSettingsStore();
   const { user } = useAuthStore();
+  // A principal switch must discard the entire CrownBotChat tree (sessions,
+  // insights, patient previews), not just the patient-preview transcript.
+  // A viewport resize keeps this key stable and therefore preserves drafts.
+  const crownBotPrincipalKey = user
+    ? `${user.id}:${user.employer_id ?? user.id}` : 'anonymous';
   const canReadSettings = hasAccess(user, 'settings');
   const [animatedBg, setAnimatedBg] = React.useState(() => safeStorage.get('app_background_animated') === 'true');
 
@@ -206,6 +211,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
           )}
           <div className={showAssociateSidecar ? 'min-h-0 flex-1' : 'h-full'}>
             <CrownBotChat
+              key={crownBotPrincipalKey}
               onClose={showAssociateSidecar ? closeAssociateSidecar : () => setIsBotOpen(false)}
               onUnreadChange={setGhostUnreadCount}
             />
@@ -247,7 +253,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
                 : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
             }`}
           >
-            <CrownBotChat onClose={() => setIsBotOpen(false)} onUnreadChange={setGhostUnreadCount} />
+            <CrownBotChat key={crownBotPrincipalKey} onClose={() => setIsBotOpen(false)} onUnreadChange={setGhostUnreadCount} />
           </motion.div>
         )}
       </AnimatePresence>
