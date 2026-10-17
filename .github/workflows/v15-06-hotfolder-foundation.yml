@@ -25,6 +25,14 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The default pull_request ref is a synthetic merge commit.
+          # This gate must execute the PR's exact source HEAD instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact source checkout
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python -c "import os, subprocess; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); expected=os.environ['EXPECTED_SHA']; print('Checked out:',actual,'Expected:',expected); assert actual == expected, 'LOT06A_EXACT_HEAD_MISMATCH'"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
