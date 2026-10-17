@@ -253,7 +253,8 @@ export function CrownBotWorkflowPreview({ practitionerId }: {
           )}
           {answer.proposal && (
             <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs font-semibold text-amber-900">
-              Proposition {answer.proposal.type || ''} : simulation uniquement, non exécutable.
+              {answer.proposal.type === 'CREATE_APPOINTMENT'
+                ? 'Rendez-vous proposé' : 'Brouillon proposé'} : aperçu uniquement, non enregistré et non exécutable.
             </p>
           )}
         </div>
