@@ -69,12 +69,15 @@ jobs:
           assert report['status']=='STRUCTURE_COMPARISON_ONLY__EXTERNAL_HUMAN_GOVERNANCE_REQUIRED'
           print('G15 SYNTHETIC NONCLINICAL INDEPENDENT-FORM CONTRACT PASS; six HOLD remain.')
           PY
-      - name: Upload ONLY sanitized synthetic aggregate and labeled demonstration screenshot
+      - name: Publish BLANK A/B forms plus sanitized synthetic CI evidence (no answers)
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: cephalo-r23g15-synthetic-offline-review-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
+            /tmp/dc-g15-private-synthetic/A/independent_review.html
+            /tmp/dc-g15-private-synthetic/B/independent_review.html
+            /tmp/dc-g15-private-synthetic/PRIVATE_REVIEW_INSTRUCTIONS.txt
             /tmp/dc-g15-synthetic-proof/G15_REDACTED_SYNTHETIC_AGGREGATE.json
             /tmp/dc-g15-synthetic-proof/G15_SYNTHETIC_FORM_NONCLINICAL_1280x900.png
             /tmp/dc-g15-synthetic-proof/READ_ME_SYNTHETIC_ONLY.txt
