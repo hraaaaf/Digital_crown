@@ -87,6 +87,16 @@ function Invoke-Child([string]$Stage, [pscredential]$Credential,
         Write-Host ('F01_CHILD_' + $Stage + '_HAS_EXITED=' + $process.HasExited)
         $exitCode = $process.ExitCode
         Write-Host ('F01_CHILD_' + $Stage + '_EXIT_VALUE_PRESENT=' + ($null -ne $exitCode))
+        # Diagnostic only: compare PowerShell's adapted member view with the
+        # same CLR property accessed through its declared Process type.
+        try {
+            $clrProperty = [System.Diagnostics.Process].GetProperty('ExitCode')
+            $clrValue = $clrProperty.GetValue($process, $null)
+            Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_VALUE_PRESENT=' + ($null -ne $clrValue))
+            Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_VALUE=' + $clrValue)
+        } catch {
+            Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_READ_FAILED=TRUE')
+        }
     } finally { $process.Dispose() }
     # The child may have completed its synthetic I/O even when Windows
     # reports a failure. Record the actual exit status before rejecting it.
