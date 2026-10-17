@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Users } from 'lucide-react';
-import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
 import { clinicCalendarDay, clinicAppointmentFormFields } from './agendaClinicLocalDate';
