@@ -82,7 +82,7 @@ jobs:
     timeout-minutes: 25
     env:
       SECRET_KEY: r23g5-ci-only-isolated-jwt-secret-32
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: 'sqlite:///:memory:'
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
       TELEMETRY_ENABLED: 'false'
