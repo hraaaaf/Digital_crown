@@ -334,7 +334,7 @@ export const PatientMediaTimeline = ({ patientId, compactHeader = false }: Patie
               <>
                 <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-primary">
                   <Images size={17} className="shrink-0" />
-                  <h2 className="text-base font-black tracking-tight text-main sm:text-lg">Médiathèque clinique</h2>
+                  <h2 className="text-base font-black tracking-tight text-text-main sm:text-lg">Médiathèque clinique</h2>
                   {items.length > 0 && <span className="rounded-full bg-primary/5 px-2 py-0.5 text-[9px] font-black text-primary">{filteredItems.length}/{items.length}</span>}
                 </div>
                 <p className="mt-0.5 hidden text-[11px] font-medium leading-snug text-text-muted md:block lg:text-xs">Recherche, filtres et comparaison longitudinale T0/T1/T2.</p>

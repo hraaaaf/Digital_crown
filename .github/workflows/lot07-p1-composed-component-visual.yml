@@ -1,0 +1,148 @@
+name: LOT07 P1 G1 Composed React Visual Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/features/patients/components/PatientClinicalContextNotice.tsx'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
+      - '.github/workflows/lot07-p1-composed-component-visual.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    name: Real G1 panes + P1 component (synthetic fixture)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Attest candidate SHA prior to browser evidence
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+        working-directory: .
+      - name: Locked dependencies and browser
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Mount actual G1 + P1 React components in disposable Vite
+        run: |
+          cat > lot07-p1-visual.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body><div id="root"></div><script type="module" src="/src/lot07-p1-visual.tsx"></script></body></html>
+          EOF
+          cat > src/lot07-p1-visual.tsx <<'EOF'
+          import React from 'react';
+          import {createRoot} from 'react-dom/client';
+          import './index.css';
+          import {PatientClinicalContextNotice} from './features/patients/components/PatientClinicalContextNotice';
+          import {CabinetTwoViewsPilot} from './features/multiview/CabinetTwoViewsPilot';
+          const theme = new URLSearchParams(location.search).get('theme') || 'elite';
+          document.documentElement.setAttribute('data-theme',theme);
+          const patient = {id:7,numero_dossier:'T2-0001',nom:'CERTIFICATION',prenom:'T2',date_naissance:'1990-01-01',telephone:'0000',assurance:'',antecedents_medicaux:'',motif_consultation:'',dossier:{is_ortho_active:false}};
+          const advice = {title:'Dossier à compléter',message:'Antécédents médicaux non renseignés',action:'Compléter Dossier'};
+          createRoot(document.getElementById('root')!).render(
+            <main data-testid="lot07-p1-composed-preview" className="min-h-screen bg-medical-pearl p-3 sm:p-5 md:p-8 text-text-main">
+              <div className="mx-auto max-w-[1600px] space-y-4">
+                <h1 className="text-xl font-bold">Dossier et imagerie — T2 (test synthétique)</h1>
+                <PatientClinicalContextNotice medicalHistory={patient.antecedents_medicaux} advice={advice} onEdit={()=>void 0} />
+                <CabinetTwoViewsPilot patient={patient} canCephalo={false} />
+              </div>
+            </main>);
+          EOF
+      - name: Capture desktop and mobile with same fixtures in Elite and existing Dark
+        run: |
+          cat > lot07-p1-capture.mjs <<'EOF'
+          import {chromium} from 'playwright';
+          import {createServer} from 'vite';
+          import fs from 'node:fs/promises';
+          const out='lot07-p1-evidence'; await fs.mkdir(out,{recursive:true});
+          const server=await createServer({server:{host:'127.0.0.1',port:4179,strictPort:true},clearScreen:false});
+          await server.listen();
+          const browser=await chromium.launch();
+          const records=[];
+          try {
+            for(const theme of ['elite','dark']) for(const width of [1440,390]){
+              const context=await browser.newContext({viewport:{width,height:900},locale:'fr-FR'});
+              const page=await context.newPage();
+              const errors=[];
+              page.on('pageerror',e=>errors.push(String(e.message)));
+              await page.route('**/*',route=>{
+                const url=route.request().url();
+                if(url.includes(':8005/')||url.includes('/api/patients/7/assets')){
+                  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({items:[],total:0})});
+                }
+                return route.continue();
+              });
+              await page.goto('http://127.0.0.1:4179/lot07-p1-visual.html?theme='+theme,{waitUntil:'networkidle'});
+              await page.getByRole('status',{name:'Antécédents médicaux non renseignés'}).waitFor({state:'visible'});
+              await page.getByRole('note',{name:'Conseil clinique du dossier'}).waitFor({state:'visible'});
+              const split=await page.locator('[data-v15-07-two-views]').count();
+              const media=await page.locator('[data-testid="patient-media-timeline"]').count();
+              const expectedSplit=width>=1280?1:0;
+              if(split!==expectedSplit||media!==1)throw Error('G1 layout mismatch '+JSON.stringify({theme,width,split,media}));
+              const msg=await page.getByRole('note',{name:'Conseil clinique du dossier'}).innerText();
+              if(!msg.includes('Action conseillée (non exécutée)'))throw Error('free-text action safety');
+              const status=await page.getByRole('status',{name:'Antécédents médicaux non renseignés'}).innerText();
+              if(!status.includes('ne confirme pas leur absence'))throw Error('unknown history safety');
+              const button=page.getByRole('button',{name:'Compléter les antécédents dans la fiche patient'});
+              if(width<600){
+                const info=await page.getByText('Aucune information d’antécédents n’est enregistrée. Cela ne confirme pas leur absence.').boundingBox();
+                const cta=await button.boundingBox();
+                if(!info||!cta||cta.y<info.y+info.height-1)throw Error('P1 mobile CTA overlaps clinical status text');
+                if(cta.width<width-70)throw Error('P1 mobile CTA is not a full row');
+              }
+              if(width>=1280){
+                const panelHeading=page.locator('[data-v15-07-theme-slot]').getByRole('heading',{name:'Médiathèque clinique'});
+                if(await panelHeading.count()!==1)throw Error('G1 compact desktop must use exactly one panel media heading');
+                if(!(await panelHeading.getAttribute('class'))?.includes('text-text-main'))throw Error('G1 panel heading lacks semantic ink');
+              }else{
+                const mobileHeading=page.locator('[data-testid="patient-media-timeline"] h2').first();
+                if(!(await mobileHeading.getAttribute('class'))?.includes('text-text-main'))throw Error('Mobile fallback media heading lacks readable semantic ink');
+              }
+              const x=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
+              if(x.scroll>x.viewport+1)throw Error('horizontal overflow '+JSON.stringify({theme,width,x}));
+              const filename=theme+'-'+width+'-p1.png';
+              // Vite may optimize a late dependency and briefly reload the React
+              // tree. A screenshot of a blank page is NOT visual evidence.
+              // Retry a bounded number of times only after the real P1 status
+              // is visible, and reject any screenshot too sparse to be genuine.
+              let screenshotBytes=0;
+              for(let attempt=1;attempt<=4;attempt++){
+                await page.getByRole('status',{name:'Antécédents médicaux non renseignés'}).waitFor({state:'visible',timeout:15000});
+                await page.locator('[data-testid="patient-media-timeline"]').waitFor({state:'visible',timeout:15000});
+                await page.evaluate(()=>document.fonts.ready);
+                await page.waitForTimeout(300);
+                const capture=await page.screenshot({path:out+'/'+filename,fullPage:true,animations:'disabled'});
+                screenshotBytes=capture.byteLength;
+                if(screenshotBytes>=12000)break;
+                if(attempt===4)throw Error('BLANK SCREENSHOT / invalid visual proof '+JSON.stringify({theme,width,screenshotBytes}));
+              }
+              if(errors.length)throw Error('runtime errors '+JSON.stringify(errors));
+              records.push({theme,width,split,media,filename,screenshotBytes,sourceHead:process.env.SOURCE_HEAD,source:'actual G1+P1 components, synthetic T2 fixture, NOT full authenticated patient route',errors});
+              await context.close();
+            }
+          } finally {await browser.close();await server.close();}
+          await fs.writeFile(out+'/manifest.json',JSON.stringify({sourceHead:process.env.SOURCE_HEAD,runnerSha:process.env.GITHUB_SHA,records},null,2));
+          EOF
+          node lot07-p1-capture.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot07-p1-composed-real-components
+          path: frontend/lot07-p1-evidence/
+          retention-days: 14

@@ -51,6 +51,8 @@ import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { AssuranceBadge } from '../../components/AssuranceBadge';
 import { useFlowHandoff } from '../../hooks/useFlowHandoff';
 import { PatientAvatar } from './components/PatientAvatar';
+import { PatientClinicalContextNotice } from './components/PatientClinicalContextNotice';
+import './PatientDetails.p1Contrast.css';
 
 interface Patient {
   id: number;
@@ -291,6 +293,11 @@ export const PatientDetails = () => {
     );
   }
 
+  // Never render a previously loaded patient's clinical context while the route
+  // already targets a different patient; wait for the exact-ID API response.
+  if (patient && String(patient.id) !== id) {
+    return <EliteGhostLoader text="Ouverture du dossier clinique..." size="medium" />;
+  }
   if (!patient) return null;
 
   const fullName = `${patient.nom.toUpperCase()} ${patient.prenom}`;
@@ -310,7 +317,7 @@ export const PatientDetails = () => {
         <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>
           <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>
             <div className={cn('flex items-start sm:items-center min-w-0', isRadiology ? 'gap-2' : 'gap-3')}>
-              <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10')} style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 16 : 20} strokeWidth={2.5} /></button>
+              <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10', 'p1-clinical-primary-ink')} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 16 : 20} strokeWidth={2.5} /></button>
               <PatientAvatar
                 patientId={patient.id}
                 firstName={patient.prenom}
@@ -320,13 +327,13 @@ export const PatientDetails = () => {
               />
               <div className="min-w-0">
                 <div className={cn('flex flex-wrap items-center', isRadiology ? 'gap-1.5' : 'gap-2')}>
-                  <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl')} style={{ color: 'var(--primary)' }}>{fullName}</h1>
+                  <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl', 'p1-clinical-primary-ink')}>{fullName}</h1>
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
                   {patient.antecedents_medicaux && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wide"><AlertTriangle size={12} /> Alerte médicale</span>}
-                  <button onClick={() => navigate(`/patients/${id}/edit`)} className={cn('font-black uppercase rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors', isRadiology ? 'px-2 py-0.5 text-[9px] tracking-wide' : 'px-2.5 py-1 text-[10px] tracking-widest')} style={{ color: 'var(--primary)' }}>Modifier</button>
+                  <button onClick={() => navigate(`/patients/${id}/edit`)} className={cn('font-black uppercase rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors', isRadiology ? 'px-2 py-0.5 text-[9px] tracking-wide' : 'px-2.5 py-1 text-[10px] tracking-widest', 'p1-clinical-primary-ink')}>Modifier</button>
                 </div>
                 <div className={cn('flex flex-wrap items-center font-bold text-text-muted', isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1 gap-x-2 gap-y-0.5 text-[11px] sm:mt-1.5 sm:gap-x-3 sm:gap-y-1 sm:text-xs')}>
-                  <span className="inline-flex items-center gap-1.5"><FileDigit size={12} style={{ color: 'var(--primary)' }} /><span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span></span>
+                  <span className="inline-flex items-center gap-1.5"><FileDigit size={12} style={{ color: 'var(--primary)' }} /><span className="font-mono p1-clinical-primary-ink">{patient.numero_dossier || `ID-${patient.id}`}</span></span>
                   <span>{age >= 0 && age < 130 ? `${age} ans · ` : ''}{birthLabel}</span>
                   <span className={cn('items-center gap-1.5', isRadiology ? 'hidden md:inline-flex' : 'hidden sm:inline-flex')}><Phone size={12} />{patient.telephone}</span>
                   {patient.email && <span className="hidden lg:inline-flex items-center gap-1.5"><Mail size={12} />{patient.email}</span>}
@@ -354,16 +361,12 @@ export const PatientDetails = () => {
       </header>
 
       <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : isRadiology ? 'flex-1 px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 space-y-2' : 'flex-1 px-3 py-3 sm:px-4 sm:py-6 md:px-8 md:py-8 space-y-4 sm:space-y-6')}>
-        {g1MediaPilot && g1InlineAdvice && (
-          <aside data-v15-07-g1-inline-nba role="status" aria-label="Conseil clinique du dossier"
-            className="flex min-w-0 items-start gap-2 rounded-lg border border-border-main bg-card-bg p-2.5 text-text-main">
-            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
-            <div className="min-w-0 text-xs leading-snug">
-              <p className="font-bold">{g1InlineAdvice.title}</p>
-              <p className="mt-0.5 text-text-muted">{g1InlineAdvice.message}</p>
-              {g1InlineAdvice.action && <p className="mt-0.5 font-semibold text-primary">Action : {g1InlineAdvice.action}</p>}
-            </div>
-          </aside>
+        {(activeTab === 'tracking' || activeTab === 'clinical' || activeTab === 'radiology') && (
+          <PatientClinicalContextNotice
+            medicalHistory={patient.antecedents_medicaux}
+            advice={g1MediaPilot ? g1InlineAdvice : null}
+            onEdit={() => navigate(`/patients/${id}/edit`)}
+          />
         )}
         {!isDocuments && (patient.antecedents_medicaux || patient.motif_consultation) && (
           <div className={cn('flex flex-col animate-in fade-in slide-in-from-top-4 duration-500', isRadiology ? 'gap-2' : 'gap-3')}>
@@ -468,13 +471,13 @@ const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
 );
 
 const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compact = false }: any) => (
-  <button onClick={onClick} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
+  <button onClick={onClick} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary p1-clinical-primary-ink' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)' } : {}}>
     {icon}<span data-patient-tab-mobile-label className="sm:hidden text-[8px] leading-none tracking-[0.02em]">{mobileLabel || label}</span><span data-patient-tab-desktop-label className="hidden sm:inline">{label}</span>
   </button>
 );
 
 const ImagingButton = ({ active, onClick, icon, label }: any) => (
-  <button onClick={onClick} className={cn('shrink-0 px-2 py-1.5 text-[9px] sm:px-3 sm:py-2 sm:text-[10px] md:px-4 md:text-[11px] font-black uppercase tracking-[0.06em] sm:tracking-[0.08em] rounded-lg transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap', active ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
+  <button onClick={onClick} className={cn('shrink-0 px-2 py-1.5 text-[9px] sm:px-3 sm:py-2 sm:text-[10px] md:px-4 md:text-[11px] font-black uppercase tracking-[0.06em] sm:tracking-[0.08em] rounded-lg transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap', active ? 'bg-card-bg text-primary p1-clinical-primary-ink shadow-elite' : 'text-text-muted hover:text-main')}>
     {icon} {label}
   </button>
 );
