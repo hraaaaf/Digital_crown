@@ -175,6 +175,9 @@ jobs:
           # Process-local attestation for this disposable host / PostgreSQL target.
           # No mutable application/clinical DB, remote host or prod credentials.
           export DIGITALCROWN_ISOLATION_DB_FINGERPRINT="$(python -c 'import hashlib;print(hashlib.sha256(b"postgresql://cb01_http@loopback:5432/cb01_http_lab").hexdigest())')"
+          # Rehearsal refuses real/implicit media paths. Use a brand-new job-only root.
+          export MEDIA_ROOT="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cb01-rehearsal-media-XXXXXX")"
+          trap 'rm -rf -- "$MEDIA_ROOT"' EXIT
           python -m alembic upgrade head
           PYTHONPATH=. python scripts/ci/cb01_s07_s09_http_pg.py
       - name: Summarize scoped S07/S09 HTTP PostgreSQL proof
