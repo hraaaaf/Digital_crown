@@ -161,7 +161,7 @@ def test_stale_revision_and_corrupted_evidence_reject_pdf_and_prevalidation(
         f"/api/patients/{patient.id}/pdf",
         json={"analysis_id": study_a.id, "archive": False}, headers=headers,
     )
-    assert no_revision.status_code == 409
+    assert no_revision.status_code == 422
     edited = deepcopy(points)
     next(p for p in edited if p["id"] == "A")["x"] += 2
     assert client.put(PATH + str(study_a.id), json={"landmarks": edited}, headers=headers).status_code == 200
@@ -276,7 +276,7 @@ def test_unversioned_historical_study_cannot_be_archived_as_authoritative(
     )
     answer = client.post(
         f"/api/patients/{patient.id}/pdf",
-        json={"analysis_id": study.id, "archive": True},
+        json={"analysis_id": study.id, "expected_revision": 1, "archive": True},
         headers=headers,
     )
     assert answer.status_code == 409
