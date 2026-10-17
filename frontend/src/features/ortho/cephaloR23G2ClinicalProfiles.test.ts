@@ -29,7 +29,7 @@ describe('R23-G2 fail-closed clinical presentation', () => {
   });
   it('never promotes an AVAILABLE row without verified provenance', () => {
     const rows = ids(33);
-    rows[0] = { ...rows[0], availability_status: 'AVAILABLE', value: 3.1 } as typeof rows[number];
+    rows[0] = { ...rows[0], availability_status: 'AVAILABLE', value: 3.1 } as unknown as typeof rows[number];
     expect(readCephaloR23G2Protocol(data({ ...atlas, rows }), 'ricketts', 'atlas')).toBeNull();
   });
   it('requires exact profile identities for every mode', () => {
