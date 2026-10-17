@@ -88,6 +88,28 @@ async function viewportRun(viewport){
   await page.goto(root+'/patients/'+identities.patient_id+'?tab=radiology&radioTab=cephalo',
     {waitUntil:'domcontentloaded',timeout:45000});
   await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible',timeout:35000});
+  // Probe exactly the same media URL after real Cabinet login + workstation
+  // enrollment. APIRequestContext bypasses browser CORS, while fetch does not.
+  const imageURL=backend+'/api/static/uploads/radios/t2-cephalo-seeded.png';
+  const sessionMedia=await context.request.get(imageURL,{headers:{Authorization:'Bearer '+token,Origin:root}});
+  record.sessionMediaProbe={status:sessionMedia.status(),
+    cors:sessionMedia.headers()['access-control-allow-origin']||null,
+    type:sessionMedia.headers()['content-type']||null,
+    error:sessionMedia.status()===200?null:(await sessionMedia.text()).slice(0,250)};
+  record.browserMediaProbe=await page.evaluate(async imageURL=>{
+    try {
+      const token=localStorage.getItem('token');
+      const r=await fetch(imageURL,{credentials:'include',
+        headers:token?{Authorization:'Bearer '+token}:{}});
+      return {status:r.status,type:r.headers.get('content-type'),
+        cors:r.headers.get('access-control-allow-origin')};
+    } catch(e) {return {error:String(e)};}
+  },imageURL);
+  console.log('P2TER_ENROLLED_MEDIA_DIAGNOSTIC',JSON.stringify({
+    viewport:record.viewport,sessionMediaProbe:record.sessionMediaProbe,
+    browserMediaProbe:record.browserMediaProbe,
+  }));
+
   await shot('before-history');
   for(const [label,study] of [['older',identities.older_id],['newer',identities.latest_id]]){
    await page.getByRole('button',{name:'Historique',exact:true}).click();
