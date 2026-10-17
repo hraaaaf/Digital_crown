@@ -203,27 +203,64 @@ class ActionDispatcher:
     def _exec_change_status(
         self, params: Dict[str, Any], db: Session, user: models.User
     ) -> BotResponse:
-        """Applique réellement le changement de statut du RDV."""
+        """Apply a status change without bypassing the shared booking invariant."""
+        from backend.routers.auth import has_permission
+        from backend.routers.appointments import _find_conflicts, _is_exact_time
+        from backend.services.agenda_resource_conflicts import assert_resource_available
+        from backend.services.agenda_availability import validate_appointment_availability
+        from backend.services.agenda_write_lock import lock_cabinet_appointment_writes
+
+        if not has_permission(user, "agenda"):
+            raise HTTPException(status_code=403, detail="Permission agenda refusée")
         employer_id = user.get_employer_id()
+        # Lock BEFORE reading the old status. Otherwise CHANGE_STATUS could
+        # resurrect a cancelled/refused booking while another process reserves
+        # that exact time through the canonical writer.
+        lock_cabinet_appointment_writes(db, employer_id)
         appt = db.query(models.Appointment).filter(
             models.Appointment.id == params.get("appointment_id"),
             models.Appointment.employer_id == employer_id,
+            models.Appointment.deleted_at.is_(None),
         ).first()
         if not appt:
             return BotResponse(message="Rendez-vous introuvable.", action_type="error")
 
         status_name = params.get("status", "")
         try:
-            appt.status = models.AppointmentStatus[status_name]
-        except KeyError:
+            next_status = models.AppointmentStatus[status_name]
+        except (KeyError, TypeError):
             return BotResponse(message=f"Statut invalide : {status_name}", action_type="error")
-        db.commit()
 
+        non_blocking = {
+            models.AppointmentStatus.ANNULE,
+            models.AppointmentStatus.REFUSE,
+            models.AppointmentStatus.EXPIRE,
+        }
+        # Only re-activation creates a new capacity claim. Revalidate it
+        # transactionally just like a normal appointment CREATE.
+        if appt.status in non_blocking and next_status not in non_blocking and _is_exact_time(appt.scheduling_type):
+            unavailable = validate_appointment_availability(
+                db, employer_id, appt.datetime_start, appt.duration_minutes,
+                appt.scheduling_type, practitioner_id=appt.praticien_id,
+            )
+            if unavailable:
+                raise HTTPException(status_code=422, detail=unavailable)
+            if _find_conflicts(db, employer_id, appt.praticien_id, appt.datetime_start,
+                               appt.duration_minutes, exclude_id=appt.id):
+                raise HTTPException(status_code=409, detail="Créneau déjà occupé")
+            assert_resource_available(
+                db, employer_id=employer_id, resource_id=appt.resource_id,
+                datetime_start=appt.datetime_start, duration_minutes=appt.duration_minutes,
+                exclude_appointment_id=appt.id,
+            )
+
+        appt.status = next_status
+        db.commit()
         return BotResponse(
             message=(
-                f"✅ **Statut mis à jour**\n"
-                f"👤 {params.get('patient_name', '—')}\n"
-                f"📅 {params.get('when', '')}\n"
+                f"✅ **Statut mis à jour**\\n"
+                f"👤 {params.get('patient_name', '—')}\\n"
+                f"📅 {params.get('when', '')}\\n"
                 f"➡️ {params.get('status_label', status_name)}"
             ),
             data={"appointment_id": appt.id, "status": status_name},

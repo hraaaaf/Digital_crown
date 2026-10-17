@@ -4,6 +4,7 @@ on:
     paths:
       - 'scripts/verification/lot07_07a_postgres_cert.py'
       - 'scripts/verification/lot07_07a_f05_multiprocess.py'
+      - 'scripts/verification/lot07_07a_f05_pg_faults.py'
       - 'backend/services/bot/action_dispatcher.py'
       - 'backend/services/patient_companion_agenda.py'
       - 'backend/routers/frontdesk.py'
@@ -92,24 +93,34 @@ jobs:
         run: |
           set -euo pipefail
           python -m scripts.verification.lot07_07a_f05_multiprocess
+      - name: F05 encrypted Patient Companion remote receipt and controlled deadlock (direct worker — partial proof)
+        id: pg_faults
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/verification/lot07_07a_f05_pg_faults.py
+          python -m scripts.verification.lot07_07a_f05_pg_faults
       - name: Require all independent F05 certification stages
         if: always()
         env:
           SQLITE_OUTCOME: ${{ steps.sqlite_contracts.outcome }}
           POSTGRES_OUTCOME: ${{ steps.pg_lab.outcome }}
           MULTIPROCESS_OUTCOME: ${{ steps.pg_multiprocess.outcome }}
+          PG_FAULTS_OUTCOME: ${{ steps.pg_faults.outcome }}
         run: |
           set -euo pipefail
           echo "F05_SQLITE_CONTRACTS=$SQLITE_OUTCOME"
           echo "F05_POSTGRES_LAB=$POSTGRES_OUTCOME"
           echo "F05_TWO_UVICORN_PROCESSES=$MULTIPROCESS_OUTCOME"
+          echo "F05_ENCRYPTED_RECEIPTS_DIRECT_WORKER=$PG_FAULTS_OUTCOME"
           test "$SQLITE_OUTCOME" = success
           test "$POSTGRES_OUTCOME" = success
           test "$MULTIPROCESS_OUTCOME" = success
+          test "$PG_FAULTS_OUTCOME" = success
           # Agenda/Bot/Frontdesk real login and two-process PostgreSQL probes
           # are covered separately. Genuine Patient Companion encrypted
           # remote-envelope, receipt atomicity and independent reviews remain.
-          echo "::error::POSTGRESQL F05 FAIL: genuine Patient Companion encrypted remote envelope and durable receipt races not proven"
+          echo "::error::POSTGRESQL F05 FAIL: genuine Patient Companion encrypted remote envelope with two HTTP workers and durable receipt races not proven"
           exit 1
       - name: Report sanitized failure diagnostics
         if: failure()
