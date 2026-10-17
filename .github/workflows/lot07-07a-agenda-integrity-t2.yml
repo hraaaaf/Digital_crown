@@ -104,3 +104,80 @@ jobs:
         if: failure()
         run: |
           tail -70 /tmp/lot07-agenda-integrity-api.log || true
+
+  postgres-lock-isolated:
+    name: PostgreSQL 16 isolated cabinet advisory transaction lock
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: synthetic
+          POSTGRES_PASSWORD: synthetic_ci_only
+          POSTGRES_DB: dc_agenda_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synthetic -d dc_agenda_synthetic"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated locking test dependencies
+        run: python -m pip install 'fastapi>=0.115,<1' 'sqlalchemy>=2,<2.1' 'psycopg[binary]>=3.2,<4'
+      - name: Exercise actual PostgreSQL same-cabinet serialization
+        env:
+          PG_DSN: postgresql+psycopg://synthetic:synthetic_ci_only@127.0.0.1:5432/dc_agenda_synthetic
+        run: |
+          python - <<'PY'
+          import os
+          from concurrent.futures import ThreadPoolExecutor
+          from threading import Event
+          from sqlalchemy import create_engine
+          from sqlalchemy.orm import Session
+          from backend.services.agenda_write_lock import lock_cabinet_appointment_writes
+          engine=create_engine(os.environ['PG_DSN'],pool_pre_ping=True)
+          locked=Event()
+          begun=Event()
+          second_acquired=Event()
+          release=Event()
+          def first():
+              with Session(engine) as db:
+                  lock_cabinet_appointment_writes(db,77)
+                  locked.set()
+                  assert release.wait(4)
+                  db.commit()
+          def second():
+              assert locked.wait(4)
+              with Session(engine) as db:
+                  begun.set()
+                  lock_cabinet_appointment_writes(db,77)
+                  second_acquired.set()
+                  db.rollback()
+          try:
+              with ThreadPoolExecutor(max_workers=2) as pool:
+                  a=pool.submit(first)
+                  b=pool.submit(second)
+                  assert begun.wait(4)
+                  # Different clinics must NOT be blocked by a lock for clinic 77.
+                  with Session(engine) as other:
+                      lock_cabinet_appointment_writes(other,78)
+                      other.rollback()
+                  assert not second_acquired.wait(0.15),'Same-cabinet lock did not block'
+                  release.set()
+                  a.result(timeout=6)
+                  b.result(timeout=6)
+              assert second_acquired.is_set()
+              print('LOT07_F05_POSTGRES_TX_LOCK: PASS; same cabinet serialized, other cabin unblocked')
+          finally:
+              release.set()
+              engine.dispose()
+          PY
