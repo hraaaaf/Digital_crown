@@ -2,6 +2,7 @@ import os
 import logging
 from typing import Optional, Any
 from datetime import datetime
+from secrets import token_hex
 from xml.sax.saxutils import escape
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -43,7 +44,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             identity = ("_ETUDE_" + str(projection["analysis_id"])) if projection and isinstance(projection.get("analysis_id"), int) else ""
             version = ("_REV_" + str(projection["analysis_revision"])) if projection and isinstance(projection.get("analysis_revision"), int) else ""
-            filename = f"BILAN_ORTHO_{vm.patient_nom.upper()}{identity}{version}_{date_str}.pdf"
+            filename = f"BILAN_ORTHO_{vm.patient_nom.upper()}{identity}{version}_{date_str}_{token_hex(6)}.pdf"
         file_path = os.path.join(self.output_dir, filename)
 
         # Fail closed even for non-product direct calls: absence of the backend
