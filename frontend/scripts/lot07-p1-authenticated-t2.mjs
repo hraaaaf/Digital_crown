@@ -39,14 +39,22 @@ async function inject(page,theme){
     localStorage.setItem('token',access);
     localStorage.setItem('refresh_token',refresh||'');
     localStorage.setItem('appMode','prod');
-    // Match App.tsx: cabinet theme is restored from this key to BODY.
-    // Do not force data-theme on HTML: that hid the actual runtime mismatch.
-    if(theme==='dark') localStorage.setItem('digitalcrown_theme','dark');
-    else localStorage.removeItem('digitalcrown_theme');
+    // The real cabinet profile remains authoritative; persisted storage is
+    // deliberately empty so the product must hydrate from the real T2 backend.
+    localStorage.removeItem('digitalcrown_theme');
   },{access:tokens.access_token,refresh:tokens.refresh_token,theme});
 }
 async function checkPage(page,theme,width,zoomNative=false){
   const errors=[],failures=[];
+  // Settings profile is the source of truth, not an injected DOM/localStorage theme.
+  // This endpoint writes only to the pre-proven disposable T2 SQLite database.
+  const auth={Authorization:'Bearer '+tokens.access_token};
+  const saved=await api.put('/api/clinics/me',{headers:auth,data:{selected_theme:theme}});
+  if(!saved.ok())throw Error('T2 isolated theme update denied HTTP '+saved.status());
+  const reread=await api.get('/api/clinics/me',{headers:auth});
+  if(!reread.ok())throw Error('T2 isolated theme read unavailable HTTP '+reread.status());
+  const clinic=await reread.json();
+  if(clinic.selected_theme!==theme)throw Error('T2 backend theme truth mismatch '+JSON.stringify({expected:theme,received:clinic.selected_theme}));
   page.on('pageerror',e=>errors.push(String(e.message).slice(0,280)));
   page.on('response',r=>{if(r.status()>=500)failures.push({status:r.status(),path:new URL(r.url()).pathname});});
   await inject(page,theme);
@@ -73,8 +81,14 @@ async function checkPage(page,theme,width,zoomNative=false){
     if(!info||!btn||btn.y<info.y+info.height-1)throw Error('Mobile P1 CTA overlaps medical context');
   }
   if(theme==='dark'){
-    // Real application theme host is BODY (App.tsx), not the HTML root.
-    await page.waitForFunction(()=>document.body?.dataset.theme==='dark',null,{timeout:10000});
+    // The app may briefly restore local preferences before fetching the backend.
+    // Require the persisted T2 backend theme to win on BOTH runtime hosts.
+    try {
+      await page.waitForFunction(()=>document.body?.dataset.theme==='dark' && document.documentElement?.dataset.theme==='dark',null,{timeout:15000});
+    } catch(error) {
+      const actual=await page.evaluate(()=>({body:document.body?.dataset.theme||null,html:document.documentElement?.dataset.theme||null,stored:localStorage.getItem('digitalcrown_theme')}));
+      throw Error('Actual T2 persisted Dark theme did not hydrate '+JSON.stringify({expected:theme,actual,cause:String(error)}));
+    }
     const colors=await page.evaluate(()=>{
       const bodyStyle=getComputedStyle(document.body);
       const card=document.createElement('span');
@@ -85,6 +99,7 @@ async function checkPage(page,theme,width,zoomNative=false){
       return {surface,bodyTheme:document.body.dataset.theme,htmlTheme:document.documentElement.dataset.theme||null,
         tokens:{primary:bodyStyle.getPropertyValue('--primary').trim(),main:bodyStyle.getPropertyValue('--text-main').trim()}};
     });
+    if(colors.bodyTheme!=='dark'||colors.htmlTheme!=='dark')throw Error('Dark DOM tokens not hydrated from cabinet profile '+JSON.stringify(colors));
     const rgb=(value)=>{
       const channels=value.match(/[0-9]+/g)?.slice(0,3).map(Number);
       return channels?.length===3?channels:null;
@@ -105,6 +120,10 @@ async function checkPage(page,theme,width,zoomNative=false){
       const contrast=(hi+0.05)/(lo+0.05);
       if(contrast<4.5)throw Error('Dark '+name+' contrast '+contrast.toFixed(2)+':1 below 4.5:1 '+JSON.stringify({ink,...colors}));
     }
+  }
+  if(theme==='elite'){
+    const runtime=await page.evaluate(()=>({body:document.body?.dataset.theme||'',html:document.documentElement?.dataset.theme||'',stored:localStorage.getItem('digitalcrown_theme')}));
+    if(runtime.body!==''||runtime.html!=='')throw Error('Elite T2 profile did not restore real root theme '+JSON.stringify(runtime));
   }
   const metrics=await page.evaluate(()=>({
     width:innerWidth,dpr:devicePixelRatio,outerWidth,visualScale:visualViewport?.scale||1,
