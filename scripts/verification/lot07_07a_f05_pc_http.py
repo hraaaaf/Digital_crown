@@ -129,6 +129,24 @@ def exercise():
         )
         db.add(access)
         db.flush()
+        # A second synthetic patient identity in another cabinet must never
+        # authorize access to this patient's remote booking context.
+        other_patient = models.Patient(
+            numero_dossier=f"F05PC-OTHER-{suffix}", nom="Other", prenom="Synthetic",
+            date_naissance=datetime(2011, 1, 1), sexe="F", employer_id=other.id,
+        )
+        other_identity = PatientCompanionIdentity(
+            provider="local_bridge", subject=f"f05pc:other:{suffix}",
+        )
+        db.add_all([other_patient, other_identity])
+        db.flush()
+        other_access = PatientCompanionAccess(
+            identity_id=other_identity.id, employer_id=other.id,
+            patient_id=other_patient.id, relationship_type="SELF",
+        )
+        db.add(other_access)
+        db.flush()
+        other_device_token = create_patient_device_token(other_identity, other_access)
 
         sign_priv, sign_pub = generate_p256_keypair(kid=str(uuid.uuid4()), use="sig")
         dec_priv, dec_pub = generate_p256_keypair(kid=str(uuid.uuid4()), use="enc")
@@ -291,8 +309,15 @@ def exercise():
         token, idem = sign_command("agenda.create", {"slot_ref": slot_ref})
         denied = remote(0, token, bearer=None)
         malformed = remote(0, token, bearer="malformed")
+        cross_tenant = remote(0, token, bearer=other_device_token)
+        malformed_jwe = remote(0, "x" * 64)
         assert denied[0] == 401 and malformed[0] == 401, (denied, malformed)
-        print("F05_PC_HTTP_PATIENT_AUTH", denied[0], malformed[0], flush=True)
+        assert cross_tenant[0] == 404 and malformed_jwe[0] == 400, (
+            cross_tenant, malformed_jwe,
+        )
+        print("F05_PC_HTTP_PATIENT_AUTH", denied[0], malformed[0],
+              "CROSS_TENANT", cross_tenant[0],
+              "INVALID_JWE", malformed_jwe[0], flush=True)
 
         # Different FastAPI processes and genuinely encrypted requests compete
         # against the actual canonical appointment API. Both paths share PG lock.
@@ -362,6 +387,39 @@ def exercise():
             assert moved.datetime_start == datetime(2030, 1, 3, 14 if accepted else 8)
         print("F05_PC_HTTP_RESCHEDULE_RACE", pc[1]["status"],
               staff[0], "SQL", count(14), flush=True)
+
+        # Deterministic opposite winner: a genuine patient JWE/HTTP request
+        # must successfully COMMIT first, and a later staff POST must return
+        # 409. This complements the simultaneous staff-winning races above;
+        # it is NOT mislabeled as a separate simultaneous race.
+        fresh_slot, fresh_slot_id = new_slot(15)
+        signed_create, create_idem = sign_command(
+            "agenda.create", {"slot_ref": fresh_slot},
+        )
+        pc_first = remote(1, signed_create)
+        staff_after = book(0, 15)
+        assert pc_first[0] == 200 and pc_first[1]["status"] == "ACCEPTED", pc_first
+        assert staff_after[0] == 409, staff_after
+        assert count(15) == 1 and receipt_count(create_idem) == 1
+        assert consumed(fresh_slot_id)
+        print("F05_PC_HTTP_PATIENT_WINS_CREATE", "PATIENT", "ACCEPTED",
+              "STAFF", staff_after[0], "SQL", count(15), flush=True)
+
+        # Likewise a real patient JWE reschedule can move its reservation
+        # before a competing subsequent staff booking attempts that new slot.
+        fresh_slot, fresh_slot_id = new_slot(16)
+        signed_move, move_idem = sign_command(
+            "agenda.reschedule",
+            {"appointment_ref": appointment_ref, "slot_ref": fresh_slot},
+        )
+        pc_move = remote(1, signed_move)
+        staff_after = book(0, 16)
+        assert pc_move[0] == 200 and pc_move[1]["status"] == "ACCEPTED", pc_move
+        assert staff_after[0] == 409, staff_after
+        assert count(16) == receipt_count(move_idem) == 1
+        assert consumed(fresh_slot_id)
+        print("F05_PC_HTTP_PATIENT_WINS_RESCHEDULE", "PATIENT", "ACCEPTED",
+              "STAFF", staff_after[0], "SQL", count(16), flush=True)
 
         # Signed staff JWT cannot be substituted for patient credentials.
         token, _ = sign_command("agenda.create", {"slot_ref": slot_ref})
