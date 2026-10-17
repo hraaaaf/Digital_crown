@@ -67,6 +67,7 @@ def test_stale_chain_identity_count_and_fabricated_values_fail_closed():
         ),
         lambda p: p["mcnamara"]["rows"][0].update({"value": 123.4}),
         lambda p: p["ricketts_atlas2009"].update({"classification_authority": True}),
+        lambda p: p["ricketts_atlas2009"]["rows"][0].update({"contract_state": None}),
     ]
     for mutate in mutations:
         payload = deepcopy(data)
