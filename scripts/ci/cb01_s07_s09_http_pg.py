@@ -63,7 +63,7 @@ with database.SessionLocal() as db:
     assert db.query(models.BotPendingAction).count() == 0, "REFUSED: bot action DB not empty"
 
 owner_email = "cb01-http-owner@synthetic.invalid"
-password = os.environ.get("CB01_SYNTHETIC_PASSWORD", "")
+password = os.environ.get("T2_PASSWORD", "")
 if len(password) < 24:
     raise RuntimeError("REFUSED: disposable owner secret missing")
 with database.SessionLocal() as db:
