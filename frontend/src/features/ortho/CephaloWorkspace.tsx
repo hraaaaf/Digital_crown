@@ -54,6 +54,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
   const [patientDataError, setPatientDataError] = useState(false);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
+  const historySelectionVersion = useRef(0);
 
   const resolveImageSrc = (imagePath?: string) => {
     if (!imagePath) return undefined;
@@ -62,8 +63,10 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   };
 
   const handleSelectHistory = async (analysis: any) => {
+    const version = ++historySelectionVersion.current;
     try {
       const loaded = await cephaloRepository.getAnalysis(analysis.id);
+      if (version !== historySelectionVersion.current || useOrthoStore.getState().patientId !== patientId || loaded?.id !== analysis.id) return;
       const landmarks = loaded.landmarks_data || [];
       const anglesData = loaded.angles_data || {};
 
@@ -98,6 +101,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   };
 
   const handleDeleteHistory = (analysisId: number) => {
+    historySelectionVersion.current += 1;
     if (store.analysisId === analysisId) {
       store.setAnalysisId(undefined as any);
     }
