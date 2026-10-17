@@ -41,8 +41,16 @@ def test_legacy_unassigned_blocks_companion_and_keeps_slot_unconsumed(db, dentis
         scheduling_type=models.SchedulingType.EXACT_TIME, praticien_id=None,
     ))
     db.flush()
+    # Distinguish an invalid/revoked opaque fixture from a real cross-channel
+    # conflict regression; do not weaken the expected SLOT_CONFLICT contract.
+    from backend.services.patient_companion_agenda import _slot_for_ref
+    visible_before = _slot_for_ref(db, access, slot.public_id) is not None
     result = companion_create(db, access, {"slot_ref": slot.public_id})
-    assert result.status == "REJECTED" and result.response["code"] == "SLOT_CONFLICT"
+    assert result.status == "REJECTED" and result.response["code"] == "SLOT_CONFLICT", (
+        "Synthetic stale-slot fixture is valid before lock?", visible_before,
+        "observed_response", result.response, "slot_revoked", slot.revoked_at is not None,
+        "slot_consumed", slot.consumed_at is not None,
+    )
     db.refresh(slot)
     assert slot.consumed_at is None
 
