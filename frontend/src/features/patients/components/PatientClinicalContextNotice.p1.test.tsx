@@ -14,6 +14,8 @@ describe('LOT07 P1 — contexte clinique source-first, identité inchangée', ()
     const button = screen.getByRole('button', { name: 'Compléter les antécédents dans la fiche patient' });
     expect(button.className).toContain('focus-visible');
     expect(button.className).toContain('min-h-11');
+    expect(button.className).toContain('basis-full');
+    expect(button.className).toContain('sm:basis-auto');
     fireEvent.click(button);
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
