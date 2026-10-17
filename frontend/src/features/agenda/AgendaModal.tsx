@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import type { AppointmentStatus } from './DailyView';
 import { cn } from '../../utils/cn';
+import { clinicCalendarDay, clinicLocalAppointmentTime } from './agendaClinicLocalDate';
 export type SchedulingType = 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY';
 
 import { useClinicalRef } from '../clinical-ref/useClinicalRef';
@@ -102,7 +103,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
     if (editingAppointment) {
         const d = new Date(editingAppointment.datetime_start);
-        setDateValue(d.toISOString().split('T')[0]);
+        setDateValue(clinicCalendarDay(d));
         setTime(`${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`);
         setDuration(editingAppointment.duration_minutes);
         setMotif(editingAppointment.motif || '');
@@ -117,7 +118,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
           setPatientSearch(editingAppointment.patient_name || '');
         }
       } else {
-        setDateValue(selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+        setDateValue(clinicCalendarDay(selectedDate ?? new Date()));
         setTime(initialTime || '09:00');
         setDuration(30);
         setMotif('');
@@ -296,8 +297,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
     const timer = setTimeout(async () => {
       try {
         const [h, m] = time.split(':').map(Number);
-        const dt = new Date(dateValue);
-        dt.setHours(h, m, 0, 0);
+        const dt = clinicLocalAppointmentTime(dateValue, h, m);
         const res = await api.get('/appointments/check-conflicts', {
           params: {
             datetime_start: dt.toISOString(),
@@ -332,8 +332,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
     setLoading(true);
     try {
       const [hours, minutes] = time.split(':').map(Number);
-      const startDateTime = new Date(dateValue);
-      startDateTime.setHours(hours, minutes, 0, 0);
+      const startDateTime = clinicLocalAppointmentTime(dateValue, hours, minutes);
 
       const payload = {
         patient_id: selectedPatient?.id || null,
