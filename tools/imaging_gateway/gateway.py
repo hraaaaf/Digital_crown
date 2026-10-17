@@ -275,18 +275,29 @@ class HotFolder:
             db.execute("PRAGMA synchronous=FULL")
             db.execute("PRAGMA trusted_schema=OFF")
             db.execute("PRAGMA temp_store=MEMORY")
-            # A compromised caller must not attach a second SQLite file or
-            # change writable_schema while the LAB connection is active.
-            # Authorizer is per connection and installed after trusted PRAGMAs.
+            # Only trusted setup may configure durability and journal policy.
+            # This connection-level authorizer is defense in depth, NOT a
+            # filesystem ACL or a Windows handle-relative SQLite VFS.
             forbidden = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH}
+            protected_pragmas = {
+                "writable_schema", "journal_mode", "trusted_schema",
+                "temp_store", "synchronous", "locking_mode",
+                "wal_autocheckpoint", "journal_size_limit", "cache_size",
+                "mmap_size", "read_uncommitted", "secure_delete",
+                "page_size", "auto_vacuum",
+            }
+            # These PRAGMAs can alter data/files even when no value is passed.
+            side_effect_pragmas = {
+                "wal_checkpoint", "incremental_vacuum", "optimize",
+            }
             def authorize(action, arg1, arg2, db_name, trigger):
                 if action in forbidden:
                     return sqlite3.SQLITE_DENY
-                if (action == sqlite3.SQLITE_PRAGMA
-                        and str(arg1).lower() in {"writable_schema", "journal_mode",
-                                                   "trusted_schema", "temp_store"}
-                        and arg2 is not None):
-                    return sqlite3.SQLITE_DENY
+                if action == sqlite3.SQLITE_PRAGMA:
+                    name = str(arg1).lower()
+                    if (name in side_effect_pragmas or
+                            (name in protected_pragmas and arg2 is not None)):
+                        return sqlite3.SQLITE_DENY
                 return sqlite3.SQLITE_OK
             db.set_authorizer(authorize)
             verified = self._sqlite_guard()
