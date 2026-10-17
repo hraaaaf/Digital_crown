@@ -3,6 +3,7 @@ import base64
 import errno
 import json
 import sqlite3
+from contextlib import closing
 from unittest.mock import patch
 import hashlib
 import zlib
@@ -180,13 +181,14 @@ class GatewayTests(unittest.TestCase):
             watch.mkdir()
             private.mkdir()
             db_file = private / "acquisitions.sqlite3"
-            with sqlite3.connect(db_file) as db:
+            with closing(sqlite3.connect(db_file)) as db:
                 db.execute("CREATE TABLE device_scope(singleton INTEGER PRIMARY KEY)")
+                db.commit()
             # Existing incompatible schema makes the scope INSERT fail AFTER
             # the CREATE statements; executescript used to persist partial DDL.
             with self.assertRaises(sqlite3.OperationalError):
                 HotFolder(Config("invalidscope", "station", watch, private, b"k" * 32))
-            with sqlite3.connect(db_file) as db:
+            with closing(sqlite3.connect(db_file)) as db:
                 names = {row[0] for row in db.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 )}
