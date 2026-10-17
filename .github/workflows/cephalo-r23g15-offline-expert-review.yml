@@ -1,0 +1,82 @@
+name: R23-G15 Offline Blinded Expert A/B Intake (experimental)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g15-offline-expert-review.yml'
+      - 'scripts/cephalo_r23g15_offline_independent_review.py'
+      - 'audit/cephalo_r23g15_contract_tests/**'
+      - 'docs/audits/CEPHALO_R23G15_OFFLINE_EXPERT_REVIEW_HANDOFF.md'
+      - 'docs/audits/schemas/cephalo_r23g14_six_hold_expert_adjudication_v1.json'
+      - 'docs/audits/schemas/cephalo_r23g13_source_specific_landmark_guides_v1.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-real-people-synthetic-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact HEAD and source identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test 13 sensitive-input / blind separation and no-go guards
+        run: python -m unittest discover -s audit/cephalo_r23g15_contract_tests -p 'test_*.py' -v
+      - name: Build two offline forms OUTSIDE repository
+        run: |
+          python -m scripts.cephalo_r23g15_offline_independent_review prepare --private-output-dir /tmp/dc-g15-private-synthetic
+          test -f /tmp/dc-g15-private-synthetic/A/independent_review.html
+          test -f /tmp/dc-g15-private-synthetic/B/independent_review.html
+          test ! -e docs/audits/G15_REAL_REVIEW_ANSWERS.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install isolated browser only, no app runtime
+        run: |
+          npm install --prefix /tmp/dc-g15-browser-deps --no-audit --no-fund playwright@1.55.0
+          /tmp/dc-g15-browser-deps/node_modules/.bin/playwright install --with-deps chromium
+      - name: Real mobile 390x844 / desktop 1280x900 synthetic A/B form and download
+        env:
+          G15_PLAYWRIGHT_MODULE: /tmp/dc-g15-browser-deps/node_modules/playwright
+          G15_PRIVATE_REVIEW_DIR: /tmp/dc-g15-private-synthetic
+          G15_SYNTHETIC_EVIDENCE_DIR: /tmp/dc-g15-synthetic-proof
+        run: node audit/cephalo_r23g15_contract_tests/g15_two_offline_forms_e2e.cjs
+      - name: Compare TWO SYNTHETIC drafts, require disagreement and reject clinical promotion
+        run: |
+          python -m scripts.cephalo_r23g15_offline_independent_review compare \
+            --review-a /tmp/dc-g15-synthetic-proof/synthetic_completed_A.json \
+            --review-b /tmp/dc-g15-synthetic-proof/synthetic_completed_B.json \
+            --aggregate-out /tmp/dc-g15-synthetic-proof/G15_REDACTED_SYNTHETIC_AGGREGATE.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('/tmp/dc-g15-synthetic-proof/G15_REDACTED_SYNTHETIC_AGGREGATE.json').read_text())
+          assert report['six_cases_compared']==6
+          assert report['status_disagreement_count']==1
+          assert report['clinically_unlocked_hold_count']==0
+          assert report['actual_signatures_verified']==0
+          assert report['clinical_release'] is False
+          assert report['status']=='STRUCTURE_COMPARISON_ONLY__EXTERNAL_HUMAN_GOVERNANCE_REQUIRED'
+          print('G15 SYNTHETIC NONCLINICAL INDEPENDENT-FORM CONTRACT PASS; six HOLD remain.')
+          PY
+      - name: Upload ONLY sanitized synthetic aggregate and labeled demonstration screenshot
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cephalo-r23g15-synthetic-offline-review-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            /tmp/dc-g15-synthetic-proof/G15_REDACTED_SYNTHETIC_AGGREGATE.json
+            /tmp/dc-g15-synthetic-proof/G15_SYNTHETIC_FORM_NONCLINICAL_1280x900.png
+            /tmp/dc-g15-synthetic-proof/READ_ME_SYNTHETIC_ONLY.txt
+          retention-days: 30
+          if-no-files-found: error
