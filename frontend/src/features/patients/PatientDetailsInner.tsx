@@ -137,6 +137,7 @@ export const PatientDetails = () => {
   const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotifSummary[]>([]);
   const [inlineAdvice, setInlineAdvice] = useState<{ patientId: string; advice: PatientNextBestAction } | null>(null);
   const lastEditingDoc = useRef(null);
+  const patientFetchSerial = useRef(0);
   const flowContentRef = useRef<HTMLElement>(null);
   const flowHandoff = useFlowHandoff();
   const initialFlowSurface = useRef(true);
@@ -181,21 +182,26 @@ export const PatientDetails = () => {
 
   const fetchPatient = useCallback(async () => {
     if (!id) return;
+    const serial = ++patientFetchSerial.current;
     try {
       setFetchError(false);
       if (!cachedPatient) setLoading(true);
       const response = await api.get(`/patients/${id}`);
-      setPatient(response.data);
+      // A response for patient A must never overwrite patient B after navigation.
+      if (serial === patientFetchSerial.current) setPatient(response.data);
     } catch (error) {
+      if (serial !== patientFetchSerial.current) return;
       console.error('❌ Erreur chargement patient:', error);
       setFetchError(true);
     } finally {
-      setLoading(false);
+      if (serial === patientFetchSerial.current) setLoading(false);
     }
   }, [id, cachedPatient]);
 
   useEffect(() => {
-    fetchPatient();
+    void fetchPatient();
+    // Also invalidate pending results on unmount and before a new patient fetch.
+    return () => { patientFetchSerial.current += 1; };
   }, [fetchPatient]);
 
   useEffect(() => {
