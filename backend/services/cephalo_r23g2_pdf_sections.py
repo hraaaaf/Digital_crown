@@ -56,6 +56,7 @@ def project_r23g2_pdf_sections(
                     or not key.startswith("M_") or key in seen
                     or row.get("source_contract") != profile_id
                     or row.get("classification_authority") is not False
+                    or not isinstance(row.get("contract_state"), str)
                     or state not in _STATES):
                     raise ValueError("noncanonical, duplicated or unordered row")
                 seen.add(key)
