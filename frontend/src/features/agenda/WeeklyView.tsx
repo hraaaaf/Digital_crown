@@ -4,6 +4,7 @@ import { RefreshCw, Plus, Bell, BellOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 import { AgendaModal } from './AgendaModal';
+import { clinicCalendarDay, clinicAppointmentFormFields } from './agendaClinicLocalDate';
 import type { Appointment, AppointmentStatus } from './DailyView';
 import { formatScheduleSummary, getDaySchedule, getExceptionForDate, getWeekBounds, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
 import { PatientAvatar } from '../patients/components/PatientAvatar';
@@ -77,15 +78,13 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
   const fetchAppointments = async () => {
     setLoading(true);
     try {
-      const start = new Date(weekDays[0]);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(weekDays[6]);
-      end.setHours(23, 59, 59, 999);
+      const firstDay = clinicCalendarDay(weekDays[0]);
+      const lastDay = clinicCalendarDay(weekDays[6]);
 
       const res = await api.get('/appointments/', {
         params: {
-          start_date: start.toISOString(),
-          end_date: end.toISOString()
+          start_date: `${firstDay}T00:00:00`,
+          end_date: `${lastDay}T23:59:59.999999`
         }
       });
       setAppointments(res.data);
@@ -137,8 +136,8 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
           const exception = getExceptionForDate(date, exceptions);
           const open = isDateOpen(date, agendaSettings, exceptions);
           const dayAppointments = appointments
-            .filter((appt) => new Date(appt.datetime_start).toDateString() === date.toDateString())
-            .sort((a, b) => new Date(a.datetime_start).getTime() - new Date(b.datetime_start).getTime());
+            .filter((appt) => clinicAppointmentFormFields(appt.datetime_start).date === clinicCalendarDay(date))
+            .sort((a, b) => a.datetime_start.localeCompare(b.datetime_start));
           return (
             <div key={date.toISOString()} className={cn("rounded-2xl border p-4 shadow-sm", open ? "bg-white border-slate-100" : "bg-slate-100/80 border-slate-200")}>
               <div className="flex items-start justify-between gap-3">
@@ -166,7 +165,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
                     <span className="block text-xs font-bold opacity-75 mt-0.5">
                       {appt.scheduling_type && appt.scheduling_type !== 'EXACT_TIME'
                         ? appt.scheduling_type === 'MORNING' ? 'Matin' : appt.scheduling_type === 'AFTERNOON' ? 'Après-midi' : 'Toute la journée'
-                        : new Date(appt.datetime_start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        : clinicAppointmentFormFields(appt.datetime_start).time}
                       {appt.motif ? ` · ${appt.motif}` : ''}
                     </span>
                   </button>
@@ -269,12 +268,10 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
                 
                 {/* Rendu des rendez-vous exacts pour ce jour */}
                 {appointments.filter(appt => 
-                  new Date(appt.datetime_start).toDateString() === date.toDateString() &&
+                  clinicAppointmentFormFields(appt.datetime_start).date === clinicCalendarDay(date) &&
                   (!appt.scheduling_type || appt.scheduling_type === 'EXACT_TIME')
                 ).map(appt => {
-                  const d = new Date(appt.datetime_start);
-                  const h = d.getHours();
-                  const m = d.getMinutes();
+                  const [h, m] = clinicAppointmentFormFields(appt.datetime_start).time.split(':').map(Number);
                   const top = (h - startHour) * 80 + (m / 60) * 80;
                   const height = (appt.duration_minutes / 60) * 80;
 
