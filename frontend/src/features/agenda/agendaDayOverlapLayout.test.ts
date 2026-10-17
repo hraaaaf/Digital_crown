@@ -9,7 +9,7 @@ describe('LOT07 P2 Agenda day visual-only lane safety',()=>{
     expect(result.get(212)).toMatchObject({lanes:1,lane:0,widthPercent:100});
   });
   it('never overlays a chained sequence and keeps nonoverlapping items full width',()=>{
-    const result=layoutAgendaDayOverlaps([mk(1,'09:00',60),mk(2,'09:45',30),mk(3,'10:00',15),mk(4,'11:00',30)]);
+    const result=layoutAgendaDayOverlaps([mk(1,'09:00',60),mk(2,'09:45',30),mk(3,'09:50',15),mk(4,'11:00',30)]);
     expect(result.get(1)?.lanes).toBe(3);
     expect(result.get(2)?.lanes).toBe(3);
     expect(result.get(3)?.lanes).toBe(3);
