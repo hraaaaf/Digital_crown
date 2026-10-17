@@ -220,6 +220,12 @@ def exercise():
             assert_case("PC_REPLAY_VS_PC_CREATE",race(
                 (18061,"POST","/lab/pc/create","A",{"slot_ref":ref}),pc_op),
                 [200,409],t,root)
+            with database.engine.connect() as con:
+                consumed=con.scalar(text(
+                    "SELECT COUNT(*) FROM patient_companion_agenda_slots "
+                    "WHERE public_id=:ref AND consumed_at IS NOT NULL"
+                ),{"ref":ref})
+            assert consumed==1,("PC_SLOT_CONSUMPTION",consumed)
             clear()
             assert_case("FRONTDESK_REQUEST_VS_REQUEST",race(
                 (18061,*front(t)[1:]),front(t)),[200,409],t,root)
@@ -270,6 +276,39 @@ def exercise():
         legacy=request(18062,"POST","/lab/pc/create","A",{"slot_ref":ref})
         assert legacy[0]==409 and len(rows_at(t,root))==1,legacy
         print("F05_MP_LEGACY_NULL",legacy[0],"ROWS",len(rows_at(t,root)),flush=True)
+        for inactive in (models.AppointmentStatus.REFUSE,models.AppointmentStatus.EXPIRE):
+            clear()
+            with SessionLocal() as db:
+                db.add(models.Appointment(patient_name="INACTIVE",employer_id=root,
+                           datetime_start=datetime.fromisoformat(t),duration_minutes=30,
+                           praticien_id=None,status=inactive,
+                           scheduling_type=models.SchedulingType.EXACT_TIME))
+                db.commit()
+            allowed=request(*book(t))
+            assert allowed[0]==200 and len(rows_at(t,root))==2,(inactive,allowed)
+            print("F05_MP_INACTIVE",inactive.value,"HTTP",allowed[0],flush=True)
+        # Controlled PostgreSQL 40P01: two separate sessions, inverted locks.
+        # Verify failed transaction rollback releases its advisory lock.
+        sync=Barrier(2)
+        def deadlock_worker(first,second):
+            from sqlalchemy.exc import OperationalError
+            with SessionLocal() as db:
+                db.execute(text("SELECT pg_advisory_xact_lock(:k)"),{"k":first})
+                sync.wait(timeout=8)
+                try:
+                    db.execute(text("SELECT pg_advisory_xact_lock(:k)"),{"k":second})
+                    outcome="ACQUIRED"
+                except OperationalError as exc:
+                    outcome=getattr(exc.orig,"sqlstate","UNKNOWN")
+                finally:
+                    db.rollback()
+                return outcome
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures=[pool.submit(deadlock_worker,90107,90108),
+                     pool.submit(deadlock_worker,90108,90107)]
+            outcomes=[f.result(timeout=18) for f in futures]
+        assert sorted(outcomes)==["40P01","ACQUIRED"],outcomes
+        print("F05_MP_DEADLOCK",outcomes,"ROLLBACK_RELEASED",flush=True)
         print("F05_MP_AUTH_MODE","LAB_HEADER_OVERRIDE_NOT_REAL_JWT",flush=True)
         print("F05_MP_PC_MODE","DIRECT_DOMAIN_ADAPTER_NOT_REMOTE_RECEIPT",flush=True)
         print("F05_MP_RESULT","LIMITED_PASS_NOT_F05_CERTIFICATION",flush=True)
