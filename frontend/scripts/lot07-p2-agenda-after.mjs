@@ -81,9 +81,22 @@ async function runMatrix(page,theme,width,height,zoom=false){
   await attachFixture(page,violations);
   await page.clock.setFixedTime(new Date(fixtureNow));
   await page.goto('http://127.0.0.1:4217/lot07-p2-after.html?theme='+theme,{waitUntil:'domcontentloaded',timeout:60000});
-  await page.getByRole('heading',{name:'Agenda',exact:true}).waitFor({state:'visible',timeout:45000});
-  const css=await page.evaluate(()=>({width:innerWidth,height:innerHeight,dpr:devicePixelRatio,outerWidth,scale:visualViewport?.scale??1,
-    htmlTheme:document.documentElement.dataset.theme||'',bodyTheme:document.body.dataset.theme||''}));
+  // Vite's first-time dependency optimizer may force ONE automatic reload
+  // after rendering Agenda. Retry only the transient destroyed JS context,
+  // with an explicit bound; never swallow product exceptions or failed checks.
+  let css;
+  for(let attempt=0;attempt<3;attempt++){
+    await page.getByRole('heading',{name:'Agenda',exact:true}).waitFor({state:'visible',timeout:45000});
+    try{
+      css=await page.evaluate(()=>({width:innerWidth,height:innerHeight,dpr:devicePixelRatio,outerWidth,scale:visualViewport?.scale??1,
+        htmlTheme:document.documentElement.dataset.theme||'',bodyTheme:document.body.dataset.theme||''}));
+      break;
+    }catch(error){
+      if(!/Execution context was destroyed/i.test(String(error))||attempt===2)throw error;
+      await page.waitForLoadState('domcontentloaded',{timeout:30000});
+    }
+  }
+  if(!css)throw Error('P2 Agenda viewport not stable after bounded Vite reload retries');
   if((theme==='dark')!==(css.bodyTheme==='dark'&&css.htmlTheme==='dark'))throw Error('Dark visual baseline not activated '+JSON.stringify(css));
   if(zoom&&!(css.dpr>=1.9&&css.width>=600&&css.width<=850&&css.outerWidth>=1200&&css.scale===1))throw Error('Real native 200% zoom not proven '+JSON.stringify(css));
   const cdp=zoom?await page.context().newCDPSession(page):null;
