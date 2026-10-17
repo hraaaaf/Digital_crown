@@ -294,6 +294,28 @@ def exercise():
                         [200,200],t,root)
             assert len(rows_at(t))==2
         print("F05_MP_TOTAL_RACES",90,flush=True)
+        # Carry over the separate #945 regression: status transitions must
+        # serialize across different FastAPI processes on the same cabinet.
+        # These are separate supplemental races, not the original 90.
+        for verb, inactive in (("reject", models.AppointmentStatus.REFUSE),
+                               ("expire", models.AppointmentStatus.EXPIRE)):
+            clear()
+            pending=request(*front(t))
+            assert pending[0]==200,("FRONTDESK_STATUS_SETUP",pending)
+            pending_id=pending[1]["id"]
+            confirm=(18061,"POST",f"/api/appointments/{pending_id}/confirm","A",{})
+            competing=(18062,"POST",f"/api/appointments/{pending_id}/{verb}","A",{})
+            outcomes=race(confirm,competing)
+            assert sorted(x[0] for x in outcomes)==[200,409],(verb,outcomes)
+            with SessionLocal() as db:
+                persisted=db.get(models.Appointment,pending_id)
+                expected=(models.AppointmentStatus.CONFIRME
+                          if outcomes[0][0]==200 else inactive)
+                assert persisted.status==expected,(verb,outcomes,persisted.status,expected)
+            print("F05_MP_STATUS_RACE","CONFIRM_VS_"+verb.upper(),
+                  "HTTP",sorted(x[0] for x in outcomes),
+                  "PERSISTED",persisted.status.value,flush=True)
+        print("F05_MP_ADDITIONAL_STATUS_RACES",2,flush=True)
         clear()
         with SessionLocal() as db:
             ref=slot(db,root,root,t)
