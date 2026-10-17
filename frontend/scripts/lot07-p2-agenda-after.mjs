@@ -296,6 +296,17 @@ try {
         waitUntil:'domcontentloaded',timeout:60000
       });
       await page.getByRole('heading',{name:'Agenda',exact:true}).waitFor({state:'visible',timeout:45000});
+      const timezoneEvidence=await page.evaluate(()=>{
+        const local=new Date('2026-10-16T23:20:00.000Z');
+        return {zone:Intl.DateTimeFormat().resolvedOptions().timeZone,
+          localDate:local.getFullYear()+'-'+String(local.getMonth()+1).padStart(2,'0')+'-'+String(local.getDate()).padStart(2,'0'),
+          localHour:local.getHours(),localMinute:local.getMinutes(),utcOffset:local.getTimezoneOffset()};
+      });
+      if(timezoneEvidence.zone!=='Africa/Casablanca'
+        ||timezoneEvidence.localDate!=='2026-10-17'
+        ||timezoneEvidence.localHour!==0||timezoneEvidence.localMinute!==20
+        ||timezoneEvidence.utcOffset!==-60)
+        throw Error('P2 actual browser timezone did not represent Casablanca midnight '+JSON.stringify({width,timezoneEvidence}));
       await page.getByRole('button',{name:'Mois',exact:true}).click();
       const view=page.getByTestId('agenda-month-view');
       await view.waitFor({state:'visible',timeout:30000});
@@ -307,7 +318,7 @@ try {
         throw Error('P2 create-new at Casablanca midnight shows wrong date '+JSON.stringify({width,date}));
       if(violations.some(v=>v.startsWith('unexpected mutation')))
         throw Error('Midnight check attempted data mutation '+JSON.stringify({width,violations}));
-      midnightResults.push({width,clinicTime:'2026-10-17T00:20:00+01:00',selectedDate:date,passed:true});
+      midnightResults.push({width,clinicTime:'2026-10-17T00:20:00+01:00',selectedDate:date,timezoneEvidence,passed:true});
     }finally{await context.close();}
   }
 }finally{await browser.close();}
