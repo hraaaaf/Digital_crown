@@ -8,7 +8,7 @@ export interface CephaloMetricFocus {
   constructionIds?: string[];
   sourceContracts?: string[];
   availabilityGate?: string;
-  authority?: 'LOT06_EXECUTABLE_MEASUREMENT_CONTRACT';
+  authority?: 'LOT06_EXECUTABLE_MEASUREMENT_CONTRACT' | 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1';
 }
 
 export const CEPHALO_ANALYSIS_CHANGE_EVENT = 'digital-crown:cephalo-analysis';
