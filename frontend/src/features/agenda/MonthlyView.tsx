@@ -19,7 +19,14 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
 
   const handleDayClick = (day: Date) => {
     setEditingAppointment(null);
-    setModalDate(day);
+    // A calendar day is a *local* clinic date, not a UTC midnight instant.
+    // AgendaModal currently serializes selectedDate with toISOString().
+    // Passing local midnight would select the PREVIOUS day in Africa/Casablanca.
+    // Noon preserves the requested local calendar date without changing
+    // backend contracts or global timezone logic (A5 remains out of scope).
+    const localCalendarDate = new Date(day);
+    localCalendarDate.setHours(12, 0, 0, 0);
+    setModalDate(localCalendarDate);
     setIsModalOpen(true);
   };
 
