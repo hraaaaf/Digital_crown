@@ -70,7 +70,7 @@ afterEach(() => {
 function simulateViewport(wide: boolean) {
   const matches = wide;
   vi.stubGlobal('matchMedia', vi.fn(() => ({
-    matches, media: '(min-width: 1280px)', addEventListener: vi.fn(),
+    matches, media: '(min-width: 1600px)', addEventListener: vi.fn(),
     removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(),
   })));
 }
@@ -158,6 +158,19 @@ describe('CB-01 Associate Sidecar: double gating and no hidden duplicate', () =>
     expect(screen.getByText('Page content')).toBeTruthy();
   });
 
+  it('preserves the floating assistant at the 1440px clinical safety breakpoint', () => {
+    vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    // Only >=1600 CSS px is allowed to reduce the clinical workspace.
+    simulateViewport(false);
+    const view=renderAt('/patients/42');
+    fireEvent.click(screen.getByRole('button',{name:'Ouvrir CrownBot'}));
+    expect(view.container.querySelector('[data-cb01-associate-sidecar]')).toBeNull();
+    expect(view.container.querySelectorAll('[data-ux1-c-crownbot-overlay]')).toHaveLength(1);
+    expect(screen.getByText('Page content')).toBeTruthy();
+    expect(screen.getAllByRole('button',{name:'Close CrownBot'})).toHaveLength(1);
+  });
+
   it('renders exactly one accessible reflow sidecar at desktop and can collapse', () => {
     vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
     vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
@@ -224,13 +237,13 @@ describe('CB-01 keyboard and reflow safeguards', () => {
 
 
 describe('CB-01 draft survives responsive 200% reflow', () => {
-  it('keeps the exact mounted chat instance and draft when crossing 1280px both ways', () => {
+  it('keeps the exact mounted chat instance and draft when crossing the 1600px sidecar threshold both ways', () => {
     vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
     vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
     let notify: (() => void) | undefined;
     const query = {
       matches: true,
-      media: '(min-width: 1280px)',
+      media: '(min-width: 1600px)',
       addEventListener: vi.fn((_name: string, listener: () => void) => { notify = listener; }),
       removeEventListener: vi.fn(),
     };
