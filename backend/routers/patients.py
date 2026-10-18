@@ -1482,13 +1482,16 @@ def generate_cephalo_pdf(
             # reissue the same study revision during a schema rollout.
             historical = db.query(models.DocumentArchive).filter(
                 models.DocumentArchive.patient_id == patient_id,
-                models.DocumentArchive.analysis_id == selected.id,
+                or_(
+                    models.DocumentArchive.analysis_id == selected.id,
+                    models.DocumentArchive.analysis_id.is_(None),
+                ),
                 models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
             ).all()
             for previous in historical:
                 clinical = previous.clinical_data or {}
                 old_revision = clinical.get("cephalo_analysis_revision") if isinstance(clinical, dict) else None
-                if type(old_revision) is not int or old_revision == revision:
+                if previous.analysis_id is None or type(old_revision) is not int or old_revision == revision:
                     db.rollback()
                     raise HTTPException(
                         status_code=409,
