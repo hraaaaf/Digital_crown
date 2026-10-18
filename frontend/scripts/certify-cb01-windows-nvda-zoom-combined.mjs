@@ -269,6 +269,20 @@ try {
       if(Object.values(report.observedAccessibleControls).every(Boolean)) break;
     }
   }
+  // NVDA's initial virtual cursor is not guaranteed to start before both tabs.
+  // Exercise genuine reverse NVDA navigation before declaring a missing control;
+  // this preserves the strict 5/5 spoken role+name oracle (no DOM/ARIA fallback).
+  if (!Object.values(report.observedAccessibleControls).every(Boolean)) {
+    for (let n=0; n<35; n++) {
+      await nvda.previous();
+      report.keyboardActions.push('NVDA.previous');
+      if (n%3===2) {
+        await captureSpeech('previous-'+(n+1));
+        if (Object.values(report.observedAccessibleControls).every(Boolean)) break;
+      }
+    }
+    await captureSpeech('previous-final');
+  }
   // NVDA-specific form navigation if virtual-cursor reading did not reach
   // all three CTA controls. Output still comes from the real NVDA speech log.
   if(!Object.values(report.observedAccessibleControls).every(Boolean)) {
