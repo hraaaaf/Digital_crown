@@ -45,7 +45,7 @@ second_attempt=threading.Event()
 def worker_first():
     with psycopg2.connect(dburl) as db:
         with db.cursor() as c:
-            c.execute("INSERT INTO bench_p2ter_atomic.claims (patient_id,analysis_id,revision) VALUES (1717,2727,2)")
+            c.execute("INSERT INTO bench_p2ter_atomic.claims (patient_id,analysis_id,revision,created_at) VALUES (1717,2727,2,now())")
             first_done.set()
             assert second_attempt.wait(timeout=10)
             time.sleep(.15)
@@ -59,7 +59,7 @@ def worker_second():
             second_attempt.set()
             try:
                 c.execute("SET LOCAL lock_timeout = '8s'")
-                c.execute("INSERT INTO bench_p2ter_atomic.claims(patient_id,analysis_id,revision) VALUES(1717,2727,2)")
+                c.execute("INSERT INTO bench_p2ter_atomic.claims(patient_id,analysis_id,revision,created_at) VALUES(1717,2727,2,now())")
             except errors.UniqueViolation:
                 db.rollback()
                 return "SQLSTATE_23505_REJECTED"
