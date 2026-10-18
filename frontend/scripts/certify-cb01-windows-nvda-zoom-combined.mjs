@@ -205,8 +205,10 @@ try {
   report.browserVersion=browser.browser()?.version()||'chromium-persistent';
   zoomWorker=browser.serviceWorkers()[0]||await browser.waitForEvent('serviceworker',{timeout:20000});
   if (!zoomWorker.url().startsWith('chrome-extension://')) throw new Error('REFUSED: native zoom extension not running');
-  for(const unused of browser.pages())await unused.close();
-  const page=await browser.newPage();
+  // Keep the initial tab: in a headed persistent Chromium profile, closing its
+  // last tab can terminate the entire browser before newPage() is called.
+  // Reuse it for the same isolated lab URL, rather than weakening any evidence.
+  const page=browser.pages()[0] || await browser.newPage();
   page.on('request',req=>{
     const p=new URL(req.url()).pathname;
     if(req.method()!=='GET'
