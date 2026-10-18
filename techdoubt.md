@@ -4,6 +4,10 @@
 
 ### FUE-I priorisé au lieu des revues A/B — 2026-10-18 (P2ter++)
 
+- **Inspection visuelle artefact CI initial** [#39171226754](https://github.com/hraaaaf/Digital_crown/actions/runs/39171226754) au SHA `c5982c5` : 7 contrôles techniques PASS à 1280×900 et 1600×1000, deux PDF et rejeu officiel vérifiés. MAIS les captures `before-hub` montrent un écran blanc encore non monté et `after-login` un login transitoire malgré l'URL dashboard. Défaut **harness/preuve**, pas échec produit confirmé. Commit `ce75d11` attend désormais la vraie tuile Hub et le titre Dashboard `Bonjour,` avant capture, et ajoute un BEFORE du bouton PDF au même scroll/viewport que l'AFTER. Certifier les nouvelles captures sur le HEAD courant avant tout score final.
+- **FUE-I non exhaustive — navigation** : le parcours FUE quitte Dashboard vers la fiche patient en `page.goto()` (deep-link synthétique), pas par découverte du patient et du module à travers les vrais menus. Le succès CI ne certifie donc ni découvrabilité du module ni onboarding clinique complet depuis zéro. La note /10 doit limiter explicitement sa portée. Les avertissements cliniques « à compléter » peuvent coexister avec l'archivage documentaire, qui ne constitue pas une validation clinique.
+
+
 - Choix explicite utilisateur : **First User Experience** du workflow Céphalométrie P2ter++ en premier ; les deux revues A/B restent **non effectuées / non certifiées**, pas annulées en tant que gate de closeout.
 - **Correction explicite du propriétaire produit : Céphalométrie n'est pas prévue pour mobile.** Le sélecteur responsive présent dans le code ne constitue pas un engagement de support. Aucune certification ou exigence mobile/tablette dans ce FUE P2ter++.
 - Protocole FUE-I expérimental et harness sur la même PR #957, navigateur vierge sur **1280×900 et 1600×1000, exclusivement desktop** : ouvrir une étude synthétique existante, PDF brouillon téléchargeable avec identité/révision, puis archive officielle rejouée; captures BEFORE et AFTER du même viewport, matrice PASS/FAIL/NOT_TESTED et preuve d'échec enregistrées, aucune notation UX /10 inventée.
