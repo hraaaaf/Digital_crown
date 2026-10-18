@@ -112,6 +112,23 @@ def already_archived_pdf(
             status_code=409,
             detail="Une archive existe avec un autre contexte clinique : changement de révision requis",
         )
+    # Historic data may already contain duplicate active rows. Do not present
+    # either as the unique official PDF for this study/revision.
+    active_same_study = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == row.patient_id,
+        models.DocumentArchive.analysis_id == row.analysis_id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+    ).all()
+    same_revision = [
+        other for other in active_same_study
+        if isinstance(other.clinical_data, dict)
+        and other.clinical_data.get("cephalo_analysis_revision")
+        == row.clinical_data["cephalo_analysis_revision"]
+    ]
+    if len(same_revision) != 1 or same_revision[0].id != row.id:
+        raise HTTPException(status_code=409, detail="Archives officielles ambiguës pour cette révision")
+
     prefix = "static/archives/"
     if not row.file_path or not row.file_path.startswith(prefix):
         raise HTTPException(status_code=409, detail="Chemin d'archive incohérent")
@@ -129,7 +146,7 @@ def already_archived_pdf(
     return file_path, content
 
 
-def verified_official_archive_bytes(row: models.DocumentArchive) -> bytes:
+def verified_official_archive_bytes(row: models.DocumentArchive, db: Session) -> bytes:
     """Read one authoritative official PDF snapshot, fail-closed on provenance or disk tampering.
 
     All ordinary routes must serve these very bytes, not a deferred FileResponse
