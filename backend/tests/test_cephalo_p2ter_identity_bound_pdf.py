@@ -461,3 +461,68 @@ def test_failed_atomic_archive_releases_claim(
     assert db.query(models.CephaloArchiveClaim).filter(
         models.CephaloArchiveClaim.analysis_id == study.id,
     ).count() == 1
+
+
+def test_db_unique_claim_two_independent_sqlite_connections_concurrently(tmp_path):
+    """Two database sessions/process-equivalent connections, not shared TestClient.
+
+    A first transaction holds a still-uncommitted claim while another independent
+    connection attempts the same patient/study/revision. The database unique
+    constraint must reject the second after the first commits.
+    """
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import sessionmaker
+
+    engine = create_engine(
+        "sqlite:///" + str(tmp_path / "atomic-claim.sqlite"),
+        connect_args={"timeout": 5},
+    )
+    models.CephaloArchiveClaim.__table__.create(bind=engine)
+    Session = sessionmaker(bind=engine)
+    first_flushed = threading.Event()
+    second_attempted = threading.Event()
+
+    def first():
+        with Session() as session:
+            session.add(models.CephaloArchiveClaim(
+                patient_id=1001, analysis_id=2001, revision=2,
+            ))
+            session.flush()
+            first_flushed.set()
+            assert second_attempted.wait(timeout=5)
+            # The other connection attempts while the first transaction is
+            # uncommitted; releasing the lock lets its UNIQUE check finish.
+            import time
+            time.sleep(0.15)
+            session.commit()
+            return "COMMITTED"
+
+    def second():
+        assert first_flushed.wait(timeout=5)
+        with Session() as session:
+            session.add(models.CephaloArchiveClaim(
+                patient_id=1001, analysis_id=2001, revision=2,
+            ))
+            second_attempted.set()
+            try:
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+                return "UNIQUE_REJECTED"
+            session.commit()
+            return "UNSAFE_DUPLICATE"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures=[pool.submit(first),pool.submit(second)]
+        assert sorted(f.result(timeout=12) for f in futures)==[
+            "COMMITTED", "UNIQUE_REJECTED",
+        ]
+
+    with Session() as session:
+        assert session.query(models.CephaloArchiveClaim).filter_by(
+            patient_id=1001,analysis_id=2001,revision=2,
+        ).count()==1
+    engine.dispose()
