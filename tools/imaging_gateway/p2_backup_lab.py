@@ -104,6 +104,18 @@ def _inspect(snapshot, key):
             "spool": inventory, "rows": len(rows)}
 
 
+def _ledger_fingerprint(collector):
+    """Detect observed cooperative or accidental DB writes during snapshot."""
+    with collector._db() as db:
+        state = [
+            db.execute("SELECT * FROM device_scope ORDER BY singleton").fetchall(),
+            db.execute("SELECT * FROM items ORDER BY id").fetchall(),
+            db.execute("SELECT * FROM audit ORDER BY id").fetchall(),
+        ]
+    raw = json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
 def verify_snapshot(snapshot, key):
     """Read-only, keyed manifest and ciphertext check; no restore side effects."""
     if type(key) is not bytes or len(key) != 32:
@@ -129,7 +141,8 @@ def snapshot_quiescent_lab(root, destination, key):
     if type(key) is not bytes or len(key) != 32:
         raise B02SnapshotError("B02_KEY")
     fixture = _root(root)
-    if (fixture / FIXTURE).read_text(encoding="utf-8") != FIXTURE_SIGNATURE:
+    if (_is_unsafe_path_component(fixture / FIXTURE) or
+            (fixture / FIXTURE).read_text(encoding="utf-8") != FIXTURE_SIGNATURE):
         raise B02SnapshotError("B02_FIXTURE")
     target = Path(destination).absolute()
     if (not re.fullmatch(r"[A-Za-z0-9_-]{1,48}", target.name) or
@@ -152,6 +165,7 @@ def snapshot_quiescent_lab(root, destination, key):
         with collector._db() as live:
             blobs = {row[0] for row in live.execute("SELECT blob FROM items")}
         before = _inventory(private, blobs)
+        ledger_before = _ledger_fingerprint(collector)
         snapshots = fixture / "snapshots"
         if _is_unsafe_path_component(snapshots):
             raise B02SnapshotError("B02_UNSAFE_SNAPSHOT_ROOT")
@@ -167,6 +181,8 @@ def snapshot_quiescent_lab(root, destination, key):
             shutil.copy2(private / WITNESS, stage / WITNESS)
             if _inventory(private, blobs) != before:
                 raise B02SnapshotError("B02_SOURCE_CHANGED")
+            if _ledger_fingerprint(collector) != ledger_before:
+                raise B02SnapshotError("B02_LEDGER_CHANGED")
             descriptor = _inspect(stage, key)
             raw = json.dumps(descriptor, sort_keys=True, separators=(",", ":")).encode()
             (stage / "manifest.json").write_bytes(raw)
