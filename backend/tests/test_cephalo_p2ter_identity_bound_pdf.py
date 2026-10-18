@@ -674,3 +674,33 @@ def test_reconciliation_keeps_committed_pdf_on_ambiguous_transaction_outcome(
     assert claims[0].document_archive_id == rows[0].id
     stored = base / rows[0].file_path.removeprefix("static/archives/")
     assert stored.is_file() and stored.read_bytes().startswith(b"%PDF")
+
+
+def test_archive_claim_duplicate_error_classifier_never_mislabels_other_integrity_failures():
+    """Exact SQLite/PG unique key means 409; all other integrity violations do not."""
+    import sqlite3
+    from sqlalchemy.exc import IntegrityError
+    from types import SimpleNamespace
+    from backend.routers.patients import _is_same_cephalo_revision_archive_duplicate as matches
+
+    expected = (
+        "UNIQUE constraint failed: cephalo_archive_claims.patient_id, "
+        "cephalo_archive_claims.analysis_id, cephalo_archive_claims.revision"
+    )
+    def sql_error(msg):
+        return IntegrityError("INSERT INTO cephalo_archive_claims", {}, sqlite3.IntegrityError(msg))
+
+    assert matches(sql_error(expected)) is True
+    assert matches(sql_error("FOREIGN KEY constraint failed")) is False
+    assert matches(sql_error("UNIQUE constraint failed: document_archives.id")) is False
+    assert matches(sql_error("NOT NULL constraint failed: cephalo_archive_claims.revision")) is False
+
+    def pg_error(code, constraint):
+        orig = RuntimeError("synthetic psycopg2 error")
+        orig.pgcode = code
+        orig.diag = SimpleNamespace(constraint_name=constraint)
+        return IntegrityError("INSERT", {}, orig)
+
+    assert matches(pg_error("23505", "uq_cephalo_archive_claim_study_revision")) is True
+    assert matches(pg_error("23505", "other_constraint")) is False
+    assert matches(pg_error("23503", "uq_cephalo_archive_claim_study_revision")) is False
