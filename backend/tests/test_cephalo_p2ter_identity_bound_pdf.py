@@ -247,6 +247,9 @@ def test_structural_consistency_failure_refuses_archive_without_writing_pdf(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 0
     assert list(tmp_path.glob("*.pdf")) == []
+    assert db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.analysis_id == study.id,
+    ).count() == 0
 
 
 def test_archive_failure_is_not_silenced(client, db, dentiste, monkeypatch, tmp_path):
