@@ -1,5 +1,12 @@
 # TECHDOUBT — Digital Crown
 
+## LOT05.7-B — 2026-10-18 — SQLite WAL lab ≠ preuve clinique de restauration
+
+**Status: OPEN / NO-GO real import.** Nouveau laboratoire standard-library, fichiers temporaires exclusivement fictifs, 100 patients + 200 RDV : vraie API SQLite backup et restauration sur copie distincte, preuve d'un WAL actif, crash de processus / rollback, replay de lot, empreinte SHA-256 du fichier et digest des lignes, FK composite cross-tenant. La CI exacte Linux/Windows 3.11/3.12 doit confirmer l'exécution du nouveau code, pas seulement le prototype local. Un éventuel cas symlink Windows `SKIP` laisse le risque reparse/junction non testé.
+
+**BLOCKERS opérationnels** : SQLCipher du cabinet, PostgreSQL réel / PG18, clés chiffrement et coffre docs, staging de copies autorisées, vraie restauration indépendante d'une copie représentative, Alembic complet et données médicales/financières/médias non concernés. La vérification du SHA attendue depuis une même source non signée n'est pas une preuve de provenance ; le simple contrôle `exists()` avant `os.replace()` est sujet aux races sous concurrence/NTFS reparse, ne certifie ni CAS atomique de restauration, ni crash électrique/fsync du répertoire, ni RPO/RTO. Un fichier SQLite fictif avec marqueur reste une fixture, **pas un adaptateur sûr de données réelles**. Tout branchement à l'API de production est interdit avant un nouveau contrat distinct et gates human/backup/tenant. Aucun import réel, fusion ou déploiement autorisé.
+
+
 ## LOT05.7-A — 2026-10-18 — Réserves import clinique et preuves insuffisantes
 
 **STATUS: OPEN / NO-GO**. L'évaluateur `legacy_import_certification_gate_v15.py` ne vérifie QUE la cohérence de métadonnées déclarées (digest, revision, compteurs, attestations auto-déclarées). Un opérateur malveillant peut inventer toutes les affirmations ; aucune authentification runtime, signature, staging source réel, attestation physique tenant, sauvegarde/restauration indépendante, rapport de dry-run réel, décision humaine ou autorisation de migration n'est établie par ce module. `claims_coherent=true` n'a AUCUNE valeur d'autorisation. La sérialisation du rapport et ses propriétés d'autorisation demeurent systématiquement False.
