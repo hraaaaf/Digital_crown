@@ -74,6 +74,10 @@ const ContextualToaster = () => {
   }, []);
 
   const patientCompact = /^\/patients(?:\/|$)/.test(location.pathname) && compactViewport;
+  const cephaloDesktop = !compactViewport &&
+    /^\\/patients\\/\\d+$/.test(location.pathname) &&
+    new URLSearchParams(location.search).get('tab') === 'radiology' &&
+    new URLSearchParams(location.search).get('radioTab') === 'cephalo';
 
   // Public wall must never inherit staff/application transient chrome.
   if (location.pathname === '/station/wall') return null;
@@ -87,7 +91,7 @@ const ContextualToaster = () => {
           borderRadius: '16px',
           fontWeight: 700,
           fontSize: '13px',
-          maxWidth: patientCompact ? 'calc(100vw - 24px)' : '420px',
+          maxWidth: patientCompact ? 'calc(100vw - 24px)' : cephaloDesktop ? '340px' : '420px',
         },
         success: { duration: 3000 },
         error: { duration: 5000 },
