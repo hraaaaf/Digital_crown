@@ -1,0 +1,24 @@
+# Digital Crown LOT05.7-C — preuve de restauration sur copies synthétiques isolées
+
+**Mission : 05.7-C uniquement ; état DRAFT.** Cette étape succède à #963 (cohérence de preuves, sans autoriser d’import) et #964 (SQLite WAL non chiffré, données fictives). Le nouveau laboratoire utilise **SQLCipher réellement chiffré** sur disque Windows/Linux et **PostgreSQL 18 avec les exécutables natifs `pg_dump -Fc` / `pg_restore --single-transaction`**, dans des environnements CI éphémères réservés au laboratoire. Il ne modifie aucun modèle, aucune API d’import, aucun schéma Alembic, aucune base client ni aucun écran.
+
+## Surface de preuve exacte
+
+**SQLCipher** : source créée sous `TemporaryDirectory` par le test ; clé *éphémère et fictive* générée pendant l’exécution, jamais un secret Cabinet ; 20 patients, 40 rendez-vous, 4 actes, 4 paiements et 2 références média fictives ; intégrité SQLCipher, FK composites tenant, empreintes des lignes et des octets. La source est fermée et son WAL checkpointé/retiré **avant copie binaire hors ligne**, puis un fichier indépendant est rouvert depuis un nouveau processus. Déchiffrement impossible avec clé incorrecte, corruption, mauvaise empreinte, donnée source modifiée, conflit d’identité inter-tenant et écrasement de destination refusés. **Ce n’est pas la sauvegarde en ligne SQLCipher de Cabinet ni une preuve du module BackupService.**
+
+**PostgreSQL 18** : container de service CI dédié (identité du container fixée, connexion loopback, utilisateur et base `lot05c_fake_*`, noms de bases uniques générés uniquement par le code, refus des noms arbitraires) ; base fictive autonome avec 2 praticiens, 100 patients, 200 rendez-vous, 10 actes, 10 paiements en centimes, 3 références média. Sauvegarde au format natif custom, restauration sur une **autre base fraîche**, vérification agrégée SHA, compte des relations et somme financière, tests de corruption/troncature, refus de FK croisée et de montants négatifs, contrôle de copie ancienne après modification source et refus de rejouer sur une cible non vide. Une archive média **entièrement fictive et distincte** est contrôlée par allowlist stricte, empreintes, correspondance exacte avec les références `media_refs` de la base PostgreSQL restaurée et refus d'une empreinte média modifiée, ainsi que refus traversal ; elle n’est pas un coffre média médical réel.
+
+## Isolation et gates de tests
+
+- `backend/tests/test_legacy_sql_057c_sqlcipher_offline_lab.py` exige `LOT05C_SQLCIPHER_SYNTHETIC_ONLY=1`, crée uniquement ses propres copies temporaires et n’accepte aucun chemin client, dump clinique ni secret de configuration de l’app.
+- `backend/tests/test_legacy_sql_057c_postgres_native_restore_lab.py` exige la variable `LOT05C_PG_SYNTHETIC_ONLY=1`, un service PostgreSQL 18 identifié par son ID Docker, des paramètres fixes (localhost, utilisateur et mot de passe *de test*), et des noms exclusivement `lot05c_fake_src_...` / `lot05c_fake_restore_...`. Il crée/supprime uniquement les bases qu’il vient de générer.
+- `.github/workflows/v15-05-7-c-isolated-restore.yml` doit être exécuté au **HEAD exact** avec les jobs Linux + Windows SQLCipher et Linux PG18. Aucun test `skip` admis ; les échecs sont des échecs. Aucun fichier de base, clé, média ni archive n’est téléchargé comme artifact.
+- Gate de diff : aucun changement au code runtime/DB, routeur migration, Alembic ou frontend. Donc **UI avant/après et feature mobile : sans objet** dans ce sous-lot test-only.
+
+## Limites non négociables
+
+Ce test ne certifie **pas** un clone du schéma Alembic `neo000000031` réel, les moteurs en situation de déploiement, SQLCipher en WAL actif ni SQLCipher `BackupService`/restauration assistée de production, ni une source de logiciel tiers. Aucun vrai document, radiographie, acte médical ou montant patient n’est traité. PostgreSQL conserve un schéma minimal représentatif, pas le vrai ensemble de tables et contraintes de Digital Crown. Les archives média ne sont pas chiffrées ni intégrées transactionnellement au snapshot base. Le SHA seul ne constitue pas une provenance fiable ; tenant/owner, journaux de consentement, RPO/RTO, recovery/NTFS reparse, crash matériel, multi-process, versionnement/reconciliation/reprise restent à certifier séparément.
+
+**NO-GO maintenu :** import de patients, restauration ou modification d’une base Cabinet réelle, lecture de données cliniques, déploiement et merge sans autorisation distincte. Toute assertion `import_permitted=true` est interdite. Voir `techdoubt.md` pour les réserves non résolues.
+
+**Revue A/B** : deux perspectives internes différentes sur la PR et sur les jobs exact SHA, identification des MAJOR/BLOCKER et confirmation après corrections. La revue interne n’est pas une revue externe indépendante. La réussite éventuelle porte uniquement sur 05.7-C laboratoire, jamais sur la migration réelle.
