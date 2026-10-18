@@ -55,7 +55,7 @@ def native(db, data=None):
     return subprocess.run(command, input=data, capture_output=True, timeout=120)
 
 
-def catalog(c):
+def catalog(c, include_details=False):
     from sqlalchemy import text
     sql = {
         "columns": """SELECT table_name,column_name,data_type,udt_name,is_nullable,
@@ -72,7 +72,8 @@ def catalog(c):
     table_count = len({row[0] for row in data["columns"]})
     if table_count < 30:
         raise Refused("REAL_ALEMBIC_SCHEMA_INCOMPLETE")
-    return digest(json.dumps(data, sort_keys=True).encode()), table_count
+    base = (digest(json.dumps(data, sort_keys=True).encode()), table_count)
+    return (*base, data) if include_details else base
 
 
 def evidence(c):
@@ -227,7 +228,21 @@ class RealHeadRecovery(unittest.TestCase):
         self.restore()
         assert_database_at_current_head(self.dst)
         with self.dst.connect() as c:
-            self.assertEqual(catalog(c), self.schema)
+            actual = catalog(c)
+            if actual != self.schema:
+                # Real physical mismatch is not skipped or normalized away.
+                with self.engine.connect() as source_conn:
+                    before = catalog(source_conn, include_details=True)[2]
+                after = catalog(c, include_details=True)[2]
+                first_differences = {}
+                for section in before:
+                    missing = sorted(set(map(repr, before[section])) - set(map(repr, after[section])))
+                    added = sorted(set(map(repr, after[section])) - set(map(repr, before[section])))
+                    if missing or added:
+                        first_differences[section] = {"source_only": missing[:4], "restore_only": added[:4],
+                                                       "source_count": len(before[section]),
+                                                       "restore_count": len(after[section])}
+                self.fail("PHYSICAL_ALEMBIC_CATALOG_MISMATCH " + repr(first_differences)[:3500])
             self.assertEqual(evidence(c), self.before)
             self.assertGreater(self.schema[1], 30)
 
