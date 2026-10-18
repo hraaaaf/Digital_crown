@@ -32,9 +32,9 @@ Tant que cette investigation n'est pas faite, le score ne peut pas servir à un 
 
 Les plafonds suivants s'appliquent au score correspondant **et donc au `RETAINED_SCORE`** :
 
-- `10/10` : exceptionnel ; aucune faiblesse améliorable connue dans le scope, tous les gates et preuves exigés présents, et vraie revue indépendante.
-- `>= 9.5/10` : exige une **vraie revue indépendante** de l'exécution. Une seconde passe du même agent n'est pas indépendante.
-- Si la même personne/le même agent réalise l'exécution **et** la revue adversariale : plafond automatique `9.4/10`.
+- `10/10` : score **non accessible à une auto-revue conversationnelle**, même si les preuves et les gates sont parfaits ; aucune attente d'un évaluateur externe ne doit en être déduite.
+- `>= 9.5/10` : **hors plage pour deux perspectives internes A/B exécutées dans la même conversation** ; ce score supérieur n'est jamais un prérequis implicite au closeout. Le score normal `VERIFIED` commence à `9.0/10` et peut être atteint avec les deux revues internes, les tests et les gates effectivement requis.
+- Quand la même conversation réalise l'exécution **et** les deux revues adversariales internes spécialisées : plafond automatique `9.4/10`. Nommer honnêtement les deux perspectives internes ; ne pas les présenter comme deux audits humains/agents réellement indépendants.
 - Test requis rouge, gate requis non vert, ou preuve requise absente : plafond `7.9/10`.
 - Régression constatée : plafond `6.9/10` jusqu'à correction et nouvelle preuve de non-régression.
 - Blocker sécurité, privacy, intégrité data ou claim clinique/scientifique : plafond `5.9/10` **et statut `BLOCKED`**.
@@ -98,6 +98,8 @@ Pour chaque étape matérielle :
 Pour le closeout d'un lot, ajouter la liste des gates binaires et leur état.
 
 ## 8. UI/UX
+
+**Règle de non-blocage par reviewers :** l'assistant mène lui-même dans la conversation les deux revues A/B spécialisées, recherche les défauts, corrige/teste et confirme sur le même HEAD. **Ne jamais répondre « il reste les deux vraies revues indépendantes »** ni demander de reviewers humains/agents externes pour terminer la double revue *interne*. Une revue A ou B réellement non effectuée reste à faire **par l'assistant** ; une CI, une validation humaine explicitement exigée et une certification physique non exécutées demeurent des blocages factuels séparés.
 
 Cette règle complète `.claude/rules/visual-closeout-human-validation.md` :
 
