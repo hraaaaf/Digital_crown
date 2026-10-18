@@ -252,8 +252,12 @@ export function CrownBotChat({
   const endRef = useRef<HTMLDivElement>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const historyRequestEpoch = useRef(0);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const historyToggleRef = useRef<HTMLButtonElement>(null);
+  const historyDrawerRef = useRef<HTMLDivElement>(null);
   const historyCloseRef = useRef<HTMLButtonElement>(null);
   const historyWasOpenRef = useRef(false);
   useEffect(() => {
@@ -290,6 +294,9 @@ export function CrownBotChat({
     const ctx = getPageContext(location.pathname);
     setMessages([{ id: 'welcome', sender: 'bot', text: ctx.desc, suggestions: ctx.suggestions }]);
     setCurrentSessionId(null);
+    historyRequestEpoch.current += 1;
+    setHistoryBusy(false);
+    setHistoryError('');
   }, [location.pathname]);
 
   // Propagate unread count to parent
@@ -362,28 +369,44 @@ export function CrownBotChat({
   useEffect(() => { fetchSessions(); }, []);
 
   const startNewSession = () => {
+    historyRequestEpoch.current += 1;
     setCurrentSessionId(null);
+    setHistoryBusy(false);
+    setHistoryError('');
+    setActiveTab(zeroLlmPreviewEnabled ? 'chat' : 'brain');
     const ctx = getPageContext(location.pathname);
     setMessages([{ id: 'welcome', sender: 'bot', text: ctx.desc, suggestions: ctx.suggestions }]);
     setIsSidebarOpen(false);
   };
 
   const loadSession = async (id: string) => {
+    const epoch = ++historyRequestEpoch.current;
+    setHistoryBusy(true);
+    setHistoryError('');
+    setCurrentSessionId(null);
+    setActiveTab('chat');
+    setIsSidebarOpen(false);
     try {
-      setIsLoading(true);
-      const res = await api.get(`/bot/sessions/${id}/messages`);
-      const loaded = res.data.map((m: any) => ({
-        id: m.id, sender: m.sender, text: m.text,
-        actionType: m.actionType, pendingAction: m.pendingAction, pendingActionId: m.pendingActionId, suggestions: m.suggestions,
-      }));
-      if (loaded.length === 0) { startNewSession(); return; }
-      setMessages(loaded);
+      const res = await api.get(`/bot/sessions/${encodeURIComponent(id)}/messages`);
+      if (epoch !== historyRequestEpoch.current) return;
+      if (!Array.isArray(res.data) || !res.data.every((m: unknown) => {
+        const row = m as { id?: unknown; sender?: unknown; text?: unknown };
+        return (typeof row.id === 'string' || typeof row.id === 'number')
+          && typeof row.text === 'string'
+          && ['user', 'bot', 'assistant'].includes(String(row.sender));
+      })) throw new Error('Invalid history response');
+      // Read-only text only; legacy pending action IDs must never be revived.
+      setMessages(res.data.map((m: {id: string | number;sender: string;text: string}) => ({
+        id: String(m.id), sender: m.sender === 'user' ? 'user' : 'bot', text: m.text,
+      })));
       setCurrentSessionId(id);
-      setIsSidebarOpen(false);
-    } catch (err) {
-      console.error('Session load error:', err);
+    } catch {
+      if (epoch === historyRequestEpoch.current) {
+        setMessages([]);
+        setHistoryError('Historique indisponible. Aucun ancien message affiché.');
+      }
     } finally {
-      setIsLoading(false);
+      if (epoch === historyRequestEpoch.current) setHistoryBusy(false);
     }
   };
 
@@ -581,9 +604,28 @@ export function CrownBotChat({
 
       {/* Sidebar */}
       <div data-cb01-history-drawer
+        ref={historyDrawerRef}
+        role="dialog"
+        aria-modal={isSidebarOpen}
+        aria-label="Historique Crown Bot"
         inert={!isSidebarOpen}
         aria-hidden={!isSidebarOpen}
         onKeyDown={event => {
+          if (isSidebarOpen && event.key === 'Tab') {
+            const buttons = Array.from(historyDrawerRef.current?.querySelectorAll<HTMLButtonElement>(
+              'button:not([disabled])',
+            ) ?? []);
+            if (buttons.length) {
+              const first = buttons[0], last = buttons[buttons.length - 1];
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+              }
+            }
+          }
           // Do not propagate Escape to the enclosing desktop sidecar:
           // closing History must not close the whole Crown Bot panel.
           if (isSidebarOpen && event.key === 'Escape') {
@@ -680,16 +722,48 @@ export function CrownBotChat({
       </div>
 
       {/* ── TAB: CHAT — Bientôt disponible ── */}
-      {activeTab === 'chat' && zeroLlmPreviewEnabled && (
+      {activeTab === 'chat' && (historyBusy || !!historyError || !!currentSessionId) && (
+        <section aria-label="Conversation archivée — lecture seule"
+          className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900">Historique · lecture seule</h4>
+              <p className="text-xs text-slate-500">
+                {sessions.find(s => s.id === currentSessionId)?.title || 'Conversation sélectionnée'}
+              </p>
+            </div>
+            <button type="button" onClick={startNewSession}
+              className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800">
+              Retour aux actions
+            </button>
+          </div>
+          {historyBusy && <p role="status">Chargement de la conversation…</p>}
+          {historyError && <p role="alert" className="text-rose-800">{historyError}</p>}
+          {!historyBusy && !historyError && currentSessionId && (
+            <ol aria-label="Messages historiques" className="space-y-2">
+              {messages.length ? messages.map(message => (
+                <li key={message.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-slate-600">
+                    {message.sender === 'user' ? 'Vous' : 'Crown Bot'}
+                  </p>
+                  <p className="whitespace-pre-wrap break-words text-sm text-slate-900">{message.text}</p>
+                </li>
+              )) : <li className="text-sm text-slate-600">Aucun message dans cette conversation.</li>}
+            </ol>
+          )}
+        </section>
+      )}
+      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && zeroLlmPreviewEnabled && (
         // Clinical safety: route or staff identity changes invalidate a prior
         // patient's scoped read/proposal. A responsive 200% reflow leaves the
         // key unchanged and therefore preserves the unfinished draft.
         <CrownBotWorkflowPreview
           key={`${user?.id ?? 'unknown'}:${employerId ?? 'unknown'}:${location.pathname}`}
           practitionerId={user?.role === 'DENTISTE' ? Number(user.id) : undefined}
+          requirePractitioner={user?.role === 'DENTISTE'}
         />
       )}
-      {activeTab === 'chat' && !zeroLlmPreviewEnabled && (
+      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && !zeroLlmPreviewEnabled && (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
           <div className="relative">
             <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner border border-white/60">
