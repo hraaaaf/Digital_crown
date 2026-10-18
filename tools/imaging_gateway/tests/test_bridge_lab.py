@@ -585,6 +585,58 @@ asyncio.run(main())
                 child.kill()
                 child.wait(timeout=3)
 
+    async def test_failed_handshake_and_reap_still_release_job_and_lock(self):
+        import io
+        from tools.imaging_gateway.bridge_background_lab import BridgeLabConfigurationError
+
+        class BadHandshakeProcess:
+            stdin = None
+            stdout = None
+
+            def __init__(self):
+                self.stdin = io.BytesIO()
+                self.stdout = io.BytesIO(b"NOT_READY\\n")
+                self.killed = False
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.killed = True
+
+            def wait(self, timeout):
+                raise OSError("SYNTHETIC_SECRET_MUST_NOT_LOG")
+
+        class ClosingResource:
+            calls = 0
+
+            def close(self):
+                self.calls += 1
+
+        child = BadHandshakeProcess()
+        job = ClosingResource()
+        owner = ClosingResource()
+        env = {
+            "DC_V15_06_BRIDGE_LAB": "1",
+            "ENVIRONMENT": "test",
+        }
+        with patch("tools.imaging_gateway.bridge_background_lab.make_lab_collector",
+                   return_value=(object(), owner)), patch(
+                   "tools.imaging_gateway.bridge_background_lab.subprocess.Popen",
+                   return_value=child), patch(
+                   "tools.imaging_gateway.bridge_background_lab.WindowsLabJob.assign",
+                   return_value=job):
+            with self.assertLogs("tools.imaging_gateway.bridge_background_lab", level="ERROR") as captured:
+                with self.assertRaisesRegex(BridgeLabConfigurationError,
+                                            "IMAGING_LAB_SUPERVISION_START_FAILED"):
+                    start_if_enabled(env, trusted_environment="test")
+        self.assertTrue(child.killed)
+        self.assertTrue(child.stdin.closed)
+        self.assertTrue(child.stdout.closed)
+        self.assertEqual(job.calls, 1)
+        self.assertEqual(owner.calls, 1)
+        self.assertNotIn("SYNTHETIC_SECRET_MUST_NOT_LOG", " ".join(captured.output))
+
     async def test_repeated_child_wait_failures_still_release_all_resources(self):
         # Exercise actual stop_bridge_lab() control flow, without real hardware.
         import io
