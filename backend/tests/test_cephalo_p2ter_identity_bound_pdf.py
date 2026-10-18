@@ -383,3 +383,81 @@ def test_legacy_document_pdf_route_uses_same_explicit_historical_study(
         models.DocumentArchive.patient_id == patient.id,
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 0
+
+
+def test_same_study_revision_retry_creates_exactly_one_archive_claim(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Real JWT HTTP retry must never create a second archive for same study/revision.
+
+    SQLite StaticPool is serial: the independent-connection race is covered by
+    the separate disposable T2 HTTP CI job.
+    """
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _data: SimpleNamespace(is_valid=True, fatals=[], warnings=[]),
+    )
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "isolated-archives")
+
+    first = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert first.status_code == 200, first.text[:500] if first.status_code != 200 else ""
+    second = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert second.status_code == 409
+    assert "déjà archivé" in second.json()["detail"]
+
+    claims = db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.patient_id == patient.id,
+        models.CephaloArchiveClaim.analysis_id == study.id,
+        models.CephaloArchiveClaim.revision == 1,
+    ).all()
+    docs = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).all()
+    assert len(claims) == len(docs) == 1
+    assert claims[0].document_archive_id == docs[0].id
+    assert docs[0].analysis_id == study.id
+    assert docs[0].clinical_data["cephalo_analysis_revision"] == 1
+
+
+def test_failed_atomic_archive_releases_claim(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Failed I/O must release the claim so an approved retry can succeed."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services.archive_service import ArchiveService
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _data: SimpleNamespace(is_valid=True, fatals=[], warnings=[]),
+    )
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "isolated-archives")
+    original = ArchiveService.archive_document
+    monkeypatch.setattr(
+        ArchiveService, "archive_document",
+        lambda self, **kwargs: (_ for _ in ()).throw(OSError("synthetic storage refusal")),
+    )
+    failed = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert failed.status_code == 500
+    assert db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.analysis_id == study.id,
+    ).count() == 0
+
+    monkeypatch.setattr(ArchiveService, "archive_document", original)
+    retried = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert retried.status_code == 200, retried.text[:500] if retried.status_code != 200 else ""
+    assert db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.analysis_id == study.id,
+    ).count() == 1
