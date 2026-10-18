@@ -1435,6 +1435,30 @@ def validate_cephalo_before_pdf(
     return {**result.to_dict(), "analysis_id": selected.id, "analysis_revision": revision}
 
 
+def _is_same_cephalo_revision_archive_duplicate(exc) -> bool:
+    """Only the intended study/revision unique key maps to HTTP 409.
+
+    A broken foreign key or another constraint must never masquerade as a
+    duplicate clinical PDF. PostgreSQL exposes the actual constraint identity;
+    SQLite exposes its fully qualified UNIQUE column list.
+    """
+    source = getattr(exc, "orig", None)
+    if getattr(source, "pgcode", None) == "23505":
+        return getattr(getattr(source, "diag", None), "constraint_name", None) == (
+            "uq_cephalo_archive_claim_study_revision"
+        )
+    if source is None:
+        return False
+    reason = str(source)
+    expected = (
+        "UNIQUE constraint failed: "
+        "cephalo_archive_claims.patient_id, "
+        "cephalo_archive_claims.analysis_id, "
+        "cephalo_archive_claims.revision"
+    )
+    return reason == expected
+
+
 @router.post("/{patient_id}/pdf")
 def generate_cephalo_pdf(
     patient_id: int,
@@ -1506,9 +1530,15 @@ def generate_cephalo_pdf(
             raise
         except IntegrityError as exc:
             db.rollback()
+            if _is_same_cephalo_revision_archive_duplicate(exc):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Ce bilan de cette étude/révision est déjà archivé ou en cours",
+                ) from exc
+            logger.exception("Autre contrainte SQL violée pendant la réservation de bilan")
             raise HTTPException(
-                status_code=409,
-                detail="Ce bilan de cette étude/révision est déjà archivé ou en cours",
+                status_code=503,
+                detail="Erreur d'intégrité de la base : archivage refusé",
             ) from exc
         except OperationalError as exc:
             db.rollback()
