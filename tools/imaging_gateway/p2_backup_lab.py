@@ -33,13 +33,19 @@ class B02SnapshotError(RuntimeError):
 def _root(path):
     source = Path(path).absolute()
     temp = Path(tempfile.gettempdir()).resolve(strict=True)
+    # Windows TEMP may have a distinct lexical spelling (8.3/case/alias)
+    # from its canonical path. An identity walk avoids false denial while
+    # still inspecting EACH supplied component for reparse points.
     if temp not in source.resolve(strict=True).parents:
         raise B02SnapshotError("B02_TEMP_ONLY")
     here = source
-    while here != temp:
-        if _is_unsafe_path_component(here) or temp not in (here.parent, *here.parent.parents):
-            raise B02SnapshotError("B02_REPARSE_OR_ESCAPE")
-        here = here.parent
+    try:
+        while not here.samefile(temp):
+            if _is_unsafe_path_component(here) or here.parent == here:
+                raise B02SnapshotError("B02_REPARSE_OR_ESCAPE")
+            here = here.parent
+    except OSError:
+        raise B02SnapshotError("B02_REPARSE_OR_ESCAPE") from None
     return source
 
 
