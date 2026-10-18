@@ -336,17 +336,21 @@ async function viewportRun(viewport){
       await route.continue();
     };
     await page.route('**/api/patients/*/pdf',staleRoute);
+    // Attach rejection handlers immediately: if an earlier check fails,
+    // closing the browser must not replace the real error with an unhandled
+    // waitForResponse rejection from a pending request.
     const staleValidation=page.waitForResponse(r=>
       new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/cephalo-validation'
-      && r.request().method()==='GET' && r.status()===200,{timeout:45000});
+      && r.request().method()==='GET' && r.status()===200,{timeout:45000}).catch(error=>error);
     const staleResponse=page.waitForResponse(r=>
       new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf'
       && r.request().method()==='POST' && r.request().postDataJSON()?.archive===true,
-      {timeout:45000});
+      {timeout:45000}).catch(error=>error);
     try {
       await staleArchiveButton.click();
       await staleHeld;
       const prevalidated=await staleValidation;
+      if(prevalidated instanceof Error)throw prevalidated;
       const params=new URL(prevalidated.url()).searchParams;
       if(Number(params.get('analysis_id'))!==identities.latest_id ||
         Number(params.get('expected_revision'))!==requestRevision)
@@ -373,6 +377,7 @@ async function viewportRun(viewport){
       releaseStale();
     }
     const stale=await staleResponse;
+    if(stale instanceof Error)throw stale;
     await page.unroute('**/api/patients/*/pdf',staleRoute);
     if(stale.status()!==409)throw Error('Stale post-prevalidation archive did not fail-closed: '+stale.status());
     await page.getByText(/modifiée|changé|périmée/i).first().waitFor({state:'visible',timeout:10000});
