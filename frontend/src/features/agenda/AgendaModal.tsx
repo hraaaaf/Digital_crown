@@ -1,3 +1,4 @@
+import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Clock, User, FileText, Search, Plus, Check, MessageCircle, Calendar, Sparkles, AlertCircle, ArrowRight, Trash2, Ghost } from 'lucide-react';
@@ -300,7 +301,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         dt.setHours(h, m, 0, 0);
         const res = await api.get('/appointments/check-conflicts', {
           params: {
-            datetime_start: dt.toISOString(),
+            datetime_start: formatAgendaWallClock(dt),
             duration_minutes: duration,
             ...(editingAppointment ? { exclude_id: editingAppointment.id } : {}),
           }
@@ -339,7 +340,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         patient_id: selectedPatient?.id || null,
         patient_name: selectedPatient ? `${selectedPatient.nom} ${selectedPatient.prenom}` : patientSearch,
         motif: selectedAct ? selectedAct.name : (actSearch || motif),
-        datetime_start: startDateTime.toISOString(),
+        datetime_start: formatAgendaWallClock(startDateTime),
         duration_minutes: duration,
         status: status,
         scheduling_type: schedulingType
