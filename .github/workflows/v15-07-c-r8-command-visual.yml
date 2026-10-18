@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq >/dev/null
-          sudo apt-get install -y -qq xdotool xvfb >/dev/null
+          sudo apt-get install -y -qq xdotool xvfb scrot >/dev/null
           xvfb-run -a -s '-screen 0 1920x1200x24' node scripts/research/lot07_07c_r8_native_zoom.cjs docs/research/lot07-07c-command-target-r8.html artifacts/lot07-07c-r8
           test -s artifacts/lot07-07c-r8/native-zoom-result.json
       - name: Upload only synthetic target screenshot matrix
