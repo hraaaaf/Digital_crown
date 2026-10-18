@@ -368,6 +368,37 @@ jobs:
               assert named.deleted_at is None and numeric.deleted_at is None
           print('PASS: CB-01 browser fixtures seeded AFTER CB-00 reference HTTP probe')
           PY
+      - name: Prepare synthetic CB-01 Agenda settings before read-only clinical fingerprint
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from backend import database, models
+          from backend.routers.agenda_settings import _create_default_settings, _settings_row
+
+          # This seed step runs only in the disposable GitHub Actions runtime.
+          # Never make a real cabinet's read path or snapshot tolerate a
+          # cabinet_settings mutation. Exercise the SAME default creation
+          # implementation as GET /api/agenda/settings, before the baseline.
+          assert os.environ.get('GITHUB_ACTIONS') == 'true'
+          assert os.environ.get('DIGITALCROWN_ISOLATED_RUNTIME') == '1'
+          assert os.environ.get('DATABASE_URL') == 'sqlite:///./t2-runtime-cert.db'
+          with database.SessionLocal() as db:
+              for email in ('t2-browser@cabinet.ma', 't2-setup-390@cabinet.ma'):
+                  owner = db.query(models.User).filter(
+                      models.User.email == email,
+                      models.User.employer_id.is_(None),
+                  ).one()
+                  before = _settings_row(db, owner.id)
+                  if before is None:
+                      _create_default_settings(db, owner.id)
+                  after = _settings_row(db, owner.id)
+                  assert after is not None
+                  assert db.query(models.CabinetSettings).filter(
+                      models.CabinetSettings.employer_id == owner.id
+                  ).count() == 1
+                  print('PASS: Agenda default state ready for synthetic T2 owner', owner.id)
+          PY
       - name: CB-01 FUE baseline — all SQLite user tables after synthetic fixtures
         shell: bash
         run: |
