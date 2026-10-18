@@ -31,6 +31,12 @@ class BridgeLabConfigurationError(RuntimeError):
     """Fail closed without exposing local paths or configured secrets."""
 
 
+@dataclass
+class BridgeLabOperationalStatus:
+    # Lab-only state; no process PID, path, credentials, patient or device data.
+    state: str = "STARTING"
+
+
 @dataclass(frozen=True)
 class BridgeLabHandle:
     stop: asyncio.Event
@@ -38,6 +44,28 @@ class BridgeLabHandle:
     process: subprocess.Popen | None = None
     job: WindowsLabJob | None = None
     owner: LabOwnerLock | None = None
+    operational: BridgeLabOperationalStatus | None = None
+
+
+def bridge_lab_operational_state(handle: BridgeLabHandle | None) -> str:
+    """Observe LAB worker liveness, never infer acquisition health from API DB.
+
+    Check poll() synchronously to avoid a false READY during the monitor tick.
+    Never turn a DEGRADED/STOPPED state back into READY.
+    """
+    if handle is None:
+        return "DISABLED"
+    operational = handle.operational
+    if operational is None:
+        return "DEGRADED"  # Legacy test helper is not a supervised LAB worker.
+    if operational.state in {"STARTING", "READY"}:
+        try:
+            if (handle.process is None or handle.process.poll() is not None
+                    or handle.task.done()):
+                operational.state = "DEGRADED"
+        except Exception:
+            operational.state = "DEGRADED"
+    return operational.state
 
 
 def lab_requested(environ: Mapping[str, str] | None = None) -> bool:
@@ -238,18 +266,28 @@ def start_if_enabled(
                 logger.error("Imaging LAB failed-start owner release unconfirmed")
         raise BridgeLabConfigurationError("IMAGING_LAB_SUPERVISION_START_FAILED") from None
     stop = asyncio.Event()
+    operational = BridgeLabOperationalStatus()
 
     async def monitor():
         while not stop.is_set():
-            if proc.poll() is not None:
-                # No PHI/filenames/paths, but operational error visible to
-                # application operators. Child uses distinct failure codes.
+            try:
+                child_exited = proc.poll() is not None
+            except Exception:
+                child_exited = True  # Never present READY on a broken probe.
+            if child_exited:
+                operational.state = "DEGRADED"
+                # Fixed text only. No paths, names, PHI or raw exit codes.
                 logger.error("Imaging LAB worker exited unexpectedly; acquisitions stopped")
                 return
             await asyncio.sleep(0.05)
 
-    return BridgeLabHandle(stop=stop, task=asyncio.create_task(monitor()),
-                           process=proc, job=job, owner=owner)
+    handle = BridgeLabHandle(stop=stop, task=asyncio.create_task(monitor()),
+                             process=proc, job=job, owner=owner,
+                             operational=operational)
+    # READY requires the completed handshake and an actively living worker.
+    operational.state = "READY"
+    bridge_lab_operational_state(handle)
+    return handle
 
 
 async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> bool:
@@ -328,6 +366,8 @@ async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> b
                     logger.error("Imaging LAB monitor task failed at shutdown")
         if proc.returncode != 0:
             clean = False
+        if handle.operational is not None:
+            handle.operational.state = "STOPPED" if clean else "DEGRADED"
         if not clean:
             logger.error("Imaging LAB child terminated or failed; no acquisition confirmed")
         return clean
