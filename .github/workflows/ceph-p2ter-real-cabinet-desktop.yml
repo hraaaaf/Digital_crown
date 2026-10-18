@@ -160,9 +160,26 @@ jobs:
           assert report["head"] == "${{ github.event.pull_request.head.sha || github.sha }}"
           assert {r["viewport"] for r in report["viewports"]} == {"1280x900","1600x1000"}
           assert report["overall"] == "FUE_I_AUTOMATED_SCOPE_PASS"
+          required_checks={
+              "CLEAN_BROWSER_LOGIN","DASHBOARD_PATIENT_SEARCH","ENTER_IMAGING",
+              "OPEN_CEPHALO","SELECT_OLDER_STUDY","DESKTOP_STEPPER",
+              "NO_HORIZONTAL_VIEWPORT_OVERFLOW","DRAFT_PDF_FIRST_VALUE","OFFICIAL_ARCHIVE_REPLAY",
+          }
           for r in report["viewports"]:
               assert r["valid"] and all(c["status"] == "PASS" for c in r["matrix"])
-              for label in ("before-hub", "before-select-study", "before-first-value", "after-first-value", "after-official-archive-replay"):
+              assert {c["id"] for c in r["matrix"]} == required_checks, "Missing real UI discovery or first-value check"
+              # Native Chromium window.confirm is not present in AFTER screenshots:
+              # verify the actual dialog text, tied to the replayed selected study.
+              feedback=r.get("archiveUiFeedback") or {}
+              assert feedback.get("kind") == "native-window.confirm"
+              assert "Archive existante réutilisée sans modification" in feedback.get("message","")
+              assert "étude "+str(r["firstValue"]["analysis_id"]) in feedback.get("message","")
+              for label in ("before-hub", "after-login", "before-patient-search",
+                            "patient-search-result","after-patient-opened",
+                            "after-imaging-opened","before-select-study",
+                            "before-first-value","before-first-value-actions",
+                            "after-first-value","before-official-archive-replay",
+                            "after-official-archive-replay"):
                   filename=r["viewport"]+"-"+label+".png"
                   assert (report_path.parent/filename).is_file(), filename
           print("P2TER_FUE_I_AUTOMATED_EVIDENCE_VERIFIED")
