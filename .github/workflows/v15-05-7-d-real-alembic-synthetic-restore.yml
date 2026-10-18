@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -B backend/tests/test_legacy_sql_057d_real_alembic_pg_restore.py -v 2>&1 | tee lot05d-pg.log
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057d_real_alembic_pg_restore.py -v 2>&1 | tee lot05d-pg.log
           grep -q '^Ran 8 tests' lot05d-pg.log
           grep -q '^OK$' lot05d-pg.log
           ! grep -F 'skipped=' lot05d-pg.log
