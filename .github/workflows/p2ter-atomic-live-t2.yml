@@ -11,6 +11,8 @@ on:
       - backend/models.py
       - backend/routers/patients.py
       - backend/services/archive_service.py
+      - docs/clinic/CEPH_P2TER_POST_CRASH_ARCHIVE_AUDIT.md
+      - techdoubt.md
       - backend/tests/test_cephalo_p2ter_identity_bound_pdf.py
       - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
       - scripts/ceph_p2ter_concurrent_atomic_t2.py
