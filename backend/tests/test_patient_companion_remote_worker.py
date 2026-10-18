@@ -142,7 +142,6 @@ def test_remote_worker_dispatches_once_and_rejects_exact_replay(db, dentiste):
 
     # HTTP and Relay share process_remote_envelope; a previously authenticated
     # JWE must NOT bypass identity/patient state after revocation.
-    from backend.services.patient_companion_remote_worker import RemoteTransportRejected
     identity.revoked_at = datetime.utcnow()
     db.commit()
     with pytest.raises(RemoteTransportRejected, match="identity or patient inactive"):
