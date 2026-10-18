@@ -84,6 +84,22 @@ class B02QuiescentBackupTests(unittest.TestCase):
         self.assertFalse(self.destination.exists())
         self.assertEqual(list((self.root / "snapshots").iterdir()), [])
 
+    def test_direct_ledger_write_during_copy_is_detected(self):
+        """Non-cooperating SQLite writes must not yield a published archive."""
+        original_copy = shutil.copytree
+
+        def mutate_ledger_after_copy(src, dst, *args, **kwargs):
+            result = original_copy(src, dst, *args, **kwargs)
+            self.collector.record_transport_failure(self.item["id"], 123)
+            return result
+
+        with patch("tools.imaging_gateway.p2_backup_lab.shutil.copytree",
+                   side_effect=mutate_ledger_after_copy):
+            with self.assertRaisesRegex(B02SnapshotError, "B02_LEDGER_CHANGED"):
+                snapshot_quiescent_lab(self.root, self.destination, self.key)
+        self.assertFalse(self.destination.exists())
+        self.assertEqual(list((self.root / "snapshots").iterdir()), [])
+
     def test_manifest_tamper_or_wrong_key_fails_verification(self):
         archive = snapshot_quiescent_lab(self.root, self.destination, self.key)
         with self.assertRaisesRegex(B02SnapshotError, "B02_MANIFEST_AUTH"):
