@@ -18,12 +18,14 @@ import re
 import secrets
 import unittest
 
+# Import the module, not the unittest.TestCase class into this module's
+# top-level namespace: unittest.main otherwise discovers and runs E's 12 tests
+# ahead of the 14 F tests, then leaves its temporary database engine stale.
+from backend.tests import test_legacy_sql_057e_real_backupservice_sqlcipher_head as e_fixture
 from backend.tests.test_legacy_sql_057e_real_backupservice_sqlcipher_head import (
-    RealEncryptedBackupServiceLab as EFixture,
     LabRefused,
     rows_digest,
     verified_lab,
-    sqlcipher_connection,
 )
 
 FLAG = "LOT05F_FAILCLOSED_FAKE_ONLY"
@@ -197,7 +199,7 @@ class FailClosedTenantAndPublication(unittest.TestCase):
     def _seed_fake_orm(cls):
         # E's initializer dispatches this method on cls, so explicitly reuse
         # the genuine ORM fixture without inheriting and re-running E's 12 tests.
-        EFixture._seed_fake_orm.__func__(cls)
+        e_fixture.RealEncryptedBackupServiceLab._seed_fake_orm.__func__(cls)
 
     @classmethod
     def setUpClass(cls):
@@ -205,7 +207,7 @@ class FailClosedTenantAndPublication(unittest.TestCase):
             raise LabRefused("FAKE_GUARD_DISABLED")
         # Reuse actual operator/init/seed from 05.7-E; no duplicate mocked
         # metadata and no fabricated alembic_version marker.
-        EFixture.setUpClass.__func__(cls)
+        e_fixture.RealEncryptedBackupServiceLab.setUpClass.__func__(cls)
         from sqlalchemy import text
         with cls.engine.connect() as c:
             cls.fake_owners = tuple(c.execute(text(
@@ -216,20 +218,20 @@ class FailClosedTenantAndPublication(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        EFixture.tearDownClass.__func__(cls)
+        e_fixture.RealEncryptedBackupServiceLab.tearDownClass.__func__(cls)
 
     def setUp(self):
-        EFixture.setUp(self)
+        e_fixture.RealEncryptedBackupServiceLab.setUp(self)
         self.expected_for_publication = self.before
 
     def tearDown(self):
-        EFixture.tearDown(self)
+        e_fixture.RealEncryptedBackupServiceLab.tearDown(self)
 
     def backup(self):
-        return EFixture.backup(self)
+        return e_fixture.RealEncryptedBackupServiceLab.backup(self)
 
     def restored_engine(self, target):
-        return EFixture.restored_engine(self, target)
+        return e_fixture.RealEncryptedBackupServiceLab.restored_engine(self, target)
 
     def read_preflight(self, connection=None, owners=None):
         actual = self.fake_owners if owners is None else owners
