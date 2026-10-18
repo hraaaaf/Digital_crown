@@ -86,6 +86,39 @@ def test_s2_generic_archive_rejects_filename_path_traversal_http(
     ).count() == 0
 
 
+def test_s2b_duplicate_filename_cannot_replace_trashed_physical_document(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """A non-official same-name upload must preserve trash contents on disk."""
+    from backend.services import archive_service
+
+    _cabinet(db, dentiste)
+    patient, _, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+
+    def upload(body: bytes):
+        response = client.post(
+            "/api/documents/archive",
+            params={"patient_id": patient.id, "doc_type": "AUTRE"},
+            files={"file": ("same-name.pdf", body, "application/pdf")},
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text[:250]
+        return response.json()["document"]
+
+    original = upload(b"%PDF-T2-FIRST")
+    old_rel = original["file_path"].removeprefix("static/archives/")
+    old_path = tmp_path / "archives" / old_rel
+    assert old_path.read_bytes() == b"%PDF-T2-FIRST"
+    assert client.post(f"/api/documents/{original['id']}/trash", headers=headers).status_code == 200
+    replacement = upload(b"%PDF-T2-SECOND")
+    new_rel = replacement["file_path"].removeprefix("static/archives/")
+    assert replacement["id"] != original["id"] and old_rel != new_rel
+    assert old_path.read_bytes() == b"%PDF-T2-FIRST"
+    assert (tmp_path / "archives" / new_rel).read_bytes() == b"%PDF-T2-SECOND"
+
+
 def test_s3_official_pdf_download_routes_serve_verified_bytes_only(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
