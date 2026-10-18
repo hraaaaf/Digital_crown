@@ -238,3 +238,43 @@ def test_remote_worker_default_registry_executes_pc02_create_idempotently(db, de
         models.AuditLog.action == "PATIENT_COMPANION_REMOTE_COMMAND",
         models.AuditLog.resource_id == access.public_id,
     ).count() == 1
+
+
+    # A pre-migration receipt has no trustworthy original intent fingerprint.
+    # The actual encrypted worker must return a recoverable terminal ACK
+    # (not silently drop Relay messages, not retry forever, not mutate).
+    receipt = db.query(PatientCompanionRemoteReceipt).filter(
+        PatientCompanionRemoteReceipt.access_id == access.id,
+        PatientCompanionRemoteReceipt.idempotency_key == str(idem),
+    ).one()
+    receipt.intent_sha256 = None
+    db.commit()
+    legacy_retry = RelayInnerMessage(
+        message_id=uuid.uuid4(), access_id=message.access_id, sent_at=now,
+        expires_at=message.expires_at, idempotency_key=idem,
+        operation="agenda.create", payload={"slot_ref": slot.public_id},
+    )
+    legacy_ciphertext = sign_and_encrypt(
+        legacy_retry.model_dump(mode="json"),
+        sender_signing_private_jwk=patient_sig_private,
+        recipient_encryption_public_jwk=json.loads(cabinet_enc.public_jwk_json),
+        sender_signing_kid=keyset.patient_signing_kid,
+        recipient_encryption_kid=keyset.cabinet_encryption_kid,
+    )
+    legacy_ack = process_remote_envelope(
+        db, access=access, keyset=keyset,
+        compact_jwe=legacy_ciphertext, unprotect=_unprotect,
+        commit=False,  # exactly the Relay worker's transaction mode
+    )
+    decoded_legacy = decrypt_and_verify(
+        legacy_ack, recipient_encryption_private_jwk=patient_enc_private,
+        sender_signing_public_jwk=json.loads(cabinet_sig.public_jwk_json),
+        expected_sender_signing_kid=keyset.cabinet_signing_kid,
+        expected_recipient_encryption_kid=keyset.patient_encryption_kid,
+    )
+    assert decoded_legacy["payload"]["status"] == "REJECTED"
+    assert decoded_legacy["payload"]["result"]["code"] == "RECONCILIATION_REQUIRED"
+    assert db.query(models.Appointment).filter(models.Appointment.patient_id == patient.id).count() == 1
+    assert db.query(PatientCompanionRemoteReceipt).filter(
+        PatientCompanionRemoteReceipt.access_id == access.id,
+    ).count() == 1
