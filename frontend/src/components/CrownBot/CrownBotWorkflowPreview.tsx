@@ -33,8 +33,9 @@ const MAX_TURNS = 8;
  * NEVER feed a preview proposal to /bot/execute.
  * Transcript lives only in component memory, not persistent chat history.
  */
-export function CrownBotWorkflowPreview({ practitionerId }: {
+export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = false }: {
   practitionerId?: number;
+  requirePractitioner?: boolean;
 } = {}) {
   const [transcript, setTranscript] = useState<string[]>([]);
   const [answer, setAnswer] = useState<PreviewResponse | null>(null);
@@ -59,6 +60,12 @@ export function CrownBotWorkflowPreview({ practitionerId }: {
     setProgramme(null);
     setTranscript([]);
     setInput('');
+    if (requirePractitioner && !(Number.isSafeInteger(practitionerId) && Number(practitionerId) > 0)) {
+      setError('Praticien non identifié. Rechargez votre session avant de consulter le programme.');
+      inFlight.current = false;
+      setBusy(false);
+      return;
+    }
     try {
       const now = new Date();
       const start = new Date(now);
