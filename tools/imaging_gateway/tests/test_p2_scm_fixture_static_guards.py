@@ -130,6 +130,34 @@ class P2ScmFixtureStaticGuardTests(unittest.TestCase):
         self.assertLess(commit, proof)
         self.assertNotIn('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;', self.cs)
 
+    def test_native_wal_checkpoint_fails_closed_on_partial_result(self):
+        # Source only; behavioral partial-checkpoint test is separate in
+        # test_p2_sqlite_recovery_semantics.py; neither executes native SCM.
+        for marker in (
+            'EntryPoint="sqlite3_column_int"',
+            'Prepare(db, "PRAGMA wal_checkpoint(PASSIVE);"',
+            "int busy = ColumnInt(statement, 0);",
+            "int logFrames = ColumnInt(statement, 1);",
+            "int checkpointedFrames = ColumnInt(statement, 2);",
+            "busy != 0", "logFrames < 0", "checkpointedFrames < 0",
+            "checkpointedFrames != logFrames",
+            "SQLITE_CHECKPOINT_INCOMPLETE", "SQLITE_CHECKPOINT_PREPARE_FAILED",
+            "SQLITE_CHECKPOINT_ROW_MISSING", "SQLITE_CHECKPOINT_EXTRA_ROW",
+            "SQLITE_CHECKPOINT_FINALIZE_FAILED",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.cs)
+        self.assertEqual(self.cs.count("RequireCompleteCheckpoint(db);"), 2)
+        self.assertNotIn('Sql(db, "PRAGMA wal_checkpoint(PASSIVE);")', self.cs)
+        self.assertLess(
+            self.cs.index("RequireCompleteCheckpoint(db);"),
+            self.cs.index('"TOKEN_USER_SID="'),
+        )
+        self.assertLess(
+            self.cs.rindex("RequireCompleteCheckpoint(db);"),
+            self.cs.index('"AFTER_DENIAL_COMMIT=PASS'),
+        )
+
     def test_no_production_storage_paths_or_device_calls(self):
         together = self.ps + "\n" + self.cs
         for forbidden in (

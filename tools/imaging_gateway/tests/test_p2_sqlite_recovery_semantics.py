@@ -73,6 +73,38 @@ class P2SyntheticSQLiteWALContract(unittest.TestCase):
             second.close()
             first.close()
 
+    def test_passive_checkpoint_exposes_incomplete_frames_under_reader(self):
+        """A PASSIVE SQLITE_OK may mean an incomplete WAL checkpoint."""
+        writer = self.connect()
+        reader = None
+        try:
+            writer.execute("CREATE TABLE ledger(marker TEXT NOT NULL)")
+            writer.commit()
+            reader = self.connect()
+            reader.execute("BEGIN")
+            self.assertEqual(
+                reader.execute("SELECT COUNT(*) FROM ledger").fetchone(), (0,)
+            )
+            writer.execute("INSERT INTO ledger VALUES ('committed')")
+            writer.commit()
+            busy, log_frames, checkpointed = writer.execute(
+                "PRAGMA wal_checkpoint(PASSIVE)"
+            ).fetchone()
+            self.assertEqual(busy, 0)
+            self.assertGreater(log_frames, 0)
+            self.assertGreaterEqual(checkpointed, 0)
+            self.assertLess(checkpointed, log_frames,
+                            "reader must pin at least one committed WAL frame")
+            reader.rollback()
+            busy, log_frames, checkpointed = writer.execute(
+                "PRAGMA wal_checkpoint(PASSIVE)"
+            ).fetchone()
+            self.assertEqual((busy, checkpointed), (0, log_frames))
+        finally:
+            if reader is not None:
+                reader.close()
+            writer.close()
+
     def test_online_backup_contains_uncheckpointed_commits_and_restores(self):
         original = self.connect()
         copied = Path(self.tmp.name) / "backup.sqlite3"

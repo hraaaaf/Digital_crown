@@ -27,6 +27,8 @@ public sealed class P2ScmSyntheticService : ServiceBase {
     static extern IntPtr ColumnText(IntPtr statement, int index);
     [DllImport("winsqlite3.dll", EntryPoint="sqlite3_finalize", CallingConvention=CallingConvention.Cdecl)]
     static extern int FinalizeStatement(IntPtr statement);
+    [DllImport("winsqlite3.dll", EntryPoint="sqlite3_column_int", CallingConvention=CallingConvention.Cdecl)]
+    static extern int ColumnInt(IntPtr statement, int index);
     static volatile bool stopping;
     static Thread worker;
     // Defense in depth: never touch a DB from an arbitrary install/clinic path.
@@ -79,6 +81,31 @@ public sealed class P2ScmSyntheticService : ServiceBase {
                 throw new InvalidOperationException("SQLITE_PRAGMA_FINALIZE_FAILED");
         }
     }
+    // sqlite3_exec returning SQLITE_OK does NOT prove that a PASSIVE checkpoint
+    // processed every committed WAL frame. Its one result row is (busy,log,checkpointed).
+    // Never claim the service's checkpoint complete on a partial result.
+    static void RequireCompleteCheckpoint(IntPtr db) {
+        IntPtr statement = IntPtr.Zero;
+        try {
+            int rc = Prepare(db, "PRAGMA wal_checkpoint(PASSIVE);",
+                             -1, out statement, IntPtr.Zero);
+            if (rc != 0 || statement == IntPtr.Zero)
+                throw new InvalidOperationException("SQLITE_CHECKPOINT_PREPARE_FAILED");
+            if (Step(statement) != 100)
+                throw new InvalidOperationException("SQLITE_CHECKPOINT_ROW_MISSING");
+            int busy = ColumnInt(statement, 0);
+            int logFrames = ColumnInt(statement, 1);
+            int checkpointedFrames = ColumnInt(statement, 2);
+            if (busy != 0 || logFrames < 0 || checkpointedFrames < 0 ||
+                checkpointedFrames != logFrames)
+                throw new InvalidOperationException("SQLITE_CHECKPOINT_INCOMPLETE");
+            if (Step(statement) != 101)
+                throw new InvalidOperationException("SQLITE_CHECKPOINT_EXTRA_ROW");
+        } finally {
+            if (statement != IntPtr.Zero && FinalizeStatement(statement) != 0)
+                throw new InvalidOperationException("SQLITE_CHECKPOINT_FINALIZE_FAILED");
+        }
+    }
     static void Work() {
         IntPtr db = IntPtr.Zero;
         try {
@@ -91,7 +118,7 @@ public sealed class P2ScmSyntheticService : ServiceBase {
             Sql(db, "CREATE TABLE IF NOT EXISTS ledger(id INTEGER PRIMARY KEY, label TEXT NOT NULL);");
             Sql(db, "BEGIN IMMEDIATE; INSERT INTO ledger(label) VALUES ('SCM_COMMITTED'); COMMIT;");
             Sql(db, "BEGIN IMMEDIATE; INSERT INTO ledger(label) VALUES ('SCM_ROLLED_BACK'); ROLLBACK;");
-            Sql(db, "PRAGMA wal_checkpoint(PASSIVE);");
+            RequireCompleteCheckpoint(db);
             var identity = WindowsIdentity.GetCurrent();
             File.WriteAllText(Path.Combine(dir,"service.ready"),
                 "TOKEN_USER_SID=" + identity.User.Value + "\nSESSION_ID=" + Process.GetCurrentProcess().SessionId.ToString() +
@@ -99,7 +126,7 @@ public sealed class P2ScmSyntheticService : ServiceBase {
             while (!stopping) {
                 if (File.Exists(Path.Combine(dir,"trigger"))) {
                     Sql(db, "BEGIN IMMEDIATE; INSERT INTO ledger(label) VALUES ('SCM_AFTER_DENIAL'); COMMIT;");
-                    Sql(db, "PRAGMA wal_checkpoint(PASSIVE);");
+                    RequireCompleteCheckpoint(db);
                     File.WriteAllText(Path.Combine(dir,"service.after"),"AFTER_DENIAL_COMMIT=PASS\n");
                     break;
                 }

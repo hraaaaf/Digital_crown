@@ -1,5 +1,11 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-18 — Internal review A+B checkpoint gap / actual SCM still blocked
+
+- **Security A (4/10, OPEN)**: real SCM token, ACL owner/effective-right masks, SERVICE OBJECT security descriptor, inherited sidecars and runner peer environment untested. `Ace` checks only allow-list SIDs; P2 SCM harness is source-only and must not be activated through previously denied privileged flow.
+- **Reliability B (3/10 for native SCM, OPEN)**: `sqlite3_exec("PRAGMA wal_checkpoint(PASSIVE)")` returning SQLITE_OK does not establish all WAL frames checkpointed. Source-only fix reads checkpoint result (busy/log/checkpointed) before `service.ready` and `service.after`, with new static test and Python WAL-reader behavioral negative test. Remaining MAJOR: `OnStop` join ignored result, `sqlite3_close` result ignored; native crash/recovery, service backup/restore and key custody NOT_TESTED.
+- Two internal perspective reviews are in `docs/quality/LOT06_P_P2_F01_INTERNAL_A_B_REVIEW_20261018.md`; **not two independent BLIND reviewers** (0/2). Requires new HEAD exact CI and source re-review. Do not claim certification or convergence.
+
 ## 2026-10-18 — FUE-B runner version mismatch discovered, not a waiver
 
 - Independent Windows FUE-B RED repeated on `cab850eaa046c5881fa4502d139adfe08f99c1b5`: Python B02 module 7/7 PASS, SQLite recovery 6/7 PASS, `test_b02_complete_snapshot_restores_db_and_spool_with_key` same failure `staged=0` at line 111. Separation into Python interpreter processes did **NOT** resolve it; so an unsupported state-leak theory is rejected.
