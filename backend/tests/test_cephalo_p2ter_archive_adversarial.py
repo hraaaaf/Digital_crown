@@ -146,6 +146,45 @@ def test_s3_official_pdf_download_routes_serve_verified_bytes_only(
         assert response.status_code == 409, (route, response.status_code, response.text[:200])
 
 
+def test_s3b_official_download_refuses_ambiguous_active_study_revision(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Even historic duplicate rows must fail closed on every download route."""
+    import uuid
+
+    patient, study, headers, _, doc, official_pdf = _setup_official(
+        client, db, dentiste, monkeypatch, tmp_path,
+    )
+    original_path = doc.file_path.removeprefix("static/archives/")
+    second_path = "synthetic-duplicate-" + uuid.uuid4().hex + ".pdf"
+    (tmp_path / "archives" / second_path).write_bytes(official_pdf)
+    duplicate = models.DocumentArchive(
+        patient_id=patient.id,
+        uploaded_by_id=dentiste.id,
+        document_type=models.DocumentType.RAPPORT_CEPHALO,
+        filename=second_path,
+        original_filename=second_path,
+        document_group_id=str(uuid.uuid4()),
+        version_number=1,
+        file_hash=doc.file_hash,
+        file_size=doc.file_size,
+        file_path="static/archives/" + second_path,
+        clinical_data=dict(doc.clinical_data),
+        analysis_id=study.id,
+        status=models.DocumentStatus.ACTIF,
+    )
+    db.add(duplicate)
+    db.commit()
+    for route in (
+        f"/api/documents/{doc.id}/download",
+        "/api/static/archives/" + original_path,
+        f"/api/documents/{duplicate.id}/download",
+        "/api/static/archives/" + second_path,
+    ):
+        response = client.get(route, headers=headers)
+        assert response.status_code == 409, (route, response.status_code, response.text[:250])
+
+
 def test_s4_trashed_official_revision_cannot_be_restored_over_active_duplicate(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
