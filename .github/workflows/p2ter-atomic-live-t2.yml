@@ -15,6 +15,7 @@ on:
       - techdoubt.md
       - backend/tests/test_cephalo_p2ter_identity_bound_pdf.py
       - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+      - frontend/src/features/patients/PatientDetailsInner.tsx
       - scripts/ceph_p2ter_concurrent_atomic_t2.py
 permissions:
   contents: read
