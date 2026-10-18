@@ -158,8 +158,8 @@ def evaluate_tenant_snapshot_read_only(connection, principal, *, expected_owners
 def _check_fake_paths(root: Path, staged: Path, target: Path):
     if os.environ.get("LOT05G_SYNTHETIC_ONLY") != "1":
         raise RestoreContractDenied("FAKE_LAB_DISABLED")
-    if (type(root) is not Path or type(staged) is not Path
-            or type(target) is not Path):
+    if (not isinstance(root, Path) or not isinstance(staged, Path)
+            or not isinstance(target, Path)):
         raise RestoreContractDenied("LAB_PATH_TYPE_INVALID")
     if (not root.is_absolute() or
         not re.fullmatch(r"lot05e_fake_sqlcipher_[a-zA-Z0-9_-]+", root.name)
