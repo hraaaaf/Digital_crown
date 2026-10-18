@@ -39,7 +39,7 @@ try{
       }
       if(await page.locator('.cmd-lanehead:visible').count()!==1)failures.push('MOBILE_VISIBLE_LANES_'+w);
       await page.getByRole('button',{name:'Agenda Dr B'}).click();
-      if(await page.locator('.cmd-lanehead:visible').count()!==1 || await page.getByRole('button',{name:/TEST-003/}).isVisible()!==true || await page.getByRole('button',{name:/TEST-002/}).isVisible()!==false)failures.push('MOBILE_LANE_SWITCH_'+w);
+      if(await page.locator('.cmd-lanehead:visible').count()!==1 || await page.getByRole('button',{name:/TEST-003/}).isVisible()!==true || await page.locator('.cmd-appt').filter({hasText:'TEST-002'}).isVisible()!==false)failures.push('MOBILE_LANE_SWITCH_'+w);
       await page.getByRole('button',{name:'Agenda Dr A'}).click();
    }
    const img=path.join(out,'command-react-elite-'+w+'.png');await page.screenshot({path:img,fullPage:true,animations:'disabled'});
