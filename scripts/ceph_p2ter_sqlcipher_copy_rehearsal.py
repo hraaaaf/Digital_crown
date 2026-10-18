@@ -40,6 +40,8 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
             CREATE TABLE cephalo_analyses(id INTEGER PRIMARY KEY,patient_id INTEGER NOT NULL);
             INSERT INTO cephalo_analyses VALUES (2727,1717);
             CREATE TABLE document_archives(id INTEGER PRIMARY KEY);
+            CREATE TABLE cabinet_configs(id INTEGER PRIMARY KEY, owner_id INTEGER, nom_cabinet TEXT);
+            INSERT INTO cabinet_configs VALUES (37,1717,'SYNTHETIC CABINET LAYOUT');
         """)
         conn.commit()
     original_bytes = original.read_bytes()
