@@ -1559,13 +1559,15 @@ def generate_cephalo_pdf(
             db.rollback()
         raise
     if req.archive:
-        from backend.services.archive_service import ArchiveService
+        from backend.services.archive_service import (
+            ArchiveService, cleanup_uncommitted_cephalo_files,
+        )
         from backend.schemas import ConflictResolution
 
-        with open(pdf_path, "rb") as pdf_stream:
-            pdf_bytes = pdf_stream.read()
-
+        created_archive_paths = []
         try:
+            with open(pdf_path, "rb") as pdf_stream:
+                pdf_bytes = pdf_stream.read()
             archived, _ = ArchiveService(db).archive_document(
                 patient_id=patient_id,
                 file_content=pdf_bytes,
@@ -1581,6 +1583,7 @@ def generate_cephalo_pdf(
                 },
                 on_conflict=ConflictResolution.CREATE_VERSION,
                 commit=False,
+                created_file_paths=created_archive_paths,
             )
             if archived is None:
                 raise RuntimeError("Archive manquante")
@@ -1590,6 +1593,7 @@ def generate_cephalo_pdf(
             db.commit()
         except Exception as exc:
             db.rollback()
+            cleanup_uncommitted_cephalo_files(db, created_archive_paths)
             logger.exception("Archivage du bilan de l'analyse %s échoué", selected.id)
             # A failed archive must not leave an unintended public-facing PDF.
             try:
