@@ -135,6 +135,70 @@ def test_same_study_revision_archive_replays_identical_bytes_once(
     ).all()) == 1
 
 
+def test_generic_upload_cannot_forge_or_overwrite_official_cephalo_archive(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Blind-first adversarial route test: auth + PDF bytes do not confer authority."""
+    from types import SimpleNamespace
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    query = {"patient_id": patient.id, "doc_type": "RAPPORT_CEPHALO"}
+
+    # First, upload with a plausible PDF mime; no bound study/revision provided.
+    forged = client.post(
+        "/api/documents/archive",
+        params=query,
+        files={"file": ("counterfeit.pdf", b"%PDF-1.4 T2 fake", "application/pdf")},
+        headers=headers,
+    )
+    assert forged.status_code == 422, forged.text
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+
+    # Create an actual synthetic authority-bound report, then attempt generic
+    # overwrite of its original filename. Neither its bytes nor SQL may mutate.
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+    official = client.post(
+        f"/api/patients/{patient.id}/pdf",
+        json={"analysis_id": study.id, "expected_revision": 1, "archive": True},
+        headers=headers,
+    )
+    assert official.status_code == 200, official.text[:300] if official.status_code != 200 else ""
+    doc = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).one()
+    before_hash, before_file, before_id = doc.file_hash, doc.file_path, doc.analysis_id
+    fake_overwrite = client.post(
+        "/api/documents/archive",
+        params={**query, "on_conflict": "OVERWRITE"},
+        files={"file": (doc.original_filename, b"%PDF-1.4 altered", "application/pdf")},
+        headers=headers,
+    )
+    assert fake_overwrite.status_code == 422, fake_overwrite.text
+    db.refresh(doc)
+    assert (doc.file_hash, doc.file_path, doc.analysis_id) == (
+        before_hash, before_file, before_id,
+    )
+    persisted = (tmp_path / "archives" / before_file.removeprefix("static/archives/")).read_bytes()
+    assert persisted == official.content
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 1
+
+
 def test_official_archive_sql_commit_failure_removes_orphaned_pdf(
     db, monkeypatch, tmp_path,
 ):
