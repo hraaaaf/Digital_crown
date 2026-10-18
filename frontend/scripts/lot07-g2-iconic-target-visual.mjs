@@ -91,8 +91,14 @@ try {
       page.on('response', response=>{
         if(response.status()>=500)serverErrors.push(response.url()+':'+response.status());
       });
-      await page.addInitScript(t=>{document.documentElement.dataset.theme=t;},theme);
+      // addInitScript runs before Chromium has constructed <html>; accessing
+      // document.documentElement there is a browser test bug. Set the fixture
+      // palette after DOM creation, before any target state/capture assertion.
       await page.goto(base,{waitUntil:'networkidle',timeout:90000});
+      await page.evaluate(t=>{
+        if (!document.documentElement) throw Error('G2 html root not created');
+        document.documentElement.dataset.theme=t;
+      },theme);
       const rootElement=page.locator('[data-v15-07-g2-target]');
       await rootElement.waitFor({state:'visible',timeout:20000});
       const names=['Tableau de bord','Agenda','Dossier patient','Imagerie'];
