@@ -149,7 +149,8 @@ class SyntheticAuthorityBundleLab(unittest.TestCase):
                         h.fake_issue_request_ticket(
                             c, principal, expected_owners=self.owners,
                             job_id=self.job_id, manifest_sha=self.manifest_sha,
-                            now=self.now, signing_key=self.key)
+                            now=self.now, signing_key=self.key,
+                            bundle_root=self.root_bundle, manifest=self.manifest)
 
     def test_05_ticket_claim_and_signature_mutations_denied(self):
         token = self.ticket()
