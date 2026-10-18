@@ -79,7 +79,32 @@ for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
 }
 const browser = await chromium.launch({ headless:true });
 const evidence = [];
+const wallClockEvidence=[];
 try {
+  // Real Chromium/Vite module under two distinct browser timezones.
+  // The clinical API contract stores LOCAL wall clock, not ISO UTC instants.
+  for (const timezoneId of ['Africa/Casablanca','America/New_York']) {
+    const tzContext=await browser.newContext({timezoneId});
+    try {
+      const tzPage=await tzContext.newPage();
+      await tzPage.goto(appOrigin+'/login',{waitUntil:'domcontentloaded',timeout:90000});
+      const rows=await tzPage.evaluate(async () => {
+        const { formatAgendaWallClock }=await import('/src/utils/agendaWallClock.ts');
+        return [ [0,30], [10,0], [23,30] ].map(([h,m]) => {
+          const value=new Date(2026,9,18,h,m);
+          return {wall:formatAgendaWallClock(value),utc:value.toISOString()};
+        });
+      });
+      const expected=['2026-10-18T00:30:00','2026-10-18T10:00:00','2026-10-18T23:30:00'];
+      if(rows.some((row,i)=>row.wall!==expected[i])
+          || !rows.some(row=>!row.utc.startsWith(row.wall))) {
+        throw new Error('FAIL: Agenda wall clock differs from cabinet local time '+timezoneId+' '+JSON.stringify(rows));
+      }
+      wallClockEvidence.push({timezoneId,rows,status:'PASS_REAL_CHROMIUM_LOCAL_WALL_CLOCK'});
+    } finally {
+      await tzContext.close();
+    }
+  }
   for (const width of [390, 430, 1280, 1440, 1600, 1920]) {
     const desktop = width >= 1600;
     const height = desktop ? 900 : 844;
@@ -153,9 +178,20 @@ try {
       }
       const historyDrawer=sidecar.locator('[data-cb01-history-drawer]');
       if(await historyDrawer.getAttribute('aria-hidden')!=='false'
-          || await historyDrawer.getAttribute('inert')!==null) {
+          || await historyDrawer.getAttribute('inert')!==null
+          || await historyDrawer.getAttribute('role')!=='dialog'
+          || await historyDrawer.getAttribute('aria-modal')!=='true') {
         throw new Error('FAIL: open History drawer remained hidden or inert');
       }
+      // Real keyboard modal containment: Shift+Tab from first wraps to last,
+      // Tab from last returns to first.
+      const historyLast=historyDrawer.locator('button').last();
+      await page.keyboard.press('Shift+Tab');
+      if(!await historyLast.evaluate(el=>el===document.activeElement))
+        throw new Error('FAIL: history Shift+Tab did not wrap to last control');
+      await page.keyboard.press('Tab');
+      if(!await historyClose.evaluate(el=>el===document.activeElement))
+        throw new Error('FAIL: history Tab did not wrap to first control');
       await page.keyboard.press('Escape');
       if(await historyDrawer.getAttribute('aria-hidden')!=='true'
           || await historyDrawer.getAttribute('inert')===null
@@ -495,7 +531,7 @@ try {
     firstValueOneClickChromium:'PASS_3_BUSINESS_CTA_VISIBLE_DIRECTLY_AFTER_LAUNCH',
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
     browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
-    roleChecks,evidence,clinicalRouteEvidence};
+    roleChecks,evidence,clinicalRouteEvidence,wallClockEvidence};
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2));
   console.log('CB01_ASSOCIATE_SIDECAR_VISUAL: PASS',JSON.stringify(evidence));
 } finally {
