@@ -213,11 +213,23 @@ try {
     await chat.focus();
     await page.keyboard.press('ArrowLeft');
     const brain=panel.getByRole('tab',{name:/Mémoire contextuelle/});
-    assert(await brain.getAttribute('aria-selected')==='true',
-      'keyboard ArrowLeft failed at native zoom 200');
+    assert(await brain.getAttribute('aria-selected')==='true'
+      && await brain.evaluate(el=>el===document.activeElement),
+      'keyboard ArrowLeft failed to select and FOCUS memory at native zoom 200');
     await page.keyboard.press('End');
-    assert(await chat.getAttribute('aria-selected')==='true',
-      'keyboard End failed at native zoom 200');
+    assert(await chat.getAttribute('aria-selected')==='true'
+      && await chat.evaluate(el=>el===document.activeElement),
+      'keyboard End failed to select and FOCUS Chat at native zoom 200');
+    const historyToggle=panel.getByRole('button',{name:"Ouvrir l'historique Crown Bot"});
+    await historyToggle.focus();
+    await page.keyboard.press('Enter');
+    const drawer=panel.getByRole('dialog',{name:'Historique Crown Bot'});
+    await drawer.waitFor({state:'visible'});
+    assert(await drawer.getAttribute('aria-modal')==='true',
+      'history drawer is not accessible as a modal at native zoom 200');
+    await page.keyboard.press('Escape');
+    assert(await historyToggle.evaluate(el=>el===document.activeElement),
+      'Escape did not restore history opener focus at native zoom 200');
     await panel.getByRole('button',{name:'Préparer un RDV'}).click();
     await panel.getByText('Patient : saisissez un nom ou dossier').waitFor({state:'visible',timeout:12000});
     assert(clinicalWrites.length===0, 'clinical write during native zoom workflow');
@@ -225,6 +237,7 @@ try {
       width, zoom100:1, zoom200:browserAt200.observed,
       pixels100:at100, pixels200:at200, keyboardAria:'PASS',
       previewReadOnly:'PASS_SYNTHETIC_API',
+      historyModalEscapeFocus:'PASS_NATIVE_ZOOM_200',
       screenshots:['cb01-win-native-'+width+'-100.png','cb01-win-native-'+width+'-200.png'],
     });
     await nativeZoom(worker,1);
