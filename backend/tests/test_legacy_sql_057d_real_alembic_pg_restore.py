@@ -55,6 +55,51 @@ def native(db, data=None):
     return subprocess.run(command, input=data, capture_output=True, timeout=120)
 
 
+
+# PostgreSQL 18 deparser rewrites text[] casts on one partial index and
+# four CHECK expressions after pg_dump/restore. Narrow allowlist only;
+# any changed enum literal, operator, table/column or constraint FAILS.
+KNOWN_PG18_ARRAYS = {
+    "ck_clinical_assets_asset_type": (
+        "asset_type", ("PHOTO", "RADIOGRAPH", "DOCUMENT", "VIDEO", "AUDIO", "OTHER")),
+    "ck_clinical_assets_source_kind": (
+        "source_kind", ("UPLOAD", "IMPORT", "DERIVED", "CLINICAL_ANALYSIS", "DEVICE_CAPTURE")),
+    "ck_ngap_mapping_code_kind": (
+        "code_kind", ("NGAP", "INTERNAL", "OTHER")),
+    "ck_ngap_mapping_verification_status": (
+        "verification_status", ("PRIMARY_HASH_PENDING", "VERIFIED_PRIMARY", "OUTDATED")),
+    "uq_ortho_cases_one_open_per_patient": (
+        "lifecycle_status", ("ACTIVE", "INTERRUPTED")),
+}
+
+
+def canonical_catalog_row(section, row):
+    name = row[0]
+    is_constraint = section == "constraints" and name in KNOWN_PG18_ARRAYS and name.startswith("ck_")
+    is_index = section == "indexes" and name == "uq_ortho_cases_one_open_per_patient"
+    if not (is_constraint or is_index):
+        return row
+    column, values = KNOWN_PG18_ARRAYS[name]
+    raw = row[-1]
+    literal_values = tuple(re.findall(r"'([^']+)'::character varying", raw))
+    if literal_values != values or raw.count("'") != len(values) * 2:
+        raise Refused("PG18_ENUM_DEPARSE_UNEXPECTED_VALUES")
+    shadow = re.sub(r"'[^']+'::character varying", "ENUM", raw)
+    shadow = shadow.replace("::text[]", "").replace("::text", "")
+    shadow = re.sub(r"[\s\(\)\[\],]", "", shadow)
+    if is_constraint:
+        if row[1] != "c":
+            raise Refused("PG18_DEPARSE_CONSTRAINT_TYPE_CHANGED")
+        expected = "CHECK" + column + "=ANYARRAY" + "ENUM" * len(values)
+    else:
+        expected = ("CREATEUNIQUEINDEXuq_ortho_cases_one_open_per_patient"
+                    "ONpublic.ortho_casesUSINGbtreeemployer_idpatient_id"
+                    "WHERElifecycle_status=ANYARRAYENUMENUM")
+    if shadow != expected:
+        raise Refused("PG18_ENUM_DEPARSE_UNEXPECTED_SQL")
+    return (*row[:-1], expected)
+
+
 def catalog(c, include_details=False):
     from sqlalchemy import text
     sql = {
@@ -72,7 +117,9 @@ def catalog(c, include_details=False):
     table_count = len({row[0] for row in data["columns"]})
     if table_count < 30:
         raise Refused("REAL_ALEMBIC_SCHEMA_INCOMPLETE")
-    base = (digest(json.dumps(data, sort_keys=True).encode()), table_count)
+    normalized = {section: [canonical_catalog_row(section, row) for row in rows]
+                  for section, rows in data.items()}
+    base = (digest(json.dumps(normalized, sort_keys=True).encode()), table_count)
     return (*base, data) if include_details else base
 
 
@@ -318,6 +365,27 @@ class RealHeadRecovery(unittest.TestCase):
         self.restore()
         with self.dst.connect() as c:
             self.assertEqual(evidence(c), self.before)
+
+
+    def test_09_known_pg18_deparse_must_be_semantically_constrained(self):
+        name = "ck_ngap_mapping_code_kind"
+        left = ("CHECK (code_kind::text = ANY "
+                "(ARRAY['NGAP'::character varying, 'INTERNAL'::character varying, "
+                "'OTHER'::character varying]::text[]))")
+        right = ("CHECK (code_kind::text = ANY "
+                 "(ARRAY['NGAP'::character varying::text, "
+                 "'INTERNAL'::character varying::text, "
+                 "'OTHER'::character varying::text]))")
+        self.assertEqual(
+            canonical_catalog_row("constraints", (name, "c", left)),
+            canonical_catalog_row("constraints", (name, "c", right)),
+        )
+        for forged in (right.replace("'NGAP'", "'FOREIGN'"),
+                       right.replace("code_kind::text =", "code_kind::text <>"),
+                       right + " OR TRUE"):
+            with self.subTest(forged=forged), self.assertRaises(Refused):
+                canonical_catalog_row("constraints", (name, "c", forged))
+
 
 
 if __name__ == "__main__":
