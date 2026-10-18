@@ -31,6 +31,7 @@ const report = {
   spokenPhrases: [],
   lastSpokenPhrase: null,
   observedTerms: [],
+  observedAccessibleControls: {},
   keyboardActions: [],
   screenshots: [],
   clinicalWritesAttempted: [],
@@ -47,6 +48,19 @@ const expectedTerms = [
   { key:'find_patient', re: /trouver\s+un\s+patient/i },
   { key:'rdv', re: /préparer\s+un\s+rdv/i },
 ];
+// Match real NVDA spoken *roles*, not incidental words in instructional prose.
+const expectedControls = {
+  brainTab: /^tab,\s*(?:selected,\s*)?Mémoire contextuelle(?:\s|$)/iu,
+  chatTab: /^tab,\s*(?:selected,\s*)?Chat(?:\s|$)/iu,
+  programmeButton: /^button,\s*Mon programme(?:\s|$)/iu,
+  findPatientButton: /^button,\s*Trouver un patient(?:\s|$)/iu,
+  rdvButton: /^button,\s*Préparer un RDV(?:\s|$)/iu,
+};
+function spokenControlStatus(phrases) {
+  return Object.fromEntries(Object.entries(expectedControls).map(([key, regexp]) => [
+    key, phrases.some(phrase => regexp.test(String(phrase).trim())),
+  ]));
+}
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let server = null;
 let browser = null;
@@ -103,9 +117,11 @@ async function captureSpeech(stage) {
   const phrases=Array.isArray(lines)?lines.map(v=>String(v)):[String(lines)];
   report.spokenPhrases=phrases.slice(-250);
   report.observedTerms=readTerms(phrases);
+  report.observedAccessibleControls=spokenControlStatus(phrases);
   report.lastSpokenPhrase=await nvda.lastSpokenPhrase();
   console.log('CB01_NVDA_SPOKEN_STAGE',JSON.stringify({
     stage,phraseCount:phrases.length,terms:report.observedTerms,
+    roles:report.observedAccessibleControls,
     latest:report.lastSpokenPhrase?.slice(0,250),
   }));
 }
@@ -160,36 +176,39 @@ try {
   await sleep(800);
   // Trigger real OS-level NVDA navigation, recording each command.
   // NVDA.next() navigates the screen reader virtual cursor, not Playwright DOM.
-  for(let n=0;n<70;n++){
+  for(let n=0;n<80;n++){
     await nvda.next();
     report.keyboardActions.push('NVDA.next');
-    if(n%10===9) {
+    if(n%5===4) {
       await captureSpeech('next-'+(n+1));
-      if(report.observedTerms.includes('chat')
-         && report.observedTerms.some(x=>['programme','find_patient','rdv','memory'].includes(x)))
-        break;
+      if(Object.values(report.observedAccessibleControls).every(Boolean)) break;
     }
   }
-  // Reinforce with NVDA-specific form navigation; no fake aria assertions.
-  if(!report.observedTerms.includes('programme')) {
-    for(let i=0;i<14;i++){
+  // NVDA-specific form navigation if virtual-cursor reading did not reach
+  // all three CTA controls. Output still comes from the real NVDA speech log.
+  if(!Object.values(report.observedAccessibleControls).every(Boolean)) {
+    for(let i=0;i<20;i++){
       await nvda.perform(nvda.keyboardCommands.moveToNextFormField);
       report.keyboardActions.push('NVDA.moveToNextFormField');
+      await captureSpeech('form-'+(i+1));
+      if(Object.values(report.observedAccessibleControls).every(Boolean)) break;
     }
   }
   await captureSpeech('final');
-  const useful=report.observedTerms.filter(x=>['chat','memory','programme','find_patient','rdv'].includes(x));
-  if(useful.length<2
-    || !useful.some(x=>['programme','find_patient','rdv'].includes(x))) {
-    throw new Error('NVDA did not actually announce >=2 CB01 UI elements including a first-value CTA. Got '+JSON.stringify(useful));
+  const missing=Object.entries(report.observedAccessibleControls)
+    .filter(([,announced])=>!announced).map(([key])=>key);
+  if(missing.length) {
+    throw new Error('NOT_CERTIFIED: NVDA did not announce required role+name controls: '
+      +JSON.stringify({ missing, observed:report.observedAccessibleControls,
+        phrases:report.spokenPhrases.slice(-30) }));
   }
   if(report.clinicalWritesAttempted.length) {
     throw new Error('Clinical mutation was attempted during NVDA screen reader lab');
   }
   report.nvdaSpeechCaptured='PASS_REAL_NVDA_SPOKEN_PHRASES';
   console.log('CB01_WINDOWS_REAL_NVDA: PASS',JSON.stringify({
-    sourceHead:head,terms:report.observedTerms,spoken:report.spokenPhrases.length,
-    keyboardActions:report.keyboardActions.length,
+    sourceHead:head,terms:report.observedTerms,roles:report.observedAccessibleControls,
+    spoken:report.spokenPhrases.length,keyboardActions:report.keyboardActions.length,
     clinicalWrites:report.clinicalWritesAttempted.length,
   }));
 } catch(err) {
