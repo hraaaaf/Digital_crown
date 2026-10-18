@@ -115,6 +115,23 @@ try {
       localStorage.setItem('appMode','prod');
     }, {access:tokens.access_token,refresh:tokens.refresh_token});
     const page = await context.newPage();
+    if (desktop) {
+      // Synthetic history fixture: browser must render only safe text,
+      // even when server records contain legacy pending-action payloads.
+      await page.route('**/api/bot/sessions',route=>route.fulfill({
+        status:200, contentType:'application/json',
+        body:JSON.stringify([{
+          id:'cb01-history',title:'CB01 Synthétique',updated_at:'2026-10-18',
+        }]),
+      }));
+      await page.route('**/api/bot/sessions/cb01-history/messages',route=>route.fulfill({
+        status:200, contentType:'application/json',
+        body:JSON.stringify([{
+          id:'msg-1',sender:'bot',text:'Historique synthétique consultable',
+          pendingActionId:'never-execute',pendingAction:{type:'CREATE_APPOINTMENT'},
+        }]),
+      }));
+    }
     const errors=[],writes=[];
     page.on('pageerror',error => errors.push(String(error)));
     page.on('request',req => {
@@ -199,6 +216,18 @@ try {
           || !await sidecar.isVisible()) {
         throw new Error('FAIL: History Escape did not restore focus without closing sidecar');
       }
+      await historyToggle.click();
+      await historyDrawer.getByRole('button',{name:'Ouvrir la conversation CB01 Synthétique'}).click();
+      const historyView=sidecar.getByRole('region',{
+        name:'Conversation archivée — lecture seule',
+      });
+      await historyView.getByText('Historique synthétique consultable').waitFor({state:'visible'});
+      if(await sidecar.getByRole('button',{name:/Confirmer|Exécuter/i}).count()
+          || await sidecar.getByText('never-execute').count()) {
+        throw new Error('FAIL: history revived a historical clinical action');
+      }
+      await historyView.getByRole('button',{name:'Retour aux actions'}).click();
+      await sidecar.getByRole('button',{name:'Mon programme'}).waitFor({state:'visible'});
     } else {
       await overlay.waitFor({state:'visible',timeout:15000});
       if(await sidecar.count()) throw new Error('FAIL: sidecar wrongly mounted on fallback');
@@ -529,6 +558,7 @@ try {
   }
   const summary={kind:'CB01_SYNTHETIC_PREVIEW_ONLY',flagDependent:true,
     firstValueOneClickChromium:'PASS_3_BUSINESS_CTA_VISIBLE_DIRECTLY_AFTER_LAUNCH',
+    historyReadOnlyChromium:'PASS_SYNTHETIC_HISTORY_TEXT_NO_EXECUTE_AND_MODAL_KEYBOARD',
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
     browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
     roleChecks,evidence,clinicalRouteEvidence,wallClockEvidence};
