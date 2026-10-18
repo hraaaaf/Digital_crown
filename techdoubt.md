@@ -1,5 +1,10 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-18 — FUE-B initial RED on Windows; root cause not yet confirmed
+
+- First new-run `3a9d35d96b9045d1c65b841c6bc0f893beec7137` [two-actor FUE run #39169805182](https://github.com/hraaaaf/Digital_crown/actions/runs/39169805182): **A PASS** real ordinary-user cross-SID oracle; **B FAIL** on Windows test `test_b02_complete_snapshot_restores_db_and_spool_with_key` at line 111: second scan yielded `staged=0` rather than 1. Thirteen other B tests succeeded. Failed test result is genuine; do NOT ignore or mark FUE GREEN. The observed scan reason (unstable / deferred / quarantined / rejected) was not captured, so the underlying cause is UNKNOWN.
+- Remediation is to execute the existing B02 and SQLite recovery modules in two *fresh Python processes*, with **every existing assertion preserved** and separate nonzero-exit fail-fast gates. This tests for cross-module or interpreter-state coupling without presuming that coupling explains the failure. A repeat failure must be diagnosed using actual scan outcome and source conditions, not skipped or retried blindly. No production code or service changed.
+
 ## 2026-10-18 — Two-actor FUE technical LAB, not BLIND independent or native SCM
 
 - Owner requested one or two FUE (First User Experience) checks. Two separate **Windows-runner actor workflows** are being added on PR #909: FUE-A actual cross-standard-SID native NTFS read/write/delete/rights denial, FUE-B synthetic quiescent backup, SQLite WAL rollback/crash and full DB+spool+key recovery. Docs: `docs/quality/LOT06_P_P2_F01_TWO_ACTOR_FUE_LAB.md`. Run must be exact new HEAD before assigning status.

@@ -113,8 +113,14 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m unittest -v tools.imaging_gateway.tests.test_p2_backup_lab tools.imaging_gateway.tests.test_p2_sqlite_recovery_semantics
-          if($LASTEXITCODE -ne 0){throw 'FUE_B_RESTORE_TESTS_FAILED'}
+          # Each first-use operator exercise gets a pristine Python interpreter.
+          # Do not weaken or skip any assertion after the initial combined-run RED.
+          python -m unittest -v tools.imaging_gateway.tests.test_p2_backup_lab
+          if($LASTEXITCODE -ne 0){throw 'FUE_B_BACKUP_TESTS_FAILED'}
+          Write-Host 'FUE_B_BACKUP_SUBSUITE=PASS'
+          python -m unittest -v tools.imaging_gateway.tests.test_p2_sqlite_recovery_semantics
+          if($LASTEXITCODE -ne 0){throw 'FUE_B_RECOVERY_TESTS_FAILED'}
+          Write-Host 'FUE_B_RECOVERY_SUBSUITE=PASS'
           Write-Host 'FUE_B_ACTION=DB_SPOOL_AND_KEY_POSITIVE_NEGATIVE_PASS'
           Write-Host 'FUE_B_AFTER=RESTORE_INTEGRITY_AND_FAIL_CLOSED_PASS'
           Write-Host 'FUE_B_NATIVE_SCM=NOT_TESTED'
