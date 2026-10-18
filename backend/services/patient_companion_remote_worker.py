@@ -18,6 +18,7 @@ from backend.models_patient_companion import (
     PatientCompanionRemoteKeyset,
 )
 from backend.services.patient_companion_access_guard import lock_patient_access_transaction
+from backend.services.patient_companion_remote_agenda_quota import charge_remote_agenda_attempt
 from backend.services.patient_companion_key_protection import (
     unprotect_os_bound,
 )
@@ -236,6 +237,13 @@ def process_remote_envelope(
     # must not serve agenda.create using its much larger rate-limit budget.
     if allowed_operation_prefix is not None and not message.operation.startswith(allowed_operation_prefix):
         raise RemoteTransportRejected("operation not permitted on this remote endpoint")
+
+    # This DB-backed, short-transaction budget is shared by every HTTP PID
+    # and by the Relay worker. It is charged even for repeated idempotency
+    # keys and failed/rejected Agenda actions, and cannot be rolled back with
+    # the clinical receipt/appointment transaction.
+    if message.operation.startswith("agenda."):
+        charge_remote_agenda_attempt(db, access_id=access.id)
 
     try:
         claim = claim_remote_command(db, access=access, message=message)
