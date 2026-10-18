@@ -286,6 +286,45 @@ class BridgeLabConfigTests(unittest.TestCase):
 
 
 class BridgeLabRuntimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_operational_state_is_fail_closed_and_never_auto_recovers(self):
+        from tools.imaging_gateway.bridge_background_lab import (
+            BridgeLabHandle, BridgeLabOperationalStatus,
+            bridge_lab_operational_state,
+        )
+
+        class Child:
+            def __init__(self):
+                self.code = None
+                self.fail_probe = False
+
+            def poll(self):
+                if self.fail_probe:
+                    raise OSError("SYNTHETIC_PRIVATE_EXCEPTION")
+                return self.code
+
+        stop = asyncio.Event()
+        task = asyncio.create_task(stop.wait())
+        child = Child()
+        operational = BridgeLabOperationalStatus()
+        handle = BridgeLabHandle(stop, task, process=child, operational=operational)
+        try:
+            self.assertEqual(bridge_lab_operational_state(None), "DISABLED")
+            self.assertEqual(bridge_lab_operational_state(handle), "STARTING")
+            operational.state = "READY"
+            self.assertEqual(bridge_lab_operational_state(handle), "READY")
+            child.code = 4
+            self.assertEqual(bridge_lab_operational_state(handle), "DEGRADED")
+            child.code = None
+            self.assertEqual(bridge_lab_operational_state(handle), "DEGRADED")
+            operational.state = "READY"
+            child.fail_probe = True
+            self.assertEqual(bridge_lab_operational_state(handle), "DEGRADED")
+            operational.state = "STOPPED"
+            self.assertEqual(bridge_lab_operational_state(handle), "STOPPED")
+        finally:
+            stop.set()
+            await task
+
     async def test_background_worker_runs_and_stops_without_separate_process(self):
         class Collector:
             ticks = 0
