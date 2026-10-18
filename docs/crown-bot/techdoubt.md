@@ -2,14 +2,26 @@
 
 Ce registre contient uniquement des réserves **CB-01** encore non levées. Les tests physiques sont réservés au **Lot 10**, pas à cette mission logicielle.
 
-## CB01-TD-20261018-01 — S01 après correction du contrat horaire — OUVERT
+## CB01-TD-20261018-01 — S01 après correction du contrat horaire — RÉSOLU PAR CI SUR SHA 396914475ba940c456ab314f780e70a3dbbcf3a1
 - **Observation** : [run #39128715548](https://github.com/hraaaaf/Digital_crown/actions/runs/39128715548) sur `f0b544af364fb905573765a6db27c7fbc771c69a` avait 6/7 workflows applicables SUCCESS, **CB-01 RED** à l'étape S01 (Code `UNEXPECTED_TRANSPORT_OR_RUNTIME`). L'inspection du [script S01](https://github.com/hraaaaf/Digital_crown/blob/f0b544af364fb905573765a6db27c7fbc771c69a/frontend/scripts/certify-cb01-s01-s12-matrix.mjs#L222-L240) a montré que l'assertion attendait `toISOString()` avec suffixe Z, alors que le correctif Agenda convertit maintenant le jour au contrat **heure locale sans timezone**. Le run Chromium d'acceptation sidecar a lui-même affiché `CB01_ASSOCIATE_SIDECAR_VISUAL: PASS` et Windows/PostgreSQL CB-01 SUCCESS.
 - **Correction posée** : script S01 importe dans le navigateur le module produit `formatAgendaWallClock` et vérifie les bornes d'Agenda de demain à la milliseconde près, via la même requête HTTP. Aucun assouplissement des droits, de la date attendue ni de la détection d'écritures.
 - **Réserve** : la nouvelle CI du HEAD contenant la correction n'était pas terminée à la vérification ; **ne pas déclarer ALL GREEN ni CONVERGED** sans résultats/artefacts sur le SHA final. Exécuter la CI (déjà déclenchée), diagnostiquer/corriger tout nouveau RED, vérifier le HEAD exact.
 - **Classification** : CB-01 logiciel / experimental CB-01 Visual ; bloquant de convergence si RED réel sur final HEAD.
+- **Levée prouvée** : [CB-01 run #39132541205](https://github.com/hraaaaf/Digital_crown/actions/runs/39132541205) COMPLETED SUCCESS 3/3 jobs, `CB01_S01_TOMORROW_BROWSER: PASS_SCOPED_READ_ONLY` et `CB01_S01_S12_SYNTHETIC: PASS`, 7/7 workflows applicables sur le SHA ci-dessus. L'état « encore en attente » décrit la date de création de la réserve, et n'est plus actuel.
 
 ## CB01-TD-20261018-02 — Preuves et revues restantes — OUVERT
 - Les 5 défauts de revue adversariale (horaires Agenda, historique texte, filtre praticien fail-closed, accessibilité dialog, premier clic Chromium) sont corrigés en code dans [PR #904](https://github.com/hraaaaf/Digital_crown/pull/904), mais **régression finale à prouver** sur le HEAD actuel.
 - Zoom navigateur **natif 200 %** non prouvé : test actuel de réduction CSS de largeur seulement. Tests lecteurs d'écran/contrastes complets non certifiés. CB-01 dispose de 0 revues GitHub par deux personnes indépendantes, donc **CONVERGED=NON** même si CI GREEN.
 - **Actions** : valider vrais jobs de CI, ajouter si nécessaire tests UX logiciels, demander 2 reviewers réels sur un HEAD stable ; revue interne A/B du même assistant ≠ revue indépendante.
 - **Hors scope** : ne pas déplacer l'essai humain physique/T2 du Lot 10 vers CB-01.
+
+## CB01-TD-20261018-03 — A/ blind-first interne : timezone navigateur vs timezone cabinet — OUVERT (MAJOR conditionnel)
+- **Source revue** : code exact `396914475ba940c456ab314f780e70a3dbbcf3a1`, [rapport A interne](https://github.com/hraaaaf/Digital_crown/pull/904#issuecomment-6250927585), score sévère 6/10. **Ce n'est pas un reviewer indépendant**.
+- **Constat** : `CrownBotWorkflowPreview.tsx:69–79` utilise la date locale **du navigateur** pour `Mon programme`, alors que la base Agenda stocke des heures naïves **du cabinet**. `bot_workflows.py` utilise `date.today()` du serveur pour la date de référence. Test Python `zoneinfo` exécuté hors produit : à `2026-10-17T23:30Z`, Casablanca est le 18/10 00:30 (+01), New York le 17/10 19:30 (-04), donc bornes de jour différentes pour un seul cabinet. **E2E distant/PG NOT_RUN** ; aucun patient réel ni fuite inter-cabinet démontrés.
+- **Next** : définir un fuseau canonique IANA du cabinet, appliquer ce fuseau au calcul des bornes jour et au FSM, préserver les heures métier naïves stockées, tester deux navigateurs/TZ et DST avec vraie API/PG. Revue A et CI sur nouveau HEAD.
+
+## CB01-TD-20261018-04 — B/ blind-first interne : patient homonyme non visible pendant préparation RDV — OUVERT (MAJOR)
+- **Source revue** : code exact `396914475ba940c456ab314f780e70a3dbbcf3a1`, [rapport B interne](https://github.com/hraaaaf/Digital_crown/pull/904#issuecomment-6250954839), score sévère 5/10. **Ce n'est pas un reviewer indépendant**.
+- **Constat** : `CrownBotWorkflowPreview.tsx:226–235,245–260` remplace `id:<id>` par « Dossier choisi » sans conserver prénom/nom/numéro de dossier après sélection homonyme. `backend/routers/bot_workflows.py:95–145` renvoie `patient` pour `/patient` mais pas pour `/rdv` ; le personnel ne peut pas revalider l'identité clairement au fil de la proposition. **Reproduction statique sur contrat/rendu ; E2E navigateur dédié NOT_RUN**. Aucune réservation réalisée dans la preview.
+- **Next** : afficher identité sélectionnée visible et revalidée au cours du workflow en lecture seule, l'effacer lors de switch/refus/principal, tests deux homonymes Vitest + Chromium et contrôle de fail-closed.
+- **MINOR associés B** : onglets non identifiés sémantiquement, archivage sans confirmation/Undo ; preuves zoom navigateur natif 200 %, VoiceOver/NVDA et contraste restant NOT_RUN. `CONVERGED=NON`, 0/2 reviews GitHub distinctes.
