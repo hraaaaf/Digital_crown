@@ -123,16 +123,6 @@
     pointer-events: none;
   }
 
-  body:has([data-patient-cephalo-header="true"]) [data-rht-toaster] {
-    right: 0.75rem !important;
-    bottom: 0.75rem !important;
-    max-width: min(320px, calc(100vw - 1.5rem)) !important;
-  }
-
-  body:has([data-patient-cephalo-header="true"]) [data-rht-toaster] > div {
-    max-width: 100% !important;
-  }
-
   body:has([data-patient-cephalo-header="true"]) [data-ortho-workspace-title],
   body:has([data-patient-cephalo-header="true"]) [data-cephalo-selected-analysis-id] {
     scroll-margin-block-start: 5.75rem;
