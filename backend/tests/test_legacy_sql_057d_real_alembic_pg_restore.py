@@ -268,6 +268,8 @@ class RealHeadRecovery(unittest.TestCase):
 
     def test_07_audit_detects_cross_tenant_reference_in_test_transaction(self):
         from sqlalchemy import text
+        from sqlalchemy.orm import Session
+        from backend import models
         self.restore()
         with self.dst.connect() as c:
             tx = c.begin()
@@ -275,11 +277,15 @@ class RealHeadRecovery(unittest.TestCase):
                 patient = c.execute(text("SELECT id,employer_id FROM patients ORDER BY id LIMIT 1")).one()
                 owner = c.execute(text("SELECT id FROM users WHERE id <> :id ORDER BY id LIMIT 1"),
                                   {"id": patient.employer_id}).scalar_one()
-                c.execute(text("""INSERT INTO appointments
-                    (patient_id,employer_id,datetime_start,duration_minutes,reminder_sent)
-                    VALUES (:patient,:owner,'2026-12-01 09:00:00',30,false)"""),
-                          {"patient": patient.id, "owner": owner})
-                self.assertEqual(tenant_orphans(c), 1)
+                # Use genuine ORM defaults so an unrelated NOT NULL constraint
+                # cannot fake a successful cross-tenant rejection.
+                with Session(bind=c) as fake_session:
+                    fake_session.add(models.Appointment(
+                        patient_id=patient.id, employer_id=owner,
+                        datetime_start=datetime(2026, 12, 1, 9),
+                        duration_minutes=30, motif="FAKE_WRONG_TENANT"))
+                    fake_session.flush()
+                    self.assertEqual(tenant_orphans(c), 1)
             finally:
                 tx.rollback()
         with self.dst.connect() as c:
