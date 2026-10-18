@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install reportlab pypdf
+      - run: python -m pip install reportlab==4.4.10 pypdf==6.21.1
       - name: Exact HEAD and syntax
         run: |
           set -euo pipefail
@@ -82,7 +82,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install isolated integration dependencies
-        run: python -m pip install SQLAlchemy==2.0.28 sqlcipher3==0.6.2 passlib==1.7.4 bcrypt==3.2.2 reportlab==4.4.10 pydantic==2.6.3 pydantic-settings==2.2.1 python-jose==3.5.0 python-dotenv==1.2.1 alembic==1.20.0 email-validator==2.2.0 fastapi==0.115.6 pypdf
+        run: python -m pip install SQLAlchemy==2.0.28 sqlcipher3==0.6.2 passlib==1.7.4 bcrypt==3.2.2 reportlab==4.4.10 pydantic==2.6.3 pydantic-settings==2.2.1 python-jose==3.5.0 python-dotenv==1.2.1 alembic==1.20.0 email-validator==2.2.0 fastapi==0.115.6 pypdf==6.21.1
       - name: Generate isolated random fixture keys
         shell: bash
         run: |
@@ -118,7 +118,7 @@ jobs:
           from backend.database import SessionLocal
           dbfile = Path('/tmp/digital-crown-demo-reference.db')
           assert dbfile.is_file()
-          assert dbfile.read_bytes()[:16] != b'SQLite format 3\\x00', 'plaintext SQLite detected'
+          assert dbfile.read_bytes()[:16] != bytes.fromhex('53514c69746520666f726d6174203300'), 'plaintext SQLite detected'
           with database.engine.connect() as connection:
               assert connection.exec_driver_sql('PRAGMA cipher_version').scalar()
           with SessionLocal() as db:
