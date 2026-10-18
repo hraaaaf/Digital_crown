@@ -212,6 +212,9 @@ async def lifespan(app: FastAPI):
     patient_relay_task = None
     station_ttl_cleanup_task = None
     imaging_bridge_lab_handle = None
+    # Only the isolated test lifespan may publish a supervised LAB handle.
+    # Reset on each startup to prevent stale READY after a previous lifespan.
+    app.state.imaging_bridge_lab_handle = None
     # Set before starting: even a partially armed timer must be stopped.
     daily_scheduler_start_attempted = False
     try:
@@ -310,6 +313,7 @@ async def lifespan(app: FastAPI):
             # Never import optional LAB tooling during ordinary cabinet startup.
             from tools.imaging_gateway.bridge_background_lab import start_if_enabled
             imaging_bridge_lab_handle = start_if_enabled(trusted_environment=str(_cfg.ENVIRONMENT))
+            app.state.imaging_bridge_lab_handle = imaging_bridge_lab_handle
 
         # Shutdown is part of the same guarded lifetime: normal completion,
         # request exception, task cancellation and failed partial startup.
@@ -735,6 +739,27 @@ from backend.routers import patient_companion
 app.include_router(patient_companion.router, prefix="/api/patient-companion", tags=["Patient Companion"])
 
 # --- HEALTH CHECK ---
+@app.get("/api/health/imaging-bridge-lab", include_in_schema=False)
+async def imaging_bridge_lab_operational_health():
+    """Non-secret TEST-only child operational state, separate from DB health.
+
+    Normal cabinet/production requests cannot inspect laboratory internals.
+    No PID, paths, keys, acquisition/patient details or device identifiers.
+    """
+    if (str(app_settings.ENVIRONMENT).lower() != "test"
+            or os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME", "").lower()
+            not in {"true", "1"}):
+        raise HTTPException(status_code=404, detail="Not Found")
+    from tools.imaging_gateway.bridge_background_lab import bridge_lab_operational_state
+
+    status = bridge_lab_operational_state(
+        getattr(app.state, "imaging_bridge_lab_handle", None))
+    return JSONResponse(
+        status_code=200 if status in {"DISABLED", "READY"} else 503,
+        content={"scope": "isolated_test_lab", "state": status},
+    )
+
+
 @app.get("/health", include_in_schema=False)
 async def health_check():
     try:
