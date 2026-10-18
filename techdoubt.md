@@ -1,5 +1,14 @@
 # TECHDOUBT — Digital Crown
 
+## LOT05.7-E — 2026-10-18 — vrai BackupService SQLCipher/Alembic en copie fictive
+
+**Statut initial OPEN. GO clinique : NON.** Laboratoire strictement test-only dans une racine `TemporaryDirectory(lot05e_fake_sqlcipher_*)` : utiliser vrai `alembic upgrade head` sur SQLCipher neuf pour `neo000000031`, les vraies classes ORM sur données inventées, vrai `BackupService.backup_active_database()` et `BackupService.restore_backup(verify_sqlcipher=True)` vers fichier différent. Toutes preuves CI exact HEAD encore à confirmer (Linux/Windows Python3.12). Les essais n'accèdent à aucune source historique ou DB Cabinet réelle.
+
+**BLOCKERS sécurité clinique identifiés :** `BackupService.restore_backup` utilise `os.replace` et peut **écraser un fichier de destination existant** ; la précondition `require_empty_fake_destination` du laboratoire ne protège EN RIEN le runtime. Il faudra une procédure d'autorisation owner/tenant, une destination contrôlée, un plan rescue/rollback et l'exclusion de TOCTOU/NTFS reparse/ACL avant restauration clinique. L'authentification de l'utilisateur et les droits du tenant ne sont pas branchés au backup réel dans ce test. Le contrôle `assert_no_cross_tenant_appointments` du laboratoire est **read-only/test-only** et refuse les mismatches, mais **la DB peut accepter la relation erronée** : un vrai pipeline doit bloquer AVANT écriture, en contexte authentifié. Les documents du jeu fictif sont uniquement des métadonnées pointant vers des chemins volontairement inexistants ; la sauvegarde des médias/radiographies n'est PAS prouvée. La résilience du WAL SQLCipher sous crash, l'intégrité des clés, l'étanchéité entre tenants d'autres tables, le coffre médias/clé Fernet, RPO/RTO, la restauration Windows SCM/NTFS et l'authenticité d'un vrai dump restent ouverts.
+
+**Décision** : même si la suite Linux/Windows devient verte, ce serait uniquement un CONVERGED technique test-only 05.7-E ; **NO-GO import réel, merge et déploiement**. Si l'opérateur Alembic SQLCipher échoue, NE PAS stamper manuellement la révision ou masquer l'échec. Conserver tous les runs rouges, corriger et re-tester au nouveau SHA.
+
+
 ## LOT05.7-D — 2026-10-18 — Alembic PostgreSQL de laboratoire et isolation inter-cabinets
 
 **Statut clinique NO-GO ; réserves OUVERTES.** Le laboratoire #05.7-D vise le vrai head Alembic `neo000000031` dans un PG18 CI isolé, snapshot/restauration sur deuxième DB et lignes ORM exclusivement fictives. Cela ne certifie ni une installation en exploitation, ni des données sources tierces, ni SQLCipher Cabinet/BackupService/media. Le workflow ne doit jamais migrer des fichiers de production.
