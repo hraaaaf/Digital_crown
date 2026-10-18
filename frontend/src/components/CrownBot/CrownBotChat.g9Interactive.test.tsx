@@ -190,6 +190,8 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(list).toContainElement(brain);
     expect(list).toContainElement(chat);
     expect(brain).toHaveAttribute('aria-selected', 'true');
+    expect(brain).toHaveAttribute('aria-controls', 'cb01-panel-brain');
+    expect(chat).not.toHaveAttribute('aria-controls');
     expect(brain).toHaveAttribute('tabindex', '0');
     expect(chat).toHaveAttribute('tabindex', '-1');
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'cb01-tab-brain');
@@ -197,6 +199,8 @@ describe('CrownBot G9 reachable interaction truth', () => {
     await user.keyboard('{ArrowRight}');
     expect(chat).toHaveFocus();
     expect(chat).toHaveAttribute('aria-selected', 'true');
+    expect(chat).toHaveAttribute('aria-controls', 'cb01-panel-chat');
+    expect(brain).not.toHaveAttribute('aria-controls');
     expect(brain).toHaveAttribute('tabindex', '-1');
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'cb01-tab-chat');
     await user.keyboard('{Home}');
