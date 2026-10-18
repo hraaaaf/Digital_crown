@@ -297,7 +297,7 @@ try {
       // essential first-value instruction text (normal-size: at least 4.5:1).
       const firstValueContrast=await preview.locator('.bg-white').first().locator('p').first().evaluate(element => {
         const parse = value => {
-          const m=value.match(/^rgba?\\(\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)/);
+          const m=value.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/);
           if(!m) throw new Error('FAIL: unsupported computed color '+value);
           return m.slice(1,4).map(Number);
         };
