@@ -304,6 +304,24 @@ class PatientCompanionRelayOutbox(Base):
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
 
+class PatientCompanionRemoteAgendaQuota(Base):
+    """Shared fixed/rolling ten-minute patient Agenda abuse budget.
+
+    One row per access across all HTTP processes and Relay workers; rate
+    accounting is committed in a short independent database transaction so a
+    rejected clinical command cannot roll back the attempt counter.
+    """
+
+    __tablename__ = "patient_companion_remote_agenda_quotas"
+
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    window_started_epoch: Mapped[int] = mapped_column(nullable=False)
+    attempts: Mapped[int] = mapped_column(nullable=False)
+
+
 class PatientCompanionRemoteReceipt(Base):
     """Persistent replay/idempotency ledger for decrypted remote commands."""
 
