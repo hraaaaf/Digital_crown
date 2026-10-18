@@ -72,6 +72,86 @@ def cleanup_uncommitted_cephalo_files(db: Session, created_paths: List[Path]) ->
 
 
 
+
+def audit_cephalo_archive_after_crash(
+    db: Session,
+    *,
+    archive_root: Path,
+    minimum_age_seconds: int = 3600,
+    current_timestamp: Optional[float] = None,
+) -> dict:
+    """Read-only orphan evidence after an abrupt process termination.
+
+    This is an *operator audit*, never startup cleanup and never a public API.
+    Do not delete/rename a candidate merely because its SQL row is absent:
+    a write may still be in flight, backup contents may differ and the file
+    may be an older unindexed clinical report. The caller must stop writers,
+    verify backup/restore and obtain an explicit cabinet decision first.
+
+    Results include relative paths solely for local authorized reconciliation.
+    Treat output as confidential patient data; never print, upload or log it.
+    """
+    import time
+    from sqlalchemy.exc import SQLAlchemyError
+
+    root = Path(archive_root).resolve(strict=True)
+    if not root.is_dir() or minimum_age_seconds < 1:
+        raise ValueError("Requires an existing isolated archives directory and positive age")
+    now = time.time() if current_timestamp is None else current_timestamp
+
+    # Entire reference set must be read successfully before scanning: no
+    # fail-open on unavailable DB. The query is read-only, no session.commit.
+    try:
+        paths = db.query(models.DocumentArchive.file_path).all()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    stored_refs = {str(row[0]) for row in paths if row[0]}
+    possible = []
+    for pat_dir in sorted(root.iterdir()):
+        if pat_dir.is_symlink() or not pat_dir.is_dir() or not pat_dir.name.isdecimal():
+            continue
+        ceph_dir = pat_dir / DocumentType.RAPPORT_CEPHALO.value
+        if not ceph_dir.is_dir() or ceph_dir.is_symlink():
+            continue
+        for year in ceph_dir.iterdir():
+            if year.is_symlink() or not year.is_dir() or not (len(year.name) == 4 and year.name.isdecimal()):
+                continue
+            for month in year.iterdir():
+                if month.is_symlink() or not month.is_dir() or not (month.name.isdecimal() and 1 <= int(month.name) <= 12):
+                    continue
+                for file in month.iterdir():
+                    if file.is_symlink() or not file.is_file() or file.suffix.lower() != ".pdf":
+                        continue
+                    relative = file.relative_to(root).as_posix()
+                    key = "static/archives/" + relative
+                    if key in stored_refs:
+                        continue
+                    stat = file.stat()
+                    if now - stat.st_mtime < minimum_age_seconds:
+                        continue  # active and recent writes remain untouched
+                    hasher = hashlib.sha256()
+                    with file.open("rb") as source:
+                        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                            hasher.update(chunk)
+                    # The path is confidential metadata. Output is a local
+                    # operator-only record, never a GitHub artifact.
+                    possible.append({
+                        "relative_path": relative,
+                        "sha256": hasher.hexdigest(),
+                        "bytes": stat.st_size,
+                    })
+    return {
+        "mode": "READ_ONLY",
+        "automatic_deletions": 0,
+        "suspected_orphans": possible,
+        "suspected_count": len(possible),
+        "minimum_age_seconds": minimum_age_seconds,
+    }
+
+
+
+
 class ArchiveService:
     """
     Service de gestion documentaire avec :
