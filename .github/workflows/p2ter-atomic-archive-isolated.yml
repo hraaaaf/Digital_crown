@@ -9,6 +9,7 @@ on:
       - backend/core/schema_runtime.py
       - backend/models.py
       - backend/routers/patients.py
+      - backend/services/archive_service.py
       - backend/tests/test_cephalo_p2ter_identity_bound_pdf.py
       - scripts/ceph_p2ter_concurrent_atomic_t2.py
       - alembic/versions/ceparch0001_add_cephalo_archive_claims.py
