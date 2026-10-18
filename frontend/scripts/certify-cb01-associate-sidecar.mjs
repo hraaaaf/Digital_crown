@@ -271,11 +271,23 @@ try {
       }
       // CB-01 FIRST_VALUE_UI: the one-click "Mon programme" is a real
       // tenant-scoped GET from the canonical agenda, not a bot mock or write.
+      const cabinetDayRead=page.waitForResponse(resp=>
+        new URL(resp.url()).pathname==='/api/bot/workflows/cabinet-day'
+        && resp.request().method()==='GET',{timeout:15000});
       const programmeRead=page.waitForResponse(resp=>
         new URL(resp.url()).pathname==='/api/appointments/'
         && resp.request().method()==='GET',{timeout:15000});
       await preview.getByRole('button',{name:'Mon programme'}).click();
-      const programmeResult=await programmeRead;
+      const [cabinetDayResult,programmeResult]=await Promise.all([cabinetDayRead,programmeRead]);
+      if(cabinetDayResult.status()!==200) throw new Error('FAIL: canonical day not authorized');
+      const cabinetDay=await cabinetDayResult.json();
+      const readUrl=new URL(programmeResult.url());
+      if(cabinetDay.timezone!=='Africa/Casablanca'
+         || readUrl.searchParams.get('start_date')!==cabinetDay.start_date
+         || readUrl.searchParams.get('end_date')!==cabinetDay.end_date
+         || !cabinetDay.start_date.startsWith(cabinetDay.day)) {
+        throw new Error('FAIL: Agenda GET not scoped to server canonical business day');
+      }
       if(programmeResult.status()!==200) {
         throw new Error('FAIL: Mon programme returned '+programmeResult.status());
       }
@@ -317,8 +329,12 @@ try {
         await preview.getByRole('button',{name:'Envoyer'}).click();
         await preview.getByText(expectedPrompt,{exact:false}).waitFor({state:'visible'});
       };
-      await nextStep('dossier:CB01-N-101','Date du rendez-vous au format');
+      await nextStep('BENALI','Plusieurs patients correspondent.');
+      await preview.getByRole('button',{name:/AMINA BENALI.*CB01-N-101/}).click();
+      await preview.getByText('Date du rendez-vous au format',{exact:false}).waitFor();
+      await preview.getByText('Patient sélectionné (vérifié par le serveur) : AMINA BENALI — Dossier CB01-N-101').waitFor();
       await nextStep('2099-01-01','Heure du rendez-vous au format');
+      await preview.getByText('Patient sélectionné (vérifié par le serveur) : AMINA BENALI — Dossier CB01-N-101').waitFor();
       await nextStep('10:00','Durée : 15, 30, 45 ou 60');
       await nextStep('30','Motif : consultation, détartrage ou couronne');
       await nextStep('consultation','Tapez CONFIRMER');
@@ -344,7 +360,8 @@ try {
         throw new Error('FAIL: S05 dossier appointment preview not fail-closed non-executable');
       }
       await preview.getByText('Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable.').waitFor();
-      staffSearchChecks+='|PASS_OWNER_DOSSIER_RDV_PROPOSAL_ONLY';
+      await preview.getByText('Patient sélectionné (vérifié par le serveur) : AMINA BENALI — Dossier CB01-N-101').waitFor();
+      staffSearchChecks+='|PASS_OWNER_HOMONYM_RDV_IDENTITY_STABLE_PROPOSAL_ONLY|PASS_SERVER_CABINET_DAY';
     }
     await page.screenshot({path:path.join(output,'after-'+width+'.png')});
     evidence.push({width,mode:desktop?'sidecar-reflow':'web-floating-fallback',
