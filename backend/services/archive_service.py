@@ -34,6 +34,40 @@ _TRASHED_PAYMENT_PREFIX = "CORBEILLE — Lien Doc ID: "
 _INSTALLMENT_TRASH_PREFIX = "__DC_TRASH_DOC__:"
 
 
+
+def cleanup_uncommitted_cephalo_files(db: Session, created_paths: List[Path]) -> None:
+    """Best-effort cleanup only for paths this request created exclusively.
+
+    After rollback, check the database before deletion: COMMIT may have taken
+    effect even if the client lost its response. If the DB cannot be queried,
+    preserve the bytes for explicit reconciliation instead of risking deletion
+    of a document that is already referenced by a committed archive.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    base = ARCHIVE_BASE_DIR.resolve()
+    for candidate in created_paths:
+        path = Path(candidate).resolve()
+        try:
+            relative = path.relative_to(base)
+            stored_key = ("static/archives/" + relative.as_posix())
+            durable = db.query(models.DocumentArchive.id).filter(
+                models.DocumentArchive.file_path == stored_key,
+            ).first()
+            if durable is not None:
+                logger.error("Keeping archive bytes: committed document exists for %s", stored_key)
+                continue
+        except Exception:
+            logger.exception("Archive reconciliation unavailable; retaining newly created bytes")
+            continue
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            logger.exception("Archive orphan cleanup failed for newly created path")
+
+
+
+
 class ArchiveService:
     """
     Service de gestion documentaire avec :
