@@ -13,3 +13,11 @@
 **Unchanged gates:** Specifically required human clinical/regulatory/visual approvals and LOT10 hardware/person-on-device observations remain separate from conversation-based A/B review. No deployment, merge or clinical activation is authorized by this documentation.
 
 **Historical origin:** PR #960, master merge `3cbd1d83cdbcbf97e71019a3182f4699d9645421`. This file supersedes the inaccurate "two-agent independence not yet demonstrated" as an *internal review blocker*.
+
+
+### DEMO-REFERENCE-CABINET — 2026-10-18 — PR #968 DRAFT (chantier distinct)
+- Jeu fictif 12 patients, 36 RDV, 36 PDF : code seed manuel livré, **pas de DB persistante créée**, pas de test réel UI ou archive/media mapping ; ne pas déclarer DEMO opérationnelle.
+- **BLOCKER avant réutilisation inter-lots :** exécution end-to-end sur DB neuve et réellement migrée, SQLCipher sécurisé, aucun tenant préexistant ; tester lecture réelle des 36 PDF via API et agenda aux viewports mobile/desktop lorsque fonctionnalité mobile confirmée.
+- Le seed doit être validé par test d'intégration SQL et transaction/media, idempotence, collisions de créneaux, fuseau Africa/Casablanca, authentification, absence d'envoi SMS/email. CI smoke [#39163397642](https://github.com/hraaaaf/Digital_crown/actions/runs/39163397642) lancée, résultat non connu à la rédaction.
+- Sécurité : pas d'identifiants statiques ni de données patients réelles ; isoler base et média ; refus si doute. Revue adversariale interne A/B sur HEAD final encore nécessaire.
+- Ce chantier ne modifie ni la PR clinique #955 ni sa roadmap 41/99 ; aucun merge/deploy sans autorisation.
