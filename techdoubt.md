@@ -1,5 +1,14 @@
 # TECHDOUBT — Digital Crown
 
+## LOT05.7-F — 2026-10-18 — Lab veto tenant et publication sans écrasement ≠ sûreté runtime
+
+**OPEN initial, clinique NO-GO.** Nouveau test-only de conformité au vrai schéma SQLCipher/Alembic `neo000000031`, sur 2 propriétaires, 6 patients, 12 RDV, 4 actes, 4 paiements et 2 métadonnées documents *intégralement fictifs* du 05.7-E. Le preflight vérifie à lecture seule les relations patient/owner, RDV/patient et ressource, acte/praticien, paiement/acte, document/uploader ; il est uniquement dans `backend/tests` et **n'a aucun effet runtime**. Les ID source de propriétaires sont des claims de fixture, pas une identité authentifiée. Il subsiste des centaines de tables et chemins métier non couverts, notamment échéances et contenus médicaux ; ne pas conclure « toutes les FKs de Cabinet protégées ».
+
+**Défaut runtime clinique majeur non corrigé** : `BackupService.restore_backup` utilise `os.replace` et peut écraser une destination réelle. Le laboratoire appelle la méthode réelle vers un staging exclusif puis utilise `os.link(staged,target,follow_symlinks=False)` sur son `TemporaryDirectory` fictif : le lien dur est atomiquement refusé si la destination est déjà créée, et aucune copie de secours ne suit. Cela **ne prouve ni un chemin Windows hostile de production, ni la sécurité NTFS reparse/junction/ACL/hardlink, ni l'absence de TOCTOU sur chemin parent, ni l'atomicité de plusieurs fichiers DB/WAL/SHM/médias, ni la durabilité et le secours après panne**. La restauration vraie exige autorisation propriétaire/auth, signature/provenance externe, contre-vérifications de médias, RPO/RTO et plan rollback ; toutes réserves BLOQUANTES. Une clé/backup perdu ou corrompu ne peut être restauré par la preuve synthétique.
+
+**Gates exigées pour 05.7-F** : 14 tests sans skip Linux/Windows Python3.12, HEAD exact, CI Scope ; deux perspectives adversariales internes et confirmation sans MAJOR avant toute revendication `CONVERGED` LAB. Si red/pending = OUVERT / BLOQUÉ ASYNCHRONE. Aucun import clinique, merge, UI mobile, déploiement Vercel ni donnée patient réelle.
+
+
 ## LOT05.7-E — 2026-10-18 — vrai BackupService SQLCipher/Alembic en copie fictive
 
 **Statut initial OPEN. GO clinique : NON.** Laboratoire strictement test-only dans une racine `TemporaryDirectory(lot05e_fake_sqlcipher_*)` : utiliser vrai `alembic upgrade head` sur SQLCipher neuf pour `neo000000031`, les vraies classes ORM sur données inventées, vrai `BackupService.backup_active_database()` et `BackupService.restore_backup(verify_sqlcipher=True)` vers fichier différent. Toutes preuves CI exact HEAD encore à confirmer (Linux/Windows Python3.12). Les essais n'accèdent à aucune source historique ou DB Cabinet réelle.
