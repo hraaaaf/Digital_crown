@@ -28,6 +28,7 @@ from backend.services.patient_companion_remote_crypto import (
 from backend.services.patient_companion_remote_keys import load_cabinet_private_jwk
 from backend.services.patient_companion_remote_receipts import (
     RemoteCommandBusy,
+    RemoteLegacyReceiptNeedsReconciliation,
     RemoteReplayDetected,
     claim_remote_command,
     complete_remote_command,
@@ -238,6 +239,21 @@ def process_remote_envelope(
 
     try:
         claim = claim_remote_command(db, access=access, message=message)
+    except RemoteLegacyReceiptNeedsReconciliation:
+        # Send a truthful, cryptographically authenticated terminal result on
+        # BOTH direct HTTP and Relay; never drop the message without an ACK,
+        # never invent the original clinical intent, and never mutate capacity.
+        recovery = _ack_payload(
+            message, status="REJECTED",
+            response={"code": "RECONCILIATION_REQUIRED"},
+        )
+        return sign_and_encrypt(
+            recovery.model_dump(mode="json"),
+            sender_signing_private_jwk=signing_private,
+            recipient_encryption_public_jwk=_public_jwk(keyset.patient_encryption_public_jwk_json),
+            sender_signing_kid=keyset.cabinet_signing_kid,
+            recipient_encryption_kid=keyset.patient_encryption_kid,
+        )
     except (RemoteReplayDetected, RemoteCommandBusy):
         raise
 
