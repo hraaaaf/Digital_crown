@@ -8,7 +8,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import sqlite3
+from sqlcipher3 import dbapi2 as sqlcipher
+from backend.core.key_material import sqlcipher_passphrase
 import subprocess
 import sys
 from pathlib import Path
@@ -19,14 +20,24 @@ AFTER = Path("artifacts/cb01-associate-sidecar/full-state-diff.json")
 
 
 def fingerprint(db_path: Path) -> dict:
+    # Open the SAME encrypted T2 file in SQLite's URI read-only mode.
+    # A standard sqlite3 driver cannot read the SQLCipher header. Never
+    # export/downgrade/decrypt/rekey the DB, and never log the passphrase.
     uri = f"{db_path.as_uri()}?mode=ro"
-    with sqlite3.connect(uri, uri=True, timeout=5) as db:
+    db = sqlcipher.connect(uri, uri=True, timeout=5)
+    try:
+        key = sqlcipher_passphrase().replace("'", "''")
+        db.execute("PRAGMA key = '" + key + "'")
+        db.execute("PRAGMA query_only = ON")
+        version = db.execute("PRAGMA cipher_version").fetchone()
+        if not version or not version[0]:
+            raise RuntimeError("REFUSED: SQLCipher cipher_version not available")
         tables = db.execute(
             "SELECT name, sql FROM sqlite_master WHERE type='table' "
             "AND name NOT LIKE 'sqlite_%' ORDER BY name"
         ).fetchall()
         if not tables or not {'patients', 'appointments'}.issubset({t[0] for t in tables}):
-            raise RuntimeError("missing mandatory clinical SQLite tables")
+            raise RuntimeError("missing mandatory encrypted clinical tables")
         result = {}
         for name, ddl in tables:
             quoted = '"' + name.replace('"', '""') + '"'
@@ -38,6 +49,8 @@ def fingerprint(db_path: Path) -> dict:
                 count += 1
             result[name] = {"rows": count, "sha256": h.hexdigest()}
         return result
+    finally:
+        db.close()
 
 
 def main() -> None:
