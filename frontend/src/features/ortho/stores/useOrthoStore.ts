@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { cephaloRepository } from '../cephaloRepository';
+import { emptyStudyClinicalContext } from '../cephaloClinicalIsolation';
 import { prepareBoundCephaloDocumentSource, type BoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { API_BASE } from '../../../services/api';
 import {
@@ -375,12 +376,11 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         mmPerPixel: null,
         completedSteps: new Set<number>(),
         step: 1,
+        ...emptyStudyClinicalContext(),
       });
     }
     const savedPhotos = localStorage.getItem(`digitalcrown_photos_${id}`);
     const savedMeta = localStorage.getItem(`digitalcrown_etape4_${id}`);
-    const savedE2 = localStorage.getItem(`digitalcrown_etape2_${id}`);
-    const savedE3 = localStorage.getItem(`digitalcrown_etape3_${id}`);
     set({ patientId: id, patientName: name, sexePatient: null });
     if (savedPhotos) {
       try {
@@ -401,12 +401,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         console.warn('Failed to parse savedMeta', err);
       }
     }
-    if (savedE2) {
-      try { set({ etape2Data: JSON.parse(savedE2) }); } catch (err) { console.warn(err); }
-    }
-    if (savedE3) {
-      try { set({ etape3Data: JSON.parse(savedE3) }); } catch (err) { console.warn(err); }
-    }
   },
   setAnalysisId: (id) => {
     const current = get();
@@ -415,7 +409,13 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
       URL.revokeObjectURL(current.previewPdfUrl);
     }
-    set({ analysisId: id, previewPdfUrl: null, isPreviewLoading: false });
+    // Invalidating selection also invalidates every clinical field. Nothing
+    // from the previous analysis may be used by PDF/save operations.
+    landmarkSaveGeneration += 1;
+    set({
+      analysisId: id, previewPdfUrl: null, isPreviewLoading: false,
+      ...emptyStudyClinicalContext(),
+    });
   },
   setImageSrc: (src) => set({ imageSrc: src }),
   setLocal: (updater) => set((state) => ({ local: typeof updater === 'function' ? updater(state.local) : updater })),
@@ -439,20 +439,12 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setAutoCalibMessage: (msg) => set({ autoCalibMessage: msg }),
   setDdm: (updater) => set((state) => ({ ddm: typeof updater === 'function' ? updater(state.ddm) : updater })),
   setDiag: (updater) => set((state) => ({ diag: typeof updater === 'function' ? updater(state.diag) : updater })),
-  setEtape2Data: (updater) => {
-    set((state) => {
-      const next = typeof updater === 'function' ? updater(state.etape2Data) : updater;
-      if (state.patientId) localStorage.setItem(`digitalcrown_etape2_${state.patientId}`, JSON.stringify(next));
-      return { etape2Data: next };
-    });
-  },
-  setEtape3Data: (updater) => {
-    set((state) => {
-      const next = typeof updater === 'function' ? updater(state.etape3Data) : updater;
-      if (state.patientId) localStorage.setItem(`digitalcrown_etape3_${state.patientId}`, JSON.stringify(next));
-      return { etape3Data: next };
-    });
-  },
+  setEtape2Data: (updater) => set((state) => ({
+    etape2Data: typeof updater === 'function' ? updater(state.etape2Data) : updater,
+  })),
+  setEtape3Data: (updater) => set((state) => ({
+    etape3Data: typeof updater === 'function' ? updater(state.etape3Data) : updater,
+  })),
   setUploadError: (err) => set({ uploadError: err }),
   setIsUploading: (uploading) => set({ isUploading: uploading }),
   setIsSaving: (saving) => set({ isSaving: saving }),
