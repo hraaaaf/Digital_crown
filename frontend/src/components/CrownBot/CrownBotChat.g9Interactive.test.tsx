@@ -169,6 +169,56 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
   });
 
+  it('A11Y: tablist is announced and Arrow/Home/End rove one selected tab', async () => {
+    const user = userEvent.setup();
+    renderCrownBot();
+    const list = screen.getByRole('tablist', { name: 'Vues de Crown Bot' });
+    const brain = screen.getByRole('tab', { name: /^Mémoire contextuelle/ });
+    const chat = screen.getByRole('tab', { name: 'Chat' });
+    expect(list).toContainElement(brain);
+    expect(list).toContainElement(chat);
+    expect(brain).toHaveAttribute('aria-selected', 'true');
+    expect(brain).toHaveAttribute('tabindex', '0');
+    expect(chat).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'cb01-tab-brain');
+    brain.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(chat).toHaveFocus();
+    expect(chat).toHaveAttribute('aria-selected', 'true');
+    expect(brain).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'cb01-tab-chat');
+    await user.keyboard('{Home}');
+    expect(brain).toHaveFocus();
+    expect(brain).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{End}');
+    expect(chat).toHaveFocus();
+    expect(chat).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{ArrowLeft}');
+    expect(brain).toHaveFocus();
+    expect(chat).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('A11Y: archiving requires explicit confirmation and can be cancelled by keyboard', async () => {
+    const user = userEvent.setup();
+    getMock.mockImplementation(async url => {
+      if (url === '/bot/sessions') return { data: [
+        { id: 'history-archive', title: 'Archive synthétique', updated_at: '2026-10-18' },
+      ] } as any;
+      return { data: [] } as any;
+    });
+    const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const deletion = vi.mocked(api.delete);
+    renderCrownBot();
+    fireEvent.click(screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" }));
+    const archive = await screen.findByRole('button', { name: 'Archiver la conversation Archive synthétique' });
+    archive.focus();
+    await user.keyboard('{Enter}');
+    expect(confirmation).toHaveBeenCalledWith(expect.stringContaining('Archive synthétique'));
+    expect(deletion).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Ouvrir la conversation Archive synthétique' })).toBeInTheDocument();
+    confirmation.mockRestore();
+  });
+
   it('B01: history drawer is inert and inaccessible while closed, enabled when opened', () => {
     renderCrownBot();
     const drawer = document.querySelector('[data-cb01-history-drawer]');
@@ -291,7 +341,7 @@ describe('CrownBot G9 reachable interaction truth', () => {
     renderCrownBot();
     await waitFor(() => expect(getMock).toHaveBeenCalledWith('/bot/sessions'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Chat' }));
 
     expect(screen.getByText("Cette fonction n’est pas accessible depuis cet écran.")).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -376,7 +426,7 @@ describe('CrownBot G9 reachable interaction truth', () => {
     } } as any);
     renderCrownBot();
     await waitFor(() => expect(getMock).toHaveBeenCalledWith('/bot/sessions'));
-    fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Chat' }));
     expect(screen.getByRole('region', { name: 'Assistant Crown Bot — consultation' })).toBeInTheDocument();
     expect(screen.getByText(/aucune écriture/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
