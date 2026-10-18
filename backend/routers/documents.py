@@ -522,7 +522,18 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
         raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if patient_id:
         assert_patient_access(patient_id, current_user, db)
-    
+    if doc_type is not None:
+        require_document_permission(
+            doc_type.value if hasattr(doc_type, "value") else str(doc_type), current_user,
+        )
+    # Apply role-based type filtering in SQL BEFORE count and pagination;
+    # post-filtering the response would still leak hidden totals and titles.
+    allowed_types = [
+        kind for kind in models.DocumentType
+        if DOCUMENT_TYPE_PERMISSIONS.get(kind.value.lower()) is None
+        or has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS[kind.value.lower()])
+    ]
+
     archive_service = get_archive_service(db)
     docs, total = archive_service.search_documents(
         patient_id=patient_id,
@@ -530,7 +541,8 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
         search_query=search,
         page=page,
         page_size=page_size,
-        employer_id=current_user.get_employer_id()
+        employer_id=current_user.get_employer_id(),
+        allowed_doc_types=allowed_types,
     )
 
     # Enrichir chaque doc avec file_exists pour que le frontend sache quoi afficher

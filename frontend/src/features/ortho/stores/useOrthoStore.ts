@@ -142,6 +142,8 @@ let previewOperationGeneration = 0;
 // Separate epochs for the active radio upload and the user's study selection.
 let radioUploadGeneration = 0;
 let studySelectionGeneration = 0;
+// Discard stale explicit-save results and their delayed success/error banners.
+let saveFeedbackGeneration = 0;
 let landmarkSaveGeneration = 0;
 let landmarkSaveChain: Promise<void> = Promise.resolve();
 
@@ -389,6 +391,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       previewOperationGeneration += 1;
       studySelectionGeneration += 1;
       radioUploadGeneration += 1;
+      saveFeedbackGeneration += 1;
       if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
         if (current.previewPdfUrl?.startsWith('blob:')) URL.revokeObjectURL(current.previewPdfUrl);
         for (const photo of current.photos) {
@@ -402,6 +405,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         isPreviewLoading: false,
         isUploading: false,
         uploadError: null,
+        isSaving: false,
+        syncState: 'idle',
         photos: current.photos.map(photo => ({ ...photo, file: null, preview: null })),
         local: { landmarks: [], version: 0 },
         landmarkEditTimeline: createLandmarkEditTimeline(),
@@ -413,14 +418,24 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         ...emptyStudyClinicalContext(),
       });
     }
-    const savedPhotos = localStorage.getItem(`digitalcrown_photos_${id}`);
+    const photosKey = `digitalcrown_photos_${id}`;
+    const savedPhotos = localStorage.getItem(photosKey);
     const savedMeta = localStorage.getItem(`digitalcrown_etape4_${id}`);
     set({ patientId: id, patientName: name, sexePatient: null });
     if (savedPhotos) {
       try {
         const parsed = JSON.parse(savedPhotos);
-        set(s => ({ photos: s.photos.map(p => ({ ...p, preview: parsed[p.id] || null })) }));
+        // Object URLs exist only in the origin document that created them.
+        // Never resurrect revoked blob: links after patient navigation/reload.
+        const durable = Object.fromEntries(
+          Object.entries(parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {})
+            .filter(([, value]) => typeof value === 'string' && !value.startsWith('blob:')),
+        ) as Record<string, string>;
+        set(s => ({ photos: s.photos.map(p => ({ ...p, preview: durable[p.id] || null })) }));
+        if (Object.keys(durable).length) localStorage.setItem(photosKey, JSON.stringify(durable));
+        else localStorage.removeItem(photosKey);
       } catch (err) {
+        localStorage.removeItem(photosKey);
         console.warn('Failed to parse savedPhotos', err);
       }
     }
@@ -448,9 +463,10 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     landmarkSaveGeneration += 1;
     previewOperationGeneration += 1;
     studySelectionGeneration += 1;
+    saveFeedbackGeneration += 1;
     set({
       analysisId: id, previewPdfUrl: null, isPreviewLoading: false,
-      isUploading: false, uploadError: null,
+      isUploading: false, uploadError: null, isSaving: false,
       imageSrc: undefined, local: { landmarks: [], version: 0 },
       landmarkEditTimeline: createLandmarkEditTimeline(),
       anglesData: {}, visionMetadata: {}, isCalibrated: false, mmPerPixel: null,
@@ -501,10 +517,22 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   handlePhotoUpload: (id, file) => {
     const url = URL.createObjectURL(file);
     set(s => {
+      // Revoke replaced object URLs instead of retaining stale patient images.
+      const replaced = s.photos.find(p => p.id === id)?.preview;
+      if (replaced?.startsWith('blob:') && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(replaced);
+      }
       const next = s.photos.map(p => p.id === id ? { ...p, file, preview: url } : p);
       if (s.patientId) {
-        const previews = next.reduce((acc, p) => { acc[p.id] = p.preview; return acc; }, {} as Record<string, string | null>);
-        localStorage.setItem(`digitalcrown_photos_${s.patientId}`, JSON.stringify(previews));
+        const key = `digitalcrown_photos_${s.patientId}`;
+        // File/blob: URLs cannot be rehydrated across document lifetimes.
+        // Persist only independently durable URLs, never fake a saved photo.
+        const durable = Object.fromEntries(
+          next.filter(p => p.preview && !p.preview.startsWith('blob:'))
+            .map(p => [p.id, p.preview]),
+        );
+        if (Object.keys(durable).length) localStorage.setItem(key, JSON.stringify(durable));
+        else localStorage.removeItem(key);
       }
       return { photos: next };
     });
@@ -651,7 +679,17 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   handleSave: async () => {
     const s = get();
     if (!s.analysisId) return;
-    set({ isSaving: true });
+    const operation = ++saveFeedbackGeneration;
+    const stillCurrent = () => operation === saveFeedbackGeneration
+      && get().patientId === s.patientId && get().analysisId === s.analysisId;
+    set({ isSaving: true, syncState: 'idle' });
+    const feedback = (status: 'success' | 'error', duration: number) => {
+      if (!stillCurrent()) return;
+      set({ syncState: status });
+      setTimeout(() => {
+        if (stillCurrent()) set({ syncState: 'idle' });
+      }, duration);
+    };
     try {
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
@@ -660,13 +698,12 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const projections = computeMcNamaraProjections(s.local.landmarks);
       await cephaloRepository.saveAnalysis(s.analysisId, buildPayload(s.local.landmarks, max, mand, real, s.diag, projections, s.mmPerPixel, s.etape2Data, s.etape3Data));
-      set({ syncState: 'success' });
-      setTimeout(() => set({ syncState: 'idle' }), 1500);
+      feedback('success', 1500);
     } catch {
-      set({ syncState: 'error' });
-      setTimeout(() => set({ syncState: 'idle' }), 2000);
+      feedback('error', 2000);
     } finally {
-      set({ isSaving: false });
+      // An A completion must never hide B's pending save indicator.
+      if (stillCurrent()) set({ isSaving: false });
     }
   },
   updateLandmarksOptimistic: (newLms: Landmark[]) => {

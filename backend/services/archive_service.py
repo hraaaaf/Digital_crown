@@ -670,7 +670,8 @@ class ArchiveService:
                         date_from: Optional[datetime] = None,
                         date_to: Optional[datetime] = None,
                         page: int = 1, page_size: int = 20,
-                        employer_id: Optional[int] = None) -> Tuple[List[models.DocumentArchive], int]:
+                        employer_id: Optional[int] = None,
+                        allowed_doc_types: Optional[List[DocumentType]] = None) -> Tuple[List[models.DocumentArchive], int]:
         """Recherche avancée des documents."""
         query = self.db.query(models.DocumentArchive)
         
@@ -682,6 +683,8 @@ class ArchiveService:
             query = query.filter(models.DocumentArchive.patient_id == patient_id)
         if doc_type:
             query = query.filter(models.DocumentArchive.document_type == doc_type)
+        if allowed_doc_types is not None:
+            query = query.filter(models.DocumentArchive.document_type.in_(allowed_doc_types))
         if status:
             query = query.filter(models.DocumentArchive.status == status)
         if tags:

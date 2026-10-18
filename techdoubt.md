@@ -2,6 +2,15 @@
 
 ## CEPH-FAC-PARITY / P2ter++ — 2026-10-18
 
+### Phase régression rouge → correctif — permissions et états Cabinet (2026-10-18)
+
+- **Reproduction B-confirmée sur commit tests seuls `9f3cdb90cd6486a6476f90621c9a31c5cdf0dc89` :** frontend Vitest [REQUIRED #39169600701](https://github.com/hraaaaf/Digital_crown/actions/runs/39169600701), **33 PASS, 2 FAIL**. Photos A→B→A rechargeaient `blob:T2-revoked-photo-A` ; `handleSave` de l'étude A indiquait à tort `success` sur B. Deux échecs attestés par logs de job, non supposés.
+- **Tests A ajoutés au même commit** : radio Céphalo statique exige `cephalo` pour un même cabinet, archive `DEVIS/ORDONNANCE` exige `accounting/prescriptions` avec URL connue, liste de documents exclut les métadonnées interdites avant total/pagination. Leurs résultats CI exact test-HEAD doivent être interprétés séparément des erreurs de fixture éventuelles.
+- **Correctifs proposés dans ce commit** : gate `cephalo` sur radio; archive statique RBAC par type + match exact + statut actif; SQL type-filter avant pagination; suppression des URLs `blob:` invalides du stockage patient et non-persistance des blobs nouveaux; accusés de sauvegarde liés au patient/étude/génération.
+- **Limites** : ce sont des tests de sécurité/authentification synthétiques sous SQLite isolée, pas une preuve d'exploit en cabinet; médias génériques radiographie panoramique hors sous-lot, vrai stockage photo durable non implémenté (les fichiers locaux ne peuvent être restaurés après navigation/reload sans archivage serveur), crash SQL+filesystem et essais SQLCipher/PG natifs non testés, vrais doubles clics UI multi-onglets non certifiés, mobile non prouvé. CI et deux auditeurs réellement indépendants du HEAD correctif encore requis. **CONVERGED=false / NO-GO**.
+
+
+
 ### GO correctif A-01/B-01/B-02 (2026-10-18) — nouveau HEAD à certifier
 
 - A-01 : la route statique officielle vérifie désormais `cephalo` en plus du tenant et de SHA ; test HTTP 403 avec secrétaire autorisée `patients` mais pas `cephalo`, et retour 200 propriétaire sur les deux routes. Preuve CI sur nouveau HEAD encore requise.
