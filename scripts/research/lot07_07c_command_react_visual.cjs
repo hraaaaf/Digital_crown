@@ -43,6 +43,8 @@ try{
       await page.getByRole('button',{name:'Agenda Dr A'}).click();
       const opener=page.getByRole('button',{name:'Afficher les 4 panneaux complémentaires'});
       if(!(await opener.isVisible())||await opener.getAttribute('aria-expanded')!=='false')failures.push('MOBILE_DISCLOSURE_MISSING_'+w);
+      const afterCards=await page.evaluate(()=>{const cards=document.querySelector('.cmd-cards'),button=document.querySelector('.cmd-secondary-toggle');if(!cards||!button)return false;return button.getBoundingClientRect().top>=cards.getBoundingClientRect().bottom-3;});
+      if(!afterCards)failures.push('MOBILE_DISCLOSURE_POSITION_'+w);
       if(await page.locator('.cmd-cards > .cmd-card:visible').count()!==5)failures.push('MOBILE_SECONDARY_DEFAULT_'+w);
       await opener.focus();
       await page.keyboard.press('Enter');
