@@ -6,7 +6,7 @@ const url='http://127.0.0.1:5193/command-target.html';
 const out=path.resolve('artifacts/lot07-07c-command-react');fs.mkdirSync(out,{recursive:true});
 const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const css=fs.readFileSync('frontend/src/features/command/command-react-target.css','utf8');
-if(/#[a-fA-F0-9]{3,8}\\b|\\brgba?\\(/.test(css))throw Error('COMMAND_CSS_LITERAL_COLOR');
+if(css.includes('rgb(') || css.includes('rgba(') || /#[0-9a-fA-F]{3,8}/.test(css)) throw Error('COMMAND_CSS_LITERAL_COLOR');
 const failures=[],snaps=[],themes=['elite','emerald','rose','prestige','ocean','graphite','dark','high-contrast'];
 (async()=>{const browser=await pw.chromium.launch({headless:true,args:['--no-sandbox']});
 try{
