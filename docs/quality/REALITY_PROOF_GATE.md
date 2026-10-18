@@ -13,6 +13,11 @@ Prove the *observable outcome* of each V1.5 lot/sub-lot, not just the presence o
 ## Evidence contract (per lot and sub-lot)
 Record: lot ID, requirement, risk, actors, isolated fixtures, producer and consumer, exact SHA, CI run/job URLs, executed test counts, skipped tests and reasons, transport/TLS details, expected vs observed outcome, SHA-256 for files, screenshots/traces for UI, denial matrix, cleanup/purge, reviewer A/B findings, physical/human limitations and next action. Missing mandatory evidence = OPEN, not GREEN/CLOSED. Tests only collected but not executed = NOT PROVEN.
 
+## Two blind-agent users vs physical/human validation
+- **Reviewer A and B for FUE user testing are two distinct AI agents, not two human testers.** Assign two complementary task-specific specialties, launch them with separate context/synthetic identities/browser sessions and **no cross-report visibility**. Each independently starts from the real UI login (or the public entry route being tested), obtains genuine test-backend authentication and walks real frontend→backend journeys, including refusal/error/recovery cases. Synthetic isolated database only. Record actor, initial state, login result, BEFORE/ACTION/AFTER, exact SHA and independent findings before comparing reports.
+- If the same agent merely performs two passes with shared context, name them **internal adversarial perspectives**, not two independent blind agents. Do not claim the blind-user gate passed without actual separated executions. Technical adversarial reviews and blind-user journeys have different proof and are not substitutes.
+- **Human acceptance and RPG-P are separate**: real people operating real devices for the LOT10 physical FUE start at login for authenticated workflows; physical installation/power-on can precede login when that itself is under test. AI users never satisfy human/physical evidence. Any specifically required human clinician/regulatory review remains a distinct gate.
+
 ## Gates
 1. Define observable success and failure before implementation.
 2. Execute the smallest risk-appropriate RPG-C/J/X/F/P, then two adversarial reviews on the same HEAD; fix findings and rerun on new HEAD.
