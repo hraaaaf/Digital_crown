@@ -1506,7 +1506,6 @@ def generate_cephalo_pdf(
             # Snapshot was verified against archived SHA256 while the study lock
             # was held. Respond from these immutable bytes: FileResponse(path)
             # would re-open the file only after releasing the lock (TOCTOU).
-            from fastapi.responses import Response
             from urllib.parse import quote
 
             replay_path, verified_pdf = replay
