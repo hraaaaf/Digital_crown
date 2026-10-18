@@ -5,6 +5,9 @@ inspect Windows SIDs, validate DACLs, SQLCipher, packaged backend or clinical da
 The native SCM W01-W12 contract remains NOT TESTED until separately authorized.
 """
 from contextlib import closing
+import hashlib
+import os
+import shutil
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -90,6 +93,79 @@ class P2SyntheticSQLiteWALContract(unittest.TestCase):
                 self.assertEqual(restored.execute("SELECT marker FROM ledger").fetchall(), [("included",)])
         finally:
             original.close()
+
+    def test_b02_complete_snapshot_restores_db_and_spool_with_key(self):
+        """Synthetic atomic backup contract: online DB snapshot + ciphertext + key."""
+        from tools.imaging_gateway import Config, HotFolder
+        from tools.imaging_gateway.tests.test_gateway import SYNTHETIC
+
+        root = Path(self.tmp.name)
+        watch, private, archive, recovered = (root / x for x in
+                                               ("watch", "private", "archive", "recovered"))
+        watch.mkdir()
+        key = b"K" * 32
+        config = Config("cabinet1", "device1", watch, private, key)
+        collector = HotFolder(config)
+        (watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.assertEqual(collector.scan_once()["unstable"], 1)
+        self.assertEqual(collector.scan_once()["staged"], 1)
+        item = collector.items()[0]
+        archive.mkdir()
+        with collector._db() as live:
+            with closing(sqlite3.connect(archive / "acquisitions.sqlite3")) as snapshot:
+                live.backup(snapshot)
+        shutil.copytree(private / "spool", archive / "spool")
+        shutil.copy2(private / ".acquisitions-initialized-v1",
+                     archive / ".acquisitions-initialized-v1")
+        fingerprint = hashlib.sha256(next((archive / "spool").glob("*.dc6")).read_bytes()).hexdigest()
+        shutil.copytree(archive, recovered)
+        restored = HotFolder(Config("cabinet1", "device1", watch, recovered, key))
+        self.assertEqual(restored.items(), [item])
+        self.assertEqual(restored.read_verified(item["id"]), SYNTHETIC)
+        self.assertEqual(hashlib.sha256(next((recovered / "spool").glob("*.dc6")).read_bytes()).hexdigest(), fingerprint)
+
+    def test_b02_db_only_restore_is_not_usable_and_missing_db_fails_closed(self):
+        """A SQLite integrity PASS does not prove the encrypted payload survived."""
+        from tools.imaging_gateway import Config, HotFolder, GatewayError
+        from tools.imaging_gateway.tests.test_gateway import SYNTHETIC
+
+        root = Path(self.tmp.name)
+        watch, private, restored = (root / x for x in ("watch", "private", "db-only"))
+        watch.mkdir()
+        key = b"K" * 32
+        source = HotFolder(Config("cabinet1", "device1", watch, private, key))
+        (watch / "fixture.png").write_bytes(SYNTHETIC)
+        source.scan_once()
+        self.assertEqual(source.scan_once()["staged"], 1)
+        restored.mkdir()
+        with source._db() as live:
+            with closing(sqlite3.connect(restored / "acquisitions.sqlite3")) as snapshot:
+                live.backup(snapshot)
+        incomplete = HotFolder(Config("cabinet1", "device1", watch, restored, key))
+        self.assertEqual(len(incomplete.items()), 1)
+        with self.assertRaisesRegex(GatewayError, "spool missing"):
+            incomplete.read_verified(1)
+        db_file = restored / "acquisitions.sqlite3"
+        db_file.unlink()
+        with self.assertRaisesRegex(GatewayError, "database missing; restore required"):
+            HotFolder(Config("cabinet1", "device1", watch, restored, key))
+
+    def test_b02_wrong_key_rejects_restored_ciphertext(self):
+        """Correct SQLite bytes and spool are insufficient without key continuity."""
+        from tools.imaging_gateway import Config, HotFolder, GatewayError
+        from tools.imaging_gateway.tests.test_gateway import SYNTHETIC
+
+        root = Path(self.tmp.name)
+        watch, private = root / "watch", root / "private"
+        watch.mkdir()
+        source = HotFolder(Config("cabinet1", "device1", watch, private, b"K" * 32))
+        (watch / "fixture.png").write_bytes(SYNTHETIC)
+        source.scan_once()
+        self.assertEqual(source.scan_once()["staged"], 1)
+        wrong = HotFolder(Config("cabinet1", "device1", watch, private, b"Z" * 32))
+        self.assertEqual(len(wrong.items()), 1)
+        with self.assertRaisesRegex(GatewayError, "spool authentication failed"):
+            wrong.read_verified(1)
 
     def test_crash_after_commit_recovers_but_uncommitted_write_does_not(self):
         child_script = r"""
