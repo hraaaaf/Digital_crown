@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: "sqlite:///:memory:"
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       SECRET_KEY: isolated-sqlcipher-copy-test-secret-value
