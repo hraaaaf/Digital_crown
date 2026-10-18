@@ -8,6 +8,7 @@ using System.Security.Principal;
 using System.Diagnostics;
 using System.ServiceProcess;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 public sealed class P2ScmSyntheticService : ServiceBase {
     [DllImport("winsqlite3.dll", EntryPoint="sqlite3_open_v2", CharSet=CharSet.Ansi, CallingConvention=CallingConvention.Cdecl)]
@@ -20,7 +21,26 @@ public sealed class P2ScmSyntheticService : ServiceBase {
     static extern void Free(IntPtr ptr);
     static volatile bool stopping;
     static Thread worker;
-    static string PrivateDir { get { return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "..", "private")); } }
+    // Defense in depth: never touch a DB from an arbitrary install/clinic path.
+    // This LAB binary may only use the generated synthetic ProgramData layout.
+    static string PrivateDir { get {
+        string executable = Path.GetFullPath(Assembly.GetExecutingAssembly().Location);
+        string bin = Path.GetDirectoryName(executable);
+        string root = Path.GetFullPath(Path.Combine(bin, ".."));
+        string rootName = Path.GetFileName(root);
+        string serviceName = Path.GetFileNameWithoutExtension(executable);
+        string commonData = Path.GetFullPath(Environment.GetFolderPath(
+            Environment.SpecialFolder.CommonApplicationData));
+        if (!String.Equals(Path.GetFileName(bin), "bin", StringComparison.OrdinalIgnoreCase)
+            || !String.Equals(Path.GetDirectoryName(root), commonData, StringComparison.OrdinalIgnoreCase)
+            || !Regex.IsMatch(rootName, @"^dc-p2-scm-ci-[0-9a-f]{8}$", RegexOptions.IgnoreCase)
+            || !Regex.IsMatch(serviceName, @"^DCP2S[0-9a-f]{8}$", RegexOptions.IgnoreCase)
+            || !String.Equals(rootName.Substring(rootName.Length - 8),
+                              serviceName.Substring(serviceName.Length - 8),
+                              StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("LAB_FIXTURE_LAYOUT_REQUIRED");
+        return Path.Combine(root, "private");
+    } }
     public P2ScmSyntheticService() { ServiceName = Path.GetFileNameWithoutExtension(Assembly.GetExecutingAssembly().Location); CanStop = true; AutoLog = false; }
     static void Sql(IntPtr db, string sql) {
         IntPtr err;
