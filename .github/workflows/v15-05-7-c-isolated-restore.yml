@@ -109,7 +109,7 @@ jobs:
           set -euo pipefail
           python -m py_compile backend/tests/test_legacy_sql_057c_postgres_native_restore_lab.py
           python -B backend/tests/test_legacy_sql_057c_postgres_native_restore_lab.py -v 2>&1 | tee lot05c-postgres.log
-          grep -q 'Ran 10 tests' lot05c-postgres.log
+          grep -q 'Ran 11 tests' lot05c-postgres.log
           grep -q '^OK' lot05c-postgres.log
           ! grep -F 'skipped=' lot05c-postgres.log
       - name: Verify exact SHA and no production code change
