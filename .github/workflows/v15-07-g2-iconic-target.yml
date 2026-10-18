@@ -5,12 +5,14 @@ on:
       - feat/lot07-07b-iconic-target-20261018
     paths:
       - 'frontend/src/features/desktop-experience/SignatureIconicTarget*'
+      - 'frontend/scripts/lot07-g2-iconic-target-visual.mjs'
       - '.github/workflows/v15-07-g2-iconic-target.yml'
   pull_request:
     branches:
       - feat/v15-07-g1-two-views-t0t1-20261015
     paths:
       - 'frontend/src/features/desktop-experience/SignatureIconicTarget*'
+      - 'frontend/scripts/lot07-g2-iconic-target-visual.mjs'
       - '.github/workflows/v15-07-g2-iconic-target.yml'
   workflow_dispatch:
 
@@ -62,11 +64,35 @@ jobs:
       - name: Execute reversible experience and privacy tests
         working-directory: frontend
         run: npx vitest run src/features/desktop-experience/SignatureIconicTarget.test.tsx
-      - name: Report limited G2 target proof
+      - name: Install isolated real Chromium for visual target
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dc-lot07-g2-playwright
+          npm install --prefix /tmp/dc-lot07-g2-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          ln -s /tmp/dc-lot07-g2-playwright/node_modules/playwright node_modules/playwright
+          /tmp/dc-lot07-g2-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Capture Core vs Iconic browser target on identical synthetic viewports
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/lot07-g2-iconic-target-visual.mjs
+          test -f ../artifacts/v15-07-g2-iconic-target/manifest.json
+      - name: Publish reviewable browser screenshot matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-07-g2-iconic-target-${{ github.sha }}
+          path: artifacts/v15-07-g2-iconic-target/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Report scoped G2 evidence and remaining gates
         run: |
           echo "G2_TARGET_SOURCE_HEAD=$SOURCE_HEAD"
           echo "G2_TARGET_VITEST=success"
-          echo "G2_PREVIEW_ONLY=true"
+          echo "G2_TARGET_BROWSER_VISUAL=ISOLATED_ONLY"
           echo "G2_CLINICAL_RUNTIME_ACTIVATION=false"
-          echo "G2_BROWSER_BEFORE_AFTER=NOT_TESTED"
+          echo "G2_NATIVE_ZOOM200=NOT_CERTIFIED"
           echo "G2_HUMAN_VISUAL_GATE=OPEN"
