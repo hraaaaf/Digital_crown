@@ -22,3 +22,18 @@
 - **Required proof:** exact final HEAD CI and test counts, two *genuinely independent* clean reviewer reports on the same HEAD plus clean confirmation. Internal adversarial perspectives are not independent reviewers.
 
 **Gate:** GO for documentation and purely synthetic, reversible tests. NO-GO for SCM registration/install (even laboratory VM), changing effective backend identity, data/key/path/ACL migration, real patient data, merge or deployment. Next: P2 native SCM proof only after separate explicit authorization. Effort: EXTRA HIGH.
+
+
+## 2026-10-18 P2-F01 — native SCM activation blocked, NOT TESTED
+
+**Explicit scope:** User authorized only a disposable GitHub-hosted Windows SCM laboratory on synthetic data, not the LOT10 client PC or real Digital Crown installer, keys, data, migrations, merge or deploy.
+
+**Prepared, unexecuted WIP in PR #909:** tools/imaging_gateway/windows/p2_scm_synthetic_service.cs and tools/imaging_gateway/windows/p2_scm_virtual_account_wal_lab.ps1. Proposed true virtual NT SERVICE account, SCM Session 0 token proof, protected NTFS acquisition-private directory, Windows SQLite WAL/SHM, user-token denials and service positive transactions/recovery. No Windows compilation, service start, service stop or cleanup occurred during this assistant turn. All of those are NOT TESTED. Neither file belongs in a commercial installer.
+
+**ACTIVATION BLOCKER:** Creating the automated Windows SCM experiment workflow was explicitly blocked by OpenAI tool security controls. No native SCM workflow was committed; no native SCM run was launched, and there is no run URL for it. Do not route around this control with another tool or host. The owner's approval is not a bypass of a tool safety gate.
+
+**CI evidence:** Older exact HEAD 468f8f6082640718c82500e90a88e30555ca7a1b had all seven applicable CI SUCCESS; F01 only cross-standard-user and SCM_SERVICE_SID=NOT_TESTED. Subsequent lab preparation head 1fe45f6f6e53d366d6039537b63e140847a3d6c0 had 06-A/06-B IN_PROGRESS when checked, five applicable others SUCCESS, and M6-I SKIPPED/HORS SCOPE. This documentation edit creates a new HEAD requiring fresh checks. No automatic green carryover.
+
+**Unresolved critical proof:** virtual account logon and real SID token, Windows winsqlite3 availability, runtime CSharp compilation, owner/OWNER RIGHTS effective WRITE_DAC, in-place writes and recreated WAL/SHM, hardened service binary/SCM object, peer user launch, guaranteed SCM/account/files cleanup, complete native W01–W12, clinical SQLCipher/profile/restore and true reviewer independence (0/2).
+
+**Gate:** GO static design/CI as safely available. NO-GO claiming actual SCM isolation or running the blocked workflow. SCM NOT TESTED, P2 NOT CONVERGED; no migration, merge, production install or deployment. Next effort EXTRA HIGH.
