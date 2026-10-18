@@ -45,12 +45,17 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
     // Do not block back-end/docs PRs that have never needed visual approval.
     // An existing label, even on a non-UI PR, must still be revoked.
     if(!touchesUI&&!priorLabel)return {state:'skipped-non-ui',head:actual};
-    try{ await api.delete(`/issues/${number}/labels/${APPROVAL_LABEL}`); }
-    catch(error){
-      if(error?.status!==404)throw new Error('Failed to revoke stale visual approval',{cause:error});
+    // GitHub's DELETE can return 403 when the label is already absent. Never
+    // attempt a privileged mutation without a label confirmed by the API.
+    // Absence is NOT approval: UI synchronize still fails closed below.
+    if(priorLabel){
+      try{ await api.delete(`/issues/${number}/labels/${APPROVAL_LABEL}`); }
+      catch(error){
+        if(error?.status!==404)throw new Error('Failed to revoke stale visual approval',{cause:error});
+      }
     }
     if(await hasLabel(api,number))
-      throw new Error('Stale visual approval label still present after DELETE');
+      throw new Error('Stale visual approval label still present after revocation');
     if((await head(api,number))!==actual)
       throw new Error('PR HEAD changed during approval revocation');
     throw new Error('PR HEAD changed: approval revoked; new screenshots and explicit approval required');
