@@ -108,12 +108,20 @@ def test_s2b_duplicate_filename_cannot_replace_trashed_physical_document(
         return response.json()["document"]
 
     original = upload(b"%PDF-T2-FIRST")
-    old_rel = original["file_path"].removeprefix("static/archives/")
+    # The public DocumentArchiveResponse intentionally omits private storage
+    # paths. Verify disk provenance through the authoritative SQL fixture.
+    db.expire_all()
+    old_doc = db.get(models.DocumentArchive, original["id"])
+    assert old_doc is not None
+    old_rel = old_doc.file_path.removeprefix("static/archives/")
     old_path = tmp_path / "archives" / old_rel
     assert old_path.read_bytes() == b"%PDF-T2-FIRST"
     assert client.post(f"/api/documents/{original['id']}/trash", headers=headers).status_code == 200
     replacement = upload(b"%PDF-T2-SECOND")
-    new_rel = replacement["file_path"].removeprefix("static/archives/")
+    db.expire_all()
+    new_doc = db.get(models.DocumentArchive, replacement["id"])
+    assert new_doc is not None
+    new_rel = new_doc.file_path.removeprefix("static/archives/")
     assert replacement["id"] != original["id"] and old_rel != new_rel
     assert old_path.read_bytes() == b"%PDF-T2-FIRST"
     assert (tmp_path / "archives" / new_rel).read_bytes() == b"%PDF-T2-SECOND"
