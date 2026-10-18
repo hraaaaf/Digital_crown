@@ -499,6 +499,34 @@ def exercise():
         print("F05_PC_HTTP_R1_RESCHEDULE_CHANGED_INTENT",
               changed_outcome[0], "SQL_RECEIPTS", receipt_count(idem_resched), flush=True)
 
+        # Simulate a real pre-upgrade successful receipt with a lost JWE ACK:
+        # after schema upgrade the original intent fingerprint is unknown.
+        # An authenticated HTTP retry must receive a signed RECONCILIATION
+        # result; it must not silently confirm nor repeat a clinical mutation.
+        with Session() as db:
+            old_receipt = db.query(PatientCompanionRemoteReceipt).filter(
+                PatientCompanionRemoteReceipt.access_id == access_id,
+                PatientCompanionRemoteReceipt.idempotency_key == str(idem_resched),
+            ).one()
+            assert old_receipt.status == "ACCEPTED"
+            old_receipt.intent_sha256 = None
+            db.commit()
+        retry_legacy, _ = sign_command(
+            "agenda.reschedule",
+            {"appointment_ref": appointment_ref, "slot_ref": new_target},
+            idem_resched,
+        )
+        reconciliation = remote(1, retry_legacy)
+        assert reconciliation[0] == 200, reconciliation
+        assert reconciliation[1]["status"] == "REJECTED", reconciliation
+        assert reconciliation[1]["result"]["code"] == "RECONCILIATION_REQUIRED"
+        assert count(20) == 1 and receipt_count(idem_resched) == 1
+        with Session() as db:
+            assert db.get(models.Appointment, original_id).datetime_start == datetime(2030, 1, 3, 20)
+        print("F05_R2_HTTP_LEGACY_ACK_LOST_RECONCILIATION",
+              "HTTP", reconciliation[0], "STATE", reconciliation[1]["status"],
+              "SQL", count(20), "RECEIPTS", receipt_count(idem_resched), flush=True)
+
         # Signed staff JWT cannot be substituted for patient credentials.
         token, _ = sign_command("agenda.create", {"slot_ref": slot_ref})
         assert remote(0, token, bearer=owner_jwt)[0] == 401
