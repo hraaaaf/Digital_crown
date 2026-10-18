@@ -200,6 +200,21 @@ async function viewportRun(viewport){
       throw Error('Repeated same study/revision must fail closed with 409: '+archivedResponse.status());
     record.checks.push('REPEATED_SAME_STUDY_REVISION_REFUSED_HTTP_409');
   }
+  // The clinical patient toolbar must not reveal notes/inputs underneath
+  // its desktop sticky surface when the user scrolls to the PDF actions.
+  const patientHeader = await page.locator('[data-patient-dossier-header]').evaluate(node => {
+    const bg = getComputedStyle(node).backgroundColor;
+    const alpha = bg.startsWith('rgba(')
+      ? Number(bg.split(',').at(-1).replace(')', '').trim())
+      : (bg === 'transparent' ? 0 : 1);
+    const rect = node.getBoundingClientRect();
+    return { background: bg, alpha, top: rect.top, bottom: rect.bottom };
+  });
+  record.patientHeaderAfterScroll = patientHeader;
+  if (!Number.isFinite(patientHeader.alpha) || patientHeader.alpha < .999) {
+    throw Error('CEPH_STICKY_PATIENT_HEADER_BLEED_THROUGH '+JSON.stringify(patientHeader));
+  }
+  record.checks.push('CEPH_PATIENT_STICKY_HEADER_OPAQUE_ON_SCROLL');
   await shot('archive-after');
   record.checks.push('POINTER_DOUBLE_CLICK_SINGLE_ARCHIVE_POST');
   // UI transport regression only: mock a synthetic 422 response on the real
