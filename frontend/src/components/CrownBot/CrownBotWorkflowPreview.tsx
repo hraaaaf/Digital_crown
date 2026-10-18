@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import { api } from '../../services/api';
 
 type PreviewResponse = {
@@ -66,7 +67,7 @@ export function CrownBotWorkflowPreview({ practitionerId }: {
       end.setHours(23, 59, 59, 999);
       const response = await api.get<ProgrammeAppointment[]>('/appointments/', {
         params: {
-          start_date: start.toISOString(), end_date: end.toISOString(),
+          start_date: formatAgendaWallClock(start), end_date: formatAgendaWallClock(end),
           ...(practitionerId && Number.isSafeInteger(practitionerId)
             ? { praticien_id: practitionerId } : {}),
         },
