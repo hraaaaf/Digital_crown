@@ -34,8 +34,17 @@ const send=(...args)=>execFileSync('xdotool',args,{encoding:'utf8',timeout:8000}
    evidence.zoom200_proven=evidence.ratio>=1.9&&evidence.ratio<=2.1;
    for(const view of ['dashboard','agenda','dossier','imagerie']){
      await page.locator('[data-view="'+view+'"]').click();
-     const state=await page.evaluate(()=>({body:document.body.scrollWidth,viewport:document.documentElement.clientWidth,visibleViews:document.querySelectorAll('.view:not(.hidden)').length}));
-     evidence.views.push({view,overflow:state.body>state.viewport+3,visible_views:state.visibleViews});
+     const state=await page.evaluate(()=>{
+       const viewport=document.documentElement.clientWidth;
+       const clipped=[];
+       for(const el of document.querySelectorAll('.side,.nav,[data-view],.main,.top,.patient,.patient > *,.panel,.panel h2')){
+         const r=el.getBoundingClientRect();
+         if(r.width===0||r.height===0)continue;
+         if(r.right>viewport+4||r.left< -4)clipped.push({type:el.tagName.toLowerCase(),className:String(el.className||'').slice(0,36),right:Math.round(r.right),viewport});
+       }
+       return {body:document.body.scrollWidth,viewport,visibleViews:document.querySelectorAll('.view:not(.hidden)').length,navVisibleButtons:Array.from(document.querySelectorAll('[data-view]')).filter(b=>b.getBoundingClientRect().width>0).length,clipped:clipped.slice(0,12)};
+     });
+     evidence.views.push({view,overflow:state.body>state.viewport+3,visible_views:state.visibleViews,nav_visible:state.navVisibleButtons,edge_clipped:state.clipped});
      if(evidence.zoom200_proven){
        const f=path.join(dir,'command-r8-'+view+'-1440-native-zoom200.png');
        await page.screenshot({path:f,fullPage:true,animations:'disabled'});
@@ -44,5 +53,6 @@ const send=(...args)=>execFileSync('xdotool',args,{encoding:'utf8',timeout:8000}
    }
  }finally{await ctx?.close();await browser?.close();}
  fs.writeFileSync(path.join(dir,'native-zoom-result.json'),JSON.stringify(evidence,null,2)+'\n');
- console.log('COMMAND_R8_X11_NATIVE_ZOOM='+JSON.stringify(evidence));
+ evidence.zoom200_layout_proven=evidence.zoom200_proven&&evidence.views.every(v=>!v.overflow&&v.nav_visible===4&&v.visible_views===1&&v.edge_clipped.length===0);
+  console.log('COMMAND_R8_X11_NATIVE_ZOOM='+JSON.stringify(evidence));
 })().catch(e=>{console.error('NATIVE_ZOOM_TEST_ERROR='+String(e.message).slice(0,220));process.exitCode=2});
