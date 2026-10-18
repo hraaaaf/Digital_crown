@@ -31,7 +31,7 @@ const report={
 };
 const browser=await chromium.launch({headless:true});
 const matrixIDs=[
-  'CLEAN_BROWSER_LOGIN','OPEN_CEPHALO','SELECT_OLDER_STUDY',
+  'CLEAN_BROWSER_LOGIN','DASHBOARD_PATIENT_SEARCH','ENTER_IMAGING','OPEN_CEPHALO','SELECT_OLDER_STUDY',
   'DESKTOP_STEPPER','NO_HORIZONTAL_VIEWPORT_OVERFLOW',
   'DRAFT_PDF_FIRST_VALUE','OFFICIAL_ARCHIVE_REPLAY',
 ];
@@ -92,12 +92,41 @@ async function viewportRun(viewport) {
       await shot('after-login');
       return 'Real UI login, disposable JWT and enrolled Cabinet workstation';
     });
+    // The user must discover the existing T2 patient via the actual Dashboard.
+    // No deep URL, page.goto(patient), storage injection or artificial navigation.
+    if(ready) ready=await run('DASHBOARD_PATIENT_SEARCH',async()=>{
+      await shot('before-patient-search');
+      await page.getByRole('button',{name:'Chercher un patient'}).click();
+      const field=page.getByRole('textbox',{name:'Chercher un patient'});
+      await field.waitFor({state:'visible',timeout:15000});
+      await field.fill('CERTIFICATION');
+      const option=page.locator('#dashboard-patient-search-results button')
+        .filter({hasText:'T2-0001'});
+      await option.waitFor({state:'visible',timeout:30000});
+      await shot('patient-search-result');
+      await option.click();
+      await page.waitForURL(u=>new URL(u).pathname==='/patients/'+ids.patient_id,{timeout:30000});
+      await page.getByRole('button',{name:'Imagerie',exact:true}).waitFor({state:'visible',timeout:25000});
+      await shot('after-patient-opened');
+      return 'Patient T2-0001 found by visible Dashboard search and opened by a genuine result click';
+    });
+    if(ready) ready=await run('ENTER_IMAGING',async()=>{
+      await page.getByRole('button',{name:'Imagerie',exact:true}).click();
+      await page.getByRole('button',{name:'Céphalométrie',exact:true})
+        .waitFor({state:'visible',timeout:20000});
+      await shot('after-imaging-opened');
+      return 'Patient Imagerie opened by visible tab';
+    });
     if(ready) ready=await run('OPEN_CEPHALO',async()=>{
-      await page.goto(root+'/patients/'+ids.patient_id+'?tab=radiology&radioTab=cephalo',
-        {waitUntil:'domcontentloaded',timeout:45000});
+      await page.getByRole('button',{name:'Céphalométrie',exact:true}).click();
       await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible',timeout:35000});
+      const selectedPath=new URL(page.url());
+      if(selectedPath.pathname!=='/patients/'+ids.patient_id
+          || selectedPath.searchParams.get('tab')!=='radiology'
+          || selectedPath.searchParams.get('radioTab')!=='cephalo')
+        throw Error('UI navigation failed to select expected radiology/cephalo tab: '+selectedPath.pathname+selectedPath.search);
       await shot('before-select-study');
-      return 'Cephalometry header visible with patient identifier';
+      return 'Cephalometry workspace opened using actual patient Imagerie and modality controls';
     });
     if(ready) ready=await run('SELECT_OLDER_STUDY',async()=>{
       await page.getByRole('button',{name:'Historique',exact:true}).click();
@@ -156,13 +185,35 @@ async function viewportRun(viewport) {
         const b=[...document.querySelectorAll('button')].find(e=>e.textContent?.includes('Archiver le bilan'));
         return Boolean(b&&!b.disabled);
       },null,{timeout:30000});
-      page.once('dialog',dialog=>dialog.dismiss());
+      // Native window.confirm is the real user-visible archive ACK.
+      // A screenshot AFTER dialog dismissal cannot capture its contents:
+      // retain the actual Chromium dialog message and explicitly verify it.
+      const dialogPromise=page.waitForEvent('dialog',{timeout:45000}).then(async dialog=>{
+        const message=dialog.message();
+        const type=dialog.type();
+        await dialog.dismiss();
+        if(type!=='confirm')throw Error('Archive expected a native confirm, got '+type);
+        return message;
+      });
+      const archiveDownloadPromise=page.waitForEvent('download',{timeout:45000});
       const responsePromise=page.waitForResponse(res=>
         new URL(res.url()).pathname==='/api/patients/'+ids.patient_id+'/pdf'
         && res.request().method()==='POST' && res.request().postDataJSON()?.archive===true,
       {timeout:45000});
+      await archive.scrollIntoViewIfNeeded();
+      await shot('before-official-archive-replay');
       await archive.click();
-      const response=await responsePromise;
+      const [response,dialogMessage,archiveDownload]=await Promise.all([
+        responsePromise,dialogPromise,archiveDownloadPromise,
+      ]);
+      const downloadFailure=await archiveDownload.failure();
+      if(downloadFailure)throw Error('Archived PDF download failed: '+downloadFailure);
+      if(!dialogMessage.includes('Archive existante réutilisée sans modification')
+          || !dialogMessage.includes('étude '+ids.older_id)
+          || !dialogMessage.includes('Annuler = Télécharger le fichier'))
+        throw Error('User-visible archive confirmation missing accurate replay message: '+dialogMessage);
+      record.archiveUiFeedback={kind:'native-window.confirm',message:dialogMessage,
+        file:archiveDownload.suggestedFilename(),verifiedBy:'Playwright dialog event, not page screenshot'};
       const payload=response.request().postDataJSON();
       const bytes=await response.body();
       if(response.status()!==200||!bytes.subarray(0,4).equals(Buffer.from('%PDF'))
@@ -173,7 +224,8 @@ async function viewportRun(viewport) {
         ||response.headers()['x-cephalo-archive-replayed']!=='true')
         throw Error('Official archive replay is not identity/revision-verified, HTTP '+response.status());
       await shot('after-official-archive-replay');
-      return {analysis_id:ids.older_id,revision:payload.expected_revision,replayed:true,bytes:bytes.length};
+      return {analysis_id:ids.older_id,revision:payload.expected_revision,replayed:true,bytes:bytes.length,
+        uiConfirmation:record.archiveUiFeedback};
     });
   }catch(error){
     record.errors.push('HARNESS_SETUP: '+String(error));
