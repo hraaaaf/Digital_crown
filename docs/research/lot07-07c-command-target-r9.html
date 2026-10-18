@@ -58,7 +58,7 @@
     <div class="identity" aria-label="Contexte patient persistant de démonstration"><div class="avatar" aria-hidden="true">T1</div><div class="identity-main"><strong>Patient TEST-001</strong><span>Dossier synthétique 07-C-001 · contexte visuel uniquement · aucun identifiant réel</span></div><div class="identity-context"><span class="chip">Patient actif · démo</span><span class="chip warn">Antécédents : non renseignés</span></div></div>
 
     <section class="section" id="dashboard" data-screen="dashboard" aria-labelledby="current-title">
-      <div class="metrics" aria-label="Indicateurs purement fictifs"><div class="metric"><span class="metric-label">Rendez-vous du jour</span><strong>12</strong><span class="metric-foot">Simulation · 3 praticiens</span></div><div class="metric"><span class="metric-label">Présents / arrivés</span><strong>03</strong><span class="metric-foot">Simulation file d'attente</span></div><div class="metric"><span class="metric-label">En attente</span><strong>02</strong><span class="metric-foot">Démonstration uniquement</span></div><div class="metric"><span class="metric-label">Non assignés</span><strong>01</strong><span class="metric-foot">Visibles, jamais masqués</span></div></div>
+      <div class="metrics" aria-label="Indicateurs purement fictifs"><div class="metric"><span class="metric-label">Rendez-vous affichés</span><strong>05</strong><span class="metric-foot">5 créneaux fictifs dans le tableau</span></div><div class="metric"><span class="metric-label">Présents / arrivés</span><strong>01</strong><span class="metric-foot">Simulation file d'attente</span></div><div class="metric"><span class="metric-label">En attente</span><strong>01</strong><span class="metric-foot">Démonstration uniquement</span></div><div class="metric"><span class="metric-label">Non assignés</span><strong>01</strong><span class="metric-foot">Visibles, jamais masqués</span></div></div>
       <div class="cols"><div class="stack">
         <article class="card"><div class="card-head"><h2>Salle d'attente & activité immédiate</h2><span class="chip info">Fiche et file côte à côte</span></div><div class="table-clip"><table><thead><tr><th>Heure</th><th>Dossier</th><th>Motif démo</th><th>Praticien</th><th>État</th></tr></thead><tbody>
           <tr><td class="time">09:00</td><td><strong>TEST-001</strong></td><td>Consultation fictive</td><td>DEMO-A</td><td><span class="chip good">Arrivé</span></td></tr>
@@ -121,6 +121,12 @@
     }
     for(const pane of document.querySelectorAll('[data-screen]'))pane.hidden=pane.dataset.screen!==active;
     document.getElementById('current-title').textContent=labels[active];
+  });
+  for(const group of document.querySelectorAll('[role="tablist"]'))group.addEventListener('keydown',(e)=>{
+    if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;
+    const tabs=[...group.querySelectorAll('[role="tab"]')];const current=tabs.indexOf(document.activeElement);if(current<0)return;
+    e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+    tabs[next].focus();tabs[next].click();
   });
   for(const btn of document.querySelectorAll('[data-dossier-tab]'))btn.addEventListener('click',()=>activate('dossier','data-dossier-tab','data-dossier-pane',btn.dataset.dossierTab));
   for(const btn of document.querySelectorAll('[data-media-tab]'))btn.addEventListener('click',()=>{
