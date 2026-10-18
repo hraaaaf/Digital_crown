@@ -295,6 +295,7 @@ export const PatientDetails = () => {
     <div className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
       <header
         data-patient-dossier-header
+        style={isRadiology && radioTab === 'cephalo' ? { backgroundColor: 'var(--card-bg, #ffffff)' } : undefined}
         className={cn(
           'lg:sticky lg:top-0 z-[300] border-b border-border-main shadow-elite',
           // A translucent sticky band lets cephalo forms show through it on
