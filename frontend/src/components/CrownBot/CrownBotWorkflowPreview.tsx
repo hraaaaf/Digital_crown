@@ -1,6 +1,21 @@
 import { useRef, useState } from 'react';
-import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import { api } from '../../services/api';
+
+type CabinetDay = {
+  day: string; timezone: string; start_date: string; end_date: string;
+  consulted_at: string;
+};
+
+function verifyCabinetDay(value: CabinetDay): CabinetDay {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value.day)
+      || value.start_date !== value.day + 'T00:00:00'
+      || value.end_date !== value.day + 'T23:59:59.999'
+      || typeof value.timezone !== 'string' || !value.timezone
+      || !/^\d{2}:\d{2}$/.test(value.consulted_at)) {
+    throw new Error('Invalid server cabinet day');
+  }
+  return value;
+}
 
 type PreviewResponse = {
   status: string;
@@ -44,7 +59,7 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
   const [busy, setBusy] = useState(false);
   const [lastPreviewReadAt, setLastPreviewReadAt] = useState<string | null>(null);
   const [programme, setProgramme] = useState<{
-    items: ProgrammeAppointment[]; day: string; consultedAt: string;
+    items: ProgrammeAppointment[]; day: string; consultedAt: string; timezone: string;
   } | null>(null);
   const inFlight = useRef(false);
 
@@ -67,14 +82,13 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
       return;
     }
     try {
-      const now = new Date();
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(now);
-      end.setHours(23, 59, 59, 999);
+      // The server, not the staff browser, defines the cabinet calendar day.
+      // CB-01 uses a configured pilot timezone; A5 owns tenant TZ persistence.
+      const dayResponse = await api.get<CabinetDay>('/bot/workflows/cabinet-day');
+      const cabinetDay = verifyCabinetDay(dayResponse.data);
       const response = await api.get<ProgrammeAppointment[]>('/appointments/', {
         params: {
-          start_date: formatAgendaWallClock(start), end_date: formatAgendaWallClock(end),
+          start_date: cabinetDay.start_date, end_date: cabinetDay.end_date,
           ...(practitionerId && Number.isSafeInteger(practitionerId)
             ? { praticien_id: practitionerId } : {}),
         },
@@ -86,12 +100,11 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
       setProgramme({
         items: [...response.data].sort((a, b) =>
           a.datetime_start.localeCompare(b.datetime_start)),
-        day: now.toLocaleDateString('fr-FR', {
-          day: 'numeric', month: 'long', year: 'numeric',
+        day: new Date(cabinetDay.day + 'T12:00:00Z').toLocaleDateString('fr-FR', {
+          day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
         }),
-        consultedAt: new Date().toLocaleTimeString('fr-FR', {
-          hour: '2-digit', minute: '2-digit',
-        }),
+        consultedAt: cabinetDay.consulted_at,
+        timezone: cabinetDay.timezone,
       });
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
@@ -200,7 +213,7 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
         <div role="status" aria-label="Programme du jour" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800">
           <p className="font-semibold">Programme du {programme.day}</p>
           <p className="mt-1 text-xs text-slate-500">
-            Source : Agenda du cabinet · Lecture serveur à {programme.consultedAt}
+            Source : Agenda du cabinet · Lecture serveur à {programme.consultedAt} · Fuseau {programme.timezone}
           </p>
           {programme.items.length === 0 ? (
             <p className="mt-2 text-sm">Aucun rendez-vous dans ce programme aujourd’hui.</p>
@@ -244,7 +257,7 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
           </p>
           {answer.patient && (
             <p className="mt-2 break-words text-xs">
-              Patient identifié : {answer.patient.prenom} {answer.patient.nom}
+              {transcript[0] === '/rdv' ? 'Patient sélectionné (vérifié par le serveur)' : 'Patient identifié'} : {answer.patient.prenom} {answer.patient.nom}
               {answer.patient.numero_dossier ? ` — Dossier ${answer.patient.numero_dossier}` : ''}
             </p>
           )}
