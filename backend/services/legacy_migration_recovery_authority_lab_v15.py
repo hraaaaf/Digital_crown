@@ -68,7 +68,9 @@ def _location(root: Path):
 
 def _files(root: Path):
     base = _location(root)
-    if not (root / "media-fake").is_dir() or (root / "media-fake").is_symlink():
+    media = root / "media-fake"
+    if (not media.is_dir() or media.is_symlink()
+            or media.resolve(strict=True).parent != base):
         raise AuthorityHandoffDenied("FAKE_MEDIA_DIRECTORY_REQUIRED")
     all_files = set()
     for p in root.rglob("*"):
