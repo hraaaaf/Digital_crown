@@ -26,6 +26,11 @@ try{
    if(result.appointments!==21)failures.push('APPOINTMENTS_'+w+'_'+result.appointments);
    if(!result.odontogram)failures.push('ODO_MISSING_'+w);
    if(!result.logos.some(x=>x.ok))failures.push('LOGO_MISSING_'+w);
+   if(w<=430){
+      for(const name of ['Command','Agenda','Patients','Imagerie']){
+        if(await page.getByRole('button',{name,exact:true}).count()!==1)failures.push('MOBILE_A11Y_NAV_'+w+'_'+name);
+      }
+   }
    if(w===1440){
       await page.getByRole('button',{name:'Agenda',exact:true}).first().click();
       if(!(await page.locator('h1').innerText()).includes('Agenda') || await page.locator('.cmd-placeholder').count()!==1 || await page.locator('.cmd-appt').count()!==0)failures.push('NAV_FAILED');
@@ -52,9 +57,15 @@ try{
     const active=getComputedStyle(document.querySelector('.cmd-selected')).backgroundColor;
     const f=document.createElement('span');f.style.backgroundColor='var(--primary)';document.body.append(f);
     const expected=getComputedStyle(f).backgroundColor;f.remove();
-    return {token:p,active,expected,card:getComputedStyle(document.querySelector('.cmd-card')).backgroundColor};
+    const bg=document.createElement('span');bg.style.backgroundColor='var(--card-bg)';document.body.append(bg);
+    const expectCard=getComputedStyle(bg).backgroundColor;bg.remove();
+    const side=document.createElement('span');side.style.backgroundColor='var(--sidebar-bg)';document.body.append(side);
+    const expectSide=getComputedStyle(side).backgroundColor;side.remove();
+    return {token:p,active,expected,card:getComputedStyle(document.querySelector('.cmd-card')).backgroundColor,expectCard,sidebar:getComputedStyle(document.querySelector('.cmd-sidebar')).backgroundColor,expectSide};
    });
    if(check.active!==check.expected)failures.push('THEME_PRIMARY_'+theme);
+   if(check.card!==check.expectCard)failures.push('THEME_CARD_'+theme);
+   if(check.sidebar!==check.expectSide)failures.push('THEME_SIDEBAR_'+theme);
    const img=path.join(out,'command-react-theme-'+theme+'.png');
    await page.screenshot({path:img,fullPage:true,animations:'disabled'});
    snaps.push({name:path.basename(img),sha256:hash(img),bytes:fs.statSync(img).size,...check});
