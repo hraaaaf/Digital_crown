@@ -1,6 +1,15 @@
 # CB-01 FIRST_VALUE_UI — Protocole de certification d'accessibilité NATIVE
 
-**Statut : PROTOCOLE PRÊT ; essais natifs `NOT_RUN` ; certification WCAG complète `NON`.**
+**Statut au 2026-10-18 : zoom NATIF 200 % du composant Crown Bot CERTIFIÉ en laboratoire Windows Chromium ; évaluation complète avec le backend réel et NVDA/VoiceOver NON CERTIFIÉE.**
+
+### Preuve Windows native obtenue (laboratoire isolé, sans backend réel)
+
+- **HEAD de preuve** : `995aa3cb907ed7a7c60c49362164a6e064b459fb` ; [GitHub Actions #39149216305](https://github.com/hraaaaf/Digital_crown/actions/runs/39149216305) **SUCCESS** (`windows-latest`, Chromium **140.0.7339.16**, job expérimental indépendant des gates REQUIRED).
+- **Preuve navigateur** : extension Manifest V3 avec `chrome.tabs.setZoom(1|2)` ET vérification `chrome.tabs.getZoom() === 1|2`. Les captures sont prises à dimensions de fenêtre constantes : **1280×900** à 100% (innerWidth 1280 / DPR 1), 200% (**innerWidth 640 / DPR 2**) ; **1600×900** à 100% (innerWidth 1600 / DPR 1), 200% (**innerWidth 800 / DPR 2**). `visualViewport.scale = 1` est attendu pour le zoom navigateur et NE rend pas le test équivalent à un pinch. `rootScrollWidth === rootClientWidth` à ces quatre points.
+- **Rendu réel** : `CrownBotChat` de production importé en laboratoire Vite localhost avec flags strictement locaux, session et endpoints **synthétiques interceptés** ; les 3 CTA visibles aux 4 points, `ArrowLeft/End` sur les onglets ARIA PASS et `Préparer un RDV` renvoie clarification simulée sans écriture. **Aucune donnée médicale réelle, aucun backend médical réel, aucun parcours staff humain.**
+- **Preuves immuables** : [artefact #12144792182](https://github.com/hraaaaf/Digital_crown/actions/runs/39149216305/artifacts/12144792182), `report.json` + 4 captures 100/200 aux deux largeurs, digest ZIP `sha256:e81e5a23135ffb263cea3851988d8b5e41d6721f5b14afc4428842aecc256d8c`. Images examinées : CTA disponibles, pas de texte d'action tronqué ni scroll horizontal dans ce **lab**, main synthétique parfois occulté par l'overlay flottant à 1280/200% (comportement du laboratoire, **ne prouve pas maintien de tout l'espace clinique Agenda réel**).
+- **Classification précise** : `CB01_NATIVE_WINDOWS_ZOOM_200 = PASS_BROWSER_EXTENSION_VERIFIED` (composant isolé) ; **N01–N06 de ce protocole pour application clinique complète** restent `NOT_RUN` tant que le serveur réel, les permissions, la vraie fenêtre UI et les captures à zoom natif ne sont pas examinés. `NVDA/VoiceOver = NOT_RUN`, 400%, forced-colors et contrastes exhaustifs `NOT_RUN`. Aucun `WCAG AA global PASS`, aucun `CONVERGED`.
+
 
 Mission strictement limitée à CB-01 sur [PR #904](https://github.com/hraaaaf/Digital_crown/pull/904). Ne pas confondre :
 
