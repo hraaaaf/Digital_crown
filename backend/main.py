@@ -866,6 +866,20 @@ async def serve_archives(
     db: Session = Depends(database.get_db),
 ):
     _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path, current_user)
+    # FileResponse would re-open an unverified official PDF after the SQL
+    # authorization check. Serve only a verified immutable byte snapshot.
+    official_rows = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.file_path == "static/archives/" + rel_path,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).all()
+    if official_rows:
+        if len(official_rows) != 1:
+            raise HTTPException(status_code=409, detail="Provenance d'archive officielle ambiguë")
+        from backend.services.cephalo_document_lock import verified_official_archive_bytes
+        return Response(
+            content=verified_official_archive_bytes(official_rows[0]),
+            media_type="application/pdf",
+        )
     return _serve_protected_file(os.path.join(str(MEDIA_DIR), "archives"), rel_path)
 
 @app.get("/api/static/documents/{rel_path:path}", include_in_schema=False)
