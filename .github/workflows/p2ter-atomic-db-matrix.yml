@@ -15,6 +15,9 @@ on:
       - scripts/t2_runtime_server.py
       - scripts/ceph_p2ter_seed_t2.py
       - scripts/ceph_p2ter_concurrent_atomic_t2.py
+      - scripts/ceph_p2ter_postgres_layout_rehearsal.py
+      - alembic/env.py
+      - alembic/versions/ceparch0002_repair_runtime_document_layout.py
 permissions:
   contents: read
 jobs:
@@ -63,6 +66,8 @@ jobs:
           alembic upgrade head
       - name: Two independent PostgreSQL connections attempt same migrated claim
         run: python scripts/ceph_p2ter_postgresql_concurrency.py
+      - name: Fresh PostgreSQL schema vs predecessor repair and data preservation
+        run: python scripts/ceph_p2ter_postgres_layout_rehearsal.py
       - name: Install real authenticated backend dependencies for PostgreSQL HTTP race
         shell: bash
         run: |
