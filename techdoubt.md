@@ -2,6 +2,14 @@
 
 ## CEPH-FAC-PARITY / P2ter++ — 2026-10-18
 
+### REVUE ADVERSARIALE INTERNE A/B — après premier échec REQUIRED (2026-10-18)
+
+**Perspective A — intégrité documentaire :** sur le HEAD antérieur `f0d2d62b2710b196efef1f86dbf732099ec7e55d`, REQUIRED [#39150740120](https://github.com/hraaaaf/Digital_crown/actions/runs/39150740120) exécute 51 tests backend : 50 PASS, 1 FAIL en raison d'un contrat de test erroné (`file_path` privé absent du modèle de réponse). Corrigé en consultant le `DocumentArchive` depuis la fixture SQL. Durcissements supplémentaires sur download ordinaire : vérification effective de l'étude et du patient, unicité de l'archive ACTIVE par étude/révision, rejet HTTP 409 des doublons historiques, test dédié. Invariants cross-type, traversal NTFS, hash/size et corbeille sont codés et testés, mais GREEN du HEAD courant non constaté.
+
+**Perspective B — identité clinique et concurrence :** [Chromium #39150740076](https://github.com/hraaaaf/Digital_crown/actions/runs/39150740076) est réellement GREEN sur le SHA historique `f0d2d62b2710b196efef1f86dbf732099ec7e55d`, avec étude A sentinelle absente du formulaire et du payload de B aux résolutions 1280×900 et 1600×1000 ; vérification PDF B sans marqueur A. Revue interne a révélé et corrigé une seconde route d'introduction d'étude (`runAnalysis` via upload radio) qui contournait `setAnalysisId` reset. Régressions Vitest nouvel upload et réponse tardive d'un ancien patient ajoutées. Brouillon fige maintenant son snapshot clinique avant `await`, validation front versionnée, toasts d'archives et navigation après save obsolète inhibés après changement de sélection.
+
+**Convergence :** ces deux perspectives sont faites **par la même instance**, donc **pas des relectures indépendantes** et n'autorisent aucun CLEAN. Les tests additionnels sur HEAD courant restent à certifier ; failles déjà signalées (Windows crash, SQL+FS, echte deux clics en deux onglets, post-fix revues isolées, DB unique native) demeurent ouvertes. **NO-GO / NOT CLEAN / CONVERGED=false.**
+
 ### CORRECTIFS — seconde passe de certification (18/10/2026, même lot P2ter++)
 
 - **Défaut CI avéré sur HEAD historique `f0d2d62b2710b196efef1f86dbf732099ec7e55d`:** [REQUIRED #39150740120](https://github.com/hraaaaf/Digital_crown/actions/runs/39150740120), `identity-backend` FAIL (**50 passed, 1 failed**) ; `test_s2b` attendait `file_path` dans un `DocumentArchiveResponse` qui l'exclut volontairement, KeyError ; le code de conservation des fichiers n'a pas été invalidé par cette assertion. Correction dans le test : lecture de la ligne SQL à partir de l'ID de réponse, sans élargir l'API.
