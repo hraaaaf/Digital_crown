@@ -101,6 +101,9 @@ describe('AgendaModal G3 appointment mutation matrix', () => {
         datetime_start: expect.any(String),
       }),
     ));
+    const payload = vi.mocked(api.post).mock.calls[0][1] as { datetime_start: string };
+    expect(payload.datetime_start).toBe('2026-09-21T10:00:00');
+    expect(payload.datetime_start).not.toContain('Z');
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
