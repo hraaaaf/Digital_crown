@@ -231,6 +231,31 @@ try {
     } else {
       await overlay.waitFor({state:'visible',timeout:15000});
       if(await sidecar.count()) throw new Error('FAIL: sidecar wrongly mounted on fallback');
+      // CB-01 web mobile/tablet fallback exists at 390/430/1280/1440.
+      // Accessibility must not be tested only in the 1600/1920 sidecar.
+      const tabs=overlay.getByRole('tablist',{name:'Vues de Crown Bot'});
+      const chatTab=tabs.getByRole('tab',{name:'Chat'});
+      const brainTab=tabs.getByRole('tab',{name:/Mémoire contextuelle/});
+      await tabs.waitFor({state:'visible'});
+      if(await chatTab.getAttribute('aria-selected')!=='true'
+          || await overlay.getByRole('tabpanel').getAttribute('aria-labelledby')!=='cb01-tab-chat') {
+        throw new Error('FAIL: accessible fallback first-value tab invalid at '+width);
+      }
+      const preview=overlay.getByRole('region',{name:'Assistant Crown Bot — consultation'});
+      await preview.waitFor({state:'visible'});
+      for(const label of ['Mon programme','Trouver un patient','Préparer un RDV'])
+        await preview.getByRole('button',{name:label}).waitFor({state:'visible'});
+      await chatTab.focus();
+      await page.keyboard.press('Home');
+      if(!await brainTab.evaluate(el=>el===document.activeElement)
+          || await brainTab.getAttribute('aria-selected')!=='true') {
+        throw new Error('FAIL: fallback Home keyboard tab navigation at '+width);
+      }
+      await page.keyboard.press('End');
+      if(!await chatTab.evaluate(el=>el===document.activeElement)
+          || await chatTab.getAttribute('aria-selected')!=='true') {
+        throw new Error('FAIL: fallback End keyboard tab navigation at '+width);
+      }
     }
     const result=await page.evaluate(() => {
       const root=document.documentElement;
