@@ -23,6 +23,13 @@ ACTIVE_CANCEL_BLOCKERS = {
     models.AppointmentStatus.ANNULE,
 }
 
+# Rebooking is permitted only from an actually bookable/confirmed appointment.
+# An expired or refused frontdesk decision may NEVER be revived by the patient.
+PATIENT_RESCHEDULABLE_STATUSES = frozenset({
+    models.AppointmentStatus.PREVU,
+    models.AppointmentStatus.CONFIRME,
+})
+
 
 def _reject(code: str) -> RemoteDomainResult:
     return RemoteDomainResult(status="REJECTED", response={"code": code})
@@ -240,7 +247,7 @@ def reschedule_appointment(db: Session, access: PatientCompanionAccess, payload:
     appointment = _appointment_for_ref(db, access, payload.get("appointment_ref"))
     if appointment is None:
         return _reject("APPOINTMENT_NOT_FOUND")
-    if appointment.status in ACTIVE_CANCEL_BLOCKERS:
+    if appointment.status not in PATIENT_RESCHEDULABLE_STATUSES:
         return _reject("APPOINTMENT_NOT_RESCHEDULABLE")
     slot = _slot_for_ref(db, access, payload.get("slot_ref"))
     if slot is None:
