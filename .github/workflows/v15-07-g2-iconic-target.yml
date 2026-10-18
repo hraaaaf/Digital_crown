@@ -1,0 +1,98 @@
+name: V1.5-07 G2 Signature Iconic TARGET (isolated)
+on:
+  push:
+    branches:
+      - feat/lot07-07b-iconic-target-20261018
+    paths:
+      - 'frontend/src/features/desktop-experience/SignatureIconicTarget*'
+      - 'frontend/scripts/lot07-g2-iconic-target-visual.mjs'
+      - '.github/workflows/v15-07-g2-iconic-target.yml'
+  pull_request:
+    branches:
+      - feat/v15-07-g1-two-views-t0t1-20261015
+    paths:
+      - 'frontend/src/features/desktop-experience/SignatureIconicTarget*'
+      - 'frontend/scripts/lot07-g2-iconic-target-visual.mjs'
+      - '.github/workflows/v15-07-g2-iconic-target.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-07-g2-iconic-target-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual-target-contract:
+    name: Core/Iconic reversible visual target, no clinical runtime activation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Assert immutable source and pilot-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -f frontend/src/features/desktop-experience/SignatureIconicTarget.tsx
+          test -f frontend/src/features/desktop-experience/SignatureIconicTarget.test.tsx
+          test -f frontend/src/features/desktop-experience/SignatureIconicTarget.css
+          # Preview only. Its production activation must be a DIFFERENT,
+          # human-approved, separately testable LOT07 07-D change.
+          if grep -q 'SignatureIconicTarget' frontend/src/components/Layout/MainLayout.tsx; then
+            echo "::error::G2 preview cannot be mounted inside the clinical Cabinet runtime"
+            exit 1
+          fi
+          if grep -Eq 'localStorage|sessionStorage|api\.|fetch\(' frontend/src/features/desktop-experience/SignatureIconicTarget.tsx; then
+            echo "::error::G2 nonclinical target must not persist settings or call patient APIs"
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Execute reversible experience and privacy tests
+        working-directory: frontend
+        run: npx vitest run src/features/desktop-experience/SignatureIconicTarget.test.tsx
+      - name: Install isolated real Chromium for visual target
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dc-lot07-g2-playwright
+          npm install --prefix /tmp/dc-lot07-g2-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          ln -s /tmp/dc-lot07-g2-playwright/node_modules/playwright node_modules/playwright
+          /tmp/dc-lot07-g2-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Capture Core vs Iconic browser target on identical synthetic viewports
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/lot07-g2-iconic-target-visual.mjs
+          test -f ../artifacts/v15-07-g2-iconic-target/manifest.json
+      - name: Publish reviewable browser screenshot matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-07-g2-iconic-target-${{ env.SOURCE_HEAD }}
+          path: artifacts/v15-07-g2-iconic-target/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Report scoped G2 evidence and remaining gates
+        run: |
+          echo "G2_TARGET_SOURCE_HEAD=$SOURCE_HEAD"
+          echo "G2_TARGET_VITEST=success"
+          echo "G2_TARGET_BROWSER_VISUAL=ISOLATED_ONLY"
+          echo "G2_CLINICAL_RUNTIME_ACTIVATION=false"
+          echo "G2_NATIVE_ZOOM200=NOT_CERTIFIED"
+          echo "G2_HUMAN_VISUAL_GATE=OPEN"
