@@ -655,7 +655,7 @@ export function CrownBotChat({
         )}>
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Historique</h3>
-          <button type="button" ref={historyCloseRef} aria-label="Fermer l'historique Crown Bot" onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-slate-200 rounded-md">
+          <button type="button" ref={historyCloseRef} aria-label="Fermer l'historique Crown Bot" onClick={() => setIsSidebarOpen(false)} className="min-h-11 min-w-11 rounded-md p-2 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
             <X size={16} className="text-slate-500" />
           </button>
         </div>
@@ -841,7 +841,7 @@ export function CrownBotChat({
               </div>
             </div>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs font-bold text-primary hover:underline">
+              <button onClick={markAllRead} className="min-h-11 rounded-md px-2 text-xs font-bold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                 Tout marquer comme lu
               </button>
             )}
@@ -866,21 +866,29 @@ export function CrownBotChat({
                     {new Date(insight.created_at).toLocaleDateString()}
                   </span>
                 </div>
-                <div className="cursor-pointer mt-2" onClick={() => {
-                  if (insight.patient_id) { navigate(`/patients/${insight.patient_id}`); onClose?.(); }
-                }}>
-                  <p className="text-xs font-medium text-slate-700 leading-relaxed">
-                    <TypewriterText text={insight.content} delay={8} />
-                  </p>
-                </div>
+                {insight.patient_id ? (
+                  <Link to={`/patients/${insight.patient_id}`} onClick={() => onClose?.()}
+                    aria-label="Ouvrir le dossier patient associé à cette alerte"
+                    className="mt-2 block min-h-11 rounded-md p-2 text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <p className="text-xs font-medium leading-relaxed">
+                      <TypewriterText text={insight.content} delay={8} />
+                    </p>
+                  </Link>
+                ) : (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-slate-700 leading-relaxed">
+                      <TypewriterText text={insight.content} delay={8} />
+                    </p>
+                  </div>
+                )}
                 <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
                   <button onClick={() => markAsRead(insight.id)}
-                    className="flex items-center gap-1 text-xs font-black text-slate-600 hover:text-green-500 transition-colors uppercase">
+                    className="flex min-h-11 items-center gap-1 rounded-md px-2 text-xs font-black text-slate-700 hover:text-green-700 transition-colors uppercase focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                     <Check size={12} /> Marquer comme lu
                   </button>
                   {quickAction && (
                     <button onClick={quickAction.onClick}
-                      className="flex items-center gap-1.5 text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded-lg hover:bg-primary hover:text-white transition-colors uppercase">
+                      className="flex min-h-11 items-center gap-1.5 text-xs font-black bg-primary/10 text-primary px-3 py-2 rounded-lg hover:bg-primary hover:text-white transition-colors uppercase focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                       {quickAction.icon} {quickAction.label}
                     </button>
                   )}
