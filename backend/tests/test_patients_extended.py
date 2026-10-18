@@ -177,6 +177,42 @@ class TestGetUpdateDelete:
         r = client.delete(f"/api/patients/{pat['id']}", headers=auth_headers)
         assert r.status_code == 204
 
+    def test_delete_patient_with_companion_access_archives_and_audits(self, client, auth_headers, db):
+        """Patient archival keeps remote-access barrier and audit in one commit."""
+        import uuid
+        from backend.models_patient_companion import PatientCompanionIdentity, PatientCompanionAccess
+
+        pat = _create_patient(client, auth_headers, nom="COMPANIONDELETE", prenom="Synthetic", dob="1980-08-19")
+        patient = db.get(models.Patient, pat["id"])
+        identity = PatientCompanionIdentity(
+            provider="local_bridge", subject=f"f05-r2-soft-delete:{uuid.uuid4()}",
+        )
+        db.add(identity)
+        db.flush()
+        access = PatientCompanionAccess(
+            identity_id=identity.id,
+            employer_id=patient.employer_id,
+            patient_id=patient.id,
+            relationship_type="SELF",
+        )
+        db.add(access)
+        db.commit()
+
+        response = client.delete(f"/api/patients/{patient.id}", headers=auth_headers)
+        assert response.status_code == 204, response.text
+        db.refresh(patient)
+        assert patient.deleted_at is not None
+        audit = db.query(models.AuditLog).filter(
+            models.AuditLog.action == "DELETE",
+            models.AuditLog.resource_type == "Patient",
+            models.AuditLog.resource_id == str(patient.id),
+        ).all()
+        assert len(audit) == 1
+        # Access remains for historical evidence, but no remote mutation is
+        # authorized once the linked patient has been logically deleted.
+        db.refresh(access)
+        assert access.patient_id == patient.id
+
     def test_delete_nonexistent_returns_404(self, client, auth_headers):
         r = client.delete("/api/patients/999999", headers=auth_headers)
         assert r.status_code == 404
