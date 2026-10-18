@@ -56,7 +56,7 @@ export type PatientAppointment = {
 export type PatientAgendaRequestState = {
   id: string;
   operation: 'agenda.create' | 'agenda.reschedule' | 'agenda.cancel';
-  state: 'local_queued' | 'remote_pending' | 'confirmed' | 'rejected';
+  state: 'local_queued' | 'remote_pending' | 'needs_reconciliation' | 'confirmed' | 'rejected';
   appointmentRef?: string;
   slotRef?: string;
   createdAt: string;
