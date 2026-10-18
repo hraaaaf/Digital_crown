@@ -108,6 +108,21 @@
  * patient routes or hide clinical errors. Limit toast footprint while keeping
  * every message readable and accessible. */
 @media (min-width: 1024px) {
+  /* MainLayout's desktop 2rem upper gutter remains visible during scroll.
+   * Cover it *only while compact sticky* so other cephalo navigation cannot
+   * peek through above the patient identity. Pointer and keyboard remain free.
+   */
+  [data-patient-cephalo-header="true"][data-cephalo-header-compact="true"]::before {
+    content: "";
+    position: absolute;
+    top: -2rem;
+    left: 0;
+    right: 0;
+    height: 2rem;
+    background-color: var(--card-bg, #ffffff);
+    pointer-events: none;
+  }
+
   body:has([data-patient-cephalo-header="true"]) [data-rht-toaster] {
     right: 0.75rem !important;
     bottom: 0.75rem !important;
