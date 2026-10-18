@@ -65,15 +65,23 @@ def main() -> None:
     changed = sorted(set(original["tables"]) ^ set(current["tables"]))
     changed += sorted(name for name in set(original["tables"]) & set(current["tables"])
                       if original["tables"][name] != current["tables"][name])
+    # Only these exact auth/workstation tables may change during real lab login
+    # and owner-enrollment. Every other domain table is fail-closed.
+    technical_only = {"audit_logs", "workstation_modes"}
+    changed_clinical = sorted(set(changed) - technical_only)
+    changed_technical = sorted(set(changed) & technical_only)
     proof = {"sourceHead": expected, "kind": "CB01_FULL_SQLITE_FINAL_STATE_DIFF",
              "allUserTablesIncluded": True, "tablesChecked": len(current["tables"]),
-             "changedTables": changed, "status": "PASS_NO_FINAL_STATE_CHANGE" if not changed else "FAIL_TABLE_STATE_CHANGED",
-             "limitation": "Final SQLite state only; technical transient writes and separate PostgreSQL/SQLCipher test DBs are not covered"}
+             "changedTables": changed, "technicalExceptions": changed_technical,
+             "technicalAllowlist": sorted(technical_only),
+             "clinicalTablesChanged": changed_clinical,
+             "status": "PASS_CLINICAL_UNCHANGED_TECHNICAL_EXCEPTIONS" if not changed_clinical else "FAIL_CLINICAL_TABLE_CHANGED",
+             "limitation": "All SQLite tables fingerprinted; audit_logs and workstation_modes are technical exceptions. Final state only, not transient writes. Separate PostgreSQL and SQLCipher databases not covered."}
     AFTER.parent.mkdir(parents=True, exist_ok=True)
     AFTER.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
-    if changed:
-        raise SystemExit("FAIL: CB-01 full SQLite table state changed: " + ", ".join(changed))
-    print("CB01_FULL_STATE_DIFF: PASS", len(current["tables"]), "tables, zero changed")
+    if changed_clinical:
+        raise SystemExit("FAIL: CB-01 synthetic clinical table state changed: " + ", ".join(changed_clinical))
+    print("CB01_CLINICAL_STATE_DIFF: PASS", len(current["tables"]), "tables; technical exceptions:", ",".join(changed_technical) or "none")
 
 
 if __name__ == "__main__":
