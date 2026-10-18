@@ -133,6 +133,7 @@ def test_missing_committed_pdf_and_symlink_are_flagged_without_mutation(db, dent
         "static/archives/" + missing.relative_to(root).as_posix(),
         "static/archives/" + symlink.relative_to(root).as_posix(),
         "static/documents/legacy-synthetic.pdf",
+        "static/archives/999/RAPPORT_CEPHALO/2026/10/wrong-patient.pdf",
     )):
         db.add(models.DocumentArchive(
             patient_id=patient.id,
@@ -152,7 +153,7 @@ def test_missing_committed_pdf_and_symlink_are_flagged_without_mutation(db, dent
     assert report["suspected_count"] == 0
     assert report["missing_referenced_count"] == 2
     assert {item["reason"] for item in report["missing_referenced"]} == {"missing", "symlink"}
-    assert report["unverifiable_references_count"] == 1
+    assert report["unverifiable_references_count"] == 2  # legacy + wrong patient path
     assert not missing.exists()
     assert symlink.is_symlink()
     assert outside.read_bytes() == before
