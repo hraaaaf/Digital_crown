@@ -17,6 +17,7 @@ on:
       - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
       - frontend/src/features/patients/PatientDetailsInner.tsx
       - frontend/src/components/Layout/patientDossierResponsive.css
+      - frontend/src/App.tsx
       - scripts/ceph_p2ter_concurrent_atomic_t2.py
 permissions:
   contents: read
