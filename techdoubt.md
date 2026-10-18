@@ -2,6 +2,19 @@
 
 ## CEPH-FAC-PARITY / P2ter++ — 2026-10-18
 
+### CORRECTIFS CRITIQUES — GO utilisateur (2026-10-18), revue/CI finale NON CERTIFIÉE
+
+Exécution sur **PR #957** dans le seul périmètre CEPH-FAC-PARITY/P2ter++ ; HEAD en mouvement, se référer au HEAD courant GitHub et non aux anciennes preuves. Les constats first-pass A (2/10, 3 BLOCKER + 1 MAJOR) et B (4/10, 1 BLOCKER + 5 MAJOR) restent **figés** ; aucun CONVERGED avant deux nouvelles revues propres sur HEAD final.
+
+- S1 : service générique interdit OVERWRITE, CREATE_VERSION et remplacement explicite sur `RAPPORT_CEPHALO`; erreur HTTP fail-closed ; régression nouvellement requise dans `backend/tests/test_cephalo_p2ter_archive_adversarial.py`.
+- S2 : filename rejeté si séparateur/traversée ; création `xb` et suffixe UUID en cas de collision pour **ne pas écraser l'ancien PDF mis à la corbeille** ; tests HTTP synthétiques + conservation des octets anciens.
+- S3 : PDF officiel lu en snapshot vérifié (statut, identité, révision, unicité active, taille, SHA-256) sur les deux routes de téléchargement ; première réponse de création servie depuis le blob déjà archivé au lieu d'un FileResponse différé ; tests altération HTTP.
+- S4 : restauration d'archive officielle sous verrou DB et refus de doublon même étude/révision, sur la **vraie clé `cephalo_analysis_revision`**, avec refus 409 côté route ; test corbeille/recréation/restauration et préservation ancienne pièce.
+- B : `setAnalysisId` invalide tous les champs cliniques et scientifiques ; sélection d'historique efface avant GET et réhydrate les champs spécifiques à B, sans fallback depuis A ni cache clinique à portée patient ; tests Vitest sentinelle A→B. Les trois variantes PDF utilisent une projection clinique commune, preview remonte les erreurs, replay existe dans le reçu UX, HTTP 200 après changement de sélection est signalé comme archive A créée (pas un échec), actions PDF coordonnées dans l'instance Cabinet.
+- CI REQUIRED workflow étendu à S1–S4 et tests A→B. **Gates sur HEAD final non encore confirmés au moment de cette note.** Les tests unitaires ne prouvent pas un scénario Chromium avec note sentinelle réellement retrouvée dans la page B ou une extraction intégrale du PDF B. Deux clics UI réels simultanés sur deux onglets, pannes réseau au POST et démontage en vol restent **NOT TESTED**. Pas de preuve Windows SQLCipher, PostgreSQL multi-process, crash disque, intégrité intégrale des 11 pages ni mobile Pocket.
+- **Réserves résiduelles :** pas de transaction atomique unique SQL+filesystem, orphelin possible après crash brutal / perte d'écriture ; `xb` protège les noms de fichier mais non contre toutes manipulations symlinks parents si permissions filesystem compromises ; invalidation de l'ancien cache local par patient peut laisser indisponibles d'anciennes notes qui n'avaient jamais été persistées côté backend ; l'unicité étude/révision est assurée par le service/verrou, **pas par une contrainte SQL unique native cross-dialect** ; changements de notes en cours de prévalidation et deux sessions navigateurs restent à requalifier.
+- PR DRAFT, aucun merge, déploiement, P3/Facad, modification de six HOLD ou FAC03/D3. Roadmap 41/99. **Gate = OUVERT / NO-GO** tant que CI exact-HEAD et deux revues post-fix non vérifiées.
+
 ### HOLD — Deux audits blind-first à contextes séparés, first passes figés sur `a93026d228138bfcfd299276b115789f1daf7015`
 
 **NO-GO / NOT CLEAN ; ancien GO technique retiré.** Le rapport A (2/10) signale 3 BLOCKER et 1 MAJOR ; le rapport B (4/10) signale 1 BLOCKER et 5 MAJOR. Les deux conversations distinctes ont figé les rapports avant comparaison ; ce n'est pas une preuve de deux tests dynamiques complets. [Réconciliation & triage PR #957](https://github.com/hraaaaf/Digital_crown/pull/957#issuecomment-6252324844).
