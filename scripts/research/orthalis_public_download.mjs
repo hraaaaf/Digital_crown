@@ -9,10 +9,10 @@ if(!folder) throw new Error("output directory is required");
 fs.mkdirSync(folder,{recursive:true});
 const allow=new Set(["www.orthalis.com","orthalis.com","demo.orthalis.com"]);
 const roots=[
- "https://www.orthalis.com/orthalis/",
- "https://www.orthalis.com/en/orthalis-connect/",
+ "https://demo.orthalis.com/guacamole/",
  "https://demo.orthalis.com/",
- "https://demo.orthalis.com/guacamole/"
+ "https://www.orthalis.com/orthalis/",
+ "https://www.orthalis.com/en/orthalis-connect/"
 ];
 const FILE_LIMIT=1_800_000,ASSET_MAX=12;
 const re=/(?:src|href)\s*=\s*["']([^"']{1,1600})["']/gi;
