@@ -42,8 +42,22 @@ function walk(v,p='',d=0){
 }
 walk(inspection,'inspect');
 walk(scenario,'scenario');
+const safeHost=u=>{try{const x=new URL(u);return x.protocol==='https:'?x.hostname:'non_https_or_relative'}catch{return 'unknown'}};
+const structuralFacts={
+  frame_meta:(inspection.normalized_result?.frames||[]).map(f=>({keys:keys(f),hostname:safeHost(f?.url)})),
+  dom_keys:keys(inspection.normalized_result?.dom),
+  dom_first_node_keys:keys(inspection.normalized_result?.dom?.nodes?.[0]),
+  dom_node_total:inspection.normalized_result?.dom?.nodes?.length??null,
+  accessibility_keys:keys(inspection.normalized_result?.accessibility),
+  scenario_step_metadata:(scenario.normalized_result?.steps||[]).map(st=>({
+    step_keys:keys(st),artifacts_keys:keys(st.artifacts),capture_keys:keys(st.capture),
+    action_keys:keys(st.action),result_keys:keys(st.result),
+    artifact_states:Object.fromEntries(Object.entries(st.artifacts||{}).map(([k,v])=>[k,{keys:keys(v),status:v?.status||v?.state||null}]))
+  })).slice(0,4),
+};
 const safe={
  task:'LOT07-07C_REA_ORTHALIS_PUBLIC_DEMO_STRUCTURE',
+ structural_facts:structuralFacts,
  interpretation:'field_name_inventory_only_NOT_interactive_business_proof',
  inspection_keys:keys(inspection), inspection_raw_result_keys:keys(inspection.raw_result),
  inspection_normalized_result_keys:keys(inspection.normalized_result),
