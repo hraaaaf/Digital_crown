@@ -24,7 +24,7 @@ REQUIRED = {
         "LA CONVERSATION EXÉCUTE ELLE-MÊME DEUX REVUES ADVERSARIALES INTERNES A/B",
         "Ne jamais mettre un lot en attente",
         "revues adversariales internes A/B",
-        "plafond d'auto-revue",
+        "plafonnée à `9.4/10`",
         "vrai login UI",
     ),
     "rpg": (
