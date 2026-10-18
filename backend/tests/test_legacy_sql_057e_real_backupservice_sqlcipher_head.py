@@ -322,7 +322,8 @@ class RealEncryptedBackupServiceLab(unittest.TestCase):
 
     def test_05_wrong_inner_sqlcipher_key_denied(self):
         backup = self.backup()
-        with self.assertRaises(Exception):
+        from sqlcipher3 import dbapi2
+        with self.assertRaises(dbapi2.DatabaseError):
             self.restore(backup, passphrase=secrets.token_hex(32))
         self.assertFalse((self.home / "restored_fake.db").exists())
 
