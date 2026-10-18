@@ -6,6 +6,12 @@ on:
     paths:
       - 'frontend/src/features/desktop-experience/SignatureIconicTarget*'
       - '.github/workflows/v15-07-g2-iconic-target.yml'
+  pull_request:
+    branches:
+      - feat/v15-07-g1-two-views-t0t1-20261015
+    paths:
+      - 'frontend/src/features/desktop-experience/SignatureIconicTarget*'
+      - '.github/workflows/v15-07-g2-iconic-target.yml'
   workflow_dispatch:
 
 permissions:
