@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/p2ter-atomic-archive-isolated.yml
       - .github/workflows/p2ter-atomic-live-t2.yml
+      - backend/core/schema_runtime.py
       - backend/models.py
       - backend/routers/patients.py
       - backend/tests/test_cephalo_p2ter_identity_bound_pdf.py
