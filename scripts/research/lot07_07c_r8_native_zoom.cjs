@@ -49,6 +49,15 @@ const send=(...args)=>execFileSync('xdotool',args,{encoding:'utf8',timeout:8000}
        const f=path.join(dir,'command-r8-'+view+'-1440-native-zoom200.png');
        await page.screenshot({path:f,fullPage:true,animations:'disabled'});
        evidence.views.at(-1).image=path.basename(f);evidence.views.at(-1).sha256=crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+       // Direct X11 root screenshot: independent of Playwright's zoomed CSS capture coordinate system.
+       const root=path.join(dir,'command-r8-'+view+'-1440-native-zoom200-x11screen.png');
+       execFileSync('scrot',['-z','-o',root],{timeout:12000});
+       evidence.views.at(-1).x11_screen_image=path.basename(root);
+       evidence.views.at(-1).x11_screen_sha256=crypto.createHash('sha256').update(fs.readFileSync(root)).digest('hex');
+       evidence.views.at(-1).x11_screen_bytes=fs.statSync(root).size;
+       const device=path.join(dir,'command-r8-'+view+'-1440-native-zoom200-device.png');
+       await page.screenshot({path:device,fullPage:true,animations:'disabled',scale:'device'});
+       evidence.views.at(-1).device_scale_image=path.basename(device);
      }
    }
  }finally{await ctx?.close();await browser?.close();}
