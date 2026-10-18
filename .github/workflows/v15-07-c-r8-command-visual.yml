@@ -7,6 +7,8 @@ on:
       - docs/research/lot07-07c-command-target-r8.html
       - scripts/research/lot07_07c_r8_visual.cjs
       - scripts/research/lot07_07c_r8_native_zoom.cjs
+      - scripts/research/lot07_07c_r8_theme.cjs
+      - frontend/src/index.css
   workflow_dispatch:
 permissions:
   contents: read
@@ -60,6 +62,12 @@ jobs:
           sudo apt-get install -y -qq xdotool xvfb scrot >/dev/null
           xvfb-run -a -s '-screen 0 1920x1200x24' node scripts/research/lot07_07c_r8_native_zoom.cjs docs/research/lot07-07c-command-target-r8.html artifacts/lot07-07c-r8
           test -s artifacts/lot07-07c-r8/native-zoom-result.json
+      - name: Assert all existing themes inherited from canonical Cabinet CSS
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/research/lot07_07c_r8_theme.cjs docs/research/lot07-07c-command-target-r8.html frontend/src/index.css artifacts/lot07-07c-r8
+          test -s artifacts/lot07-07c-r8/theme-inheritance-manifest.json
       - name: Upload only synthetic target screenshot matrix
         if: always()
         uses: actions/upload-artifact@v4
