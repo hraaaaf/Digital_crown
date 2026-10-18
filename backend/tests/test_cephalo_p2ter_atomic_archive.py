@@ -130,6 +130,40 @@ def test_same_study_revision_archive_replays_identical_bytes_once(
     ).all()) == 1
 
 
+def test_official_archive_sql_commit_failure_removes_orphaned_pdf(
+    db, monkeypatch, tmp_path,
+):
+    import pytest
+    from backend.services import archive_service
+
+    archive_root = tmp_path / "private-archive"
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", archive_root)
+    writer = archive_service.ArchiveService(db)
+    monkeypatch.setattr(writer, "check_conflicts", lambda *args, **kwargs: {"has_conflict": False})
+
+    def reject_commit():
+        raise OSError("synthetic database commit interruption")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(db, "commit", reject_commit)
+        with pytest.raises(OSError, match="synthetic database"):
+            writer.archive_document(
+                patient_id=97531, analysis_id=86420,
+                file_content=b"%PDF-T2-ONLY-SYNTHETIC",
+                filename="t2-commit-interruption.pdf",
+                doc_type=models.DocumentType.RAPPORT_CEPHALO,
+                uploaded_by_id=None,
+                clinical_data={
+                    "cephalo_analysis_id": 86420,
+                    "cephalo_analysis_revision": 1,
+                    "cephalo_archive_payload_digest": "synthetic",
+                },
+            )
+    assert not list(archive_root.rglob("*.pdf")), (
+        "Failed SQL commit left a potentially exposed official report file"
+    )
+
+
 def test_archive_revision_edit_after_first_commit_is_not_replayed_as_old_revision(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
