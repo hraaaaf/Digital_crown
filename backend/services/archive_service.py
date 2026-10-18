@@ -42,6 +42,10 @@ def cleanup_uncommitted_cephalo_files(db: Session, created_paths: List[Path]) ->
     effect even if the client lost its response. If the DB cannot be queried,
     preserve the bytes for explicit reconciliation instead of risking deletion
     of a document that is already referenced by a committed archive.
+
+    Process termination between exclusive file creation and transaction end
+    cannot be repaired by an in-process exception handler: a separate approved
+    orphan audit is still required before calling media lifecycle certified.
     """
     import logging
     logger = logging.getLogger(__name__)
