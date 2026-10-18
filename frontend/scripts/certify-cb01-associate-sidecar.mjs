@@ -665,7 +665,7 @@ try {
       page.on('pageerror',err=>errors.push(err.name));
       page.on('request',req=>{
         const p=new URL(req.url()).pathname;
-        if(req.method()!=='GET' && ['/api/bot/execute','/api/appointments/','/api/patients/','/api/devis/'].some(prefix=>p.startsWith(prefix)))
+        if(req.method()!=='GET' && ['/api/bot/execute','/api/appointments','/api/patients','/api/devis'].some(prefix=>p===prefix||p.startsWith(prefix+'/')))
           writes.push(req.method());
       });
       page.on('response',response=>{
