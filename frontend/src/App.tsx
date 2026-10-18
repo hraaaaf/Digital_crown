@@ -75,7 +75,7 @@ const ContextualToaster = () => {
 
   const patientCompact = /^\/patients(?:\/|$)/.test(location.pathname) && compactViewport;
   const cephaloDesktop = !compactViewport &&
-    /^\\/patients\\/\\d+$/.test(location.pathname) &&
+    /^\/patients\/\d+$/.test(location.pathname) &&
     new URLSearchParams(location.search).get('tab') === 'radiology' &&
     new URLSearchParams(location.search).get('radioTab') === 'cephalo';
 
