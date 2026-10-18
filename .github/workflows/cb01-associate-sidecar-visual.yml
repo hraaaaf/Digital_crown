@@ -368,6 +368,10 @@ jobs:
               assert named.deleted_at is None and numeric.deleted_at is None
           print('PASS: CB-01 browser fixtures seeded AFTER CB-00 reference HTTP probe')
           PY
+      - name: CB-01 FUE baseline — all SQLite user tables after synthetic fixtures
+        shell: bash
+        run: |
+          python scripts/ci/cb01_clinical_state_snapshot.py before
       - name: Start isolated existing flagged-preview web UI
         shell: bash
         working-directory: frontend
@@ -390,6 +394,10 @@ jobs:
         shell: bash
         run: |
           node scripts/certify-cb01-s01-s12-matrix.mjs
+      - name: CB-01 FUE final-state immutability — all synthetic SQLite tables
+        shell: bash
+        run: |
+          python scripts/ci/cb01_clinical_state_snapshot.py after
       - name: Reconcile real PostgreSQL/SQLCipher and frontend proof without human promotion
         shell: bash
         run: |
