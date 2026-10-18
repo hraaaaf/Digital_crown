@@ -48,7 +48,7 @@ jobs:
             echo "REA_LOCAL_STATIC=BLOCKED_NO_PUBLIC_JS"
             exit 8
           fi
-          if rea analyze-javascript-application "$LAB/js" --json >"$LAB/rea.json" 2>"$LAB/rea-stderr.txt"; then
+          if timeout --signal=TERM --kill-after=5s 105s rea analyze-javascript-application "$LAB/js" --json >"$LAB/rea.json" 2>"$LAB/rea-stderr.txt"; then
             node - "$LAB/rea.json" <<'NODE'
           const fs=require('fs'),crypto=require('crypto');
           const raw=fs.readFileSync(process.argv[2]);
