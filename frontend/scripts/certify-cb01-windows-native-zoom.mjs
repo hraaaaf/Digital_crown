@@ -60,9 +60,18 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function serveFixture(route) {
   const req = route.request(), url = new URL(req.url()), method = req.method();
   const p = url.pathname;
+  const cors = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+  if (method === 'OPTIONS') {
+    return route.fulfill({status:204,headers:cors});
+  }
   if (method === 'GET' && p === '/api/bot/sessions') {
     return route.fulfill({ status: 200, contentType: 'application/json', body: '[]',
-      headers: { 'Access-Control-Allow-Origin': '*' } });
+      headers: cors });
   }
   if (method === 'GET' && p === '/api/bot/workflows/cabinet-day') {
     return route.fulfill({ status: 200, contentType: 'application/json',
@@ -70,11 +79,11 @@ async function serveFixture(route) {
         day:'2026-10-18', timezone:'Africa/Casablanca',
         start_date:'2026-10-18T00:00:00',
         end_date:'2026-10-18T23:59:59.999', consulted_at:'16:00',
-      }), headers:{'Access-Control-Allow-Origin':'*'} });
+      }), headers:cors });
   }
   if (method === 'GET' && p === '/api/appointments/') {
     return route.fulfill({ status: 200, contentType: 'application/json', body:'[]',
-      headers:{'Access-Control-Allow-Origin':'*'} });
+      headers:cors });
   }
   if (method === 'POST' && p === '/api/bot/workflows/preview') {
     const data = req.postDataJSON();
@@ -85,7 +94,7 @@ async function serveFixture(route) {
         status:'clarification', message:data.messages[0]==='/rdv'
           ? 'Patient : saisissez un nom ou dossier' : 'Patient : quel dossier souhaitez-vous consulter ?',
         proposal:null,
-      }), headers:{'Access-Control-Allow-Origin':'*'} });
+      }), headers:cors });
   }
   throw new Error('REFUSED: unmocked API call ' + method + ' ' + p);
 }
