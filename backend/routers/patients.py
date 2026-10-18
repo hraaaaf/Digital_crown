@@ -1477,6 +1477,23 @@ def generate_cephalo_pdf(
             selected, revision = _bound_cephalo_study(
                 patient_id, req.analysis_id, req.expected_revision, db, current_user
             )
+            # Before this additive claim table existed, archives did not carry
+            # claims. Treat those durable rows as already claimed too; never
+            # reissue the same study revision during a schema rollout.
+            historical = db.query(models.DocumentArchive).filter(
+                models.DocumentArchive.patient_id == patient_id,
+                models.DocumentArchive.analysis_id == selected.id,
+                models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+            ).all()
+            for previous in historical:
+                clinical = previous.clinical_data or {}
+                old_revision = clinical.get("cephalo_analysis_revision") if isinstance(clinical, dict) else None
+                if type(old_revision) is not int or old_revision == revision:
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Ce bilan de cette étude/révision est déjà archivé ou nécessite une reprise historique",
+                    )
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
