@@ -526,3 +526,35 @@ def test_db_unique_claim_two_independent_sqlite_connections_concurrently(tmp_pat
             patient_id=1001,analysis_id=2001,revision=2,
         ).count()==1
     engine.dispose()
+
+
+def test_existing_legacy_archive_prevents_reissue_without_claim(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Additive schema rollout must respect archives predating the claims table."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    historical = models.DocumentArchive(
+        patient_id=patient.id,
+        analysis_id=study.id,
+        document_type=models.DocumentType.RAPPORT_CEPHALO,
+        filename="historical-synthetic.pdf",
+        original_filename="historical-synthetic.pdf",
+        file_path="static/archives/historical-synthetic.pdf",
+        file_hash="synthetic-legacy-hash",
+        clinical_data={"cephalo_analysis_id": study.id, "cephalo_analysis_revision": 1},
+    )
+    db.add(historical)
+    db.commit()
+    answer = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert answer.status_code == 409
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id==patient.id,
+        models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 1
+    assert db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.analysis_id==study.id,
+    ).count() == 0
+    assert not list(tmp_path.glob("*.pdf"))
