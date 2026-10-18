@@ -9,10 +9,15 @@ import hashlib
 import json
 import os
 from sqlcipher3 import dbapi2 as sqlcipher
-from backend.core.key_material import sqlcipher_passphrase
 import subprocess
 import sys
 from pathlib import Path
+
+# Running as python scripts/ci/... does not guarantee the repo root is on
+# sys.path. Resolve the canonical product key helper, never a guessed key.
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
+from backend.core.key_material import sqlcipher_passphrase
 
 DB = Path("t2-runtime-cert.db").resolve()
 BEFORE = Path("/tmp/cb01-full-state-before.json")
