@@ -30,6 +30,15 @@ const slots = [
   [null,null,null],
   [['TEST-018','Consultation','planned'],['TEST-019','Chirurgie','planned'],['TEST-020','Suivi','planned']],
 ] as const;
+/** All schedule data remain synthetic and read-only. Slots are quarter-hour cells. */
+const slotMinutes: (readonly number[])[] = [
+ [30,30,45],[45,30,60],[30,60,30],[60,30,45],
+ [0,0,0],[30,45,30],[60,60,30],[0,0,0],[30,60,30]
+];
+const quarterHours = Array.from({length:36},(_,index)=>{
+ const hour=8+Math.floor(index/4), minute=(index%4)*15;
+ return {label:`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`,minute};
+});
 function Pill({children,tone='info'}:{children:React.ReactNode;tone?:Tone}) {
  return <span className={'cmd-pill cmd-pill-'+tone}>{children}</span>;
 }
@@ -41,6 +50,7 @@ export function CommandWorkbenchReactTarget(){
  const [tab,setTab]=useState('Vue d’ensemble');
  const [notification,setNotification]=useState('');
  const [mode,setMode]=useState('Jour');
+ const [activeLane,setActiveLane]=useState(0);
  const announce=(what:string)=>setNotification(what+' : simulation uniquement, aucune opération clinique.');
  return <div className="cmd-shell" data-command-target="07-C-react-isolated" data-synthetic-fixtures="true">
   <aside className="cmd-sidebar">
@@ -63,11 +73,14 @@ export function CommandWorkbenchReactTarget(){
        <Card title="Agenda · Vue journalière" className="cmd-agenda" action={<small>15 min · 3 praticiens</small>}>
         <div className="cmd-datebar"><button onClick={()=>announce('Calendrier')}><CalendarDays size={15}/> Lundi 19 octobre 2026 <ChevronDown size={13}/></button><button onClick={()=>announce('Aujourd’hui')}>Aujourd’hui</button><button className="cmd-primary" onClick={()=>announce('RDV')}><Plus size={15}/> RDV</button></div>
         <div className="cmd-agenda-modes">{['Jour','Semaine','Liste'].map(x=><button aria-pressed={mode===x} className={mode===x?'active':''} key={x} onClick={()=>{setMode(x);if(x!=='Jour')announce(x)}}>{x}</button>)}</div>
-        <div className="cmd-agenda-overflow"><div className="cmd-calendar">
-         <div className="cmd-timehead">Heure</div>{['Dr A · Salle 1','Dr B · Salle 2','Dr C · Salle 3'].map((s,i)=><div className="cmd-lanehead" key={s}><b>{['DA','DB','DC'][i]}</b><span>{s}<small>{i===2?'Chirurgie':'Omnipratique'}</small></span></div>)}
-         {slots.map((row,index)=><React.Fragment key={index}><div className="cmd-hour">{String(index+8).padStart(2,'0')}:00</div>{row.map((entry,j)=><div className="cmd-cell" key={j}>{entry&&<button type="button" onClick={()=>announce(entry[0])} className={'cmd-appt cmd-appt-'+entry[2]}><strong>{entry[0]}</strong><span>{entry[1]}</span></button>}</div>)}</React.Fragment>)}
+        <div className="cmd-mobile-lanes" role="group" aria-label="Praticien affiché dans l’agenda mobile">{['Dr A','Dr B','Dr C'].map((name,index)=><button key={name} type="button" aria-label={'Agenda '+name} aria-pressed={activeLane===index} onClick={()=>setActiveLane(index)}>{name}</button>)}</div>
+        <div className="cmd-agenda-overflow"><div className="cmd-calendar" data-quarter-hour-grid="true" data-active-lane={activeLane}>
+         <div className="cmd-timehead" style={{gridRow:1,gridColumn:1}}>Heure</div>
+         {['Dr A · Salle 1','Dr B · Salle 2','Dr C · Salle 3'].map((name,lane)=><div className="cmd-lanehead" key={name} data-lane={lane} data-current-lane={activeLane===lane} style={{gridRow:1,gridColumn:lane+2}}><b>{['DA','DB','DC'][lane]}</b><span>{name}<small>{lane===2?'Chirurgie':'Omnipratique'}</small></span></div>)}
+         {quarterHours.map(({label,minute},tick)=><React.Fragment key={label}><div className="cmd-hour" data-minute={minute} style={{gridRow:tick+2,gridColumn:1}}>{label}</div>{[0,1,2].map(lane=><div key={lane} className={'cmd-quarter-cell '+(minute===0?'cmd-quarter-start':'')} data-lane={lane} data-current-lane={activeLane===lane} style={{gridRow:tick+2,gridColumn:lane+2}} aria-hidden="true"/>)}</React.Fragment>)}
+         {slots.flatMap((row,hourIndex)=>row.map((entry,lane)=>entry ? <button key={entry[0]} type="button" data-lane={lane} data-current-lane={activeLane===lane} onClick={()=>announce(entry[0])} style={{gridRow:`${hourIndex*4+2} / span ${Math.max(1,slotMinutes[hourIndex][lane]/15)}`,gridColumn:lane+2}} className={'cmd-appt cmd-appt-'+entry[2]} aria-label={entry[0]+' '+entry[1]+' '+slotMinutes[hourIndex][lane]+' minutes, démonstration'}><strong>{entry[0]}</strong><span>{entry[1]} · {slotMinutes[hourIndex][lane]} min</span></button> : null))}
         </div></div>
-        <div className="cmd-legend">● Réalisé　● En attente　● À venir　● Urgence</div>
+        <div className="cmd-legend"><span>● Réalisé</span><span>● En attente</span><span>● À venir</span><span>● Urgence</span></div>
        </Card>
        <div className="cmd-right">
         <div className="cmd-patienthero"><div className="cmd-patientavatar">T1</div><div className="cmd-patientintro"><h2>Patient TEST-001 <Pill tone="success">En cours</Pill></h2><p>Identité fictive · 36 ans · Praticien A · Salle 1</p><span><Pill>Accès non testé</Pill> <Pill>Données synthétiques</Pill></span></div><div className="cmd-contact"><button aria-label="Téléphone démonstration" onClick={()=>announce('Téléphone')}><Phone size={15}/></button><button aria-label="Mail démonstration" onClick={()=>announce('E-mail')}><Mail size={15}/></button><button aria-label="Plus démonstration" onClick={()=>announce('Menu')}><MoreHorizontal size={15}/></button></div><div className="cmd-patienttime"><strong>09:00 – 09:45</strong><small>Soins conservateurs</small><span><Clock3 size={12}/> Consultation fictive</span></div><div className="cmd-patientbuttons"><button className="cmd-primary" onClick={()=>announce('Pause')}>Mettre en pause</button><button onClick={()=>announce('Terminer RDV')}>Terminer le RDV</button></div></div>
