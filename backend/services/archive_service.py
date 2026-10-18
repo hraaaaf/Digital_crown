@@ -34,6 +34,171 @@ _TRASHED_PAYMENT_PREFIX = "CORBEILLE — Lien Doc ID: "
 _INSTALLMENT_TRASH_PREFIX = "__DC_TRASH_DOC__:"
 
 
+
+def cleanup_uncommitted_cephalo_files(db: Session, created_paths: List[Path]) -> None:
+    """Best-effort cleanup only for paths this request created exclusively.
+
+    After rollback, check the database before deletion: COMMIT may have taken
+    effect even if the client lost its response. If the DB cannot be queried,
+    preserve the bytes for explicit reconciliation instead of risking deletion
+    of a document that is already referenced by a committed archive.
+
+    Process termination between exclusive file creation and transaction end
+    cannot be repaired by an in-process exception handler: a separate approved
+    orphan audit is still required before calling media lifecycle certified.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    base = ARCHIVE_BASE_DIR.resolve()
+    for candidate in created_paths:
+        path = Path(candidate).resolve()
+        try:
+            relative = path.relative_to(base)
+            stored_key = ("static/archives/" + relative.as_posix())
+            durable = db.query(models.DocumentArchive.id).filter(
+                models.DocumentArchive.file_path == stored_key,
+            ).first()
+            if durable is not None:
+                logger.error("Keeping archive bytes: committed document exists for %s", stored_key)
+                continue
+        except Exception:
+            logger.exception("Archive reconciliation unavailable; retaining newly created bytes")
+            continue
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            logger.exception("Archive orphan cleanup failed for newly created path")
+
+
+
+
+
+def audit_cephalo_archive_after_crash(
+    db: Session,
+    *,
+    archive_root: Path,
+    minimum_age_seconds: int = 3600,
+    current_timestamp: Optional[float] = None,
+) -> dict:
+    """Read-only orphan evidence after an abrupt process termination.
+
+    This is an *operator audit*, never startup cleanup and never a public API.
+    Do not delete/rename a candidate merely because its SQL row is absent:
+    a write may still be in flight, backup contents may differ and the file
+    may be an older unindexed clinical report. The caller must stop writers,
+    verify backup/restore and obtain an explicit cabinet decision first.
+
+    Results include relative paths solely for local authorized reconciliation.
+    Treat output as confidential patient data; never print, upload or log it.
+    """
+    import time
+    from sqlalchemy.exc import SQLAlchemyError
+
+    root = Path(archive_root).resolve(strict=True)
+    if not root.is_dir() or minimum_age_seconds < 1:
+        raise ValueError("Requires an existing isolated archives directory and positive age")
+    now = time.time() if current_timestamp is None else current_timestamp
+
+    # Entire reference set must be read successfully before scanning: no
+    # fail-open on unavailable DB. The query is read-only, no session.commit.
+    try:
+        # The full reference set protects against falsely classifying files as
+        # orphaned. The cephalometric subset additionally catches *missing*
+        # referenced PDFs after backup/restore, still without mutating anything.
+        paths = db.query(
+            models.DocumentArchive.file_path,
+            models.DocumentArchive.document_type,
+            models.DocumentArchive.patient_id,
+        ).all()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    stored_refs = {str(row[0]) for row in paths if row[0]}
+    missing_referenced = []
+    skipped_reference_count = 0
+    for file_path, document_type, archived_patient_id in paths:
+        if document_type != DocumentType.RAPPORT_CEPHALO:
+            continue
+        if not file_path:
+            # A cephalometric SQL record without a storage key is itself
+            # unreconcilable; it must never make the audit look fully green.
+            skipped_reference_count += 1
+            continue
+        prefix = "static/archives/"
+        if not str(file_path).startswith(prefix):
+            # Older stores or external document keys are outside the chosen
+            # copy of archives. Never misreport them as missing on that copy.
+            skipped_reference_count += 1
+            continue
+        relative = str(file_path)[len(prefix):]
+        parts = relative.split("/")
+        if not (
+            len(parts) == 5 and parts[0].isdecimal()
+            and parts[0] == str(archived_patient_id)
+            and parts[1] == DocumentType.RAPPORT_CEPHALO.value
+            and len(parts[2]) == 4 and parts[2].isdecimal()
+            and parts[3].isdecimal() and 1 <= int(parts[3]) <= 12
+            and parts[4] not in ("", ".", "..")
+            and parts[4].lower().endswith(".pdf")
+            and "\\" not in relative
+        ):
+            skipped_reference_count += 1
+            continue
+        path = root.joinpath(*parts)
+        # Never follow a symlink in a reference, nor traverse outside the
+        # operator-selected copy. Missing/symlinked bytes require human review.
+        if any(part.is_symlink() for part in (path, *path.parents) if part != root and root in part.parents):
+            missing_referenced.append({"relative_path": relative, "reason": "symlink"})
+        elif not path.is_file():
+            missing_referenced.append({"relative_path": relative, "reason": "missing"})
+    possible = []
+    for pat_dir in sorted(root.iterdir()):
+        if pat_dir.is_symlink() or not pat_dir.is_dir() or not pat_dir.name.isdecimal():
+            continue
+        ceph_dir = pat_dir / DocumentType.RAPPORT_CEPHALO.value
+        if not ceph_dir.is_dir() or ceph_dir.is_symlink():
+            continue
+        for year in ceph_dir.iterdir():
+            if year.is_symlink() or not year.is_dir() or not (len(year.name) == 4 and year.name.isdecimal()):
+                continue
+            for month in year.iterdir():
+                if month.is_symlink() or not month.is_dir() or not (month.name.isdecimal() and 1 <= int(month.name) <= 12):
+                    continue
+                for file in month.iterdir():
+                    if file.is_symlink() or not file.is_file() or file.suffix.lower() != ".pdf":
+                        continue
+                    relative = file.relative_to(root).as_posix()
+                    key = "static/archives/" + relative
+                    if key in stored_refs:
+                        continue
+                    stat = file.stat()
+                    if now - stat.st_mtime < minimum_age_seconds:
+                        continue  # active and recent writes remain untouched
+                    hasher = hashlib.sha256()
+                    with file.open("rb") as source:
+                        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                            hasher.update(chunk)
+                    # The path is confidential metadata. Output is a local
+                    # operator-only record, never a GitHub artifact.
+                    possible.append({
+                        "relative_path": relative,
+                        "sha256": hasher.hexdigest(),
+                        "bytes": stat.st_size,
+                    })
+    return {
+        "mode": "READ_ONLY",
+        "automatic_deletions": 0,
+        "suspected_orphans": possible,
+        "suspected_count": len(possible),
+        "missing_referenced": missing_referenced,
+        "missing_referenced_count": len(missing_referenced),
+        "unverifiable_references_count": skipped_reference_count,
+        "minimum_age_seconds": minimum_age_seconds,
+    }
+
+
+
+
 class ArchiveService:
     """
     Service de gestion documentaire avec :
@@ -253,7 +418,8 @@ class ArchiveService:
                         is_accounted: bool = True,
                         is_collected: bool = False,
                         payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE,
-                        commit: bool = True) -> Tuple[models.DocumentArchive, bool]:
+                        commit: bool = True,
+                        created_file_paths: Optional[List[Path]] = None) -> Tuple[models.DocumentArchive, bool]:
         """
         Archive un document avec gestion intelligente des conflits.
         Retourne: (document, is_new_version)
@@ -371,9 +537,21 @@ class ArchiveService:
         storage_path = self._get_storage_path(patient_id, doc_type, filename, version_number)
         
         # Sauvegarder le fichier
-        with open(storage_path, 'wb') as f:
-            f.write(file_content)
-        
+        if created_file_paths is not None:
+            # P2ter only: this caller owns the new archive path and can remove
+            # it if the later SQL flush/commit fails. Exclusive creation avoids
+            # overwriting an existing document, including a pre-claim legacy PDF.
+            # Record ownership immediately after O_EXCL succeeds so partial
+            # writes are also recoverable in the same request.
+            if commit or doc_type != DocumentType.RAPPORT_CEPHALO:
+                raise ValueError("Tracked archive paths require deferred cephalo commit")
+            with open(storage_path, 'xb') as f:
+                created_file_paths.append(storage_path)
+                f.write(file_content)
+        else:
+            with open(storage_path, 'wb') as f:
+                f.write(file_content)
+
         # --- DOUBLE EXPORT : RESTAURATION DOSSIERS HISTORIQUES (static/documents/YYYY/MM) ---
         if doc_type in [DocumentType.NOTE_HONORAIRES, DocumentType.DEVIS, DocumentType.ORDONNANCE, DocumentType.CERTIFICAT]:
             today = datetime.now()

@@ -1,0 +1,154 @@
+name: P2ter Atomic Live HTTP + Authenticated Desktop Research
+on:
+  push:
+    branches:
+      - fix/p2ter-atomic-archive-step1-20261018
+    paths:
+      - .github/workflows/p2ter-atomic-live-t2.yml
+      - .github/workflows/p2ter-atomic-archive-isolated.yml
+      - backend/core/schema_runtime.py
+      - alembic/versions/ceparch0001_add_cephalo_archive_claims.py
+      - backend/models.py
+      - backend/routers/patients.py
+      - backend/services/archive_service.py
+      - docs/clinic/CEPH_P2TER_POST_CRASH_ARCHIVE_AUDIT.md
+      - techdoubt.md
+      - backend/tests/test_cephalo_p2ter_identity_bound_pdf.py
+      - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+      - frontend/src/features/patients/PatientDetailsInner.tsx
+      - frontend/src/components/Layout/patientDossierResponsive.css
+      - frontend/src/App.tsx
+      - scripts/ceph_p2ter_concurrent_atomic_t2.py
+permissions:
+  contents: read
+jobs:
+  authenticated-t2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      PRODUCT_HEAD: ${{ github.sha }}
+    steps:
+      - name: Checkout isolated candidate without persistence
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exact HEAD assertion
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Generate disposable runtime credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          password="$(python -c 'import secrets;print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+          storage_key="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+          echo "::add-mask::$storage_key"
+          echo "SQLCIPHER_KEY_HEX=$storage_key" >> "$GITHUB_ENV"
+      - name: Install isolated backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/atomic-t2-req.txt
+          pip install -r /tmp/atomic-t2-req.txt
+          python -m pip check
+      - name: Start disposable FastAPI with real DB connections
+        shell: bash
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/atomic-t2-backend.log 2>&1 &
+          echo $! > /tmp/atomic-t2-backend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 80 /tmp/atomic-t2-backend.log
+          exit 1
+      - name: Seed two synthetic scientific revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m scripts.ceph_p2ter_seed_t2 > /tmp/atomic-t2-seed.log
+          studies="$(python - <<'PY'
+          import json
+          lines=open('/tmp/atomic-t2-seed.log').read().splitlines()
+          match=next(x.split('=',1)[1] for x in lines if x.startswith('P2TER_SYNTHETIC_STUDIES='))
+          print(json.dumps(json.loads(match),separators=(',',':')))
+          PY
+          )"
+          echo "P2TER_STUDIES=$studies" >> "$GITHUB_ENV"
+      - name: Two independent simultaneous authenticated HTTP archive calls
+        shell: bash
+        run: python scripts/ceph_p2ter_concurrent_atomic_t2.py
+      - name: Setup real frontend and Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start actual React Cabinet frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/atomic-t2-frontend.log 2>&1 &
+          echo $! > /tmp/atomic-t2-frontend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Authenticated real Chromium older PDF and duplicate archive 409
+        working-directory: frontend
+        shell: bash
+        run: node scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+      - name: Verify exactly one durable archive per study revision
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from backend import database,models
+          report=json.loads(Path('artifacts/ceph-p2ter-authenticated-desktop/report.json').read_text())
+          assert report['head']=='${{ github.sha }}'
+          a,b=report['viewports']
+          assert a['valid'] and b['valid']
+          assert any('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_' in x for x in a['checks'])
+          assert 'REPEATED_SAME_STUDY_REVISION_REFUSED_HTTP_409' in b['checks']
+          with database.SessionLocal() as db:
+            docs=db.query(models.DocumentArchive).filter(
+              models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO).all()
+            claims=db.query(models.CephaloArchiveClaim).all()
+            assert len(docs)==len(claims)==2, (len(docs),len(claims))
+            assert all(c.document_archive_id in {d.id for d in docs} for c in claims)
+            identities={(x.patient_id,x.analysis_id,x.revision) for x in claims}
+            assert len(identities)==2
+          print('ATOMIC_TWO_STUDIES_TWO_ARCHIVES_NO_DUPLICATE_PASS')
+          PY
+      - name: Failure diagnostics with no patient data
+        if: failure()
+        run: |
+          tail -n 70 /tmp/atomic-t2-backend.log || true
+          tail -n 50 /tmp/atomic-t2-frontend.log || true
+      - name: Upload UI and PDF evidence only from synthetic T2
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2ter-atomic-authenticated-t2-${{ github.sha }}
+          path: artifacts/ceph-p2ter-authenticated-desktop/
+          if-no-files-found: warn
+          retention-days: 14

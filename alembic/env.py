@@ -9,6 +9,11 @@ from alembic.script import ScriptDirectory
 from backend.core.postgresql_alembic_baseline import bootstrap_empty_postgresql_to_head
 from backend.core.sqlite_alembic_baseline import bootstrap_empty_sqlite_to_head
 from backend.models import Base
+# The empty PostgreSQL baseline snapshots metadata at this import boundary.
+# Attach the additive document-layout column *before* that snapshot; otherwise
+# a fresh database can be stamped at HEAD while missing runtime-required schema.
+from backend.models_document_layout import attach_document_layout_columns
+attach_document_layout_columns()
 from backend import models_patient_companion as _models_patient_companion  # noqa: F401
 from backend import models_patient_companion_notifications as _models_patient_companion_notifications  # noqa: F401
 # The catalog tables are declared by the service module rather than the legacy

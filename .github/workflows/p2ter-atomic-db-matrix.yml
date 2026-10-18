@@ -1,0 +1,171 @@
+name: P2ter PostgreSQL contention and SQLCipher copy rehearsal
+on:
+  push:
+    branches:
+      - fix/p2ter-atomic-archive-step1-20261018
+    paths:
+      - .github/workflows/p2ter-atomic-db-matrix.yml
+      - .github/workflows/p2ter-atomic-archive-isolated.yml
+      - backend/core/schema_runtime.py
+      - backend/models.py
+      - alembic/versions/ceparch0001_add_cephalo_archive_claims.py
+      - backend/services/archive_service.py
+      - backend/routers/patients.py
+      - scripts/ceph_p2ter_sqlcipher_copy_rehearsal.py
+      - backend/tests/test_cephalo_archive_crash_audit.py
+      - docs/clinic/CEPH_P2TER_POST_CRASH_ARCHIVE_AUDIT.md
+      - techdoubt.md
+      - scripts/ceph_p2ter_postgresql_concurrency.py
+      - scripts/t2_runtime_server.py
+      - scripts/ceph_p2ter_seed_t2.py
+      - scripts/ceph_p2ter_concurrent_atomic_t2.py
+      - scripts/ceph_p2ter_postgres_layout_rehearsal.py
+      - alembic/env.py
+      - alembic/versions/ceparch0002_repair_runtime_document_layout.py
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: PostgreSQL 18 concurrency on actual migrated schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dc_atomic_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dc_atomic_synthetic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dc_atomic_synthetic
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      SECRET_KEY: pg-atomic-t2-only-synthetic-secret-00000000001
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      T2_POSTGRES_ATOMIC_LAB: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exact SHA
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install schema boundary dependencies
+        run: |
+          pip install alembic sqlalchemy==2.0.28 psycopg2-binary==2.9.9 "pydantic[email]==2.6.3" pydantic-settings==2.2.1 fastapi==0.110.0 python-multipart==0.0.31 python-dotenv cryptography PyYAML==6.0.3 pytest
+      - name: Migrate fresh synthetic PostgreSQL schema
+        run: |
+          set -euo pipefail
+          python backend/tests/test_schema_runtime_head_sync.py
+          alembic upgrade head
+      - name: Two independent PostgreSQL connections attempt same migrated claim
+        run: python scripts/ceph_p2ter_postgresql_concurrency.py
+      - name: Fresh PostgreSQL schema vs predecessor repair and data preservation
+        run: python scripts/ceph_p2ter_postgres_layout_rehearsal.py
+      - name: Install real authenticated backend dependencies for PostgreSQL HTTP race
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-pg-jwt-req.txt
+          python -m pip install -r /tmp/ceph-pg-jwt-req.txt
+          python -m pip check
+      - name: Create disposable JWT credential and isolated synthetic key
+        shell: bash
+        run: |
+          set -euo pipefail
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+          secret="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$secret"
+          echo "SQLCIPHER_KEY_HEX=$secret" >> "$GITHUB_ENV"
+      - name: Attest the exact disposable PostgreSQL target (no bypass)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from backend.core.runtime_safety import canonical_database_target, database_target_fingerprint
+          target=os.environ["DATABASE_URL"]
+          identity=canonical_database_target(target)
+          assert identity=="postgresql://postgres@loopback:5432/dc_atomic_synthetic", identity
+          fingerprint=database_target_fingerprint(target)
+          with open(os.environ["GITHUB_ENV"],"a") as output:
+              output.write("DIGITALCROWN_ISOLATION_DB_FINGERPRINT="+fingerprint+"\n")
+          print("PG_DISPOSABLE_DB_ATTESTATION_EXACT_TARGET_PASS")
+          PY
+      - name: Start real FastAPI JWT server against disposable PostgreSQL 18
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/t2_runtime_server.py > /tmp/p2ter-pg-http.log 2>&1 &
+          echo $! > /tmp/p2ter-pg-http.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "DISPOSABLE_POSTGRES_JWT_SERVER_START_FAILED"
+          tail -n 65 /tmp/p2ter-pg-http.log
+          exit 1
+      - name: Seed two independent synthetic versioned cephalo studies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m scripts.ceph_p2ter_seed_t2 > /tmp/p2ter-pg-seed.txt
+          studies="$(python - <<'PY'
+          import json
+          lines=open('/tmp/p2ter-pg-seed.txt').read().splitlines()
+          match=next(x.split('=',1)[1] for x in lines if x.startswith('P2TER_SYNTHETIC_STUDIES='))
+          print(json.dumps(json.loads(match),separators=(',',':')))
+          PY
+          )"
+          echo "P2TER_STUDIES=$studies" >> "$GITHUB_ENV"
+      - name: Two concurrent independent authenticated HTTP archives on PostgreSQL
+        run: python scripts/ceph_p2ter_concurrent_atomic_t2.py
+      - name: Sanitized diagnostics on PostgreSQL HTTP lab failure
+        if: failure()
+        run: |
+          grep -E "Traceback|ERROR|Error|IntegrityError|RuntimeError" /tmp/p2ter-pg-http.log | tail -n 40 || true
+  sqlcipher:
+    name: Encrypted synthetic predecessor database copy migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      SECRET_KEY: isolated-sqlcipher-copy-test-secret-value
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exact SHA
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install encrypted migration boundary dependencies
+        run: |
+          pip install alembic sqlalchemy==2.0.28 sqlcipher3==0.6.2 passlib==1.7.4 "pydantic[email]==2.6.3" pydantic-settings==2.2.1 fastapi==0.110.0 python-multipart==0.0.31 python-dotenv cryptography PyYAML==6.0.3 pytest
+      - name: Create ephemeral storage key (masked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+          echo "::add-mask::$key"
+          echo "SQLCIPHER_KEY_HEX=$key" >> "$GITHUB_ENV"
+      - name: Upgrade ONLY a copy of old encrypted synthetic DB
+        run: python scripts/ceph_p2ter_sqlcipher_copy_rehearsal.py

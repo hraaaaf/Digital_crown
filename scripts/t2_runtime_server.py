@@ -16,7 +16,16 @@ os.environ["ENVIRONMENT"] = "test"
 # Dedicated fictitious mobile key; keep this existing CI database passphrase unchanged.
 os.environ["MOBILE_PAIRING_KEY_HEX"] = "2" * 64
 os.environ["SECRET_KEY"] = "t2-runtime-certification-secret-key-000001"
-os.environ["DATABASE_URL"] = "sqlite:///./t2-runtime-cert.db"
+# Explicit opt-in for the P2ter PostgreSQL two-client HTTP laboratory only.
+# Never accept an arbitrary network database or reconfigure a real Cabinet.
+_P2TER_PG_LAB = "postgresql://postgres:postgres@127.0.0.1:5432/dc_atomic_synthetic"
+if os.getenv("T2_POSTGRES_ATOMIC_LAB") == "1":
+    if (os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "1"
+            or os.getenv("DATABASE_URL") != _P2TER_PG_LAB
+            or os.getenv("GITHUB_ACTIONS") != "true"):
+        raise RuntimeError("REFUSE_NON_DISPOSABLE_P2TER_POSTGRES_LAB")
+else:
+    os.environ["DATABASE_URL"] = "sqlite:///./t2-runtime-cert.db"
 os.environ["TELEMETRY_ENABLED"] = "false"
 os.environ["CLOUD_AI_ENABLED"] = "false"
 os.environ["DEBUG"] = "false"

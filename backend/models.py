@@ -590,6 +590,38 @@ class DocumentArchive(Base):
 
 
 
+class CephaloArchiveClaim(Base):
+    """One durable archive operation per authorized study revision.
+
+    The unique database constraint (not a Python lock or a frontend flag) is the
+    final arbiter across threads, processes and separate application instances.
+    """
+
+    __tablename__ = "cephalo_archive_claims"
+    __table_args__ = (
+        UniqueConstraint(
+            "patient_id", "analysis_id", "revision",
+            name="uq_cephalo_archive_claim_study_revision",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    analysis_id: Mapped[int] = mapped_column(
+        ForeignKey("cephalo_analyses.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    document_archive_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("document_archives.id", ondelete="SET NULL"), nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
+
+
+
 # ==============================================================================
 # MODÈLES MULTI-TENANT (Phase SaaS)
 # ==============================================================================

@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import fitz
+import pytest
 from backend import models
 from backend.tests.test_cephalo_r23g5_authenticated_api import _case, _jwt, _read, PATH
 from backend.tests.test_cephalo_p2bis_http_pdf_continuity import (
@@ -247,6 +248,9 @@ def test_structural_consistency_failure_refuses_archive_without_writing_pdf(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 0
     assert list(tmp_path.glob("*.pdf")) == []
+    assert db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.analysis_id == study.id,
+    ).count() == 0
 
 
 def test_archive_failure_is_not_silenced(client, db, dentiste, monkeypatch, tmp_path):
@@ -383,3 +387,320 @@ def test_legacy_document_pdf_route_uses_same_explicit_historical_study(
         models.DocumentArchive.patient_id == patient.id,
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 0
+
+
+def test_same_study_revision_retry_creates_exactly_one_archive_claim(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Real JWT HTTP retry must never create a second archive for same study/revision.
+
+    SQLite StaticPool is serial: the independent-connection race is covered by
+    the separate disposable T2 HTTP CI job.
+    """
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _data: SimpleNamespace(is_valid=True, fatals=[], warnings=[]),
+    )
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "isolated-archives")
+
+    first = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert first.status_code == 200, first.text[:500] if first.status_code != 200 else ""
+    second = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert second.status_code == 409
+    assert "déjà archivé" in second.json()["detail"]
+
+    claims = db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.patient_id == patient.id,
+        models.CephaloArchiveClaim.analysis_id == study.id,
+        models.CephaloArchiveClaim.revision == 1,
+    ).all()
+    docs = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).all()
+    assert len(claims) == len(docs) == 1
+    assert claims[0].document_archive_id == docs[0].id
+    assert docs[0].analysis_id == study.id
+    assert docs[0].clinical_data["cephalo_analysis_revision"] == 1
+
+
+def test_failed_atomic_archive_releases_claim(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Failed I/O must release the claim so an approved retry can succeed."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services.archive_service import ArchiveService
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _data: SimpleNamespace(is_valid=True, fatals=[], warnings=[]),
+    )
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "isolated-archives")
+    original = ArchiveService.archive_document
+    monkeypatch.setattr(
+        ArchiveService, "archive_document",
+        lambda self, **kwargs: (_ for _ in ()).throw(OSError("synthetic storage refusal")),
+    )
+    failed = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert failed.status_code == 500
+    assert db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.analysis_id == study.id,
+    ).count() == 0
+
+    monkeypatch.setattr(ArchiveService, "archive_document", original)
+    retried = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert retried.status_code == 200, retried.text[:500] if retried.status_code != 200 else ""
+    assert db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.analysis_id == study.id,
+    ).count() == 1
+
+
+def test_db_unique_claim_two_independent_sqlite_connections_concurrently(tmp_path):
+    """Two database sessions/process-equivalent connections, not shared TestClient.
+
+    A first transaction holds a still-uncommitted claim while another independent
+    connection attempts the same patient/study/revision. The database unique
+    constraint must reject the second after the first commits.
+    """
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import sessionmaker
+
+    engine = create_engine(
+        "sqlite:///" + str(tmp_path / "atomic-claim.sqlite"),
+        connect_args={"timeout": 5},
+    )
+    models.CephaloArchiveClaim.__table__.create(bind=engine)
+    Session = sessionmaker(bind=engine)
+    first_flushed = threading.Event()
+    second_attempted = threading.Event()
+
+    def first():
+        with Session() as session:
+            session.add(models.CephaloArchiveClaim(
+                patient_id=1001, analysis_id=2001, revision=2,
+            ))
+            session.flush()
+            first_flushed.set()
+            assert second_attempted.wait(timeout=5)
+            # The other connection attempts while the first transaction is
+            # uncommitted; releasing the lock lets its UNIQUE check finish.
+            import time
+            time.sleep(0.15)
+            session.commit()
+            return "COMMITTED"
+
+    def second():
+        assert first_flushed.wait(timeout=5)
+        with Session() as session:
+            session.add(models.CephaloArchiveClaim(
+                patient_id=1001, analysis_id=2001, revision=2,
+            ))
+            second_attempted.set()
+            try:
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+                return "UNIQUE_REJECTED"
+            session.commit()
+            return "UNSAFE_DUPLICATE"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures=[pool.submit(first),pool.submit(second)]
+        assert sorted(f.result(timeout=12) for f in futures)==[
+            "COMMITTED", "UNIQUE_REJECTED",
+        ]
+
+    with Session() as session:
+        assert session.query(models.CephaloArchiveClaim).filter_by(
+            patient_id=1001,analysis_id=2001,revision=2,
+        ).count()==1
+    engine.dispose()
+
+
+@pytest.mark.parametrize("attributed", [True, False])
+def test_existing_legacy_archive_prevents_reissue_without_claim(
+    client, db, dentiste, monkeypatch, tmp_path, attributed,
+):
+    """Additive schema rollout must respect archives predating the claims table."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    historical = models.DocumentArchive(
+        patient_id=patient.id,
+        analysis_id=study.id if attributed else None,
+        document_type=models.DocumentType.RAPPORT_CEPHALO,
+        filename="historical-synthetic.pdf",
+        original_filename="historical-synthetic.pdf",
+        file_path="static/archives/historical-synthetic.pdf",
+        file_hash="synthetic-legacy-hash",
+        file_size=100,
+        document_group_id="legacy-synthetic-group",
+        clinical_data={"cephalo_analysis_id": study.id, "cephalo_analysis_revision": 1},
+    )
+    db.add(historical)
+    db.commit()
+    answer = _request(client, patient.id, study.id, headers, revision=1, archive=True)
+    assert answer.status_code == 409
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id==patient.id,
+        models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 1
+    assert db.query(models.CephaloArchiveClaim).filter(
+        models.CephaloArchiveClaim.analysis_id==study.id,
+    ).count() == 0
+    assert not list(tmp_path.glob("*.pdf"))
+
+
+def test_archive_bytes_cleaned_when_failure_happens_after_write_before_commit(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """No invisible second PDF when archive bytes exist but SQL fails."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    from backend.services.archive_service import ArchiveService
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    base = tmp_path / "owned-archives"
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", base)
+    original = ArchiveService.archive_document
+
+    def fail_after_write(self, **kwargs):
+        doc, new_version = original(self, **kwargs)
+        assert doc.id is not None and kwargs["created_file_paths"]
+        assert kwargs["created_file_paths"][0].is_file()
+        raise OSError("synthetic failure after disk write and SQL flush")
+
+    monkeypatch.setattr(ArchiveService, "archive_document", fail_after_write)
+    failed = _request(client, patient.id, study.id, headers, archive=True)
+    assert failed.status_code == 500
+    assert list(base.rglob("*.pdf")) == []
+    assert db.query(models.CephaloArchiveClaim).filter_by(
+        analysis_id=study.id,
+    ).count() == 0
+    assert db.query(models.DocumentArchive).filter_by(
+        analysis_id=study.id,
+    ).count() == 0
+
+
+def test_commit_failure_deletes_owned_archive_bytes_but_keeps_existing_files(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Failed commit must release claim and preserve any unrelated existing file."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    base = tmp_path / "isolated-archive"
+    base.mkdir()
+    protected = base / "existing-do-not-delete.txt"
+    protected.write_text("Existing document - never modified")
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", base)
+    original_commit = db.commit
+
+    def fail_once():
+        monkeypatch.setattr(db, "commit", original_commit)
+        raise OSError("synthetic commit failure")
+
+    monkeypatch.setattr(db, "commit", fail_once)
+    response = _request(client, patient.id, study.id, headers, archive=True)
+    assert response.status_code == 500
+    assert list(base.rglob("*.pdf")) == []
+    assert protected.read_text() == "Existing document - never modified"
+    assert db.query(models.CephaloArchiveClaim).filter_by(
+        analysis_id=study.id,
+    ).count() == 0
+    assert db.query(models.DocumentArchive).filter_by(
+        analysis_id=study.id,
+    ).count() == 0
+
+
+def test_reconciliation_keeps_committed_pdf_on_ambiguous_transaction_outcome(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """If the commit completed but its response failed, never destroy the stored PDF."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    base = tmp_path / "isolated-archive"
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", base)
+    original_commit = db.commit
+
+    def commit_but_lose_ack():
+        monkeypatch.setattr(db, "commit", original_commit)
+        original_commit()
+        raise OSError("synthetic lost-ack after durable commit")
+
+    monkeypatch.setattr(db, "commit", commit_but_lose_ack)
+    response = _request(client, patient.id, study.id, headers, archive=True)
+    assert response.status_code == 500
+    rows = db.query(models.DocumentArchive).filter_by(analysis_id=study.id).all()
+    claims = db.query(models.CephaloArchiveClaim).filter_by(analysis_id=study.id).all()
+    assert len(rows) == len(claims) == 1
+    assert claims[0].document_archive_id == rows[0].id
+    stored = base / rows[0].file_path.removeprefix("static/archives/")
+    assert stored.is_file() and stored.read_bytes().startswith(b"%PDF")
+
+
+def test_archive_claim_duplicate_error_classifier_never_mislabels_other_integrity_failures():
+    """Exact SQLite/PG unique key means 409; all other integrity violations do not."""
+    import sqlite3
+    from sqlalchemy.exc import IntegrityError
+    from types import SimpleNamespace
+    from backend.routers.patients import _is_same_cephalo_revision_archive_duplicate as matches
+
+    expected = (
+        "UNIQUE constraint failed: cephalo_archive_claims.patient_id, "
+        "cephalo_archive_claims.analysis_id, cephalo_archive_claims.revision"
+    )
+    def sql_error(msg):
+        return IntegrityError("INSERT INTO cephalo_archive_claims", {}, sqlite3.IntegrityError(msg))
+
+    assert matches(sql_error(expected)) is True
+    assert matches(sql_error("FOREIGN KEY constraint failed")) is False
+    assert matches(sql_error("UNIQUE constraint failed: document_archives.id")) is False
+    assert matches(sql_error("NOT NULL constraint failed: cephalo_archive_claims.revision")) is False
+
+    def pg_error(code, constraint):
+        orig = RuntimeError("synthetic psycopg2 error")
+        orig.pgcode = code
+        orig.diag = SimpleNamespace(constraint_name=constraint)
+        return IntegrityError("INSERT", {}, orig)
+
+    assert matches(pg_error("23505", "uq_cephalo_archive_claim_study_revision")) is True
+    assert matches(pg_error("23505", "other_constraint")) is False
+    assert matches(pg_error("23503", "uq_cephalo_archive_claim_study_revision")) is False

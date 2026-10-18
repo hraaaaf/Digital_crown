@@ -1435,6 +1435,30 @@ def validate_cephalo_before_pdf(
     return {**result.to_dict(), "analysis_id": selected.id, "analysis_revision": revision}
 
 
+def _is_same_cephalo_revision_archive_duplicate(exc) -> bool:
+    """Only the intended study/revision unique key maps to HTTP 409.
+
+    A broken foreign key or another constraint must never masquerade as a
+    duplicate clinical PDF. PostgreSQL exposes the actual constraint identity;
+    SQLite exposes its fully qualified UNIQUE column list.
+    """
+    source = getattr(exc, "orig", None)
+    if getattr(source, "pgcode", None) == "23505":
+        return getattr(getattr(source, "diag", None), "constraint_name", None) == (
+            "uq_cephalo_archive_claim_study_revision"
+        )
+    if source is None:
+        return False
+    reason = str(source)
+    expected = (
+        "UNIQUE constraint failed: "
+        "cephalo_archive_claims.patient_id, "
+        "cephalo_archive_claims.analysis_id, "
+        "cephalo_archive_claims.revision"
+    )
+    return reason == expected
+
+
 @router.post("/{patient_id}/pdf")
 def generate_cephalo_pdf(
     patient_id: int,
@@ -1450,6 +1474,80 @@ def generate_cephalo_pdf(
     selected, revision = _bound_cephalo_study(
         patient_id, req.analysis_id, req.expected_revision, db, current_user
     )
+    claim = None
+    if req.archive:
+        from sqlalchemy.exc import IntegrityError, OperationalError
+
+        # An initial read is NOT a concurrency boundary. PostgreSQL locks the
+        # selected analysis; SQLite obtains a writer lock when inserting the
+        # unique claim. Both rely on the database, never on a Python mutex.
+        try:
+            if db.get_bind().dialect.name == "postgresql":
+                db.query(models.CephaloAnalysis).filter(
+                    models.CephaloAnalysis.id == selected.id,
+                    models.CephaloAnalysis.patient_id == patient_id,
+                ).with_for_update().one()
+            claim = models.CephaloArchiveClaim(
+                patient_id=patient_id,
+                analysis_id=selected.id,
+                revision=revision,
+            )
+            db.add(claim)
+            db.flush()
+            # A writer could have changed the study between the first read
+            # and lock acquisition. Re-read authoritative revision *after*
+            # the claim has serialized all other writers.
+            db.expire_all()
+            selected, revision = _bound_cephalo_study(
+                patient_id, req.analysis_id, req.expected_revision, db, current_user
+            )
+            # Before this additive claim table existed, archives did not carry
+            # claims. Treat those durable rows as already claimed too; never
+            # reissue the same study revision during a schema rollout. An
+            # unattributed legacy cephalo PDF (NULL analysis_id) is ambiguous,
+            # so no replacement is issued until an operator reconciles it.
+            historical = db.query(models.DocumentArchive).filter(
+                models.DocumentArchive.patient_id == patient_id,
+                or_(
+                    models.DocumentArchive.analysis_id == selected.id,
+                    models.DocumentArchive.analysis_id.is_(None),
+                ),
+                models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+            ).all()
+            for previous in historical:
+                clinical = previous.clinical_data or {}
+                old_revision = clinical.get("cephalo_analysis_revision") if isinstance(clinical, dict) else None
+                if previous.analysis_id is None or type(old_revision) is not int or old_revision == revision:
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Ce bilan de cette étude/révision est déjà archivé ou nécessite une reprise historique",
+                    )
+        except HTTPException:
+            # Second study read or a legacy claim may reject after the INSERT.
+            # A reused SQLAlchemy Session must never carry an uncommitted claim.
+            db.rollback()
+            raise
+        except IntegrityError as exc:
+            db.rollback()
+            if _is_same_cephalo_revision_archive_duplicate(exc):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Ce bilan de cette étude/révision est déjà archivé ou en cours",
+                ) from exc
+            logger.exception("Autre contrainte SQL violée pendant la réservation de bilan")
+            raise HTTPException(
+                status_code=503,
+                detail="Erreur d'intégrité de la base : archivage refusé",
+            ) from exc
+        except OperationalError as exc:
+            db.rollback()
+            # Missing additive schema, SQLite busy or database unavailable:
+            # fail closed; never silently drop back to non-atomic archiving.
+            raise HTTPException(
+                status_code=503,
+                detail="Réservation atomique du bilan indisponible : archivage refusé",
+            ) from exc
     if req.archive and revision is None:
         raise HTTPException(
             status_code=409,
@@ -1462,6 +1560,7 @@ def generate_cephalo_pdf(
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
     validation = cephalo_consistency_validator.validate(selected.angles_data or {})
     if req.archive and not validation.is_valid:
+        db.rollback()
         raise HTTPException(
             status_code=422,
             detail={
@@ -1486,17 +1585,24 @@ def generate_cephalo_pdf(
         "_validation_warnings": validation.warnings,
     }
 
-    pdf_path = doc_factory.create_cephalo_report(
-        patient, analysis_data, db=db, user_id=current_user.id
-    )
+    try:
+        pdf_path = doc_factory.create_cephalo_report(
+            patient, analysis_data, db=db, user_id=current_user.id
+        )
+    except Exception:
+        if req.archive:
+            db.rollback()
+        raise
     if req.archive:
-        from backend.services.archive_service import ArchiveService
+        from backend.services.archive_service import (
+            ArchiveService, cleanup_uncommitted_cephalo_files,
+        )
         from backend.schemas import ConflictResolution
 
-        with open(pdf_path, "rb") as pdf_stream:
-            pdf_bytes = pdf_stream.read()
-
+        created_archive_paths = []
         try:
+            with open(pdf_path, "rb") as pdf_stream:
+                pdf_bytes = pdf_stream.read()
             archived, _ = ArchiveService(db).archive_document(
                 patient_id=patient_id,
                 file_content=pdf_bytes,
@@ -1511,10 +1617,18 @@ def generate_cephalo_pdf(
                     "clinical_data": results.get("clinical_data", {}),
                 },
                 on_conflict=ConflictResolution.CREATE_VERSION,
+                commit=False,
+                created_file_paths=created_archive_paths,
             )
             if archived is None:
                 raise RuntimeError("Archive manquante")
+            claim.document_archive_id = archived.id
+            # The unique claim and archive metadata become durable together.
+            # There is no interval where a second process may claim this revision.
+            db.commit()
         except Exception as exc:
+            db.rollback()
+            cleanup_uncommitted_cephalo_files(db, created_archive_paths)
             logger.exception("Archivage du bilan de l'analyse %s échoué", selected.id)
             # A failed archive must not leave an unintended public-facing PDF.
             try:

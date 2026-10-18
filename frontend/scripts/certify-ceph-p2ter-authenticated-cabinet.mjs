@@ -110,6 +110,51 @@ async function viewportRun(viewport){
     browserMediaProbe:record.browserMediaProbe,
   }));
 
+  // BEFORE/AFTER the same authenticated patient study and same viewport.
+  // MainLayout owns the scroll pane; window.scrollY does not move this UI.
+  const patientPane = page.locator('main.custom-scrollbar').first();
+  await patientPane.evaluate(el => { el.scrollTop = 0; });
+  await page.locator('[data-patient-cephalo-header="true"][data-cephalo-header-compact="false"]')
+    .waitFor({state:'visible',timeout:15000});
+  const fullHeight = await page.locator('[data-patient-dossier-header]').evaluate(el=>el.getBoundingClientRect().height);
+  await shot('header-before-scroll');
+  const scrollProbe = await patientPane.evaluate(el => {
+    const available = el.scrollHeight - el.clientHeight;
+    el.scrollTop = Math.min(available, 260);
+    return {available,position:el.scrollTop};
+  });
+  if(scrollProbe.position < 100)
+    throw Error('CEPH_PATIENT_SCROLL_CONTAINER_UNUSABLE '+JSON.stringify(scrollProbe));
+  await page.waitForFunction(()=>
+    document.querySelector('[data-patient-cephalo-header="true"]')?.getAttribute('data-cephalo-header-compact')==='true',
+    null,{timeout:10000});
+  await page.waitForTimeout(200);
+  const patientChrome=await page.locator('[data-patient-dossier-header]').evaluate(el=>{
+    const b=el.getBoundingClientRect(),bg=getComputedStyle(el).backgroundColor;
+    const alpha=bg.startsWith('rgba(')?Number(bg.split(',').at(-1).replace(')','').trim()):1;
+    const cover=getComputedStyle(el,'::before');
+    return {height:b.height,alpha,background:bg,top:b.top,bottom:b.bottom,
+      upperGutterCover:{height:parseFloat(cover.height),top:parseFloat(cover.top),
+        background:cover.backgroundColor,pointerEvents:cover.pointerEvents}};
+  });
+  record.patientHeaderCompact={fullHeight,...patientChrome,scroll:scrollProbe};
+  if(patientChrome.alpha<.999 || fullHeight-patientChrome.height<14 ||
+      patientChrome.upperGutterCover.height<31 || patientChrome.upperGutterCover.top>-31 ||
+      patientChrome.upperGutterCover.pointerEvents!=='none' ||
+      patientChrome.upperGutterCover.background==='rgba(0, 0, 0, 0)')
+    throw Error('CEPH_HEADER_COMPACT_LAYOUT_NOT_PROVED '+JSON.stringify(record.patientHeaderCompact));
+  for(const label of ['RDV','Examen','Document','Encaisser']){
+    const target=page.getByRole('button',{name:label,exact:true});
+    if(await target.count() && !(await target.first().isVisible()))
+      throw Error('CEPH_HEADER_REQUIRED_ACTION_MISSING '+label);
+  }
+  record.checks.push('CEPH_COMPACT_HEADER_SCROLL_GEOMETRY_OPAQUE_ACTIONS_PRESERVED');
+  await shot('header-compact-after-scroll');
+  await patientPane.evaluate(el=>{el.scrollTop=0;});
+  await page.waitForFunction(()=>
+    document.querySelector('[data-patient-cephalo-header="true"]')?.getAttribute('data-cephalo-header-compact')==='false',
+    null,{timeout:10000});
+  record.checks.push('CEPH_FULL_HEADER_RESTORED_ON_SCROLL_TOP');
   await shot('before-history');
   for(const [label,study] of [['older',identities.older_id],['newer',identities.latest_id]]){
    await page.getByRole('button',{name:'Historique',exact:true}).click();
@@ -185,14 +230,49 @@ async function viewportRun(viewport){
   page.off('request',auditArchiveRequest);
   if(archivePosts.length!==1)throw Error('Double click created '+archivePosts.length+' archive requests instead of one');
   const archivedPayload=archivedResponse.request().postDataJSON();
-  if(archivedResponse.status()!==200 ||
-      archivedPayload.analysis_id!==identities.older_id ||
-      archivedResponse.headers()['x-cephalo-analysis-id']!==String(identities.older_id) ||
-      archivedResponse.headers()['x-cephalo-revision']!==String(archivedPayload.expected_revision))
-    throw Error('Authenticated archive did not retain selected OLDER study identity, revision and HTTP 200: '+archivedResponse.status());
-  await fs.writeFile(path.join(output,record.viewport+'-older-click-archived.pdf'),await archivedResponse.body());
+  if (archivedPayload.analysis_id!==identities.older_id)
+    throw Error('Archive attempt did not preserve selected OLDER study identity');
+  if (viewport.width===1280) {
+    if (archivedResponse.status()!==200 ||
+        archivedResponse.headers()['x-cephalo-analysis-id']!==String(identities.older_id) ||
+        archivedResponse.headers()['x-cephalo-revision']!==String(archivedPayload.expected_revision))
+      throw Error('First archive did not preserve study/revision: '+archivedResponse.status());
+    await fs.writeFile(path.join(output,record.viewport+'-older-click-archived.pdf'),await archivedResponse.body());
+    record.checks.push('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_'+identities.older_id+'_REV_'+archivedPayload.expected_revision);
+  } else {
+    if (archivedResponse.status()!==409 ||
+        !String((await archivedResponse.json()).detail).includes('déjà archivé'))
+      throw Error('Repeated same study/revision must fail closed with 409: '+archivedResponse.status());
+    record.checks.push('REPEATED_SAME_STUDY_REVISION_REFUSED_HTTP_409');
+  }
+  // The clinical patient toolbar must not reveal notes/inputs underneath
+  // its desktop sticky surface when the user scrolls to the PDF actions.
+  const patientHeader = await page.locator('[data-patient-dossier-header]').evaluate(node => {
+    const bg = getComputedStyle(node).backgroundColor;
+    const alpha = bg.startsWith('rgba(')
+      ? Number(bg.split(',').at(-1).replace(')', '').trim())
+      : (bg === 'transparent' ? 0 : 1);
+    const rect = node.getBoundingClientRect();
+    return { background: bg, alpha, top: rect.top, bottom: rect.bottom };
+  });
+  record.patientHeaderAfterScroll = patientHeader;
+  if (!Number.isFinite(patientHeader.alpha) || patientHeader.alpha < .999) {
+    throw Error('CEPH_STICKY_PATIENT_HEADER_BLEED_THROUGH '+JSON.stringify(patientHeader));
+  }
+  record.checks.push('CEPH_PATIENT_STICKY_HEADER_OPAQUE_ON_SCROLL');
+  if(viewport.width===1600){
+    // Errors must remain completely readable on the right; never clip a
+    // medical refusal behind the left navigation by shrinking the toast root.
+    const errorToast=page.getByText(/déjà archivé ou en cours/i).last();
+    await errorToast.waitFor({state:'visible',timeout:10000});
+    const bounds=await errorToast.boundingBox();
+    record.cephaloToastBounds=bounds;
+    if(!bounds || bounds.x<viewport.width-490 ||
+        bounds.x+bounds.width>viewport.width-8 || bounds.width<100)
+      throw Error('CEPH_CLINICAL_TOAST_WRONG_SIDE_OR_CLIPPED '+JSON.stringify(bounds));
+    record.checks.push('CEPH_REFUSAL_TOAST_RIGHT_ALIGNED_AND_NOT_CLIPPED');
+  }
   await shot('archive-after');
-  record.checks.push('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_'+identities.older_id+'_REV_'+archivedPayload.expected_revision);
   record.checks.push('POINTER_DOUBLE_CLICK_SINGLE_ARCHIVE_POST');
   // UI transport regression only: mock a synthetic 422 response on the real
   // authenticated button. Backend 422 and zero archive are asserted in pytest.
@@ -209,6 +289,14 @@ async function viewportRun(viewport){
     const refusalResponse=page.waitForResponse(r=>
       new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
       r.request().postDataJSON()?.archive===true,{timeout:30000});
+    // The preceding genuine 409 refusal toast can cover the archive button
+    // on the wide viewport. Do not force-click through a clinical warning:
+    // wait until it is dismissed by the app, then exercise a real pointer.
+    if (viewport.width === 1600) {
+      await page.getByText(/déjà archivé ou en cours/i).last().waitFor({
+        state:'hidden', timeout:20000,
+      });
+    }
     await archiveButton.click();
     const refusal=await refusalResponse;
     if(refusal.status()!==422)throw Error('Clinical refusal response expected 422');
@@ -313,17 +401,21 @@ async function viewportRun(viewport){
       await route.continue();
     };
     await page.route('**/api/patients/*/pdf',staleRoute);
+    // Attach rejection handlers immediately: if an earlier check fails,
+    // closing the browser must not replace the real error with an unhandled
+    // waitForResponse rejection from a pending request.
     const staleValidation=page.waitForResponse(r=>
       new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/cephalo-validation'
-      && r.request().method()==='GET' && r.status()===200,{timeout:45000});
+      && r.request().method()==='GET' && r.status()===200,{timeout:45000}).catch(error=>error);
     const staleResponse=page.waitForResponse(r=>
       new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf'
       && r.request().method()==='POST' && r.request().postDataJSON()?.archive===true,
-      {timeout:45000});
+      {timeout:45000}).catch(error=>error);
     try {
       await staleArchiveButton.click();
       await staleHeld;
       const prevalidated=await staleValidation;
+      if(prevalidated instanceof Error)throw prevalidated;
       const params=new URL(prevalidated.url()).searchParams;
       if(Number(params.get('analysis_id'))!==identities.latest_id ||
         Number(params.get('expected_revision'))!==requestRevision)
@@ -350,6 +442,7 @@ async function viewportRun(viewport){
       releaseStale();
     }
     const stale=await staleResponse;
+    if(stale instanceof Error)throw stale;
     await page.unroute('**/api/patients/*/pdf',staleRoute);
     if(stale.status()!==409)throw Error('Stale post-prevalidation archive did not fail-closed: '+stale.status());
     await page.getByText(/modifiée|changé|périmée/i).first().waitFor({state:'visible',timeout:10000});

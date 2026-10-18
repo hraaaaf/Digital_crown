@@ -1,0 +1,73 @@
+name: P2ter Atomic Archive Claim (isolated required candidate)
+on:
+  push:
+    branches:
+      - fix/p2ter-atomic-archive-step1-20261018
+    paths:
+      - .github/workflows/p2ter-atomic-archive-isolated.yml
+      - .github/workflows/p2ter-atomic-db-matrix.yml
+      - scripts/ceph_p2ter_sqlcipher_copy_rehearsal.py
+      - .github/workflows/p2ter-atomic-live-t2.yml
+      - backend/core/schema_runtime.py
+      - backend/models.py
+      - backend/routers/patients.py
+      - backend/services/archive_service.py
+      - docs/clinic/CEPH_P2TER_POST_CRASH_ARCHIVE_AUDIT.md
+      - techdoubt.md
+      - backend/tests/test_cephalo_p2ter_identity_bound_pdf.py
+      - backend/tests/test_cephalo_archive_crash_audit.py
+      - scripts/ceph_p2ter_concurrent_atomic_t2.py
+      - alembic/versions/ceparch0001_add_cephalo_archive_claims.py
+permissions:
+  contents: read
+jobs:
+  atomic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: "sqlite:///:memory:"
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      P2TER_PROVEN_NO_CLINICAL_PARITY: "true"
+    steps:
+      - name: Checkout candidate without persist token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exact git identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install nonclinical test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/p2ter-atomic-req.txt
+          python -m pip install -r /tmp/p2ter-atomic-req.txt
+          python -m pip check
+      - name: Test atomic archive claim and identity with real JWT and PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest backend/tests/test_cephalo_p2ter_identity_bound_pdf.py backend/tests/test_cephalo_archive_crash_audit.py -q --tb=short
+      - name: Migration compile and structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/routers/patients.py backend/models.py alembic/versions/ceparch0001_add_cephalo_archive_claims.py
+          python - <<'PY'
+          from backend import models
+          t=models.CephaloArchiveClaim.__table__
+          constraints={getattr(c,'name',None) for c in t.constraints}
+          assert 'uq_cephalo_archive_claim_study_revision' in constraints
+          print('P2TER_DB_UNIQUE_CLAIM_METADATA_PASS')
+          PY
