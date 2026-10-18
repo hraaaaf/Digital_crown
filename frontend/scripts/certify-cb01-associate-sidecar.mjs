@@ -266,8 +266,50 @@ try {
       // FIRST_VALUE_UI : no extra Chat-tab click after the launcher.
       const preview=panel.getByRole('region',{name:'Assistant Crown Bot — consultation'});
       await preview.waitFor({state:'visible'});
+      // Real Chromium accessibility semantics and roving keyboard navigation.
+      const tabs=panel.getByRole('tablist',{name:'Vues de Crown Bot'});
+      await tabs.waitFor({state:'visible'});
+      const chatTab=tabs.getByRole('tab',{name:'Chat'});
+      const brainTab=tabs.getByRole('tab',{name:/Mémoire contextuelle/});
+      if(await chatTab.getAttribute('aria-selected')!=='true'
+          || await chatTab.getAttribute('tabindex')!=='0'
+          || await brainTab.getAttribute('tabindex')!=='-1') {
+        throw new Error('FAIL: first-value accessible Chat tab is not selected');
+      }
+      await chatTab.focus();
+      await page.keyboard.press('ArrowLeft');
+      if(!await brainTab.evaluate(el=>el===document.activeElement)
+          || await brainTab.getAttribute('aria-selected')!=='true'
+          || await panel.getByRole('tabpanel').getAttribute('aria-labelledby')!=='cb01-tab-brain') {
+        throw new Error('FAIL: ArrowLeft must focus/select memory with its tabpanel');
+      }
+      await page.keyboard.press('End');
+      if(!await chatTab.evaluate(el=>el===document.activeElement)
+          || await chatTab.getAttribute('aria-selected')!=='true'
+          || await panel.getByRole('tabpanel').getAttribute('aria-labelledby')!=='cb01-tab-chat') {
+        throw new Error('FAIL: End must focus/select accessible Chat tab');
+      }
+      await preview.waitFor({state:'visible'});
       for (const label of ['Mon programme','Trouver un patient','Préparer un RDV']) {
         await preview.getByRole('button',{name:label}).waitFor({state:'visible'});
+      }
+      // WCAG 1.4.3 — measure real computed foreground/background pixels for
+      // essential first-value instruction text (normal-size: at least 4.5:1).
+      const firstValueContrast=await preview.locator('.bg-white').first().locator('p').first().evaluate(element => {
+        const parse = value => {
+          const m=value.match(/^rgba?\\(\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)/);
+          if(!m) throw new Error('FAIL: unsupported computed color '+value);
+          return m.slice(1,4).map(Number);
+        };
+        const luminance=rgb=>rgb.map(v=>{
+          v/=255;return v<=0.04045 ? v/12.92 : ((v+0.055)/1.055)**2.4;
+        }).reduce((a,v,i)=>a+v*[0.2126,0.7152,0.0722][i],0);
+        const foreground=luminance(parse(getComputedStyle(element).color));
+        const background=luminance(parse(getComputedStyle(element.parentElement).backgroundColor));
+        return (Math.max(foreground,background)+0.05)/(Math.min(foreground,background)+0.05);
+      });
+      if(firstValueContrast < 4.5) {
+        throw new Error('FAIL: first-value text contrast under WCAG 4.5:1: '+firstValueContrast);
       }
       // CB-01 FIRST_VALUE_UI: the one-click "Mon programme" is a real
       // tenant-scoped GET from the canonical agenda, not a bot mock or write.
@@ -361,7 +403,7 @@ try {
       }
       await preview.getByText('Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable.').waitFor();
       await preview.getByText('Patient sélectionné (vérifié par le serveur) : AMINA BENALI — Dossier CB01-N-101').waitFor();
-      staffSearchChecks+='|PASS_OWNER_HOMONYM_RDV_IDENTITY_STABLE_PROPOSAL_ONLY|PASS_SERVER_CABINET_DAY';
+      staffSearchChecks+='|PASS_OWNER_HOMONYM_RDV_IDENTITY_STABLE_PROPOSAL_ONLY|PASS_SERVER_CABINET_DAY|PASS_ARIA_TABS_KEYBOARD|PASS_FIRST_VALUE_TEXT_CONTRAST';
     }
     await page.screenshot({path:path.join(output,'after-'+width+'.png')});
     evidence.push({width,mode:desktop?'sidecar-reflow':'web-floating-fallback',
