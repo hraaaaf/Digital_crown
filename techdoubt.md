@@ -1,5 +1,10 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-18 — FUE-B runner version mismatch discovered, not a waiver
+
+- Independent Windows FUE-B RED repeated on `cab850eaa046c5881fa4502d139adfe08f99c1b5`: Python B02 module 7/7 PASS, SQLite recovery 6/7 PASS, `test_b02_complete_snapshot_restores_db_and_spool_with_key` same failure `staged=0` at line 111. Separation into Python interpreter processes did **NOT** resolve it; so an unsupported state-leak theory is rejected.
+- Concrete reproducibility mismatch: GREEN 06-A Windows tests use Python **3.11** and `cryptography>=42,<48` while new FUE-B had Python **3.12** and `cryptography==49.0.0`. Align the *FUE LAB* to 06-A baseline, retain diagnostic on second scan and all assertions. Whether Python 3.12 (or cryptography 49) changes collector behavior is **NOT PROVEN**; record version compatibility as OPEN until separately tested. Never say 3.12 is supported or cite 06-A green as evidence of it.
+
 ## 2026-10-18 — FUE-B initial RED on Windows; root cause not yet confirmed
 
 - First new-run `3a9d35d96b9045d1c65b841c6bc0f893beec7137` [two-actor FUE run #39169805182](https://github.com/hraaaaf/Digital_crown/actions/runs/39169805182): **A PASS** real ordinary-user cross-SID oracle; **B FAIL** on Windows test `test_b02_complete_snapshot_restores_db_and_spool_with_key` at line 111: second scan yielded `staged=0` rather than 1. Thirteen other B tests succeeded. Failed test result is genuine; do NOT ignore or mark FUE GREEN. The observed scan reason (unstable / deferred / quarantined / rejected) was not captured, so the underlying cause is UNKNOWN.
