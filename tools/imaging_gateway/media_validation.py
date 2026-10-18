@@ -16,6 +16,7 @@ def valid_png(data: bytes) -> bool:
     if not data.startswith(b"\x89PNG\r\n\x1a\n"):
         return False
     pos, count, started, has_data, ended = 8, 0, False, False, False
+    idat_closed = False  # PNG requires all IDAT chunks to be consecutive.
     compressed = bytearray()
     stride = height = 0
     while pos < len(data):
@@ -32,6 +33,10 @@ def valid_png(data: bytes) -> bool:
         body = data[pos + 8:pos + 8 + length]
         if zlib.crc32(kind + body) != struct.unpack_from(">I", data, end - 4)[0]:
             return False
+        # Any non-IDAT after the first IDAT closes the contiguous IDAT run.
+        # Even a valid ancillary chunk must not be followed by another IDAT.
+        if has_data and kind != b"IDAT":
+            idat_closed = True
         if not started and kind != b"IHDR":
             return False
         if kind == b"IHDR":
@@ -50,7 +55,7 @@ def valid_png(data: bytes) -> bool:
                 return False
             started = True
         elif kind == b"IDAT":
-            if not started or ended:
+            if not started or ended or idat_closed:
                 return False
             has_data = True
             compressed.extend(body)
