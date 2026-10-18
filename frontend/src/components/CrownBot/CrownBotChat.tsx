@@ -718,7 +718,7 @@ export function CrownBotChat({
         {/* Two keyboard-operable tabs: Arrow keys/Home/End select and focus. */}
         <div className="flex px-4 gap-1" role="tablist" aria-label="Vues de Crown Bot">
           <button type="button" ref={brainTabRef} role="tab"
-            id="cb01-tab-brain" aria-controls="cb01-panel-brain"
+            id="cb01-tab-brain" aria-controls={activeTab === 'brain' ? 'cb01-panel-brain' : undefined}
             aria-selected={activeTab === 'brain'} tabIndex={activeTab === 'brain' ? 0 : -1}
             onKeyDown={event => selectTabFromKeyboard(event, 'brain')}
             onClick={() => setActiveTab('brain')}
@@ -734,7 +734,7 @@ export function CrownBotChat({
             )}
           </button>
           <button type="button" ref={chatTabRef} role="tab"
-            id="cb01-tab-chat" aria-controls="cb01-panel-chat"
+            id="cb01-tab-chat" aria-controls={activeTab === 'chat' ? 'cb01-panel-chat' : undefined}
             aria-selected={activeTab === 'chat'} tabIndex={activeTab === 'chat' ? 0 : -1}
             onKeyDown={event => selectTabFromKeyboard(event, 'chat')}
             onClick={() => setActiveTab('chat')}
