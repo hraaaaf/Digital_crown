@@ -96,16 +96,18 @@ try {
       page.on('response', response=>{
         if(response.status()>=500)serverErrors.push(response.url()+':'+response.status());
       });
-      // addInitScript runs before Chromium has constructed <html>; accessing
-      // document.documentElement there is a browser test bug. Set the fixture
-      // palette after DOM creation, before any target state/capture assertion.
+      // Set the fixture theme only AFTER the isolated React root has
+      // mounted. CSS/HMR startup and React paint must complete before this
+      // baseline; subsequent Core/Iconic clicks may not change the theme.
       await page.goto(base,{waitUntil:'networkidle',timeout:90000});
+      const rootElement=page.locator('[data-v15-07-g2-target]');
+      await rootElement.waitFor({state:'visible',timeout:20000});
       await page.evaluate(t=>{
         if (!document.documentElement) throw Error('G2 html root not created');
         document.documentElement.dataset.theme=t;
       },theme);
-      const rootElement=page.locator('[data-v15-07-g2-target]');
-      await rootElement.waitFor({state:'visible',timeout:20000});
+      assert(await page.evaluate(()=>document.documentElement.dataset.theme)===theme,
+        'G2 could not establish a cabinet theme fixture: '+theme);
       const names=['Tableau de bord','Agenda','Dossier patient','Imagerie'];
       for(const name of names){
         assert(await page.getByRole('navigation',{name:'Écrans témoins'}).getByRole('button',{name}).count()===1,
@@ -133,7 +135,11 @@ try {
         assert(metrics.nav===4,'G2 four canonical surfaces missing');
         assert(metrics.documentWidth<=size.width+1&&!metrics.rootOverflow,
           'G2 horizontal overflow '+JSON.stringify(metrics));
-        assert(metrics.theme===theme,'G2 altered cabinet palette');
+        assert(metrics.theme===theme,
+          'G2 altered cabinet palette '+JSON.stringify({
+            expected:theme,actual:metrics.theme,size:size.name,selected,
+            documentWidth:metrics.documentWidth,nav:metrics.nav
+          }));
         const fileName=`g2-${size.name}-${theme}-${selected}.png`;
         const dest=path.join(output,fileName);
         await page.screenshot({path:dest,fullPage:true,animations:'disabled'});
