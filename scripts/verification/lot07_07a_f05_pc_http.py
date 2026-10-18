@@ -37,6 +37,11 @@ from backend.services.patient_companion_remote_keys import enroll_remote_keyset
 from backend.services.patient_companion_remote_worker import (
     process_remote_envelope as actual_worker,
 )
+from backend.services import patient_companion_remote_worker as _worker_module
+from backend.services.patient_companion_remote_agenda_quota import (
+    charge_remote_agenda_attempt as _real_quota,
+)
+
 from relay.contract import RelayInnerMessage
 
 
@@ -58,6 +63,16 @@ def _worker_with_lab_key_protection(db, **kwargs):
 
 pc_router.process_remote_envelope = _worker_with_lab_key_protection
 teleconsult_router.process_remote_envelope = _worker_with_lab_key_protection
+
+# The general booking/race laboratory intentionally exercises many more than
+# the FIVE production Agenda requests per 10 minutes. Only its isolated
+# F05 test workers use a higher ceiling; a separate required PostgreSQL
+# multiprocess certification enforces the actual production ceiling = 5.
+def _load_lab_agenda_quota(db, *, access_id):
+    return _real_quota(db, access_id=access_id, maximum=100)
+
+
+_worker_module.charge_remote_agenda_attempt = _load_lab_agenda_quota
 
 # The real HTTP route enforces a five-request/10-minute IP default; expand only
 # this isolated load-test threshold, retain the same rate limiter and request
