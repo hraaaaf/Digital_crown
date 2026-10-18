@@ -1,0 +1,12 @@
+# techdoubt.md — Active technical reservations
+
+## CEPH-FAC-PARITY / P2ter++ — 2026-10-18
+
+- **Certification gate:** PR #957 on #953 remains DRAFT; CI must pass on the exact final HEAD and be supported by browser artifacts. A queued or running CI is not a PASS.
+- **Database/file atomicity:** The study-row database lock serializes study edits and official PDF archive creation, and an archive SQL commit failure triggers targeted removal of the newly written PDF. The database and filesystem do not share a single transaction; exceptional filesystem cleanup failures may leave an orphan. Do not claim universal transactional filesystem guarantees.
+- **Idempotency policy:** Same scientific revision and same report payload may replay one archived PDF after path, size, and SHA256 checks. A different client-supplied context for the same revision is a hard 409. Older existing cephalo archives without this payload fingerprint cannot be silently replayed; a migration or explicit archival decision would be a separate lot.
+- **Parallel access:** T2 tests cover SQLite SQLCipher behavior in an isolated DB and two authenticated browser tabs. Production-grade PostgreSQL locking, process restarts, multiple nodes, and pathological lock timeouts remain outside the verified runtime unless later proved.
+- **Review / device boundaries:** Two independent human reviews and confirmation on the same exact HEAD are required for CONVERGED. Existing internal perspectives do not count. Mobile remains untested under this desktop-scoped mission; do not assume the UI is available on mobile or certify it.
+- **Scope:** No Facad, anatomical scientific HOLD, real patient data, production activation, deployment or merge is authorized by this P2ter++ lot.
+
+Evidence / decision: [PR #957](https://github.com/hraaaaf/Digital_crown/pull/957); failed browser [#39129286506](https://github.com/hraaaaf/Digital_crown/actions/runs/39129286506) lacked exposure of `X-Cephalo-Archive-Replayed` while both PDF requests returned 200. Exact-HEAD rerun needed after CORS fix and test. Roadmap 41/99 unchanged.
