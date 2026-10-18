@@ -13,6 +13,25 @@ import { CrownBotWorkflowPreview } from './CrownBotWorkflowPreview';
 const post = vi.mocked(api.post);
 const get = vi.mocked(api.get);
 
+const CANONICAL_DAY = {
+  day: '2026-10-18', timezone: 'Africa/Casablanca',
+  start_date: '2026-10-18T00:00:00',
+  end_date: '2026-10-18T23:59:59.999',
+  consulted_at: '14:58',
+};
+function mockProgramme(...responses: Array<{ data: unknown } | { error: unknown }>) {
+  let count = 0;
+  get.mockImplementation(async (url: string) => {
+    if (url === '/bot/workflows/cabinet-day') return { data: CANONICAL_DAY } as never;
+    if (url === '/appointments/') {
+      const item = responses[count++] || { data: [] };
+      if ('error' in item) throw item.error;
+      return { data: item.data } as never;
+    }
+    throw new Error('Unexpected GET ' + url);
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -107,18 +126,42 @@ describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture 
     expect(post).not.toHaveBeenCalled();
   });
   it('includes explicit Agenda wall-clock bounds and no UTC suffix', async () => {
-    get.mockResolvedValueOnce({ data: [] } as never);
+    mockProgramme({ data: [] });
     render(<CrownBotWorkflowPreview />);
     fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
     await screen.findByRole('status', { name: 'Programme du jour' });
-    const params = get.mock.calls[0][1]?.params as { start_date: string; end_date: string };
+    const params = get.mock.calls[1][1]?.params as { start_date: string; end_date: string };
+    expect(get.mock.calls[0][0]).toBe('/bot/workflows/cabinet-day');
+    expect(params.start_date).toBe(CANONICAL_DAY.start_date);
     expect(params.start_date).toMatch(/T00:00:00$/);
+    expect(params.end_date).toBe(CANONICAL_DAY.end_date);
     expect(params.end_date).toMatch(/T23:59:59\.999$/);
     expect(params.start_date).not.toContain('Z');
   });
 
+  it('fails closed on invalid server timezone metadata without requesting patient appointments', async () => {
+    get.mockResolvedValueOnce({ data: { ...CANONICAL_DAY, timezone: '', start_date: '2026-10-17T00:00:00' } } as never);
+    render(<CrownBotWorkflowPreview />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Impossible de consulter le programme/);
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('status', { name: 'Programme du jour' })).not.toBeInTheDocument();
+  });
+  it('uses server business date even when browser local date differs', async () => {
+    mockProgramme({ data: [] });
+    render(<CrownBotWorkflowPreview />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    const programme = await screen.findByRole('status', { name: 'Programme du jour' });
+    expect(programme).toHaveTextContent('Programme du 18 octobre 2026');
+    expect(get).toHaveBeenCalledWith('/appointments/', {
+      params: {
+        start_date: '2026-10-18T00:00:00',
+        end_date: '2026-10-18T23:59:59.999',
+      },
+    });
+  });
   it('filters a clinician programme to their authenticated practitioner and never submits an appointment', async () => {
-    get.mockResolvedValueOnce({ data: [] } as never);
+    mockProgramme({ data: [] });
     render(<CrownBotWorkflowPreview practitionerId={19} />);
     fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
     await screen.findByRole('status', { name: 'Programme du jour' });
@@ -133,9 +176,9 @@ describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture 
   });
 
   it('reads the canonical authorized Agenda endpoint with bounded local-day dates and a truthful source', async () => {
-    get.mockResolvedValueOnce({ data: [
-      { id: 72, datetime_start: '2026-10-17T10:00:00', patient_name: 'BENALI TEST', motif: 'Consultation', status: 'PRÉVU' },
-    ] } as never);
+    mockProgramme({ data: [
+      { id: 72, datetime_start: '2026-10-18T10:00:00', patient_name: 'BENALI TEST', motif: 'Consultation', status: 'PRÉVU' },
+    ] });
     render(<CrownBotWorkflowPreview />);
     expect(screen.getByRole('button', { name: 'Mon programme' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trouver un patient' })).toBeInTheDocument();
@@ -144,6 +187,8 @@ describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture 
     fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
     const programme = await screen.findByRole('status', { name: 'Programme du jour' });
     expect(programme).toHaveTextContent('BENALI TEST');
+    expect(programme).toHaveTextContent('18 octobre 2026');
+    expect(programme).toHaveTextContent('Fuseau Africa/Casablanca');
     expect(programme).toHaveTextContent(/Source : Agenda du cabinet · Lecture serveur à/);
     expect(get).toHaveBeenCalledWith('/appointments/', {
       params: {
@@ -151,15 +196,16 @@ describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture 
         end_date: expect.any(String),
       },
     });
-    const arg = get.mock.calls[0][1]?.params as { start_date: string; end_date: string };
+    const arg = get.mock.calls[1][1]?.params as { start_date: string; end_date: string };
     expect(new Date(arg.start_date).getTime()).toBeLessThan(new Date(arg.end_date).getTime());
     expect(post).not.toHaveBeenCalled();
   });
 
   it('fails closed and discards an old program when authorization is revoked', async () => {
-    get.mockResolvedValueOnce({ data: [
-      { id: 8, datetime_start: '2026-10-17T08:30:00', patient_name: 'Dossier confidentiel' },
-    ] } as never).mockRejectedValueOnce({ response: { status: 403 } });
+    mockProgramme(
+      { data: [{ id: 8, datetime_start: '2026-10-18T08:30:00', patient_name: 'Dossier confidentiel' }] },
+      { error: { response: { status: 403 } } },
+    );
     render(<CrownBotWorkflowPreview />);
     fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
     await screen.findByText(/Dossier confidentiel/);
@@ -170,7 +216,7 @@ describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture 
   });
 
   it('does not confuse stale programme or patient result with a new preparation', async () => {
-    get.mockResolvedValueOnce({ data: [] } as never);
+    mockProgramme({ data: [] });
     post.mockResolvedValueOnce({ data: { status: 'clarification', message: 'Patient ?' } } as never);
     render(<CrownBotWorkflowPreview />);
     fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
@@ -214,6 +260,33 @@ describe('CB-00 scoped patient selectors', () => {
     expect(post).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
   });
 
+  it('keeps server-verified homonym identity visible throughout RDV steps, but never executes', async () => {
+    post
+      .mockResolvedValueOnce({data:{status:'clarification',message:'Quel patient ?'}} as never)
+      .mockResolvedValueOnce({data:{
+        status:'disambiguation',message:'Choisissez un dossier.',
+        candidates:[
+          {id:5,prenom:'Amina',nom:'Benali',numero_dossier:'BN-101'},
+          {id:8,prenom:'Salma',nom:'Benali',numero_dossier:'BN-102'},
+        ],
+      }} as never)
+      .mockResolvedValueOnce({data:{status:'clarification',message:'Quelle date ?',
+        patient:{id:8,prenom:'Salma',nom:'Benali',numero_dossier:'BN-102'}}} as never)
+      .mockRejectedValueOnce({response:{status:403}});
+    render(<CrownBotWorkflowPreview />);
+    fireEvent.click(screen.getByRole('button',{name:'Préparer un RDV'}));
+    await screen.findByText('Quel patient ?');
+    fireEvent.change(screen.getByRole('textbox',{name:'Votre réponse de simulation'}),{target:{value:'Mme Benali'}});
+    fireEvent.click(screen.getByRole('button',{name:'Envoyer'}));
+    await screen.findByText('Choisissez un dossier.');
+    fireEvent.click(screen.getByRole('button',{name:/Salma Benali.*BN-102/}));
+    expect(await screen.findByText(/Patient sélectionné \(vérifié par le serveur\)/)).toHaveTextContent('Salma Benali — Dossier BN-102');
+    fireEvent.change(screen.getByRole('textbox',{name:'Votre réponse de simulation'}),{target:{value:'2026-12-12'}});
+    fireEvent.click(screen.getByRole('button',{name:'Envoyer'}));
+    await screen.findByRole('alert');
+    expect(screen.queryByText(/Patient sélectionné \(vérifié par le serveur\)/)).not.toBeInTheDocument();
+    expect(post).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
+  });
   it('renders missing dossier error without implying a disabled feature', async () => {
     post.mockResolvedValueOnce({ data: {
       status: 'clarification', message: 'Patient ?',
