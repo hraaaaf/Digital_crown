@@ -25,18 +25,19 @@ const report={
   fixture:'disposable T2; official archive already created by the desktop certification',
   firstValue:'genuine study/revision-bound PDF draft downloaded, followed by official archive replay',
   exclusions:['real first patient creation','real medical records','clinical signoff','server persistence of patient photos',
-    'production or mobile native app','genuine independent clinical/human audit'],
+    'production deployment','mobile and tablet (Céphalométrie not supported on those devices)',
+    'genuine independent clinical/human audit'],
   viewports:[],overall:'NOT_TESTED',
 };
 const browser=await chromium.launch({headless:true});
 const matrixIDs=[
   'CLEAN_BROWSER_LOGIN','OPEN_CEPHALO','SELECT_OLDER_STUDY',
-  'RESPONSIVE_STEPPER','NO_HORIZONTAL_VIEWPORT_OVERFLOW',
+  'DESKTOP_STEPPER','NO_HORIZONTAL_VIEWPORT_OVERFLOW',
   'DRAFT_PDF_FIRST_VALUE','OFFICIAL_ARCHIVE_REPLAY',
 ];
 async function viewportRun(viewport) {
   const label=viewport.width+'x'+viewport.height;
-  const record={viewport:label,platform:viewport.width<768?'responsive-mobile-web':'desktop-web',
+  const record={viewport:label,platform:'desktop-web',
     matrix:[],screenshots:[],errors:[],firstValue:null,score:null,valid:false};
   const api=await request.newContext({baseURL:backend});
   let context,page;
@@ -99,19 +100,12 @@ async function viewportRun(viewport) {
       await shot('after-study-selected');
       return 'Real UI selected study '+ids.older_id;
     });
-    if(ready) ready=await run('RESPONSIVE_STEPPER',async()=>{
-      if(viewport.width<768){
-        const selector=page.locator('[data-cephalo-mobile-step-selector]');
-        await selector.waitFor({state:'visible',timeout:10000});
-        await selector.selectOption('4');
-        await page.getByRole('button',{name:'Brouillon PDF'}).waitFor({state:'visible',timeout:35000});
-      }else{
-        const step=page.getByRole('button',{name:'4. Documents & stratégie',exact:true});
-        await step.click();
-        await page.getByRole('button',{name:'Brouillon PDF'}).waitFor({state:'visible',timeout:35000});
-      }
+    if(ready) ready=await run('DESKTOP_STEPPER',async()=>{
+      const step=page.getByRole('button',{name:'4. Documents & stratégie',exact:true});
+      await step.click();
+      await page.getByRole('button',{name:'Brouillon PDF'}).waitFor({state:'visible',timeout:35000});
       await shot('before-first-value');
-      return viewport.width<768?'Native responsive web select -> Step4':'Desktop Step4 button';
+      return 'Visible desktop Step 4 button leads to PDF workflow';
     });
     if(ready) await run('NO_HORIZONTAL_VIEWPORT_OVERFLOW',async()=>{
       const dimensions=await page.evaluate(()=>({
@@ -191,7 +185,7 @@ async function viewportRun(viewport) {
   return record;
 }
 try{
-  for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  for(const viewport of [{width:1280,height:900},{width:1600,height:1000}]){
     report.viewports.push(await viewportRun(viewport));
   }
 }finally{
