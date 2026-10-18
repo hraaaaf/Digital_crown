@@ -1,5 +1,14 @@
 # TECHDOUBT — Digital Crown
 
+## LOT05.7-C — 2026-10-18 — Preuve laboratoire SQLCipher / PostgreSQL ≠ restauration clinique
+
+**STATUS OPEN/NO-GO clinique, même si les tests 05.7-C deviennent verts.** Deux suites test-only distinctes : une DB SQLCipher temporaire chiffrée avec sa clé générée pendant les tests, copiée uniquement hors ligne après checkpoint WAL + fermeture ; une base PostgreSQL 18 temporaire dans un service CI isolé, sauvegardée au format `pg_dump -Fc` puis `pg_restore` dans une autre DB fictive. Les schémas inventés (patients, RDV, praticiens, actes, paiements, références médias) sont *représentatifs* d'une partie des relations, et non le schéma réel Alembic `neo000000031`. Les empreintes, comptes, FK, tests corruption et processus frais ne certifient ni source réelle, ni restauration du véritable Cabinet.
+
+**BLOCKERS / dossiers à prouver ultérieurement** : cohérence multi-moteurs et SQLCipher WAL en ligne ; `BackupService`, `guided_restore`, archives/chiffrement médias réels ; snapshot physique de toute la base et non d'un sous-ensemble inventé ; restauration sur copie isolée de la vraie technologie autorisée et son identifiant tenant, vraie intégrité documentaire/financière, sauvegarde d'assets externes, versionnement PostgreSQL 18 et Alembic, RPO/RTO, protection NTFS ACL/reparse/TOCTOU, fsync/crash matériel, concurrence, remappage praticien/doublons, légalité/provenance des sources, authentification propriétaire/cabinet et décision humaine. Une archive ZIP fictive non chiffrée ne certifie pas la confidentialité de vrais médias. Un dump dont on recalcule le SHA après modification n'a pas une autorité de provenance indépendante. **Aucune route d'import, API production ni permission d'import réel ne peut dépendre de ces suites.**
+
+**CI** : job SQLCipher Windows/Linux et job PostgreSQL 18 doivent être exécutés au HEAD exact, sans skip et sans artefact médical ; si la CI reste incomplète, statut BLOQUÉ ASYNCHRONE. Nouveaux tests ne modifient ni schéma applicatif ni réel patient. Réserve maintenue.
+
+
 ## LOT05.7-B — 2026-10-18 — SQLite WAL lab ≠ preuve clinique de restauration
 
 **Status: OPEN / NO-GO real import.** Nouveau laboratoire standard-library, fichiers temporaires exclusivement fictifs, 100 patients + 200 RDV : vraie API SQLite backup et restauration sur copie distincte, preuve d'un WAL actif, crash de processus / rollback, replay de lot, empreinte SHA-256 du fichier et digest des lignes, FK composite cross-tenant. La CI exacte Linux/Windows 3.11/3.12 doit confirmer l'exécution du nouveau code, pas seulement le prototype local. Un éventuel cas symlink Windows `SKIP` laisse le risque reparse/junction non testé.
