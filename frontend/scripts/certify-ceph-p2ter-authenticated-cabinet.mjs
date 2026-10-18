@@ -132,10 +132,16 @@ async function viewportRun(viewport){
   const patientChrome=await page.locator('[data-patient-dossier-header]').evaluate(el=>{
     const b=el.getBoundingClientRect(),bg=getComputedStyle(el).backgroundColor;
     const alpha=bg.startsWith('rgba(')?Number(bg.split(',').at(-1).replace(')','').trim()):1;
-    return {height:b.height,alpha,background:bg,top:b.top,bottom:b.bottom};
+    const cover=getComputedStyle(el,'::before');
+    return {height:b.height,alpha,background:bg,top:b.top,bottom:b.bottom,
+      upperGutterCover:{height:parseFloat(cover.height),top:parseFloat(cover.top),
+        background:cover.backgroundColor,pointerEvents:cover.pointerEvents}};
   });
   record.patientHeaderCompact={fullHeight,...patientChrome,scroll:scrollProbe};
-  if(patientChrome.alpha<.999 || fullHeight-patientChrome.height<14)
+  if(patientChrome.alpha<.999 || fullHeight-patientChrome.height<14 ||
+      patientChrome.upperGutterCover.height<31 || patientChrome.upperGutterCover.top>-31 ||
+      patientChrome.upperGutterCover.pointerEvents!=='none' ||
+      patientChrome.upperGutterCover.background==='rgba(0, 0, 0, 0)')
     throw Error('CEPH_HEADER_COMPACT_LAYOUT_NOT_PROVED '+JSON.stringify(record.patientHeaderCompact));
   for(const label of ['RDV','Examen','Document','Encaisser']){
     const target=page.getByRole('button',{name:label,exact:true});
