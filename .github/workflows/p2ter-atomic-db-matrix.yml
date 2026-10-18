@@ -86,6 +86,21 @@ jobs:
           secret="$(python -c 'import secrets; print(secrets.token_hex(32))')"
           echo "::add-mask::$secret"
           echo "SQLCIPHER_KEY_HEX=$secret" >> "$GITHUB_ENV"
+      - name: Attest the exact disposable PostgreSQL target (no bypass)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from backend.core.runtime_safety import canonical_database_target, database_target_fingerprint
+          target=os.environ["DATABASE_URL"]
+          identity=canonical_database_target(target)
+          assert identity=="postgresql://postgres@loopback:5432/dc_atomic_synthetic", identity
+          fingerprint=database_target_fingerprint(target)
+          with open(os.environ["GITHUB_ENV"],"a") as output:
+              output.write("DIGITALCROWN_ISOLATION_DB_FINGERPRINT="+fingerprint+"\n")
+          print("PG_DISPOSABLE_DB_ATTESTATION_EXACT_TARGET_PASS")
+          PY
       - name: Start real FastAPI JWT server against disposable PostgreSQL 18
         shell: bash
         run: |
