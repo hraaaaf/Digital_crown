@@ -329,7 +329,7 @@ try {
           document.body.appendChild(probe);
           const normalized=getComputedStyle(probe).color;
           probe.remove();
-          const m=normalized.match(/^color\\(srgb\\s+([0-9.eE+-]+)\\s+([0-9.eE+-]+)\\s+([0-9.eE+-]+)/);
+          const m=normalized.match(/^color\(srgb\s+([0-9.eE+-]+)\s+([0-9.eE+-]+)\s+([0-9.eE+-]+)/);
           if(!m) throw new Error('FAIL: unsupported computed color '+value+' -> '+normalized);
           return m.slice(1,4).map(Number);
         };
