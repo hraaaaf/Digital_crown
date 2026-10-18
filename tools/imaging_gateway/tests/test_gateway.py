@@ -25,6 +25,29 @@ SYNTHETIC = base64.b64decode(
 )
 
 
+def _synthetic_png_chunk(kind: bytes, payload: bytes) -> bytes:
+    """Build PNG chunks with correct CRCs for adversarial ordering tests."""
+    return (len(payload).to_bytes(4, "big") + kind + payload +
+            zlib.crc32(kind + payload).to_bytes(4, "big"))
+
+
+def _split_synthetic_idat(*, intervening: bytes = b"") -> bytes:
+    """Keep the original decoded pixels/zlib stream, split one IDAT in two."""
+    ihdr_end = 8 + 12 + int.from_bytes(SYNTHETIC[8:12], "big")
+    assert SYNTHETIC[ihdr_end + 4:ihdr_end + 8] == b"IDAT"
+    idat_length = int.from_bytes(SYNTHETIC[ihdr_end:ihdr_end + 4], "big")
+    start = ihdr_end + 8
+    payload = SYNTHETIC[start:start + idat_length]
+    idat_end = start + idat_length + 4
+    middle = len(payload) // 2
+    assert 0 < middle < len(payload)
+    return (SYNTHETIC[:ihdr_end] +
+            _synthetic_png_chunk(b"IDAT", payload[:middle]) +
+            intervening +
+            _synthetic_png_chunk(b"IDAT", payload[middle:]) +
+            SYNTHETIC[idat_end:])
+
+
 class GatewayTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -85,6 +108,34 @@ class GatewayTests(unittest.TestCase):
         self.assertFalse(valid_png(SYNTHETIC[:-9]))
         self.assertEqual(self.stage("fake.png", broken)["quarantine"], 1)
         self.assertEqual(self.agent.items()[0]["state"], "QUARANTINED")
+
+    def test_png_consecutive_idat_and_legal_ancillary_placement_accepted(self):
+        # Same valid synthetic PNG compressed bytes, no decoder ambiguity.
+        text_chunk = _synthetic_png_chunk(b"tEXt", b"Note\\x00synthetic")
+        contiguous = _split_synthetic_idat()
+        self.assertTrue(valid_png(SYNTHETIC))
+        self.assertTrue(valid_png(contiguous))
+        # Ancillary before the first IDAT or after the final IDAT is legal.
+        ihdr_end = 8 + 12 + int.from_bytes(SYNTHETIC[8:12], "big")
+        before_idat = SYNTHETIC[:ihdr_end] + text_chunk + SYNTHETIC[ihdr_end:]
+        after_idat = SYNTHETIC[:-12] + text_chunk + SYNTHETIC[-12:]
+        self.assertTrue(valid_png(before_idat))
+        self.assertTrue(valid_png(after_idat))
+
+    def test_png_interrupted_idat_is_quarantined_despite_valid_crc_and_zlib(self):
+        # This formerly passed: each IDAT CRC is valid and the concatenated
+        # compressed data reconstructs the original, but PNG requires
+        # consecutive IDAT chunks (IHDR -> IDAT -> tEXt -> IDAT -> IEND).
+        text_chunk = _synthetic_png_chunk(b"tEXt", b"Note\\x00synthetic")
+        invalid = _split_synthetic_idat(intervening=text_chunk)
+        # Independent construction check: removing the tEXt gives a valid PNG
+        # with identical IDAT bytes, so failure is strictly chunk ordering.
+        self.assertTrue(valid_png(_split_synthetic_idat()))
+        self.assertFalse(valid_png(invalid))
+        self.assertEqual(self.stage("interrupted-idat.png", invalid)["quarantine"], 1)
+        self.assertEqual(len(self.agent.items()), 1)
+        self.assertEqual(self.agent.items()[0]["state"], "QUARANTINED")
+        self.assertNotIn("patient_id", self.agent.items()[0])
 
     def test_png_oversized_dimensions_rejected_before_decompression(self):
         crafted = bytearray(SYNTHETIC)
