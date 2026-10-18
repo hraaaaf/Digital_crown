@@ -147,7 +147,7 @@ jobs:
                   assert len(doc)>=2 and all(590 < page.rect.width < 600 and 838 < page.rect.height < 845 for page in doc)
           print('P2TER_CLICK_ARCHIVE_DB_FK_REVISION_AND_A4_PASS')
           PY
-      - name: EXPERIMENTAL FUE-I first useful PDF mobile and desktop
+      - name: EXPERIMENTAL FUE-I first useful PDF on two supported desktop viewports
         working-directory: frontend
         run: node scripts/fue-ceph-p2ter-first-value.mjs
       - name: Verify FUE-I report and same-viewport before-after captures
@@ -158,7 +158,7 @@ jobs:
           report_path=Path("artifacts/ceph-p2ter-fue-i/report.json")
           report=json.loads(report_path.read_text())
           assert report["head"] == "${{ github.event.pull_request.head.sha || github.sha }}"
-          assert {r["viewport"] for r in report["viewports"]} == {"390x844","1280x900"}
+          assert {r["viewport"] for r in report["viewports"]} == {"1280x900","1600x1000"}
           assert report["overall"] == "FUE_I_AUTOMATED_SCOPE_PASS"
           for r in report["viewports"]:
               assert r["valid"] and all(c["status"] == "PASS" for c in r["matrix"])
