@@ -11,5 +11,7 @@ export function formatAgendaWallClock(value: Date): string {
     throw new Error('Invalid Agenda datetime');
   }
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${value.getFullYear()}-${pad(value.getMonth()+1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+  const millis = value.getMilliseconds();
+  const suffix = millis ? `.${String(millis).padStart(3, '0')}` : '';
+  return `${value.getFullYear()}-${pad(value.getMonth()+1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}${suffix}`;
 }
