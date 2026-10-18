@@ -58,18 +58,32 @@ for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
   // do NOT reuse that principal. Fresh context + staff login -> staff JWT.
   // Add ONLY the cabinet's pre-enrolled, owner-authorized workstation cookie.
   // The production middleware still checks the station against tenant scope.
-  const roleApi=await request.newContext({
-    baseURL:apiOrigin,
-    storageState:{cookies:[],origins:[]},
+  // APIRequestContext has no addCookies(); compose a fresh cookie jar from
+  // the staff login (staff access JWT) plus *only* the existing device cookie.
+  const loginApi=await request.newContext({
+    baseURL:apiOrigin, storageState:{cookies:[],origins:[]},
   });
+  let roleToken, staffState;
   try {
-    const signedIn=await roleApi.post('/api/auth/login',{
+    const signedIn=await loginApi.post('/api/auth/login',{
       form:{username:account,password:secret},
     });
     if (!signedIn.ok()) throw new Error('FAIL: receptionist login '+kind+' HTTP '+signedIn.status());
-    const roleToken=(await signedIn.json()).access_token;
+    roleToken=(await signedIn.json()).access_token;
+    staffState=await loginApi.storageState();
+  } finally {
+    await loginApi.dispose();
+  }
+  if(staffState.cookies.filter(c=>c.name==='access_token' && c.value===roleToken).length!==1
+      || staffState.cookies.some(c=>c.name==='dc_workstation' || c.name==='dc_station_escape')) {
+    throw new Error('REFUSED: receptionist login jar is not an isolated principal '+kind);
+  }
+  const roleApi=await request.newContext({
+    baseURL:apiOrigin,
+    storageState:{cookies:[...staffState.cookies,...workstationCookies],origins:[]},
+  });
+  try {
     roleTokens[kind]=roleToken;
-    await roleApi.addCookies(workstationCookies);
     const check=await roleApi.get('/api/workstation/bootstrap',{
       headers:{Authorization:'Bearer '+roleToken},
     });
