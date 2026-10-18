@@ -1,0 +1,87 @@
+name: BENCH REA-01 isolated static qualification
+on:
+  push:
+    branches:
+      - experiment/bench-rea01-static-fixture-20261018
+    paths:
+      - .github/workflows/bench-rea01-isolated-static.yml
+  workflow_dispatch:
+permissions: {}
+jobs:
+  synthetic-static:
+    name: REA static synthetic fixture (zero product checkout)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+      NO_COLOR: "1"
+    steps:
+      - name: Prepare Node eligible for REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Create lab fixture without repository checkout or patient data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rea-fixture" "$RUNNER_TEMP/rea-output"
+          cat > "$RUNNER_TEMP/rea-fixture/package.json" <<'JSON'
+          {"name":"dc-rea-lab-synthetic","private":true,"version":"0.0.1","main":"main.js"}
+          JSON
+          cat > "$RUNNER_TEMP/rea-fixture/main.js" <<'JS'
+          // Entirely synthetic static fixture. Never executed.
+          const path = require("path");
+          const { app, BrowserWindow, ipcMain } = require("electron");
+          function createWindow() {
+            const w = new BrowserWindow({
+              webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true }
+            });
+            w.loadFile("index.html");
+          }
+          ipcMain.handle("case:list", async () => [{id:"SYN-A", label:"SYNTHETIC"}]);
+          app.whenReady().then(createWindow);
+          JS
+          cat > "$RUNNER_TEMP/rea-fixture/preload.js" <<'JS'
+          // Static observation fixture, no real patient data.
+          const { contextBridge, ipcRenderer } = require("electron");
+          contextBridge.exposeInMainWorld("cases", { list: () => ipcRenderer.invoke("case:list") });
+          JS
+          echo '<!doctype html><title>Synthetic</title><script src="renderer.js"></script>' > "$RUNNER_TEMP/rea-fixture/index.html"
+          echo 'window.cases.list().then(rows => console.log(rows.length))' > "$RUNNER_TEMP/rea-fixture/renderer.js"
+          node --version | tee "$RUNNER_TEMP/rea-output/node.txt"
+          npm --version | tee "$RUNNER_TEMP/rea-output/npm.txt"
+      - name: Install exact REA npm release to ephemeral temp only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rea-package"
+          npm install --prefix "$RUNNER_TEMP/rea-package" --save-exact --ignore-scripts --no-audit --no-fund rea-agents@5.0.0 2>&1 | tee "$RUNNER_TEMP/rea-output/npm-install.txt"
+          npm ls --prefix "$RUNNER_TEMP/rea-package" rea-agents --depth=0 | tee "$RUNNER_TEMP/rea-output/npm-tree.txt"
+          test -x "$RUNNER_TEMP/rea-package/node_modules/.bin/rea"
+      - name: Execute REA static analysis only (no licensed software)
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/rea-package/node_modules/.bin/rea" analyze-javascript-application "$RUNNER_TEMP/rea-fixture" --json > "$RUNNER_TEMP/rea-output/evidence.json"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"]) / "rea-output" / "evidence.json"
+          raw=p.read_bytes(); data=json.loads(raw)
+          text=raw.decode("utf-8")
+          result={"parsed_json":True,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),
+                  "main_js_mentioned":"main.js" in text,"preload_js_mentioned":"preload.js" in text,
+                  "fixture_only":True,"vendor_executed":False,"patient_data_used":False}
+          (p.parent/"qualification.json").write_text(json.dumps(result,indent=2))
+          print(json.dumps(result,indent=2))
+          assert len(raw)>100, "Insufficient evidence bytes"
+          assert result["main_js_mentioned"] and result["preload_js_mentioned"], "Module identity missing"
+          PY
+      - name: Upload qualification output only
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-rea01-static-synthetic-${{ github.sha }}
+          path: ${{ runner.temp }}/rea-output/
+          if-no-files-found: warn
+          retention-days: 14
