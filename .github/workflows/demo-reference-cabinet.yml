@@ -1,0 +1,165 @@
+name: DEMO Reference Cabinet Safety (isolated)
+on:
+  push:
+    branches:
+      - feat/synthetic-demo-cabinet-fixture-20261018
+    paths:
+      - scripts/seed_demo_cabinet_reference.py
+      - .github/workflows/demo-reference-cabinet.yml
+      - docs/clinic/DEMO_REFERENCE_CABINET.md
+      - techdoubt.md
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guard-and-pdf:
+    name: Fail-closed guards and fictional PDF smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install reportlab==4.4.10 pypdf==6.21.1
+      - name: Exact HEAD and syntax
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -m py_compile scripts/seed_demo_cabinet_reference.py
+      - name: Fail closed before database import, PDF watermark, fixture shape
+        env:
+          ENVIRONMENT: production
+          DIGITALCROWN_ISOLATED_RUNTIME: "0"
+          DATABASE_URL: "sqlite:////tmp/real-cabinet.db"
+        run: |
+          python - <<'PY'
+          import os, sys
+          from pypdf import PdfReader
+          from scripts import seed_demo_cabinet_reference as m
+          assert len(m.PATIENTS) == 12
+          assert len(m.DOCS) == 3
+          assert "backend.database" not in sys.modules
+          for environment, isolated, url in [
+              ("production", "0", "sqlite:////tmp/real-cabinet.db"),
+              ("test", "0", "sqlite:////tmp/demo-fixture.db"),
+              ("test", "1", "sqlite:////tmp/real-cabinet.db"),
+          ]:
+              os.environ.update(ENVIRONMENT=environment, DIGITALCROWN_ISOLATED_RUNTIME=isolated, DATABASE_URL=url)
+              try:
+                  m.main()
+              except RuntimeError as exc:
+                  assert "DEMO_REFUSED" in str(exc), str(exc)
+              else:
+                  raise AssertionError("unsafe environment accepted")
+              assert "backend.database" not in sys.modules
+          pdf=m._pdf("Ordonnance DEMO","Patient Fictif","DEMO-0001")
+          from io import BytesIO
+          reader=PdfReader(BytesIO(pdf))
+          text=reader.pages[0].extract_text()
+          assert m.MARKER in text
+          assert "Patient Fictif" in text
+          assert "DEMO-0001" in text
+          print("DEMO_GUARDS_AND_PDF_SMOKE_PASS")
+          PY
+
+  integration-seed:
+    name: Isolated SQLCipher seed and archive integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DATABASE_URL: sqlite:////tmp/digital-crown-demo-reference.db
+      DIGITALCROWN_DEMO_ROOT: /tmp/digital-crown-demo-reference-media
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated integration dependencies
+        run: python -m pip install SQLAlchemy==2.0.28 sqlcipher3==0.6.2 passlib==1.7.4 bcrypt==3.2.2 reportlab==4.4.10 pydantic==2.6.3 pydantic-settings==2.2.1 python-jose==3.5.0 python-dotenv==1.2.1 alembic==1.20.0 email-validator==2.2.0 fastapi==0.115.6 pypdf==6.21.1
+      - name: Generate isolated random fixture keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_key="$(openssl rand -hex 32)"
+          fixture_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$db_key"
+          echo "::add-mask::$fixture_password"
+          printf 'SQLCIPHER_KEY_HEX=%s\n' "$db_key" >> "$GITHUB_ENV"
+          printf 'DIGITALCROWN_DEMO_PASSWORD=%s\n' "$fixture_password" >> "$GITHUB_ENV"
+      - name: Create disposable test schema and seed
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from backend import models, database
+          from backend.models_base import Base
+          Base.metadata.create_all(bind=database.engine)
+          Path('/tmp/digital-crown-demo-reference.db').touch(exist_ok=True)
+          PY
+          python -m scripts.seed_demo_cabinet_reference
+          python -m scripts.seed_demo_cabinet_reference
+      - name: Verify rows, files and hashes
+        run: |
+          python - <<'PY'
+          import hashlib
+          from io import BytesIO
+          from pathlib import Path
+          from pypdf import PdfReader
+          from reportlab.lib.pagesizes import A5
+          from scripts.seed_demo_cabinet_reference import MARKER
+          from backend import models, database
+          from backend.database import SessionLocal
+          dbfile = Path('/tmp/digital-crown-demo-reference.db')
+          assert dbfile.is_file()
+          assert dbfile.read_bytes()[:16] != bytes.fromhex('53514c69746520666f726d6174203300'), 'plaintext SQLite detected'
+          with database.engine.connect() as connection:
+              assert connection.exec_driver_sql('PRAGMA cipher_version').scalar()
+          with SessionLocal() as db:
+              assert db.query(models.User).count() == 1
+              assert db.query(models.Patient).count() == 12
+              assert db.query(models.Appointment).count() == 36
+              assert db.query(models.DocumentArchive).count() == 36
+              for doc in db.query(models.DocumentArchive):
+                  path=Path('/tmp/digital-crown-demo-reference-media') / doc.file_path
+                  assert path.is_file(), path
+                  data=path.read_bytes()
+                  assert len(data) == doc.file_size
+                  assert hashlib.sha256(data).hexdigest() == doc.file_hash
+                  pdf = PdfReader(BytesIO(data))
+                  assert len(pdf.pages) == 1
+                  assert abs(float(pdf.pages[0].mediabox.width) - A5[0]) < 1
+                  assert abs(float(pdf.pages[0].mediabox.height) - A5[1]) < 1
+                  assert MARKER in pdf.pages[0].extract_text()
+          print('DEMO_REFERENCE_INTEGRATION_12_36_36_PASS')
+          PY
+      - name: Corrupted media must refuse idempotent seed
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+          from pathlib import Path
+          from backend import models
+          from backend.database import SessionLocal
+          with SessionLocal() as db:
+              doc = db.query(models.DocumentArchive).first()
+              target = Path('/tmp/digital-crown-demo-reference-media') / doc.file_path
+          target.write_bytes(target.read_bytes() + b'CORRUPTED-DEMO')
+          result = subprocess.run(
+              [sys.executable, '-m', 'scripts.seed_demo_cabinet_reference'],
+              capture_output=True, text=True, check=False
+          )
+          assert result.returncode != 0
+          assert 'DEMO_REFUSED: archive size/hash mismatch' in (result.stdout + result.stderr)
+          with SessionLocal() as db:
+              assert db.query(models.Patient).count() == 12
+              assert db.query(models.Appointment).count() == 36
+              assert db.query(models.DocumentArchive).count() == 36
+          print('DEMO_TAMPER_FAIL_CLOSED_PASS')
+          PY
