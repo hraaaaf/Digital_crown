@@ -14,7 +14,7 @@ const roots=[
  "https://www.orthalis.com/orthalis/",
  "https://www.orthalis.com/en/orthalis-connect/"
 ];
-const FILE_LIMIT=1_800_000,ASSET_MAX=12;
+const FILE_LIMIT=1_200_000,ASSET_MAX=5;
 const re=/(?:src|href)\s*=\s*["']([^"']{1,1600})["']/gi;
 const pages=[], assets=[], installers=[], failed=[];
 const asURL=(rel,base)=>{try{const url=new URL(rel,base);if(url.protocol!=="https:"||!allow.has(url.hostname)||url.username||url.password)return null;url.hash="";return url;}catch{return null;}};
@@ -25,7 +25,7 @@ function getLinks(html,base){
 const digest=x=>crypto.createHash("sha256").update(x).digest("hex");
 function metadata(u){const x=new URL(u);return {host:x.hostname,path:x.pathname};}
 async function read(url,limit){
- const c=new AbortController(),t=setTimeout(()=>c.abort(),22000);
+ const c=new AbortController(),t=setTimeout(()=>c.abort(),8500);
  try{
    const res=await fetch(url,{redirect:"follow",headers:{"User-Agent":"DigitalCrown-LOT07-07C-REA-research/1.0","Accept":"text/html,application/javascript,text/javascript,*/*;q=0.5"},signal:c.signal});
    const final=asURL(res.url,url);
