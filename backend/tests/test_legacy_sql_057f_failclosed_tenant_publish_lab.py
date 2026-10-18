@@ -194,6 +194,12 @@ def verified_no_replace_lab_publish(test, backup, owners, *, race_hook=None):
 
 class FailClosedTenantAndPublication(unittest.TestCase):
     @classmethod
+    def _seed_fake_orm(cls):
+        # E's initializer dispatches this method on cls, so explicitly reuse
+        # the genuine ORM fixture without inheriting and re-running E's 12 tests.
+        EFixture._seed_fake_orm.__func__(cls)
+
+    @classmethod
     def setUpClass(cls):
         if os.environ.get(FLAG) != "1":
             raise LabRefused("FAKE_GUARD_DISABLED")
