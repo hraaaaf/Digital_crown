@@ -28,7 +28,7 @@ try{
    if(!result.logos.some(x=>x.ok))failures.push('LOGO_MISSING_'+w);
    if(w===1440){
       await page.getByRole('button',{name:'Agenda',exact:true}).first().click();
-      if(await page.locator('h1').innerText()!=='Agenda CIBLE 07-C')failures.push('NAV_FAILED');
+      if(!(await page.locator('h1').innerText()).includes('Agenda') || await page.locator('.cmd-placeholder').count()!==1 || await page.locator('.cmd-appt').count()!==0)failures.push('NAV_FAILED');
       await page.getByRole('button',{name:'Retour au cockpit'}).click();
       await page.getByRole('button',{name:'RDV',exact:true}).click();
       if(await page.getByRole('status').count()!==1)failures.push('DEMO_BANNER');
