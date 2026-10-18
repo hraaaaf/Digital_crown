@@ -113,7 +113,7 @@ jobs:
         shell: bash
         run: |
           pip install pytest==8.4.2
-          python -m pytest -q backend/tests/test_cb00_patient_selectors.py
+          python -m pytest -q backend/tests/test_cb00_patient_selectors.py backend/tests/test_cb01_cabinet_day.py
       - name: Test flagged preview dossier disambiguation UI
         shell: bash
         working-directory: frontend
