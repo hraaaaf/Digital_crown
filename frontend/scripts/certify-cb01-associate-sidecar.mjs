@@ -40,25 +40,44 @@ const futureDossierProposal=[
 const roleChecks={s05ReceptionDossier:'NOT_RUN',s06NoAgenda:'NOT_RUN'};
 // Synthetic bearer credentials are memory-only; never persist them as evidence.
 const roleTokens=Object.create(null);
+const roleStorageStates=Object.create(null);
 for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
   const account=process.env[envPrefix+'_USER'];
   const secret=process.env[envPrefix+'_PASSWORD'];
   if (!account?.startsWith('t2-') || !secret) {
     throw new Error('REFUSED: synthetic role credentials missing: '+kind);
   }
-  const signedIn=await api.post('/api/auth/login',{
-    form:{username:account,password:secret},
+  // The global T2 harness auto-attaches OWNER workstation cookies.
+  // An S06 bearer + owner cookie is correctly refused by middleware (423),
+  // before preview RBAC. Create a clean per-principal workstation session.
+  const roleApi=await request.newContext({
+    baseURL:apiOrigin,
+    storageState:{cookies:[],origins:[]}, // explicit override of owner cookie
   });
-  if (!signedIn.ok()) throw new Error('FAIL: synthetic receptionist authentication '+kind);
-  const roleToken=(await signedIn.json()).access_token;
-  roleTokens[kind]=roleToken;
-  const sendRolePreview=async messages => {
-    const response=await api.post('/api/bot/workflows/preview',{
-      data:{messages},
+  try {
+    const signedIn=await roleApi.post('/api/auth/login',{
+      form:{username:account,password:secret},
+    });
+    if (!signedIn.ok()) throw new Error('FAIL: receptionist login '+kind+' HTTP '+signedIn.status());
+    const roleToken=(await signedIn.json()).access_token;
+    roleTokens[kind]=roleToken;
+    const enrolled=await roleApi.post('/api/workstation/enroll',{
+      data:{accountPassword:secret},
       headers:{Authorization:'Bearer '+roleToken},
     });
-    return {status:response.status(),payload:await response.json()};
-  };
+    if (!enrolled.ok()) throw new Error('FAIL: receptionist workstation enrollment '+kind+' HTTP '+enrolled.status());
+    const state=await roleApi.storageState();
+    if (!state.cookies.some(cookie=>cookie.name==='dc_workstation')) {
+      throw new Error('REFUSED: no per-role workstation cookie '+kind);
+    }
+    roleStorageStates[kind]=state;
+    const sendRolePreview=async messages => {
+      const response=await roleApi.post('/api/bot/workflows/preview',{
+        data:{messages},
+        headers:{Authorization:'Bearer '+roleToken},
+      });
+      return {status:response.status(),payload:await response.json()};
+    };
   if(kind==='s05') {
     const r=await sendRolePreview(futureDossierProposal);
     if(r.status!==200 || r.payload?.status!=='proposal_only'
@@ -78,6 +97,9 @@ for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
       throw new Error('FAIL: S06 secretary no-agenda access did not fail closed');
     }
     roleChecks.s06NoAgenda='PASS_403';
+    }
+  } finally {
+    await roleApi.dispose();
   }
 }
 const browser = await chromium.launch({ headless:true });
@@ -654,7 +676,9 @@ try {
   // localhost FastAPI with disposable staff. No API mocks or clinical writes.
   const realRoleBrowserEvidence=[];
   for (const kind of ['s06','s05']) {
-    const context=await browser.newContext({viewport:{width:1600,height:900}});
+    const context=await browser.newContext({
+      viewport:{width:1600,height:900},storageState:roleStorageStates[kind],
+    });
     try {
       await context.addInitScript(token=>{
         localStorage.setItem('token',token);
@@ -692,7 +716,7 @@ try {
         await rdv.click();
         const r=await p;
         if(r.status()!==403 || (await r.json())?.detail!=='Accès refusé.')
-          throw Error('FAIL: S06 browser did not receive true canonical FastAPI 403');
+          throw Error('FAIL: S06 browser expected canonical 403; got HTTP '+r.status());
         await preview.getByText('Accès refusé pour ce parcours.').waitFor({state:'visible'});
         if((await preview.locator('[aria-label="Choisir le dossier patient"]').count())!==0
             || (await preview.getByText('AMINA BENALI',{exact:false}).count())!==0)
