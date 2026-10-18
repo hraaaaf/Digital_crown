@@ -1,6 +1,9 @@
 name: V1.5-05.7-B Synthetic WAL Recovery Lab
 
 on:
+  push:
+    branches:
+      - feat/v15-05-7b-synthetic-wal-restore-lab-20261018
   pull_request:
     paths:
       - backend/tests/test_legacy_sql_057b_wal_recovery_lab.py
