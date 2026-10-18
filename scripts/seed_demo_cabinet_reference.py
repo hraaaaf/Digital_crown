@@ -64,18 +64,60 @@ def _pdf(title: str, patient: str, dossier: str) -> bytes:
     page.save()
     return output.getvalue()
 
+def _verify_existing_fixture(db, models, owner, root: Path) -> None:
+    """Never treat a partial or corrupted fixture as successfully seeded."""
+    patients = db.query(models.Patient).all()
+    expected = {f"DEMO-{i:04d}" for i in range(1, len(PATIENTS) + 1)}
+    if len(patients) != len(PATIENTS) or {p.numero_dossier for p in patients} != expected:
+        raise RuntimeError("DEMO_REFUSED: patient fixture incomplete")
+    if any(p.employer_id != owner.id for p in patients):
+        raise RuntimeError("DEMO_REFUSED: unexpected patient ownership")
+    ids = {p.id for p in patients}
+    appointments = db.query(models.Appointment).all()
+    if len(appointments) != len(PATIENTS) * 3 or any(
+        a.employer_id != owner.id or a.patient_id not in ids for a in appointments
+    ) or any(sum(a.patient_id == p.id for a in appointments) != 3 for p in patients):
+        raise RuntimeError("DEMO_REFUSED: appointment fixture incomplete")
+    docs = db.query(models.DocumentArchive).all()
+    if len(docs) != len(PATIENTS) * len(DOCS):
+        raise RuntimeError("DEMO_REFUSED: archive fixture incomplete")
+    expected_types = {models.DocumentType[name] for name, _ in DOCS}
+    for patient in patients:
+        patient_docs = [doc for doc in docs if doc.patient_id == patient.id]
+        if len(patient_docs) != len(DOCS) or {doc.document_type for doc in patient_docs} != expected_types:
+            raise RuntimeError("DEMO_REFUSED: patient archives incomplete")
+    for doc in docs:
+        if doc.uploaded_by_id != owner.id or not doc.file_path:
+            raise RuntimeError("DEMO_REFUSED: archive owner/path mismatch")
+        relative = Path(doc.file_path)
+        if relative.is_absolute() or ".." in relative.parts or relative.parts[:2] != ("static", "archives"):
+            raise RuntimeError("DEMO_REFUSED: untrusted archive path")
+        target = root / relative
+        if target.is_symlink() or not target.resolve().is_relative_to(root) or not target.is_file():
+            raise RuntimeError("DEMO_REFUSED: archived PDF absent or unsafe")
+        data = target.read_bytes()
+        if len(data) != doc.file_size or hashlib.sha256(data).hexdigest() != doc.file_hash:
+            raise RuntimeError("DEMO_REFUSED: archive size/hash mismatch")
+
+
 def main() -> None:
     if os.getenv("ENVIRONMENT") != "test" or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "1":
         raise RuntimeError("DEMO_REFUSED: isolated test environment required")
     url = os.getenv("DATABASE_URL", "")
     if not url.startswith("sqlite:////") or "demo" not in url.lower():
         raise RuntimeError("DEMO_REFUSED: absolute demo-named SQLite path required")
-    db_path = Path(url.removeprefix("sqlite:///")).resolve()
-    if not db_path.is_file() or db_path.is_symlink():
-        raise RuntimeError("DEMO_REFUSED: pre-migrated non-symlink demo database required")
+    raw_db_path = Path(url.removeprefix("sqlite:///"))
+    if raw_db_path.is_symlink():
+        raise RuntimeError("DEMO_REFUSED: database symlink")
+    db_path = raw_db_path.resolve()
+    if not db_path.is_file() or "demo" not in str(db_path).lower():
+        raise RuntimeError("DEMO_REFUSED: pre-migrated isolated demo database required")
     root_value = os.getenv("DIGITALCROWN_DEMO_ROOT", "")
-    root = Path(root_value).resolve() if root_value else None
-    if root is None or "demo" not in str(root).lower() or root.is_symlink():
+    raw_root = Path(root_value) if root_value else None
+    if raw_root is None or not raw_root.is_absolute() or raw_root.is_symlink():
+        raise RuntimeError("DEMO_REFUSED: absolute non-symlink media root required")
+    root = raw_root.resolve()
+    if "demo" not in str(root).lower():
         raise RuntimeError("DEMO_REFUSED: isolated demo media root required")
     password = os.getenv("DIGITALCROWN_DEMO_PASSWORD", "")
     if len(password) < 16 or password == "DemoCrown2026!":
@@ -93,10 +135,15 @@ def main() -> None:
         owner = db.query(models.User).filter_by(email=EMAIL).first()
         if owner and db.query(models.Patient).filter(models.Patient.employer_id != owner.id).first():
             raise RuntimeError("DEMO_REFUSED: non-demo patients present")
-        if owner and db.query(models.Patient).filter_by(employer_id=owner.id).count() >= len(PATIENTS):
-            print("DEMO_REFERENCE_ALREADY_SEEDED; no changes")
+        if owner and db.query(models.Patient).filter_by(employer_id=owner.id).count() == len(PATIENTS):
+            if len(existing) != 1:
+                raise RuntimeError("DEMO_REFUSED: multiple owners")
+            _verify_existing_fixture(db, models, owner, root)
+            print("DEMO_REFERENCE_ALREADY_SEEDED; integrity verified, no changes")
             return
-        if owner or db.query(models.Patient).count() or db.query(models.Appointment).count():
+        if (owner or db.query(models.Patient).count() or db.query(models.Appointment).count()
+                or db.query(models.DocumentArchive).count() or db.query(models.CabinetConfig).count()
+                or db.query(models.AgendaResource).count()):
             raise RuntimeError("DEMO_REFUSED: partial fixture or existing data; do not overwrite")
         owner = models.User(
             email=EMAIL, hashed_password=get_password_hash(password),

@@ -74,7 +74,6 @@ jobs:
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       DATABASE_URL: sqlite:////tmp/digital-crown-demo-reference.db
       DIGITALCROWN_DEMO_ROOT: /tmp/digital-crown-demo-reference-media
-      DIGITALCROWN_DEMO_PASSWORD: "CI-Only-Synthetic-Fixture-Secret-Not-For-Deployment-2026"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -83,8 +82,18 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install isolated integration dependencies
-        run: python -m pip install SQLAlchemy==2.0.28 sqlcipher3==0.6.2 passlib==1.7.4 bcrypt==3.2.2 reportlab==4.4.10 pydantic==2.6.3 pydantic-settings==2.2.1 python-jose==3.5.0 python-dotenv==1.2.1 alembic==1.20.0 email-validator==2.2.0 fastapi==0.115.6
-      - name: Create disposable migrated schema and seed
+        run: python -m pip install SQLAlchemy==2.0.28 sqlcipher3==0.6.2 passlib==1.7.4 bcrypt==3.2.2 reportlab==4.4.10 pydantic==2.6.3 pydantic-settings==2.2.1 python-jose==3.5.0 python-dotenv==1.2.1 alembic==1.20.0 email-validator==2.2.0 fastapi==0.115.6 pypdf
+      - name: Generate isolated random fixture keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_key="$(openssl rand -hex 32)"
+          fixture_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$db_key"
+          echo "::add-mask::$fixture_password"
+          printf 'SQLCIPHER_KEY_HEX=%s\n' "$db_key" >> "$GITHUB_ENV"
+          printf 'DIGITALCROWN_DEMO_PASSWORD=%s\n' "$fixture_password" >> "$GITHUB_ENV"
+      - name: Create disposable test schema and seed
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -100,9 +109,18 @@ jobs:
         run: |
           python - <<'PY'
           import hashlib
+          from io import BytesIO
           from pathlib import Path
-          from backend import models
+          from pypdf import PdfReader
+          from reportlab.lib.pagesizes import A5
+          from scripts.seed_demo_cabinet_reference import MARKER
+          from backend import models, database
           from backend.database import SessionLocal
+          dbfile = Path('/tmp/digital-crown-demo-reference.db')
+          assert dbfile.is_file()
+          assert dbfile.read_bytes()[:16] != b'SQLite format 3\\x00', 'plaintext SQLite detected'
+          with database.engine.connect() as connection:
+              assert connection.exec_driver_sql('PRAGMA cipher_version').scalar()
           with SessionLocal() as db:
               assert db.query(models.User).count() == 1
               assert db.query(models.Patient).count() == 12
@@ -114,5 +132,34 @@ jobs:
                   data=path.read_bytes()
                   assert len(data) == doc.file_size
                   assert hashlib.sha256(data).hexdigest() == doc.file_hash
+                  pdf = PdfReader(BytesIO(data))
+                  assert len(pdf.pages) == 1
+                  assert abs(float(pdf.pages[0].mediabox.width) - A5[0]) < 1
+                  assert abs(float(pdf.pages[0].mediabox.height) - A5[1]) < 1
+                  assert MARKER in pdf.pages[0].extract_text()
           print('DEMO_REFERENCE_INTEGRATION_12_36_36_PASS')
+          PY
+      - name: Corrupted media must refuse idempotent seed
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+          from pathlib import Path
+          from backend import models
+          from backend.database import SessionLocal
+          with SessionLocal() as db:
+              doc = db.query(models.DocumentArchive).first()
+              target = Path('/tmp/digital-crown-demo-reference-media') / doc.file_path
+          target.write_bytes(target.read_bytes() + b'CORRUPTED-DEMO')
+          result = subprocess.run(
+              [sys.executable, '-m', 'scripts.seed_demo_cabinet_reference'],
+              capture_output=True, text=True, check=False
+          )
+          assert result.returncode != 0
+          assert 'DEMO_REFUSED: archive size/hash mismatch' in (result.stdout + result.stderr)
+          with SessionLocal() as db:
+              assert db.query(models.Patient).count() == 12
+              assert db.query(models.Appointment).count() == 36
+              assert db.query(models.DocumentArchive).count() == 36
+          print('DEMO_TAMPER_FAIL_CLOSED_PASS')
           PY

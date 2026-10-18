@@ -23,3 +23,10 @@
 - Ce chantier ne modifie ni la PR clinique #955 ni sa roadmap 41/99 ; aucun merge/deploy sans autorisation.
 
 - **CI integration failure on HEAD `4e7cd634`**: [run #39163567310](https://github.com/hraaaaf/Digital_crown/actions/runs/39163567310), missing `email-validator` while importing Pydantic models; fail-closed guard/PDF job SUCCESS, SQLCipher seed job FAILURE before DB creation. Dependency added in commit `613248735dcadd1239cf115f4fdfe8274c0a7f6d`; **new run not yet verified**. Until a full seed + 12/36/36 + SHA-256 test succeeds on final HEAD, fixture is NOT certified. The workflow currently uses `Base.metadata.create_all` on a disposable DB, **not Alembic migration**, so a green run would not certify migrated production schema. UI login, agenda, PDF via HTTP, desktop/mobile and A/B adversarial reviews remain unverified.
+
+
+### DEMO-REFERENCE-CABINET — 2026-10-18 — contrôle CI et fausse idempotence
+- [Run #39169833324](https://github.com/hraaaaf/Digital_crown/actions/runs/39169833324) SUCCESS au commit `c55708f0aa4eec751961457c22df0764c75198e5` : compte unique, 12 patients, 36 RDV, 36 archives, 36 fichiers présents, SHA-256 et taille vérifiés, deuxième exécution sans duplication. **Preuve SQL/PDF limitée à une base jetable construite avec create_all, pas une migration Alembic.**
+- Revue A (intégrité) : précédent raccourci `>=12 patients → déjà seedé` pouvait masquer documents manquants/corrompus. Correction et test de falsification de PDF ajoutés au candidat suivant ; preuve CI au HEAD final à revérifier.
+- Revue B (sécurité/précision de la preuve) : contrôle symlink avant résolution du chemin, clés éphémères CI, vérification SQLCipher et format A5/filigrane sur chacun des 36 PDF ajoutés au candidat ; aucun statut GREEN anticipé sur nouveau HEAD.
+- **Réserves** : aucune migration Alembic réelle, aucun login applicatif, test API agenda/archives/mapping MEDIA_ROOT ou E2E desktop/mobile ; aucune preuve d'absence de notifications. DEMO complète non certifiée. Données uniquement fictives ; PR #955 inchangée, ni fusion ni déploiement.
