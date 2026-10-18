@@ -52,3 +52,17 @@
 **Reviewer fact:** GitHub PR #909 has one `COMMENTED` GitHub review authored by `hraaaaf` (the PR owner), at an older SHA; there are **0/2 genuinely independent reviewers on final HEAD**. These two adversarial perspectives are **internal review only**, NOT independent approvals.
 
 **Decision:** Old `2761fc655c4d2ea816985086154ecd2f2a258cc5` had 7/7 applicable CI green. All new commits (and this one) require exact-SHA CI again. Remain **NO-GO native SCM execution via blocked route, clinical installer, key/data/ACL migration, merge and production**. GO only read-only/static assurance, bounded synthetic regression already supported by normal CI. Native SCM remains NOT TESTED.
+
+
+## 2026-10-18 P2-F01 — verified syntax-only Windows experiment (not native service proof)
+
+**New evidence (supersedes earlier historical statement "Windows C# compile/PS parsing untested", and nothing more):**
+- [Experimental syntax-only Actions run #39137914935](https://github.com/hraaaaf/Digital_crown/actions/runs/39137914935) SUCCESS on source SHA `ffef62eb593ec47dce8ac18dbbe91eb35eb94c9b`, exact checkout marker confirmed in job #117706112003.
+- Actual hosted Windows PowerShell parser returned `P2_FIXTURE_POWERSHELL_PARSE_ONLY=PASS` for `p2_scm_virtual_account_wal_lab.ps1`; PowerShell parser **did not execute** the script.
+- Actual Windows `Add-Type -OutputAssembly` emitted the disposable fixture C# executable successfully (`P2_FIXTURE_CSHARP_COMPILE_ONLY=PASS`); the temporary compilation product is deleted in `finally`. **No ServiceBase.Run, SCM registration, service execution, account creation or privilege action** was performed by this syntax-only workflow.
+- Workflow is distinct, explicitly experimental/non-required, read-only GitHub token and restricted to PR #909's same-repo HEAD. The prior **privileged native SCM workflow attempt remains blocked by tool safety controls**; compilation-only is NOT a workaround for installing/running SCM.
+- The experimental workflow itself was added after old 7/7 green SHA `434a7a74d727c0d163125f0ffb00a52b262c6c18`; the current documentation edit creates yet another new SHA. Reassess exact commit workflow results on the new HEAD. Do not carry over green from a different SHA.
+
+**OPEN reservations (unchanged security/clinical gate):** Running virtual SCM token user/groups/privileges, Service SID and Session 0, actual NTFS ACL effective masks/owner and OWNER RIGHTS against WRITE_DAC/WRITE_OWNER, live DB and WAL/SHM sidecars, reparse/rename/hardlink/replace cases, SQLite ABI availability at execution, real Windows crash/recovery/backup/restore, SQLCipher key continuity and clinical migration all **NOT TESTED**. Truly independent reviewers **0/2**, native Windows W01–W12 **NOT RUN**. No service, clinical patient data, real device, backend production code, installer, merge or deployment changed in this checkpoint.
+
+**Decision:** GO solely for source syntax and standard synthetic CI. NO-GO native SCM certification or execution through prohibited route. P2 globally OPEN / NOT CONVERGED. Next effort EXTRA HIGH.
