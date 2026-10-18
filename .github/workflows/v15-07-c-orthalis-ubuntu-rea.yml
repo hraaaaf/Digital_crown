@@ -48,7 +48,11 @@ jobs:
             echo "REA_LOCAL_STATIC=BLOCKED_NO_PUBLIC_JS"
             exit 8
           fi
-          if timeout --signal=TERM --kill-after=5s 105s rea analyze-javascript-application "$LAB/js" --json >"$LAB/rea.json" 2>"$LAB/rea-stderr.txt"; then
+          mkdir -p "$LAB/rea-target"
+          cp "$LAB/js/orthalis-public-web-01.js" "$LAB/rea-target/"
+          echo "REA_SELECTED_TARGET=public_Guacamole_Blob.js_only"
+          echo "REA_SELECTED_TARGET_SHA256=$(sha256sum "$LAB/rea-target/orthalis-public-web-01.js" | cut -d' ' -f1)"
+          if timeout --signal=TERM --kill-after=5s 70s rea analyze-javascript-application "$LAB/rea-target" --json >"$LAB/rea.json" 2>"$LAB/rea-stderr.txt"; then
             node - "$LAB/rea.json" <<'NODE'
           const fs=require('fs'),crypto=require('crypto');
           const raw=fs.readFileSync(process.argv[2]);
