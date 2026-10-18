@@ -12,6 +12,12 @@ import threading
 import urllib.parse
 import urllib.request
 import urllib.error
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 if os.getenv("ENVIRONMENT") != "test" or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "1" or os.getenv("DATABASE_URL") != "sqlite:///./t2-runtime-cert.db":
     raise SystemExit("ATOMIC_T2_REQUIRE_DISPOSABLE_RUNTIME")
