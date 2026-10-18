@@ -102,11 +102,48 @@ def audit_cephalo_archive_after_crash(
     # Entire reference set must be read successfully before scanning: no
     # fail-open on unavailable DB. The query is read-only, no session.commit.
     try:
-        paths = db.query(models.DocumentArchive.file_path).all()
+        # The full reference set protects against falsely classifying files as
+        # orphaned. The cephalometric subset additionally catches *missing*
+        # referenced PDFs after backup/restore, still without mutating anything.
+        paths = db.query(
+            models.DocumentArchive.file_path,
+            models.DocumentArchive.document_type,
+        ).all()
     except SQLAlchemyError:
         db.rollback()
         raise
     stored_refs = {str(row[0]) for row in paths if row[0]}
+    missing_referenced = []
+    skipped_reference_count = 0
+    for file_path, document_type in paths:
+        if document_type != DocumentType.RAPPORT_CEPHALO or not file_path:
+            continue
+        prefix = "static/archives/"
+        if not str(file_path).startswith(prefix):
+            # Older stores or external document keys are outside the chosen
+            # copy of archives. Never misreport them as missing on that copy.
+            skipped_reference_count += 1
+            continue
+        relative = str(file_path)[len(prefix):]
+        parts = relative.split("/")
+        if not (
+            len(parts) == 5 and parts[0].isdecimal()
+            and parts[1] == DocumentType.RAPPORT_CEPHALO.value
+            and len(parts[2]) == 4 and parts[2].isdecimal()
+            and parts[3].isdecimal() and 1 <= int(parts[3]) <= 12
+            and parts[4] not in ("", ".", "..")
+            and parts[4].lower().endswith(".pdf")
+            and "\\" not in relative
+        ):
+            skipped_reference_count += 1
+            continue
+        path = root.joinpath(*parts)
+        # Never follow a symlink in a reference, nor traverse outside the
+        # operator-selected copy. Missing/symlinked bytes require human review.
+        if any(part.is_symlink() for part in (path, *path.parents) if part != root and root in part.parents):
+            missing_referenced.append({"relative_path": relative, "reason": "symlink"})
+        elif not path.is_file():
+            missing_referenced.append({"relative_path": relative, "reason": "missing"})
     possible = []
     for pat_dir in sorted(root.iterdir()):
         if pat_dir.is_symlink() or not pat_dir.is_dir() or not pat_dir.name.isdecimal():
@@ -146,6 +183,9 @@ def audit_cephalo_archive_after_crash(
         "automatic_deletions": 0,
         "suspected_orphans": possible,
         "suspected_count": len(possible),
+        "missing_referenced": missing_referenced,
+        "missing_referenced_count": len(missing_referenced),
+        "unverifiable_references_count": skipped_reference_count,
         "minimum_age_seconds": minimum_age_seconds,
     }
 
