@@ -1,0 +1,94 @@
+name: LOT07 07-C Command React isolated visual target
+on:
+  push:
+    branches:
+      - 'research/lot07-07c-command-react-isolated-*'
+    paths:
+      - 'frontend/command-target.html'
+      - 'frontend/vite.command-target.config.mts'
+      - 'frontend/src/features/command/command-react-target*'
+      - 'scripts/research/lot07_07c_command_react_*'
+      - '.github/workflows/v15-07-c-command-react-target.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: command-react-target-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  command-react-synthetic-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SOURCE_HEAD: ${{ github.sha }}
+      PLAYWRIGHT_LIB: /tmp/lot07-07c-playwright
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Enforce exact SHA, no product routes, synthetic-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -f frontend/src/features/command/command-react-target.tsx
+          test -f frontend/src/assets/logo.png
+          test -f frontend/src/assets/logo-compact.png
+          test -f frontend/public/assets/odontogram/digital-crown-adult-reference-v3.svg
+          echo "SOURCE_HEAD=$SOURCE_HEAD"
+          echo "CABINET_INTEGRATION=false"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install official Frontend locked dependencies
+        run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Build isolated React/Vite entry only
+        shell: bash
+        run: |
+          cd frontend
+          npx vite build --config vite.command-target.config.mts
+          test -f dist-command-target/command-target.html
+      - name: Install ephemeral browser evidence runner
+        shell: bash
+        run: |
+          mkdir -p "$PLAYWRIGHT_LIB"
+          npm install --prefix "$PLAYWRIGHT_LIB" --no-audit --no-fund --no-save --ignore-scripts playwright@1.55.0
+          "$PLAYWRIGHT_LIB/node_modules/.bin/playwright" install --with-deps chromium
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq xvfb xdotool scrot >/dev/null
+      - name: Browser real React render — viewports, eight themes, logo and odontogram
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend
+          npx vite --config vite.command-target.config.mts --host 127.0.0.1 --port 5193 > /tmp/lot07-command-vite.log 2>&1 &
+          echo $! > /tmp/lot07-command-vite.pid
+          trap 'kill "$(cat /tmp/lot07-command-vite.pid)" || true' EXIT
+          for _ in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:5193/command-target.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5193/command-target.html >/dev/null
+          cd ..
+          node scripts/research/lot07_07c_command_react_visual.cjs
+          xvfb-run -a -s '-screen 0 1920x1200x24' node scripts/research/lot07_07c_command_react_zoom.cjs
+          test -s artifacts/lot07-07c-command-react/manifest.json
+          test -s artifacts/lot07-07c-command-react/native-zoom-result.json
+      - name: Upload ONLY synthetic target screenshots and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-07c-command-react-synthetic-${{ env.SOURCE_HEAD }}
+          path: artifacts/lot07-07c-command-react/
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Explicit evidence limitation
+        if: always()
+        run: |
+          echo "SYNTHETIC_ONLY=true"
+          echo "REAL_CABINET_AFTER_TESTED=false"
+          echo "PATIENT_RBAC_TESTED=false"
+          echo "HUMAN_VISUAL_APPROVAL=false"
+          echo "NO_MERGE_NO_VERCEL=true"
