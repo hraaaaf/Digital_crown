@@ -434,6 +434,10 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     previewOperationGeneration += 1;
     set({
       analysisId: id, previewPdfUrl: null, isPreviewLoading: false,
+      imageSrc: undefined, local: { landmarks: [], version: 0 },
+      landmarkEditTimeline: createLandmarkEditTimeline(),
+      anglesData: {}, visionMetadata: {}, isCalibrated: false, mmPerPixel: null,
+      completedSteps: new Set<number>(), syncState: 'idle',
       ...emptyStudyClinicalContext(),
     });
   },
