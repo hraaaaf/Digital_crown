@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend import models
-from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionAgendaSlot, PatientCompanionIdentity
+from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionAgendaSlot, PatientCompanionIdentity, PatientCompanionRemoteReceipt
 from backend.services.patient_companion_remote_crypto import (
     decrypt_and_verify,
     generate_p256_keypair,
@@ -15,7 +15,7 @@ from backend.services.patient_companion_remote_crypto import (
 )
 from backend.services.patient_companion_remote_keys import enroll_remote_keyset
 from backend.services.patient_companion_remote_receipts import RemoteReplayDetected
-from backend.services.patient_companion_remote_worker import RemoteDomainResult, process_remote_envelope
+from backend.services.patient_companion_remote_worker import RemoteDomainResult, RemoteTransportRejected, process_remote_envelope
 from relay.contract import RelayInnerMessage
 
 
@@ -92,6 +92,19 @@ def test_remote_worker_dispatches_once_and_rejects_exact_replay(db, dentiste):
     def handler(_db, _access, payload):
         calls.append(payload)
         return RemoteDomainResult(status="ACCEPTED", response={"state": "accepted"})
+
+    # A signed/encrypted envelope is NOT sufficient: the chosen HTTP endpoint
+    # must permit the verified operation before any claim/receipt or handler.
+    with pytest.raises(RemoteTransportRejected, match="not permitted"):
+        process_remote_envelope(
+            db, access=access, keyset=keyset, compact_jwe=token,
+            handlers={operation: handler},
+            allowed_operation_prefix="teleconsult.", unprotect=_unprotect,
+        )
+    assert calls == []
+    assert db.query(PatientCompanionRemoteReceipt).filter(
+        PatientCompanionRemoteReceipt.access_id == access.id,
+    ).count() == 0
 
     ack_token = process_remote_envelope(
         db,
