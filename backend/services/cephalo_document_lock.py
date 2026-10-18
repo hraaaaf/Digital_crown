@@ -74,8 +74,12 @@ def render_payload_digest(*, clinical_data: object, ai_diagnostic: object) -> st
 def already_archived_pdf(
     db: Session, *, patient_id: int, analysis_id: int, revision: int,
     payload_digest: str,
-) -> Path | None:
-    """Idempotent replay for one active study/revision, with fail-closed file integrity."""
+) -> tuple[Path, bytes] | None:
+    """Snapshot verified PDF bytes while locked, never reopen path to stream them.
+
+    FileResponse(path=...) would re-open an unverified file *after* rollback
+    and after this SHA check: deleting/replacing it during that gap is TOCTOU.
+    """
     from backend.services import archive_service
 
     rows = (
@@ -122,4 +126,4 @@ def already_archived_pdf(
         or hashlib.sha256(content).hexdigest() != row.file_hash
     ):
         raise HTTPException(status_code=409, detail="Intégrité du PDF archivé non vérifiée")
-    return file_path
+    return file_path, content
