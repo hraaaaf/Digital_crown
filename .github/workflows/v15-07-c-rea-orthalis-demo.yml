@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/v15-07-c-rea-orthalis-demo.yml
       - scripts/research/rea_orthalis_probe.mjs
+      - scripts/research/rea_orthalis_visual_states.mjs
   workflow_dispatch:
 permissions:
   contents: read
@@ -111,7 +112,7 @@ jobs:
           if(bad) process.exit(6);
           NODE
           cat >"$LAB/readonly-scenario.json" <<SCENARIO
-          {"browser":{"mode":"launch","executable_path":"$BROWSER"},"start_url":{"url":"https://demo.orthalis.com/"},"actions":[{"step_id":"observe","action":"wait_for_timeout","duration_ms":1200}],"capture":{"at_end":["dom","accessibility","url","screenshot"]}}
+          {"browser":{"mode":"launch","executable_path":"$BROWSER"},"start_url":{"url":"https://demo.orthalis.com/"},"actions":[{"step_id":"early","action":"wait_for_timeout","duration_ms":700},{"step_id":"settle","action":"wait_for_timeout","duration_ms":2200},{"step_id":"remote-display","action":"wait_for_timeout","duration_ms":5200}],"capture":{"after_each_step":["dom","accessibility","url","screenshot"],"at_end":["dom","accessibility","url","screenshot"]}}
           SCENARIO
           rea capture-browser-scenario "$LAB/readonly-scenario.json" --json >"$LAB/scenario-result.json"
           node - "$LAB/scenario-result.json" <<'NODE'
@@ -123,5 +124,6 @@ jobs:
           console.log(JSON.stringify({rea_operation:"capture-browser-scenario",capture_scope:"public_demo_no_clicks",artifacts_requested:["dom","accessibility","url"],scenario_steps:1,output_bytes:raw.length,evidence_sha256:sha,top_level_metadata_keys:keys,raw_artifact_exported:false,interpretation:"requires_human_review; no clinical or product workflow validation"}));
           NODE
           node scripts/research/rea_orthalis_probe.mjs "$LAB/inspection.json" "$LAB/scenario-result.json"
+          node scripts/research/rea_orthalis_visual_states.mjs "$LAB/scenario-result.json"
           echo "BENCH_REA_ORTHALIS_PUBLIC_DEMO=PASSIVE_OBSERVATION_ONLY"
           echo "NOT_A_CABINET_OR_ORTHALIS_WORKFLOW_CERTIFICATION=true"
