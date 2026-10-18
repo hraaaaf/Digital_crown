@@ -91,4 +91,30 @@ describe('P2ter++ clinical isolation A -> B (synthetic sentinel)', () => {
     }
   });
 
+  it('ignores a late radio upload response after patient navigation', async () => {
+    const store = useOrthoStore.getState();
+    store.setPatientInfo(77415, 'T2 original');
+    store.setAnalysisId(9905);
+    let finish!: (value: any) => void;
+    const delayed = new Promise<any>(resolve => { finish = resolve; });
+    const upload = vi.spyOn(cephaloRepository, 'uploadRadio').mockImplementationOnce(() => delayed);
+    try {
+      const inFlight = useOrthoStore.getState().runAnalysis(
+        new File(['synthetic'], 'T2.png', { type: 'image/png' }),
+      );
+      useOrthoStore.getState().setPatientInfo(77416, 'T2 subsequent');
+      finish({
+        analysis_id: 9906, image_path: '/static/uploads/radios/late-A.png',
+        results: { metrics: {} }, landmarks: [],
+      });
+      await inFlight;
+      const latest = useOrthoStore.getState();
+      expect(latest.patientId).toBe(77416);
+      expect(latest.analysisId).toBeUndefined();
+      expect(latest.imageSrc).toBeUndefined();
+    } finally {
+      upload.mockRestore();
+    }
+  });
+
 });
