@@ -222,7 +222,8 @@ def test_agenda_remote_command_requires_active_keyset_and_dispatches_ciphertext(
 
     observed = {}
 
-    def fake_process(db_arg, *, access, keyset, compact_jwe):
+    def fake_process(db_arg, *, access, keyset, compact_jwe, allowed_operation_prefix):
+        assert allowed_operation_prefix == 'agenda.'
         observed["db"] = db_arg
         observed["access_id"] = access.public_id
         observed["keyset_access_id"] = keyset.access_id
