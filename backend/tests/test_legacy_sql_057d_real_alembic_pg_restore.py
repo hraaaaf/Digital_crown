@@ -68,6 +68,14 @@ KNOWN_PG18_ARRAYS = {
         "code_kind", ("NGAP", "INTERNAL", "OTHER")),
     "ck_ngap_mapping_verification_status": (
         "verification_status", ("PRIMARY_HASH_PENDING", "VERIFIED_PRIMARY", "OUTDATED")),
+    "ck_ortho_cases_lifecycle_status": (
+        "lifecycle_status", ("ACTIVE", "INTERRUPTED", "ABANDONED", "CLOSED")),
+    "ck_ortho_controls_phase_key": (
+        "phase_key", ("DIAGNOSTIC", "PREPARATION", "APPAREILLAGE",
+                      "ALIGNEMENT", "FINITION", "CONTENTION", "CLOTURE")),
+    "ck_ortho_phase_events_event_type": (
+        "event_type", ("START", "ENTER_PHASE", "INTERRUPT",
+                       "RESUME", "ABANDON", "CLOSE")),
     "uq_ortho_cases_one_open_per_patient": (
         "lifecycle_status", ("ACTIVE", "INTERRUPTED")),
 }
@@ -90,7 +98,9 @@ def canonical_catalog_row(section, row):
     if is_constraint:
         if row[2] != "c":
             raise Refused("PG18_DEPARSE_CONSTRAINT_TYPE_CHANGED")
-        expected = "CHECK" + column + "=ANYARRAY" + "ENUM" * len(values)
+        expected = ("CHECK" + column +
+                    ("ISNULLOR" + column if name == "ck_ortho_controls_phase_key" else "") +
+                    "=ANYARRAY" + "ENUM" * len(values))
     else:
         expected = ("CREATEUNIQUEINDEXuq_ortho_cases_one_open_per_patient"
                     "ONpublic.ortho_casesUSINGbtreeemployer_idpatient_id"
