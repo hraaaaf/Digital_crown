@@ -1,0 +1,159 @@
+name: BENCH REA-02 Digital Crown build vs FACAD P0 evidence
+on:
+  push:
+    branches:
+      - experiment/bench-rea02-dc-source-parity-20261018
+    paths:
+      - .github/workflows/bench-rea02-dc-parity.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-dc-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      NO_COLOR: "1"
+      VITE_API_URL: ""
+      VITE_ENABLE_HTTPS: "false"
+      NODE_OPTIONS: "--max-old-space-size=5120"
+      EXPECTED_SOURCE_SHA: "60f943880bb7529544f70c74d51f943b0063f07f"
+      FACAD_EVIDENCE_SHA: "220e75e919e0220cca74c5b6bf55b75687066fe3"
+    steps:
+      - name: Checkout pinned Digital Crown source without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: 60f943880bb7529544f70c74d51f943b0063f07f
+          persist-credentials: false
+      - name: Verify source and absence of tracked environment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          if git ls-files | grep -E '(^|/)(\.env|\.env\.(local|production|development|test))$'; then
+            echo "::error::A tracked runtime env file is present. Denying build."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/rea02-report"
+          printf '%s\n' "$EXPECTED_SOURCE_SHA" > "$RUNNER_TEMP/rea02-report/source-sha.txt"
+          echo "SOURCE_EXACT_HEAD=$EXPECTED_SOURCE_SHA"
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build actual Digital Crown frontend in test-only output
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix frontend --ignore-scripts --no-audit --no-fund > "$RUNNER_TEMP/rea02-report/frontend-npm-install.log" 2>&1
+          npm run build:test --prefix frontend > "$RUNNER_TEMP/rea02-report/frontend-build.log" 2>&1 || {
+            echo "::error::Build failed; last diagnostic lines"
+            tail -n 35 "$RUNNER_TEMP/rea02-report/frontend-build.log"
+            exit 1
+          }
+          test -f frontend/dist-test/index.html
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path('frontend/dist-test')
+          files=[p for p in root.rglob('*') if p.is_file()]
+          js=[p for p in files if p.suffix=='.js']
+          assert len(js)>0
+          m=root/'build-manifest.json'; manifest=json.loads(m.read_text())
+          assert manifest['commit']==os.environ['EXPECTED_SOURCE_SHA']
+          assert manifest['mode']=='test'
+          report={'frontend_source_sha':manifest['commit'],'mode':manifest['mode'],
+                  'dist_test_files':len(files),'javascript_bundle_files':len(js),
+                  'javascript_total_bytes':sum(p.stat().st_size for p in js),
+                  'index_html_sha256':hashlib.sha256((root/'index.html').read_bytes()).hexdigest(),
+                  'dist_test_only':True,'real_cabinet_not_started':True}
+          (Path(os.environ['RUNNER_TEMP'])/'rea02-report'/'build-summary.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report))
+          PY
+      - name: Install isolated pinned REA without installer hooks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/rea02-tool" --save-exact --ignore-scripts --no-audit --no-fund rea-agents@5.0.0 > "$RUNNER_TEMP/rea02-report/rea-install.log" 2>&1
+          npm ls --prefix "$RUNNER_TEMP/rea02-tool" rea-agents --depth=0
+          test -x "$RUNNER_TEMP/rea02-tool/node_modules/.bin/rea"
+      - name: REA inspect actual built Digital Crown JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 420s "$RUNNER_TEMP/rea02-tool/node_modules/.bin/rea" analyze-javascript-application "$PWD/frontend/dist-test" --json > "$RUNNER_TEMP/rea02-evidence.json"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'rea02-evidence.json'
+          raw=p.read_bytes()
+          obj=json.loads(raw)
+          assert len(raw)>500
+          # Never export REA's raw source-derived evidence to a public artifact.
+          result={'rea_release':'rea-agents@5.0.0','evidence_json_parsed':True,
+                  'evidence_json_bytes':len(raw),'evidence_json_sha256':hashlib.sha256(raw).hexdigest(),
+                  'top_level_keys':sorted(obj.keys())[:35] if isinstance(obj,dict) else [],
+                  'source_is_real_dc_test_bundle':True,
+                  'rea_analysis_kind':'javascript_static','clinical_parity_proven':False,
+                  'vendor_executed':False,'patient_data_used':False}
+          (Path(os.environ['RUNNER_TEMP'])/'rea02-report'/'rea-qualification.json').write_text(json.dumps(result,indent=2))
+          print(json.dumps(result))
+          PY
+      - name: Compare pinned FACAD UI inventory with actual source needles
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fLsS --retry 2 --connect-timeout 15 --max-time 45 \
+            "https://raw.githubusercontent.com/hraaaaf/Digital_crown/$FACAD_EVIDENCE_SHA/docs/audits/data/CEPH_FACAD_PARITY_P0_DESKTOP_EVIDENCE_MATRIX_2026-10-17.json" \
+            -o "$RUNNER_TEMP/facad-p0-matrix.json"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          matrix=Path(os.environ['RUNNER_TEMP'])/'facad-p0-matrix.json'
+          content=matrix.read_bytes(); obj=json.loads(content)
+          assert obj.get('schema')=='CEPH_FACAD_PARITY_P0_DESKTOP_EVIDENCE_MATRIX_V1'
+          assert len(obj.get('menus',[]))==9 and len(obj.get('toolbar',[]))==30
+          rows=[]
+          for item in obj['toolbar']:
+              path=item.get('digital_crown_code_path')
+              needle=item.get('digital_crown_source_needle')
+              f=Path(path) if path else None
+              exists=bool(f and f.is_file())
+              hit=bool(exists and needle and needle in f.read_text(encoding='utf-8'))
+              rows.append({'vendor_command':item['id'],
+                           'vendor_action_evidence':item.get('vendor_action_verdict','UNKNOWN'),
+                           'p0_dc_state':item.get('digital_crown_status','UNKNOWN'),
+                           'dc_source_path_present_at_current_master':exists,
+                           'declared_source_needle_present':hit,
+                           'interpretation':'LITERAL_SOURCE_OBSERVATION_ONLY' if hit else 'NOT_PROVEN',
+                           'functional_parity_proven':False})
+          from collections import Counter
+          statuses=Counter(row['interpretation'] for row in rows)
+          out={'facad_matrix_git_sha':os.environ['FACAD_EVIDENCE_SHA'],
+               'facad_matrix_json_sha256':hashlib.sha256(content).hexdigest(),
+               'vendor_menus_observed_in_previous_vendor_evidence':len(obj['menus']),
+               'vendor_toolbar_ids_discovered_in_previous_vendor_evidence':len(obj['toolbar']),
+               'vendor_workflow_count_previous_evidence':len(obj.get('workflows',[])),
+               'vendor_runtime_executed_in_this_run':False,
+               'digital_crown_source_sha':os.environ['EXPECTED_SOURCE_SHA'],
+               'source_literal_only_counts':dict(statuses),
+               'functional_parity_verified_count':0,'numeric_parity_verified_count':0,
+               'claims':'Source text string presence is not user-visible behavior or parity.',
+               'rows':rows}
+          dest=Path(os.environ['RUNNER_TEMP'])/'rea02-report'/'facad-dc-sourceliteral-matrix.json'
+          dest.write_text(json.dumps(out,indent=2,ensure_ascii=False))
+          print(json.dumps({k:v for k,v in out.items() if k!='rows'},ensure_ascii=False))
+          PY
+      - name: Upload sanitized summaries only - no bundles or raw REA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-rea02-sanitized-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/rea02-report/build-summary.json
+            ${{ runner.temp }}/rea02-report/rea-qualification.json
+            ${{ runner.temp }}/rea02-report/facad-dc-sourceliteral-matrix.json
+            ${{ runner.temp }}/rea02-report/source-sha.txt
+          if-no-files-found: warn
+          retention-days: 14
