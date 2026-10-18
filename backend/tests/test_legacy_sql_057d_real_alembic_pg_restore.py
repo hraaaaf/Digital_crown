@@ -117,7 +117,10 @@ def catalog(c, include_details=False):
     table_count = len({row[0] for row in data["columns"]})
     if table_count < 30:
         raise Refused("REAL_ALEMBIC_SCHEMA_INCOMPLETE")
-    normalized = {section: [canonical_catalog_row(section, row) for row in rows]
+    # PostgreSQL restore can reorder homonymous catalog rows although the
+    # object multiset is unchanged. Compare sorted FULL row tuples, retaining
+    # every object and multiplicity; no subset counting or silent exclusion.
+    normalized = {section: sorted(canonical_catalog_row(section, row) for row in rows)
                   for section, rows in data.items()}
     base = (digest(json.dumps(normalized, sort_keys=True).encode()), table_count)
     return (*base, data) if include_details else base
