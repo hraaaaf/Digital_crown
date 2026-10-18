@@ -506,6 +506,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
     }
     await s.silentSave();
+    // A delayed save from study A must never move study B's workflow.
+    if (get().patientId !== s.patientId || get().analysisId !== s.analysisId) return;
     set(prev => ({ completedSteps: new Set([...prev.completedSteps, prev.step]), step: target }));
   },
   runAnalysis: async (file: File) => {
@@ -782,7 +784,8 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
     } catch (e) {
       console.error('[Print] Erreur:', e);
-      throw e;
+      // A stale failure for prior study A must not be displayed over study B.
+      if (stillSelected()) throw e;
     } finally {
       set({ isPrinting: false });
     }
