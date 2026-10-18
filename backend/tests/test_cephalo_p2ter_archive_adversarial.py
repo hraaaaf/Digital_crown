@@ -72,7 +72,7 @@ def test_s2_generic_archive_rejects_filename_path_traversal_http(
     monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
     outside = tmp_path / "escape.pdf"
     outside.write_bytes(b"UNMODIFIED-SYNTHETIC")
-    for malicious in ("../../../../../../escape.pdf", "..\\escape.pdf", "/tmp/escape.pdf"):
+    for malicious in ("../../../../../../escape.pdf", "..\\escape.pdf", "/tmp/escape.pdf", "report.pdf:alternate", "CON.pdf", "file?.pdf"):
         result = client.post(
             "/api/documents/archive",
             params={"patient_id": patient.id, "doc_type": "AUTRE"},
