@@ -1450,6 +1450,47 @@ def generate_cephalo_pdf(
     selected, revision = _bound_cephalo_study(
         patient_id, req.analysis_id, req.expected_revision, db, current_user
     )
+    claim = None
+    if req.archive:
+        from sqlalchemy.exc import IntegrityError, OperationalError
+
+        # An initial read is NOT a concurrency boundary. PostgreSQL locks the
+        # selected analysis; SQLite obtains a writer lock when inserting the
+        # unique claim. Both rely on the database, never on a Python mutex.
+        try:
+            if db.get_bind().dialect.name == "postgresql":
+                db.query(models.CephaloAnalysis).filter(
+                    models.CephaloAnalysis.id == selected.id,
+                    models.CephaloAnalysis.patient_id == patient_id,
+                ).with_for_update().one()
+            claim = models.CephaloArchiveClaim(
+                patient_id=patient_id,
+                analysis_id=selected.id,
+                revision=revision,
+            )
+            db.add(claim)
+            db.flush()
+            # A writer could have changed the study between the first read
+            # and lock acquisition. Re-read authoritative revision *after*
+            # the claim has serialized all other writers.
+            db.expire_all()
+            selected, revision = _bound_cephalo_study(
+                patient_id, req.analysis_id, req.expected_revision, db, current_user
+            )
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Ce bilan de cette étude/révision est déjà archivé ou en cours",
+            ) from exc
+        except OperationalError as exc:
+            db.rollback()
+            # Missing additive schema, SQLite busy or database unavailable:
+            # fail closed; never silently drop back to non-atomic archiving.
+            raise HTTPException(
+                status_code=503,
+                detail="Réservation atomique du bilan indisponible : archivage refusé",
+            ) from exc
     if req.archive and revision is None:
         raise HTTPException(
             status_code=409,
@@ -1511,10 +1552,16 @@ def generate_cephalo_pdf(
                     "clinical_data": results.get("clinical_data", {}),
                 },
                 on_conflict=ConflictResolution.CREATE_VERSION,
+                commit=False,
             )
             if archived is None:
                 raise RuntimeError("Archive manquante")
+            claim.document_archive_id = archived.id
+            # The unique claim and archive metadata become durable together.
+            # There is no interval where a second process may claim this revision.
+            db.commit()
         except Exception as exc:
+            db.rollback()
             logger.exception("Archivage du bilan de l'analyse %s échoué", selected.id)
             # A failed archive must not leave an unintended public-facing PDF.
             try:
