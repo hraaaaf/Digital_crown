@@ -5,6 +5,7 @@ on:
       - fix/p2ter-atomic-archive-step1-20261018
     paths:
       - .github/workflows/p2ter-atomic-db-matrix.yml
+      - .github/workflows/p2ter-atomic-archive-isolated.yml
       - backend/core/schema_runtime.py
       - backend/models.py
       - alembic/versions/ceparch0001_add_cephalo_archive_claims.py
