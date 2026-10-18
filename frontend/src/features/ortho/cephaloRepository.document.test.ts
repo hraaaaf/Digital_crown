@@ -19,6 +19,21 @@ describe('P2ter PDF response evidence', () => {
     expect(post).toHaveBeenCalledWith('/patients/5/pdf', source, { responseType: 'blob' });
   });
 
+  it('preserves the authoritative replay receipt without changing the Blob API', async () => {
+    const pdf = new Blob(['%PDF synthetic existing archive'], { type: 'application/pdf' });
+    post.mockResolvedValue({
+      data: pdf,
+      headers: {
+        'x-cephalo-analysis-id': '7',
+        'x-cephalo-revision': '3',
+        'x-cephalo-archive-replayed': 'true',
+      },
+    });
+    await expect(cephaloRepository.generatePDFWithReceipt(5, { ...source, archive: true }))
+      .resolves.toEqual({ blob: pdf, replayed: true });
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects wrong study, wrong revision and missing headers', async () => {
     for (const headers of [
       { 'x-cephalo-analysis-id': '8', 'x-cephalo-revision': '3' },
