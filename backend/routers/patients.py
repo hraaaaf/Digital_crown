@@ -1479,7 +1479,9 @@ def generate_cephalo_pdf(
             )
             # Before this additive claim table existed, archives did not carry
             # claims. Treat those durable rows as already claimed too; never
-            # reissue the same study revision during a schema rollout.
+            # reissue the same study revision during a schema rollout. An
+            # unattributed legacy cephalo PDF (NULL analysis_id) is ambiguous,
+            # so no replacement is issued until an operator reconciles it.
             historical = db.query(models.DocumentArchive).filter(
                 models.DocumentArchive.patient_id == patient_id,
                 or_(
