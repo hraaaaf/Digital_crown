@@ -22,6 +22,10 @@ def lock_selected_cephalo_for_archive(db: Session, *, patient_id: int, analysis_
     """Acquire a DB-level lock before selecting/rendering; never rely on process locks."""
     try:
         if db.get_bind().dialect.name == "sqlite":
+            # A rendering transaction may legitimately hold the single SQLite
+            # writer lock longer than SQLite's 5s default busy timeout.
+            # Bounded wait permits idempotent replay instead of spurious 409.
+            db.connection().exec_driver_sql("PRAGMA busy_timeout = 30000")
             # SQLite ignores SELECT FOR UPDATE. A no-op write obtains its unique
             # writer lock across connections and processes, including SQLCipher.
             # The existing image path is unchanged; no scientific data is mutated.
