@@ -37,13 +37,13 @@ expected_roles={
 }
 if set(by_role)!=set(expected_roles):
     raise SystemExit('FAIL: S05/S06 browser role matrix incomplete or duplicated')
-for role,(status,http) in expected_roles.items():
+for role,(status,expected_http_status) in expected_roles.items():
     entry=by_role[role]
     if (entry.get('source')!='MAINLAYOUT_CROWNBOTCHAT_REAL_FASTAPI_SYNTHETIC_DB'
         or entry.get('status')!=status
         or not isinstance(entry.get('httpStatuses'),list)
         or not entry['httpStatuses']
-        or any(code!=http for code in entry['httpStatuses'])
+        or any(code!=expected_http_status for code in entry['httpStatuses'])
         or entry.get('clinicalWrites')!=0 or entry.get('pageErrors')!=0
         or entry.get('humanCabinetE2E')!='NOT_RUN'
         or not (root/entry.get('screenshot','')).is_file()):
