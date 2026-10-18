@@ -165,11 +165,16 @@ class P2ScmFixtureStaticGuardTests(unittest.TestCase):
             '"SQLITE_CLOSE_FAILED"',
             "if (worker != null && !worker.Join(7000))",
             '"SERVICE_WORKER_STOP_TIMEOUT"',
-            'File.Exists(Path.Combine(PrivateDir, "service.error"))',
+            'workerFailed = true;',
+            'workerFailed = false;',
+            'workerFailed || File.Exists(Path.Combine(PrivateDir, "service.error"))',
             '"SERVICE_WORKER_OR_CLOSE_FAILED"',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, self.cs)
+        self.assertEqual(self.cs.count('workerFailed = true;'), 2)
+        self.assertLess(self.cs.index('workerFailed = true;'),
+                        self.cs.index('workerFailed = false;'))
         self.assertLess(self.cs.index('Close(db) != 0'),
                         self.cs.index('protected override void OnStop()'))
         self.assertLess(self.cs.index('worker.Join(7000)'),

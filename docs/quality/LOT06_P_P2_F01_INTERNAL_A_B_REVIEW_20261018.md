@@ -31,3 +31,7 @@ Review A **OPEN 4/10**; Review B **OPEN 3/10 (one source defect addressed)**. Th
 ## Internal continuation — shutdown/close source hardening, same P2-F01 scope
 
 B-MAJOR-02 has an additional **source-only** mitigation: `sqlite3_close` now checks return status and writes a class-only `service.error`; `OnStop` fails when the worker does not join within seven seconds or when a worker/close error marker exists. The new HEAD requires Windows C# compilation, 06-A static regression tests, 06-B and both FUE jobs. Until exact-HEAD runs finish, status is UNVERIFIED; even GREEN is not a true SCM service shutdown or restart proof. Independent BLIND remains 0/2.
+
+## Internal re-review — worker error marker can fail to write
+
+The prior `OnStop()` failure guard depended on an on-disk `service.error` that is best effort (its write exceptions are swallowed). Under a full disk / denial, the guard could miss a failed `sqlite3_close()` and falsely report a clean stop. Latest follow-on source patch adds an in-process `volatile workerFailed` flag, set before marker writes by either Work catch or close failure and checked after join by OnStop. A fresh exact-HEAD CI must pass; this remains internal source hardening, NOT a native service lifecycle proof.

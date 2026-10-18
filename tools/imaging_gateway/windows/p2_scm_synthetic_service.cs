@@ -30,6 +30,7 @@ public sealed class P2ScmSyntheticService : ServiceBase {
     [DllImport("winsqlite3.dll", EntryPoint="sqlite3_column_int", CallingConvention=CallingConvention.Cdecl)]
     static extern int ColumnInt(IntPtr statement, int index);
     static volatile bool stopping;
+    static volatile bool workerFailed; // Thread outcome must not depend on disk report.
     static Thread worker;
     // Defense in depth: never touch a DB from an arbitrary install/clinic path.
     // This LAB binary may only use the generated synthetic ProgramData layout.
@@ -135,6 +136,7 @@ public sealed class P2ScmSyntheticService : ServiceBase {
             while (!stopping) Thread.Sleep(150);
         }
         catch (Exception e) {
+            workerFailed = true;
             // Type only: no environment secrets or data disclosure to CI.
             try { File.WriteAllText(Path.Combine(PrivateDir,"service.error"),e.GetType().Name); } catch {}
         }
@@ -143,6 +145,7 @@ public sealed class P2ScmSyntheticService : ServiceBase {
             // Fail closed, rather than silently accepting a service shutdown
             // without a successful connection close.
             if (db != IntPtr.Zero && Close(db) != 0) {
+                workerFailed = true; // Fail closed even when error marker cannot be written.
                 try {
                     File.WriteAllText(Path.Combine(PrivateDir, "service.error"),
                                       "SQLITE_CLOSE_FAILED");
@@ -152,6 +155,7 @@ public sealed class P2ScmSyntheticService : ServiceBase {
     }
     protected override void OnStart(string[] args) {
         stopping = false;
+        workerFailed = false;
         worker = new Thread(Work); worker.IsBackground=true; worker.Start();
     }
     protected override void OnStop() {
@@ -160,7 +164,7 @@ public sealed class P2ScmSyntheticService : ServiceBase {
             throw new InvalidOperationException("SERVICE_WORKER_STOP_TIMEOUT");
         // Work catches its own exception to avoid writing sensitive exception text.
         // Check the type-only error marker AFTER the thread has joined.
-        if (File.Exists(Path.Combine(PrivateDir, "service.error")))
+        if (workerFailed || File.Exists(Path.Combine(PrivateDir, "service.error")))
             throw new InvalidOperationException("SERVICE_WORKER_OR_CLOSE_FAILED");
     }
     public static void Main() { ServiceBase.Run(new P2ScmSyntheticService()); }

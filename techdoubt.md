@@ -1,5 +1,11 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-18 — P2 synthetic SCM evidence fail-open in unwritable service.error fixed in memory
+
+- Internal re-review of the preceding source patch found a MAJOR false-negative: `sqlite3_close()` failure or Work exception would attempt `service.error` creation, but the marker write is deliberately swallowed; when marker creation fails (disk full or DACL fault), `OnStop()` could return without realizing worker/close failed. This leaves a misleading clean-stop oracle.
+- **Source-only correction:** introduce volatile process-local `workerFailed`, clear it at OnStart, set it in exception handler **before** attempting error-file write and whenever `sqlite3_close` returns nonzero; `OnStop` checks the flag OR marker after a successful join. Neither proof depends on disk marker for fail-closed worker errors. Extend static regression tests to catch marker-only reintroductions.
+- Remaining gate: a volatile flag is not durable across process power loss (expected); true SCM stop/kill/restart and restore still NOT_TESTED, with no authorized privileged service invocation. Do not mistake C# compilation for native runtime proof.
+
 ## 2026-10-18 — SCM synthetic worker close/stop fail-closed hardening (NOT real SCM proof)
 
 - Internal reliability review B found that `OnStop()` previously ignored the boolean return value of `worker.Join(7000)`, and the `Work()` finally block ignored `sqlite3_close()` return code. That allowed source markers/SCM stop oracles to overstate a clean shutdown. C# synthetic-only source now throws on join timeout, writes only `SQLITE_CLOSE_FAILED` type marker on close error, and refuses a clean `OnStop()` if `service.error` exists after a joined worker. Static regression test preserves all these guards.
