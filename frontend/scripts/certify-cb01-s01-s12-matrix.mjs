@@ -219,14 +219,18 @@ try {
       const dateLabel=header.locator('h1').locator('..').locator('span').first();
       const before=(await dateLabel.innerText()).replace(/\s+/g,' ').trim();
       const next=header.locator('h1').locator('..').locator('button').nth(1);
-      const target=await page.evaluate(()=>{
+      // CB-01 Agenda API uses clinic-local naive wall-clock, never UTC Z.
+      // Use the production formatter in the real browser so S01 still
+      // verifies the exact authorized tomorrow-day GET and its inclusive end.
+      const target=await page.evaluate(async()=>{
+        const { formatAgendaWallClock }=await import('/src/utils/agendaWallClock.ts');
         const d=new Date();
         d.setDate(d.getDate()+1);
         const label=d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})
           .replace(/\s+/g,' ').trim().toLocaleUpperCase('fr-FR');
         const start=new Date(d);start.setHours(0,0,0,0);
         const end=new Date(d);end.setHours(23,59,59,999);
-        return {label,start:start.toISOString(),end:end.toISOString()};
+        return {label,start:formatAgendaWallClock(start),end:formatAgendaWallClock(end)};
       });
       const [response]=await Promise.all([
         page.waitForResponse(response=>{
