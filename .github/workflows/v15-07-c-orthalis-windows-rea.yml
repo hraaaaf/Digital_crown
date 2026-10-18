@@ -1,0 +1,106 @@
+name: LOT07 07-C Orthalis Windows hosted REA feasibility
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v15-07-c-orthalis-windows-rea.yml
+      - scripts/research/rea_orthalis_visual_states.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ortho-windows-rea-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-hosted-vendor-feasibility:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/lot07-07c-rea-orthalis-')
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Node compatible with REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+      - name: Windows OS proof, official vendor installer availability, and REA on public demo
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = (git rev-parse HEAD).Trim()
+          Write-Host "SOURCE_HEAD=$source"
+          if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+            $expected = "${{ github.event.pull_request.head.sha }}"
+            if ($source -ne $expected) { throw 'STOP: checkout differs from exact PR HEAD' }
+          }
+          $os = Get-CimInstance Win32_OperatingSystem
+          Write-Host "OS_CAPTION=$($os.Caption)"
+          Write-Host "OS_VERSION=$($os.Version)"
+          Write-Host "WINDOWS_PRODUCT_TYPE=$($os.ProductType)"
+          Write-Host "WINDOWS_10_DESKTOP_ACTUALLY_TESTED=$([bool]($os.ProductType -eq 1 -and $os.Caption -match 'Windows 10'))"
+          if ($os.ProductType -ne 3) { throw 'STOP: this lab expected a hosted Windows Server runner' }
+          $lab = Join-Path $env:RUNNER_TEMP 'orthalis-windows-rea'
+          $target = Join-Path $lab 'public-guacamole'
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          $vendorPages = @('https://www.orthalis.com/orthalis/', 'https://www.orthalis.com/en/orthalis-connect/', 'https://demo.orthalis.com/')
+          $installerCandidates = 0
+          foreach ($url in $vendorPages) {
+            try {
+              $page = Invoke-WebRequest -Uri $url -TimeoutSec 25 -UseBasicParsing
+              $links = [regex]::Matches($page.Content, '(?i)(?:href|src)\s*=\s*["''][^"'']+?\.(?:exe|msi|msix|appx|zip|deb|AppImage)(?:\?[^"'']*)?["'']')
+              $installerCandidates += $links.Count
+              Write-Host "VENDOR_PAGE_PROBE_STATUS=$($page.StatusCode) INSTALLER_LINK_COUNT=$($links.Count)"
+            } catch {
+              Write-Host 'VENDOR_PAGE_PROBE=UNAVAILABLE'
+            }
+          }
+          Write-Host "OFFICIAL_PAGES_INSTALLER_LINKS=$installerCandidates"
+          Write-Host 'ORTHALIS_NATIVE_INSTALLER_EXECUTED=false'
+          Write-Host 'ORTHALIS_NATIVE_INSTALLER_AVAILABLE=NOT_ESTABLISHED'
+          npm install --global --no-audit --no-fund rea-agents@6.7.0
+          if ($LASTEXITCODE -ne 0) { throw 'REA npm installation failed' }
+          rea --version
+          if ($LASTEXITCODE -ne 0) { throw 'REA version command failed' }
+          $script = Join-Path $target 'guacamole-Blob.js'
+          Invoke-WebRequest -Uri 'https://demo.orthalis.com/guacamole/Blob.js' -OutFile $script -TimeoutSec 30 -UseBasicParsing -MaximumRedirection 0
+          $digest = (Get-FileHash -Algorithm SHA256 $script).Hash.ToLowerInvariant()
+          Write-Host "WINDOWS_PUBLIC_JS_SHA256=$digest"
+          if ($digest -ne 'eb559a71c5884d27dd8018177045bfbeabf44605e3109ba847a875bdeac616c8') {
+            throw 'STOP: public Guacamole JS differs from reviewed prior digest; manual review needed'
+          }
+          $static = Join-Path $lab 'rea-static.json'
+          & rea analyze-javascript-application $target --json 1> $static 2> (Join-Path $lab 'rea-static-stderr.txt')
+          if ($LASTEXITCODE -ne 0) { throw 'REA Windows static analysis failed' }
+          node -e "const fs=require('fs'),c=require('crypto');const b=fs.readFileSync(process.argv[1]);const v=JSON.parse(b.toString('utf8'));console.log('WINDOWS_REA_STATIC='+JSON.stringify({status:'success',bytes:b.length,sha256:c.createHash('sha256').update(b).digest('hex'),evidence_id_present:!!v.evidence_id,orthalis_native_executable_analyzed:false}))" $static
+          if ($LASTEXITCODE -ne 0) { throw 'REA static JSON parse failed' }
+          $browsers = @(
+            'C:\Program Files\Google\Chrome\Application\chrome.exe',
+            'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+            'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
+            'C:\Program Files\Microsoft\Edge\Application\msedge.exe'
+          )
+          $browser = $browsers | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $browser) { throw 'STOP: Chrome-family browser unavailable on hosted Windows' }
+          Write-Host "WINDOWS_BROWSER_FAMILY=$([IO.Path]::GetFileName($browser))"
+          $scenario = @{
+            browser = @{ mode = 'launch'; executable_path = $browser }
+            start_url = @{ url = 'https://demo.orthalis.com/' }
+            actions = @(
+              @{ step_id = 'settle'; action = 'wait_for_timeout'; duration_ms = 1400 },
+              @{ step_id = 'view'; action = 'wait_for_timeout'; duration_ms = 2600 }
+            )
+            capture = @{ after_each_step = @('url','screenshot'); at_end = @('url','screenshot') }
+          }
+          $scenarioPath = Join-Path $lab 'readonly-scenario.json'
+          $scenario | ConvertTo-Json -Depth 12 -Compress | Set-Content -Path $scenarioPath -Encoding utf8NoBOM
+          $visual = Join-Path $lab 'rea-browser.json'
+          & rea capture-browser-scenario $scenarioPath --json 1> $visual 2> (Join-Path $lab 'rea-browser-stderr.txt')
+          if ($LASTEXITCODE -ne 0) { throw 'REA Windows demo browser capture failed' }
+          node scripts/research/rea_orthalis_visual_states.mjs $visual
+          if ($LASTEXITCODE -ne 0) { throw 'REA visual digest failed' }
+          Write-Host 'FINAL_GATE=WINDOWS_SERVER_REA_PUBLIC_DEMO_OBSERVED_ONLY'
+          Write-Host 'WINDOWS_10_TESTED=false'
+          Write-Host 'ORTHALIS_DESKTOP_INSTALLED=false'
+          Write-Host 'ORTHALIS_BUSINESS_WORKFLOW_CERTIFIED=false'
