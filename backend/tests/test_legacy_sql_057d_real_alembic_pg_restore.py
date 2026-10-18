@@ -81,6 +81,28 @@ KNOWN_PG18_ARRAYS = {
 }
 
 
+# Exactly three additional affected constraints; do not transform other CHECK
+# expressions. Exact table, semantic values, and full SQL grammar are pinned.
+KNOWN_PG18_EXTRA_CHECKS = {
+    "ck_ortho_phase_events_phase_key": (
+        "ortho_phase_events",
+        ("DIAGNOSTIC", "PREPARATION", "APPAREILLAGE", "ALIGNEMENT",
+         "FINITION", "CONTENTION", "CLOTURE"),
+        "CHECK (phase_key IS NULL OR (phase_key::text = ANY ({array})))",
+    ),
+    "ck_ortho_phase_events_phase_only_on_start_or_enter": (
+        "ortho_phase_events",
+        ("START", "ENTER_PHASE"),
+        "CHECK ((event_type::text = ANY ({array})) OR phase_key IS NULL)",
+    ),
+    "ck_station_print_event_transition": (
+        "station_print_claim_events",
+        ("held_reserved", "marked_uncertain"),
+        "CHECK (transition::text = ANY ({array}))",
+    ),
+}
+
+
 
 def normalize_pg18_check_text_arrays(expr):
     """Canonicalize only the proven literal varchar[] to text[] cast rewrite."""
@@ -111,9 +133,19 @@ def canonical_catalog_row(section, row):
     is_constraint = section == "constraints" and name in KNOWN_PG18_ARRAYS and name.startswith("ck_")
     is_index = section == "indexes" and name == "uq_ortho_cases_one_open_per_patient"
     if not (is_constraint or is_index):
-        if section == "constraints" and len(row) == 4 and row[2] == "c":
-            # No other SQL is modified; unknown cast forms remain unmatched.
-            return (*row[:-1], normalize_pg18_check_text_arrays(row[-1]))
+        if section == "constraints" and name in KNOWN_PG18_EXTRA_CHECKS:
+            table, exact_values, expected_sql_template = KNOWN_PG18_EXTRA_CHECKS[name]
+            if len(row) != 4 or row[0] != table or row[2] != "c":
+                raise Refused("PG18_EXTRA_CHECK_IDENTITY_MISMATCH")
+            array = "ARRAY[" + ",".join("'" + value + "'::text"
+                                        for value in exact_values) + "]"
+            expected_sql = expected_sql_template.format(array=array)
+            # Only known PostgreSQL 18 cast spelling is canonicalized; the
+            # entire resulting CHECK SQL must match the approved template.
+            if normalize_pg18_check_text_arrays(row[-1]) != expected_sql:
+                raise Refused("PG18_EXTRA_CHECK_SEMANTICS_CHANGED")
+            return (*row[:-1], expected_sql)
+        # All other catalog objects are compared byte-for-byte.
         return row
     column, values = KNOWN_PG18_ARRAYS[name]
     raw = row[-1]
@@ -459,6 +491,36 @@ class RealHeadRecovery(unittest.TestCase):
             canonical_catalog_row("constraints", (*key, restored)),
             canonical_catalog_row("constraints", (*key, restored.replace("'START'", "'OTHER'"))),
         )
+
+
+
+    def test_10_additional_pg18_check_casts_use_exact_allowlist(self):
+        for name, (table, values, fmt) in KNOWN_PG18_EXTRA_CHECKS.items():
+            inner = ",".join("'" + v + "'::character varying" for v in values)
+            array_before = "ARRAY[" + inner + "]::text[]"
+            array_after = "ARRAY[" + inner.replace("::character varying",
+                                                     "::character varying::text") + "]"
+            before = fmt.format(array=array_before)
+            after = fmt.format(array=array_after)
+            with self.subTest(constraint=name):
+                self.assertEqual(
+                    canonical_catalog_row("constraints", (table, name, "c", before)),
+                    canonical_catalog_row("constraints", (table, name, "c", after)),
+                )
+                for bad in (
+                    after.replace(values[0], "FOREIGN_VALUE"),
+                    after.replace("= ANY", "<> ANY"),
+                    after + " OR TRUE",
+                ):
+                    with self.assertRaisesRegex(Refused, "PG18_EXTRA_CHECK_SEMANTICS_CHANGED"):
+                        canonical_catalog_row("constraints", (table, name, "c", bad))
+                with self.assertRaisesRegex(Refused, "PG18_EXTRA_CHECK_IDENTITY_MISMATCH"):
+                    canonical_catalog_row("constraints", ("other_table", name, "c", after))
+        # Unknown constraint names stay byte-identical; no generic rewrite.
+        sample = ("CHECK (arbitrary::text = ANY "
+                  "(ARRAY['A'::character varying]::text[]))")
+        row = ("unknown_table", "ck_unknown_name", "c", sample)
+        self.assertEqual(canonical_catalog_row("constraints", row), row)
 
 
 
