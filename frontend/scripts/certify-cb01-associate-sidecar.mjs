@@ -38,6 +38,8 @@ const futureDossierProposal=[
   '/rdv','dossier:CB01-N-101','2099-01-01','10:00','30','consultation','CONFIRMER',
 ];
 const roleChecks={s05ReceptionDossier:'NOT_RUN',s06NoAgenda:'NOT_RUN'};
+// Synthetic bearer credentials are memory-only; never persist them as evidence.
+const roleTokens=Object.create(null);
 for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
   const account=process.env[envPrefix+'_USER'];
   const secret=process.env[envPrefix+'_PASSWORD'];
@@ -49,6 +51,7 @@ for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
   });
   if (!signedIn.ok()) throw new Error('FAIL: synthetic receptionist authentication '+kind);
   const roleToken=(await signedIn.json()).access_token;
+  roleTokens[kind]=roleToken;
   const sendRolePreview=async messages => {
     const response=await api.post('/api/bot/workflows/preview',{
       data:{messages},
@@ -647,12 +650,98 @@ try {
       }
     }
   }
+  // Integrated CB-01 S05/S06: authentic MainLayout/Chat/Preview, actual
+  // localhost FastAPI with disposable staff. No API mocks or clinical writes.
+  const realRoleBrowserEvidence=[];
+  for (const kind of ['s06','s05']) {
+    const context=await browser.newContext({viewport:{width:1600,height:900}});
+    try {
+      await context.addInitScript(token=>{
+        localStorage.setItem('token',token);
+        localStorage.setItem('appMode','prod');
+      },roleTokens[kind]);
+      const page=await context.newPage();
+      const errors=[],writes=[],statuses=[];
+      page.on('pageerror',err=>errors.push(err.name));
+      page.on('request',req=>{
+        const p=new URL(req.url()).pathname;
+        if(req.method()!=='GET' && ['/api/bot/execute','/api/appointments/','/api/patients/','/api/devis/'].some(prefix=>p.startsWith(prefix)))
+          writes.push(req.method());
+      });
+      page.on('response',response=>{
+        const u=new URL(response.url());
+        if(u.origin===apiOrigin && u.pathname==='/api/bot/workflows/preview'
+            && response.request().method()==='POST')statuses.push(response.status());
+      });
+      await page.goto(appOrigin+'/dashboard',{waitUntil:'domcontentloaded',timeout:90000});
+      if(new URL(page.url()).pathname!=='/dashboard')
+        throw Error('FAIL: CB-01 S05/S06 real application admission denied');
+      const launcher=page.locator('button[aria-label="Ouvrir CrownBot"]:visible').first();
+      await launcher.waitFor({state:'visible',timeout:30000});
+      await launcher.click();
+      const panel=page.locator('[data-cb01-associate-sidecar]');
+      await panel.waitFor({state:'visible',timeout:15000});
+      const preview=panel.getByRole('region',{name:'Assistant Crown Bot — consultation'});
+      await preview.waitFor({state:'visible'});
+      const rdv=preview.getByRole('button',{name:'Préparer un RDV'});
+      const nextPreviewResponse=()=>page.waitForResponse(resp=>
+        new URL(resp.url()).pathname==='/api/bot/workflows/preview'
+        && resp.request().method()==='POST', {timeout:20000});
+      if(kind==='s06') {
+        const p=nextPreviewResponse();
+        await rdv.click();
+        const r=await p;
+        if(r.status()!==403 || (await r.json())?.detail!=='Accès refusé.')
+          throw Error('FAIL: S06 browser did not receive true canonical FastAPI 403');
+        await preview.getByText('Accès refusé pour ce parcours.').waitFor({state:'visible'});
+        if((await preview.locator('[aria-label="Choisir le dossier patient"]').count())!==0
+            || (await preview.getByText('AMINA BENALI',{exact:false}).count())!==0)
+          throw Error('FAIL: S06 browser leaked synthetic patient identity');
+      } else {
+        await rdv.click();
+        await preview.getByText('Patient : saisissez un identifiant',{exact:false}).waitFor();
+        const next=async(value,prompt)=>{
+          await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(value);
+          await preview.getByRole('button',{name:'Envoyer'}).click();
+          await preview.getByText(prompt,{exact:false}).waitFor({state:'visible'});
+        };
+        await next('dossier:CB01-N-101','Date du rendez-vous au format');
+        await next('2099-01-01','Heure du rendez-vous au format');
+        await next('10:00','Durée : 15, 30, 45 ou 60');
+        await next('30','Motif : consultation, détartrage ou couronne');
+        await next('consultation','Tapez CONFIRMER');
+        await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill('CONFIRMER');
+        const p=nextPreviewResponse();
+        await preview.getByRole('button',{name:'Envoyer'}).click();
+        const r=await p, data=await r.json();
+        const serialized=JSON.stringify(data);
+        if(r.status()!==200 || data?.status!=='proposal_only'
+            || data?.proposal?.type!=='CREATE_APPOINTMENT'
+            || data?.proposal?.params?.datetime_start!=='2099-01-01T10:00:00'
+            || data?.proposal?.params?.duration_minutes!==30
+            || !Number.isInteger(data?.proposal?.params?.patient_id)
+            || ['pending_action_id','pendingActionId','action_id','actionId'].some(k=>serialized.includes('"'+k+'"')))
+          throw Error('FAIL: S05 browser received actionable or invalid real backend proposal');
+        await preview.getByText('Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable.').waitFor();
+      }
+      if(errors.length || writes.length || !statuses.length
+          || statuses.some(code=>code!==(kind==='s06'?403:200)))
+        throw Error('FAIL: CB-01 integrated role HTTP/JS or write evidence mismatch');
+      const screenshot='cb01-live-api-rbac-'+kind+'-1600.png';
+      await page.screenshot({path:path.join(output,screenshot)});
+      realRoleBrowserEvidence.push({scenario:kind.toUpperCase(),
+        source:'MAINLAYOUT_CROWNBOTCHAT_REAL_FASTAPI_SYNTHETIC_DB',
+        status:kind==='s06'?'PASS_HTTP_403_VISIBLE_DENIAL':'PASS_HTTP_200_NON_EXECUTABLE_PROPOSAL',
+        httpStatuses:statuses,clinicalWrites:0,pageErrors:0,screenshot,
+        humanCabinetE2E:'NOT_RUN'});
+    } finally { await context.close(); }
+  }
   const summary={kind:'CB01_SYNTHETIC_PREVIEW_ONLY',flagDependent:true,
     firstValueOneClickChromium:'PASS_3_BUSINESS_CTA_VISIBLE_DIRECTLY_AFTER_LAUNCH',
     historyReadOnlyChromium:'PASS_SYNTHETIC_HISTORY_TEXT_NO_EXECUTE_AND_MODAL_KEYBOARD',
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
     browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
-    roleChecks,evidence,clinicalRouteEvidence,wallClockEvidence};
+    roleChecks,realRoleBrowserEvidence,evidence,clinicalRouteEvidence,wallClockEvidence};
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2));
   console.log('CB01_ASSOCIATE_SIDECAR_VISUAL: PASS',JSON.stringify(evidence));
 } finally {
