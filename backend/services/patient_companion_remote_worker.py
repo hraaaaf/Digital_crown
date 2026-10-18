@@ -143,6 +143,7 @@ def process_remote_envelope(
     keyset: PatientCompanionRemoteKeyset,
     compact_jwe: str,
     handlers: dict[str, RemoteDomainHandler] | None = None,
+    allowed_operation_prefix: str | None = None,
     unprotect=unprotect_os_bound,
     commit: bool = True,
 ) -> str:
@@ -187,6 +188,12 @@ def process_remote_envelope(
         message.assert_fresh()
     except Exception as exc:
         raise RemoteTransportRejected("remote application envelope invalid or expired") from exc
+
+    # Route-specific operation family is enforced on the VERIFIED JOSE payload,
+    # BEFORE any replay claim or clinical mutation. A teleconsultation route
+    # must not serve agenda.create using its much larger rate-limit budget.
+    if allowed_operation_prefix is not None and not message.operation.startswith(allowed_operation_prefix):
+        raise RemoteTransportRejected("operation not permitted on this remote endpoint")
 
     try:
         claim = claim_remote_command(db, access=access, message=message)
