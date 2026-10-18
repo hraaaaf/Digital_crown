@@ -60,7 +60,17 @@ jobs:
           set -euo pipefail
           PYTHONPATH=. python -B backend/tests/test_legacy_sql_057e_real_backupservice_sqlcipher_head.py -v 2>&1 | tee lot05e-real-sqlcipher.log
           grep -q '^Ran 12 tests' lot05e-real-sqlcipher.log
-          grep -q '^OK$' lot05e-real-sqlcipher.log
+          grep -Eq '^OK[[:space:]]*
+          ! grep -E 'skipped=[0-9]+|FAILED \(|ERROR: test_' lot05e-real-sqlcipher.log
+      - name: Exact commit and no production source changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '907c67414f637f8827413df8eea143d015e4d701' }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/routers backend/services backend/core alembic frontend
+ lot05e-real-sqlcipher.log
           ! grep -E 'skipped=[0-9]+|FAILED \(|ERROR: test_' lot05e-real-sqlcipher.log
       - name: Exact commit and no production source changes
         shell: bash
