@@ -36,6 +36,8 @@ const ACTION_LABELS: Record<string, string> = {
   '/patient': 'Trouver un patient',
   '/rdv': 'Préparer un RDV',
 };
+type PatientChoice = NonNullable<PreviewResponse['candidates']>[number];
+
 type ProgrammeAppointment = {
   id: number; datetime_start: string; patient_name?: string | null;
   motif?: string | null; status?: string | null;
@@ -54,6 +56,9 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
 } = {}) {
   const [transcript, setTranscript] = useState<string[]>([]);
   const [answer, setAnswer] = useState<PreviewResponse | null>(null);
+  // Display-only identity copied from a server-authorized homonym picker.
+  // Never serialize this label into an API request or use it for authorization.
+  const [chosenPatient, setChosenPatient] = useState<PatientChoice | null>(null);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -71,6 +76,7 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
     setBusy(true);
     setError('');
     setAnswer(null);
+    setChosenPatient(null);
     setLastPreviewReadAt(null);
     setProgramme(null);
     setTranscript([]);
@@ -121,13 +127,14 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
     if (inFlight.current) return;
     setTranscript([]);
     setAnswer(null);
+    setChosenPatient(null);
     setLastPreviewReadAt(null);
     setProgramme(null);
     setError('');
     setInput('');
   };
 
-  const send = async (raw: string, newWorkflow = false, replacePatient = false) => {
+  const send = async (raw: string, newWorkflow = false, replacePatient = false, verifiedChoice?: PatientChoice) => {
     const text = raw.trim();
     if (!text || text.length > 80 || inFlight.current) return;
     // An ambiguous name must be replaced by the selected, server-scoped ID;
@@ -153,6 +160,7 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
     // workflow (or a subsequent request that fails). Preserve only validated
     // steps when retrying within the same workflow.
     setAnswer(null);
+    if (newWorkflow || retryPatient) setChosenPatient(null);
     if (newWorkflow) {
       setTranscript([]);
       setInput('');
@@ -163,11 +171,18 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
       });
       setTranscript(next);
       setAnswer(response.data);
+      // The backend replays the transcript and validates the selected ID;
+      // only its successful response may make the original picker label visible.
+      if (verifiedChoice && next[0] === '/rdv'
+          && ['clarification', 'confirmation_required', 'proposal_only'].includes(response.data.status)) {
+        setChosenPatient(verifiedChoice);
+      }
       setLastPreviewReadAt(new Date().toLocaleTimeString('fr-FR', {
         hour: '2-digit', minute: '2-digit',
       }));
       setInput('');
     } catch (err: unknown) {
+      setChosenPatient(null);
       const status = (err as { response?: { status?: number; data?: { detail?: string } } })?.response?.status;
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setError(
@@ -261,11 +276,17 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
               {answer.patient.numero_dossier ? ` — Dossier ${answer.patient.numero_dossier}` : ''}
             </p>
           )}
+          {transcript[0] === '/rdv' && chosenPatient && (
+            <p className="mt-2 break-words text-xs" data-cb01-verified-homonym>
+              Patient sélectionné (vérifié par le serveur) : {chosenPatient.prenom} {chosenPatient.nom}
+              {chosenPatient.numero_dossier ? ` — Dossier ${chosenPatient.numero_dossier}` : ' — Dossier non renseigné'}
+            </p>
+          )}
           {answer.status === 'disambiguation' && !!answer.candidates?.length && (
             <div className="mt-3 grid gap-2" aria-label="Choisir le dossier patient">
               {answer.candidates.map(candidate => (
                 <button key={candidate.id} type="button" disabled={busy}
-                  onClick={() => { void send(`id:${candidate.id}`, false, true); }}
+                  onClick={() => { void send(`id:${candidate.id}`, false, true, candidate); }}
                   className="min-h-11 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left text-xs text-slate-800 hover:bg-slate-100 disabled:opacity-50">
                   {candidate.prenom} {candidate.nom} — Dossier {candidate.numero_dossier || 'non renseigné'}
                 </button>
