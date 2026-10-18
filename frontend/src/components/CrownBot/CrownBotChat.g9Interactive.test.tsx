@@ -264,7 +264,7 @@ describe('CrownBot G9 reachable interaction truth', () => {
 
   it('a late history A response never overwrites the selected history B', async () => {
     let resolveA: ((value: unknown) => void) | undefined;
-    getMock.mockImplementation((url: string) => {
+    getMock.mockImplementation((url: string): Promise<any> => {
       if (url === '/bot/sessions') return Promise.resolve({data:[
         {id:'a',title:'A',updated_at:'2026-10-17'},
         {id:'b',title:'B',updated_at:'2026-10-17'},
