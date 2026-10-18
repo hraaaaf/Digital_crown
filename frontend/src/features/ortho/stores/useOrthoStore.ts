@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { cephaloRepository } from '../cephaloRepository';
 import { emptyStudyClinicalContext } from '../cephaloClinicalIsolation';
+import { cephaloArchiveErrorMessage } from '../cephaloArchiveGate';
+import toast from 'react-hot-toast';
 import { prepareBoundCephaloDocumentSource, type BoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { API_BASE } from '../../../services/api';
 import {
@@ -136,6 +138,7 @@ interface OrthoState {
   goToStep: (target: StepId) => Promise<void>;
 }
 
+let previewOperationGeneration = 0;
 let landmarkSaveGeneration = 0;
 let landmarkSaveChain: Promise<void> = Promise.resolve();
 
@@ -229,6 +232,22 @@ const queueAuditedLandmarkSave = (
       }
     });
 };
+
+export function snapshotCephaloPdfClinicalInputs(
+  s: Pick<OrthoState, 'local' | 'ddm' | 'diag' | 'mmPerPixel' | 'etape2Data' | 'etape3Data'>,
+) {
+  const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
+  const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
+  const impa = computeLocalImpa(s.local.landmarks);
+  const ceph = calcDDMCephalo(impa);
+  const real = (mand !== null && ceph !== null) ? mand + ceph : null;
+  const clinical = buildPayload(
+    s.local.landmarks, max, mand, real, s.diag,
+    computeMcNamaraProjections(s.local.landmarks),
+    s.mmPerPixel, s.etape2Data, s.etape3Data,
+  );
+  return { clinical_data: clinical.clinical_data, ai_diagnostic: clinical.ai_diagnostic };
+}
 
 export const useOrthoStore = create<OrthoState>((set, get) => ({
   patientId: null,
@@ -412,6 +431,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     // Invalidating selection also invalidates every clinical field. Nothing
     // from the previous analysis may be used by PDF/save operations.
     landmarkSaveGeneration += 1;
+    previewOperationGeneration += 1;
     set({
       analysisId: id, previewPdfUrl: null, isPreviewLoading: false,
       ...emptyStudyClinicalContext(),
@@ -681,47 +701,40 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   handlePreview: async () => {
     const s = get();
     if (!s.analysisId || !s.patientId) return;
+    if (get().isPrinting) {
+      toast.error("Archivage en cours : aperçu indisponible pour le moment.");
+      return;
+    }
+    const operation = ++previewOperationGeneration;
     set({ isPreviewLoading: true, previewPdfUrl: null });
     const stillSelected = () => get().analysisId === s.analysisId && get().patientId === s.patientId;
     try {
       const bound = await prepareBoundCephaloDocumentSource(
         s.patientId, s.analysisId, stillSelected, () => s.silentSave(s.analysisId, true),
       );
-      const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
-      const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
-      const impa = computeLocalImpa(s.local.landmarks);
-      const ceph = calcDDMCephalo(impa);
-      const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const data = await cephaloRepository.generatePDF(s.patientId, {
-        ...bound,
-        ai_diagnostic: {
-          diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
-          analyse_moulages: s.diag.analyse_moulages || '',
-          synthese_diagnostique: s.diag.synthese_diagnostique || '',
-          strategie_therapeutique: s.diag.strategie_therapeutique || '',
-        },
-        clinical_data: {
-          ddm_maxillaire: max !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max } : null,
-          ddm_mandibulaire: mand !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand } : null,
-          ddm_reelle: real,
-          plan_traitement: s.diag.strategie_therapeutique || '',
-          denture_type: s.etape3Data.denture_type || null,
-          preference_technique: s.etape3Data.preference_technique || null,
-        },
-        archive: false,
+        ...bound, ...snapshotCephaloPdfClinicalInputs(s), archive: false,
       });
-      if (!stillSelected()) throw new Error("L'étude a changé pendant la génération.");
-      const blob = new Blob([data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      set({ previewPdfUrl: url, isPreviewLoading: false });
+      if (!stillSelected() || operation !== previewOperationGeneration) return;
+      const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+      set({ previewPdfUrl: url });
     } catch (e) {
       console.error('[Preview] Erreur:', e);
-      set({ isPreviewLoading: false });
+      if (stillSelected() && operation === previewOperationGeneration) {
+        toast.error(await cephaloArchiveErrorMessage(e));
+      }
+    } finally {
+      if (stillSelected() && operation === previewOperationGeneration) {
+        set({ isPreviewLoading: false });
+      }
     }
   },
   handlePrint: async (prevalidatedSource?: BoundCephaloDocumentSource) => {
     const s = get();
     if (!s.analysisId || !s.patientId) return;
+    if (get().isPrinting || get().isPreviewLoading) {
+      throw new Error("Une opération PDF est déjà en cours pour cette étude.");
+    }
     set({ isPrinting: true });
     const stillSelected = () => get().analysisId === s.analysisId && get().patientId === s.patientId;
     try {
@@ -731,34 +744,21 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       if (!stillSelected() || bound.analysis_id !== s.analysisId) {
         throw new Error("Le PDF ne correspond pas à l'étude prévalidée.");
       }
-      const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
-      const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
-      const impa = computeLocalImpa(s.local.landmarks);
-      const ceph = calcDDMCephalo(impa);
-      const real = (mand !== null && ceph !== null) ? mand + ceph : null;
-      const data = await cephaloRepository.generatePDF(s.patientId, {
-        ...bound,
-        ai_diagnostic: {
-          diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
-          analyse_moulages: s.diag.analyse_moulages || '',
-          synthese_diagnostique: s.diag.synthese_diagnostique || '',
-          strategie_therapeutique: s.diag.strategie_therapeutique || '',
-        },
-        clinical_data: {
-          ddm_maxillaire: max !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max } : null,
-          ddm_mandibulaire: mand !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand } : null,
-          ddm_reelle: real,
-          plan_traitement: s.diag.strategie_therapeutique || '',
-          denture_type: s.etape3Data.denture_type || null,
-          preference_technique: s.etape3Data.preference_technique || null,
-        },
-        archive: true,
+      const receipt = await cephaloRepository.generatePDFWithReceipt(s.patientId, {
+        ...bound, ...snapshotCephaloPdfClinicalInputs(s), archive: true,
       });
-      if (!stillSelected()) throw new Error("L'étude a changé pendant la génération.");
-      const blob = new Blob([data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
+      const status = receipt.replayed
+        ? "Archive existante réutilisée sans modification"
+        : "Nouvelle archive enregistrée";
+      // A committed server archive is not a failure merely because Cabinet
+      // switched to study B before receiving study A's HTTP 200.
+      if (!stillSelected()) {
+        toast.success(`${status} pour l'étude ${bound.analysis_id} (révision ${bound.expected_revision}).`);
+        return;
+      }
+      const url = URL.createObjectURL(new Blob([receipt.blob], { type: 'application/pdf' }));
       const userChoice = window.confirm(
-        'Le PDF a été généré avec succès.\n\n' +
+        `${status} pour l'étude ${bound.analysis_id}.\n\n` +
         '• OK = Ouvrir dans un nouvel onglet (pour imprimer)\n' +
         '• Annuler = Télécharger le fichier'
       );
@@ -778,5 +778,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     } finally {
       set({ isPrinting: false });
     }
+
   }
 }));
