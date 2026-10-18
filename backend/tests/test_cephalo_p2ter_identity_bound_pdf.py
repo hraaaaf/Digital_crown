@@ -563,3 +563,112 @@ def test_existing_legacy_archive_prevents_reissue_without_claim(
         models.CephaloArchiveClaim.analysis_id==study.id,
     ).count() == 0
     assert not list(tmp_path.glob("*.pdf"))
+
+
+def test_archive_bytes_cleaned_when_failure_happens_after_write_before_commit(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """No invisible second PDF when archive bytes exist but SQL fails."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    from backend.services.archive_service import ArchiveService
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    base = tmp_path / "owned-archives"
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", base)
+    original = ArchiveService.archive_document
+
+    def fail_after_write(self, **kwargs):
+        doc, new_version = original(self, **kwargs)
+        assert doc.id is not None and kwargs["created_file_paths"]
+        assert kwargs["created_file_paths"][0].is_file()
+        raise OSError("synthetic failure after disk write and SQL flush")
+
+    monkeypatch.setattr(ArchiveService, "archive_document", fail_after_write)
+    failed = _request(client, patient.id, study.id, headers, archive=True)
+    assert failed.status_code == 500
+    assert list(base.rglob("*.pdf")) == []
+    assert db.query(models.CephaloArchiveClaim).filter_by(
+        analysis_id=study.id,
+    ).count() == 0
+    assert db.query(models.DocumentArchive).filter_by(
+        analysis_id=study.id,
+    ).count() == 0
+
+
+def test_commit_failure_deletes_owned_archive_bytes_but_keeps_existing_files(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Failed commit must release claim and preserve any unrelated existing file."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    base = tmp_path / "isolated-archive"
+    base.mkdir()
+    protected = base / "existing-do-not-delete.txt"
+    protected.write_text("Existing document - never modified")
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", base)
+    original_commit = db.commit
+
+    def fail_once():
+        monkeypatch.setattr(db, "commit", original_commit)
+        raise OSError("synthetic commit failure")
+
+    monkeypatch.setattr(db, "commit", fail_once)
+    response = _request(client, patient.id, study.id, headers, archive=True)
+    assert response.status_code == 500
+    assert list(base.rglob("*.pdf")) == []
+    assert protected.read_text() == "Existing document - never modified"
+    assert db.query(models.CephaloArchiveClaim).filter_by(
+        analysis_id=study.id,
+    ).count() == 0
+    assert db.query(models.DocumentArchive).filter_by(
+        analysis_id=study.id,
+    ).count() == 0
+
+
+def test_reconciliation_keeps_committed_pdf_on_ambiguous_transaction_outcome(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """If the commit completed but its response failed, never destroy the stored PDF."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    base = tmp_path / "isolated-archive"
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", base)
+    original_commit = db.commit
+
+    def commit_but_lose_ack():
+        monkeypatch.setattr(db, "commit", original_commit)
+        original_commit()
+        raise OSError("synthetic lost-ack after durable commit")
+
+    monkeypatch.setattr(db, "commit", commit_but_lose_ack)
+    response = _request(client, patient.id, study.id, headers, archive=True)
+    assert response.status_code == 500
+    rows = db.query(models.DocumentArchive).filter_by(analysis_id=study.id).all()
+    claims = db.query(models.CephaloArchiveClaim).filter_by(analysis_id=study.id).all()
+    assert len(rows) == len(claims) == 1
+    assert claims[0].document_archive_id == rows[0].id
+    stored = base / rows[0].file_path.removeprefix("static/archives/")
+    assert stored.is_file() and stored.read_bytes().startswith(b"%PDF")
