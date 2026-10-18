@@ -33,8 +33,8 @@ Tant que cette investigation n'est pas faite, le score ne peut pas servir à un 
 Les plafonds suivants s'appliquent au score correspondant **et donc au `RETAINED_SCORE`** :
 
 - `10/10` : score **non accessible à une auto-revue conversationnelle**, même si les preuves et les gates sont parfaits ; aucune attente d'un évaluateur externe ne doit en être déduite.
-- `>= 9.5/10` : **hors plage pour deux perspectives internes A/B exécutées dans la même conversation** ; ce score supérieur n'est jamais un prérequis implicite au closeout. Le score normal `VERIFIED` commence à `9.0/10` et peut être atteint avec les deux revues internes, les tests et les gates effectivement requis.
-- Quand la même conversation réalise l'exécution **et** les deux revues adversariales internes spécialisées : plafond automatique `9.4/10`. Nommer honnêtement les deux perspectives internes ; ne pas les présenter comme deux audits humains/agents réellement indépendants.
+- `>= 9.5/10` : **hors plage d'une revue transversale interne unique** ; un score supérieur n'est jamais un prérequis implicite au closeout. Le seuil `VERIFIED` commence à `9.0/10` et peut être atteint avec **FUE-A et FUE-B réellement exécutés quand applicables, UNE revue adversariale transversale** et les autres gates effectivement requis.
+- Lorsque la même conversation exécute les FUE applicables et conduit **UNE revue adversariale transversale** : plafond d'auto-évaluation `9.4/10`. Ne pas la présenter comme un audit humain indépendant ; ni déclarer des FUE exécutés en l'absence de navigateur/backend et preuves réelles.
 - Test requis rouge, gate requis non vert, ou preuve requise absente : plafond `7.9/10`.
 - Régression constatée : plafond `6.9/10` jusqu'à correction et nouvelle preuve de non-régression.
 - Blocker sécurité, privacy, intégrité data ou claim clinique/scientifique : plafond `5.9/10` **et statut `BLOCKED`**.
@@ -99,7 +99,7 @@ Pour le closeout d'un lot, ajouter la liste des gates binaires et leur état.
 
 ## 8. UI/UX
 
-**Règle de non-blocage par reviewers :** l'assistant mène lui-même dans la conversation les deux revues A/B spécialisées, recherche les défauts, corrige/teste et confirme sur le même HEAD. **Ne jamais répondre « il reste les deux vraies revues indépendantes »** ni demander de reviewers humains/agents externes pour terminer la double revue *interne*. Une revue A ou B réellement non effectuée reste à faire **par l'assistant** ; une CI, une validation humaine explicitement exigée et une certification physique non exécutées demeurent des blocages factuels séparés.
+**Règle FUE + revue unique :** pour un périmètre utilisateur réellement exposé, la conversation organise **FUE-A** et **FUE-B** avec deux personas/risques complémentaires et des parcours réellement exécutés depuis login UI (ou entrée publique autorisée), puis conduit **UNE revue adversariale transversale** du résultat, de la sécurité, des preuves et des régressions. FUE-0 reste code/contrat/tests sans inventer de navigateur. Nouveau HEAD = revalider les FUE impactés + refaire la seule revue transversale, puis confirmer. **Ne jamais dire « il reste deux vraies revues indépendantes »** ; ne pas substituer aux FUE des analyses écrites seules. CI, validation humaine explicitement requise et matériel réel LOT10 non testés restent des blocages distincts.
 
 Cette règle complète `.claude/rules/visual-closeout-human-validation.md` :
 

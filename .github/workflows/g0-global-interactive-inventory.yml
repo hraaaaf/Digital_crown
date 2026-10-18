@@ -23,8 +23,8 @@ jobs:
             test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           fi
 
-      - name: Verify conversational A/B reviewer doctrine (GLOBAL-G10-S)
-        run: python scripts/verify_conversational_review_doctrine.py
+      - name: Verify two FUE and one transversal review doctrine (GLOBAL-G10-S)
+        run: python scripts/verify_fue_transversal_doctrine.py
 
       - name: Generate G0 inventory
         run: python scripts/inventory_interactive_controls.py

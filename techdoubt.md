@@ -1,15 +1,13 @@
 # TECHDOUBT — Digital Crown
 
-## GLOBAL-G10-S / LOT10 — 2026-10-18 — Two-agent isolation requirement withdrawn
+## GLOBAL-G10-S — 2026-10-18 — Two real FUE journeys + one transversal adversarial review
 
-**Status: RESOLVED AS A FALSE DEPENDENCY (doctrine correction, not proof of a completed FUE).**
+**Doctrine decision: RESOLVED.** The owner replaced the historical requirement for two adversarial reviews (and the still older requirement for two independent AI/human reviewers) with **FUE-A and FUE-B, followed by ONE transversal adversarial review** executed by ChatGPT inside the conversation. No external reviewer or separately orchestrated AI agent is required for this internal quality gate.
 
-**Previous concern:** The merged PR #960 required two AI BLIND USER agents running in independent contexts, with separate browsers and withheld reports. That had been documented as a blocking precondition even for ordinary internal adversarial review. The product owner clarified that the **same ChatGPT conversation should perform both specialized perspectives A/B itself** rather than waiting for humans or two separate AI agents.
+**Unproven execution: OPEN.** The documentation and G0 manual doctrine verification **do not execute** FUE-A or FUE-B against the entire Digital Crown app. FUE-I/G needs actual frontend and backend, genuine UI login (or valid public entry), isolated fictitious data, roles/surface-specific journeys, persisted outcomes, negative cases and BEFORE/ACTION/AFTER; declare **NOT RUN** unless witnessed. An FUE-0 code/contract-only sub-lot does not create two invented browser journeys.
 
-**Resolution rule:** `AGENTS.md`, `.claude/rules/execution-scoring-verification.md` and `docs/quality/REALITY_PROOF_GATE.md` now instruct the assistant to write two distinct, task-specific *internal adversarial* reviews, correct/test, rerun on new HEAD and confirm. This is not evidence of two genuinely independent reviewers; it is sufficient for the **internal A/B double-review procedure**. Self-review is capped at 9.4/10 and normal VERIFIED starts at 9.0/10 when required proofs/gates pass. No external reviewer or two-agent orchestration is a prerequisite.
+**Exit criteria:** Build the comprehensive GLOBAL-G10-S V1+V1.5 manifest, map relevant personas, routes and roles, execute both FUE scenarios for every applicable semantic workflow and verify exact HEAD with artifacts. Conduct **one transversal adversarial review** of both FUE, the security/privacy/tenant/RBAC boundaries and missing or false proofs; fix/retest then re-review on new HEAD. Zero P0/P1, 100% required applicable scenarios PASS, open findings and limitations explicitly tracked. There is **no separate missing second review**.
 
-**Distinct unclosed verification work — GLOBAL-G10-S:** Inventory V1+V1.5 routes/features, execute actual frontend/backend FUE journeys on fictitious tenants starting at login (or a public entry where applicable), preserve BEFORE/ACTION/AFTER, negative RBAC/tenant checks, exact-HEAD evidence and CI statuses. **These tests have NOT been executed by this documentation correction.** An imagined browser session or two written perspectives are not executable test proof.
+**Unchanged:** Human/clinical approvals specifically required by their own gate, and LOT10 physical observations on actual devices, remain OPEN until performed. No synthetic certification substitutes for them. This documentation update does not authorize a merge, Vercel deployment, production data or clinical activation.
 
-**Unchanged gates:** Specifically required human clinical/regulatory/visual approvals and LOT10 hardware/person-on-device observations remain separate from conversation-based A/B review. No deployment, merge or clinical activation is authorized by this documentation.
-
-**Historical origin:** PR #960, master merge `3cbd1d83cdbcbf97e71019a3182f4699d9645421`. This file supersedes the inaccurate "two-agent independence not yet demonstrated" as an *internal review blocker*.
+**Historical note:** PR #960 mandated two independent agent users; PR #962 moved to two internal adversarial reviews. Both are superseded for GLOBAL-G10-S by the owner's current two-FUE/one-transversal-review decision.
