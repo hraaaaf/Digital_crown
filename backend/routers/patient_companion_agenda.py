@@ -18,6 +18,7 @@ from backend.models_patient_companion import (
 from backend.routers.patient_companion_common import get_db, patient_identity, principal_for_access
 from backend.services.patient_companion_agenda import issue_slots
 from backend.services.patient_companion_remote_worker import process_remote_envelope
+from backend.services.patient_companion_remote_agenda_quota import RemoteAgendaQuotaExceeded, RemoteAgendaQuotaUnavailable
 from backend.utils.rate_limit import check_rate_limit
 
 router = APIRouter()
@@ -61,6 +62,14 @@ def patient_agenda_remote_command(
             compact_jwe=body.blob,
             allowed_operation_prefix="agenda.",
         )
+    except RemoteAgendaQuotaExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Trop de commandes Agenda. Réessayez plus tard.",
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from None
+    except RemoteAgendaQuotaUnavailable:
+        raise HTTPException(status_code=503, detail="Quota Agenda temporairement indisponible.") from None
     except ValueError:
         raise HTTPException(status_code=400, detail="Commande distante Patient Companion invalide.") from None
     return {"blob": ack}
