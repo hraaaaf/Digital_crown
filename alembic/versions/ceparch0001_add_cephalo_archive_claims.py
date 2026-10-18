@@ -1,7 +1,7 @@
 """Reserve cephalometric archive identity across simultaneous requests.
 
 Revision ID: ceparch0001
-Revises: v7100000022
+Revises: neo000000027
 
 This is deliberately additive. Existing archives are not backfilled or altered:
 historical duplicates require explicit review, not automatic deduplication.
@@ -13,7 +13,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision: str = "ceparch0001"
-down_revision: Union[str, None] = "v7100000022"
+down_revision: Union[str, None] = "neo000000027"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
