@@ -115,6 +115,11 @@ KNOWN_PG18_EXTRA_CHECKS = {
         ("reception", "near_station"),
         "CHECK (location::text = ANY ({array}))",
     ),
+    "ck_uncertain_review_finding": (
+        "station_print_uncertain_reviews",
+        ("investigating", "evidence_checked", "escalated"),
+        "CHECK (finding::text = ANY ({array}))",
+    ),
 }
 
 
