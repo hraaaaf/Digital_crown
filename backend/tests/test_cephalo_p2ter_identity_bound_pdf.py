@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import fitz
+import pytest
 from backend import models
 from backend.tests.test_cephalo_r23g5_authenticated_api import _case, _jwt, _read, PATH
 from backend.tests.test_cephalo_p2bis_http_pdf_continuity import (
@@ -531,8 +532,9 @@ def test_db_unique_claim_two_independent_sqlite_connections_concurrently(tmp_pat
     engine.dispose()
 
 
+@pytest.mark.parametrize("attributed", [True, False])
 def test_existing_legacy_archive_prevents_reissue_without_claim(
-    client, db, dentiste, monkeypatch, tmp_path,
+    client, db, dentiste, monkeypatch, tmp_path, attributed,
 ):
     """Additive schema rollout must respect archives predating the claims table."""
     _temporary_pdf_output(monkeypatch, tmp_path)
@@ -541,7 +543,7 @@ def test_existing_legacy_archive_prevents_reissue_without_claim(
     headers = _jwt(client, dentiste)
     historical = models.DocumentArchive(
         patient_id=patient.id,
-        analysis_id=study.id,
+        analysis_id=study.id if attributed else None,
         document_type=models.DocumentType.RAPPORT_CEPHALO,
         filename="historical-synthetic.pdf",
         original_filename="historical-synthetic.pdf",
