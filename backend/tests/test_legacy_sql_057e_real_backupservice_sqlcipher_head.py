@@ -49,7 +49,14 @@ def verified_lab(root, db_path, key):
     if type(key) is not str or len(key) != 64 or set(key) - set("0123456789abcdef"):
         raise LabRefused("FAKE_STORAGE_KEY_REQUIRED")
     from backend.database import engine
-    if (str(engine.url.database) != str(db_path)
+    # SQLAlchemy represents Windows absolute paths with slash separators;
+    # compare resolved physical paths, never arbitrary prefix or substring.
+    raw_database = str(engine.url.database or "")
+    if os.name == "nt" and len(raw_database) > 3 and raw_database[0] == "/" and raw_database[2] == ":":
+        raw_database = raw_database[1:]
+    normalized = Path(raw_database)
+    if (not normalized.is_absolute()
+            or normalized.resolve(strict=True) != db_path.resolve(strict=True)
             or engine.dialect.name != "sqlite" or engine.driver != "pysqlcipher"):
         raise LabRefused("FAKE_ACTIVE_ENGINE_MISMATCH")
 
