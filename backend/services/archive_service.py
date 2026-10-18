@@ -98,8 +98,11 @@ class ArchiveService:
         """Génère le chemin de stockage hiérarchique."""
         today = datetime.now()
         path = ARCHIVE_BASE_DIR / str(patient_id) / doc_type.value / str(today.year) / str(today.month)
+        # Reject client-supplied path components before creating directories.
+        if not filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
+            raise ValueError("Nom de fichier invalide pour archivage")
         path.mkdir(parents=True, exist_ok=True)
-        
+
         # Ajouter la version dans le nom si > 1
         if version > 1:
             stem = Path(filename).stem
@@ -146,6 +149,8 @@ class ArchiveService:
             raise ValueError("Le document à modifier n'appartient pas à ce patient")
         if doc.document_type != doc_type:
             raise ValueError("Le type du document modifié ne correspond pas à l'archive existante")
+        if doc.document_type == DocumentType.RAPPORT_CEPHALO:
+            raise ValueError("Une archive céphalométrique officielle ne peut pas être remplacée")
         if doc.status != DocumentStatus.ACTIF:
             raise ValueError("Un document placé à la corbeille ne peut pas être modifié")
 
@@ -273,6 +278,11 @@ class ArchiveService:
                 except (TypeError, ValueError) as exc:
                     raise ValueError("Identifiant d'archive à modifier invalide") from exc
         
+        # Official reports are only produced by the identity-bound PDF route.
+        # Generic service calls must never use a client-controlled destination.
+        if not filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
+            raise ValueError("Nom de fichier invalide pour archivage")
+
         # Calculer le hash
         file_hash = self._calculate_file_hash(file_content)
         file_size = len(file_content)
@@ -503,16 +513,28 @@ class ArchiveService:
             raise ValueError("Document non trouvé dans la corbeille")
 
         # Never reactivate a second official archive for the same study/revision.
-        if doc.document_type == DocumentType.RAPPORT_CEPHALO and doc.analysis_id is not None:
+        if doc.document_type == DocumentType.RAPPORT_CEPHALO:
+            if doc.analysis_id is None or not isinstance(doc.clinical_data, dict):
+                raise ValueError("Identité d'archive céphalométrique non vérifiable")
+            from backend.services.cephalo_document_lock import lock_selected_cephalo_for_archive
+            lock_selected_cephalo_for_archive(
+                self.db, patient_id=doc.patient_id, analysis_id=doc.analysis_id,
+            )
+            self.db.refresh(doc)
+            if doc.status != DocumentStatus.SUPPRIME:
+                raise ValueError("Archive modifiée pendant la restauration")
             same_study = self.db.query(models.DocumentArchive).filter(
                 models.DocumentArchive.id != doc.id,
                 models.DocumentArchive.document_type == DocumentType.RAPPORT_CEPHALO,
                 models.DocumentArchive.analysis_id == doc.analysis_id,
                 models.DocumentArchive.status == DocumentStatus.ACTIF,
             ).all()
-            old_revision = (doc.clinical_data or {}).get("cephalo_revision")
+            old_revision = doc.clinical_data.get("cephalo_analysis_revision")
+            if type(old_revision) is not int or old_revision <= 0:
+                raise ValueError("Révision d'archive céphalométrique non vérifiable")
             for active in same_study:
-                if (active.clinical_data or {}).get("cephalo_revision") == old_revision:
+                if (isinstance(active.clinical_data, dict)
+                        and active.clinical_data.get("cephalo_analysis_revision") == old_revision):
                     raise ValueError("Une archive céphalométrique active existe déjà pour cette étude et révision")
 
         trash_at = doc.deleted_at
