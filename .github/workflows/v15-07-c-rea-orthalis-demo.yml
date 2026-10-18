@@ -99,5 +99,17 @@ jobs:
           }));
           if(bad) process.exit(6);
           NODE
+          cat >"$LAB/readonly-scenario.json" <<SCENARIO
+          {"browser":{"mode":"launch","executable_path":"$BROWSER"},"start_url":{"url":"https://demo.orthalis.com/"},"actions":[{"step_id":"observe","action":"wait_for_timeout","duration_ms":1200}],"capture":{"at_end":["dom","accessibility","url"]}}
+          SCENARIO
+          rea capture-browser-scenario "$LAB/readonly-scenario.json" --json >"$LAB/scenario-result.json"
+          node - "$LAB/scenario-result.json" <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const raw=fs.readFileSync(process.argv[2]);
+          const value=JSON.parse(raw.toString());
+          const sha=crypto.createHash('sha256').update(raw).digest('hex');
+          const keys=Object.keys(value).filter(k=>!/(?:data|content|text|name|values|urls|storage)/i.test(k)).slice(0,12);
+          console.log(JSON.stringify({rea_operation:"capture-browser-scenario",capture_scope:"public_demo_no_clicks",artifacts_requested:["dom","accessibility","url"],scenario_steps:1,output_bytes:raw.length,evidence_sha256:sha,top_level_metadata_keys:keys,raw_artifact_exported:false,interpretation:"requires_human_review; no clinical or product workflow validation"}));
+          NODE
           echo "BENCH_REA_ORTHALIS_PUBLIC_DEMO=PASSIVE_OBSERVATION_ONLY"
           echo "NOT_A_CABINET_OR_ORTHALIS_WORKFLOW_CERTIFICATION=true"
