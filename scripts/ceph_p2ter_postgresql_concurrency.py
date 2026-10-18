@@ -20,7 +20,7 @@ assert dburl.startswith("postgresql://postgres:") and "127.0.0.1:5432/" in dburl
 with psycopg2.connect(dburl) as db:
     with db.cursor() as c:
         c.execute("SELECT version_num FROM alembic_version")
-        assert c.fetchone()[0]=="ceparch0001"
+        assert c.fetchone()[0]=="ceparch0002"
         c.execute("""
           SELECT pg_get_constraintdef(oid) FROM pg_constraint
           WHERE conrelid='public.cephalo_archive_claims'::regclass
