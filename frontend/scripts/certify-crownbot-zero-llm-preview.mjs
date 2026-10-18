@@ -53,7 +53,12 @@ try {
     const before = `crownbot-before-${width}.png`;
     await page.screenshot({ path: path.join(output, before) });
 
-    await page.getByRole('button', { name: 'Chat', exact: true }).click();
+    // CB-01 first-value: Chat must already be the selected accessible tab
+    // immediately after opening Crown Bot, with no extra navigation click.
+    const chatTab = overlay.getByRole('tab', { name: 'Chat', exact: true });
+    if (await chatTab.getAttribute('aria-selected') !== 'true') {
+      throw new Error('FAIL: first-value Chat tab not active at '+width);
+    }
     const preview = page.getByRole('region', { name: 'Assistant Crown Bot — consultation' });
     await preview.waitFor({ state: 'visible' });
     await preview.getByRole('button', { name: 'Trouver un patient' }).click();
