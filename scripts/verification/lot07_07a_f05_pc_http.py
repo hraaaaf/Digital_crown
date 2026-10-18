@@ -572,15 +572,44 @@ def exercise():
             )
             return response.status_code, response.text[:200]
 
-        remote_result, revoke_result = race(
-            lambda: remote(0, revoke_token), staff_revoke,
+        # Deterministic revocation-first interleaving: hold the access lock
+        # from a THIRD PostgreSQL connection, queue staff revoke in PID 2,
+        # then queue patient JWE in PID 1. Confirm BOTH are actually blocked
+        # on PG advisory locks before releasing the barrier.
+        from backend.services.patient_companion_access_guard import (
+            lock_patient_access_transaction,
         )
+
+        def wait_for_blocked_access_writers(min_count):
+            for _ in range(100):
+                with database.engine.connect() as monitor:
+                    blocked = monitor.scalar(text(
+                        "SELECT count(*) FROM pg_stat_activity "
+                        "WHERE datname=current_database() "
+                        "AND wait_event_type='Lock' "
+                        "AND query LIKE '%pg_advisory_xact_lock%'"
+                    ))
+                if blocked >= min_count:
+                    return
+                time.sleep(0.05)
+            raise AssertionError(("F05_R2_REVOCATION_LOCK_WAITERS", min_count))
+
+        with Session() as holder:
+            lock_patient_access_transaction(holder, access_id)
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                try:
+                    revoke_future = pool.submit(staff_revoke)
+                    wait_for_blocked_access_writers(1)
+                    remote_future = pool.submit(lambda: remote(0, revoke_token))
+                    wait_for_blocked_access_writers(2)
+                finally:
+                    holder.commit()
+                revoke_result = revoke_future.result(timeout=35)
+                remote_result = remote_future.result(timeout=35)
         assert revoke_result[0] == 200, (remote_result, revoke_result)
-        assert remote_result[0] in {200, 400, 401, 404}, (
-            "F05_R2_REVOKE_HTTP_RACE", remote_result, revoke_result,
+        assert remote_result[0] in {400, 401, 404}, (
+            "F05_R2_REVOCATION_WON_BUT_BOOKING_ACCEPTED", remote_result, revoke_result,
         )
-        if remote_result[0] == 200:
-            assert remote_result[1]["status"] == "ACCEPTED", remote_result
         with Session() as db:
             access_row = db.get(PatientCompanionAccess, access_id)
             assert access_row.revoked_at is not None
@@ -588,7 +617,7 @@ def exercise():
                 access_id=access_id,
             ).one()
             assert keyset_row.status == "REVOKED" and keyset_row.revoked_at is not None
-        expected = int(remote_result[0] == 200)
+        expected = 0
         assert count(22) == receipt_count(revoke_idem) == expected
         assert int(consumed(revoke_slot_id)) == expected
         post_revoke_slot, post_revoke_id = new_slot(21)
