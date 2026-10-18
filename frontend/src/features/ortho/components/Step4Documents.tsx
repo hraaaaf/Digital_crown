@@ -9,7 +9,7 @@ import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { cephaloRepository } from '../cephaloRepository';
 import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { canArchiveCephaloValidation, cephaloArchiveErrorMessage, type CephaloArchiveValidation } from '../cephaloArchiveGate';
-import { useOrthoStore } from '../stores/useOrthoStore';
+import { useOrthoStore, snapshotCephaloPdfClinicalInputs } from '../stores/useOrthoStore';
 
 interface Step4DocumentsProps {
   P: any;
@@ -156,15 +156,17 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
 
   const handleBrouillon = async () => {
     if (!patientId || !analysisId) return;
+    const stillSelected = () => useOrthoStore.getState().patientId === patientId
+      && useOrthoStore.getState().analysisId === analysisId;
     setIsBrouillon(true);
     try {
-      const stillSelected = () => useOrthoStore.getState().patientId === patientId
-        && useOrthoStore.getState().analysisId === analysisId;
       const source = await prepareBoundCephaloDocumentSource(
         patientId, analysisId, stillSelected, () => store.silentSave(analysisId, true),
       );
       // All PDF entrypoints must verify the response's study/revision headers.
-      const data = await cephaloRepository.generatePDF(patientId, { ...source, archive: false });
+      const data = await cephaloRepository.generatePDF(patientId, {
+        ...source, ...snapshotCephaloPdfClinicalInputs(useOrthoStore.getState()), archive: false,
+      });
       if (!stillSelected()) throw Error("L'étude a changé pendant la génération du brouillon");
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -177,6 +179,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       URL.revokeObjectURL(url);
       toast.success('Brouillon téléchargé.');
     } catch (e: any) {
+      if (!stillSelected()) return; // stale study A must not display errors on study B
       const msg = e?.response?.data ? (() => {
         try { return JSON.parse(new TextDecoder().decode(e.response.data)).detail; } catch { return null; }
       })() : null;
