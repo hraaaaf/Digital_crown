@@ -1,0 +1,47 @@
+name: V1.5-05.7-B Synthetic WAL Recovery Lab
+
+on:
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_057b_wal_recovery_lab.py
+      - docs/quality/V15_05_7_B_SYNTHETIC_RECOVERY_CONTRACT.md
+      - .github/workflows/v15-05-7-b-synthetic-wal-recovery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wal-recovery-lab:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Compile test-only laboratory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_sql_057b_wal_recovery_lab.py
+      - name: Real disk synthetic WAL, crash, replay and restore tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_legacy_sql_057b_wal_recovery_lab.py -v 2>&1 | tee lot05_7b_tests.log
+          grep -q '^Ran 22 tests' lot05_7b_tests.log
+          grep -q '^OK$' lot05_7b_tests.log
+      - name: Exact HEAD and unchanged application gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code HEAD^ HEAD -- backend/routers/legacy_migration_v15.py backend/main.py backend/database.py
