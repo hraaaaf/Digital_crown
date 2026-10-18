@@ -567,6 +567,81 @@ class GatewayTests(unittest.TestCase):
             moved.rename(path)
         self.assertEqual(self.agent.items(), [])
 
+    def test_p2_rebootstrap_missing_database_refused_after_process_restart(self):
+        """B-01: a new HotFolder object must not reset a committed ledger."""
+        self.stage()
+        persisted = self.agent.items()
+        self.assertEqual(len(persisted), 1)
+        witness = self.private / ".acquisitions-initialized-v1"
+        self.assertTrue(witness.is_file())
+        blob = next((self.private / "spool").glob("*.dc6"))
+        fingerprint = hashlib.sha256(blob.read_bytes()).hexdigest()
+        db_file = self.agent.db_file
+        held = self.private / "acquisitions.sqlite3-backup-for-test"
+        db_file.rename(held)
+        try:
+            with self.assertRaisesRegex(GatewayError, "database missing; restore required"):
+                HotFolder(self.config)
+            self.assertFalse(db_file.exists(), "startup must not create an empty DB")
+            self.assertEqual(hashlib.sha256(blob.read_bytes()).hexdigest(), fingerprint)
+        finally:
+            held.rename(db_file)
+        restored = HotFolder(self.config)
+        self.assertEqual(restored.items(), persisted)
+        self.assertEqual(restored.read_verified(persisted[0]["id"]), SYNTHETIC)
+
+    def test_p2_even_empty_initialized_ledger_cannot_be_recreated(self):
+        """Durable witness matters even when there is no spool payload."""
+        self.assertEqual(self.agent.items(), [])
+        marker = self.private / ".acquisitions-initialized-v1"
+        self.assertEqual(marker.read_bytes(), b"DC6_ACQUISITIONS_INITIALIZED_V1\n")
+        db_file = self.agent.db_file
+        held = self.private / "sqlite-held"
+        db_file.rename(held)
+        try:
+            with self.assertRaisesRegex(GatewayError, "database missing; restore required"):
+                HotFolder(self.config)
+            self.assertFalse(db_file.exists())
+        finally:
+            held.rename(db_file)
+        self.assertEqual(HotFolder(self.config).items(), [])
+
+    def test_p2_preexisting_legacy_database_backfills_witness(self):
+        """Existing DB with missing witness is read and marked, not reset."""
+        self.stage()
+        before = self.agent.items()
+        marker = self.private / ".acquisitions-initialized-v1"
+        marker.unlink()
+        self.assertFalse(marker.exists())
+        reopened = HotFolder(self.config)
+        self.assertEqual(reopened.items(), before)
+        self.assertTrue(marker.is_file())
+        self.assertEqual(reopened.read_verified(before[0]["id"]), SYNTHETIC)
+
+    def test_p2_invalid_witness_rejects_startup(self):
+        marker = self.private / ".acquisitions-initialized-v1"
+        signature = marker.read_bytes()
+        try:
+            marker.write_bytes(b"BROKEN")
+            with self.assertRaisesRegex(GatewayError, "state marker invalid"):
+                HotFolder(self.config)
+            self.assertEqual(self.agent.items(), [])
+        finally:
+            marker.write_bytes(signature)
+
+    def test_p2_existing_spool_without_db_is_not_fresh_install(self):
+        """A partial state footprint does not authorize creating a blank DB."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            watch, private = root / "watch", root / "private"
+            watch.mkdir()
+            private.mkdir()
+            (private / "spool").mkdir()
+            config = Config("cabinet1", "device1", watch, private, b"k" * 32)
+            with self.assertRaisesRegex(GatewayError, "database missing; restore required"):
+                HotFolder(config)
+            self.assertFalse((private / "acquisitions.sqlite3").exists())
+
     def test_sqlite_existing_database_uses_no_create_uri(self):
         """Verify the actual sqlite3 connector uses mode=rw after bootstrap."""
         real_connect = sqlite3.connect
