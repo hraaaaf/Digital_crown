@@ -14,6 +14,9 @@ on:
       - 'backend/services/bot/action_dispatcher.py'
       - 'backend/services/patient_companion_agenda.py'
       - 'backend/services/patient_companion_remote_worker.py'
+      - 'backend/services/patient_companion_access_guard.py'
+      - 'backend/routers/patients.py'
+      - 'backend/tests/test_patients_extended.py'
       - 'backend/services/patient_companion_remote_crypto.py'
       - 'backend/services/patient_companion_remote_receipts.py'
       - 'backend/routers/frontdesk.py'
@@ -89,7 +92,7 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          python -m pytest backend/tests/test_patient_companion_remote_receipts.py backend/tests/test_lot07_07a_f05_interchannel.py backend/tests/test_patient_companion_agenda.py backend/tests/test_frontdesk.py backend/tests/test_mobile_frontdesk.py -q
+          python -m pytest backend/tests/test_patient_companion_remote_receipts.py backend/tests/test_lot07_07a_f05_interchannel.py backend/tests/test_patients_extended.py::TestGetUpdateDelete::test_delete_patient_with_companion_access_archives_and_audits backend/tests/test_patient_companion_agenda.py backend/tests/test_frontdesk.py backend/tests/test_mobile_frontdesk.py -q
       - name: F05-R1 additive PostgreSQL migration preserves legacy receipts
         id: pg_receipt_migration
         continue-on-error: true
