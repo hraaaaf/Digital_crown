@@ -480,6 +480,15 @@ async def generate_sample_preview(
 
 @router.post("/archive", response_model=schemas.DocumentArchiveResponse)
 async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file: UploadFile = File(...), title: Optional[str] = None, on_conflict: schemas.ConflictResolution = schemas.ConflictResolution.CREATE_VERSION, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    # P2ter++: a generic upload must never mint or overwrite an archive with
+    # official Cephalo status. That type is reserved for the identity/revision-
+    # bound generator at /api/patients/{patient_id}/pdf (archive=true).
+    # Unverified external PDFs may be attached using the AUTRE category.
+    if doc_type == schemas.DocumentType.RAPPORT_CEPHALO:
+        raise HTTPException(
+            status_code=422,
+            detail="Le bilan céphalométrique officiel exige une étude et une révision vérifiées : utilisez le générateur Céphalo.",
+        )
     require_document_permission(doc_type.value if hasattr(doc_type, "value") else str(doc_type), current_user)
     assert_patient_access(patient_id, current_user, db)
     content = await file.read()
