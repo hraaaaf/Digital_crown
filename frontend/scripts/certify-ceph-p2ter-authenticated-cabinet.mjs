@@ -111,6 +111,7 @@ async function viewportRun(viewport){
   }));
 
   await shot('before-history');
+  const clinicalSentinel='P2TER_SENTINEL_A_ONLY';
   for(const [label,study] of [['older',identities.older_id],['newer',identities.latest_id]]){
    await page.getByRole('button',{name:'Historique',exact:true}).click();
    const card=page.locator('[data-cephalo-history-analysis-id="'+study+'"]');
@@ -122,6 +123,15 @@ async function viewportRun(viewport){
    await page.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
    const draft=page.getByRole('button',{name:'Brouillon PDF'});
    await draft.waitFor({state:'visible',timeout:20000});
+   const therapyNote=page.locator('textarea[placeholder^="Saisie libre"]');
+   await therapyNote.waitFor({state:'visible',timeout:15000});
+   if(label==='older'){
+     await therapyNote.fill(clinicalSentinel);
+     if((await therapyNote.inputValue())!==clinicalSentinel)
+       throw Error('A-only clinical sentinel not retained by A text input');
+   } else if((await therapyNote.inputValue()).includes(clinicalSentinel)){
+     throw Error('CLINICAL_CROSS_STUDY_LEAK: A therapy note appears in B form');
+   }
    const responsePromise=page.waitForResponse(r=>{
      const u=new URL(r.url());return u.pathname==='/api/patients/'+identities.patient_id+'/pdf'
        && r.request().method()==='POST';
@@ -129,6 +139,10 @@ async function viewportRun(viewport){
    await draft.click();
    const response=await responsePromise;
    const body=response.request().postDataJSON();
+   const sentInPDF=JSON.stringify(body).includes(clinicalSentinel);
+   if((label==='older' && !sentInPDF) || (label==='newer' && sentInPDF))
+     throw Error('CLINICAL_CROSS_STUDY_LEAK: wrong clinical sentinel in '+label+' PDF POST');
+   if(label==='newer') record.checks.push('CABINET_A_TO_B_CLINICAL_SENTINEL_ISOLATED_IN_FORM_AND_PDF_POST');
    if(body.analysis_id!==study || !Number.isSafeInteger(body.expected_revision) ||
        body.expected_revision<=0 || body.archive!==false)
      throw Error('Wrong analysis request identity from Cabinet UI '+label);
