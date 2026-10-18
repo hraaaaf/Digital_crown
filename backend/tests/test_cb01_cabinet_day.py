@@ -8,15 +8,15 @@ from backend.routers.bot_workflows import cabinet_day_context
 
 
 def test_same_utc_instant_yields_canonical_cabinet_day_across_timezone_changes():
-    at = datetime(2026, 10, 17, 23, 30, tzinfo=timezone.utc)
+    at = datetime(2026, 7, 15, 23, 30, tzinfo=timezone.utc)
     casablanca = cabinet_day_context(at_utc=at, timezone_name="Africa/Casablanca")
     new_york = cabinet_day_context(at_utc=at, timezone_name="America/New_York")
     assert casablanca == {
-        "day": "2026-10-18", "timezone": "Africa/Casablanca",
-        "start_date": "2026-10-18T00:00:00",
-        "end_date": "2026-10-18T23:59:59.999", "consulted_at": "00:30",
+        "day": "2026-07-16", "timezone": "Africa/Casablanca",
+        "start_date": "2026-07-16T00:00:00",
+        "end_date": "2026-07-16T23:59:59.999", "consulted_at": "00:30",
     }
-    assert new_york["day"] == "2026-10-17"
+    assert new_york["day"] == "2026-07-15"
     assert new_york["consulted_at"] == "19:30"
 
 
