@@ -7,6 +7,7 @@ on:
       - scripts/seed_demo_cabinet_reference.py
       - .github/workflows/demo-reference-cabinet.yml
       - docs/clinic/DEMO_REFERENCE_CABINET.md
+      - techdoubt.md
   workflow_dispatch:
 permissions:
   contents: read
