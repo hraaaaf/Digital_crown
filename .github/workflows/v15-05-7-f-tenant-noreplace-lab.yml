@@ -1,0 +1,77 @@
+name: V1.5-05.7-F Fake Tenant Veto and Atomic No-Replace Restore Lab
+
+on:
+  push:
+    branches:
+      - feat/v15-05-7f-failclosed-tenant-noreplace-lab-20261018
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_057f_failclosed_tenant_publish_lab.py
+      - docs/quality/V15_05_7_F_TENANT_NOREPLACE_FAKE_LAB.md
+      - .github/workflows/v15-05-7-f-tenant-noreplace-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fake-tenant-and-atomic-publication:
+    name: Real fake SQLCipher + tenant veto + exclusive publish (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      LOT05E_REAL_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05F_FAILCLOSED_FAKE_ONLY: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native Linux SQLCipher build dependency
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Install isolated pinned library requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3 pytest==9.0.3
+      - name: Verify SQLCipher binary and compile real-schema lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            backend/tests/test_legacy_sql_057e_real_backupservice_sqlcipher_head.py \
+            backend/tests/test_legacy_sql_057f_failclosed_tenant_publish_lab.py
+          python -c "from sqlcipher3 import dbapi2 as s; import secrets; c=s.connect(':memory:'); c.execute(\"PRAGMA key = '\" + secrets.token_hex(32) + \"'\"); v=c.execute('PRAGMA cipher_version').fetchone(); assert v and v[0], 'SQLCIPHER_NATIVE_REQUIRED'; print('NATIVE_SQLCIPHER_OK'); c.close()"
+      - name: Test actual Alembic BackupService and fail-closed fake publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057f_failclosed_tenant_publish_lab.py -v 2>&1 | tee lot05f-tests.log
+          grep -q '^Ran 14 tests' lot05f-tests.log
+          grep -Eq '^OK[[:space:]]*$' lot05f-tests.log
+          ! grep -E 'skipped=[0-9]+|^FAILED \(|^ERROR: test_|^ERROR: setUpClass' lot05f-tests.log
+      - name: Verify exact HEAD and no production code changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '7a35f1910a3b4838a3daf10b0a39ed95a4bc48b0' }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- \
+            backend/main.py backend/database.py backend/models.py \
+            backend/routers backend/services backend/core alembic frontend
