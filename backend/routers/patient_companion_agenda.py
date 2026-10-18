@@ -59,6 +59,7 @@ def patient_agenda_remote_command(
             access=access,
             keyset=keyset,
             compact_jwe=body.blob,
+            allowed_operation_prefix="agenda.",
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="Commande distante Patient Companion invalide.") from None
