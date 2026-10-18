@@ -1503,11 +1503,19 @@ def generate_cephalo_pdf(
             payload_digest=payload_digest,
         )
         if replay is not None:
+            # Snapshot was verified against archived SHA256 while the study lock
+            # was held. Respond from these immutable bytes: FileResponse(path)
+            # would re-open the file only after releasing the lock (TOCTOU).
+            from fastapi.responses import Response
+            from urllib.parse import quote
+
+            replay_path, verified_pdf = replay
             db.rollback()  # release the archive's SQLite/PG study lock
-            return FileResponse(
-                path=str(replay), filename=replay.name,
+            return Response(
+                content=verified_pdf,
                 media_type="application/pdf",
                 headers={
+                    "Content-Disposition": "attachment; filename*=utf-8''" + quote(replay_path.name),
                     "X-Cephalo-Analysis-Id": str(req.analysis_id),
                     "X-Cephalo-Revision": str(revision),
                     "X-Cephalo-Archive-Replayed": "true",
