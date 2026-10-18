@@ -11,6 +11,9 @@ on:
       - backend/services/archive_service.py
       - backend/routers/patients.py
       - scripts/ceph_p2ter_sqlcipher_copy_rehearsal.py
+      - backend/tests/test_cephalo_archive_crash_audit.py
+      - docs/clinic/CEPH_P2TER_POST_CRASH_ARCHIVE_AUDIT.md
+      - techdoubt.md
       - scripts/ceph_p2ter_postgresql_concurrency.py
       - scripts/t2_runtime_server.py
       - scripts/ceph_p2ter_seed_t2.py
