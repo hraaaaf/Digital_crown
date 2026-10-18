@@ -73,7 +73,9 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
 
     with open_cipher(copied) as conn:
         head=conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert head=="ceparch0001",head
+        assert head=="ceparch0002",head
+        assert conn.execute("SELECT nom_cabinet FROM cabinet_configs WHERE id=37").fetchone()[0]=="SYNTHETIC CABINET LAYOUT"
+        assert conn.execute("SELECT content_offset_y FROM cabinet_configs WHERE id=37").fetchone()[0]==0.0
         assert conn.execute("SELECT marker FROM patients WHERE id=1717").fetchone()[0]=="SYNTHETIC PATIENT ONLY"
         conn.execute("INSERT INTO cephalo_archive_claims(patient_id,analysis_id,revision) VALUES(1717,2727,2)")
         conn.commit()
