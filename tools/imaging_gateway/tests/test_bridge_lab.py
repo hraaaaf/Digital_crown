@@ -619,6 +619,9 @@ asyncio.run(main())
         env = {
             "DC_V15_06_BRIDGE_LAB": "1",
             "ENVIRONMENT": "test",
+            "DIGITALCROWN_ISOLATED_RUNTIME": "true",
+            "DC_V15_06_BRIDGE_LAB_ROOT": "SYNTHETIC_ONLY_MOCK_ROOT",
+            "DC_V15_06_BRIDGE_LAB_KEY_HEX": (b"k" * 32).hex(),
         }
         with patch("tools.imaging_gateway.bridge_background_lab.make_lab_collector",
                    return_value=(object(), owner)), patch(
