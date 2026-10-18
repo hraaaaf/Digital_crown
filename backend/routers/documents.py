@@ -714,7 +714,11 @@ def restore_from_trash(document_id: str, db: Session = Depends(database.get_db),
     assert_patient_access(doc.patient_id, current_user, db)
     
     archive_service = get_archive_service(db)
-    doc = archive_service.restore_from_trash(doc_id)
+    try:
+        doc = archive_service.restore_from_trash(doc_id)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"message": "Restauré", "id": doc.id}
 
 @router.delete("/{document_id}")
