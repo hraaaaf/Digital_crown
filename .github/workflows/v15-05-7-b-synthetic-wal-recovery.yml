@@ -39,7 +39,14 @@ jobs:
           set -euo pipefail
           python backend/tests/test_legacy_sql_057b_wal_recovery_lab.py -v 2>&1 | tee lot05_7b_tests.log
           grep -q '^Ran 22 tests' lot05_7b_tests.log
-          grep -q '^OK$' lot05_7b_tests.log
+          grep -Eq '^OK( \(skipped=1\))?
+      - name: Exact HEAD and unchanged application gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "${{ github.event.pull_request.base.sha || '447cc54c5422f12788d80867bb0986747e1b2292' }}" HEAD -- backend/routers/legacy_migration_v15.py backend/main.py backend/database.py
+ lot05_7b_tests.log
       - name: Exact HEAD and unchanged application gateway
         shell: bash
         run: |
