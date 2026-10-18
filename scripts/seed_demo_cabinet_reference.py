@@ -22,9 +22,6 @@ from zoneinfo import ZoneInfo
 from reportlab.lib.pagesizes import A5
 from reportlab.pdfgen import canvas
 
-from backend import models
-from backend.database import SessionLocal, engine
-from backend.security import get_password_hash
 
 MARKER = "FICTIF - DEMONSTRATION - SANS VALEUR MEDICALE"
 EMAIL = "reference-demo@digitalcrown.invalid"
@@ -44,9 +41,9 @@ PATIENTS = (
     ("Zerouali", "Anas", 1969, "M", "Prothese"),
 )
 DOCS = (
-    (models.DocumentType.ORDONNANCE, "Ordonnance DEMO"),
-    (models.DocumentType.CERTIFICAT, "Certificat DEMO"),
-    (models.DocumentType.NOTE_HONORAIRES, "Note honoraires DEMO"),
+    ("ORDONNANCE", "Ordonnance DEMO"),
+    ("CERTIFICAT", "Certificat DEMO"),
+    ("NOTE_HONORAIRES", "Note honoraires DEMO"),
 )
 
 def _pdf(title: str, patient: str, dossier: str) -> bytes:
@@ -83,6 +80,9 @@ def main() -> None:
     password = os.getenv("DIGITALCROWN_DEMO_PASSWORD", "")
     if len(password) < 16 or password == "DemoCrown2026!":
         raise RuntimeError("DEMO_REFUSED: supply a unique secret >=16 chars via environment")
+    from backend import models
+    from backend.database import SessionLocal, engine
+    from backend.security import get_password_hash
     if engine.url.get_backend_name() != "sqlite" or Path(engine.url.database).resolve() != db_path:
         raise RuntimeError("DEMO_REFUSED: DB engine mismatch")
     # Never seed into a database containing any other tenant or patient.
@@ -144,7 +144,8 @@ def main() -> None:
                             else models.AppointmentStatus.PREVU),
                     notes=MARKER, source="internal",
                 ))
-            for doc_type, title in DOCS:
+            for doc_name, title in DOCS:
+                doc_type = models.DocumentType[doc_name]
                 data = _pdf(title, first + " " + last, number)
                 name = f"{number}-{doc_type.value.lower()}.pdf"
                 relative = Path("static/archives") / str(patient.id) / doc_type.value / "2026" / "10" / name
