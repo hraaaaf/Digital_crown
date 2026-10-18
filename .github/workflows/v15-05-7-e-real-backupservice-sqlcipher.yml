@@ -1,0 +1,72 @@
+name: V1.5-05.7-E Real BackupService SQLCipher Alembic FAKE Lab
+
+on:
+  push:
+    branches:
+      - feat/v15-05-7e-real-backupservice-sqlcipher-head-20261018
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_057e_real_backupservice_sqlcipher_head.py
+      - docs/quality/V15_05_7_E_REAL_BACKUPSERVICE_SQLCIPHER_CONTRACT.md
+      - .github/workflows/v15-05-7-e-real-backupservice-sqlcipher.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-sqlcipher-head-backupservice:
+    name: Real Alembic SQLCipher BackupService FAKE restore (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      LOT05E_REAL_SQLCIPHER_FAKE_ONLY: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Linux SQLCipher native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Install bounded Alembic SQLCipher and application model dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3 pytest==9.0.3
+      - name: Verify genuine SQLCipher binary and compile test-only script
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_sql_057e_real_backupservice_sqlcipher_head.py
+          python -c "from sqlcipher3 import dbapi2 as s; import secrets; c=s.connect(':memory:'); c.execute(\"PRAGMA key = '\" + secrets.token_hex(32) + \"'\"); v=c.execute('PRAGMA cipher_version').fetchone(); assert v and v[0], 'REAL_SQLCIPHER_REQUIRED'; print('SQLCIPHER_NATIVE_AVAILABLE'); c.close()"
+      - name: Genuine Alembic operator plus real encrypted BackupService restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057e_real_backupservice_sqlcipher_head.py -v 2>&1 | tee lot05e-real-sqlcipher.log
+          grep -q '^Ran 12 tests' lot05e-real-sqlcipher.log
+          grep -q '^OK$' lot05e-real-sqlcipher.log
+          ! grep -E 'skipped=[0-9]+|FAILED \(|ERROR: test_' lot05e-real-sqlcipher.log
+      - name: Exact commit and no production source changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '907c67414f637f8827413df8eea143d015e4d701' }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/routers backend/services backend/core alembic frontend
