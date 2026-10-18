@@ -1,0 +1,120 @@
+name: BENCH REA-02 bounded cephalo source analysis
+on:
+  push:
+    branches:
+      - experiment/bench-rea02-dc-source-parity-20261018
+    paths:
+      - .github/workflows/bench-rea02-cephalo-bounded.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verified-cephalo-slice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+      NO_COLOR: "1"
+      EXPECTED_SOURCE_SHA: "60f943880bb7529544f70c74d51f943b0063f07f"
+    steps:
+      - name: Checkout only pinned Digital Crown source; no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: 60f943880bb7529544f70c74d51f943b0063f07f
+          persist-credentials: false
+      - name: Prove source and set temporary output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          mkdir -p "$RUNNER_TEMP/rea02-slice" "$RUNNER_TEMP/rea02-report"
+          echo "REAL_DC_SOURCE=$EXPECTED_SOURCE_SHA"
+      - name: Install Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build bounded unmodified actual Cephalo TypeScript into isolated JS
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix frontend --ignore-scripts --no-audit --no-fund > "$RUNNER_TEMP/rea02-report/build-install.log" 2>&1
+          paths=(
+            frontend/src/features/ortho/components/Step1CephaloBase.tsx
+            frontend/src/features/ortho/components/Step1Cephalo.tsx
+            frontend/src/features/ortho/CephaloTracingLayerBase.tsx
+            frontend/src/features/ortho/CephaloWorkspace.tsx
+            frontend/src/features/ortho/orthoLandmarkEditHistory.ts
+            frontend/src/features/ortho/components/Step4Documents.tsx
+            frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx
+            frontend/src/features/ortho/CephaloHistory.tsx
+          )
+          for p in "${paths[@]}"; do test -f "$p" || exit 1; done
+          frontend/node_modules/.bin/esbuild "${paths[@]}" --outbase=frontend/src \
+             --outdir="$RUNNER_TEMP/rea02-slice" --format=esm --target=es2022 --jsx=automatic \
+             --log-level=warning
+          cat > "$RUNNER_TEMP/rea02-slice/package.json" <<'JSON'
+          {"name":"digital-crown-cephalo-real-source-bounded-lab","private":true,"type":"module"}
+          JSON
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"rea02-slice"
+          sources=[Path(x) for x in [
+            "frontend/src/features/ortho/components/Step1CephaloBase.tsx",
+            "frontend/src/features/ortho/components/Step1Cephalo.tsx",
+            "frontend/src/features/ortho/CephaloTracingLayerBase.tsx",
+            "frontend/src/features/ortho/CephaloWorkspace.tsx",
+            "frontend/src/features/ortho/orthoLandmarkEditHistory.ts",
+            "frontend/src/features/ortho/components/Step4Documents.tsx",
+            "frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx",
+            "frontend/src/features/ortho/CephaloHistory.tsx"
+          ]]
+          js=list(root.rglob("*.js"))
+          assert len(js)==len(sources), (len(js),len(sources))
+          out={"source_sha":os.environ["EXPECTED_SOURCE_SHA"],"source_files":len(sources),"compiled_js_modules":len(js),
+               "js_total_bytes":sum(x.stat().st_size for x in js),
+               "source_sha256":{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
+               "module_scope":"bounded 8 authentic cephalo TS/TSX modules transpiled unmodified without bundling; imports unresolved",
+               "full_frontend_coverage":False,"medical_runtime_executed":False,"patient_data_used":False}
+          (Path(os.environ["RUNNER_TEMP"])/"rea02-report"/"scope.json").write_text(json.dumps(out,indent=2))
+          print(json.dumps({k:v for k,v in out.items() if k!="source_sha256"}))
+          PY
+      - name: Install REA pinned to 5.0.0 in ephemeral directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/rea02-tool" --save-exact --ignore-scripts --no-audit --no-fund rea-agents@5.0.0 > "$RUNNER_TEMP/rea02-report/npm-rea.log" 2>&1
+          npm ls --prefix "$RUNNER_TEMP/rea02-tool" rea-agents --depth=0
+      - name: REA inspect bounded real Digital Crown modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 240s "$RUNNER_TEMP/rea02-tool/node_modules/.bin/rea" analyze-javascript-application "$RUNNER_TEMP/rea02-slice" --json > "$RUNNER_TEMP/rea02-evidence.json"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])
+          raw=(root/"rea02-evidence.json").read_bytes()
+          x=json.loads(raw)
+          names=["Step1CephaloBase.js","Step1Cephalo.js","CephaloTracingLayerBase.js","CephaloWorkspace.js","orthoLandmarkEditHistory.js","Step4Documents.js","CephaloAnalysisWorkbenchPanel.js","CephaloHistory.js"]
+          found={n:n in raw.decode("utf-8",errors="replace") for n in names}
+          out={"rea_version":"5.0.0","scope":"8 real DC cephalo modules transpiled into JS",
+               "output_json_parsed":True,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),
+               "module_name_mentioned_in_rea_evidence":found,
+               "all_8_module_names_mentioned":all(found.values()),
+               "vendor_executed":False,"functional_or_clinical_parity_proven":False}
+          (root/"rea02-report"/"rea-bounded-result.json").write_text(json.dumps(out,indent=2))
+          print(json.dumps(out))
+          assert len(raw)>100
+          assert any(found.values()), "No relevant module evidence; refuse to certify slice"
+          PY
+      - name: Upload sanitized evidence only
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rea02-bounded-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/rea02-report/scope.json
+            ${{ runner.temp }}/rea02-report/rea-bounded-result.json
+          if-no-files-found: warn
+          retention-days: 14
