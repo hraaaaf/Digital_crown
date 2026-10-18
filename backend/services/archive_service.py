@@ -106,6 +106,10 @@ class ArchiveService:
             suffix = Path(filename).suffix
             filename = f"{stem}_v{version}{suffix}"
         
+        # Client filenames are labels, never trusted filesystem paths.
+        # Keep generated archives inside the patient/type/month directory.
+        if not filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
+            raise ValueError("Nom de fichier invalide pour archivage")
         return path / filename
 
     def _resolve_archive_storage_path(self, doc: models.DocumentArchive) -> Path:
@@ -313,6 +317,8 @@ class ArchiveService:
                 # conserver une seconde version visible dans l'archive.
                 old_doc = conflict["existing_document"]
                 if old_doc:
+                    if old_doc.document_type == DocumentType.RAPPORT_CEPHALO:
+                        raise ValueError("Archive céphalométrique officielle immuable")
                     if old_doc.file_path.startswith("static/archives/"):
                         storage_path = MEDIA_DIR / old_doc.file_path.replace("static/", "", 1)
                     else:
@@ -345,6 +351,10 @@ class ArchiveService:
                     return old_doc, False
                 
             elif on_conflict == ConflictResolution.CREATE_VERSION:
+                # Never group a generic upload into an official cephalometric archive.
+                if (conflict["existing_document"] is not None
+                        and conflict["existing_document"].document_type == DocumentType.RAPPORT_CEPHALO):
+                    raise ValueError("Archive céphalométrique officielle immuable")
                 # Créer une nouvelle version du groupe existant
                 if conflict["existing_document"]:
                     force_group_id = conflict["existing_document"].document_group_id
