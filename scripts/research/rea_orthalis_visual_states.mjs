@@ -21,7 +21,7 @@ function findPng(x, depth=0) {
   }
   if (Array.isArray(x)) return null;
   if (typeof x === "object") {
-    for (const k of ["data","base64","image_base64","bytes_base64","png_base64","image","png","payload","content","value","artifact","media","screenshot","image_bytes"]) {
+    for (const k of ["data","data_base64","base64","image_base64","bytes_base64","png_base64","image","png","payload","content","value","artifact","media","screenshot","image_bytes"]) {
       if (k in x) {
         const found=findPng(x[k],depth+1);
         if(found)return found;
