@@ -78,7 +78,6 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
         assert restored.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert restored.execute("PRAGMA foreign_key_check").fetchall() == []
         assert restored.execute("SELECT count(*) FROM document_archives").fetchone()[0] == 1
-        restored.close()
 
     # Explicit migration. Never AUTO-migrate or touch the original.
     env = os.environ.copy()
@@ -113,7 +112,6 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
         else:
             raise AssertionError("SQLCIPHER_UNIQUE_CLAIM_NOT_ENFORCED")
         assert conn.execute("SELECT count(*) FROM cephalo_archive_claims").fetchone()[0]==1
-        conn.close()
 
     assert hashlib.sha256(original.read_bytes()).hexdigest()==original_hash
     assert hashlib.sha256(backup.read_bytes()).hexdigest()==original_hash
