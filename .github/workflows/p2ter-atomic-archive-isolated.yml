@@ -11,6 +11,8 @@ on:
       - backend/routers/patients.py
       - backend/services/archive_service.py
       - backend/tests/test_cephalo_p2ter_identity_bound_pdf.py
+      - backend/tests/test_cephalo_archive_crash_audit.py
+      - backend/services/archive_service.py
       - scripts/ceph_p2ter_concurrent_atomic_t2.py
       - alembic/versions/ceparch0001_add_cephalo_archive_claims.py
 permissions:
@@ -53,7 +55,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pytest backend/tests/test_cephalo_p2ter_identity_bound_pdf.py -q --tb=short
+          python -m pytest backend/tests/test_cephalo_p2ter_identity_bound_pdf.py backend/tests/test_cephalo_archive_crash_audit.py -q --tb=short
       - name: Migration compile and structure
         shell: bash
         run: |
