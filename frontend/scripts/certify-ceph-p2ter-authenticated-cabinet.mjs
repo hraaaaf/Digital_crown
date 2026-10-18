@@ -110,6 +110,45 @@ async function viewportRun(viewport){
     browserMediaProbe:record.browserMediaProbe,
   }));
 
+  // BEFORE/AFTER the same authenticated patient study and same viewport.
+  // MainLayout owns the scroll pane; window.scrollY does not move this UI.
+  const patientPane = page.locator('main.custom-scrollbar').first();
+  await patientPane.evaluate(el => { el.scrollTop = 0; });
+  await page.locator('[data-patient-cephalo-header="true"][data-cephalo-header-compact="false"]')
+    .waitFor({state:'visible',timeout:15000});
+  const fullHeight = await page.locator('[data-patient-dossier-header]').evaluate(el=>el.getBoundingClientRect().height);
+  await shot('header-before-scroll');
+  const scrollProbe = await patientPane.evaluate(el => {
+    const available = el.scrollHeight - el.clientHeight;
+    el.scrollTop = Math.min(available, 260);
+    return {available,position:el.scrollTop};
+  });
+  if(scrollProbe.position < 100)
+    throw Error('CEPH_PATIENT_SCROLL_CONTAINER_UNUSABLE '+JSON.stringify(scrollProbe));
+  await page.waitForFunction(()=>
+    document.querySelector('[data-patient-cephalo-header="true"]')?.getAttribute('data-cephalo-header-compact')==='true',
+    null,{timeout:10000});
+  await page.waitForTimeout(200);
+  const patientChrome=await page.locator('[data-patient-dossier-header]').evaluate(el=>{
+    const b=el.getBoundingClientRect(),bg=getComputedStyle(el).backgroundColor;
+    const alpha=bg.startsWith('rgba(')?Number(bg.split(',').at(-1).replace(')','').trim()):1;
+    return {height:b.height,alpha,background:bg,top:b.top,bottom:b.bottom};
+  });
+  record.patientHeaderCompact={fullHeight,...patientChrome,scroll:scrollProbe};
+  if(patientChrome.alpha<.999 || fullHeight-patientChrome.height<14)
+    throw Error('CEPH_HEADER_COMPACT_LAYOUT_NOT_PROVED '+JSON.stringify(record.patientHeaderCompact));
+  for(const label of ['RDV','Examen','Document','Encaisser']){
+    const target=page.getByRole('button',{name:label,exact:true});
+    if(await target.count() && !(await target.first().isVisible()))
+      throw Error('CEPH_HEADER_REQUIRED_ACTION_MISSING '+label);
+  }
+  record.checks.push('CEPH_COMPACT_HEADER_SCROLL_GEOMETRY_OPAQUE_ACTIONS_PRESERVED');
+  await shot('header-compact-after-scroll');
+  await patientPane.evaluate(el=>{el.scrollTop=0;});
+  await page.waitForFunction(()=>
+    document.querySelector('[data-patient-cephalo-header="true"]')?.getAttribute('data-cephalo-header-compact')==='false',
+    null,{timeout:10000});
+  record.checks.push('CEPH_FULL_HEADER_RESTORED_ON_SCROLL_TOP');
   await shot('before-history');
   for(const [label,study] of [['older',identities.older_id],['newer',identities.latest_id]]){
    await page.getByRole('button',{name:'Historique',exact:true}).click();
