@@ -325,16 +325,19 @@ try {
     Assert-F01 ($yes.sid -eq $owner -and $yes.standard_user -and [int]$yes.assertions -eq 6) 'OWNER_POSITIVE_FAILED'
     Check-Acl (Evidence-Report 'Owner') @($owner,'S-1-5-18','S-1-5-32-544')
     $hashes = @{}
+    $securityDescriptors = @{}
     foreach ($file in F01-Files) {
         Assert-F01 (Test-Path -LiteralPath $file -PathType Leaf) 'MISSING_FILE'
         Check-Acl $file $allowed
         $hashes[$file] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+        $securityDescriptors[$file] = (Get-Acl -LiteralPath $file).Sddl
     }
     $no = Invoke-Child 'Peer' $peerCredential $runner $work $owner $peer
     Assert-F01 ($no.sid -eq $peer -and $no.standard_user -and [int]$no.assertions -eq 33) 'PEER_DENIAL_FAILED'
     Check-Acl (Evidence-Report 'Peer') @($peer,'S-1-5-18','S-1-5-32-544')
     foreach ($file in F01-Files) {
         Assert-F01 ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -eq $hashes[$file]) 'HASH_CHANGED'
+        Assert-F01 ((Get-Acl -LiteralPath $file).Sddl -eq $securityDescriptors[$file]) 'SECURITY_DESCRIPTOR_CHANGED'
     }
     Assert-F01 (-not (Test-Path -LiteralPath (Private-Path 'new-peer-created.txt'))) 'PEER_CREATED_FILE'
     # Never report a PASS before account/file cleanup finishes.
@@ -371,5 +374,6 @@ Write-Host 'F01_DISPOSABLE_USER_AND_ROOT_CLEANUP=PASS'
     Write-Host 'F01_RENAME_DIRECT_ATTEMPT=NOT_TESTED_FILE_NAME_CLOAKED'
     Write-Host 'F01_TRUSTED_SCRIPT_AND_OWNER_REPORT_PEER_WRITE_DENIED=PASS'
     Write-Host 'F01_SYNTHETIC_SHA256_UNCHANGED=6/6'
+    Write-Host 'F01_SECURITY_DESCRIPTOR_UNCHANGED=6/6'
     Write-Host 'F01_SCM_SERVICE_SID=NOT_TESTED'
     Write-Host 'F01_COMMERCIAL_CERTIFICATION=NOT_AUTHORIZED'
