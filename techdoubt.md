@@ -1,5 +1,14 @@
 # TECHDOUBT — Digital Crown
 
+## LOT05.7-A — 2026-10-18 — Réserves import clinique et preuves insuffisantes
+
+**STATUS: OPEN / NO-GO**. L'évaluateur `legacy_import_certification_gate_v15.py` ne vérifie QUE la cohérence de métadonnées déclarées (digest, revision, compteurs, attestations auto-déclarées). Un opérateur malveillant peut inventer toutes les affirmations ; aucune authentification runtime, signature, staging source réel, attestation physique tenant, sauvegarde/restauration indépendante, rapport de dry-run réel, décision humaine ou autorisation de migration n'est établie par ce module. `claims_coherent=true` n'a AUCUNE valeur d'autorisation. La sérialisation du rapport et ses propriétés d'autorisation demeurent systématiquement False.
+
+**Risque BLOCKER** : ne pas connecter cette fonction à une route d'activation. La future migration nécessite des preuves issues d'acteurs et processus séparés, l'impossibilité de confondre source et cible, certification d'une restauration sur copie isolée, journal de provenance lié au cabinet authentifié, double protection contre import cross-tenant, contraintes d'unicité et replay sur DB, plan de rollback/compensation, correspondances patient/praticien/RDV/actes/finances/médias, gestion juridique de confidentialité, approbation humaine distincte. Le schéma cible y est temporairement épinglé `neo000000031`; toute évolution Alembic doit bloquer et imposer une revue explicite. Les tests statiques de routes ne suffisent pas à prouver l'absence d'une route d'import via un autre routeur.
+
+**Validation** : 05.7-A exécute uniquement tests pure-Python/AST sur contenu de dépôt, sans source ou DB clinique ; CI exacte branche PR à vérifier. Réserve maintenue jusqu'à preuves matérielles des gates 05.7-B/C et accord explicite.
+
+
 ## GLOBAL-G10-S / LOT10 — 2026-10-18 — Two-agent isolation requirement withdrawn
 
 **Status: RESOLVED AS A FALSE DEPENDENCY (doctrine correction, not proof of a completed FUE).**

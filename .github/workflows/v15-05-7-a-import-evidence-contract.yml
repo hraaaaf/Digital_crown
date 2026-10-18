@@ -1,0 +1,43 @@
+name: V1.5-05.7-A Import Evidence Contract (Non-Authorizing)
+
+on:
+  pull_request:
+    paths:
+      - backend/services/legacy_import_certification_gate_v15.py
+      - backend/tests/test_legacy_import_certification_gate_v15.py
+      - backend/routers/legacy_migration_v15.py
+      - docs/quality/V15_05_7_A_CONTROLLED_IMPORT_GATE_CONTRACT.md
+      - .github/workflows/v15-05-7-a-import-evidence-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12']
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Syntax and fail-closed negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/services/legacy_import_certification_gate_v15.py backend/tests/test_legacy_import_certification_gate_v15.py
+          python backend/tests/test_legacy_import_certification_gate_v15.py -v 2>&1 | tee /tmp/lot05_7a.log
+          grep -q '^Ran 16 tests' /tmp/lot05_7a.log
+          grep -q '^OK$' /tmp/lot05_7a.log
+      - name: Check exact Git commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
