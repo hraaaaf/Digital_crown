@@ -585,6 +585,55 @@ asyncio.run(main())
                 child.kill()
                 child.wait(timeout=3)
 
+    async def test_repeated_child_wait_failures_still_release_all_resources(self):
+        # Exercise actual stop_bridge_lab() control flow, without real hardware.
+        import io
+        from tools.imaging_gateway.bridge_background_lab import BridgeLabHandle
+
+        class PersistentWaitFailure:
+            def __init__(self):
+                self.stdin = io.BytesIO()
+                self.stdout = None
+                self.returncode = None
+                self.calls = 0
+                self.kills = 0
+
+            def poll(self):
+                return None
+
+            def wait(self, timeout):
+                self.calls += 1
+                if self.calls == 1:
+                    raise subprocess.TimeoutExpired("SYNTHETIC_CHILD", timeout)
+                raise OSError("SYNTHETIC_PRIVATE_PATH_SHOULD_NOT_LOG")
+
+            def kill(self):
+                self.kills += 1
+
+        class ClosingResource:
+            def __init__(self):
+                self.closed = 0
+
+            def close(self):
+                self.closed += 1
+
+        child = PersistentWaitFailure()
+        job = ClosingResource()
+        owner = ClosingResource()
+        stop = asyncio.Event()
+        monitor = asyncio.create_task(stop.wait())
+        handle = BridgeLabHandle(stop, monitor, child, job, owner)
+        with self.assertLogs("tools.imaging_gateway.bridge_background_lab", level="ERROR") as captured:
+            result = await asyncio.wait_for(stop_bridge_lab(handle, timeout=0.02), timeout=3)
+        self.assertFalse(result, "failed reaps cannot be interpreted as successful shutdown")
+        self.assertGreaterEqual(child.calls, 2)
+        self.assertGreaterEqual(child.kills, 1)
+        self.assertEqual(job.closed, 1)
+        self.assertEqual(owner.closed, 1)
+        self.assertTrue(child.stdin.closed)
+        self.assertTrue(monitor.done())
+        self.assertNotIn("SYNTHETIC_PRIVATE_PATH_SHOULD_NOT_LOG", " ".join(captured.output))
+
     async def test_blocking_scan_reports_bounded_shutdown_without_false_success(self):
         started = threading.Event()
         release = threading.Event()
