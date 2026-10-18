@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { cephaloRepository } from './cephaloRepository';
 import { emptyStudyClinicalContext, hydrateStudyClinicalContext } from './cephaloClinicalIsolation';
 import { useOrthoStore } from './stores/useOrthoStore';
 import { buildPayload } from './cephaloUtils';
@@ -63,4 +64,31 @@ describe('P2ter++ clinical isolation A -> B (synthetic sentinel)', () => {
     expect(JSON.stringify(state.diag)).not.toContain('SENTINEL_A');
     expect(JSON.stringify(state.etape3Data)).not.toContain('SENTINEL_A');
   });
+  it('routes a fresh radio study through the same clinical isolation boundary', async () => {
+    const store = useOrthoStore.getState();
+    store.setPatientInfo(77410, 'T2 study upload');
+    store.setAnalysisId(9901);
+    store.setDiag({ ...emptyStudyClinicalContext().diag, strategie_therapeutique: 'SENTINEL_A_UPLOAD' });
+    store.setEtape2Data({
+      ...emptyStudyClinicalContext().etape2Data,
+      occlusal: { molaire_gauche: 'III', molaire_droite: '', canine_gauche: '', canine_droite: '' },
+    });
+    const upload = vi.spyOn(cephaloRepository, 'uploadRadio').mockResolvedValueOnce({
+      analysis_id: 9902,
+      image_path: '/static/uploads/radios/synthetic-upload.png',
+      results: { metrics: {} },
+      landmarks: [],
+    } as any);
+    try {
+      await useOrthoStore.getState().runAnalysis(new File(['synthetic'], 'T2.png', { type: 'image/png' }));
+      const next = useOrthoStore.getState();
+      expect(next.analysisId).toBe(9902);
+      expect(next.diag.strategie_therapeutique).toBe('');
+      expect(next.etape2Data.occlusal.molaire_gauche).toBe('');
+      expect(JSON.stringify(next.diag)).not.toContain('SENTINEL_A_UPLOAD');
+    } finally {
+      upload.mockRestore();
+    }
+  });
+
 });
