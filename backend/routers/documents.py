@@ -595,7 +595,7 @@ def download_document(
         from fastapi.responses import Response
         from urllib.parse import quote
 
-        verified = verified_official_archive_bytes(doc)
+        verified = verified_official_archive_bytes(doc, db)
         audit_service.log(
             db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
             action="MEDIA_ACCESS_GRANTED", resource_type=str(doc.document_type), resource_id=str(doc.id),
