@@ -100,6 +100,21 @@ KNOWN_PG18_EXTRA_CHECKS = {
         ("held_reserved", "marked_uncertain"),
         "CHECK (transition::text = ANY ({array}))",
     ),
+    "ck_station_print_mode": (
+        "station_print_configurations",
+        ("disabled", "reception", "near_station", "both"),
+        "CHECK (mode::text = ANY ({array}))",
+    ),
+    "ck_print_claim_state": (
+        "station_print_held_claims",
+        ("held", "uncertain"),
+        "CHECK (state::text = ANY ({array}))",
+    ),
+    "ck_print_draft_location": (
+        "station_print_printer_drafts",
+        ("reception", "near_station"),
+        "CHECK (location::text = ANY ({array}))",
+    ),
 }
 
 
@@ -483,14 +498,16 @@ class RealHeadRecovery(unittest.TestCase):
             canonical_catalog_row("constraints", (*key, source)),
             canonical_catalog_row("constraints", (*key, restored)),
         )
-        self.assertNotEqual(
-            canonical_catalog_row("constraints", (*key, restored)),
-            canonical_catalog_row("constraints", (*key, restored.replace("OR phase_key IS NULL", "OR TRUE"))),
-        )
-        self.assertNotEqual(
-            canonical_catalog_row("constraints", (*key, restored)),
-            canonical_catalog_row("constraints", (*key, restored.replace("'START'", "'OTHER'"))),
-        )
+        # The explicit 05.7-D fail-closed gate rejects invalid SQL with Refused,
+        # rather than silently returning a different-but-accepted fingerprint.
+        with self.assertRaisesRegex(Refused, "PG18_EXTRA_CHECK_SEMANTICS_CHANGED"):
+            canonical_catalog_row(
+                "constraints", (*key, restored.replace("OR phase_key IS NULL", "OR TRUE"))
+            )
+        with self.assertRaisesRegex(Refused, "PG18_EXTRA_CHECK_SEMANTICS_CHANGED"):
+            canonical_catalog_row(
+                "constraints", (*key, restored.replace("'START'", "'OTHER'"))
+            )
 
 
 
