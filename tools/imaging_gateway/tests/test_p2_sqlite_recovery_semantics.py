@@ -108,7 +108,11 @@ class P2SyntheticSQLiteWALContract(unittest.TestCase):
         collector = HotFolder(config)
         (watch / "fixture.png").write_bytes(SYNTHETIC)
         self.assertEqual(collector.scan_once()["unstable"], 1)
-        self.assertEqual(collector.scan_once()["staged"], 1)
+        second_scan = collector.scan_once()
+        self.assertEqual(
+            second_scan["staged"], 1,
+            f"B02_SECOND_SCAN_COUNTS={second_scan};CAPACITY={collector._last_capacity_issue}",
+        )
         item = collector.items()[0]
         archive.mkdir()
         with collector._db() as live:
