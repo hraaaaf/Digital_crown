@@ -493,7 +493,19 @@ async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file
     assert_patient_access(patient_id, current_user, db)
     content = await file.read()
     archive_service = get_archive_service(db)
-    doc, is_new = archive_service.archive_document(patient_id=patient_id, file_content=content, filename=file.filename, doc_type=doc_type, uploaded_by_id=current_user.id, title=title, on_conflict=on_conflict)
+    try:
+        doc, is_new = archive_service.archive_document(
+            patient_id=patient_id, file_content=content, filename=file.filename,
+            doc_type=doc_type, uploaded_by_id=current_user.id, title=title, on_conflict=on_conflict,
+        )
+    except ValueError as exc:
+        # Invalid client paths and attempts to mutate official archives are
+        # safe, explicit HTTP refusals, not unhandled internal server errors.
+        detail = str(exc)
+        raise HTTPException(
+            status_code=409 if "céphalométrique officielle" in detail else 400,
+            detail=detail,
+        ) from exc
     doc_dict = {c.key: getattr(doc, c.key) for c in doc.__table__.columns}
     doc_dict["file_exists"] = bool(doc.file_path and os.path.exists(os.path.join(BASE_DIR, doc.file_path)))
     doc_dict["download_url"] = f"/api/documents/{doc.id}/download"
