@@ -17,6 +17,7 @@ import subprocess
 import sys
 
 PREFLIGHT = "/api/imaging-acquisitions/preflight"
+LAB_OPERATIONAL = "/api/health/imaging-bridge-lab"
 EXISTING_IMPORT = "/api/patients/{patient_id}/assets/import"
 VIEWPORTS = ((390, 844), (768, 1024), (1280, 900))
 COLLECT = r"""
@@ -85,17 +86,25 @@ def validate_route_transition(
     """Keep both legitimate PR baselines strict.
 
     A first-level PR proves PRE-FLIGHT addition 0 -> 1. A stacked child PR
-    proves preservation 1 -> 1. Both reject ALL other route changes,
-    duplicate registrations and removals.
+    proves preservation 1 -> 1. The TEST-only Imaging Bridge operational
+    route is the sole other explicitly permitted addition; all unrelated
+    routes, duplicate registrations and removals remain forbidden.
     """
     bpre = sum(x == (PREFLIGHT, ("POST",)) for x in old)
     apre = sum(x == (PREFLIGHT, ("POST",)) for x in new)
+    blab = sum(x == (LAB_OPERATIONAL, ("GET",)) for x in old)
+    alab = sum(x == (LAB_OPERATIONAL, ("GET",)) for x in new)
     bimp = sum(x[0] == EXISTING_IMPORT and "POST" in x[1] for x in old)
     aimp = sum(x[0] == EXISTING_IMPORT and "POST" in x[1] for x in new)
     extra, missing = route_delta(old, new)
     if (bpre, apre, bimp, aimp) not in {(0, 1, 1, 1), (1, 1, 1, 1)}:
         raise AssertionError("PREFLIGHT_OR_LEGACY_ROUTE_INVARIANT_FAILURE")
+    if (blab, alab) not in {(0, 0), (0, 1), (1, 1)}:
+        raise AssertionError("LAB_OPERATIONAL_ROUTE_INVARIANT_FAILURE")
     expected_extra = [(PREFLIGHT, ("POST",))] if bpre == 0 else []
+    if (blab, alab) == (0, 1):
+        expected_extra.append((LAB_OPERATIONAL, ("GET",)))
+    expected_extra.sort()
     if extra != expected_extra or missing:
         raise AssertionError("UNEXPECTED_RUNTIME_ROUTE_DIFF")
     return bpre, apre, bimp, aimp, extra, missing
@@ -182,6 +191,10 @@ def main() -> None:
     old = [signature(x) for x in before]
     new = [signature(x) for x in after]
     bpre, apre, bimp, aimp, extra, missing = validate_route_transition(old, new)
+    # Exact P0-B proof: LAB operational route is present once in AFTER, not
+    # merely an unrelated diff that happens to be whitelisted in unit tests.
+    if new.count((LAB_OPERATIONAL, ("GET",))) != 1:
+        raise AssertionError("LAB_OPERATIONAL_ROUTE_MISSING_OR_DUPLICATED")
 
     summary = {
         "kind": "LOT06_SYNTHETIC_OPERATIONAL_FASTAPI_REGISTRY",
