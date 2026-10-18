@@ -154,13 +154,29 @@ class HotFolder:
         self._last_capacity_issue = None  # diagnostic only; no patient/file info
         self.private = Path(config.private).absolute()
         self.spool = self.private / "spool"
-        if _is_unsafe_path_component(self.spool):
-            raise GatewayError("spool symlink rejected")
+        self.db_file = self.private / "acquisitions.sqlite3"
+        # A persistent, non-secret first-boot witness is deliberately stored
+        # OUTSIDE SQLite. A missing DB after a process restart must not be
+        # interpreted as a fresh installation just because the inode pin was
+        # held only in process memory (independent reliability review B-01).
+        self._continuity_marker = self.private / ".acquisitions-initialized-v1"
+        if (_is_unsafe_path_component(self.spool) or
+                _is_unsafe_path_component(self._continuity_marker)):
+            raise GatewayError("unsafe acquisition state marker or spool")
+        if self._continuity_marker.exists():
+            if (not self._continuity_marker.is_file() or
+                    self._continuity_marker.read_bytes() !=
+                    b"DC6_ACQUISITIONS_INITIALIZED_V1\n"):
+                raise GatewayError("acquisition state marker invalid; recovery required")
+        # Existing spool/marker surviving the missing DB is recovery evidence.
+        # This check must precede spool.mkdir() and any sqlite3.connect().
+        if not self.db_file.exists() and (
+                self._continuity_marker.exists() or self.spool.exists()):
+            raise GatewayError("acquisition database missing; restore required")
         self.spool.mkdir(mode=0o700, exist_ok=True)
         if os.name != "nt":
             os.chmod(self.private, 0o700)
             os.chmod(self.spool, 0o700)
-        self.db_file = self.private / "acquisitions.sqlite3"
         if _is_unsafe_path_component(self.db_file):
             raise GatewayError("database symlink rejected")
         self._watch_identity = self._directory_identity(Path(config.watch))
@@ -214,6 +230,30 @@ class HotFolder:
             ).fetchone()
             if active != (config.cabinet, config.workstation):
                 raise GatewayError("state directory belongs to another cabinet/workstation")
+        # Only publish the witness AFTER successful DB schema/scope commit.
+        # An interrupted first boot remains fail-closed via the spool root.
+        self._seal_continuity_marker()
+
+    def _seal_continuity_marker(self):
+        marker = self._continuity_marker
+        if _is_unsafe_path_component(marker):
+            raise GatewayError("acquisition state marker unsafe")
+        signature = b"DC6_ACQUISITIONS_INITIALIZED_V1\n"
+        if marker.exists():
+            if not marker.is_file() or marker.read_bytes() != signature:
+                raise GatewayError("acquisition state marker invalid; recovery required")
+            return
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_BINARY"):
+            flags |= os.O_BINARY
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        # O_EXCL rejects an already-created leaf, including a symlink. No
+        # overwrite, delete, or automatic restoration is ever performed.
+        with os.fdopen(os.open(marker, flags, 0o600), "wb") as output:
+            output.write(signature)
+            output.flush()
+            os.fsync(output.fileno())
 
     def _sqlite_guard(self):
         """Best-effort LAB gate; path-based SQLite VFS still needs OS ACLs."""
