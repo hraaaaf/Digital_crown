@@ -185,14 +185,22 @@ async function viewportRun(viewport){
   page.off('request',auditArchiveRequest);
   if(archivePosts.length!==1)throw Error('Double click created '+archivePosts.length+' archive requests instead of one');
   const archivedPayload=archivedResponse.request().postDataJSON();
-  if(archivedResponse.status()!==200 ||
-      archivedPayload.analysis_id!==identities.older_id ||
-      archivedResponse.headers()['x-cephalo-analysis-id']!==String(identities.older_id) ||
-      archivedResponse.headers()['x-cephalo-revision']!==String(archivedPayload.expected_revision))
-    throw Error('Authenticated archive did not retain selected OLDER study identity, revision and HTTP 200: '+archivedResponse.status());
-  await fs.writeFile(path.join(output,record.viewport+'-older-click-archived.pdf'),await archivedResponse.body());
+  if (archivedPayload.analysis_id!==identities.older_id)
+    throw Error('Archive attempt did not preserve selected OLDER study identity');
+  if (viewport.width===1280) {
+    if (archivedResponse.status()!==200 ||
+        archivedResponse.headers()['x-cephalo-analysis-id']!==String(identities.older_id) ||
+        archivedResponse.headers()['x-cephalo-revision']!==String(archivedPayload.expected_revision))
+      throw Error('First archive did not preserve study/revision: '+archivedResponse.status());
+    await fs.writeFile(path.join(output,record.viewport+'-older-click-archived.pdf'),await archivedResponse.body());
+    record.checks.push('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_'+identities.older_id+'_REV_'+archivedPayload.expected_revision);
+  } else {
+    if (archivedResponse.status()!==409 ||
+        !String((await archivedResponse.json()).detail).includes('déjà archivé'))
+      throw Error('Repeated same study/revision must fail closed with 409: '+archivedResponse.status());
+    record.checks.push('REPEATED_SAME_STUDY_REVISION_REFUSED_HTTP_409');
+  }
   await shot('archive-after');
-  record.checks.push('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_'+identities.older_id+'_REV_'+archivedPayload.expected_revision);
   record.checks.push('POINTER_DOUBLE_CLICK_SINGLE_ARCHIVE_POST');
   // UI transport regression only: mock a synthetic 422 response on the real
   // authenticated button. Backend 422 and zero archive are asserted in pytest.
