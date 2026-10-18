@@ -69,6 +69,10 @@ export function hydrateStudyClinicalContext(angles: unknown): StudyClinicalConte
       || clinical.forme_arcade === 'CARREE' ? clinical.forme_arcade : null,
   };
   if (typeof clinical.age === 'number' && Number.isFinite(clinical.age)) fresh.etape3Data.age = clinical.age;
+  if (clinical.cvm === 'CS1' || clinical.cvm === 'CS2' || clinical.cvm === 'CS3'
+      || clinical.cvm === 'CS4' || clinical.cvm === 'CS5' || clinical.cvm === 'CS6') {
+    fresh.etape3Data.cvm = clinical.cvm;
+  }
   if (clinical.denture_type === 'TEMPORAIRE' || clinical.denture_type === 'MIXTE'
       || clinical.denture_type === 'PERMANENTE') fresh.etape3Data.denture_type = clinical.denture_type;
   if (clinical.preference_technique === 'DAMON' || clinical.preference_technique === 'CLASSIC'
