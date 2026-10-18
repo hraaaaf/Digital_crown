@@ -183,4 +183,45 @@ describe('P2ter++ clinical isolation A -> B (synthetic sentinel)', () => {
     }
   });
 
+  it('does not resurrect revoked blob: photo previews when returning A after visiting B', () => {
+    const store = useOrthoStore.getState();
+    const a = 77601, b = 77602, key = `digitalcrown_photos_${a}`;
+    localStorage.setItem(key, JSON.stringify({ extra_face: 'blob:T2-revoked-photo-A' }));
+    localStorage.removeItem(`digitalcrown_photos_${b}`);
+    store.setPatientInfo(b, 'T2 patient B');
+    store.setPatientInfo(a, 'T2 patient A returning');
+    const photo = useOrthoStore.getState().photos.find(p => p.id === 'extra_face');
+    expect(photo?.preview).toBeNull();
+    expect(photo?.file).toBeNull();
+    expect(localStorage.getItem(key)).not.toContain('blob:');
+  });
+
+  it('does not display stale save A success in study B or cancel B saving', async () => {
+    const store = useOrthoStore.getState();
+    store.setPatientInfo(77603, 'T2 study-save patient');
+    store.setAnalysisId(77611);
+    let finishA!: (value: any) => void;
+    let finishB!: (value: any) => void;
+    const first = new Promise<any>(resolve => { finishA = resolve; });
+    const second = new Promise<any>(resolve => { finishB = resolve; });
+    const save = vi.spyOn(cephaloRepository, 'saveAnalysis')
+      .mockImplementationOnce(() => first).mockImplementationOnce(() => second);
+    try {
+      const pendingA = store.handleSave();
+      store.setAnalysisId(77612);
+      const pendingB = store.handleSave();
+      finishA({ status: 'success' });
+      await pendingA;
+      expect(useOrthoStore.getState().analysisId).toBe(77612);
+      expect(useOrthoStore.getState().syncState).toBe('idle');
+      expect(useOrthoStore.getState().isSaving).toBe(true);
+      finishB({ status: 'success' });
+      await pendingB;
+      expect(useOrthoStore.getState().syncState).toBe('success');
+      expect(useOrthoStore.getState().isSaving).toBe(false);
+    } finally {
+      save.mockRestore();
+    }
+  });
+
 });

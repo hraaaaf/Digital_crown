@@ -258,3 +258,120 @@ def test_s4_trashed_official_revision_cannot_be_restored_over_active_duplicate(
     assert len(active) == 1
     assert active[0].id != doc_id
     assert active[0].file_path != doc.file_path
+
+
+def _restricted_same_cabinet(client, db, dentist):
+    """Issue two genuine desktop JWTs sharing the authenticated workstation."""
+    from backend.tests.conftest import make_user
+    from backend.routers.workstation_mode import WORKSTATION_COOKIE
+    from backend.routers.auth import has_permission
+
+    owner = _jwt(client, dentist)
+    station_reply = client.get("/api/workstation/state", headers=owner)
+    assert station_reply.status_code == 200, station_reply.text[:250]
+    station = client.cookies.get(WORKSTATION_COOKIE)
+    assert station is not None
+    staff = make_user(db, role="SECRETAIRE")
+    staff.employer_id = dentist.id
+    staff.approval_status = "approved"
+    staff.permissions = {"patients": True, "cephalo": False, "accounting": False, "prescriptions": False}
+    db.commit()
+    assert has_permission(staff, "patients") and not has_permission(staff, "cephalo")
+    restricted = _jwt(client, staff)
+    client.cookies.set(WORKSTATION_COOKIE, station)
+    return owner, restricted
+
+
+def test_a01_cephalo_radio_media_denies_same_cabinet_non_cephalo_role(
+    client, db, dentiste, monkeypatch,
+):
+    """The authenticated static radio URL is not a substitute for cephalo RBAC."""
+    from fastapi import Response
+    from backend import main as app_module
+
+    patient, study, _ = _case(db, dentiste)
+    study.image_original_path = "static/uploads/radios/synthetic-a01-radio.png"
+    db.commit()
+    monkeypatch.setattr(
+        app_module, "_serve_protected_file",
+        lambda base, rel: Response(content=b"SYNTHETIC-RADIO", media_type="image/png"),
+    )
+    owner, restricted = _restricted_same_cabinet(client, db, dentiste)
+    for url in ("/api/static/uploads/radios/synthetic-a01-radio.png",
+                "/static/uploads/radios/synthetic-a01-radio.png"):
+        denied = client.get(url, headers=restricted)
+        assert denied.status_code == 403, (url, denied.status_code, denied.text[:200])
+        assert client.get(url, headers=owner).status_code == 200
+
+
+def test_a02_nonofficial_archive_static_respects_document_type_permission(
+    client, db, dentiste, monkeypatch,
+):
+    """Document archive list and static bytes must agree with canonical RBAC."""
+    import hashlib
+    import uuid
+    from fastapi import Response
+    from backend import main as app_module
+
+    patient, _, _ = _case(db, dentiste)
+    stored = b"%PDF-ONLY-SYNTHETIC"
+    docs = []
+    for kind in (models.DocumentType.DEVIS, models.DocumentType.ORDONNANCE,
+                 models.DocumentType.AUTRE):
+        key = f"test-a02-{kind.value.lower()}-{uuid.uuid4().hex}.pdf"
+        doc = models.DocumentArchive(
+            patient_id=patient.id, uploaded_by_id=dentiste.id,
+            document_type=kind, filename=key, original_filename=key,
+            document_group_id=str(uuid.uuid4()), version_number=1,
+            file_hash=hashlib.sha256(stored).hexdigest(), file_size=len(stored),
+            file_path="static/archives/" + key, status=models.DocumentStatus.ACTIF,
+        )
+        db.add(doc)
+        docs.append(doc)
+    db.commit()
+    monkeypatch.setattr(
+        app_module, "_serve_protected_file",
+        lambda base, rel: Response(content=stored, media_type="application/pdf"),
+    )
+    owner, restricted = _restricted_same_cabinet(client, db, dentiste)
+    for doc in docs:
+        route = "/api/static/archives/" + doc.filename
+        result = client.get(route, headers=restricted)
+        if doc.document_type == models.DocumentType.AUTRE:
+            assert result.status_code == 200, (route, result.status_code, result.text[:200])
+        else:
+            assert result.status_code == 403, (route, result.status_code, result.text[:200])
+            direct = client.get(f"/api/documents/{doc.id}/download", headers=restricted)
+            assert direct.status_code == 403
+            assert client.get(route, headers=owner).status_code == 200
+
+
+def test_a03_document_index_hides_disallowed_types_and_metadata(
+    client, db, dentiste,
+):
+    """RBAC must apply before pagination/count, not after leaking list metadata."""
+    import uuid
+
+    patient, _, _ = _case(db, dentiste)
+    for kind in (models.DocumentType.RAPPORT_CEPHALO, models.DocumentType.DEVIS,
+                 models.DocumentType.AUTRE):
+        filename = "synthetic-" + uuid.uuid4().hex + ".pdf"
+        db.add(models.DocumentArchive(
+            patient_id=patient.id, uploaded_by_id=dentiste.id,
+            document_type=kind, filename=filename, original_filename=filename,
+            title="T2-" + kind.value, document_group_id=str(uuid.uuid4()),
+            version_number=1, file_path="static/archives/" + filename,
+            file_hash="0"*64, file_size=0, status=models.DocumentStatus.ACTIF,
+        ))
+    db.commit()
+    _, restricted = _restricted_same_cabinet(client, db, dentiste)
+    response = client.get("/api/documents/", params={"patient_id": patient.id},
+                          headers=restricted)
+    assert response.status_code == 200, response.text[:350]
+    payload = response.json()
+    assert payload["total"] == 1, payload
+    assert [row["document_type"] for row in payload["documents"]] == ["AUTRE"]
+    forbidden = client.get("/api/documents/",
+                           params={"patient_id":patient.id,"doc_type":"RAPPORT_CEPHALO"},
+                           headers=restricted)
+    assert forbidden.status_code == 403
