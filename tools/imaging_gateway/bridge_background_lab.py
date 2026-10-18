@@ -210,20 +210,32 @@ def start_if_enabled(
             raise BridgeLabConfigurationError("IMAGING_LAB_READY_REJECTED")
         proc.stdout.close()
     except BaseException:
-        try:
-            if proc is not None:
+        # Partial startup may have created any subset of the resources.
+        # Never let a failing kill/wait/close suppress the remaining cleanup.
+        if proc is not None:
+            try:
                 if proc.poll() is None:
                     proc.kill()
                 proc.wait(timeout=3)
-        finally:
-            if job is not None:
+            except Exception:
+                logger.error("Imaging LAB failed-start child reap unconfirmed")
+        if job is not None:
+            try:
                 job.close()
-            if proc is not None and proc.stdin is not None:
-                with contextlib.suppress(OSError, ValueError):
-                    proc.stdin.close()
-            if proc is not None and proc.stdout is not None and not proc.stdout.closed:
-                proc.stdout.close()
-            owner.close()
+            except Exception:
+                logger.error("Imaging LAB failed-start Job close unconfirmed")
+        if proc is not None:
+            for pipe in (proc.stdin, proc.stdout):
+                if pipe is not None:
+                    try:
+                        pipe.close()
+                    except Exception:
+                        logger.error("Imaging LAB failed-start pipe close unconfirmed")
+        if owner is not None:
+            try:
+                owner.close()
+            except Exception:
+                logger.error("Imaging LAB failed-start owner release unconfirmed")
         raise BridgeLabConfigurationError("IMAGING_LAB_SUPERVISION_START_FAILED") from None
     stop = asyncio.Event()
 
@@ -252,11 +264,11 @@ async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> b
         raise ValueError("invalid LAB shutdown deadline")
     handle.stop.set()
     if handle.process is not None:
-        # The real backend uses a separate LAB process; a blocked OS scan
-        # cannot prevent the parent from killing/reaping the child.
         proc = handle.process
-        clean = proc.poll() is None
+        clean = True
         try:
+            if proc.poll() is not None:
+                clean = False  # Child died independently before shutdown.
             if proc.stdin is not None and not proc.stdin.closed:
                 try:
                     proc.stdin.write(b"STOP\\n".replace(b"\\n", bytes([10])))
@@ -269,21 +281,51 @@ async def stop_bridge_lab(handle: BridgeLabHandle, *, timeout: float = 2.0) -> b
                 clean = False
                 proc.kill()
                 await asyncio.to_thread(proc.wait, timeout=2)
+        except Exception:
+            # An unexpected wait/kill failure is never a successful shutdown.
+            # Do not let it prevent closing the Job Object or owner lock.
+            clean = False
+            logger.error("Imaging LAB child shutdown/reap failed")
         finally:
-            if proc.poll() is None:
-                proc.kill()
-                await asyncio.to_thread(proc.wait, timeout=2)
-            if handle.job is not None:
-                handle.job.close()
-            if proc.stdin is not None:
-                with contextlib.suppress(OSError, ValueError):
-                    proc.stdin.close()
-            if handle.owner is not None:
-                handle.owner.close()
-            if not handle.task.done():
-                handle.task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, BridgeLabConfigurationError):
-                await handle.task
+            try:
+                # A second wait can fail too. Keep each cleanup independent.
+                try:
+                    if proc.poll() is None:
+                        clean = False
+                        proc.kill()
+                        await asyncio.to_thread(proc.wait, timeout=2)
+                except Exception:
+                    clean = False
+                    logger.error("Imaging LAB final child reap unconfirmed")
+            finally:
+                if handle.job is not None:
+                    try:
+                        handle.job.close()
+                    except Exception:
+                        clean = False
+                        logger.error("Imaging LAB Job close failed")
+                for pipe in (proc.stdin, proc.stdout):
+                    if pipe is not None:
+                        try:
+                            pipe.close()
+                        except Exception:
+                            clean = False
+                            logger.error("Imaging LAB pipe close failed")
+                if handle.owner is not None:
+                    try:
+                        handle.owner.close()
+                    except Exception:
+                        clean = False
+                        logger.error("Imaging LAB owner release failed")
+                if not handle.task.done():
+                    handle.task.cancel()
+                try:
+                    await handle.task
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    clean = False
+                    logger.error("Imaging LAB monitor task failed at shutdown")
         if proc.returncode != 0:
             clean = False
         if not clean:
