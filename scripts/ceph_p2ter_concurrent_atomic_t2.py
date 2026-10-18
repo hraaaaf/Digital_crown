@@ -19,7 +19,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-if os.getenv("ENVIRONMENT") != "test" or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "1" or os.getenv("DATABASE_URL") != "sqlite:///./t2-runtime-cert.db":
+_pg_lab = "postgresql://postgres:postgres@127.0.0.1:5432/dc_atomic_synthetic"
+pg_lab = (os.getenv("T2_POSTGRES_ATOMIC_LAB") == "1"
+          and os.getenv("GITHUB_ACTIONS") == "true"
+          and os.getenv("DATABASE_URL") == _pg_lab)
+if (os.getenv("ENVIRONMENT") != "test"
+        or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "1"
+        or not (pg_lab or os.getenv("DATABASE_URL") == "sqlite:///./t2-runtime-cert.db")):
     raise SystemExit("ATOMIC_T2_REQUIRE_DISPOSABLE_RUNTIME")
 password = os.environ["T2_PASSWORD"]
 studies = json.loads(os.environ["P2TER_STUDIES"])
