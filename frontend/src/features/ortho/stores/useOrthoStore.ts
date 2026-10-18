@@ -514,7 +514,11 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     set({ uploadError: null, isUploading: true });
     try {
       const data = await cephaloRepository.uploadRadio(state.patientId, file);
-      if (data.analysis_id) set({ analysisId: data.analysis_id });
+      // A late upload response for a previous patient must never populate
+      // the current patient's study. A fresh study uses the same isolation
+      // boundary as selecting a different study from history.
+      if (get().patientId !== state.patientId) return;
+      if (data.analysis_id) get().setAnalysisId(data.analysis_id);
       if (data.image_path || data.file_url) {
         const raw: string = data.image_path || data.file_url;
         let src: string;
