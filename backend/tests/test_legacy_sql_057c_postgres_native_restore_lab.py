@@ -202,15 +202,27 @@ def fake_media_zip():
     return buffer.getvalue()
 
 
-def verify_media_zip(raw):
+def verified_db_media_refs(conn):
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT legacy, sha256 FROM media_refs ORDER BY legacy")
+        refs = dict(cursor.fetchall())
+    if set(refs) != {f"FAKE-MEDIA-{i}" for i in range(3)}:
+        raise Refused("DB_MEDIA_REFERENCE_MISMATCH")
+    return refs
+
+
+def verify_media_zip(raw, db_refs=None):
     import zipfile
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         members = sorted(z.namelist())
         if members != [f"fake_media/FAKE-MEDIA-{i}.bin" for i in range(3)]:
             raise Refused("UNEXPECTED_MEDIA_MEMBER")
         for i, name in enumerate(members):
-            if digest_bytes(z.read(name)) != digest_bytes(f"ONLY_FAKE_MEDIA_{i}".encode()):
+            actual = digest_bytes(z.read(name))
+            if actual != digest_bytes(f"ONLY_FAKE_MEDIA_{i}".encode()):
                 raise Refused("MEDIA_DIGEST_MISMATCH")
+            if db_refs is not None and actual != db_refs.get(f"FAKE-MEDIA-{i}"):
+                raise Refused("DB_MEDIA_DIGEST_MISMATCH")
 
 
 class NativePostgres18Recovery(unittest.TestCase):
@@ -263,7 +275,8 @@ class NativePostgres18Recovery(unittest.TestCase):
 
     def test_01_native_restore_reconciles_all_synthetic_families(self):
         self.assertEqual(self.restore(), self.before)
-        verify_media_zip(self.media)
+        with connect(self.dest) as con:
+            verify_media_zip(self.media, verified_db_media_refs(con))
 
     def test_02_post_backup_source_changes_not_in_restored_copy(self):
         with connect(self.src) as con:
@@ -338,6 +351,19 @@ class NativePostgres18Recovery(unittest.TestCase):
         self.assertNotEqual(again.returncode, 0)
         with connect(self.dest) as con:
             self.assertEqual(evidence(con), self.before)
+
+
+    def test_11_media_reference_change_after_restore_is_refused(self):
+        self.restore()
+        with connect(self.dest) as con:
+            with con:
+                with con.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE media_refs SET sha256=%s WHERE legacy=%s",
+                        ("0" * 64, "FAKE-MEDIA-1")
+                    )
+            with self.assertRaisesRegex(Refused, "DB_MEDIA_DIGEST_MISMATCH"):
+                verify_media_zip(self.media, verified_db_media_refs(con))
 
 
 if __name__ == "__main__":
