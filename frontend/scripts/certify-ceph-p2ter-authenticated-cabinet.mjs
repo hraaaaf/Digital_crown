@@ -289,6 +289,14 @@ async function viewportRun(viewport){
     const refusalResponse=page.waitForResponse(r=>
       new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
       r.request().postDataJSON()?.archive===true,{timeout:30000});
+    // The preceding genuine 409 refusal toast can cover the archive button
+    // on the wide viewport. Do not force-click through a clinical warning:
+    // wait until it is dismissed by the app, then exercise a real pointer.
+    if (viewport.width === 1600) {
+      await page.getByText(/déjà archivé ou en cours/i).last().waitFor({
+        state:'hidden', timeout:20000,
+      });
+    }
     await archiveButton.click();
     const refusal=await refusalResponse;
     if(refusal.status()!==422)throw Error('Clinical refusal response expected 422');
