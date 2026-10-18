@@ -7,6 +7,7 @@ vi.mock('../../services/api', () => ({
 }));
 
 import { api } from '../../services/api';
+import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import { CrownBotWorkflowPreview } from './CrownBotWorkflowPreview';
 
 const post = vi.mocked(api.post);
@@ -86,6 +87,36 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
 
 
 describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture seule', () => {
+  it('serializes clinic wall time without UTC shifts, including 00:30 and 23:30', () => {
+    const samples = [
+      [0, 30, '2026-10-18T00:30:00'],
+      [10, 0, '2026-10-18T10:00:00'],
+      [23, 30, '2026-10-18T23:30:00'],
+    ] as const;
+    for (const [hours, minutes, expected] of samples) {
+      expect(formatAgendaWallClock(new Date(2026, 9, 18, hours, minutes))).toBe(expected);
+    }
+    expect(() => formatAgendaWallClock(new Date('not-a-date'))).toThrow(/Invalid Agenda/);
+  });
+
+  it('rejects invalid clinician context rather than silently loading cabinet-wide appointments', async () => {
+    render(<CrownBotWorkflowPreview practitionerId={Number.NaN} requirePractitioner />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Praticien non identifié/);
+    expect(get).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+  it('includes explicit Agenda wall-clock bounds and no UTC suffix', async () => {
+    get.mockResolvedValueOnce({ data: [] } as never);
+    render(<CrownBotWorkflowPreview />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon programme' }));
+    await screen.findByRole('status', { name: 'Programme du jour' });
+    const params = get.mock.calls[0][1]?.params as { start_date: string; end_date: string };
+    expect(params.start_date).toMatch(/T00:00:00$/);
+    expect(params.end_date).toMatch(/T23:59:59$/);
+    expect(params.start_date).not.toContain('Z');
+  });
+
   it('filters a clinician programme to their authenticated practitioner and never submits an appointment', async () => {
     get.mockResolvedValueOnce({ data: [] } as never);
     render(<CrownBotWorkflowPreview practitionerId={19} />);
