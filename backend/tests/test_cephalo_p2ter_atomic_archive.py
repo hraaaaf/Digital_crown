@@ -82,7 +82,7 @@ def test_same_study_revision_archive_replays_identical_bytes_once(
     _temporary_pdf_output(monkeypatch, tmp_path)
     _cabinet(db, dentiste)
     patient, study, points = _case(db, dentiste)
-    headers = _jwt(client, dentiste)
+    headers = {**_jwt(client, dentiste), "Origin": "http://127.0.0.1:5173"}
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
     from backend.services import archive_service
 
@@ -102,6 +102,11 @@ def test_same_study_revision_archive_replays_identical_bytes_once(
     second = client.post(endpoint, json=payload, headers=headers)
     assert second.status_code == 200, second.text[:250] if second.status_code != 200 else ""
     assert second.headers["X-Cephalo-Archive-Replayed"] == "true"
+    # Browser Fetch cannot read non-safelisted headers without this CORS contract.
+    assert second.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+    exposed = {h.strip().lower() for h in second.headers["access-control-expose-headers"].split(",")}
+    assert "x-cephalo-archive-replayed" in exposed
+    assert {"x-cephalo-analysis-id", "x-cephalo-revision"} <= exposed
     assert second.content == first.content
     changed_context = client.post(
         endpoint, json={**payload, "ai_diagnostic": {"diagnostic": "CHANGED SYNTHETIC"}},
