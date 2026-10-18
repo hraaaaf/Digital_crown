@@ -8,6 +8,7 @@ must hold the transaction until the archive row is committed.
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -63,8 +64,16 @@ def lock_selected_cephalo_for_archive(db: Session, *, patient_id: int, analysis_
         ) from exc
 
 
+def render_payload_digest(*, clinical_data: object, ai_diagnostic: object) -> str:
+    """Stable identity for all client-adjustable report rendering inputs."""
+    payload = {"clinical_data": clinical_data, "ai_diagnostic": ai_diagnostic}
+    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def already_archived_pdf(
     db: Session, *, patient_id: int, analysis_id: int, revision: int,
+    payload_digest: str,
 ) -> Path | None:
     """Idempotent replay for one active study/revision, with fail-closed file integrity."""
     from backend.services import archive_service
@@ -92,6 +101,13 @@ def already_archived_pdf(
     if len(matching) != 1:
         raise HTTPException(status_code=409, detail="Archives concurrentes ambiguës : intervention nécessaire")
     row = matching[0]
+    # A scientific revision does not version the clinician's optional free-text
+    # payload. Never silently replay a PDF whose presentation inputs differ.
+    if row.clinical_data.get("cephalo_archive_payload_digest") != payload_digest:
+        raise HTTPException(
+            status_code=409,
+            detail="Une archive existe avec un autre contexte clinique : changement de révision requis",
+        )
     prefix = "static/archives/"
     if not row.file_path or not row.file_path.startswith(prefix):
         raise HTTPException(status_code=409, detail="Chemin d'archive incohérent")
