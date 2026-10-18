@@ -99,6 +99,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const [isValidating, setIsValidating] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const archiveInFlight = useRef(false); // React state alone cannot block two clicks in one tick.
+  const draftInFlight = useRef(false);
   const [isBrouillon, setIsBrouillon] = useState(false);
 
   const hasImage = Boolean(imageSrc);
@@ -154,8 +155,22 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const hasFatals = (validation?.fatals?.length ?? 0) > 0;
   const hasWarnings = (validation?.warnings?.length ?? 0) > 0;
 
+  const handlePreviewBilan = async () => {
+    if (archiveInFlight.current || draftInFlight.current) {
+      toast.error('Une opération PDF est déjà en cours.');
+      return;
+    }
+    await onPreviewPDF();
+  };
+
   const handleBrouillon = async () => {
-    if (!patientId || !analysisId) return;
+    if (!patientId || !analysisId || draftInFlight.current) return;
+    if (archiveInFlight.current || useOrthoStore.getState().isPrinting
+        || useOrthoStore.getState().isPreviewLoading) {
+      toast.error('Une opération PDF est déjà en cours.');
+      return;
+    }
+    draftInFlight.current = true;
     const stillSelected = () => useOrthoStore.getState().patientId === patientId
       && useOrthoStore.getState().analysisId === analysisId;
     setIsBrouillon(true);
@@ -185,12 +200,18 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       })() : null;
       toast.error(msg || 'Erreur lors de la génération du brouillon.');
     } finally {
+      draftInFlight.current = false;
       setIsBrouillon(false);
     }
   };
 
   const handleArchiveBilan = async () => {
     if (!patientId || !analysisId || archiveInFlight.current) return;
+    if (draftInFlight.current || useOrthoStore.getState().isPreviewLoading
+        || useOrthoStore.getState().isPrinting) {
+      toast.error('Une autre opération PDF est déjà en cours.');
+      return;
+    }
     archiveInFlight.current = true;
     setIsArchiving(true);
     try {
@@ -370,9 +391,9 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
             <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
             <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualiser ou archiver un PDF ne constitue pas une validation clinique.</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <button onClick={onPreviewPDF} disabled={isPreviewLoading || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
-              <button onClick={handleBrouillon} disabled={isBrouillon || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
-              <button onClick={handleArchiveBilan} disabled={isArchiving || isGenerating || !analysisId || !canArchive} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-40" style={{ background: canArchive ? `linear-gradient(135deg, ${P.accent}, #7c3aed)` : '#94a3b8' }}>{isArchiving || isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Archive size={20} />}Archiver le bilan</button>
+              <button onClick={handlePreviewBilan} disabled={isPreviewLoading || isArchiving || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
+              <button onClick={handleBrouillon} disabled={isBrouillon || isArchiving || isPreviewLoading || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
+              <button onClick={handleArchiveBilan} disabled={isArchiving || isBrouillon || isPreviewLoading || isGenerating || !analysisId || !canArchive} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-40" style={{ background: canArchive ? `linear-gradient(135deg, ${P.accent}, #7c3aed)` : '#94a3b8' }}>{isArchiving || isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Archive size={20} />}Archiver le bilan</button>
             </div>
           </div>
         </div>
