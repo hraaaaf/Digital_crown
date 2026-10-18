@@ -163,6 +163,32 @@ def verified_official_archive_bytes(row: models.DocumentArchive, db: Session) ->
             or row.clinical_data.get("cephalo_analysis_revision", 0) <= 0):
         raise HTTPException(status_code=409, detail="Provenance d'archive officielle non vérifiable")
 
+    # Verify this archive's patient is in fact the owner of the selected
+    # scientific study, not merely a patient the requesting user may read.
+    scientific = db.query(models.CephaloAnalysis.id).filter(
+        models.CephaloAnalysis.id == row.analysis_id,
+        models.CephaloAnalysis.patient_id == row.patient_id,
+    ).first()
+    if scientific is None:
+        raise HTTPException(status_code=409, detail="Lien étude/patient officiel incohérent")
+
+    # Rows surviving from earlier versions can contain duplicate active
+    # archives even if current restore paths prevent creating another.
+    siblings = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == row.patient_id,
+        models.DocumentArchive.analysis_id == row.analysis_id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+    ).all()
+    candidates = [
+        item for item in siblings
+        if isinstance(item.clinical_data, dict)
+        and item.clinical_data.get("cephalo_analysis_revision")
+            == row.clinical_data["cephalo_analysis_revision"]
+    ]
+    if len(candidates) != 1 or candidates[0].id != row.id:
+        raise HTTPException(status_code=409, detail="Archives officielles actives ambiguës")
+
     prefix = "static/archives/"
     if not row.file_path or not row.file_path.startswith(prefix):
         raise HTTPException(status_code=409, detail="Chemin d'archive officielle incohérent")
