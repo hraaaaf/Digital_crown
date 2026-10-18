@@ -1494,6 +1494,11 @@ def generate_cephalo_pdf(
                         status_code=409,
                         detail="Ce bilan de cette étude/révision est déjà archivé ou nécessite une reprise historique",
                     )
+        except HTTPException:
+            # Second study read or a legacy claim may reject after the INSERT.
+            # A reused SQLAlchemy Session must never carry an uncommitted claim.
+            db.rollback()
+            raise
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
@@ -1520,6 +1525,7 @@ def generate_cephalo_pdf(
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
     validation = cephalo_consistency_validator.validate(selected.angles_data or {})
     if req.archive and not validation.is_valid:
+        db.rollback()
         raise HTTPException(
             status_code=422,
             detail={
@@ -1544,9 +1550,14 @@ def generate_cephalo_pdf(
         "_validation_warnings": validation.warnings,
     }
 
-    pdf_path = doc_factory.create_cephalo_report(
-        patient, analysis_data, db=db, user_id=current_user.id
-    )
+    try:
+        pdf_path = doc_factory.create_cephalo_report(
+            patient, analysis_data, db=db, user_id=current_user.id
+        )
+    except Exception:
+        if req.archive:
+            db.rollback()
+        raise
     if req.archive:
         from backend.services.archive_service import ArchiveService
         from backend.schemas import ConflictResolution
