@@ -1,0 +1,92 @@
+"""LOT06-P/P2-F01: text-only regression tripwires for UNEXECUTED SCM fixtures.
+
+NOT a Windows SCM, token, DACL, security, or product certification.
+Uses only repository text; never runs PowerShell, compiles the C# service,
+changes Windows accounts, registers services, or touches cabinet data.
+"""
+from pathlib import Path
+import unittest
+
+
+LAB_DIR = Path(__file__).resolve().parents[1] / "windows"
+PS1 = LAB_DIR / "p2_scm_virtual_account_wal_lab.ps1"
+CS = LAB_DIR / "p2_scm_synthetic_service.cs"
+
+
+class P2ScmFixtureStaticGuardTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.ps = PS1.read_text(encoding="utf-8")
+        cls.cs = CS.read_text(encoding="utf-8")
+
+    def test_both_modes_have_a_single_guard_before_peer_dispatch(self):
+        guard = "'DISPOSABLE_RUNNER_AND_OWNER_SCOPE'"
+        self.assertEqual(self.ps.count(guard), 1)
+        self.assertLess(self.ps.index(guard), self.ps.index("if($Mode -eq 'Peer')"))
+        for marker in ("P2_RUNNER_ENVIRONMENT", "GITHUB_REPOSITORY",
+                       "P2_SCM_OWNER_GO", "GITHUB_ACTIONS"):
+            self.assertIn(marker, self.ps)
+
+    def test_peer_path_guard_precedes_any_peer_file_probe(self):
+        mode = self.ps.split("if($Mode -eq 'Peer'){", 1)[1].split(
+            "\n$runner=", 1
+        )[0]
+        self.assertIn("PEER_ROOT_NOT_DISPOSABLE_FIXTURE", mode)
+        self.assertIn("PEER_ROOT_REQUIRED", mode)
+        self.assertIn("^dc-p2-scm-ci-[0-9a-f]{8}$", mode)
+        self.assertLess(mode.index("PEER_ROOT_NOT_DISPOSABLE_FIXTURE"),
+                        mode.index("$private=Join-Path $WorkRoot 'private'"))
+        self.assertLess(mode.index("PEER_ROOT_NOT_DISPOSABLE_FIXTURE"),
+                        mode.index("Deny {"))
+
+    def test_harness_uses_fresh_lab_root_and_explicit_cleanup_oracles(self):
+        for marker in (
+            "NONFRESH_ROOT", "NTFS_REQUIRED", "RUNNER_ADMIN_REQUIRED",
+            "SERVICE_LEFTOVER", "WORKSPACE_LEFTOVER", "PEER_LEFTOVER",
+            "P2_SCM_DISPOSABLE_SERVICE_ACCOUNT_WORKSPACE_CLEANUP=PASS",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.ps)
+        self.assertIn("}catch{$mainError=$_}finally{", self.ps)
+
+    def test_csharp_rejects_non_synthetic_executable_paths(self):
+        for marker in (
+            "LAB_FIXTURE_LAYOUT_REQUIRED",
+            "CommonApplicationData",
+            "^dc-p2-scm-ci-[0-9a-f]{8}$",
+            "^DCP2S[0-9a-f]{8}$",
+            "rootName.Substring",
+            "serviceName.Substring",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.cs)
+        # Fixture layout is evaluated in Work before constructing the DB path.
+        self.assertIn("string dir = PrivateDir, dbpath =", self.cs)
+
+    def test_positive_and_negative_markers_remain_separate(self):
+        for marker in (
+            "SERVICE_NOT_SESSION0", "SERVICE_RUNTIME_SID_MISMATCH",
+            "SQLITE_SIDECAR_MISSING", "SERVICE_AFTER_DENIAL_FAILED",
+            "PEER_DENIAL_COUNT",
+        ):
+            # Peer denial counter is currently named DENIAL_COUNT_WRONG.
+            if marker == "PEER_DENIAL_COUNT":
+                marker = "DENIAL_COUNT_WRONG"
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.ps)
+        self.assertIn("SCM_COMMITTED", self.cs)
+        self.assertIn("SCM_ROLLED_BACK", self.cs)
+        self.assertIn("SCM_AFTER_DENIAL", self.cs)
+
+    def test_no_production_storage_paths_or_device_calls(self):
+        together = self.ps + "\n" + self.cs
+        for forbidden in (
+            "clinical_vault.db", "SQLCIPHER_KEY_HEX", "CABINET_MASTER_KEY_HEX",
+            "C:\\Program Files\\Digital Crown", "patient_id", "pacs_client",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, together)
+
+
+if __name__ == "__main__":
+    unittest.main()
