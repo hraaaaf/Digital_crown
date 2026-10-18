@@ -321,14 +321,21 @@ try {
       // WCAG 1.4.3 — measure real computed foreground/background pixels for
       // essential first-value instruction text (normal-size: at least 4.5:1).
       const firstValueContrast=await preview.locator('.bg-white').first().locator('p').first().evaluate(element => {
+        // Tailwind 4 computed colors are often OKLCH, not legacy rgb().
+        // Ask Chromium itself for an explicit sRGB conversion via CSS Color 4.
         const parse = value => {
-          const m=value.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/);
-          if(!m) throw new Error('FAIL: unsupported computed color '+value);
+          const probe=document.createElement('span');
+          probe.style.color='color-mix(in srgb, '+value+' 100%, transparent)';
+          document.body.appendChild(probe);
+          const normalized=getComputedStyle(probe).color;
+          probe.remove();
+          const m=normalized.match(/^color\\(srgb\\s+([0-9.eE+-]+)\\s+([0-9.eE+-]+)\\s+([0-9.eE+-]+)/);
+          if(!m) throw new Error('FAIL: unsupported computed color '+value+' -> '+normalized);
           return m.slice(1,4).map(Number);
         };
-        const luminance=rgb=>rgb.map(v=>{
-          v/=255;return v<=0.04045 ? v/12.92 : ((v+0.055)/1.055)**2.4;
-        }).reduce((a,v,i)=>a+v*[0.2126,0.7152,0.0722][i],0);
+        const luminance=rgb=>rgb.map(v=>
+          v<=0.04045 ? v/12.92 : ((v+0.055)/1.055)**2.4,
+        ).reduce((a,v,i)=>a+v*[0.2126,0.7152,0.0722][i],0);
         const foreground=luminance(parse(getComputedStyle(element).color));
         const background=luminance(parse(getComputedStyle(element.parentElement).backgroundColor));
         return (Math.max(foreground,background)+0.05)/(Math.min(foreground,background)+0.05);
