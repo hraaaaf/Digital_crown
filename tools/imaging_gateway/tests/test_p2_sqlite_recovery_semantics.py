@@ -4,7 +4,7 @@ This exercises stdlib SQLite WAL semantics in CI. It does NOT install a service,
 inspect Windows SIDs, validate DACLs, SQLCipher, packaged backend or clinical data.
 The native SCM W01-W12 contract remains NOT TESTED until separately authorized.
 """
-import os
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -43,7 +43,7 @@ class P2SyntheticSQLiteWALContract(unittest.TestCase):
             if reader is not None:
                 reader.close()
             db.close()
-        with self.connect() as check:
+        with closing(self.connect()) as check:
             self.assertEqual(check.execute("PRAGMA integrity_check").fetchone()[0], "ok")
             self.assertEqual(check.execute("SELECT marker FROM ledger").fetchall(), [("committed",)])
 
@@ -85,7 +85,7 @@ class P2SyntheticSQLiteWALContract(unittest.TestCase):
                 target.close()
             original.execute("INSERT INTO ledger(marker) VALUES ('not-in-snapshot')")
             original.commit()
-            with sqlite3.connect(copied) as restored:
+            with closing(sqlite3.connect(copied)) as restored:
                 self.assertEqual(restored.execute("PRAGMA integrity_check").fetchone()[0], "ok")
                 self.assertEqual(restored.execute("SELECT marker FROM ledger").fetchall(), [("included",)])
         finally:
@@ -107,7 +107,7 @@ os._exit(17)
                                 stdin=subprocess.DEVNULL, capture_output=True,
                                 timeout=20, check=False)
         self.assertEqual(result.returncode, 17, result.stderr.decode("utf-8", "replace"))
-        with self.connect() as recovered:
+        with closing(self.connect()) as recovered:
             self.assertEqual(recovered.execute("PRAGMA integrity_check").fetchone()[0], "ok")
             self.assertEqual(recovered.execute("SELECT marker FROM ledger").fetchall(), [("committed",)])
             self.assertEqual(recovered.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0], 0)
