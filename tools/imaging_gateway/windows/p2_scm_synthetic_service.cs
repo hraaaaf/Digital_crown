@@ -21,7 +21,7 @@ public sealed class P2ScmSyntheticService : ServiceBase {
     static volatile bool stopping;
     static Thread worker;
     static string PrivateDir { get { return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "..", "private")); } }
-    public P2ScmSyntheticService() { ServiceName = "P2Lab"; CanStop = true; AutoLog = false; }
+    public P2ScmSyntheticService() { ServiceName = Path.GetFileNameWithoutExtension(Assembly.GetExecutingAssembly().Location); CanStop = true; AutoLog = false; }
     static void Sql(IntPtr db, string sql) {
         IntPtr err;
         int rc = ExecNative(db, sql, IntPtr.Zero, IntPtr.Zero, out err);
