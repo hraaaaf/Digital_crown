@@ -124,7 +124,7 @@ class P2ScmFixtureStaticGuardTests(unittest.TestCase):
         wal = self.cs.index('ExpectScalar(db, "PRAGMA journal_mode=WAL;", "wal")')
         full = self.cs.index('ExpectScalar(db, "PRAGMA synchronous;", "2")')
         commit = self.cs.index("SCM_COMMITTED")
-        proof = self.cs.index('"SQLITE_COMMIT=PASS')
+        proof = self.cs.index("SQLITE_COMMIT=PASS")
         self.assertLess(wal, full)
         self.assertLess(full, commit)
         self.assertLess(commit, proof)
