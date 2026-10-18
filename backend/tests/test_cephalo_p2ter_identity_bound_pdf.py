@@ -544,6 +544,8 @@ def test_existing_legacy_archive_prevents_reissue_without_claim(
         original_filename="historical-synthetic.pdf",
         file_path="static/archives/historical-synthetic.pdf",
         file_hash="synthetic-legacy-hash",
+        file_size=100,
+        document_group_id="legacy-synthetic-group",
         clinical_data={"cephalo_analysis_id": study.id, "cephalo_analysis_revision": 1},
     )
     db.add(historical)
