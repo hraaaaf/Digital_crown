@@ -1,0 +1,67 @@
+name: LOT07 07-C Orthalis Ubuntu official artifact REA
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v15-07-c-orthalis-ubuntu-rea.yml
+      - scripts/research/orthalis_public_download.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot07-orthalis-ubuntu-rea-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  official-download-and-local-rea:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/lot07-07c-rea-orthalis-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact research HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Node REA supported
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+      - name: Audit downloadable Orthalis artifacts and analyze local public web scripts with REA
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_HEAD="$(git rev-parse HEAD)"
+          echo "SOURCE_HEAD=$SOURCE_HEAD"
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            EXPECTED_HEAD="${{ github.event.pull_request.head.sha }}"
+            test "$SOURCE_HEAD" = "$EXPECTED_HEAD" || { echo "FAILED exact HEAD checkout"; exit 4; }
+          fi
+          echo "OS_BASE=ubuntu-24.04"
+          node --version
+          npm install --global --no-audit --no-fund rea-agents@6.7.0
+          rea --version
+          LAB="$RUNNER_TEMP/orthalis-official-rea"
+          mkdir -p "$LAB/js"
+          node scripts/research/orthalis_public_download.mjs "$LAB/js"
+          COUNT=$(find "$LAB/js" -maxdepth 1 -type f -name '*.js' | wc -l)
+          echo "OFFICIAL_PUBLIC_JS_COUNT=$COUNT"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "REA_LOCAL_STATIC=BLOCKED_NO_PUBLIC_JS"
+            exit 8
+          fi
+          if rea analyze-javascript-application "$LAB/js" --json >"$LAB/rea.json" 2>"$LAB/rea-stderr.txt"; then
+            node - "$LAB/rea.json" <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const raw=fs.readFileSync(process.argv[2]);
+          const r=JSON.parse(raw.toString());
+          const result=r.normalized_result||r;
+          const shape=o=>o&&typeof o==='object'&&!Array.isArray(o)?Object.keys(o).filter(k=>!/(body|url|content|secret|payload|file|name|credential)/i.test(k)).slice(0,18):[];
+          const output={protocol:'LOT07_07C_REA_LOCAL_PUBLIC_WEB_JS',actual_operation:'analyze-javascript-application',result_json_bytes:raw.length,sha256:crypto.createHash('sha256').update(raw).digest('hex'),evidence_id_present:Boolean(r.evidence_id),top_level_non_sensitive_keys:shape(r),normalized_result_non_sensitive_keys:shape(result),native_orthalis_binary_analyzed:false,clinical_workflows_observed:false};
+          console.log('REA_LOCAL_STATIC_RESULT='+JSON.stringify(output));
+          NODE
+          else
+            echo "REA_LOCAL_STATIC=FAILED_OR_UNSUPPORTED_REVIEW_RUN"
+            sed -E 's#https?://[^ ]+#URL_REDACTED#g' "$LAB/rea-stderr.txt" | tail -c 1100
+            exit 9
+          fi
+          echo "ORTHALIS_UBUNTU_INSTALL_RESULT=NO_NATIVE_INSTALL_PERFORMED"
+          echo "REA_BENCHMARK_SCOPE=OFFICIAL_PUBLIC_WEB_RESOURCES_ONLY"
