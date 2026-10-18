@@ -259,6 +259,21 @@ export function CrownBotChat({
   const historyToggleRef = useRef<HTMLButtonElement>(null);
   const historyDrawerRef = useRef<HTMLDivElement>(null);
   const historyCloseRef = useRef<HTMLButtonElement>(null);
+  const brainTabRef = useRef<HTMLButtonElement>(null);
+  const chatTabRef = useRef<HTMLButtonElement>(null);
+  const selectTabFromKeyboard = (event: React.KeyboardEvent<HTMLButtonElement>, current: Tab) => {
+    let next: Tab;
+    switch (event.key) {
+      case 'ArrowRight': next = current === 'brain' ? 'chat' : 'brain'; break;
+      case 'ArrowLeft': next = current === 'brain' ? 'chat' : 'brain'; break;
+      case 'Home': next = 'brain'; break;
+      case 'End': next = 'chat'; break;
+      default: return;
+    }
+    event.preventDefault();
+    setActiveTab(next);
+    (next === 'brain' ? brainTabRef : chatTabRef).current?.focus();
+  };
   const historyWasOpenRef = useRef(false);
   useEffect(() => {
     if (isSidebarOpen) {
@@ -663,7 +678,11 @@ export function CrownBotChat({
                   <MessageSquare size={14} className="shrink-0" />
                   <span className="text-sm truncate">{session.title}</span>
                 </button>
-                <button type="button" onClick={(e) => { void archiveSession(session.id, e); }}
+                <button type="button" onClick={(e) => {
+                    if (window.confirm(`Archiver « ${session.title} » ? Cette conversation ne sera plus accessible depuis l'historique.`)) {
+                      void archiveSession(session.id, e);
+                    }
+                  }}
                   aria-label={`Archiver la conversation ${session.title}`}
                   className="min-h-11 min-w-11 rounded-md p-2 text-slate-500 hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                   <Archive size={14} />
@@ -678,7 +697,7 @@ export function CrownBotChat({
       <div className="flex flex-col bg-primary text-white shrink-0">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-3">
-            <button type="button" ref={historyToggleRef} aria-label="Ouvrir l'historique Crown Bot" aria-expanded={isSidebarOpen} onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
+            <button type="button" ref={historyToggleRef} aria-label="Ouvrir l'historique Crown Bot" aria-expanded={isSidebarOpen} onClick={() => setIsSidebarOpen(true)} className="min-h-11 min-w-11 p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
               <Menu size={18} />
             </button>
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -690,41 +709,48 @@ export function CrownBotChat({
             </div>
           </div>
           {onClose && (
-            <button type="button" aria-label="Fermer Crown Bot" onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+            <button type="button" aria-label="Fermer Crown Bot" onClick={onClose} className="min-h-11 min-w-11 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
               <X size={16} />
             </button>
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="flex px-4 gap-1">
-          <button
+        {/* Two keyboard-operable tabs: Arrow keys/Home/End select and focus. */}
+        <div className="flex px-4 gap-1" role="tablist" aria-label="Vues de Crown Bot">
+          <button type="button" ref={brainTabRef} role="tab"
+            id="cb01-tab-brain" aria-controls="cb01-panel-brain"
+            aria-selected={activeTab === 'brain'} tabIndex={activeTab === 'brain' ? 0 : -1}
+            onKeyDown={event => selectTabFromKeyboard(event, 'brain')}
             onClick={() => setActiveTab('brain')}
-            className={cn('flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-t-lg transition-colors relative',
-              activeTab === 'brain' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
+            className={cn('flex min-h-11 items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+              activeTab === 'brain' ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/10 hover:text-white')}
           >
-            <BrainCircuit size={13} /> Mémoire contextuelle
+            <BrainCircuit size={15} aria-hidden="true" /> Mémoire contextuelle
             {unreadCount > 0 && (
-              <span className="ml-1 w-4 h-4 bg-amber-400 text-slate-900 text-[8px] font-black rounded-full flex items-center justify-center animate-pulse">
+              <span aria-label={`${unreadCount} nouvelles alertes`}
+                className="ml-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-xs font-bold text-slate-900">
                 {unreadCount}
               </span>
             )}
           </button>
-          <button
+          <button type="button" ref={chatTabRef} role="tab"
+            id="cb01-tab-chat" aria-controls="cb01-panel-chat"
+            aria-selected={activeTab === 'chat'} tabIndex={activeTab === 'chat' ? 0 : -1}
+            onKeyDown={event => selectTabFromKeyboard(event, 'chat')}
             onClick={() => setActiveTab('chat')}
-            className={cn('flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-t-lg transition-colors',
-              activeTab === 'chat' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
+            className={cn('flex min-h-11 items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+              activeTab === 'chat' ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/10 hover:text-white')}
           >
-            <MessageSquare size={13} /> Chat
-            
+            <MessageSquare size={15} aria-hidden="true" /> Chat
           </button>
         </div>
       </div>
 
       {/* ── TAB: CHAT — Bientôt disponible ── */}
       {activeTab === 'chat' && (historyBusy || !!historyError || !!currentSessionId) && (
-        <section aria-label="Conversation archivée — lecture seule"
+        <section role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
           className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
+          <div role="region" aria-label="Conversation archivée — lecture seule">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <h4 className="text-sm font-bold text-slate-900">Historique · lecture seule</h4>
@@ -751,20 +777,25 @@ export function CrownBotChat({
               )) : <li className="text-sm text-slate-600">Aucun message dans cette conversation.</li>}
             </ol>
           )}
+          </div>
         </section>
       )}
       {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && zeroLlmPreviewEnabled && (
         // Clinical safety: route or staff identity changes invalidate a prior
         // patient's scoped read/proposal. A responsive 200% reflow leaves the
         // key unchanged and therefore preserves the unfinished draft.
-        <CrownBotWorkflowPreview
-          key={`${user?.id ?? 'unknown'}:${employerId ?? 'unknown'}:${location.pathname}`}
-          practitionerId={user?.role === 'DENTISTE' ? Number(user.id) : undefined}
-          requirePractitioner={user?.role === 'DENTISTE'}
-        />
+        <div role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
+          className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <CrownBotWorkflowPreview
+            key={`${user?.id ?? 'unknown'}:${employerId ?? 'unknown'}:${location.pathname}`}
+            practitionerId={user?.role === 'DENTISTE' ? Number(user.id) : undefined}
+            requirePractitioner={user?.role === 'DENTISTE'}
+          />
+        </div>
       )}
       {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && !zeroLlmPreviewEnabled && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
+        <div role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
+          className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
           <div className="relative">
             <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner border border-white/60">
               <MessageSquare size={36} className="text-primary/40" />
@@ -796,7 +827,8 @@ export function CrownBotChat({
 
       {/* ── TAB: GHOST BRAIN ── */}
       {activeTab === 'brain' && (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50/50">
+        <div role="tabpanel" id="cb01-panel-brain" aria-labelledby="cb01-tab-brain"
+          className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50/50">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary relative">
