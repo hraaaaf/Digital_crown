@@ -28,7 +28,7 @@ from backend.routers.patient_companion_common import create_patient_device_token
 from backend.models_patient_companion import (
     PatientCompanionAccess, PatientCompanionAgendaSlot,
     PatientCompanionAppointmentRef, PatientCompanionIdentity,
-    PatientCompanionRemoteReceipt,
+    PatientCompanionRemoteReceipt, PatientCompanionRemoteKeyset,
 )
 from backend.services.patient_companion_remote_crypto import (
     decrypt_and_verify, generate_p256_keypair, sign_and_encrypt,
@@ -65,8 +65,10 @@ teleconsult_router.process_remote_envelope = _worker_with_lab_key_protection
 from backend.utils.rate_limit import check_rate_limit as _real_rate_limit
 
 
-def _laboratory_rate_limit(request, scope="auth"):
-    return _real_rate_limit(request, scope=scope, max_attempts=100)
+def _laboratory_rate_limit(request, scope="auth", *, max_attempts=100):
+    # Only this disposable load-test host raises quotas. Teleconsultation
+    # explicitly passes max_attempts=600; preserve its callable signature.
+    return _real_rate_limit(request, scope=scope, max_attempts=max(100, max_attempts))
 
 
 pc_router.check_rate_limit = _laboratory_rate_limit
@@ -582,9 +584,9 @@ def exercise():
         with Session() as db:
             access_row = db.get(PatientCompanionAccess, access_id)
             assert access_row.revoked_at is not None
-            keyset_row = db.query(
-                __import__("backend.models_patient_companion", fromlist=["PatientCompanionRemoteKeyset"]).PatientCompanionRemoteKeyset
-            ).filter_by(access_id=access_id).one()
+            keyset_row = db.query(PatientCompanionRemoteKeyset).filter_by(
+                access_id=access_id,
+            ).one()
             assert keyset_row.status == "REVOKED" and keyset_row.revoked_at is not None
         expected = int(remote_result[0] == 200)
         assert count(22) == receipt_count(revoke_idem) == expected
