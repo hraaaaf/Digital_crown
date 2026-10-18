@@ -418,13 +418,18 @@ class FailClosedTenantAndPublication(unittest.TestCase):
 
     def test_14_legitimate_standalone_appointment_without_patient_ok(self):
         from sqlalchemy import text
-        with self.engine.begin() as c:
-            c.execute(text("""
-INSERT INTO appointments(
- employer_id,patient_id,patient_name,datetime_start,duration_minutes,
- reminder_sent,motif
-) VALUES (:owner,NULL,'FAKE_STANDALONE','2027-05-01 10:00:00',30,0,'FAKE_ONLY')
-"""), {"owner":self.fake_owners[0]})
+        from sqlalchemy.orm import Session
+        from backend import models
+        # The REAL ORM supplies schema-required enum/default fields; raw SQL
+        # omitted them and would test a NOT NULL constraint rather than tenant.
+        with Session(self.engine) as session:
+            session.add(models.Appointment(
+                employer_id=self.fake_owners[0], patient_id=None,
+                patient_name="FAKE_STANDALONE",
+                datetime_start=datetime(2027, 5, 1, 10),
+                duration_minutes=30, motif="FAKE_ONLY",
+            ))
+            session.commit()
         try:
             self.assertTrue(self.read_preflight())
             self.expected_for_publication = rows_digest(self.engine)
