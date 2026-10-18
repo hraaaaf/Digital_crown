@@ -96,7 +96,6 @@ def preview_bot_workflow(
     # A patient selector is resolved on the SERVER, after authorization and
     # employer scoping. Never trust a client-supplied resolved identity.
     transcript = list(req.messages)
-    selected_patient = None
     if len(transcript) > 1 and transcript[1].strip().casefold() not in (
         "/annuler", "/cancel",
     ):
@@ -127,7 +126,6 @@ def preview_bot_workflow(
                 "proposal": None,
             }
         # Replayed FSM receives only a verified, scoped internal numeric ID.
-        selected_patient = matches[0]
         transcript[1] = str(matches[0].id)
 
     workflow = PocConversation(today=(
@@ -136,16 +134,6 @@ def preview_bot_workflow(
     for message in transcript:
         result = workflow.handle(message)
     payload = {"status": result.status, "message": result.message, "proposal": None}
-    # Revalidated tenant-scoped patient identity is display-only, not an
-    # authorization token. Each POST replays and rechecks the full transcript.
-    if selected_patient is not None and command == "/rdv":
-        payload["patient"] = {
-            "id": selected_patient.id,
-            "nom": selected_patient.nom,
-            "prenom": selected_patient.prenom,
-            "numero_dossier": selected_patient.numero_dossier,
-        }
-
     if result.proposal is None:
         return payload
 
