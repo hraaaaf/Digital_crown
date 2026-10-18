@@ -705,6 +705,10 @@ try {
   // Integrated CB-01 S05/S06: authentic MainLayout/Chat/Preview, actual
   // localhost FastAPI with disposable staff. No API mocks or clinical writes.
   const realRoleBrowserEvidence=[];
+  // FUE-C: first meaningful server-confirmed result, NOT just 3 CTA visible.
+  const fueC={type:'FUE-C',persona:'S05_SYNTHETIC_RECEPTION',
+    start:'DASHBOARD_READY_BEFORE_CROWNBOT_LAUNCH',firstValue:'NOT_RUN',
+    humanE2E:'NOT_RUN',appBackend:'REAL_VITE_MAINLAYOUT_FASTAPI_SYNTHETIC_DB'};
   for (const kind of ['s06','s05']) {
     const context=await browser.newContext({
       viewport:{width:1600,height:900},storageState:roleStorageStates[kind],
@@ -732,7 +736,9 @@ try {
         throw Error('FAIL: CB-01 S05/S06 real application admission denied');
       const launcher=page.locator('button[aria-label="Ouvrir CrownBot"]:visible').first();
       await launcher.waitFor({state:'visible',timeout:30000});
-      await launcher.click();
+      const fueStartedAt=performance.now();
+      const fueActions={clicks:0,typedAnswers:0};
+      await launcher.click(); fueActions.clicks++;
       const panel=page.locator('[data-cb01-associate-sidecar]');
       await panel.waitFor({state:'visible',timeout:15000});
       const preview=panel.getByRole('region',{name:'Assistant Crown Bot — consultation'});
@@ -743,7 +749,7 @@ try {
         && resp.request().method()==='POST', {timeout:20000});
       if(kind==='s06') {
         const p=nextPreviewResponse();
-        await rdv.click();
+        await rdv.click(); fueActions.clicks++;
         const r=await p;
         if(r.status()!==403 || (await r.json())?.detail!=='Accès refusé.')
           throw Error('FAIL: S06 browser expected canonical 403; got HTTP '+r.status());
@@ -752,11 +758,11 @@ try {
             || (await preview.getByText('AMINA BENALI',{exact:false}).count())!==0)
           throw Error('FAIL: S06 browser leaked synthetic patient identity');
       } else {
-        await rdv.click();
+        await rdv.click(); fueActions.clicks++;
         await preview.getByText('Patient : saisissez un identifiant',{exact:false}).waitFor();
         const next=async(value,prompt)=>{
-          await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(value);
-          await preview.getByRole('button',{name:'Envoyer'}).click();
+          await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(value); fueActions.typedAnswers++;
+          await preview.getByRole('button',{name:'Envoyer'}).click(); fueActions.clicks++;
           await preview.getByText(prompt,{exact:false}).waitFor({state:'visible'});
         };
         await next('dossier:CB01-N-101','Date du rendez-vous au format');
@@ -764,9 +770,9 @@ try {
         await next('10:00','Durée : 15, 30, 45 ou 60');
         await next('30','Motif : consultation, détartrage ou couronne');
         await next('consultation','Tapez CONFIRMER');
-        await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill('CONFIRMER');
+        await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill('CONFIRMER'); fueActions.typedAnswers++;
         const p=nextPreviewResponse();
-        await preview.getByRole('button',{name:'Envoyer'}).click();
+        await preview.getByRole('button',{name:'Envoyer'}).click(); fueActions.clicks++;
         const r=await p, data=await r.json();
         const serialized=JSON.stringify(data);
         if(r.status()!==200 || data?.status!=='proposal_only'
@@ -777,6 +783,13 @@ try {
             || ['pending_action_id','pendingActionId','action_id','actionId'].some(k=>serialized.includes('"'+k+'"')))
           throw Error('FAIL: S05 browser received actionable or invalid real backend proposal');
         await preview.getByText('Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable.').waitFor();
+        // Timer stops ONLY after real HTTP proposal_only and visible non-executable UI.
+        const elapsedMs=Math.round(performance.now()-fueStartedAt);
+        if(!Number.isSafeInteger(elapsedMs) || elapsedMs<=0 || fueActions.clicks!==8 || fueActions.typedAnswers!==6)
+          throw Error('FAIL: FUE-C observed first-value metric/actions invalid');
+        Object.assign(fueC,{firstValue:'PASS_SERVER_PROPOSAL_ONLY_VISIBLE_NOT_BOOKED',
+          elapsedMs,clicks:fueActions.clicks,typedAnswers:fueActions.typedAnswers,
+          decisionSteps:7,httpStatus:200,clinicalWrites:0,requiredPractitionerValidation:'NOT_EXECUTABLE'});
       }
       if(errors.length || writes.length || !statuses.length
           || statuses.some(code=>code!==(kind==='s06'?403:200)))
@@ -795,7 +808,7 @@ try {
     historyReadOnlyChromium:'PASS_SYNTHETIC_HISTORY_TEXT_NO_EXECUTE_AND_MODAL_KEYBOARD',
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
     browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
-    roleChecks,realRoleBrowserEvidence,evidence,clinicalRouteEvidence,wallClockEvidence};
+    roleChecks,realRoleBrowserEvidence,fueC,evidence,clinicalRouteEvidence,wallClockEvidence};
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2));
   console.log('CB01_ASSOCIATE_SIDECAR_VISUAL: PASS',JSON.stringify(evidence));
 } finally {
