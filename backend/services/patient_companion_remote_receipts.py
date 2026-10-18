@@ -21,6 +21,11 @@ class RemoteReplayDetected(ValueError):
     pass
 
 
+class RemoteLegacyReceiptNeedsReconciliation(RemoteReplayDetected):
+    """Original clinical intent was not stored before f05r0000032."""
+    pass
+
+
 class RemoteCommandBusy(ValueError):
     pass
 
@@ -107,7 +112,7 @@ def claim_remote_command(
     if same_intent.intent_sha256 is None:
         # No reliable request fingerprint exists for a pre-upgrade receipt.
         # Fail closed; never guess or return an old clinical ACK as new.
-        raise RemoteReplayDetected("legacy remote command intent unverifiable")
+        raise RemoteLegacyReceiptNeedsReconciliation("legacy remote command intent unverifiable")
     if not hmac.compare_digest(same_intent.intent_sha256, _intent_sha256(message)):
         raise RemoteReplayDetected("idempotency key reused for a different request intent")
     if same_intent.status == "PROCESSING":
