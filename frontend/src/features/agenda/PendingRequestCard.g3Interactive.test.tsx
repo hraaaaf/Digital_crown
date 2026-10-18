@@ -22,7 +22,11 @@ const request = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(api.post).mockResolvedValue({ data: {} } as never);
+  vi.mocked(api.post).mockResolvedValue({ data: { message_template: 'Bonjour Sara, merci de confirmer.' } } as never);
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: vi.fn().mockResolvedValue(undefined) },
+  });
   vi.spyOn(window, 'confirm').mockReturnValue(true);
   vi.spyOn(window, 'alert').mockImplementation(() => undefined);
 });
@@ -40,7 +44,18 @@ describe('PendingRequestCard G3 action matrix', () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/appointments/1/request-confirmation'));
     expect(onAction).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/Message template copié/i)).toBeTruthy();
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Bonjour Sara, merci de confirmer.'));
+    expect(screen.getByText(/Message copié dans le presse-papiers/i)).toBeTruthy();
+    expect(screen.getByText('Bonjour Sara, merci de confirmer.')).toBeTruthy();
+  });
+
+  it('shows real template for manual copying when Clipboard API rejects', async () => {
+    vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error('denied'));
+    render(<PendingRequestCard request={request} onAction={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Demander confirmation/i }));
+    await waitFor(() => expect(screen.getByText(/Copie automatique impossible/i)).toBeTruthy());
+    expect(screen.getByText('Bonjour Sara, merci de confirmer.')).toBeTruthy();
   });
 
   it('calls onAction only after confirm backend ACK', async () => {
