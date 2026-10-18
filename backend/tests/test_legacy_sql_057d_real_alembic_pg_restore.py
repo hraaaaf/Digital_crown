@@ -74,7 +74,7 @@ KNOWN_PG18_ARRAYS = {
 
 
 def canonical_catalog_row(section, row):
-    name = row[0]
+    name = row[1] if section == "constraints" else row[0]
     is_constraint = section == "constraints" and name in KNOWN_PG18_ARRAYS and name.startswith("ck_")
     is_index = section == "indexes" and name == "uq_ortho_cases_one_open_per_patient"
     if not (is_constraint or is_index):
@@ -88,7 +88,7 @@ def canonical_catalog_row(section, row):
     shadow = shadow.replace("::text[]", "").replace("::text", "")
     shadow = re.sub(r"[\s\(\)\[\],]", "", shadow)
     if is_constraint:
-        if row[1] != "c":
+        if row[2] != "c":
             raise Refused("PG18_DEPARSE_CONSTRAINT_TYPE_CHANGED")
         expected = "CHECK" + column + "=ANYARRAY" + "ENUM" * len(values)
     else:
@@ -108,9 +108,10 @@ def catalog(c, include_details=False):
                 WHERE table_schema='public' ORDER BY table_name,ordinal_position""",
         "indexes": """SELECT indexname,indexdef FROM pg_indexes
                 WHERE schemaname='public' ORDER BY indexname""",
-        "constraints": """SELECT conname,contype,pg_get_constraintdef(oid,TRUE)
+        "constraints": """SELECT conrelid::regclass::text,conname,contype,
+                       pg_get_constraintdef(oid,TRUE)
                 FROM pg_constraint WHERE connamespace='public'::regnamespace
-                ORDER BY conname,conrelid::regclass::text""",
+                ORDER BY conrelid::regclass::text,conname""",
     }
     data = {name: [tuple(map(str, row)) for row in c.execute(text(query)).all()]
             for name, query in sql.items()}
@@ -292,7 +293,21 @@ class RealHeadRecovery(unittest.TestCase):
                         first_differences[section] = {"source_only": missing[:4], "restore_only": added[:4],
                                                        "source_count": len(before[section]),
                                                        "restore_count": len(after[section])}
-                self.fail("PHYSICAL_ALEMBIC_CATALOG_MISMATCH " + repr(first_differences)[:3500])
+                canonical_differences = {}
+                for section in before:
+                    left = sorted(canonical_catalog_row(section, row) for row in before[section])
+                    right = sorted(canonical_catalog_row(section, row) for row in after[section])
+                    if left != right:
+                        from collections import Counter
+                        minus = Counter(left) - Counter(right)
+                        plus = Counter(right) - Counter(left)
+                        canonical_differences[section] = {
+                            "missing": [repr(k) for k in list(minus)[:3]],
+                            "added": [repr(k) for k in list(plus)[:3]],
+                        }
+                self.fail("PHYSICAL_ALEMBIC_CATALOG_MISMATCH " +
+                          repr({"canonical": canonical_differences,
+                                "raw": first_differences})[:6500])
             self.assertEqual(evidence(c), self.before)
             self.assertGreater(self.schema[1], 30)
 
@@ -380,14 +395,14 @@ class RealHeadRecovery(unittest.TestCase):
                  "'INTERNAL'::character varying::text, "
                  "'OTHER'::character varying::text]))")
         self.assertEqual(
-            canonical_catalog_row("constraints", (name, "c", left)),
-            canonical_catalog_row("constraints", (name, "c", right)),
+            canonical_catalog_row("constraints", ("ngap_catalog_mappings", name, "c", left)),
+            canonical_catalog_row("constraints", ("ngap_catalog_mappings", name, "c", right)),
         )
         for forged in (right.replace("'NGAP'", "'FOREIGN'"),
                        right.replace("code_kind::text =", "code_kind::text <>"),
                        right + " OR TRUE"):
             with self.subTest(forged=forged), self.assertRaises(Refused):
-                canonical_catalog_row("constraints", (name, "c", forged))
+                canonical_catalog_row("constraints", ("ngap_catalog_mappings", name, "c", forged))
 
 
 
