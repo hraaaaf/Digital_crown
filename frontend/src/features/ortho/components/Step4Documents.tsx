@@ -171,6 +171,9 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       return;
     }
     draftInFlight.current = true;
+    // Capture the exact pre-save clinical snapshot. Reading live form data
+    // after an awaited save could mix a newer edit with an older revision.
+    const clinicalSnapshot = snapshotCephaloPdfClinicalInputs(useOrthoStore.getState());
     const stillSelected = () => useOrthoStore.getState().patientId === patientId
       && useOrthoStore.getState().analysisId === analysisId;
     setIsBrouillon(true);
@@ -180,7 +183,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       );
       // All PDF entrypoints must verify the response's study/revision headers.
       const data = await cephaloRepository.generatePDF(patientId, {
-        ...source, ...snapshotCephaloPdfClinicalInputs(useOrthoStore.getState()), archive: false,
+        ...source, ...clinicalSnapshot, archive: false,
       });
       if (!stillSelected()) throw Error("L'étude a changé pendant la génération du brouillon");
       const blob = new Blob([data], { type: 'application/pdf' });
