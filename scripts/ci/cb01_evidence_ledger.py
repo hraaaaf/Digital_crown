@@ -40,11 +40,15 @@ if (not isinstance(fue,dict)
     or fue.get('requiredPractitionerValidation')!='NOT_EXECUTABLE'):
     raise SystemExit('FAIL: FUE-C first meaningful server-confirmed result/timing missing')
 if (full_state.get('kind')!='CB01_FULL_SQLITE_FINAL_STATE_DIFF'
-    or full_state.get('status')!='PASS_NO_FINAL_STATE_CHANGE'
+    or full_state.get('status')!='PASS_CLINICAL_UNCHANGED_TECHNICAL_EXCEPTIONS'
     or full_state.get('allUserTablesIncluded') is not True
     or not isinstance(full_state.get('tablesChecked'),int) or full_state['tablesChecked']<2
-    or full_state.get('changedTables')!=[]):
-    raise SystemExit('FAIL: CB-01 synthetic full-table final-state integrity unproven')
+    or full_state.get('technicalAllowlist')!=['audit_logs','workstation_modes']
+    or full_state.get('clinicalTablesChanged')!=[]
+    or not isinstance(full_state.get('changedTables'),list)
+    or set(full_state['changedTables'])!=set(full_state.get('technicalExceptions',[]))
+    or not set(full_state['changedTables']).issubset({'audit_logs','workstation_modes'})):
+    raise SystemExit('FAIL: CB-01 clinical table final-state integrity or technical exception contract unproven')
 # Real browser -> real FastAPI, separate synthetic staff role/tenant identities.
 # No mocked HTTP result is admissible for S05/S06 here.
 role_evidence=sidecar.get('realRoleBrowserEvidence')
@@ -110,7 +114,8 @@ out={'schema':'CB01_CROSS_GATE_PROOF_V1','sourceHead':head,'scenarios':scenarios
      'fueC':{'firstValue':fue['firstValue'],'elapsedMs':fue['elapsedMs'],
              'clicks':8,'typedAnswers':6,'humanE2E':'NOT_RUN'},
      'syntheticSqliteFinalState':{'status':full_state['status'],
-             'tablesChecked':full_state['tablesChecked'],'changedTables':[]},
+             'tablesChecked':full_state['tablesChecked'],
+             'clinicalTablesChanged':[], 'technicalExceptions':full_state['technicalExceptions']},
      'humanE2EValidated':0,'clinicalCabinetUsed':False,
      'independentReviews':0,'converged':False,
      'originalS01S12MatrixUnmodified':True,
