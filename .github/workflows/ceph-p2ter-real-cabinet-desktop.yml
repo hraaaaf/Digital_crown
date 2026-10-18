@@ -7,6 +7,7 @@ on:
     branches:
       - audit/dc-ceph-facad-parity-p2bis-http-pdf-20261017
       - fix/ceph-fac-parity-p2ter-analysis-bound-pdf-20261017
+      - fix/ceph-fac-parity-p2ter-plus-ux-archive-concurrency-20261017
 permissions:
   contents: read
 jobs:
@@ -126,8 +127,10 @@ jobs:
           studied=json.loads(next(line.split('=',1)[1] for line in Path('/tmp/p2ter-seed.log').read_text().splitlines() if line.startswith('P2TER_SYNTHETIC_STUDIES=')))
           with database.SessionLocal() as db:
               rows=db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id==studied['patient_id'], models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO).all()
-              assert len(rows)==2, f"Expected 1 clicked archive per viewport, got {len(rows)}"
-              assert all(row.analysis_id==studied['older_id'] and row.clinical_data.get('cephalo_analysis_revision')==2 for row in rows)
+              assert len(rows)==2, f"Idempotency requires exactly one archive for A and B rev2, got {len(rows)}"
+              assert {row.analysis_id for row in rows}=={studied['older_id'],studied['latest_id']}
+              assert all(row.clinical_data.get('cephalo_analysis_revision')==2 for row in rows)
+              assert len({(row.analysis_id,row.clinical_data['cephalo_analysis_revision']) for row in rows})==2
           for viewport in source['viewports']:
               assert any('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_' in check for check in viewport['checks'])
               pdf=Path('artifacts/ceph-p2ter-authenticated-desktop')/(viewport['viewport']+'-older-click-archived.pdf')
