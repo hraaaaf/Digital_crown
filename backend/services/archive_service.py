@@ -410,7 +410,21 @@ class ArchiveService:
         
         self.db.add(doc)
         if commit:
-            self.db.commit()
+            try:
+                self.db.commit()
+            except Exception:
+                # An official cephalo PDF is not a successful archive when its
+                # SQL row fails to commit. Remove only the newly written file;
+                # never leave an orphan containing clinical data on disk.
+                self.db.rollback()
+                if doc_type == DocumentType.RAPPORT_CEPHALO:
+                    try:
+                        storage_path.unlink(missing_ok=True)
+                    except OSError:
+                        # The failure remains fatal; operational cleanup is
+                        # separately auditable rather than masked as success.
+                        pass
+                raise
             self.db.refresh(doc)
         else:
             self.db.flush()
