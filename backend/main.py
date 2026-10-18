@@ -212,6 +212,8 @@ async def lifespan(app: FastAPI):
     patient_relay_task = None
     station_ttl_cleanup_task = None
     imaging_bridge_lab_handle = None
+    # Set before starting: even a partially armed timer must be stopped.
+    daily_scheduler_start_attempted = False
     try:
         boot_policy = assert_runtime_startup_allowed(_cfg)
 
@@ -268,6 +270,7 @@ async def lifespan(app: FastAPI):
         # E1 — Scheduler quotidien alertes proactives
         from backend.services.daily_scheduler import start_daily_scheduler
         if boot_policy != REHEARSAL_MIGRATION_ONLY:
+            daily_scheduler_start_attempted = True
             start_daily_scheduler()
 
         # 4. Tâche background : re-synchronisation Firebase toutes les 6h
@@ -329,9 +332,16 @@ async def lifespan(app: FastAPI):
             ) if task is not None]
             for task in active:
                 task.cancel()
-            if active:
-                await asyncio.gather(*active, return_exceptions=True)
-            logger.info("Arret de l'API...")
+            try:
+                if active:
+                    await asyncio.gather(*active, return_exceptions=True)
+            finally:
+                # The scheduler owns a threading.Timer, not an asyncio.Task.
+                # Always stop it on normal exit or failed partial startup.
+                if daily_scheduler_start_attempted:
+                    from backend.services.daily_scheduler import stop_daily_scheduler
+                    stop_daily_scheduler()
+                logger.info("Arret de l'API...")
 
 
 async def _sync_all_licenses_from_firebase() -> None:
