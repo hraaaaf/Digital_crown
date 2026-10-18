@@ -19,7 +19,7 @@ const send=(...args)=>execFileSync('xdotool',args,{encoding:'utf8',timeout:8000}
    ctx=await browser.newContext({viewport:{width:1440,height:900},deviceScaleFactor:1});
    page=await ctx.newPage();
    await page.goto(pathToFileURL(inFile).href,{waitUntil:'load'});
-   await page.addStyleTag({path:path.resolve('frontend/src/index.css')});
+   await page.addStyleTag({content:fs.readFileSync(path.resolve('frontend/src/index.css'),'utf8').replace(/@import\s+[^;]+;/g,'')});
    evidence.zoom_before=await page.evaluate(()=>({innerWidth:innerWidth,clientWidth:document.documentElement.clientWidth,dpr:devicePixelRatio}));
    try {
      const wins=send('search','--onlyvisible','--class','chromium').split(/\s+/).filter(Boolean);
