@@ -193,7 +193,7 @@ describe('P2ter++ clinical isolation A -> B (synthetic sentinel)', () => {
     const photo = useOrthoStore.getState().photos.find(p => p.id === 'extra_face');
     expect(photo?.preview).toBeNull();
     expect(photo?.file).toBeNull();
-    expect(localStorage.getItem(key)).not.toContain('blob:');
+    expect(localStorage.getItem(key)).toBeNull();
   });
 
   it('does not display stale save A success in study B or cancel B saving', async () => {
