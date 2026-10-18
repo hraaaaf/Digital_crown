@@ -6,6 +6,7 @@ Never use these helpers with a live cabinet source.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -48,7 +49,7 @@ def logical_evidence(db):
     return hashlib.sha256(payload.encode()).hexdigest(), counts
 
 
-def connect(path, key, dbapi):
+def _open_db(path, key, dbapi):
     if type(key) is not str or len(key) != 64 or any(c not in "0123456789abcdef" for c in key):
         raise Refused("SYNTHETIC_KEY_REQUIRED")
     db = dbapi.connect(str(path))
@@ -61,8 +62,17 @@ def connect(path, key, dbapi):
         raise
 
 
+@contextmanager
+def connect(path, key, dbapi):
+    db = _open_db(path, key, dbapi)
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 def fabricate(path, key, dbapi):
-    db = connect(path, key, dbapi)
+    db = _open_db(path, key, dbapi)
     try:
         db.execute("PRAGMA journal_mode=WAL")
         db.executescript("""
