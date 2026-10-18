@@ -34,6 +34,24 @@ _TRASHED_PAYMENT_PREFIX = "CORBEILLE — Lien Doc ID: "
 _INSTALLMENT_TRASH_PREFIX = "__DC_TRASH_DOC__:"
 
 
+def _validate_archive_filename(filename: str) -> None:
+    """Reject client path components, NTFS alternate streams and reserved device names."""
+    invalid = (
+        not isinstance(filename, str)
+        or not filename or filename in {".", ".."}
+        or any(c in filename for c in '/\\<>:"|?*')
+        or any(ord(c) < 32 for c in filename)
+        or filename.rstrip(" .") != filename
+    )
+    if invalid:
+        raise ValueError("Nom de fichier invalide pour archivage")
+    base = filename.split(".", 1)[0].upper()
+    if base in {"CON", "PRN", "AUX", "NUL"} or (
+        len(base) == 4 and base[:3] in {"COM", "LPT"} and base[3] in "123456789"
+    ):
+        raise ValueError("Nom de fichier Windows réservé")
+
+
 class ArchiveService:
     """
     Service de gestion documentaire avec :
@@ -99,8 +117,7 @@ class ArchiveService:
         today = datetime.now()
         path = ARCHIVE_BASE_DIR / str(patient_id) / doc_type.value / str(today.year) / str(today.month)
         # Reject client-supplied path components before creating directories.
-        if not filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
-            raise ValueError("Nom de fichier invalide pour archivage")
+        _validate_archive_filename(filename)
         path.mkdir(parents=True, exist_ok=True)
 
         # Ajouter la version dans le nom si > 1
@@ -111,8 +128,7 @@ class ArchiveService:
         
         # Client filenames are labels, never trusted filesystem paths.
         # Keep generated archives inside the patient/type/month directory.
-        if not filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
-            raise ValueError("Nom de fichier invalide pour archivage")
+        _validate_archive_filename(filename)
         return path / filename
 
     def _resolve_archive_storage_path(self, doc: models.DocumentArchive) -> Path:
@@ -280,8 +296,7 @@ class ArchiveService:
         
         # Official reports are only produced by the identity-bound PDF route.
         # Generic service calls must never use a client-controlled destination.
-        if not filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
-            raise ValueError("Nom de fichier invalide pour archivage")
+        _validate_archive_filename(filename)
 
         # Calculer le hash
         file_hash = self._calculate_file_hash(file_content)
