@@ -45,7 +45,7 @@ jobs:
       - name: Real JWT HTTP A/B selected analysis PDF bytes and archive fail-closed
         run: |
           set -o pipefail
-          python -m pytest backend/tests/test_cephalo_p2ter_atomic_archive.py backend/tests/test_cephalo_p2ter_identity_bound_pdf.py backend/tests/test_cephalo_p2bis_http_pdf_continuity.py backend/tests/test_cephalo_r23g5_authenticated_api.py backend/tests/test_cephalo_r23g2_pdf_sections.py backend/tests/test_cephalo_r17_pdf_renderer_contract.py backend/tests/test_document_provenance_p3.py -q | tee p2ter-backend-results.log
+          python -m pytest backend/tests/test_cephalo_p2ter_archive_adversarial.py backend/tests/test_cephalo_p2ter_atomic_archive.py backend/tests/test_cephalo_p2ter_identity_bound_pdf.py backend/tests/test_cephalo_p2bis_http_pdf_continuity.py backend/tests/test_cephalo_r23g5_authenticated_api.py backend/tests/test_cephalo_r23g2_pdf_sections.py backend/tests/test_cephalo_r17_pdf_renderer_contract.py backend/tests/test_document_provenance_p3.py -q | tee p2ter-backend-results.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -79,7 +79,7 @@ jobs:
         working-directory: frontend
         run: |
           set -o pipefail
-          npx vitest run src/features/ortho/cephaloArchiveGate.test.ts src/features/ortho/cephaloDocumentSource.test.ts src/features/ortho/cephaloRepository.document.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts | tee ../p2ter-react-results.log
+          npx vitest run src/features/ortho/cephaloClinicalIsolation.test.ts src/features/ortho/cephaloArchiveGate.test.ts src/features/ortho/cephaloDocumentSource.test.ts src/features/ortho/cephaloRepository.document.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts | tee ../p2ter-react-results.log
       - name: TypeScript application check
         working-directory: frontend
         run: |
