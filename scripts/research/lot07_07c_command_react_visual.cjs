@@ -41,6 +41,19 @@ try{
       await page.getByRole('button',{name:'Agenda Dr B'}).click();
       if(await page.locator('.cmd-lanehead:visible').count()!==1 || await page.getByRole('button',{name:/TEST-003/}).isVisible()!==true || await page.locator('.cmd-appt').filter({hasText:'TEST-002'}).isVisible()!==false)failures.push('MOBILE_LANE_SWITCH_'+w);
       await page.getByRole('button',{name:'Agenda Dr A'}).click();
+      const opener=page.getByRole('button',{name:'Afficher les 4 panneaux complémentaires'});
+      if(!(await opener.isVisible())||await opener.getAttribute('aria-expanded')!=='false')failures.push('MOBILE_DISCLOSURE_MISSING_'+w);
+      if(await page.locator('.cmd-cards > .cmd-card:visible').count()!==5)failures.push('MOBILE_SECONDARY_DEFAULT_'+w);
+      await opener.focus();
+      await page.keyboard.press('Enter');
+      if(await page.locator('.cmd-cards > .cmd-card:visible').count()!==9 || await page.locator('.cmd-secondary-toggle').getAttribute('aria-expanded')!=='true')failures.push('MOBILE_DISCLOSURE_OPEN_'+w);
+      if(w===430){
+        const extra=path.join(out,'command-react-mobile-expanded-430.png');
+        await page.screenshot({path:extra,fullPage:true,animations:'disabled'});
+        snaps.push({name:path.basename(extra),bytes:fs.statSync(extra).size,sha256:hash(extra),purpose:'explicit secondary panels open, mobile'}); 
+      }
+      await page.getByRole('button',{name:'Masquer les 4 panneaux complémentaires'}).click();
+      if(await page.locator('.cmd-cards > .cmd-card:visible').count()!==5 || await page.locator('.cmd-secondary-toggle').getAttribute('aria-expanded')!=='false')failures.push('MOBILE_DISCLOSURE_CLOSE_'+w);
    }
    const img=path.join(out,'command-react-elite-'+w+'.png');await page.screenshot({path:img,fullPage:true,animations:'disabled'});
    snaps.push({name:path.basename(img),bytes:fs.statSync(img).size,sha256:hash(img),...result});
