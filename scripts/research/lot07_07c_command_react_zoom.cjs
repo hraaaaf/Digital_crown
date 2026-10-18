@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),{execFileSync}=require('no
 const {createRequire}=require('node:module');
 const pw=createRequire(path.join(process.env.PLAYWRIGHT_LIB||'/tmp/lot07-07c-playwright','package.json'))('playwright');
 const out=path.resolve('artifacts/lot07-07c-command-react');fs.mkdirSync(out,{recursive:true});
-const evidence={method:'XVFB_XDOTOOL_REAL_NATIVE_ZOOM',source:'REACT_VITE_ISOLATED',before:null,after:null,ratio:null,zoom200:false,overflow:false,clipped:[],pass:false};
+const evidence={method:'XVFB_XDOTOOL_REAL_NATIVE_ZOOM',source:'REACT_VITE_ISOLATED',before:null,after:null,ratio:null,zoom200:false,overflow:false,clipped:[],patient_first:false,pass:false};
 (async()=>{
  const browser=await pw.chromium.launch({headless:false,args:['--no-sandbox','--disable-dev-shm-usage','--window-size=1600,1100']});
  try{
@@ -19,12 +19,13 @@ const evidence={method:'XVFB_XDOTOOL_REAL_NATIVE_ZOOM',source:'REACT_VITE_ISOLAT
   evidence.ratio=+(evidence.before.css/evidence.after.css).toFixed(3);
   evidence.zoom200=evidence.ratio>=1.9&&evidence.ratio<=2.1;
   const geom=await page.evaluate(()=>{const viewport=document.documentElement.clientWidth;const elems=['.cmd-shell','.cmd-main','.cmd-heading','.cmd-workbench','.cmd-agenda','.cmd-right','.cmd-patienthero'].map(s=>document.querySelector(s)).filter(Boolean);
-   return {viewport,doc:document.documentElement.scrollWidth,clipped:elems.filter(e=>{const r=e.getBoundingClientRect();return r.right>viewport+4||r.left< -4}).map(e=>e.className)};
+   const hero=document.querySelector('.cmd-patienthero').getBoundingClientRect(),agenda=document.querySelector('.cmd-agenda').getBoundingClientRect();
+   return {viewport,doc:document.documentElement.scrollWidth,clipped:elems.filter(e=>{const r=e.getBoundingClientRect();return r.right>viewport+4||r.left< -4}).map(e=>e.className),patient_first:hero.top<agenda.top && hero.top<window.innerHeight,patient_top:hero.top,agenda_top:agenda.top};
   });
-  evidence.overflow=geom.doc>geom.viewport+3;evidence.clipped=geom.clipped;
+  evidence.overflow=geom.doc>geom.viewport+3;evidence.clipped=geom.clipped;evidence.patient_first=geom.patient_first;evidence.patient_top=geom.patient_top;evidence.agenda_top=geom.agenda_top;
   await page.screenshot({path:path.join(out,'command-react-1440-native-zoom200.png'),fullPage:true,animations:'disabled'});
   execFileSync('scrot',['-z','-o',path.join(out,'command-react-1440-native-zoom200-x11.png')],{timeout:15000});
-  evidence.pass=evidence.zoom200&&!evidence.overflow&&!evidence.clipped.length;
+  evidence.pass=evidence.zoom200&&!evidence.overflow&&!evidence.clipped.length&&evidence.patient_first;
   await context.close();
  }finally{await browser.close();}
  fs.writeFileSync(path.join(out,'native-zoom-result.json'),JSON.stringify(evidence,null,2)+'\n');
