@@ -174,8 +174,10 @@ def _check_fake_paths(root: Path, staged: Path, target: Path):
             or staged.is_symlink() or not staged.is_file()
             or target.is_symlink() or target.exists()):
         raise RestoreContractDenied("FOREIGN_OR_OCCUPIED_FAKE_TARGET")
-    if (root.resolve(strict=True) != root or
-            staged.parent.resolve(strict=True) != staged.parent):
+    # Windows temporary roots can have DOS 8.3/canonical spelling changes.
+    # Compare the ACTUAL resolved ancestry, not the raw string spelling.
+    # A child junction redirected outside this root is still rejected.
+    if staged.parent.resolve(strict=True).parent != root.resolve(strict=True):
         raise RestoreContractDenied("FAKE_PARENT_REDIRECTED")
     if not stat.S_ISREG(staged.stat().st_mode):
         raise RestoreContractDenied("STAGE_NOT_REGULAR")
@@ -201,7 +203,7 @@ def fake_lab_publish_no_replace(root: Path, staged: Path, target: Path, *,
     if race_hook is not None:
         race_hook(target)  # adversarial TEST injection, no runtime hook
     if (not staged.parent.is_dir() or staged.parent.is_symlink()
-            or staged.parent.resolve(strict=True) != staged.parent):
+            or staged.parent.resolve(strict=True).parent != root.resolve(strict=True)):
         raise RestoreContractDenied("FAKE_PARENT_REDIRECTED")
     try:
         os.link(staged, target, follow_symlinks=False)
