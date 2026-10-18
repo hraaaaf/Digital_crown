@@ -159,6 +159,10 @@ def test_s3c_static_official_pdf_requires_cephalo_role_within_same_cabinet(
     )
     static = "/api/static/archives/" + doc.file_path.removeprefix("static/archives/")
     direct = f"/api/documents/{doc.id}/download"
+    # Enroll an actual same-cabinet workstation explicitly. Otherwise this
+    # test could accidentally exercise a missing-station 423 instead of RBAC.
+    enrollment = client.get("/api/workstation/state", headers=owner_headers)
+    assert enrollment.status_code == 200, enrollment.text[:300]
     original = client.get(static, headers=owner_headers)
     assert original.status_code == 200 and original.content == official_pdf
     station = client.cookies.get(WORKSTATION_COOKIE)
