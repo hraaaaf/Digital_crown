@@ -111,7 +111,7 @@ class GatewayTests(unittest.TestCase):
 
     def test_png_consecutive_idat_and_legal_ancillary_placement_accepted(self):
         # Same valid synthetic PNG compressed bytes, no decoder ambiguity.
-        text_chunk = _synthetic_png_chunk(b"tEXt", b"Note\\x00synthetic")
+        text_chunk = _synthetic_png_chunk(b"tEXt", b"Note" + bytes([0]) + b"synthetic")
         contiguous = _split_synthetic_idat()
         self.assertTrue(valid_png(SYNTHETIC))
         self.assertTrue(valid_png(contiguous))
@@ -126,7 +126,7 @@ class GatewayTests(unittest.TestCase):
         # This formerly passed: each IDAT CRC is valid and the concatenated
         # compressed data reconstructs the original, but PNG requires
         # consecutive IDAT chunks (IHDR -> IDAT -> tEXt -> IDAT -> IEND).
-        text_chunk = _synthetic_png_chunk(b"tEXt", b"Note\\x00synthetic")
+        text_chunk = _synthetic_png_chunk(b"tEXt", b"Note" + bytes([0]) + b"synthetic")
         invalid = _split_synthetic_idat(intervening=text_chunk)
         # Independent construction check: removing the tEXt gives a valid PNG
         # with identical IDAT bytes, so failure is strictly chunk ordering.
