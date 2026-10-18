@@ -169,6 +169,18 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
   });
 
+  it('A11Y: the insight patient navigation is a keyboard-reachable link, not a mouse-only div', async () => {
+    renderCrownBot();
+    await seedInsight();
+    const link = screen.getByRole('link', {
+      name: 'Ouvrir le dossier patient associé à cette alerte',
+    });
+    expect(link).toHaveAttribute('href', '/patients/4');
+    link.focus();
+    expect(link).toHaveFocus();
+    expect(link).toHaveClass('focus-visible:outline');
+  });
+
   it('A11Y: tablist is announced and Arrow/Home/End rove one selected tab', async () => {
     const user = userEvent.setup();
     renderCrownBot();
