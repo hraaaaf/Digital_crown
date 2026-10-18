@@ -77,10 +77,12 @@ def rows_digest(engine):
     return hashlib.sha256(payload).hexdigest(), counts, str(amount)
 
 
-def assert_no_cross_tenant_appointments(engine):
+def assert_no_cross_tenant_appointments(engine, *, connection=None):
     """Read-only additional LAB gate; not connected to runtime or authorization."""
     from sqlalchemy import text
-    with engine.connect() as c:
+    from contextlib import nullcontext
+    scope = nullcontext(connection) if connection is not None else engine.connect()
+    with scope as c:
         mismatched = c.execute(text("""
 SELECT COUNT(*) FROM appointments AS a
 JOIN patients AS p ON p.id = a.patient_id
@@ -141,7 +143,7 @@ class RealEncryptedBackupServiceLab(unittest.TestCase):
         from backend.core.schema_runtime import assert_database_at_current_head
         verified_lab(cls.root, cls.source, cls.fake_key)
         assert_database_at_current_head(engine)
-        with sqlcipher_connection(cls.source, cls.fake_key) as db:
+        with closing(sqlcipher_connection(cls.source, cls.fake_key)) as db:
             version = db.execute("SELECT version_num FROM alembic_version").fetchone()
             if version != (HEAD,):
                 raise LabRefused("REAL_SQLCIPHER_ALEMBIC_HEAD_MISMATCH")
@@ -344,7 +346,7 @@ class RealEncryptedBackupServiceLab(unittest.TestCase):
                     ))
                     session.flush()
                     with self.assertRaisesRegex(LabRefused, "CROSS_TENANT"):
-                        assert_no_cross_tenant_appointments(self.engine)
+                        assert_no_cross_tenant_appointments(self.engine, connection=c)
             finally:
                 transaction.rollback()
         self.assertTrue(assert_no_cross_tenant_appointments(self.engine))
@@ -411,6 +413,7 @@ class RealEncryptedBackupServiceLab(unittest.TestCase):
         # Keep this writer connected while BackupService exports SQLCipher.
         with self.engine.connect() as writer:
             self.assertEqual(writer.exec_driver_sql("PRAGMA journal_mode=WAL").scalar(), "wal")
+            writer.commit()
             with writer.begin():
                 writer.execute(text(
                     "UPDATE patients SET nom='FAKE_WAL_COMMITTED' "
