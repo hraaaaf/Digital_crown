@@ -7,6 +7,7 @@ on:
       - scripts/research/rea_orthalis_probe.mjs
       - scripts/research/rea_orthalis_visual_states.mjs
       - scripts/research/rea_orthalis_ocr_gate.mjs
+      - scripts/research/orthalis_tutorial_inventory.mjs
   workflow_dispatch:
 permissions:
   contents: read
@@ -132,5 +133,6 @@ jobs:
             sudo apt-get install -y -qq tesseract-ocr >/dev/null
           fi
           node scripts/research/rea_orthalis_ocr_gate.mjs "$LAB/scenario-result.json"
+          node scripts/research/orthalis_tutorial_inventory.mjs
           echo "BENCH_REA_ORTHALIS_PUBLIC_DEMO=PASSIVE_OBSERVATION_ONLY"
           echo "NOT_A_CABINET_OR_ORTHALIS_WORKFLOW_CERTIFICATION=true"
