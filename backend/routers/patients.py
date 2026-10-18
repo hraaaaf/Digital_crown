@@ -1483,11 +1483,24 @@ def generate_cephalo_pdf(
                 "warnings": validation.warnings,
             },
         )
+    # The archived study identity cannot depend on mutable client diagnosis keys.
+    results = deepcopy(selected.angles_data or {})
+    if req.ai_diagnostic:
+        results["ai_diagnostic"] = req.ai_diagnostic
+    if req.clinical_data:
+        results["clinical_data"] = req.clinical_data.model_dump()
+
     if req.archive:
-        # The same study/revision, even across two tabs or processes, returns
-        # exactly the original archived bytes. No second archive version is made.
+        from backend.services.cephalo_document_lock import render_payload_digest
+        payload_digest = render_payload_digest(
+            clinical_data=results.get("clinical_data", {}),
+            ai_diagnostic=results.get("ai_diagnostic", {}),
+        )
+        # Same study/revision and IDENTICAL report input must replay the original.
+        # A changed clinician payload with unchanged revision fails closed.
         replay = already_archived_pdf(
             db, patient_id=patient_id, analysis_id=selected.id, revision=revision,
+            payload_digest=payload_digest,
         )
         if replay is not None:
             db.rollback()  # release the archive's SQLite/PG study lock
@@ -1500,13 +1513,6 @@ def generate_cephalo_pdf(
                     "X-Cephalo-Archive-Replayed": "true",
                 },
             )
-    # The archived study identity cannot depend on mutable client diagnosis keys.
-    results = deepcopy(selected.angles_data or {})
-    if req.ai_diagnostic:
-        results["ai_diagnostic"] = req.ai_diagnostic
-    if req.clinical_data:
-        results["clinical_data"] = req.clinical_data.model_dump()
-
     analysis_data = {
         "id": selected.id,
         "image_path": selected.image_original_path,
@@ -1538,6 +1544,7 @@ def generate_cephalo_pdf(
                 clinical_data={
                     "cephalo_analysis_id": selected.id,
                     "cephalo_analysis_revision": revision,
+                    "cephalo_archive_payload_digest": payload_digest,
                     "clinical_data": results.get("clinical_data", {}),
                 },
                 on_conflict=ConflictResolution.CREATE_VERSION,
