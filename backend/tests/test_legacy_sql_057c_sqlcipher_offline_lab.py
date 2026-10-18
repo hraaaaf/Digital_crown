@@ -6,7 +6,7 @@ Never use these helpers with a live cabinet source.
 """
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 import hashlib
 import json
 import os
@@ -186,7 +186,7 @@ class EncryptedOfflineRecovery(unittest.TestCase):
     def test_01_database_is_really_encrypted_on_disk(self):
         header = (self.root / "source.db").read_bytes()[:16]
         self.assertNotEqual(header, b"SQLite format 3\x00")
-        with sqlite3.connect(self.root / "source.db") as plain:
+        with closing(sqlite3.connect(self.root / "source.db")) as plain:
             with self.assertRaises(sqlite3.DatabaseError):
                 plain.execute("SELECT * FROM patients").fetchone()
 
