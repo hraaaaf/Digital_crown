@@ -130,13 +130,15 @@ def preview_bot_workflow(
         selected_patient = matches[0]
         transcript[1] = str(matches[0].id)
 
-    workflow = PocConversation(today=date.fromisoformat(cabinet_day_context()["day"]))
+    workflow = PocConversation(today=(
+        date.fromisoformat(cabinet_day_context()["day"]) if command == "/rdv" else date.today()
+    ))
     for message in transcript:
         result = workflow.handle(message)
     payload = {"status": result.status, "message": result.message, "proposal": None}
     # Revalidated tenant-scoped patient identity is display-only, not an
     # authorization token. Each POST replays and rechecks the full transcript.
-    if selected_patient is not None:
+    if selected_patient is not None and command == "/rdv":
         payload["patient"] = {
             "id": selected_patient.id,
             "nom": selected_patient.nom,
