@@ -1,13 +1,15 @@
 # TECHDOUBT — Digital Crown
 
-## GLOBAL-G10-S / LOT10 — 2026-10-18 — blind-user independence not yet demonstrated
+## GLOBAL-G10-S / LOT10 — 2026-10-18 — Two-agent isolation requirement withdrawn
 
-**Status: OPEN / verification required (documentation contract, not a confirmed product defect).**
+**Status: RESOLVED AS A FALSE DEPENDENCY (doctrine correction, not proof of a completed FUE).**
 
-**Question:** Can the FUE harness execute **two specialized AI BLIND USER agents in genuinely isolated contexts and independent browser/login sessions**, withholding both the implementation/change hints and the other agent's findings until each verdict is frozen, on the same exact source HEAD?
+**Previous concern:** The merged PR #960 required two AI BLIND USER agents running in independent contexts, with separate browsers and withheld reports. That had been documented as a blocking precondition even for ordinary internal adversarial review. The product owner clarified that the **same ChatGPT conversation should perform both specialized perspectives A/B itself** rather than waiting for humans or two separate AI agents.
 
-**Current evidence:** `AGENTS.md` and `docs/quality/REALITY_PROOF_GATE.md` now specify the protocol. No two-agent isolated run, agent identity provenance, independent report pairs, or full login-to-outcome artifact has been executed in this documentation PR. Sequential prompts by one agent **must not** be relabeled as two independent users. This question does not suggest that humans are required for the two agents.
+**Resolution rule:** `AGENTS.md`, `.claude/rules/execution-scoring-verification.md` and `docs/quality/REALITY_PROOF_GATE.md` now instruct the assistant to write two distinct, task-specific *internal adversarial* reviews, correct/test, rerun on new HEAD and confirm. This is not evidence of two genuinely independent reviewers; it is sufficient for the **internal A/B double-review procedure**. Self-review is capped at 9.4/10 and normal VERIFIED starts at 9.0/10 when required proofs/gates pass. No external reviewer or two-agent orchestration is a prerequisite.
 
-**Resolution gate:** Implement the harness under GLOBAL-G10-S on a dedicated authorized follow-up, generate two isolated A/B first-user traces (role, specialty, separate profiles/tenants, real UI login, expected/actual before/action/after and exact SHA), independently time-stamp/save reports before unblinding, check cross-isolation and negative RBAC/patient data access, and run two new independent sessions after any product HEAD change. If not achievable, mark `BLIND_USER_GATE=OPEN` and report two internal non-independent perspectives only.
+**Distinct unclosed verification work — GLOBAL-G10-S:** Inventory V1+V1.5 routes/features, execute actual frontend/backend FUE journeys on fictitious tenants starting at login (or a public entry where applicable), preserve BEFORE/ACTION/AFTER, negative RBAC/tenant checks, exact-HEAD evidence and CI statuses. **These tests have NOT been executed by this documentation correction.** An imagined browser session or two written perspectives are not executable test proof.
 
-**Separate gates:** Human/practitioner approval where explicitly required, clinical review, and LOT10 physical observations from actual login on real supported hardware remain distinct and may never be satisfied by this synthetic trial.
+**Unchanged gates:** Specifically required human clinical/regulatory/visual approvals and LOT10 hardware/person-on-device observations remain separate from conversation-based A/B review. No deployment, merge or clinical activation is authorized by this documentation.
+
+**Historical origin:** PR #960, master merge `3cbd1d83cdbcbf97e71019a3182f4699d9645421`. This file supersedes the inaccurate "two-agent independence not yet demonstrated" as an *internal review blocker*.
