@@ -1447,9 +1447,22 @@ def generate_cephalo_pdf(
     from fastapi.responses import FileResponse
     from copy import deepcopy
 
+    # First bind enforces cabinet/patient/identity authorization before any write.
     selected, revision = _bound_cephalo_study(
         patient_id, req.analysis_id, req.expected_revision, db, current_user
     )
+    if req.archive:
+        from backend.services.cephalo_document_lock import (
+            already_archived_pdf, lock_selected_cephalo_for_archive,
+        )
+        lock_selected_cephalo_for_archive(
+            db, patient_id=patient_id, analysis_id=req.analysis_id,
+        )
+        # Rebind the scientific source while the row lock is held; no stale
+        # prevalidation snapshot can become an official archive.
+        selected, revision = _bound_cephalo_study(
+            patient_id, req.analysis_id, req.expected_revision, db, current_user
+        )
     if req.archive and revision is None:
         raise HTTPException(
             status_code=409,
@@ -1470,6 +1483,23 @@ def generate_cephalo_pdf(
                 "warnings": validation.warnings,
             },
         )
+    if req.archive:
+        # The same study/revision, even across two tabs or processes, returns
+        # exactly the original archived bytes. No second archive version is made.
+        replay = already_archived_pdf(
+            db, patient_id=patient_id, analysis_id=selected.id, revision=revision,
+        )
+        if replay is not None:
+            db.rollback()  # release the archive's SQLite/PG study lock
+            return FileResponse(
+                path=str(replay), filename=replay.name,
+                media_type="application/pdf",
+                headers={
+                    "X-Cephalo-Analysis-Id": str(req.analysis_id),
+                    "X-Cephalo-Revision": str(revision),
+                    "X-Cephalo-Archive-Replayed": "true",
+                },
+            )
     # The archived study identity cannot depend on mutable client diagnosis keys.
     results = deepcopy(selected.angles_data or {})
     if req.ai_diagnostic:
