@@ -30,7 +30,7 @@ FAKE_PNG = base64.b64decode(
 
 
 @contextmanager
-def _real_backend_lifespan():
+def _real_backend_lifespan(*, use_real_scheduler=False):
     """Same isolation stubs as backend/tests/conftest.py::client.
 
     The actual FastAPI lifespan runs; only unrelated side effects outside
@@ -43,7 +43,8 @@ def _real_backend_lifespan():
         stack.enter_context(patch("backend.main.seed_admin_user", return_value=None))
         stack.enter_context(patch("backend.main.sync_manager.start_listening", return_value=None))
         stack.enter_context(patch("backend.main._sync_all_licenses_from_firebase", new_callable=AsyncMock))
-        stack.enter_context(patch("backend.services.daily_scheduler.start_daily_scheduler", return_value=None))
+        if not use_real_scheduler:
+            stack.enter_context(patch("backend.services.daily_scheduler.start_daily_scheduler", return_value=None))
         stack.enter_context(patch("backend.services.fts_indexer.bulk_index_unindexed_patients", return_value=None))
         with TestClient(app, raise_server_exceptions=True) as client:
             yield client
@@ -154,3 +155,65 @@ def test_actual_fastapi_lifespan_finally_stops_bridge_on_exception(monkeypatch, 
                 asyncio.run(exercise_failure())
             assert spy.await_count == 1
             assert spy.await_args.args[0].task.done()
+
+
+def test_real_scheduler_timer_cancelled_after_normal_backend_lifespan(monkeypatch, db):
+    """Exercise actual FastAPI lifespan plus real scheduler start/stop functions.
+
+    Fake only Timer's clock/thread so no backup, notification or patient data runs.
+    """
+    monkeypatch.delenv("DC_V15_06_BRIDGE_LAB", raising=False)
+    timers = []
+
+    class FakeTimer:
+        def __init__(self, seconds, callback):
+            self.seconds = seconds
+            self.callback = callback
+            self.cancelled = False
+            timers.append(self)
+
+        def start(self):
+            pass
+
+        def cancel(self):
+            self.cancelled = True
+
+    with patch("backend.services.daily_scheduler.threading.Timer", FakeTimer):
+        with _real_backend_lifespan(use_real_scheduler=True) as client:
+            assert client.get("/openapi.json").status_code == 200
+            assert len(timers) == 1
+            assert not timers[0].cancelled
+        assert timers[0].cancelled
+
+
+def test_real_scheduler_timer_cancelled_on_partial_startup_failure(monkeypatch, db):
+    """Even a start_daily_scheduler raising after arming Timer must clean up."""
+    from backend.services.daily_scheduler import start_daily_scheduler as real_start
+    monkeypatch.delenv("DC_V15_06_BRIDGE_LAB", raising=False)
+    timers = []
+
+    class FakeTimer:
+        def __init__(self, seconds, callback):
+            self.cancelled = False
+            timers.append(self)
+
+        def start(self):
+            pass
+
+        def cancel(self):
+            self.cancelled = True
+
+    def fail_after_arming_timer():
+        real_start()
+        raise RuntimeError("SYNTHETIC_SCHEDULER_PARTIAL_START")
+
+    with patch("backend.services.daily_scheduler.threading.Timer", FakeTimer), patch(
+        "backend.services.daily_scheduler.start_daily_scheduler",
+        side_effect=fail_after_arming_timer,
+    ):
+        with pytest.raises(RuntimeError, match="SYNTHETIC_SCHEDULER_PARTIAL_START"):
+            with _real_backend_lifespan(use_real_scheduler=True):
+                pytest.fail("Startup must not complete")
+    assert len(timers) == 1
+    assert timers[0].cancelled
+
