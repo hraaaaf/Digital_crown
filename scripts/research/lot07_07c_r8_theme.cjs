@@ -36,7 +36,7 @@ const samples=[],issues=[],files=[];
       });
       await page.goto(pathToFileURL(html).href,{waitUntil:'load'});
       // The source CSS is loaded at runtime. No hand-copied colors, CSS token proxy, or theme fork.
-      await page.addStyleTag({path:sourceCSS});
+      await page.addStyleTag({content:source.replace(/@import\s+[^;]+;/g,'')});
       await page.evaluate(theme=>{
         if(theme==='elite')document.documentElement.removeAttribute('data-theme');
         else document.documentElement.setAttribute('data-theme',theme);
