@@ -51,6 +51,7 @@ export function CommandWorkbenchReactTarget(){
  const [notification,setNotification]=useState('');
  const [mode,setMode]=useState('Jour');
  const [activeLane,setActiveLane]=useState(0);
+ const [additionalOpen,setAdditionalOpen]=useState(false);
  const announce=(what:string)=>setNotification(what+' : simulation uniquement, aucune opération clinique.');
  return <div className="cmd-shell" data-command-target="07-C-react-isolated" data-synthetic-fixtures="true">
   <aside className="cmd-sidebar">
@@ -65,7 +66,7 @@ export function CommandWorkbenchReactTarget(){
     <span className="cmd-topright"><small>Thème hérité du Cabinet</small><Bell size={16}/><span className="cmd-avatar">DC</span></span>
    </header>
    <div className="cmd-content">
-    <div className="cmd-heading"><div><h1>{view} <Pill>CIBLE 07-C</Pill></h1><p>Vue multi-praticien · Patient TEST-001 · Données 100 % synthétiques</p></div><div className="cmd-chips"><Pill tone="success">3 en salle</Pill><Pill tone="warning">2 en attente</Pill><Pill>2 salles libres</Pill></div></div>
+    <div className="cmd-heading"><div className="cmd-headingcopy"><p className="cmd-kicker">ESPACE DE TRAVAIL <span aria-hidden="true">/</span> DIGITAL CROWN</p><h1>{view} <Pill>CIBLE 07-C</Pill></h1><p>Vue multi-praticien · Dossier TEST-001 · Données 100 % synthétiques</p></div><div className="cmd-chips"><Pill tone="success"><Users size={13} aria-hidden="true"/> 3 en salle</Pill><Pill tone="warning"><Clock3 size={13} aria-hidden="true"/> 2 en attente</Pill><Pill><CalendarDays size={13} aria-hidden="true"/> 2 salles libres</Pill></div></div>
     {notification&&<div className="cmd-notice" role="status"><ShieldCheck size={15}/>{notification}<button onClick={()=>setNotification('')} aria-label="Fermer">×</button></div>}
     {view!=='Command'?
      <Card title={view}><div className="cmd-placeholder">Prévisualisation hors module clinique. <button onClick={()=>setView('Command')}>Retour au cockpit</button></div></Card>
@@ -83,9 +84,9 @@ export function CommandWorkbenchReactTarget(){
         <div className="cmd-legend"><span>● Réalisé</span><span>● En attente</span><span>● À venir</span><span>● Urgence</span></div>
        </Card>
        <div className="cmd-right">
-        <div className="cmd-patienthero"><div className="cmd-patientavatar">T1</div><div className="cmd-patientintro"><h2>Patient TEST-001 <Pill tone="success">En cours</Pill></h2><p>Identité fictive · 36 ans · Praticien A · Salle 1</p><span><Pill>Accès non testé</Pill> <Pill>Données synthétiques</Pill></span></div><div className="cmd-contact"><button aria-label="Téléphone démonstration" onClick={()=>announce('Téléphone')}><Phone size={15}/></button><button aria-label="Mail démonstration" onClick={()=>announce('E-mail')}><Mail size={15}/></button><button aria-label="Plus démonstration" onClick={()=>announce('Menu')}><MoreHorizontal size={15}/></button></div><div className="cmd-patienttime"><strong>09:00 – 09:45</strong><small>Soins conservateurs</small><span><Clock3 size={12}/> Consultation fictive</span></div><div className="cmd-patientbuttons"><button className="cmd-primary" onClick={()=>announce('Pause')}>Mettre en pause</button><button onClick={()=>announce('Terminer RDV')}>Terminer le RDV</button></div></div>
+        <div className="cmd-patienthero"><div className="cmd-patientavatar">T1</div><div className="cmd-patientintro"><p className="cmd-patienteyebrow">DOSSIER ACTIF <span aria-hidden="true">·</span> SALLE 1</p><h2>Patient TEST-001 <Pill tone="success">En cours</Pill></h2><p>Identité fictive · 36 ans · Praticien A · Salle 1</p><span><Pill>Accès non testé</Pill> <Pill>Données synthétiques</Pill></span></div><div className="cmd-contact"><button aria-label="Téléphone démonstration" onClick={()=>announce('Téléphone')}><Phone size={15}/></button><button aria-label="Mail démonstration" onClick={()=>announce('E-mail')}><Mail size={15}/></button><button aria-label="Plus démonstration" onClick={()=>announce('Menu')}><MoreHorizontal size={15}/></button></div><div className="cmd-patienttime"><strong>09:00 – 09:45</strong><small>Soins conservateurs</small><span><Clock3 size={12}/> Consultation fictive</span></div><div className="cmd-patientbuttons"><button className="cmd-primary" onClick={()=>announce('Pause')}>Mettre en pause</button><button onClick={()=>announce('Terminer RDV')}>Terminer le RDV</button></div></div>
         <div className="cmd-tabs" role="tablist" aria-label="Dossier fictif">{['Vue d’ensemble','Dossier','Plan de traitement','Odontogramme','Imagerie','Documents','Facturation'].map(t=><button role="tab" aria-selected={tab===t} className={tab===t?'active':''} key={t} onClick={()=>{setTab(t);if(t!=='Vue d’ensemble')announce('Onglet '+t)}}>{t}</button>)}</div>
-        <div className="cmd-cards">
+        <div className="cmd-cards" id="cmd-cards" data-secondary-expanded={additionalOpen}>
          <Card title="Informations patient"><dl className="cmd-patientfields">{[['Référence','TEST-001'],['Âge','36 ans'],['Téléphone','00 00 00 00'],['Email','test001@example.invalid'],['Praticien','Dr A (fictif)'],['Couverture','Fictive'],['Antécédents','Non renseignés']].map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></Card>
          <Card title="Odontogramme officiel" action={<small>Référence adulte v3</small>}><div className="cmd-odonto"><PremiumOdontogramSVG type="ADULT" readOnly selectedTooth={null} multiSelectedTeeth={[]} showNumbers/></div><p className="cmd-small">Schéma source, aucune dent pathologique simulée.</p></Card>
          <Card title="Imagerie" action={<button className="cmd-link" onClick={()=>announce('Galerie')}>Galerie</button>}><div className="cmd-image-tabs">RVG　 ·　 Panoramique　 ·　 Céphalométrie</div><div className="cmd-imagegrid">{['RVG 14','RVG 16','Panoramique','Céphalométrie'].map(x=><button onClick={()=>announce(x)} key={x}><FileImage size={25}/><strong>{x}</strong><small>Aucun média patient</small></button>)}</div></Card>
@@ -96,6 +97,7 @@ export function CommandWorkbenchReactTarget(){
          <Card title="Documents & consentements"><div className="cmd-bottomrows"><p><FileText size={14}/> Consentement TEST</p><p><FileText size={14}/> Devis fictif</p></div></Card>
          <Card title="Paiement & facturation"><div className="cmd-bottomrows"><p><CreditCard size={14}/> Devis fictif　850 DH</p><p>Aucune opération de paiement</p></div></Card>
         </div>
+        <button type="button" className="cmd-secondary-toggle" aria-expanded={additionalOpen} aria-controls="cmd-cards" onClick={()=>setAdditionalOpen(v=>!v)}>{additionalOpen?'Masquer les 4 panneaux complémentaires':'Afficher les 4 panneaux complémentaires'} <ChevronDown size={16} aria-hidden="true" className={additionalOpen?'cmd-rotate':''}/></button>
        </div>
      </div>}
     <footer className="cmd-disclaimer">LOT07 / 07-C · TARGET REACT ISOLÉ · Actifs Digital Crown d’origine · Tokens existants · Aucune connexion Cabinet</footer>
