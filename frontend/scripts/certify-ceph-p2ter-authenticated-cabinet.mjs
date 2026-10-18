@@ -260,6 +260,18 @@ async function viewportRun(viewport){
     throw Error('CEPH_STICKY_PATIENT_HEADER_BLEED_THROUGH '+JSON.stringify(patientHeader));
   }
   record.checks.push('CEPH_PATIENT_STICKY_HEADER_OPAQUE_ON_SCROLL');
+  if(viewport.width===1600){
+    // Errors must remain completely readable on the right; never clip a
+    // medical refusal behind the left navigation by shrinking the toast root.
+    const errorToast=page.getByText(/déjà archivé ou en cours/i).last();
+    await errorToast.waitFor({state:'visible',timeout:10000});
+    const bounds=await errorToast.boundingBox();
+    record.cephaloToastBounds=bounds;
+    if(!bounds || bounds.x<viewport.width-490 ||
+        bounds.x+bounds.width>viewport.width-8 || bounds.width<100)
+      throw Error('CEPH_CLINICAL_TOAST_WRONG_SIDE_OR_CLIPPED '+JSON.stringify(bounds));
+    record.checks.push('CEPH_REFUSAL_TOAST_RIGHT_ALIGNED_AND_NOT_CLIPPED');
+  }
   await shot('archive-after');
   record.checks.push('POINTER_DOUBLE_CLICK_SINGLE_ARCHIVE_POST');
   // UI transport regression only: mock a synthetic 422 response on the real
