@@ -365,10 +365,10 @@ export const PatientDetails = () => {
             </div>
 
             <div className={cn('hidden sm:grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'sm:hidden lg:grid', cephaloHeaderVisible && 'lg:gap-1.5 lg:w-auto')} aria-label="Actions rapides patient">
-              <QuickAction compact={cephaloHeaderVisible} icon={<Calendar size={16} />} label="RDV" onClick={() => navigate('/agenda', { state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom } })} />
-              <QuickAction compact={cephaloHeaderVisible} icon={<Stethoscope size={16} />} label={canClinical ? 'Examen' : 'Suivi'} onClick={() => handleTabChange(canClinical ? 'clinical' : 'tracking')} />
-              <QuickAction compact={cephaloHeaderVisible} icon={<FileText size={16} />} label="Document" onClick={handleDocumentCreate} />
-              {canFinance && <QuickAction compact={cephaloHeaderVisible} icon={<Banknote size={16} />} label="Encaisser" onClick={() => setIsPayModalOpen(true)} accent="emerald" />}
+              <QuickAction compact={cephaloHeaderVisible} icon={<Calendar size={cephaloHeaderVisible ? 16 : 18} />} label="RDV" onClick={() => navigate('/agenda', { state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom } })} />
+              <QuickAction compact={cephaloHeaderVisible} icon={<Stethoscope size={cephaloHeaderVisible ? 16 : 18} />} label={canClinical ? 'Examen' : 'Suivi'} onClick={() => handleTabChange(canClinical ? 'clinical' : 'tracking')} />
+              <QuickAction compact={cephaloHeaderVisible} icon={<FileText size={cephaloHeaderVisible ? 16 : 18} />} label="Document" onClick={handleDocumentCreate} />
+              {canFinance && <QuickAction compact={cephaloHeaderVisible} icon={<Banknote size={cephaloHeaderVisible ? 16 : 18} />} label="Encaisser" onClick={() => setIsPayModalOpen(true)} accent="emerald" />}
             </div>
           </div>
 
