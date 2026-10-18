@@ -247,6 +247,40 @@ async function viewportRun(viewport){
   record.checks.push('TWO_AUTHENTICATED_TABS_DIFFERENT_STUDY_CONCURRENT_PDFS');
   await tabB.screenshot({path:path.join(output,record.viewport+'-two-tabs-B-after.png'),animations:'disabled'});
   record.shots.push(record.viewport+'-two-tabs-B-after.png');
+
+  // Real TWO BROWSER TABS, authenticated under the same Cabinet session, race
+  // creation of the exact B revision 2 archive via native fetch in each tab.
+  const concurrentPayload={analysis_id:identities.latest_id,expected_revision:2,archive:true};
+  const archiveURL=backend+'/api/patients/'+identities.patient_id+'/pdf';
+  const archiveFromTab=tab=>tab.evaluate(async ({url,payload})=>{
+    const token=localStorage.getItem('token');
+    if(!token)throw Error('Authenticated archive tab missing token');
+    const response=await fetch(url,{method:'POST',credentials:'include',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(payload)});
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    const hash=await crypto.subtle.digest('SHA-256',bytes);
+    return {status:response.status,sha:[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join(''),
+      size:bytes.byteLength,looksPDF:bytes[0]===37&&bytes[1]===80&&bytes[2]===68&&bytes[3]===70,
+      study:response.headers.get('x-cephalo-analysis-id'),
+      revision:response.headers.get('x-cephalo-revision'),
+      replay:response.headers.get('x-cephalo-archive-replayed')==='true'};
+  },{url:archiveURL,payload:concurrentPayload});
+  const [sameA,sameB]=await Promise.all([archiveFromTab(page),archiveFromTab(tabB)]);
+  if(sameA.status!==200||sameB.status!==200||!sameA.looksPDF||!sameB.looksPDF||
+    sameA.sha!==sameB.sha||sameA.size!==sameB.size||
+    sameA.study!==String(identities.latest_id)||sameB.study!==String(identities.latest_id)||
+    sameA.revision!=='2'||sameB.revision!=='2')
+    throw Error('Two real Cabinet tabs failed same-revision archive identity: '+
+      JSON.stringify({sameA,sameB}));
+  const replayCount=Number(sameA.replay)+Number(sameB.replay);
+  if(viewport.width===1280&&replayCount!==1)
+    throw Error('First concurrent archive pair must create once then replay once: '+replayCount);
+  if(viewport.width===1600&&replayCount!==2)
+    throw Error('Later concurrent archive pair must replay both: '+replayCount);
+  record.checks.push('TWO_AUTHENTICATED_BROWSER_TABS_SAME_STUDY_REVISION_ONE_ARCHIVE');
+  record.sameRevisionArchive={analysis_id:identities.latest_id,revision:2,
+    sha256:sameA.sha,replayCount};
   await tabB.close();
   // Hold an actual PDF request while switching old A -> newer B in the same tab.
   // A late A response must never be downloaded or re-select the wrong study.
@@ -288,33 +322,6 @@ async function viewportRun(viewport){
     throw Error('Late old-A PDF overwrote B selection or triggered stale download');
   record.checks.push('SWITCH_A_TO_B_WHILE_OLDER_PDF_IN_FLIGHT_REFUSES_STALE_DOWNLOAD');
   await shot('late-old-A-response-B-still-selected');
-  // Dispatch two same-study/same-revision official archives simultaneously
-  // through distinct authenticated HTTP requests, not merely A/B draft PDFs.
-  // First viewport races the first B archival; next viewport exercises replay.
-  const commonArchive={analysis_id:identities.latest_id,expected_revision:2,archive:true};
-  const archiveEndpoint=backend+'/api/patients/'+identities.patient_id+'/pdf';
-  const requestOpts={headers:{Authorization:'Bearer '+token},data:commonArchive,timeout:60000};
-  const [sameA,sameB]=await Promise.all([
-    context.request.post(archiveEndpoint,requestOpts),
-    context.request.post(archiveEndpoint,requestOpts),
-  ]);
-  if(sameA.status()!==200||sameB.status()!==200)
-    throw Error('Same-revision concurrent archive was not idempotent: '+sameA.status()+'/'+sameB.status());
-  const [bytesA,bytesB]=await Promise.all([sameA.body(),sameB.body()]);
-  if(!bytesA.equals(bytesB) ||
-    sameA.headers()['x-cephalo-analysis-id']!==String(identities.latest_id) ||
-    sameB.headers()['x-cephalo-analysis-id']!==String(identities.latest_id) ||
-    sameA.headers()['x-cephalo-revision']!=='2'||
-    sameB.headers()['x-cephalo-revision']!=='2')
-    throw Error('Concurrent B archives differed in bytes or study/revision identity');
-  const replayCount=[sameA,sameB].filter(r=>r.headers()['x-cephalo-archive-replayed']==='true').length;
-  if(viewport.width===1280 && replayCount!==1)
-    throw Error('First concurrent archive pair must create once then replay once: '+replayCount);
-  if(viewport.width===1600 && replayCount!==2)
-    throw Error('Later duplicate archive pair must replay both: '+replayCount);
-  record.checks.push('TWO_CONCURRENT_SAME_STUDY_REVISION_ARCHIVES_ONE_CREATION_IDEMPOTENT_REPLAY');
-  await fs.writeFile(path.join(output,record.viewport+'-same-revision-concurrent-B-archive.pdf'),bytesA);
-
   // Revalidation TOCTOU: pause archive POST after its real successful prevalidation,
   // edit synthetic study B through authenticated FastAPI, then demand HTTP 409
   // and a comprehensible refusal toast; no archive may be persisted.
