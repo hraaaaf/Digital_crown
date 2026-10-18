@@ -60,7 +60,13 @@ try {
     const overlay=page.locator('[data-ux1-c-crownbot-overlay]');
     await overlay.waitFor({state:'visible',timeout:15000});
     const firstOpenMs=performance.now()-t0;
-    await page.getByRole('button',{name:'Chat',exact:true}).click();
+    // CB-01 a11y compatibility: Chat is now a semantic tab and FIRST_VALUE
+    // already selects it on open. A retired button locator would time out
+    // despite the clinical read remaining available.
+    const chatTab=overlay.getByRole('tab',{name:'Chat',exact:true});
+    await chatTab.waitFor({state:'visible'});
+    if(await chatTab.getAttribute('aria-selected')!=='true')
+      throw new Error('FAIL: existing flagged preview does not open on Chat');
     const preview=page.getByRole('region',{name:'Assistant Crown Bot — consultation'});
     await preview.waitFor({state:'visible'});
     const before='existing-flagged-preview-'+width+'.png';
