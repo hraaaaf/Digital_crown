@@ -127,3 +127,40 @@ def already_archived_pdf(
     ):
         raise HTTPException(status_code=409, detail="Intégrité du PDF archivé non vérifiée")
     return file_path, content
+
+
+def verified_official_archive_bytes(row: models.DocumentArchive) -> bytes:
+    """Read one authoritative official PDF snapshot, fail-closed on provenance or disk tampering.
+
+    All ordinary routes must serve these very bytes, not a deferred FileResponse
+    that could open a different file after verification (TOCTOU).
+    """
+    from backend.services import archive_service
+
+    if (row.document_type != models.DocumentType.RAPPORT_CEPHALO
+            or row.status != models.DocumentStatus.ACTIF
+            or row.analysis_id is None
+            or not isinstance(row.clinical_data, dict)
+            or row.clinical_data.get("cephalo_analysis_id") != row.analysis_id
+            or type(row.clinical_data.get("cephalo_analysis_revision")) is not int
+            or row.clinical_data.get("cephalo_analysis_revision", 0) <= 0):
+        raise HTTPException(status_code=409, detail="Provenance d'archive officielle non vérifiable")
+
+    prefix = "static/archives/"
+    if not row.file_path or not row.file_path.startswith(prefix):
+        raise HTTPException(status_code=409, detail="Chemin d'archive officielle incohérent")
+    root = archive_service.ARCHIVE_BASE_DIR.resolve()
+    path = (root / row.file_path[len(prefix):]).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        raise HTTPException(status_code=409, detail="Fichier officiel manquant ou interdit")
+    try:
+        pdf = path.read_bytes()
+    except OSError as exc:
+        raise HTTPException(status_code=409, detail="Fichier officiel illisible") from exc
+    if (
+        not pdf.startswith(b"%PDF")
+        or len(pdf) != row.file_size
+        or hashlib.sha256(pdf).hexdigest() != row.file_hash
+    ):
+        raise HTTPException(status_code=409, detail="Intégrité de l'archive officielle non vérifiée")
+    return pdf
