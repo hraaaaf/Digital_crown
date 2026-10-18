@@ -253,7 +253,8 @@ class ArchiveService:
                         is_accounted: bool = True,
                         is_collected: bool = False,
                         payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE,
-                        commit: bool = True) -> Tuple[models.DocumentArchive, bool]:
+                        commit: bool = True,
+                        created_file_paths: Optional[List[Path]] = None) -> Tuple[models.DocumentArchive, bool]:
         """
         Archive un document avec gestion intelligente des conflits.
         Retourne: (document, is_new_version)
@@ -371,9 +372,21 @@ class ArchiveService:
         storage_path = self._get_storage_path(patient_id, doc_type, filename, version_number)
         
         # Sauvegarder le fichier
-        with open(storage_path, 'wb') as f:
-            f.write(file_content)
-        
+        if created_file_paths is not None:
+            # P2ter only: this caller owns the new archive path and can remove
+            # it if the later SQL flush/commit fails. Exclusive creation avoids
+            # overwriting an existing document, including a pre-claim legacy PDF.
+            # Record ownership immediately after O_EXCL succeeds so partial
+            # writes are also recoverable in the same request.
+            if commit or doc_type != DocumentType.RAPPORT_CEPHALO:
+                raise ValueError("Tracked archive paths require deferred cephalo commit")
+            with open(storage_path, 'xb') as f:
+                created_file_paths.append(storage_path)
+                f.write(file_content)
+        else:
+            with open(storage_path, 'wb') as f:
+                f.write(file_content)
+
         # --- DOUBLE EXPORT : RESTAURATION DOSSIERS HISTORIQUES (static/documents/YYYY/MM) ---
         if doc_type in [DocumentType.NOTE_HONORAIRES, DocumentType.DEVIS, DocumentType.ORDONNANCE, DocumentType.CERTIFICAT]:
             today = datetime.now()
