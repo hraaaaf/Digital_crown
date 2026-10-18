@@ -1,5 +1,10 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-18 — SCM synthetic worker close/stop fail-closed hardening (NOT real SCM proof)
+
+- Internal reliability review B found that `OnStop()` previously ignored the boolean return value of `worker.Join(7000)`, and the `Work()` finally block ignored `sqlite3_close()` return code. That allowed source markers/SCM stop oracles to overstate a clean shutdown. C# synthetic-only source now throws on join timeout, writes only `SQLITE_CLOSE_FAILED` type marker on close error, and refuses a clean `OnStop()` if `service.error` exists after a joined worker. Static regression test preserves all these guards.
+- **Limitations:** source and compilation are not runtime SCM stop/kill/restart experiments. Not validated that SCM propagates `OnStop` exceptions to the caller, that closing is durable across power loss, or that service-worker error marker cannot be forged by an actor with the service SID. Native gate remains BLOCKED. No client/clinical data, service activation, merge, LOT10 or deploy.
+
 ## 2026-10-18 — Internal review A+B checkpoint gap / actual SCM still blocked
 
 - **Security A (4/10, OPEN)**: real SCM token, ACL owner/effective-right masks, SERVICE OBJECT security descriptor, inherited sidecars and runner peer environment untested. `Ace` checks only allow-list SIDs; P2 SCM harness is source-only and must not be activated through previously denied privileged flow.

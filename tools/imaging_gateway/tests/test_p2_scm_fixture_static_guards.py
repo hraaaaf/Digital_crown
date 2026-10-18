@@ -158,6 +158,24 @@ class P2ScmFixtureStaticGuardTests(unittest.TestCase):
             self.cs.index('"AFTER_DENIAL_COMMIT=PASS'),
         )
 
+    def test_native_worker_shutdown_and_close_fail_closed(self):
+        # Source assertion only; no SCM stop/kill/restart has executed.
+        for marker in (
+            "if (db != IntPtr.Zero && Close(db) != 0)",
+            '"SQLITE_CLOSE_FAILED"',
+            "if (worker != null && !worker.Join(7000))",
+            '"SERVICE_WORKER_STOP_TIMEOUT"',
+            'File.Exists(Path.Combine(PrivateDir, "service.error"))',
+            '"SERVICE_WORKER_OR_CLOSE_FAILED"',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.cs)
+        self.assertLess(self.cs.index('Close(db) != 0'),
+                        self.cs.index('protected override void OnStop()'))
+        self.assertLess(self.cs.index('worker.Join(7000)'),
+                        self.cs.rindex('File.Exists(Path.Combine(PrivateDir, "service.error"))'))
+        self.assertNotIn('finally { if (db != IntPtr.Zero) Close(db); }', self.cs)
+
     def test_no_production_storage_paths_or_device_calls(self):
         together = self.ps + "\n" + self.cs
         for forbidden in (

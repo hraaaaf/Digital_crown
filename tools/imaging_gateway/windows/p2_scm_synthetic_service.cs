@@ -138,7 +138,17 @@ public sealed class P2ScmSyntheticService : ServiceBase {
             // Type only: no environment secrets or data disclosure to CI.
             try { File.WriteAllText(Path.Combine(PrivateDir,"service.error"),e.GetType().Name); } catch {}
         }
-        finally { if (db != IntPtr.Zero) Close(db); }
+        finally {
+            // sqlite3_close may return SQLITE_BUSY while statements remain live.
+            // Fail closed, rather than silently accepting a service shutdown
+            // without a successful connection close.
+            if (db != IntPtr.Zero && Close(db) != 0) {
+                try {
+                    File.WriteAllText(Path.Combine(PrivateDir, "service.error"),
+                                      "SQLITE_CLOSE_FAILED");
+                } catch {}
+            }
+        }
     }
     protected override void OnStart(string[] args) {
         stopping = false;
@@ -146,7 +156,12 @@ public sealed class P2ScmSyntheticService : ServiceBase {
     }
     protected override void OnStop() {
         stopping=true;
-        if (worker != null) worker.Join(7000);
+        if (worker != null && !worker.Join(7000))
+            throw new InvalidOperationException("SERVICE_WORKER_STOP_TIMEOUT");
+        // Work catches its own exception to avoid writing sensitive exception text.
+        // Check the type-only error marker AFTER the thread has joined.
+        if (File.Exists(Path.Combine(PrivateDir, "service.error")))
+            throw new InvalidOperationException("SERVICE_WORKER_OR_CLOSE_FAILED");
     }
     public static void Main() { ServiceBase.Run(new P2ScmSyntheticService()); }
 }

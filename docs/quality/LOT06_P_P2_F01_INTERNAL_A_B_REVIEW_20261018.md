@@ -27,3 +27,7 @@ No change to privileged SCM harness is proposed here because previously blocked 
 ## Decision / next gate
 
 Review A **OPEN 4/10**; Review B **OPEN 3/10 (one source defect addressed)**. These two assessments are **not independently BLIND**; count `0/2` external reviews on the final HEAD. Source fix requires **new exact-HEAD CI (06-A Windows+Ubuntu; P2 C# compile syntax Windows; 06-B), FUE A+B and an internal recheck**, otherwise even static improvement is NOT VALIDATED. No merge, deployment, customer device, actual SCM service registration, bypass of security controls, migration or LOT10. Retain every unproven item in `techdoubt.md`.
+
+## Internal continuation — shutdown/close source hardening, same P2-F01 scope
+
+B-MAJOR-02 has an additional **source-only** mitigation: `sqlite3_close` now checks return status and writes a class-only `service.error`; `OnStop` fails when the worker does not join within seven seconds or when a worker/close error marker exists. The new HEAD requires Windows C# compilation, 06-A static regression tests, 06-B and both FUE jobs. Until exact-HEAD runs finish, status is UNVERIFIED; even GREEN is not a true SCM service shutdown or restart proof. Independent BLIND remains 0/2.
