@@ -74,6 +74,9 @@ async function viewportRun(viewport) {
     page=await context.newPage();
     page.on('pageerror',err=>record.errors.push('PAGEERROR: '+err.message));
     await page.goto(root+'/hub?select=1',{waitUntil:'domcontentloaded',timeout:45000});
+    // A URL/domcontentloaded is not proof that the Hub has painted. Capture
+    // the actual first-use choice, never an all-white bootstrap frame.
+    await page.locator('[data-hub-experience="cabinet"]').waitFor({state:'visible',timeout:30000});
     await shot('before-hub');
     ready=await run('CLEAN_BROWSER_LOGIN',async()=>{
       if(await page.evaluate(()=>Boolean(localStorage.getItem('token'))))throw Error('FUE browser is not initially fresh');
@@ -83,6 +86,9 @@ async function viewportRun(viewport) {
       await page.getByRole('button',{name:'Se connecter',exact:true}).click();
       await page.waitForURL(u=>new URL(u).pathname==='/dashboard',{timeout:45000});
       if(!await page.evaluate(()=>Boolean(localStorage.getItem('token'))))throw Error('Cabinet login did not establish session');
+      // Router navigation may precede the actual Dashboard render. An old
+      // login form screenshot cannot establish that the user reached Cabinet.
+      await page.getByRole('heading',{name:/^Bonjour,/}).waitFor({state:'visible',timeout:30000});
       await shot('after-login');
       return 'Real UI login, disposable JWT and enrolled Cabinet workstation';
     });
@@ -123,7 +129,10 @@ async function viewportRun(viewport) {
         && res.request().method()==='POST' && res.request().postDataJSON()?.archive===false,
       {timeout:45000});
       const downloadPromise=page.waitForEvent('download',{timeout:45000});
-      await page.getByRole('button',{name:'Brouillon PDF'}).click();
+      const draftButton=page.getByRole('button',{name:'Brouillon PDF'});
+      await draftButton.scrollIntoViewIfNeeded();
+      await shot('before-first-value-actions');
+      await draftButton.click();
       const [response,download]=await Promise.all([responsePromise,downloadPromise]);
       const payload=response.request().postDataJSON();
       const bytes=await response.body();
