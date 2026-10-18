@@ -270,8 +270,7 @@ describe('CB-00 scoped patient selectors', () => {
           {id:8,prenom:'Salma',nom:'Benali',numero_dossier:'BN-102'},
         ],
       }} as never)
-      .mockResolvedValueOnce({data:{status:'clarification',message:'Quelle date ?',
-        patient:{id:8,prenom:'Salma',nom:'Benali',numero_dossier:'BN-102'}}} as never)
+      .mockResolvedValueOnce({data:{status:'clarification',message:'Quelle date ?'}} as never)
       .mockRejectedValueOnce({response:{status:403}});
     render(<CrownBotWorkflowPreview />);
     fireEvent.click(screen.getByRole('button',{name:'Préparer un RDV'}));
