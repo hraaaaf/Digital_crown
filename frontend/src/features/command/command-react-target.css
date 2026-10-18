@@ -52,3 +52,105 @@
   .cmd-datebar button{min-height:36px}
   .cmd-patientfields>div{font-size:12px}
 }
+
+/* LOT07/07-C R3 — visual hierarchy only, backed by canonical Cabinet colour tokens. */
+.cmd-shell{font-size:13px;line-height:1.45}
+.cmd-content{padding:15px 15px 12px}
+.cmd-toolbar{height:59px;padding:0 16px;gap:12px}
+.cmd-search{padding:10px 12px;border-radius:9px;font-weight:500}
+.cmd-heading{margin:0 0 15px;min-height:73px;align-items:center;gap:10px}
+.cmd-headingcopy{min-width:0}
+.cmd-kicker{font-size:10px!important;font-weight:800;letter-spacing:.085em;color:var(--primary)!important;display:flex;gap:8px;align-items:center;margin:0 0 4px!important}
+.cmd-heading h1{font-size:26px;font-weight:800;letter-spacing:-.035em}
+.cmd-heading h1 .cmd-pill{font-size:10px;letter-spacing:0;vertical-align:middle}
+.cmd-headingcopy>p:last-child{font-size:12px;line-height:1.4;color:var(--text-main)}
+.cmd-chips{gap:7px}
+.cmd-pill{gap:5px;font-size:11px;padding:5px 9px;border-radius:9px;line-height:1.25}
+.cmd-pill svg{flex:none}
+.cmd-workbench{gap:12px;grid-template-columns:minmax(370px,34%) minmax(0,1fr)}
+.cmd-right{min-width:0}
+.cmd-card{border-radius:12px;box-shadow:0 2px 8px color-mix(in srgb,var(--text-main) 5%,transparent)}
+.cmd-cardhead{min-height:42px;padding:10px 12px}
+.cmd-cardhead h3{font-size:13px;letter-spacing:-.01em}
+.cmd-cardhead small{font-size:10px}
+.cmd-patienthero{gap:10px;padding:11px 12px;border-radius:12px 12px 0 0;background:linear-gradient(105deg,color-mix(in srgb,var(--primary) 5%,var(--card-bg)),var(--card-bg))}
+.cmd-patientavatar{height:48px;width:48px;border:1px solid var(--border-color);box-shadow:inset 0 0 0 1px var(--card-bg)}
+.cmd-patienteyebrow{font-size:9px!important;font-weight:850;letter-spacing:.1em;color:var(--primary)!important;margin:0 0 3px!important}
+.cmd-patientintro h2{font-size:17px;font-weight:850;letter-spacing:-.02em}
+.cmd-patientintro>p:not(.cmd-patienteyebrow){font-size:11px;line-height:1.25}
+.cmd-patientbuttons button{min-height:34px;font-size:11px;font-weight:700}
+.cmd-patienttime strong{font-size:12px}
+.cmd-contact button{height:34px;width:32px}
+.cmd-tabs{gap:9px;margin-bottom:11px;padding:4px 10px}
+.cmd-tabs button{font-weight:650;min-height:33px}
+.cmd-cards{gap:10px}
+.cmd-patientfields{padding:4px 12px}
+.cmd-patientfields>div{padding:8px 0;grid-template-columns:39% 1fr;gap:5px}
+.cmd-patientfields dt{font-weight:650;color:var(--text-main)}
+.cmd-patientfields dd{font-weight:750}
+.cmd-odonto{padding:10px 8px 5px}
+.cmd-odonto [data-premium-odontogram]{border-color:var(--border-color)}
+.cmd-imagegrid{gap:7px;padding:10px}
+.cmd-imagegrid button{min-height:82px;border-radius:8px}
+.cmd-imagegrid button:hover{border-color:var(--primary)}
+.cmd-treatments>div{padding:9px 3px}
+.cmd-editorbar{padding:10px 11px}
+.cmd-notes{height:91px;line-height:1.5}
+.cmd-alerts p{padding:9px}
+.cmd-bottomrows p{padding:8px 3px}
+.cmd-appt{transition:box-shadow .15s ease,border-color .15s ease}
+.cmd-appt:focus-visible{outline-offset:1px}
+.cmd-agenda .cmd-cardhead small{font-weight:650}
+.cmd-secondary-toggle{display:none}
+[data-theme='high-contrast'] .cmd-patienthero{background:var(--card-bg)}
+@media(max-width:1399px){
+ .cmd-workbench{grid-template-columns:minmax(350px,36%) minmax(0,1fr)}
+ .cmd-cards{gap:9px}
+ .cmd-heading{min-height:65px}
+ .cmd-patienthero{gap:8px}
+}
+@media(max-width:1080px){
+ .cmd-workbench{grid-template-columns:minmax(0,1fr)}
+ .cmd-heading{min-height:0}
+ .cmd-patienthero{order:0}
+ .cmd-tabs{order:1}
+ .cmd-agenda{order:2}
+ .cmd-cards{order:3}
+ .cmd-patientintro h2{font-size:17px}
+}
+@media(max-width:767px){
+ .cmd-content{padding:10px}
+ .cmd-heading{margin:8px 0 11px}
+ .cmd-heading h1{font-size:22px}
+ .cmd-patienthero{border-radius:10px 10px 0 0}
+ .cmd-chips{gap:5px}
+ .cmd-pill{font-size:10px;padding:4px 7px}
+ .cmd-toolbar{height:48px}
+}
+@media(max-width:520px){
+ .cmd-content{padding:8px}
+ .cmd-heading{gap:7px;margin:6px 0 10px}
+ .cmd-kicker{display:none}
+ .cmd-heading h1{font-size:22px}
+ .cmd-headingcopy>p:last-child{font-size:11px}
+ .cmd-workbench{gap:9px}
+ .cmd-patienthero{padding:10px;gap:8px}
+ .cmd-patienttime{border-left:0;padding:0 6px}
+ .cmd-patientbuttons{flex-wrap:wrap;gap:6px}
+ .cmd-patientbuttons button{min-height:40px;flex:1}
+ .cmd-tabs button{font-size:11px}
+ .cmd-cards{grid-template-columns:minmax(0,1fr);gap:9px}
+ .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(5),
+ .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(7),
+ .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(8),
+ .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(9){display:none}
+ .cmd-secondary-toggle{display:flex;width:100%;align-items:center;justify-content:center;gap:9px;min-height:44px;margin:0 0 6px;padding:9px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--card-bg);color:var(--primary)!important;font-weight:750}
+ .cmd-secondary-toggle svg{transition:transform .18s ease}
+ .cmd-secondary-toggle .cmd-rotate{transform:rotate(180deg)}
+ .cmd-patientfields>div{padding:8px 0}
+ .cmd-imagegrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .cmd-alerts p{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+ .cmd-appt,.cmd-secondary-toggle svg{transition:none!important}
+}
