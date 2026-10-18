@@ -123,7 +123,8 @@ def _encode(data: dict):
 
 def fake_issue_request_ticket(connection, principal, *, expected_owners: tuple[int, ...],
                               job_id: str, manifest_sha: str, now: int,
-                              signing_key: bytes) -> dict:
+                              signing_key: bytes, bundle_root: Path,
+                              manifest: dict) -> dict:
     """Request-side rehearsal; real owner helper and DB scan, NO auth origin.
 
     A real integration must obtain principal from require_permission/settings
@@ -145,6 +146,11 @@ def fake_issue_request_ticket(connection, principal, *, expected_owners: tuple[i
         raise AuthorityHandoffDenied("REQUEST_OWNER_OR_TENANT_DENIED") from exc
     if observation.get("clinical_restore_permitted") is not False:
         raise AuthorityHandoffDenied("CLINICAL_PERMISSION_FALSE_REQUIRED")
+    # Bind the outgoing ticket to observed fake bytes, not a SHA supplied
+    # by an untrusted request without any independent component check.
+    if not hmac.compare_digest(verify_fake_manifest(bundle_root, manifest),
+                               manifest_sha):
+        raise AuthorityHandoffDenied("REQUEST_MANIFEST_CONTENT_MISMATCH")
     claims = {
         "v": 1, "purpose": "LOT05H_SYNTHETIC_HANDOFF_ONLY", "owner": owner,
         "job": job_id, "manifest": manifest_sha, "issued": now,
@@ -156,7 +162,8 @@ def fake_issue_request_ticket(connection, principal, *, expected_owners: tuple[i
 
 def fake_worker_verify_ticket(ticket: dict, job: dict, *,
                               expected_owner: int, manifest_sha: str,
-                              now: int, signing_key: bytes, used_nonces: set) -> dict:
+                              now: int, signing_key: bytes, used_nonces: set,
+                              bundle_root: Path, manifest: dict) -> dict:
     """Separate fake worker boundary: validate ALL claims before consuming.
 
     Does not call GuidedRestoreWorker.run(), spawn SCM, touch target or import.
@@ -202,6 +209,11 @@ def fake_worker_verify_ticket(ticket: dict, job: dict, *,
         raise AuthorityHandoffDenied("JOB_OWNER_OR_CONTENT_MISMATCH")
     if claims["nonce"] in used_nonces:
         raise AuthorityHandoffDenied("REPLAY_DENIED")
+    # Worker-side fresh independent read: even a correctly signed ticket
+    # cannot authorize a bundle altered after the request-side observation.
+    if not hmac.compare_digest(verify_fake_manifest(bundle_root, manifest),
+                               manifest_sha):
+        raise AuthorityHandoffDenied("WORKER_MANIFEST_CONTENT_MISMATCH")
     used_nonces.add(claims["nonce"])
     return {"fake_handoff_verified": True, "clinical_restore_permitted": False,
             "clinical_import_permitted": False}
