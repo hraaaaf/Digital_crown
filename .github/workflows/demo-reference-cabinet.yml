@@ -1,0 +1,65 @@
+name: DEMO Reference Cabinet Safety (isolated)
+on:
+  push:
+    branches:
+      - feat/synthetic-demo-cabinet-fixture-20261018
+    paths:
+      - scripts/seed_demo_cabinet_reference.py
+      - .github/workflows/demo-reference-cabinet.yml
+      - docs/clinic/DEMO_REFERENCE_CABINET.md
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guard-and-pdf:
+    name: Fail-closed guards and fictional PDF smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install reportlab pypdf
+      - name: Exact HEAD and syntax
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -m py_compile scripts/seed_demo_cabinet_reference.py
+      - name: Fail closed before database import, PDF watermark, fixture shape
+        env:
+          ENVIRONMENT: production
+          DIGITALCROWN_ISOLATED_RUNTIME: "0"
+          DATABASE_URL: "sqlite:////tmp/real-cabinet.db"
+        run: |
+          python - <<'PY'
+          import os, sys
+          from pypdf import PdfReader
+          from scripts import seed_demo_cabinet_reference as m
+          assert len(m.PATIENTS) == 12
+          assert len(m.DOCS) == 3
+          assert "backend.database" not in sys.modules
+          for environment, isolated, url in [
+              ("production", "0", "sqlite:////tmp/real-cabinet.db"),
+              ("test", "0", "sqlite:////tmp/demo-fixture.db"),
+              ("test", "1", "sqlite:////tmp/real-cabinet.db"),
+          ]:
+              os.environ.update(ENVIRONMENT=environment, DIGITALCROWN_ISOLATED_RUNTIME=isolated, DATABASE_URL=url)
+              try:
+                  m.main()
+              except RuntimeError as exc:
+                  assert "DEMO_REFUSED" in str(exc), str(exc)
+              else:
+                  raise AssertionError("unsafe environment accepted")
+              assert "backend.database" not in sys.modules
+          pdf=m._pdf("Ordonnance DEMO","Patient Fictif","DEMO-0001")
+          from io import BytesIO
+          reader=PdfReader(BytesIO(pdf))
+          text=reader.pages[0].extract_text()
+          assert m.MARKER in text
+          assert "Patient Fictif" in text
+          assert "DEMO-0001" in text
+          print("DEMO_GUARDS_AND_PDF_SMOKE_PASS")
+          PY
