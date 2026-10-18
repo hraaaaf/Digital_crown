@@ -1573,6 +1573,12 @@ def generate_cephalo_pdf(
     headers = {"X-Cephalo-Analysis-Id": str(selected.id)}
     if revision is not None:
         headers["X-Cephalo-Revision"] = str(revision)
+    if req.archive:
+        # Commit already succeeded. Never reopen a mutable PDF path in the
+        # deferred ASGI response after the database lock has been released.
+        from urllib.parse import quote
+        headers["Content-Disposition"] = "attachment; filename*=utf-8''" + quote(os.path.basename(pdf_path))
+        return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
     return FileResponse(
         path=pdf_path,
         filename=os.path.basename(pdf_path),
