@@ -5,6 +5,8 @@ on:
       - fix/p2ter-atomic-archive-step1-20261018
     paths:
       - .github/workflows/p2ter-atomic-archive-isolated.yml
+      - .github/workflows/p2ter-atomic-db-matrix.yml
+      - scripts/ceph_p2ter_sqlcipher_copy_rehearsal.py
       - .github/workflows/p2ter-atomic-live-t2.yml
       - backend/core/schema_runtime.py
       - backend/models.py
@@ -14,7 +16,6 @@ on:
       - techdoubt.md
       - backend/tests/test_cephalo_p2ter_identity_bound_pdf.py
       - backend/tests/test_cephalo_archive_crash_audit.py
-      - backend/services/archive_service.py
       - scripts/ceph_p2ter_concurrent_atomic_t2.py
       - alembic/versions/ceparch0001_add_cephalo_archive_claims.py
 permissions:
