@@ -116,7 +116,12 @@ def audit_cephalo_archive_after_crash(
     missing_referenced = []
     skipped_reference_count = 0
     for file_path, document_type in paths:
-        if document_type != DocumentType.RAPPORT_CEPHALO or not file_path:
+        if document_type != DocumentType.RAPPORT_CEPHALO:
+            continue
+        if not file_path:
+            # A cephalometric SQL record without a storage key is itself
+            # unreconcilable; it must never make the audit look fully green.
+            skipped_reference_count += 1
             continue
         prefix = "static/archives/"
         if not str(file_path).startswith(prefix):
