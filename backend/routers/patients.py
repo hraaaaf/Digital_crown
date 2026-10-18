@@ -1514,7 +1514,8 @@ def delete_patient(
     """Archive un patient (soft-delete — jamais de perte de vraie donnée patient).
     Seul Dentiste/Proprio ou Admin. Masqué des points d'entrée normaux (liste,
     doublon, GET détail) ; les données restent conservées en base."""
-    from backend.services.audit_service import audit_service
+    from backend.models_patient_companion import PatientCompanionAccess
+    from backend.services.patient_companion_access_guard import lock_patient_access_transaction
 
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     if not patient or patient.deleted_at is not None:
@@ -1526,23 +1527,43 @@ def delete_patient(
         raise HTTPException(status_code=403, detail="Vous n'avez pas l'autorisation de supprimer un patient")
 
     try:
-        # Audit log before archiving
-        audit_service.log(
-            db=db,
+        # Prevent any active Patient Companion command (HTTP or Relay) from
+        # mutating this patient after the archive COMMIT. Acquire access locks
+        # in a stable order, matching the remote worker's access barrier.
+        access_ids = [
+            row[0] for row in db.query(PatientCompanionAccess.id).filter(
+                PatientCompanionAccess.patient_id == patient_id,
+                PatientCompanionAccess.employer_id == patient.employer_id,
+                PatientCompanionAccess.revoked_at.is_(None),
+            ).order_by(PatientCompanionAccess.id.asc()).all()
+        ]
+        for access_id in access_ids:
+            lock_patient_access_transaction(db, access_id)
+        db.refresh(patient)
+        if patient.deleted_at is not None:
+            raise HTTPException(status_code=404, detail="Patient introuvable")
+
+        # audit_service.log() commits its Session. Do not call it under the
+        # access barrier: its separate COMMIT would release the lock before
+        # soft deletion. Persist audit + deletion as ONE atomic transaction.
+        db.add(models.AuditLog(
             user_id=current_user.id,
             employer_id=current_user.get_employer_id(),
             action="DELETE",
             resource_type="Patient",
             resource_id=str(patient_id),
-            details=f"Archivage (soft-delete) du patient {patient.nom} {patient.prenom}"
-        )
-
+            details=f"Archivage (soft-delete) du patient {patient.nom} {patient.prenom}",
+            severity="INFO",
+        ))
         patient.deleted_at = datetime.now()
         patient.deleted_by = current_user.id
         db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la suppression du patient.") from e
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

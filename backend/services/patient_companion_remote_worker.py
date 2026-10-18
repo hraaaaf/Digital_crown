@@ -13,9 +13,12 @@ from jwcrypto.common import JWException
 from backend import models
 from backend.models_patient_companion import (
     PatientCompanionAccess,
+    PatientCompanionIdentity,
     PatientCompanionCabinetRemoteKey,
     PatientCompanionRemoteKeyset,
 )
+from backend.services.patient_companion_access_guard import lock_patient_access_transaction
+from backend.services.patient_companion_remote_agenda_quota import charge_remote_agenda_attempt
 from backend.services.patient_companion_key_protection import (
     unprotect_os_bound,
 )
@@ -26,6 +29,7 @@ from backend.services.patient_companion_remote_crypto import (
 from backend.services.patient_companion_remote_keys import load_cabinet_private_jwk
 from backend.services.patient_companion_remote_receipts import (
     RemoteCommandBusy,
+    RemoteLegacyReceiptNeedsReconciliation,
     RemoteReplayDetected,
     claim_remote_command,
     complete_remote_command,
@@ -143,6 +147,7 @@ def process_remote_envelope(
     keyset: PatientCompanionRemoteKeyset,
     compact_jwe: str,
     handlers: dict[str, RemoteDomainHandler] | None = None,
+    allowed_operation_prefix: str | None = None,
     unprotect=unprotect_os_bound,
     commit: bool = True,
 ) -> str:
@@ -150,10 +155,49 @@ def process_remote_envelope(
     commit its result with the replay ledger, then return a cabinet-signed encrypted ack.
     """
 
-    if access.revoked_at is not None:
+    # Re-read authorization ONLY after the same lock used by staff revocation.
+    # populate_existing discards SQLAlchemy's potentially stale identity map.
+    lock_patient_access_transaction(db, access.id)
+    verified_access = (
+        db.query(PatientCompanionAccess)
+        .populate_existing()
+        .filter(PatientCompanionAccess.id == access.id)
+        .first()
+    )
+    if verified_access is None or verified_access.revoked_at is not None:
         raise RemoteTransportRejected("Patient Companion access revoked")
-    if keyset.access_id != access.id or keyset.status != "ACTIVE" or keyset.revoked_at is not None:
+    identity = (
+        db.query(PatientCompanionIdentity)
+        .populate_existing()
+        .filter(
+            PatientCompanionIdentity.id == verified_access.identity_id,
+            PatientCompanionIdentity.revoked_at.is_(None),
+        ).first()
+    )
+    patient = (
+        db.query(models.Patient)
+        .populate_existing()
+        .filter(
+            models.Patient.id == verified_access.patient_id,
+            models.Patient.employer_id == verified_access.employer_id,
+            models.Patient.deleted_at.is_(None),
+        ).first()
+    )
+    if identity is None or patient is None:
+        raise RemoteTransportRejected("Patient Companion identity or patient inactive")
+    verified_keyset = (
+        db.query(PatientCompanionRemoteKeyset)
+        .populate_existing()
+        .filter(
+            PatientCompanionRemoteKeyset.id == keyset.id,
+            PatientCompanionRemoteKeyset.access_id == verified_access.id,
+            PatientCompanionRemoteKeyset.status == "ACTIVE",
+            PatientCompanionRemoteKeyset.revoked_at.is_(None),
+        ).first()
+    )
+    if verified_keyset is None:
         raise RemoteTransportRejected("remote keyset is not active for this access")
+    access, keyset = verified_access, verified_keyset
 
     cabinet_encryption = _cabinet_key(
         db,
@@ -188,8 +232,36 @@ def process_remote_envelope(
     except Exception as exc:
         raise RemoteTransportRejected("remote application envelope invalid or expired") from exc
 
+    # Route-specific operation family is enforced on the VERIFIED JOSE payload,
+    # BEFORE any replay claim or clinical mutation. A teleconsultation route
+    # must not serve agenda.create using its much larger rate-limit budget.
+    if allowed_operation_prefix is not None and not message.operation.startswith(allowed_operation_prefix):
+        raise RemoteTransportRejected("operation not permitted on this remote endpoint")
+
+    # This DB-backed, short-transaction budget is shared by every HTTP PID
+    # and by the Relay worker. It is charged even for repeated idempotency
+    # keys and failed/rejected Agenda actions, and cannot be rolled back with
+    # the clinical receipt/appointment transaction.
+    if message.operation.startswith("agenda."):
+        charge_remote_agenda_attempt(db, access_id=access.id)
+
     try:
         claim = claim_remote_command(db, access=access, message=message)
+    except RemoteLegacyReceiptNeedsReconciliation:
+        # Send a truthful, cryptographically authenticated terminal result on
+        # BOTH direct HTTP and Relay; never drop the message without an ACK,
+        # never invent the original clinical intent, and never mutate capacity.
+        recovery = _ack_payload(
+            message, status="REJECTED",
+            response={"code": "RECONCILIATION_REQUIRED"},
+        )
+        return sign_and_encrypt(
+            recovery.model_dump(mode="json"),
+            sender_signing_private_jwk=signing_private,
+            recipient_encryption_public_jwk=_public_jwk(keyset.patient_encryption_public_jwk_json),
+            sender_signing_kid=keyset.cabinet_signing_kid,
+            recipient_encryption_kid=keyset.patient_encryption_kid,
+        )
     except (RemoteReplayDetected, RemoteCommandBusy):
         raise
 

@@ -258,9 +258,9 @@ class ActionDispatcher:
         db.commit()
         return BotResponse(
             message=(
-                f"✅ **Statut mis à jour**\\n"
-                f"👤 {params.get('patient_name', '—')}\\n"
-                f"📅 {params.get('when', '')}\\n"
+                f"✅ **Statut mis à jour**\n"
+                f"👤 {params.get('patient_name', '—')}\n"
+                f"📅 {params.get('when', '')}\n"
                 f"➡️ {params.get('status_label', status_name)}"
             ),
             data={"appointment_id": appt.id, "status": status_name},

@@ -13,6 +13,7 @@ import { PatientCompanionSync } from './PatientCompanionSync';
 import { PatientCompanionRemoteCrypto } from './PatientCompanionRemoteCrypto';
 import { PatientCompanionAgendaApi, type PatientAgendaPractitioner, type PatientAgendaSlot } from './PatientCompanionAgendaApi';
 import { PatientCompanionAgendaTransport, type AgendaOperation } from './PatientCompanionAgendaTransport';
+import { appointmentPresentation } from './PatientCompanionAgendaStatus';
 import { PatientCompanionQuestionnaires } from './PatientCompanionQuestionnaires';
 import { PatientCompanionConsentVault } from './PatientCompanionConsentVault';
 import { PatientCompanionNotifications } from './PatientCompanionNotifications';
@@ -84,7 +85,7 @@ export const PatientCompanionApp = () => {
     [vault],
   );
   const nextAppointment = activeWallet?.appointments
-    .filter(item => new Date(item.datetime_start).getTime() >= Date.now())
+    .filter(item => appointmentPresentation(item.status).isUpcoming && new Date(item.datetime_start).getTime() >= Date.now())
     .sort((a, b) => new Date(a.datetime_start).getTime() - new Date(b.datetime_start).getTime())[0];
 
   const sessionExpired = useMemo(
@@ -405,7 +406,7 @@ export const PatientCompanionApp = () => {
         );
         const nextRequest: PatientAgendaRequestState = {
           ...request,
-          state: result.status === 'ACCEPTED' ? 'confirmed' : 'rejected',
+          state: result.status === 'ACCEPTED' ? 'confirmed' : result.result.code === 'RECONCILIATION_REQUIRED' ? 'needs_reconciliation' : 'rejected',
           updatedAt: new Date().toISOString(),
           errorCode: result.status === 'REJECTED' ? String(result.result.code || 'REJECTED') : undefined,
         };
@@ -573,7 +574,7 @@ export const PatientCompanionApp = () => {
       );
       const finalRequest: PatientAgendaRequestState = {
         ...request,
-        state: result.status === 'ACCEPTED' ? 'confirmed' : 'rejected',
+        state: result.status === 'ACCEPTED' ? 'confirmed' : result.result.code === 'RECONCILIATION_REQUIRED' ? 'needs_reconciliation' : 'rejected',
         updatedAt: new Date().toISOString(),
         errorCode: result.status === 'REJECTED' ? String(result.result.code || 'REJECTED') : undefined,
       };
@@ -603,7 +604,9 @@ export const PatientCompanionApp = () => {
           setSyncState('offline');
         }
       } else {
-        setAgendaMessage(`Demande refusée par le cabinet · ${String(result.result.code || 'raison non précisée')}.`);
+        setAgendaMessage(result.result.code === 'RECONCILIATION_REQUIRED'
+          ? 'Une demande ancienne pourrait déjà avoir été exécutée. Consultez vos rendez-vous et contactez le cabinet avant toute nouvelle demande ; aucun nouvel envoi automatique.'
+          : `Demande refusée par le cabinet · ${String(result.result.code || 'raison non précisée')}.`);
       }
     } catch (error) {
       const remotePending = Boolean((error as { remotePending?: boolean })?.remotePending);
@@ -771,13 +774,13 @@ export const PatientCompanionApp = () => {
                         <p className="text-base font-black">{new Date(item.datetime_start).toLocaleString()}</p>
                         <p className="mt-1 text-xs font-bold text-text-muted">{item.motif || 'Rendez-vous cabinet'} · {item.duration_minutes} min</p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-800">Confirmé</span>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${appointmentPresentation(item.status).style === 'positive' ? 'bg-emerald-50 text-emerald-800' : appointmentPresentation(item.status).style === 'negative' ? 'bg-rose-50 text-rose-800' : appointmentPresentation(item.status).style === 'warning' ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-700'}`}>{appointmentPresentation(item.status).label}</span>
                     </div>
-                    {item.appointment_ref && <div className="mt-3 grid grid-cols-2 gap-2">
+                    {item.appointment_ref && appointmentPresentation(item.status).canManage && <div className="mt-3 grid grid-cols-2 gap-2">
                       <button onClick={() => void openBooking('reschedule', item.appointment_ref)} className="min-h-[48px] rounded-xl border border-border-main text-xs font-black">Déplacer</button>
                       <button onClick={() => setCancelAppointmentRef(item.appointment_ref || null)} className="min-h-[48px] rounded-xl border border-rose-200 text-xs font-black text-rose-700">Annuler</button>
                     </div>}
-                    {item.appointment_ref && cancelAppointmentRef === item.appointment_ref && (
+                    {item.appointment_ref && appointmentPresentation(item.status).canManage && cancelAppointmentRef === item.appointment_ref && (
                       <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
                         <p className="text-xs font-black text-rose-800">Confirmer l’annulation de ce rendez-vous ?</p>
                         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -827,7 +830,9 @@ export const PatientCompanionApp = () => {
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-text-muted">Demandes récentes</p>
                   <div className="mt-2 grid gap-2">
                     {activeWallet.agendaRequests.slice(-3).reverse().map(request => {
-                      const label = request.state === 'confirmed'
+                      const label = request.state === 'needs_reconciliation'
+                        ? 'Vérification nécessaire auprès du cabinet · ne pas renvoyer cette demande'
+                        : request.state === 'confirmed'
                         ? 'Confirmée par le cabinet'
                         : request.state === 'rejected'
                           ? 'Refusée par le cabinet'

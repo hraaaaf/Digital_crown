@@ -26,7 +26,8 @@ interface PendingRequestCardProps {
 
 export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request, onAction }) => {
   const [loading, setLoading] = useState(false);
-  const [showConfirmTemplate, setShowConfirmTemplate] = useState(false);
+  const [confirmationTemplate, setConfirmationTemplate] = useState('');
+  const [clipboardStatus, setClipboardStatus] = useState<'copied' | 'manual' | 'missing' | null>(null);
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -44,7 +45,20 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
     setLoading(true);
     try {
       const res = await api.post(`/appointments/${request.id}/request-confirmation`);
-      setShowConfirmTemplate(true);
+      const template = String(res.data?.message_template || '').trim();
+      setConfirmationTemplate(template);
+      if (!template) {
+        setClipboardStatus('missing');
+      } else {
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
+          await navigator.clipboard.writeText(template);
+          setClipboardStatus('copied');
+        } catch {
+          // The complete backend-confirmed text remains visible for manual copy.
+          setClipboardStatus('manual');
+        }
+      }
       onAction();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erreur lors de la demande de confirmation');
@@ -103,11 +117,17 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
         )}
       </div>
 
-      {showConfirmTemplate && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs">
+      {clipboardStatus && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs" role="status">
           <p className="text-blue-900">
-            Message template copié. Envoyez à {request.patient_name} :
+            {clipboardStatus === 'copied' ? 'Message copié dans le presse-papiers.'
+              : clipboardStatus === 'manual' ? 'Copie automatique impossible : sélectionnez le texte ci-dessous.'
+              : 'Le cabinet n’a pas fourni de modèle de message.'}
           </p>
+          {confirmationTemplate && (
+            <p className="mt-2 whitespace-pre-wrap break-words select-text text-blue-900">{confirmationTemplate}</p>
+          )}
+          {confirmationTemplate && <p className="mt-2 text-blue-800">Vérifiez le destinataire avant tout envoi à {request.patient_name}.</p>}
         </div>
       )}
 

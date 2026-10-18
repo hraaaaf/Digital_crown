@@ -92,3 +92,36 @@ def test_mobile_frontdesk_fails_closed_after_agenda_permission_revoked(client, d
     db.commit()
     assert client.get("/api/mobile/frontdesk/pending", headers=headers).status_code == 403
     assert client.post("/api/mobile/frontdesk/requests/1/confirm", headers=headers).status_code == 403
+
+
+def test_mobile_frontdesk_expired_request_confirmation_returns_410(client, db, dentiste):
+    """Pocket reuses the same protected Frontdesk transition, never advertises stale capacity."""
+    assistant = _user(
+        db, email="pocket-expiry-review-synthetic@cabinet.ma",
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={"agenda": True, "patients": True},
+    )
+    start = datetime.utcnow() + timedelta(days=4)
+    expired = models.Appointment(
+        patient_name="Synthetic Pocket stale demand", datetime_start=start,
+        duration_minutes=30, status=schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        scheduling_type=models.SchedulingType.EXACT_TIME, employer_id=dentiste.id,
+        expires_at=datetime.utcnow() - timedelta(minutes=1),
+    )
+    occupied = models.Appointment(
+        patient_name="Synthetic Pocket actual booking", datetime_start=start,
+        duration_minutes=30, status=schemas.AppointmentStatus.CONFIRME,
+        scheduling_type=models.SchedulingType.EXACT_TIME, employer_id=dentiste.id,
+        praticien_id=dentiste.id,
+    )
+    db.add_all([expired, occupied])
+    db.commit()
+    jwt = _claim_mobile(client, db, dentiste, assistant)
+    result = client.post(
+        f"/api/mobile/frontdesk/requests/{expired.id}/request-confirmation",
+        headers={"Authorization": f"Bearer {jwt}"},
+    )
+    assert result.status_code == 410, result.text
+    assert "message_template" not in result.json()
+    db.refresh(expired)
+    assert expired.status == schemas.AppointmentStatus.EXPIRE

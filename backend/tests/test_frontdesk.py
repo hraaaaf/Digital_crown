@@ -295,3 +295,36 @@ class TestAuditLogs:
             models.AuditLog.action == "FRONTDESK_REQUEST_CREATED"
         ).all()
         assert len(logs) > 0
+
+
+def test_request_confirmation_expired_reclaimed_slot_never_advertised(client, auth_headers, dentiste, db):
+    """Expired Frontdesk demand must be 410, no availability message, no capacity theft."""
+    start = datetime.utcnow() + timedelta(days=3)
+    expired = models.Appointment(
+        patient_name="Synthetic expired demand",
+        datetime_start=start, duration_minutes=30,
+        status=schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        employer_id=dentiste.get_employer_id(),
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+        expires_at=datetime.utcnow() - timedelta(minutes=1),
+    )
+    reclaimed = models.Appointment(
+        patient_name="Synthetic new confirmed booking",
+        datetime_start=start, duration_minutes=30,
+        status=schemas.AppointmentStatus.CONFIRME,
+        employer_id=dentiste.get_employer_id(),
+        praticien_id=dentiste.id,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+    )
+    db.add_all([expired, reclaimed])
+    db.commit()
+    result = client.post(
+        f"{BASE}/appointments/{expired.id}/request-confirmation",
+        headers=auth_headers,
+    )
+    assert result.status_code == 410, result.text
+    assert "message_template" not in result.json()
+    db.refresh(expired)
+    db.refresh(reclaimed)
+    assert expired.status == schemas.AppointmentStatus.EXPIRE
+    assert reclaimed.status == schemas.AppointmentStatus.CONFIRME

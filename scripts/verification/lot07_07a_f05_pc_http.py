@@ -22,11 +22,13 @@ from sqlalchemy import text
 from backend import database, models
 from backend.routers import appointments, auth
 from backend.routers import patient_companion_agenda as pc_router
+from backend.routers import patient_companion_shares as shares_router
+from backend.routers import patient_companion_teleconsultation as teleconsult_router
 from backend.routers.patient_companion_common import create_patient_device_token
 from backend.models_patient_companion import (
     PatientCompanionAccess, PatientCompanionAgendaSlot,
     PatientCompanionAppointmentRef, PatientCompanionIdentity,
-    PatientCompanionRemoteReceipt,
+    PatientCompanionRemoteReceipt, PatientCompanionRemoteKeyset,
 )
 from backend.services.patient_companion_remote_crypto import (
     decrypt_and_verify, generate_p256_keypair, sign_and_encrypt,
@@ -35,6 +37,11 @@ from backend.services.patient_companion_remote_keys import enroll_remote_keyset
 from backend.services.patient_companion_remote_worker import (
     process_remote_envelope as actual_worker,
 )
+from backend.services import patient_companion_remote_worker as _worker_module
+from backend.services.patient_companion_remote_agenda_quota import (
+    charge_remote_agenda_attempt as _real_quota,
+)
+
 from relay.contract import RelayInnerMessage
 
 
@@ -55,6 +62,17 @@ def _worker_with_lab_key_protection(db, **kwargs):
 
 
 pc_router.process_remote_envelope = _worker_with_lab_key_protection
+teleconsult_router.process_remote_envelope = _worker_with_lab_key_protection
+
+# The general booking/race laboratory intentionally exercises many more than
+# the FIVE production Agenda requests per 10 minutes. Only its isolated
+# F05 test workers use a higher ceiling; a separate required PostgreSQL
+# multiprocess certification enforces the actual production ceiling = 5.
+def _load_lab_agenda_quota(db, *, access_id):
+    return _real_quota(db, access_id=access_id, maximum=100)
+
+
+_worker_module.charge_remote_agenda_attempt = _load_lab_agenda_quota
 
 # The real HTTP route enforces a five-request/10-minute IP default; expand only
 # this isolated load-test threshold, retain the same rate limiter and request
@@ -62,16 +80,21 @@ pc_router.process_remote_envelope = _worker_with_lab_key_protection
 from backend.utils.rate_limit import check_rate_limit as _real_rate_limit
 
 
-def _laboratory_rate_limit(request, scope="auth"):
-    return _real_rate_limit(request, scope=scope, max_attempts=100)
+def _laboratory_rate_limit(request, scope="auth", *, max_attempts=100):
+    # Only this disposable load-test host raises quotas. Teleconsultation
+    # explicitly passes max_attempts=600; preserve its callable signature.
+    return _real_rate_limit(request, scope=scope, max_attempts=max(100, max_attempts))
 
 
 pc_router.check_rate_limit = _laboratory_rate_limit
+teleconsult_router.check_rate_limit = _laboratory_rate_limit
 
 app = FastAPI(title="F05 synthetic Patient Companion actual HTTP route")
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(appointments.router, prefix="/api/appointments")
 app.include_router(pc_router.router, prefix="/api/patient-companion")
+app.include_router(teleconsult_router.router, prefix="/api/patient-companion")
+app.include_router(shares_router.router, prefix="/api/patient-companion")
 
 
 @app.get("/_f05/pid")
@@ -493,11 +516,137 @@ def exercise():
         print("F05_PC_HTTP_R1_RESCHEDULE_CHANGED_INTENT",
               changed_outcome[0], "SQL_RECEIPTS", receipt_count(idem_resched), flush=True)
 
+        # Simulate a real pre-upgrade successful receipt with a lost JWE ACK:
+        # after schema upgrade the original intent fingerprint is unknown.
+        # An authenticated HTTP retry must receive a signed RECONCILIATION
+        # result; it must not silently confirm nor repeat a clinical mutation.
+        with Session() as db:
+            old_receipt = db.query(PatientCompanionRemoteReceipt).filter(
+                PatientCompanionRemoteReceipt.access_id == access_id,
+                PatientCompanionRemoteReceipt.idempotency_key == str(idem_resched),
+            ).one()
+            assert old_receipt.status == "ACCEPTED"
+            old_receipt.intent_sha256 = None
+            db.commit()
+        retry_legacy, _ = sign_command(
+            "agenda.reschedule",
+            {"appointment_ref": appointment_ref, "slot_ref": new_target},
+            idem_resched,
+        )
+        reconciliation = remote(1, retry_legacy)
+        assert reconciliation[0] == 200, reconciliation
+        assert reconciliation[1]["status"] == "REJECTED", reconciliation
+        assert reconciliation[1]["result"]["code"] == "RECONCILIATION_REQUIRED"
+        assert count(20) == 1 and receipt_count(idem_resched) == 1
+        with Session() as db:
+            assert db.get(models.Appointment, original_id).datetime_start == datetime(2030, 1, 3, 20)
+        print("F05_R2_HTTP_LEGACY_ACK_LOST_RECONCILIATION",
+              "HTTP", reconciliation[0], "STATE", reconciliation[1]["status"],
+              "SQL", count(20), "RECEIPTS", receipt_count(idem_resched), flush=True)
+
         # Signed staff JWT cannot be substituted for patient credentials.
         token, _ = sign_command("agenda.create", {"slot_ref": slot_ref})
         assert remote(0, token, bearer=owner_jwt)[0] == 401
         assert remote(0, token, bearer=other_jwt)[0] == 401
         print("F05_PC_HTTP_STAFF_CANNOT_IMPERSONATE_DEVICE", True, flush=True)
+        # Adversarial real HTTP route confusion: signed agenda.create sent to
+        # the teleconsult endpoint (whose ordinary rate limit is much larger)
+        # MUST reject it before a receipt or appointment can be written.
+        wrong_slot, wrong_slot_id = new_slot(23)
+        wrong_jwe, wrong_idem = sign_command(
+            "agenda.create", {"slot_ref": wrong_slot},
+        )
+        teleconsult_path = f"/api/patient-companion/contexts/{access_ref}/teleconsultation/remote-command"
+        wrong_route = httpx.post(
+            urls[1] + teleconsult_path, json={"blob": wrong_jwe},
+            headers={"Authorization": f"Bearer {device_token}"}, timeout=25,
+        )
+        assert wrong_route.status_code == 400, (
+            "F05_R2_CROSS_ROUTE_AGENDA_BYPASS", wrong_route.status_code, wrong_route.text[:200],
+        )
+        assert count(23) == 0 and receipt_count(wrong_idem) == 0
+        assert not consumed(wrong_slot_id)
+        print("F05_R2_WRONG_TELECONSULT_ROUTE", 400, "SQL", count(23), flush=True)
+
+        # Genuine concurrent HTTP clinical mutation vs authenticated staff
+        # revoke using two distinct Uvicorn processes. Whichever acquires
+        # the shared access transaction lock first must win atomically:
+        # either old command commits before revoke, or revoke commits first
+        # and that command fails, never a booking after revoke.
+        revoke_slot, revoke_slot_id = new_slot(22)
+        revoke_token, revoke_idem = sign_command(
+            "agenda.create", {"slot_ref": revoke_slot},
+        )
+        revoke_path = f"/api/patient-companion/admin/accesses/{access_ref}/revoke"
+
+        def staff_revoke():
+            response = httpx.post(
+                urls[1] + revoke_path,
+                headers={"Authorization": f"Bearer {owner_jwt}"},
+                timeout=25,
+            )
+            return response.status_code, response.text[:200]
+
+        # Deterministic revocation-first interleaving: hold the access lock
+        # from a THIRD PostgreSQL connection, queue staff revoke in PID 2,
+        # then queue patient JWE in PID 1. Confirm BOTH are actually blocked
+        # on PG advisory locks before releasing the barrier.
+        from backend.services.patient_companion_access_guard import (
+            lock_patient_access_transaction,
+        )
+
+        def wait_for_blocked_access_writers(min_count):
+            for _ in range(100):
+                with database.engine.connect() as monitor:
+                    blocked = monitor.scalar(text(
+                        "SELECT count(*) FROM pg_stat_activity "
+                        "WHERE datname=current_database() "
+                        "AND wait_event_type='Lock' "
+                        "AND query LIKE '%pg_advisory_xact_lock%'"
+                    ))
+                if blocked >= min_count:
+                    return
+                time.sleep(0.05)
+            raise AssertionError(("F05_R2_REVOCATION_LOCK_WAITERS", min_count))
+
+        with Session() as holder:
+            lock_patient_access_transaction(holder, access_id)
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                try:
+                    revoke_future = pool.submit(staff_revoke)
+                    wait_for_blocked_access_writers(1)
+                    remote_future = pool.submit(lambda: remote(0, revoke_token))
+                    wait_for_blocked_access_writers(2)
+                finally:
+                    holder.commit()
+                revoke_result = revoke_future.result(timeout=35)
+                remote_result = remote_future.result(timeout=35)
+        assert revoke_result[0] == 200, (remote_result, revoke_result)
+        assert remote_result[0] in {400, 401, 404}, (
+            "F05_R2_REVOCATION_WON_BUT_BOOKING_ACCEPTED", remote_result, revoke_result,
+        )
+        with Session() as db:
+            access_row = db.get(PatientCompanionAccess, access_id)
+            assert access_row.revoked_at is not None
+            keyset_row = db.query(PatientCompanionRemoteKeyset).filter_by(
+                access_id=access_id,
+            ).one()
+            assert keyset_row.status == "REVOKED" and keyset_row.revoked_at is not None
+        expected = 0
+        assert count(22) == receipt_count(revoke_idem) == expected
+        assert int(consumed(revoke_slot_id)) == expected
+        post_revoke_slot, post_revoke_id = new_slot(21)
+        post_revoke_token, post_revoke_idem = sign_command(
+            "agenda.create", {"slot_ref": post_revoke_slot},
+        )
+        post_revoke = remote(0, post_revoke_token)
+        assert post_revoke[0] in {400, 401, 404}, post_revoke
+        assert count(21) == receipt_count(post_revoke_idem) == 0
+        assert not consumed(post_revoke_id)
+        print("F05_R2_REVOKE_RACE", "REMOTE", remote_result[0],
+              "STAFF", revoke_result[0], "SQL", count(22),
+              "RECEIPT", receipt_count(revoke_idem), flush=True)
+        print("F05_R2_REVOKED_FOLLOWUP", post_revoke[0], "SQL", count(21), flush=True)
         print("F05_PC_HTTP_RESULT",
               "PASS_SYNTHETIC_REAL_ROUTE_REAL_PATIENT_JWT_JWE_2PIDS_PG_RECEIPTS",
               "DPAPI_LINUX_SUBSTITUTED", flush=True)

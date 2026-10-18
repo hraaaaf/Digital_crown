@@ -141,15 +141,47 @@ async def request_patient_confirmation(
     appt = db.query(models.Appointment).filter(
         models.Appointment.id == appointment_id,
         models.Appointment.employer_id == employer_id,
+        models.Appointment.deleted_at.is_(None),
     ).first()
 
     if not appt:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
 
+    if appt.status in (
+        schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
+        schemas.AppointmentStatus.EN_ATTENTE_CONFIRM,
+    ) and appt.expires_at is not None and appt.expires_at <= datetime.utcnow():
+        # Do not advertise an expired slot as available on Desktop or Pocket.
+        # The expired request no longer blocks another booking.
+        appt.status = schemas.AppointmentStatus.EXPIRE
+        db.commit()
+        raise HTTPException(status_code=410, detail="Demande expirée.")
+
     if appt.status != schemas.AppointmentStatus.EN_ATTENTE_DEMANDE:
         raise HTTPException(
             status_code=409,
             detail=f"Transition invalide : {appt.status.value} → EN_ATTENTE_CONFIRM",
+        )
+
+    # Revalidate after the shared booking lock. The pending row may have
+    # released capacity by expiry or competing staff actions before this call.
+    if appt.scheduling_type == models.SchedulingType.EXACT_TIME:
+        unavailable = validate_appointment_availability(
+            db, employer_id, appt.datetime_start, appt.duration_minutes,
+            models.SchedulingType.EXACT_TIME, practitioner_id=appt.praticien_id,
+        )
+        if unavailable:
+            raise HTTPException(status_code=422, detail=unavailable)
+        if _find_conflicts(
+            db, employer_id, appt.praticien_id, appt.datetime_start,
+            appt.duration_minutes, exclude_id=appt.id,
+        ):
+            raise HTTPException(status_code=409, detail="Créneau déjà occupé")
+        assert_resource_available(
+            db, employer_id=employer_id, resource_id=appt.resource_id,
+            datetime_start=appt.datetime_start,
+            duration_minutes=appt.duration_minutes,
+            exclude_appointment_id=appt.id,
         )
 
     appt.status = schemas.AppointmentStatus.EN_ATTENTE_CONFIRM

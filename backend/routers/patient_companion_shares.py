@@ -24,6 +24,7 @@ from backend.routers.patient_companion_common import (
     require_companion_admin,
     staff_patient_or_404,
 )
+from backend.services.patient_companion_access_guard import lock_patient_access_transaction
 from backend.services.audit_service import audit_service
 
 router = APIRouter()
@@ -216,6 +217,11 @@ def revoke_patient_access(
     if access is None:
         raise HTTPException(status_code=404, detail="Accès patient introuvable.")
     staff_patient_or_404(db, current_user, access.patient_id)
+    # Synchronize revocation with both HTTP and Relay patient commands.
+    # A remote command already holding the barrier commits BEFORE this revoke;
+    # otherwise the next command sees the revoked state and fails closed.
+    lock_patient_access_transaction(db, access.id)
+    db.refresh(access)
     if access.revoked_at is None:
         now = datetime.utcnow()
         access.revoked_at = now

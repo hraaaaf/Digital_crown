@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend import models
-from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionAgendaSlot, PatientCompanionIdentity
+from backend.models_patient_companion import PatientCompanionAccess, PatientCompanionAgendaSlot, PatientCompanionIdentity, PatientCompanionRemoteReceipt
 from backend.services.patient_companion_remote_crypto import (
     decrypt_and_verify,
     generate_p256_keypair,
@@ -15,7 +15,7 @@ from backend.services.patient_companion_remote_crypto import (
 )
 from backend.services.patient_companion_remote_keys import enroll_remote_keyset
 from backend.services.patient_companion_remote_receipts import RemoteReplayDetected
-from backend.services.patient_companion_remote_worker import RemoteDomainResult, process_remote_envelope
+from backend.services.patient_companion_remote_worker import RemoteDomainResult, RemoteTransportRejected, process_remote_envelope
 from relay.contract import RelayInnerMessage
 
 
@@ -93,6 +93,19 @@ def test_remote_worker_dispatches_once_and_rejects_exact_replay(db, dentiste):
         calls.append(payload)
         return RemoteDomainResult(status="ACCEPTED", response={"state": "accepted"})
 
+    # A signed/encrypted envelope is NOT sufficient: the chosen HTTP endpoint
+    # must permit the verified operation before any claim/receipt or handler.
+    with pytest.raises(RemoteTransportRejected, match="not permitted"):
+        process_remote_envelope(
+            db, access=access, keyset=keyset, compact_jwe=token,
+            handlers={operation: handler},
+            allowed_operation_prefix="teleconsult.", unprotect=_unprotect,
+        )
+    assert calls == []
+    assert db.query(PatientCompanionRemoteReceipt).filter(
+        PatientCompanionRemoteReceipt.access_id == access.id,
+    ).count() == 0
+
     ack_token = process_remote_envelope(
         db,
         access=access,
@@ -125,6 +138,26 @@ def test_remote_worker_dispatches_once_and_rejects_exact_replay(db, dentiste):
             unprotect=_unprotect,
         )
 
+    assert len(calls) == 1
+
+    # HTTP and Relay share process_remote_envelope; a previously authenticated
+    # JWE must NOT bypass identity/patient state after revocation.
+    identity.revoked_at = datetime.utcnow()
+    db.commit()
+    with pytest.raises(RemoteTransportRejected, match="identity or patient inactive"):
+        process_remote_envelope(
+            db, access=access, keyset=keyset, compact_jwe=token,
+            handlers={operation: handler}, unprotect=_unprotect,
+        )
+    assert len(calls) == 1
+    identity.revoked_at = None
+    patient.deleted_at = datetime.utcnow()
+    db.commit()
+    with pytest.raises(RemoteTransportRejected, match="identity or patient inactive"):
+        process_remote_envelope(
+            db, access=access, keyset=keyset, compact_jwe=token,
+            handlers={operation: handler}, unprotect=_unprotect,
+        )
     assert len(calls) == 1
 
 
@@ -203,4 +236,44 @@ def test_remote_worker_default_registry_executes_pc02_create_idempotently(db, de
     assert db.query(models.AuditLog).filter(
         models.AuditLog.action == "PATIENT_COMPANION_REMOTE_COMMAND",
         models.AuditLog.resource_id == access.public_id,
+    ).count() == 1
+
+
+    # A pre-migration receipt has no trustworthy original intent fingerprint.
+    # The actual encrypted worker must return a recoverable terminal ACK
+    # (not silently drop Relay messages, not retry forever, not mutate).
+    receipt = db.query(PatientCompanionRemoteReceipt).filter(
+        PatientCompanionRemoteReceipt.access_id == access.id,
+        PatientCompanionRemoteReceipt.idempotency_key == str(idem),
+    ).one()
+    receipt.intent_sha256 = None
+    db.commit()
+    legacy_retry = RelayInnerMessage(
+        message_id=uuid.uuid4(), access_id=message.access_id, sent_at=now,
+        expires_at=message.expires_at, idempotency_key=idem,
+        operation="agenda.create", payload={"slot_ref": slot.public_id},
+    )
+    legacy_ciphertext = sign_and_encrypt(
+        legacy_retry.model_dump(mode="json"),
+        sender_signing_private_jwk=patient_sig_private,
+        recipient_encryption_public_jwk=json.loads(cabinet_enc.public_jwk_json),
+        sender_signing_kid=keyset.patient_signing_kid,
+        recipient_encryption_kid=keyset.cabinet_encryption_kid,
+    )
+    legacy_ack = process_remote_envelope(
+        db, access=access, keyset=keyset,
+        compact_jwe=legacy_ciphertext, unprotect=_unprotect,
+        commit=False,  # exactly the Relay worker's transaction mode
+    )
+    decoded_legacy = decrypt_and_verify(
+        legacy_ack, recipient_encryption_private_jwk=patient_enc_private,
+        sender_signing_public_jwk=json.loads(cabinet_sig.public_jwk_json),
+        expected_sender_signing_kid=keyset.cabinet_signing_kid,
+        expected_recipient_encryption_kid=keyset.patient_encryption_kid,
+    )
+    assert decoded_legacy["payload"]["status"] == "REJECTED"
+    assert decoded_legacy["payload"]["result"]["code"] == "RECONCILIATION_REQUIRED"
+    assert db.query(models.Appointment).filter(models.Appointment.patient_id == patient.id).count() == 1
+    assert db.query(PatientCompanionRemoteReceipt).filter(
+        PatientCompanionRemoteReceipt.access_id == access.id,
     ).count() == 1

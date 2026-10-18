@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, LargeBinary, String, Text, UniqueConstraint, text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, LargeBinary, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models_base import Base
@@ -302,6 +302,27 @@ class PatientCompanionRelayOutbox(Base):
     blob: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class PatientCompanionRemoteAgendaQuota(Base):
+    """Shared fixed/rolling ten-minute patient Agenda abuse budget.
+
+    One row per access across all HTTP processes and Relay workers; rate
+    accounting is committed in a short independent database transaction so a
+    rejected clinical command cannot roll back the attempt counter.
+    """
+
+    __tablename__ = "patient_companion_remote_agenda_quotas"
+    __table_args__ = (
+        CheckConstraint("attempts >= 1", name="ck_pc_remote_agenda_quota_positive"),
+    )
+
+    access_id: Mapped[int] = mapped_column(
+        ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    window_started_epoch: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    attempts: Mapped[int] = mapped_column(nullable=False)
 
 
 class PatientCompanionRemoteReceipt(Base):

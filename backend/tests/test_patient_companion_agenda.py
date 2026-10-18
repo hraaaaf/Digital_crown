@@ -186,3 +186,75 @@ def test_list_appointments_returns_only_patient_safe_opaque_fields(db, dentiste)
     assert "appointment_id" not in item
     assert "patient_id" not in item
     assert "employer_id" not in item
+
+
+@pytest.mark.parametrize("status", [
+    models.AppointmentStatus.REFUSE,
+    models.AppointmentStatus.EXPIRE,
+    models.AppointmentStatus.EN_ATTENTE_DEMANDE,
+    models.AppointmentStatus.EN_ATTENTE_CONFIRM,
+    models.AppointmentStatus.ANNULE,
+    models.AppointmentStatus.TERMINE,
+    models.AppointmentStatus.EN_SALLE_ATTENTE,
+    models.AppointmentStatus.EN_FAUTEUIL,
+    models.AppointmentStatus.ABSENT,
+])
+def test_patient_cannot_resurrect_unconfirmed_or_terminal_appointment(db, dentiste, status):
+    """No patient reschedule may override an expired/rejected or workflow status."""
+    patient, access = _access(db, dentiste)
+    original_start = datetime(2030, 1, 8, 10, 0)
+    appt = models.Appointment(
+        patient_id=patient.id, patient_name="Synthetic status guard",
+        employer_id=dentiste.id, praticien_id=dentiste.id,
+        datetime_start=original_start, duration_minutes=30,
+        status=status, scheduling_type=models.SchedulingType.EXACT_TIME,
+    )
+    db.add(appt)
+    db.flush()
+    ref = PatientCompanionAppointmentRef(
+        public_id=str(uuid.uuid4()), employer_id=dentiste.id,
+        patient_id=patient.id, appointment_id=appt.id,
+    )
+    db.add(ref)
+    slot = _slot(db, dentiste, datetime(2030, 1, 9, 11, 0))
+    db.flush()
+
+    outcome = reschedule_appointment(db, access, {
+        "appointment_ref": ref.public_id,
+        "slot_ref": slot.public_id,
+    })
+    assert outcome.status == "REJECTED"
+    assert outcome.response["code"] == "APPOINTMENT_NOT_RESCHEDULABLE"
+    db.refresh(appt)
+    db.refresh(slot)
+    assert appt.status == status
+    assert appt.datetime_start == original_start
+    assert slot.consumed_at is None
+
+
+@pytest.mark.parametrize("status", [
+    models.AppointmentStatus.PREVU, models.AppointmentStatus.CONFIRME,
+])
+def test_patient_reschedule_allows_only_positive_booked_statuses(db, dentiste, status):
+    patient, access = _access(db, dentiste)
+    appt = models.Appointment(
+        patient_id=patient.id, patient_name="Synthetic booked appointment",
+        employer_id=dentiste.id, praticien_id=dentiste.id,
+        datetime_start=datetime(2030, 1, 8, 13, 0),
+        duration_minutes=30, status=status,
+        scheduling_type=models.SchedulingType.EXACT_TIME,
+    )
+    db.add(appt)
+    db.flush()
+    ref = PatientCompanionAppointmentRef(
+        public_id=str(uuid.uuid4()), employer_id=dentiste.id,
+        patient_id=patient.id, appointment_id=appt.id,
+    )
+    db.add(ref)
+    slot = _slot(db, dentiste, datetime(2030, 1, 9, 14, 0))
+    result = reschedule_appointment(db, access, {
+        "appointment_ref": ref.public_id, "slot_ref": slot.public_id,
+    })
+    assert result.status == "ACCEPTED"
+    assert appt.status == models.AppointmentStatus.CONFIRME
+    assert appt.datetime_start == datetime(2030, 1, 9, 14, 0)

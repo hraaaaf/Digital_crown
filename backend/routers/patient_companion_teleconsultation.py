@@ -24,6 +24,7 @@ from backend.routers.patient_companion_common import (
     staff_patient_or_404,
 )
 from backend.services.patient_companion_remote_worker import process_remote_envelope
+from backend.services.patient_companion_remote_agenda_quota import RemoteAgendaQuotaExceeded, RemoteAgendaQuotaUnavailable
 from backend.services.patient_companion_teleconsultation import (
     add_signal,
     build_ice_servers,
@@ -439,7 +440,18 @@ def patient_teleconsultation_remote_command(
     if keyset is None:
         raise HTTPException(status_code=409, detail="Transport sécurisé Patient Companion non initialisé.")
     try:
-        ack = process_remote_envelope(db, access=access, keyset=keyset, compact_jwe=body.blob)
+        ack = process_remote_envelope(
+            db, access=access, keyset=keyset, compact_jwe=body.blob,
+            allowed_operation_prefix="teleconsult.",
+        )
+    except RemoteAgendaQuotaExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Trop de commandes Agenda. Réessayez plus tard.",
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from None
+    except RemoteAgendaQuotaUnavailable:
+        raise HTTPException(status_code=503, detail="Quota Agenda temporairement indisponible.") from None
     except ValueError:
         raise HTTPException(status_code=400, detail="Commande distante Patient Companion invalide.") from None
     response.headers["Cache-Control"] = "no-store"

@@ -17,7 +17,7 @@ from sqlalchemy import MetaData
 
 # Frozen from backend/core/schema_runtime.py; a source-only unit test must
 # reject drift. Never import backend.*: backend/__init__.py bootstraps services.
-DECLARED_EXPECTED_ALEMBIC_HEAD = "f05r0000032"
+DECLARED_EXPECTED_ALEMBIC_HEAD = "f05q0000033"
 
 
 class TargetManifestRefused(ValueError):
