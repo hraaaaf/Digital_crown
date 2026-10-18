@@ -24,6 +24,7 @@ from sqlcipher3 import dbapi2 as cipher
 def open_cipher(path: Path):
     db = cipher.connect(str(path))
     db.execute("PRAGMA key = '" + key + "'")
+    db.execute("PRAGMA foreign_keys = ON")
     db.execute("SELECT count(*) FROM sqlite_master").fetchone()
     return db
 
@@ -43,9 +44,9 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
             INSERT INTO alembic_version VALUES ('neo000000027');
             CREATE TABLE patients(id INTEGER PRIMARY KEY, marker text NOT NULL);
             INSERT INTO patients VALUES (1717,'SYNTHETIC PATIENT ONLY');
-            CREATE TABLE cephalo_analyses(id INTEGER PRIMARY KEY,patient_id INTEGER NOT NULL);
+            CREATE TABLE cephalo_analyses(id INTEGER PRIMARY KEY,patient_id INTEGER NOT NULL REFERENCES patients(id));
             INSERT INTO cephalo_analyses VALUES (2727,1717);
-            CREATE TABLE document_archives(id INTEGER PRIMARY KEY, patient_id INTEGER, file_path TEXT);
+            CREATE TABLE document_archives(id INTEGER PRIMARY KEY, patient_id INTEGER REFERENCES patients(id), file_path TEXT);
             INSERT INTO document_archives VALUES (91,1717,'static/archives/1717/RAPPORT_CEPHALO/2026/10/original.pdf');
             CREATE TABLE cabinet_configs(id INTEGER PRIMARY KEY, owner_id INTEGER, nom_cabinet TEXT);
             INSERT INTO cabinet_configs VALUES (37,1717,'SYNTHETIC CABINET LAYOUT');
@@ -53,6 +54,7 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
         conn.commit()
         assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    conn.close()  # quiesced source before a byte-for-byte encrypted backup
     original_bytes = original.read_bytes()
     original_hash = hashlib.sha256(original_bytes).hexdigest()
     # SQLite may not parse encrypted SQLCipher as a plaintext DB.
@@ -76,6 +78,7 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
         assert restored.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert restored.execute("PRAGMA foreign_key_check").fetchall() == []
         assert restored.execute("SELECT count(*) FROM document_archives").fetchone()[0] == 1
+        restored.close()
 
     # Explicit migration. Never AUTO-migrate or touch the original.
     env = os.environ.copy()
@@ -110,6 +113,7 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
         else:
             raise AssertionError("SQLCIPHER_UNIQUE_CLAIM_NOT_ENFORCED")
         assert conn.execute("SELECT count(*) FROM cephalo_archive_claims").fetchone()[0]==1
+        conn.close()
 
     assert hashlib.sha256(original.read_bytes()).hexdigest()==original_hash
     assert hashlib.sha256(backup.read_bytes()).hexdigest()==original_hash
