@@ -18,6 +18,7 @@ from backend.services.patient_companion_relay_client import (
     deprovision_relay_mailboxes,
 )
 from backend.services.patient_companion_remote_receipts import RemoteCommandBusy
+from backend.services.patient_companion_remote_agenda_quota import RemoteAgendaQuotaExceeded, RemoteAgendaQuotaUnavailable
 from backend.services.patient_companion_remote_worker import process_remote_envelope
 
 RELAY_COMMAND_TTL_SECONDS = 15 * 60
@@ -174,9 +175,16 @@ def process_relay_binding_once(
             # Domain mutation + replay receipt + encrypted ACK outbox become durable together.
             db.commit()
             stats["processed"] += 1
-        except RemoteCommandBusy:
+        except (RemoteCommandBusy, RemoteAgendaQuotaExceeded):
+            # Transient remote quota: leave the encrypted envelope in Relay.
+            # Deleting it here would permanently lose the patient's command.
             db.rollback()
             continue
+        except RemoteAgendaQuotaUnavailable:
+            db.rollback()
+            # DB quota failures must not fall through to the generic poisoned
+            # ciphertext deletion path. Retry only after storage recovers.
+            raise
         except ValueError:
             db.rollback()
             stats["invalid"] += 1
