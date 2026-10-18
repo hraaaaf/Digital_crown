@@ -1,5 +1,12 @@
 # TECHDOUBT — Digital Crown
 
+## LOT05.7-D — 2026-10-18 — Alembic PostgreSQL de laboratoire et isolation inter-cabinets
+
+**Statut clinique NO-GO ; réserves OUVERTES.** Le laboratoire #05.7-D vise le vrai head Alembic `neo000000031` dans un PG18 CI isolé, snapshot/restauration sur deuxième DB et lignes ORM exclusivement fictives. Cela ne certifie ni une installation en exploitation, ni des données sources tierces, ni SQLCipher Cabinet/BackupService/media. Le workflow ne doit jamais migrer des fichiers de production.
+
+**Risques / BLOCKERS** : FKs de `appointments.patient_id` peuvent autoriser un patient d'un autre `employer_id` malgré `appointments.employer_id`; démontrer l'anomalie en transaction rollback et exige un veto runtime avant tout import réel. La présence de tables/`alembic_version` ne prouve ni conformité de données historiques, ni relations/praticiens/radiographies/factures, ni propriétaire authentifié, ni provenance et conformité, ni isolement de Windows, ni sauvegarde cohérente chiffrée réelle, ni reprise SQLCipher WAL, ni RPO/RTO / reparse/FSYNC ni revue humaine. Les chemins de documents de fixture sont volontairement inexistants et aucun média n'est restauré : cette absence est un BLOQUANT clinique, même si le hash métadonnée est préservé. Le laboratoire PostgreSQL seul ne vaut pas certification SQLCipher. PR empilées #963/#964/#965 non mergées.
+
+
 ## LOT05.7-C — 2026-10-18 — Preuve laboratoire SQLCipher / PostgreSQL ≠ restauration clinique
 
 **STATUS OPEN/NO-GO clinique, même si les tests 05.7-C deviennent verts.** Deux suites test-only distinctes : une DB SQLCipher temporaire chiffrée avec sa clé générée pendant les tests, copiée uniquement hors ligne après checkpoint WAL + fermeture ; une base PostgreSQL 18 temporaire dans un service CI isolé, sauvegardée au format `pg_dump -Fc` puis `pg_restore` dans une autre DB fictive. Les schémas inventés (patients, RDV, praticiens, actes, paiements, références médias) sont *représentatifs* d'une partie des relations, et non le schéma réel Alembic `neo000000031`. Les empreintes, comptes, FK, tests corruption et processus frais ne certifient ni source réelle, ni restauration du véritable Cabinet.
