@@ -113,7 +113,7 @@ describe('CB-01 FIRST_VALUE_UI — programme métier source vérifiée, lecture 
     await screen.findByRole('status', { name: 'Programme du jour' });
     const params = get.mock.calls[0][1]?.params as { start_date: string; end_date: string };
     expect(params.start_date).toMatch(/T00:00:00$/);
-    expect(params.end_date).toMatch(/T23:59:59$/);
+    expect(params.end_date).toMatch(/T23:59:59\.999$/);
     expect(params.start_date).not.toContain('Z');
   });
 
