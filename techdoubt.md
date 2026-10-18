@@ -2,6 +2,14 @@
 
 ## CEPH-FAC-PARITY / P2ter++ — 2026-10-18
 
+### FUE-I priorisé au lieu des revues A/B — 2026-10-18 (P2ter++)
+
+- Choix explicite utilisateur : **First User Experience** du workflow Céphalométrie P2ter++ en premier ; les deux revues A/B restent **non effectuées / non certifiées**, pas annulées en tant que gate de closeout.
+- Mobile responsive web **existe** : `CephaloWorkspace.tsx` expose `data-cephalo-mobile-step-selector` sous 768 px. Ce n'est pas une preuve d'application native mobile.
+- Protocole FUE-I expérimentale et harness ajouté sur la même PR #957, test navigateur vierge par viewport mobile **390×844** et desktop **1280×900** : ouvrir une étude synthétique existante, PDF brouillon téléchargeable avec identité/révision, puis archive officielle rejouée; captures BEFORE et AFTER du même viewport, matrice PASS/FAIL/NOT_TESTED et preuve d'échec enregistrées, aucune notation UX /10 inventée.
+- **Limits/FUE non exhaustive** : ancien patient/études T2 déjà en base et archive créée par le desktop avant ce scénario ; premier patient/radio de zéro, tablette 768×1024, photos durables, permissions de tout le workflow, vrai jugement utilisateur, captures AFTER visuellement revues, indépendance A/B, mobile natif et temps humain non certifiés. Statut `FUE-I technique` à qualifier **après** la nouvelle CI exact-HEAD ; `FUE-G / CONVERGED=false` jusque preuve complète.
+
+
 ### Phase régression rouge → correctif — permissions et états Cabinet (2026-10-18)
 
 - **Reproduction B-confirmée sur commit tests seuls `9f3cdb90cd6486a6476f90621c9a31c5cdf0dc89` :** frontend Vitest [REQUIRED #39169600701](https://github.com/hraaaaf/Digital_crown/actions/runs/39169600701), **33 PASS, 2 FAIL**. Photos A→B→A rechargeaient `blob:T2-revoked-photo-A` ; `handleSave` de l'étude A indiquait à tort `success` sur B. Deux échecs attestés par logs de job, non supposés.
