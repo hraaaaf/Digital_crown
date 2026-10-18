@@ -438,10 +438,14 @@ describe('CrownBot G9 reachable interaction truth', () => {
     } } as any);
     renderCrownBot();
     await waitFor(() => expect(getMock).toHaveBeenCalledWith('/bot/sessions'));
-    fireEvent.click(screen.getByRole('tab', { name: 'Chat' }));
+    // FIRST_VALUE_UI already starts on Chat. Clicking a second time is not required.
+    expect(screen.getByRole('tab', { name: 'Chat' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('region', { name: 'Assistant Crown Bot — consultation' })).toBeInTheDocument();
     expect(screen.getByText(/aucune écriture/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Préparer un RDV' }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith(
+      '/bot/workflows/preview', { messages: ['/rdv'] },
+    ));
     await screen.findByText('Identifiant numérique du patient ?');
     expect(postMock).toHaveBeenCalledWith('/bot/workflows/preview', {
       messages: ['/rdv'],
