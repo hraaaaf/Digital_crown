@@ -90,7 +90,7 @@ function PendingActionCard({
       {rows.length > 0 && (
         <div className="space-y-1 mb-3">
           {rows.map((row, i) => (
-            <div key={i} className="flex items-start gap-2 text-[11px]">
+            <div key={i} className="flex items-start gap-2 text-xs">
               <span className="text-amber-600 font-bold w-20 shrink-0">{row.label}</span>
               <span className="text-slate-700 font-medium">{row.value}</span>
             </div>
@@ -121,13 +121,13 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
         </div>
         <div>
           <p className="text-white font-black text-xs tracking-wide leading-none">Crown Bot Premium</p>
-          <p className="text-white/75 text-[9px] mt-0.5">Limite de l’assistant atteinte</p>
+          <p className="text-white/75 text-xs mt-0.5">Limite de l’assistant atteinte</p>
         </div>
       </div>
 
       {/* Body */}
       <div className="bg-amber-50 px-4 py-3">
-        <p className="text-amber-900 text-[11px] font-semibold mb-2 leading-relaxed">
+        <p className="text-amber-900 text-xs font-semibold mb-2 leading-relaxed">
           Vous avez utilisé vos <strong>3 échanges</strong> gratuits. Passez à Premium pour des conversations illimitées.
         </p>
         <ul className="space-y-1 mb-3">
@@ -136,7 +136,7 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
             'Mémoire contextuelle étendue',
             'Actions avancées (ordonnances et devis)',
           ].map((item) => (
-            <li key={item} className="flex items-start gap-1.5 text-[10px] text-amber-800 font-medium">
+            <li key={item} className="flex items-start gap-1.5 text-xs text-amber-800 font-medium">
               <Sparkles size={10} className="text-amber-500 mt-0.5 shrink-0" />
               {item}
             </li>
@@ -145,13 +145,13 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
         <div className="flex gap-2">
           <a
             href="/settings?tab=license"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black rounded-[8px] transition-all shadow-md shadow-amber-500/30"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black rounded-[8px] transition-all shadow-md shadow-amber-500/30"
           >
             <Crown size={12} /> Passer à Premium
           </a>
           <button
             onClick={onClose}
-            className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 text-[10px] font-bold rounded-[8px] transition-colors"
+            className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-bold rounded-[8px] transition-colors"
           >
             Plus tard
           </button>
@@ -666,7 +666,7 @@ export function CrownBotChat({
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {sessions.length === 0
-            ? <p className="text-xs text-center text-slate-400 mt-4">Aucune conversation</p>
+            ? <p className="text-xs text-center text-slate-600 mt-4">Aucune conversation</p>
             : sessions.map(session => (
               <div key={session.id}
                 className={cn('group flex items-center gap-1 p-1 rounded-lg transition-colors',
@@ -705,7 +705,7 @@ export function CrownBotChat({
             </div>
             <div>
               <h3 className="font-bold font-outfit text-sm leading-tight">Crown Bot</h3>
-              <p className="text-[10px] text-white/70">{pageCtx.title}</p>
+              <p className="text-xs text-white/90">{pageCtx.title}</p>
             </div>
           </div>
           {onClose && (
@@ -805,7 +805,7 @@ export function CrownBotChat({
 
           <div className="text-center space-y-2">
             <h3 className="font-black text-slate-800 text-sm tracking-tight">Assistant conversationnel</h3>
-            <p className="text-[11px] text-slate-500 leading-relaxed max-w-[220px]">
+            <p className="text-xs text-slate-500 leading-relaxed max-w-[220px]">
               Cette fonction n’est pas accessible depuis cet écran.
             </p>
           </div>
@@ -814,12 +814,12 @@ export function CrownBotChat({
             {['Créer un RDV', 'Résumer un dossier', 'Générer une ordonnance'].map((item) => (
               <div key={item} className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-200 rounded-xl opacity-40 cursor-not-allowed select-none">
                 <Sparkles size={13} className="text-primary shrink-0" />
-                <span className="text-[11px] font-semibold text-slate-600">{item}</span>
+                <span className="text-xs font-semibold text-slate-600">{item}</span>
               </div>
             ))}
           </div>
 
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+          <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">
             Assistant Digital Crown
           </p>
         </div>
@@ -836,12 +836,12 @@ export function CrownBotChat({
                 <BrainCircuit size={14} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Mémoire contextuelle</p>
-                <p className="text-[8px] text-slate-400 font-bold mt-0.5">Suivi contextuel</p>
+                <p className="text-xs font-black text-primary uppercase tracking-widest leading-none">Mémoire contextuelle</p>
+                <p className="text-xs text-slate-600 font-bold mt-0.5">Suivi contextuel</p>
               </div>
             </div>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-[9px] font-bold text-primary hover:underline">
+              <button onClick={markAllRead} className="text-xs font-bold text-primary hover:underline">
                 Tout marquer comme lu
               </button>
             )}
@@ -854,33 +854,33 @@ export function CrownBotChat({
                 <div className="flex justify-between items-start mb-1">
                   {insight.patient_id ? (
                     <Link to={`/patients/${insight.patient_id}`} onClick={() => onClose?.()}
-                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors">
+                      className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors">
                       {insight.insight_type}
                     </Link>
                   ) : (
-                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
                       {insight.insight_type}
                     </span>
                   )}
-                  <span className="text-[8px] text-slate-400 font-bold">
+                  <span className="text-xs text-slate-600 font-bold">
                     {new Date(insight.created_at).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="cursor-pointer mt-2" onClick={() => {
                   if (insight.patient_id) { navigate(`/patients/${insight.patient_id}`); onClose?.(); }
                 }}>
-                  <p className="text-[11px] font-medium text-slate-700 leading-relaxed">
+                  <p className="text-xs font-medium text-slate-700 leading-relaxed">
                     <TypewriterText text={insight.content} delay={8} />
                   </p>
                 </div>
                 <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
                   <button onClick={() => markAsRead(insight.id)}
-                    className="flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-green-500 transition-colors uppercase">
+                    className="flex items-center gap-1 text-xs font-black text-slate-600 hover:text-green-500 transition-colors uppercase">
                     <Check size={12} /> Marquer comme lu
                   </button>
                   {quickAction && (
                     <button onClick={quickAction.onClick}
-                      className="flex items-center gap-1.5 text-[9px] font-black bg-primary/10 text-primary px-2 py-1 rounded-lg hover:bg-primary hover:text-white transition-colors uppercase">
+                      className="flex items-center gap-1.5 text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded-lg hover:bg-primary hover:text-white transition-colors uppercase">
                       {quickAction.icon} {quickAction.label}
                     </button>
                   )}
@@ -890,7 +890,7 @@ export function CrownBotChat({
           }) : (
             <div className="text-center py-10 flex flex-col items-center gap-2">
               <Check size={24} className="text-primary/30" />
-              <p className="text-[10px] font-bold text-slate-400 italic">Aucune nouvelle déduction.</p>
+              <p className="text-xs font-bold text-slate-600 italic">Aucune nouvelle déduction.</p>
             </div>
           )}
         </div>
