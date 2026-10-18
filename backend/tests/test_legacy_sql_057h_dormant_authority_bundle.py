@@ -72,7 +72,8 @@ class SyntheticAuthorityBundleLab(unittest.TestCase):
     def ticket(self, **overrides):
         options = dict(expected_owners=self.owners, job_id=self.job_id,
                        manifest_sha=self.manifest_sha, now=self.now,
-                       signing_key=self.key)
+                       signing_key=self.key, bundle_root=self.root_bundle,
+                       manifest=self.manifest)
         options.update(overrides)
         with self.engine.connect() as c:
             return h.fake_issue_request_ticket(c, self.principal, **options)
@@ -80,7 +81,8 @@ class SyntheticAuthorityBundleLab(unittest.TestCase):
     def verify(self, ticket, *, job=None, **overrides):
         options = dict(expected_owner=self.owners[0],
                        manifest_sha=self.manifest_sha, now=self.now + 1,
-                       signing_key=self.key, used_nonces=set())
+                       signing_key=self.key, used_nonces=set(),
+                       bundle_root=self.root_bundle, manifest=self.manifest)
         options.update(overrides)
         return h.fake_worker_verify_ticket(
             ticket, self.job if job is None else job, **options)
@@ -134,7 +136,8 @@ class SyntheticAuthorityBundleLab(unittest.TestCase):
                 h.fake_issue_request_ticket(
                     c, None, expected_owners=self.owners, job_id=self.job_id,
                     manifest_sha=self.manifest_sha, now=self.now,
-                    signing_key=self.key)
+                    signing_key=self.key, bundle_root=self.root_bundle,
+                    manifest=self.manifest)
             for change in (
                 {"role":"SECRETAIRE"}, {"is_active":False},
                 {"employer_id":self.owners[1]}, {"approval_status":"pending"},
@@ -285,6 +288,33 @@ class SyntheticAuthorityBundleLab(unittest.TestCase):
                 with self.subTest(operation=str(call)), self.assertRaisesRegex(
                         h.AuthorityHandoffDenied, "FAKE_ONLY_DISABLED"):
                     call()
+
+
+    def test_19_signed_ticket_cannot_hide_bundle_changed_before_worker(self):
+        ticket = self.ticket()
+        media = self.root_bundle / "media-fake" / "image.fake"
+        before = media.read_bytes()
+        used = set()
+        media.write_bytes(before + b"AFTER_ISSUE_TAMPER")
+        with self.assertRaisesRegex(h.AuthorityHandoffDenied,
+                                    "MULTICOMPONENT_INTEGRITY_DENIED"):
+            self.verify(ticket, used_nonces=used)
+        self.assertEqual(used, set(), "a rejected ticket must not burn its nonce")
+        media.write_bytes(before)
+        self.assertTrue(self.verify(ticket, used_nonces=used)["fake_handoff_verified"])
+
+    def test_20_request_cannot_issue_ticket_for_unverified_fake_bundle(self):
+        media = self.root_bundle / "media-fake" / "receipt.fake"
+        media.write_bytes(b"FICTITIOUS_TAMPER_BEFORE_ISSUANCE")
+        with self.assertRaisesRegex(h.AuthorityHandoffDenied,
+                                    "MULTICOMPONENT_INTEGRITY_DENIED"):
+            self.ticket()
+        # An arbitrary mismatching digest is never silently signed either.
+        media.write_bytes(b"FAKE_RECEIPT")
+        with self.assertRaisesRegex(h.AuthorityHandoffDenied,
+                                    "REQUEST_MANIFEST_CONTENT_MISMATCH"):
+            self.ticket(manifest_sha="0"*64)
+
 
 
 if __name__ == "__main__":
