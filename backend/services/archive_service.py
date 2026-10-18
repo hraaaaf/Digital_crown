@@ -389,9 +389,16 @@ class ArchiveService:
         
         # Générer le chemin de stockage
         storage_path = self._get_storage_path(patient_id, doc_type, filename, version_number)
-        
-        # Sauvegarder le fichier
-        with open(storage_path, 'wb') as f:
+        # A trashed archive may occupy the same filename. Never overwrite any
+        # pre-existing physical file when creating a new version/group.
+        if storage_path.exists() or storage_path.is_symlink():
+            storage_path = storage_path.with_name(
+                f"{storage_path.stem}_{uuid.uuid4().hex}{storage_path.suffix}"
+            )
+
+        # Exclusive create prevents a concurrent writer from silently replacing
+        # another archive between the existence check and the open.
+        with open(storage_path, 'xb') as f:
             f.write(file_content)
         
         # --- DOUBLE EXPORT : RESTAURATION DOSSIERS HISTORIQUES (static/documents/YYYY/MM) ---
