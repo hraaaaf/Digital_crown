@@ -82,7 +82,8 @@ il reste seulement chez l'opérateur autorisé, hors CI et outils de partage.
   suspect dans la copie. **Ce n'est pas une preuve que le fichier n'existe
   nulle part dans les sauvegardes.**
 - `unverifiable_references_count` : chemins céphalo historiques, hors
-  arborescence auditée ou non canoniques. **Ne signifie pas zéro défaut** :
+  arborescence auditée, non canoniques, ou dont le répertoire patient ne
+  correspond pas à `DocumentArchive.patient_id`. **Ne signifie pas zéro défaut** :
   inspection manuelle complémentaire requise.
 - Une base indisponible fait **échouer** l'audit, jamais « zéro anomalie ».
   Les symlinks d'entrée sont ignorés ; aucune suppression / aucun move.
