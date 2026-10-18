@@ -24,7 +24,7 @@ const send=(...args)=>execFileSync('xdotool',args,{encoding:'utf8',timeout:8000}
      const wins=send('search','--onlyvisible','--class','chromium').split(/\s+/).filter(Boolean);
      evidence.window_candidate_count=wins.length;
      const win=wins.at(-1);
-     if(win){send('windowactivate','--sync',win);send('windowfocus','--sync',win);evidence.window_focused=true;
+     if(win){send('windowfocus','--sync',win);evidence.window_focused=true;
        for(let i=0;i<5;i++){send('key','--clearmodifiers','ctrl+plus');await page.waitForTimeout(200);}
      }
    }catch(e){evidence.window_error=String(e.message).slice(0,140);}
