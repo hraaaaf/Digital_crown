@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, LargeBinary, String, Text, UniqueConstraint, text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, LargeBinary, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models_base import Base
@@ -313,12 +313,15 @@ class PatientCompanionRemoteAgendaQuota(Base):
     """
 
     __tablename__ = "patient_companion_remote_agenda_quotas"
+    __table_args__ = (
+        CheckConstraint("attempts >= 1", name="ck_pc_remote_agenda_quota_positive"),
+    )
 
     access_id: Mapped[int] = mapped_column(
         ForeignKey("patient_companion_accesses.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    window_started_epoch: Mapped[int] = mapped_column(nullable=False)
+    window_started_epoch: Mapped[int] = mapped_column(BigInteger, nullable=False)
     attempts: Mapped[int] = mapped_column(nullable=False)
 
 
