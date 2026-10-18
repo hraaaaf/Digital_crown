@@ -102,32 +102,32 @@ try{
   Assert-P2 (Test-Path -LiteralPath $exe) 'CS_BUILD_FAILED'
   $peerScript=Join-Path $bin.FullName 'peer.ps1'
   Copy-Item -LiteralPath $PSCommandPath -Destination $peerScript
-  Sc @('create',$service,'binPath=',('"'+$exe+'"'),'start=','demand','type=','own','obj=',('NT SERVICE\'+$service))
+  Sc -arguments @('create',$service,'binPath=',('"'+$exe+'"'),'start=','demand','type=','own','obj=',('NT SERVICE\'+$service))
   $created=$true
-  Sc @('sidtype',$service,'unrestricted')
+  Sc -arguments @('sidtype',$service,'unrestricted')
   $principal='NT SERVICE\'+$service
   $sid=([Security.Principal.NTAccount]::new($principal)).Translate([Security.Principal.SecurityIdentifier]).Value
   Assert-P2 ($sid.StartsWith('S-1-5-80-')) 'SERVICE_SID_INVALID'
   $config=Get-CimInstance Win32_Service -Filter ("Name='"+$service+"'")
   Assert-P2 ($config.StartName -eq $principal) 'SCM_IDENTITY_CONFIG_INCORRECT'
   $sys='*S-1-5-18';$admins='*S-1-5-32-544';$serv='*'+$sid;$p='*'+$peerSid
-  Ic @($WorkRoot,'/inheritance:r')
-  Ic @($WorkRoot,'/grant:r',($sys+':(OI)(CI)F'),($admins+':(OI)(CI)F'),($serv+':(OI)(CI)RX'),($p+':(OI)(CI)RX'))
-  Ic @($bin.FullName,'/inheritance:r')
-  Ic @($bin.FullName,'/grant:r',($sys+':(OI)(CI)F'),($admins+':(OI)(CI)F'),($serv+':(OI)(CI)RX'),($p+':(OI)(CI)RX'))
+  Ic -arguments @($WorkRoot,'/inheritance:r')
+  Ic -arguments @($WorkRoot,'/grant:r',($sys+':(OI)(CI)F'),($admins+':(OI)(CI)F'),($serv+':(OI)(CI)RX'),($p+':(OI)(CI)RX'))
+  Ic -arguments @($bin.FullName,'/inheritance:r')
+  Ic -arguments @($bin.FullName,'/grant:r',($sys+':(OI)(CI)F'),($admins+':(OI)(CI)F'),($serv+':(OI)(CI)RX'),($p+':(OI)(CI)RX'))
   foreach($file in @($exe,$peerScript)){
-    Ic @($file,'/inheritance:r')
-    Ic @($file,'/grant:r',($sys+':F'),($admins+':F'),($serv+':RX'),($p+':RX'))
+    Ic -arguments @($file,'/inheritance:r')
+    Ic -arguments @($file,'/grant:r',($sys+':F'),($admins+':F'),($serv+':RX'),($p+':RX'))
   }
-  Ic @($private.FullName,'/inheritance:r')
-  Ic @($private.FullName,'/grant:r',($sys+':(OI)(CI)F'),($admins+':(OI)(CI)F'),($serv+':(OI)(CI)M'),'*S-1-3-4:(OI)(CI)M')
-  Ic @($evidence.FullName,'/inheritance:r')
-  Ic @($evidence.FullName,'/grant:r',($sys+':(OI)(CI)F'),($admins+':(OI)(CI)F'),($p+':(OI)(CI)M'))
+  Ic -arguments @($private.FullName,'/inheritance:r')
+  Ic -arguments @($private.FullName,'/grant:r',($sys+':(OI)(CI)F'),($admins+':(OI)(CI)F'),($serv+':(OI)(CI)M'),'*S-1-3-4:(OI)(CI)M')
+  Ic -arguments @($evidence.FullName,'/inheritance:r')
+  Ic -arguments @($evidence.FullName,'/grant:r',($sys+':(OI)(CI)F'),($admins+':(OI)(CI)F'),($p+':(OI)(CI)M'))
   Assert-P2 (Get-Acl -LiteralPath $private.FullName).AreAccessRulesProtected 'PRIVATE_ACL_INHERITS'
   Ace $private.FullName @($sid,'S-1-5-18','S-1-5-32-544','S-1-3-4')
   Ace $exe @($sid,$peerSid,'S-1-5-18','S-1-5-32-544')
   Write-Host 'P2_SCM_CONFIG_AND_PROTECTED_ACL=PASS'
-  Sc @('start',$service)
+  Sc -arguments @('start',$service)
   Wait-Proof (Join-Path $private.FullName 'service.ready')
   $proof=@{}
   foreach($line in (Get-Content -LiteralPath (Join-Path $private.FullName 'service.ready'))){
@@ -172,7 +172,7 @@ try{
   Wait-Proof (Join-Path $private.FullName 'service.after')
   Assert-P2 ((Get-Content -LiteralPath (Join-Path $private.FullName 'service.after') -Raw).Contains('AFTER_DENIAL_COMMIT=PASS')) 'SERVICE_AFTER_DENIAL_FAILED'
   Write-Host 'P2_SCM_POSITIVE_TRANSACTION_AFTER_DENIAL=PASS'
-  Sc @('stop',$service)
+  Sc -arguments @('stop',$service)
   $stopped=$false
   for($i=0;$i -lt 70;$i++){
     $state=Get-CimInstance Win32_Service -Filter ("Name='"+$service+"'")
