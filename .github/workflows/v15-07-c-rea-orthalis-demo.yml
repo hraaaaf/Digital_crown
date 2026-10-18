@@ -6,6 +6,7 @@ on:
       - .github/workflows/v15-07-c-rea-orthalis-demo.yml
       - scripts/research/rea_orthalis_probe.mjs
       - scripts/research/rea_orthalis_visual_states.mjs
+      - scripts/research/rea_orthalis_ocr_gate.mjs
   workflow_dispatch:
 permissions:
   contents: read
@@ -125,5 +126,11 @@ jobs:
           NODE
           node scripts/research/rea_orthalis_probe.mjs "$LAB/inspection.json" "$LAB/scenario-result.json"
           node scripts/research/rea_orthalis_visual_states.mjs "$LAB/scenario-result.json"
+          if ! command -v tesseract >/dev/null 2>&1; then
+            echo "OCR_TOOL_INSTALL_SCOPE=EPHEMERAL_GITHUB_RUNNER"
+            sudo apt-get update -qq >/dev/null
+            sudo apt-get install -y -qq tesseract-ocr >/dev/null
+          fi
+          node scripts/research/rea_orthalis_ocr_gate.mjs "$LAB/scenario-result.json"
           echo "BENCH_REA_ORTHALIS_PUBLIC_DEMO=PASSIVE_OBSERVATION_ONLY"
           echo "NOT_A_CABINET_OR_ORTHALIS_WORKFLOW_CERTIFICATION=true"
