@@ -17,11 +17,16 @@ if str(ROOT) not in sys.path:
 
 if os.getenv("ENVIRONMENT") != "test" or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "1":
     raise RuntimeError("P2ter seed requires disposable isolated test runtime")
-if os.getenv("DATABASE_URL") != "sqlite:///./t2-runtime-cert.db":
-    raise RuntimeError("Refusing any other database path")
-path = Path("t2-runtime-cert.db").resolve()
-if not path.is_file() or path.name != "t2-runtime-cert.db":
-    raise RuntimeError("T2 database missing")
+_pg_lab = "postgresql://postgres:postgres@127.0.0.1:5432/dc_atomic_synthetic"
+pg_lab = (os.getenv("T2_POSTGRES_ATOMIC_LAB") == "1"
+          and os.getenv("GITHUB_ACTIONS") == "true"
+          and os.getenv("DATABASE_URL") == _pg_lab)
+if not pg_lab:
+    if os.getenv("DATABASE_URL") != "sqlite:///./t2-runtime-cert.db":
+        raise RuntimeError("Refusing any other database path")
+    path = Path("t2-runtime-cert.db").resolve()
+    if not path.is_file() or path.name != "t2-runtime-cert.db":
+        raise RuntimeError("T2 database missing")
 
 from backend import models, database
 from backend.services.cephalo_safe_engine import cephalo_safe_engine
