@@ -198,9 +198,12 @@ try {
     if (desktop) {
       // S02/S04 browser-backed synthetic staff scenario, not full human UX.
       const panel=page.locator('[data-cb01-associate-sidecar]');
-      await panel.getByRole('button',{name:'Chat',exact:true}).click();
+      // FIRST_VALUE_UI : no extra Chat-tab click after the launcher.
       const preview=panel.getByRole('region',{name:'Assistant Crown Bot — consultation'});
       await preview.waitFor({state:'visible'});
+      for (const label of ['Mon programme','Trouver un patient','Préparer un RDV']) {
+        await preview.getByRole('button',{name:label}).waitFor({state:'visible'});
+      }
       // CB-01 FIRST_VALUE_UI: the one-click "Mon programme" is a real
       // tenant-scoped GET from the canonical agenda, not a bot mock or write.
       const programmeRead=page.waitForResponse(resp=>
@@ -298,11 +301,7 @@ try {
       }
       await page.keyboard.press('Enter');
       await sidecar.waitFor({state:'visible'});
-      // Opening a new CrownBotChat starts in its default tab. The user must
-      // navigate back to Chat before a preview control can exist. This checks
-      // actual UI navigation instead of assuming the previous tab persisted
-      // across an intentional close/reopen.
-      await sidecar.getByRole('button',{name:'Chat',exact:true}).click();
+      // The reopened assistant must also show FIRST_VALUE without tab clicks.
       // Keep an unfinished clinical search draft while the browser equivalent
       // of 200% zoom makes the sidebar switch into narrow floating mode.
       const sidecarPreview=sidecar.getByRole('region',{name:'Assistant Crown Bot — consultation'});
@@ -493,6 +492,7 @@ try {
     }
   }
   const summary={kind:'CB01_SYNTHETIC_PREVIEW_ONLY',flagDependent:true,
+    firstValueOneClickChromium:'PASS_3_BUSINESS_CTA_VISIBLE_DIRECTLY_AFTER_LAUNCH',
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
     browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
     roleChecks,evidence,clinicalRouteEvidence};
