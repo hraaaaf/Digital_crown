@@ -15,7 +15,6 @@ on:
       - scripts/t2_runtime_server.py
       - scripts/ceph_p2ter_seed_t2.py
       - scripts/ceph_p2ter_concurrent_atomic_t2.py
-      - backend/routers/patients.py
 permissions:
   contents: read
 jobs:
@@ -69,40 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
-          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?
-  sqlcipher:
-    name: Encrypted synthetic predecessor database copy migration
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      DATABASE_URL: "sqlite:///:memory:"
-      ENVIRONMENT: test
-      DIGITALCROWN_ISOLATED_RUNTIME: "1"
-      SECRET_KEY: isolated-sqlcipher-copy-test-secret-value
-      TELEMETRY_ENABLED: "false"
-      CLOUD_AI_ENABLED: "false"
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Exact SHA
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install encrypted migration boundary dependencies
-        run: |
-          pip install alembic sqlalchemy==2.0.28 sqlcipher3==0.6.2 passlib==1.7.4 "pydantic[email]==2.6.3" pydantic-settings==2.2.1 fastapi==0.110.0 python-multipart==0.0.31 python-dotenv cryptography PyYAML==6.0.3 pytest
-      - name: Create ephemeral storage key (masked)
-        shell: bash
-        run: |
-          set -euo pipefail
-          key="$(python -c 'import secrets;print(secrets.token_hex(32))')"
-          echo "::add-mask::$key"
-          echo "SQLCIPHER_KEY_HEX=$key" >> "$GITHUB_ENV"
-      - name: Upgrade ONLY a copy of old encrypted synthetic DB
-        run: python scripts/ceph_p2ter_sqlcipher_copy_rehearsal.py
- requirements.txt > /tmp/ceph-pg-jwt-req.txt
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-pg-jwt-req.txt
           python -m pip install -r /tmp/ceph-pg-jwt-req.txt
           python -m pip check
       - name: Create disposable JWT credential and isolated synthetic key
