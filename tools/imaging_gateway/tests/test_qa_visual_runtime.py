@@ -1,6 +1,6 @@
 """Adversarial negative oracles for complete operational route inventories."""
 import unittest
-from tools.imaging_gateway.qa_visual_runtime import PREFLIGHT, route_delta, validate_route_transition
+from tools.imaging_gateway.qa_visual_runtime import PREFLIGHT, LAB_OPERATIONAL, route_delta, validate_route_transition
 
 P = (PREFLIGHT, ("POST",))
 EXISTING = ("/api/patients/{patient_id}/assets/import", ("POST",))
@@ -31,6 +31,24 @@ class RouteTransitionTests(unittest.TestCase):
     def test_stacked_child_preflight_preservation_is_strictly_accepted(self):
         assert validate_route_transition([EXISTING, P], [EXISTING, P])[0:2] == (1, 1)
 
+
+    def test_exact_lab_operational_route_is_the_only_extra_get_allowed(self):
+        lab = (LAB_OPERATIONAL, ("GET",))
+        old = [EXISTING]
+        new = [EXISTING, P, lab]
+        proof = validate_route_transition(old, new)
+        assert proof[4] == sorted([P, lab])
+        assert proof[5] == []
+        # A pre-existing LAB route must remain single, not be duplicated.
+        assert validate_route_transition(new, new)[4:6] == ([], [])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(old, new + [lab])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(new, [EXISTING, P])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(old, new + [("/unreviewed", ("GET",))])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(old, new + [(LAB_OPERATIONAL, ("POST",))])
 
     def test_stacked_child_rejects_duplicate_preflight_or_other_route(self):
         with self.assertRaises(AssertionError):
