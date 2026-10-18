@@ -406,7 +406,7 @@ export const PatientCompanionApp = () => {
         );
         const nextRequest: PatientAgendaRequestState = {
           ...request,
-          state: result.status === 'ACCEPTED' ? 'confirmed' : 'rejected',
+          state: result.status === 'ACCEPTED' ? 'confirmed' : result.result.code === 'RECONCILIATION_REQUIRED' ? 'needs_reconciliation' : 'rejected',
           updatedAt: new Date().toISOString(),
           errorCode: result.status === 'REJECTED' ? String(result.result.code || 'REJECTED') : undefined,
         };
@@ -574,7 +574,7 @@ export const PatientCompanionApp = () => {
       );
       const finalRequest: PatientAgendaRequestState = {
         ...request,
-        state: result.status === 'ACCEPTED' ? 'confirmed' : 'rejected',
+        state: result.status === 'ACCEPTED' ? 'confirmed' : result.result.code === 'RECONCILIATION_REQUIRED' ? 'needs_reconciliation' : 'rejected',
         updatedAt: new Date().toISOString(),
         errorCode: result.status === 'REJECTED' ? String(result.result.code || 'REJECTED') : undefined,
       };
@@ -604,7 +604,9 @@ export const PatientCompanionApp = () => {
           setSyncState('offline');
         }
       } else {
-        setAgendaMessage(`Demande refusée par le cabinet · ${String(result.result.code || 'raison non précisée')}.`);
+        setAgendaMessage(result.result.code === 'RECONCILIATION_REQUIRED'
+          ? 'Une demande ancienne pourrait déjà avoir été exécutée. Consultez vos rendez-vous et contactez le cabinet avant toute nouvelle demande ; aucun nouvel envoi automatique.'
+          : `Demande refusée par le cabinet · ${String(result.result.code || 'raison non précisée')}.`);
       }
     } catch (error) {
       const remotePending = Boolean((error as { remotePending?: boolean })?.remotePending);
@@ -828,7 +830,9 @@ export const PatientCompanionApp = () => {
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-text-muted">Demandes récentes</p>
                   <div className="mt-2 grid gap-2">
                     {activeWallet.agendaRequests.slice(-3).reverse().map(request => {
-                      const label = request.state === 'confirmed'
+                      const label = request.state === 'needs_reconciliation'
+                        ? 'Vérification nécessaire auprès du cabinet · ne pas renvoyer cette demande'
+                        : request.state === 'confirmed'
                         ? 'Confirmée par le cabinet'
                         : request.state === 'rejected'
                           ? 'Refusée par le cabinet'
