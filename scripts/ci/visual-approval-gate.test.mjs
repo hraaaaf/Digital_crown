@@ -145,9 +145,28 @@ test('label DELETE success without actual removal fails closed', async () => {
   await assert.rejects(f.run('synchronize'), /label still present/);
 });
 
-test('label DELETE 404 for an already-absent label still rejects the stale run', async () => {
-  const f = fixture({ label: false });
-  await assert.rejects(f.run('synchronize'), /approval revoked/);
+test('UI synchronize without existing approval never calls DELETE and still fails closed', async () => {
+  // A token unable to delete labels must not fail with misleading 403 when
+  // the label is already absent. The sync is still unapproved, never green.
+  const f = fixture({ label: false, deleteError: 403 });
+  await assert.rejects(f.run('synchronize'), /new screenshots and explicit approval required/);
+  assert.equal(f.deletes, 0);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
+  assert.equal(f.posts, 0);
+});
+
+test('synchronize preserves 403 failure if a stale label really exists', async () => {
+  const f = fixture({ label: true, deleteError: 403 });
+  await assert.rejects(f.run('synchronize'), /Failed to revoke stale visual approval/);
+  assert.equal(f.deletes, 1);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), true);
+});
+
+test('already-absent label cannot approve UI even for an owner labeled webhook', async () => {
+  const f = fixture({ label: false, deleteError: 403 });
+  await assert.rejects(f.run('labeled'), /require explicit visual approval label/);
+  assert.equal(f.posts, 0);
+  assert.equal(f.deletes, 0);
 });
 
 test('GitHub GET 503 is not mistaken for approval', async () => {
