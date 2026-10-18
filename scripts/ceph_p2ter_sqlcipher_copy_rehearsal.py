@@ -63,7 +63,7 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
     env["ENVIRONMENT"] = "test"
     env["DIGITALCROWN_ISOLATED_RUNTIME"] = "1"
     outcome = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "ceparch0001"],
+        [sys.executable, "-m", "alembic", "upgrade", "ceparch0002"],
         env=env, text=True, capture_output=True, timeout=120,
         check=False,
     )
