@@ -30,7 +30,13 @@ def open_cipher(path: Path):
 with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
     root = Path(directory).resolve()
     original = root / "legacy-opaque-synthetic.db"
-    copied = root / "migration-copy-synthetic.db"
+    backup = root / "sealed-backup-synthetic.db"
+    copied = root / "restored-migration-synthetic.db"
+    source_media = root / "media-source" / "1717" / "RAPPORT_CEPHALO" / "2026" / "10" / "original.pdf"
+    restored_media = root / "media-restored" / "1717" / "RAPPORT_CEPHALO" / "2026" / "10" / "original.pdf"
+    source_media.parent.mkdir(parents=True)
+    source_media.write_bytes(b"%PDF-1.4\\nSYNTHETIC_OFFLINE_MEDIA\\n")
+    media_hash = hashlib.sha256(source_media.read_bytes()).hexdigest()
     with open_cipher(original) as conn:
         conn.executescript("""
             CREATE TABLE alembic_version(version_num varchar(32) NOT NULL);
@@ -39,11 +45,14 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
             INSERT INTO patients VALUES (1717,'SYNTHETIC PATIENT ONLY');
             CREATE TABLE cephalo_analyses(id INTEGER PRIMARY KEY,patient_id INTEGER NOT NULL);
             INSERT INTO cephalo_analyses VALUES (2727,1717);
-            CREATE TABLE document_archives(id INTEGER PRIMARY KEY);
+            CREATE TABLE document_archives(id INTEGER PRIMARY KEY, patient_id INTEGER, file_path TEXT);
+            INSERT INTO document_archives VALUES (91,1717,'static/archives/1717/RAPPORT_CEPHALO/2026/10/original.pdf');
             CREATE TABLE cabinet_configs(id INTEGER PRIMARY KEY, owner_id INTEGER, nom_cabinet TEXT);
             INSERT INTO cabinet_configs VALUES (37,1717,'SYNTHETIC CABINET LAYOUT');
         """)
         conn.commit()
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     original_bytes = original.read_bytes()
     original_hash = hashlib.sha256(original_bytes).hexdigest()
     # SQLite may not parse encrypted SQLCipher as a plaintext DB.
@@ -54,8 +63,19 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
         pass
     else:
         raise AssertionError("SYNTHETIC_SQLCIPHER_NOT_ENCRYPTED")
-    shutil.copy2(original, copied)
+    # Offline immutable backup + independent restore. Both DB and media must
+    # be preserved; never run migrations against either protected source.
+    shutil.copy2(original, backup)
+    assert backup.read_bytes() == original_bytes
+    restored_media.parent.mkdir(parents=True)
+    shutil.copy2(source_media, restored_media)
+    shutil.copy2(backup, copied)
     assert copied.read_bytes() == original_bytes
+    assert hashlib.sha256(restored_media.read_bytes()).hexdigest() == media_hash
+    with open_cipher(copied) as restored:
+        assert restored.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert restored.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert restored.execute("SELECT count(*) FROM document_archives").fetchone()[0] == 1
 
     # Explicit migration. Never AUTO-migrate or touch the original.
     env = os.environ.copy()
@@ -74,6 +94,9 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
     with open_cipher(copied) as conn:
         head=conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         assert head=="ceparch0002",head
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert conn.execute("SELECT file_path FROM document_archives WHERE id=91").fetchone()[0] == "static/archives/1717/RAPPORT_CEPHALO/2026/10/original.pdf"
         assert conn.execute("SELECT nom_cabinet FROM cabinet_configs WHERE id=37").fetchone()[0]=="SYNTHETIC CABINET LAYOUT"
         assert conn.execute("SELECT content_offset_y FROM cabinet_configs WHERE id=37").fetchone()[0]==0.0
         assert conn.execute("SELECT marker FROM patients WHERE id=1717").fetchone()[0]=="SYNTHETIC PATIENT ONLY"
@@ -89,6 +112,11 @@ with tempfile.TemporaryDirectory(prefix="p2ter-cipher-") as directory:
         assert conn.execute("SELECT count(*) FROM cephalo_archive_claims").fetchone()[0]==1
 
     assert hashlib.sha256(original.read_bytes()).hexdigest()==original_hash
+    assert hashlib.sha256(backup.read_bytes()).hexdigest()==original_hash
+    assert hashlib.sha256(source_media.read_bytes()).hexdigest()==media_hash
+    assert hashlib.sha256(restored_media.read_bytes()).hexdigest()==media_hash
     print("SQLCIPHER_SYNTHETIC_PREEXISTING_DB_COPY_UPGRADE_PASS",
           {"head":head,"legacy_rows_retained":1,"unique_claim_rows":1,
-           "original_fixture_unchanged":True,"real_cabinet_used":False})
+           "original_fixture_unchanged":True,"sealed_backup_unchanged":True,
+           "media_restore_hash_verified":True,"integrity_check":"ok",
+           "real_cabinet_used":False})
