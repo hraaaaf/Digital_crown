@@ -5,6 +5,8 @@ const pw=createRequire(path.join(process.env.PLAYWRIGHT_LIB||'/tmp/lot07-07c-pla
 const url='http://127.0.0.1:5193/command-target.html';
 const out=path.resolve('artifacts/lot07-07c-command-react');fs.mkdirSync(out,{recursive:true});
 const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+const css=fs.readFileSync('frontend/src/features/command/command-react-target.css','utf8');
+if(/#[a-fA-F0-9]{3,8}\\b|\\brgba?\\(/.test(css))throw Error('COMMAND_CSS_LITERAL_COLOR');
 const failures=[],snaps=[],themes=['elite','emerald','rose','prestige','ocean','graphite','dark','high-contrast'];
 (async()=>{const browser=await pw.chromium.launch({headless:true,args:['--no-sandbox']});
 try{
@@ -20,17 +22,28 @@ try{
     const logos=Array.from(document.querySelectorAll('.cmd-brand img')).map(x=>({src:x.currentSrc?.split('/').pop(),ok:x.complete&&x.naturalWidth>0}));
     const overflow=document.documentElement.scrollWidth>viewport+3;
     const clipped=[shell,work,right].filter(Boolean).filter(x=>{const r=x.getBoundingClientRect();return r.right>viewport+4||r.left< -4;}).map(x=>x.className);
-    return {viewport,doc:document.documentElement.scrollWidth,overflow,clipped,logos,odontogram:!!document.querySelector('[data-premium-odontogram="adult"]'),appointments:document.querySelectorAll('.cmd-appt').length};
+    const hero=document.querySelector('.cmd-patienthero')?.getBoundingClientRect();
+    const agenda=document.querySelector('.cmd-agenda')?.getBoundingClientRect();
+    const quarterRows=document.querySelectorAll('.cmd-hour').length;
+    return {viewport,doc:document.documentElement.scrollWidth,overflow,clipped,logos,odontogram:!!document.querySelector('[data-premium-odontogram="adult"]'),appointments:document.querySelectorAll('.cmd-appt').length,quarterRows,patientFirst:!!hero&&!!agenda&&hero.top<agenda.top,patientTop:hero?.top,agendaTop:agenda?.top};
    });
    if(result.overflow||result.clipped.length)failures.push('LAYOUT_'+w+'_'+JSON.stringify(result));
    if(result.appointments!==21)failures.push('APPOINTMENTS_'+w+'_'+result.appointments);
+   if(result.quarterRows!==36)failures.push('NOT_15_MIN_GRID_'+w+'_'+result.quarterRows);
+   if(w<=1080&&!result.patientFirst)failures.push('PATIENT_NOT_FIRST_'+w+'_'+JSON.stringify(result));
    if(!result.odontogram)failures.push('ODO_MISSING_'+w);
    if(!result.logos.some(x=>x.ok))failures.push('LOGO_MISSING_'+w);
    if(w<=430){
       for(const name of ['Command','Agenda','Patients','Imagerie']){
         if(await page.getByRole('button',{name,exact:true}).count()!==1)failures.push('MOBILE_A11Y_NAV_'+w+'_'+name);
       }
+      if(await page.locator('.cmd-lanehead:visible').count()!==1)failures.push('MOBILE_VISIBLE_LANES_'+w);
+      await page.getByRole('button',{name:'Agenda Dr B'}).click();
+      if(await page.locator('.cmd-lanehead:visible').count()!==1 || await page.getByRole('button',{name:/TEST-003/}).isVisible()!==true || await page.getByRole('button',{name:/TEST-002/}).isVisible()!==false)failures.push('MOBILE_LANE_SWITCH_'+w);
+      await page.getByRole('button',{name:'Agenda Dr A'}).click();
    }
+   const img=path.join(out,'command-react-elite-'+w+'.png');await page.screenshot({path:img,fullPage:true,animations:'disabled'});
+   snaps.push({name:path.basename(img),bytes:fs.statSync(img).size,sha256:hash(img),...result});
    if(w===1440){
       await page.getByRole('button',{name:'Agenda',exact:true}).first().click();
       if(!(await page.locator('h1').innerText()).includes('Agenda') || await page.locator('.cmd-placeholder').count()!==1 || await page.locator('.cmd-appt').count()!==0)failures.push('NAV_FAILED');
@@ -44,8 +57,6 @@ try{
       const text=await svgResponse.text();
       if(!text.trimStart().startsWith('<svg'))failures.push('OFFICIAL_ODO_ASSET_NOT_SVG');
    }
-   const img=path.join(out,'command-react-elite-'+w+'.png');await page.screenshot({path:img,fullPage:true,animations:'disabled'});
-   snaps.push({name:path.basename(img),bytes:fs.statSync(img).size,sha256:hash(img),...result});
    await context.close();
  }
  for(const theme of themes){
