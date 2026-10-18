@@ -178,6 +178,7 @@ describe('CrownBot G9 reachable interaction truth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" }));
     expect(drawer).not.toHaveAttribute('inert');
     expect(drawer).toHaveAttribute('aria-hidden', 'false');
+    expect(screen.getByRole('dialog', { name: 'Historique Crown Bot' })).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByRole('button', { name: 'Nouvelle conversation' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: "Fermer l'historique Crown Bot" }));
     expect(drawer).toHaveAttribute('inert');
@@ -213,11 +214,19 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(screen.getByRole('button', { name: 'Archiver la conversation Première session' })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('button', { name: 'Ouvrir la conversation Deuxième session' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Archiver la conversation Deuxième session' })).toHaveFocus();
+    await user.tab();
+    expect(close).toHaveFocus(); // Tab wraps inside modal
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(screen.getByRole('button', { name: 'Archiver la conversation Deuxième session' })).toHaveFocus();
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(screen.getByRole('button', { name: 'Ouvrir la conversation Deuxième session' })).toHaveFocus();
     await user.keyboard('{Enter}');
-    // This screen exposes the History loader but currently gates rendering of
-    // old chat messages behind "en cours de construction". Verify the actual
-    // keyboard-reachable API action and focus restoration, not a hidden UI.
     await waitFor(() => expect(getMock).toHaveBeenCalledWith('/bot/sessions/history-2/messages'));
+    expect(await screen.findByText('Historique deuxième session')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Conversation archivée — lecture seule' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Confirmer' })).not.toBeInTheDocument();
     await waitFor(() => expect(toggle).toHaveFocus());
     expect(drawer).toHaveAttribute('inert');
 
@@ -227,6 +236,55 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(toggle).toHaveFocus();
     expect(drawer).toHaveAttribute('inert');
     expect(screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('read-only history hides legacy executable pending actions and returns to business CTA', async () => {
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    getMock.mockImplementation(async (url: string) => {
+      if (url === '/bot/sessions') return { data: [
+        { id: 'safe-1', title: 'Dossier synthétique', updated_at: '2026-10-17' },
+      ] } as any;
+      if (url === '/bot/sessions/safe-1/messages') return { data: [
+        { id: 15, sender: 'bot', text: 'Proposition historique uniquement',
+          pendingActionId: 'sensitive-action', pendingAction: { type: 'CREATE_APPOINTMENT' } },
+      ] } as any;
+      return { data: [] } as any;
+    });
+    renderCrownBot();
+    fireEvent.click(screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ouvrir la conversation Dossier synthétique' }));
+    expect(await screen.findByText('Proposition historique uniquement')).toBeInTheDocument();
+    expect(screen.queryByText('sensitive-action')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirmer|exécuter/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retour aux actions' }));
+    expect(screen.queryByText('Proposition historique uniquement')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mon programme' })).toBeInTheDocument();
+    expect(postMock).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
+  });
+
+  it('a late history A response never overwrites the selected history B', async () => {
+    let resolveA: ((value: unknown) => void) | undefined;
+    getMock.mockImplementation((url: string) => {
+      if (url === '/bot/sessions') return Promise.resolve({data:[
+        {id:'a',title:'A',updated_at:'2026-10-17'},
+        {id:'b',title:'B',updated_at:'2026-10-17'},
+      ]});
+      if (url === '/bot/sessions/a/messages') {
+        return new Promise(resolve => { resolveA = resolve; });
+      }
+      if (url === '/bot/sessions/b/messages')
+        return Promise.resolve({data:[{id:'b1',sender:'bot',text:'Message B seul'}]});
+      return Promise.resolve({data:[]});
+    });
+    renderCrownBot();
+    fireEvent.click(screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ouvrir la conversation A' }));
+    fireEvent.click(screen.getByRole('button', { name: "Ouvrir l'historique Crown Bot" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la conversation B' }));
+    expect(await screen.findByText('Message B seul')).toBeInTheDocument();
+    await act(async () => { resolveA?.({data:[{id:'a1',sender:'bot',text:'Message A obsolète'}]}); });
+    expect(screen.queryByText('Message A obsolète')).not.toBeInTheDocument();
+    expect(screen.getByText('Message B seul')).toBeInTheDocument();
   });
 
   it('proves the conversation send/action branch is not reachable from the current Chat tab', async () => {
