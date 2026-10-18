@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout exact source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Node supported by REA
         uses: actions/setup-node@v4
         with:
@@ -26,7 +28,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "SRC_SHA=${GITHUB_SHA}"
+          SOURCE_HEAD=$(git rev-parse HEAD)
+          echo "SOURCE_HEAD=$SOURCE_HEAD"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            EXPECTED_HEAD="${{ github.event.pull_request.head.sha }}"
+            if [ "$SOURCE_HEAD" != "$EXPECTED_HEAD" ]; then
+              echo "STOP: checkout does not match PR HEAD"
+              exit 7
+            fi
+          fi
           npm install --global --no-audit --no-fund rea-agents@6.7.0
           rea --version
           BROWSER=$(command -v google-chrome || command -v chromium || true)
