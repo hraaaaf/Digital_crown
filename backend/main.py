@@ -604,7 +604,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
-    expose_headers=["X-Total-Count", "X-Cephalo-Analysis-Id", "X-Cephalo-Revision"],
+    expose_headers=["X-Total-Count", "X-Cephalo-Analysis-Id", "X-Cephalo-Revision", "X-Cephalo-Archive-Replayed"],
 )
 from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,
