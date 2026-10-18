@@ -109,8 +109,13 @@ def verify_snapshot(snapshot, key):
     if type(key) is not bytes or len(key) != 32:
         raise B02SnapshotError("B02_KEY")
     folder = _root(snapshot)
-    raw = (folder / "manifest.json").read_bytes()
-    mac = (folder / "manifest.hmac").read_text(encoding="ascii").strip()
+    manifest, signature = folder / "manifest.json", folder / "manifest.hmac"
+    if (_is_unsafe_path_component(manifest) or
+            _is_unsafe_path_component(signature) or
+            not manifest.is_file() or not signature.is_file()):
+        raise B02SnapshotError("B02_MANIFEST_UNSAFE")
+    raw = manifest.read_bytes()
+    mac = signature.read_text(encoding="ascii").strip()
     correct = hmac.new(key, b"B02_LAB|" + raw, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(correct, mac):
         raise B02SnapshotError("B02_MANIFEST_AUTH")
@@ -128,7 +133,8 @@ def snapshot_quiescent_lab(root, destination, key):
         raise B02SnapshotError("B02_FIXTURE")
     target = Path(destination).absolute()
     if (not re.fullmatch(r"[A-Za-z0-9_-]{1,48}", target.name) or
-            target.parent != fixture / "snapshots" or target.exists()):
+            target.parent != fixture / "snapshots" or target.exists() or
+            _is_unsafe_path_component(target)):
         raise B02SnapshotError("B02_DESTINATION")
     private = fixture / "private"
     if not all((private / name).exists() for name in
@@ -147,6 +153,8 @@ def snapshot_quiescent_lab(root, destination, key):
             blobs = {row[0] for row in live.execute("SELECT blob FROM items")}
         before = _inventory(private, blobs)
         snapshots = fixture / "snapshots"
+        if _is_unsafe_path_component(snapshots):
+            raise B02SnapshotError("B02_UNSAFE_SNAPSHOT_ROOT")
         snapshots.mkdir(mode=0o700, exist_ok=True)
         if _is_unsafe_path_component(snapshots):
             raise B02SnapshotError("B02_UNSAFE_SNAPSHOT_ROOT")
