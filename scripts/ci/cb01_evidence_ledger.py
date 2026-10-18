@@ -25,6 +25,26 @@ http=load('http-pg-s07-s09-evidence.json')
 cipher=load('sqlcipher-s07-s09-evidence.json')
 matrix=load('s01-s12-synthetic-matrix.json')
 sidecar=load('summary.json')
+full_state=load('full-state-diff.json')
+fue=sidecar.get('fueC')
+if (not isinstance(fue,dict)
+    or fue.get('type')!='FUE-C'
+    or fue.get('persona')!='S05_SYNTHETIC_RECEPTION'
+    or fue.get('start')!='DASHBOARD_READY_BEFORE_CROWNBOT_LAUNCH'
+    or fue.get('firstValue')!='PASS_SERVER_PROPOSAL_ONLY_VISIBLE_NOT_BOOKED'
+    or fue.get('appBackend')!='REAL_VITE_MAINLAYOUT_FASTAPI_SYNTHETIC_DB'
+    or not isinstance(fue.get('elapsedMs'),int) or fue['elapsedMs']<=0
+    or fue.get('clicks')!=8 or fue.get('typedAnswers')!=6
+    or fue.get('decisionSteps')!=7 or fue.get('httpStatus')!=200
+    or fue.get('clinicalWrites')!=0 or fue.get('humanE2E')!='NOT_RUN'
+    or fue.get('requiredPractitionerValidation')!='NOT_EXECUTABLE'):
+    raise SystemExit('FAIL: FUE-C first meaningful server-confirmed result/timing missing')
+if (full_state.get('kind')!='CB01_FULL_SQLITE_FINAL_STATE_DIFF'
+    or full_state.get('status')!='PASS_NO_FINAL_STATE_CHANGE'
+    or full_state.get('allUserTablesIncluded') is not True
+    or not isinstance(full_state.get('tablesChecked'),int) or full_state['tablesChecked']<2
+    or full_state.get('changedTables')!=[]):
+    raise SystemExit('FAIL: CB-01 synthetic full-table final-state integrity unproven')
 # Real browser -> real FastAPI, separate synthetic staff role/tenant identities.
 # No mocked HTTP result is admissible for S05/S06 here.
 role_evidence=sidecar.get('realRoleBrowserEvidence')
@@ -87,6 +107,10 @@ scenarios={
         'limitation':'Backend ACK and frontend simulated WebSocket tests, not live WebSocket to real clinic'},
 }
 out={'schema':'CB01_CROSS_GATE_PROOF_V1','sourceHead':head,'scenarios':scenarios,
+     'fueC':{'firstValue':fue['firstValue'],'elapsedMs':fue['elapsedMs'],
+             'clicks':8,'typedAnswers':6,'humanE2E':'NOT_RUN'},
+     'syntheticSqliteFinalState':{'status':full_state['status'],
+             'tablesChecked':full_state['tablesChecked'],'changedTables':[]},
      'humanE2EValidated':0,'clinicalCabinetUsed':False,
      'independentReviews':0,'converged':False,
      'originalS01S12MatrixUnmodified':True,
