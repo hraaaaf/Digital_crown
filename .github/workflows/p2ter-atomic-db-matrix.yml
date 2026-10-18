@@ -1,0 +1,93 @@
+name: P2ter PostgreSQL contention and SQLCipher copy rehearsal
+on:
+  push:
+    branches:
+      - fix/p2ter-atomic-archive-step1-20261018
+    paths:
+      - .github/workflows/p2ter-atomic-db-matrix.yml
+      - backend/core/schema_runtime.py
+      - backend/models.py
+      - alembic/versions/ceparch0001_add_cephalo_archive_claims.py
+      - backend/services/archive_service.py
+      - backend/routers/patients.py
+      - scripts/ceph_p2ter_sqlcipher_copy_rehearsal.py
+      - scripts/ceph_p2ter_postgresql_concurrency.py
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: PostgreSQL 18 concurrency on actual migrated schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dc_atomic_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dc_atomic_synthetic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dc_atomic_synthetic
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      SECRET_KEY: pg-atomic-t2-only-synthetic-secret-00000000001
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exact SHA
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install schema boundary dependencies
+        run: |
+          pip install alembic sqlalchemy==2.0.28 psycopg2-binary==2.9.9 "pydantic[email]==2.6.3" pydantic-settings==2.2.1 fastapi==0.110.0 python-multipart==0.0.31 python-dotenv cryptography PyYAML==6.0.3 pytest
+      - name: Migrate fresh synthetic PostgreSQL schema
+        run: |
+          set -euo pipefail
+          python backend/tests/test_schema_runtime_head_sync.py
+          alembic upgrade head
+      - name: Two independent PostgreSQL connections attempt same migrated claim
+        run: python scripts/ceph_p2ter_postgresql_concurrency.py
+  sqlcipher:
+    name: Encrypted synthetic predecessor database copy migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      SECRET_KEY: isolated-sqlcipher-copy-test-secret-value
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exact SHA
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install encrypted migration boundary dependencies
+        run: |
+          pip install alembic sqlalchemy==2.0.28 sqlcipher3==0.6.2 passlib==1.7.4 "pydantic[email]==2.6.3" pydantic-settings==2.2.1 fastapi==0.110.0 python-multipart==0.0.31 python-dotenv cryptography PyYAML==6.0.3 pytest
+      - name: Create ephemeral storage key (masked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+          echo "::add-mask::$key"
+          echo "SQLCIPHER_KEY_HEX=$key" >> "$GITHUB_ENV"
+      - name: Upgrade ONLY a copy of old encrypted synthetic DB
+        run: python scripts/ceph_p2ter_sqlcipher_copy_rehearsal.py
