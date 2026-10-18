@@ -1,0 +1,94 @@
+name: V1.5-05.7-D Real Alembic Synthetic Restoration Gate
+on:
+  push:
+    branches:
+      - feat/v15-05-7d-real-alembic-synthetic-restore-20261018
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_057d_real_alembic_pg_restore.py
+      - .github/workflows/v15-05-7-d-real-alembic-synthetic-restore.yml
+      - docs/quality/V15_05_7_D_REAL_ALEMBIC_SYNTHETIC_RESTORE.md
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  real-alembic-postgres-18:
+    name: PG18 real Alembic head + native fake backup/restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    services:
+      postgres:
+        image: public.ecr.aws/docker/library/postgres@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lot05d_fake_source
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lot05d_fake_source"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/lot05d_fake_source
+      LOT05D_REAL_ALEMBIC_SYNTHETIC_ONLY: '1'
+      ENVIRONMENT: rehearsal
+      SECRET_KEY: lot05d-synthetic-ci-secret-not-for-any-cabinet-000000
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated real Alembic and fake model dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            alembic==1.20.0 sqlalchemy==2.0.28 psycopg2-binary==2.9.9 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3 pytest==9.0.3
+      - name: Confirm dedicated real PostgreSQL 18 binary
+        env:
+          LOT05D_PG_SERVICE_CONTAINER_ID: ${{ job.services.postgres.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "$LOT05D_PG_SERVICE_CONTAINER_ID" | grep -Eq '^[a-f0-9]{64}$'
+          docker exec "$LOT05D_PG_SERVICE_CONTAINER_ID" pg_dump --version | grep -F 'PostgreSQL) 18'
+          docker exec "$LOT05D_PG_SERVICE_CONTAINER_ID" pg_restore --version | grep -F 'PostgreSQL) 18'
+      - name: Upgrade truly empty isolated database through genuine Alembic operator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest backend/tests/test_schema_runtime_head_sync.py -q -p no:cacheprovider
+          alembic upgrade head
+          python -m py_compile backend/tests/test_legacy_sql_057d_real_alembic_pg_restore.py
+      - name: Physical schema and synthetic ORM round-trip certification
+        env:
+          LOT05D_PG_SERVICE_CONTAINER_ID: ${{ job.services.postgres.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B backend/tests/test_legacy_sql_057d_real_alembic_pg_restore.py -v 2>&1 | tee lot05d-pg.log
+          grep -q '^Ran 8 tests' lot05d-pg.log
+          grep -q '^OK$' lot05d-pg.log
+          ! grep -F 'skipped=' lot05d-pg.log
+      - name: Same commit, no application or migration changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '4a05fb74c3be5074fecce03cac9cb6dd65f139b0' }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/routers backend/models.py backend/core/schema_runtime.py backend/services alembic frontend
