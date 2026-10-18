@@ -7,7 +7,7 @@
  */
 
 import React, {
-  useState, useRef, useEffect, useMemo,
+  useState, useRef, useEffect, useLayoutEffect, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -115,7 +115,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     }
   };
 
-  useEffect(() => {
+  // Apply patient-scoped store reset before browser paint: the new patient
+  // must never be visibly rendered with the previous patient's images.
+  useLayoutEffect(() => {
     store.setPatientInfo(patientId, patientName);
 
     const syncTheme = () => setThemeRevision(revision => revision + 1);
