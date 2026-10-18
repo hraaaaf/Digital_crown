@@ -144,7 +144,7 @@
  .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(7),
  .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(8),
  .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(9){display:none}
- .cmd-secondary-toggle{display:flex;width:100%;align-items:center;justify-content:center;gap:9px;min-height:44px;margin:0 0 6px;padding:9px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--card-bg);color:var(--primary)!important;font-weight:750}
+ .cmd-secondary-toggle{display:flex;order:4;width:100%;align-items:center;justify-content:center;gap:9px;min-height:44px;margin:0 0 6px;padding:9px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--card-bg);color:var(--primary)!important;font-weight:750}
  .cmd-secondary-toggle svg{transition:transform .18s ease}
  .cmd-secondary-toggle .cmd-rotate{transform:rotate(180deg)}
  .cmd-patientfields>div{padding:8px 0}
