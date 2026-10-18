@@ -89,6 +89,11 @@ def test_full_fastapi_lifespan_launches_and_joins_synthetic_bridge(monkeypatch, 
             with _real_backend_lifespan() as client:
                 assert start_spy.call_count == 1
                 assert client.get("/openapi.json").status_code == 200
+                state_response = client.get("/api/health/imaging-bridge-lab")
+                assert state_response.status_code == 200
+                assert state_response.json() == {
+                    "scope": "isolated_test_lab", "state": "READY",
+                }
                 db_path = root / "private" / "acquisitions.sqlite3"
                 deadline = time.monotonic() + 8
                 state = None
@@ -109,6 +114,7 @@ def test_full_fastapi_lifespan_launches_and_joins_synthetic_bridge(monkeypatch, 
             assert stop_spy.await_count == 1
             handle = stop_spy.await_args.args[0]
             assert handle.task.done()
+            assert handle.operational.state == "STOPPED"
         # TEMP cleanup is part of the test, not swallowed by skip/ignore.
         assert db.query(ClinicalAsset).count() == before
 
@@ -123,6 +129,19 @@ def test_full_fastapi_lifespan_does_not_start_bridge_without_opt_in(monkeypatch,
                side_effect=AssertionError("LAB_WAS_STARTED_WHEN_DISABLED")) as start_spy:
         with _real_backend_lifespan() as client:
             assert client.get("/openapi.json").status_code == 200
+            response = client.get("/api/health/imaging-bridge-lab")
+            assert response.status_code == 200
+            assert response.json() == {
+                "scope": "isolated_test_lab", "state": "DISABLED",
+            }
+            # No operational LAB route is reachable outside isolated TEST.
+            monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "false")
+            assert client.get("/api/health/imaging-bridge-lab").status_code == 404
+            monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
+            from types import SimpleNamespace
+            with patch("backend.main.app_settings",
+                       SimpleNamespace(ENVIRONMENT="cabinet")):
+                assert client.get("/api/health/imaging-bridge-lab").status_code == 404
         start_spy.assert_not_called()
 
 
@@ -217,3 +236,31 @@ def test_real_scheduler_timer_cancelled_on_partial_startup_failure(monkeypatch, 
     assert len(timers) == 1
     assert timers[0].cancelled
 
+
+
+def test_dead_lab_worker_is_degraded_while_database_health_remains_ok(monkeypatch, db):
+    """Real isolated child death must become 503, not a false READY or DB failure."""
+    with tempfile.TemporaryDirectory(prefix="dc-lab-operational-") as tmp:
+        root = Path(tmp)
+        _lab_root(root)
+        monkeypatch.setenv("DC_V15_06_BRIDGE_LAB", "1")
+        monkeypatch.setenv("DC_V15_06_BRIDGE_LAB_ROOT", str(root))
+        monkeypatch.setenv("DC_V15_06_BRIDGE_LAB_KEY_HEX", (b"k" * 32).hex())
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
+        with _real_backend_lifespan() as client:
+            assert client.get("/api/health/imaging-bridge-lab").json()["state"] == "READY"
+            handle = app.state.imaging_bridge_lab_handle
+            assert handle is not None and handle.process is not None
+            handle.process.kill()
+            handle.process.wait(timeout=4)
+            # No sleep: poll at request time must catch a dead worker even
+            # before the asynchronous monitor's next 50 ms tick.
+            bridge_response = client.get("/api/health/imaging-bridge-lab")
+            assert bridge_response.status_code == 503
+            assert bridge_response.json() == {
+                "scope": "isolated_test_lab", "state": "DEGRADED",
+            }
+            assert client.get("/health").status_code == 200
+            assert client.get("/api/health").status_code == 200
+        assert handle.operational.state == "DEGRADED"
