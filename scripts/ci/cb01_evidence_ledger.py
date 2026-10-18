@@ -24,6 +24,31 @@ def load(name):
 http=load('http-pg-s07-s09-evidence.json')
 cipher=load('sqlcipher-s07-s09-evidence.json')
 matrix=load('s01-s12-synthetic-matrix.json')
+sidecar=load('summary.json')
+# Real browser -> real FastAPI, separate synthetic staff role/tenant identities.
+# No mocked HTTP result is admissible for S05/S06 here.
+role_evidence=sidecar.get('realRoleBrowserEvidence')
+if not isinstance(role_evidence,list) or len(role_evidence)!=2:
+    raise SystemExit('FAIL: S05/S06 integrated browser evidence missing')
+by_role={item.get('scenario'):item for item in role_evidence}
+expected_roles={
+    'S05':('PASS_HTTP_200_NON_EXECUTABLE_PROPOSAL',200),
+    'S06':('PASS_HTTP_403_VISIBLE_DENIAL',403),
+}
+if set(by_role)!=set(expected_roles):
+    raise SystemExit('FAIL: S05/S06 browser role matrix incomplete or duplicated')
+for role,(status,http) in expected_roles.items():
+    entry=by_role[role]
+    if (entry.get('source')!='MAINLAYOUT_CROWNBOTCHAT_REAL_FASTAPI_SYNTHETIC_DB'
+        or entry.get('status')!=status
+        or not isinstance(entry.get('httpStatuses'),list)
+        or not entry['httpStatuses']
+        or any(code!=http for code in entry['httpStatuses'])
+        or entry.get('clinicalWrites')!=0 or entry.get('pageErrors')!=0
+        or entry.get('humanCabinetE2E')!='NOT_RUN'
+        or not (root/entry.get('screenshot','')).is_file()):
+        raise SystemExit('FAIL: S05/S06 integrated browser role proof invalid '+role)
+
 if (http['S07']['status']!='PASS_HTTP_ROUTER_PG_INTEGRATION'
     or http['S09']['status']!='PASS_HTTP_BOT_EXECUTE_ABA_INTEGRATION'
     or http['S10']['status']!='PASS_REAL_409_RESPONSE_CONTRACT'
@@ -48,6 +73,10 @@ if matrix.get('counts',{}).get('humanE2EValidated')!=0:
     raise SystemExit('FAIL: artificial human certification')
 
 scenarios={
+ 'S05':{'browser':'PASS_REAL_FASTAPI_RECEPTION_PROPOSAL_ONLY',
+        'ui':'REAL_MAINLAYOUT_SYNTHETIC_STAFF_NOT_HUMAN'},
+ 'S06':{'browser':'PASS_REAL_FASTAPI_RECEPTION_403_VISIBLE_DENIAL',
+        'ui':'REAL_MAINLAYOUT_SYNTHETIC_STAFF_NOT_HUMAN'},
  'S07':{'http':'PASS_PG_REAL_ROUTER_CONCURRENT','sqlcipher':'PASS_ENCRYPTED_DB_PRIMITIVES',
         'ui':'NOT_RUN_FULL_STAFF_JOURNEY'},
  'S09':{'http':'PASS_PG_BOT_EXECUTE_STALE_AND_FRESH','sqlcipher':'PASS_ENCRYPTED_DB_ABA_PRIMITIVE',
@@ -63,4 +92,4 @@ out={'schema':'CB01_CROSS_GATE_PROOF_V1','sourceHead':head,'scenarios':scenarios
      'originalS01S12MatrixUnmodified':True,
      'integrity':'Each technical proof separated from staff E2E; no synthetic-to-human status promotion'}
 (root/'cross-gate-evidence.json').write_text(json.dumps(out,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
-print('CB01_CROSS_GATE_LEDGER: PASS_SYNTHETIC_PG_UI; HUMAN_E2E_0; CONVERGED_NO')
+print('CB01_CROSS_GATE_LEDGER: PASS_SYNTHETIC_PG_UI_S05_S06_BROWSER_REAL_API; HUMAN_E2E_0; CONVERGED_NO')
