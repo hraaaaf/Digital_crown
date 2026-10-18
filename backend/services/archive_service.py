@@ -502,6 +502,19 @@ class ArchiveService:
         if not doc:
             raise ValueError("Document non trouvé dans la corbeille")
 
+        # Never reactivate a second official archive for the same study/revision.
+        if doc.document_type == DocumentType.RAPPORT_CEPHALO and doc.analysis_id is not None:
+            same_study = self.db.query(models.DocumentArchive).filter(
+                models.DocumentArchive.id != doc.id,
+                models.DocumentArchive.document_type == DocumentType.RAPPORT_CEPHALO,
+                models.DocumentArchive.analysis_id == doc.analysis_id,
+                models.DocumentArchive.status == DocumentStatus.ACTIF,
+            ).all()
+            old_revision = (doc.clinical_data or {}).get("cephalo_revision")
+            for active in same_study:
+                if (active.clinical_data or {}).get("cephalo_revision") == old_revision:
+                    raise ValueError("Une archive céphalométrique active existe déjà pour cette étude et révision")
+
         trash_at = doc.deleted_at
         if trash_at is not None:
             linked_actes = self.db.query(models.Acte).filter(
