@@ -100,6 +100,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const [isArchiving, setIsArchiving] = useState(false);
   const archiveInFlight = useRef(false); // React state alone cannot block two clicks in one tick.
   const draftInFlight = useRef(false);
+  const validationGeneration = useRef(0);
   const [isBrouillon, setIsBrouillon] = useState(false);
 
   const hasImage = Boolean(imageSrc);
@@ -111,8 +112,14 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const diagOk = Boolean(diag.synthese_diagnostique?.trim());
 
   const fetchValidation = useCallback(async () => {
-    if (!patientId || !analysisId) { setValidation(null); return; }
-    const stillSelected = () => useOrthoStore.getState().patientId === patientId
+    const requestVersion = ++validationGeneration.current;
+    if (!patientId || !analysisId) {
+      setValidation(null);
+      setIsValidating(false);
+      return;
+    }
+    const stillSelected = () => requestVersion === validationGeneration.current
+      && useOrthoStore.getState().patientId === patientId
       && useOrthoStore.getState().analysisId === analysisId;
     setValidation(null);
     setIsValidating(true);
@@ -132,7 +139,10 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     }
   }, [patientId, analysisId]);
 
-  useEffect(() => { fetchValidation(); }, [fetchValidation]);
+  useEffect(() => {
+    void fetchValidation();
+    return () => { validationGeneration.current += 1; };
+  }, [fetchValidation]);
 
   const getAngleVal = (key: string): number | undefined => {
     const m = anglesData?.metrics;
@@ -217,9 +227,9 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     }
     archiveInFlight.current = true;
     setIsArchiving(true);
+    const stillSelected = () => useOrthoStore.getState().patientId === patientId
+      && useOrthoStore.getState().analysisId === analysisId;
     try {
-      const stillSelected = () => useOrthoStore.getState().patientId === patientId
-        && useOrthoStore.getState().analysisId === analysisId;
       const source = await prepareBoundCephaloDocumentSource(
         patientId, analysisId, stillSelected, () => store.silentSave(analysisId, true),
       );
@@ -242,7 +252,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       // another silent save here could silently invalidate that gate.
       await onGeneratePDF(source);
     } catch (e: any) {
-      toast.error(await cephaloArchiveErrorMessage(e));
+      if (stillSelected()) toast.error(await cephaloArchiveErrorMessage(e));
     } finally {
       archiveInFlight.current = false;
       setIsArchiving(false);
