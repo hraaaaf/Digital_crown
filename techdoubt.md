@@ -1,5 +1,11 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-18 — P2-F01: syntactic negative-rights extension, NOT native SCM proof
+
+- Source-only hardening of the *unexecuted* disposable SCM peer oracle: request ChangePermissions (WRITE_DAC) and TakeOwnership (WRITE_OWNER) on each of three synthetic SQLite DB/WAL/SHM leaves, without changing ACLs or ownership. Require strict UnauthorizedAccessException, explicit 3/3 counters, 17/17 total, and a positive service transaction after denials. Static test checks source markers and rejects selected ACL mutators.
+- **NOT TESTED under a real SCM token:** these additional source assertions do not prove effective NTFS rights, owner implicit rights, service-object DACL, group privileges, reparse/rename/hardlink attacks, backup API, crash recovery, SQLCipher or clinical restore. The native SCM registration workflow remains blocked by tool security controls and must not be bypassed.
+- This exact-HEAD-changing *synthetic source/static-test* revision means earlier 8/8 CI green on 2981a014224db066fbc5325ba668604afd2a990d does not carry over. Exact new-HEAD CI collection/execution and two new BLIND A+B reviews remain required. NO-GO native SCM certification, client workstation, LOT10, merge or deployment.
+
 ## LOT06-P / P2 — Windows SCM Service Identity, NTFS DACL & SQLite WAL (2026-10-18)
 
 **Status:** OPEN; not a certification, not a waiver, not production-ready. Working PR: https://github.com/hraaaaf/Digital_crown/pull/909. Source audited at `0e98237774bcd7d299335826b12c39a2cabc9393`; preparatory ADR and tests committed at `d5e696aeb29ffecadf805e2540f3a0e327c152ec`. See `docs/quality/LOT06_P_P2_WINDOWS_SCM_IDENTITY_WAL_MIGRATION_ADR.md`.

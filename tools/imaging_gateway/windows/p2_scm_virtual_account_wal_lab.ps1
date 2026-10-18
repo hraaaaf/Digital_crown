@@ -62,7 +62,7 @@ if($Mode -eq 'Peer'){
   Assert-P2 (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) 'PEER_NOT_STANDARD'
   $private=Join-Path $WorkRoot 'private'
   $db=Join-Path $private 'synthetic.sqlite3'
-  $n=0
+  $n=0;$dac=0;$owner=0
   foreach($leaf in @($db,($db+'-wal'),($db+'-shm'))){
     $file=$leaf
     Deny { $f=[IO.File]::Open($file,[IO.FileMode]::Open,[IO.FileAccess]::Read);$f.Dispose() } 'READ';$n++
@@ -72,14 +72,30 @@ if($Mode -eq 'Peer'){
         ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete),4096,[IO.FileOptions]::None)
       $f.Dispose()
     } 'DELETE';$n++
+    # Requests only; never change DACL or owner. Unexpected successful OPEN fails.
+    Deny {
+      $f=[IO.FileStream]::new($file,[IO.FileMode]::Open,
+        [Security.AccessControl.FileSystemRights]::ChangePermissions,
+        ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete),4096,[IO.FileOptions]::None)
+      $f.Dispose()
+    } 'WRITE_DAC';$n++;$dac++
+    Deny {
+      $f=[IO.FileStream]::new($file,[IO.FileMode]::Open,
+        [Security.AccessControl.FileSystemRights]::TakeOwnership,
+        ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete),4096,[IO.FileOptions]::None)
+      $f.Dispose()
+    } 'WRITE_OWNER';$n++;$owner++
   }
   Deny { [IO.File]::WriteAllText((Join-Path $private 'peer-new.txt'),'synthetic') } 'CREATE';$n++
   $exe=Get-ChildItem -LiteralPath (Join-Path $WorkRoot 'bin') -Filter '*.exe'|Select-Object -First 1
   Assert-P2 ($null -ne $exe) 'SERVICE_EXE_ABSENT'
   Deny { $f=[IO.File]::Open($exe.FullName,[IO.FileMode]::Open,[IO.FileAccess]::Write);$f.Dispose() } 'BINARY_TAMPER';$n++
-  Assert-P2 ($n -eq 11) 'DENIAL_COUNT_WRONG'
+  Assert-P2 ($n -eq 17 -and $dac -eq 3 -and $owner -eq 3) 'DENIAL_COUNT_WRONG'
   [IO.File]::WriteAllText((Join-Path $WorkRoot 'evidence\peer\report.txt'),
-    ('PEER_SID='+$ident.User.Value+[Environment]::NewLine+'DENIALS='+$n))
+    ('PEER_SID='+$ident.User.Value+[Environment]::NewLine+
+     'DENIALS='+$n+[Environment]::NewLine+
+     'WRITE_DAC_DENIED='+$dac+[Environment]::NewLine+
+     'WRITE_OWNER_DENIED='+$owner))
   exit 0
 }
 $runner=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -173,8 +189,13 @@ try{
   $report=Join-Path $evidence.FullName 'report.txt'
   Assert-P2 (Test-Path -LiteralPath $report) 'PEER_REPORT_MISSING'
   $reportText=Get-Content -LiteralPath $report -Raw
-  Assert-P2 ($reportText.Contains('PEER_SID='+$peerSid) -and $reportText.Contains('DENIALS=11')) 'PEER_PROOF_INCORRECT'
-  Write-Host 'P2_SCM_INTERACTIVE_PEER_DENIED=11/11'
+  Assert-P2 ($reportText.Contains('PEER_SID='+$peerSid) -and
+    $reportText.Contains('DENIALS=17') -and
+    $reportText.Contains('WRITE_DAC_DENIED=3') -and
+    $reportText.Contains('WRITE_OWNER_DENIED=3')) 'PEER_PROOF_INCORRECT'
+  Write-Host 'P2_SCM_INTERACTIVE_PEER_DENIED=17/17'
+  Write-Host 'P2_SCM_PEER_WRITE_DAC_DENIED=3/3'
+  Write-Host 'P2_SCM_PEER_WRITE_OWNER_DENIED=3/3'
   [IO.File]::WriteAllText((Join-Path $private.FullName 'trigger'),'synthetic')
   Wait-Proof (Join-Path $private.FullName 'service.after')
   Assert-P2 ((Get-Content -LiteralPath (Join-Path $private.FullName 'service.after') -Raw).Contains('AFTER_DENIAL_COMMIT=PASS')) 'SERVICE_AFTER_DENIAL_FAILED'

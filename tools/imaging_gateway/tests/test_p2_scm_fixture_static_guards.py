@@ -78,6 +78,30 @@ class P2ScmFixtureStaticGuardTests(unittest.TestCase):
         self.assertIn("SCM_ROLLED_BACK", self.cs)
         self.assertIn("SCM_AFTER_DENIAL", self.cs)
 
+    def test_peer_requests_dac_and_owner_rights_without_mutation(self):
+        peer = self.ps.split("if($Mode -eq 'Peer'){", 1)[1].split(
+            "\n$runner=", 1
+        )[0]
+        for marker in (
+            "FileSystemRights]::ChangePermissions",
+            "FileSystemRights]::TakeOwnership",
+            "'WRITE_DAC';$n++;$dac++",
+            "'WRITE_OWNER';$n++;$owner++",
+            "$n -eq 17", "$dac -eq 3", "$owner -eq 3",
+            "WRITE_DAC_DENIED=", "WRITE_OWNER_DENIED=",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, peer)
+        for mutator in ("Set-Acl", "SetAccessControl(", "SetOwner("):
+            self.assertNotIn(mutator, peer)
+        for marker in (
+            "DENIALS=17", "WRITE_DAC_DENIED=3",
+            "WRITE_OWNER_DENIED=3", "P2_SCM_PEER_WRITE_DAC_DENIED=3/3",
+            "P2_SCM_PEER_WRITE_OWNER_DENIED=3/3",
+        ):
+            self.assertIn(marker, self.ps)
+        self.assertNotIn("P2_SCM_INTERACTIVE_PEER_DENIED=11/11", self.ps)
+
     def test_no_production_storage_paths_or_device_calls(self):
         together = self.ps + "\n" + self.cs
         for forbidden in (
