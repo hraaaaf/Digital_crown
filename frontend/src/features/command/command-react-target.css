@@ -5,3 +5,50 @@
 @media(max-width:767px){.cmd-shell{display:block}.cmd-sidebar{position:relative;display:flex;align-items:center;flex-direction:row;padding:7px;overflow-x:auto;gap:8px}.cmd-brand{padding:0;border:0;flex:none}.cmd-logo-mini{width:36px;height:36px}.cmd-navigation{display:flex;gap:4px}.cmd-navigation button{min-width:39px;width:39px;height:39px;padding:8px}.cmd-topright small{display:none}.cmd-toolbar{height:46px}.cmd-content{padding:9px}.cmd-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.cmd-cards>.cmd-card:nth-child(3){grid-column:1/-1}.cmd-imagegrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:520px){.cmd-cards{grid-template-columns:minmax(0,1fr)}.cmd-cards>.cmd-card:nth-child(3){grid-column:auto}.cmd-imagegrid{grid-template-columns:repeat(2,minmax(0,1fr))}.cmd-patienthero{align-items:flex-start}.cmd-patientintro{min-width:calc(100% - 70px)}.cmd-patientbuttons{flex-direction:row}.cmd-search{width:80%;font-size:10px}.cmd-topright{gap:5px}.cmd-heading h1{font-size:20px}.cmd-workbench{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){.cmd-shell *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+
+/* LOT07/07-C R2: genuine 15-minute visual grid and legible operational content. */
+.cmd-shell{font-size:13px;line-height:1.45}
+.cmd-navigation button{font-size:13px}
+.cmd-heading p,.cmd-patientintro p{font-size:12px}
+.cmd-cardhead h3{font-size:13px}
+.cmd-cardhead small,.cmd-patienttime small,.cmd-patienttime span,.cmd-image-tabs,.cmd-patientfields>div,.cmd-treatments strong,.cmd-bottomrows p,.cmd-alerts p,.cmd-tabs button,.cmd-legend,.cmd-notes,.cmd-pill,.cmd-imagegrid strong{font-size:11px}
+.cmd-patientintro h2{font-size:16px}
+.cmd-patientfields>div{padding:10px 0}
+.cmd-patientfields dt{font-weight:600}
+.cmd-imagegrid small,.cmd-lanehead small{font-size:10px;color:var(--text-main)}
+.cmd-calendar{grid-template-columns:52px repeat(3,minmax(116px,1fr));grid-template-rows:44px repeat(36,18px);min-width:415px}
+.cmd-timehead,.cmd-lanehead{align-self:stretch}
+.cmd-hour{font-size:10px;height:auto;padding:1px 4px;line-height:16px;min-width:0;color:var(--text-main);border-bottom:1px solid var(--border-color)}
+.cmd-hour[data-minute="0"]{font-weight:800}
+.cmd-quarter-cell{border-right:1px solid var(--border-color);border-bottom:1px solid var(--border-color);min-width:0;min-height:0;background:var(--card-bg)}
+.cmd-quarter-start{border-top:1px solid var(--border-hover)}
+.cmd-appt{height:auto;min-height:0;margin:1px 3px;z-index:1;align-self:stretch;justify-content:center;padding:2px 5px;border-radius:4px}
+.cmd-appt strong{font-size:11px;line-height:1.1}
+.cmd-appt span{font-size:10px;line-height:1.13;white-space:normal}
+.cmd-legend{display:flex;flex-wrap:wrap;gap:7px 13px;padding:10px 12px}
+.cmd-legend span:nth-child(1){color:var(--status-success)}
+.cmd-legend span:nth-child(2){color:var(--status-warning)}
+.cmd-legend span:nth-child(3){color:var(--status-info)}
+.cmd-legend span:nth-child(4){color:var(--status-danger)}
+.cmd-mobile-lanes{display:none}
+@media(max-width:1080px){
+  /* The active patient now precedes the schedule at native 200% browser zoom. */
+  .cmd-workbench{grid-template-columns:minmax(0,1fr)}
+  .cmd-right{display:contents}
+  .cmd-patienthero{order:0}
+  .cmd-tabs{order:1;margin-bottom:0}
+  .cmd-agenda{order:2}
+  .cmd-cards{order:3}
+}
+@media(max-width:520px){
+  .cmd-mobile-lanes{display:flex;gap:6px;padding:8px;border-bottom:1px solid var(--border-color)}
+  .cmd-mobile-lanes button{flex:1;min-height:38px;border:1px solid var(--border-color);background:var(--card-bg);border-radius:6px;font-size:12px;font-weight:700}
+  .cmd-mobile-lanes button[aria-pressed="true"]{background:var(--primary);color:var(--text-on-primary);border-color:var(--primary)}
+  .cmd-calendar{grid-template-columns:50px minmax(0,1fr);min-width:0}
+  .cmd-calendar [data-lane]:not([data-current-lane="true"]){display:none}
+  .cmd-calendar [data-current-lane="true"]{grid-column:2!important}
+  .cmd-datebar{flex-wrap:wrap}
+  .cmd-datebar button{min-height:36px}
+  .cmd-patientfields>div{font-size:12px}
+}
