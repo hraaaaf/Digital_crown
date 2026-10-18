@@ -108,6 +108,48 @@ jobs:
           assert len(raw)>100
           assert any(found.values()), "No relevant module evidence; refuse to certify slice"
           PY
+      - name: Compare with immutable FACAD P0 evidence (source-only crosswalk)
+        shell: bash
+        env:
+          FACAD_MATRIX_COMMIT: "220e75e919e0220cca74c5b6bf55b75687066fe3"
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 45 \
+            "https://raw.githubusercontent.com/hraaaaf/Digital_crown/$FACAD_MATRIX_COMMIT/docs/audits/data/CEPH_FACAD_PARITY_P0_DESKTOP_EVIDENCE_MATRIX_2026-10-17.json" \
+            -o "$RUNNER_TEMP/facad-matrix.json"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])
+          raw=(root/"facad-matrix.json").read_bytes()
+          j=json.loads(raw)
+          assert j["schema"]=="CEPH_FACAD_PARITY_P0_DESKTOP_EVIDENCE_MATRIX_V1"
+          assert len(j["menus"])==9 and len(j["toolbar"])==30 and len(j["workflows"])==7
+          records=[]
+          for t in j["toolbar"]:
+            codepath=t.get("digital_crown_code_path")
+            needle=t.get("digital_crown_source_needle")
+            file=Path(codepath) if codepath else None
+            present=bool(file and file.is_file() and needle and needle in file.read_text(encoding="utf-8"))
+            records.append({"facad_ui_element_id":t["id"],"prior_vendor_evidence":"UIA_DISCOVERED_ONLY",
+                            "dc_current_source_literal_present":present,
+                            "comparison_status":"CODE_LITERAL_NOT_PARITY" if present else "NO_PROVEN_CODE_MATCH",
+                            "clinical_numerical_or_action_parity_proven":False})
+          matched=sum(int(r["dc_current_source_literal_present"]) for r in records)
+          assert matched==9 and len(records)-matched==21, (matched,len(records)-matched)
+          report={"source_sha":os.environ["EXPECTED_SOURCE_SHA"],"facad_matrix_commit":os.environ["FACAD_MATRIX_COMMIT"],
+                  "facad_matrix_sha256":hashlib.sha256(raw).hexdigest(),
+                  "vendor_ui_menus":9,"vendor_toolbar_uia_ids":30,"vendor_desktop_workflows":7,
+                  "dc_code_literal_candidates_reconfirmed":matched,
+                  "unmapped_or_unproven_commands":21,
+                  "rea_cephalo_module_names_seen":json.loads((root/"rea02-report"/"rea-bounded-result.json").read_text())["all_8_module_names_mentioned"],
+                  "facad_app_executed_in_this_run":False,"facad_action_parity_proven":0,
+                  "facad_numerical_parity_proven":0,
+                  "limitation":"8 source modules in REA are static only; all 30 FACAD UIA observations remain untested actions.",
+                  "rows":records}
+          (root/"rea02-report"/"facad-dc-matrix.json").write_text(json.dumps(report,indent=2))
+          print(json.dumps({k:v for k,v in report.items() if k!="rows"}))
+          PY
       - name: Upload sanitized evidence only
         uses: actions/upload-artifact@v4
         if: always()
@@ -116,5 +158,6 @@ jobs:
           path: |
             ${{ runner.temp }}/rea02-report/scope.json
             ${{ runner.temp }}/rea02-report/rea-bounded-result.json
+            ${{ runner.temp }}/rea02-report/facad-dc-matrix.json
           if-no-files-found: warn
           retention-days: 14
