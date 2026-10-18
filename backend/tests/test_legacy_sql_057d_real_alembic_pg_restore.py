@@ -1,0 +1,303 @@
+"""LOT05.7-D. Real Alembic schema, genuine native PostgreSQL 18 restore.
+
+FAKE patients only, ephemeral GitHub Actions Postgres only.
+Never accept external source, filename, username, host, or clinical DB.
+"""
+from __future__ import annotations
+import hashlib
+import json
+import os
+import re
+import subprocess
+import unittest
+from datetime import datetime
+from decimal import Decimal
+
+URL = "postgresql://postgres:postgres@127.0.0.1:5432/lot05d_fake_source"
+HEAD = "neo000000031"
+TARGET = "lot05d_fake_restored"
+COUNTS = {"users": 2, "patients": 6, "appointments": 12,
+          "actes": 4, "payments": 4, "document_archives": 2}
+
+
+class Refused(RuntimeError):
+    pass
+
+
+def isolated():
+    cid = os.getenv("LOT05D_PG_SERVICE_CONTAINER_ID", "")
+    if (os.getenv("LOT05D_REAL_ALEMBIC_SYNTHETIC_ONLY") != "1"
+            or os.getenv("DATABASE_URL") != URL
+            or not re.fullmatch(r"[0-9a-f]{64}", cid)):
+        raise Refused("DEDICATED_FAKE_POSTGRES_REQUIRED")
+    return cid
+
+
+def digest(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+
+def native(db, data=None):
+    cid = isolated()
+    if (data is None and db != "lot05d_fake_source") or (data is not None and db != TARGET):
+        raise Refused("FOREIGN_DATABASE_DENIED")
+    command = ["docker", "exec"]
+    if data is not None:
+        command.append("-i")
+    command += ["-e", "PGPASSWORD=postgres", cid]
+    if data is None:
+        command += ["pg_dump", "-Fc", "--no-owner", "--no-privileges", "-h", "127.0.0.1",
+                    "-U", "postgres", "-d", db]
+    else:
+        command += ["pg_restore", "--single-transaction", "--exit-on-error",
+                    "--no-owner", "--no-privileges", "-h", "127.0.0.1",
+                    "-U", "postgres", "-d", db]
+    return subprocess.run(command, input=data, capture_output=True, timeout=120)
+
+
+def catalog(c):
+    from sqlalchemy import text
+    sql = {
+        "columns": """SELECT table_name,column_name,data_type,udt_name,is_nullable,
+                COALESCE(column_default,'') FROM information_schema.columns
+                WHERE table_schema='public' ORDER BY table_name,ordinal_position""",
+        "indexes": """SELECT indexname,indexdef FROM pg_indexes
+                WHERE schemaname='public' ORDER BY indexname""",
+        "constraints": """SELECT conname,contype,pg_get_constraintdef(oid,TRUE)
+                FROM pg_constraint WHERE connamespace='public'::regnamespace
+                ORDER BY conname,conrelid::regclass::text""",
+    }
+    data = {name: [tuple(map(str, row)) for row in c.execute(text(query)).all()]
+            for name, query in sql.items()}
+    table_count = len({row[0] for row in data["columns"]})
+    if table_count < 30:
+        raise Refused("REAL_ALEMBIC_SCHEMA_INCOMPLETE")
+    return digest(json.dumps(data, sort_keys=True).encode()), table_count
+
+
+def evidence(c):
+    from sqlalchemy import text
+    queries = {
+        "users": "SELECT id,email,role,employer_id FROM users ORDER BY id",
+        "patients": "SELECT id,numero_dossier,nom,prenom,employer_id FROM patients ORDER BY id",
+        "appointments": "SELECT id,patient_id,employer_id,datetime_start FROM appointments ORDER BY id",
+        "actes": "SELECT id,patient_id,praticien_id,libelle,montant FROM actes ORDER BY id",
+        "payments": "SELECT id,patient_id,acte_id,amount FROM payments ORDER BY id",
+        "document_archives": "SELECT id,patient_id,filename,file_hash,file_path FROM document_archives ORDER BY id",
+    }
+    rows = {name: [tuple(str(v) if v is not None else None for v in row)
+                   for row in c.execute(text(query)).all()]
+            for name, query in queries.items()}
+    sums = (
+        str(sum(Decimal(x[4]) for x in rows["actes"])),
+        str(sum(Decimal(x[3]) for x in rows["payments"])),
+    )
+    return digest(json.dumps(rows, sort_keys=True).encode()), {
+        name: len(row) for name, row in rows.items()
+    }, sums
+
+
+def tenant_orphans(c):
+    from sqlalchemy import text
+    return c.execute(text("""SELECT COUNT(*) FROM appointments a
+        JOIN patients p ON p.id=a.patient_id WHERE a.employer_id <> p.employer_id""")).scalar_one()
+
+
+class RealHeadRecovery(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        isolated()
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+        from backend.core.schema_runtime import CURRENT_ALEMBIC_HEAD, assert_database_at_current_head
+        from backend import models
+
+        if ScriptDirectory.from_config(Config("alembic.ini")).get_heads() != [HEAD]:
+            raise Refused("WRONG_ALEMBIC_GRAPH_HEAD")
+        if CURRENT_ALEMBIC_HEAD != HEAD:
+            raise Refused("STALE_APPLICATION_HEAD")
+        cls.engine = create_engine(URL)
+        assert_database_at_current_head(cls.engine)
+        with cls.engine.connect() as c:
+            if any(c.exec_driver_sql(f'SELECT COUNT(*) FROM "{table}"').scalar_one()
+                   for table in COUNTS):
+                raise Refused("SYNTHETIC_SOURCE_NOT_EMPTY")
+        with Session(cls.engine) as s:
+            owners = [
+                models.User(email=f"only-fake-{i}@invalid.example",
+                            hashed_password="FICTIONAL_NON_AUTHENTICATING",
+                            role=models.UserRole.DENTISTE, is_active=True)
+                for i in range(2)
+            ]
+            s.add_all(owners)
+            s.flush()
+            patients = []
+            for k in range(6):
+                owner = owners[k // 3]
+                p = models.Patient(
+                    numero_dossier=f"FAKE-{k}", nom="SYNTHETIC_ONLY",
+                    prenom=f"FICTION_{k}", date_naissance=datetime(2000, 1, k+1),
+                    sexe="M", employer_id=owner.id)
+                s.add(p)
+                patients.append(p)
+            s.flush()
+            for k, p in enumerate(patients):
+                for n in range(2):
+                    s.add(models.Appointment(
+                        patient_id=p.id, employer_id=p.employer_id,
+                        datetime_start=datetime(2026, 11, k+1, 9+n),
+                        duration_minutes=30, motif="SYNTHETIC_ONLY"))
+            for k in range(4):
+                p = patients[k]
+                act = models.Acte(
+                    patient_id=p.id, praticien_id=owners[k // 3].id,
+                    type_acte=models.ActeType.SOIN, libelle="FAKE_ACT",
+                    montant=float(120+k), notes_cliniques="FICTION")
+                s.add(act)
+                s.flush()
+                s.add(models.Payment(
+                    patient_id=p.id, acte_id=act.id, amount=float(80+k)))
+            for k in (0, 3):
+                p = patients[k]
+                raw = f"ONLY_FAKE_DOC_{k}".encode()
+                s.add(models.DocumentArchive(
+                    patient_id=p.id,
+                    document_type=list(models.DocumentType)[0],
+                    filename=f"FAKE_{k}.bin", original_filename=f"FAKE_{k}.bin",
+                    file_path=f"/ONLY-FAKE-UNRESOLVABLE/FAKE_{k}.bin",
+                    file_hash=digest(raw), file_size=len(raw),
+                    document_group_id=f"FAKE_GROUP_{k}"))
+            s.commit()
+        with cls.engine.connect() as c:
+            cls.before = evidence(c)
+            cls.schema = catalog(c)
+            if cls.before[1] != COUNTS or tenant_orphans(c):
+                raise Refused("FICTITIOUS_SEED_INCONSISTENT")
+        export = native("lot05d_fake_source")
+        if export.returncode or not export.stdout.startswith(b"PGDMP"):
+            raise Refused("NATIVE_PG_DUMP_FAILED")
+        cls.dump = export.stdout
+        cls.dump_sha = digest(export.stdout)
+        cls.dst = create_engine(URL.replace("lot05d_fake_source", TARGET))
+
+    @classmethod
+    def tearDownClass(cls):
+        if hasattr(cls, "dst"):
+            cls.dst.dispose()
+        if hasattr(cls, "engine"):
+            cls.engine.dispose()
+
+    def setUp(self):
+        import psycopg2
+        from psycopg2 import sql
+        isolated()
+        admin = psycopg2.connect(URL)
+        admin.autocommit = True
+        try:
+            with admin.cursor() as cursor:
+                cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(TARGET)))
+        finally:
+            admin.close()
+
+    def tearDown(self):
+        import psycopg2
+        from psycopg2 import sql
+        self.dst.dispose()
+        admin = psycopg2.connect(URL)
+        admin.autocommit = True
+        try:
+            with admin.cursor() as cursor:
+                cursor.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(TARGET)))
+        finally:
+            admin.close()
+
+    def restore(self, raw=None, expected_sha=None):
+        value = self.dump if raw is None else raw
+        expected = self.dump_sha if expected_sha is None else expected_sha
+        if digest(value) != expected:
+            raise Refused("DUMP_BYTES_MISMATCH")
+        result = native(TARGET, data=value)
+        if result.returncode:
+            raise Refused("PG_NATIVE_RESTORE_FAILED")
+
+    def test_01_full_physical_alembic_schema_restored(self):
+        from backend.core.schema_runtime import assert_database_at_current_head
+        self.restore()
+        assert_database_at_current_head(self.dst)
+        with self.dst.connect() as c:
+            self.assertEqual(catalog(c), self.schema)
+            self.assertEqual(evidence(c), self.before)
+            self.assertGreater(self.schema[1], 30)
+
+    def test_02_real_model_rows_finance_docs_persist(self):
+        self.restore()
+        with self.dst.connect() as c:
+            self.assertEqual(evidence(c), self.before)
+            self.assertEqual(tenant_orphans(c), 0)
+            self.assertEqual(c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one(), HEAD)
+
+    def test_03_altered_checksum_denied_before_restore(self):
+        with self.assertRaisesRegex(Refused, "DUMP_BYTES_MISMATCH"):
+            self.restore(raw=self.dump[:-16])
+        with self.dst.connect() as c:
+            self.assertEqual(c.exec_driver_sql(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public'").scalar_one(), 0)
+
+    def test_04_corrupt_pg_dump_transactionally_rejected(self):
+        payload = self.dump[:24]
+        with self.assertRaisesRegex(Refused, "PG_NATIVE_RESTORE_FAILED"):
+            self.restore(raw=payload, expected_sha=digest(payload))
+        with self.dst.connect() as c:
+            self.assertEqual(c.exec_driver_sql(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public'").scalar_one(), 0)
+
+    def test_05_nonempty_target_replay_rejected(self):
+        self.restore()
+        with self.assertRaisesRegex(Refused, "PG_NATIVE_RESTORE_FAILED"):
+            self.restore()
+        with self.dst.connect() as c:
+            self.assertEqual(evidence(c), self.before)
+
+    def test_06_wrong_target_denied(self):
+        for name in ("postgres", "cabinet", "lot05d_fake_real", "lot05d_fake_restored_extra"):
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(Refused, "FOREIGN_DATABASE_DENIED"):
+                    native(name, data=b"FAKE")
+
+    def test_07_audit_detects_cross_tenant_reference_in_test_transaction(self):
+        from sqlalchemy import text
+        self.restore()
+        with self.dst.connect() as c:
+            tx = c.begin()
+            try:
+                patient = c.execute(text("SELECT id,employer_id FROM patients ORDER BY id LIMIT 1")).one()
+                owner = c.execute(text("SELECT id FROM users WHERE id <> :id ORDER BY id LIMIT 1"),
+                                  {"id": patient.employer_id}).scalar_one()
+                c.execute(text("""INSERT INTO appointments
+                    (patient_id,employer_id,datetime_start,duration_minutes,reminder_sent)
+                    VALUES (:patient,:owner,'2026-12-01 09:00:00',30,false)"""),
+                          {"patient": patient.id, "owner": owner})
+                self.assertEqual(tenant_orphans(c), 1)
+            finally:
+                tx.rollback()
+        with self.dst.connect() as c:
+            self.assertEqual(evidence(c), self.before)
+
+    def test_08_source_transaction_changes_never_enter_previous_dump(self):
+        from sqlalchemy import text
+        with self.engine.connect() as src:
+            tx = src.begin()
+            try:
+                src.execute(text("UPDATE patients SET nom='FAKE_NEW' WHERE id=(SELECT MIN(id) FROM patients)"))
+                self.assertNotEqual(evidence(src), self.before)
+            finally:
+                tx.rollback()
+        self.restore()
+        with self.dst.connect() as c:
+            self.assertEqual(evidence(c), self.before)
+
+
+if __name__ == "__main__":
+    unittest.main()
