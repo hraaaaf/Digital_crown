@@ -439,7 +439,10 @@ def patient_teleconsultation_remote_command(
     if keyset is None:
         raise HTTPException(status_code=409, detail="Transport sécurisé Patient Companion non initialisé.")
     try:
-        ack = process_remote_envelope(db, access=access, keyset=keyset, compact_jwe=body.blob)
+        ack = process_remote_envelope(
+            db, access=access, keyset=keyset, compact_jwe=body.blob,
+            allowed_operation_prefix="teleconsult.",
+        )
     except ValueError:
         raise HTTPException(status_code=400, detail="Commande distante Patient Companion invalide.") from None
     response.headers["Cache-Control"] = "no-store"
