@@ -576,6 +576,25 @@ def download_document(
     )
     assert_patient_access(doc.patient_id, current_user, db)
 
+    # The official identity is not sufficient: snapshot the PDF bytes after
+    # verifying its immutable SQL provenance, stored length and SHA256.
+    if doc.document_type == models.DocumentType.RAPPORT_CEPHALO:
+        from backend.services.cephalo_document_lock import verified_official_archive_bytes
+        from fastapi.responses import Response
+        from urllib.parse import quote
+
+        verified = verified_official_archive_bytes(doc)
+        audit_service.log(
+            db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+            action="MEDIA_ACCESS_GRANTED", resource_type=str(doc.document_type), resource_id=str(doc.id),
+            severity="INFO", details=f"Téléchargement officiel vérifié {doc.id} (patient {doc.patient_id})",
+        )
+        return Response(
+            content=verified,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename*=utf-8''" + quote(doc.original_filename or doc.filename)},
+        )
+
     # Résolution du chemin absolu
     if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
         abs_path = str(MEDIA_DIR / doc.file_path.replace("static/", "", 1))
