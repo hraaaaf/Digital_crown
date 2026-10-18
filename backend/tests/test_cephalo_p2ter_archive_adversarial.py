@@ -112,12 +112,16 @@ def test_s4_trashed_official_revision_cannot_be_restored_over_active_duplicate(
         client, db, dentiste, monkeypatch, tmp_path,
     )
     doc_id = doc.id
+    old_path = tmp_path / "archives" / doc.file_path.removeprefix("static/archives/")
+    old_pdf = old_path.read_bytes()
     trashed = client.post(f"/api/documents/{doc_id}/trash", headers=headers)
     assert trashed.status_code == 200, trashed.text[:250]
     replacement = client.post(
         f"/api/patients/{patient.id}/pdf", json=payload, headers=headers,
     )
     assert replacement.status_code == 200, replacement.text[:250] if replacement.status_code != 200 else ""
+    # Re-archiving a trashed revision must not overwrite its physical bytes.
+    assert old_path.read_bytes() == old_pdf
     restored = client.post(f"/api/documents/{doc_id}/restore", headers=headers)
     assert restored.status_code == 409, restored.text[:250]
     db.expire_all()
@@ -128,3 +132,4 @@ def test_s4_trashed_official_revision_cannot_be_restored_over_active_duplicate(
     ).all()
     assert len(active) == 1
     assert active[0].id != doc_id
+    assert active[0].file_path != doc.file_path
