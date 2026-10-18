@@ -43,7 +43,7 @@ def test_cabinet_day_endpoint_scoped_and_invalid_timezone_fails_closed(client, a
         assert response.status_code == 404
 
 
-def test_rdv_homonym_patient_identity_is_revalidated_each_step(client, db, dentiste, auth_headers):
+def test_rdv_homonym_revalidated_without_disclosing_identity_in_partial_transcript(client, db, dentiste, auth_headers):
     for name, dossier in (("Amina", "C-101"), ("Salma", "C-102")):
         db.add(models.Patient(nom="Benali", prenom=name, numero_dossier=dossier,
             date_naissance=datetime(1990, 1, 1), sexe="F", employer_id=dentiste.id))
@@ -58,12 +58,12 @@ def test_rdv_homonym_patient_identity_is_revalidated_each_step(client, db, denti
             json={"messages":["/rdv", "id:" + str(selected["id"])]})
         assert step.status_code == 200, step.text
         assert step.json()["status"] == "clarification"
-        assert step.json()["patient"]["numero_dossier"] == "C-102"
-        assert step.json()["patient"]["prenom"] == "Salma"
+        assert "patient" not in step.json()  # preserve ZERO-LLM partial-response safety contract
+        assert step.json()["proposal"] is None
         next_step = client.post("/api/bot/workflows/preview", headers=auth_headers,
             json={"messages":["/rdv","id:" + str(selected["id"]), "2027-01-10"]})
         assert next_step.status_code == 200, next_step.text
-        assert next_step.json()["patient"]["numero_dossier"] == "C-102"
+        assert "patient" not in next_step.json()
         assert next_step.json()["proposal"] is None
         # No CB-01 preview request creates any real appointment/pending action.
         assert db.query(models.Appointment).count() == 0
