@@ -38,21 +38,29 @@ const futureDossierProposal=[
   '/rdv','dossier:CB01-N-101','2099-01-01','10:00','30','consultation','CONFIRMER',
 ];
 const roleChecks={s05ReceptionDossier:'NOT_RUN',s06NoAgenda:'NOT_RUN'};
-// Synthetic bearer credentials are memory-only; never persist them as evidence.
+// Synthetic bearer credentials stay in memory, never in reports.
 const roleTokens=Object.create(null);
 const roleStorageStates=Object.create(null);
+// The OWNER enrolled this physical lab workstation in the outer harness.
+// Its opaque device cookie is tenant-scoped and may be used by distinct staff
+// sessions on that same station. Enrollment itself is OWNER-ONLY, never staff.
+const ownerState=await api.storageState();
+const workstationCookies=ownerState.cookies.filter(c=>c.name==='dc_workstation');
+if(workstationCookies.length!==1 || workstationCookies[0].httpOnly!==true)
+  throw new Error('REFUSED: no unique owner-enrolled secure workstation fixture');
 for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
   const account=process.env[envPrefix+'_USER'];
   const secret=process.env[envPrefix+'_PASSWORD'];
   if (!account?.startsWith('t2-') || !secret) {
     throw new Error('REFUSED: synthetic role credentials missing: '+kind);
   }
-  // The global T2 harness auto-attaches OWNER workstation cookies.
-  // An S06 bearer + owner cookie is correctly refused by middleware (423),
-  // before preview RBAC. Create a clean per-principal workstation session.
+  // The generic wrapper's request context includes the owner's auth cookie;
+  // do NOT reuse that principal. Fresh context + staff login -> staff JWT.
+  // Add ONLY the cabinet's pre-enrolled, owner-authorized workstation cookie.
+  // The production middleware still checks the station against tenant scope.
   const roleApi=await request.newContext({
     baseURL:apiOrigin,
-    storageState:{cookies:[],origins:[]}, // explicit override of owner cookie
+    storageState:{cookies:[],origins:[]},
   });
   try {
     const signedIn=await roleApi.post('/api/auth/login',{
@@ -61,14 +69,22 @@ for (const [kind,envPrefix] of [['s05','T2_S05'],['s06','T2_S06']]) {
     if (!signedIn.ok()) throw new Error('FAIL: receptionist login '+kind+' HTTP '+signedIn.status());
     const roleToken=(await signedIn.json()).access_token;
     roleTokens[kind]=roleToken;
-    const enrolled=await roleApi.post('/api/workstation/enroll',{
-      data:{accountPassword:secret},
+    await roleApi.addCookies(workstationCookies);
+    const check=await roleApi.get('/api/workstation/bootstrap',{
       headers:{Authorization:'Bearer '+roleToken},
     });
-    if (!enrolled.ok()) throw new Error('FAIL: receptionist workstation enrollment '+kind+' HTTP '+enrolled.status());
+    if (check.status()!==200) {
+      throw new Error('FAIL: authenticated receptionist workstation bootstrap '+kind+' HTTP '+check.status());
+    }
+    const boot=await check.json();
+    if (boot.authenticated!==true || boot.enrollmentRequired!==false || !boot.workstationId) {
+      throw new Error('REFUSED: synthetic role cannot use already enrolled cabinet workstation '+kind);
+    }
     const state=await roleApi.storageState();
-    if (!state.cookies.some(cookie=>cookie.name==='dc_workstation')) {
-      throw new Error('REFUSED: no per-role workstation cookie '+kind);
+    if (state.cookies.find(c=>c.name==='access_token')?.value!==roleToken
+        || state.cookies.filter(c=>c.name==='dc_workstation').length!==1
+        || state.cookies.some(c=>c.name==='dc_station_escape')) {
+      throw new Error('REFUSED: ambiguous role JWT or workstation/escape cookies '+kind);
     }
     roleStorageStates[kind]=state;
     const sendRolePreview=async messages => {
