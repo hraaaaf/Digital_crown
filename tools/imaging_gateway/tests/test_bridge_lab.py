@@ -61,7 +61,27 @@ class BridgeLabConfigTests(unittest.TestCase):
         imports = [alias.name for node in ast.walk(tree)
                    if isinstance(node, ast.ImportFrom) and node.module == module
                    for alias in node.names]
-        self.assertCountEqual(imports, ["start_if_enabled", "stop_bridge_lab"])
+        self.assertCountEqual(
+            imports, ["start_if_enabled", "stop_bridge_lab",
+                      "bridge_lab_operational_state"])
+        # The operational import must occur only AFTER the TEST isolation
+        # and environment guard has rejected non-LAB callers with 404.
+        status_functions = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef)
+            and node.name == "imaging_bridge_lab_operational_health"
+        ]
+        self.assertEqual(len(status_functions), 1)
+        status_body = status_functions[0].body
+        guard = next(node for node in status_body if isinstance(node, ast.If))
+        status_import = next(
+            node for node in status_body
+            if isinstance(node, ast.ImportFrom) and node.module == module
+        )
+        self.assertLess(status_body.index(guard), status_body.index(status_import))
+        self.assertIn("DIGITALCROWN_ISOLATED_RUNTIME", ast.unparse(guard.test))
+        self.assertIn("ENVIRONMENT", ast.unparse(guard.test))
+        self.assertIn("status_code=404", ast.unparse(guard))
         # Start must be guarded by an explicit opt-in, and shutdown must
         # require an existing handle. Both imports are intentionally present.
         start_guards = [node for node in ast.walk(tree)
