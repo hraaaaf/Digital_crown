@@ -102,6 +102,34 @@ class P2ScmFixtureStaticGuardTests(unittest.TestCase):
             self.assertIn(marker, self.ps)
         self.assertNotIn("P2_SCM_INTERACTIVE_PEER_DENIED=11/11", self.ps)
 
+    def test_native_sqlite_wal_full_fail_closed_readback(self):
+        # Source-only oracle: compiled by the separate experimental Windows gate,
+        # never a claim of a real SCM token, backup or crash recovery.
+        for marker in (
+            'EntryPoint="sqlite3_prepare_v2"',
+            'EntryPoint="sqlite3_step"',
+            'EntryPoint="sqlite3_column_text"',
+            'EntryPoint="sqlite3_finalize"',
+            "SQLITE_PRAGMA_PREPARE_FAILED",
+            "SQLITE_PRAGMA_ROW_MISSING",
+            "SQLITE_PRAGMA_VALUE_MISMATCH",
+            "SQLITE_PRAGMA_EXTRA_ROW",
+            "SQLITE_PRAGMA_FINALIZE_FAILED",
+            'ExpectScalar(db, "PRAGMA journal_mode=WAL;", "wal")',
+            'Sql(db, "PRAGMA synchronous=FULL;")',
+            'ExpectScalar(db, "PRAGMA synchronous;", "2")',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.cs)
+        wal = self.cs.index('ExpectScalar(db, "PRAGMA journal_mode=WAL;", "wal")')
+        full = self.cs.index('ExpectScalar(db, "PRAGMA synchronous;", "2")')
+        commit = self.cs.index("SCM_COMMITTED")
+        proof = self.cs.index('"SQLITE_COMMIT=PASS')
+        self.assertLess(wal, full)
+        self.assertLess(full, commit)
+        self.assertLess(commit, proof)
+        self.assertNotIn('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;', self.cs)
+
     def test_no_production_storage_paths_or_device_calls(self):
         together = self.ps + "\n" + self.cs
         for forbidden in (

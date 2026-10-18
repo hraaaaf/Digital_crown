@@ -19,6 +19,14 @@ public sealed class P2ScmSyntheticService : ServiceBase {
     static extern int Close(IntPtr db);
     [DllImport("winsqlite3.dll", EntryPoint="sqlite3_free", CallingConvention=CallingConvention.Cdecl)]
     static extern void Free(IntPtr ptr);
+    [DllImport("winsqlite3.dll", EntryPoint="sqlite3_prepare_v2", CharSet=CharSet.Ansi, CallingConvention=CallingConvention.Cdecl)]
+    static extern int Prepare(IntPtr db, string sql, int length, out IntPtr statement, IntPtr tail);
+    [DllImport("winsqlite3.dll", EntryPoint="sqlite3_step", CallingConvention=CallingConvention.Cdecl)]
+    static extern int Step(IntPtr statement);
+    [DllImport("winsqlite3.dll", EntryPoint="sqlite3_column_text", CallingConvention=CallingConvention.Cdecl)]
+    static extern IntPtr ColumnText(IntPtr statement, int index);
+    [DllImport("winsqlite3.dll", EntryPoint="sqlite3_finalize", CallingConvention=CallingConvention.Cdecl)]
+    static extern int FinalizeStatement(IntPtr statement);
     static volatile bool stopping;
     static Thread worker;
     // Defense in depth: never touch a DB from an arbitrary install/clinic path.
@@ -51,13 +59,36 @@ public sealed class P2ScmSyntheticService : ServiceBase {
             throw new InvalidOperationException("SQLITE_RC=" + rc.ToString() + ":" + why);
         }
     }
+    // Validate values observed from SQLite; successful sqlite3_exec alone cannot
+    // establish WAL mode or FULL synchronous durability on the runtime volume.
+    static void ExpectScalar(IntPtr db, string sql, string expected) {
+        IntPtr statement = IntPtr.Zero;
+        try {
+            int rc = Prepare(db, sql, -1, out statement, IntPtr.Zero);
+            if (rc != 0 || statement == IntPtr.Zero)
+                throw new InvalidOperationException("SQLITE_PRAGMA_PREPARE_FAILED");
+            if (Step(statement) != 100)
+                throw new InvalidOperationException("SQLITE_PRAGMA_ROW_MISSING");
+            string actual = Marshal.PtrToStringAnsi(ColumnText(statement, 0));
+            if (!String.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("SQLITE_PRAGMA_VALUE_MISMATCH");
+            if (Step(statement) != 101)
+                throw new InvalidOperationException("SQLITE_PRAGMA_EXTRA_ROW");
+        } finally {
+            if (statement != IntPtr.Zero && FinalizeStatement(statement) != 0)
+                throw new InvalidOperationException("SQLITE_PRAGMA_FINALIZE_FAILED");
+        }
+    }
     static void Work() {
         IntPtr db = IntPtr.Zero;
         try {
             string dir = PrivateDir, dbpath = Path.Combine(dir, "synthetic.sqlite3");
             if (Open(dbpath, out db, 0x00010006, IntPtr.Zero) != 0 || db == IntPtr.Zero)
                 throw new InvalidOperationException("SQLITE_OPEN_FAILED");
-            Sql(db, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS ledger(id INTEGER PRIMARY KEY, label TEXT NOT NULL);");
+            ExpectScalar(db, "PRAGMA journal_mode=WAL;", "wal");
+            Sql(db, "PRAGMA synchronous=FULL;");
+            ExpectScalar(db, "PRAGMA synchronous;", "2");
+            Sql(db, "CREATE TABLE IF NOT EXISTS ledger(id INTEGER PRIMARY KEY, label TEXT NOT NULL);");
             Sql(db, "BEGIN IMMEDIATE; INSERT INTO ledger(label) VALUES ('SCM_COMMITTED'); COMMIT;");
             Sql(db, "BEGIN IMMEDIATE; INSERT INTO ledger(label) VALUES ('SCM_ROLLED_BACK'); ROLLBACK;");
             Sql(db, "PRAGMA wal_checkpoint(PASSIVE);");

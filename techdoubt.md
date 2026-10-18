@@ -1,5 +1,11 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-18 — P2-F01 internal review A+B, WAL PRAGMA false-positive corrected source-only
+
+- Internal perspective **A / Windows ACL**: BLOCKER unexecuted native SCM account/session/token and effective DACL; MAJOR untested object DACL, OWNER RIGHTS, reparse/replacement and peer spawned environment. The existing 17-denial SCM fixture remains a source oracle only. No independent A agent executed; 0/2 independent BLIND.
+- Internal perspective **B / WAL reliability**: MAJOR original C# `Sql(... "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; ...")` only checked sqlite3_exec return code; a non-WAL or non-FULL PRAGMA response could still produce `SQLITE_COMMIT=PASS`. Source patch adds fail-closed SQLite prepare/step/column/finalize readback for WAL=`wal` and synchronous=`2` before first SQL commit. On real Windows SCM **NOT_EXECUTED**; code compilation and static tests must be rerun on the new SHA. Other OPEN BLOCKERs: native kill/restart, close/checkpoint busy behavior, actual headless backup/restore plus cipher+key/spool and clinical compatibility. No independent B agent executed.
+- Two first-time *prompts* are recorded at `docs/quality/LOT06_P_P2_F01_BLIND_A_B_PROMPTS.md`; writing prompts or doing two internal passes does not meet the independent BLIND gate. No privileged SCM invocation, client machine, LOT10, merge, deployment or migration authorized. P2 NOT CONVERGED.
+
 ## 2026-10-18 — P2-F01: syntactic negative-rights extension, NOT native SCM proof
 
 - Source-only hardening of the *unexecuted* disposable SCM peer oracle: request ChangePermissions (WRITE_DAC) and TakeOwnership (WRITE_OWNER) on each of three synthetic SQLite DB/WAL/SHM leaves, without changing ACLs or ownership. Require strict UnauthorizedAccessException, explicit 3/3 counters, 17/17 total, and a positive service transaction after denials. Static test checks source markers and rejects selected ACL mutators.
