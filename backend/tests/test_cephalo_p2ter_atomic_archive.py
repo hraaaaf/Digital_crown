@@ -103,6 +103,12 @@ def test_same_study_revision_archive_replays_identical_bytes_once(
     assert second.status_code == 200, second.text[:250] if second.status_code != 200 else ""
     assert second.headers["X-Cephalo-Archive-Replayed"] == "true"
     assert second.content == first.content
+    changed_context = client.post(
+        endpoint, json={**payload, "ai_diagnostic": {"diagnostic": "CHANGED SYNTHETIC"}},
+        headers=headers,
+    )
+    assert changed_context.status_code == 409, changed_context.text[:250]
+    assert "contexte clinique" in changed_context.json()["detail"]
 
     records = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient.id,
