@@ -58,6 +58,10 @@ Lire `docs/quality/REALITY_PROOF_GATE.md` pour chaque lot/sous-lot V1.5. Choisir
 
 Pour tout lot significatif, correction importante, migration, changement architectural, sécurité, données ou logique métier critique :
 
+**Définition produit « deux reviewers indépendants » = deux agents IA BLIND USERS spécialisés, et NON deux reviewers humains.** Sélectionner deux compétences distinctes en lien direct avec le chantier (ex. praticien/parcours clinique vs sécurité/intégrité des données, ou accueil/ergonomie vs finance/permissions). Les lancer dans **deux contextes et sessions de test réellement isolés** : compte fictif/état initial propres, instructions de mission séparées, sans accès au code, aux corrections attendues ni au rapport de l'autre avant remise individuelle. Ils découvrent le produit depuis le **login UI** et tentent le parcours métier complet, positif et négatif, sur une instance frontend + backend de test véritablement isolée. Les chemins publics/échecs de connexion démarrent avant ou au login, jamais via un token injecté pour fabriquer un PASS. Chaque agent remet sa trace BEFORE → action → AFTER, son rapport P0/P1/P2, son verdict et le HEAD exact, avant confrontation des résultats. L'exploration FUE et la revue technique adversariale sont des preuves complémentaires, non interchangeables.
+
+**Indépendance vérifiable** : deux prompts lancés séquentiellement dans la même conversation, avec connaissance implicite des résultats, ne constituent PAS deux agents indépendants ; dans ce cas déclarer « deux perspectives internes non indépendantes », sans usurper le gate BLIND USERS. La validation par un vrai humain, les essais sur dispositifs physiques LOT10, la revue scientifique externe/nominative et l'approbation explicite du praticien lorsqu'exigée sont quatre exigences **distinctes**, que les agents simulés ne remplacent jamais.
+
 - écrire **au minimum deux prompts adversariaux distincts** avant le closeout ;
 - chaque prompt doit adopter une perspective réellement différente et adaptée au risque du lot ;
 - exécuter les deux prompts séparément **depuis zéro sur le même HEAD** ;
@@ -68,14 +72,14 @@ Pour tout lot significatif, correction importante, migration, changement archite
 - après convergence, exécuter une **passe supplémentaire de confirmation depuis zéro** sur le même HEAD ;
 - aucun `ADVERSARIAL_SCORE`, `RETAINED_SCORE`, `VERIFIED`, `CONVERGED`, `READY`, `CLOSED` ou équivalent final ne peut être retenu sans trace des deux prompts, de leur exécution et de la passe de confirmation ;
 - une CI verte ne remplace jamais ces revues ; vérifier collecte, exécution, skips, SHA exact et portée réelle des tests ;
-- si aucune vraie revue indépendante n'est disponible, nommer explicitement les deux passes **revues adversariales internes** ; le plafond d'auto-revue `9.4/10` reste applicable. Une revendication `>= 9.5/10` exige toujours une vraie revue indépendante conformément à la règle de scoring.
+- si les **deux agents BLIND USERS isolés** ne sont pas réellement disponibles/exécutés, nommer explicitement les deux passes **perspectives adversariales internes non indépendantes** et laisser ouvert le gate BLIND USERS applicable ; plafond d'auto-revue `9.4/10`. Une revendication `>= 9.5/10` demande une revue réellement indépendante **attestée par exécution isolée** (agent distinct ou humain indépendant selon le gate), et ne crée pas une obligation universelle de deux humains.
 
 Lire et appliquer **à chaque étape matérielle** `.claude/rules/execution-scoring-verification.md`.
 
 - produire `EXECUTION_SCORE /10` puis `ADVERSARIAL_SCORE /10` ;
 - retenir **le minimum**, jamais une moyenne ;
 - tout écart `> 0.5` impose investigation, correction si possible, puis rescoring ;
-- auto-revue du même agent : plafond `9.4/10` ; `9.5+` exige une vraie revue indépendante ;
+- auto-revue du même agent : plafond `9.4/10` ; `9.5+` exige une revue indépendante prouvée, **sans assimiler deux prompts du même agent à deux BLIND USERS ni assimiler des agents à un consentement humain ou clinique** ;
 - preuve/gate requis manquant ou rouge : max `7.9/10` ; régression : max `6.9/10` ; blocker sécurité/privacy/data/claim clinique : max `5.9/10` + `BLOCKED` ;
 - UI sans vraie comparaison `Target ↔ Render` : fidélité visuelle max `7.5/10` ; une dimension critique faible ne peut jamais être masquée par une moyenne ;
 - un lot n'est `VERIFIED` qu'avec `RETAINED_SCORE >= 9.0/10`, tous les gates binaires applicables verts et une **Perfection Pass finale** terminée.
@@ -260,12 +264,12 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 - La PR [#783](https://github.com/hraaaaf/Digital_crown/pull/783) est le **laboratoire FUE réutilisable**, pas un lot produit ni un certificat universel. Lire son prompt `docs/audits/FIRST_USER_EXPERIENCE_PROMPT.md` et adapter persona, première valeur, contexte, viewports, scénarios, métriques, seuils et risques au lot/sous-lot concerné. Les catégories FUE-A…G du laboratoire sont un référentiel de contexte, distinct de cette campagne V1.5.
 - Appliquer la classification propre au plan V1.5 : **FUE-0** = contrat/code/tests seulement, sans inventer de parcours utilisateur ; **FUE-I** = parcours intermédiaire utilisable ; **FUE-G** = gate complet une fois le workflow de bout en bout disponible.
 - Matrice par sous-lot : CLOSED réel + niveau exigible + preuves exact-HEAD préexistantes + statut **PROUVÉ / PARTIEL / À FAIRE**. Réutiliser les preuves pertinentes ; ne pas convertir un CI vert en FUE prouvé.
-- Si FUE-I/G exigible : session/persona vierge pertinent, captures BEFORE/AFTER aux mêmes viewports, premier résultat utile, échecs/récupération, mesures, P0/P1/P2, score sévère, deux revues adversariales et confirmation même HEAD. Les corrections produit restent dans des PR produit distinctes de #783.
+- Si FUE-I/G exigible : **deux agents BLIND USERS spécialisés, isolés et sans connaissance croisée**, démarrant au login UI réel (ou à l'entrée publique pertinente), session/persona vierge pertinent, captures BEFORE/AFTER aux mêmes viewports, premier résultat utile, échecs/récupération, mesures, P0/P1/P2, score sévère, puis revues adversariales et confirmation même HEAD. Les corrections produit restent dans des PR produit distinctes de #783.
 - Commencer dans l'ordre V1.5-00.1 → 03.6, puis décider l'ouverture de 04. Aucun merge/déploiement Vercel implicite.
 
-### Définition opérationnelle FUE — utilisateur réel, couverture complète, preuve avant verdict
+### Définition opérationnelle FUE — parcours de nouvel utilisateur dans le produit réel, couverture complète, preuve avant verdict
 
-**FUE = First User Experience : une exploration observable de bout en bout par une personne représentative découvrant pour la première fois l'ensemble du périmètre effectivement livré du sous-lot.** Le laboratoire de PR #783 fournit les moyens d'observer et de mesurer; il ne détermine jamais arbitrairement un PASS.
+**FUE = First User Experience : exploration observable de bout en bout par deux personas nouveaux joués par des agents BLIND USERS spécialisés et réellement isolés dans une application/backend de test, du login UI jusqu'au résultat.** Ce sont des utilisateurs **simulés** sur un produit exécuté réellement, pas des testeurs humains. Les essais par personnes humaines et dispositifs physiques sont différés au gate terrain LOT10 et commencent eux aussi au login lorsqu'un parcours authentifié est concerné. Le laboratoire de PR #783 fournit les moyens d'observer et de mesurer ; il ne détermine jamais arbitrairement un PASS.
 
 - Définir d'abord le contrat concret du sous-lot (écrans, liens, boutons, états, permissions, cas limites, risques, intégrations, chemins heureux et négatifs, reprise), la persona, l'état initial et le First Value attendu. Adapter le scénario au sous-lot; distinguer strictement FUE-0, FUE-I et FUE-G, et consigner N/A avec justification. Ne pas exiger un parcours inexistant dans FUE-0.
 - **Parcourir la totalité des éléments applicables**, comme un nouvel utilisateur, en explorant les sorties possibles et pas seulement un chemin heureux. Observer clarté des libellés, compréhension, cohérence, guidage, charge cognitive, feedback, visibilité des permissions, navigation, accessibilité, robustesse et sécurité; ne pas confondre les assertions techniques avec l'expérience.
