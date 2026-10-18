@@ -49,12 +49,15 @@ const expectedTerms = [
   { key:'rdv', re: /préparer\s+un\s+rdv/i },
 ];
 // Match real NVDA spoken *roles*, not incidental words in instructional prose.
+// NVDA speech genuinely uses both "role, name" and "name, role"
+// depending on virtual cursor vs form-field navigation. Require complete
+// labels and actual spoken role; never derive PASS from DOM or prose.
 const expectedControls = {
-  brainTab: /^tab,\s*(?:selected,\s*)?Mémoire contextuelle(?:\s|$)/iu,
-  chatTab: /^tab,\s*(?:selected,\s*)?Chat(?:\s|$)/iu,
-  programmeButton: /^button,\s*Mon programme(?:\s|$)/iu,
-  findPatientButton: /^button,\s*Trouver un patient(?:\s|$)/iu,
-  rdvButton: /^button,\s*Préparer un RDV(?:\s|$)/iu,
+  brainTab: /^(?:tab,\s*(?:selected,\s*)?Mémoire contextuelle|Mémoire contextuelle,\s*tab(?:,\s*selected)?)(?:,|$)/iu,
+  chatTab: /^(?:tab,\s*(?:selected,\s*)?Chat|Chat,\s*tab(?:,\s*selected)?)(?:,|$)/iu,
+  programmeButton: /^(?:button,\s*Mon programme|Mon programme,\s*button)(?:,|$)/iu,
+  findPatientButton: /^(?:button,\s*Trouver un patient|Trouver un patient,\s*button)(?:,|$)/iu,
+  rdvButton: /^(?:button,\s*Préparer un RDV|Préparer un RDV,\s*button)(?:,|$)/iu,
 };
 function spokenControlStatus(phrases) {
   return Object.fromEntries(Object.entries(expectedControls).map(([key, regexp]) => [
