@@ -135,6 +135,59 @@ def test_same_study_revision_archive_replays_identical_bytes_once(
     ).all()) == 1
 
 
+def test_replay_serves_verified_snapshot_not_reopened_file(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Race the PDF file after verification but before the ASGI response.
+
+    If the replay used FileResponse(path), the client would receive tampered
+    bytes or a missing-file error. It must receive the verified immutable copy.
+    """
+    from types import SimpleNamespace
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service, cephalo_document_lock
+
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    headers = _jwt(client, dentiste)
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+    endpoint = f"/api/patients/{patient.id}/pdf"
+    payload = {"analysis_id": study.id, "expected_revision": 1, "archive": True}
+    initial = client.post(endpoint, json=payload, headers=headers)
+    assert initial.status_code == 200
+    before = initial.content
+
+    original_lookup = cephalo_document_lock.already_archived_pdf
+
+    def replace_file_after_verified_read(*args, **kwargs):
+        snapshot = original_lookup(*args, **kwargs)
+        assert snapshot is not None
+        verified_path, verified_bytes = snapshot
+        assert verified_bytes == before
+        verified_path.write_bytes(b"%PDF-1.4 TAMPERED AFTER VERIFY")
+        return snapshot
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            cephalo_document_lock, "already_archived_pdf",
+            replace_file_after_verified_read,
+        )
+        replayed = client.post(endpoint, json=payload, headers=headers)
+
+    assert replayed.status_code == 200, replayed.text[:250] if replayed.status_code != 200 else ""
+    assert replayed.headers["x-cephalo-archive-replayed"] == "true"
+    assert replayed.headers["content-disposition"].startswith("attachment;")
+    assert replayed.content == before
+    # The tampering remains detectable on a later request, not silently trusted.
+    refused = client.post(endpoint, json=payload, headers=headers)
+    assert refused.status_code == 409
+
+
 def test_generic_upload_cannot_forge_or_overwrite_official_cephalo_archive(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
