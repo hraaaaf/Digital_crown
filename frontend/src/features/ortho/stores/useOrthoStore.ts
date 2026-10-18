@@ -139,6 +139,9 @@ interface OrthoState {
 }
 
 let previewOperationGeneration = 0;
+// Separate epochs for the active radio upload and the user's study selection.
+let radioUploadGeneration = 0;
+let studySelectionGeneration = 0;
 let landmarkSaveGeneration = 0;
 let landmarkSaveChain: Promise<void> = Promise.resolve();
 
@@ -383,11 +386,23 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     const current = get();
     if (current.patientId !== null && current.patientId !== id) {
       landmarkSaveGeneration += 1;
+      previewOperationGeneration += 1;
+      studySelectionGeneration += 1;
+      radioUploadGeneration += 1;
+      if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        if (current.previewPdfUrl?.startsWith('blob:')) URL.revokeObjectURL(current.previewPdfUrl);
+        for (const photo of current.photos) {
+          if (photo.preview?.startsWith('blob:')) URL.revokeObjectURL(photo.preview);
+        }
+      }
       set({
         imageSrc: undefined,
         analysisId: undefined,
         previewPdfUrl: null,
         isPreviewLoading: false,
+        isUploading: false,
+        uploadError: null,
+        photos: current.photos.map(photo => ({ ...photo, file: null, preview: null })),
         local: { landmarks: [], version: 0 },
         landmarkEditTimeline: createLandmarkEditTimeline(),
         anglesData: {},
@@ -432,8 +447,10 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     // from the previous analysis may be used by PDF/save operations.
     landmarkSaveGeneration += 1;
     previewOperationGeneration += 1;
+    studySelectionGeneration += 1;
     set({
       analysisId: id, previewPdfUrl: null, isPreviewLoading: false,
+      isUploading: false, uploadError: null,
       imageSrc: undefined, local: { landmarks: [], version: 0 },
       landmarkEditTimeline: createLandmarkEditTimeline(),
       anglesData: {}, visionMetadata: {}, isCalibrated: false, mmPerPixel: null,
@@ -513,13 +530,18 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   runAnalysis: async (file: File) => {
     const state = get();
     if (!state.patientId) return;
+    const operation = ++radioUploadGeneration;
+    const selection = studySelectionGeneration;
+    const stillCurrent = () => radioUploadGeneration === operation
+      && studySelectionGeneration === selection
+      && get().patientId === state.patientId
+      && get().analysisId === state.analysisId;
     set({ uploadError: null, isUploading: true });
     try {
       const data = await cephaloRepository.uploadRadio(state.patientId, file);
-      // A late upload response for a previous patient must never populate
-      // the current patient's study. A fresh study uses the same isolation
-      // boundary as selecting a different study from history.
-      if (get().patientId !== state.patientId) return;
+      // Do not let an A upload overwrite study B, even after an A→B→A switch.
+      // Parallel uploads also obey latest-request-wins within one selection.
+      if (!stillCurrent()) return;
       if (data.analysis_id) get().setAnalysisId(data.analysis_id);
       if (data.image_path || data.file_url) {
         const raw: string = data.image_path || data.file_url;
@@ -600,10 +622,13 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
       set(s => ({ completedSteps: new Set([...s.completedSteps, 1]) }));
     } catch (e: any) {
-      const raw = e?.response?.data?.detail;
-      set({ uploadError: typeof raw === 'string' ? raw : 'Échec de l\'analyse. Vérifiez l\'image.' });
+      if (stillCurrent()) {
+        const raw = e?.response?.data?.detail;
+        set({ uploadError: typeof raw === 'string' ? raw : 'Échec de l\'analyse. Vérifiez l\'image.' });
+      }
     } finally {
-      set({ isUploading: false });
+      // A stale completion must not hide a newer pending upload.
+      if (radioUploadGeneration === operation) set({ isUploading: false });
     }
   },
   silentSave: async (id?: number, strict = false) => {

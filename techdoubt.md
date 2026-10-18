@@ -2,6 +2,14 @@
 
 ## CEPH-FAC-PARITY / P2ter++ — 2026-10-18
 
+### GO correctif A-01/B-01/B-02 (2026-10-18) — nouveau HEAD à certifier
+
+- A-01 : la route statique officielle vérifie désormais `cephalo` en plus du tenant et de SHA ; test HTTP 403 avec secrétaire autorisée `patients` mais pas `cephalo`, et retour 200 propriétaire sur les deux routes. Preuve CI sur nouveau HEAD encore requise.
+- B-01 : réinitialisation des objets `photos` et révocation des URLs blob lors d'un changement de patient ; test sentinelle photo A → patient B sans cache. Persistance historique des blobs localStorage au rechargement non prouvée ; ne pas en déduire une sauvegarde réelle.
+- B-02 : garde des retours upload radio par génération et epoch de sélection (y compris même patient A→B et uploads concurrents) ; tests de réponse tardive. Les tests navigateur existants n'injectent pas ces deux scénarios.
+- Réserves antérieures non levées : SQLCipher/PG natifs, SQL+filesystem crash, vraies doubles actions inter-onglets, preuves mobile, et deux revues indépendantes post-correctifs. **NO-GO / CONVERGED=false** tant que nouveau HEAD et deux revues propres non certifiés. Aucun merge/déploiement.
+
+
 ### REVUE ADVERSARIALE INTERNE A/B — après premier échec REQUIRED (2026-10-18)
 
 **Perspective A — intégrité documentaire :** sur le HEAD antérieur `f0d2d62b2710b196efef1f86dbf732099ec7e55d`, REQUIRED [#39150740120](https://github.com/hraaaaf/Digital_crown/actions/runs/39150740120) exécute 51 tests backend : 50 PASS, 1 FAIL en raison d'un contrat de test erroné (`file_path` privé absent du modèle de réponse). Corrigé en consultant le `DocumentArchive` depuis la fixture SQL. Durcissements supplémentaires sur download ordinaire : vérification effective de l'étude et du patient, unicité de l'archive ACTIVE par étude/révision, rejet HTTP 409 des doublons historiques, test dédié. Invariants cross-type, traversal NTFS, hash/size et corbeille sont codés et testés, mais GREEN du HEAD courant non constaté.

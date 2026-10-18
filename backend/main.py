@@ -787,7 +787,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 from fastapi import Depends
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, has_permission
 from backend import database, models
 
 def _serve_protected_file(base_dir: str, rel_path: str) -> FileResponse:
@@ -873,6 +873,10 @@ async def serve_archives(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).all()
     if official_rows:
+        # The static path must enforce the same clinical permission as the
+        # canonical /api/documents/{id}/download endpoint.
+        if not has_permission(current_user, "cephalo"):
+            raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : cephalo.")
         if len(official_rows) != 1:
             raise HTTPException(status_code=409, detail="Provenance d'archive officielle ambiguë")
         from backend.services.cephalo_document_lock import verified_official_archive_bytes

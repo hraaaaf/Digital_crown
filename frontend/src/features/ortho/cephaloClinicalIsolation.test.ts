@@ -117,4 +117,70 @@ describe('P2ter++ clinical isolation A -> B (synthetic sentinel)', () => {
     }
   });
 
+  it('drops all A photo previews and File references when entering patient B without photos', () => {
+    const store = useOrthoStore.getState();
+    localStorage.removeItem('digitalcrown_photos_77502');
+    store.setPatientInfo(77501, 'synthetic patient A');
+    store.setPhotos(photos => photos.map(photo => photo.id === 'extra_face'
+      ? { ...photo, file: new File(['A'], 'A.png', { type: 'image/png' }), preview: 'blob:synthetic-A' }
+      : photo));
+    expect(useOrthoStore.getState().photos.find(p => p.id === 'extra_face')?.preview).toBe('blob:synthetic-A');
+    store.setPatientInfo(77502, 'synthetic patient B');
+    const next = useOrthoStore.getState();
+    expect(next.patientId).toBe(77502);
+    expect(next.photos.every(photo => photo.preview === null && photo.file === null)).toBe(true);
+    expect(JSON.stringify(next.photos)).not.toContain('synthetic-A');
+  });
+
+  it('rejects a delayed upload from study A after selecting B of the SAME patient', async () => {
+    const store = useOrthoStore.getState();
+    store.setPatientInfo(77503, 'synthetic same patient');
+    store.setAnalysisId(9910);
+    let complete!: (response: any) => void;
+    const deferred = new Promise<any>(resolve => { complete = resolve; });
+    const spy = vi.spyOn(cephaloRepository, 'uploadRadio').mockImplementationOnce(() => deferred);
+    try {
+      const inFlight = store.runAnalysis(new File(['A'], 'A.png', { type: 'image/png' }));
+      store.setAnalysisId(9911);
+      store.setImageSrc('/synthetic/B.png');
+      complete({ analysis_id: 9912, image_path: '/synthetic/LATE-A.png',
+        results: { metrics: {} }, landmarks: [] });
+      await inFlight;
+      const next = useOrthoStore.getState();
+      expect(next.analysisId).toBe(9911);
+      expect(next.imageSrc).toBe('/synthetic/B.png');
+      expect(next.isUploading).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('keeps the latest concurrent upload instead of late first upload', async () => {
+    const store = useOrthoStore.getState();
+    store.setPatientInfo(77504, 'synthetic parallel');
+    store.setAnalysisId(9920);
+    let completeA!: (response: any) => void;
+    let completeB!: (response: any) => void;
+    const first = new Promise<any>(resolve => { completeA = resolve; });
+    const second = new Promise<any>(resolve => { completeB = resolve; });
+    const spy = vi.spyOn(cephaloRepository, 'uploadRadio')
+      .mockImplementationOnce(() => first).mockImplementationOnce(() => second);
+    try {
+      const a = store.runAnalysis(new File(['A'], 'A.png', { type: 'image/png' }));
+      const b = store.runAnalysis(new File(['B'], 'B.png', { type: 'image/png' }));
+      completeA({ analysis_id: 9921, image_path: '/synthetic/LATE-A.png', results: { metrics: {} } });
+      await a;
+      expect(useOrthoStore.getState().analysisId).toBe(9920);
+      expect(useOrthoStore.getState().isUploading).toBe(true);
+      completeB({ analysis_id: 9922, image_path: '/synthetic/WINNER-B.png', results: { metrics: {} } });
+      await b;
+      const winner = useOrthoStore.getState();
+      expect(winner.analysisId).toBe(9922);
+      expect(winner.imageSrc).toContain('WINNER-B.png');
+      expect(winner.isUploading).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
 });

@@ -146,6 +146,47 @@ def test_s3_official_pdf_download_routes_serve_verified_bytes_only(
         assert response.status_code == 409, (route, response.status_code, response.text[:200])
 
 
+def test_s3c_static_official_pdf_requires_cephalo_role_within_same_cabinet(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """A patient-scoped secretary cannot read a clinical PDF via a static URL."""
+    from backend.tests.conftest import make_user
+    from backend.routers.auth import has_permission
+    from backend.routers.workstation_mode import WORKSTATION_COOKIE
+
+    patient, _, owner_headers, _, doc, official_pdf = _setup_official(
+        client, db, dentiste, monkeypatch, tmp_path,
+    )
+    static = "/api/static/archives/" + doc.file_path.removeprefix("static/archives/")
+    direct = f"/api/documents/{doc.id}/download"
+    original = client.get(static, headers=owner_headers)
+    assert original.status_code == 200 and original.content == official_pdf
+    station = client.cookies.get(WORKSTATION_COOKIE)
+    assert station, "Expected a real authenticated cabinet workstation"
+
+    secretary = make_user(
+        db, email="p2ter-restricted-secretary@cabinet.invalid", role="SECRETAIRE",
+    )
+    secretary.employer_id = dentiste.id
+    secretary.approval_status = "approved"
+    secretary.permissions = {"patients": True, "cephalo": False}
+    db.commit()
+    assert has_permission(secretary, "patients") and not has_permission(secretary, "cephalo")
+    restricted = _jwt(client, secretary)
+    client.cookies.set(WORKSTATION_COOKIE, station)
+    for route in (static, direct):
+        response = client.get(route, headers=restricted)
+        assert response.status_code == 403, (route, response.status_code, response.text[:200])
+
+    # A permitted clinician still retrieves the exact original PDF on both routes.
+    owner_headers = _jwt(client, dentiste)
+    client.cookies.set(WORKSTATION_COOKIE, station)
+    for route in (static, direct):
+        response = client.get(route, headers=owner_headers)
+        assert response.status_code == 200, (route, response.status_code, response.text[:200])
+        assert response.content == official_pdf
+
+
 def test_s3b_official_download_refuses_ambiguous_active_study_revision(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
