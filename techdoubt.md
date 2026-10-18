@@ -2,6 +2,14 @@
 
 ## CEPH-FAC-PARITY / P2ter++ — 2026-10-18
 
+### CORRECTIFS — seconde passe de certification (18/10/2026, même lot P2ter++)
+
+- **Défaut CI avéré sur HEAD historique `f0d2d62b2710b196efef1f86dbf732099ec7e55d`:** [REQUIRED #39150740120](https://github.com/hraaaaf/Digital_crown/actions/runs/39150740120), `identity-backend` FAIL (**50 passed, 1 failed**) ; `test_s2b` attendait `file_path` dans un `DocumentArchiveResponse` qui l'exclut volontairement, KeyError ; le code de conservation des fichiers n'a pas été invalidé par cette assertion. Correction dans le test : lecture de la ligne SQL à partir de l'ID de réponse, sans élargir l'API.
+- [Chromium #39150740076](https://github.com/hraaaaf/Digital_crown/actions/runs/39150740076) **SUCCESS**, deux résolutions desktop : sentinelle clinique A absente du formulaire et du POST PDF de B ; extraction PDF B exclut le marqueur, mais **ce n'est pas** une preuve de présence du texte libre dans le PDF A ni un audit clinique.
+- **Durcissement nouveau HEAD :** chemin normal `verified_official_archive_bytes` vérifie aussi que `CephaloAnalysis(patient_id)` est réellement celui de l'archive et qu'une seule archive officielle ACTIVE existe pour le couple étude/révision ; nouveau test HTTP avec doublon historique. Le brouillon fige ses données cliniques **avant** la prévalidation asynchrone.
+- **Point B additionnel découvert en revue adversariale interne :** `runAnalysis()` assignait directement `analysisId` lors de l'upload d'une nouvelle radiographie et sautait ainsi la remise à zéro clinique mise en place pour la sélection historique A→B. Correction en utilisant `setAnalysisId()` et refusant une réponse upload tardive appartenant à un autre patient ; test Vitest dédié avec marqueur `SENTINEL_A_UPLOAD`.
+- **Statut :** aucune certification GREEN exact-HEAD nouvelle démontrée par ces ajouts. Restent **NOT TESTED** : crash SQL+FS réel, PostgreSQL multi-process, symlinks de parents administrés par un acteur local hostile, véritable parcours de deux clics simultanés sur deux onglets, perte de réseau au POST et comportement de démontage. A/B post-fix de conversations distinctes non reçues. **NO-GO / CONVERGED=false** ; PR #957 DRAFT, aucune fusion ni déploiement.
+
 ### CORRECTIFS CRITIQUES — GO utilisateur (2026-10-18), revue/CI finale NON CERTIFIÉE
 
 Exécution sur **PR #957** dans le seul périmètre CEPH-FAC-PARITY/P2ter++ ; HEAD en mouvement, se référer au HEAD courant GitHub et non aux anciennes preuves. Les constats first-pass A (2/10, 3 BLOCKER + 1 MAJOR) et B (4/10, 1 BLOCKER + 5 MAJOR) restent **figés** ; aucun CONVERGED avant deux nouvelles revues propres sur HEAD final.
