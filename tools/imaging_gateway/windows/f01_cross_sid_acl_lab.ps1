@@ -203,6 +203,26 @@ if ($Mode -eq 'Peer') {
             $stream.Dispose()
         } 'DELETE_RIGHT'
         $n++
+        # WRITE_DAC / WRITE_OWNER must be denied by the actual peer token.
+        # FileStream requests each access mask directly; it does NOT modify
+        # the ACL or take ownership, nor does it require a privileged token.
+        # FileNotFound is explicitly rejected by Require-Denied.
+        Require-Denied {
+            $stream = [IO.FileStream]::new($probe, [IO.FileMode]::Open,
+                [Security.AccessControl.FileSystemRights]::ChangePermissions,
+                ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete),
+                4096, [IO.FileOptions]::None)
+            $stream.Dispose()
+        } 'WRITE_DAC'
+        $n++
+        Require-Denied {
+            $stream = [IO.FileStream]::new($probe, [IO.FileMode]::Open,
+                [Security.AccessControl.FileSystemRights]::TakeOwnership,
+                ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete),
+                4096, [IO.FileOptions]::None)
+            $stream.Dispose()
+        } 'WRITE_OWNER'
+        $n++
     }
     Require-Denied {
         [IO.File]::WriteAllText((Private-Path 'new-peer-created.txt'), 'synthetic')
@@ -311,7 +331,7 @@ try {
         $hashes[$file] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
     }
     $no = Invoke-Child 'Peer' $peerCredential $runner $work $owner $peer
-    Assert-F01 ($no.sid -eq $peer -and $no.standard_user -and [int]$no.assertions -eq 21) 'PEER_DENIAL_FAILED'
+    Assert-F01 ($no.sid -eq $peer -and $no.standard_user -and [int]$no.assertions -eq 33) 'PEER_DENIAL_FAILED'
     Check-Acl (Evidence-Report 'Peer') @($peer,'S-1-5-18','S-1-5-32-544')
     foreach ($file in F01-Files) {
         Assert-F01 ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -eq $hashes[$file]) 'HASH_CHANGED'
@@ -344,8 +364,10 @@ Write-Host 'F01_DISPOSABLE_USER_AND_ROOT_CLEANUP=PASS'
     Write-Host 'F01_DISTINCT_STANDARD_USER_TOKENS=PASS'
     Write-Host 'F01_PROTECTED_NTFS_DACL=PASS'
     Write-Host 'F01_OWNER_POSITIVE_FILE_IO=6/6'
-    Write-Host 'F01_PEER_NEGATIVE_FILE_IO=21/21'
+    Write-Host 'F01_PEER_NEGATIVE_FILE_IO=33/33'
     Write-Host 'F01_PEER_DELETE_RIGHT_DENIED=6/6'
+    Write-Host 'F01_PEER_WRITE_DAC_REQUEST_DENIED=6/6'
+    Write-Host 'F01_PEER_WRITE_OWNER_REQUEST_DENIED=6/6'
     Write-Host 'F01_RENAME_DIRECT_ATTEMPT=NOT_TESTED_FILE_NAME_CLOAKED'
     Write-Host 'F01_TRUSTED_SCRIPT_AND_OWNER_REPORT_PEER_WRITE_DENIED=PASS'
     Write-Host 'F01_SYNTHETIC_SHA256_UNCHANGED=6/6'
