@@ -44,9 +44,9 @@ export function CommandWorkbenchReactTarget(){
  const announce=(what:string)=>setNotification(what+' : simulation uniquement, aucune opération clinique.');
  return <div className="cmd-shell" data-command-target="07-C-react-isolated" data-synthetic-fixtures="true">
   <aside className="cmd-sidebar">
-    <div className="cmd-brand"><img className="cmd-logo-full" src={OfficialLogo} alt="Digital Crown"/><img className="cmd-logo-mini" src={CompactLogo} alt="" /><small>COMMAND · 07-C</small></div>
+    <div className="cmd-brand"><img className="cmd-logo-full" src={OfficialLogo} alt="Digital Crown"/><img className="cmd-logo-mini" src={CompactLogo} alt="Digital Crown — logo compact" /><small>COMMAND · 07-C</small></div>
     <div className="cmd-navtitle">ESPACE CABINET</div>
-    <nav aria-label="Navigation de démonstration" className="cmd-navigation">{menu.map(({name,icon:Icon})=><button type="button" key={name} aria-current={view===name?'page':undefined} className={view===name?'cmd-selected':''} onClick={()=>{setView(name);setNotification('');}}><Icon size={17} aria-hidden="true"/><span>{name}</span></button>)}</nav>
+    <nav aria-label="Navigation de démonstration" className="cmd-navigation">{menu.map(({name,icon:Icon})=><button type="button" key={name} aria-current={view===name?'page':undefined} aria-label={name} className={view===name?'cmd-selected':''} onClick={()=>{setView(name);setNotification('');}}><Icon size={17} aria-hidden="true"/><span>{name}</span></button>)}</nav>
     <div className="cmd-sidebarfooter"><Settings size={16}/> Maquette sans backend<br/><small>Données TEST uniquement</small></div>
   </aside>
   <main className="cmd-main">
