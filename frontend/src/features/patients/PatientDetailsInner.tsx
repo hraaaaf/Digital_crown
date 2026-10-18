@@ -135,6 +135,34 @@ export const PatientDetails = () => {
   const flowHandoff = useFlowHandoff();
   const initialFlowSurface = useRef(true);
 
+  // Only the desktop cephalometry patient header compresses when the real
+  // Cabinet scroll pane (not window) moves. Recompute after patient load and
+  // restore full chrome as soon as another module is selected.
+  const [cephaloHeaderCompact, setCephaloHeaderCompact] = useState(false);
+  const cephaloHeaderVisible = activeTab === 'radiology' && radioTab === 'cephalo';
+  useEffect(() => {
+    if (!cephaloHeaderVisible) {
+      setCephaloHeaderCompact(false);
+      return;
+    }
+    const content = flowContentRef.current;
+    let node = content?.parentElement;
+    let scroller: HTMLElement | null = null;
+    while (node) {
+      const overflow = window.getComputedStyle(node).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) {
+        scroller = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+    if (!scroller) return;
+    const onScroll = () => setCephaloHeaderCompact(scroller!.scrollTop > 72);
+    onScroll();
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => scroller?.removeEventListener('scroll', onScroll);
+  }, [cephaloHeaderVisible, patient?.id]);
+
   useEffect(() => {
     if (requestedRadioTab !== radioTab && activeTab === 'radiology') {
       setSearchParams(prev => {
@@ -295,19 +323,22 @@ export const PatientDetails = () => {
     <div className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
       <header
         data-patient-dossier-header
-        style={isRadiology && radioTab === 'cephalo' ? { backgroundColor: 'var(--card-bg, #ffffff)' } : undefined}
+        data-patient-cephalo-header={cephaloHeaderVisible ? 'true' : undefined}
+        data-cephalo-header-compact={cephaloHeaderVisible ? String(cephaloHeaderCompact) : undefined}
+        style={cephaloHeaderVisible ? { backgroundColor: 'var(--card-bg, #ffffff)' } : undefined}
         className={cn(
           'lg:sticky lg:top-0 z-[300] border-b border-border-main shadow-elite',
           // A translucent sticky band lets cephalo forms show through it on
           // scroll (1280/1600 desktop). Keep the patient actions accessible
           // but occlude the content with the theme's opaque card surface.
-          isRadiology && radioTab === 'cephalo'
+          cephaloHeaderVisible
             ? 'bg-card-bg'
             : 'bg-card-bg/90 backdrop-blur-xl',
+          cephaloHeaderVisible && 'transition-[padding,box-shadow] duration-150',
         )}
       >
-        <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>
-          <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>
+        <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:pt-1')}>
+          <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:mb-0.5 lg:gap-1')}>
             <div className={cn('flex items-start sm:items-center min-w-0', isRadiology ? 'gap-2' : 'gap-3')}>
               <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10')} style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 16 : 20} strokeWidth={2.5} /></button>
               <PatientAvatar
@@ -315,33 +346,33 @@ export const PatientDetails = () => {
                 firstName={patient.prenom}
                 lastName={patient.nom}
                 photoUrl={patient.photo_url}
-                className={cn('rounded-xl border border-primary/15 shadow-sm', isRadiology ? 'w-8 h-8 text-xs' : 'w-10 h-10 sm:w-12 sm:h-12 text-sm')}
+                className={cn('rounded-xl border border-primary/15 shadow-sm', isRadiology ? 'w-8 h-8 text-xs' : 'w-10 h-10 sm:w-12 sm:h-12 text-sm', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:w-7 lg:h-7 lg:rounded-lg')}
               />
               <div className="min-w-0">
                 <div className={cn('flex flex-wrap items-center', isRadiology ? 'gap-1.5' : 'gap-2')}>
-                  <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl')} style={{ color: 'var(--primary)' }}>{fullName}</h1>
+                  <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:text-sm')} style={{ color: 'var(--primary)' }}>{fullName}</h1>
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
                   {patient.antecedents_medicaux && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wide"><AlertTriangle size={12} /> Alerte médicale</span>}
-                  <button onClick={() => navigate(`/patients/${id}/edit`)} className={cn('font-black uppercase rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors', isRadiology ? 'px-2 py-0.5 text-[9px] tracking-wide' : 'px-2.5 py-1 text-[10px] tracking-widest')} style={{ color: 'var(--primary)' }}>Modifier</button>
+                  <button onClick={() => navigate(`/patients/${id}/edit`)} className={cn('font-black uppercase rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors', isRadiology ? 'px-2 py-0.5 text-[9px] tracking-wide' : 'px-2.5 py-1 text-[10px] tracking-widest', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:px-1.5 lg:py-0.5 lg:text-[8px]')} style={{ color: 'var(--primary)' }}>Modifier</button>
                 </div>
-                <div className={cn('flex flex-wrap items-center font-bold text-text-muted', isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1 gap-x-2 gap-y-0.5 text-[11px] sm:mt-1.5 sm:gap-x-3 sm:gap-y-1 sm:text-xs')}>
+                <div className={cn('flex flex-wrap items-center font-bold text-text-muted', isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1 gap-x-2 gap-y-0.5 text-[11px] sm:mt-1.5 sm:gap-x-3 sm:gap-y-1 sm:text-xs', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:mt-0 lg:gap-x-1.5 lg:gap-y-0 lg:text-[9px]')}>
                   <span className="inline-flex items-center gap-1.5"><FileDigit size={12} style={{ color: 'var(--primary)' }} /><span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span></span>
                   <span>{age >= 0 && age < 130 ? `${age} ans · ` : ''}{birthLabel}</span>
-                  <span className={cn('items-center gap-1.5', isRadiology ? 'hidden md:inline-flex' : 'hidden sm:inline-flex')}><Phone size={12} />{patient.telephone}</span>
-                  {patient.email && <span className="hidden lg:inline-flex items-center gap-1.5"><Mail size={12} />{patient.email}</span>}
+                  <span className={cn('items-center gap-1.5', isRadiology ? 'hidden md:inline-flex' : 'hidden sm:inline-flex', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:hidden')}><Phone size={12} />{patient.telephone}</span>
+                  {patient.email && <span className={cn('hidden lg:inline-flex items-center gap-1.5', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:hidden')}><Mail size={12} />{patient.email}</span>}
                 </div>
               </div>
             </div>
 
-            <div className={cn('hidden sm:grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'sm:hidden lg:grid')} aria-label="Actions rapides patient">
-              <QuickAction icon={<Calendar size={18} />} label="RDV" onClick={() => navigate('/agenda', { state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom } })} />
-              <QuickAction icon={<Stethoscope size={18} />} label={canClinical ? 'Examen' : 'Suivi'} onClick={() => handleTabChange(canClinical ? 'clinical' : 'tracking')} />
-              <QuickAction icon={<FileText size={18} />} label="Document" onClick={handleDocumentCreate} />
-              {canFinance && <QuickAction icon={<Banknote size={18} />} label="Encaisser" onClick={() => setIsPayModalOpen(true)} accent="emerald" />}
+            <div className={cn('hidden sm:grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3', isRadiology && 'sm:hidden lg:grid', cephaloHeaderVisible && 'lg:gap-1.5 lg:w-auto')} aria-label="Actions rapides patient">
+              <QuickAction compact={cephaloHeaderVisible} icon={<Calendar size={16} />} label="RDV" onClick={() => navigate('/agenda', { state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom } })} />
+              <QuickAction compact={cephaloHeaderVisible} icon={<Stethoscope size={16} />} label={canClinical ? 'Examen' : 'Suivi'} onClick={() => handleTabChange(canClinical ? 'clinical' : 'tracking')} />
+              <QuickAction compact={cephaloHeaderVisible} icon={<FileText size={16} />} label="Document" onClick={handleDocumentCreate} />
+              {canFinance && <QuickAction compact={cephaloHeaderVisible} icon={<Banknote size={16} />} label="Encaisser" onClick={() => setIsPayModalOpen(true)} accent="emerald" />}
             </div>
           </div>
 
-          <div data-tour="patient-tabs" className={cn('flex overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none', isRadiology ? 'gap-0.5 sm:gap-1.5' : 'gap-1 sm:gap-3')}>
+          <div data-tour="patient-tabs" className={cn('flex overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none', isRadiology ? 'gap-0.5 sm:gap-1.5' : 'gap-1 sm:gap-3', cephaloHeaderVisible && cephaloHeaderCompact && 'lg:gap-1')}>
             <TabButton compact={isRadiology} active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={17} />} label="Vue d’ensemble" mobileLabel="Suivi" />
             {canClinical && <TabButton compact={isRadiology} active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" mobileLabel="Clinique" />}
             <TabButton compact={isRadiology} active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" mobileLabel="Image" />
@@ -447,8 +478,8 @@ export const PatientDetails = () => {
   );
 };
 
-const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
-  <button onClick={onClick} aria-label={label} className={cn('h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95', accent === 'emerald' ? 'text-text-muted hover:text-emerald-600 hover:border-emerald-500/30 hover:bg-emerald-500/5' : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5')}>
+const QuickAction = ({ icon, label, onClick, accent = 'primary', compact = false }: any) => (
+  <button onClick={onClick} aria-label={label} className={cn('h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95', compact && 'lg:h-8 lg:min-w-[5.5rem] lg:px-2 lg:gap-1 lg:rounded-lg lg:shadow-none', accent === 'emerald' ? 'text-text-muted hover:text-emerald-600 hover:border-emerald-500/30 hover:bg-emerald-500/5' : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5')}>
     {icon}<span className="inline text-[8px] sm:text-[10px] leading-none font-black uppercase tracking-[0.04em] sm:tracking-widest whitespace-nowrap">{label}</span>
   </button>
 );
