@@ -877,7 +877,7 @@ async def serve_archives(
             raise HTTPException(status_code=409, detail="Provenance d'archive officielle ambiguë")
         from backend.services.cephalo_document_lock import verified_official_archive_bytes
         return Response(
-            content=verified_official_archive_bytes(official_rows[0]),
+            content=verified_official_archive_bytes(official_rows[0], db),
             media_type="application/pdf",
         )
     return _serve_protected_file(os.path.join(str(MEDIA_DIR), "archives"), rel_path)
