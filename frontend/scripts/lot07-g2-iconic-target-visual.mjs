@@ -39,8 +39,13 @@ const base = 'http://127.0.0.1:5179/v15-07-g2-isolated-target.html';
 const pause = ms => new Promise(done => setTimeout(done, ms));
 
 async function startVite() {
+  // npm starts Vite/esbuild as children. A plain server.kill() terminates
+  // only npm, leaving children alive with inherited stdout/stderr pipes and
+  // preventing this Node proof process from exiting (G2 cancellation).
+  // Use a dedicated Unix process group exclusively for this fixture.
   server = spawn('npm', ['run','dev','--','--host','127.0.0.1','--port','5179','--strictPort'],{
-    cwd:root, env:{...process.env, NODE_ENV:'development'}, stdio:['ignore','pipe','pipe']
+    cwd:root, env:{...process.env, NODE_ENV:'development'},
+    detached:true, stdio:['ignore','pipe','pipe']
   });
   let stderr='';
   server.stdout.on('data', part => { stderr += String(part).slice(0,500); });
@@ -167,7 +172,21 @@ try {
   console.log('G2_CLINICAL_RUNTIME=NOT_ENABLED');
 } finally {
   if(browser)await browser.close().catch(()=>{});
-  if(server){server.kill('SIGTERM');await pause(1000);}
+  if (server) {
+    // Kill the whole isolated Vite/npm/esbuild process group, not npm alone.
+    // This is POSIX-only because CI runs on ubuntu-24.04; never signal any
+    // unrelated runner process.
+    if (Number.isInteger(server.pid) && server.pid > 0) {
+      try { process.kill(-server.pid, 'SIGTERM'); }
+      catch (error) {
+        if (error.code !== 'ESRCH') throw error;
+      }
+    }
+    server.stdout?.destroy();
+    server.stderr?.destroy();
+    server.unref();
+    await pause(250);
+  }
   for(const file of [entryPath,htmlPath]){
     try{fs.rmSync(file);}catch{/* clean temporary visual target */}
   }
