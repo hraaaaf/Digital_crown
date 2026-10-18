@@ -1,5 +1,10 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-18 — Two-actor FUE technical LAB, not BLIND independent or native SCM
+
+- Owner requested one or two FUE (First User Experience) checks. Two separate **Windows-runner actor workflows** are being added on PR #909: FUE-A actual cross-standard-SID native NTFS read/write/delete/rights denial, FUE-B synthetic quiescent backup, SQLite WAL rollback/crash and full DB+spool+key recovery. Docs: `docs/quality/LOT06_P_P2_F01_TWO_ACTOR_FUE_LAB.md`. Run must be exact new HEAD before assigning status.
+- **Scope caution:** a technical actor lab is not a product UI FUE, since the experimental SCM service has no user-facing UI; a pair of runner jobs is not two independent BLIND AI reviewers. No token/Session0 of a native SCM service will run; previously blocked SCM gate remains blocked. Clinical Windows installer, real operator UI, SQLCipher, licensed patient store, mobile, customer machine, LOT10, migration and deploy remain NOT_TESTED/HORS SCOPE.
+
 ## 2026-10-18 — P2-F01 internal review A+B, WAL PRAGMA false-positive corrected source-only
 
 - Internal perspective **A / Windows ACL**: BLOCKER unexecuted native SCM account/session/token and effective DACL; MAJOR untested object DACL, OWNER RIGHTS, reparse/replacement and peer spawned environment. The existing 17-denial SCM fixture remains a source oracle only. No independent A agent executed; 0/2 independent BLIND.
