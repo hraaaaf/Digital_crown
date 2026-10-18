@@ -108,6 +108,7 @@ def audit_cephalo_archive_after_crash(
         paths = db.query(
             models.DocumentArchive.file_path,
             models.DocumentArchive.document_type,
+            models.DocumentArchive.patient_id,
         ).all()
     except SQLAlchemyError:
         db.rollback()
@@ -115,7 +116,7 @@ def audit_cephalo_archive_after_crash(
     stored_refs = {str(row[0]) for row in paths if row[0]}
     missing_referenced = []
     skipped_reference_count = 0
-    for file_path, document_type in paths:
+    for file_path, document_type, archived_patient_id in paths:
         if document_type != DocumentType.RAPPORT_CEPHALO:
             continue
         if not file_path:
@@ -133,6 +134,7 @@ def audit_cephalo_archive_after_crash(
         parts = relative.split("/")
         if not (
             len(parts) == 5 and parts[0].isdecimal()
+            and parts[0] == str(archived_patient_id)
             and parts[1] == DocumentType.RAPPORT_CEPHALO.value
             and len(parts[2]) == 4 and parts[2].isdecimal()
             and parts[3].isdecimal() and 1 <= int(parts[3]) <= 12
