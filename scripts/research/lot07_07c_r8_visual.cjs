@@ -30,7 +30,7 @@ const browserLaunch={headless:true,args:['--no-sandbox','--disable-dev-shm-usage
         return route.abort('blockedbyclient');
       });
       await page.goto(pathToFileURL(html).href,{waitUntil:'load'});
-      await page.addStyleTag({path:path.resolve('frontend/src/index.css')});
+      await page.addStyleTag({content:fs.readFileSync(path.resolve('frontend/src/index.css'),'utf8').replace(/@import\s+[^;]+;/g,'')});
       if(pageErrors.length) issues.push('PAGE_ERRORS_'+width+':'+pageErrors.length);
       const links=await page.locator('[data-view]').count();
       if(links!==4) issues.push('NAV_COUNT_'+width);
