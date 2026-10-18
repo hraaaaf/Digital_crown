@@ -81,11 +81,39 @@ KNOWN_PG18_ARRAYS = {
 }
 
 
+
+def normalize_pg18_check_text_arrays(expr):
+    """Canonicalize only the proven literal varchar[] to text[] cast rewrite."""
+    pattern = re.compile(r"ARRAY\[(?P<body>[^\[\]]+)\](?P<outer>::text\[\])?")
+
+    def replace_array(match):
+        pieces = match.group("body").split(",")
+        values = []
+        per_element_text = []
+        for item in pieces:
+            parsed = re.fullmatch(
+                r"\s*'([^']+)'::character varying(?P<per>::text)?\s*", item
+            )
+            if parsed is None:
+                return match.group(0)
+            values.append(parsed.group(1))
+            per_element_text.append(parsed.group("per") is not None)
+        outer = match.group("outer") == "::text[]"
+        if (outer and any(per_element_text)) or (not outer and not all(per_element_text)):
+            return match.group(0)
+        return "ARRAY[" + ",".join("'" + v + "'::text" for v in values) + "]"
+
+    return pattern.sub(replace_array, expr)
+
+
 def canonical_catalog_row(section, row):
     name = row[1] if section == "constraints" else row[0]
     is_constraint = section == "constraints" and name in KNOWN_PG18_ARRAYS and name.startswith("ck_")
     is_index = section == "indexes" and name == "uq_ortho_cases_one_open_per_patient"
     if not (is_constraint or is_index):
+        if section == "constraints" and len(row) == 4 and row[2] == "c":
+            # No other SQL is modified; unknown cast forms remain unmatched.
+            return (*row[:-1], normalize_pg18_check_text_arrays(row[-1]))
         return row
     column, values = KNOWN_PG18_ARRAYS[name]
     raw = row[-1]
@@ -413,6 +441,24 @@ class RealHeadRecovery(unittest.TestCase):
                        right + " OR TRUE"):
             with self.subTest(forged=forged), self.assertRaises(Refused):
                 canonical_catalog_row("constraints", ("ngap_catalog_mappings", name, "c", forged))
+
+        source = ("CHECK ((event_type::text = ANY (ARRAY['START'::character varying, "
+                  "'ENTER_PHASE'::character varying]::text[])) OR phase_key IS NULL)")
+        restored = ("CHECK ((event_type::text = ANY (ARRAY['START'::character varying::text, "
+                    "'ENTER_PHASE'::character varying::text])) OR phase_key IS NULL)")
+        key = ("ortho_phase_events", "ck_ortho_phase_events_phase_only_on_start_or_enter", "c")
+        self.assertEqual(
+            canonical_catalog_row("constraints", (*key, source)),
+            canonical_catalog_row("constraints", (*key, restored)),
+        )
+        self.assertNotEqual(
+            canonical_catalog_row("constraints", (*key, restored)),
+            canonical_catalog_row("constraints", (*key, restored.replace("OR phase_key IS NULL", "OR TRUE"))),
+        )
+        self.assertNotEqual(
+            canonical_catalog_row("constraints", (*key, restored)),
+            canonical_catalog_row("constraints", (*key, restored.replace("'START'", "'OTHER'"))),
+        )
 
 
 
