@@ -41,7 +41,7 @@ export function CommandWorkbenchReactTarget(){
  const invokedByRef=React.useRef<HTMLElement|null>(null);
  React.useEffect(()=>{
   if(!pendingAppointmentId)return;
-  const siblings=Array.from(document.querySelectorAll<HTMLElement>('.cmd-sidebar,.cmd-toolbar,.cmd-heading,.cmd-workbench,.cmd-disclaimer'));
+  const siblings=Array.from(document.querySelectorAll<HTMLElement>('.cmd-sidebar,.cmd-toolbar,.cmd-heading,.cmd-workbench,.cmd-disclaimer,.cmd-mobile-context'));
   siblings.forEach(e=>{e.inert=true;});
   confirmButtonRef.current?.focus();
   return ()=>siblings.forEach(e=>{e.inert=false;});
