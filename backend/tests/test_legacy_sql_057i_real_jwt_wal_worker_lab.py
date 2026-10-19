@@ -35,6 +35,20 @@ class SyntheticJwtAndWalWorkerEvidence(unittest.TestCase):
         if os.getenv(FLAG) != "1":
             raise e.LabRefused("LOT05I_FAKE_ONLY_DISABLED")
         e.RealEncryptedBackupServiceLab.setUpClass.__func__(cls)
+        # Real auth.py imports from a monolithic routers/__init__.py that
+        # eagerly imports clinical imaging (cv2) and unrelated clinical APIs.
+        # Restrict package namespace in this TEST process only: Python still
+        # loads the unmodified real auth.py, workstation_mode.py and migration
+        # router source files with normal importlib machinery.
+        import backend
+        import sys
+        import types
+        if "backend.routers" not in sys.modules:
+            isolated = types.ModuleType("backend.routers")
+            isolated.__path__ = [str(Path(__file__).resolve().parents[1] / "routers")]
+            isolated.__package__ = "backend.routers"
+            sys.modules["backend.routers"] = isolated
+            backend.routers = isolated
         with cls.engine.connect() as c:
             owners = tuple(c.execute(text(
                 "SELECT id,email FROM users WHERE employer_id IS NULL ORDER BY id"
