@@ -216,3 +216,13 @@
  .cmd-queue-button{min-height:44px}
 }
 /* This remains a static demonstration, not a clinical status or occupancy source. */
+
+/* LOT07/07-C R4c — truthful Agenda navigation and non-operational modes. */
+.cmd-agenda:focus{outline:3px solid var(--primary);outline-offset:2px}
+.cmd-agenda-modes button:disabled{cursor:not-allowed;opacity:.76;color:var(--text-main);border-bottom-color:transparent}
+.cmd-agenda-modes button small{display:block;font-size:10px;line-height:1.15;font-weight:600;color:var(--text-main)}
+@media(max-width:520px){
+ .cmd-agenda-modes{gap:10px;padding-inline:8px}
+ .cmd-agenda-modes button{min-height:44px;padding:5px 3px;font-size:12px}
+ .cmd-agenda-modes button small{font-size:10px}
+}
