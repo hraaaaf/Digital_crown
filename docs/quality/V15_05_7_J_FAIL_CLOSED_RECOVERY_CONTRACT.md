@@ -5,8 +5,8 @@
 ## Mesures actives (fail closed)
 
 1. `GuidedRestoreService._assert_owner` refuse `None`, les propriétaires absents, booléens, chaînes, nombres non positifs et propriétaires différents. Un `owner_id` numérique identique reste une vérification de cohérence et non une preuve JWT→worker.
-2. `GuidedRestoreService.request_apply` utilise le veto inconditionnel `require_clinical_apply` **avant** l'écriture d'un état `scheduled`, tout lancement de processus ou toute terminaison du serveur. Même `sys.frozen=True`, `ENVIRONMENT=cabinet` et confirmation `RESTAURER` ne déverrouillent rien.
-3. `GuidedRestoreWorker.run` oppose le même veto à l'entrée, **avant** consultation du job, secours DB, remplacement, média, coffre, kill/restart. Un exécutable lancé directement avec `--guided-restore-worker` n'obtient aucun droit supplémentaire.
+2. `GuidedRestoreService.request_apply` oppose son propre refus inconditionnel **avant** l'écriture d'un état `scheduled`, tout lancement de processus ou toute terminaison du serveur. Le refus ne dépend pas de la fonction dormante `require_clinical_apply` de 05.7-G. Même `sys.frozen=True`, `ENVIRONMENT=cabinet` et confirmation `RESTAURER` ne déverrouillent rien.
+3. `GuidedRestoreWorker.run` oppose un refus inconditionnel indépendant à l'entrée, **avant** consultation du job, secours DB, remplacement, média, coffre, kill/restart. Un exécutable lancé directement avec `--guided-restore-worker` n'obtient aucun droit supplémentaire.
 4. L'API renvoie un conflit explicite (HTTP 409 via `RuntimeError`) lors de la tentative d'activation ; la restauration guidée réelle est délibérément suspendue en attendant une véritable autorité SCM/Service SID/ACL et un protocole crash-safe validé. Préflight, lecture et préparation conservent leurs contrats existants, sous réserve du contrôle strict de propriétaire pour la préparation.
 
 ## Prototype vérifiable FAKE uniquement
