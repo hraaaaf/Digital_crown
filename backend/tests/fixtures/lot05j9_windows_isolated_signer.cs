@@ -24,6 +24,7 @@ internal sealed class J9SignerService : ServiceBase {
         bool sid=HasSid(requiredSid), privateReadable=false, configReadable=false, issued=false;
         bool requestReadable=false, privateWritable=false, configWritable=false;
         bool requestWritable=false, issuedOutputWritable=false;
+        bool clientPinWritable=false, clientRootCreate=false;
         string reason="not_started";
         try {
             if(mode=="attacker") {
@@ -36,13 +37,22 @@ internal sealed class J9SignerService : ServiceBase {
                 try { File.WriteAllText(key,"J9_FAKE_CLIENT_CORRUPTION"); privateWritable=true; } catch(UnauthorizedAccessException) { }
                 try { File.WriteAllText(config,"J9_FAKE_CLIENT_CORRUPTION"); configWritable=true; } catch(UnauthorizedAccessException) { }
                 try { File.WriteAllText(request,"J9_FAKE_CLIENT_CORRUPTION"); requestWritable=true; } catch(UnauthorizedAccessException) { }
+                // The public pin and executable are provisioned by the test
+                // installer: a SID-less LocalService process may READ the pin
+                // but must never replace it, create a sibling path to swap
+                // the executable, or overwrite the already-signed output.
+                string fixtureRoot=Path.GetDirectoryName(Path.GetDirectoryName(key));
+                string publicPin=Path.Combine(fixtureRoot,"trusted-rsa-public.fake");
+                try { File.WriteAllText(publicPin,"J9_FAKE_FORGED_RSA_PIN"); clientPinWritable=true; } catch(UnauthorizedAccessException) { }
+                try { File.WriteAllText(Path.Combine(fixtureRoot,"J9_SIDLESS_ROOT_WRITE.fake"),"J9_FAKE_ROOT_WRITE"); clientRootCreate=true; } catch(UnauthorizedAccessException) { }
                 // Attempt to pre-create/overwrite the signer output with an
                 // unsigned fake object. A writable telemetry file is NOT
                 // acceptable as the signer-to-worker handoff authority.
                 try { File.WriteAllText(output,"J9_FAKE_FORGED_TICKET"); issuedOutputWritable=true; } catch(UnauthorizedAccessException) { }
                 reason=(!sid && !privateReadable && !configReadable && !requestReadable &&
                        !privateWritable && !configWritable && !requestWritable &&
-                       !issuedOutputWritable) ? "client_access_denied" : "ATTACK_BYPASS";
+                       !issuedOutputWritable && !clientPinWritable && !clientRootCreate)
+                       ? "client_access_denied" : "ATTACK_BYPASS";
             } else if(mode=="sign" && sid) {
                 var start=new ProcessStartInfo {
                     FileName=py, Arguments="-B -m backend.tests.fixtures.lot05j9_real_jwt_rsa_signer_lab \""+Path.GetDirectoryName(key)+"\"",
@@ -99,6 +109,8 @@ internal sealed class J9SignerService : ServiceBase {
               "\nclient_config_write="+configWritable+
               "\nclient_request_write="+requestWritable+
               "\nclient_output_forge="+issuedOutputWritable+
+              "\nclient_pin_write="+clientPinWritable+
+              "\nclient_root_create="+clientRootCreate+
               "\nticket_issued="+issued+"\nreason="+reason+"\n");
         }
     }

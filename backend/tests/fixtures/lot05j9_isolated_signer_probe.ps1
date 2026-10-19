@@ -63,6 +63,8 @@ $dbroot=Join-Path $root ('lot05e_fake_sqlcipher_'+$tag)
 $telemetry=Join-Path $root 'telemetry'
 $outbox=Join-Path $root 'signer-outbox'
 $exe=Join-Path $root 'signer-scm.exe'
+$publicPin=Join-Path $root 'trusted-rsa-public.fake'
+$rootAttack=Join-Path $root 'J9_SIDLESS_ROOT_WRITE.fake'
 $private=Join-Path $protected 'signer-private.pem'
 $config=Join-Path $protected 'fake-config.txt'
 $source=Join-Path $env:GITHUB_WORKSPACE 'backend\tests\fixtures\lot05j9_windows_isolated_signer.cs'
@@ -135,10 +137,18 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
  # The signature handoff must NOT be writable by another LocalService
  # process, unlike the deliberately low-trust diagnostic telemetry.
  Protect $outbox $sid 'Modify' $true
+ # Protect the package directory against a second same-account service
+ # replacing the installed signer EXE, the provisioned RSA pin or a sibling
+ # path. Both services need ONLY read/execute for the same compiled EXE.
+ Protect $root 'S-1-5-19' 'ReadAndExecute' $true
+ Protect $exe 'S-1-5-19' 'ReadAndExecute' $false
+ Protect $publicPin 'S-1-5-19' 'ReadAndExecute' $false
  Strict 'icacls.exe' @($telemetry,'/inheritance:r') | Out-Null
  Strict 'icacls.exe' @($telemetry,'/grant:r',
    '*S-1-5-18:(OI)(CI)F','*S-1-5-32-544:(OI)(CI)F','*S-1-5-19:(OI)(CI)M') | Out-Null
  Write-Output 'J9_REAL_SIGNER_PRIVATE_PINNED_TO_DISTINCT_SCM_SID'
+ Write-Output 'J9_SIGNER_EXECUTABLE_ROOT_AND_RSA_PUBLIC_PIN_READ_ONLY_FOR_LOCALSERVICE'
+ $expectedPinHash=(Get-FileHash -LiteralPath $publicPin -Algorithm SHA256).Hash
  function Configure([string]$name,[string]$mode,[string]$proof,[string]$request,[string]$output) {
   $command= ('"{0}" "{1}" "{2}" "{3}" "{4}" "{5}" "{6}" "{7}" "{8}" "{9}" "{10}"' -f
      $exe,$name,$mode,$proof,$private,$config,$request,$output,$env:LOT05J9_FAKE_PYTHON,$env:GITHUB_WORKSPACE,$sid)
@@ -155,9 +165,14 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
     $p -notmatch 'client_config_write=False' -or
     $p -notmatch 'client_request_write=False' -or
     $p -notmatch 'client_output_forge=False' -or
+    $p -notmatch 'client_pin_write=False' -or
+    $p -notmatch 'client_root_create=False' -or
+    (Test-Path -LiteralPath $rootAttack) -or
+    (Get-FileHash -LiteralPath $publicPin -Algorithm SHA256).Hash -ne $expectedPinHash -or
     $p -notmatch 'reason=client_access_denied') {throw ('J9_CLIENT_CAN_READ_KEY '+$p)}
  Write-Output 'J9_UNPRIVILEGED_SAME_LOCALSERVICE_CLIENT_CANNOT_READ_RSA_PRIVATE_OR_JWT_SECRET'
  Write-Output 'J9_SIDLESS_CLIENT_CANNOT_TAMPER_RSA_CONFIG_JWT_REQUEST_OR_SIGNER_OUTBOX'
+ Write-Output 'J9_SIDLESS_CLIENT_CANNOT_WRITE_SIGNER_ROOT_OR_RSA_PIN'
  Configure $nameA 'sign' $reportValid $requestValid $outputSigned
  Strict 'sc.exe' @('start',$nameA) | Out-Null
  $good=AwaitProof $reportValid
@@ -183,6 +198,10 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
     $pAfter -notmatch 'client_config_write=False' -or
     $pAfter -notmatch 'client_request_write=False' -or
     $pAfter -notmatch 'client_output_forge=False' -or
+    $pAfter -notmatch 'client_pin_write=False' -or
+    $pAfter -notmatch 'client_root_create=False' -or
+    (Test-Path -LiteralPath $rootAttack) -or
+    (Get-FileHash -LiteralPath $publicPin -Algorithm SHA256).Hash -ne $expectedPinHash -or
     $pAfter -notmatch 'reason=client_access_denied' -or
     (Get-FileHash -LiteralPath $outputSigned -Algorithm SHA256).Hash -ne $issuedHash) {
     throw ('J9_SIDLESS_CLIENT_TAMPERED_ISSUED_TICKET '+$pAfter)
