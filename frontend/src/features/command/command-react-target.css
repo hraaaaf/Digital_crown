@@ -176,3 +176,11 @@
  .cmd-cards[data-tab="Dossier"]>.cmd-card:nth-child(6){grid-column:auto}
  .cmd-patientbuttons button{white-space:normal}
 }
+
+/* LOT07/07-C: theme-derived text contrast on small, colored clinical indicators. */
+.cmd-pill,.cmd-pill-info,.cmd-pill-warning,.cmd-pill-success,.cmd-pill-danger,
+.cmd-alerts p,.cmd-alerts p:nth-child(2),.cmd-lanehead b,.cmd-numeric{
+ color:var(--text-main);
+}
+.cmd-switch-confirm:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.cmd-shell [role="alertdialog"] button:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
