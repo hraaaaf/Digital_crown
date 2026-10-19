@@ -1,3 +1,6 @@
+## LOT05 / 05.7-J10D — 2026-10-19 — CS0104 Windows caller compilation
+User-provided Windows CI screenshot establishes CSC_CS0104: TimeoutException ambiguous reference in lot05j10d_windows_scm_caller.cs. Fixed source by qualifying System.TimeoutException in commit da5697fbb3d2529a873870d9de99e479b49fb0f6. This is a source-level correction, NOT proof of successful compilation or two-service SCM IPC; exact HEAD Windows CI remains to be observed. All requests remain deny-only. J10D OPEN, LOT05 NO-GO.
+
 ## LOT05 / 05.7-J10D — 2026-10-19 — second SCM caller C# compilation failure
 User screenshot shows the two-SCM step fails at caller csc exit 1 before SCM runtime; compiler diagnostic is truncated (paths to .NET Framework assemblies visible), exact CS code unconfirmed. Added explicit System.Core.dll reference in workflow commit 91239912c641bc69e0981241b797eddb9d336682 as a targeted hypothesis, NOT a proven fix. Do not mark two-SCM tests green until exact HEAD Windows CI logs show success. J10D OPEN/NO-GO.
 
