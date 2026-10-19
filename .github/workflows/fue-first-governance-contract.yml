@@ -30,4 +30,4 @@ jobs:
       - name: Install focused test dependency
         run: python -m pip install pytest
       - name: Execute scoring policy contract
-        run: python -m pytest --noconftest backend/tests/test_execution_scoring_policy_contract.py -q
+        run: python -m pytest --noconftest --import-mode=importlib backend/tests/test_execution_scoring_policy_contract.py -q
