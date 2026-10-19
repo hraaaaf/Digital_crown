@@ -162,7 +162,7 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
  Strict 'sc.exe' @('start',$nameA) | Out-Null
  $bad=AwaitProof $reportMissing
  if($bad -notmatch 'service_sid_in_token=True' -or $bad -notmatch 'ticket_issued=False' -or
-    $bad -notmatch 'reason=jwt_refused' -or (Test-Path -LiteralPath $outputDenied)) {
+    $bad -notmatch 'reason=preauth_guard_denied' -or (Test-Path -LiteralPath $outputDenied)) {
     throw ('J9_SIGNER_ISSUED_TICKET_WITHOUT_JWT '+$bad)
  }
  Write-Output 'J9_SIGNER_REJECTS_MISSING_JWT_WITHOUT_RSA_SIGNATURE'

@@ -44,6 +44,22 @@ class J9TrueWindowsProtectedSignerLab(unittest.TestCase):
                    LOT05J9_FAKE_OWNER=str(self.fake_owners[0].id),
                    LOT05J9_REAL_SCM_SIGNED_FAKE_ONLY="1",
                    PYTHONDONTWRITEBYTECODE="1")
+        # This FAKE native SQLCipher DB uses WAL. A raw Copy-Item of only the
+        # main database would discard uncheckpointed synthetic users; the
+        # detached signer could then reject a genuinely valid JWT as HTTP 401.
+        # Checkpoint synchronously and assert the fake principals are present
+        # in the MAIN file before the Windows fixture copies it.
+        from contextlib import closing
+        from backend.tests import test_legacy_sql_057e_real_backupservice_sqlcipher_head as fake_db
+        with closing(fake_db.sqlcipher_connection(self.source, self.fake_key)) as db:
+            state = db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            self.assertEqual(state[0], 0, "J9_FAKE_WAL_CHECKPOINT_BUSY")
+            rows = db.execute("SELECT id,email FROM users WHERE employer_id IS NULL ORDER BY id").fetchall()
+            self.assertEqual(tuple(int(row[0]) for row in rows),
+                             tuple(int(owner.id) for owner in self.fake_owners),
+                             "J9_FAKE_PRINCIPALS_NOT_IN_COHERENT_MAIN_DB")
+        # No active writer is permitted for the disposable raw-copy fixture.
+        self.engine.dispose()
         probe=subprocess.run(
             ["pwsh", "-NoProfile", "-File",
              str(base / "lot05j9_isolated_signer_probe.ps1")],

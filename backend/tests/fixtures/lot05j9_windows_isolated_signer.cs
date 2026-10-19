@@ -61,7 +61,13 @@ internal sealed class J9SignerService : ServiceBase {
                         issued=true;
                         reason="authenticated_jwt_signed";
                     } else {
-                        reason=stderr.Contains("J9_DENIED_") ? "jwt_refused" : "fail_closed";
+                        // Only sanitized error CATEGORY; no token, path or key is logged.
+                        // J9_DENIED_* also covers SQLCipher/setup errors: it is NOT
+                        // evidence of a JWT failure without HTTP_401 evidence.
+                        reason=stderr.Contains("J9_DENIED_HTTP_401") ? "jwt_http_401" :
+                               stderr.Contains("J9_DENIED_HTTP_403") ? "jwt_http_403" :
+                               stderr.Contains("J9_DENIED_J8Denied") ? "preauth_guard_denied" :
+                               stderr.Contains("J9_DENIED_") ? "signer_other_denied" : "fail_closed";
                     }
                 }
             } else reason="invalid_mode_or_sid";
