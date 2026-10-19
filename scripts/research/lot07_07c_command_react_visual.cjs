@@ -100,5 +100,10 @@ try{
  const result={source:'REACT_VITE_ISOLATED_NO_APP_ROUTE',widths:[390,430,768,1280,1440],themes,snaps,failures,pass:failures.length===0};
  fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(result,null,2)+'\n');
  console.log('COMMAND_REACT_VISUAL_RESULT '+JSON.stringify({pass:result.pass,failures,screenshot_count:snaps.length,source:result.source}));
+ if(result.pass){
+   // Execute fixture-only R4 journeys under the same live React laboratory.
+   require('node:child_process').execFileSync('node',['scripts/research/lot07_07c_command_react_journeys.cjs'],{stdio:'inherit',timeout:120000});
+   if(!fs.existsSync(path.join(out,'journeys-r4.json')))throw Error('R4_JOURNEYS_EVIDENCE_MISSING');
+ }
  if(!result.pass)process.exitCode=1;
 }finally{await browser.close()}})().catch(e=>{console.error('REACT_VISUAL_ERROR '+e.stack);process.exitCode=2});
