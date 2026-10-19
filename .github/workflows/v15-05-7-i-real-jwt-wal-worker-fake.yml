@@ -1,0 +1,78 @@
+name: V1.5-05.7-I Real JWT and SQLCipher WAL Worker FAKE Evidence
+
+on:
+  push:
+    branches:
+      - feat/v15-05-7i-real-jwt-wal-rescue-fake-20261019
+  pull_request:
+    paths:
+      - backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py
+      - docs/quality/V15_05_7_I_JWT_WAL_WORKER_FAKE_EVIDENCE.md
+      - .github/workflows/v15-05-7-i-real-jwt-wal-worker-fake.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  true-jwt-and-worker-rescue:
+    name: Genuine JWT/SQLCipher/WAL fake worker (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      LOT05E_REAL_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05I_REAL_JWT_WAL_FAKE_ONLY: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      ENVIRONMENT: cabinet
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native SQLCipher dependency on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Install pinned genuine application-auth and SQLCipher test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3 pytest==9.0.3
+      - name: Verify actual SQLCipher driver, compile test and show runner OS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py
+          python -c "from sqlcipher3 import dbapi2 as s; import secrets; c=s.connect(':memory:'); c.execute(\"PRAGMA key = '\" + secrets.token_hex(32) + \"'\"); v=c.execute('PRAGMA cipher_version').fetchone(); assert v and v[0], 'REAL_NATIVE_SQLCIPHER_REQUIRED'; print('REAL_SQLCIPHER_AVAILABLE'); c.close()"
+      - name: Execute REAL JWT and WAL rescue methods on FAKE database only
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py -v 2>&1 | tee lot05i-evidence.log
+          grep -q '^Ran 21 tests' lot05i-evidence.log
+          grep -Eq '^OK[[:space:]]*$' lot05i-evidence.log
+          ! grep -E 'skipped=[0-9]+|^FAILED \(|^ERROR: test_|^ERROR: setUpClass' lot05i-evidence.log
+      - name: Checkout exact HEAD and block any production mutation
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || 'd4a32424b92f72d1e100e16a8ae5e464813b5c85' }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- \
+            backend/main.py backend/database.py backend/models.py \
+            backend/routers backend/core backend/services alembic frontend
+          test "$(git diff --name-only "$BASE_SHA" HEAD | grep -Ev \
+            '^(\.github/workflows/v15-05-7-i-real-jwt-wal-worker-fake\.yml|backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab\.py|docs/quality/V15_05_7_I_JWT_WAL_WORKER_FAKE_EVIDENCE\.md|techdoubt\.md)$' | wc -l | tr -d '[:space:]')" = 0
