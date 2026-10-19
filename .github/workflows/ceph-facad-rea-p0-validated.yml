@@ -1,0 +1,520 @@
+name: CEPH-FAC FACAD REA P0 static evidence (EXPERIMENTAL)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+    branches: [master]
+    paths:
+      - .github/workflows/ceph-facad-rea-p0-validated.yml
+      - techdoubt.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ceph-facad-rea-p0-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  facad-rea-managed-triage:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact experimental HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Assert exact tested PR HEAD
+        shell: pwsh
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_HEAD) { throw "HEAD mismatch: $actual != expected PR head" }
+          Write-Host "PR_EXACT_HEAD_VERIFIED=$actual"
+
+      - name: Verify embedded PowerShell syntax before network activity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Get-Content -LiteralPath '.github/workflows/ceph-facad-rea-p0-validated.yml'
+          $parsedBlocks = 0
+          for ($i = 0; $i -lt $source.Count; $i++) {
+            if ($source[$i] -ne '        run: |') { continue }
+            $block = [System.Collections.Generic.List[string]]::new()
+            for ($j = $i + 1; $j -lt $source.Count; $j++) {
+              $line = $source[$j]
+              if ($line.Trim().Length -eq 0) { [void]$block.Add(''); continue }
+              if (-not $line.StartsWith('          ')) { break }
+              [void]$block.Add($line.Substring(10))
+            }
+            if ($block.Count -eq 0) { throw "Missing PowerShell body at line $($i + 1)" }
+            $tok = $null
+            $errs = $null
+            [void][System.Management.Automation.Language.Parser]::ParseInput(($block -join "`n"), [ref]$tok, [ref]$errs)
+            if ($null -ne $errs -and $errs.Count -gt 0) {
+              foreach ($e in $errs) { Write-Host "POWERSHELL_PARSE_ERROR=$($e.Message)" }
+              throw "Invalid PowerShell at line $($i + 1)"
+            }
+            $parsedBlocks++
+          }
+          if ($parsedBlocks -ne 6) { throw "Expected exactly six PowerShell blocks" }
+          Write-Host "POWERSHELL_PARSE_PASS=$parsedBlocks"
+
+      - name: Certify private six-export intake with synthetic fixtures only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m unittest -v audit.test_cephalo_facad_robert_evidence_stage
+          if ($LASTEXITCODE -ne 0) { throw 'Private six-export staging synthetic test suite failed' }
+          python -m audit.cephalo_facad_robert_evidence_stage --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Private FACAD intake CLI module entrypoint failed' }
+          Write-Host 'FACAD_PRIVATE_SIX_EXPORT_STAGING_SYNTHETIC_PASS=true'
+          Write-Host 'FACAD_PRIVATE_INTAKE_CLI_MODULE_PASS=true'
+
+      - name: Install supported Node for pinned REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+
+      - name: Download and unpack public official FACAD 3.14 payload without installing or launching
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          New-Item -ItemType Directory -Force -Path facad-rea/outer,facad-rea/release,facad-rea/evidence | Out-Null
+          $installer = 'facad-rea/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          if ((Get-Item -LiteralPath $installer).Length -lt 1024) { throw 'Official installer download unexpectedly small' }
+          # Reject changed bytes BEFORE any parser or archive extraction handles downloaded data.
+          $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
+          if ($installerHash -ne 'A60D13EA2C32D49C192BCF07F40BA07D8C0410E6577FE28CE4B0181BB4018B86') { throw 'Unexpected installer hash; extraction refused' }
+          Write-Host "FACAD_INSTALLER_PRE_EXTRACT_PIN_PASS=$installerHash"
+          $seven = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
+          if (!(Test-Path -LiteralPath $seven)) { throw '7zip unavailable' }
+          & $seven x $installer '-ofacad-rea/outer' -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to extract official installer wrapper' }
+          $releaseZip = 'facad-rea/outer/FacadRelease-3.14.1.1111.zip'
+          if (!(Test-Path -LiteralPath $releaseZip)) { throw 'Missing official FacadRelease-3.14.1.1111.zip' }
+          $releaseHash = (Get-FileHash -LiteralPath $releaseZip -Algorithm SHA256).Hash
+          if ($releaseHash -ne '48A5844B4EFF8EFC06F559C962A3AD88FD9B6983C37FDDBA5C28B19C0CE4ABC4') { throw 'Unexpected release hash; extraction refused' }
+          Write-Host "FACAD_RELEASE_PRE_EXTRACT_PIN_PASS=$releaseHash"
+          & $seven x $releaseZip '-ofacad-rea/release' -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to extract official Facad release ZIP' }
+          Write-Host "SOURCE_HEAD=$(git rev-parse HEAD)"
+          Write-Host "OFFICIAL_INSTALLER_SHA256=$installerHash"
+          Write-Host "OFFICIAL_RELEASE_SHA256=$releaseHash"
+          Write-Host 'FACAD_OFFICIAL_SHA256_PINNED_PASS=true'
+          # No FACAD application or trial is started and no new EULA is accepted.
+
+      - name: Prove official Robert demo presence and validate unchanged LOT08 parity contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $officialCase = 'facad-rea/release/Examples/Robert-2.0.fcd'
+          if (!(Test-Path -LiteralPath $officialCase -PathType Leaf)) { throw 'Official Robert demo missing from pinned release; no trace evidence' }
+          $officialCaseSize = (Get-Item -LiteralPath $officialCase).Length
+          if ($officialCaseSize -le 0) { throw 'Official Robert demo empty; refuse' }
+          $officialCaseHash = (Get-FileHash -LiteralPath $officialCase -Algorithm SHA256).Hash.ToLowerInvariant()
+          # Use the EXISTING LOT08 validator. A static definition is not numeric parity.
+          python audit/cephalo_lot08_facad_parity_validate.py
+          if ($LASTEXITCODE -ne 0) { throw 'Canonical LOT08 parity manifest rejected' }
+          $manifestPath = 'docs/audits/schemas/ortho_lot08_facad_ricketts_direct_parity_evidence_v1.json'
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -ErrorAction Stop
+          if ($manifest.status -ne 'DIRECT_DEFINITION_OBSERVED') { throw 'Direct Facad export status changed; this experiment must not infer parity' }
+          if (@($manifest.evidence_records).Count -ne 0 -or @($manifest.parity_rows).Count -ne 0) { throw 'Existing exports/parity present; require fresh explicit review' }
+          if (@($manifest.profiles).Count -ne 2) { throw 'Expected two Facad Ricketts profiles' }
+          foreach ($profile in $manifest.profiles) {
+            if ($profile.observation_status -ne 'UNOBSERVED') { throw 'Unexpected observed runtime profile' }
+          }
+          $kinds = @($manifest.required_direct_exports | ForEach-Object { $_.kind } | Sort-Object -Unique)
+          if (($kinds -join ',') -ne 'ANALYSIS_PROPERTIES,ANALYSIS_VALUES,MARKER_POSITIONS') { throw 'Canonical three-export-family contract changed' }
+          $preflight = [ordered]@{
+            schema_version = 1
+            source_head = (git rev-parse HEAD).Trim()
+            sample_source = 'Pinned official FACAD 3.14.1.1111 release/Examples'
+            sample_file_name = 'Robert-2.0.fcd'
+            sample_sha256 = $officialCaseHash
+            sample_bytes = $officialCaseSize
+            sample_opened_in_facad = $false
+            manifest_status = 'DIRECT_DEFINITION_OBSERVED'
+            registered_direct_export_record_count = 0
+            registered_parity_row_count = 0
+            required_profile_ids = @('FACAD_RICKETTS_32F_COMPATIBILITY_TARGET','FACAD_RICKETTS_13F_COMPATIBILITY_TARGET')
+            required_export_families = @('ANALYSIS_VALUES','ANALYSIS_PROPERTIES','MARKER_POSITIONS')
+            facad_314_ui_marker_equivalent = 'Object Values'
+            gui_run_performed = $false
+            numeric_parity_proved = $false
+          }
+          $preflight | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/robert-safe-preflight.json -Encoding utf8
+          Write-Host "OFFICIAL_ROBERT_SHA256=$officialCaseHash"
+          Write-Host "OFFICIAL_ROBERT_BYTES=$officialCaseSize"
+          Write-Host 'FACAD_LOT08_CANONICAL_DIRECT_PARITY_STATUS=DIRECT_DEFINITION_OBSERVED'
+          Write-Host 'FACAD_SAME_TRACE_SIX_EXPORTS_PROVED=false'
+          Write-Host 'FACAD_ROBERT_STATIC_PREFLIGHT_PASS=true'
+
+      - name: Execute real pinned REA static .NET/PE triage on FACAD and export plugin
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          npm install --global rea-agents@6.7.0 --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned REA installation failed' }
+          $version = (& rea --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'REA CLI version failed' }
+          Write-Host "REA_PIN=rea-agents@6.7.0"
+          Write-Host "REA_VERSION=$version"
+          # Report only an explicit whitelist of technical status enums, booleans and counts.
+          # Never serialize raw vendor values, source, CIL, type names, method names or paths.
+          function ConvertTo-SafeReaFacet {
+            param([object]$Node)
+            $result = [ordered]@{ kind = 'absent'; fields = @(); values = [ordered]@{} }
+            if ($null -eq $Node) { return $result }
+            $allowedEnums = @('complete','partial','unknown','unavailable','unsupported','managed','native','mixed','mixed_mode','clr','managed_dotnet','native_pe','invalid','supported','none')
+            $enumKeys = @('status','state','kind','classification','coverage_state','availability')
+            $boolKeys = @('is_managed','is_native','is_mixed','has_metadata','is_complete')
+            $countKeys = @('total','count','found','covered','available','unavailable','analyzed','methods_total','methods_analyzed','methods_covered','types_total','types_covered')
+            if ($Node -is [pscustomobject]) {
+              $result.kind = 'object'
+              foreach ($prop in $Node.PSObject.Properties) {
+                $key = [string]$prop.Name
+                if ($key -notin ($enumKeys + $boolKeys + $countKeys)) { continue }
+                $result.fields += $key
+                if ($key -in $enumKeys) {
+                  if ($prop.Value -is [string] -and $prop.Value.ToLowerInvariant() -in $allowedEnums) {
+                    $result.values[$key] = $prop.Value.ToLowerInvariant()
+                  } else {
+                    $result.values[$key] = 'WITHHELD'
+                  }
+                }
+                elseif ($key -in $boolKeys) {
+                  if ($prop.Value -is [bool]) { $result.values[$key] = $prop.Value }
+                  else { $result.values[$key] = 'WITHHELD' }
+                }
+                else {
+                  if ($prop.Value -is [int] -or $prop.Value -is [long]) {
+                    if ($prop.Value -ge 0 -and $prop.Value -le 10000000) { $result.values[$key] = $prop.Value }
+                    else { $result.values[$key] = 'WITHHELD' }
+                  } else { $result.values[$key] = 'WITHHELD' }
+                }
+              }
+              $result.fields = @($result.fields | Sort-Object -Unique)
+            }
+            elseif ($Node -is [array]) {
+              $result.kind = 'array'
+              $result.values['count'] = @($Node).Count
+            }
+            elseif ($Node -is [string]) {
+              $result.kind = 'scalar'
+              if ($Node.ToLowerInvariant() -in $allowedEnums) { $result.values['enum'] = $Node.ToLowerInvariant() }
+              else { $result.values['enum'] = 'WITHHELD' }
+            }
+            else { $result.kind = 'scalar'; $result.values['value'] = 'WITHHELD' }
+            return $result
+          }
+          # Fail-closed synthetic redaction regression, before any FACAD inspection.
+          $synthetic = [pscustomobject]@{ status = 'PROPRIETARY_INTERNAL_METHOD'; total = 5; is_managed = $true; secret_path = 'SENSITIVE' }
+          $guard = ConvertTo-SafeReaFacet $synthetic
+          if ($guard.values['status'] -ne 'WITHHELD' -or $guard.values['total'] -ne 5 -or $guard.values['is_managed'] -ne $true -or $guard.fields -contains 'secret_path') {
+            throw 'Safe REA facet projection failed synthetic redaction test'
+          }
+          Write-Host 'REA_SAFE_PROJECTION_SYNTHETIC_PASS=true'
+          $root = 'facad-rea/release'
+          $wanted = @('Facad.exe', 'FacadExportCephDataPlugin.exe')
+          $safeDemoPreflight = Get-Content -LiteralPath 'facad-rea/evidence/robert-safe-preflight.json' -Raw | ConvertFrom-Json -ErrorAction Stop
+          if ($safeDemoPreflight.source_head -ne (git rev-parse HEAD).Trim()) { throw 'Robert preflight HEAD mismatch' }
+          $summary = [ordered]@{
+            schema_version = 8
+            source_head = (git rev-parse HEAD).Trim()
+            official_robert_preflight = $safeDemoPreflight
+            source = 'official public Citodent FACAD 3.14.1.1111 release ZIP'
+            rea_pin = 'rea-agents@6.7.0'
+            operation = 'inspect-managed-artifact'
+            mode = 'read-only static; no Facad GUI, license or patient data'
+            results = @()
+          }
+          foreach ($name in $wanted) {
+            $candidates = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter $name)
+            if ($candidates.Count -ne 1) { throw "Expected exactly one official target $name; actual=$($candidates.Count)" }
+            $file = $candidates[0]
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+            # Static PE/CLI header only. This does not reflect/load/run FACAD or decode vendor methods.
+            $stream = [System.IO.File]::OpenRead($file.FullName)
+            $pe = $null
+            try {
+              $pe = [System.Reflection.PortableExecutable.PEReader]::new($stream)
+              if ($null -eq $pe.PEHeaders.PEHeader) { throw "Not a valid PE image: $name" }
+              $corPresent = ($null -ne $pe.PEHeaders.CorHeader)
+              $metadataPresent = [bool]$pe.HasMetadata
+              $machine = [string]$pe.PEHeaders.CoffHeader.Machine
+              if (-not $corPresent -or -not $metadataPresent) { throw "PE/CLI metadata required: $name" }
+              $mdReader = [System.Reflection.Metadata.PEReaderExtensions]::GetMetadataReader($pe)
+              $signals = [ordered]@{
+                export = '(?i)export'
+                ceph = '(?i)ceph'
+                analysis = '(?i)analys|analyz|measur'
+                marker = '(?i)marker|landmark'
+                position = '(?i)position|coordinat'
+                values = '(?i)value|result'
+                properties = '(?i)propert'
+              }
+              $signalCounts = [ordered]@{}
+              foreach ($category in $signals.Keys) {
+                $signalCounts[$category] = [ordered]@{
+                  declared_types = 0
+                  declared_methods = 0
+                  public_methods = 0
+                }
+              }
+              $declaredTypes = 0
+              $declaredMethods = 0
+              $publicMethods = 0
+              foreach ($th in $mdReader.TypeDefinitions) {
+                $type = $mdReader.GetTypeDefinition($th)
+                $declaredTypes++
+                # Type name is consulted in memory only. Never written to logs or artifact.
+                $typeName = $mdReader.GetString($type.Name)
+                foreach ($category in $signals.Keys) {
+                  if ($typeName -match $signals[$category]) { $signalCounts[$category].declared_types++ }
+                }
+                foreach ($mh in $type.GetMethods()) {
+                  $method = $mdReader.GetMethodDefinition($mh)
+                  $declaredMethods++
+                  $isPublic = (([int]$method.Attributes -band 7) -eq 6)
+                  if ($isPublic) { $publicMethods++ }
+                  # Declaration name only, not the body. Report counters, never vendor strings.
+                  $methodName = $mdReader.GetString($method.Name)
+                  foreach ($category in $signals.Keys) {
+                    if ($methodName -match $signals[$category]) {
+                      $signalCounts[$category].declared_methods++
+                      if ($isPublic) { $signalCounts[$category].public_methods++ }
+                    }
+                  }
+                }
+              }
+              if ($declaredTypes -le 0 -or $declaredMethods -le 0) { throw "No declared managed members: $name" }
+              # Exploratory candidate ranking: metadata declaration names are used only IN MEMORY.
+              # Public evidence contains ordinal rank labels T01..T12, fixed signal categories and counts.
+              $typeCandidateCohorts = [ordered]@{ export_bridge = 0; ceph_bridge = 0; analysis_bridge = 0; other_multisignal = 0 }
+              $typeCandidateShortlist = @()
+              if ($name -eq 'FacadExportCephDataPlugin.exe') {
+                $candidateRows = [System.Collections.Generic.List[object]]::new()
+                $ordinalInMetadata = 0
+                foreach ($candidateHandle in $mdReader.TypeDefinitions) {
+                  $ordinalInMetadata++
+                  $candidateType = $mdReader.GetTypeDefinition($candidateHandle)
+                  $candidateTypeName = $mdReader.GetString($candidateType.Name)
+                  $typeHits = [ordered]@{}
+                  $methodHits = [ordered]@{}
+                  foreach ($category in $signals.Keys) {
+                    $typeHits[$category] = [bool]($candidateTypeName -match $signals[$category])
+                    $methodHits[$category] = 0
+                  }
+                  $declaredPublicInType = 0
+                  $declaredMethodsInType = 0
+                  # These are metadata row counts, not method bodies, signatures or interface names.
+                  $implementedInterfaceCount = $candidateType.GetInterfaceImplementations().Count
+                  $explicitMethodImplementationCount = $candidateType.GetMethodImplementations().Count
+                  foreach ($methodHandle in $candidateType.GetMethods()) {
+                    $declaredMethodsInType++
+                    $candidateMethod = $mdReader.GetMethodDefinition($methodHandle)
+                    $candidateMethodName = $mdReader.GetString($candidateMethod.Name)
+                    if (([int]$candidateMethod.Attributes -band 7) -eq 6) { $declaredPublicInType++ }
+                    foreach ($category in $signals.Keys) {
+                      if ($candidateMethodName -match $signals[$category]) { $methodHits[$category]++ }
+                    }
+                  }
+                  $matchedSignals = @($signals.Keys | Where-Object { $typeHits[$_] -or $methodHits[$_] -gt 0 })
+                  if ($matchedSignals.Count -lt 2) { continue }
+                  $hasAnchor = $false
+                  foreach ($anchorCategory in @('export','ceph','analysis','marker')) {
+                    if ($anchorCategory -in $matchedSignals) { $hasAnchor = $true }
+                  }
+                  if (-not $hasAnchor) { continue }
+                  $tier = 'other_multisignal'
+                  $tierScore = 0
+                  if ('export' -in $matchedSignals) {
+                    $tier = 'export_bridge'
+                    $tierScore = 300
+                  }
+                  elseif ('ceph' -in $matchedSignals -and (@('analysis','marker','position','values','properties') | Where-Object { $_ -in $matchedSignals }).Count -gt 0) {
+                    $tier = 'ceph_bridge'
+                    $tierScore = 200
+                  }
+                  elseif ('analysis' -in $matchedSignals) {
+                    $tier = 'analysis_bridge'
+                    $tierScore = 100
+                  }
+                  $totalMatchingMethods = 0
+                  foreach ($category in $signals.Keys) { $totalMatchingMethods += $methodHits[$category] }
+                  $score = $tierScore + (10 * $matchedSignals.Count) + [Math]::Min($totalMatchingMethods,25)
+                  $typeCandidateCohorts[$tier]++
+                  [void]$candidateRows.Add([pscustomobject]@{
+                    ordinal_private = $ordinalInMetadata
+                    priority_tier = $tier
+                    score_private = $score
+                    category_labels = @($matchedSignals | Sort-Object)
+                    type_name_categories = @($signals.Keys | Where-Object { $typeHits[$_] } | Sort-Object)
+                    method_hit_counts = $methodHits
+                    declared_method_count = $declaredMethodsInType
+                    public_method_count = $declaredPublicInType
+                    implemented_interface_count = $implementedInterfaceCount
+                    explicit_method_implementation_count = $explicitMethodImplementationCount
+                  })
+                }
+                $rankedCandidates = @($candidateRows | Sort-Object -Property @{ Expression = 'score_private'; Descending = $true }, @{ Expression = 'ordinal_private'; Descending = $false } | Select-Object -First 12)
+                $rank = 0
+                foreach ($candidate in $rankedCandidates) {
+                  $rank++
+                  $typeCandidateShortlist += [ordered]@{
+                    rank_id = ('T{0:D2}' -f $rank)
+                    priority_tier = $candidate.priority_tier
+                    matched_categories = @($candidate.category_labels)
+                    type_name_category_labels = @($candidate.type_name_categories)
+                    method_name_category_counts = $candidate.method_hit_counts
+                    declared_method_count = $candidate.declared_method_count
+                    public_declared_method_count = $candidate.public_method_count
+                    implemented_interface_count = $candidate.implemented_interface_count
+                    explicit_method_implementation_count = $candidate.explicit_method_implementation_count
+                    caveat = 'Rank is reproducible only for the identical binary and sorting algorithm; not a vendor identifier.'
+                  }
+                }
+                if ($candidateRows.Count -lt $typeCandidateShortlist.Count) { throw 'Candidate shortlist integrity failure' }
+                $cohortTotal = 0
+                foreach ($tierName in $typeCandidateCohorts.Keys) { $cohortTotal += $typeCandidateCohorts[$tierName] }
+                if ($cohortTotal -ne $candidateRows.Count) { throw 'Candidate cohort sum mismatch' }
+                foreach ($candidate in $typeCandidateShortlist) {
+                  if ($candidate.declared_method_count -lt $candidate.public_declared_method_count) { throw 'Impossible method visibility metrics' }
+                  if ($candidate.declared_method_count -gt $declaredMethods) { throw 'Candidate method count exceeds total' }
+                }
+                foreach ($candidate in $typeCandidateShortlist) {
+                  foreach ($key in $candidate.Keys) {
+                    if ($key -notin @('rank_id','priority_tier','matched_categories','type_name_category_labels','method_name_category_counts','declared_method_count','public_declared_method_count','implemented_interface_count','explicit_method_implementation_count','caveat')) { throw 'Unexpected candidate output field' }
+                  }
+                  if ($candidate.rank_id -notmatch '^T[0-9]{2}$') { throw 'Invalid abstract rank ID' }
+                }
+                Write-Host "PE_PLUGIN_MULTISIGNAL_CANDIDATES=$($candidateRows.Count)"
+                Write-Host "PE_PLUGIN_ANONYMOUS_SHORTLIST_COUNT=$($typeCandidateShortlist.Count)"
+              }
+              $peDeclarationSurface = [ordered]@{
+                authority = 'PEReader_METADATA_DECLARATIONS_ONLY'
+                declared_types = $declaredTypes
+                declared_methods = $declaredMethods
+                public_methods = $publicMethods
+                assembly_reference_count = $mdReader.AssemblyReferences.Count
+                categories = $signalCounts
+                type_candidate_cohorts = $typeCandidateCohorts
+                anonymous_type_candidate_shortlist = $typeCandidateShortlist
+                caveat = 'Lexical category co-occurrences are exploratory; not export entry points, runtime reachability or numeric parity.'
+              }
+            }
+            finally {
+              if ($null -ne $pe) { $pe.Dispose() }
+              $stream.Dispose()
+            }
+            $out = "facad-rea/evidence/$name.rea.json"
+            $err = "facad-rea/evidence/$name.stderr.txt"
+            Write-Host "REA_TARGET=$name"
+            Write-Host "REA_TARGET_SHA256=$hash"
+            & rea inspect-managed-artifact $file.FullName --json 1> $out 2> $err
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
+              Write-Host "REA_TARGET_FAILED=$name; exit=$exitCode"
+              throw "REA managed static triage failed for $name. Raw provider output stays on disposable runner."
+            }
+            try { $parsed = Get-Content -LiteralPath $out -Raw | ConvertFrom-Json -ErrorAction Stop }
+            catch { throw "REA output was not valid JSON for $name" }
+            $keys = @($parsed.PSObject.Properties.Name)
+            $entry = [ordered]@{
+              file_name = $name
+              sha256 = $hash
+              bytes = $file.Length
+              rea_exit = $exitCode
+              json_valid = $true
+              output_sha256 = (Get-FileHash -LiteralPath $out -Algorithm SHA256).Hash
+              result_field_count = $keys.Count
+              # Only root property names conforming to a simple schema identifier; no values,
+              # proprietary type/member names, CIL, paths, strings, or reverse-engineered source.
+              rea_root_schema_field_names = @($keys | Where-Object { $_ -cmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' } | Sort-Object -Unique)
+              rea_root_schema_field_names_omitted = @($keys | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' }).Count
+              # Schema-only child inspection; no normalized_result values are exposed.
+              rea_normalized_result_shape = [ordered]@{ kind = 'unavailable'; field_names = @(); omitted = 0 }
+              rea_safe_facets = [ordered]@{
+                classification = [ordered]@{ kind = 'absent'; fields = @(); values = [ordered]@{} }
+                coverage = [ordered]@{ kind = 'absent'; fields = @(); values = [ordered]@{} }
+              }
+              pe_header = [ordered]@{
+                cli_header_present = $corPresent
+                cli_metadata_present = $metadataPresent
+                machine = $machine
+                classification_authority = 'PEReader_STATIC_HEADER_ONLY'
+              }
+              pe_declaration_surface = $peDeclarationSurface
+              rea_schema_fields = @($keys | Where-Object { $_ -in @('schema_version','version','source','artifact','metadata','classification','coverage','summary','result','data','diagnostics','errors','warnings','evidence','confidence','status') })
+              rea_sections = [ordered]@{}
+            }
+            $normalizedProp = $parsed.PSObject.Properties['normalized_result']
+            if ($null -ne $normalizedProp -and $null -ne $normalizedProp.Value) {
+              if ($normalizedProp.Value -is [pscustomobject]) {
+                $nk = @($normalizedProp.Value.PSObject.Properties.Name)
+                $entry.rea_normalized_result_shape = [ordered]@{
+                  kind = 'object'
+                  field_names = @($nk | Where-Object { $_ -cmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' } | Sort-Object -Unique | Select-Object -First 64)
+                  omitted = @($nk | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' }).Count
+                }
+              }
+              elseif ($normalizedProp.Value -is [array]) {
+                $entry.rea_normalized_result_shape = [ordered]@{ kind = 'array'; count = @($normalizedProp.Value).Count }
+              }
+              else {
+                $entry.rea_normalized_result_shape = [ordered]@{ kind = 'scalar' }
+              }
+            }
+            if ($null -ne $normalizedProp -and $normalizedProp.Value -is [pscustomobject]) {
+              foreach ($facetName in @('classification','coverage')) {
+                $facetProp = $normalizedProp.Value.PSObject.Properties[$facetName]
+                if ($null -ne $facetProp) {
+                  $entry.rea_safe_facets[$facetName] = ConvertTo-SafeReaFacet $facetProp.Value
+                }
+                Write-Host "REA_SAFE_FACET=$name/$facetName/$($entry.rea_safe_facets[$facetName].kind)"
+              }
+            }
+            foreach ($sectionName in @('metadata','classification','coverage','summary','result','diagnostics')) {
+              $prop = $parsed.PSObject.Properties[$sectionName]
+              if ($null -eq $prop -or $null -eq $prop.Value) { continue }
+              if ($prop.Value -is [pscustomobject]) {
+                $entry.rea_sections[$sectionName] = [ordered]@{
+                  kind = 'object'
+                  recognized_fields = @($prop.Value.PSObject.Properties.Name | Where-Object { $_ -in @('status','state','kind','type','is_managed','managed','managed_kind','framework','coverage','warnings','errors','module_type','confidence') })
+                }
+              }
+              elseif ($prop.Value -is [array]) {
+                $entry.rea_sections[$sectionName] = [ordered]@{ kind = 'array'; count = @($prop.Value).Count }
+              }
+              else {
+                $entry.rea_sections[$sectionName] = [ordered]@{ kind = 'scalar' }
+              }
+            }
+            $summary.results += $entry
+            Write-Host "PE_CLI_HEADER_PRESENT=$name/$corPresent"
+            Write-Host "PE_CLI_METADATA_PRESENT=$name/$metadataPresent"
+            Write-Host "PE_METADATA_COUNTS=$name/types=$declaredTypes,methods=$declaredMethods,public=$publicMethods"
+            Write-Host "REA_ROOT_SCHEMA_FIELD_COUNT=$name/$($entry.rea_root_schema_field_names.Count)"
+            Write-Host "REA_STATIC_JSON_VALID=$name"
+          }
+          if ($summary.results.Count -ne 2) { throw 'Incomplete REA target coverage' }
+          $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/rea-safe-summary.json -Encoding utf8
+          Write-Host 'REA_FACAD_TWO_REAL_TARGETS_P0_PASS=true'
+          # Raw REA reports and vendor binaries are NEVER uploaded.
+
+      - name: Upload safe proof summary only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-facad-rea-p0-safe-summary
+          path: facad-rea/evidence/rea-safe-summary.json
+          if-no-files-found: ignore
+          retention-days: 7
