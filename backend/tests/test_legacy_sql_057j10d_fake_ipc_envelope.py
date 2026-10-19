@@ -1,9 +1,12 @@
 """J10D test-only IPC parser negative contract; NOT SCM/pipe certification."""
 import json
 import unittest
-from backend.tests.fixtures.lot05j10d_fake_ipc_envelope import (
-    IpcDenied, PURPOSE, parse_frame
-)
+import importlib.util
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("j10d_fake_ipc", Path(__file__).parent / "fixtures" / "lot05j10d_fake_ipc_envelope.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+IpcDenied, PURPOSE, parse_frame = module.IpcDenied, module.PURPOSE, module.parse_frame
 OWNER = 17
 JOB = "a" * 32
 GEN = "g_" + "b" * 32
@@ -67,9 +70,7 @@ class J10DIpcEnvelope(unittest.TestCase):
 
     def test_no_transport_authorization(self):
         # No worker, IPC endpoint, peer credential or restore action exists here.
-        self.assertFalse(hasattr(__import__(
-            "backend.tests.fixtures.lot05j10d_fake_ipc_envelope",
-            fromlist=["parse_frame"]), "apply_restore"))
+        self.assertFalse(hasattr(module, "apply_restore"))
 
 if __name__ == "__main__":
     unittest.main()
