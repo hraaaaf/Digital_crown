@@ -171,6 +171,10 @@ class SafeFakeRecoveryLab(unittest.TestCase):
         marker.write_bytes(b"FAKE-ACTIVE-KEEP")
         with self.assertRaisesRegex(RuntimeError, "worker non attesté"):
             GuidedRestoreWorker.run("nonexistent", parent_pid=999)
+        # An accidentally permissive imported dormant guard must still NOT enable apply.
+        with patch("backend.services.legacy_migration_restore_policy_v15.require_clinical_apply", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "worker non attesté"):
+                GuidedRestoreWorker.run("nonexistent", parent_pid=999)
         self.assertEqual(marker.read_bytes(), b"FAKE-ACTIVE-KEEP")
         self.assertFalse((self.root / "guided-restore").exists())
 
@@ -194,6 +198,9 @@ class SafeFakeRecoveryLab(unittest.TestCase):
                               side_effect=AssertionError("WORKER_MUST_NOT_LAUNCH")):
                 with self.assertRaisesRegex(RuntimeError, "autorité worker non attestée"):
                     GuidedRestoreService.request_apply(job_id, "RESTAURER", owner_employer_id=7)
+                with patch("backend.services.legacy_migration_restore_policy_v15.require_clinical_apply", return_value=None):
+                    with self.assertRaisesRegex(RuntimeError, "autorité worker non attestée"):
+                        GuidedRestoreService.request_apply(job_id, "RESTAURER", owner_employer_id=7)
             self.assertEqual(GuidedRestoreService.get_job(job_id)["status"], "prepared")
             self.assertFalse((job_dir / "rescue").exists())
 
