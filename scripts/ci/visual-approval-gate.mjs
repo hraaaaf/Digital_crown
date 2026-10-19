@@ -47,7 +47,11 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
     if(!touchesUI&&!priorLabel)return {state:'skipped-non-ui',head:actual};
     try{ await api.delete(`/issues/${number}/labels/${APPROVAL_LABEL}`); }
     catch(error){
-      if(error?.status!==404)throw new Error('Failed to revoke stale visual approval',{cause:error});
+      if(error?.status!==404){
+        // Expose only the numeric HTTP status; never print API bodies or tokens.
+        const status=Number.isInteger(error?.status)?` (HTTP ${error.status})`:' (HTTP status unavailable)';
+        throw new Error(`Failed to revoke stale visual approval${status}`,{cause:error});
+      }
     }
     if(await hasLabel(api,number))
       throw new Error('Stale visual approval label still present after DELETE');
