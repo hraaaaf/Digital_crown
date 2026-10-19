@@ -13,6 +13,18 @@ import unittest
 from unittest.mock import patch
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
+# Only the two unmodified recovery modules are under test here. The package
+# backend/__init__.py eagerly initialises unrelated clinical SQLAlchemy models
+# and media policies; loading that application shell is not part of an OFFLINE
+# fake recovery test. Preserve actual source/module imports in a minimal namespace.
+import sys
+import types
+if "backend" not in sys.modules:
+    _backend = types.ModuleType("backend")
+    _backend.__path__ = [str(Path(__file__).resolve().parents[1])]
+    _backend.__package__ = "backend"
+    sys.modules["backend"] = _backend
+
 from backend.services.legacy_migration_safe_restore_lab_v15 import (
     publish_fake_snapshot, read_fake_current, FakeRecoveryDenied)
 from backend.services import legacy_migration_j10_signed_offline_lab_v15 as j
