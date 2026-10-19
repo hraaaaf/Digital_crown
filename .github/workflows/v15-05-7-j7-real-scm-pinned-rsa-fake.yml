@@ -17,7 +17,6 @@ permissions:
 
 jobs:
   unchanged-restore-regressions:
-    # J6 file-scope contract is required only on its own stacked PR.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j7-real-scm-pinned-key-signed-job-fake-20261019'
     name: J7 inherited J6/J5/J4/J2/I and clinical DENY (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -148,6 +147,7 @@ jobs:
 
   real-windows-scm-service-sid:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j7-real-scm-pinned-key-signed-job-fake-20261019'
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j7-real-scm-pinned-key-signed-job-fake-20261019'
     name: Real ephemeral LocalService SCM token + NTFS ACL (Windows)
     runs-on: windows-latest
     timeout-minutes: 12
@@ -189,6 +189,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
 
   real-scm-pinned-rsa-signed-job-fake:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j7-real-scm-pinned-key-signed-job-fake-20261019'
     name: J7 REAL SCM Service SID pinned public key and fake signed order (Windows)
     runs-on: windows-latest
     timeout-minutes: 20
