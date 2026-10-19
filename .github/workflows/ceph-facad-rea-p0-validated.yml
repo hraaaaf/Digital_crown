@@ -61,7 +61,7 @@ jobs:
             }
             $parsedBlocks++
           }
-          if ($parsedBlocks -lt 6) { throw "Expected four PowerShell blocks" }
+          if ($parsedBlocks -ne 6) { throw "Expected exactly six PowerShell blocks" }
           Write-Host "POWERSHELL_PARSE_PASS=$parsedBlocks"
 
       - name: Certify private six-export intake with synthetic fixtures only
