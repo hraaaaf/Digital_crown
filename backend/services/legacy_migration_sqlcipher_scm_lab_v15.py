@@ -148,9 +148,14 @@ def fake_current(root: Path, *, owner: object, key: object):
         raise J2Denied("GENERATION_UNVERIFIABLE") from exc
 
 
-def fake_publish(root: Path, source, *, owner: object, key: object,
-                 fail_at: str | None = None) -> dict:
+def fake_publish(root: Path, source, *, owner: object, expected_owner: object,
+                 key: object, fail_at: str | None = None) -> dict:
     _guard(root, owner, key)
+    # Comparing two caller-supplied FAKE identities is only a laboratory
+    # exercise. A real authenticated/SCM principal MUST be proved separately.
+    if (type(expected_owner) is not int or expected_owner <= 0
+            or owner != expected_owner):
+        raise J2Denied("FAKE_OWNER_MISMATCH")
     from sqlcipher3 import dbapi2
     if not isinstance(source, dbapi2.Connection):
         raise J2Denied("REAL_SQLCIPHER_SOURCE_REQUIRED")
