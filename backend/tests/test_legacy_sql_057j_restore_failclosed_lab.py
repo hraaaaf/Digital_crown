@@ -57,9 +57,13 @@ class SafeFakeRecoveryLab(unittest.TestCase):
         self.publish()
         directory, _ = self.current()
         self.assertEqual(self._value(directory / "snapshot.db"), "committed-v1")
+        self.assertFalse((directory / "snapshot.db-wal").exists())
+        self.assertFalse((directory / "snapshot.db-shm").exists())
         destination = clone_current_into_new_fake_dir(
             self.root, self.root / "isolated-recovery", request_owner=7, expected_owner=7)
         self.assertEqual(self._value(destination / "snapshot.db"), "committed-v1")
+        self.assertFalse((destination / "snapshot.db-wal").exists())
+        self.assertFalse((destination / "snapshot.db-shm").exists())
         self.assertTrue(Path(str(self.db) + "-wal").exists())
 
     def test_02_no_missing_wrong_or_coercible_owner_can_publish(self):
