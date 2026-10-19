@@ -48,43 +48,23 @@ Source : `backend/main.py::validate_environment_invariants()`.
 
 ## Reality Proof Gate (RPG) — preuve observable obligatoire
 
-Lire `docs/quality/REALITY_PROOF_GATE.md` pour chaque lot/sous-lot V1.5. Choisir le niveau selon le risque (contrat, parcours, multi-acteurs, défaillance/privacy, matériel). Le FUE-0/I/G et les deux revues adversariales restent requis selon leur scope ; ils ne remplacent pas une simulation réelle de l'issue métier. Exiger SHA exact, tests réellement exécutés, preuves émetteur/récepteur et affichage si applicable, tests négatifs et artefacts inspectables. Une CI verte sans scénario exécuté ou un TestClient partagé présenté comme deux postes ne certifie pas le RPG. Un gate matériel/physique non exécuté reste OPEN. Ne jamais utiliser de données patient réelles en CI.
+Lire `docs/quality/REALITY_PROOF_GATE.md` pour chaque lot/sous-lot V1.5. Choisir le niveau selon le risque (contrat, parcours, multi-acteurs, défaillance/privacy, matériel). Le FUE-0/I/G et les contrôles spécialisés déclenchés par le risque restent requis selon leur scope ; ils ne remplacent pas une simulation réelle de l'issue métier. Exiger SHA exact, tests réellement exécutés, preuves émetteur/récepteur et affichage si applicable, tests négatifs et artefacts inspectables. Une CI verte sans scénario exécuté ou un TestClient partagé présenté comme deux postes ne certifie pas le RPG. Un gate matériel/physique non exécuté reste OPEN. Ne jamais utiliser de données patient réelles en CI.
 
 ## Règles absolues
 
 ### Scoring d'exécution et vérification
 
-### Revue adversariale explicite obligatoire
+### FUE — protocole principal de validation
 
-Pour tout lot significatif, correction importante, migration, changement architectural, sécurité, données ou logique métier critique :
+La First User Experience (FUE) est le protocole principal de validation observable, proportionné au risque et à la maturité du lot. Aucune double revue adversariale A/B, aucun nombre de reviewers, aucun agent externe n'est requis par défaut pour VERIFIED ou CONVERGED.
 
-**Doctrine opérationnelle : LA CONVERSATION EXÉCUTE ELLE-MÊME DEUX REVUES ADVERSARIALES INTERNES A/B.** L'assistant choisit deux spécialités complémentaires adaptées au chantier (ex. clinique/UX et sécurité/intégrité, accueil/ergonomie et finance/permissions), rédige deux grilles de contrôle distinctes, vérifie le code, les tests, les preuves et les parcours réellement disponibles, produit les deux constats séparément, les confronte, corrige les défauts dans le périmètre autorisé et recommence sur le nouveau HEAD. **Ne jamais mettre un lot en attente de « deux vraies revues indépendantes », de deux humains, de sous-agents ou de sessions IA isolées pour satisfaire cette double revue interne.** Ces deux passes dans la même conversation ne sont pas techniquement indépendantes ; leur intitulé honnête est « revues adversariales internes A/B », jamais « experts externes indépendants ». Pour un FUE de nouvel utilisateur, A et B peuvent endosser deux personas fictifs découvrant le produit (« blind users » comme méthode, pas comme isolation garantie), mais un vrai parcours login UI → résultat exige réellement un frontend/backend de test, des comptes fictifs et des preuves BEFORE/action/AFTER ; aucune exploration fictive ne remplace un test exécuté.
+FUE-0 : contrat/code/tests sans inventer de parcours utilisateur. FUE-I : parcours intermédiaire réellement utilisable. FUE-G : parcours complet jusqu'au résultat métier lorsque les dépendances sont disponibles. La PR #783 est un laboratoire expérimental, non une certification universelle.
 
-**Frontières de preuve** : une revue A/B de la conversation satisfait l'exigence de **double revue adversariale interne**, dès qu'elle a réellement été menée, documentée et confirmée sur le même HEAD. Elle ne prouve ni audit externe, ni parcours navigateur non exécuté, ni dispositif physique. L'accord humain explicite requis pour certains rendus/merges, les tests terrain LOT10 et les validations cliniques ou réglementaires humaines explicitement prescrites restent **distincts et non substituables**. L'absence d'auditeurs indépendants n'est jamais une raison d'attendre ou de bloquer un closeout interne si tous ses autres gates sont réellement satisfaits.
+Boucle : Goal et succès observable → scope/HEAD/gates → scénarios/oracles → tests ciblés, négatifs et sécurité applicable → FUE exécutée → preuves BEFORE/ACTION/AFTER, logs, artefacts → BLOCKER/MAJOR → correction → retests impactés → confirmation sur HEAD final. Les personas fictifs sont facultatifs ; ils ne prouvent ni utilisateurs indépendants ni vrai login/backend.
 
-- écrire **au minimum deux prompts adversariaux distincts** avant le closeout ;
-- chaque prompt doit adopter une perspective réellement différente et adaptée au risque du lot ;
-- exécuter les deux prompts séparément **depuis zéro sur le même HEAD** ;
-- chaque revue doit chercher activement : BLOCKER, MAJOR, dette significative, contradiction spec/doc/code/tests, invariant annoncé mais non implémenté, test absent/skippé/non collecté, faux vert, fail-open, régression, dette de migration/rétrocompatibilité, hypothèse non prouvée et preuve non reproductible ;
-- tout finding démontré doit être documenté, corrigé lorsqu'il appartient au scope et que la correction est sûre, puis protégé par un test/preuve anti-régression ;
-- toute correction produisant un nouveau HEAD **invalide les deux revues précédentes** : les deux prompts doivent être réexécutés depuis zéro sur le nouveau HEAD ;
-- la boucle obligatoire est : **REVIEW → FINDINGS → FIX → TEST → NEW HEAD → REVIEW AGAIN** jusqu'à une passe complète avec 0 nouveau BLOCKER, 0 nouveau MAJOR et 0 dette significative non traitée ;
-- après convergence, exécuter une **passe supplémentaire de confirmation depuis zéro** sur le même HEAD ;
-- aucun `ADVERSARIAL_SCORE`, `RETAINED_SCORE`, `VERIFIED`, `CONVERGED`, `READY`, `CLOSED` ou équivalent final ne peut être retenu sans trace des deux prompts, de leur exécution et de la passe de confirmation ;
-- une CI verte ne remplace jamais ces revues ; vérifier collecte, exécution, skips, SHA exact et portée réelle des tests ;
-- **Exécuter ici et maintenant les deux perspectives spécialisées A/B** lorsqu'une double revue est requise ; ne pas renvoyer la tâche à deux reviewers. Si une seule perspective a réellement été exécutée, la seconde reste à **effectuer dans la conversation**, pas à attendre de l'extérieur. L'auto-revue de la même conversation est plafonnée à `9.4/10` ; **9,5/10 et 10/10 ne sont ni attendus ni requis** pour `VERIFIED` (`>= 9.0/10` suffit si tous les gates requis passent). Ne pas utiliser le score maximal comme prétexte pour exiger un auditeur externe.
+Les analyses sécurité, confidentialité, intégrité, migration, RBAC, clinique ou architecture sont déclenchées par les risques, sans obligation mécanique de deux revues A/B. Une FUE visuelle ne remplace pas un test de sécurité. Les approbations humaines explicitement requises, validations cliniques/réglementaires, essais physiques LOT10 et politique de release restent distincts.
 
-Lire et appliquer **à chaque étape matérielle** `.claude/rules/execution-scoring-verification.md`.
-
-- produire `EXECUTION_SCORE /10` puis `ADVERSARIAL_SCORE /10` ;
-- retenir **le minimum**, jamais une moyenne ;
-- tout écart `> 0.5` impose investigation, correction si possible, puis rescoring ;
-- auto-revue dans la conversation : plafond `9.4/10` ; l'absence de relecteurs ou d'agents indépendants n'est **pas un gate bloquant** ; aucune revue interne ne vaut approbation médicale, humaine ou physique spécifiquement exigée ;
-- preuve/gate requis manquant ou rouge : max `7.9/10` ; régression : max `6.9/10` ; blocker sécurité/privacy/data/claim clinique : max `5.9/10` + `BLOCKED` ;
-- UI sans vraie comparaison `Target ↔ Render` : fidélité visuelle max `7.5/10` ; une dimension critique faible ne peut jamais être masquée par une moyenne ;
-- un lot n'est `VERIFIED` qu'avec `RETAINED_SCORE >= 9.0/10`, tous les gates binaires applicables verts et une **Perfection Pass finale** terminée.
-
-Le score est une couche de preuve supplémentaire : il ne remplace jamais CI, rehearsal, validation humaine, review scientifique, sécurité ou politique de release.
+Lire .claude/rules/execution-scoring-verification.md. Produire EXECUTION_SCORE /10 et FUE_EVIDENCE_SCORE /10, retenir le minimum ; l'ancien ADVERSARIAL_SCORE n'est qu'un champ de compatibilité lorsqu'un outil l'exige. Gate requis rouge/manquant : maximum 7.9/10 ; régression : 6.9/10 ; BLOCKER sécurité/privacy/data/clinique : 5.9/10 et BLOCKED ; UI sans comparaison Target ↔ Render : fidélité maximum 7.5/10. VERIFIED exige score retenu >=9.0/10, preuves inspectables, gates requis verts et Perfection Pass. CONVERGED exige en plus zéro BLOCKER/MAJOR et confirmation sur HEAD final. Aucun score ne remplace un gate.
 
 ### Données et isolation
 
@@ -128,7 +108,7 @@ Pour tout scope clinique ou scientifique :
 - ne pas introduire de constante non sourcée ;
 - conserver provenance, versions et états explicites ;
 - tests verts ne valent pas validation scientifique ;
-- review indépendante avant merge lorsque le skill l'exige.
+- validation humaine ou scientifique spécialisée avant merge lorsque le skill applicable l'exige explicitement ; pas de double revue A/B systématique.
 
 ## Skills à router explicitement
 
@@ -245,10 +225,10 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 3. Cartographier scope, invariants et gates binaires applicables.
 4. Audit read-only d'abord lorsque le skill l'impose.
 5. Implémenter uniquement le scope autorisé par le lot courant.
-6. Après chaque étape matérielle : preuve + `EXECUTION_SCORE` + `ADVERSARIAL_SCORE` + minimum retenu ; investiguer tout écart `> 0.5`.
+6. Après chaque étape matérielle : preuve + `EXECUTION_SCORE` + `FUE_EVIDENCE_SCORE` + minimum retenu ; investiguer tout écart `> 0.5`.
 7. Tests ciblés puis régression proportionnée au risque.
 8. Smoke/rehearsal lorsque nécessaire.
-9. Exécuter les deux revues adversariales internes A/B dans la conversation lorsqu'elles sont requises ; ne pas exiger de reviewer indépendant pour le score normal `VERIFIED` (>=9.0/10, auto-revue plafonnée 9.4). Les validations scientifiques/humaines distinctes explicitement requises sont conservées.
+9. Exécuter le niveau FUE applicable et les tests spécialisés fondés sur les risques ; aucune double revue A/B systématique. Les validations scientifiques/humaines distinctes explicitement requises sont conservées.
 10. Mettre à jour le fichier canonique unique et vérifier sa cohérence.
 11. Si le score atteint `9.0+`, exécuter la **Perfection Pass finale**, corriger les faiblesses améliorables, rerun les preuves impactées et rescorrer.
 12. Ne marquer `VERIFIED` qu'avec score retenu `>= 9.0/10` **et** tous les gates binaires applicables verts.
@@ -264,7 +244,7 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 - La PR [#783](https://github.com/hraaaaf/Digital_crown/pull/783) est le **laboratoire FUE réutilisable**, pas un lot produit ni un certificat universel. Lire son prompt `docs/audits/FIRST_USER_EXPERIENCE_PROMPT.md` et adapter persona, première valeur, contexte, viewports, scénarios, métriques, seuils et risques au lot/sous-lot concerné. Les catégories FUE-A…G du laboratoire sont un référentiel de contexte, distinct de cette campagne V1.5.
 - Appliquer la classification propre au plan V1.5 : **FUE-0** = contrat/code/tests seulement, sans inventer de parcours utilisateur ; **FUE-I** = parcours intermédiaire utilisable ; **FUE-G** = gate complet une fois le workflow de bout en bout disponible.
 - Matrice par sous-lot : CLOSED réel + niveau exigible + preuves exact-HEAD préexistantes + statut **PROUVÉ / PARTIEL / À FAIRE**. Réutiliser les preuves pertinentes ; ne pas convertir un CI vert en FUE prouvé.
-- Si FUE-I/G exigible : **ChatGPT mène dans la conversation deux perspectives A/B de nouveaux utilisateurs simulés**, spécialisées en deux domaines complémentaires et documentées séparément ; **aucun agent indépendant externe n'est à attendre**. Le parcours de l'application exige en plus un vrai login UI (ou entrée publique pertinente), session/persona de test vierge, frontend/backend isolés et réellement exécutés, captures BEFORE/AFTER pertinentes, premier résultat utile, échecs/récupération, mesures, P0/P1/P2, score sévère, puis correction/test et confirmation même HEAD. Ne pas inventer une preuve navigateur non acquise. Les corrections produit restent dans des PR produit distinctes de #783.
+- Si FUE-I/G exigible : **Exécuter la FUE avec des preuves observables ; les personas simulés sont facultatifs et ne valent pas utilisateurs indépendants.** Le parcours de l'application exige en plus un vrai login UI (ou entrée publique pertinente), session/persona de test vierge, frontend/backend isolés et réellement exécutés, captures BEFORE/AFTER pertinentes, premier résultat utile, échecs/récupération, mesures, P0/P1/P2, score sévère, puis correction/test et confirmation même HEAD. Ne pas inventer une preuve navigateur non acquise. Les corrections produit restent dans des PR produit distinctes de #783.
 - Commencer dans l'ordre V1.5-00.1 → 03.6, puis décider l'ouverture de 04. Aucun merge/déploiement Vercel implicite.
 
 ### Définition opérationnelle FUE — parcours de nouvel utilisateur dans le produit réel, couverture complète, preuve avant verdict
@@ -277,7 +257,7 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 - Un **rouge** est un défaut démontré et matériel : parcours impossible, situation incompréhensible, incohérence significative, information trompeuse, barrière de sécurité défaillante, impasse de navigation, violation d'un contrat critique, ou gate requis réellement échoué. Une longueur d'onboarding justifiée, une préférence esthétique ou un détail cosmétique ne rendent pas le lot rouge à eux seuls. Classer sévérité P0/P1/P2 et expliquer l'impact.
 - Distinguer rouge **produit**, rouge **harness/environnement** et **preuve insuffisante**; investiguer avant correction. Les problèmes mineurs/non bloquants sont consignés sans immobiliser toute la progression. Ne jamais transformer un timeout en diagnostic produit sans preuve, ni un CI vert en FUE concluant.
 - Les contrôles doivent être **fail-closed sur la preuve** : pas de verdict PASS si l'assertion valide seulement « pas arrivé sur une mauvaise URL » sans état positif observé; pas de suite silencieuse sur exceptions. Continuer les scénarios indépendants pour recueillir le maximum de preuves, puis produire le verdict agrégé et toutes les captures, même si un parcours échoue.
-- Après corrections, exécuter seulement les validations impactées puis deux perspectives adversariales (vérité UX et sécurité/contrat) sur le même HEAD, avec confirmation. La clôture exige zéro BLOCKER/MAJOR, score retenu conforme au protocole, couverture et preuves explicites. Le workflow se bloque sur **du rouge réel** ou une preuve critique impossible à obtenir, pas sur une suggestion mineure.
+- Après corrections, exécuter les validations impactées et la confirmation FUE sur le même HEAD ; ajouter les contrôles de sécurité/contrat adaptés au risque. La clôture exige zéro BLOCKER/MAJOR, score retenu conforme au protocole, couverture et preuves explicites. Le workflow se bloque sur **du rouge réel** ou une preuve critique impossible à obtenir, pas sur une suggestion mineure.
 
 ### Gates par sous-lot puis intégration de fin de lot 1
 
