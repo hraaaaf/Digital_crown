@@ -38,7 +38,7 @@ jobs:
           $csc = Get-ChildItem "$env:WINDIR\\Microsoft.NET\\Framework64" -Filter csc.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $csc) { throw 'Windows .NET Framework csc.exe missing' }
           $global:PSNativeCommandUseErrorActionPreference = $false
-          $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs'
+          $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1'
           $output = Join-Path $env:RUNNER_TEMP 'j10d-deny-only-consumer.exe'
           if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "C# source missing: $source" }
           & $csc /nologo /target:exe "/out:$output" /reference:System.ServiceProcess.dll /reference:System.Core.dll "$source"
@@ -48,6 +48,12 @@ jobs:
           $binary = Join-Path $env:RUNNER_TEMP 'j10d-deny-only-consumer.exe'
           $process = Start-Process -FilePath $binary -Wait -PassThru -NoNewWindow
           if ($process.ExitCode -ne 2) { throw "Expected invalid invocation DENY exit 2; got $($process.ExitCode)" }
+      - name: Install and probe actual deny-only SCM consumer on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE/backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1"
+          if (!$?) { throw 'J10D SCM probe failed' }
       - name: Strict J10D scope and exact SHA
         shell: bash
         env:
