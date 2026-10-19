@@ -152,7 +152,7 @@ test('DELETE 403 exposes only numeric HTTP status and remains fail closed', asyn
 
 test('DELETE 500 exposes sanitized HTTP status and never approves', async () => {
   const f = fixture({ deleteError: 500 });
-  await assert.rejects(f.run('synchronize'), /Failed to revoke stale visual approval \\(HTTP 500\\)/);
+  await assert.rejects(f.run('synchronize'), /Failed to revoke stale visual approval \(HTTP 500\)/);
   assert.equal(f.state.labels.has(APPROVAL_LABEL), true);
 });
 
