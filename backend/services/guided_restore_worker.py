@@ -189,14 +189,8 @@ class GuidedRestoreWorker:
 
     @classmethod
     def run(cls, restore_id: str, parent_pid: int, executable: str | None = None) -> int:
-        # LOT05.7-J: a detached process is not an attested SCM Service SID.
-        # Refuse BEFORE job lookup, rescue, unlink, replacement or restart.
-        from backend.services.legacy_migration_restore_policy_v15 import require_clinical_apply
-        try:
-            require_clinical_apply()
-        except PermissionError as exc:
-            raise RuntimeError("Restauration clinique interdite : worker non attesté") from exc
-        # A permissive change in the dormant gate must never silently re-enable apply.
+        # LOT05.7-J: detached execution has NO attested SCM Service SID.
+        # Refuse before reading the job or modifying any active file.
         raise RuntimeError("Restauration clinique interdite : worker non attesté")
         executable = executable or sys.executable
         job = GuidedRestoreService.get_job(restore_id)
