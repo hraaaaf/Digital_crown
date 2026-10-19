@@ -27,7 +27,15 @@ jobs:
         run: git rev-parse HEAD
       - name: Execute G10-S documentary contract
         run: python scripts/verify_conversational_review_doctrine.py
-      - name: Install focused test dependency
-        run: python -m pip install pytest
       - name: Execute scoring policy contract
-        run: python -m pytest --noconftest --import-mode=importlib backend/tests/test_execution_scoring_policy_contract.py -q
+        run: |
+          python - <<'PY'
+          import runpy
+          tests = runpy.run_path('backend/tests/test_execution_scoring_policy_contract.py')
+          names = sorted(name for name, fn in tests.items() if name.startswith('test_') and callable(fn))
+          assert names, 'No scoring policy tests discovered'
+          for name in names:
+              tests[name]()
+              print(f'PASS {name}')
+          print(f'{len(names)} scoring policy tests passed')
+          PY
