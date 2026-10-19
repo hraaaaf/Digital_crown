@@ -67,18 +67,42 @@ try {
         $bin= ('"{0}" "{1}" "{2}" "{3}" "{4}"' -f $exe,$svc,$log,$challenge,$sid)
         Strict 'sc.exe' @('config',$svc,'binPath=',$bin) | Out-Null
     }
-    # No LocalService grant on protected file: the ALLOW needs its unique service SID.
-    Strict 'icacls.exe' @($protected,'/inheritance:r') | Out-Null
-    Strict 'icacls.exe' @($protected,'/grant:r',
-        '*S-1-5-18:(OI)(CI)F','*S-1-5-32-544:(OI)(CI)F',('*'+$sid+':(OI)(CI)RX')) | Out-Null
-    Strict 'icacls.exe' @($challenge,'/inheritance:r') | Out-Null
-    Strict 'icacls.exe' @($challenge,'/grant:r',
-        '*S-1-5-18:(F)','*S-1-5-32-544:(F)',('*'+$sid+':(R)')) | Out-Null
+    # Build from a NEW explicit DACL, not icacls /grant:r alone: that call
+    # can preserve pre-existing explicit Users/Authenticated Users grants.
+    # No owner, LocalService or generic user identity gets access.
+    function ExactProtectedAcl([string]$path,[bool]$directory,[string]$serviceSid) {
+        $acl=Get-Acl -LiteralPath $path
+        $acl.SetAccessRuleProtection($true,$false)
+        foreach($entry in @($acl.Access)) {
+            $acl.PurgeAccessRules($entry.IdentityReference)
+        }
+        $none=[Security.AccessControl.InheritanceFlags]::None
+        $inherit=if($directory) {
+            [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+            [Security.AccessControl.InheritanceFlags]::ObjectInherit
+        } else {$none}
+        $propagation=[Security.AccessControl.PropagationFlags]::None
+        $allow=[Security.AccessControl.AccessControlType]::Allow
+        foreach($spec in @(
+            @('S-1-5-18',[Security.AccessControl.FileSystemRights]::FullControl),
+            @('S-1-5-32-544',[Security.AccessControl.FileSystemRights]::FullControl),
+            @($serviceSid,[Security.AccessControl.FileSystemRights]::ReadAndExecute)
+        )) {
+            $who=New-Object Security.Principal.SecurityIdentifier($spec[0])
+            $rule=New-Object Security.AccessControl.FileSystemAccessRule(
+                $who,$spec[1],$inherit,$propagation,$allow)
+            $acl.AddAccessRule($rule)
+        }
+        Set-Acl -LiteralPath $path -AclObject $acl
+    }
+    ExactProtectedAcl $protected $true $sid
+    ExactProtectedAcl $challenge $false $sid
     # Telemetry is explicitly writable by both LocalService processes.
     Strict 'icacls.exe' @($telemetry,'/inheritance:r') | Out-Null
     Strict 'icacls.exe' @($telemetry,'/grant:r',
         '*S-1-5-18:(OI)(CI)F','*S-1-5-32-544:(OI)(CI)F','*S-1-5-19:(OI)(CI)M') | Out-Null
     $acl=Strict 'icacls.exe' @($challenge)
+    Write-Output ('J3_PROTECTED_ACL_CHECK ' + $acl)
     if($acl -notmatch [regex]::Escape($sid) -or
        $acl -match 'S-1-5-19|Everyone|Authenticated Users') {throw 'J3_PROTECTED_FILE_ACL_UNSAFE'}
     $direct=Strict $exe @('--probe',$sid)
