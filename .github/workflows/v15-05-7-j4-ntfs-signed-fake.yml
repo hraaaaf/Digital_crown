@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   unchanged-restore-regressions:
-    # J3 contract is limited to its own branch; J4 re-executes every test and real SCM fixture.
+    # J4 own six-file scope gate must not run on stacked J5.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j4-signed-job-ntfs-adversarial-fake-20261019'
     name: J4 malicious NTFS/HMAC and inherited clinical DENY (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
