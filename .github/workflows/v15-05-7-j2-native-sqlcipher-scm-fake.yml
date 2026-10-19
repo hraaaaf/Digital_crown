@@ -5,6 +5,7 @@ on:
       - feat/v15-05-7j2-real-sqlcipher-wal-scm-veto-fake-20261019
   pull_request:
     paths:
+      - .github/workflows/v15-05-7-j-failclosed-fake-recovery.yml
       - .github/workflows/v15-05-7-j2-native-sqlcipher-scm-fake.yml
       - backend/services/legacy_migration_sqlcipher_scm_lab_v15.py
       - backend/tests/test_legacy_sql_057j2_native_sqlcipher_scm_lab.py
@@ -98,4 +99,4 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/routers alembic frontend backend/services/guided_restore.py backend/services/guided_restore_worker.py
           git diff --name-only "$BASE_SHA" HEAD > j2-diff.txt
-          ! grep -Ev '^(\.github/workflows/v15-05-7-j2-native-sqlcipher-scm-fake\.yml|backend/services/legacy_migration_sqlcipher_scm_lab_v15\.py|backend/tests/test_legacy_sql_057j2_native_sqlcipher_scm_lab\.py|docs/quality/V15_05_7_J2_NATIVE_SQLCIPHER_SCM_FAKE_CONTRACT\.md|techdoubt\.md)$' j2-diff.txt
+          ! grep -Ev '^(\.github/workflows/v15-05-7-j2-native-sqlcipher-scm-fake\.yml|\.github/workflows/v15-05-7-j-failclosed-fake-recovery\.yml|backend/services/legacy_migration_sqlcipher_scm_lab_v15\.py|backend/tests/test_legacy_sql_057j2_native_sqlcipher_scm_lab\.py|docs/quality/V15_05_7_J2_NATIVE_SQLCIPHER_SCM_FAKE_CONTRACT\.md|techdoubt\.md)$' j2-diff.txt
