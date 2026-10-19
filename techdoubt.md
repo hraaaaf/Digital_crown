@@ -19,3 +19,5 @@
 - ACTIVE doctrine migrated in AGENTS.md, CLAUDE.md, scoring, RPG, visual closeout, PR template, policy contract test and G10-S documentary checker.
 - RESERVE: historical audit/handover files and specialist skills may still describe mandatory A/B reviews. They are historical or domain-specific evidence, not an override of active FUE-first policy; assess applicability before changing them, do not rewrite old evidence.
 - RESERVE: repository-wide policy contract tests and G10-S have not been executed locally in this connector session; CI on final HEAD and applicable gate must be checked before merge. FUE-0 documentary only, no UI journey or clinical/physical certification claimed.
+
+- CLOSEOUT RESERVE (2026-10-19): active `skills/reality-proof-gate/SKILL.md` still imposed mandatory two A/B reviews; corrected in PR #988. Final HEAD after this consistency correction requires fresh exact-HEAD CI results. Previous GREEN on `c91776c` does not certify later commits. PR remains DRAFT/OPEN; no merge or deployment authorized. Historical files remain out of scope.
