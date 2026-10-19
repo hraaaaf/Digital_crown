@@ -29,14 +29,18 @@ async function snap(page,name){
     &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
     &&(await page.locator('.cmd-patienthero').innerText()).includes('09:00'));
    if(width===1440){
+    await check(page,'J1 initial counters tied to mock status',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil'));
     await page.getByRole('button',{name:'Mettre en pause'}).click();
     await check(page,'J1 mock pause status',async()=> (await page.locator('.cmd-patienthero').innerText()).includes('En pause')
       &&(await page.locator('.cmd-appt').filter({hasText:'TEST-001'}).getAttribute('class')).includes('cmd-appt-paused'));
+    await check(page,'J1 paused counter',async()=>(await page.locator('.cmd-chips').innerText()).includes('0 au fauteuil'));
     await page.getByRole('button',{name:'Reprendre (simulation)'}).click();
     await check(page,'J1 mock resume',async()=>(await page.locator('.cmd-patienthero').innerText()).includes('En cours'));
    }
    if(width<500)await page.getByRole('button',{name:'Agenda Dr A'}).click();
    await page.getByRole('button',{name:'Patient suivant (même praticien)'}).click();
+   if(width===1440)await check(page,'J2 keyboard focus to confirmation',async()=>
+      (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Confirmer le changement de patient'));
    await check(page,'J2 explicit confirmation and no early switch '+width,async()=>
       (await page.getByRole('alertdialog').innerText()).includes('TEST-007')
       &&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
