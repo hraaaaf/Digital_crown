@@ -394,6 +394,8 @@ class GuidedRestoreService:
             require_clinical_apply(job)
         except PermissionError as exc:
             raise RuntimeError("Restauration clinique interdite : autorité worker non attestée") from exc
+        # Defense in depth: a future guard accidentally returning is NOT approval.
+        raise RuntimeError("Restauration clinique interdite : autorité worker non attestée")
 
         job["status"] = "scheduled"
         job["updated_at"] = _utc_now()
