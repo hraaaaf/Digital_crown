@@ -32,7 +32,7 @@ internal sealed class J10DCaller : ServiceBase {
                     outcome=response=="DENY_J10D_UNATTESTED\n" ? "DENY_FROM_PIPE" : "FAIL_BAD_RESPONSE";
                     break;
                 }
-            } catch(TimeoutException) { Thread.Sleep(200); }
+            } catch(System.TimeoutException) { Thread.Sleep(200); }
               catch(UnauthorizedAccessException) { outcome="FAIL_ACCESS_DENIED"; break; }
               catch(IOException) { Thread.Sleep(200); }
               catch(Exception) { outcome="FAIL_EXCEPTION"; break; }
