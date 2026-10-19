@@ -62,6 +62,25 @@ class NativeHandleTests(unittest.TestCase):
         with self.assertRaises(lab.J5Denied):
             lab.inspect_win32_handles(self.root, attack_hook=update)
 
+    def test_09_native_open_reparse_file_refused(self):
+        replacement = self.root / "other.fake"
+        replacement.write_bytes(lab.CONTENTS)
+        self.file.unlink()
+        self.file.symlink_to(replacement)
+        with self.assertRaises(lab.J5Denied):
+            lab.inspect_win32_handles(self.root)
+
+    def test_10_native_open_reparse_parent_refused(self):
+        replacement = self.root / "alternate-inputs"
+        replacement.mkdir()
+        (replacement / "payload.fake").write_bytes(lab.CONTENTS)
+        self.file.unlink()
+        self.folder.rmdir()
+        self.folder.symlink_to(replacement, target_is_directory=True)
+        with self.assertRaises(lab.J5Denied):
+            lab.inspect_win32_handles(self.root)
+        self.folder.rmdir()
+
     def test_08_unchanged_identity_ok(self):
         self.assertEqual(lab.inspect_win32_handles(self.root, attack_hook=lambda: None),
                          lab.CONTENTS)
