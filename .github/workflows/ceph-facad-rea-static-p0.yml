@@ -35,6 +35,34 @@ jobs:
           if ($actual -ne $env:EXPECTED_HEAD) { throw "HEAD mismatch: $actual != expected PR head" }
           Write-Host "PR_EXACT_HEAD_VERIFIED=$actual"
 
+      - name: Parse all embedded PowerShell run blocks before external operations
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $lines = Get-Content -LiteralPath '.github/workflows/ceph-facad-rea-static-p0.yml'
+          $total = 0
+          for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -ne '        run: |') { continue }
+            $fragment = [System.Collections.Generic.List[string]]::new()
+            for ($j = $i + 1; $j -lt $lines.Count; $j++) {
+              $line = $lines[$j]
+              if ([string]::IsNullOrWhiteSpace($line)) { [void]$fragment.Add(''); continue }
+              if (-not $line.StartsWith('          ')) { break }
+              [void]$fragment.Add($line.Substring(10))
+            }
+            if ($fragment.Count -eq 0) { throw "Empty PowerShell run block at line $($i+1)" }
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseInput(($fragment -join "`n"), [ref]$tokens, [ref]$parseErrors)
+            if (@($parseErrors).Count -gt 0) {
+              foreach ($err in $parseErrors) { Write-Host "PS_PARSE_ERROR=$($err.Message)" }
+              throw "Invalid PowerShell run block at workflow line $($i+1)"
+            }
+            $total++
+          }
+          if ($total -lt 4) { throw "Missing expected PowerShell blocks: actual=$total" }
+          Write-Host "FACAD_REA_POWERSHELL_PARSE_PASS=$total"
+
       - name: Install supported Node for pinned REA
         uses: actions/setup-node@v4
         with:
@@ -110,21 +138,30 @@ jobs:
               json_valid = $true
               output_sha256 = (Get-FileHash -LiteralPath $out -Algorithm SHA256).Hash
               result_field_count = $keys.Count
-              # Schema names are safe; no vendor classes, methods, strings or CIL bytes leave the runner.
-              rea_envelope_field_names = @($keys | Select-Object -First 32)
-              rea_schema_sections = [ordered]@{}
-              coverage_state = 'UNKNOWN'
-              metadata_status = 'UNKNOWN'
+              rea_envelope_field_names = @($keys | Where-Object { $_ -match '^[A-Za-z_][A-Za-z_0-9]{0,63}            Write-Host "REA_STATIC_JSON_VALID=$name"
+          }
+          if ($summary.results.Count -ne 2) { throw 'Incomplete REA target coverage' }
+          $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/rea-safe-summary.json -Encoding utf8
+          Write-Host 'REA_FACAD_TWO_REAL_TARGETS_P0_PASS=true'
+          # Raw REA reports and vendor binaries are NEVER uploaded.
+
+      - name: Upload safe proof summary only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-facad-rea-p0-safe-summary
+          path: facad-rea/evidence/rea-safe-summary.json
+          if-no-files-found: ignore
+          retention-days: 7
+ } | Sort-Object -Unique | Select-Object -First 32)
+              rea_section_shapes = [ordered]@{}
             }
-            foreach ($sectionName in @('normalized_result','result','metadata','coverage','classification','summary','diagnostics')) {
-              $sectionProperty = $parsed.PSObject.Properties[$sectionName]
-              if ($null -eq $sectionProperty -or $null -eq $sectionProperty.Value) { continue }
-              $sectionValue = $sectionProperty.Value
-              if ($sectionValue -is [pscustomobject]) {
-                $entry.rea_schema_sections[$sectionName] = @($sectionValue.PSObject.Properties.Name | Select-Object -First 24)
-                if ($sectionName -eq 'coverage' -and $null -ne $sectionValue.PSObject.Properties['state']) {
-                  $state = [string]$sectionValue.state
-                  if ($state -match '^(complete|partial|unavailable|unknown)            Write-Host "REA_STATIC_JSON_VALID=$name"
+            # Emit structural schema only, never vendor identifiers, method names or CIL.
+            foreach ($sectionName in @('result','data','metadata','coverage','classification','evidence','diagnostics','summary')) {
+              $section = $parsed.PSObject.Properties[$sectionName]
+              if ($null -eq $section -or $null -eq $section.Value) { continue }
+              if ($section.Value -is [pscustomobject]) {
+                $safeNames = @($section.Value.PSObject.Properties.Name | Where-Object { $_ -match '^[A-Za-z_][A-Za-z_0-9]{0,63}            Write-Host "REA_STATIC_JSON_VALID=$name"
           }
           if ($summary.results.Count -ne 2) { throw 'Incomplete REA target coverage' }
           $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/rea-safe-summary.json -Encoding utf8
@@ -139,27 +176,14 @@ jobs:
           path: facad-rea/evidence/rea-safe-summary.json
           if-no-files-found: ignore
           retention-days: 7
-) { $entry.coverage_state = $state }
-                }
-                if ($sectionName -eq 'metadata' -and $null -ne $sectionValue.PSObject.Properties['status']) {
-                  $state = [string]$sectionValue.status
-                  if ($state -match '^(complete|partial|unavailable|unknown)            Write-Host "REA_STATIC_JSON_VALID=$name"
-          }
-          if ($summary.results.Count -ne 2) { throw 'Incomplete REA target coverage' }
-          $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/rea-safe-summary.json -Encoding utf8
-          Write-Host 'REA_FACAD_TWO_REAL_TARGETS_P0_PASS=true'
-          # Raw REA reports and vendor binaries are NEVER uploaded.
-
-      - name: Upload safe proof summary only
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ceph-facad-rea-p0-safe-summary
-          path: facad-rea/evidence/rea-safe-summary.json
-          if-no-files-found: ignore
-          retention-days: 7
-) { $entry.metadata_status = $state }
-                }
+ } | Sort-Object -Unique | Select-Object -First 32)
+                $entry.rea_section_shapes[$sectionName] = [ordered]@{ kind = 'object'; fields = $safeNames }
+              }
+              elseif ($section.Value -is [array]) {
+                $entry.rea_section_shapes[$sectionName] = [ordered]@{ kind = 'array'; count = @($section.Value).Count }
+              }
+              else {
+                $entry.rea_section_shapes[$sectionName] = [ordered]@{ kind = 'scalar' }
               }
             }
             $summary.results += $entry
