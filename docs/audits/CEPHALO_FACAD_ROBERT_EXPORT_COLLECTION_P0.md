@@ -48,11 +48,11 @@ python -m pytest backend/tests/test_cephalo_lot08_facad_direct_parity_validator.
 
 ## Private offline intake (after authorized GUI exports exist; no cloud upload)
 
-The source-locked staging utility lives at \`audit/cephalo_facad_robert_evidence_stage.py\`. It reads **six actual vendor-generated files** in one private intake folder and writes a new, independent private evidence tree and a **copy** of the existing canonical LOT08 parity manifest (never edits the repository manifest). It does **not** operate FACAD, inspect the tracing's geometry, prove the operator's attestation, calculate numerical parity, or automatically upgrade the evidence beyond \`DIRECT_EVIDENCE_PARTIAL\`. It must run only on a controlled computer with authorized use and export content verified.
+The source-locked staging utility lives at `audit/cephalo_facad_robert_evidence_stage.py`. It reads **six actual vendor-generated files** in one private intake folder and writes a new, independent private evidence tree and a **copy** of the existing canonical LOT08 parity manifest (never edits the repository manifest). It does **not** operate FACAD, inspect the tracing's geometry, prove the operator's attestation, calculate numerical parity, or automatically upgrade the evidence beyond `DIRECT_EVIDENCE_PARTIAL`. It must run only on a controlled computer with authorized use and export content verified.
 
 Create a PRIVATE JSON intake file beside the six vendor exports, specifying the exact observed timestamp with timezone and the same opaque tracing ID for each. Do not paste license credentials or real patient names:
 
-\`\`\`json
+```json
 {
   "official_robert_sha256": "67a81ad8d2c2489ffe84a1dfbbb897761ae855ece4ebf948c12af232562ec089",
   "facad_version": "3.14.1.1111",
@@ -68,15 +68,15 @@ Create a PRIVATE JSON intake file beside the six vendor exports, specifying the 
     {"profile_target_id":"FACAD_RICKETTS_13F_COMPATIBILITY_TARGET","artifact_kind":"MARKER_POSITIONS","file":"13F/object-values.txt","observed_at":"2026-10-19T12:05:00+01:00","vendor_menu":"Object Values","marker_positions_content_verified":true}
   ]
 }
-\`\`\`
+```
 
 **All filenames/timestamps above are illustrative placeholders, not actual observed exports.** Replace them with the six real FACAD original filenames and actual capture timestamps. The last boolean is a **manual declaration** that the real Object Values file includes appropriate marker positions; it does not make that true. Keep all six vendor files byte-identical and within the intake folder. Only authorized data may be staged.
 
-\`\`\`bash
+```bash
 python audit/cephalo_facad_robert_evidence_stage.py \
   --intake /private/intake/SIX_EXPORTS.json \
   --private-output /private/new-facad-evidence
 python -m unittest -v audit.test_cephalo_facad_robert_evidence_stage
-\`\`\`
+```
 
-The output must be **outside the Git repository** and start as a nonexistent directory. It contains six untouched bytes-preserving export copies under \`docs/audits/evidence/facad/\` and the canonical-format manifest under \`docs/audits/schemas/\`. It explicitly records \`DIRECT_EVIDENCE_PARTIAL\`, \`PARTIAL\` for both profiles, zero parity rows; it does not publish the exports to GitHub or attach them to any workflow artifact. Positive tests use visibly synthetic fixtures and are **never** presented as Facad clinical evidence. If any license, source hash, trace, version, timestamp, Object Values coverage, file integrity or manifest gate fails, output is rejected without a successful staging result.
+The output must be **outside the Git repository** and start as a nonexistent directory. It contains six untouched bytes-preserving export copies under `docs/audits/evidence/facad/` and the canonical-format manifest under `docs/audits/schemas/`. It explicitly records `DIRECT_EVIDENCE_PARTIAL`, `PARTIAL` for both profiles, zero parity rows; it does not publish the exports to GitHub or attach them to any workflow artifact. Positive tests use visibly synthetic fixtures and are **never** presented as Facad clinical evidence. If any license, source hash, trace, version, timestamp, Object Values coverage, file integrity or manifest gate fails, output is rejected without a successful staging result.
