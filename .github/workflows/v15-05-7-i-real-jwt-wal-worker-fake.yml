@@ -16,6 +16,9 @@ permissions:
 
 jobs:
   true-jwt-and-worker-rescue:
+    # Historical 05.7-I four-file scope gate applies ONLY to the I branch.
+    # A stacked 05.7-J PR runs the full 21 I tests in its own J workflow.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7i-real-jwt-wal-rescue-fake-20261019'
     name: Genuine JWT/SQLCipher/WAL fake worker (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
