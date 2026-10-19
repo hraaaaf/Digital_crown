@@ -140,10 +140,10 @@
  .cmd-patientbuttons button{min-height:40px;flex:1}
  .cmd-tabs button{font-size:11px}
  .cmd-cards{grid-template-columns:minmax(0,1fr);gap:9px}
- .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(5),
- .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(7),
- .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(8),
- .cmd-cards[data-secondary-expanded="false"]>.cmd-card:nth-child(9){display:none}
+ .cmd-cards[data-tab="Vue d’ensemble"][data-secondary-expanded="false"]>.cmd-card:nth-child(5),
+ .cmd-cards[data-tab="Vue d’ensemble"][data-secondary-expanded="false"]>.cmd-card:nth-child(7),
+ .cmd-cards[data-tab="Vue d’ensemble"][data-secondary-expanded="false"]>.cmd-card:nth-child(8),
+ .cmd-cards[data-tab="Vue d’ensemble"][data-secondary-expanded="false"]>.cmd-card:nth-child(9){display:none}
  .cmd-secondary-toggle{display:flex;order:4;width:100%;align-items:center;justify-content:center;gap:9px;min-height:44px;margin:0 0 6px;padding:9px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--card-bg);color:var(--primary)!important;font-weight:750}
  .cmd-secondary-toggle svg{transition:transform .18s ease}
  .cmd-secondary-toggle .cmd-rotate{transform:rotate(180deg)}
@@ -153,4 +153,26 @@
 }
 @media(prefers-reduced-motion:reduce){
  .cmd-appt,.cmd-secondary-toggle svg{transition:none!important}
+}
+
+/* LOT07/07-C R4 — fixture-only patient context and truthful view selection. */
+.cmd-shell [hidden]{display:none!important}
+.cmd-shell button:disabled{cursor:not-allowed;opacity:.55}
+.cmd-switch-confirm{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:0 0 11px;padding:12px;border:2px solid var(--status-warning-border);background:var(--status-warning-surface);color:var(--text-main);border-radius:10px}
+.cmd-switch-confirm strong{font-size:13px}
+.cmd-switch-confirm span{flex:1;min-width:150px;font-size:12px}
+.cmd-switch-confirm button{padding:8px 10px;min-height:38px;background:var(--card-bg);border:1px solid var(--border-color);border-radius:7px;font-weight:750}
+.cmd-switch-confirm .cmd-primary{background:var(--primary);border-color:var(--primary);color:var(--text-on-primary)}
+.cmd-queue-button{display:flex;flex-wrap:wrap;gap:5px;width:100%;min-height:36px;text-align:left;align-items:center;padding:8px 4px;border:0!important;border-bottom:1px solid var(--border-color)!important;border-radius:0!important;background:var(--card-bg)!important;font-size:11px}
+.cmd-queue-button:hover,.cmd-queue-button:focus-visible{color:var(--primary)!important}
+.cmd-cards[data-tab]:not([data-tab="Vue d’ensemble"]){grid-template-columns:minmax(0,1fr)}
+.cmd-cards[data-tab]:not([data-tab="Vue d’ensemble"])>.cmd-card{grid-column:1/-1}
+.cmd-cards[data-tab="Dossier"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cmd-cards[data-tab="Dossier"]>.cmd-card:nth-child(6){grid-column:1/-1}
+@media(max-width:767px){
+ .cmd-switch-confirm{align-items:stretch;flex-direction:column}
+ .cmd-switch-confirm button{width:100%}
+ .cmd-cards[data-tab="Dossier"]{grid-template-columns:minmax(0,1fr)}
+ .cmd-cards[data-tab="Dossier"]>.cmd-card:nth-child(6){grid-column:auto}
+ .cmd-patientbuttons button{white-space:normal}
 }
