@@ -63,18 +63,28 @@ jobs:
         run: |
           set -euo pipefail
           python -c "from sqlcipher3 import dbapi2 as s; c=s.connect(':memory:'); assert c.execute('PRAGMA cipher_version').fetchone()[0]; c.close(); print('J3_NATIVE_SQLCIPHER_CONFIRMED')"
-      - name: J5 true JWT gated and cryptographically signed fake ticket, 25 cases
+      - name: J5 true JWT gated fake signed worker (25 inherited/new tests)
         shell: bash
         run: |
           set -euo pipefail
           python -m py_compile backend/tests/fixtures/lot05j5_native_handles_lab.py backend/tests/test_legacy_sql_057j5_native_win32_handles_lab.py backend/tests/test_legacy_sql_057j5_real_jwt_fake_job_bridge_lab.py
           PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j5_real_jwt_fake_job_bridge_lab.py -v 2>&1 | tee j5-jwt.log
           grep -q '^Ran 25 tests' j5-jwt.log
-          grep -Eq '^OK[[:space:]]*
+          grep -Eq '^OK[[:space:]]*$' j5-jwt.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j5-jwt.log
+      - name: J5 real Win32 CreateFileW file IDs (8 tests)
+        if: runner.os == 'Windows'
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile backend/tests/fixtures/lot05j4_signed_job_lab.py backend/tests/test_legacy_sql_057j4_ntfs_signed_job_lab.py
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j5_native_win32_handles_lab.py -v 2>&1 | tee j5-win32.log
+          grep -q '^Ran 8 tests' j5-win32.log
+          grep -Eq '^OK[[:space:]]*$' j5-win32.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j5-win32.log
+      - name: J4 signed fake HMAC nonce and NTFS fixtures (22 tests)
+        shell: bash
+        run: |
+          set -euo pipefail
           PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j4_ntfs_signed_job_lab.py -v 2>&1 | tee j4.log
           grep -q '^Ran 22 tests' j4.log
           grep -Eq '^OK[[:space:]]*$' j4.log
