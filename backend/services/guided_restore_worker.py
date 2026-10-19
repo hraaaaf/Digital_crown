@@ -196,6 +196,8 @@ class GuidedRestoreWorker:
             require_clinical_apply()
         except PermissionError as exc:
             raise RuntimeError("Restauration clinique interdite : worker non attesté") from exc
+        # A permissive change in the dormant gate must never silently re-enable apply.
+        raise RuntimeError("Restauration clinique interdite : worker non attesté")
         executable = executable or sys.executable
         job = GuidedRestoreService.get_job(restore_id)
         job_dir = GuidedRestoreService.job_dir(restore_id)
