@@ -230,7 +230,7 @@
 /* LOT07/07-C R4d mobile context: patient identity remains visible through scroll. */
 .cmd-mobile-context{display:none}
 @media(max-width:767px){
- .cmd-mobile-context{position:sticky;top:0;z-index:25;display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0;margin:0 0 9px;padding:7px 10px;background:var(--card-bg);border:1px solid var(--border-color);border-left:3px solid var(--primary);border-radius:8px;box-shadow:0 2px 7px var(--shadow-color)}
+ .cmd-mobile-context{position:sticky;top:0;z-index:25;display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0;margin:0 0 9px;padding:7px 10px;background:var(--card-bg);border:1px solid var(--border-color);border-left:3px solid var(--primary);border-radius:8px;box-shadow:var(--shadow-glass)}
  .cmd-mobile-context>div{display:flex;flex-direction:column;min-width:0}
  .cmd-mobile-context strong{font-size:13px;color:var(--text-main);line-height:1.3}
  .cmd-mobile-context small{font-size:12px;line-height:1.3;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
