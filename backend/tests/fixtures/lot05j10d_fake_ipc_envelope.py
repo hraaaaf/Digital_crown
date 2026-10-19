@@ -8,9 +8,9 @@ import re
 import time
 
 MAX_FRAME = 1024
-HEX32 = re.compile(r"[0-9a-f]{32}\\Z")
-HEX64 = re.compile(r"[0-9a-f]{64}\\Z")
-GEN = re.compile(r"g_[0-9a-f]{32}\\Z")
+HEX32 = re.compile(r"[0-9a-f]{32}\Z")
+HEX64 = re.compile(r"[0-9a-f]{64}\Z")
+GEN = re.compile(r"g_[0-9a-f]{32}\Z")
 PURPOSE = "LOT05J10D_FAKE_IPC_V1"
 
 class IpcDenied(PermissionError):
