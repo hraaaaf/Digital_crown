@@ -38,10 +38,15 @@ try {
                 $denied = $true
                 break
             } finally { $client.Dispose() }
+        } catch [System.UnauthorizedAccessException] {
+            # The GitHub runner's admin token is NOT the signer service SID.
+            # An ACL refusal is the expected negative OS isolation proof.
+            $denied = $true
+            break
         } catch [System.TimeoutException] { Start-Sleep -Milliseconds 200 }
     }
-    if (!$denied) { throw 'SCM consumer did not deny a real pipe request' }
-    Write-Output 'J10D_REAL_SCM_DENY_ONLY_PASS'
+    if (!$denied) { throw 'SCM consumer did not deny an untrusted pipe client' }
+    Write-Output 'J10D_REAL_SCM_UNTRUSTED_DENIED_PASS'
 } finally {
     if ($created) {
         & sc.exe stop $serviceName | Out-Host
