@@ -9,6 +9,7 @@ on:
       - '.claude/rules/visual-closeout-human-validation.md'
       - '.github/pull_request_template.md'
       - 'docs/quality/REALITY_PROOF_GATE.md'
+      - 'skills/reality-proof-gate/SKILL.md'
       - 'scripts/verify_conversational_review_doctrine.py'
       - 'backend/tests/test_execution_scoring_policy_contract.py'
       - '.github/workflows/fue-first-governance-contract.yml'
