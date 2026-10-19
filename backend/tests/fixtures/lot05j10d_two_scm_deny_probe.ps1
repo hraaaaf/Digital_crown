@@ -44,7 +44,7 @@ try {
     }
     if(!$found) { throw 'Second SCM did not produce evidence' }
     $result=(Get-Content -LiteralPath $evidence -Raw).Trim()
-    if($result -ne 'DENY_FROM_PIPE') { throw "Second SCM IPC did not reach deny-only consumer: $result" }
+    if($result -ne 'DENY_SID_PROVEN') { throw "Second SCM IPC did not reach deny-only consumer: $result" }
     Write-Output 'J10D_TWO_DISTINCT_SCM_DENY_ONLY_IPC_PASS'
 } finally {
     [array]::Reverse($created)
