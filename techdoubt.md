@@ -1,3 +1,6 @@
+## LOT05 / 05.7-J10D — 2026-10-19 — CS1504 compiler source path
+Two user-provided Windows GitHub Actions screenshots show CS1504 (source file cannot be opened) and compiler exit 1, disproving the previous hypothesis that the expected deny-only service exit code 2 was the root cause. The C# compiler was invoked with a relative path; CI now builds an absolute source path under GITHUB_WORKSPACE, verifies its existence and passes it as a quoted argument, with absolute output path. This is a targeted fix; CI exact HEAD remains unverified until the next run. J10D NO-GO; no installed SCM or authenticated IPC proof.
+
 ## LOT05 / 05.7-J10D — 2026-10-19 — Windows compilation step RED, exact stderr unknown
 User screenshot: Windows runner parser tests PASS, step 'Compile deny-only SCM consumer on Windows' FAIL after 2 seconds; scope step skipped. No compiler output/job log was provided, so the underlying error is UNKNOWN (could be C# compilation or expected nonzero process exit). Updated CI to execute intentional DENY exit code 2 through Start-Process -Wait -PassThru, disabling PowerShell native exit promotion for compiler. This is a hypothesis-based hardening, NOT proven root cause; must inspect next exact-HEAD logs and C# diagnostics. No SCM installation, authenticated peer or clinical restore certification.
 
