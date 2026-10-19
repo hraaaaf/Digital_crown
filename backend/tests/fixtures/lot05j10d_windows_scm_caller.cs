@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.IO.Pipes;
 using System.ServiceProcess;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 
