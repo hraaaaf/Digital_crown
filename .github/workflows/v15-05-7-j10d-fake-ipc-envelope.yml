@@ -67,8 +67,22 @@ jobs:
           $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs'
           $output = Join-Path $env:RUNNER_TEMP 'j10d-scm-caller.exe'
           if(!(Test-Path -LiteralPath $source -PathType Leaf)) { throw 'Second SCM caller source missing' }
-          & $csc /nologo /target:exe "/out:$output" /reference:System.ServiceProcess.dll /reference:System.Core.dll "$source"
-          if($LASTEXITCODE -ne 0) { throw "Caller compile failed: $LASTEXITCODE" }
+          $compilerOutput = @(& $csc /nologo /target:exe "/out:$output" /reference:System.ServiceProcess.dll /reference:System.Core.dll "$source" 2>&1)
+          $compilerExit = $LASTEXITCODE
+          if($compilerExit -ne 0) {
+            Write-Host "J10D_CALLER_CSC_EXIT=$compilerExit"
+            foreach($line in $compilerOutput) {
+              $message = [string]$line
+              # Put the actionable compiler code and text at the beginning of
+              # each log line, where GitHub mobile does not crop them.
+              if($message -match '(error|warning)\\s+(CS[0-9]+)\\s*:\\s*(.*)') {
+                Write-Host ("CSC_{0}: {1}" -f $Matches[2],$Matches[3])
+              } else {
+                Write-Host ("CSC_DETAIL: {0}" -f $message)
+              }
+            }
+            throw "Caller compile failed: $compilerExit"
+          }
           & "$env:GITHUB_WORKSPACE/backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1"
           if(!$?) { throw 'Two-SCM probe failed' }
       - name: Strict J10D scope and exact SHA
