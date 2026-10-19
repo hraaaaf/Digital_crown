@@ -72,6 +72,7 @@ $requestAbsent=Join-Path $root 'missing.jwt.fake'
 $outputSigned=Join-Path $outbox 'authorized.json'
 $outputDenied=Join-Path $outbox 'refused.json'
 $reportClient=Join-Path $telemetry 'client.txt'
+$reportClientAfter=Join-Path $telemetry 'client-after-signature.txt'
 $reportValid=Join-Path $telemetry 'valid.txt'
 $reportMissing=Join-Path $telemetry 'missing.txt'
 if((Split-Path -Leaf $env:LOT05J9_FAKE_OUTPUT_ROOT) -notlike 'lot05j9_fake_*' -or
@@ -166,6 +167,27 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
     $good -notmatch 'reason=authenticated_jwt_signed' -or
     -not (Test-Path -LiteralPath $outputSigned)) {throw ('J9_AUTH_SIGNER_SCM_DENIED_VALID_JWT '+$good)}
  Write-Output 'J9_TRUE_BACKEND_JWT_IN_DETACHED_WINDOWS_SCM_SIGNER'
+ # A second actual SCM attacker run attempts to overwrite an ALREADY ISSUED
+ # signed object, not merely to precreate a file in an empty directory.
+ $issuedHash=(Get-FileHash -LiteralPath $outputSigned -Algorithm SHA256).Hash
+ Strict 'sc.exe' @('stop',$nameB) | Out-Null
+ Start-Sleep -Seconds 2
+ Configure $nameB 'attacker' $reportClientAfter $requestValid $outputSigned
+ Strict 'sc.exe' @('start',$nameB) | Out-Null
+ $pAfter=AwaitProof $reportClientAfter
+ if($pAfter -notmatch 'service_sid_in_token=False' -or
+    $pAfter -notmatch 'client_private_read=False' -or
+    $pAfter -notmatch 'client_config_read=False' -or
+    $pAfter -notmatch 'client_request_read=False' -or
+    $pAfter -notmatch 'client_private_write=False' -or
+    $pAfter -notmatch 'client_config_write=False' -or
+    $pAfter -notmatch 'client_request_write=False' -or
+    $pAfter -notmatch 'client_output_forge=False' -or
+    $pAfter -notmatch 'reason=client_access_denied' -or
+    (Get-FileHash -LiteralPath $outputSigned -Algorithm SHA256).Hash -ne $issuedHash) {
+    throw ('J9_SIDLESS_CLIENT_TAMPERED_ISSUED_TICKET '+$pAfter)
+ }
+ Write-Output 'J9_ISSUED_RSA_TICKET_INTEGRITY_SURVIVES_SECOND_REAL_CLIENT_ATTACK'
  Strict 'sc.exe' @('stop',$nameA) | Out-Null
  Start-Sleep -Seconds 2
  Configure $nameA 'sign' $reportMissing $requestAbsent $outputDenied
