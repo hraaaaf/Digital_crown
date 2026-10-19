@@ -189,6 +189,9 @@ class GuidedRestoreWorker:
 
     @classmethod
     def run(cls, restore_id: str, parent_pid: int, executable: str | None = None) -> int:
+        # LOT05.7-J: detached execution has NO attested SCM Service SID.
+        # Refuse before reading the job or modifying any active file.
+        raise RuntimeError("Restauration clinique interdite : worker non attesté")
         executable = executable or sys.executable
         job = GuidedRestoreService.get_job(restore_id)
         job_dir = GuidedRestoreService.job_dir(restore_id)

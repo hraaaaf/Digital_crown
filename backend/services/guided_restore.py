@@ -71,16 +71,13 @@ class GuidedRestoreService:
 
     @staticmethod
     def _assert_owner(job: dict[str, Any], employer_id: int | None) -> None:
-        if employer_id is None:
-            return
+        # LOT05.7-J: the historical None=trusted-worker bypass was unsafe.
+        # Never interpret a missing identity or bool/coercible string as owner.
         owner = job.get("owner_employer_id")
-        if owner is None:
+        if (type(employer_id) is not int or employer_id <= 0
+                or type(owner) is not int or owner <= 0
+                or owner != employer_id):
             raise PermissionError("Restauration introuvable")
-        try:
-            if int(owner) != int(employer_id):
-                raise PermissionError("Restauration introuvable")
-        except (TypeError, ValueError) as exc:
-            raise PermissionError("Restauration introuvable") from exc
 
     @classmethod
     def get_owned_job(cls, restore_id: str, employer_id: int) -> dict[str, Any]:
@@ -390,6 +387,10 @@ class GuidedRestoreService:
         cls._verify_staged_job(job)
         if not cls.runtime_apply_supported():
             raise RuntimeError("Apply hors-processus disponible uniquement dans l'exécutable cabinet")
+        # LOT05.7-J: No signed job / SCM Service SID / protected worker authority.
+        # The active API has an independent unconditional DENY. Future changes
+        # to the dormant G guard must not accidentally re-enable it.
+        raise RuntimeError("Restauration clinique interdite : autorité worker non attestée")
 
         job["status"] = "scheduled"
         job["updated_at"] = _utc_now()
