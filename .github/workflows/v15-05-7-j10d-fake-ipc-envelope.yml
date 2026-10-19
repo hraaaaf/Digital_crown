@@ -75,7 +75,7 @@ jobs:
               $message = [string]$line
               # Put the actionable compiler code and text at the beginning of
               # each log line, where GitHub mobile does not crop them.
-              if($message -match '(error|warning)\\s+(CS[0-9]+)\\s*:\\s*(.*)') {
+              if($message -match '(error|warning)\s+(CS[0-9]+)\s*:\s*(.*)') {
                 Write-Host ("CSC_{0}: {1}" -f $Matches[2],$Matches[3])
               } else {
                 Write-Host ("CSC_DETAIL: {0}" -f $message)
