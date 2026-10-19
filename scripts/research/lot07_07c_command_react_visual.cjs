@@ -30,6 +30,16 @@ try{
    if(result.overflow||result.clipped.length)failures.push('LAYOUT_'+w+'_'+JSON.stringify(result));
    if(result.appointments!==21)failures.push('APPOINTMENTS_'+w+'_'+result.appointments);
    if(result.quarterRows!==36)failures.push('NOT_15_MIN_GRID_'+w+'_'+result.quarterRows);
+   const day=page.getByRole('button',{name:'Jour — vue disponible'});
+   const week=page.getByRole('button',{name:'Semaine — en construction'});
+   const list=page.getByRole('button',{name:'Liste — en construction'});
+   if(await day.count()!==1||await day.getAttribute('aria-pressed')!=='true')failures.push('DAY_VIEW_PRIMARY_'+w);
+   for(const [label,button] of [['WEEK',week],['LIST',list]]){
+     if(await button.count()!==1||!(await button.isDisabled())||await button.getAttribute('aria-pressed')!=='false')
+       failures.push('HONEST_MODE_'+label+'_'+w);
+   }
+   if(await page.locator('.cmd-calendar [data-quarter-hour-grid]').count()!==0)failures.push('UNEXPECTED_NESTED_GRID_'+w);
+
    if(w<=1080&&!result.patientFirst)failures.push('PATIENT_NOT_FIRST_'+w+'_'+JSON.stringify(result));
    if(!result.odontogram)failures.push('ODO_MISSING_'+w);
    if(!result.logos.some(x=>x.ok))failures.push('LOGO_MISSING_'+w);
@@ -61,7 +71,19 @@ try{
    snaps.push({name:path.basename(img),bytes:fs.statSync(img).size,sha256:hash(img),...result});
    if(w===1440){
       await page.getByRole('button',{name:'Agenda',exact:true}).first().click();
-      if(!(await page.locator('h1').innerText()).includes('Agenda') || await page.locator('.cmd-placeholder').count()!==1 || await page.locator('.cmd-appt').count()!==0)failures.push('NAV_FAILED');
+      if(!(await page.locator('h1').innerText()).includes('Command')
+          ||await page.locator('.cmd-placeholder').count()!==0
+          ||await page.locator('.cmd-appt').count()!==21
+          ||await page.locator('#cmd-agenda').count()!==1
+          ||await page.locator('.cmd-shell').getAttribute('data-active-patient-id')!=='TEST-001'
+          ||!(await page.getByRole('button',{name:'Agenda',exact:true}).first().getAttribute('aria-current')))
+        failures.push('AGENDA_REAL_RAIL_NAV_1440');
+      if(await page.evaluate(()=>document.activeElement?.id)!=='cmd-agenda')failures.push('AGENDA_RAIL_FOCUS_1440');
+      await page.getByRole('button',{name:'Patients',exact:true}).first().click();
+      if(!(await page.locator('h1').innerText()).includes('Patients')
+          ||!(await page.locator('.cmd-placeholder').innerText()).includes('en construction')
+          ||await page.locator('.cmd-appt').count()!==0)
+        failures.push('EXPLICIT_PLACEHOLDER_ONLY_NON_AGENDA_1440');
       await page.getByRole('button',{name:'Retour au cockpit'}).click();
       await page.getByRole('button',{name:'RDV',exact:true}).click();
       if(await page.getByRole('status').count()!==1)failures.push('DEMO_BANNER');
