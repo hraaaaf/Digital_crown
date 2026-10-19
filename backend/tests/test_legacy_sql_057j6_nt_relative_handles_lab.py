@@ -79,23 +79,24 @@ class NativeAnchoredWindows(unittest.TestCase):
         finally:
             self.folder.rmdir()
 
-    def test_09_synthetic_rename_of_parent_after_handle_open(self):
-        # If Windows permits this synthetic rename while an anchored handle
-        # remains open, read must still come from the original directory.
-        # If the OS refuses to rename (sharing semantics), it fails closed.
+    def test_09_real_parent_path_substitution_preserves_anchored_file(self):
+        # The mutation must ACTUALLY happen to count as evidence: if Windows
+        # rejects rename because a handle is retained, this test is RED,
+        # not a fake successful adversarial case.
+        performed = {"swapped": False}
+
         def mutate():
-            try:
-                self.folder.rename(self.root / "inputs-original")
-                self.folder.mkdir()
-                (self.folder / "payload.fake").write_bytes(b"ATTACKER_FAKE")
-            except PermissionError:
-                pass
-        try:
-            self.assertEqual(nt.anchored_fake_read(self.root, before_leaf=mutate),
-                             nt.PAYLOAD)
-        finally:
-            if (self.root / "inputs-original").is_dir():
-                pass
+            self.folder.rename(self.root / "inputs-original")
+            performed["swapped"] = True
+            self.folder.mkdir()
+            (self.folder / "payload.fake").write_bytes(b"ATTACKER_FAKE")
+
+        original = nt.anchored_fake_read(self.root, before_leaf=mutate)
+        self.assertTrue(performed["swapped"], "J6_PARENT_SWAP_NOT_PERFORMED")
+        self.assertEqual(original, nt.PAYLOAD)
+        self.assertEqual((self.folder / "payload.fake").read_bytes(),
+                         b"ATTACKER_FAKE")
+        print("J6_REAL_PARENT_SWAP_EXECUTED_ORIGINAL_HANDLE_PRESERVED")
 
     def test_10_noop_does_not_break_anchored_handle(self):
         self.assertEqual(nt.anchored_fake_read(self.root, before_leaf=lambda: None),
