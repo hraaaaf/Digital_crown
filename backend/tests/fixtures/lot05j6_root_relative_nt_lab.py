@@ -87,7 +87,8 @@ def anchored_fake_read(root: Path, *, before_leaf=None) -> bytes:
 
     @contextmanager
     def hold(handle):
-        if handle is None or int(handle) == invalid_handle:
+        native_value = handle.value if hasattr(handle, "value") else handle
+        if native_value is None or native_value == invalid_handle:
             raise NativeRefused("J6_NT_HANDLE_OPEN_FAILED")
         try:
             yield handle
