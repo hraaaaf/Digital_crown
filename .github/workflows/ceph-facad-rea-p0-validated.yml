@@ -99,6 +99,52 @@ jobs:
           Write-Host 'FACAD_OFFICIAL_SHA256_PINNED_PASS=true'
           # No FACAD application or trial is started and no new EULA is accepted.
 
+      - name: Prove official Robert demo presence and validate unchanged LOT08 parity contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $officialCase = 'facad-rea/release/Examples/Robert-2.0.fcd'
+          if (!(Test-Path -LiteralPath $officialCase -PathType Leaf)) { throw 'Official Robert demo missing from pinned release; no trace evidence' }
+          $officialCaseSize = (Get-Item -LiteralPath $officialCase).Length
+          if ($officialCaseSize -le 0) { throw 'Official Robert demo empty; refuse' }
+          $officialCaseHash = (Get-FileHash -LiteralPath $officialCase -Algorithm SHA256).Hash.ToLowerInvariant()
+          # Use the EXISTING LOT08 validator. A static definition is not numeric parity.
+          python audit/cephalo_lot08_facad_parity_validate.py
+          if ($LASTEXITCODE -ne 0) { throw 'Canonical LOT08 parity manifest rejected' }
+          $manifestPath = 'docs/audits/schemas/ortho_lot08_facad_ricketts_direct_parity_evidence_v1.json'
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -ErrorAction Stop
+          if ($manifest.status -ne 'DIRECT_DEFINITION_OBSERVED') { throw 'Direct Facad export status changed; this experiment must not infer parity' }
+          if (@($manifest.evidence_records).Count -ne 0 -or @($manifest.parity_rows).Count -ne 0) { throw 'Existing exports/parity present; require fresh explicit review' }
+          if (@($manifest.profiles).Count -ne 2) { throw 'Expected two Facad Ricketts profiles' }
+          foreach ($profile in $manifest.profiles) {
+            if ($profile.observation_status -ne 'UNOBSERVED') { throw 'Unexpected observed runtime profile' }
+          }
+          $kinds = @($manifest.required_direct_exports | ForEach-Object { $_.kind } | Sort-Object -Unique)
+          if (($kinds -join ',') -ne 'ANALYSIS_PROPERTIES,ANALYSIS_VALUES,MARKER_POSITIONS') { throw 'Canonical three-export-family contract changed' }
+          $preflight = [ordered]@{
+            schema_version = 1
+            source_head = (git rev-parse HEAD).Trim()
+            sample_source = 'Pinned official FACAD 3.14.1.1111 release/Examples'
+            sample_file_name = 'Robert-2.0.fcd'
+            sample_sha256 = $officialCaseHash
+            sample_bytes = $officialCaseSize
+            sample_opened_in_facad = $false
+            manifest_status = 'DIRECT_DEFINITION_OBSERVED'
+            registered_direct_export_record_count = 0
+            registered_parity_row_count = 0
+            required_profile_ids = @('FACAD_RICKETTS_32F_COMPATIBILITY_TARGET','FACAD_RICKETTS_13F_COMPATIBILITY_TARGET')
+            required_export_families = @('ANALYSIS_VALUES','ANALYSIS_PROPERTIES','MARKER_POSITIONS')
+            facad_314_ui_marker_equivalent = 'Object Values'
+            gui_run_performed = $false
+            numeric_parity_proved = $false
+          }
+          $preflight | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/robert-safe-preflight.json -Encoding utf8
+          Write-Host "OFFICIAL_ROBERT_SHA256=$officialCaseHash"
+          Write-Host "OFFICIAL_ROBERT_BYTES=$officialCaseSize"
+          Write-Host 'FACAD_LOT08_CANONICAL_DIRECT_PARITY_STATUS=DIRECT_DEFINITION_OBSERVED'
+          Write-Host 'FACAD_SAME_TRACE_SIX_EXPORTS_PROVED=false'
+          Write-Host 'FACAD_ROBERT_STATIC_PREFLIGHT_PASS=true'
+
       - name: Execute real pinned REA static .NET/PE triage on FACAD and export plugin
         shell: pwsh
         run: |
@@ -167,9 +213,12 @@ jobs:
           Write-Host 'REA_SAFE_PROJECTION_SYNTHETIC_PASS=true'
           $root = 'facad-rea/release'
           $wanted = @('Facad.exe', 'FacadExportCephDataPlugin.exe')
+          $safeDemoPreflight = Get-Content -LiteralPath 'facad-rea/evidence/robert-safe-preflight.json' -Raw | ConvertFrom-Json -ErrorAction Stop
+          if ($safeDemoPreflight.source_head -ne (git rev-parse HEAD).Trim()) { throw 'Robert preflight HEAD mismatch' }
           $summary = [ordered]@{
-            schema_version = 7
+            schema_version = 8
             source_head = (git rev-parse HEAD).Trim()
+            official_robert_preflight = $safeDemoPreflight
             source = 'official public Citodent FACAD 3.14.1.1111 release ZIP'
             rea_pin = 'rea-agents@6.7.0'
             operation = 'inspect-managed-artifact'
