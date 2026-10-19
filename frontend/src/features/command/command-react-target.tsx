@@ -94,7 +94,7 @@ export function CommandWorkbenchReactTarget(){
      <Card title={view}><div className="cmd-placeholder">Prévisualisation en construction — aucune opération clinique. <button onClick={()=>{setView('Command');setActiveNavigation('Command');}}>Retour au cockpit</button></div></Card>
      :<div className="cmd-workbench">
        <CommandAgenda activeLane={activeLane} setActiveLane={setActiveLane} mockStatuses={mockStatuses} requestSwitch={requestSwitch} announce={announce}/>
-       <CommandPatientWorkspace key={activeAppointment.patientId} activeAppointment={activeAppointment} currentStatus={currentStatus} roomDisplay={roomDisplay} patientHeadingRef={patientHeadingRef} tab={tab} setTab={setTab} additionalOpen={additionalOpen} setAdditionalOpen={setAdditionalOpen} mockStatuses={mockStatuses} samePractitionerNext={samePractitionerNext} canBeginConsultation={canBeginConsultation} requestSwitch={requestSwitch} updateMockStatus={updateMockStatus} announce={announce}/>
+       <CommandPatientWorkspace key={activeAppointment.patientId} activeAppointment={activeAppointment} currentStatus={currentStatus} roomDisplay={roomDisplay} patientHeadingRef={patientHeadingRef} tab={tab} setTab={setTab} additionalOpen={additionalOpen} setAdditionalOpen={setAdditionalOpen} mockStatuses={mockStatuses} samePractitionerNext={samePractitionerNext} canBeginConsultation={canBeginConsultation} requestSwitch={requestSwitch} updateMockStatus={updateMockStatus} announce={announce} clearNotification={()=>setNotification('')}/>
      </div>}
     <footer className="cmd-disclaimer">LOT07 / 07-C · TARGET REACT ISOLÉ · Actifs Digital Crown d’origine · Tokens existants · Aucune connexion Cabinet</footer>
    </div>
