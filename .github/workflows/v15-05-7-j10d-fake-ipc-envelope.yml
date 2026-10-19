@@ -67,7 +67,7 @@ jobs:
           $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs'
           $output = Join-Path $env:RUNNER_TEMP 'j10d-scm-caller.exe'
           if(!(Test-Path -LiteralPath $source -PathType Leaf)) { throw 'Second SCM caller source missing' }
-          & $csc /nologo /target:exe "/out:$output" /reference:System.ServiceProcess.dll "$source"
+          & $csc /nologo /target:exe "/out:$output" /reference:System.ServiceProcess.dll /reference:System.Core.dll "$source"
           if($LASTEXITCODE -ne 0) { throw "Caller compile failed: $LASTEXITCODE" }
           & "$env:GITHUB_WORKSPACE/backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1"
           if(!$?) { throw 'Two-SCM probe failed' }
