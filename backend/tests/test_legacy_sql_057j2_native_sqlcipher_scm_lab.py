@@ -46,7 +46,7 @@ class NativeSqlcipherRecoveryBoundaryLab(unittest.TestCase):
             os.environ["LOT05J2_NATIVE_SQLCIPHER_FAKE_ONLY"] = self._flag
 
     def publish(self, **kwargs):
-        return j2.fake_publish(self.root, self.source, owner=7, key=self.key, **kwargs)
+        return j2.fake_publish(self.root, self.source, owner=7, expected_owner=7, key=self.key, **kwargs)
 
     def current(self):
         return j2.fake_current(self.root, owner=7, key=self.key)
@@ -105,7 +105,7 @@ class NativeSqlcipherRecoveryBoundaryLab(unittest.TestCase):
     def test_07_missing_wrong_bool_or_coercible_owner_refused(self):
         for owner in (None, 0, -1, True, False, "7", 7.0, 8):
             with self.subTest(owner=owner), self.assertRaises(j2.J2Denied):
-                j2.fake_publish(self.root, self.source, owner=owner, key=self.key)
+                j2.fake_publish(self.root, self.source, owner=owner, expected_owner=7, expected_owner=7, key=self.key)
         self.assertFalse((self.root / "CURRENT.json").exists())
 
     def test_08_flag_off_or_invalid_key_rejected_before_mutation(self):
@@ -115,7 +115,7 @@ class NativeSqlcipherRecoveryBoundaryLab(unittest.TestCase):
         os.environ["LOT05J2_NATIVE_SQLCIPHER_FAKE_ONLY"] = "1"
         for key in (None, "abc", 4, "g" * 64):
             with self.subTest(key=key), self.assertRaises(j2.J2Denied):
-                j2.fake_publish(self.root, self.source, owner=7, key=key)
+                j2.fake_publish(self.root, self.source, owner=7, expected_owner=7, key=key)
         self.assertFalse((self.root / "CURRENT.json").exists())
 
     def test_09_failure_injections_do_not_publish_partial_snapshot(self):
@@ -193,7 +193,7 @@ class NativeSqlcipherRecoveryBoundaryLab(unittest.TestCase):
     def test_17_stdlib_sqlite3_connection_refused_as_real_sqlcipher(self):
         with closing(sqlite3.connect(":memory:")) as plain:
             with self.assertRaises(j2.J2Denied):
-                j2.fake_publish(self.root, plain, owner=7, key=self.key)
+                j2.fake_publish(self.root, plain, owner=7, expected_owner=7, key=self.key)
         self.assertFalse((self.root / "CURRENT.json").exists())
 
     def test_18_no_active_clinical_target_created_by_fake_generation(self):
