@@ -1,0 +1,93 @@
+"""LOT05/05.7-J9: actual SCM Service SID signer -> same RSA ticket verified by SCM worker.
+Disposable native SQLCipher users/JWT only; no patient data, product, import or restore.
+"""
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import unittest
+from backend.tests import test_legacy_sql_057j9_real_jwt_scm_bridge_lab as inherited
+
+class J9TrueWindowsProtectedSignerLab(unittest.TestCase):
+    @classmethod
+    def _seed_fake_orm(cls):
+        inherited.J9JwtToRealFakeScm._seed_fake_orm.__func__(cls)
+
+    @classmethod
+    def setUpClass(cls):
+        inherited.J9JwtToRealFakeScm.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        inherited.J9JwtToRealFakeScm.tearDownClass.__func__(cls)
+
+    def setUp(self):
+        inherited.J9JwtToRealFakeScm.setUp(self)
+
+    def tearDown(self):
+        inherited.J9JwtToRealFakeScm.tearDown(self)
+
+    def test_01_distinct_windows_scm_signer_sid_denies_client_key_and_missing_jwt(self):
+        self.assertEqual(os.name, "nt", "Native Windows SCM CI is required")
+        base = Path(__file__).resolve().parent / "fixtures"
+        env = dict(os.environ,
+                   LOT05J9_SIGNER_SID_FAKE_ONLY="1",
+                   LOT05J9_FAKE_OUTPUT_ROOT=str(self.root),
+                   LOT05J9_FAKE_PYTHON=sys.executable,
+                   LOT05J9_FAKE_SOURCE_DB=str(self.source),
+                   LOT05J9_FAKE_SQL_KEY=self.fake_key,
+                   LOT05J9_FAKE_JWT_SECRET=self.fake_jwt_secret,
+                   LOT05J9_FAKE_JWT=self.security.create_access_token({
+                       "sub": self.fake_owners[0].email
+                   }),
+                   LOT05J9_FAKE_OWNER=str(self.fake_owners[0].id),
+                   LOT05J9_REAL_SCM_SIGNED_FAKE_ONLY="1",
+                   PYTHONDONTWRITEBYTECODE="1")
+        probe=subprocess.run(
+            ["pwsh", "-NoProfile", "-File",
+             str(base / "lot05j9_isolated_signer_probe.ps1")],
+            capture_output=True, text=True, timeout=230, env=env
+        )
+        report=probe.stdout+"\n"+probe.stderr
+        self.assertEqual(probe.returncode, 0, report[-6500:])
+        for marker in (
+            "J9_REAL_SIGNER_PRIVATE_PINNED_TO_DISTINCT_SCM_SID",
+            "J9_UNPRIVILEGED_SAME_LOCALSERVICE_CLIENT_CANNOT_READ_RSA_PRIVATE_OR_JWT_SECRET",
+            "J9_TRUE_BACKEND_JWT_IN_DETACHED_WINDOWS_SCM_SIGNER",
+            "J9_SIGNER_REJECTS_MISSING_JWT_WITHOUT_RSA_SIGNATURE",
+            "J9_CLINICAL_WORKER_REMAINS_DENIED",
+        ):
+            self.assertIn(marker, report)
+        # The signer under SCM produced JSON, never handed client the PRIVATE key.
+        signed=json.loads((self.root/"isolated-signed.json").read_text(encoding="utf-8-sig"))
+        self.assertEqual(set(signed), {"body","signature","signer_pid"})
+        self.assertIn("audience=LOT05J9_FAKE_WORKER", signed["body"])
+        self.assertNotIn("private_key",signed)
+        self.assertNotIn("public_key",signed)
+        # The old client-side RSA key from legacy J9 must NOT be the signer-service key.
+        ownpin=(self.root/"trusted-rsa-public.fake").read_text(encoding="ascii")
+        self.assertNotEqual(self.key.public_key().public_numbers().n,
+                            int.from_bytes(__import__("base64").b64decode(ownpin.splitlines()[0]),"big"))
+        (self.root/"signed-order.fake").write_text(
+            signed["body"]+"\n"+signed["signature"]+"\n", encoding="ascii"
+        )
+        worker=subprocess.run(
+            ["pwsh","-NoProfile","-File",
+             str(base/"lot05j9_real_jwt_linked_scm_probe.ps1")],
+            capture_output=True, text=True, timeout=210,
+            env=dict(env, LOT05J9_FAKE_INPUT_ROOT=str(self.root))
+        )
+        proof=worker.stdout+"\n"+worker.stderr
+        self.assertEqual(worker.returncode,0,proof[-6000:])
+        for marker in (
+           "J9_REAL_SCM_PINNED_PUBLIC_KEY_RSA_SIGNATURE_VERIFIED",
+           "J9_REAL_SCM_FORGED_SIGNATURE_DENIED",
+           "J9_REAL_SCM_RESTART_PERSISTENT_NONCE_REPLAY_DENIED",
+           "J9_SAME_LOCALSERVICE_WITHOUT_SERVICE_SID_CANNOT_VERIFY",
+           "J9_NO_CLINICAL_RESTORE_ENABLED",
+        ):
+            self.assertIn(marker,proof)
+
+if __name__=="__main__":
+    unittest.main(verbosity=2)
