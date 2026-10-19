@@ -23,6 +23,9 @@ permissions:
 
 jobs:
   fail-closed-laboratory:
+    # 05.7-J phase-1 10-file scope gate is valid only for its original PR.
+    # Stacked J2 executes all 53 inherited test cases itself on both OS.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j-failclosed-copy-generation-lab-20261019'
     name: No clinical apply; WAL generation and crash tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35

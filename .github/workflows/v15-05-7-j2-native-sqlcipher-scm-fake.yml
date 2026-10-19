@@ -1,0 +1,102 @@
+name: V1.5-05.7-J2 Native SQLCipher WAL + Windows SCM Deny LAB
+on:
+  push:
+    branches:
+      - feat/v15-05-7j2-real-sqlcipher-wal-scm-veto-fake-20261019
+  pull_request:
+    paths:
+      - .github/workflows/v15-05-7-j-failclosed-fake-recovery.yml
+      - .github/workflows/v15-05-7-j2-native-sqlcipher-scm-fake.yml
+      - backend/services/legacy_migration_sqlcipher_scm_lab_v15.py
+      - backend/tests/test_legacy_sql_057j2_native_sqlcipher_scm_lab.py
+      - docs/quality/V15_05_7_J2_NATIVE_SQLCIPHER_SCM_FAKE_CONTRACT.md
+      - techdoubt.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-sqlcipher-wal-scm-deny:
+    name: SQLCipher WAL / SCM DENY (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      LOT05J2_NATIVE_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05E_REAL_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05I_REAL_JWT_WAL_FAKE_ONLY: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      ENVIRONMENT: cabinet
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: System libsqlcipher install on Linux only
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Install pinned authentic Python dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3 pytest==9.0.3
+      - name: Exact Python code compiles and native cipher exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/services/legacy_migration_sqlcipher_scm_lab_v15.py backend/tests/test_legacy_sql_057j2_native_sqlcipher_scm_lab.py
+          python -c "from sqlcipher3 import dbapi2 as s; c=s.connect(':memory:'); assert c.execute('PRAGMA cipher_version').fetchone()[0]; c.close(); print('NATIVE_SQLCIPHER_CONFIRMED')"
+      - name: Execute 18 genuinely encrypted WAL snapshot and Windows boundary cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j2_native_sqlcipher_scm_lab.py -v 2>&1 | tee j2.log
+          grep -q '^Ran 18 tests' j2.log
+          grep -Eq '^OK[[:space:]]*$' j2.log
+          ! grep -E 'skipped=[0-9]+|^FAILED \(|^ERROR: test_|^ERROR: setUpClass' j2.log
+      - name: Replay 16 phase-1 J fake recovery cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j_restore_failclosed_lab.py -v 2>&1 | tee j1.log
+          grep -q '^Ran 16 tests' j1.log
+          grep -Eq '^OK[[:space:]]*$' j1.log
+          ! grep -E 'skipped=[0-9]+|^FAILED \(|^ERROR: test_|^ERROR: setUpClass' j1.log
+      - name: Replay 21 inherited JWT and native SQLCipher worker tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py -v 2>&1 | tee i.log
+          grep -q '^Ran 21 tests' i.log
+          grep -Eq '^OK[[:space:]]*$' i.log
+          ! grep -E 'skipped=[0-9]+|^FAILED \(|^ERROR: test_|^ERROR: setUpClass' i.log
+      - name: Existing guided-restore clinical deny regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -m pytest backend/tests/test_guided_restore.py -q -ra --disable-warnings 2>&1 | tee legacy.log
+          grep -Eq '^16 passed' legacy.log
+          ! grep -E 'skipped|xfailed|failed|error' legacy.log
+      - name: Strict new diff and exact HEAD
+        shell: bash
+        env:
+          BASE_SHA: 4867c6f76380a7c2ded6c62776203c70252d5854
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/routers alembic frontend backend/services/guided_restore.py backend/services/guided_restore_worker.py
+          git diff --name-only "$BASE_SHA" HEAD > j2-diff.txt
+          ! grep -Ev '^(\.github/workflows/v15-05-7-j2-native-sqlcipher-scm-fake\.yml|\.github/workflows/v15-05-7-j-failclosed-fake-recovery\.yml|backend/services/legacy_migration_sqlcipher_scm_lab_v15\.py|backend/tests/test_legacy_sql_057j2_native_sqlcipher_scm_lab\.py|docs/quality/V15_05_7_J2_NATIVE_SQLCIPHER_SCM_FAKE_CONTRACT\.md|techdoubt\.md)$' j2-diff.txt
