@@ -69,6 +69,8 @@ def _local_file(base: Path, value: object) -> Path:
 
 def _checked_input(intake_path: Path) -> tuple[dict, list[dict]]:
     path = intake_path.resolve(strict=True)
+    _require(not path.is_relative_to(ROOT.resolve()),
+             "private intake must be OUTSIDE the Git repository")
     _require(path.is_file(), "intake JSON must be a local file")
     data = json.loads(path.read_text(encoding="utf-8"))
     _require(isinstance(data, dict) and set(data) == ROOT_KEYS, "intake keys mismatch; no extra secrets accepted")
