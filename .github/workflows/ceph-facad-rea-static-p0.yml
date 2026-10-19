@@ -1,11 +1,6 @@
 name: CEPH-FAC FACAD REA P0 static evidence (EXPERIMENTAL)
 
 on:
-  push:
-    branches: [research/ceph-facad-rea-p0-20261019]
-    paths:
-      - .github/workflows/ceph-facad-rea-static-p0.yml
-      - techdoubt.md
   pull_request:
     branches: [master]
     paths:
