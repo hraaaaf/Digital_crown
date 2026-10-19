@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  Activity, Bell, CalendarDays, ChevronDown, ClipboardList, Clock3,
+  Activity, Bell, CalendarDays, ClipboardList, Clock3,
   CreditCard, FileImage, FileText, FolderOpen, Image as ImageIcon,
-  LayoutDashboard, Mail, MoreHorizontal, Phone, Plus, Receipt,
+  LayoutDashboard, Mail, MoreHorizontal, Phone, Receipt,
   Search, Settings, ShieldCheck, Users, type LucideIcon
 } from 'lucide-react';
 import OfficialLogo from '../../assets/logo.png';
 import CompactLogo from '../../assets/logo-compact.png';
 import { PremiumOdontogramSVG } from '../../components/odontogram/PremiumOdontogramSVG';
 import './command-react-target.css';
-import { appointments, quarterHours, initialRoomAssignments, nextArrivedForPractitioner, occupiedRoomCount, type AppointmentStatus } from './command-synthetic-fixtures';
-import { AppointmentIdentity, getRoomDisplay } from './command-appointment-presentation';
+import { appointments, initialRoomAssignments, nextArrivedForPractitioner, occupiedRoomCount, type AppointmentStatus } from './command-synthetic-fixtures';
+import { getRoomDisplay } from './command-appointment-presentation';
+import { CommandAgenda } from './command-agenda';
 
 type Tone = 'success'|'warning'|'danger'|'info';
 const menu: {name: string; icon: LucideIcon}[] = [
@@ -109,18 +110,7 @@ export function CommandWorkbenchReactTarget(){
     {view!=='Command'?
      <Card title={view}><div className="cmd-placeholder">Prévisualisation en construction — aucune opération clinique. <button onClick={()=>{setView('Command');setActiveNavigation('Command');}}>Retour au cockpit</button></div></Card>
      :<div className="cmd-workbench">
-       <Card id="cmd-agenda" title="Agenda · Vue journalière" className="cmd-agenda" action={<small>15 min · 3 praticiens</small>}>
-        <div className="cmd-datebar"><button onClick={()=>announce('Calendrier')}><CalendarDays size={15}/> Lundi 19 octobre 2026 <ChevronDown size={13}/></button><button onClick={()=>announce('Aujourd’hui')}>Aujourd’hui</button><button className="cmd-primary" onClick={()=>announce('RDV')}><Plus size={15}/> RDV</button></div>
-        <div className="cmd-agenda-modes" role="group" aria-label="Modes de l’agenda fictif"><button type="button" className="active" aria-pressed="true" aria-label="Jour — vue disponible">Jour</button>{['Semaine','Liste'].map(x=><button type="button" key={x} disabled aria-disabled="true" aria-label={x+' — en construction'} aria-pressed="false">{x}<small>En construction</small></button>)}</div>
-        <div className="cmd-mobile-lanes" role="group" aria-label="Praticien affiché dans l’agenda mobile">{['Dr A','Dr B','Dr C'].map((name,index)=><button key={name} type="button" aria-label={'Agenda '+name} aria-pressed={activeLane===index} onClick={()=>setActiveLane(index)}>{name}</button>)}</div>
-        <div className="cmd-agenda-overflow"><div className="cmd-calendar" data-quarter-hour-grid="true" data-active-lane={activeLane}>
-         <div className="cmd-timehead" style={{gridRow:1,gridColumn:1}}>Heure</div>
-         {['Dr A · Salle 1','Dr B · Salle 2','Dr C · Salle 3'].map((name,lane)=><div className="cmd-lanehead" key={name} data-lane={lane} data-current-lane={activeLane===lane} style={{gridRow:1,gridColumn:lane+2}}><b>{['DA','DB','DC'][lane]}</b><span>{name}<small>{lane===2?'Chirurgie':'Omnipratique'}</small></span></div>)}
-         {quarterHours.map(({label,minute},tick)=><React.Fragment key={label}><div className="cmd-hour" data-minute={minute} style={{gridRow:tick+2,gridColumn:1}}>{label}</div>{[0,1,2].map(lane=><div key={lane} className={'cmd-quarter-cell '+(minute===0?'cmd-quarter-start':'')} data-lane={lane} data-current-lane={activeLane===lane} style={{gridRow:tick+2,gridColumn:lane+2}} aria-hidden="true"/>)}</React.Fragment>)}
-         {appointments.map(appt=><button key={appt.id} type="button" data-lane={appt.practitionerId} data-current-lane={activeLane===appt.practitionerId} data-appointment-id={appt.id} data-patient-id={appt.patientId} onClick={()=>requestSwitch(appt.id)} style={{gridRow:`${(appt.startMinutes-480)/15+2} / span ${Math.max(1,appt.duration/15)}`,gridColumn:appt.practitionerId+2}} className={'cmd-appt cmd-appt-'+(mockStatuses[appt.id]??appt.status)} aria-label={'Patient '+appt.patientId+', rendez-vous '+appt.ref+', '+appt.label+', '+appt.duration+' minutes, démonstration'}><AppointmentIdentity appointment={appt}/></button>)}
-        </div></div>
-        <div className="cmd-legend"><span>● Réalisé</span><span>● En attente</span><span>● À venir</span><span>● Urgence</span></div>
-       </Card>
+       <CommandAgenda activeLane={activeLane} setActiveLane={setActiveLane} mockStatuses={mockStatuses} requestSwitch={requestSwitch} announce={announce}/>
        <div className="cmd-right" key={activeAppointment.patientId} data-patient-id={activeAppointment.patientId}>
         <div className="cmd-patienthero"><div className="cmd-patientavatar">T</div><div className="cmd-patientintro"><p className="cmd-patienteyebrow" data-room-state={roomDisplay.state}>DOSSIER ACTIF <span aria-hidden="true">·</span> {roomDisplay.eyebrow}</p><h2 tabIndex={-1} ref={patientHeadingRef}>{patientTag} <Pill tone={currentStatus==='current'?'success':currentStatus==='paused'?'warning':'info'}>{currentStatus==='current'?'En cours':currentStatus==='paused'?'En pause':currentStatus==='finished'?'Terminé':currentStatus==='waiting'?'En attente':'RDV fictif'}</Pill></h2><p>Identité fictive · Dr {['A','B','C'][activeAppointment.practitionerId]} · {roomDisplay.description}</p><span><Pill>Accès non testé</Pill> <Pill>Données synthétiques</Pill></span></div><div className="cmd-contact"><button aria-label="Téléphone démonstration" onClick={()=>announce('Téléphone')}><Phone size={15}/></button><button aria-label="Mail démonstration" onClick={()=>announce('E-mail')}><Mail size={15}/></button><button aria-label="Plus démonstration" onClick={()=>announce('Menu')}><MoreHorizontal size={15}/></button></div><div className="cmd-patienttime"><strong>{activeAppointment.startLabel} – {activeAppointment.endLabel}</strong><small>RDV {activeAppointment.ref} · {activeAppointment.label}</small><span><Clock3 size={12}/> {activeAppointment.duration} min fictives</span></div><div className="cmd-patientbuttons"><button className="cmd-primary" disabled={currentStatus!=='current'&&currentStatus!=='paused'} onClick={()=>updateMockStatus(currentStatus==='paused'?'current':'paused')}>{currentStatus==='paused'?'Reprendre (simulation)':'Mettre en pause'}</button><button disabled={currentStatus!=='current'&&currentStatus!=='paused'} onClick={()=>updateMockStatus('finished')}>Terminer le RDV (simulation)</button><button disabled={!samePractitionerNext} onClick={()=>samePractitionerNext&&requestSwitch(samePractitionerNext.id)}>Patient suivant (même praticien)</button>{canBeginConsultation&&<button onClick={()=>updateMockStatus('current')}>Démarrer la consultation (simulation)</button>}</div></div>
         <div className="cmd-tabs" role="tablist" aria-label="Dossier fictif">{patientTabs.map((t,index)=><button role="tab" key={t} id={'cmd-tab-'+index} aria-controls="cmd-cards" aria-selected={tab===t} tabIndex={tab===t?0:-1} className={tab===t?'active':''} onClick={()=>{setTab(t);setNotification('');}} onKeyDown={e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=(index+(e.key==='ArrowRight'?1:patientTabs.length-1))%patientTabs.length;setTab(patientTabs[next]);const tabs=e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');tabs?.[next]?.focus();}}}>{t}</button>)}</div>
