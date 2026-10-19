@@ -1,0 +1,102 @@
+name: V1.5-05.7-J Fail-Closed Fake Recovery Windows and Linux
+
+on:
+  push:
+    branches:
+      - feat/v15-05-7j-failclosed-copy-generation-lab-20261019
+  pull_request:
+    paths:
+      - backend/services/guided_restore.py
+      - backend/services/guided_restore_worker.py
+      - backend/services/legacy_migration_safe_restore_lab_v15.py
+      - backend/tests/test_guided_restore.py
+      - backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py
+      - backend/tests/test_legacy_sql_057j_restore_failclosed_lab.py
+      - docs/quality/V15_05_7_J_FAIL_CLOSED_RECOVERY_CONTRACT.md
+      - .github/workflows/v15-05-7-j-failclosed-fake-recovery.yml
+      - techdoubt.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fail-closed-laboratory:
+    name: No clinical apply; WAL generation and crash tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      LOT05E_REAL_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05I_REAL_JWT_WAL_FAKE_ONLY: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      ENVIRONMENT: cabinet
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install native SQLCipher on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Install genuine inherited JWT, SQLCipher and test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3 pytest==9.0.3
+      - name: Compile Python and prove real SQLCipher driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            backend/services/guided_restore.py \
+            backend/services/guided_restore_worker.py \
+            backend/services/legacy_migration_safe_restore_lab_v15.py \
+            backend/tests/test_guided_restore.py \
+            backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py \
+            backend/tests/test_legacy_sql_057j_restore_failclosed_lab.py
+          python -c "from sqlcipher3 import dbapi2 as s; c=s.connect(':memory:'); assert c.execute('PRAGMA cipher_version').fetchone()[0]; c.close()"
+      - name: Fake generation and negative owner/worker tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j_restore_failclosed_lab.py -v 2>&1 | tee lot05j.log
+          grep -q '^Ran 15 tests' lot05j.log
+          grep -Eq '^OK[[:space:]]*$' lot05j.log
+          ! grep -E 'skipped=[0-9]+|^FAILED \(|^ERROR: test_|^ERROR: setUpClass' lot05j.log
+      - name: Inherited real JWT plus native SQLCipher WAL regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py -v 2>&1 | tee lot05i-inherited.log
+          grep -q '^Ran 21 tests' lot05i-inherited.log
+          grep -Eq '^OK[[:space:]]*$' lot05i-inherited.log
+          ! grep -E 'skipped=[0-9]+|^FAILED \(|^ERROR: test_|^ERROR: setUpClass' lot05i-inherited.log
+      - name: Legacy guided restore regressions enforce refusal
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -m pytest backend/tests/test_guided_restore.py -q -ra --disable-warnings 2>&1 | tee lot05j-legacy.log
+          ! grep -E 'skipped|xfailed|failed|error' lot05j-legacy.log
+      - name: Scope, exact SHA and active production fail-closed gates
+        shell: bash
+        env:
+          BASE_SHA: fbde55eda867be64a502889a3836465f50596735
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/routers alembic frontend
+          git diff --name-only "$BASE_SHA" HEAD > j-changed.txt
+          ! grep -Ev '^(\.github/workflows/v15-05-7-j-failclosed-fake-recovery\.yml|backend/services/guided_restore\.py|backend/services/guided_restore_worker\.py|backend/services/legacy_migration_safe_restore_lab_v15\.py|backend/tests/test_guided_restore\.py|backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab\.py|backend/tests/test_legacy_sql_057j_restore_failclosed_lab\.py|docs/quality/V15_05_7_J_FAIL_CLOSED_RECOVERY_CONTRACT\.md|techdoubt\.md)$' j-changed.txt
