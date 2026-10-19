@@ -198,5 +198,23 @@ class SafeFakeRecoveryLab(unittest.TestCase):
             self.assertFalse((job_dir / "rescue").exists())
 
 
+    def test_16_injected_partial_clone_copy_failure_leaves_no_destination(self):
+        import backend.services.legacy_migration_safe_restore_lab_v15 as lab
+        self.publish()
+        target = self.root / "isolated-recovery"
+
+        def fail_after_partial_copy(_src, dst):
+            dst.mkdir()
+            (dst / "INCOMPLETE").write_bytes(b"PARTIAL-NEVER-ACCEPT")
+            raise OSError("INJECTED_COPY_INTERRUPTION")
+
+        with patch.object(lab.shutil, "copytree", side_effect=fail_after_partial_copy):
+            with self.assertRaisesRegex(OSError, "INJECTED_COPY_INTERRUPTION"):
+                clone_current_into_new_fake_dir(
+                    self.root, target, request_owner=7, expected_owner=7)
+        self.assertFalse(target.exists())
+        self.assertTrue(self.current()[0].is_dir())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
