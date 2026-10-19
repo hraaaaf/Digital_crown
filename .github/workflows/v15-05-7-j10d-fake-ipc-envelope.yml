@@ -66,5 +66,5 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
           git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
-          printf '%s\\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
           diff -u expected.txt actual.txt
