@@ -1,0 +1,75 @@
+name: V1.5-05.7-J10C SCM JWT Manifest Bound SQLCipher FAKE
+on:
+  push:
+    branches:
+      - feat/v15-05-7j10c-real-scm-jwt-signed-sqlcipher-binding-20261019
+  pull_request:
+    paths:
+      - backend/tests/fixtures/lot05j10c_windows_bound_signer.cs
+      - backend/tests/fixtures/lot05j10c_scm_bound_signer_probe.ps1
+      - backend/tests/fixtures/lot05j10c_manifest_jwt_rsa_signer_lab.py
+      - backend/tests/fixtures/lot05j10c_bound_sqlcipher_verifier_lab.py
+      - backend/tests/test_legacy_sql_057j10c_real_scm_bound_sqlcipher_lab.py
+      - .github/workflows/v15-05-7-j10c-bound-sqlcipher.yml
+      - docs/quality/V15_05_7_J10C_BOUND_SQLCIPHER_CONTRACT.md
+      - techdoubt.md
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scm-jwt-to-cipher:
+    name: J10C Real Windows SCM JWT RSA binds SQLCipher FAKE
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      LOT05J10B_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05J9_SIGNER_SID_FAKE_ONLY: '1'
+      LOT05J9_REAL_JWT_SCM_FAKE_ONLY: '1'
+      LOT05E_REAL_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05I_REAL_JWT_WAL_FAKE_ONLY: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      ENVIRONMENT: cabinet
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install actual native SQLCipher JWT backend and cryptographic dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 'pydantic[email]==2.6.3' pydantic-settings==2.2.1 fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 python-multipart==0.0.31 python-dotenv==1.2.1 cryptography==49.0.0 PyYAML==6.0.3 pytest==9.0.3
+          python -c "from sqlcipher3 import dbapi2 as d; c=d.connect(':memory:'); assert c.execute('PRAGMA cipher_version').fetchone()[0]; c.close(); print('J10C_REAL_NATIVE_SQLCIPHER')"
+      - name: Validate PowerShell and Python syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:RUNNER_OS -ne 'Windows' -or $env:GITHUB_ACTIONS -ne 'true') {throw 'WINDOWS_SCM_CI_REQUIRED'}
+          $tok=$null;$errs=$null
+          [System.Management.Automation.Language.Parser]::ParseFile('backend/tests/fixtures/lot05j10c_scm_bound_signer_probe.ps1',[ref]$tok,[ref]$errs) | Out-Null
+          if($errs.Count -ne 0) {throw ('POWERSHELL_PARSE_INVALID '+($errs -join ';'))}
+          python -m py_compile backend/tests/fixtures/lot05j10c_manifest_jwt_rsa_signer_lab.py backend/tests/fixtures/lot05j10c_bound_sqlcipher_verifier_lab.py backend/tests/test_legacy_sql_057j10c_real_scm_bound_sqlcipher_lab.py
+          if($LASTEXITCODE -ne 0) {throw 'PYTHON_PARSE_INVALID'}
+      - name: Actual Windows SCM signs real JWT and exact SQLCipher manifest in RSA FAKE
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j10c_real_scm_bound_sqlcipher_lab.py -v 2>&1 | tee j10c.log
+          grep -q '^Ran 1 test' j10c.log
+          grep -Eq '^OK[[:space:]]*$' j10c.log
+          grep -q 'J10C_TRUE_SCM_JWT_RSA_MANIFEST_BOUND_SQLCIPHER_FAKE_COPY' j10c.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j10c.log
+      - name: Exact SHA and strict eight J10C files, no clinical changes
+        shell: bash
+        env:
+          BASE_SHA: 10fd6395a4b84dc0cbb35255ee9c7c2b74447163
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
+          git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10c-bound-sqlcipher.yml' 'backend/tests/fixtures/lot05j10c_windows_bound_signer.cs' 'backend/tests/fixtures/lot05j10c_scm_bound_signer_probe.ps1' 'backend/tests/fixtures/lot05j10c_manifest_jwt_rsa_signer_lab.py' 'backend/tests/fixtures/lot05j10c_bound_sqlcipher_verifier_lab.py' 'backend/tests/test_legacy_sql_057j10c_real_scm_bound_sqlcipher_lab.py' 'docs/quality/V15_05_7_J10C_BOUND_SQLCIPHER_CONTRACT.md' 'techdoubt.md' | sort > expected.txt
+          diff -u expected.txt actual.txt
