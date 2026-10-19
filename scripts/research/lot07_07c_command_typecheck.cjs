@@ -10,7 +10,7 @@ if(cfg.error)throw Error(ts.flattenDiagnosticMessageText(cfg.error.messageText,'
 const parsed=ts.parseJsonConfigFileContent(cfg.config,ts.sys,path.dirname(pathOf));
 if(parsed.errors.length)throw Error('Command typecheck config: '+parsed.errors.map(x=>ts.flattenDiagnosticMessageText(x.messageText,' ')).join('; '));
 const target='frontend/src/features/command';
-const files=['command-react-target.tsx','command-agenda.tsx','command-appointment-presentation.tsx','command-synthetic-fixtures.ts','command-synthetic-session.ts'].map(x=>path.resolve(target,x));
+const files=['command-react-target.tsx','command-agenda.tsx','command-appointment-presentation.tsx','command-synthetic-fixtures.ts','command-synthetic-session.ts','command-patient-workspace.tsx','command-ui-primitives.tsx'].map(x=>path.resolve(target,x));
 for(const file of files){if(!fs.existsSync(file))throw Error('Command TARGET source missing: '+file)}
 const options={...parsed.options,noEmit:true,incremental:false,tsBuildInfoFile:undefined};
 const program=ts.createProgram(files,options);
