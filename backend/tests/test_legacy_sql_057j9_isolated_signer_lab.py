@@ -109,5 +109,70 @@ class J9TrueWindowsProtectedSignerLab(unittest.TestCase):
         ):
             self.assertIn(marker,proof)
 
+        # The SAME ticket was genuinely signed by SCM A and verified by the
+        # separate SCM worker above. It has a FAKE audience and no clinical
+        # command; its existence must never authorize product restore.
+        # Exercise unmodified REAL product entry points against disposable
+        # fake paths, not a mocked GuidedRestoreService or fake worker.
+        from hashlib import sha256
+        from unittest.mock import patch
+        from backend.core.paths import AppPaths
+        from backend.services.guided_restore import GuidedRestoreService
+        from backend.services.guided_restore_worker import GuidedRestoreWorker
+        from backend.services import legacy_migration_restore_policy_v15 as policy
+        owner = int(self.fake_owners[0].id)
+        job_id = "a" * 32
+        clinical_fake = self.root / "clinical_vault_fake_no_write.db"
+        clinical_fake.write_bytes(b"J9_FAKE_ACTIVE_DB_UNCHANGED")
+        expected_db = sha256(clinical_fake.read_bytes()).hexdigest()
+        fake_source = b"J9_ONLY_FAKE_SOURCE"
+        fake_backup = b"J9_ONLY_FAKE_BACKUP"
+        with patch.object(AppPaths, "get_user_data_dir", return_value=self.root):
+            job_dir = GuidedRestoreService.job_dir(job_id)
+            job_dir.mkdir(parents=True, exist_ok=True)
+            (job_dir / "source.upload").write_bytes(fake_source)
+            (job_dir / "database.enc").write_bytes(fake_backup)
+            job = {
+                "restore_id": job_id,
+                "owner_employer_id": owner,
+                "status": "prepared",
+                "compatible": True,
+                "restore_media": False,
+                "source_sha256": sha256(fake_source).hexdigest(),
+                "database_sha256": sha256(fake_backup).hexdigest(),
+            }
+            GuidedRestoreService._write_job(job)
+            original_job = (job_dir / "job.json").read_bytes()
+            fake_order = (self.root / "signed-order.fake").read_bytes()
+            fake_pin = (self.root / "trusted-rsa-public.fake").read_bytes()
+            # Simulate a frozen cabinet and a permissive dormant policy.
+            # Neither may turn a lab JWT+RSA fake order into a clinical GO.
+            with patch.object(GuidedRestoreService, "runtime_apply_supported",
+                              return_value=True), \\
+                 patch.object(GuidedRestoreService, "_launch_detached_worker",
+                              side_effect=AssertionError("PRODUCT_PROCESS_MUST_NOT_START")) as launcher, \\
+                 patch.object(GuidedRestoreService, "_terminate_parent_after_response",
+                              side_effect=AssertionError("PRODUCT_MUST_NOT_EXIT")) as terminator, \\
+                 patch.object(policy, "require_clinical_apply", return_value=None):
+                with self.assertRaisesRegex(RuntimeError, "autorité worker non attestée"):
+                    GuidedRestoreService.request_apply(
+                        job_id, "RESTAURER", owner_employer_id=owner)
+                launcher.assert_not_called()
+                terminator.assert_not_called()
+            # Calling actual worker must deny BEFORE job lookup or file write.
+            with patch.object(GuidedRestoreService, "get_job",
+                              side_effect=AssertionError("PRODUCT_JOB_MUST_NOT_BE_READ")) as lookup:
+                with self.assertRaisesRegex(RuntimeError, "worker non attesté"):
+                    GuidedRestoreWorker.run(job_id, parent_pid=999)
+                lookup.assert_not_called()
+            self.assertEqual((job_dir / "job.json").read_bytes(), original_job)
+            self.assertEqual(GuidedRestoreService.get_job(job_id)["status"], "prepared")
+            self.assertFalse((job_dir / "rescue").exists())
+            self.assertFalse((job_dir / "scheduled").exists())
+            self.assertEqual(sha256(clinical_fake.read_bytes()).hexdigest(), expected_db)
+            self.assertEqual((self.root / "signed-order.fake").read_bytes(), fake_order)
+            self.assertEqual((self.root / "trusted-rsa-public.fake").read_bytes(), fake_pin)
+        print("J9_REAL_PRODUCT_REQUEST_AND_WORKER_DENY_AFTER_GENUINE_SCM_RSA_FAKE")
+
 if __name__=="__main__":
     unittest.main(verbosity=2)
