@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from unittest.mock import patch
 import hashlib
+import asyncio
 import os
 import secrets
 import shutil
@@ -97,11 +98,11 @@ class SyntheticJwtAndWalWorkerEvidence(unittest.TestCase):
         if own:
             session = Session(self.engine)
         try:
-            return self.auth.get_current_user(
+            return asyncio.run(self.auth.get_current_user(
                 request=self._real_request(path or "/api/legacy-migration/preflight"),
                 token_header=self._jwt() if token is None else token,
                 db=session,
-            )
+            ))
         finally:
             if own:
                 session.close()
@@ -181,8 +182,8 @@ class SyntheticJwtAndWalWorkerEvidence(unittest.TestCase):
         from fastapi import HTTPException
         with Session(self.engine) as db:
             with self.assertRaises(HTTPException) as raised:
-                self.auth.get_current_user(
-                    request=self._real_request(), token_header=None, db=db)
+                asyncio.run(self.auth.get_current_user(
+                    request=self._real_request(), token_header=None, db=db))
             self.assertEqual(raised.exception.status_code,401)
 
     def test_03_jwt_bad_signature_is_denied(self):
