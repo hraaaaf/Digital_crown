@@ -136,7 +136,11 @@ try{
  if(result.pass){
    // Strict semantic check for the five isolated Command TS/TSX modules.
    require('node:child_process').execFileSync('node',['scripts/research/lot07_07c_command_typecheck.cjs'],{stdio:'inherit',timeout:120000});
-   if(!fs.existsSync(path.join(out,'typecheck-target.json')))throw Error('COMMAND_TYPECHECK_EVIDENCE_MISSING');
+   const typePath=path.join(out,'typecheck-target.json');
+   if(!fs.existsSync(typePath))throw Error('COMMAND_TYPECHECK_EVIDENCE_MISSING');
+   const typeProof=JSON.parse(fs.readFileSync(typePath,'utf8'));
+   if(!typeProof.pass||typeProof.files?.length!==7||typeProof.wholeAppChecked!==false)
+     throw Error('COMMAND_TYPECHECK_PROOF_UNTRUSTED');
    // Execute fixture-only R4 journeys under the same live React laboratory.
    require('node:child_process').execFileSync('node',['scripts/research/lot07_07c_command_react_journeys.cjs'],{stdio:'inherit',timeout:120000});
    if(!fs.existsSync(path.join(out,'journeys-r4.json')))throw Error('R4_JOURNEYS_EVIDENCE_MISSING');
