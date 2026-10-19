@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m unittest backend.tests.test_legacy_sql_057j10d_fake_ipc_envelope -v 2>&1 | tee j10d.log
+          python backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py -v 2>&1 | tee j10d.log
           grep -q 'Ran 10 tests' j10d.log
           grep -Eq '^OK[[:space:]]*$' j10d.log
       - name: Strict J10D scope and exact SHA
