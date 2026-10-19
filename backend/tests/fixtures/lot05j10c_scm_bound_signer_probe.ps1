@@ -73,6 +73,9 @@ $source=Join-Path $env:GITHUB_WORKSPACE 'backend\tests\fixtures\lot05j10c_window
 $csc=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 $requestValid=Join-Path $root 'valid.jwt.fake'
 $requestAbsent=Join-Path $root 'missing.jwt.fake'
+$requestBadBinding=Join-Path $root 'wrong-manifest.jwt.fake'
+$outputBadBinding=Join-Path $outbox 'wrong-manifest-refused.json'
+$reportBadBinding=Join-Path $telemetry 'wrong-manifest.txt'
 $outputSigned=Join-Path $outbox 'authorized.json'
 $outputDenied=Join-Path $outbox 'refused.json'
 $reportClient=Join-Path $telemetry 'client.txt'
@@ -130,6 +133,7 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
  [IO.File]::WriteAllText($binding,(@{owner=[int]$env:LOT05J9_FAKE_OWNER;job=$env:LOT05J10C_EXPECT_JOB;generation=$env:LOT05J10C_EXPECT_GENERATION;manifest=$env:LOT05J10C_EXPECT_MANIFEST} | ConvertTo-Json -Compress))
  [IO.File]::WriteAllText($requestValid,(@{jwt=$env:LOT05J9_FAKE_JWT;owner=[int]$env:LOT05J9_FAKE_OWNER;job=$env:LOT05J10C_EXPECT_JOB;generation=$env:LOT05J10C_EXPECT_GENERATION;manifest=$env:LOT05J10C_EXPECT_MANIFEST} | ConvertTo-Json -Compress))
  [IO.File]::WriteAllText($requestAbsent,(@{jwt='';owner=[int]$env:LOT05J9_FAKE_OWNER;job=$env:LOT05J10C_EXPECT_JOB;generation=$env:LOT05J10C_EXPECT_GENERATION;manifest=$env:LOT05J10C_EXPECT_MANIFEST} | ConvertTo-Json -Compress))
+ [IO.File]::WriteAllText($requestBadBinding,(@{jwt=$env:LOT05J9_FAKE_JWT;owner=[int]$env:LOT05J9_FAKE_OWNER;job=$env:LOT05J10C_EXPECT_JOB;generation=$env:LOT05J10C_EXPECT_GENERATION;manifest=('f'*64)} | ConvertTo-Json -Compress))
  Protect $protected $sid 'Modify' $true
  Protect $private $sid 'ReadAndExecute' $false
  Protect $config $sid 'ReadAndExecute' $false
@@ -138,6 +142,7 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
  Protect (Join-Path $dbroot 'fake_source.db') $sid 'Modify' $false
  Protect $requestValid $sid 'ReadAndExecute' $false
  Protect $requestAbsent $sid 'ReadAndExecute' $false
+ Protect $requestBadBinding $sid 'ReadAndExecute' $false
  # The signature handoff must NOT be writable by another LocalService
  # process, unlike the deliberately low-trust diagnostic telemetry.
  Protect $outbox $sid 'Modify' $true
@@ -221,6 +226,20 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
     throw ('J9_SIGNER_ISSUED_TICKET_WITHOUT_JWT '+$bad)
  }
  Write-Output 'J9_SIGNER_REJECTS_MISSING_JWT_WITHOUT_RSA_SIGNATURE'
+ # An authenticated JWT with a mismatched SQLCipher manifest MUST NOT get
+ # a signature. This checks the signer guard, not just verifier-side checks.
+ Strict 'sc.exe' @('stop',$nameA) | Out-Null
+ Start-Sleep -Seconds 2
+ Configure $nameA 'sign' $reportBadBinding $requestBadBinding $outputBadBinding
+ Strict 'sc.exe' @('start',$nameA) | Out-Null
+ $badManifest=AwaitProof $reportBadBinding
+ if($badManifest -notmatch 'service_sid_in_token=True' -or
+    $badManifest -notmatch 'ticket_issued=False' -or
+    $badManifest -notmatch 'reason=preauth_guard_denied' -or
+    (Test-Path -LiteralPath $outputBadBinding)) {
+    throw ('J10C_SIGNER_ACCEPTED_WRONG_SQLCIPHER_MANIFEST '+$badManifest)
+ }
+ Write-Output 'J10C_SIGNER_REJECTS_AUTHENTICATED_JWT_WITH_WRONG_SQLCIPHER_MANIFEST'
  Copy-Item -LiteralPath $outputSigned -Destination (Join-Path $env:LOT05J9_FAKE_OUTPUT_ROOT 'isolated-signed.json')
  Write-Output 'J9_CLINICAL_WORKER_REMAINS_DENIED'
 }

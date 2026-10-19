@@ -3,20 +3,20 @@ import json, os, secrets, subprocess, sys, tempfile, unittest
 from pathlib import Path
 from contextlib import closing
 from unittest.mock import patch
-from backend.tests.test_legacy_sql_057j9_isolated_signer_lab import J9TrueWindowsProtectedSignerLab as Original
+from backend.tests import test_legacy_sql_057j9_isolated_signer_lab as parent_lab
 from backend.tests import test_legacy_sql_057e_real_backupservice_sqlcipher_head as evidence
 from backend.tests.fixtures import lot05j10b_sqlcipher_multicomponent_lab as source
 from backend.tests.fixtures import lot05j10c_bound_sqlcipher_verifier_lab as gate
 
 class ConnectedJ10C(unittest.TestCase):
     @classmethod
-    def _seed_fake_orm(cls): Original._seed_fake_orm.__func__(cls)
+    def _seed_fake_orm(cls): parent_lab.J9TrueWindowsProtectedSignerLab._seed_fake_orm.__func__(cls)
     @classmethod
-    def setUpClass(cls): Original.setUpClass.__func__(cls)
+    def setUpClass(cls): parent_lab.J9TrueWindowsProtectedSignerLab.setUpClass.__func__(cls)
     @classmethod
-    def tearDownClass(cls): Original.tearDownClass.__func__(cls)
-    def setUp(self): Original.setUp(self)
-    def tearDown(self): Original.tearDown(self)
+    def tearDownClass(cls): parent_lab.J9TrueWindowsProtectedSignerLab.tearDownClass.__func__(cls)
+    def setUp(self): parent_lab.J9TrueWindowsProtectedSignerLab.setUp(self)
+    def tearDown(self): parent_lab.J9TrueWindowsProtectedSignerLab.tearDown(self)
     def test_01_actual_scm_jwt_rsa_job_manifest_sqlcipher_copy(self):
         self.assertEqual(os.name,"nt","ACTUAL_WINDOWS_SCM_REQUIRED")
         tmp=tempfile.TemporaryDirectory(prefix="lot05j10b_fake_"); self.addCleanup(tmp.cleanup)
@@ -32,9 +32,12 @@ class ConnectedJ10C(unittest.TestCase):
             db.execute("CREATE TABLE fake_truth(v TEXT)")
             db.execute("INSERT INTO fake_truth VALUES ('J10C_WAL_ROW')")
             db.commit()
-        with patch.dict(os.environ,{source.FLAG:"1"}):
-            source.publish(root,sqlkey)
-            directory,record=source.verify(root,sqlkey)
+            self.assertGreater(Path(str(inp/"clinical_fake.db")+"-wal").stat().st_size,0)
+            # Keep the WAL owner open until the native encrypted backup has
+            # actually captured its committed WAL frames (not an auto checkpoint).
+            with patch.dict(os.environ,{source.FLAG:"1"}):
+                source.publish(root,sqlkey)
+                directory,record=source.verify(root,sqlkey)
         manifest=gate.digest_pointer(record)
         owner=int(self.fake_owners[0].id)
         job=secrets.token_hex(16)
@@ -60,7 +63,8 @@ class ConnectedJ10C(unittest.TestCase):
                        "J9_UNPRIVILEGED_SAME_LOCALSERVICE_CLIENT_CANNOT_READ_RSA_PRIVATE_OR_JWT_SECRET",
                        "J9_ISSUED_RSA_TICKET_INTEGRITY_SURVIVES_SECOND_REAL_CLIENT_ATTACK",
                        "J9_TRUE_BACKEND_JWT_IN_DETACHED_WINDOWS_SCM_SIGNER",
-                       "J9_SIGNER_REJECTS_MISSING_JWT_WITHOUT_RSA_SIGNATURE"):
+                       "J9_SIGNER_REJECTS_MISSING_JWT_WITHOUT_RSA_SIGNATURE",
+                       "J10C_SIGNER_REJECTS_AUTHENTICATED_JWT_WITH_WRONG_SQLCIPHER_MANIFEST"):
             self.assertIn(marker,out)
         ticket=json.loads((self.root/"isolated-signed.json").read_text("utf-8-sig"))
         pin=(self.root/"trusted-rsa-public.fake").read_text("ascii")
