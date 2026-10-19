@@ -6,6 +6,10 @@
 
 **BLOCKERS maintenus** : incapacité à installer/tester un vrai service Windows SCM isolé avec token, Service SID et DACL hostile sous le protocole actuel ; test de backup SQLCipher WAL sur clés temporaires ne constitue PAS un restore de la DB du cabinet ou du schéma Alembic avec média/coffre/licence. Pas de transaction cross-files, fsync durable des répertoires sur Windows, crash secteur, interruption concurrente des writers, réconciliation transactionnelle DB+WAL/SHM+médias, RPO/RTO, consentement/provenance, authentification propriétaire end-to-end. Les vérifications `Path.resolve`/`Path.is_symlink` sont susceptibles de races et ne font pas une défense NTFS hostile. Les vrais helpers destructifs historiques restent présents, mais leurs appels d'activation clinique sont bloqués à la phase 1. Même avec tous les tests verts, décision clinique = **NO-GO**.
 
+**Défaut adversarial réel du premier run Linux+Windows** : `fake_publish(owner=8)` pouvait initialement publier une génération car seul le type de l'owner était contrôlé, sans comparaison à l'attendu. La signature exige maintenant un `expected_owner` explicite égal à `owner` avant toute écriture ; le cas négatif a été conservé. Ce couple de nombres fictifs **ne fait pas office** d'identité SCM ni de JWT authentifié. Les premières CI rouges restent visibles et ne sont pas requalifiées.
+
+**Workflow empilé** : le job J phase 1 est désormais restreint aux PR dont le head est la branche J phase 1 ; sur J2, il est SKIPPED HORS SCOPE (le strict gate dix fichiers n'est pas applicable). Le workflow REQUIRED J2 relance réellement les 16 tests J, 21 tests I et 16 tests legacy par OS, sans suppression de preuve.
+
 **Gates** : 18 cas phase 2 réels SQLCipher par OS, 16 tests J phase 1, 21 tests I réel SQLCipher/JWT, 16 pytest legacy par OS, CI Scope exact SHA, two adversarial perspectives **internes** puis confirmation au même HEAD et POST Notion. Ne jamais transformer SKIP d'étape Linux sur Windows en SKIP des tests. `techdoubt.md` garde ces réserves ouvertes jusqu'à vraies preuves.
 
 
