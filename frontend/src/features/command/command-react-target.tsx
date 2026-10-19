@@ -70,7 +70,6 @@ export function CommandWorkbenchReactTarget(){
   setNotification('État du RDV fictif : '+next+'. Aucune écriture dans le Cabinet.');
  };
  const roomDisplay=getRoomDisplay(activeAppointment,roomAssignments);
- const canBeginConsultation=currentStatus==='waiting'&&activeAppointment.arrival==='arrived'&&!activeRoomOccupant;
  const trapDialogFocus=(e:React.KeyboardEvent<HTMLDivElement>)=>{
   if(e.key==='Escape'){e.preventDefault();cancelSwitch();return;}
   if(e.key!=='Tab')return;
