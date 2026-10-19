@@ -88,9 +88,10 @@ try {
             @('S-1-5-32-544',[Security.AccessControl.FileSystemRights]::FullControl),
             @($serviceSid,[Security.AccessControl.FileSystemRights]::ReadAndExecute)
         )) {
-            $who=New-Object Security.Principal.SecurityIdentifier($spec[0])
-            $rule=New-Object Security.AccessControl.FileSystemAccessRule(
-                $who,$spec[1],$inherit,$propagation,$allow)
+            $who=[Security.Principal.SecurityIdentifier]::new([string]$spec[0])
+            $rule=[Security.AccessControl.FileSystemAccessRule]::new(
+                $who,[Security.AccessControl.FileSystemRights]$spec[1],
+                [Security.AccessControl.InheritanceFlags]$inherit,$propagation,$allow)
             $acl.AddAccessRule($rule)
         }
         Set-Acl -LiteralPath $path -AclObject $acl
