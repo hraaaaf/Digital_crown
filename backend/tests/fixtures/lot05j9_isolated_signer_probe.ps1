@@ -61,6 +61,7 @@ $root=Join-Path $env:ProgramData ('lot05j9_fake_sid_'+$tag)
 $protected=Join-Path $root ('lot05j9_fake_signer_'+$tag)
 $dbroot=Join-Path $root ('lot05e_fake_sqlcipher_'+$tag)
 $telemetry=Join-Path $root 'telemetry'
+$outbox=Join-Path $root 'signer-outbox'
 $exe=Join-Path $root 'signer-scm.exe'
 $private=Join-Path $protected 'signer-private.pem'
 $config=Join-Path $protected 'fake-config.txt'
@@ -68,15 +69,15 @@ $source=Join-Path $env:GITHUB_WORKSPACE 'backend\tests\fixtures\lot05j9_windows_
 $csc=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 $requestValid=Join-Path $root 'valid.jwt.fake'
 $requestAbsent=Join-Path $root 'missing.jwt.fake'
-$outputSigned=Join-Path $telemetry 'authorized.json'
-$outputDenied=Join-Path $telemetry 'refused.json'
+$outputSigned=Join-Path $outbox 'authorized.json'
+$outputDenied=Join-Path $outbox 'refused.json'
 $reportClient=Join-Path $telemetry 'client.txt'
 $reportValid=Join-Path $telemetry 'valid.txt'
 $reportMissing=Join-Path $telemetry 'missing.txt'
 if((Split-Path -Leaf $env:LOT05J9_FAKE_OUTPUT_ROOT) -notlike 'lot05j9_fake_*' -or
    (Test-Path -LiteralPath $root) -or
    -not (Test-Path -LiteralPath $csc -PathType Leaf)) {throw 'J9_FAKE_ROOT_OR_COMPILER_INVALID'}
-New-Item -ItemType Directory -Path $root,$protected,$dbroot,$telemetry | Out-Null
+New-Item -ItemType Directory -Path $root,$protected,$dbroot,$telemetry,$outbox | Out-Null
 try {
  Strict $csc @('/nologo','/target:exe',('/out:'+$exe),'/reference:System.ServiceProcess.dll',$source) | Out-Null
  foreach($name in @($nameA,$nameB)) {
@@ -130,6 +131,9 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
  Protect (Join-Path $dbroot 'fake_source.db') $sid 'Modify' $false
  Protect $requestValid $sid 'ReadAndExecute' $false
  Protect $requestAbsent $sid 'ReadAndExecute' $false
+ # The signature handoff must NOT be writable by another LocalService
+ # process, unlike the deliberately low-trust diagnostic telemetry.
+ Protect $outbox $sid 'Modify' $true
  Strict 'icacls.exe' @($telemetry,'/inheritance:r') | Out-Null
  Strict 'icacls.exe' @($telemetry,'/grant:r',
    '*S-1-5-18:(OI)(CI)F','*S-1-5-32-544:(OI)(CI)F','*S-1-5-19:(OI)(CI)M') | Out-Null
@@ -139,14 +143,20 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
      $exe,$name,$mode,$proof,$private,$config,$request,$output,$env:LOT05J9_FAKE_PYTHON,$env:GITHUB_WORKSPACE,$sid)
   Strict 'sc.exe' @('config',$name,'binPath=',$command) | Out-Null
  }
- Configure $nameB 'attacker' $reportClient $requestAbsent $outputDenied
+ Configure $nameB 'attacker' $reportClient $requestValid $outputSigned
  Strict 'sc.exe' @('start',$nameB) | Out-Null
  $p=AwaitProof $reportClient
  if($p -notmatch 'service_sid_in_token=False' -or
     $p -notmatch 'client_private_read=False' -or
     $p -notmatch 'client_config_read=False' -or
+    $p -notmatch 'client_request_read=False' -or
+    $p -notmatch 'client_private_write=False' -or
+    $p -notmatch 'client_config_write=False' -or
+    $p -notmatch 'client_request_write=False' -or
+    $p -notmatch 'client_output_forge=False' -or
     $p -notmatch 'reason=client_access_denied') {throw ('J9_CLIENT_CAN_READ_KEY '+$p)}
  Write-Output 'J9_UNPRIVILEGED_SAME_LOCALSERVICE_CLIENT_CANNOT_READ_RSA_PRIVATE_OR_JWT_SECRET'
+ Write-Output 'J9_SIDLESS_CLIENT_CANNOT_TAMPER_RSA_CONFIG_JWT_REQUEST_OR_SIGNER_OUTBOX'
  Configure $nameA 'sign' $reportValid $requestValid $outputSigned
  Strict 'sc.exe' @('start',$nameA) | Out-Null
  $good=AwaitProof $reportValid

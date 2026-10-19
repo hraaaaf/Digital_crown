@@ -22,12 +22,27 @@ internal sealed class J9SignerService : ServiceBase {
         string mode=a[1], report=a[2], key=a[3], config=a[4],
                request=a[5], output=a[6], py=a[7], repo=a[8], requiredSid=a[9];
         bool sid=HasSid(requiredSid), privateReadable=false, configReadable=false, issued=false;
+        bool requestReadable=false, privateWritable=false, configWritable=false;
+        bool requestWritable=false, issuedOutputWritable=false;
         string reason="not_started";
         try {
             if(mode=="attacker") {
+                // The separate SCM instance has the SAME LocalService account,
+                // but not the signer's real SCM Service SID. Perform genuine
+                // OS file attempts, not mocked ACL predicates.
                 try { File.ReadAllBytes(key); privateReadable=true; } catch(UnauthorizedAccessException) { }
                 try { File.ReadAllBytes(config); configReadable=true; } catch(UnauthorizedAccessException) { }
-                reason=(!sid && !privateReadable && !configReadable) ? "client_access_denied" : "ATTACK_BYPASS";
+                try { File.ReadAllBytes(request); requestReadable=true; } catch(UnauthorizedAccessException) { }
+                try { File.WriteAllText(key,"J9_FAKE_CLIENT_CORRUPTION"); privateWritable=true; } catch(UnauthorizedAccessException) { }
+                try { File.WriteAllText(config,"J9_FAKE_CLIENT_CORRUPTION"); configWritable=true; } catch(UnauthorizedAccessException) { }
+                try { File.WriteAllText(request,"J9_FAKE_CLIENT_CORRUPTION"); requestWritable=true; } catch(UnauthorizedAccessException) { }
+                // Attempt to pre-create/overwrite the signer output with an
+                // unsigned fake object. A writable telemetry file is NOT
+                // acceptable as the signer-to-worker handoff authority.
+                try { File.WriteAllText(output,"J9_FAKE_FORGED_TICKET"); issuedOutputWritable=true; } catch(UnauthorizedAccessException) { }
+                reason=(!sid && !privateReadable && !configReadable && !requestReadable &&
+                       !privateWritable && !configWritable && !requestWritable &&
+                       !issuedOutputWritable) ? "client_access_denied" : "ATTACK_BYPASS";
             } else if(mode=="sign" && sid) {
                 var start=new ProcessStartInfo {
                     FileName=py, Arguments="-B -m backend.tests.fixtures.lot05j9_real_jwt_rsa_signer_lab \""+Path.GetDirectoryName(key)+"\"",
@@ -79,6 +94,11 @@ internal sealed class J9SignerService : ServiceBase {
             File.WriteAllText(report,
               "identity="+identity.Name+"\nservice_sid_in_token="+sid+
               "\nclient_private_read="+privateReadable+"\nclient_config_read="+configReadable+
+              "\nclient_request_read="+requestReadable+
+              "\nclient_private_write="+privateWritable+
+              "\nclient_config_write="+configWritable+
+              "\nclient_request_write="+requestWritable+
+              "\nclient_output_forge="+issuedOutputWritable+
               "\nticket_issued="+issued+"\nreason="+reason+"\n");
         }
     }
