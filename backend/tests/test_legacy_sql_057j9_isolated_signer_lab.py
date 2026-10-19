@@ -148,11 +148,11 @@ class J9TrueWindowsProtectedSignerLab(unittest.TestCase):
             # Simulate a frozen cabinet and a permissive dormant policy.
             # Neither may turn a lab JWT+RSA fake order into a clinical GO.
             with patch.object(GuidedRestoreService, "runtime_apply_supported",
-                              return_value=True), \\
+                              return_value=True), \
                  patch.object(GuidedRestoreService, "_launch_detached_worker",
-                              side_effect=AssertionError("PRODUCT_PROCESS_MUST_NOT_START")) as launcher, \\
+                              side_effect=AssertionError("PRODUCT_PROCESS_MUST_NOT_START")) as launcher, \
                  patch.object(GuidedRestoreService, "_terminate_parent_after_response",
-                              side_effect=AssertionError("PRODUCT_MUST_NOT_EXIT")) as terminator, \\
+                              side_effect=AssertionError("PRODUCT_MUST_NOT_EXIT")) as terminator, \
                  patch.object(policy, "require_clinical_apply", return_value=None):
                 with self.assertRaisesRegex(RuntimeError, "autorité worker non attestée"):
                     GuidedRestoreService.request_apply(
