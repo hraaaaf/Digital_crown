@@ -10,7 +10,8 @@ import OfficialLogo from '../../assets/logo.png';
 import CompactLogo from '../../assets/logo-compact.png';
 import { PremiumOdontogramSVG } from '../../components/odontogram/PremiumOdontogramSVG';
 import './command-react-target.css';
-import { appointments, initialRoomAssignments, nextArrivedForPractitioner, occupiedRoomCount, type AppointmentStatus } from './command-synthetic-fixtures';
+import { appointments, type AppointmentStatus } from './command-synthetic-fixtures';
+import { useSyntheticSession } from './command-synthetic-session';
 import { getRoomDisplay } from './command-appointment-presentation';
 import { CommandAgenda } from './command-agenda';
 
@@ -37,15 +38,8 @@ export function CommandWorkbenchReactTarget(){
  const [activeNavigation,setActiveNavigation]=useState('Command');
  const [activeLane,setActiveLane]=useState(0);
  const [additionalOpen,setAdditionalOpen]=useState(false);
- const [activeAppointmentId,setActiveAppointmentId]=useState('APT-TEST-001');
- const [roomAssignments,setRoomAssignments]=useState<Record<number,string|null>>({...initialRoomAssignments});
- const [pendingAppointmentId,setPendingAppointmentId]=useState<string|null>(null);
- const [mockStatuses,setMockStatuses]=useState<Record<string,AppointmentStatus>>({});
- const activeAppointment=appointments.find(a=>a.id===activeAppointmentId) ?? appointments[0];
- const currentStatus=mockStatuses[activeAppointment.id] ?? activeAppointment.status;
- const inChair=occupiedRoomCount(roomAssignments);
- const inWaiting=appointments.filter(a=>a.arrival==='arrived'&&(mockStatuses[a.id]??a.status)==='waiting').length;
- const freeRooms=Object.keys(roomAssignments).length-inChair;
+ const {state:session,dispatch,activeAppointment,currentStatus,samePractitionerNext,inChair,inWaiting,freeRooms,plannedSwitch,canBeginConsultation}=useSyntheticSession();
+ const {activeAppointmentId,pendingAppointmentId,roomAssignments,mockStatuses}=session;
  const confirmButtonRef=React.useRef<HTMLButtonElement>(null);
  const cancelButtonRef=React.useRef<HTMLButtonElement>(null);
  const dialogRef=React.useRef<HTMLDivElement>(null);
@@ -61,25 +55,20 @@ export function CommandWorkbenchReactTarget(){
  },[pendingAppointmentId]);
  React.useEffect(()=>{if(previousPatientRef.current!==activeAppointmentId){previousPatientRef.current=activeAppointmentId;patientHeadingRef.current?.focus();}},[activeAppointmentId]);
  React.useEffect(()=>{if(agendaFocusRequest>0&&view==='Command')document.getElementById('cmd-agenda')?.focus();},[agendaFocusRequest,view]);
- const samePractitionerNext=nextArrivedForPractitioner(activeAppointment,mockStatuses);
- const plannedSwitch=appointments.find(a=>a.id===pendingAppointmentId);
  const patientTag='Patient '+activeAppointment.patientId;
  const announce=(what:string)=>setNotification(what+' : simulation uniquement, aucune opération clinique.');
  const requestSwitch=(refOrId:string)=>{
   const target=appointments.find(a=>a.id===refOrId||a.ref===refOrId);
   if(!target||target.id===activeAppointment.id)return;
   invokedByRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
-  setPendingAppointmentId(target.id);setNotification('');
+  dispatch({type:'request-switch',appointmentId:target.id});setNotification('');
  };
- const cancelSwitch=()=>{setPendingAppointmentId(null);requestAnimationFrame(()=>invokedByRef.current?.focus());};
- const confirmSwitch=()=>{if(!plannedSwitch)return;setActiveAppointmentId(plannedSwitch.id);setTab('Vue d’ensemble');setAdditionalOpen(false);setPendingAppointmentId(null);setNotification('Patient fictif sélectionné. Aucune opération clinique.');};
+ const cancelSwitch=()=>{dispatch({type:'cancel-switch'});requestAnimationFrame(()=>invokedByRef.current?.focus());};
+ const confirmSwitch=()=>{if(!plannedSwitch)return;dispatch({type:'confirm-switch'});setTab('Vue d’ensemble');setAdditionalOpen(false);setNotification('Patient fictif sélectionné. Aucune opération clinique.');};
  const updateMockStatus=(next:AppointmentStatus)=>{
-  setMockStatuses(previous=>({...previous,[activeAppointment.id]:next}));
-  if(next==='finished')setRoomAssignments(previous=>Object.fromEntries(Object.entries(previous).map(([room,id])=>[room,id===activeAppointment.id?null:id])));
-  if(next==='current'&&currentStatus==='waiting')setRoomAssignments(previous=>({...previous,[activeAppointment.room]:activeAppointment.id}));
+  dispatch({type:'transition',to:next as 'current'|'paused'|'finished'});
   setNotification('État du RDV fictif : '+next+'. Aucune écriture dans le Cabinet.');
  };
- const activeRoomOccupant=roomAssignments[activeAppointment.room];
  const roomDisplay=getRoomDisplay(activeAppointment,roomAssignments);
  const canBeginConsultation=currentStatus==='waiting'&&activeAppointment.arrival==='arrived'&&!activeRoomOccupant;
  const trapDialogFocus=(e:React.KeyboardEvent<HTMLDivElement>)=>{
