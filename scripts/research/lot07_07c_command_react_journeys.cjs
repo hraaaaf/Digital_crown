@@ -29,11 +29,12 @@ async function snap(page,name){
     &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
     &&(await page.locator('.cmd-patienthero').innerText()).includes('09:00'));
    if(width===1440){
+    await check(page,'Two distinct identifiers present',async()=>await page.locator('.cmd-shell').getAttribute('data-active-appointment-id')==='APT-TEST-001');
     await check(page,'J1 initial counters tied to mock status',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil'));
     await page.getByRole('button',{name:'Mettre en pause'}).click();
     await check(page,'J1 mock pause status',async()=> (await page.locator('.cmd-patienthero').innerText()).includes('En pause')
       &&(await page.locator('.cmd-appt').filter({hasText:'TEST-001'}).getAttribute('class')).includes('cmd-appt-paused'));
-    await check(page,'J1 paused counter',async()=>(await page.locator('.cmd-chips').innerText()).includes('0 au fauteuil'));
+    await check(page,'J1 paused room remains occupied',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil')&&await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='2');
     await page.getByRole('button',{name:'Reprendre (simulation)'}).click();
     await check(page,'J1 mock resume',async()=>(await page.locator('.cmd-patienthero').innerText()).includes('En cours'));
    }
@@ -41,6 +42,17 @@ async function snap(page,name){
    await page.getByRole('button',{name:'Patient suivant (même praticien)'}).click();
    if(width===1440)await check(page,'J2 keyboard focus to confirmation',async()=>
       (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Confirmer le changement de patient'));
+   if(width===1440){
+      const modal=page.getByRole('alertdialog');
+      await check(page,'J2 aria modal labeling',async()=>await modal.getAttribute('aria-modal')==='true'&&!!(await modal.getAttribute('aria-labelledby')));
+      await page.keyboard.press('Shift+Tab');
+      await check(page,'J2 modal backwards focus wrap',async()=> (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Annuler le changement'));
+      await page.keyboard.press('Tab');
+      await check(page,'J2 modal forwards focus wrap',async()=> (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Confirmer le changement de patient'));
+      await page.keyboard.press('Escape');
+      await check(page,'J2 escape cancels without switching',async()=>await modal.count()===0&&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
+      await page.getByRole('button',{name:'Patient suivant (même praticien)'}).click();
+   }
    await check(page,'J2 explicit confirmation and no early switch '+width,async()=>
       (await page.getByRole('alertdialog').innerText()).includes('TEST-007')
       &&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
@@ -51,7 +63,10 @@ async function snap(page,name){
       &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
       &&(await page.locator('.cmd-patienthero').innerText()).includes('10:00')
       &&!(await page.locator('.cmd-right').innerText()).includes('TEST-001'));
-   if(width===1440)await check(page,'J2 coherent practitioner queue',async()=>(await page.locator('.cmd-card').filter({hasText:'File d’attente'}).innerText()).includes('TEST-URG'));
+   if(width===1440)await check(page,'J2 excludes urgent and non-arrived next',async()=>
+      await page.getByRole('button',{name:'Patient suivant (même praticien)'}).isDisabled()
+      &&!(await page.locator('.cmd-card').filter({hasText:'File d’attente'}).innerText()).includes('TEST-URG')
+      &&await page.locator('.cmd-shell').getAttribute('data-occupied-rooms')==='1');
    await page.getByRole('tab',{name:'Dossier',exact:true}).click();
    await check(page,'J3 patient B dossier panels '+width,async()=>
       await page.locator('.cmd-cards > .cmd-card:visible').count()===3
@@ -81,7 +96,20 @@ async function snap(page,name){
      await check(page,'J1 mock finish disables clinical-action affordance',async()=> 
        (await page.locator('.cmd-patienthero').innerText()).includes('Terminé')
        &&!(await page.getByRole('button',{name:'Mettre en pause'}).isEnabled()));
+     await check(page,'J1 finish releases room assignment',async()=>await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='3');
      await snap(page,'r4-consultation-finished-test001-1440');
+     await page.locator('.cmd-appt').filter({hasText:'TEST-007'}).click();
+     await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+     await check(page,'J1 arrived waiting can start after room released',async()=>await page.getByRole('button',{name:'Démarrer la consultation (simulation)'}).isEnabled());
+     await page.getByRole('button',{name:'Démarrer la consultation (simulation)'}).click();
+     await check(page,'J1 start occupies room only in demo',async()=>await page.locator('.cmd-shell').getAttribute('data-occupied-rooms')==='1'
+       &&(await page.locator('.cmd-patienthero').innerText()).includes('En cours'));
+     await page.locator('.cmd-appt').filter({hasText:'TEST-018'}).click();
+     await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+     await check(page,'One patient with distinct appointments',async()=>
+        await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
+        &&await page.locator('.cmd-shell').getAttribute('data-active-appointment-id')==='APT-TEST-018'
+        &&(await page.locator('.cmd-patienthero').innerText()).includes('16:00'));
    }
    await check(page,'No Cabinet API requests '+width,async()=>forbidden.length===0);
    await context.close();
