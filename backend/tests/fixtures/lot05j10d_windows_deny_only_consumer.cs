@@ -63,16 +63,18 @@ internal sealed class J10DConsumer : ServiceBase {
                     while(!stopping && !wait.AsyncWaitHandle.WaitOne(200)) {}
                     if(stopping) return;
                     pipe.EndWaitForConnection(wait);
-                    // Probe the actual peer token, not the claimed JSON identity.
-                    // This result is intentionally NOT used to grant authority.
+                    // Client must write one bounded synthetic byte before
+                    // the server can impersonate the connected peer.
+                    byte[] hello=new byte[1];
+                    IAsyncResult received=pipe.BeginRead(hello,0,1,null,null);
+                    if(!received.AsyncWaitHandle.WaitOne(2500)) continue;
+                    if(pipe.EndRead(received)!=1 || hello[0]!=(byte)'P') continue;
+                    // OS-token observation only; it NEVER grants any authority.
                     bool peerServiceSidPresent=InspectPeerServiceSid(pipe);
-                    if(peerServiceSidPresent) {
-                        // A matching token alone cannot authorize any operation.
-                    }
-                    // Mandatory fail-closed: no independent trust anchor, nonce
-                    // ledger, signer binding or restore verification exists.
-                    // Every request remains denied, including matching peers.
-                    byte[] denied=System.Text.Encoding.ASCII.GetBytes("DENY_J10D_UNATTESTED\n");
+                    string response=peerServiceSidPresent ?
+                        "DENY_J10D_SID_PRESENT\n" : "DENY_J10D_UNATTESTED\n";
+                    // No trust root, nonce ledger, consent or clinical apply.
+                    byte[] denied=System.Text.Encoding.ASCII.GetBytes(response);
                     pipe.Write(denied,0,denied.Length);
                     pipe.Flush();
                 }
