@@ -13,7 +13,7 @@ const target='frontend/src/features/command';
 const files=['command-react-target.tsx','command-agenda.tsx','command-appointment-presentation.tsx','command-synthetic-fixtures.ts','command-synthetic-session.ts','command-patient-workspace.tsx','command-ui-primitives.tsx'].map(x=>path.resolve(target,x));
 for(const file of files){if(!fs.existsSync(file))throw Error('Command TARGET source missing: '+file)}
 const options={...parsed.options,noEmit:true,incremental:false,tsBuildInfoFile:undefined};
-const program=ts.createProgram(files,options);
+// Load the project's official ambient PNG/CSS/PWA types without checking the whole app.\nconst ambient=path.resolve('frontend/src/vite-env.d.ts');\nif(!fs.existsSync(ambient))throw Error('Official Vite ambient declarations missing');\nconst program=ts.createProgram([...files,ambient],options);
 const diagnostics=ts.getPreEmitDiagnostics(program);
 const scoped=diagnostics.filter(d=>d.file&&files.includes(path.resolve(d.file.fileName)));
 const format=d=>{const where=d.file&&d.start!==undefined?d.file.getLineAndCharacterOfPosition(d.start):null;return (d.file?path.relative(process.cwd(),d.file.fileName)+':'+(where.line+1)+':'+(where.character+1)+' ':'')+'TS'+d.code+' '+ts.flattenDiagnosticMessageText(d.messageText,' ')};
