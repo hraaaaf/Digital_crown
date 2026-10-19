@@ -1,5 +1,14 @@
 # TECHDOUBT — Digital Crown
 
+## LOT05.7-J phase 3 — 2026-10-19 — preuve réelle SCM/Service SID sur runner Windows, production NO-GO
+
+**Statut initial : laboratoire en vérification.** Cette phase ajoute un exécutable C# Windows `ServiceBase` de test et un script PowerShell d'installation temporaire sur runner GitHub Actions Windows administratif. Deux services de test `DCJ3A_/DCJ3B_`, différents des services Digital Crown, tournent sous LocalService ; A reçoit un vrai Service SID `UNRESTRICTED`, B `NONE`. On veut prouver SID dans le token **du vrai processus** A, lecture d'un fichier fictif protégé par ACL autorisant exclusivement le SID A / SYSTEM / administrateurs, refus d'accès B et refus de simulation interactive. Nettoyage des deux services et de la fixture exigé même en erreur. Avant retour CI exact HEAD, ne revendiquer AUCUNE confirmation.
+
+**Réserves BLOCKER** : un service synthétique installé/démarré sous LocalService sur runner admin n'est pas le service médical Digital Crown ; aucun binaire applicatif signé, aucune clé coffre/tenant, aucun chaînage de confiance JWT→job signé/anti-rejeu→worker SCM, aucune validation des reparse/junction/hardlinks et courses TOCTOU sur vraies arborescences NTFS, pas de résistance aux acteurs Admin/SYSTEM. L'ACL d'un fichier FAKE ne prouve pas les ACL de la DB SQLCipher, WAL/SHM, coffre et médias cliniques. Les anciennes méthodes destructrices existent toujours et le runtime clinique doit rester bloqué. Aucun script ne doit accéder aux fichiers de clinique, activer une restauration, fusionner ou déployer. Pas de RPO/RTO ni crash secteur/durabilité dossier prouvés.
+
+**Gates** : preuve réelle CI Windows `sc create` + `sidtype` + `qsidtype` + SID LSA + service démarré + token inspecté + DACL positive/négative + stop/delete et vérification post-nettoyage, sans skip ; 18+16+21+16 tests hérités par OS sous CI J3 ; Scope Gate exact SHA ; revues internes A/B et confirmation même HEAD. `sc showsid` seul ou `whoami.exe` du runner ne comptent PAS comme preuve de token du service ; échec SCM = ROUGE/BLOQUÉ.
+
+
 ## LOT05.7-J phase 2 — 2026-10-19 — vraie SQLCipher WAL FAKE, aucune autorité SCM clinique
 
 **En cours, résultat CI exact HEAD non encore attesté.** La branche phase 2 comporte seulement un laboratoire SQLCipher natif et un runner Windows réel, sans modification des services actifs. L'enveloppe `lot05j2_fake_` et le flag d'activation ne prouvent ni que le répertoire est protégé contre des jonctions/hardlinks/TOCTOU Windows, ni que le principal observé via `whoami` est l'identité d'un service SCM Digital Crown. Le `sc.exe query` sur un service délibérément fictif absent constate au mieux cette absence ; la fonction d'autorisation refusera toujours. Aucun nouveau ticket d'autorité n'est réellement transmis request/JWT→job signé durable→worker Service SID.
