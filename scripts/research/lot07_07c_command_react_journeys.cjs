@@ -57,7 +57,7 @@ async function snap(page,name){
    await page.keyboard.press('ArrowRight');
    await check(page,'J3 keyboard tab Imagerie '+width,async()=>
       await page.getByRole('tab',{name:'Imagerie',exact:true}).getAttribute('aria-selected')==='true'
-      &&await page.locator('.cmd-card:visible').count()===1
+      &&await page.locator('.cmd-cards > .cmd-card:visible').count()===1
       &&(await page.locator('.cmd-cards').innerText()).includes('Aucun média pour TEST-007'));
    await snap(page,'r4-imagerie-test007-'+width);
    await page.getByRole('tab',{name:'Dossier',exact:true}).click();
