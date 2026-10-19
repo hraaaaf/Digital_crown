@@ -15,6 +15,7 @@ import shutil
 import sqlite3
 import stat
 import uuid
+from contextlib import closing
 from pathlib import Path
 
 FIXED_COMPONENTS = ("snapshot.db", "license_fake.bin",
@@ -169,13 +170,16 @@ def publish_fake_snapshot(
     (stage / "media-fake").mkdir()
     try:
         snapshot = stage / "snapshot.db"
-        with sqlite3.connect(str(snapshot)) as dest:
+        # sqlite3.Connection context managers do NOT close on exit: on Windows
+        # keeping this handle open prevents cleanup/rename of the snapshot.
+        with closing(sqlite3.connect(str(snapshot))) as dest:
             source_conn.backup(dest)
+            dest.commit()
         # SQLite creates journal sidecars as needed. Require no live output WAL.
         if Path(str(snapshot) + "-wal").exists() or Path(str(snapshot) + "-shm").exists():
             raise FakeRecoveryDenied("OUTPUT_SIDECAR_UNEXPECTED")
         _regular(snapshot, stage)
-        with snapshot.open("rb") as f:
+        with snapshot.open("r+b") as f:
             os.fsync(f.fileno())
         if fail_at == "after_db":
             raise FakeRecoveryDenied("INJECTED_AFTER_DB")
@@ -190,7 +194,7 @@ def publish_fake_snapshot(
             _regular(dest, dest.parent)
             if _digest(src) != before or _digest(dest) != before:
                 raise FakeRecoveryDenied("SOURCE_CHANGED_DURING_COPY")
-            with dest.open("rb") as f:
+            with dest.open("r+b") as f:
                 os.fsync(f.fileno())
         if fail_at == "after_media":
             raise FakeRecoveryDenied("INJECTED_AFTER_MEDIA")
