@@ -26,7 +26,7 @@ async function snap(page,name){
    await page.goto('http://127.0.0.1:5193/command-target.html',{waitUntil:'networkidle'});
    await check(page,'J1 initial context '+width,async()=>
     await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
-    &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr B')
+    &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
     &&(await page.locator('.cmd-patienthero').innerText()).includes('09:00'));
    if(width===1440){
     await page.getByRole('button',{name:'Mettre en pause'}).click();
@@ -35,42 +35,42 @@ async function snap(page,name){
     await page.getByRole('button',{name:'Reprendre (simulation)'}).click();
     await check(page,'J1 mock resume',async()=>(await page.locator('.cmd-patienthero').innerText()).includes('En cours'));
    }
-   if(width<500)await page.getByRole('button',{name:'Agenda Dr B'}).click();
+   if(width<500)await page.getByRole('button',{name:'Agenda Dr A'}).click();
    await page.getByRole('button',{name:'Patient suivant (même praticien)'}).click();
    await check(page,'J2 explicit confirmation and no early switch '+width,async()=>
-      (await page.getByRole('alertdialog').innerText()).includes('TEST-005')
+      (await page.getByRole('alertdialog').innerText()).includes('TEST-007')
       &&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
    await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
-   await check(page,'J2 Dr B 10:00 and bound context '+width,async()=>
-      await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-005'
-      &&await page.locator('.cmd-right').getAttribute('data-patient-id')==='TEST-005'
-      &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr B')
+   await check(page,'J2 Dr A 10:00 and bound context '+width,async()=>
+      await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-007'
+      &&await page.locator('.cmd-right').getAttribute('data-patient-id')==='TEST-007'
+      &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
       &&(await page.locator('.cmd-patienthero').innerText()).includes('10:00')
       &&!(await page.locator('.cmd-right').innerText()).includes('TEST-001'));
-   if(width===1440)await check(page,'J2 coherent practitioner queue',async()=>(await page.locator('.cmd-card').filter({hasText:'File d’attente'}).innerText()).includes('TEST-010'));
+   if(width===1440)await check(page,'J2 coherent practitioner queue',async()=>(await page.locator('.cmd-card').filter({hasText:'File d’attente'}).innerText()).includes('TEST-URG'));
    await page.getByRole('tab',{name:'Dossier',exact:true}).click();
    await check(page,'J3 patient B dossier panels '+width,async()=>
       await page.locator('.cmd-cards > .cmd-card:visible').count()===3
-      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-005');
+      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-007');
    await page.getByRole('tab',{name:'Odontogramme',exact:true}).click();
    await page.getByRole('tab',{name:'Odontogramme',exact:true}).focus();
    await page.keyboard.press('ArrowRight');
    await check(page,'J3 keyboard tab Imagerie '+width,async()=>
       await page.getByRole('tab',{name:'Imagerie',exact:true}).getAttribute('aria-selected')==='true'
       &&await page.locator('.cmd-card:visible').count()===1
-      &&(await page.locator('.cmd-cards').innerText()).includes('Aucun média pour TEST-005'));
-   await snap(page,'r4-imagerie-test005-'+width);
+      &&(await page.locator('.cmd-cards').innerText()).includes('Aucun média pour TEST-007'));
+   await snap(page,'r4-imagerie-test007-'+width);
    await page.getByRole('tab',{name:'Dossier',exact:true}).click();
    await check(page,'J3 return same dossier '+width,async()=>
       await page.locator('.cmd-cards > .cmd-card:visible').count()===3
-      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-005');
-   if(width<500)await page.getByRole('button',{name:'Agenda Dr B'}).click();
+      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-007');
+   if(width<500)await page.getByRole('button',{name:'Agenda Dr A'}).click();
    await page.locator('.cmd-appt').filter({hasText:'TEST-001'}).click();
    await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
    await check(page,'J2 A-B-A return no previous patient leakage '+width,async()=>
       await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
       &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-001'
-      &&!(await page.locator('.cmd-right').innerText()).includes('TEST-005'));
+      &&!(await page.locator('.cmd-right').innerText()).includes('TEST-007'));
    if(width===1440){
      await page.getByRole('button',{name:'Terminer le RDV (simulation)'}).click();
      await check(page,'J1 mock finish disables clinical-action affordance',async()=> 
