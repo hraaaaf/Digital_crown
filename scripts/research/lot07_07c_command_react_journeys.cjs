@@ -47,7 +47,7 @@ async function snap(page,name){
     await check(page,'J1 initial counters tied to mock status',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil'));
     await page.getByRole('button',{name:'Mettre en pause'}).click();
     await check(page,'J1 mock pause status',async()=> (await page.locator('.cmd-patienthero').innerText()).includes('En pause')
-      &&(await page.locator('.cmd-appt').filter({hasText:'TEST-001'}).getAttribute('class')).includes('cmd-appt-paused'));
+      &&(await page.locator('.cmd-appt[data-appointment-id="APT-TEST-001"]').getAttribute('class')).includes('cmd-appt-paused'));
     await check(page,'J1 paused room remains occupied',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil')&&await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='2');
     await check(page,'R4b paused patient stays physically seated',async()=>await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='seated'
       &&(await page.locator('.cmd-patienteyebrow').innerText()).includes('AU FAUTEUIL'));
@@ -103,7 +103,7 @@ async function snap(page,name){
       await page.locator('.cmd-cards > .cmd-card:visible').count()===3
       &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-007');
    if(width<500)await page.getByRole('button',{name:'Agenda Dr A'}).click();
-   await page.locator('.cmd-appt').filter({hasText:'TEST-001'}).click();
+   await page.locator('.cmd-appt[data-appointment-id="APT-TEST-001"]').click();
    await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
    await check(page,'J2 A-B-A return no previous patient leakage '+width,async()=>
       await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
@@ -116,12 +116,12 @@ async function snap(page,name){
        (await page.locator('.cmd-patienthero').innerText()).includes('Terminé')
        &&!(await page.getByRole('button',{name:'Mettre en pause'}).isEnabled()));
      await check(page,'J1 finish releases room assignment',async()=>await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='3');
+     await snap(page,'r4-consultation-finished-test001-1440');
      await page.locator('.cmd-appt').filter({hasText:'TEST-007'}).click();
      await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
      await check(page,'R4b waiting patient sees available planned room',async()=>await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='planned-free'
        &&(await page.locator('.cmd-patienteyebrow').innerText()).includes('PRÉVUE · LIBRE'));
 
-     await snap(page,'r4-consultation-finished-test001-1440');
      await check(page,'J1 arrived waiting can start after room released',async()=>await page.getByRole('button',{name:'Démarrer la consultation (simulation)'}).isEnabled());
      await page.getByRole('button',{name:'Démarrer la consultation (simulation)'}).click();
      await check(page,'J1 start occupies room only in demo',async()=>await page.locator('.cmd-shell').getAttribute('data-occupied-rooms')==='1'
