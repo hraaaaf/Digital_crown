@@ -11,6 +11,9 @@
 **Gates requis avant CONVERGED LAB** : 16 nouveaux tests J avec interruptions injectées et corruption, 21 tests I hérités (vrai SQLCipher/JWT) ainsi que `test_guided_restore.py` sur Windows + Linux sans skips ; CI scope et HEAD identiques ; 2 revues adversariales internes, correction de tout BLOCKER/MAJOR de J, puis confirmation sur même HEAD ; PRE/POST Notion. Les suites J nouvelles sont SQLite standard et ne doivent jamais être vendues comme restauration SQLCipher prouvée.
 
 
+
+**Gouvernance CI stack** : sur la PR J, le workflow historique I avait exécuté ses 21 tests par OS avec succès mais échouait à son gate de diff quatre fichiers spécifiquement I (non applicable aux dix fichiers de J). Il est maintenant conditionné à sa branche I lorsque déclenché par une PR. Sur J, son job SKIPPED est HORS SCOPE, pas une preuve de test : l'exécution effective des 21 tests I par OS dans le workflow J REQUIRED reste obligatoire. La CI antérieure rouge demeure visible et ne peut être requalifiée rétroactivement.
+
 ## LOT05.7-I — 2026-10-19 — vrai JWT et vrai WAL worker testés sur FAKE, identité Service SID NON CERTIFIÉE
 
 **Statut initial : laboratoire OPEN ; clinique STRICT NO-GO.** Suite 05.7-I teste directement le vrai `get_current_user`/JWT `access`, `require_permission('settings')`, `legacy_migration_v15._owner_only` (fausses identités de la vraie ORM Alembic SQLCipher), ainsi que `GuidedRestoreService._write_job/get_owned_job` et les **méthodes de secours** `GuidedRestoreWorker._rescue_database/_verify_database_rescue/_restore_database_from_rescue` uniquement sous un `TemporaryDirectory` auto-créé et patché par la fixture E. Aucun appel à `GuidedRestoreWorker.run` ou `request_apply`, aucune source réelle, aucuns médias authentiques, zéro service Windows installé ou déploiement.
