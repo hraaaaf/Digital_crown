@@ -341,9 +341,10 @@ def test_request_apply_dispatches_only_prepared_owned_job(tmp_path, monkeypatch)
     with pytest.raises(PermissionError):
         GuidedRestoreService.request_apply(preflight["restore_id"], "RESTAURER", owner_employer_id=8)
 
-    result = GuidedRestoreService.request_apply(preflight["restore_id"], "RESTAURER", owner_employer_id=7)
-    assert result["status"] == "scheduled"
-    assert calls and calls[0][0] == preflight["restore_id"]
+    with pytest.raises(RuntimeError, match="autorité worker non attestée"):
+        GuidedRestoreService.request_apply(preflight["restore_id"], "RESTAURER", owner_employer_id=7)
+    assert GuidedRestoreService.get_job(preflight["restore_id"])["status"] == "prepared"
+    assert not calls
 
 
 def test_database_rescue_keeps_wal_and_rollback_removes_stale_shm(tmp_path):
@@ -396,71 +397,21 @@ class DummyProcess:
         pass
 
 
-def test_worker_integration_restores_temp_db_and_media(tmp_path, monkeypatch):
-    appdata = tmp_path / "appdata"
-    _patch_appdata(monkeypatch, appdata)
-    media = appdata / "media"
-    media.mkdir(parents=True)
-    (media / "old.txt").write_bytes(b"old-media")
-    target = _make_plain_sqlite(appdata / "clinical_vault.db", "before")
-
-    bundle = _manifest_bundle(tmp_path, monkeypatch, db_value="after", media={"new.txt": b"new-media"})
-    preflight = GuidedRestoreService.preflight_file(
-        bundle,
-        original_name="complete.zip",
-        active_engine=("sqlite", "pysqlite"),
-    )
-    job = GuidedRestoreService.get_job(preflight["restore_id"])
-    job.update(
-        status="scheduled",
-        target_db_path=str(target),
-        prepared_media_digest=archive_mod._directory_digest(media),
-    )
-    GuidedRestoreService._write_job(job)
-
-    monkeypatch.setattr(worker_mod, "get_media_root", lambda: media)
-    monkeypatch.setattr(GuidedRestoreWorker, "_wait_parent_exit", classmethod(lambda cls, pid, timeout=20: None))
-    monkeypatch.setattr(GuidedRestoreWorker, "_launch_app", staticmethod(lambda executable: DummyProcess()))
-    monkeypatch.setattr(GuidedRestoreWorker, "_smoke_check", staticmethod(lambda timeout=60: True))
-
-    result = GuidedRestoreWorker.run(preflight["restore_id"], parent_pid=999, executable="DigitalCrown.exe")
-    final = GuidedRestoreService.get_job(preflight["restore_id"])
-
-    assert result == 0
-    assert _read_truth(target) == "after"
-    assert not (media / "old.txt").exists()
-    assert (media / "new.txt").read_bytes() == b"new-media"
-    assert final["status"] == "success"
-    assert final["smoke_check"] == "passed"
-
-
-def test_worker_smoke_failure_triggers_proven_rollback(tmp_path, monkeypatch):
-    appdata = tmp_path / "appdata"
-    _patch_appdata(monkeypatch, appdata)
-    media = appdata / "media"
-    media.mkdir(parents=True)
-    target = _make_plain_sqlite(appdata / "clinical_vault.db", "before")
-    encrypted = _make_sqlite_backup(tmp_path, "restored-but-bad")
-    preflight = GuidedRestoreService.preflight_file(
-        encrypted,
-        original_name="cabinet.db.enc",
-        active_engine=("sqlite", "pysqlite"),
-    )
-    job = GuidedRestoreService.get_job(preflight["restore_id"])
-    job.update(status="scheduled", target_db_path=str(target))
-    GuidedRestoreService._write_job(job)
-
-    monkeypatch.setattr(worker_mod, "get_media_root", lambda: media)
-    monkeypatch.setattr(GuidedRestoreWorker, "_wait_parent_exit", classmethod(lambda cls, pid, timeout=20: None))
-    monkeypatch.setattr(GuidedRestoreWorker, "_launch_app", staticmethod(lambda executable: DummyProcess()))
-    smoke_results = iter([False, True])
-    monkeypatch.setattr(GuidedRestoreWorker, "_smoke_check", staticmethod(lambda timeout=60: next(smoke_results)))
-
-    result = GuidedRestoreWorker.run(preflight["restore_id"], parent_pid=999, executable="DigitalCrown.exe")
-    final = GuidedRestoreService.get_job(preflight["restore_id"])
-
-    assert result == 2
+def test_worker_integration_refuses_unattested_detached_process(tmp_path, monkeypatch):
+    _patch_appdata(monkeypatch, tmp_path / "appdata")
+    target = _make_plain_sqlite(tmp_path / "appdata" / "clinical_vault.db", "before")
+    with pytest.raises(RuntimeError, match="worker non attesté"):
+        GuidedRestoreWorker.run("fake-id", parent_pid=999, executable="DigitalCrown.exe")
     assert _read_truth(target) == "before"
-    assert final["status"] == "rolled_back"
-    assert final["rollback"] == "passed"
-    assert final["smoke_check"] == "failed"
+    assert not (tmp_path / "appdata" / "guided-restore").exists()
+
+
+def test_worker_smoke_failures_cannot_bypass_unattested_worker(tmp_path, monkeypatch):
+    _patch_appdata(monkeypatch, tmp_path / "appdata")
+    target = _make_plain_sqlite(tmp_path / "appdata" / "clinical_vault.db", "before")
+    with pytest.raises(RuntimeError, match="worker non attesté"):
+        GuidedRestoreWorker.run("fake-id", parent_pid=999, executable="DigitalCrown.exe")
+    assert _read_truth(target) == "before"
+    assert not (tmp_path / "appdata" / "guided-restore").exists()
+
+
