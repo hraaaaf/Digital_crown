@@ -1,0 +1,119 @@
+name: CEPH-FAC FACAD REA P0 static evidence (EXPERIMENTAL)
+
+on:
+  push:
+    branches: [research/ceph-facad-rea-p0-20261019]
+    paths:
+      - .github/workflows/ceph-facad-rea-static-p0.yml
+      - techdoubt.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ceph-facad-rea-p0-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  facad-rea-managed-triage:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact experimental HEAD
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install supported Node for pinned REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+
+      - name: Download and unpack public official FACAD 3.14 payload without installing or launching
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          New-Item -ItemType Directory -Force -Path facad-rea/outer,facad-rea/release,facad-rea/evidence | Out-Null
+          $installer = 'facad-rea/Facad-Installer-3.14.1.1111.exe'
+          Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
+          if ((Get-Item -LiteralPath $installer).Length -lt 1024) { throw 'Official installer download unexpectedly small' }
+          $seven = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
+          if (!(Test-Path -LiteralPath $seven)) { throw '7zip unavailable' }
+          & $seven x $installer '-ofacad-rea/outer' -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to extract official installer wrapper' }
+          $releaseZip = 'facad-rea/outer/FacadRelease-3.14.1.1111.zip'
+          if (!(Test-Path -LiteralPath $releaseZip)) { throw 'Missing official FacadRelease-3.14.1.1111.zip' }
+          & $seven x $releaseZip '-ofacad-rea/release' -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to extract official Facad release ZIP' }
+          Write-Host "SOURCE_HEAD=$(git rev-parse HEAD)"
+          Write-Host "OFFICIAL_INSTALLER_SHA256=$((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash)"
+          Write-Host "OFFICIAL_RELEASE_SHA256=$((Get-FileHash -LiteralPath $releaseZip -Algorithm SHA256).Hash)"
+          # No FACAD application or trial is started and no new EULA is accepted.
+
+      - name: Execute real pinned REA static .NET/PE triage on FACAD and export plugin
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          npm install --global rea-agents@6.7.0 --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned REA installation failed' }
+          $version = (& rea --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'REA CLI version failed' }
+          Write-Host "REA_PIN=rea-agents@6.7.0"
+          Write-Host "REA_VERSION=$version"
+          $root = 'facad-rea/release'
+          $wanted = @('Facad.exe', 'FacadExportCephDataPlugin.exe')
+          $summary = [ordered]@{
+            schema_version = 1
+            source_head = (git rev-parse HEAD).Trim()
+            source = 'official public Citodent FACAD 3.14.1.1111 release ZIP'
+            rea_pin = 'rea-agents@6.7.0'
+            operation = 'inspect-managed-artifact'
+            mode = 'read-only static; no Facad GUI, license or patient data'
+            results = @()
+          }
+          foreach ($name in $wanted) {
+            $candidates = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter $name)
+            if ($candidates.Count -ne 1) { throw "Expected exactly one official target $name; actual=$($candidates.Count)" }
+            $file = $candidates[0]
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+            $out = "facad-rea/evidence/$name.rea.json"
+            $err = "facad-rea/evidence/$name.stderr.txt"
+            Write-Host "REA_TARGET=$name"
+            Write-Host "REA_TARGET_SHA256=$hash"
+            & rea inspect-managed-artifact $file.FullName --json 1> $out 2> $err
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
+              Write-Host "REA_TARGET_FAILED=$name; exit=$exitCode"
+              throw "REA managed static triage failed for $name. Raw provider output stays on disposable runner."
+            }
+            try { $parsed = Get-Content -LiteralPath $out -Raw | ConvertFrom-Json -ErrorAction Stop }
+            catch { throw "REA output was not valid JSON for $name" }
+            $keys = @($parsed.PSObject.Properties.Name)
+            $entry = [ordered]@{
+              file_name = $name
+              sha256 = $hash
+              bytes = $file.Length
+              rea_exit = $exitCode
+              json_valid = $true
+              output_sha256 = (Get-FileHash -LiteralPath $out -Algorithm SHA256).Hash
+              result_field_count = $keys.Count
+            }
+            $summary.results += $entry
+            Write-Host "REA_STATIC_JSON_VALID=$name"
+          }
+          if ($summary.results.Count -ne 2) { throw 'Incomplete REA target coverage' }
+          $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/rea-safe-summary.json -Encoding utf8
+          Write-Host 'REA_FACAD_TWO_REAL_TARGETS_P0_PASS=true'
+          # Raw REA reports and vendor binaries are NEVER uploaded.
+
+      - name: Upload safe proof summary only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-facad-rea-p0-safe-summary
+          path: facad-rea/evidence/rea-safe-summary.json
+          if-no-files-found: ignore
+          retention-days: 7
