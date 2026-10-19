@@ -40,7 +40,15 @@ jobs:
           $global:PSNativeCommandUseErrorActionPreference = $false
           $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1'
           $output = Join-Path $env:RUNNER_TEMP 'j10d-deny-only-consumer.exe'
-          if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "C# source missing: $source" }
+          Write-Host "GITHUB_SHA=$env:GITHUB_SHA"
+          Write-Host "Checkout HEAD=$(git rev-parse HEAD)"
+          Write-Host "Workspace=$env:GITHUB_WORKSPACE"
+          Write-Host 'Tracked J10D fixture paths:'
+          git ls-files -- 'backend/tests/fixtures/*j10d*'
+          Write-Host "Source exists=$(Test-Path -LiteralPath $source -PathType Leaf)"
+          if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+            throw "C# source missing from checked-out commit; inspect tracked paths and checkout SHA"
+          }
           & $csc /nologo /target:exe "/out:$output" /reference:System.ServiceProcess.dll /reference:System.Core.dll "$source"
           if ($LASTEXITCODE -ne 0) { throw "C# compiler failed: $LASTEXITCODE" }
           # Explicit nonzero exit is the EXPECTED deny path; avoid PowerShell
