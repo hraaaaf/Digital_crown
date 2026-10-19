@@ -17,6 +17,8 @@ permissions:
 
 jobs:
   unchanged-restore-regressions:
+    # J3 contract is limited to its own branch; J4 re-executes every test and real SCM fixture.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j3-real-windows-scm-sid-acl-fake-20261019'
     name: Clinical DENY, native SQLCipher WAL and JWT (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
@@ -97,6 +99,7 @@ jobs:
           ! grep -Ev '^(\.github/workflows/v15-05-7-j2-native-sqlcipher-scm-fake\.yml|\.github/workflows/v15-05-7-j3-real-scm-service-sid-fake\.yml|backend/tests/fixtures/lot05j3_windows_fake_service\.cs|backend/tests/fixtures/lot05j3_windows_scm_probe\.ps1|docs/quality/V15_05_7_J3_REAL_WINDOWS_SCM_SID_ACL_FAKE_CONTRACT\.md|techdoubt\.md)$' j3.txt
 
   real-windows-scm-service-sid:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j3-real-windows-scm-sid-acl-fake-20261019'
     name: Real ephemeral LocalService SCM token + NTFS ACL (Windows)
     runs-on: windows-latest
     timeout-minutes: 12
