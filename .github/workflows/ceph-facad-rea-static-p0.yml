@@ -54,7 +54,7 @@ jobs:
             $tokens = $null
             $parseErrors = $null
             [void][System.Management.Automation.Language.Parser]::ParseInput(($fragment -join "`n"), [ref]$tokens, [ref]$parseErrors)
-            if (@($parseErrors).Count -gt 0) {
+            if ($null -ne $parseErrors -and $parseErrors.Count -gt 0) {
               foreach ($err in $parseErrors) { Write-Host "PS_PARSE_ERROR=$($err.Message)" }
               throw "Invalid PowerShell run block at workflow line $($i+1)"
             }
