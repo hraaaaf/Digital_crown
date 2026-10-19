@@ -17,7 +17,7 @@ def test_execution_scoring_policy_keeps_required_thresholds_and_minimum_rule():
     text = _read(POLICY)
 
     required_fragments = (
-        "RETAINED_SCORE = min(EXECUTION_SCORE, ADVERSARIAL_SCORE)",
+        "RETAINED_SCORE = min(EXECUTION_SCORE, FUE_EVIDENCE_SCORE)",
         "Jamais de moyenne",
         "> 0.5",
         "10/10",
@@ -45,7 +45,7 @@ def test_primary_agent_guides_require_the_scoring_policy():
         text = _read(path)
         assert policy_ref in text, path
         assert "EXECUTION_SCORE" in text, path
-        assert "ADVERSARIAL_SCORE" in text, path
+        assert "FUE_EVIDENCE_SCORE" in text, path
         assert "VERIFIED" in text, path
         assert "Perfection Pass" in text, path
 
@@ -69,9 +69,9 @@ def test_github_pr_template_exposes_scoring_and_verification_gates():
         "Succès observable",
         "Preuve",
         "EXECUTION_SCORE /10",
-        "ADVERSARIAL_SCORE /10",
+        "FUE_EVIDENCE_SCORE /10",
         "RETAINED_SCORE /10",
-        "min(EXECUTION_SCORE, ADVERSARIAL_SCORE)",
+        "min(EXECUTION_SCORE, FUE_EVIDENCE_SCORE)",
         "> 0.5",
         "10/10",
         "exceptionnel",
