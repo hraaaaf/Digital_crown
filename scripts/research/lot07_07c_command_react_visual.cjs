@@ -7,6 +7,14 @@ const out=path.resolve('artifacts/lot07-07c-command-react');fs.mkdirSync(out,{re
 const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const css=fs.readFileSync('frontend/src/features/command/command-react-target.css','utf8');
 if(css.includes('rgb(') || css.includes('rgba(') || /#[0-9a-fA-F]{3,8}/.test(css)) throw Error('COMMAND_CSS_LITERAL_COLOR');
+async function takeTruthfulFullPage(page,file){
+ await page.evaluate(()=>window.scrollTo(0,0));
+ // Full-page stitching with a fixed-position scroll state can falsely relocate sticky UI.
+ // Freeze only screenshot CSS; the actual sticky behavior is asserted and photographed separately.
+ const style=await page.addStyleTag({content:'@media(max-width:767px){.cmd-mobile-context{position:relative!important;top:auto!important}}'});
+ try{await page.screenshot({path:file,fullPage:true,animations:'disabled'});}
+ finally{await style.evaluate(e=>e.remove());}
+}
 const failures=[],snaps=[],themes=['elite','emerald','rose','prestige','ocean','graphite','dark','high-contrast'];
 (async()=>{const browser=await pw.chromium.launch({headless:true,args:['--no-sandbox']});
 try{
@@ -61,13 +69,22 @@ try{
       if(await page.locator('.cmd-cards > .cmd-card:visible').count()!==9 || await page.locator('.cmd-secondary-toggle').getAttribute('aria-expanded')!=='true')failures.push('MOBILE_DISCLOSURE_OPEN_'+w);
       if(w===430){
         const extra=path.join(out,'command-react-mobile-expanded-430.png');
-        await page.screenshot({path:extra,fullPage:true,animations:'disabled'});
+        await takeTruthfulFullPage(page,extra);
         snaps.push({name:path.basename(extra),bytes:fs.statSync(extra).size,sha256:hash(extra),purpose:'explicit secondary panels open, mobile'}); 
       }
       await page.getByRole('button',{name:'Masquer les 4 panneaux complémentaires'}).click();
       if(await page.locator('.cmd-cards > .cmd-card:visible').count()!==5 || await page.locator('.cmd-secondary-toggle').getAttribute('aria-expanded')!=='false')failures.push('MOBILE_DISCLOSURE_CLOSE_'+w);
    }
-   const img=path.join(out,'command-react-elite-'+w+'.png');await page.screenshot({path:img,fullPage:true,animations:'disabled'});
+   if(w===430){
+     await page.evaluate(()=>window.scrollTo(0,1000));
+     await page.waitForFunction(()=>window.scrollY>800);
+     const stickyRect=await page.locator('.cmd-mobile-context').evaluate(e=>e.getBoundingClientRect().top);
+     if(Math.abs(stickyRect)>3)failures.push('STICKY_PATIENT_CONTEXT_NOT_FIXED_430_'+stickyRect);
+     const stickyShot=path.join(out,'command-react-mobile-sticky-scrolled-430.png');
+     await page.screenshot({path:stickyShot,fullPage:false,animations:'disabled'});
+     snaps.push({name:path.basename(stickyShot),bytes:fs.statSync(stickyShot).size,sha256:hash(stickyShot),purpose:'actual sticky patient header at scrollTop 1000 viewport'});
+   }
+   const img=path.join(out,'command-react-elite-'+w+'.png');await takeTruthfulFullPage(page,img);
    snaps.push({name:path.basename(img),bytes:fs.statSync(img).size,sha256:hash(img),...result});
    if(w===1440){
       await page.getByRole('button',{name:'Agenda',exact:true}).first().click();
@@ -126,7 +143,7 @@ try{
    });
    if(contrast.some(row=>row.ratio<4.5))failures.push('STATUS_TEXT_CONTRAST_'+theme+'_'+JSON.stringify(contrast));
    const img=path.join(out,'command-react-theme-'+theme+'.png');
-   await page.screenshot({path:img,fullPage:true,animations:'disabled'});
+   await takeTruthfulFullPage(page,img);
    snaps.push({name:path.basename(img),sha256:hash(img),bytes:fs.statSync(img).size,...check});
    await context.close();
  }
