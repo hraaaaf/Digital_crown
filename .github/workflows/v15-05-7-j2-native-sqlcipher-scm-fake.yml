@@ -18,6 +18,9 @@ permissions:
 
 jobs:
   native-sqlcipher-wal-scm-deny:
+    # Parent J2 six-file gate applies to J2 branch only.
+    # On stacked J3 the J3 workflow reruns all 71 inherited tests per OS.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j2-real-sqlcipher-wal-scm-veto-fake-20261019'
     name: SQLCipher WAL / SCM DENY (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
