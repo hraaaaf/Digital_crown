@@ -168,7 +168,7 @@ jobs:
           $root = 'facad-rea/release'
           $wanted = @('Facad.exe', 'FacadExportCephDataPlugin.exe')
           $summary = [ordered]@{
-            schema_version = 4
+            schema_version = 5
             source_head = (git rev-parse HEAD).Trim()
             source = 'official public Citodent FACAD 3.14.1.1111 release ZIP'
             rea_pin = 'rea-agents@6.7.0'
@@ -190,6 +190,61 @@ jobs:
               $corPresent = ($null -ne $pe.PEHeaders.CorHeader)
               $metadataPresent = [bool]$pe.HasMetadata
               $machine = [string]$pe.PEHeaders.CoffHeader.Machine
+              if (-not $corPresent -or -not $metadataPresent) { throw "PE/CLI metadata required: $name" }
+              $mdReader = [System.Reflection.Metadata.PEReaderExtensions]::GetMetadataReader($pe)
+              $signals = [ordered]@{
+                export = '(?i)export'
+                ceph = '(?i)ceph'
+                analysis = '(?i)analys|analyz|measur'
+                marker = '(?i)marker|landmark'
+                position = '(?i)position|coordinat'
+                values = '(?i)value|result'
+                properties = '(?i)propert'
+              }
+              $signalCounts = [ordered]@{}
+              foreach ($category in $signals.Keys) {
+                $signalCounts[$category] = [ordered]@{
+                  declared_types = 0
+                  declared_methods = 0
+                  public_methods = 0
+                }
+              }
+              $declaredTypes = 0
+              $declaredMethods = 0
+              $publicMethods = 0
+              foreach ($th in $mdReader.TypeDefinitions) {
+                $type = $mdReader.GetTypeDefinition($th)
+                $declaredTypes++
+                # Type name is consulted in memory only. Never written to logs or artifact.
+                $typeName = $mdReader.GetString($type.Name)
+                foreach ($category in $signals.Keys) {
+                  if ($typeName -match $signals[$category]) { $signalCounts[$category].declared_types++ }
+                }
+                foreach ($mh in $type.GetMethods()) {
+                  $method = $mdReader.GetMethodDefinition($mh)
+                  $declaredMethods++
+                  $isPublic = (([int]$method.Attributes -band 7) -eq 6)
+                  if ($isPublic) { $publicMethods++ }
+                  # Declaration name only, not the body. Report counters, never vendor strings.
+                  $methodName = $mdReader.GetString($method.Name)
+                  foreach ($category in $signals.Keys) {
+                    if ($methodName -match $signals[$category]) {
+                      $signalCounts[$category].declared_methods++
+                      if ($isPublic) { $signalCounts[$category].public_methods++ }
+                    }
+                  }
+                }
+              }
+              if ($declaredTypes -le 0 -or $declaredMethods -le 0) { throw "No declared managed members: $name" }
+              $peDeclarationSurface = [ordered]@{
+                authority = 'PEReader_METADATA_DECLARATIONS_ONLY'
+                declared_types = $declaredTypes
+                declared_methods = $declaredMethods
+                public_methods = $publicMethods
+                assembly_reference_count = $mdReader.AssemblyReferences.Count
+                categories = $signalCounts
+                caveat = 'Name keyword counters do not prove export behavior, runtime reachability or numeric parity.'
+              }
             }
             finally {
               if ($null -ne $pe) { $pe.Dispose() }
@@ -232,6 +287,7 @@ jobs:
                 machine = $machine
                 classification_authority = 'PEReader_STATIC_HEADER_ONLY'
               }
+              pe_declaration_surface = $peDeclarationSurface
               rea_schema_fields = @($keys | Where-Object { $_ -in @('schema_version','version','source','artifact','metadata','classification','coverage','summary','result','data','diagnostics','errors','warnings','evidence','confidence','status') })
               rea_sections = [ordered]@{}
             }
@@ -280,6 +336,7 @@ jobs:
             $summary.results += $entry
             Write-Host "PE_CLI_HEADER_PRESENT=$name/$corPresent"
             Write-Host "PE_CLI_METADATA_PRESENT=$name/$metadataPresent"
+            Write-Host "PE_METADATA_COUNTS=$name/types=$declaredTypes,methods=$declaredMethods,public=$publicMethods"
             Write-Host "REA_ROOT_SCHEMA_FIELD_COUNT=$name/$($entry.rea_root_schema_field_names.Count)"
             Write-Host "REA_STATIC_JSON_VALID=$name"
           }
