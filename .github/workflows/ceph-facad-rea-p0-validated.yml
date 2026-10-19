@@ -78,19 +78,22 @@ jobs:
           $installer = 'facad-rea/Facad-Installer-3.14.1.1111.exe'
           Invoke-WebRequest -Uri 'https://downloads.citodent.com/pub/Facad/Facad-Installer-3.14.1.1111.exe' -OutFile $installer
           if ((Get-Item -LiteralPath $installer).Length -lt 1024) { throw 'Official installer download unexpectedly small' }
+          # Reject changed bytes BEFORE any parser or archive extraction handles downloaded data.
+          $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
+          if ($installerHash -ne 'A60D13EA2C32D49C192BCF07F40BA07D8C0410E6577FE28CE4B0181BB4018B86') { throw 'Unexpected installer hash; extraction refused' }
+          Write-Host "FACAD_INSTALLER_PRE_EXTRACT_PIN_PASS=$installerHash"
           $seven = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
           if (!(Test-Path -LiteralPath $seven)) { throw '7zip unavailable' }
           & $seven x $installer '-ofacad-rea/outer' -y | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Failed to extract official installer wrapper' }
           $releaseZip = 'facad-rea/outer/FacadRelease-3.14.1.1111.zip'
           if (!(Test-Path -LiteralPath $releaseZip)) { throw 'Missing official FacadRelease-3.14.1.1111.zip' }
+          $releaseHash = (Get-FileHash -LiteralPath $releaseZip -Algorithm SHA256).Hash
+          if ($releaseHash -ne '48A5844B4EFF8EFC06F559C962A3AD88FD9B6983C37FDDBA5C28B19C0CE4ABC4') { throw 'Unexpected release hash; extraction refused' }
+          Write-Host "FACAD_RELEASE_PRE_EXTRACT_PIN_PASS=$releaseHash"
           & $seven x $releaseZip '-ofacad-rea/release' -y | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Failed to extract official Facad release ZIP' }
           Write-Host "SOURCE_HEAD=$(git rev-parse HEAD)"
-          $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
-          $releaseHash = (Get-FileHash -LiteralPath $releaseZip -Algorithm SHA256).Hash
-          if ($installerHash -ne 'A60D13EA2C32D49C192BCF07F40BA07D8C0410E6577FE28CE4B0181BB4018B86') { throw 'Unexpected official installer SHA256: stop' }
-          if ($releaseHash -ne '48A5844B4EFF8EFC06F559C962A3AD88FD9B6983C37FDDBA5C28B19C0CE4ABC4') { throw 'Unexpected release payload SHA256: stop' }
           Write-Host "OFFICIAL_INSTALLER_SHA256=$installerHash"
           Write-Host "OFFICIAL_RELEASE_SHA256=$releaseHash"
           Write-Host 'FACAD_OFFICIAL_SHA256_PINNED_PASS=true'
@@ -162,6 +165,8 @@ jobs:
               # proprietary type/member names, CIL, paths, strings, or reverse-engineered source.
               rea_root_schema_field_names = @($keys | Where-Object { $_ -cmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' } | Sort-Object -Unique)
               rea_root_schema_field_names_omitted = @($keys | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' }).Count
+              # Schema-only child inspection; no normalized_result values are exposed.
+              rea_normalized_result_shape = [ordered]@{ kind = 'unavailable'; field_names = @(); omitted = 0 }
               pe_header = [ordered]@{
                 cli_header_present = $corPresent
                 cli_metadata_present = $metadataPresent
@@ -170,6 +175,23 @@ jobs:
               }
               rea_schema_fields = @($keys | Where-Object { $_ -in @('schema_version','version','source','artifact','metadata','classification','coverage','summary','result','data','diagnostics','errors','warnings','evidence','confidence','status') })
               rea_sections = [ordered]@{}
+            }
+            $normalizedProp = $parsed.PSObject.Properties['normalized_result']
+            if ($null -ne $normalizedProp -and $null -ne $normalizedProp.Value) {
+              if ($normalizedProp.Value -is [pscustomobject]) {
+                $nk = @($normalizedProp.Value.PSObject.Properties.Name)
+                $entry.rea_normalized_result_shape = [ordered]@{
+                  kind = 'object'
+                  field_names = @($nk | Where-Object { $_ -cmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' } | Sort-Object -Unique | Select-Object -First 64)
+                  omitted = @($nk | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' }).Count
+                }
+              }
+              elseif ($normalizedProp.Value -is [array]) {
+                $entry.rea_normalized_result_shape = [ordered]@{ kind = 'array'; count = @($normalizedProp.Value).Count }
+              }
+              else {
+                $entry.rea_normalized_result_shape = [ordered]@{ kind = 'scalar' }
+              }
             }
             foreach ($sectionName in @('metadata','classification','coverage','summary','result','diagnostics')) {
               $prop = $parsed.PSObject.Properties[$sectionName]
