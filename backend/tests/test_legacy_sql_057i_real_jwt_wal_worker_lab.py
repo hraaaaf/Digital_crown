@@ -6,7 +6,8 @@ JWTs and signing secrets are generated only in memory for disposable users.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
+from contextlib import closing
 from pathlib import Path
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -317,7 +318,7 @@ class SyntheticJwtAndWalWorkerEvidence(unittest.TestCase):
         # Source DB now closed. Only the fake destination may be damaged.
         target.write_bytes(b"FAKE_CORRUPT_DB")
         GuidedRestoreWorker._restore_database_from_rescue(target,rescue)
-        with e.sqlcipher_connection(target,self.fake_key) as read:
+        with closing(e.sqlcipher_connection(target,self.fake_key)) as read:
             row=read.execute(
                 "SELECT nom FROM patients ORDER BY id LIMIT 1").fetchone()
             self.assertEqual(row,("FAKE_WAL_UNCHECKPOINTED",))
@@ -382,7 +383,8 @@ class SyntheticJwtAndWalWorkerEvidence(unittest.TestCase):
         rescue=self.home/"fake_rescue"
         rescue.mkdir()
         (rescue/"clinical_vault.db").write_bytes(b"FAKE_BROKEN_SQLCIPHER")
-        with self.assertRaises(Exception):
+        from sqlcipher3.dbapi2 import DatabaseError
+        with self.assertRaises((DatabaseError, ValueError)):
             GuidedRestoreWorker._verify_database_rescue(rescue,"pysqlcipher")
 
     def test_20_actual_windows_acl_query_is_diagnostic_not_service_sid(self):
