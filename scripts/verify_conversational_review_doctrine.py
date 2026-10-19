@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GLOBAL-G10-S: check conversational A/B reviewer doctrine (not execution proof).
+"""GLOBAL-G10-S: check FUE-first documentary doctrine (not execution proof).
 
 Designed for the existing manually dispatchable G0 Global Interactive Inventory
 GitHub Actions workflow. It asserts canonical *written* rules, not that two
@@ -20,44 +20,17 @@ SOURCES = {
 }
 
 REQUIRED = {
-    "agents": (
-        "LA CONVERSATION EXÉCUTE ELLE-MÊME DEUX REVUES ADVERSARIALES INTERNES A/B",
-        "Ne jamais mettre un lot en attente",
-        "revues adversariales internes A/B",
-        "plafonnée à `9.4/10`",
-        "vrai login UI",
-    ),
-    "rpg": (
-        "ChatGPT executes the two reviews itself",
-        "Do not wait for two external reviewers",
-        "real UI login",
-        "Human approval, clinical validation and RPG-P stay separate",
-    ),
-    "scoring": (
-        "Ne jamais répondre",
-        "il reste les deux vraies revues indépendantes",
-        "auto-revue conversationnelle",
-        "9.4/10",
-        "VERIFIED",
-    ),
-    "techdoubt": (
-        "RESOLVED AS A FALSE DEPENDENCY",
-        "internal A/B double-review procedure",
-        "These tests have NOT been executed",
-    ),
+    "agents": ("FUE — protocole principal de validation", "FUE-0", "FUE-I", "FUE-G", "BEFORE/ACTION/AFTER"),
+    "rpg": ("FUE-first evidence", "FUE-0 / FUE-I / FUE-G", "Human approval", "RPG-P"),
+    "scoring": ("FUE_EVIDENCE_SCORE", "RETAINED_SCORE", "9.4/10", "VERIFIED"),
 }
-
 FORBIDDEN_ACTIVE = {
-    "agents": (
-        "laisser ouvert le gate BLIND USERS applicable",
-        "deux agents BLIND USERS isolés",
-        "deux agents IA BLIND USERS spécialisés, et NON",
-    ),
-    "rpg": (
-        "Do not claim the blind-user gate passed without actual separated executions",
-        "Reviewer A and B for FUE user testing are two distinct AI agents",
-    ),
+    "agents": ("LA CONVERSATION EXÉCUTE ELLE-MÊME DEUX REVUES ADVERSARIALES INTERNES A/B",),
+    "rpg": ("ChatGPT executes the two reviews itself", "then two adversarial reviews"),
+    "scoring": ("il reste les deux vraies revues indépendantes",),
 }
+SOURCES.pop("techdoubt", None)
+
 def main() -> int:
     checks: list[dict[str, object]] = []
     for key, path in SOURCES.items():
@@ -72,10 +45,10 @@ def main() -> int:
             checks.append({"check": f"{key}:obsolete:{token[:72]}", "passed": token not in text})
     failures = [entry for entry in checks if not entry["passed"]]
     result = {
-        "gate": "GLOBAL-G10-S_CONVERSATIONAL_A_B_DOCTRINE",
+        "gate": "GLOBAL-G10-S_FUE_FIRST_DOCTRINE",
         "head": os.environ.get("GITHUB_SHA", "local"),
         "status": "PASS" if not failures else "FAIL",
-        "scope": "documentary wording only — no claim of executed A/B reviews, login FUE or physical proof",
+        "scope": "documentary wording only — no claim of executed FUE journeys or physical proof",
         "checks_total": len(checks),
         "checks_passed": len(checks) - len(failures),
         "checks_failed": len(failures),
