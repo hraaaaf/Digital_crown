@@ -30,6 +30,17 @@ jobs:
           python backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py -v 2>&1 | tee j10d.log
           grep -q 'Ran 10 tests' j10d.log
           grep -Eq '^OK[[:space:]]*$' j10d.log
+      - name: Compile deny-only SCM consumer on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc = Get-ChildItem "$env:WINDIR\\Microsoft.NET\\Framework64" -Filter csc.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $csc) { throw 'Windows .NET Framework csc.exe missing' }
+          & $csc /nologo /target:exe /out:"$env:RUNNER_TEMP\\j10d-deny-only-consumer.exe" /reference:System.ServiceProcess.dll /reference:System.Core.dll backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs
+          if ($LASTEXITCODE -ne 0) { throw "C# compiler failed: $LASTEXITCODE" }
+          & "$env:RUNNER_TEMP\\j10d-deny-only-consumer.exe"
+          if ($LASTEXITCODE -ne 2) { throw "Expected invalid invocation DENY exit 2; got $LASTEXITCODE" }
       - name: Strict J10D scope and exact SHA
         shell: bash
         env:
@@ -39,5 +50,5 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
           git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
-          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
           diff -u expected.txt actual.txt
