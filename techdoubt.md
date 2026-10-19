@@ -36,3 +36,10 @@
 **FUE-C / REQUIRED — visual approval security:** Verify trusted default-branch workflow behavior, exact-HEAD human visual label event by authorized owner and successful attestation; test 403/404/500 and HEAD race with no fail-open. Existing contract tests do not prove actual GitHub DELETE status of earlier failed run 39313124584.
 
 **Gates:** REQUIRED = FUE-A/B/C and owner human visual approval; EXPERIMENTAL = exploratory UX scores or prototype-only extra interactions (nonblocking unless real security/production risk); HORS SCOPE = Cabinet production, real patients, RBAC certification, 07-D/E. Until fresh evidence: FUE=OPEN, HUMAN_GATE=OPEN, CONVERGED=NO, PR #971 DRAFT, no merge.
+
+
+## LOT07 / 07-C — 2026-10-19 — CI FUE browser adaptation evidence limit
+
+**Status: OPEN / REQUIRED.** Added `scripts/research/lot07_07c_command_react_fue.cjs` and wired the existing `v15-07-c-command-react-target.yml` on the PR #971 branch to run two fresh, separate Chromium browser contexts (A synthetic workflow, B keyboard/cancel/isolation), capture screenshots and JSON with exact SOURCE_HEAD, and fail on negative assertions. This is a *single scripted CI job*, NOT two independent blind-user AI agents and NOT real Cabinet authentication. Its score 10/0 per scripted assertion is a technical pass/fail score, not an independent UX or clinical rating.
+
+**Required before closure:** Inspect the actual GitHub Actions run and artifact on the final HEAD; investigate any failures and repair; execute two genuinely independent blind-user FUE agents if required by global doctrine; obtain separate owner Human Visual Gate approval; no merge/deploy. Workflow push path filters mean only the workflow/script changes trigger browser execution. FUE-C real approval remains OPEN.
