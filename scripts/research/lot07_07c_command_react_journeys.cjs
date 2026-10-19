@@ -88,10 +88,14 @@ async function snap(page,name){
         &&(await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Patient suivant (même praticien)'));
       await page.getByRole('button',{name:'Patient suivant (même praticien)'}).click();
    }
+   if(width<500)await check(page,'R4d modal disables sticky patient shortcut '+width,async()=>
+      await page.locator('.cmd-mobile-context').evaluate(el=>el.inert));
    await check(page,'J2 explicit confirmation and no early switch '+width,async()=>
       (await page.getByRole('alertdialog').innerText()).includes('TEST-007')
       &&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
    await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+   if(width<500)await check(page,'R4d mobile shortcut restored after modal closes '+width,async()=>
+      !(await page.locator('.cmd-mobile-context').evaluate(el=>el.inert)));
    if(width<500)await check(page,'R4d mobile context updates atomically on patient switch '+width,async()=>
       await page.locator('.cmd-mobile-context').getAttribute('data-patient-id')==='TEST-007'
       &&await page.locator('.cmd-mobile-context').getAttribute('data-appointment-id')==='APT-TEST-007'
