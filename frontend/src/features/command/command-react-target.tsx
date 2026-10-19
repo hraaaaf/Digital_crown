@@ -25,14 +25,15 @@ const patientTabs = ['Vue d’ensemble','Dossier','Plan de traitement','Odontogr
 function Pill({children,tone='info'}:{children:React.ReactNode;tone?:Tone}) {
  return <span className={'cmd-pill cmd-pill-'+tone}>{children}</span>;
 }
-function Card({title,action,children,className='',hidden=false}:{title:string;action?:React.ReactNode;children:React.ReactNode;className?:string;hidden?:boolean}) {
- return <section hidden={hidden} className={'cmd-card '+className}><header className="cmd-cardhead"><h3>{title}</h3>{action}</header>{children}</section>;
+function Card({title,action,children,className='',hidden=false,id}:{title:string;action?:React.ReactNode;children:React.ReactNode;className?:string;hidden?:boolean;id?:string}) {
+ return <section id={id} tabIndex={id?-1:undefined} hidden={hidden} className={'cmd-card '+className}><header className="cmd-cardhead"><h3>{title}</h3>{action}</header>{children}</section>;
 }
 export function CommandWorkbenchReactTarget(){
  const [view,setView]=useState('Command');
  const [tab,setTab]=useState('Vue d’ensemble');
  const [notification,setNotification]=useState('');
- const [mode,setMode]=useState('Jour');
+ const [agendaFocusRequest,setAgendaFocusRequest]=useState(0);
+ const [activeNavigation,setActiveNavigation]=useState('Command');
  const [activeLane,setActiveLane]=useState(0);
  const [additionalOpen,setAdditionalOpen]=useState(false);
  const [activeAppointmentId,setActiveAppointmentId]=useState('APT-TEST-001');
@@ -58,6 +59,7 @@ export function CommandWorkbenchReactTarget(){
   return ()=>siblings.forEach(e=>{e.inert=false;});
  },[pendingAppointmentId]);
  React.useEffect(()=>{if(previousPatientRef.current!==activeAppointmentId){previousPatientRef.current=activeAppointmentId;patientHeadingRef.current?.focus();}},[activeAppointmentId]);
+ React.useEffect(()=>{if(agendaFocusRequest>0&&view==='Command')document.getElementById('cmd-agenda')?.focus();},[agendaFocusRequest,view]);
  const samePractitionerNext=nextArrivedForPractitioner(activeAppointment,mockStatuses);
  const plannedSwitch=appointments.find(a=>a.id===pendingAppointmentId);
  const patientTag='Patient '+activeAppointment.patientId;
@@ -92,7 +94,7 @@ export function CommandWorkbenchReactTarget(){
   <aside className="cmd-sidebar">
     <div className="cmd-brand"><img className="cmd-logo-full" src={OfficialLogo} alt="Digital Crown"/><img className="cmd-logo-mini" src={CompactLogo} alt="Digital Crown — logo compact" /><small>COMMAND · 07-C</small></div>
     <div className="cmd-navtitle">ESPACE CABINET</div>
-    <nav aria-label="Navigation de démonstration" className="cmd-navigation">{menu.map(({name,icon:Icon})=><button type="button" key={name} aria-current={view===name?'page':undefined} aria-label={name} className={view===name?'cmd-selected':''} onClick={()=>{if(name==='Dossier clinique'||name==='Imagerie'){setView('Command');setTab(name==='Imagerie'?'Imagerie':'Dossier');}else{setView(name);if(name==='Command')setTab('Vue d’ensemble');}setNotification('');}}><Icon size={17} aria-hidden="true"/><span>{name}</span></button>)}</nav>
+    <nav aria-label="Navigation de démonstration" className="cmd-navigation">{menu.map(({name,icon:Icon})=><button type="button" key={name} aria-current={activeNavigation===name?'page':undefined} aria-label={name} className={activeNavigation===name?'cmd-selected':''} onClick={()=>{setActiveNavigation(name);if(name==='Agenda'){setView('Command');setAgendaFocusRequest(v=>v+1);}else if(name==='Dossier clinique'||name==='Imagerie'){setView('Command');setTab(name==='Imagerie'?'Imagerie':'Dossier');}else{setView(name);if(name==='Command')setTab('Vue d’ensemble');}setNotification('');}}><Icon size={17} aria-hidden="true"/><span>{name}</span></button>)}</nav>
     <div className="cmd-sidebarfooter"><Settings size={16}/> Maquette sans backend<br/><small>Données TEST uniquement</small></div>
   </aside>
   <main className="cmd-main">
@@ -105,11 +107,11 @@ export function CommandWorkbenchReactTarget(){
     {plannedSwitch&&<div ref={dialogRef} className="cmd-switch-confirm" role="alertdialog" aria-modal="true" aria-labelledby="cmd-switch-title" aria-describedby="cmd-switch-description" onKeyDown={trapDialogFocus}><strong id="cmd-switch-title">{plannedSwitch.patientId===activeAppointment.patientId?'Changement de rendez-vous fictif':'Changement de dossier fictif'} : Patient {activeAppointment.patientId} → Patient {plannedSwitch.patientId}</strong><span id="cmd-switch-description">RDV {plannedSwitch.ref} · Dr {['A','B','C'][plannedSwitch.practitionerId]} · {plannedSwitch.startLabel}–{plannedSwitch.endLabel}. Aucun enregistrement clinique.</span><button type="button" ref={confirmButtonRef} className="cmd-primary" onClick={confirmSwitch}>Confirmer le changement de patient</button><button type="button" ref={cancelButtonRef} onClick={cancelSwitch}>Annuler le changement</button></div>}
     {notification&&<div className="cmd-notice" role="status"><ShieldCheck size={15}/>{notification}<button onClick={()=>setNotification('')} aria-label="Fermer">×</button></div>}
     {view!=='Command'?
-     <Card title={view}><div className="cmd-placeholder">Prévisualisation hors module clinique. <button onClick={()=>setView('Command')}>Retour au cockpit</button></div></Card>
+     <Card title={view}><div className="cmd-placeholder">Prévisualisation en construction — aucune opération clinique. <button onClick={()=>{setView('Command');setActiveNavigation('Command');}}>Retour au cockpit</button></div></Card>
      :<div className="cmd-workbench">
-       <Card title="Agenda · Vue journalière" className="cmd-agenda" action={<small>15 min · 3 praticiens</small>}>
+       <Card id="cmd-agenda" title="Agenda · Vue journalière" className="cmd-agenda" action={<small>15 min · 3 praticiens</small>}>
         <div className="cmd-datebar"><button onClick={()=>announce('Calendrier')}><CalendarDays size={15}/> Lundi 19 octobre 2026 <ChevronDown size={13}/></button><button onClick={()=>announce('Aujourd’hui')}>Aujourd’hui</button><button className="cmd-primary" onClick={()=>announce('RDV')}><Plus size={15}/> RDV</button></div>
-        <div className="cmd-agenda-modes">{['Jour','Semaine','Liste'].map(x=><button aria-pressed={mode===x} className={mode===x?'active':''} key={x} onClick={()=>{setMode(x);if(x!=='Jour')announce(x)}}>{x}</button>)}</div>
+        <div className="cmd-agenda-modes" role="group" aria-label="Modes de l’agenda fictif"><button type="button" className="active" aria-pressed="true" aria-label="Jour — vue disponible">Jour</button>{['Semaine','Liste'].map(x=><button type="button" key={x} disabled aria-disabled="true" aria-label={x+' — en construction'} aria-pressed="false">{x}<small>En construction</small></button>)}</div>
         <div className="cmd-mobile-lanes" role="group" aria-label="Praticien affiché dans l’agenda mobile">{['Dr A','Dr B','Dr C'].map((name,index)=><button key={name} type="button" aria-label={'Agenda '+name} aria-pressed={activeLane===index} onClick={()=>setActiveLane(index)}>{name}</button>)}</div>
         <div className="cmd-agenda-overflow"><div className="cmd-calendar" data-quarter-hour-grid="true" data-active-lane={activeLane}>
          <div className="cmd-timehead" style={{gridRow:1,gridColumn:1}}>Heure</div>
