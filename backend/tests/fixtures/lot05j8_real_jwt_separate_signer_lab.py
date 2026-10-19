@@ -192,5 +192,8 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         # Do not expose authentication token, keys, SQLCipher secrets or full trace.
-        print("J8_DENIED_" + type(exc).__name__, file=sys.stderr)
+        safe_code = ("HTTP_" + str(exc.status_code)
+                     if type(exc).__name__ == "HTTPException"
+                     else type(exc).__name__)
+        print("J8_DENIED_" + safe_code, file=sys.stderr)
         sys.exit(61)
