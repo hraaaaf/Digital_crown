@@ -13,6 +13,7 @@ on:
       - backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py
       - backend/tests/test_legacy_sql_057j_restore_failclosed_lab.py
       - docs/quality/V15_05_7_J_FAIL_CLOSED_RECOVERY_CONTRACT.md
+      - .github/workflows/v15-05-7-i-real-jwt-wal-worker-fake.yml
       - .github/workflows/v15-05-7-j-failclosed-fake-recovery.yml
       - techdoubt.md
   workflow_dispatch:
@@ -99,4 +100,4 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/routers alembic frontend
           git diff --name-only "$BASE_SHA" HEAD > j-changed.txt
-          ! grep -Ev '^(\.github/workflows/v15-05-7-j-failclosed-fake-recovery\.yml|backend/services/guided_restore\.py|backend/services/guided_restore_worker\.py|backend/services/legacy_migration_safe_restore_lab_v15\.py|backend/tests/test_guided_restore\.py|backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab\.py|backend/tests/test_legacy_sql_057j_restore_failclosed_lab\.py|docs/quality/V15_05_7_J_FAIL_CLOSED_RECOVERY_CONTRACT\.md|techdoubt\.md)$' j-changed.txt
+          ! grep -Ev '^(\.github/workflows/v15-05-7-j-failclosed-fake-recovery\.yml|\.github/workflows/v15-05-7-i-real-jwt-wal-worker-fake\.yml|backend/services/guided_restore\.py|backend/services/guided_restore_worker\.py|backend/services/legacy_migration_safe_restore_lab_v15\.py|backend/tests/test_guided_restore\.py|backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab\.py|backend/tests/test_legacy_sql_057j_restore_failclosed_lab\.py|docs/quality/V15_05_7_J_FAIL_CLOSED_RECOVERY_CONTRACT\.md|techdoubt\.md)$' j-changed.txt
