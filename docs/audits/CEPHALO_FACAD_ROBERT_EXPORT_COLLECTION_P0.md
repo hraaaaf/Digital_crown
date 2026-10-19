@@ -73,7 +73,7 @@ Create a PRIVATE JSON intake file beside the six vendor exports, specifying the 
 **All filenames/timestamps above are illustrative placeholders, not actual observed exports.** Replace them with the six real FACAD original filenames and actual capture timestamps. The last boolean is a **manual declaration** that the real Object Values file includes appropriate marker positions; it does not make that true. Keep all six vendor files byte-identical and within the intake folder. Only authorized data may be staged.
 
 ```bash
-python audit/cephalo_facad_robert_evidence_stage.py \
+python -m audit.cephalo_facad_robert_evidence_stage \
   --intake /private/intake/SIX_EXPORTS.json \
   --private-output /private/new-facad-evidence
 python -m unittest -v audit.test_cephalo_facad_robert_evidence_stage
