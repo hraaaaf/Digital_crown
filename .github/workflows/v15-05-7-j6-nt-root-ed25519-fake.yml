@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   unchanged-restore-regressions:
-    # J4 own six-file scope gate must not run on stacked J5.
+    # J6 file-scope contract is required only on its own stacked PR.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j6-anchored-nt-handles-ed25519-fake-20261019'
     name: J6 NtCreateFile/Ed25519 plus clinical DENY (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
