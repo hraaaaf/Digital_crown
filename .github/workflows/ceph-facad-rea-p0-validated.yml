@@ -61,8 +61,16 @@ jobs:
             }
             $parsedBlocks++
           }
-          if ($parsedBlocks -lt 4) { throw "Expected four PowerShell blocks" }
+          if ($parsedBlocks -lt 6) { throw "Expected four PowerShell blocks" }
           Write-Host "POWERSHELL_PARSE_PASS=$parsedBlocks"
+
+      - name: Certify private six-export intake with synthetic fixtures only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m unittest -v audit.test_cephalo_facad_robert_evidence_stage
+          if ($LASTEXITCODE -ne 0) { throw 'Private six-export staging synthetic test suite failed' }
+          Write-Host 'FACAD_PRIVATE_SIX_EXPORT_STAGING_SYNTHETIC_PASS=true'
 
       - name: Install supported Node for pinned REA
         uses: actions/setup-node@v4
