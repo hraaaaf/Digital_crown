@@ -27,7 +27,7 @@ class FakeRecoveryDenied(PermissionError):
 
 
 def _root(root: Path) -> Path:
-    if (type(root) is not Path or not root.is_absolute()
+    if (not isinstance(root, Path) or not root.is_absolute()
             or not root.name.startswith("lot05j_fake_")
             or root.is_symlink() or not root.is_dir()):
         raise FakeRecoveryDenied("SYNTHETIC_ROOT_REQUIRED")
@@ -35,7 +35,7 @@ def _root(root: Path) -> Path:
 
 
 def _regular(path: Path, parent: Path) -> None:
-    if (path.is_symlink() or not path.is_file()
+    if (path.is_symlink() or path.parent.is_symlink() or not path.is_file()
             or path.resolve(strict=True).parent != parent.resolve(strict=True)
             or not stat.S_ISREG(path.stat().st_mode)):
         raise FakeRecoveryDenied("COMPONENT_PATH_DENIED")
@@ -181,6 +181,8 @@ def publish_fake_snapshot(
             raise FakeRecoveryDenied("INJECTED_AFTER_DB")
         for name in FIXED_COMPONENTS[1:]:
             src = inputs / name
+            if src.parent.is_symlink() or src.resolve(strict=True).is_relative_to(inputs.resolve(strict=True)) is False:
+                raise FakeRecoveryDenied("INPUT_COMPONENT_REDIRECTED")
             _regular(src, src.parent)
             before = _digest(src)
             dest = stage / name
@@ -221,7 +223,7 @@ def clone_current_into_new_fake_dir(root: Path, destination: Path, *,
                                     request_owner: object, expected_owner: object) -> Path:
     base = _root(root)
     _owner(request_owner, expected_owner)
-    if (type(destination) is not Path or destination.parent != root
+    if (not isinstance(destination, Path) or destination.parent != root
             or destination.name != "isolated-recovery" or destination.exists()):
         raise FakeRecoveryDenied("NEW_ISOLATED_DESTINATION_REQUIRED")
     directory, record = read_fake_current(
