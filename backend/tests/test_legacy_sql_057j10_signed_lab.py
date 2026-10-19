@@ -204,5 +204,24 @@ class J10SignedOfflineLab(unittest.TestCase):
             with self.assertRaisesRegex(j.J10Denied,"LEDGER_REDIRECTED"):
                 self.run_signed(token)
 
+    def test_15_invalid_base64_fails_closed_without_raw_decoder_error(self):
+        self.publish()
+        token=json.loads(self.sign())
+        for malformed in ("@", "AAAA!!!!", "=", "A" * 402):
+            with self.subTest(malformed=malformed[:12]):
+                token["signature"]=malformed
+                self.reject(j.canonical(token))
+        self.assertFalse((self.root/"consumed-nonces").exists())
+
+    def test_16_invalid_rsa_pin_and_envelope_signature_type_fail_closed(self):
+        self.publish()
+        token=self.sign()
+        self.reject(token,public_pin=b"NOT-A-PEM-PUBLIC-KEY")
+        self.reject(token,public_pin=b"x"*4097)
+        envelope=json.loads(token)
+        envelope["signature"]=False
+        self.reject(j.canonical(envelope))
+        self.assertFalse((self.root/"consumed-nonces").exists())
+
 if __name__=="__main__":
     unittest.main(verbosity=2)

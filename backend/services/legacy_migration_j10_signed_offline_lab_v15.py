@@ -1,5 +1,6 @@
 """J10 dormant RSA-authorized CLONE of an already verified synthetic generation."""
 import base64
+import binascii
 import hashlib
 import json
 import os
@@ -7,7 +8,7 @@ from pathlib import Path
 import re
 import tempfile
 import time
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from backend.services.legacy_migration_safe_restore_lab_v15 import (
@@ -57,7 +58,7 @@ def _claims(ticket, pin):
         if len(binary) != 256:
             raise J10Denied("SIGNATURE_SIZE")
         key.verify(binary, canonical(claims), padding.PKCS1v15(), hashes.SHA256())
-    except (UnicodeError, ValueError, TypeError, InvalidSignature) as exc:
+    except (UnicodeError, ValueError, TypeError, InvalidSignature, binascii.Error, UnsupportedAlgorithm) as exc:
         raise J10Denied("SIGNATURE_OR_FORMAT_DENIED") from exc
     return claims
 

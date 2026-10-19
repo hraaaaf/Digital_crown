@@ -1,3 +1,6 @@
+## LOT05.7-J10 — 2026-10-19 — parser failure normalization
+Independent internal attack perspective identified that an invalid Base64 ticket signature would raise raw binascii.Error, escaping J10Denied. This is fail-safe (no copy) but not a sanitized fail-closed contract; risk of HTTP 500 or noisy exceptions if reused later. Corrected J10-only dormant parser to map binascii.Error and cryptography UnsupportedAlgorithm to J10Denied; 2 additional negative tests cover malformed base64, non-string signature and unsupported pin, full 4-matrix CI exact SHA required. Trust-root/Admin and active SQLCipher/multicomponent rollback blockers remain UNRESOLVED.
+
 ## J10 test-only import seam after initial Windows CI RED
 Initial J10 workflow 39321090544 had a genuine Windows Python 3.12 FAILURE before any tests from ModuleNotFoundError sqlalchemy at backend/__init__.py eager ORM import. Correction in J10 Python TEST ONLY loads the two real implementation files via a minimal backend namespace, explicitly *not* an initialized clinical app. This provides source-level behavior proof only, not an integration certification. CI exact new HEAD required; no claims until four jobs actually PASS.
 
