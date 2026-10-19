@@ -76,6 +76,24 @@ jobs:
           xvfb-run -a -s '-screen 0 1920x1200x24' node scripts/research/lot07_07c_command_react_zoom.cjs
           test -s artifacts/lot07-07c-command-react/manifest.json
           test -s artifacts/lot07-07c-command-react/native-zoom-result.json
+      - name: FUE-A/B isolated fresh browser contexts (synthetic laboratory only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend
+          npx vite --config vite.command-target.config.mts --host 127.0.0.1 --port 5193 > /tmp/lot07-fue-vite.log 2>&1 &
+          vite_pid=$!
+          trap 'kill "$vite_pid" || true' EXIT
+          for _ in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:5193/command-target.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5193/command-target.html >/dev/null
+          cd ..
+          node scripts/research/lot07_07c_command_react_fue.cjs
+          test -s artifacts/lot07-07c-command-react/fue/fue-report.json
+          node -e 'const r=require("./artifacts/lot07-07c-command-react/fue/fue-report.json");if(!r.pass||r.sourceHead!==process.env.SOURCE_HEAD||r.independentAgents!==false||r.realLogin!==false)process.exit(1)'
+
       - name: Upload ONLY synthetic target screenshots and evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,5 +108,7 @@ jobs:
           echo "SYNTHETIC_ONLY=true"
           echo "REAL_CABINET_AFTER_TESTED=false"
           echo "PATIENT_RBAC_TESTED=false"
+          echo "FUE_A_B_BROWSER_LAB_ONLY=true"
+          echo "TWO_INDEPENDENT_BLIND_AI_AGENTS=false"
           echo "HUMAN_VISUAL_APPROVAL=false"
           echo "NO_MERGE_NO_VERCEL=true"
