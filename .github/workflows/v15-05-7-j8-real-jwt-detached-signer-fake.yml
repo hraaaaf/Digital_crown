@@ -157,7 +157,6 @@ jobs:
 
   real-windows-scm-service-sid:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j8-real-jwt-independent-signer-fake-20261019'
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j8-real-jwt-independent-signer-fake-20261019'
     name: Real ephemeral LocalService SCM token + NTFS ACL (Windows)
     runs-on: windows-latest
     timeout-minutes: 12
