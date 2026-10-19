@@ -2,6 +2,7 @@ name: CEPH-FAC FACAD REA P0 static evidence (EXPERIMENTAL)
 
 on:
   pull_request:
+    types: [opened, reopened, synchronize, edited]
     branches: [master]
     paths:
       - .github/workflows/ceph-facad-rea-p0-validated.yml
