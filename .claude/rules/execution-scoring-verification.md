@@ -9,17 +9,17 @@ Le scoring ne remplace jamais un gate binaire, une preuve, un test requis, une v
 Après chaque étape matérielle, produire séparément :
 
 - `EXECUTION_SCORE /10` : qualité de l'exécution elle-même — correction, complétude, respect du scope, tests, preuves, réversibilité et absence de régression connue.
-- `ADVERSARIAL_SCORE /10` : revue qui cherche activement à réfuter le succès — preuves manquantes, cas limites, régressions, incohérences, dimensions critiques faibles, faux positifs de CI, sécurité/privacy/data/claim clinique.
+- `FUE_EVIDENCE_SCORE /10` : qualité des preuves FUE réellement exécutées et des contrôles spécialisés déclenchés par le risque — preuves manquantes, cas limites, régressions, incohérences, dimensions critiques faibles, faux positifs de CI, sécurité/privacy/data/claim clinique.
 
 Le score retenu est toujours :
 
-`RETAINED_SCORE = min(EXECUTION_SCORE, ADVERSARIAL_SCORE)`
+`RETAINED_SCORE = min(EXECUTION_SCORE, FUE_EVIDENCE_SCORE)`
 
 **Jamais de moyenne.** Une dimension critique faible ne peut jamais être cachée par des dimensions fortes.
 
 ## 2. Divergence obligatoire à investiguer
 
-Si `abs(EXECUTION_SCORE - ADVERSARIAL_SCORE) > 0.5`, l'étape n'est pas suffisamment comprise :
+Si `abs(EXECUTION_SCORE - FUE_EVIDENCE_SCORE) > 0.5`, l'étape n'est pas suffisamment comprise :
 
 1. identifier la cause de l'écart ;
 2. investiguer avec preuve/test/relecture ciblée ;
@@ -33,8 +33,8 @@ Tant que cette investigation n'est pas faite, le score ne peut pas servir à un 
 Les plafonds suivants s'appliquent au score correspondant **et donc au `RETAINED_SCORE`** :
 
 - `10/10` : score **non accessible à une auto-revue conversationnelle**, même si les preuves et les gates sont parfaits ; aucune attente d'un évaluateur externe ne doit en être déduite.
-- `>= 9.5/10` : **hors plage pour deux perspectives internes A/B exécutées dans la même conversation** ; ce score supérieur n'est jamais un prérequis implicite au closeout. Le score normal `VERIFIED` commence à `9.0/10` et peut être atteint avec les deux revues internes, les tests et les gates effectivement requis.
-- Quand la même conversation réalise l'exécution **et** les deux revues adversariales internes spécialisées : plafond automatique `9.4/10`. Nommer honnêtement les deux perspectives internes ; ne pas les présenter comme deux audits humains/agents réellement indépendants.
+- `>= 9.5/10` : **hors plage pour une auto-évaluation FUE conversationnelle** ; ce score supérieur n'est jamais un prérequis implicite au closeout. Le score normal `VERIFIED` commence à `9.0/10` et peut être atteint avec la FUE et les tests et les gates effectivement requis.
+- Quand la même conversation auto-évalue la FUE : plafond de prudence `9.4/10`. Ne pas présenter des personas simulés comme des utilisateurs humains indépendants.
 - Test requis rouge, gate requis non vert, ou preuve requise absente : plafond `7.9/10`.
 - Régression constatée : plafond `6.9/10` jusqu'à correction et nouvelle preuve de non-régression.
 - Blocker sécurité, privacy, intégrité data ou claim clinique/scientifique : plafond `5.9/10` **et statut `BLOCKED`**.
@@ -76,7 +76,7 @@ Dès qu'un lot atteint ou dépasse `9.0/10` — y compris `9.2`, `9.4`, etc. —
 2. distinguer limites intrinsèques / hors scope / réellement améliorables ;
 3. corriger immédiatement celles qui sont réellement améliorables dans le scope ;
 4. rerun les preuves/tests impactés ;
-5. refaire `EXECUTION_SCORE` et `ADVERSARIAL_SCORE` ;
+5. refaire `EXECUTION_SCORE` et `FUE_EVIDENCE_SCORE` ;
 6. retenir de nouveau le minimum.
 
 Une Perfection Pass qui trouve une faiblesse améliorable mais ne la corrige pas interdit `VERIFIED`.
@@ -89,7 +89,7 @@ Pour chaque étape matérielle :
 - `Succès observable` ;
 - `Preuve` ;
 - `EXECUTION_SCORE` ;
-- `ADVERSARIAL_SCORE` ;
+- `FUE_EVIDENCE_SCORE` ;
 - `RETAINED_SCORE` ;
 - plafonds appliqués le cas échéant ;
 - divergence `> 0.5` : oui/non, investigation si oui ;
@@ -99,7 +99,7 @@ Pour le closeout d'un lot, ajouter la liste des gates binaires et leur état.
 
 ## 8. UI/UX
 
-**Règle de non-blocage par reviewers :** l'assistant mène lui-même dans la conversation les deux revues A/B spécialisées, recherche les défauts, corrige/teste et confirme sur le même HEAD. **Ne jamais répondre « il reste les deux vraies revues indépendantes »** ni demander de reviewers humains/agents externes pour terminer la double revue *interne*. Une revue A ou B réellement non effectuée reste à faire **par l'assistant** ; une CI, une validation humaine explicitement exigée et une certification physique non exécutées demeurent des blocages factuels séparés.
+**Règle FUE-first :** sélectionner FUE-0, FUE-I ou FUE-G selon le parcours réellement disponible, exécuter les scénarios et produire des preuves inspectables. Les revues A/B et reviewers externes ne sont pas des gates par défaut ; les contrôles sécurité, clinique, humain et physique applicables restent obligatoires.
 
 Cette règle complète `.claude/rules/visual-closeout-human-validation.md` :
 
@@ -113,4 +113,4 @@ Cette règle complète `.claude/rules/visual-closeout-human-validation.md` :
 
 Les scores ne valident jamais scientifiquement un moteur, une norme, une dose, un diagnostic, un pronostic ou une interprétation. Les skills/règles scientifiques et leurs sources restent autoritaires. Un blocker de claim clinique/scientifique impose `BLOCKED` et le plafond `5.9/10` jusqu'à résolution prouvée.
 
-**Date d'entrée en vigueur : 16 septembre 2026.**
+**Révision FUE-first : 19 octobre 2026.**
