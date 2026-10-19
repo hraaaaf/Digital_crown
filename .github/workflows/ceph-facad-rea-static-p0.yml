@@ -23,7 +23,17 @@ jobs:
       - name: Checkout exact experimental HEAD
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Assert exact tested PR HEAD
+        shell: pwsh
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_HEAD) { throw "HEAD mismatch: $actual != expected PR head" }
+          Write-Host "PR_EXACT_HEAD_VERIFIED=$actual"
 
       - name: Install supported Node for pinned REA
         uses: actions/setup-node@v4
