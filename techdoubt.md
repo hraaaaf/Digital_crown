@@ -1,3 +1,6 @@
+## LOT05 / 05.7-J10D — 2026-10-19 — fake IPC parser is NOT Windows authority
+New test-only canonical JSON frame parser and negative tests check synthetic purpose/owner/job/generation/manifest/nonce/expiry, duplicates and size. BLOCKER: no Windows named pipe, no installed consumer SCM service, no OS peer authentication, no RSA binding to transport, no replay-persistent nonce ledger, no independent vendor/install trust anchor or Admin/SYSTEM threat resistance. Tests not yet run on exact new HEAD. Clinical apply remains DENY; J10D certification OPEN / LOT05 NO-GO. Never interpret parser PASS as authenticated IPC or clinical restore authorization.
+
 ## LOT05.7-J10C — 2026-10-19 — adversarial verifier parser + pointer race
 A real JWT/SCM-signed ticket from J10C must not turn malformed Base64 into an unhandled exception, nor allow a stale CURRENT generation to consume a nonce and trigger a synthetic copy if CURRENT changed after the first verification. Added bounded denial and second exact manifest+directory re-read before nonce O_EXCL, plus negative tests on the same Windows chain. Remaining BLOCKER: attacker Admin/SYSTEM can still race after that re-check or replace pin/ledger/generation, so checks are not handle-anchored NTFS recovery nor product authority. CI exact new HEAD required and independent user/service attestation remains missing.
 
