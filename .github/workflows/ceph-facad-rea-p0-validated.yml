@@ -110,10 +110,65 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'REA CLI version failed' }
           Write-Host "REA_PIN=rea-agents@6.7.0"
           Write-Host "REA_VERSION=$version"
+          # Report only an explicit whitelist of technical status enums, booleans and counts.
+          # Never serialize raw vendor values, source, CIL, type names, method names or paths.
+          function ConvertTo-SafeReaFacet {
+            param([object]$Node)
+            $result = [ordered]@{ kind = 'absent'; fields = @(); values = [ordered]@{} }
+            if ($null -eq $Node) { return $result }
+            $allowedEnums = @('complete','partial','unknown','unavailable','unsupported','managed','native','mixed','mixed_mode','clr','managed_dotnet','native_pe','invalid','supported','none')
+            $enumKeys = @('status','state','kind','classification','coverage_state','availability')
+            $boolKeys = @('is_managed','is_native','is_mixed','has_metadata','is_complete')
+            $countKeys = @('total','count','found','covered','available','unavailable','analyzed','methods_total','methods_analyzed','methods_covered','types_total','types_covered')
+            if ($Node -is [pscustomobject]) {
+              $result.kind = 'object'
+              foreach ($prop in $Node.PSObject.Properties) {
+                $key = [string]$prop.Name
+                if ($key -notin ($enumKeys + $boolKeys + $countKeys)) { continue }
+                $result.fields += $key
+                if ($key -in $enumKeys) {
+                  if ($prop.Value -is [string] -and $prop.Value.ToLowerInvariant() -in $allowedEnums) {
+                    $result.values[$key] = $prop.Value.ToLowerInvariant()
+                  } else {
+                    $result.values[$key] = 'WITHHELD'
+                  }
+                }
+                elseif ($key -in $boolKeys) {
+                  if ($prop.Value -is [bool]) { $result.values[$key] = $prop.Value }
+                  else { $result.values[$key] = 'WITHHELD' }
+                }
+                else {
+                  if ($prop.Value -is [int] -or $prop.Value -is [long]) {
+                    if ($prop.Value -ge 0 -and $prop.Value -le 10000000) { $result.values[$key] = $prop.Value }
+                    else { $result.values[$key] = 'WITHHELD' }
+                  } else { $result.values[$key] = 'WITHHELD' }
+                }
+              }
+              $result.fields = @($result.fields | Sort-Object -Unique)
+            }
+            elseif ($Node -is [array]) {
+              $result.kind = 'array'
+              $result.values['count'] = @($Node).Count
+            }
+            elseif ($Node -is [string]) {
+              $result.kind = 'scalar'
+              if ($Node.ToLowerInvariant() -in $allowedEnums) { $result.values['enum'] = $Node.ToLowerInvariant() }
+              else { $result.values['enum'] = 'WITHHELD' }
+            }
+            else { $result.kind = 'scalar'; $result.values['value'] = 'WITHHELD' }
+            return $result
+          }
+          # Fail-closed synthetic redaction regression, before any FACAD inspection.
+          $synthetic = [pscustomobject]@{ status = 'PROPRIETARY_INTERNAL_METHOD'; total = 5; is_managed = $true; secret_path = 'SENSITIVE' }
+          $guard = ConvertTo-SafeReaFacet $synthetic
+          if ($guard.values['status'] -ne 'WITHHELD' -or $guard.values['total'] -ne 5 -or $guard.values['is_managed'] -ne $true -or $guard.fields -contains 'secret_path') {
+            throw 'Safe REA facet projection failed synthetic redaction test'
+          }
+          Write-Host 'REA_SAFE_PROJECTION_SYNTHETIC_PASS=true'
           $root = 'facad-rea/release'
           $wanted = @('Facad.exe', 'FacadExportCephDataPlugin.exe')
           $summary = [ordered]@{
-            schema_version = 3
+            schema_version = 4
             source_head = (git rev-parse HEAD).Trim()
             source = 'official public Citodent FACAD 3.14.1.1111 release ZIP'
             rea_pin = 'rea-agents@6.7.0'
@@ -167,6 +222,10 @@ jobs:
               rea_root_schema_field_names_omitted = @($keys | Where-Object { $_ -cnotmatch '^[A-Za-z_][A-Za-z0-9_]{0,63}$' }).Count
               # Schema-only child inspection; no normalized_result values are exposed.
               rea_normalized_result_shape = [ordered]@{ kind = 'unavailable'; field_names = @(); omitted = 0 }
+              rea_safe_facets = [ordered]@{
+                classification = [ordered]@{ kind = 'absent'; fields = @(); values = [ordered]@{} }
+                coverage = [ordered]@{ kind = 'absent'; fields = @(); values = [ordered]@{} }
+              }
               pe_header = [ordered]@{
                 cli_header_present = $corPresent
                 cli_metadata_present = $metadataPresent
@@ -191,6 +250,15 @@ jobs:
               }
               else {
                 $entry.rea_normalized_result_shape = [ordered]@{ kind = 'scalar' }
+              }
+            }
+            if ($null -ne $normalizedProp -and $normalizedProp.Value -is [pscustomobject]) {
+              foreach ($facetName in @('classification','coverage')) {
+                $facetProp = $normalizedProp.Value.PSObject.Properties[$facetName]
+                if ($null -ne $facetProp) {
+                  $entry.rea_safe_facets[$facetName] = ConvertTo-SafeReaFacet $facetProp.Value
+                }
+                Write-Host "REA_SAFE_FACET=$name/$facetName/$($entry.rea_safe_facets[$facetName].kind)"
               }
             }
             foreach ($sectionName in @('metadata','classification','coverage','summary','result','diagnostics')) {
