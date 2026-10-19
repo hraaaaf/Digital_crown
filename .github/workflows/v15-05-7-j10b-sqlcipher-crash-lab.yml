@@ -1,0 +1,64 @@
+name: V1.5-05.7-J10B Native SQLCipher WAL Vault Crash FAKE
+on:
+  push:
+    branches:
+      - feat/v15-05-7j10b-sqlcipher-offline-crash-20261019
+  pull_request:
+    paths:
+      - backend/tests/fixtures/lot05j10b_sqlcipher_multicomponent_lab.py
+      - backend/tests/test_legacy_sql_057j10b_sqlcipher_multicomponent_lab.py
+      - .github/workflows/v15-05-7-j10b-sqlcipher-crash-lab.yml
+      - docs/quality/V15_05_7_J10B_SQLCIPHER_CRASH_CONTRACT.md
+      - techdoubt.md
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-sqlcipher:
+    name: J10B native SQLCipher committed WAL and abrupt subprocess crash (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      LOT05J10B_SQLCIPHER_FAKE_ONLY: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native SQLCipher library Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Install genuine SQLCipher
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install sqlcipher3==0.6.2
+          python -c "from sqlcipher3 import dbapi2 as d; c=d.connect(':memory:'); assert c.execute('PRAGMA cipher_version').fetchone()[0]; c.close(); print('J10B_REAL_SQLCIPHER')"
+      - name: Run 10 encrypted component and forced process death regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/fixtures/lot05j10b_sqlcipher_multicomponent_lab.py backend/tests/test_legacy_sql_057j10b_sqlcipher_multicomponent_lab.py
+          python -B backend/tests/test_legacy_sql_057j10b_sqlcipher_multicomponent_lab.py -v 2>&1 | tee j10b.log
+          grep -q '^Ran 10 tests' j10b.log
+          grep -Eq '^OK[[:space:]]*$' j10b.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j10b.log
+      - name: Verify exact HEAD five J10B files and no clinical edits
+        shell: bash
+        env:
+          BASE_SHA: 1596799ad9665e54ed17b9d412f05184afc465b4
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
+          git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10b-sqlcipher-crash-lab.yml' 'backend/tests/fixtures/lot05j10b_sqlcipher_multicomponent_lab.py' 'backend/tests/test_legacy_sql_057j10b_sqlcipher_multicomponent_lab.py' 'docs/quality/V15_05_7_J10B_SQLCIPHER_CRASH_CONTRACT.md' 'techdoubt.md' | sort > expected.txt
+          diff -u expected.txt actual.txt
