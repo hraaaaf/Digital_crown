@@ -68,7 +68,9 @@ jobs:
           python -m py_compile backend/tests/fixtures/lot05j4_signed_job_lab.py backend/tests/test_legacy_sql_057j4_ntfs_signed_job_lab.py
           PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j4_ntfs_signed_job_lab.py -v 2>&1 | tee j4.log
           grep -q '^Ran 22 tests' j4.log
-          grep -Eq '^OK[[:space:]]*
+          grep -Eq '^OK[[:space:]]*$' j4.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j4.log
+      - name: Re-run true native SQLCipher J2 generation and SCM deny
         shell: bash
         run: |
           set -euo pipefail
