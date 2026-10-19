@@ -29,7 +29,7 @@
 
 ## Plafonds à vérifier
 
-- Auto-évaluation FUE conversationnelle → `<= 9.4/10`.
+- Auto-évaluation FUE conversationnelle → `<= 9.4/10` ; `9.5/10` n'est pas auto-attribuable et n'est pas un prérequis au closeout.
 - Test/gate requis rouge ou preuve requise absente → `<= 7.9/10`.
 - Régression constatée → `<= 6.9/10` jusqu'à correction + nouvelle preuve.
 - Blocker sécurité/privacy/data/claim clinique-scientifique → `<= 5.9/10` + `BLOCKED`.
