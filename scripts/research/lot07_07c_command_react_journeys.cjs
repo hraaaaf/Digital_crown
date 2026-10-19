@@ -28,6 +28,20 @@ async function snap(page,name){
     await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
     &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
     &&(await page.locator('.cmd-patienthero').innerText()).includes('09:00'));
+   if(width<500){
+     await check(page,'R4d sticky active patient identity initialized '+width,async()=>
+       await page.locator('.cmd-mobile-context').isVisible()
+       &&await page.locator('.cmd-mobile-context').getAttribute('data-patient-id')==='TEST-001'
+       &&await page.locator('.cmd-mobile-context').getAttribute('data-appointment-id')==='APT-TEST-001');
+     await page.evaluate(()=>window.scrollTo(0,900));
+     await page.waitForFunction(()=>window.scrollY>500);
+     await check(page,'R4d patient context remains sticky during mobile scrolling '+width,async()=>await page.locator('.cmd-mobile-context').evaluate(el=>{
+       const r=el.getBoundingClientRect();return Math.abs(r.top)<3&&r.width>300;
+     }));
+     await page.getByRole('button',{name:'Revenir au dossier de Patient TEST-001'}).click();
+     await check(page,'R4d dossier shortcut focuses current patient '+width,async()=>await page.evaluate(()=>
+       document.activeElement?.tagName==='H2'&&document.activeElement?.textContent?.includes('TEST-001')));
+   }
    await check(page,'R4b appointment identity differs from patient identity '+width,async()=>{
      const appt=page.locator('.cmd-appt[data-appointment-id="APT-TEST-018"]');
      return await appt.getAttribute('data-patient-id')==='TEST-001'
@@ -78,6 +92,10 @@ async function snap(page,name){
       (await page.getByRole('alertdialog').innerText()).includes('TEST-007')
       &&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
    await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+   if(width<500)await check(page,'R4d mobile context updates atomically on patient switch '+width,async()=>
+      await page.locator('.cmd-mobile-context').getAttribute('data-patient-id')==='TEST-007'
+      &&await page.locator('.cmd-mobile-context').getAttribute('data-appointment-id')==='APT-TEST-007'
+      &&(await page.locator('.cmd-mobile-context').innerText()).includes('RDV TEST-007'));
    await check(page,'J2 Dr A 10:00 and bound context '+width,async()=>
       await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-007'
       &&await page.locator('.cmd-right').getAttribute('data-patient-id')==='TEST-007'
