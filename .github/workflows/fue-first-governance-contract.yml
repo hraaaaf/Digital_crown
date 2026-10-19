@@ -1,0 +1,31 @@
+name: FUE-first governance contract tests
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.claude/rules/execution-scoring-verification.md'
+      - '.claude/rules/visual-closeout-human-validation.md'
+      - '.github/pull_request_template.md'
+      - 'docs/quality/REALITY_PROOF_GATE.md'
+      - 'scripts/verify_conversational_review_doctrine.py'
+      - 'backend/tests/test_execution_scoring_policy_contract.py'
+      - '.github/workflows/fue-first-governance-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exact HEAD
+        run: git rev-parse HEAD
+      - name: Execute G10-S documentary contract
+        run: python scripts/verify_conversational_review_doctrine.py
+      - name: Execute scoring policy contract
+        run: python -m pytest backend/tests/test_execution_scoring_policy_contract.py -q
