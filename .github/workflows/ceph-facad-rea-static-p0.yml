@@ -76,7 +76,7 @@ jobs:
           $root = 'facad-rea/release'
           $wanted = @('Facad.exe', 'FacadExportCephDataPlugin.exe')
           $summary = [ordered]@{
-            schema_version = 1
+            schema_version = 2
             source_head = (git rev-parse HEAD).Trim()
             source = 'official public Citodent FACAD 3.14.1.1111 release ZIP'
             rea_pin = 'rea-agents@6.7.0'
@@ -110,6 +110,57 @@ jobs:
               json_valid = $true
               output_sha256 = (Get-FileHash -LiteralPath $out -Algorithm SHA256).Hash
               result_field_count = $keys.Count
+              # Schema names are safe; no vendor classes, methods, strings or CIL bytes leave the runner.
+              rea_envelope_field_names = @($keys | Select-Object -First 32)
+              rea_schema_sections = [ordered]@{}
+              coverage_state = 'UNKNOWN'
+              metadata_status = 'UNKNOWN'
+            }
+            foreach ($sectionName in @('normalized_result','result','metadata','coverage','classification','summary','diagnostics')) {
+              $sectionProperty = $parsed.PSObject.Properties[$sectionName]
+              if ($null -eq $sectionProperty -or $null -eq $sectionProperty.Value) { continue }
+              $sectionValue = $sectionProperty.Value
+              if ($sectionValue -is [pscustomobject]) {
+                $entry.rea_schema_sections[$sectionName] = @($sectionValue.PSObject.Properties.Name | Select-Object -First 24)
+                if ($sectionName -eq 'coverage' -and $null -ne $sectionValue.PSObject.Properties['state']) {
+                  $state = [string]$sectionValue.state
+                  if ($state -match '^(complete|partial|unavailable|unknown)            Write-Host "REA_STATIC_JSON_VALID=$name"
+          }
+          if ($summary.results.Count -ne 2) { throw 'Incomplete REA target coverage' }
+          $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/rea-safe-summary.json -Encoding utf8
+          Write-Host 'REA_FACAD_TWO_REAL_TARGETS_P0_PASS=true'
+          # Raw REA reports and vendor binaries are NEVER uploaded.
+
+      - name: Upload safe proof summary only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-facad-rea-p0-safe-summary
+          path: facad-rea/evidence/rea-safe-summary.json
+          if-no-files-found: ignore
+          retention-days: 7
+) { $entry.coverage_state = $state }
+                }
+                if ($sectionName -eq 'metadata' -and $null -ne $sectionValue.PSObject.Properties['status']) {
+                  $state = [string]$sectionValue.status
+                  if ($state -match '^(complete|partial|unavailable|unknown)            Write-Host "REA_STATIC_JSON_VALID=$name"
+          }
+          if ($summary.results.Count -ne 2) { throw 'Incomplete REA target coverage' }
+          $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath facad-rea/evidence/rea-safe-summary.json -Encoding utf8
+          Write-Host 'REA_FACAD_TWO_REAL_TARGETS_P0_PASS=true'
+          # Raw REA reports and vendor binaries are NEVER uploaded.
+
+      - name: Upload safe proof summary only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-facad-rea-p0-safe-summary
+          path: facad-rea/evidence/rea-safe-summary.json
+          if-no-files-found: ignore
+          retention-days: 7
+) { $entry.metadata_status = $state }
+                }
+              }
             }
             $summary.results += $entry
             Write-Host "REA_STATIC_JSON_VALID=$name"
