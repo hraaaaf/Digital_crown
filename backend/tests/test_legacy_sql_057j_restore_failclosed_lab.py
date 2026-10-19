@@ -6,6 +6,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -47,7 +48,9 @@ class SafeFakeRecoveryLab(unittest.TestCase):
         return read_fake_current(self.root, request_owner=7, expected_owner=7)
 
     def _value(self, db):
-        with sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True) as conn:
+        # sqlite3's context manager commits/rolls back but does NOT close;
+        # Windows otherwise retains snapshot handles until GC / process exit.
+        with closing(sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)) as conn:
             return conn.execute("SELECT v FROM truth").fetchone()[0]
 
     def test_01_real_sqlite_wal_commit_is_captured_and_cloned(self):
