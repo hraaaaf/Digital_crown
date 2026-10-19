@@ -41,7 +41,7 @@ internal sealed class J10DCaller : ServiceBase {
                     var buffer=new byte[64];
                     int n=pipe.Read(buffer,0,buffer.Length);
                     string response=Encoding.ASCII.GetString(buffer,0,n);
-                    outcome=response=="DENY_J10D_SID_PRESENT\\n" ? "DENY_SID_PROVEN" : "FAIL_BAD_RESPONSE";
+                    outcome=response=="DENY_J10D_SID_PRESENT\n" ? "DENY_SID_PROVEN" : "FAIL_BAD_RESPONSE";
                     break;
                 }
             } catch(System.TimeoutException) { Thread.Sleep(200); }
