@@ -134,7 +134,12 @@ class PrivateFacadStageTests(unittest.TestCase):
 
     def test_existing_private_output_must_not_be_overwritten(self) -> None:
         self.output.mkdir()
-        self._rejected()
+        sentinel = self.output / "DO_NOT_OVERWRITE.txt"
+        sentinel.write_text("ORIGINAL PRIVATE FILE", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            self._attempt()
+        self.assertEqual(sentinel.read_text(encoding="utf-8"), "ORIGINAL PRIVATE FILE")
+        self.assertEqual(list(self.output.iterdir()), [sentinel])
 
 
 if __name__ == "__main__":
