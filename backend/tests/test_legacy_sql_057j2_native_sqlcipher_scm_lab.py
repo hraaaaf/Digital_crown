@@ -105,7 +105,7 @@ class NativeSqlcipherRecoveryBoundaryLab(unittest.TestCase):
     def test_07_missing_wrong_bool_or_coercible_owner_refused(self):
         for owner in (None, 0, -1, True, False, "7", 7.0, 8):
             with self.subTest(owner=owner), self.assertRaises(j2.J2Denied):
-                j2.fake_publish(self.root, self.source, owner=owner, expected_owner=7, expected_owner=7, key=self.key)
+                j2.fake_publish(self.root, self.source, owner=owner, expected_owner=7, key=self.key)
         self.assertFalse((self.root / "CURRENT.json").exists())
 
     def test_08_flag_off_or_invalid_key_rejected_before_mutation(self):
