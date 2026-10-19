@@ -65,8 +65,13 @@ async function snap(page,name){
       await check(page,'J2 modal backwards focus wrap',async()=> (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Annuler le changement'));
       await page.keyboard.press('Tab');
       await check(page,'J2 modal forwards focus wrap',async()=> (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Confirmer le changement de patient'));
+      await check(page,'J2 dialog makes background inert',async()=>await page.locator('.cmd-workbench').evaluate(el=>el.inert));
       await page.keyboard.press('Escape');
       await check(page,'J2 escape cancels without switching',async()=>await modal.count()===0&&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
+      await page.waitForFunction(()=>document.activeElement?.textContent?.includes('Patient suivant (même praticien)'));
+      await check(page,'J2 cancel restores focus and interactivity',async()=>
+        !(await page.locator('.cmd-workbench').evaluate(el=>el.inert))
+        &&(await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Patient suivant (même praticien)'));
       await page.getByRole('button',{name:'Patient suivant (même praticien)'}).click();
    }
    await check(page,'J2 explicit confirmation and no early switch '+width,async()=>
@@ -113,6 +118,12 @@ async function snap(page,name){
       &&await page.locator('.cmd-cards > .cmd-card:visible').count()===1
       &&(await page.locator('.cmd-cards').innerText()).includes('Aucun média pour TEST-007'));
    await snap(page,'r4-imagerie-test007-'+width);
+   await page.keyboard.press('End');
+   await check(page,'J3 End goes to last tab '+width,async()=>await page.getByRole('tab',{name:'Facturation',exact:true}).getAttribute('aria-selected')==='true'
+      &&(await page.locator('.cmd-cards').innerText()).includes('Aucune transaction pour Patient TEST-007'));
+   await page.keyboard.press('Home');
+   await check(page,'J3 Home returns to overview '+width,async()=>await page.getByRole('tab',{name:'Vue d’ensemble',exact:true}).getAttribute('aria-selected')==='true'
+      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-007');
    await page.getByRole('tab',{name:'Dossier',exact:true}).click();
    await check(page,'J3 return same dossier '+width,async()=>
       await page.locator('.cmd-cards > .cmd-card:visible').count()===3
@@ -130,6 +141,9 @@ async function snap(page,name){
      await check(page,'J1 mock finish disables clinical-action affordance',async()=> 
        (await page.locator('.cmd-patienthero').innerText()).includes('Terminé')
        &&!(await page.getByRole('button',{name:'Mettre en pause'}).isEnabled()));
+     await check(page,'J1 terminal appointment cannot be resumed or ended again',async()=>
+       await page.getByRole('button',{name:'Terminer le RDV (simulation)'}).isDisabled()
+       &&await page.getByRole('button',{name:'Patient suivant (même praticien)'}).isEnabled());
      await check(page,'J1 finish releases room assignment',async()=>await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='3');
      await snap(page,'r4-consultation-finished-test001-1440');
      await page.locator('.cmd-appt').filter({hasText:'TEST-007'}).click();
