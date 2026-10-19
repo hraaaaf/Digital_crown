@@ -168,7 +168,7 @@ jobs:
           $root = 'facad-rea/release'
           $wanted = @('Facad.exe', 'FacadExportCephDataPlugin.exe')
           $summary = [ordered]@{
-            schema_version = 5
+            schema_version = 6
             source_head = (git rev-parse HEAD).Trim()
             source = 'official public Citodent FACAD 3.14.1.1111 release ZIP'
             rea_pin = 'rea-agents@6.7.0'
@@ -236,6 +236,91 @@ jobs:
                 }
               }
               if ($declaredTypes -le 0 -or $declaredMethods -le 0) { throw "No declared managed members: $name" }
+              # Exploratory candidate ranking: metadata declaration names are used only IN MEMORY.
+              # Public evidence contains ordinal rank labels T01..T12, fixed signal categories and counts.
+              $typeCandidateCohorts = [ordered]@{ export_bridge = 0; ceph_bridge = 0; analysis_bridge = 0; other_multisignal = 0 }
+              $typeCandidateShortlist = @()
+              if ($name -eq 'FacadExportCephDataPlugin.exe') {
+                $candidateRows = [System.Collections.Generic.List[object]]::new()
+                $ordinalInMetadata = 0
+                foreach ($candidateHandle in $mdReader.TypeDefinitions) {
+                  $ordinalInMetadata++
+                  $candidateType = $mdReader.GetTypeDefinition($candidateHandle)
+                  $candidateTypeName = $mdReader.GetString($candidateType.Name)
+                  $typeHits = [ordered]@{}
+                  $methodHits = [ordered]@{}
+                  foreach ($category in $signals.Keys) {
+                    $typeHits[$category] = [bool]($candidateTypeName -match $signals[$category])
+                    $methodHits[$category] = 0
+                  }
+                  $declaredPublicInType = 0
+                  foreach ($methodHandle in $candidateType.GetMethods()) {
+                    $candidateMethod = $mdReader.GetMethodDefinition($methodHandle)
+                    $candidateMethodName = $mdReader.GetString($candidateMethod.Name)
+                    if (([int]$candidateMethod.Attributes -band 7) -eq 6) { $declaredPublicInType++ }
+                    foreach ($category in $signals.Keys) {
+                      if ($candidateMethodName -match $signals[$category]) { $methodHits[$category]++ }
+                    }
+                  }
+                  $matchedSignals = @($signals.Keys | Where-Object { $typeHits[$_] -or $methodHits[$_] -gt 0 })
+                  if ($matchedSignals.Count -lt 2) { continue }
+                  $hasAnchor = $false
+                  foreach ($anchorCategory in @('export','ceph','analysis','marker')) {
+                    if ($anchorCategory -in $matchedSignals) { $hasAnchor = $true }
+                  }
+                  if (-not $hasAnchor) { continue }
+                  $tier = 'other_multisignal'
+                  $tierScore = 0
+                  if ('export' -in $matchedSignals) {
+                    $tier = 'export_bridge'
+                    $tierScore = 300
+                  }
+                  elseif ('ceph' -in $matchedSignals -and (@('analysis','marker','position','values','properties') | Where-Object { $_ -in $matchedSignals }).Count -gt 0) {
+                    $tier = 'ceph_bridge'
+                    $tierScore = 200
+                  }
+                  elseif ('analysis' -in $matchedSignals) {
+                    $tier = 'analysis_bridge'
+                    $tierScore = 100
+                  }
+                  $totalMatchingMethods = 0
+                  foreach ($category in $signals.Keys) { $totalMatchingMethods += $methodHits[$category] }
+                  $score = $tierScore + (10 * $matchedSignals.Count) + [Math]::Min($totalMatchingMethods,25)
+                  $typeCandidateCohorts[$tier]++
+                  [void]$candidateRows.Add([pscustomobject]@{
+                    ordinal_private = $ordinalInMetadata
+                    priority_tier = $tier
+                    score_private = $score
+                    category_labels = @($matchedSignals | Sort-Object)
+                    type_name_categories = @($signals.Keys | Where-Object { $typeHits[$_] } | Sort-Object)
+                    method_hit_counts = $methodHits
+                    public_method_count = $declaredPublicInType
+                  })
+                }
+                $rankedCandidates = @($candidateRows | Sort-Object -Property @{ Expression = 'score_private'; Descending = $true }, @{ Expression = 'ordinal_private'; Descending = $false } | Select-Object -First 12)
+                $rank = 0
+                foreach ($candidate in $rankedCandidates) {
+                  $rank++
+                  $typeCandidateShortlist += [ordered]@{
+                    rank_id = ('T{0:D2}' -f $rank)
+                    priority_tier = $candidate.priority_tier
+                    matched_categories = @($candidate.category_labels)
+                    type_name_category_labels = @($candidate.type_name_categories)
+                    method_name_category_counts = $candidate.method_hit_counts
+                    public_declared_method_count = $candidate.public_method_count
+                    caveat = 'Rank is reproducible only for the identical binary and sorting algorithm; not a vendor identifier.'
+                  }
+                }
+                if ($candidateRows.Count -lt $typeCandidateShortlist.Count) { throw 'Candidate shortlist integrity failure' }
+                foreach ($candidate in $typeCandidateShortlist) {
+                  foreach ($key in $candidate.Keys) {
+                    if ($key -notin @('rank_id','priority_tier','matched_categories','type_name_category_labels','method_name_category_counts','public_declared_method_count','caveat')) { throw 'Unexpected candidate output field' }
+                  }
+                  if ($candidate.rank_id -notmatch '^T[0-9]{2}$') { throw 'Invalid abstract rank ID' }
+                }
+                Write-Host "PE_PLUGIN_MULTISIGNAL_CANDIDATES=$($candidateRows.Count)"
+                Write-Host "PE_PLUGIN_ANONYMOUS_SHORTLIST_COUNT=$($typeCandidateShortlist.Count)"
+              }
               $peDeclarationSurface = [ordered]@{
                 authority = 'PEReader_METADATA_DECLARATIONS_ONLY'
                 declared_types = $declaredTypes
@@ -243,7 +328,9 @@ jobs:
                 public_methods = $publicMethods
                 assembly_reference_count = $mdReader.AssemblyReferences.Count
                 categories = $signalCounts
-                caveat = 'Name keyword counters do not prove export behavior, runtime reachability or numeric parity.'
+                type_candidate_cohorts = $typeCandidateCohorts
+                anonymous_type_candidate_shortlist = $typeCandidateShortlist
+                caveat = 'Lexical category co-occurrences are exploratory; not export entry points, runtime reachability or numeric parity.'
               }
             }
             finally {
