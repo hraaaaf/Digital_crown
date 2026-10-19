@@ -73,7 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j_restore_failclosed_lab.py -v 2>&1 | tee lot05j.log
-          grep -q '^Ran 15 tests' lot05j.log
+          grep -q '^Ran 16 tests' lot05j.log
           grep -Eq '^OK[[:space:]]*$' lot05j.log
           ! grep -E 'skipped=[0-9]+|^FAILED \(|^ERROR: test_|^ERROR: setUpClass' lot05j.log
       - name: Inherited real JWT plus native SQLCipher WAL regression
