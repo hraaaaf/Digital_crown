@@ -184,3 +184,35 @@
 }
 .cmd-switch-confirm:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 .cmd-shell [role="alertdialog"] button:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+
+/* LOT07/07-C R4b mobile legibility: retain canonical theme tokens and the 15-minute timeline. */
+.cmd-appt small{font-size:inherit;font-weight:650}
+.cmd-patienteyebrow[data-room-state="planned-occupied"]{color:var(--status-warning)!important}
+@media(max-width:520px){
+ .cmd-shell{font-size:14px;line-height:1.5}
+ .cmd-headingcopy>p:last-child{font-size:12px}
+ .cmd-patientintro h2{font-size:18px}
+ .cmd-patientintro>p:not(.cmd-patienteyebrow){font-size:12px;line-height:1.4}
+ .cmd-patienteyebrow{font-size:10px!important;line-height:1.4}
+ .cmd-patienttime strong{font-size:13px}
+ .cmd-patienttime small,.cmd-patienttime span{font-size:12px}
+ .cmd-patientbuttons button{font-size:12px;min-height:44px}
+ .cmd-cardhead h3{font-size:14px}
+ .cmd-cardhead small{font-size:11px}
+ .cmd-tabs button{font-size:12px;min-height:44px;padding:10px 5px}
+ .cmd-tabs{scroll-padding-inline:10px}
+ .cmd-patientfields>div,.cmd-bottomrows p,.cmd-treatments strong,.cmd-notes,.cmd-alerts p,.cmd-queue-button{font-size:12px}
+ .cmd-imagegrid strong{font-size:12px}
+ .cmd-imagegrid small{font-size:11px}
+ .cmd-image-tabs,.cmd-small{font-size:11px}
+ .cmd-calendar{grid-template-rows:44px repeat(36,20px)}
+ .cmd-hour{font-size:11px;line-height:18px;padding:1px 3px}
+ .cmd-appt{padding:1px 5px;margin:1px 2px;min-width:0}
+ .cmd-appt strong{font-size:12px;line-height:1.2}
+ .cmd-appt span{font-size:11px;line-height:1.25;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;overflow-wrap:normal}
+ .cmd-appt small{font-size:11px}
+ .cmd-lanehead span{font-size:12px}
+ .cmd-legend{font-size:11px}
+ .cmd-queue-button{min-height:44px}
+}
+/* This remains a static demonstration, not a clinical status or occupancy source. */
