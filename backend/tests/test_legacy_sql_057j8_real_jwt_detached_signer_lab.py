@@ -94,10 +94,10 @@ class TrueJwtDetachedFakeSignerLab(unittest.TestCase):
         self.assertNotIn("private_key", data)
         return data
 
-    def denied(self, role, request):
+    def denied(self, role, request, expected="J8Denied"):
         response=self.subprocess(role, request)
         self.assertNotEqual(response.returncode, 0, response.stdout)
-        self.assertIn("J8_DENIED_", response.stderr)
+        self.assertIn("J8_DENIED_" + expected, response.stderr)
         self.assertNotIn("BEGIN PRIVATE KEY", response.stderr)
 
     def test_01_true_jwt_guard_and_pinned_verifier_independent_pids(self):
@@ -118,18 +118,18 @@ class TrueJwtDetachedFakeSignerLab(unittest.TestCase):
             "sub":self.fake_owners[0].email,"type":"access",
             "jti":secrets.token_hex(16),"exp":int(time.time())+120},
             secrets.token_urlsafe(32), algorithm=self.auth.ALGORITHM)
-        self.denied("sign",{"jwt":wrong,"owner":self.fake_owners[0].id})
+        self.denied("sign",{"jwt":wrong,"owner":self.fake_owners[0].id}, expected="HTTP_401")
 
     def test_04_expired_real_access_jwt_denied(self):
         expired=jwt.encode({
             "sub":self.fake_owners[0].email,"type":"access",
             "jti":secrets.token_hex(16),"exp":int(time.time())-10},
             self.fake_jwt_secret,algorithm=self.auth.ALGORITHM)
-        self.denied("sign",{"jwt":expired,"owner":self.fake_owners[0].id})
+        self.denied("sign",{"jwt":expired,"owner":self.fake_owners[0].id}, expected="HTTP_401")
 
     def test_05_real_refresh_jwt_denied(self):
         refresh=self.security.create_refresh_token({"sub":self.fake_owners[0].email})
-        self.denied("sign",{"jwt":refresh,"owner":self.fake_owners[0].id})
+        self.denied("sign",{"jwt":refresh,"owner":self.fake_owners[0].id}, expected="HTTP_401")
 
     def test_06_signed_claim_owner_cannot_override_authenticated_principal(self):
         self.denied("sign",{"jwt":self._jwt(),
@@ -140,7 +140,7 @@ class TrueJwtDetachedFakeSignerLab(unittest.TestCase):
             c.execute(text("UPDATE users SET is_active=0 WHERE id=:u"),
                       {"u":self.fake_owners[0].id})
         try:
-            self.denied("sign",{"jwt":self._jwt(),"owner":self.fake_owners[0].id})
+            self.denied("sign",{"jwt":self._jwt(),"owner":self.fake_owners[0].id}, expected="HTTP_401")
         finally:
             with self.engine.begin() as c:
                 c.execute(text("UPDATE users SET is_active=1 WHERE id=:u"),
@@ -152,7 +152,7 @@ class TrueJwtDetachedFakeSignerLab(unittest.TestCase):
                  permissions='{"settings": true}' WHERE id=:u"""),
                  {"parent":self.fake_owners[0].id,"u":self.fake_owners[1].id})
         try:
-            self.denied("sign",{"jwt":self._jwt(1),"owner":self.fake_owners[1].id})
+            self.denied("sign",{"jwt":self._jwt(1),"owner":self.fake_owners[1].id}, expected="HTTP_403")
         finally:
             with self.engine.begin() as c:
                 c.execute(text("UPDATE users SET employer_id=NULL,permissions=NULL WHERE id=:u"),
