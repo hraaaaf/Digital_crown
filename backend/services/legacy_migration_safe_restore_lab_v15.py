@@ -64,6 +64,18 @@ def _write_synced(path: Path, content: bytes) -> None:
 
 
 def _manifest(directory: Path) -> dict:
+    # A generation must contain precisely the expected files: even an extra
+    # SQLite -wal/-shm sidecar would make the published bundle ambiguous.
+    observed = set()
+    for candidate in directory.rglob("*"):
+        if candidate.is_symlink():
+            raise FakeRecoveryDenied("LINKED_GENERATION_COMPONENT")
+        if candidate.is_file():
+            observed.add(candidate.relative_to(directory).as_posix())
+        elif not candidate.is_dir():
+            raise FakeRecoveryDenied("UNEXPECTED_GENERATION_COMPONENT")
+    if observed != set(FIXED_COMPONENTS):
+        raise FakeRecoveryDenied("EXTRA_OR_MISSING_GENERATION_COMPONENT")
     entries = {}
     for name in FIXED_COMPONENTS:
         p = directory / name
@@ -174,6 +186,12 @@ def publish_fake_snapshot(
         # keeping this handle open prevents cleanup/rename of the snapshot.
         with closing(sqlite3.connect(str(snapshot))) as dest:
             source_conn.backup(dest)
+            # The backup API captures committed WAL changes. Convert the
+            # OFFLINE destination to DELETE journal mode to ensure a
+            # self-contained, exact one-file generation with no sidecars.
+            mode = dest.execute("PRAGMA journal_mode=DELETE").fetchone()
+            if not mode or str(mode[0]).lower() != "delete":
+                raise FakeRecoveryDenied("STAGED_SNAPSHOT_JOURNAL_NOT_CLOSED")
             dest.commit()
         # SQLite creates journal sidecars as needed. Require no live output WAL.
         if Path(str(snapshot) + "-wal").exists() or Path(str(snapshot) + "-shm").exists():
