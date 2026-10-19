@@ -38,7 +38,10 @@ jobs:
           $csc = Get-ChildItem "$env:WINDIR\\Microsoft.NET\\Framework64" -Filter csc.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $csc) { throw 'Windows .NET Framework csc.exe missing' }
           $global:PSNativeCommandUseErrorActionPreference = $false
-          & $csc /nologo /target:exe /out:"$env:RUNNER_TEMP\\j10d-deny-only-consumer.exe" /reference:System.ServiceProcess.dll /reference:System.Core.dll backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs
+          $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs'
+          $output = Join-Path $env:RUNNER_TEMP 'j10d-deny-only-consumer.exe'
+          if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "C# source missing: $source" }
+          & $csc /nologo /target:exe "/out:$output" /reference:System.ServiceProcess.dll /reference:System.Core.dll "$source"
           if ($LASTEXITCODE -ne 0) { throw "C# compiler failed: $LASTEXITCODE" }
           # Explicit nonzero exit is the EXPECTED deny path; avoid PowerShell
           # native-command error promotion on runners configured to stop.
