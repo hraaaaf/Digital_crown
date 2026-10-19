@@ -7,13 +7,13 @@
 ## Scoring obligatoire
 
 - **EXECUTION_SCORE /10** :
-- **ADVERSARIAL_SCORE /10** :
-- **RETAINED_SCORE /10** = `min(EXECUTION_SCORE, ADVERSARIAL_SCORE)` :
+- **FUE_EVIDENCE_SCORE /10** :
+- **RETAINED_SCORE /10** = `min(EXECUTION_SCORE, FUE_EVIDENCE_SCORE)` :
 - Écart `> 0.5` ? `oui / non`
 - Si oui, investigation + preuve + rescoring :
 - Plafond(s) appliqué(s), le cas échéant :
 
-> Jamais de moyenne. Une dimension critique faible borne le score global. `10/10` est exceptionnel et exige l'absence de faiblesse améliorable connue dans le scope, toutes les preuves/gates requis et une vraie revue indépendante.
+> Jamais de moyenne. Une dimension critique faible borne le score global. `10/10` est exceptionnel et exige l'absence de faiblesse améliorable connue dans le scope, toutes les preuves/gates requis.
 
 ## Gates binaires
 
@@ -23,13 +23,13 @@
 - [ ] Rehearsal/smoke requis effectué selon le risque.
 - [ ] UI/UX : comparaison réelle `Target ↔ Render` sur les viewports/états requis, si applicable.
 - [ ] UI/UX : validation humaine explicite des captures, si applicable.
-- [ ] Revue indépendante réelle effectuée si une revendication `>= 9.5/10` est proposée.
+- [ ] FUE-0/I/G exécutée au niveau applicable, preuves exact-HEAD inspectables.
 - [ ] Perfection Pass finale effectuée si `RETAINED_SCORE >= 9.0/10`.
 - [ ] Canoniques / handover / closeout mis à jour si requis par le lot.
 
 ## Plafonds à vérifier
 
-- Même agent pour exécution + revue adversariale → `<= 9.4/10`.
+- Auto-évaluation FUE conversationnelle → `<= 9.4/10`.
 - Test/gate requis rouge ou preuve requise absente → `<= 7.9/10`.
 - Régression constatée → `<= 6.9/10` jusqu'à correction + nouvelle preuve.
 - Blocker sécurité/privacy/data/claim clinique-scientifique → `<= 5.9/10` + `BLOCKED`.
