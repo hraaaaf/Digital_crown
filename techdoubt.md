@@ -1,3 +1,6 @@
+## LOT05 / 05.7-J10D — 2026-10-19 — CI #3 RED and regex defect corrected
+User screenshot establishes PR-triggered J10D Synthetic IPC Envelope Contract #3 on HEAD 52e9739: two matrix jobs FAILED. Code inspection found three incorrect raw-regex end anchors (double-backslash before Z) rejecting valid identifiers. Corrected in commit 087103ce62bd0907381599a89395409dae365da7. Job logs were not available; cannot prove this was the sole failure. No new run returned by commit-run lookup; exact-HEAD Windows/Linux test PASS remains UNPROVEN. NO-GO, no SCM consumer or authenticated IPC.
+
 ## LOT05 / 05.7-J10D — 2026-10-19 — fake IPC parser is NOT Windows authority
 New test-only canonical JSON frame parser and negative tests check synthetic purpose/owner/job/generation/manifest/nonce/expiry, duplicates and size. BLOCKER: no Windows named pipe, no installed consumer SCM service, no OS peer authentication, no RSA binding to transport, no replay-persistent nonce ledger, no independent vendor/install trust anchor or Admin/SYSTEM threat resistance. Tests not yet run on exact new HEAD. Clinical apply remains DENY; J10D certification OPEN / LOT05 NO-GO. Never interpret parser PASS as authenticated IPC or clinical restore authorization.
 
