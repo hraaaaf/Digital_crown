@@ -15,6 +15,9 @@
 
 Une interruption durant la copie vers la destination isolée supprime aussi toute destination partielle ; les interruptions de test `after_db`, `after_media`, `before_publish`, `after_generation` laissent l'ancien pointeur intact ; aucune API du prototype ne supprime ou ne remplace `clinical_vault.db`, un fichier actif réel ou les médias du cabinet. Ces garanties ne s'appliquent qu'à la structure FAKE contrôlée par le test. `Path.resolve` et les contrôles de symlinks ne prouvent PAS les reparse points NTFS et leur TOCTOU. Les hashes issus des mêmes acteurs de test ne prouvent PAS une provenance de sauvegarde. Le pointeur n'est pas signé par une autorité indépendante. Un `os.replace` sans flush parent portable Windows ne garantit PAS la résistance à une perte d'alimentation. SQLite standard n'est PAS SQLCipher et des générations de copies ne constituent PAS une transaction réelle DB/WAL/médias/coffre.
 
+
+**Compatibilité CI des PR empilées** : le workflow hérité I possède un gate à 4 fichiers, valide pour sa propre PR #975 seulement. Le job I est désormais conditionné à la branche I quand déclenché par `pull_request` ; sur la PR J il est HORS SCOPE (SKIPPED intentionnellement), tandis que le workflow REQUIRED J exécute réellement les 21 tests I sur Linux et Windows sans skip, en plus des 16 tests J et des tests `guided_restore`. Cette restriction ne change ni les tests ni les exigences de la PR I. Un run rouge historique I dû au diff J ne doit pas être interprété comme un échec JWT/WAL.
+
 ## Gates et preuves exigées
 
 - Nouveau workflow J obligatoire : Linux + Windows, Python 3.12, **16 tests J** sans skip, et **21 tests hérités I** avec véritable SQLCipher et JWT sans skip ; exécuter aussi les tests historiques `test_guided_restore.py` qui doivent confirmer le refus avant exécution. Contrôler CI Scope et diff exact depuis le HEAD I.
