@@ -232,10 +232,12 @@ def clone_current_into_new_fake_dir(root: Path, destination: Path, *,
         raise FakeRecoveryDenied("NEW_ISOLATED_DESTINATION_REQUIRED")
     directory, record = read_fake_current(
         root, request_owner=request_owner, expected_owner=expected_owner)
-    shutil.copytree(directory, destination)
+    # copytree itself can raise AFTER creating partial output: always discard it.
     try:
+        shutil.copytree(directory, destination)
         _verify(destination, record["manifest"])
     except Exception:
-        shutil.rmtree(destination)
+        if destination.exists():
+            shutil.rmtree(destination)
         raise
     return destination
