@@ -387,14 +387,9 @@ class GuidedRestoreService:
         cls._verify_staged_job(job)
         if not cls.runtime_apply_supported():
             raise RuntimeError("Apply hors-processus disponible uniquement dans l'exécutable cabinet")
-        # LOT05.7-J: no SCM/Service SID / signed durable worker authority yet.
-        # Fail closed before writing 'scheduled', for any environment/flag.
-        from backend.services.legacy_migration_restore_policy_v15 import require_clinical_apply
-        try:
-            require_clinical_apply(job)
-        except PermissionError as exc:
-            raise RuntimeError("Restauration clinique interdite : autorité worker non attestée") from exc
-        # Defense in depth: a future guard accidentally returning is NOT approval.
+        # LOT05.7-J: No signed job / SCM Service SID / protected worker authority.
+        # The active API has an independent unconditional DENY. Future changes
+        # to the dormant G guard must not accidentally re-enable it.
         raise RuntimeError("Restauration clinique interdite : autorité worker non attestée")
 
         job["status"] = "scheduled"
