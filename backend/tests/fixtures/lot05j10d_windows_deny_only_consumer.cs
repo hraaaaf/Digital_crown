@@ -23,6 +23,29 @@ internal sealed class J10DConsumer : ServiceBase {
         thread=new Thread(Listen) { IsBackground=true };
         thread.Start();
     }
+    // This is a negative identity probe, never an authorization decision.
+    // RunAsClient impersonates the connected pipe peer while reading its token.
+    // A service SID must be present and enabled; a generic account name is
+    // insufficient. Even a matching SID never permits a restore.
+    private bool InspectPeerServiceSid(NamedPipeServerStream pipe) {
+        bool matched=false;
+        try {
+            pipe.RunAsClient(delegate {
+                using(var identity=WindowsIdentity.GetCurrent(true)) {
+                    var expected=new SecurityIdentifier(allowedSignerSid);
+                    var groups=identity.Groups;
+                    if(groups==null) return;
+                    foreach(IdentityReference group in groups) {
+                        var sid=group as SecurityIdentifier;
+                        if(sid!=null && sid.Equals(expected)) { matched=true; break; }
+                    }
+                }
+            });
+        } catch(Exception) {
+            return false;
+        }
+        return matched;
+    }
     private void Listen() {
         while(!stopping) {
             try {
@@ -40,9 +63,15 @@ internal sealed class J10DConsumer : ServiceBase {
                     while(!stopping && !wait.AsyncWaitHandle.WaitOne(200)) {}
                     if(stopping) return;
                     pipe.EndWaitForConnection(wait);
-                    // Mandatory fail-closed: the ACL is only a first boundary.
-                    // No client impersonation/token check, nonce ledger or signature
-                    // verification is implemented. Always reject every request.
+                    // Probe the actual peer token, not the claimed JSON identity.
+                    // This result is intentionally NOT used to grant authority.
+                    bool peerServiceSidPresent=InspectPeerServiceSid(pipe);
+                    if(peerServiceSidPresent) {
+                        // A matching token alone cannot authorize any operation.
+                    }
+                    // Mandatory fail-closed: no independent trust anchor, nonce
+                    // ledger, signer binding or restore verification exists.
+                    // Every request remains denied, including matching peers.
                     byte[] denied=System.Text.Encoding.ASCII.GetBytes("DENY_J10D_UNATTESTED\n");
                     pipe.Write(denied,0,denied.Length);
                     pipe.Flush();
