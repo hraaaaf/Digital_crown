@@ -31,6 +31,8 @@ try {
             $client = [System.IO.Pipes.NamedPipeClientStream]::new('.', $pipeName, [System.IO.Pipes.PipeDirection]::InOut)
             try {
                 $client.Connect(500)
+                $client.WriteByte(0x50)
+                $client.Flush()
                 $buffer = New-Object byte[] 64
                 $n = $client.Read($buffer,0,$buffer.Length)
                 $response = [System.Text.Encoding]::ASCII.GetString($buffer,0,$n)
