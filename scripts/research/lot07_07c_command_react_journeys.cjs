@@ -28,6 +28,20 @@ async function snap(page,name){
     await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
     &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
     &&(await page.locator('.cmd-patienthero').innerText()).includes('09:00'));
+   await check(page,'R4b appointment identity differs from patient identity '+width,async()=>{
+     const appt=page.locator('.cmd-appt[data-appointment-id="APT-TEST-018"]');
+     return await appt.getAttribute('data-patient-id')==='TEST-001'
+       &&(await appt.textContent()).includes('Patient TEST-001')
+       &&(await appt.textContent()).includes('RDV TEST-018')
+       &&(await appt.getAttribute('aria-label')).includes('rendez-vous TEST-018');
+   });
+   if(width<500){
+     await check(page,'R4b mobile typography legible '+width,async()=>await page.evaluate(()=>{
+       const size=selector=>parseFloat(getComputedStyle(document.querySelector(selector)).fontSize);
+       return size('.cmd-appt strong')>=12&&size('.cmd-tabs button')>=12&&size('.cmd-cardhead h3')>=14
+        &&size('.cmd-patientintro>p:not(.cmd-patienteyebrow)')>=12;
+     }));
+   }
    if(width===1440){
     await check(page,'Two distinct identifiers present',async()=>await page.locator('.cmd-shell').getAttribute('data-active-appointment-id')==='APT-TEST-001');
     await check(page,'J1 initial counters tied to mock status',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil'));
@@ -35,6 +49,8 @@ async function snap(page,name){
     await check(page,'J1 mock pause status',async()=> (await page.locator('.cmd-patienthero').innerText()).includes('En pause')
       &&(await page.locator('.cmd-appt').filter({hasText:'TEST-001'}).getAttribute('class')).includes('cmd-appt-paused'));
     await check(page,'J1 paused room remains occupied',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil')&&await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='2');
+    await check(page,'R4b paused patient stays physically seated',async()=>await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='seated'
+      &&(await page.locator('.cmd-patienteyebrow').innerText()).includes('AU FAUTEUIL'));
     await page.getByRole('button',{name:'Reprendre (simulation)'}).click();
     await check(page,'J1 mock resume',async()=>(await page.locator('.cmd-patienthero').innerText()).includes('En cours'));
    }
@@ -63,6 +79,9 @@ async function snap(page,name){
       &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
       &&(await page.locator('.cmd-patienthero').innerText()).includes('10:00')
       &&!(await page.locator('.cmd-right').innerText()).includes('TEST-001'));
+   await check(page,'R4b waiting patient is not wrongly seated '+width,async()=>await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='planned-occupied'
+      &&(await page.locator('.cmd-patienteyebrow').innerText()).includes('PRÉVUE · OCCUPÉE')
+      &&(await page.locator('.cmd-patienthero').innerText()).includes('occupée par un autre rendez-vous'));
    if(width===1440)await check(page,'J2 excludes urgent and non-arrived next',async()=>
       await page.getByRole('button',{name:'Patient suivant (même praticien)'}).isDisabled()
       &&!(await page.locator('.cmd-card').filter({hasText:'File d’attente'}).innerText()).includes('TEST-URG')
@@ -97,9 +116,12 @@ async function snap(page,name){
        (await page.locator('.cmd-patienthero').innerText()).includes('Terminé')
        &&!(await page.getByRole('button',{name:'Mettre en pause'}).isEnabled()));
      await check(page,'J1 finish releases room assignment',async()=>await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='3');
-     await snap(page,'r4-consultation-finished-test001-1440');
      await page.locator('.cmd-appt').filter({hasText:'TEST-007'}).click();
      await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+     await check(page,'R4b waiting patient sees available planned room',async()=>await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='planned-free'
+       &&(await page.locator('.cmd-patienteyebrow').innerText()).includes('PRÉVUE · LIBRE'));
+
+     await snap(page,'r4-consultation-finished-test001-1440');
      await check(page,'J1 arrived waiting can start after room released',async()=>await page.getByRole('button',{name:'Démarrer la consultation (simulation)'}).isEnabled());
      await page.getByRole('button',{name:'Démarrer la consultation (simulation)'}).click();
      await check(page,'J1 start occupies room only in demo',async()=>await page.locator('.cmd-shell').getAttribute('data-occupied-rooms')==='1'
@@ -110,6 +132,12 @@ async function snap(page,name){
         await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
         &&await page.locator('.cmd-shell').getAttribute('data-active-appointment-id')==='APT-TEST-018'
         &&(await page.locator('.cmd-patienthero').innerText()).includes('16:00'));
+     await check(page,'R4b same patient new RDV is labeled by true ref',async()=>{
+       const hero=await page.locator('.cmd-patienthero').innerText();
+       return hero.includes('RDV TEST-018')&&hero.includes('Patient TEST-001')
+         &&await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='planned-occupied';
+     });
+     await snap(page,'r4b-repeat-patient-test001-rdv-test018-1440');
    }
    await check(page,'No Cabinet API requests '+width,async()=>forbidden.length===0);
    await context.close();
