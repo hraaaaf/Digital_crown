@@ -1,3 +1,6 @@
+## LOT05.7-J10C — 2026-10-19 — adversarial verifier parser + pointer race
+A real JWT/SCM-signed ticket from J10C must not turn malformed Base64 into an unhandled exception, nor allow a stale CURRENT generation to consume a nonce and trigger a synthetic copy if CURRENT changed after the first verification. Added bounded denial and second exact manifest+directory re-read before nonce O_EXCL, plus negative tests on the same Windows chain. Remaining BLOCKER: attacker Admin/SYSTEM can still race after that re-check or replace pin/ledger/generation, so checks are not handle-anchored NTFS recovery nor product authority. CI exact new HEAD required and independent user/service attestation remains missing.
+
 ## J10C adversarial CI correction on 2026-10-19
 Initial #39325566388 was RED **even though the new actual SCM→signed RSA→SQLCipher test passed**: unittest unintentionally collected an imported old J9 TestCase, and its setUpClass errored after previous fake SQLCipher database had been cleaned up. New test avoids direct TestCase class import; J10C fake native SQLCipher WAL held OPEN and asserted before snapshot. Added valid JWT but WRONG protected manifest rejection at the actual Windows SCM signer (separate from verifier mismatch). None of this is a production trust certificate. New CI exact HEAD required.
 

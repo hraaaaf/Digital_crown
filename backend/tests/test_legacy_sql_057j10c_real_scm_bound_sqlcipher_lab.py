@@ -74,6 +74,20 @@ class ConnectedJ10C(unittest.TestCase):
         with self.assertRaises(gate.Denied):
             gate.verify_ticket(malformed,pin,owner=owner,job=job,
                                generation=record["generation"],manifest=manifest)
+        # Invalid encoding must yield a bounded denial, not raw binascii.Error.
+        with self.assertRaisesRegex(gate.Denied,"J10C_RSA_DENY"):
+            gate.verify_ticket(dict(ticket,signature="!!not-base64!!"),pin,
+                owner=owner,job=job,generation=record["generation"],manifest=manifest)
+        # A synthetic pointer race before spending the nonce must fail closed.
+        changed_record=dict(record,generation="g_"+("f"*32))
+        with patch.object(gate.cipher_lab,"verify",
+                          side_effect=[(directory,record),(directory,changed_record)]):
+            with self.assertRaisesRegex(gate.Denied,"J10C_CURRENT_CHANGED_BEFORE_CONSUMPTION"):
+                gate.authorized_fake_copy(root,ticket=ticket,pin=pin,owner=owner,job=job,
+                    key=sqlkey,generation=record["generation"],manifest=manifest)
+        self.assertFalse((root/"j10c-used"/
+                          (gate.verify_ticket(ticket,pin,owner=owner,job=job,
+                            generation=record["generation"],manifest=manifest)+".nonce")).exists())
         for owner_,job_,gen_,digest_ in (
             (owner+1,job,record["generation"],manifest),
             (owner,"f"*32,record["generation"],manifest),

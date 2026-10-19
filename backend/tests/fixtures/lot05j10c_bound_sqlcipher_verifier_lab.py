@@ -1,5 +1,6 @@
 """J10C offline verification of RSA order bound to fake SQLCipher generation."""
-import base64, hashlib, json, os, re, shutil, time
+import base64, binascii, hashlib, json, os, re, shutil, time
+from cryptography.exceptions import UnsupportedAlgorithm
 from pathlib import Path
 from contextlib import closing
 from cryptography.exceptions import InvalidSignature
@@ -41,7 +42,7 @@ def verify_ticket(ticket,pin,*,owner,job,generation,manifest):
         key=rsa.RSAPublicNumbers(int.from_bytes(exponent,"big"),int.from_bytes(mod,"big")).public_key()
         raw=base64.b64decode(signature,validate=True)
         key.verify(raw,body.encode("ascii"),padding.PKCS1v15(),hashes.SHA256())
-    except (ValueError,TypeError,InvalidSignature) as exc:
+    except (ValueError,TypeError,binascii.Error,InvalidSignature,UnsupportedAlgorithm) as exc:
         raise Denied("J10C_RSA_DENY") from exc
     return nonce
 def authorized_fake_copy(root,*,ticket,pin,owner,job,key,generation,manifest):
@@ -55,6 +56,11 @@ def authorized_fake_copy(root,*,ticket,pin,owner,job,key,generation,manifest):
     if ledger.is_symlink(): raise Denied("J10C_LEDGER_LINK")
     ledger.mkdir(mode=0o700,exist_ok=True)
     if ledger.is_symlink() or not ledger.is_dir(): raise Denied("J10C_LEDGER_DENY")
+    # Catch a CURRENT pointer change before nonce consumption. Still not
+    # handle-anchored against privileged TOCTOU, so NOT a product guarantee.
+    latest_dir,latest_record=cipher_lab.verify(root,key)
+    if latest_record!=record or latest_dir!=directory:
+        raise Denied("J10C_CURRENT_CHANGED_BEFORE_CONSUMPTION")
     try:
         fd=os.open(str(ledger/(nonce+".nonce")),os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
     except FileExistsError as exc: raise Denied("J10C_REPLAY_DENIED") from exc
