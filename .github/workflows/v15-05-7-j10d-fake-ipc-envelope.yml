@@ -37,10 +37,14 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $csc = Get-ChildItem "$env:WINDIR\\Microsoft.NET\\Framework64" -Filter csc.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $csc) { throw 'Windows .NET Framework csc.exe missing' }
+          $global:PSNativeCommandUseErrorActionPreference = $false
           & $csc /nologo /target:exe /out:"$env:RUNNER_TEMP\\j10d-deny-only-consumer.exe" /reference:System.ServiceProcess.dll /reference:System.Core.dll backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs
           if ($LASTEXITCODE -ne 0) { throw "C# compiler failed: $LASTEXITCODE" }
-          & "$env:RUNNER_TEMP\\j10d-deny-only-consumer.exe"
-          if ($LASTEXITCODE -ne 2) { throw "Expected invalid invocation DENY exit 2; got $LASTEXITCODE" }
+          # Explicit nonzero exit is the EXPECTED deny path; avoid PowerShell
+          # native-command error promotion on runners configured to stop.
+          $binary = Join-Path $env:RUNNER_TEMP 'j10d-deny-only-consumer.exe'
+          $process = Start-Process -FilePath $binary -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 2) { throw "Expected invalid invocation DENY exit 2; got $($process.ExitCode)" }
       - name: Strict J10D scope and exact SHA
         shell: bash
         env:
