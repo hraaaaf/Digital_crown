@@ -1,0 +1,190 @@
+name: V1.5-05.7-J6 Anchored NT Handles and Split Ed25519 FAKE
+on:
+  push:
+    branches:
+      - feat/v15-05-7j6-anchored-nt-handles-ed25519-fake-20261019
+  pull_request:
+    paths:
+      - .github/workflows/v15-05-7-j6-nt-root-ed25519-fake.yml
+      - backend/tests/fixtures/lot05j6_root_relative_nt_lab.py
+      - backend/tests/fixtures/lot05j6_ed25519_ipc_lab.py
+      - backend/tests/test_legacy_sql_057j6_nt_relative_handles_lab.py
+      - backend/tests/test_legacy_sql_057j6_ed25519_separate_process_lab.py
+      - docs/quality/V15_05_7_J6_ANCHORED_NT_ED25519_IPC_FAKE_CONTRACT.md
+      - techdoubt.md
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  unchanged-restore-regressions:
+    # J4 own six-file scope gate must not run on stacked J5.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j6-anchored-nt-handles-ed25519-fake-20261019'
+    name: J6 NtCreateFile/Ed25519 plus clinical DENY (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      LOT05J2_NATIVE_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05J3_WINDOWS_SCM_FAKE_ONLY: '1'
+      LOT05J4_SIGNED_JOB_NTFS_FAKE_ONLY: '1'
+      LOT05J5_NATIVE_HANDLES_FAKE_ONLY: '1'
+      LOT05J6_ANCHORED_NT_FAKE_ONLY: '1'
+      LOT05J6_ED25519_IPC_FAKE_ONLY: '1'
+      LOT05E_REAL_SQLCIPHER_FAKE_ONLY: '1'
+      LOT05I_REAL_JWT_WAL_FAKE_ONLY: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      ENVIRONMENT: cabinet
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native SQLCipher system dependency (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+      - name: Genuine SQLCipher, JWT and regression dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install \
+            alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3 pytest==9.0.3
+      - name: Native SQLCipher driver genuine
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c "from sqlcipher3 import dbapi2 as s; c=s.connect(':memory:'); assert c.execute('PRAGMA cipher_version').fetchone()[0]; c.close(); print('J3_NATIVE_SQLCIPHER_CONFIRMED')"
+      - name: J6 two real Ed25519 signer/verifier processes and replay (12 tests)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/fixtures/lot05j6_root_relative_nt_lab.py backend/tests/fixtures/lot05j6_ed25519_ipc_lab.py backend/tests/test_legacy_sql_057j6_nt_relative_handles_lab.py backend/tests/test_legacy_sql_057j6_ed25519_separate_process_lab.py
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j6_ed25519_separate_process_lab.py -v 2>&1 | tee j6-ipc.log
+          grep -q '^Ran 12 tests' j6-ipc.log
+          grep -Eq '^OK[[:space:]]*$' j6-ipc.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j6-ipc.log
+      - name: J6 real Windows NtCreateFile relative to anchored directory (10 tests)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j6_nt_relative_handles_lab.py -v 2>&1 | tee j6-nt.log
+          grep -q '^Ran 10 tests' j6-nt.log
+          grep -Eq '^OK[[:space:]]*$' j6-nt.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j6-nt.log
+      - name: J5 true JWT gated fake signed worker (25 inherited/new tests)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/tests/fixtures/lot05j5_native_handles_lab.py backend/tests/test_legacy_sql_057j5_native_win32_handles_lab.py backend/tests/test_legacy_sql_057j5_real_jwt_fake_job_bridge_lab.py
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j5_real_jwt_fake_job_bridge_lab.py -v 2>&1 | tee j5-jwt.log
+          grep -q '^Ran 25 tests' j5-jwt.log
+          grep -Eq '^OK[[:space:]]*$' j5-jwt.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j5-jwt.log
+      - name: J5 real Win32 CreateFileW file IDs (10 tests)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j5_native_win32_handles_lab.py -v 2>&1 | tee j5-win32.log
+          grep -q '^Ran 10 tests' j5-win32.log
+          grep -Eq '^OK[[:space:]]*$' j5-win32.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j5-win32.log
+      - name: J4 signed fake HMAC nonce and NTFS fixtures (22 tests)
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j4_ntfs_signed_job_lab.py -v 2>&1 | tee j4.log
+          grep -q '^Ran 22 tests' j4.log
+          grep -Eq '^OK[[:space:]]*$' j4.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j4.log
+      - name: Re-run true native SQLCipher J2 generation and SCM deny
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j2_native_sqlcipher_scm_lab.py -v 2>&1 | tee j2.log
+          grep -q '^Ran 18 tests' j2.log
+          grep -Eq '^OK[[:space:]]*$' j2.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j2.log
+      - name: Re-run fake copy-generation J1 and real JWT SQLCipher I
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j_restore_failclosed_lab.py -v 2>&1 | tee j1.log
+          grep -q '^Ran 16 tests' j1.log
+          grep -Eq '^OK[[:space:]]*$' j1.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' j1.log
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057i_real_jwt_wal_worker_lab.py -v 2>&1 | tee i.log
+          grep -q '^Ran 21 tests' i.log
+          grep -Eq '^OK[[:space:]]*$' i.log
+          ! grep -E '^FAILED \(|skipped=[0-9]+|^ERROR: test_' i.log
+      - name: Regression actual clinical worker remains denied
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -m pytest backend/tests/test_guided_restore.py -q -ra --disable-warnings 2>&1 | tee denied.log
+          grep -Eq '^16 passed' denied.log
+          ! grep -E 'skipped|xfailed|failed|error' denied.log
+      - name: Exact J6 7-file scope and HEAD verification
+        shell: bash
+        env:
+          BASE_SHA: d90e64797fbb65125f356324029b98f906e5fe33
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
+          git diff --name-only "$BASE_SHA" HEAD > j6.txt
+          ! grep -Ev '^(\.github/workflows/v15-05-7-j6-nt-root-ed25519-fake\.yml|backend/tests/fixtures/lot05j6_root_relative_nt_lab\.py|backend/tests/fixtures/lot05j6_ed25519_ipc_lab\.py|backend/tests/test_legacy_sql_057j6_nt_relative_handles_lab\.py|backend/tests/test_legacy_sql_057j6_ed25519_separate_process_lab\.py|docs/quality/V15_05_7_J6_ANCHORED_NT_ED25519_IPC_FAKE_CONTRACT\.md|techdoubt\.md)$' j6.txt
+
+  real-windows-scm-service-sid:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'feat/v15-05-7j6-anchored-nt-handles-ed25519-fake-20261019'
+    name: Real ephemeral LocalService SCM token + NTFS ACL (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 12
+    env:
+      LOT05J3_WINDOWS_SCM_FAKE_ONLY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Require ephemeral admin Windows runner and validate script syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {throw 'J3_ONLY_CI_WINDOWS'}
+          $file=Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j3_windows_scm_probe.ps1'
+          $tokens=$null; $errs=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errs) | Out-Null
+          if ($errs.Count -ne 0) {throw ('J3_PS_PARSER_ERRORS ' + ($errs -join '; '))}
+      - name: ACTUAL Windows SCM create/start SID token/NTFS ACL deny delete
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05j3_windows_scm_probe.ps1 2>&1 | Tee-Object -FilePath j3-service-proof.log
+          if ($LASTEXITCODE -ne 0) {throw 'J3_REAL_WINDOWS_SCM_ACL_FAIL'}
+          $proof=Get-Content j3-service-proof.log -Raw
+          foreach($marker in @(
+            'J3_REAL_SCM_TWO_SERVICES_STARTED',
+            'J3_SERVICE_SID_IN_REAL_LOCAL_SERVICE_PROCESS_TOKEN',
+            'J3_NTFS_SID_ALLOW_AND_SAME_ACCOUNT_WITHOUT_SID_DENY',
+            'J3_INTERACTIVE_PROCESS_LACKS_SID',
+            'J3_NO_CLINICAL_RESTORE_ENABLED')) {
+            if (-not $proof.Contains($marker)) {throw ('J3_MISSING_PROOF '+$marker)}
+          }
+      - name: Verify exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
