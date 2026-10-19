@@ -12,7 +12,10 @@ async function check(page,label,predicate){
 }
 async function snap(page,name){
  const file=path.join(out,name+'.png');
- await page.screenshot({path:file,fullPage:true,animations:'disabled'});
+ await page.evaluate(()=>window.scrollTo(0,0));
+ const style=await page.addStyleTag({content:'@media(max-width:767px){.cmd-mobile-context{position:relative!important;top:auto!important}}'});
+ try{await page.screenshot({path:file,fullPage:true,animations:'disabled'});}
+ finally{await style.evaluate(e=>e.remove());}
  screens.push({name:path.basename(file),sha256:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')});
 }
 (async()=>{
