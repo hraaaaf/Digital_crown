@@ -86,6 +86,21 @@ async function snap(page,name){
       await page.getByRole('button',{name:'Patient suivant (même praticien)'}).isDisabled()
       &&!(await page.locator('.cmd-card').filter({hasText:'File d’attente'}).innerText()).includes('TEST-URG')
       &&await page.locator('.cmd-shell').getAttribute('data-occupied-rooms')==='1');
+   await page.getByRole('button',{name:'Agenda',exact:true}).click();
+   await check(page,'R4c sidebar Agenda preserves active patient and opens real 15-min calendar '+width,async()=>
+      await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-007'
+      &&await page.locator('.cmd-placeholder').count()===0
+      &&await page.locator('.cmd-appt').count()===21
+      &&await page.getByRole('button',{name:'Agenda',exact:true}).getAttribute('aria-current')==='page'
+      &&await page.evaluate(()=>document.activeElement?.id)==='cmd-agenda');
+   await check(page,'R4c Week and List honest construction '+width,async()=>{
+      const week=page.getByRole('button',{name:'Semaine — en construction'});
+      const list=page.getByRole('button',{name:'Liste — en construction'});
+      return await week.isDisabled()&&await list.isDisabled()
+        &&await week.getAttribute('aria-pressed')==='false'
+        &&await list.getAttribute('aria-pressed')==='false'
+        &&await page.getByRole('button',{name:'Jour — vue disponible'}).getAttribute('aria-pressed')==='true';
+   });
    await page.getByRole('tab',{name:'Dossier',exact:true}).click();
    await check(page,'J3 patient B dossier panels '+width,async()=>
       await page.locator('.cmd-cards > .cmd-card:visible').count()===3
