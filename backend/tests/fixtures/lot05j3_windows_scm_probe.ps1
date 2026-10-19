@@ -102,10 +102,21 @@ try {
     Strict 'icacls.exe' @($telemetry,'/inheritance:r') | Out-Null
     Strict 'icacls.exe' @($telemetry,'/grant:r',
         '*S-1-5-18:(OI)(CI)F','*S-1-5-32-544:(OI)(CI)F','*S-1-5-19:(OI)(CI)M') | Out-Null
-    $acl=Strict 'icacls.exe' @($challenge)
-    Write-Output ('J3_PROTECTED_ACL_CHECK ' + $acl)
-    if($acl -notmatch [regex]::Escape($sid) -or
-       $acl -match 'S-1-5-19|Everyone|Authenticated Users') {throw 'J3_PROTECTED_FILE_ACL_UNSAFE'}
+    # Enforce exact physical file ACEs by translating principals to SIDs,
+    # not by grepping localized icacls text (which may show account names).
+    $fileAcl=Get-Acl -LiteralPath $challenge
+    $actualRules=@($fileAcl.Access)
+    $actualSids=@($actualRules | ForEach-Object {
+        $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+    })
+    $expectedSids=@('S-1-5-18','S-1-5-32-544',$sid)
+    if($actualSids.Count -ne 3 -or
+       @($actualSids | Where-Object {$_ -notin $expectedSids}).Count -gt 0 -or
+       @($expectedSids | Where-Object {$_ -notin $actualSids}).Count -gt 0 -or
+       @($actualRules | Where-Object {$_.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow}).Count -gt 0) {
+        throw ('J3_PROTECTED_FILE_ACL_UNSAFE sids='+($actualSids -join ','))
+    }
+    Write-Output ('J3_EXACT_PROTECTED_FILE_SIDS ' + ($actualSids -join ','))
     $direct=Strict $exe @('--probe',$sid)
     if($direct -notmatch 'DIRECT_NO_TARGET_SID') {throw 'J3_DIRECT_INVOCATION_SID_SPOOF'}
     Strict 'sc.exe' @('start',$allowName) | Out-Null
