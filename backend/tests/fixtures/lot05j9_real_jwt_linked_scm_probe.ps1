@@ -138,7 +138,90 @@ try {
     $orderLines=@(Get-Content -LiteralPath $orderSource)
     if($pubLines.Count -ne 3 -or $orderLines.Count -ne 2 -or
        $pubLines[2] -notmatch '^[1-9][0-9]*$' -or
-       $orderLines[0] -notmatch '^owner=[1-9][0-9]*\\|audience=LOT05J9_FAKE_WORKER\\|nonce=[a-f0-9]{32}\\|expires=[0-9]+$') {
+       $orderLines[0] -notmatch '^owner=[1-9][0-9]*\|audience=LOT05J9_FAKE_WORKER\|nonce=[a-f0-9]{32}\|expires=[0-9]+) {
+        throw 'J9_SIGNED_INPUT_CONTRACT_INVALID'
+    }
+    if(-not $orderLines[0].StartsWith(('owner='+$pubLines[2]+'|'))) {
+        throw 'J9_SIGNED_OWNER_MUST_MATCH_PIN'
+    }
+    Copy-Item -LiteralPath $publicSource -Destination $keyFile -ErrorAction Stop
+    Copy-Item -LiteralPath $orderSource -Destination $valid -ErrorAction Stop
+    $forgedBody=[regex]::Replace($orderLines[0],'nonce=[a-f0-9]{32}','nonce='+('a'*32))
+    if($forgedBody -eq $orderLines[0]) {throw 'J9_TAMPER_FIXTURE_FAILED'}
+    Set-Content -LiteralPath $forged -Encoding Ascii -Value @($forgedBody,$orderLines[1])
+    # EXACT service-SID-only key pin and consumption ledger ACLs.
+    ExactAcl $pin $sid 'ReadAndExecute' $true
+    ExactAcl $keyFile $sid 'ReadAndExecute' $false
+    ExactAcl $ledger $sid 'Modify' $true
+    ValidateAcl $pin $sid
+    ValidateAcl $keyFile $sid
+    ValidateAcl $ledger $sid
+    Write-Output 'J9_EXACT_PUBLIC_PIN_AND_LEDGER_SERVICE_SID_ACL'
+    # Telemetry is deliberately low trust and writable by both LocalService
+    # service instances. It cannot be used as protected authorization state.
+    Strict 'icacls.exe' @($telemetry,'/inheritance:r') | Out-Null
+    Strict 'icacls.exe' @($telemetry,'/grant:r',
+       '*S-1-5-18:(OI)(CI)F','*S-1-5-32-544:(OI)(CI)F',
+       '*S-1-5-19:(OI)(CI)M') | Out-Null
+    function Configure([string]$name,[string]$report) {
+        $bin= ('"{0}" "{1}" "{2}" "{3}" "{4}" "{5}" "{6}" "{7}"' -f
+             $exe,$name,$report,$keyFile,$valid,$forged,$sid,$ledger)
+        Strict 'sc.exe' @('config',$name,'binPath=',$bin) | Out-Null
+    }
+    Configure $nameA $first
+    Configure $nameB $negative
+    Strict 'sc.exe' @('start',$nameA) | Out-Null
+    $p1=AwaitProof $first
+    if($p1 -notmatch 'identity=NT AUTHORITY\\LOCAL SERVICE' -or
+       $p1 -notmatch 'service_sid_in_actual_token=True' -or
+       $p1 -notmatch 'pinned_public_key_read=True' -or
+       $p1 -notmatch 'signed_fake_job_valid=True' -or
+       $p1 -notmatch 'forged_signature_denied=True' -or
+       $p1 -notmatch 'first_nonce_consumption=True' -or
+       $p1 -notmatch 'replayed_nonce_denied=False') {
+        throw ('J9_SERVICE_PINNED_RSA_FIRST_USE_INVALID '+$p1)
+    }
+    Write-Output 'J9_REAL_SCM_PINNED_PUBLIC_KEY_RSA_SIGNATURE_VERIFIED'
+    Write-Output 'J9_REAL_SCM_FORGED_SIGNATURE_DENIED'
+    Strict 'sc.exe' @('stop',$nameA) | Out-Null
+    Start-Sleep -Seconds 2
+    Configure $nameA $replay
+    Strict 'sc.exe' @('start',$nameA) | Out-Null
+    $p2=AwaitProof $replay
+    if($p2 -notmatch 'service_sid_in_actual_token=True' -or
+       $p2 -notmatch 'signed_fake_job_valid=True' -or
+       $p2 -notmatch 'first_nonce_consumption=False' -or
+       $p2 -notmatch 'replayed_nonce_denied=True') {
+        throw ('J9_SERVICE_RESTART_REPLAY_BYPASS '+$p2)
+    }
+    Write-Output 'J9_REAL_SCM_RESTART_PERSISTENT_NONCE_REPLAY_DENIED'
+    Strict 'sc.exe' @('start',$nameB) | Out-Null
+    $p3=AwaitProof $negative
+    if($p3 -notmatch 'identity=NT AUTHORITY\\LOCAL SERVICE' -or
+       $p3 -notmatch 'service_sid_in_actual_token=False' -or
+       $p3 -notmatch 'pinned_public_key_read=False' -or
+       $p3 -notmatch 'signed_fake_job_valid=False' -or
+       $p3 -notmatch 'reason=pinned_public_key_access_denied') {
+        throw ('J9_SAME_ACCOUNT_DIFFERENT_SID_ACL_BYPASS '+$p3)
+    }
+    Write-Output 'J9_SAME_LOCALSERVICE_WITHOUT_SERVICE_SID_CANNOT_VERIFY'
+    Write-Output 'J9_DETACHED_JWT_SIGNED_TICKET_LINKED_TO_ACTUAL_SCM_FAKE'
+    Write-Output 'J9_NO_CLINICAL_RESTORE_ENABLED'
+}
+finally {
+    foreach($svc in $created) {& sc.exe stop $svc 2>&1 | Out-Null}
+    Start-Sleep -Seconds 2
+    foreach($svc in $created) {& sc.exe delete $svc 2>&1 | Out-Null}
+    Start-Sleep -Seconds 1
+    if(Test-Path -LiteralPath $root) {
+        Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
+    }
+    foreach($svc in $created) {
+        & sc.exe query $svc 2>&1 | Out-Null
+        if($LASTEXITCODE -eq 0) {throw ('J9_SCM_CLEANUP_FAILED '+$svc)}
+    }
+}
+) {
         throw 'J9_SIGNED_INPUT_CONTRACT_INVALID'
     }
     if(-not $orderLines[0].StartsWith(('owner='+$pubLines[2]+'|'))) {
