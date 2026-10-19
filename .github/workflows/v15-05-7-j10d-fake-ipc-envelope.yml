@@ -1,0 +1,43 @@
+name: V1.5-05.7-J10D Synthetic IPC Envelope Contract
+on:
+  push:
+    branches:
+      - feat/v15-05-7j10d-installed-worker-authority-contract-20261019
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-envelope-only:
+    name: J10D parser-only negative tests (NOT authenticated IPC)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run bounded synthetic frame tests only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest backend.tests.test_legacy_sql_057j10d_fake_ipc_envelope -v 2>&1 | tee j10d.log
+          grep -q 'Ran 10 tests' j10d.log
+          grep -Eq '^OK[[:space:]]*$' j10d.log
+      - name: Strict J10D scope and exact SHA
+        shell: bash
+        env:
+          BASE_SHA: 12374a5e3e9f6c16ddf10859f53a8c816077ac36
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
+          git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
+          diff -u expected.txt actual.txt
