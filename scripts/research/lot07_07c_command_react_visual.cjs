@@ -92,6 +92,17 @@ try{
    if(check.active!==check.expected)failures.push('THEME_PRIMARY_'+theme);
    if(check.card!==check.expectCard)failures.push('THEME_CARD_'+theme);
    if(check.sidebar!==check.expectSide)failures.push('THEME_SIDEBAR_'+theme);
+   const contrast=await page.evaluate(()=>{
+     const rgb=value=>{const values=value.match(/[0-9.]+/g)?.slice(0,3).map(Number);return values?.length===3?values:null;};
+     const lum=xs=>xs.map(v=>{const x=v/255;return x<=0.04045?x/12.92:((x+0.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+     return ['.cmd-pill-warning','.cmd-pill-success','.cmd-alerts p','.cmd-lanehead b'].map(selector=>{
+       const el=document.querySelector(selector);if(!el)return {selector,ratio:0};
+       const style=getComputedStyle(el),fg=rgb(style.color),bg=rgb(style.backgroundColor);
+       if(!fg||!bg)return {selector,ratio:0};
+       const a=lum(fg),b=lum(bg);return {selector,ratio:(Math.max(a,b)+0.05)/(Math.min(a,b)+0.05)};
+     });
+   });
+   if(contrast.some(row=>row.ratio<4.5))failures.push('STATUS_TEXT_CONTRAST_'+theme+'_'+JSON.stringify(contrast));
    const img=path.join(out,'command-react-theme-'+theme+'.png');
    await page.screenshot({path:img,fullPage:true,animations:'disabled'});
    snaps.push({name:path.basename(img),sha256:hash(img),bytes:fs.statSync(img).size,...check});
