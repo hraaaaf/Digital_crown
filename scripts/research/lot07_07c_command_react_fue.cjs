@@ -64,7 +64,7 @@ async function patient(page){return page.locator('.cmd-shell').getAttribute('dat
   await b.close();
   const report={sourceHead:sha,source:'STANDALONE_SYNTHETIC_REACT_ONLY',browser:'Chromium',isolatedBrowserContexts:true,independentAgents:false,realLogin:false,backend:false,humanApproval:false,checks:results,pass:results.every(x=>x.pass),evidence:{beforeA},limitations:['Two scripted personas in one CI job are not two independent blind-user AI agents','No real Cabinet login, patient data, RBAC or clinical validation','No human visual approval']};
   fs.writeFileSync(path.join(out,'fue-report.json'),JSON.stringify(report,null,2)+'\n');
-  console.log('LOT07_FUE_LAB '+JSON.stringify({head:sha,pass:report.pass,passed:results.filter(x=>x.pass).length,total:results.length,independentAgents:false}));
+  console.log('LOT07_FUE_LAB '+JSON.stringify({head:sha,pass:report.pass,passed:results.filter(x=>x.pass).length,total:results.length,failed:results.filter(x=>!x.pass),independentAgents:false}));
   if(!report.pass)process.exitCode=1;
  }finally{await browser.close();}
 })().catch(e=>{fs.writeFileSync(path.join(out,'fue-error.txt'),String(e.stack||e));console.error('LOT07_FUE_LAB_ERROR '+e.message);process.exitCode=1;});
