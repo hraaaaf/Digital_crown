@@ -296,17 +296,13 @@ class SyntheticJwtAndWalWorkerEvidence(unittest.TestCase):
             GuidedRestoreService.get_owned_job(
                 job["restore_id"],self.fake_owners[1].id)
 
-    def test_12_real_guided_restore_missing_owner_bypass_is_observed(self):
+    def test_12_real_guided_restore_missing_owner_now_denied(self):
         from backend.services.guided_restore import GuidedRestoreService
         job=self._fake_job()
-        # Major discovered defect: production helper currently treats None
-        # as trusted internal worker; NEVER invoke actual request_apply.
-        self.assertIsNone(GuidedRestoreService._assert_owner(job,None))
-        self.assertEqual(
-            GuidedRestoreService.get_owned_job(job["restore_id"],None)["restore_id"],
-            job["restore_id"],
-        )
-        # G's dormant authorization remains an unconditional veto.
+        with self.assertRaises(PermissionError):
+            GuidedRestoreService._assert_owner(job,None)
+        with self.assertRaises(PermissionError):
+            GuidedRestoreService.get_owned_job(job["restore_id"],None)
         from backend.services.legacy_migration_restore_policy_v15 import require_clinical_apply
         with self.assertRaisesRegex(PermissionError,"CLINICAL_APPLY_DISABLED"):
             require_clinical_apply(job, principal=None)
