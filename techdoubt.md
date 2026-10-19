@@ -1,5 +1,14 @@
 # TECHDOUBT — Digital Crown
 
+## LOT05.7-J phase 2 — 2026-10-19 — vraie SQLCipher WAL FAKE, aucune autorité SCM clinique
+
+**En cours, résultat CI exact HEAD non encore attesté.** La branche phase 2 comporte seulement un laboratoire SQLCipher natif et un runner Windows réel, sans modification des services actifs. L'enveloppe `lot05j2_fake_` et le flag d'activation ne prouvent ni que le répertoire est protégé contre des jonctions/hardlinks/TOCTOU Windows, ni que le principal observé via `whoami` est l'identité d'un service SCM Digital Crown. Le `sc.exe query` sur un service délibérément fictif absent constate au mieux cette absence ; la fonction d'autorisation refusera toujours. Aucun nouveau ticket d'autorité n'est réellement transmis request/JWT→job signé durable→worker Service SID.
+
+**BLOCKERS maintenus** : incapacité à installer/tester un vrai service Windows SCM isolé avec token, Service SID et DACL hostile sous le protocole actuel ; test de backup SQLCipher WAL sur clés temporaires ne constitue PAS un restore de la DB du cabinet ou du schéma Alembic avec média/coffre/licence. Pas de transaction cross-files, fsync durable des répertoires sur Windows, crash secteur, interruption concurrente des writers, réconciliation transactionnelle DB+WAL/SHM+médias, RPO/RTO, consentement/provenance, authentification propriétaire end-to-end. Les vérifications `Path.resolve`/`Path.is_symlink` sont susceptibles de races et ne font pas une défense NTFS hostile. Les vrais helpers destructifs historiques restent présents, mais leurs appels d'activation clinique sont bloqués à la phase 1. Même avec tous les tests verts, décision clinique = **NO-GO**.
+
+**Gates** : 18 cas phase 2 réels SQLCipher par OS, 16 tests J phase 1, 21 tests I réel SQLCipher/JWT, 16 pytest legacy par OS, CI Scope exact SHA, two adversarial perspectives **internes** puis confirmation au même HEAD et POST Notion. Ne jamais transformer SKIP d'étape Linux sur Windows en SKIP des tests. `techdoubt.md` garde ces réserves ouvertes jusqu'à vraies preuves.
+
+
 ## LOT05.7-J — 2026-10-19 — active guided restore VETO et copie WAL FAKE non clinique
 
 **Statut : implémentation en vérification / clinique NO-GO.** `GuidedRestoreService._assert_owner` exige désormais deux entiers stricts non nuls et concordants. `request_apply` et `GuidedRestoreWorker.run` opposent chacun un refus inconditionnel indépendant du garde dormant G AVANT dispatch ou mutation ; cela désactive délibérément la restauration guidée historique et peut modifier l'expérience cabinet jusqu'à implémentation d'une vraie autorité système. L'API actuelle remonte un conflit plutôt qu'une promesse de succès. Un autre chemin qui appellerait directement des helpers dangereux n'est PAS protégé par le veto : inventaire et audit des call sites complets toujours requis.
