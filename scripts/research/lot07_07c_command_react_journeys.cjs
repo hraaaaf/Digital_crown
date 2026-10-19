@@ -74,7 +74,8 @@ async function snap(page,name){
    await check(page,'J2 A-B-A return no previous patient leakage '+width,async()=>
       await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
       &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-001'
-      &&!(await page.locator('.cmd-right').innerText()).includes('TEST-007'));
+      &&!(await page.locator('.cmd-patienthero').innerText()).includes('TEST-007')
+      &&(await page.locator('.cmd-cards > .cmd-card').nth(4).textContent()).includes('TEST-001'));
    if(width===1440){
      await page.getByRole('button',{name:'Terminer le RDV (simulation)'}).click();
      await check(page,'J1 mock finish disables clinical-action affordance',async()=> 
