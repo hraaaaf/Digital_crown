@@ -21,6 +21,29 @@ from backend.services.agenda_resource_conflicts import assert_resource_available
 router = APIRouter(tags=["Appointments"])
 
 
+def _agenda_visible_appointment(row: models.Appointment, user: models.User):
+    """Serialize agenda data with strict patient-data minimization.
+
+    Do not mutate an ORM entity: protected identity must stay available to
+    authorized practitioners throughout the current SQLAlchemy transaction.
+    """
+    if has_permission(user, "patients"):
+        return row
+    return schemas.AppointmentOut.model_validate(row).model_copy(update={
+        "patient_id": None,
+        "patient_name": None,
+        "motif": None,
+        "notes": None,
+        "phone": None,
+        "source": None,
+        "confirmed_by_id": None,
+        "confirmed_at": None,
+        "reminder_sent": False,
+        "reminder_sent_at": None,
+        "expires_at": None,
+    })
+
+
 def _naive_datetime(value: datetime) -> datetime:
     """Normalize API datetimes to the naive local representation used by the agenda DB."""
     return value.replace(tzinfo=None) if value.tzinfo is not None else value
@@ -59,14 +82,14 @@ def _resolve_practitioner_id(
     raise HTTPException(status_code=422, detail="praticien_id est requis pour ce rendez-vous")
 
 
-def _conflict_detail(conflicts: list) -> dict:
+def _conflict_detail(conflicts: list, can_read_patients: bool) -> dict:
     return {
         "message": "Créneau en conflit avec un autre rendez-vous",
         "conflicts": [
             {
                 "id": conflict.id,
-                "patient_id": conflict.patient_id,
-                "patient_name": conflict.patient_name,
+                "patient_id": conflict.patient_id if can_read_patients else None,
+                "patient_name": conflict.patient_name if can_read_patients else None,
                 "praticien_id": conflict.praticien_id,
                 "datetime_start": conflict.datetime_start.isoformat(),
                 "duration_minutes": conflict.duration_minutes,
@@ -148,29 +171,7 @@ def get_appointments(
     if end_date:
         query = query.filter(models.Appointment.datetime_start <= datetime.fromisoformat(end_date.replace("Z", "+00:00")))
     rows = query.order_by(models.Appointment.datetime_start.asc()).all()
-    if has_permission(current_user, "patients"):
-        return rows
-
-    # 07-C / C07C-09: agenda-only staff may see the timetable but MUST NOT
-    # receive patient identity or free-text clinical/identifying metadata in
-    # the HTTP response. Serialize fresh copies: never modify ORM instances.
-    # Keep id/time/status/ticket/practitioner for permitted appointment work.
-    return [
-        schemas.AppointmentOut.model_validate(row).model_copy(update={
-            "patient_id": None,
-            "patient_name": None,
-            "motif": None,
-            "notes": None,
-            "phone": None,
-            "source": None,
-            "confirmed_by_id": None,
-            "confirmed_at": None,
-            "reminder_sent": False,
-            "reminder_sent_at": None,
-            "expires_at": None,
-        })
-        for row in rows
-    ]
+    return [_agenda_visible_appointment(row, current_user) for row in rows]
 
 
 @router.post("/", response_model=schemas.AppointmentOut)
@@ -206,7 +207,7 @@ def create_appointment(
             appt.duration_minutes,
         )
         if conflicts:
-            raise HTTPException(status_code=409, detail=_conflict_detail(conflicts))
+            raise HTTPException(status_code=409, detail=_conflict_detail(conflicts, has_permission(current_user, 'patients')))
         assert_resource_available(db, employer_id=employer_id, resource_id=appt.resource_id, datetime_start=normalized_start, duration_minutes=appt.duration_minutes)
 
     appt_data = appt.model_dump()
@@ -226,7 +227,7 @@ def create_appointment(
         resource_id=str(db_appt.id),
         details=f"RDV patient {appt.patient_id}",
     )
-    return db_appt
+    return _agenda_visible_appointment(db_appt, current_user)
 
 
 @router.put("/{id}", response_model=schemas.AppointmentOut)
@@ -283,7 +284,7 @@ def update_appointment(
                 exclude_id=id,
             )
             if conflicts:
-                raise HTTPException(status_code=409, detail=_conflict_detail(conflicts))
+                raise HTTPException(status_code=409, detail=_conflict_detail(conflicts, has_permission(current_user, 'patients')))
             assert_resource_available(db, employer_id=employer_id, resource_id=update_data.get("resource_id", db_appt.resource_id), datetime_start=effective_start, duration_minutes=effective_duration, exclude_appointment_id=id)
 
         if "datetime_start" in update_data and update_data["datetime_start"] is not None:
@@ -303,7 +304,7 @@ def update_appointment(
         resource_id=str(id),
         details=f"Champs: {', '.join(update_data.keys())}",
     )
-    return db_appt
+    return _agenda_visible_appointment(db_appt, current_user)
 
 
 @router.post("/{id}/presence-confirmation")
@@ -432,7 +433,7 @@ def create_bulk_appointments(
                 item.duration_minutes,
             )
             if conflicts:
-                raise HTTPException(status_code=409, detail=_conflict_detail(conflicts))
+                raise HTTPException(status_code=409, detail=_conflict_detail(conflicts, has_permission(current_user, 'patients')))
             assert_resource_available(db, employer_id=employer_id, resource_id=item.resource_id, datetime_start=normalized_start, duration_minutes=item.duration_minutes)
             for previous_index, previous in enumerate(prepared):
                 if (
@@ -479,7 +480,7 @@ def create_bulk_appointments(
     db.commit()
     for appt in created_appts:
         db.refresh(appt)
-    return created_appts
+    return [_agenda_visible_appointment(row, current_user) for row in created_appts]
 
 
 @router.post("/reminders/send")
@@ -530,7 +531,7 @@ async def suggest_appointment(
 def get_patient_appointments(
     patient_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("patients")),
 ):
     assert_patient_access(patient_id, current_user, db)
     return db.query(models.Appointment).filter(
@@ -569,6 +570,7 @@ def check_conflicts(
     conflicts = _find_conflicts(db, employer_id, practitioner_id, dt, duration_minutes, exclude_id)
     validate_assignable_resource(db, employer_id, resource_id)
     resource_conflict = find_resource_conflict(db, employer_id=employer_id, resource_id=resource_id, datetime_start=dt, duration_minutes=duration_minutes, exclude_appointment_id=exclude_id)
+    can_read_patients = has_permission(current_user, "patients")
     return {
         "has_conflict": bool(conflicts) or resource_conflict is not None,
         "resource_id": resource_id,
@@ -577,7 +579,7 @@ def check_conflicts(
         "conflicts": [
             {
                 "id": c.id,
-                "patient_name": c.patient_name,
+                "patient_name": c.patient_name if can_read_patients else None,
                 "praticien_id": c.praticien_id,
                 "datetime_start": c.datetime_start.isoformat(),
                 "duration_minutes": c.duration_minutes,
@@ -648,15 +650,17 @@ def get_multi_practitioner_appointments(
     else:
         availability_date = datetime.now().date()
 
+    can_read_patients = has_permission(current_user, "patients")
+
     def serialize(a: models.Appointment) -> dict:
         return {
             "id": a.id,
-            "patient_name": a.patient_name,
-            "patient_id": a.patient_id,
+            "patient_name": a.patient_name if can_read_patients else None,
+            "patient_id": a.patient_id if can_read_patients else None,
             "praticien_id": a.praticien_id,
             "datetime_start": a.datetime_start.isoformat(),
             "duration_minutes": a.duration_minutes,
-            "motif": a.motif,
+            "motif": a.motif if can_read_patients else None,
             "status": a.status,
             "scheduling_type": a.scheduling_type,
             "reminder_sent": a.reminder_sent,
