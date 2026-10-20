@@ -12,6 +12,8 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 using System.Web.Script.Serialization;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 internal sealed class J10DPipeConsumer : ServiceBase {
     readonly string[] a;
@@ -93,6 +95,131 @@ internal sealed class J10DPipeConsumer : ServiceBase {
         }
         return found.SetEquals(accepted);
     }
+    // J10D test-only Win32/NT handle-relative nonce: opening a child relative
+    // to an ALREADY OPENED directory cannot be redirected by replacing its
+    // path between the directory check and FILE_CREATE.
+    // This DOES NOT prevent privileged rollback before handle acquisition,
+    // restore of both trust data and nonce ledger, or crash/powerloss issues.
+    const uint FILE_READ_ATTRIBUTES = 0x80;
+    const uint FILE_LIST_DIRECTORY = 0x1;
+    const uint SYNCHRONIZE = 0x00100000;
+    const uint GENERIC_WRITE = 0x40000000;
+    const uint FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
+    const uint FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
+    const uint FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400;
+    const uint FILE_ATTRIBUTE_DIRECTORY = 0x00000010;
+    const uint FILE_CREATE = 2;
+    const uint FILE_NON_DIRECTORY_FILE = 0x40;
+    const uint FILE_SYNCHRONOUS_IO_NONALERT = 0x20;
+    const uint FILE_WRITE_THROUGH = 0x2;
+    const int STATUS_OBJECT_NAME_COLLISION = unchecked((int)0xC0000035);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct UnicodeName {
+        public ushort Length;
+        public ushort MaximumLength;
+        public IntPtr Buffer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    struct ObjectAttributes {
+        public uint Length;
+        public IntPtr RootDirectory;
+        public IntPtr ObjectName;
+        public uint Attributes;
+        public IntPtr SecurityDescriptor;
+        public IntPtr SecurityQualityOfService;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    struct IoStatus {
+        public IntPtr Status;
+        public IntPtr Information;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    struct ByHandleInfo {
+        public uint Attributes;
+        public uint CreationLow,CreationHigh;
+        public uint AccessLow,AccessHigh;
+        public uint WriteLow,WriteHigh;
+        public uint VolumeSerial,SizeHigh,SizeLow,Links,FileIndexHigh,FileIndexLow;
+    }
+    [DllImport("kernel32.dll",EntryPoint="CreateFileW",CharSet=CharSet.Unicode,
+        SetLastError=true)]
+    static extern SafeFileHandle OpenDirectory(string path,uint access,
+        uint share,IntPtr security,uint disposition,uint flags,IntPtr template);
+    [DllImport("kernel32.dll",SetLastError=true)]
+    [return:MarshalAs(UnmanagedType.Bool)]
+    static extern bool GetFileInformationByHandle(SafeFileHandle handle,out ByHandleInfo info);
+    [DllImport("ntdll.dll",ExactSpelling=true)]
+    static extern int NtCreateFile(out SafeFileHandle handle,uint access,
+        ref ObjectAttributes attributes,out IoStatus io,IntPtr allocation,
+        uint fileAttributes,uint share,uint disposition,uint options,
+        IntPtr ea,uint eaLength);
+
+    static SafeFileHandle OpenLedgerHandle(string path) {
+        SafeFileHandle directory=OpenDirectory(path,
+            FILE_READ_ATTRIBUTES|FILE_LIST_DIRECTORY|SYNCHRONIZE,
+            1|2|4,IntPtr.Zero,3,
+            FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,
+            IntPtr.Zero);
+        if(directory==null || directory.IsInvalid) {
+            if(directory!=null) directory.Dispose();
+            throw new IOException("deny directory open");
+        }
+        ByHandleInfo metadata;
+        if(!GetFileInformationByHandle(directory,out metadata) ||
+           (metadata.Attributes & FILE_ATTRIBUTE_DIRECTORY)==0 ||
+           (metadata.Attributes & FILE_ATTRIBUTE_REPARSE_POINT)!=0) {
+            directory.Dispose();
+            throw new IOException("deny reparse directory handle");
+        }
+        return directory;
+    }
+
+    static string BurnNonceRelative(SafeFileHandle directory,string nonce) {
+        if(!Hex(nonce,32)) return Deny("LEDGER_INVALID");
+        // This UnicodeName contains only a fixed hex basename. No separators,
+        // drive prefix, colon, parent path, slash or user-controlled component.
+        string leaf=nonce+".nonce";
+        var unicode=new UnicodeName();
+        unicode.Buffer=Marshal.StringToHGlobalUni(leaf);
+        unicode.Length=(ushort)(leaf.Length*2);
+        unicode.MaximumLength=(ushort)((leaf.Length+1)*2);
+        IntPtr name=IntPtr.Zero;
+        SafeFileHandle marker=null;
+        try {
+            name=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(UnicodeName)));
+            Marshal.StructureToPtr(unicode,name,false);
+            var attributes=new ObjectAttributes {
+                Length=(uint)Marshal.SizeOf(typeof(ObjectAttributes)),
+                RootDirectory=directory.DangerousGetHandle(),
+                ObjectName=name,
+                Attributes=0x40 /* OBJ_CASE_INSENSITIVE */
+            };
+            IoStatus io;
+            int status=NtCreateFile(out marker,GENERIC_WRITE|SYNCHRONIZE,
+                ref attributes,out io,IntPtr.Zero,0,1,FILE_CREATE,
+                FILE_NON_DIRECTORY_FILE|FILE_SYNCHRONOUS_IO_NONALERT|
+                    FILE_WRITE_THROUGH|FILE_FLAG_OPEN_REPARSE_POINT,
+                IntPtr.Zero,0);
+            if(status==STATUS_OBJECT_NAME_COLLISION)
+                return Deny("NONCE_REPLAY_OR_LEDGER");
+            if(status<0 || marker==null || marker.IsInvalid)
+                return Deny("LEDGER_INVALID");
+            using(var stream=new FileStream(marker,FileAccess.Write,4096,false)) {
+                marker=null; // FileStream owns this SafeFileHandle.
+                byte[] payload=Encoding.ASCII.GetBytes("J10D_PIPE_DENY_ONLY");
+                stream.Write(payload,0,payload.Length);
+                stream.Flush(true);
+            }
+            return Deny("RSA_VERIFIED_NONCE_BURNED");
+        } catch(Exception) {return Deny("LEDGER_INVALID");}
+        finally {
+            if(marker!=null) marker.Dispose();
+            if(name!=IntPtr.Zero) Marshal.FreeHGlobal(name);
+            if(unicode.Buffer!=IntPtr.Zero) Marshal.FreeHGlobal(unicode.Buffer);
+        }
+    }
+
     bool Verify(string json,out string nonce) {
         nonce="";
         if(json.Length>2048 || json.Length<1) return false;
@@ -142,16 +269,11 @@ internal sealed class J10DPipeConsumer : ServiceBase {
             if(!folder.Exists || !PlainPath(a[5],true) ||
                !ExactConsumerAcl(Directory.GetAccessControl(a[5]),a[3]))
                 return Deny("LEDGER_INVALID");
-            string path=Path.Combine(a[5],nonce+".nonce");
-            try {
-                using(var mark=new FileStream(path,FileMode.CreateNew,FileAccess.Write,
-                                               FileShare.None,4096,FileOptions.WriteThrough)) {
-                    byte[] bytes=Encoding.ASCII.GetBytes("J10D_PIPE_DENY_ONLY");
-                    mark.Write(bytes,0,bytes.Length);
-                    mark.Flush(true);
-                }
-            } catch(IOException) {return Deny("NONCE_REPLAY_OR_LEDGER");}
-            return Deny("RSA_VERIFIED_NONCE_BURNED");
+            // Critical ordering: reparse/ACL checks -> no-follow OPEN DIRECTORY
+            // -> create child RELATIVE TO THE SAME DIRECTORY HANDLE. A path
+            // rename/swap after opening cannot redirect that child create.
+            using(SafeFileHandle directory=OpenLedgerHandle(a[5]))
+                return BurnNonceRelative(directory,nonce);
         } catch(Exception) {return Deny("FAIL_CLOSED");}
     }
     void Listen() {
