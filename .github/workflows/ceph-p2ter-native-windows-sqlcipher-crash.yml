@@ -53,7 +53,7 @@ jobs:
       - name: Real TerminateProcess before and after encrypted SQL commit
         shell: pwsh
         run: |
-          python -m pytest backend/tests/test_cephalo_p2ter_windows_sqlcipher_native.py -vv -s 2>&1 | Tee-Object -FilePath p2ter-windows-sqlcipher.log
+          python -m pytest --noconftest backend/tests/test_cephalo_p2ter_windows_sqlcipher_native.py -vv -s 2>&1 | Tee-Object -FilePath p2ter-windows-sqlcipher.log
           if ($LASTEXITCODE -ne 0) { throw 'Native SQLCipher crash/recovery tests failed' }
       - uses: actions/upload-artifact@v4
         if: always()
