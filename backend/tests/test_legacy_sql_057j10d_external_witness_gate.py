@@ -12,7 +12,13 @@ import unittest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from backend.tests.fixtures import lot05j10d_external_witness_gate as gate
+from pathlib import Path
+
+# Import only this disposable J10D fixture: importing backend/__init__.py
+# would load clinical ORM modules and is outside this standalone CI gate.
+fixtures = Path(__file__).resolve().parent / "fixtures"
+sys.path.insert(0,str(fixtures))
+import lot05j10d_external_witness_gate as gate
 
 
 class J10DExternalWitnessSpecimen(unittest.TestCase):
@@ -146,7 +152,7 @@ class J10DExternalWitnessSpecimen(unittest.TestCase):
 
     def test_12_executable_gate_returns_nonzero_and_no_go(self):
         run=subprocess.run(
-            [sys.executable,"-m","backend.tests.fixtures.lot05j10d_external_witness_gate"],
+            [sys.executable,str(fixtures / "lot05j10d_external_witness_gate.py")],
             capture_output=True,text=True,timeout=10,
         )
         self.assertEqual(run.returncode,3,run.stderr)
