@@ -62,13 +62,14 @@ jobs:
         run: |
           set -euo pipefail
           python -B backend/tests/test_legacy_sql_057j10d_fake_offhost_witness_store.py -v 2>&1 | tee j10d-fake-remote.log
-          grep -q 'Ran 12 tests' j10d-fake-remote.log
+          grep -q 'Ran 13 tests' j10d-fake-remote.log
           grep -Eq '^OK[[:space:]]*$' j10d-fake-remote.log
           grep -q 'J10D_FAKE_REMOTE_SIGNED_RECEIPT_STILL_PRODUCT_DENY_PASS' j10d-fake-remote.log
           grep -q 'J10D_FAKE_OFF_LEDGER_CLIENT_ROLLBACK_DENIED_PASS' j10d-fake-remote.log
           grep -q 'J10D_FAKE_REMOTE_SQLITE_SINGLE_ADVANCE_CONCURRENCY_PASS' j10d-fake-remote.log
           grep -q 'J10D_FAKE_REMOTE_LOST_ACK_DOES_NOT_REUSE_CHECKPOINT_PASS' j10d-fake-remote.log
           grep -q 'J10D_FAKE_REMOTE_WORKER_PROCESS_RESTART_ROLLBACK_DENIED_PASS' j10d-fake-remote.log
+          grep -q 'J10D_FAKE_REMOTE_COMPLETE_STATE_ROLLBACK_UNPROTECTED_PRODUCT_NO_GO_PASS' j10d-fake-remote.log
           ! grep -E '^FAILED|skipped=[0-9]+|^ERROR:' j10d-fake-remote.log
       - name: Compile deny-only SCM consumer on Windows
         if: runner.os == 'Windows'
