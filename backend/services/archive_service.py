@@ -297,6 +297,8 @@ class ArchiveService:
         # Official reports are only produced by the identity-bound PDF route.
         # Generic service calls must never use a client-controlled destination.
         _validate_archive_filename(filename)
+        if doc_type == DocumentType.RAPPORT_CEPHALO and not commit:
+            raise ValueError("Archive céphalométrique officielle : commit SQL requis")
 
         # Calculer le hash
         file_hash = self._calculate_file_hash(file_content)
@@ -411,10 +413,36 @@ class ArchiveService:
                 f"{storage_path.stem}_{uuid.uuid4().hex}{storage_path.suffix}"
             )
 
-        # Exclusive create prevents a concurrent writer from silently replacing
-        # another archive between the existence check and the open.
-        with open(storage_path, 'xb') as f:
-            f.write(file_content)
+        # Only official cephalometric reports are enrolled in crash recovery.
+        # The caller must hold the selected-study SQL writer lock throughout
+        # this operation; a journal without matching identity never authorizes
+        # reusing arbitrary files.
+        pending_cephalo = None
+        if doc_type == DocumentType.RAPPORT_CEPHALO:
+            from backend.services.cephalo_archive_recovery import prepare_official_pdf
+
+            if not isinstance(clean_clinical_data, dict) or analysis_id is None:
+                raise ValueError("Archive céphalométrique : identité scientifique absente")
+            if clean_clinical_data.get("cephalo_analysis_id") != analysis_id:
+                raise ValueError("Archive céphalométrique : étude incohérente")
+            pending_cephalo = prepare_official_pdf(
+                self.db,
+                root=ARCHIVE_BASE_DIR,
+                proposed_path=storage_path,
+                patient_id=patient_id,
+                analysis_id=analysis_id,
+                revision=clean_clinical_data.get("cephalo_analysis_revision"),
+                payload_digest=clean_clinical_data.get("cephalo_archive_payload_digest"),
+                content=file_content,
+            )
+            storage_path = pending_cephalo.path
+            file_content = pending_cephalo.content
+            file_hash = self._calculate_file_hash(file_content)
+            file_size = len(file_content)
+        else:
+            # Existing generic archives still use exclusive create.
+            with open(storage_path, 'xb') as f:
+                f.write(file_content)
         
         # --- DOUBLE EXPORT : RESTAURATION DOSSIERS HISTORIQUES (static/documents/YYYY/MM) ---
         if doc_type in [DocumentType.NOTE_HONORAIRES, DocumentType.DEVIS, DocumentType.ORDONNANCE, DocumentType.CERTIFICAT]:
@@ -459,15 +487,25 @@ class ArchiveService:
                 # SQL row fails to commit. Remove only the newly written file;
                 # never leave an orphan containing clinical data on disk.
                 self.db.rollback()
-                if doc_type == DocumentType.RAPPORT_CEPHALO:
+                if pending_cephalo is not None:
+                    from backend.services.cephalo_archive_recovery import abort_official_pdf
                     try:
-                        storage_path.unlink(missing_ok=True)
+                        abort_official_pdf(pending_cephalo)
                     except OSError:
-                        # The failure remains fatal; operational cleanup is
-                        # separately auditable rather than masked as success.
+                        # An incomplete cleanup must not disguise the failed
+                        # transaction; recovery will inspect the remaining journal.
                         pass
                 raise
             self.db.refresh(doc)
+            if pending_cephalo is not None:
+                from backend.services.cephalo_archive_recovery import finish_official_pdf
+                try:
+                    finish_official_pdf(pending_cephalo)
+                except OSError:
+                    # SQL is already committed; replay will verify its SHA256.
+                    # The leftover journal can be reconciled, not treated as
+                    # proof that the SQL transaction failed.
+                    pass
         else:
             self.db.flush()
         
