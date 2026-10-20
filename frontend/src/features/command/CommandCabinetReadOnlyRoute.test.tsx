@@ -139,7 +139,7 @@ describe('07-C / real Cabinet read-only boundary', () => {
       useAuthStore.setState({ user: userWith({ agenda: true, patients: false }), isAuthenticated: true, isLoading: false });
     });
     expect(container.textContent).not.toContain('TEST-NOM');
-    expect(screen.getByText('Rendez-vous')).toBeInTheDocument();
+    expect(screen.getAllByRole('cell').map((cell) => cell.textContent)).toContain('Rendez-vous');
   });
 
   it('rejects mixed-validity API data and preserves local cabinet clock without UTC shifting', () => {
