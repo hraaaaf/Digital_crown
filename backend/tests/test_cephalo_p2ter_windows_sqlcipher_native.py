@@ -238,8 +238,26 @@ def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: b
         # This detects a wrongly directed test fixture instead of treating
         # a missing PDF as a valid crash-recovery result.
         assert len(checkpoint["pdf_files"]) == 1 and len(checkpoint["journal_files"]) == 1, (
-            "Archive missing before TerminateProcess: " + json.dumps(checkpoint, sort_keys=True)
+            "Archive missing in child checkpoint: " + json.dumps(checkpoint, sort_keys=True)
         )
+        # IMPORTANT: the child's earlier checkpoint alone cannot prove the
+        # files still exist at the instant of TerminateProcess. Read them via
+        # the independent parent immediately BEFORE the kill.
+        target_pdf = root / checkpoint["pdf_files"][0]
+        target_journal = root / checkpoint["journal_files"][0]
+        prekill = {
+            "pdf_exists": target_pdf.is_file(),
+            "journal_exists": target_journal.is_file(),
+            "pdf_size": target_pdf.stat().st_size if target_pdf.is_file() else None,
+            "journal_size": target_journal.stat().st_size if target_journal.is_file() else None,
+            "child_control_exists": (root / ".native-child-created-control").is_file(),
+        }
+        assert prekill["pdf_exists"] and prekill["journal_exists"], (
+            "WINDOWS_ARCHIVE_LOSS_PRECEDES_TERMINATEPROCESS: "
+            + json.dumps({"child_checkpoint": checkpoint, "parent_prekill": prekill}, sort_keys=True)
+        )
+        assert prekill["pdf_size"] == len(PDF), "Pre-kill PDF size changed from verified child bytes"
+        assert prekill["journal_size"] and prekill["journal_size"] > 40
         process.kill()  # Windows API TerminateProcess, not os._exit or fake exception
         process.communicate(timeout=15)
         assert process.returncode != 0, "TerminateProcess unexpectedly succeeded as normal exit"
