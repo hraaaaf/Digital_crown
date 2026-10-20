@@ -86,6 +86,8 @@ try {
   const ownerFixture = ownerGet.body.find(x => x.patient_name === 'T2 COMMAND SYNTHETIC');
   assert.ok(ownerFixture, 'Seeded owner appointment exists on actual backend');
   assert.match(ownerFixture.datetime_start, /T09:15:00$/);
+  assert.equal(ownerFixture.motif, 'T2_PRIVATE_MOTIF_CANARY', 'Owner must keep meaningful appointment motif');
+  assert.equal(ownerFixture.notes, 'T2_PRIVATE_NOTE_CANARY', 'Owner must retain clinic notes');
   const firstId = ownerFixture.id;
   point('backend-owner-appointment', { httpStatus: 200, id: firstId, status: ownerFixture.status, start: ownerFixture.datetime_start });
 
@@ -97,8 +99,9 @@ try {
   for (const key of ['patient_name', 'patient_id', 'motif', 'notes', 'phone', 'source', 'confirmed_by_id']) {
     assert.equal(restrictedAppointment[key], null, 'Agenda-only response MUST minimize '+key);
   }
-  assert.ok(!JSON.stringify(restrictedGet.body).includes('T2 COMMAND SYNTHETIC'),
-    'Agenda-only HTTP response MUST NOT contain a patient identifier');
+  assert.ok(!/T2 COMMAND SYNTHETIC|T2_PRIVATE_MOTIF_CANARY|T2_PRIVATE_NOTE_CANARY|0600000000/
+    .test(JSON.stringify(restrictedGet.body)),
+    'Agenda-only HTTP response MUST NOT contain names, notes, reason or phone');
   assert.equal(restrictedAppointment.datetime_start, ownerFixture.datetime_start);
   assert.equal(restrictedAppointment.status, ownerFixture.status);
   point('backend-agenda-only-staff', { httpStatus: restrictedGet.status, sameAppointment: firstId, httpIdentityRedacted: true });
