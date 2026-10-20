@@ -1,5 +1,6 @@
 /** LOT07/07-C — no new business authority: presentation-only projection of Dashboard appointments. */
 import type { DashboardAppointment } from '../dashboard/types';
+import { cabinetWallClock } from '../dashboard/normalizeCabinetAppointments';
 
 export function isCommandCabinetLabEnabled(dev: boolean, optIn: string | undefined): boolean {
   // Both conditions are mandatory. A production build cannot enable the laboratory.
@@ -38,8 +39,8 @@ export function projectReadOnlyAppointments(
 
     // FastAPI's real AppointmentOut: datetime_start (cabinet naive wall clock).
     // Legacy Dashboard data: start_time. Never convert these via Date/UTC.
-    const clock = /^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(start);
-    if (!clock || Number(clock[1]) > 23 || Number(clock[2]) > 59) return null;
+    const clock = cabinetWallClock(start);
+    if (!clock) return null;
 
     let patientLabel = 'Rendez-vous';
     if (canReadPatients) {
@@ -53,7 +54,7 @@ export function projectReadOnlyAppointments(
     }
     result.push({
       id: item.id,
-      time: `${clock[1]}:${clock[2]}`,
+      time: clock,
       status: item.status,
       patientLabel,
     });
