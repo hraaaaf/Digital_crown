@@ -386,7 +386,7 @@ describe('CrownBot G9 reachable interaction truth', () => {
         <NavigateSyntheticPatient />
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByRole('tab', { name: 'Chat', exact: true }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Chat$/ }));
     const region=screen.getByRole('region', { name: 'Assistant Crown Bot — consultation' });
     fireEvent.click(screen.getByRole('button', { name: 'Trouver un patient' }));
     await screen.findByText('Patient : saisissez un identifiant');
@@ -421,7 +421,7 @@ describe('CrownBot G9 reachable interaction truth', () => {
       } } as any)
       .mockRejectedValueOnce({ response: { status: 503 } });
     renderCrownBot();
-    fireEvent.click(screen.getByRole('tab', { name: 'Chat', exact: true }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Chat$/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Trouver un patient' }));
     await screen.findByText('Patient identifié dans votre cabinet.');
     expect(screen.getByText(/Dossier T2-042/)).toBeInTheDocument();
