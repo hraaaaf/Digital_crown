@@ -6,6 +6,7 @@ import type { AppUser } from '../../types';
 import { useAuthStore } from '../../stores/useAuthStore';
 import type { DashboardAppointment } from '../dashboard/types';
 import { isCommandCabinetLabEnabled, projectReadOnlyAppointments } from './command-cabinet-readonly-policy';
+import { normalizeCabinetAppointments } from '../dashboard/normalizeCabinetAppointments';
 
 const mockToday = vi.hoisted(() => vi.fn());
 vi.mock('../dashboard/hooks/useTodayAppointments', () => ({ useTodayAppointments: mockToday }));
@@ -163,5 +164,44 @@ describe('07-C / real Cabinet read-only boundary', () => {
     expect(projectReadOnlyAppointments([{ ...appointment, id: -1 }], true)).toBeNull();
     expect(projectReadOnlyAppointments([appointment, { ...appointment, start_time: '2026-10-20T25:90:00' }], true)).toBeNull();
     expect(projectReadOnlyAppointments(null, true)).toBeNull();
+  });
+});
+
+describe('07-C / real FastAPI AppointmentOut bridge for Signature + Command', () => {
+  const canonical = {
+    id: 57, datetime_start: '2026-10-20T09:15:00', status: 'EN_S_ATTENTE',
+    patient_name: 'T2 COMMAND SYNTHETIC', patient_id: 991,
+    motif: 'SENSITIVE_CANARY', notes: 'MUST_NOT_LEAK', ticket_number: 17,
+  };
+
+  it('shows real Cabinet time and authorized patient name on Signature while Command keeps exact wall clock', () => {
+    const [appointment] = normalizeCabinetAppointments([canonical], true);
+    expect(appointment.start_time).toBe('2026-10-20T09:15:00');
+    expect(appointment.patient).toMatchObject({ nom: 'T2 COMMAND SYNTHETIC', prenom: '' });
+    expect(appointment.description).toBe('SENSITIVE_CANARY');
+    expect(appointment.patient_id).toBe(991);
+    expect(projectReadOnlyAppointments([appointment], true)).toEqual([{
+      id: 57, time: '09:15', status: 'EN_S_ATTENTE', patientLabel: 'T2 COMMAND SYNTHETIC',
+    }]);
+  });
+
+  it('never materializes patient identity, free-text motif or linked id for an agenda-only actor', () => {
+    const [appointment] = normalizeCabinetAppointments([canonical], false);
+    expect(appointment.start_time).toBe('2026-10-20T09:15:00');
+    expect(appointment.patient).toBeNull();
+    expect(appointment.patient_id).toBeNull();
+    expect(appointment.patient_name).toBeNull();
+    expect(appointment.description).toBeNull();
+    expect(JSON.stringify(appointment)).not.toMatch(/SENSITIVE_CANARY|MUST_NOT_LEAK|T2 COMMAND SYNTHETIC|991/);
+    expect(projectReadOnlyAppointments([appointment], false)).toEqual([{
+      id: 57, time: '09:15', status: 'EN_S_ATTENTE', patientLabel: 'Rendez-vous',
+    }]);
+  });
+
+  it('fails closed for malformed, impossible or mixed-validity backend appointment payloads', () => {
+    expect(() => normalizeCabinetAppointments(null, true)).toThrow();
+    expect(() => normalizeCabinetAppointments([canonical, { ...canonical, id: -1 }], true)).toThrow();
+    expect(() => normalizeCabinetAppointments([{ ...canonical, datetime_start: '2026-10-20T25:59:00' }], true)).toThrow();
+    expect(() => normalizeCabinetAppointments([{ ...canonical, status: null }], true)).toThrow();
   });
 });
