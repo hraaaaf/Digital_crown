@@ -35,6 +35,20 @@ class RealIssuerToVerifier(issuer_lab.ConnectedJ10C):
            "J10D_NO_CLINICAL_APPLY_PASS"):
             self.assertIn(marker,proof)
             print(marker)
+        pipe_probe=Path(__file__).resolve().parent/"fixtures"/"lot05j10d_scm_authenticated_pipe_probe.ps1"
+        ipc=subprocess.run(["pwsh","-NoProfile","-File",str(pipe_probe)],
+                            capture_output=True,text=True,timeout=170,env=env)
+        ipc_output=ipc.stdout+"\\n"+ipc.stderr
+        self.assertEqual(ipc.returncode,0,ipc_output[-6500:])
+        for marker in (
+            "J10D_PIPE_SCM_PIN_LEDGER_AND_RELAY_SID_ACLS_PASS",
+            "J10D_PIPE_REAL_J10C_RSA_TICKET_SCMSID_PEER_VERIFIED_AND_DENIED_PASS",
+            "J10D_PIPE_ACTUAL_CONSUMER_SCM_RESTART_REPLAY_DENIED_PASS",
+            "J10D_PIPE_VALID_SERVICE_SID_FORGED_RSA_BODY_DENIED_PASS",
+            "J10D_PIPE_SAME_LOCALSERVICE_OTHER_SCM_SID_ACCESS_DENIED_PASS",
+            "J10D_PIPE_NO_CLINICAL_APPLY_PASS"):
+            self.assertIn(marker,ipc_output)
+            print(marker)
         ledger=self.root/"j10d-consumer-synthetic-ledger"
         ledger.mkdir()
         scope=dict(owner=int(claims["owner"]),job=claims["job"],
