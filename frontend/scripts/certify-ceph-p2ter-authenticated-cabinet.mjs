@@ -111,6 +111,7 @@ async function viewportRun(viewport){
   }));
 
   await shot('before-history');
+  const clinicalSentinel='P2TER_SENTINEL_A_ONLY';
   for(const [label,study] of [['older',identities.older_id],['newer',identities.latest_id]]){
    await page.getByRole('button',{name:'Historique',exact:true}).click();
    const card=page.locator('[data-cephalo-history-analysis-id="'+study+'"]');
@@ -122,6 +123,15 @@ async function viewportRun(viewport){
    await page.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
    const draft=page.getByRole('button',{name:'Brouillon PDF'});
    await draft.waitFor({state:'visible',timeout:20000});
+   const therapyNote=page.locator('textarea[placeholder^="Saisie libre"]');
+   await therapyNote.waitFor({state:'visible',timeout:15000});
+   if(label==='older'){
+     await therapyNote.fill(clinicalSentinel);
+     if((await therapyNote.inputValue())!==clinicalSentinel)
+       throw Error('A-only clinical sentinel not retained by A text input');
+   } else if((await therapyNote.inputValue()).includes(clinicalSentinel)){
+     throw Error('CLINICAL_CROSS_STUDY_LEAK: A therapy note appears in B form');
+   }
    const responsePromise=page.waitForResponse(r=>{
      const u=new URL(r.url());return u.pathname==='/api/patients/'+identities.patient_id+'/pdf'
        && r.request().method()==='POST';
@@ -129,6 +139,10 @@ async function viewportRun(viewport){
    await draft.click();
    const response=await responsePromise;
    const body=response.request().postDataJSON();
+   const sentInPDF=JSON.stringify(body).includes(clinicalSentinel);
+   if((label==='older' && !sentInPDF) || (label==='newer' && sentInPDF))
+     throw Error('CLINICAL_CROSS_STUDY_LEAK: wrong clinical sentinel in '+label+' PDF POST');
+   if(label==='newer') record.checks.push('CABINET_A_TO_B_CLINICAL_SENTINEL_ISOLATED_IN_FORM_AND_PDF_POST');
    if(body.analysis_id!==study || !Number.isSafeInteger(body.expected_revision) ||
        body.expected_revision<=0 || body.archive!==false)
      throw Error('Wrong analysis request identity from Cabinet UI '+label);
@@ -247,6 +261,40 @@ async function viewportRun(viewport){
   record.checks.push('TWO_AUTHENTICATED_TABS_DIFFERENT_STUDY_CONCURRENT_PDFS');
   await tabB.screenshot({path:path.join(output,record.viewport+'-two-tabs-B-after.png'),animations:'disabled'});
   record.shots.push(record.viewport+'-two-tabs-B-after.png');
+
+  // Real TWO BROWSER TABS, authenticated under the same Cabinet session, race
+  // creation of the exact B revision 2 archive via native fetch in each tab.
+  const concurrentPayload={analysis_id:identities.latest_id,expected_revision:2,archive:true};
+  const archiveURL=backend+'/api/patients/'+identities.patient_id+'/pdf';
+  const archiveFromTab=tab=>tab.evaluate(async ({url,payload})=>{
+    const token=localStorage.getItem('token');
+    if(!token)throw Error('Authenticated archive tab missing token');
+    const response=await fetch(url,{method:'POST',credentials:'include',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(payload)});
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    const hash=await crypto.subtle.digest('SHA-256',bytes);
+    return {status:response.status,sha:[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join(''),
+      size:bytes.byteLength,looksPDF:bytes[0]===37&&bytes[1]===80&&bytes[2]===68&&bytes[3]===70,
+      study:response.headers.get('x-cephalo-analysis-id'),
+      revision:response.headers.get('x-cephalo-revision'),
+      replay:response.headers.get('x-cephalo-archive-replayed')==='true'};
+  },{url:archiveURL,payload:concurrentPayload});
+  const [sameA,sameB]=await Promise.all([archiveFromTab(page),archiveFromTab(tabB)]);
+  if(sameA.status!==200||sameB.status!==200||!sameA.looksPDF||!sameB.looksPDF||
+    sameA.sha!==sameB.sha||sameA.size!==sameB.size||
+    sameA.study!==String(identities.latest_id)||sameB.study!==String(identities.latest_id)||
+    sameA.revision!=='2'||sameB.revision!=='2')
+    throw Error('Two real Cabinet tabs failed same-revision archive identity: '+
+      JSON.stringify({sameA,sameB}));
+  const replayCount=Number(sameA.replay)+Number(sameB.replay);
+  if(viewport.width===1280&&replayCount!==1)
+    throw Error('First concurrent archive pair must create once then replay once: '+replayCount);
+  if(viewport.width===1600&&replayCount!==2)
+    throw Error('Later concurrent archive pair must replay both: '+replayCount);
+  record.checks.push('TWO_AUTHENTICATED_BROWSER_TABS_SAME_STUDY_REVISION_ONE_ARCHIVE');
+  record.sameRevisionArchive={analysis_id:identities.latest_id,revision:2,
+    sha256:sameA.sha,replayCount};
   await tabB.close();
   // Hold an actual PDF request while switching old A -> newer B in the same tab.
   // A late A response must never be downloaded or re-select the wrong study.

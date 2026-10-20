@@ -7,6 +7,7 @@ on:
     branches:
       - audit/dc-ceph-facad-parity-p2bis-http-pdf-20261017
       - fix/ceph-fac-parity-p2ter-analysis-bound-pdf-20261017
+      - fix/ceph-fac-parity-p2ter-plus-ux-archive-concurrency-20261017
 permissions:
   contents: read
 jobs:
@@ -110,6 +111,15 @@ jobs:
                   p=root/(label+'-'+kind+'-selected-study.pdf')
                   with fitz.open(p) as doc:
                       assert len(doc)>=2
+                      clinical_text=' '.join(page.get_text() for page in doc)
+                      sentinel='P2TER_SENTINEL_A_ONLY'
+                      # Official PDF rendering deliberately consumes the
+                      # scientific projection, not clinician free-text as
+                      # authoritative content. Do NOT demand A's marker be
+                      # rendered: A/B binding is checked at the authenticated
+                      # form + request payload. This checks only visible B leak.
+                      if kind=='newer':
+                          assert sentinel not in clinical_text, 'A-only clinical sentinel leaked to B PDF'
                       for index,page in enumerate(doc):
                           assert 590 < page.rect.width < 600 and 838 < page.rect.height < 845
                           if index<8:
@@ -126,14 +136,53 @@ jobs:
           studied=json.loads(next(line.split('=',1)[1] for line in Path('/tmp/p2ter-seed.log').read_text().splitlines() if line.startswith('P2TER_SYNTHETIC_STUDIES=')))
           with database.SessionLocal() as db:
               rows=db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id==studied['patient_id'], models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO).all()
-              assert len(rows)==2, f"Expected 1 clicked archive per viewport, got {len(rows)}"
-              assert all(row.analysis_id==studied['older_id'] and row.clinical_data.get('cephalo_analysis_revision')==2 for row in rows)
+              assert len(rows)==2, f"Idempotency requires exactly one archive for A and B rev2, got {len(rows)}"
+              assert {row.analysis_id for row in rows}=={studied['older_id'],studied['latest_id']}
+              assert all(row.clinical_data.get('cephalo_analysis_revision')==2 for row in rows)
+              assert len({(row.analysis_id,row.clinical_data['cephalo_analysis_revision']) for row in rows})==2
           for viewport in source['viewports']:
               assert any('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_' in check for check in viewport['checks'])
               pdf=Path('artifacts/ceph-p2ter-authenticated-desktop')/(viewport['viewport']+'-older-click-archived.pdf')
               with fitz.open(pdf) as doc:
                   assert len(doc)>=2 and all(590 < page.rect.width < 600 and 838 < page.rect.height < 845 for page in doc)
           print('P2TER_CLICK_ARCHIVE_DB_FK_REVISION_AND_A4_PASS')
+          PY
+      - name: EXPERIMENTAL FUE-I first useful PDF on two supported desktop viewports
+        working-directory: frontend
+        run: node scripts/fue-ceph-p2ter-first-value.mjs
+      - name: Verify FUE-I report and same-viewport before-after captures
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report_path=Path("artifacts/ceph-p2ter-fue-i/report.json")
+          report=json.loads(report_path.read_text())
+          assert report["head"] == "${{ github.event.pull_request.head.sha || github.sha }}"
+          assert {r["viewport"] for r in report["viewports"]} == {"1280x900","1600x1000"}
+          assert report["overall"] == "FUE_I_AUTOMATED_SCOPE_PASS"
+          required_checks={
+              "CLEAN_BROWSER_LOGIN","DASHBOARD_PATIENT_SEARCH","ENTER_IMAGING",
+              "OPEN_CEPHALO","SELECT_OLDER_STUDY","DESKTOP_STEPPER",
+              "NO_HORIZONTAL_VIEWPORT_OVERFLOW","DRAFT_PDF_FIRST_VALUE","OFFICIAL_ARCHIVE_REPLAY",
+          }
+          for r in report["viewports"]:
+              assert r["valid"] and all(c["status"] == "PASS" for c in r["matrix"])
+              assert {c["id"] for c in r["matrix"]} == required_checks, "Missing real UI discovery or first-value check"
+              # Native Chromium window.confirm is not present in AFTER screenshots:
+              # verify the actual dialog text, tied to the replayed selected study.
+              feedback=r.get("archiveUiFeedback") or {}
+              assert feedback.get("kind") == "native-window.confirm"
+              assert "Archive existante réutilisée sans modification" in feedback.get("message","")
+              assert "étude "+str(r["firstValue"]["analysis_id"]) in feedback.get("message","")
+              for label in ("before-hub", "after-login", "before-patient-search",
+                            "patient-search-result","after-patient-opened",
+                            "after-imaging-opened","before-select-study",
+                            "before-first-value","before-first-value-actions",
+                            "after-first-value","before-official-archive-replay",
+                            "after-official-archive-replay"):
+                  filename=r["viewport"]+"-"+label+".png"
+                  assert (report_path.parent/filename).is_file(), filename
+          print("P2TER_FUE_I_AUTOMATED_EVIDENCE_VERIFIED")
           PY
       - name: Dump isolated runtime diagnostic on failure
         if: failure()
@@ -144,6 +193,8 @@ jobs:
         if: always()
         with:
           name: ceph-p2ter-real-cabinet-${{ github.event.pull_request.head.sha || github.sha }}
-          path: artifacts/ceph-p2ter-authenticated-desktop/
+          path: |
+            artifacts/ceph-p2ter-authenticated-desktop/
+            artifacts/ceph-p2ter-fue-i/
           if-no-files-found: warn
           retention-days: 30

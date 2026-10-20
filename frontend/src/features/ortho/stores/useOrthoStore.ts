@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { cephaloRepository } from '../cephaloRepository';
+import { emptyStudyClinicalContext } from '../cephaloClinicalIsolation';
+import { cephaloArchiveErrorMessage } from '../cephaloArchiveGate';
+import toast from 'react-hot-toast';
 import { prepareBoundCephaloDocumentSource, type BoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { API_BASE } from '../../../services/api';
 import {
@@ -135,6 +138,12 @@ interface OrthoState {
   goToStep: (target: StepId) => Promise<void>;
 }
 
+let previewOperationGeneration = 0;
+// Separate epochs for the active radio upload and the user's study selection.
+let radioUploadGeneration = 0;
+let studySelectionGeneration = 0;
+// Discard stale explicit-save results and their delayed success/error banners.
+let saveFeedbackGeneration = 0;
 let landmarkSaveGeneration = 0;
 let landmarkSaveChain: Promise<void> = Promise.resolve();
 
@@ -228,6 +237,22 @@ const queueAuditedLandmarkSave = (
       }
     });
 };
+
+export function snapshotCephaloPdfClinicalInputs(
+  s: Pick<OrthoState, 'local' | 'ddm' | 'diag' | 'mmPerPixel' | 'etape2Data' | 'etape3Data'>,
+) {
+  const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
+  const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
+  const impa = computeLocalImpa(s.local.landmarks);
+  const ceph = calcDDMCephalo(impa);
+  const real = (mand !== null && ceph !== null) ? mand + ceph : null;
+  const clinical = buildPayload(
+    s.local.landmarks, max, mand, real, s.diag,
+    computeMcNamaraProjections(s.local.landmarks),
+    s.mmPerPixel, s.etape2Data, s.etape3Data,
+  );
+  return { clinical_data: clinical.clinical_data, ai_diagnostic: clinical.ai_diagnostic };
+}
 
 export const useOrthoStore = create<OrthoState>((set, get) => ({
   patientId: null,
@@ -363,11 +388,26 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     const current = get();
     if (current.patientId !== null && current.patientId !== id) {
       landmarkSaveGeneration += 1;
+      previewOperationGeneration += 1;
+      studySelectionGeneration += 1;
+      radioUploadGeneration += 1;
+      saveFeedbackGeneration += 1;
+      if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        if (current.previewPdfUrl?.startsWith('blob:')) URL.revokeObjectURL(current.previewPdfUrl);
+        for (const photo of current.photos) {
+          if (photo.preview?.startsWith('blob:')) URL.revokeObjectURL(photo.preview);
+        }
+      }
       set({
         imageSrc: undefined,
         analysisId: undefined,
         previewPdfUrl: null,
         isPreviewLoading: false,
+        isUploading: false,
+        uploadError: null,
+        isSaving: false,
+        syncState: 'idle',
+        photos: current.photos.map(photo => ({ ...photo, file: null, preview: null })),
         local: { landmarks: [], version: 0 },
         landmarkEditTimeline: createLandmarkEditTimeline(),
         anglesData: {},
@@ -375,18 +415,27 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         mmPerPixel: null,
         completedSteps: new Set<number>(),
         step: 1,
+        ...emptyStudyClinicalContext(),
       });
     }
-    const savedPhotos = localStorage.getItem(`digitalcrown_photos_${id}`);
+    const photosKey = `digitalcrown_photos_${id}`;
+    const savedPhotos = localStorage.getItem(photosKey);
     const savedMeta = localStorage.getItem(`digitalcrown_etape4_${id}`);
-    const savedE2 = localStorage.getItem(`digitalcrown_etape2_${id}`);
-    const savedE3 = localStorage.getItem(`digitalcrown_etape3_${id}`);
     set({ patientId: id, patientName: name, sexePatient: null });
     if (savedPhotos) {
       try {
         const parsed = JSON.parse(savedPhotos);
-        set(s => ({ photos: s.photos.map(p => ({ ...p, preview: parsed[p.id] || null })) }));
+        // Object URLs exist only in the origin document that created them.
+        // Never resurrect revoked blob: links after patient navigation/reload.
+        const durable = Object.fromEntries(
+          Object.entries(parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {})
+            .filter(([, value]) => typeof value === 'string' && !value.startsWith('blob:')),
+        ) as Record<string, string>;
+        set(s => ({ photos: s.photos.map(p => ({ ...p, preview: durable[p.id] || null })) }));
+        if (Object.keys(durable).length) localStorage.setItem(photosKey, JSON.stringify(durable));
+        else localStorage.removeItem(photosKey);
       } catch (err) {
+        localStorage.removeItem(photosKey);
         console.warn('Failed to parse savedPhotos', err);
       }
     }
@@ -401,12 +450,6 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         console.warn('Failed to parse savedMeta', err);
       }
     }
-    if (savedE2) {
-      try { set({ etape2Data: JSON.parse(savedE2) }); } catch (err) { console.warn(err); }
-    }
-    if (savedE3) {
-      try { set({ etape3Data: JSON.parse(savedE3) }); } catch (err) { console.warn(err); }
-    }
   },
   setAnalysisId: (id) => {
     const current = get();
@@ -415,7 +458,21 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
       URL.revokeObjectURL(current.previewPdfUrl);
     }
-    set({ analysisId: id, previewPdfUrl: null, isPreviewLoading: false });
+    // Invalidating selection also invalidates every clinical field. Nothing
+    // from the previous analysis may be used by PDF/save operations.
+    landmarkSaveGeneration += 1;
+    previewOperationGeneration += 1;
+    studySelectionGeneration += 1;
+    saveFeedbackGeneration += 1;
+    set({
+      analysisId: id, previewPdfUrl: null, isPreviewLoading: false,
+      isUploading: false, uploadError: null, isSaving: false,
+      imageSrc: undefined, local: { landmarks: [], version: 0 },
+      landmarkEditTimeline: createLandmarkEditTimeline(),
+      anglesData: {}, visionMetadata: {}, isCalibrated: false, mmPerPixel: null,
+      completedSteps: new Set<number>(), syncState: 'idle',
+      ...emptyStudyClinicalContext(),
+    });
   },
   setImageSrc: (src) => set({ imageSrc: src }),
   setLocal: (updater) => set((state) => ({ local: typeof updater === 'function' ? updater(state.local) : updater })),
@@ -439,20 +496,12 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setAutoCalibMessage: (msg) => set({ autoCalibMessage: msg }),
   setDdm: (updater) => set((state) => ({ ddm: typeof updater === 'function' ? updater(state.ddm) : updater })),
   setDiag: (updater) => set((state) => ({ diag: typeof updater === 'function' ? updater(state.diag) : updater })),
-  setEtape2Data: (updater) => {
-    set((state) => {
-      const next = typeof updater === 'function' ? updater(state.etape2Data) : updater;
-      if (state.patientId) localStorage.setItem(`digitalcrown_etape2_${state.patientId}`, JSON.stringify(next));
-      return { etape2Data: next };
-    });
-  },
-  setEtape3Data: (updater) => {
-    set((state) => {
-      const next = typeof updater === 'function' ? updater(state.etape3Data) : updater;
-      if (state.patientId) localStorage.setItem(`digitalcrown_etape3_${state.patientId}`, JSON.stringify(next));
-      return { etape3Data: next };
-    });
-  },
+  setEtape2Data: (updater) => set((state) => ({
+    etape2Data: typeof updater === 'function' ? updater(state.etape2Data) : updater,
+  })),
+  setEtape3Data: (updater) => set((state) => ({
+    etape3Data: typeof updater === 'function' ? updater(state.etape3Data) : updater,
+  })),
   setUploadError: (err) => set({ uploadError: err }),
   setIsUploading: (uploading) => set({ isUploading: uploading }),
   setIsSaving: (saving) => set({ isSaving: saving }),
@@ -468,10 +517,22 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   handlePhotoUpload: (id, file) => {
     const url = URL.createObjectURL(file);
     set(s => {
+      // Revoke replaced object URLs instead of retaining stale patient images.
+      const replaced = s.photos.find(p => p.id === id)?.preview;
+      if (replaced?.startsWith('blob:') && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(replaced);
+      }
       const next = s.photos.map(p => p.id === id ? { ...p, file, preview: url } : p);
       if (s.patientId) {
-        const previews = next.reduce((acc, p) => { acc[p.id] = p.preview; return acc; }, {} as Record<string, string | null>);
-        localStorage.setItem(`digitalcrown_photos_${s.patientId}`, JSON.stringify(previews));
+        const key = `digitalcrown_photos_${s.patientId}`;
+        // File/blob: URLs cannot be rehydrated across document lifetimes.
+        // Persist only independently durable URLs, never fake a saved photo.
+        const durable = Object.fromEntries(
+          next.filter(p => p.preview && !p.preview.startsWith('blob:'))
+            .map(p => [p.id, p.preview]),
+        );
+        if (Object.keys(durable).length) localStorage.setItem(key, JSON.stringify(durable));
+        else localStorage.removeItem(key);
       }
       return { photos: next };
     });
@@ -490,15 +551,26 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
     }
     await s.silentSave();
+    // A delayed save from study A must never move study B's workflow.
+    if (get().patientId !== s.patientId || get().analysisId !== s.analysisId) return;
     set(prev => ({ completedSteps: new Set([...prev.completedSteps, prev.step]), step: target }));
   },
   runAnalysis: async (file: File) => {
     const state = get();
     if (!state.patientId) return;
+    const operation = ++radioUploadGeneration;
+    const selection = studySelectionGeneration;
+    const stillCurrent = () => radioUploadGeneration === operation
+      && studySelectionGeneration === selection
+      && get().patientId === state.patientId
+      && get().analysisId === state.analysisId;
     set({ uploadError: null, isUploading: true });
     try {
       const data = await cephaloRepository.uploadRadio(state.patientId, file);
-      if (data.analysis_id) set({ analysisId: data.analysis_id });
+      // Do not let an A upload overwrite study B, even after an A→B→A switch.
+      // Parallel uploads also obey latest-request-wins within one selection.
+      if (!stillCurrent()) return;
+      if (data.analysis_id) get().setAnalysisId(data.analysis_id);
       if (data.image_path || data.file_url) {
         const raw: string = data.image_path || data.file_url;
         let src: string;
@@ -578,10 +650,13 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
       set(s => ({ completedSteps: new Set([...s.completedSteps, 1]) }));
     } catch (e: any) {
-      const raw = e?.response?.data?.detail;
-      set({ uploadError: typeof raw === 'string' ? raw : 'Échec de l\'analyse. Vérifiez l\'image.' });
+      if (stillCurrent()) {
+        const raw = e?.response?.data?.detail;
+        set({ uploadError: typeof raw === 'string' ? raw : 'Échec de l\'analyse. Vérifiez l\'image.' });
+      }
     } finally {
-      set({ isUploading: false });
+      // A stale completion must not hide a newer pending upload.
+      if (radioUploadGeneration === operation) set({ isUploading: false });
     }
   },
   silentSave: async (id?: number, strict = false) => {
@@ -604,7 +679,17 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   handleSave: async () => {
     const s = get();
     if (!s.analysisId) return;
-    set({ isSaving: true });
+    const operation = ++saveFeedbackGeneration;
+    const stillCurrent = () => operation === saveFeedbackGeneration
+      && get().patientId === s.patientId && get().analysisId === s.analysisId;
+    set({ isSaving: true, syncState: 'idle' });
+    const feedback = (status: 'success' | 'error', duration: number) => {
+      if (!stillCurrent()) return;
+      set({ syncState: status });
+      setTimeout(() => {
+        if (stillCurrent()) set({ syncState: 'idle' });
+      }, duration);
+    };
     try {
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
@@ -613,13 +698,12 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const projections = computeMcNamaraProjections(s.local.landmarks);
       await cephaloRepository.saveAnalysis(s.analysisId, buildPayload(s.local.landmarks, max, mand, real, s.diag, projections, s.mmPerPixel, s.etape2Data, s.etape3Data));
-      set({ syncState: 'success' });
-      setTimeout(() => set({ syncState: 'idle' }), 1500);
+      feedback('success', 1500);
     } catch {
-      set({ syncState: 'error' });
-      setTimeout(() => set({ syncState: 'idle' }), 2000);
+      feedback('error', 2000);
     } finally {
-      set({ isSaving: false });
+      // An A completion must never hide B's pending save indicator.
+      if (stillCurrent()) set({ isSaving: false });
     }
   },
   updateLandmarksOptimistic: (newLms: Landmark[]) => {
@@ -689,47 +773,40 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   handlePreview: async () => {
     const s = get();
     if (!s.analysisId || !s.patientId) return;
+    if (get().isPrinting) {
+      toast.error("Archivage en cours : aperçu indisponible pour le moment.");
+      return;
+    }
+    const operation = ++previewOperationGeneration;
     set({ isPreviewLoading: true, previewPdfUrl: null });
     const stillSelected = () => get().analysisId === s.analysisId && get().patientId === s.patientId;
     try {
       const bound = await prepareBoundCephaloDocumentSource(
         s.patientId, s.analysisId, stillSelected, () => s.silentSave(s.analysisId, true),
       );
-      const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
-      const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
-      const impa = computeLocalImpa(s.local.landmarks);
-      const ceph = calcDDMCephalo(impa);
-      const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       const data = await cephaloRepository.generatePDF(s.patientId, {
-        ...bound,
-        ai_diagnostic: {
-          diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
-          analyse_moulages: s.diag.analyse_moulages || '',
-          synthese_diagnostique: s.diag.synthese_diagnostique || '',
-          strategie_therapeutique: s.diag.strategie_therapeutique || '',
-        },
-        clinical_data: {
-          ddm_maxillaire: max !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max } : null,
-          ddm_mandibulaire: mand !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand } : null,
-          ddm_reelle: real,
-          plan_traitement: s.diag.strategie_therapeutique || '',
-          denture_type: s.etape3Data.denture_type || null,
-          preference_technique: s.etape3Data.preference_technique || null,
-        },
-        archive: false,
+        ...bound, ...snapshotCephaloPdfClinicalInputs(s), archive: false,
       });
-      if (!stillSelected()) throw new Error("L'étude a changé pendant la génération.");
-      const blob = new Blob([data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      set({ previewPdfUrl: url, isPreviewLoading: false });
+      if (!stillSelected() || operation !== previewOperationGeneration) return;
+      const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+      set({ previewPdfUrl: url });
     } catch (e) {
       console.error('[Preview] Erreur:', e);
-      set({ isPreviewLoading: false });
+      if (stillSelected() && operation === previewOperationGeneration) {
+        toast.error(await cephaloArchiveErrorMessage(e));
+      }
+    } finally {
+      if (stillSelected() && operation === previewOperationGeneration) {
+        set({ isPreviewLoading: false });
+      }
     }
   },
   handlePrint: async (prevalidatedSource?: BoundCephaloDocumentSource) => {
     const s = get();
     if (!s.analysisId || !s.patientId) return;
+    if (get().isPrinting || get().isPreviewLoading) {
+      throw new Error("Une opération PDF est déjà en cours pour cette étude.");
+    }
     set({ isPrinting: true });
     const stillSelected = () => get().analysisId === s.analysisId && get().patientId === s.patientId;
     try {
@@ -739,34 +816,21 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       if (!stillSelected() || bound.analysis_id !== s.analysisId) {
         throw new Error("Le PDF ne correspond pas à l'étude prévalidée.");
       }
-      const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
-      const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
-      const impa = computeLocalImpa(s.local.landmarks);
-      const ceph = calcDDMCephalo(impa);
-      const real = (mand !== null && ceph !== null) ? mand + ceph : null;
-      const data = await cephaloRepository.generatePDF(s.patientId, {
-        ...bound,
-        ai_diagnostic: {
-          diagnostic_squelettique: s.diag.diagnostic_squelettique || '',
-          analyse_moulages: s.diag.analyse_moulages || '',
-          synthese_diagnostique: s.diag.synthese_diagnostique || '',
-          strategie_therapeutique: s.diag.strategie_therapeutique || '',
-        },
-        clinical_data: {
-          ddm_maxillaire: max !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max } : null,
-          ddm_mandibulaire: mand !== null ? { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand } : null,
-          ddm_reelle: real,
-          plan_traitement: s.diag.strategie_therapeutique || '',
-          denture_type: s.etape3Data.denture_type || null,
-          preference_technique: s.etape3Data.preference_technique || null,
-        },
-        archive: true,
+      const receipt = await cephaloRepository.generatePDFWithReceipt(s.patientId, {
+        ...bound, ...snapshotCephaloPdfClinicalInputs(s), archive: true,
       });
-      if (!stillSelected()) throw new Error("L'étude a changé pendant la génération.");
-      const blob = new Blob([data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
+      const status = receipt.replayed
+        ? "Archive existante réutilisée sans modification"
+        : "Nouvelle archive enregistrée";
+      // A committed server archive is not a failure merely because Cabinet
+      // switched to study B before receiving study A's HTTP 200.
+      if (!stillSelected()) {
+        toast.success(`${status} pour l'étude ${bound.analysis_id} (révision ${bound.expected_revision}).`);
+        return;
+      }
+      const url = URL.createObjectURL(new Blob([receipt.blob], { type: 'application/pdf' }));
       const userChoice = window.confirm(
-        'Le PDF a été généré avec succès.\n\n' +
+        `${status} pour l'étude ${bound.analysis_id}.\n\n` +
         '• OK = Ouvrir dans un nouvel onglet (pour imprimer)\n' +
         '• Annuler = Télécharger le fichier'
       );
@@ -782,9 +846,11 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       }
     } catch (e) {
       console.error('[Print] Erreur:', e);
-      throw e;
+      // A stale failure for prior study A must not be displayed over study B.
+      if (stillSelected()) throw e;
     } finally {
       set({ isPrinting: false });
     }
+
   }
 }));

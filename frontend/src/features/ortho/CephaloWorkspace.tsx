@@ -7,7 +7,7 @@
  */
 
 import React, {
-  useState, useRef, useEffect, useMemo,
+  useState, useRef, useEffect, useLayoutEffect, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -36,6 +36,7 @@ import { Step2BlockerModal } from './components/Step2BlockerModal';
 import { CephaloHistory } from './CephaloHistory';
 import { useOrthoStore } from './stores/useOrthoStore';
 import { cephaloRepository } from './cephaloRepository';
+import { hydrateStudyClinicalContext } from './cephaloClinicalIsolation';
 import { API_BASE, api, getRuntimeAuthToken } from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -71,6 +72,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
   const handleSelectHistory = async (analysis: any) => {
     const version = ++historySelectionVersion.current;
+    // Fail closed throughout the asynchronous study switch: no old-study
+    // clinical context remains associated with a selected study.
+    store.setAnalysisId(undefined);
     try {
       const loaded = await cephaloRepository.getAnalysis(analysis.id);
       if (version !== historySelectionVersion.current || useOrthoStore.getState().patientId !== patientId || loaded?.id !== analysis.id) return;
@@ -87,16 +91,13 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       store.setMmPerPixel(typeof loaded.mm_per_pixel === 'number' ? loaded.mm_per_pixel : null);
       store.setCompletedSteps(new Set(landmarks.length ? [1] : []));
 
-      const narrative = anglesData.ai_narrative || loaded.ai_diagnostic;
-      if (narrative) {
-        store.setDiag(prev => ({
-          ...prev,
-          diagnostic_squelettique: narrative.diagnostic_squelettique || prev.diagnostic_squelettique,
-          analyse_moulages: narrative.analyse_moulages || prev.analyse_moulages,
-          synthese_diagnostique: narrative.synthese_diagnostique || prev.synthese_diagnostique,
-          strategie_therapeutique: narrative.strategie_therapeutique || prev.strategie_therapeutique,
-        }));
-      }
+      // Hydrate *only* the selected study; missing data means blank, never
+      // values inherited from a previously selected analysis of this patient.
+      const clinical = hydrateStudyClinicalContext(anglesData);
+      store.setDiag(clinical.diag);
+      store.setDdm(clinical.ddm);
+      store.setEtape2Data(clinical.etape2Data);
+      store.setEtape3Data(clinical.etape3Data);
 
       store.setStep(1);
       setViewMode('studio');
@@ -114,7 +115,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     }
   };
 
-  useEffect(() => {
+  // Apply patient-scoped store reset before browser paint: the new patient
+  // must never be visibly rendered with the previous patient's images.
+  useLayoutEffect(() => {
     store.setPatientInfo(patientId, patientName);
 
     const syncTheme = () => setThemeRevision(revision => revision + 1);

@@ -9,7 +9,7 @@ import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { cephaloRepository } from '../cephaloRepository';
 import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { canArchiveCephaloValidation, cephaloArchiveErrorMessage, type CephaloArchiveValidation } from '../cephaloArchiveGate';
-import { useOrthoStore } from '../stores/useOrthoStore';
+import { useOrthoStore, snapshotCephaloPdfClinicalInputs } from '../stores/useOrthoStore';
 
 interface Step4DocumentsProps {
   P: any;
@@ -99,6 +99,8 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const [isValidating, setIsValidating] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const archiveInFlight = useRef(false); // React state alone cannot block two clicks in one tick.
+  const draftInFlight = useRef(false);
+  const validationGeneration = useRef(0);
   const [isBrouillon, setIsBrouillon] = useState(false);
 
   const hasImage = Boolean(imageSrc);
@@ -110,8 +112,14 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const diagOk = Boolean(diag.synthese_diagnostique?.trim());
 
   const fetchValidation = useCallback(async () => {
-    if (!patientId || !analysisId) { setValidation(null); return; }
-    const stillSelected = () => useOrthoStore.getState().patientId === patientId
+    const requestVersion = ++validationGeneration.current;
+    if (!patientId || !analysisId) {
+      setValidation(null);
+      setIsValidating(false);
+      return;
+    }
+    const stillSelected = () => requestVersion === validationGeneration.current
+      && useOrthoStore.getState().patientId === patientId
       && useOrthoStore.getState().analysisId === analysisId;
     setValidation(null);
     setIsValidating(true);
@@ -131,7 +139,10 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     }
   }, [patientId, analysisId]);
 
-  useEffect(() => { fetchValidation(); }, [fetchValidation]);
+  useEffect(() => {
+    void fetchValidation();
+    return () => { validationGeneration.current += 1; };
+  }, [fetchValidation]);
 
   const getAngleVal = (key: string): number | undefined => {
     const m = anglesData?.metrics;
@@ -154,17 +165,36 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const hasFatals = (validation?.fatals?.length ?? 0) > 0;
   const hasWarnings = (validation?.warnings?.length ?? 0) > 0;
 
+  const handlePreviewBilan = async () => {
+    if (archiveInFlight.current || draftInFlight.current) {
+      toast.error('Une opération PDF est déjà en cours.');
+      return;
+    }
+    await onPreviewPDF();
+  };
+
   const handleBrouillon = async () => {
-    if (!patientId || !analysisId) return;
+    if (!patientId || !analysisId || draftInFlight.current) return;
+    if (archiveInFlight.current || useOrthoStore.getState().isPrinting
+        || useOrthoStore.getState().isPreviewLoading) {
+      toast.error('Une opération PDF est déjà en cours.');
+      return;
+    }
+    draftInFlight.current = true;
+    // Capture the exact pre-save clinical snapshot. Reading live form data
+    // after an awaited save could mix a newer edit with an older revision.
+    const clinicalSnapshot = snapshotCephaloPdfClinicalInputs(useOrthoStore.getState());
+    const stillSelected = () => useOrthoStore.getState().patientId === patientId
+      && useOrthoStore.getState().analysisId === analysisId;
     setIsBrouillon(true);
     try {
-      const stillSelected = () => useOrthoStore.getState().patientId === patientId
-        && useOrthoStore.getState().analysisId === analysisId;
       const source = await prepareBoundCephaloDocumentSource(
         patientId, analysisId, stillSelected, () => store.silentSave(analysisId, true),
       );
       // All PDF entrypoints must verify the response's study/revision headers.
-      const data = await cephaloRepository.generatePDF(patientId, { ...source, archive: false });
+      const data = await cephaloRepository.generatePDF(patientId, {
+        ...source, ...clinicalSnapshot, archive: false,
+      });
       if (!stillSelected()) throw Error("L'étude a changé pendant la génération du brouillon");
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -177,22 +207,29 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       URL.revokeObjectURL(url);
       toast.success('Brouillon téléchargé.');
     } catch (e: any) {
+      if (!stillSelected()) return; // stale study A must not display errors on study B
       const msg = e?.response?.data ? (() => {
         try { return JSON.parse(new TextDecoder().decode(e.response.data)).detail; } catch { return null; }
       })() : null;
       toast.error(msg || 'Erreur lors de la génération du brouillon.');
     } finally {
+      draftInFlight.current = false;
       setIsBrouillon(false);
     }
   };
 
   const handleArchiveBilan = async () => {
     if (!patientId || !analysisId || archiveInFlight.current) return;
+    if (draftInFlight.current || useOrthoStore.getState().isPreviewLoading
+        || useOrthoStore.getState().isPrinting) {
+      toast.error('Une autre opération PDF est déjà en cours.');
+      return;
+    }
     archiveInFlight.current = true;
     setIsArchiving(true);
+    const stillSelected = () => useOrthoStore.getState().patientId === patientId
+      && useOrthoStore.getState().analysisId === analysisId;
     try {
-      const stillSelected = () => useOrthoStore.getState().patientId === patientId
-        && useOrthoStore.getState().analysisId === analysisId;
       const source = await prepareBoundCephaloDocumentSource(
         patientId, analysisId, stillSelected, () => store.silentSave(analysisId, true),
       );
@@ -215,7 +252,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       // another silent save here could silently invalidate that gate.
       await onGeneratePDF(source);
     } catch (e: any) {
-      toast.error(await cephaloArchiveErrorMessage(e));
+      if (stillSelected()) toast.error(await cephaloArchiveErrorMessage(e));
     } finally {
       archiveInFlight.current = false;
       setIsArchiving(false);
@@ -367,9 +404,9 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
             <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
             <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualiser ou archiver un PDF ne constitue pas une validation clinique.</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <button onClick={onPreviewPDF} disabled={isPreviewLoading || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
-              <button onClick={handleBrouillon} disabled={isBrouillon || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
-              <button onClick={handleArchiveBilan} disabled={isArchiving || isGenerating || !analysisId || !canArchive} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-40" style={{ background: canArchive ? `linear-gradient(135deg, ${P.accent}, #7c3aed)` : '#94a3b8' }}>{isArchiving || isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Archive size={20} />}Archiver le bilan</button>
+              <button onClick={handlePreviewBilan} disabled={isPreviewLoading || isArchiving || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
+              <button onClick={handleBrouillon} disabled={isBrouillon || isArchiving || isPreviewLoading || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
+              <button onClick={handleArchiveBilan} disabled={isArchiving || isBrouillon || isPreviewLoading || isGenerating || !analysisId || !canArchive} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-40" style={{ background: canArchive ? `linear-gradient(135deg, ${P.accent}, #7c3aed)` : '#94a3b8' }}>{isArchiving || isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Archive size={20} />}Archiver le bilan</button>
             </div>
           </div>
         </div>

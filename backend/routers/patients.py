@@ -1447,9 +1447,22 @@ def generate_cephalo_pdf(
     from fastapi.responses import FileResponse
     from copy import deepcopy
 
+    # First bind enforces cabinet/patient/identity authorization before any write.
     selected, revision = _bound_cephalo_study(
         patient_id, req.analysis_id, req.expected_revision, db, current_user
     )
+    if req.archive:
+        from backend.services.cephalo_document_lock import (
+            already_archived_pdf, lock_selected_cephalo_for_archive,
+        )
+        lock_selected_cephalo_for_archive(
+            db, patient_id=patient_id, analysis_id=req.analysis_id,
+        )
+        # Rebind the scientific source while the row lock is held; no stale
+        # prevalidation snapshot can become an official archive.
+        selected, revision = _bound_cephalo_study(
+            patient_id, req.analysis_id, req.expected_revision, db, current_user
+        )
     if req.archive and revision is None:
         raise HTTPException(
             status_code=409,
@@ -1477,6 +1490,36 @@ def generate_cephalo_pdf(
     if req.clinical_data:
         results["clinical_data"] = req.clinical_data.model_dump()
 
+    if req.archive:
+        from backend.services.cephalo_document_lock import render_payload_digest
+        payload_digest = render_payload_digest(
+            clinical_data=results.get("clinical_data", {}),
+            ai_diagnostic=results.get("ai_diagnostic", {}),
+        )
+        # Same study/revision and IDENTICAL report input must replay the original.
+        # A changed clinician payload with unchanged revision fails closed.
+        replay = already_archived_pdf(
+            db, patient_id=patient_id, analysis_id=selected.id, revision=revision,
+            payload_digest=payload_digest,
+        )
+        if replay is not None:
+            # Snapshot was verified against archived SHA256 while the study lock
+            # was held. Respond from these immutable bytes: FileResponse(path)
+            # would re-open the file only after releasing the lock (TOCTOU).
+            from urllib.parse import quote
+
+            replay_path, verified_pdf = replay
+            db.rollback()  # release the archive's SQLite/PG study lock
+            return Response(
+                content=verified_pdf,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": "attachment; filename*=utf-8''" + quote(replay_path.name),
+                    "X-Cephalo-Analysis-Id": str(req.analysis_id),
+                    "X-Cephalo-Revision": str(revision),
+                    "X-Cephalo-Archive-Replayed": "true",
+                },
+            )
     analysis_data = {
         "id": selected.id,
         "image_path": selected.image_original_path,
@@ -1508,6 +1551,7 @@ def generate_cephalo_pdf(
                 clinical_data={
                     "cephalo_analysis_id": selected.id,
                     "cephalo_analysis_revision": revision,
+                    "cephalo_archive_payload_digest": payload_digest,
                     "clinical_data": results.get("clinical_data", {}),
                 },
                 on_conflict=ConflictResolution.CREATE_VERSION,
@@ -1528,6 +1572,15 @@ def generate_cephalo_pdf(
     headers = {"X-Cephalo-Analysis-Id": str(selected.id)}
     if revision is not None:
         headers["X-Cephalo-Revision"] = str(revision)
+    if req.archive:
+        # Crash recovery may commit previously rendered, verified bytes.
+        # Never hand the caller a fresh draft that differs from SQL's SHA256.
+        from urllib.parse import quote
+        from backend.services.cephalo_document_lock import verified_official_archive_bytes
+
+        committed_pdf = verified_official_archive_bytes(archived, db)
+        headers["Content-Disposition"] = "attachment; filename*=utf-8''" + quote(archived.filename)
+        return Response(content=committed_pdf, media_type="application/pdf", headers=headers)
     return FileResponse(
         path=pdf_path,
         filename=os.path.basename(pdf_path),
