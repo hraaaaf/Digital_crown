@@ -51,6 +51,7 @@ const actorEmail = {
   otherTenant: 't2-command-other-owner@cabinet.ma',
 };
 let cookies;
+let authenticatedOwnerState;
 try {
   const ownerToken = await loginToken(actorEmail.owner);
   const enrollment = await enrollT2Workstation(setup, ownerToken, password);
@@ -122,6 +123,7 @@ try {
       await page.getByRole('button', { name: 'Ajout rapide' }).waitFor({ state: 'visible', timeout: 40000 });
       item.fullLogin = true;
       assert.ok(await page.evaluate(() => Boolean(localStorage.getItem('token'))), 'Real UI session token');
+      if (actor === 'owner') authenticatedOwnerState = await context.storageState();
       const dashboardResponsePromise = expectAllowed
         ? page.waitForResponse(r => r.url().includes('/api/appointments/') && r.request().method() === 'GET', { timeout: 30000 })
         : null;
@@ -181,15 +183,17 @@ try {
   await visit('restricted', { expectAllowed: true, expectName: false });
   await visit('denied', { expectAllowed: false, expectName: false });
 
+  assert.ok(authenticatedOwnerState, 'Real owner UI must have completed before mobile smoke');
   const mobile = await browser.newContext({
-    ...devices['iPhone 13'], storageState: { cookies, origins: [] }, reducedMotion: 'reduce',
+    ...devices['iPhone 13'], storageState: authenticatedOwnerState, reducedMotion: 'reduce',
   });
   try {
     const page = await mobile.newPage();
     await page.goto(uiBase + '/command-cabinet-lab', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1500);
+    assert.ok(await page.evaluate(() => Boolean(localStorage.getItem('token'))), 'Mobile smoke must have authenticated owner session');
     assert.equal(await page.locator('[data-testid="command-cabinet-readonly"]').count(), 0);
-    point('mobile-command-not-rendered', { viewport: 390, userAgent: 'iPhone 13 synthetic device' });
+    point('mobile-command-not-rendered', { viewport: 390, authenticated: true, userAgent: 'iPhone 13 Playwright device' });
     await capture(page, 'mobile-390-no-command');
   } finally { await mobile.close(); }
 } catch (error) {
