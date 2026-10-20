@@ -34,6 +34,7 @@ class RealIssuerToVerifier(issuer_lab.ConnectedJ10C):
            "J10D_SAME_ACCOUNT_OTHER_SERVICE_SID_CANNOT_READ_PIN_OR_WRITE_LEDGER_PASS",
            "J10D_NO_CLINICAL_APPLY_PASS"):
             self.assertIn(marker,proof)
+            print(marker)
         ledger=self.root/"j10d-consumer-synthetic-ledger"
         ledger.mkdir()
         scope=dict(owner=int(claims["owner"]),job=claims["job"],
