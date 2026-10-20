@@ -17,7 +17,7 @@ const appointment: DashboardAppointment = {
   patient_id: 991, patient: { id: 991, nom: 'TEST-NOM', prenom: 'TEST-PRÉNOM' },
 };
 const userWith = (permissions: Record<string, boolean>) =>
-  ({ id: 101, role: 'SECRETAIRE', employer_id: 10, permissions } as unknown as AppUser);
+  ({ id: '101', role: 'SECRETAIRE', employer_id: 10, permissions } as unknown as AppUser);
 
 beforeEach(() => {
   useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: false });
@@ -112,7 +112,7 @@ describe('07-C / real Cabinet read-only boundary', () => {
 
   it('clears prior patient rows when the signed-in account or cabinet changes', () => {
     mockToday.mockImplementation(({ user }: { user: AppUser }) => {
-      const firstActor = user.id === 101;
+      const firstActor = user.id === '101';
       return {
         appointments: firstActor ? [appointment] : null,
         appointmentsState: firstActor ? 'ready' : 'loading',
@@ -122,7 +122,7 @@ describe('07-C / real Cabinet read-only boundary', () => {
     useAuthStore.setState({ user: userWith({ agenda: true, patients: true }), isAuthenticated: true, isLoading: false });
     const { container } = render(<CommandCabinetReadOnlyRoute />);
     expect(screen.getByText('TEST-PRÉNOM TEST-NOM')).toBeInTheDocument();
-    const nextActor = { ...userWith({ agenda: true, patients: true }), id: 202, employer_id: 20 } as AppUser;
+    const nextActor = { ...userWith({ agenda: true, patients: true }), id: '202', employer_id: 20 } as AppUser;
     act(() => {
       useAuthStore.setState({ user: nextActor, isAuthenticated: true, isLoading: false });
     });
