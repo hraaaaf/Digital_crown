@@ -70,6 +70,7 @@ const report = {
   nvdaHumanReview: 'NOT_RUN',
   nvdaOsFocusProbes: [],
   nvdaSpeechProbe: 'NOT_RUN',
+  frontendStartup: {pageErrors:[],failedRequests:[],httpFailures:[],routes:[],initialAuthStatus:'NOT_RUN',clinicInitStatus:'NOT_RUN',snapshot:null},
   converged: false,
   error: null,
 };
@@ -102,6 +103,7 @@ let browser = null;
 let nvdaActive = false;
 let zoomWorker = null;
 let apiOwner=null, apiStaff=null, staffToken=null;
+let activePage=null;
 
 async function waitForLocal() {
   for (let i = 0; i < 40; i++) {
@@ -228,6 +230,14 @@ try {
     } finally {await loginApi.dispose();}
   }
   if(!apiStaff||!staffToken)throw Error('REFUSED: no valid S05 session');
+  // Read-only runtime probes before mounting React: never silently infer a
+  // healthy Cabinet UI from successful login or workstation enrollment.
+  const meProbe=await apiStaff.get('/api/auth/me',{headers:{Authorization:'Bearer '+staffToken}});
+  report.frontendStartup.initialAuthStatus=meProbe.status();
+  const initProbe=await apiStaff.get('/api/clinics/init-status',{headers:{Authorization:'Bearer '+staffToken}});
+  report.frontendStartup.clinicInitStatus=initProbe.status();
+  if(meProbe.status()!==200 || initProbe.status()!==200)
+    throw Error('FAIL: synthetic staff real Cabinet auth/init preflight not 200');
 
   // NVDA reads the real operating system accessibility stack, which needs a
   // headed browser/window. Headless or Playwright's accessibility tree is NOT proof.
@@ -244,6 +254,27 @@ try {
   // last tab can terminate the entire browser before newPage() is called.
   // Reuse it for the same isolated lab URL, rather than weakening any evidence.
   const page=browser.pages()[0] || await browser.newPage();
+  activePage=page;
+  // Only error categories, safe local URL pathnames and bounded exceptions;
+  // never dump cookies, patient values, auth headers or full HTTP bodies.
+  const safeMessage=value=>String(value||'').slice(0,240)
+    .replace(/[A-Za-z0-9_-]{30,}\\.[A-Za-z0-9_-]{30,}\\.[A-Za-z0-9_-]{30,}/g,'[REDACTED_JWT]');
+  page.on('pageerror',err=>{if(report.frontendStartup.pageErrors.length<12)
+    report.frontendStartup.pageErrors.push(safeMessage(err?.message));});
+  page.on('console',msg=>{if(msg.type()==='error'&&report.frontendStartup.pageErrors.length<12)
+    report.frontendStartup.pageErrors.push('console: '+safeMessage(msg.text()));});
+  page.on('requestfailed',req=>{if(report.frontendStartup.failedRequests.length<20) {
+    const u=new URL(req.url());
+    if(['127.0.0.1','localhost'].includes(u.hostname))
+      report.frontendStartup.failedRequests.push({path:u.pathname,method:req.method(),reason:safeMessage(req.failure()?.errorText)});
+  }});
+  page.on('response',resp=>{if(resp.status()>=400&&report.frontendStartup.httpFailures.length<20){
+    const u=new URL(resp.url());
+    if(['127.0.0.1','localhost'].includes(u.hostname))
+      report.frontendStartup.httpFailures.push({path:u.pathname,status:resp.status()});
+  }});
+  page.on('framenavigated',frame=>{if(frame===page.mainFrame()&&report.frontendStartup.routes.length<16)
+    report.frontendStartup.routes.push(new URL(frame.url()).pathname);});
   page.on('request',req=>{
     const p=new URL(req.url()).pathname;
     if(req.method()!=='GET'
@@ -263,7 +294,28 @@ try {
   },staffToken);
   await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000});
   if(new URL(page.url()).pathname!=='/dashboard')throw new Error('FAIL: real MainLayout session redirected');
-  await page.locator('main').first().waitFor({state:'visible',timeout:30000});
+  try {
+    await page.locator('main').first().waitFor({state:'visible',timeout:30000});
+  } catch(err) {
+    // A missing MainLayout may mean real auth/setup redirect, a React crash,
+    // missing dynamic JS, a loading guard, or a failed API request. Capture
+    // these distinctions before STOP; never retry or accept a fake main.
+    report.frontendStartup.snapshot=await page.evaluate(()=>({
+      pathname:location.pathname,documentTitle:document.title,
+      readyState:document.readyState,rootPresent:!!document.getElementById('root'),
+      rootChildren:document.getElementById('root')?.childElementCount ?? -1,
+      mainPresent:!!document.querySelector('main'),
+      loginVisible:!!document.querySelector('input[type=password]'),
+      errorBoundaryVisible:document.body?.innerText?.includes('Erreur Inattendue')||false,
+      loaderVisible:document.body?.innerText?.includes('Démarrage de Digital Crown')||false,
+      appModePresent:!!localStorage.getItem('appMode'),
+      authTokenPresent:!!localStorage.getItem('token'),
+    })).catch(e=>({diagnosticError:String(e?.name||'unknown')}));
+    await page.screenshot({path:path.join(out,'cb01-fueg-mainlayout-failed.png'),fullPage:false}).then(()=>
+      report.screenshots.push('cb01-fueg-mainlayout-failed.png')).catch(()=>{});
+    throw Error('NOT_CERTIFIED: real Cabinet MainLayout did not mount; '+
+      JSON.stringify(report.frontendStartup));
+  }
   const launcher=page.getByRole('button',{name:'Ouvrir CrownBot'});
   await launcher.waitFor({state:'visible',timeout:30000});
   await page.screenshot({path:path.join(out,'cb01-fueg-dashboard-before.png')});
