@@ -9,6 +9,8 @@ paths:
 
 Cette règle est un **gate de procédure avant closeout**, pas un mécanisme de branch protection GitHub. Elle s'applique conjointement à `.claude/rules/execution-scoring-verification.md`.
 
+**Autopilot borné :** itérations UI, corrections et captures intermédiaires dans le scope ne demandent pas de nouvelle validation humaine à chaque commit. L'accord du propriétaire porte sur le HEAD visuel final et ses AFTER observés ; seule une modification qui invalide le rendu approuvé impose une nouvelle validation. Aucune modification/bypass des labels ou workflows trusted. Une modification purement documentaire FUE-0 sans UI n'invente pas de captures. Vérifier l'existence effective de la fonctionnalité sur mobile avant de demander ses captures.
+
 Pour tout lot qui modifie l'UI/UX ou un rendu visuel produit :
 
 1. **BEFORE** : conserver les captures de référence pertinentes avant modification.

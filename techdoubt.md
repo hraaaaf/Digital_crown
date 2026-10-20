@@ -1,5 +1,11 @@
 # TECHDOUBT — Digital Crown
 
+## PROCESS-AUTOPILOT / 2026-10-20 — Réserve de gouvernance OPEN
+
+Le protocole prospectif réduit les micro-accords et micro-scores, sans toucher aux workflows CI/Human Visual Approval, règles de sécurité, labels ou release cabinet. Les branches historiques et workflows peuvent exiger encore des artefacts propriétaires; un docs-only GREEN n'est pas un produit FUE. **Risque non résolu :** la baisse effective d'interruptions et l'absence de régression ne sont pas encore mesurées. **Next :** examiner le diff sur HEAD, tests documentaires et gates réels ; GO propriétaire distinct avant merge ; pilote sur trois lots autorisés avec suivi des interruptions, réexécutions et incidents. Aucun contournement de gate.
+
+
+
 ## GLOBAL-G10-S / LOT10 — 2026-10-18 — Two-agent isolation requirement withdrawn
 
 **Status: RESOLVED AS A FALSE DEPENDENCY (doctrine correction, not proof of a completed FUE).**
