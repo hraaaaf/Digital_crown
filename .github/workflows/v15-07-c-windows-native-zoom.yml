@@ -7,6 +7,8 @@ on:
       - 'frontend/07c-windows-native-zoom.html'
       - 'frontend/src/features/command/CommandWindowsNativeZoomHarness.tsx'
       - 'frontend/src/features/command/CommandCabinetReadOnlyRoute.tsx'
+      - 'frontend/src/features/command/command-cabinet-readonly-policy.ts'
+      - 'frontend/src/features/dashboard/normalizeCabinetAppointments.ts'
       - 'frontend/src/components/Layout/MainLayout.tsx'
       - 'frontend/scripts/certify-lot07-windows-native-zoom.mjs'
       - '.github/workflows/v15-07-c-windows-native-zoom.yml'
