@@ -124,6 +124,26 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
     archive_service.ARCHIVE_BASE_DIR = root
     try:
         with Session(engine) as session:
+            # Diagnostic-only rollback observer: preserve the production
+            # rollback behavior and surface the triggering exception if the
+            # test injection itself is not safe on this Windows runtime.
+            original_rollback = session.rollback
+            def observed_rollback():
+                active_error = sys.exc_info()[1]
+                if active_error is not None:
+                    detail = {
+                        "type": type(active_error).__name__,
+                        "message": str(active_error).replace(
+                            os.environ["P2TER_NATIVE_SQLCIPHER_TEST_KEY"], "[REDACTED_KEY]"
+                        )[:2000],
+                    }
+                    diagnostic = marker.with_name("native-rollback-diagnostic.json")
+                    with diagnostic.open("w", encoding="utf-8") as stream:
+                        stream.write(json.dumps(detail, sort_keys=True))
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                return original_rollback()
+            session.rollback = observed_rollback
             if mode == "replay":
                 value = already_archived_pdf(
                     session, patient_id=PATIENT_ID, analysis_id=ANALYSIS_ID,
@@ -195,8 +215,13 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                         "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json") if p.name == f"{REVISION}.json"),
                         "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
                     }
-                    marker.write_text(json.dumps(checkpoint, sort_keys=True), encoding="utf-8")
-                    with marker.open("rb") as stream:
+                    # Flush the marker through a *writable* descriptor.
+                    # Windows can reject FlushFileBuffers on a read-only
+                    # handle; an injected failure here must never be mistaken
+                    # for a crash and provoke ArchiveService rollback/abort.
+                    with marker.open("w", encoding="utf-8") as stream:
+                        stream.write(json.dumps(checkpoint, sort_keys=True))
+                        stream.flush()
                         os.fsync(stream.fileno())
                     # Parent must invoke actual Windows TerminateProcess; no
                     # exceptions or Python finalizers may run in the child.
@@ -301,6 +326,10 @@ def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: b
             "child_control_exists": (root / ".native-child-created-control").is_file(),
             "child_still_alive": process.poll() is None,
             "python_delete_rename_events": trace_path.read_text(encoding="utf-8")[-7000:] if trace_path.exists() else "",
+            "rollback_diagnostic": (
+                marker.with_name("native-rollback-diagnostic.json").read_text(encoding="utf-8")
+                if marker.with_name("native-rollback-diagnostic.json").is_file() else None
+            ),
         }
         assert prekill["pdf_exists"] and prekill["journal_exists"], (
             "WINDOWS_ARCHIVE_LOSS_PRECEDES_TERMINATEPROCESS: "
