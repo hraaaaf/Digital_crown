@@ -74,6 +74,9 @@ $reportReplay=Join-Path $telemetry 'replay.txt'
 $reportHostile=Join-Path $telemetry 'hostile-pipe.txt'
 $reportJunction=Join-Path $telemetry 'junction-denied.txt'
 $reportAclDrift=Join-Path $telemetry 'acl-drift-denied.txt'
+$reportHandleSwap=Join-Path $telemetry 'handle-swap-denied.txt'
+$raceReady=Join-Path $telemetry 'handle-open.signal'
+$raceContinue=Join-Path $telemetry 'continue.signal'
 $exe=Join-Path $root 'signer-scm.exe'
 $publicPin=Join-Path $root 'trusted-rsa-public.fake'
 $rootAttack=Join-Path $root 'J9_SIDLESS_ROOT_WRITE.fake'
@@ -357,6 +360,57 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
  if('S-1-5-19' -in $restored -or $restored.Count -ne 3) {
     throw 'J10D_ACL_REPAIR_FAILED'
  }
+ # RACE GATE: consumer has already opened the original ledger directory
+ # by a no-follow Windows handle. TEST ADMIN renames that directory (keeping
+ # its burned nonce), then creates an EMPTY plain directory at the same name.
+ # Unlike a junction probe, both directories have legitimate DACLs.
+ # A path-based FileStream CREATE_NEW would accept the replay in the decoy.
+ $savedName='saved-nonce-ledger-'+$tag
+ $savedLedger=Join-Path $root $savedName
+ $raceCmd=$cmdConsumer+' "LOT05J10D_CI_RACE" "'+$raceReady+'" "'+$raceContinue+'"'
+ Strict 'sc.exe' @('config',$nameC,'binPath=',$raceCmd) | Out-Null
+ Strict 'sc.exe' @('start',$nameC) | Out-Null
+ (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
+ Configure $nameA 'replay' $reportHandleSwap $requestValid $outputSigned
+ Strict 'sc.exe' @('start',$nameA) | Out-Null
+ $opened=$false
+ for($i=0;$i -lt 85;$i++) {
+    if(Test-Path -LiteralPath $raceReady -PathType Leaf) {$opened=$true;break}
+    Start-Sleep -Milliseconds 110
+ }
+ if(!$opened -or (Get-Content -LiteralPath $raceReady -Raw) -ne 'HANDLE_OPEN') {
+    throw 'J10D_NATIVE_DIRECTORY_HANDLE_RACE_BARRIER_NOT_OPEN'
+ }
+ Rename-Item -LiteralPath $consumerLedger -NewName $savedName
+ if(!(Test-Path -LiteralPath $savedLedger -PathType Container)) {
+    throw 'J10D_RACE_RENAMED_LEDGER_NOT_FOUND'
+ }
+ New-Item -ItemType Directory -Path $consumerLedger | Out-Null
+ Protect $consumerLedger $consumerSid 'Modify' $true
+ if(@(Get-ChildItem -LiteralPath $consumerLedger -Filter '*.nonce' -File).Count -ne 0 -or
+    @(Get-ChildItem -LiteralPath $savedLedger -Filter '*.nonce' -File).Count -ne 1) {
+    throw 'J10D_RACE_FRESH_LEDGER_PRECONDITION_FAILED'
+ }
+ [IO.File]::WriteAllText($raceContinue,'CONTINUE',[Text.Encoding]::ASCII)
+ $raceProof=AwaitProof $reportHandleSwap
+ if($raceProof -notmatch 'service_sid_in_token=True' -or
+    $raceProof -notmatch 'pipe_response=DENY_J10D_NONCE_REPLAY_OR_LEDGER' -or
+    @(Get-ChildItem -LiteralPath $consumerLedger -Filter '*.nonce' -File).Count -ne 0 -or
+    @(Get-ChildItem -LiteralPath $savedLedger -Filter '*.nonce' -File).Count -ne 1) {
+    throw ('J10D_HANDLE_RELATIVE_PATH_RACE_REDIRECTED_NONCE '+$raceProof)
+ }
+ Write-Output 'J10D_DIRECT_LIVE_NTFS_DIRECTORY_SWAP_HANDLE_RELATIVE_REPLAY_DENIED_PASS'
+ Strict 'sc.exe' @('stop',$nameA) | Out-Null
+ Strict 'sc.exe' @('stop',$nameC) | Out-Null
+ (Get-Service $nameC).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(15))
+ Remove-Item -LiteralPath $consumerLedger -Recurse -Force
+ Rename-Item -LiteralPath $savedLedger -NewName 'consumer-ledger'
+ if(!(Test-Path -LiteralPath $consumerLedger -PathType Container) -or
+    @(Get-ChildItem -LiteralPath $consumerLedger -Filter '*.nonce' -File).Count -ne 1) {
+    throw 'J10D_HANDLE_RACE_REPAIR_FAILED'
+ }
+ Strict 'sc.exe' @('config',$nameC,'binPath=',$cmdConsumer) | Out-Null
+ Remove-Item -LiteralPath $raceReady,$raceContinue -Force
  # Restore the authentic NTFS ledger and replay after consumer SCM restart.
  Strict 'sc.exe' @('start',$nameC) | Out-Null
  (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
