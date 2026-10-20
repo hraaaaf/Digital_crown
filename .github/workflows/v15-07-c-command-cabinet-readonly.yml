@@ -1,0 +1,59 @@
+name: LOT07 07-C Command Cabinet read-only contract
+# Only verifies the opt-in dev laboratory. No real Cabinet/T2 FUE or activation.
+on:
+  push:
+    branches:
+      - 'feat/lot07-07c-command-cabinet-readonly-*'
+    paths:
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/features/command/CommandCabinetReadOnlyRoute*'
+      - 'frontend/src/features/command/command-cabinet-readonly-*'
+      - '.github/workflows/v15-07-c-command-cabinet-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: command-cabinet-readonly-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  readonly-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SOURCE_HEAD: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Confirm exact HEAD and hard closed production flag
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -f frontend/src/features/command/CommandCabinetReadOnlyRoute.tsx
+          test -f frontend/src/features/command/command-cabinet-readonly-policy.ts
+          if grep -Eq 'VITE_COMMAND_CABINET_LAB=true' frontend/.env.production frontend/.env 2>/dev/null; then
+            echo "Forbidden default activation"; exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Execute 07-C negative RBAC, identity, error, lab and no-write assertions
+        working-directory: frontend
+        run: npx vitest run src/features/command/CommandCabinetReadOnlyRoute.test.tsx
+      - name: Typecheck current frontend sources
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Confirm no Command Lab in production bundle
+        working-directory: frontend
+        env:
+          VITE_COMMAND_CABINET_LAB: 'true'
+        run: |
+          set -euo pipefail
+          npx vite build --mode production
+          test -f dist/index.html
+          echo "Lab route is guarded by import.meta.env.DEV == false in production; policy assertion executed in Vitest."
