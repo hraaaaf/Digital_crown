@@ -785,6 +785,9 @@ try {
         throw Error('FAIL: CB-01 S05/S06 real application admission denied');
       const launcher=page.locator('button[aria-label="Ouvrir CrownBot"]:visible').first();
       await launcher.waitFor({state:'visible',timeout:30000});
+      // Start click-to-First-Value only from a genuinely usable dashboard,
+      // not MainLayout with the still-visible cabinet initialization spinner.
+      await assertDashboardReady(page,1600,kind.toUpperCase()+'_FUE_BEFORE');
       const fueStartedAt=performance.now();
       const fueActions={clicks:0,typedAnswers:0};
       await launcher.click(); fueActions.clicks++;
@@ -843,6 +846,7 @@ try {
       if(errors.length || writes.length || !statuses.length
           || statuses.some(code=>code!==(kind==='s06'?403:200)))
         throw Error('FAIL: CB-01 integrated role HTTP/JS or write evidence mismatch');
+      await assertDashboardReady(page,1600,kind.toUpperCase()+'_FUE_AFTER');
       const screenshot='cb01-live-api-rbac-'+kind+'-1600.png';
       await page.screenshot({path:path.join(output,screenshot)});
       realRoleBrowserEvidence.push({scenario:kind.toUpperCase(),
