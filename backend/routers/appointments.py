@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user, require_permission
+from backend.routers.auth import get_current_user, has_permission, require_permission
 from backend.routers.workstation_mode import _find_workstation
 from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
