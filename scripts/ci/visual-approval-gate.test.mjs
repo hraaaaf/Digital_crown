@@ -145,9 +145,10 @@ test('label DELETE success without actual removal fails closed', async () => {
   await assert.rejects(f.run('synchronize'), /label still present/);
 });
 
-test('label DELETE 404 for an already-absent label still rejects the stale run', async () => {
+test('absent label skips DELETE and still rejects changed UI HEAD', async () => {
   const f = fixture({ label: false });
   await assert.rejects(f.run('synchronize'), /approval revoked/);
+  assert.equal(f.deletes, 0);
 });
 
 test('GitHub GET 503 is not mistaken for approval', async () => {

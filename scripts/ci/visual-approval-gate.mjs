@@ -45,9 +45,11 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
     // Do not block back-end/docs PRs that have never needed visual approval.
     // An existing label, even on a non-UI PR, must still be revoked.
     if(!touchesUI&&!priorLabel)return {state:'skipped-non-ui',head:actual};
-    try{ await api.delete(`/issues/${number}/labels/${APPROVAL_LABEL}`); }
-    catch(error){
-      if(error?.status!==404)throw new Error('Failed to revoke stale visual approval',{cause:error});
+    if(priorLabel){
+      try{ await api.delete(`/issues/${number}/labels/${APPROVAL_LABEL}`); }
+      catch(error){
+        if(error?.status!==404)throw new Error(`Failed to revoke stale visual approval (HTTP ${error?.status??'unknown'})`,{cause:error});
+      }
     }
     if(await hasLabel(api,number))
       throw new Error('Stale visual approval label still present after DELETE');
