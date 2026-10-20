@@ -202,6 +202,14 @@ describe('07-C / real FastAPI AppointmentOut bridge for Signature + Command', ()
     expect(() => normalizeCabinetAppointments(null, true)).toThrow();
     expect(() => normalizeCabinetAppointments([canonical, { ...canonical, id: -1 }], true)).toThrow();
     expect(() => normalizeCabinetAppointments([{ ...canonical, datetime_start: '2026-10-20T25:59:00' }], true)).toThrow();
+    for (const bad of ['2026-02-30T09:15:00', '2025-02-29T09:15:00',
+      '2026-00-20T09:15:00', '2026-04-31T09:15:00',
+      '2026-10-20T09:15:00+99:99', '2026-10-20T09:15:00+12:99']) {
+      expect(() => normalizeCabinetAppointments([{ ...canonical, datetime_start: bad }], true)).toThrow();
+      expect(projectReadOnlyAppointments([{ ...canonical, datetime_start: bad } as DashboardAppointment], true)).toBeNull();
+    }
+    expect(normalizeCabinetAppointments([{ ...canonical, datetime_start: '2024-02-29T09:15:00' }], true)).toHaveLength(1);
+    expect(projectReadOnlyAppointments([{ ...canonical, datetime_start: '2024-02-29T09:15:00' } as DashboardAppointment], true)?.[0].time).toBe('09:15');
     expect(() => normalizeCabinetAppointments([{ ...canonical, status: null }], true)).toThrow();
   });
 });
