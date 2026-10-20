@@ -110,6 +110,15 @@ try {
   assert.equal(patientDetailGet.status, 403, 'Agenda-only user cannot fetch another patient appointment history');
   point('backend-patient-history-forbidden', { httpStatus: 403 });
 
+  const patientPlanGet = await authGET(restrictedToken,
+    '/api/appointments/suggest/'+ownerFixture.patient_id, cookies);
+  assert.equal(patientPlanGet.status, 403,
+    'Agenda-only staff MUST NOT read treatment-plan-derived appointment suggestions');
+  assert.ok(!/implant|couronne|traitement|endodont|T2 COMMAND SYNTHETIC/i.test(
+    JSON.stringify(patientPlanGet.body)),
+    '403 denial must not disclose treatment-plan details');
+  point('backend-treatment-plan-suggestion-forbidden', { httpStatus: 403 });
+
   // Conflicts are legitimate schedule metadata, never a route to recover a
   // concealed patient's name/notes through a different HTTP error body.
   const restrictedConflict = await authGET(restrictedToken,
