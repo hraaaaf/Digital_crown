@@ -498,6 +498,10 @@ async def suggest_appointment(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("agenda")),
 ):
+    # C07C-09: suggested acts originate from the patient's treatment plan,
+    # not public schedule metadata. Agenda-only actors must not read it.
+    if not has_permission(current_user, "patients"):
+        raise HTTPException(status_code=403, detail="Permission Patients requise")
     assert_patient_access(patient_id, current_user, db)
     plan = await elite_manager.get_treatment_plan(db, patient_id)
     phases = plan.get("phases", {}) if isinstance(plan, dict) else {}
