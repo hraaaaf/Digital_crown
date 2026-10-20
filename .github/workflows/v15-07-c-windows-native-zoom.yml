@@ -6,7 +6,7 @@ on:
     paths:
       - 'frontend/07c-windows-native-zoom.html'
       - 'frontend/src/features/command/CommandWindowsNativeZoomHarness.tsx'
-      - 'frontend/src/features/command/CommandCabinetReadOnlyRoute.tsx'
+      - 'frontend/src/features/command/**'
       - 'frontend/src/features/command/command-cabinet-readonly-policy.ts'
       - 'frontend/src/features/dashboard/normalizeCabinetAppointments.ts'
       - 'frontend/src/components/Layout/MainLayout.tsx'
