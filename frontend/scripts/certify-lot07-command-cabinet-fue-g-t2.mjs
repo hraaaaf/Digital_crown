@@ -97,6 +97,7 @@ try {
     point('backend-cross-tenant-isolation', { status: 200, foreignIdVisible: false });
   } else {
     point('backend-cross-tenant-unresolved', { httpStatus: otherGet.status, certified: false });
+    report.failures.push({ error: 'Cross-tenant GET scope not verifiable (HTTP '+otherGet.status+'); FUE-G remains NO-GO' });
   }
 
   const visit = async (actor, { expectAllowed, expectName }) => {
