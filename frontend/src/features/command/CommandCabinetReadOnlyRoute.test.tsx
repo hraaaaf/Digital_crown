@@ -142,6 +142,20 @@ describe('07-C / real Cabinet read-only boundary', () => {
     expect(screen.getAllByRole('cell').map((cell) => cell.textContent)).toContain('Rendez-vous');
   });
 
+  it('projects actual FastAPI AppointmentOut schema and does not leak patient_name to agenda-only staff', () => {
+    const wire = {
+      id: 57, datetime_start: '2026-10-20T09:15:00', status: 'EN_S_ATTENTE',
+      patient_name: 'T2-NOM-FICTIF', patient_id: 991, duration_minutes: 30,
+    } as unknown as DashboardAppointment;
+    expect(projectReadOnlyAppointments([wire], true)).toEqual([{
+      id: 57, time: '09:15', status: 'EN_S_ATTENTE', patientLabel: 'T2-NOM-FICTIF',
+    }]);
+    expect(projectReadOnlyAppointments([wire], false)).toEqual([{
+      id: 57, time: '09:15', status: 'EN_S_ATTENTE', patientLabel: 'Rendez-vous',
+    }]);
+    expect(projectReadOnlyAppointments([{ ...wire, datetime_start: 'fakeT09:15:00' } as DashboardAppointment], true)).toBeNull();
+  });
+
   it('rejects mixed-validity API data and preserves local cabinet clock without UTC shifting', () => {
     expect(projectReadOnlyAppointments([appointment], false)).toEqual([{
       id: 13, time: '09:15', status: 'EN_S_ATTENTE', patientLabel: 'Rendez-vous',
