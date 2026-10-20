@@ -18,10 +18,12 @@ const report = {
   nativeBrowserZoom200: false, cssZoomUsed: false, pass: false, failure: null,
 };
 let browser;
+let activePage;
 try {
   browser = await chromium.launch({ headless: false });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
+  activePage = page;
   const external = [];
   await page.route('**/*', route => {
     const url = new URL(route.request().url());
@@ -89,6 +91,10 @@ try {
   report.pass = true;
 } catch (e) {
   report.failure = String(e?.stack || e).slice(0,2200);
+  if (activePage) {
+    try { await activePage.screenshot({ path: path.join(dest, 'windows-failure-viewport.png'), fullPage: true }); }
+    catch { /* report.json still preserves the failure */ }
+  }
 } finally {
   await browser?.close();
   await fs.writeFile(path.join(dest, 'report.json'), JSON.stringify(report, null, 2));
