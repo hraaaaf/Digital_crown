@@ -2,6 +2,8 @@
 
 Status: **CLOSED / V1_OPERATIONAL — HISTORICAL EXECUTION AUTHORITY**
 
+**Prospective governance clarification — 2026-10-20:** the V1 visual merge and approval requirements below are preserved as historical facts. The active post-V1 lot roadmap and `AGENTS.md` Autopilot govern V1.5+ work. Do not project fictitious visual captures onto a future documentation-only FUE-0 ; retain all actual REQUIRED clinical, privacy, safety, human and release gates.
+
 Effective date: 17 September 2026
 
 ## 1. Authority — single roadmap

@@ -1,12 +1,12 @@
 # Execution scoring & verification — règle canonique globale
 
-Cette règle s'applique à tout lot et à toute **étape matérielle** : changement code/config/schema, migration, test significatif, rehearsal, validation UI/UX, mise à jour canonique, décision de merge/certification ou closeout.
+Cette règle s'applique au **candidat final de lot/sous-lot** et aux **gates critiques explicites**. Les micro-corrections, commits et tests ciblés conservent leurs preuves, mais n'entraînent pas une nouvelle notation administrative.
 
 Le scoring ne remplace jamais un gate binaire, une preuve, un test requis, une validation humaine exigée, ni une règle de sécurité/clinique. Il s'y ajoute.
 
 ## 1. Deux scores obligatoires
 
-Après chaque étape matérielle, produire séparément :
+Sur le HEAD candidat final (ou avant un gate critique autonome), produire séparément :
 
 - `EXECUTION_SCORE /10` : qualité de l'exécution elle-même — correction, complétude, respect du scope, tests, preuves, réversibilité et absence de régression connue.
 - `FUE_EVIDENCE_SCORE /10` : qualité des preuves FUE réellement exécutées et des contrôles spécialisés déclenchés par le risque — preuves manquantes, cas limites, régressions, incohérences, dimensions critiques faibles, faux positifs de CI, sécurité/privacy/data/claim clinique.
@@ -19,7 +19,7 @@ Le score retenu est toujours :
 
 ## 2. Divergence obligatoire à investiguer
 
-Si `abs(EXECUTION_SCORE - FUE_EVIDENCE_SCORE) > 0.5`, l'étape n'est pas suffisamment comprise :
+Si `abs(EXECUTION_SCORE - FUE_EVIDENCE_SCORE) > 0.5` au verdict, le candidat final est insuffisamment compris :
 
 1. identifier la cause de l'écart ;
 2. investiguer avec preuve/test/relecture ciblée ;
@@ -70,7 +70,7 @@ Un lot ne peut être marqué **`VERIFIED`** que si, simultanément :
 
 ## 6. Perfection Pass finale obligatoire
 
-Dès qu'un lot atteint ou dépasse `9.0/10` — y compris `9.2`, `9.4`, etc. — effectuer avant `VERIFIED` une **Perfection Pass finale** :
+Dès que le candidat final atteint ou dépasse `9.0/10`, effectuer **une Perfection Pass consolidée** avant VERIFIED ; après correction, refaire uniquement les preuves invalidées et la confirmation finale :
 
 1. chercher explicitement les faiblesses restantes ;
 2. distinguer limites intrinsèques / hors scope / réellement améliorables ;
@@ -83,7 +83,7 @@ Une Perfection Pass qui trouve une faiblesse améliorable mais ne la corrige pas
 
 ## 7. Format minimal de preuve
 
-Pour chaque étape matérielle :
+À chaque décision finale de lot ou gate critique applicable :
 
 - `Goal` ;
 - `Succès observable` ;
@@ -107,10 +107,12 @@ Cette règle complète `.claude/rules/visual-closeout-human-validation.md` :
 - la comparaison **Target ↔ Render** doit être réelle et explicite ;
 - aucune erreur critique de dimensions, densité, alignement, hiérarchie ou comportement responsive ne peut être compensée par une bonne moyenne visuelle ;
 - sans Target ↔ Render réel, fidélité visuelle `<= 7.5/10` ;
-- la validation humaine explicite exigée par la règle visuelle reste un gate binaire indépendant du score.
+- la validation humaine explicite exigée par la règle visuelle reste un gate binaire indépendant du score, demandé sur le candidat visuel final et non à chaque itération.
 
 ## 9. Domaines cliniques et scientifiques
 
 Les scores ne valident jamais scientifiquement un moteur, une norme, une dose, un diagnostic, un pronostic ou une interprétation. Les skills/règles scientifiques et leurs sources restent autoritaires. Un blocker de claim clinique/scientifique impose `BLOCKED` et le plafond `5.9/10` jusqu'à résolution prouvée.
 
 **Révision FUE-first : 19 octobre 2026.**
+
+**Révision Autopilot 2026-10-20 : scoring au candidat final, plafonds et gates critiques inchangés.**
