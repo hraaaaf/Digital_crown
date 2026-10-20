@@ -7,6 +7,7 @@ on:
     paths:
       - 'frontend/src/App.tsx'
       - 'frontend/src/features/command/CommandCabinetReadOnlyRoute*'
+      - 'frontend/src/features/command/CommandWindowsNativeZoomHarness.tsx'
       - 'frontend/src/features/dashboard/**'
       - 'frontend/src/components/Layout/MainLayout.tsx'
       - 'backend/routers/appointments.py'
