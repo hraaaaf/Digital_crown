@@ -160,6 +160,53 @@ try {
       await tzContext.close();
     }
   }
+  // The launcher belongs to MainLayout and may be visible while Dashboard
+  // still shows its loading spinner. Require the REAL dashboard to finish
+  // hydrating and its animation/sidebar reflow to stabilize BEFORE proof.
+  const dashboardVisualProof=[];
+  const assertDashboardReady=async(page,width,phase)=>{
+    await page.locator('main h1').filter({hasText:/^Bonjour,/}).first()
+      .waitFor({state:'visible',timeout:45000});
+    await page.waitForFunction(()=>{
+      const main=document.querySelector('main');
+      const heading=main?.querySelector('h1');
+      const text=main?.innerText||'';
+      const motionRoot=heading?.closest('div[class*="max-w-"]');
+      return Boolean(location.pathname==='/dashboard'
+        && heading?.textContent?.trim().startsWith('Bonjour,')
+        && text.includes('Nouveau Patient')
+        && text.includes('Dossiers Patients')
+        && !text.includes('Initialisation de votre cabinet')
+        && motionRoot && Number(getComputedStyle(motionRoot).opacity)>=0.99);
+    },null,{timeout:45000,polling:'raf'});
+    await page.mouse.move(width-12,Math.round(page.viewportSize().height/2));
+    if(width>=1280)
+      await page.waitForFunction(()=>{
+        const sidebar=document.querySelector('aside.sidebar-shell');
+        return sidebar?.getAttribute('data-expanded')==='false'
+          && Math.abs(sidebar.getBoundingClientRect().width-68)<1;
+      },null,{timeout:15000,polling:'raf'});
+    const proof=await page.evaluate(()=>{
+      const main=document.querySelector('main');
+      const heading=main?.querySelector('h1');
+      const motionRoot=heading?.closest('div[class*="max-w-"]');
+      return {
+        path:location.pathname,
+        hasGreeting:Boolean(heading?.textContent?.trim().startsWith('Bonjour,')),
+        hasActions:Boolean(main?.innerText?.includes('Nouveau Patient')
+          && main?.innerText?.includes('Dossiers Patients')),
+        initialLoaderAbsent:!Boolean(main?.innerText?.includes('Initialisation de votre cabinet')),
+        motionOpacity:motionRoot?Number(getComputedStyle(motionRoot).opacity):null,
+        sidebarCollapsed:document.querySelector('aside.sidebar-shell')?.getAttribute('data-expanded')==='false',
+        viewportWidth:document.documentElement.clientWidth,
+      };
+    });
+    if(proof.path!=='/dashboard'||!proof.hasGreeting||!proof.hasActions
+      ||!proof.initialLoaderAbsent||proof.motionOpacity<0.99
+      ||(width>=1280&&!proof.sidebarCollapsed)||proof.viewportWidth!==width)
+      throw Error('NOT_CERTIFIED: '+phase+' Dashboard not stable at '+width+' '+JSON.stringify(proof));
+    dashboardVisualProof.push({width,phase,status:'PASS_REAL_LOADED_DASHBOARD',...proof});
+  };
   for (const width of [390, 430, 1280, 1440, 1600, 1920]) {
     const desktop = width >= 1600;
     const height = desktop ? 900 : 844;
@@ -196,6 +243,7 @@ try {
     await page.goto(appOrigin+'/dashboard',{waitUntil:'domcontentloaded',timeout:90000});
     const opener=page.locator('button[aria-label="Ouvrir CrownBot"]:visible').first();
     await opener.waitFor({state:'visible',timeout:30000});
+    await assertDashboardReady(page,width,'BEFORE');
     await page.screenshot({path:path.join(output,'before-'+width+'.png')});
     await opener.click();
     const sidecar=page.locator('[data-cb01-associate-sidecar]');
@@ -492,6 +540,7 @@ try {
       await preview.getByText('Patient sélectionné (vérifié par le serveur) : AMINA BENALI — Dossier CB01-N-101').waitFor();
       staffSearchChecks+='|PASS_OWNER_HOMONYM_RDV_IDENTITY_STABLE_PROPOSAL_ONLY|PASS_SERVER_CABINET_DAY|PASS_ARIA_TABS_KEYBOARD|PASS_FIRST_VALUE_TEXT_CONTRAST';
     }
+    await assertDashboardReady(page,width,'AFTER');
     await page.screenshot({path:path.join(output,'after-'+width+'.png')});
     evidence.push({width,mode:desktop?'sidecar-reflow':'web-floating-fallback',
       staffSearchChecks,
@@ -808,7 +857,8 @@ try {
     historyReadOnlyChromium:'PASS_SYNTHETIC_HISTORY_TEXT_NO_EXECUTE_AND_MODAL_KEYBOARD',
     bSidecarShell:true,clinicalStaffE2E:'NOT_RUN',realCabinetBefore:'NOT_CAPTURED',
     browserZoom200Percent:'CSS_WIDTH_HALVED_REFLOW_PROXY_ONLY_NOT_NATIVE_ZOOM', sourceHead:process.env.CB01_SOURCE_HEAD||'UNVERIFIED',
-    roleChecks,realRoleBrowserEvidence,fueC,evidence,clinicalRouteEvidence,wallClockEvidence};
+    roleChecks,realRoleBrowserEvidence,fueC,evidence,clinicalRouteEvidence,wallClockEvidence,
+    dashboardVisualProof};
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2));
   console.log('CB01_ASSOCIATE_SIDECAR_VISUAL: PASS',JSON.stringify(evidence));
 } finally {
