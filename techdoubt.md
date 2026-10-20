@@ -1,5 +1,13 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-20 LOT06-P/P2-F01 — Autopilot ready-manifest duplicate path guard
+
+**Finding/fix candidate (LAB only):** The encrypted `_decrypt` path already refuses noncanonical ledger blob names, but `_previous_ready_capture` reused an untrusted persisted SQLite `blob` to construct/stat a filesystem path without that check. An altered synthetic ledger plus an unrelated same-size file outside the private spool could make `scan_once` return `duplicate` without reading/authenticating any ciphertext. Patch: reject any blob not equal to recalculated `identity + ".dc6"` before touching the filesystem. One negative fixture corrupts the ledger, plants an external file, demands fail-closed refusal, and confirms no source/file/row mutation.
+
+**OPEN limits:** CI Windows/Ubuntu must execute on exact patch HEAD before this lab finding can be called repaired. The duplicate fast-path deliberately skips cryptographic verification during repeated polls; `read_verified` remains essential before use. The check does not certify adversarial same-SID NTFS write confinement, all-row startup scrub, real SCM identity/Session0/ACL, crash/restore, SQLCipher clinical persistence, user login, hardware or LOT10. The PR #909 head is not changed here. No native SCM install, privilege modification, patient access, production release, merge or Vercel.
+
+
+
 ## 2026-10-20 — LOT06-P/P2-F01 · Autopilot B-06 cold-start key/sample check
 
 - **Previously open MAJOR B-06:** a 32-byte but incorrect synthetic spool key was accepted at initial `HotFolder` bootstrap of an existing ledger; authentication failed only on later `read_verified`. A lab worker could have reported READY with unreadable stored acquisitions. **Scoped change:** on opening a nonempty existing synthetic ledger, decrypt/authenticate its first recorded encrypted blob before returning from constructor; wrong key or missing/corrupt sampled blob fails closed without creating a clinical receipt or resetting SQLite. Two direct negative restart tests and the B-02 restore tests now require startup refusal.
