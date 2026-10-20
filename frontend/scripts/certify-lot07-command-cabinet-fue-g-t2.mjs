@@ -101,16 +101,35 @@ try {
   point('backend-agenda-permission-refused', { httpStatus: deniedGet.status });
 
   const otherToken = await loginToken(actorEmail.otherTenant);
-  const otherGet = await authGET(otherToken, appointmentPath, cookies);
-  // An owner on another cabinet may need their own workstation enrollment. Either
-  // tenant separation is proven via 200-scoped list, or it is explicitly unproven.
-  if (otherGet.status === 200) {
-    assert.ok(!otherGet.body.some(x => x.id === firstId), 'No foreign tenant appointment');
-    assert.ok(otherGet.body.some(x => x.patient_name === 'OTHER CABINET SYNTHETIC'));
-    point('backend-cross-tenant-isolation', { status: 200, foreignIdVisible: false });
-  } else {
-    point('backend-cross-tenant-unresolved', { httpStatus: otherGet.status, certified: false });
-    report.failures.push({ error: 'Cross-tenant GET scope not verifiable (HTTP '+otherGet.status+'); FUE-G remains NO-GO' });
+  // A workstation is bound to one cabinet; never use the first owner's cookie to
+  // "prove" isolation of an independent second cabinet. Both owners must enroll.
+  const foreignCookieGet = await authGET(otherToken, appointmentPath, cookies);
+  assert.equal(foreignCookieGet.status, 423,
+    'A second cabinet must reject the first cabinet workstation identity');
+  point('backend-foreign-workstation-denied', { httpStatus: foreignCookieGet.status });
+  const independentEnrollment = await request.newContext({
+    baseURL: apiBase, storageState: { cookies: [], origins: [] },
+  });
+  try {
+    const secondState = await enrollT2Workstation(independentEnrollment, otherToken, password);
+    const otherCookies = secondState.cookies.filter(x => x.name === 'dc_workstation');
+    assert.equal(otherCookies.length, 1, 'Other owner must enroll one distinct legitimate workstation');
+    assert.notEqual(otherCookies[0].value, cookies[0].value,
+      'Workstation identities must not be shared between cabinets');
+    const otherGet = await authGET(otherToken, appointmentPath, otherCookies);
+    assert.equal(otherGet.status, 200, 'Second owner reads own cabinet using its enrolled workstation');
+    assert.ok(Array.isArray(otherGet.body), 'Second cabinet GET is a real response array');
+    assert.ok(!otherGet.body.some(x => x.id === firstId), 'No cross-tenant appointment ID disclosure');
+    assert.ok(!otherGet.body.some(x => x.patient_name === 'T2 COMMAND SYNTHETIC'),
+      'First cabinet patient name cannot appear in second cabinet response');
+    assert.ok(otherGet.body.some(x => x.patient_name === 'OTHER CABINET SYNTHETIC'),
+      'Independent owner must see their own appointment to prove meaningful scoping');
+    point('backend-cross-tenant-isolation', {
+      status: otherGet.status, otherCabinetAppointmentVisible: true,
+      foreignIdVisible: false, separateWorkstation: true,
+    });
+  } finally {
+    await independentEnrollment.dispose();
   }
 
   const visit = async (actor, { expectAllowed, expectName }) => {
@@ -138,7 +157,8 @@ try {
       // Check the real Dashboard heading, which is present for all authenticated roles.
       await page.getByRole('heading', { name: /^Bonjour,/ }).waitFor({ state: 'visible', timeout: 40000 });
       item.fullLogin = true;
-      assert.ok(await page.evaluate(() => Boolean(localStorage.getItem('token'))), 'Real UI session token');
+      const sessionToken = await page.evaluate(() => localStorage.getItem('token'));
+      assert.ok(sessionToken, 'Real UI session token');
       if (actor === 'owner') authenticatedOwnerState = await context.storageState();
       const dashboardResponsePromise = expectAllowed
         ? page.waitForResponse(r => r.url().includes('/api/appointments/') && r.request().method() === 'GET', { timeout: 30000 })
@@ -148,10 +168,18 @@ try {
         const signatureResponse = await dashboardResponsePromise;
         item.signatureStatus = signatureResponse.status();
         assert.equal(item.signatureStatus, 200, 'Signature uses authenticated real API');
-        const signatureData = await signatureResponse.json();
-        assert.ok(signatureData.some(x => x.id === firstId), 'Signature got original seeded appointment ID');
-        await capture(page, actor + '-01-signature-before');
+        // Network.getResponseBody on a navigation/reload may already be released
+        // by Chromium CDP. Assert the real Dashboard GET and obtain its schema
+        // from an independent authenticated REST read using the same UI JWT.
+        // This does NOT claim the legacy Signature rows have visual parity.
+        const signatureGet = await authGET(sessionToken, appointmentPath, cookies);
+        assert.equal(signatureGet.status, 200, 'Signature actor must read a live Cabinet agenda');
+        const signatureData = signatureGet.body;
+        assert.ok(Array.isArray(signatureData), 'Signature actor agenda response is an array');
+        assert.ok(signatureData.some(x => x.id === firstId), 'Signature actor gets seeded appointment ID');
         item.signature = signatureData.map(({ id, status, datetime_start }) => ({ id, status, datetime_start }));
+        item.sourceParity = 'Real Dashboard GET 200 + same actor JWT server response; not visual Signature row parity';
+        await capture(page, actor + '-01-signature-before');
       } else {
         await capture(page, actor + '-01-dashboard-before');
       }
@@ -163,9 +191,16 @@ try {
         const commandResponse = await commandResponsePromise;
         item.commandStatus = commandResponse.status();
         assert.equal(item.commandStatus, 200, 'Command uses authenticated real API');
-        const commandData = await commandResponse.json();
+        // The real Command GET was observed from this page. Compare stable
+        // live backend snapshots with the same browser's JWT on both screens,
+        // then verify that Command actually rendered their IDs/time/status.
+        const commandGet = await authGET(sessionToken, appointmentPath, cookies);
+        assert.equal(commandGet.status, 200, 'Command actor must read a live Cabinet agenda');
+        const commandData = commandGet.body;
+        assert.ok(Array.isArray(commandData), 'Command actor agenda response is an array');
         item.command = commandData.map(({ id, status, datetime_start }) => ({ id, status, datetime_start }));
-        assert.deepEqual(item.command, item.signature, 'Signature and Command receive the same exact backend appointments');
+        assert.deepEqual(item.command, item.signature,
+          'Real backend data must be stable under the same actor across Signature and Command');
         await page.locator('[data-testid="command-cabinet-readonly"]').waitFor({ state: 'visible', timeout: 25000 });
         await page.locator('tbody tr').first().waitFor({ state: 'visible', timeout: 25000 });
         const line = (await page.locator('tbody tr').allTextContents()).join('\n');
