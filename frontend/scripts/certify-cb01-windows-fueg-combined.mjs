@@ -68,6 +68,8 @@ const report = {
   clinicalState:'NOT_PROVEN',
   speechHardwareAudioRecording: 'NOT_RUN',
   nvdaHumanReview: 'NOT_RUN',
+  nvdaOsFocusProbes: [],
+  nvdaSpeechProbe: 'NOT_RUN',
   converged: false,
   error: null,
 };
@@ -316,6 +318,68 @@ try {
   report.nvdaStarted=true;
   await nvda.clearSpokenPhraseLog();
   await sleep(800);
+
+  // Unlike the isolated NVDA laboratory, a full MainLayout may leave Windows
+  // focus in another application after NVDA.start(). Re-anchor the *OS*
+  // Chromium window using real keyboard events, and verify the actual window
+  // title spoken by NVDA. DOM focus alone must never be counted as speech.
+  for (let attempt=1;attempt<=3;attempt++) {
+    await page.bringToFront();
+    await chat.scrollIntoViewIfNeeded();
+    await chat.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    if(!await chat.evaluate(el=>el===document.activeElement))
+      await chat.focus();
+    await nvda.perform(nvda.keyboardCommands.reportTitle);
+    const spokenTitle=String((await nvda.lastSpokenPhrase())||'');
+    const actualFocus=await chat.evaluate(el=>({
+      documentTitle:document.title,
+      chatFocused:el===document.activeElement,
+      ariaHiddenAncestor:Boolean(el.closest('[aria-hidden="true"],[inert]')),
+      boundingBox:(()=>{
+        const r=el.getBoundingClientRect();
+        return {top:Math.round(r.top),bottom:Math.round(r.bottom),
+          viewportHeight:window.innerHeight};
+      })(),
+    }));
+    report.nvdaOsFocusProbes.push({
+      attempt,spokenWindowTitle:spokenTitle.slice(0,120),
+      chatFocused:actualFocus.chatFocused,
+      ariaHiddenAncestor:actualFocus.ariaHiddenAncestor,
+      box:actualFocus.boundingBox,
+    });
+    if(actualFocus.ariaHiddenAncestor)
+      throw Error('NOT_CERTIFIED: assistant tab hidden or inert in real MainLayout');
+    if(actualFocus.chatFocused && /Digital Crown/i.test(spokenTitle)) break;
+    // Only if focus verification fails: move between real OS windows, then
+    // re-activate the Playwright-owned browser. Never mock a NVDA announcement.
+    if(attempt<3) {
+      await nvda.press('Alt+Escape');
+      await sleep(500);
+    }
+  }
+  if(!report.nvdaOsFocusProbes.some(p=>
+      p.chatFocused && /Digital Crown/i.test(p.spokenWindowTitle)))
+    throw Error('NOT_CERTIFIED: NVDA did not report foreground Digital Crown window; focus probes='+JSON.stringify(report.nvdaOsFocusProbes));
+
+  await nvda.clearSpokenPhraseLog();
+  await nvda.next();
+  report.keyboardActions.push('NVDA.next.focus-probe');
+  await captureSpeech('focused-app-initial');
+  if(!report.spokenPhrases.some(phrase=>String(phrase).trim())) {
+    // Diagnose missing real speech in seconds, rather than issuing 135 empty
+    // NVDA commands for minutes. The 5/5 speech oracle remains mandatory.
+    for(let attempt=1;attempt<=4;attempt++) {
+      await nvda.next();
+      report.keyboardActions.push('NVDA.next.focus-probe-'+attempt);
+      await captureSpeech('focused-app-retry-'+attempt);
+      if(report.spokenPhrases.some(phrase=>String(phrase).trim())) break;
+    }
+    if(!report.spokenPhrases.some(phrase=>String(phrase).trim()))
+      throw Error('NOT_CERTIFIED: NVDA emitted no real speech after Windows foreground focus, 5 OS-level navigation attempts');
+  }
+  report.nvdaSpeechProbe='PASS_REAL_NONEMPTY_NVDA_PHRASE_IN_FULL_MAINLAYOUT';
   // Trigger real OS-level NVDA navigation, recording each command.
   // NVDA.next() navigates the screen reader virtual cursor, not Playwright DOM.
   for(let n=0;n<80;n++){
