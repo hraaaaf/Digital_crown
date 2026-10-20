@@ -59,9 +59,22 @@ try {
   assert.equal(cookies.length, 1, 'Exactly one real enrollment cookie');
   point('real-owner-login-and-enrolled-workstation', { enrollmentCookies: cookies.length });
 
-  const noAuth = await setup.get(appointmentPath);
-  assert.notEqual(noAuth.status(), 200, 'Unprivileged REST access refused');
-  point('backend-anonymous-request-denied', { httpStatus: noAuth.status() });
+  // The setup context has just authenticated and enrolled a workstation.
+  // Do not reuse it for the anonymous probe: Playwright shares its cookie jar.
+  const anonymous = await request.newContext({
+    baseURL: apiBase,
+    storageState: { cookies: [], origins: [] },
+  });
+  try {
+    const noAuth = await anonymous.get(appointmentPath);
+    assert.ok([401, 403, 423].includes(noAuth.status()),
+      'Fresh HTTP context without JWT/cookies must be rejected; got '+noAuth.status());
+    const state = await anonymous.storageState();
+    assert.equal(state.cookies.length, 0, 'Anonymous probe must remain cookie-free');
+    point('backend-anonymous-request-denied', { httpStatus: noAuth.status(), cookieCount: 0 });
+  } finally {
+    await anonymous.dispose();
+  }
 
   const fresh = await authGET(ownerToken, '/api/clinics/init-status');
   assert.equal(fresh.status, 423, 'No workstation should be authorized for clinical initialization');
