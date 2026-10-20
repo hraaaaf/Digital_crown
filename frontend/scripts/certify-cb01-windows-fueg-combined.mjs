@@ -70,7 +70,7 @@ const report = {
   nvdaHumanReview: 'NOT_RUN',
   nvdaOsFocusProbes: [],
   nvdaSpeechProbe: 'NOT_RUN',
-  frontendStartup: {pageErrors:[],failedRequests:[],httpFailures:[],routes:[],initialAuthStatus:'NOT_RUN',clinicInitStatus:'NOT_RUN',snapshot:null},
+  frontendStartup: {pageErrors:[],failedRequests:[],httpFailures:[],routes:[],initialAuthStatus:'NOT_RUN',clinicInitStatus:'NOT_RUN',snapshot:null,requestTimeline:[],pendingRequests:[],browserRequestsSeen:0},
   converged: false,
   error: null,
 };
@@ -259,6 +259,60 @@ try {
   // never dump cookies, patient values, auth headers or full HTTP bodies.
   const safeMessage=value=>String(value||'').slice(0,240)
     .replace(/[A-Za-z0-9_-]{30,}\\.[A-Za-z0-9_-]{30,}\\.[A-Za-z0-9_-]{30,}/g,'[REDACTED_JWT]');
+  // Passive, data-minimized client bootstrap telemetry. The previous RED
+  // saw NO failed requests, which cannot distinguish a healthy response from
+  // an API call stuck forever. Never record URL queries, headers, identities,
+  // authentication tokens, request bodies, or response bodies.
+  const startupAt=Date.now();
+  const bootstrapInflight=new Map();
+  let requestSequence=0;
+  const classifyLocalPath=(rawUrl)=>{
+    let u;
+    try{u=new URL(rawUrl);}catch{return null;}
+    if(!['127.0.0.1','localhost'].includes(u.hostname))return null;
+    if(u.pathname==='/health')return '/health';
+    if(!u.pathname.startsWith('/api/'))return null;
+    const known=new Set(['/api/auth/me','/api/auth/refresh',
+      '/api/workstation/bootstrap','/api/clinics/init-status']);
+    if(known.has(u.pathname))return u.pathname;
+    return '/api/'+(u.pathname.split('/')[2]||'other')+'/*';
+  };
+  const traceBootstrap=(kind,entry)=>{
+    if(report.frontendStartup.requestTimeline.length>=96)return;
+    report.frontendStartup.requestTimeline.push({
+      kind,atMs:Date.now()-startupAt,...entry,
+    });
+  };
+  page.on('request',req=>{
+    const pathClass=classifyLocalPath(req.url());
+    if(!pathClass)return;
+    const entry={id:++requestSequence,method:req.method(),pathClass,
+      startedAtMs:Date.now()-startupAt};
+    bootstrapInflight.set(req,entry);
+    report.frontendStartup.browserRequestsSeen++;
+    traceBootstrap('REQUEST',{id:entry.id,method:entry.method,pathClass});
+  });
+  page.on('response',resp=>{
+    const ticket=bootstrapInflight.get(resp.request());
+    if(ticket)traceBootstrap('RESPONSE',{
+      id:ticket.id,pathClass:ticket.pathClass,httpStatus:resp.status(),
+    });
+  });
+  page.on('requestfinished',req=>{
+    const ticket=bootstrapInflight.get(req);
+    if(ticket){
+      traceBootstrap('FINISHED',{id:ticket.id,pathClass:ticket.pathClass});
+      bootstrapInflight.delete(req);
+    }
+  });
+  page.on('requestfailed',req=>{
+    const ticket=bootstrapInflight.get(req);
+    if(ticket){
+      traceBootstrap('FAILED',{id:ticket.id,pathClass:ticket.pathClass,
+        reason:safeMessage(req.failure()?.errorText)});
+      bootstrapInflight.delete(req);
+    }
+  });
   page.on('pageerror',err=>{if(report.frontendStartup.pageErrors.length<12)
     report.frontendStartup.pageErrors.push(safeMessage(err?.message));});
   page.on('console',msg=>{if(msg.type()==='error'&&report.frontendStartup.pageErrors.length<12)
@@ -300,6 +354,9 @@ try {
     // A missing MainLayout may mean real auth/setup redirect, a React crash,
     // missing dynamic JS, a loading guard, or a failed API request. Capture
     // these distinctions before STOP; never retry or accept a fake main.
+    report.frontendStartup.pendingRequests=[...bootstrapInflight.values()].slice(0,24)
+      .map(v=>({id:v.id,method:v.method,pathClass:v.pathClass,
+        ageMs:Date.now()-startupAt-v.startedAtMs}));
     report.frontendStartup.snapshot=await page.evaluate(()=>({
       pathname:location.pathname,documentTitle:document.title,
       readyState:document.readyState,rootPresent:!!document.getElementById('root'),
@@ -308,6 +365,9 @@ try {
       loginVisible:!!document.querySelector('input[type=password]'),
       errorBoundaryVisible:document.body?.innerText?.includes('Erreur Inattendue')||false,
       loaderVisible:document.body?.innerText?.includes('Démarrage de Digital Crown')||false,
+      clinicInitialising:document.body?.innerText?.includes('Initialisation de votre cabinet')||false,
+      rootHasOnlyLoader:!document.querySelector('main')
+        && Boolean(document.body?.innerText?.includes('Démarrage de Digital Crown')),
       appModePresent:!!localStorage.getItem('appMode'),
       authTokenPresent:!!localStorage.getItem('token'),
     })).catch(e=>({diagnosticError:String(e?.name||'unknown')}));
