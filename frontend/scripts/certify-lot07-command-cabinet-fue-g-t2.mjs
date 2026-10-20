@@ -134,7 +134,9 @@ try {
       await capture(page, actor + '-00-login-before');
       await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
       await page.waitForURL(x => new URL(x).pathname === '/dashboard', { timeout: 60000 });
-      await page.getByRole('button', { name: 'Ajout rapide' }).waitFor({ state: 'visible', timeout: 40000 });
+      // A staff member with agenda=false and patients=false has no quick-action button.
+      // Check the real Dashboard heading, which is present for all authenticated roles.
+      await page.getByRole('heading', { name: /^Bonjour,/ }).waitFor({ state: 'visible', timeout: 40000 });
       item.fullLogin = true;
       assert.ok(await page.evaluate(() => Boolean(localStorage.getItem('token'))), 'Real UI session token');
       if (actor === 'owner') authenticatedOwnerState = await context.storageState();
