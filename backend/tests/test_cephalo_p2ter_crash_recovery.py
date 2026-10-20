@@ -254,3 +254,56 @@ def test_pending_journal_without_pdf_recovers_with_new_verified_bytes(tmp_path):
             assert list(root.rglob("*.pdf")) == [proposed]
     finally:
         engine.dispose()
+
+
+
+def test_post_commit_sigkill_window_is_reconciled_by_verified_replay(tmp_path, monkeypatch):
+    """SQL COMMIT succeeded, cleanup was interrupted: replay closes only exact journal."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from backend import models
+    from backend.services import archive_service
+    from backend.services.cephalo_archive_recovery import prepare_official_pdf
+    from backend.services.cephalo_document_lock import already_archived_pdf
+
+    root = tmp_path / "archives"
+    target = root / "97531" / models.DocumentType.RAPPORT_CEPHALO.value / "2026" / "10" / "committed.pdf"
+    target.parent.mkdir(parents=True)
+    pdf_bytes = b"%PDF-1.4\nT2 SQL ALREADY COMMITTED\n"
+    engine = create_engine(f"sqlite:///{tmp_path / 'post-commit.db'}")
+    models.DocumentArchive.__table__.create(engine)
+    try:
+        with Session(engine) as db:
+            pending = prepare_official_pdf(
+                db, root=root, proposed_path=target, patient_id=97531,
+                analysis_id=86420, revision=2, payload_digest="postcommit",
+                content=pdf_bytes,
+            )
+            doc = models.DocumentArchive(
+                patient_id=97531, analysis_id=86420,
+                document_type=models.DocumentType.RAPPORT_CEPHALO,
+                filename=pending.path.name, original_filename=pending.path.name,
+                file_path="static/archives/" + str(pending.path.relative_to(root)).replace("\\", "/"),
+                file_hash=hashlib.sha256(pdf_bytes).hexdigest(),
+                file_size=len(pdf_bytes),
+                clinical_data={
+                    "cephalo_analysis_id": 86420,
+                    "cephalo_analysis_revision": 2,
+                    "cephalo_archive_payload_digest": "postcommit",
+                },
+            )
+            db.add(doc)
+            db.commit()
+            # Emulates SIGKILL between commit and finish_official_pdf:
+            assert pending.journal.exists()
+            monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", root)
+            result = already_archived_pdf(
+                db, patient_id=97531, analysis_id=86420,
+                revision=2, payload_digest="postcommit",
+            )
+            assert result == (target, pdf_bytes)
+            assert not pending.journal.exists()
+            assert target.read_bytes() == pdf_bytes
+            assert db.query(models.DocumentArchive).count() == 1
+    finally:
+        engine.dispose()
