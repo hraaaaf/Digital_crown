@@ -1,16 +1,42 @@
 # TECHDOUBT — Digital Crown
 
-## GLOBAL-G10-S / LOT10 — 2026-10-18 — blind-user independence not yet demonstrated
+## GLOBAL-G10-S / LOT10 — 2026-10-18 — Two-agent isolation requirement withdrawn
 
-**Status: OPEN / verification required (documentation contract, not a confirmed product defect).**
+**Status: RESOLVED AS A FALSE DEPENDENCY (doctrine correction, not proof of a completed FUE).**
 
-**Question:** Can the FUE harness execute **two specialized AI BLIND USER agents in genuinely isolated contexts and independent browser/login sessions**, withholding both the implementation/change hints and the other agent's findings until each verdict is frozen, on the same exact source HEAD?
+**Previous concern:** The merged PR #960 required two AI BLIND USER agents running in independent contexts, with separate browsers and withheld reports. That had been documented as a blocking precondition even for ordinary internal adversarial review. The product owner clarified that the **same ChatGPT conversation should perform both specialized perspectives A/B itself** rather than waiting for humans or two separate AI agents.
 
-**Current evidence:** `AGENTS.md` and `docs/quality/REALITY_PROOF_GATE.md` now specify the protocol. No two-agent isolated run, agent identity provenance, independent report pairs, or full login-to-outcome artifact has been executed in this documentation PR. Sequential prompts by one agent **must not** be relabeled as two independent users. This question does not suggest that humans are required for the two agents.
+**Resolution rule:** `AGENTS.md`, `.claude/rules/execution-scoring-verification.md` and `docs/quality/REALITY_PROOF_GATE.md` now instruct the assistant to write two distinct, task-specific *internal adversarial* reviews, correct/test, rerun on new HEAD and confirm. This is not evidence of two genuinely independent reviewers; it is sufficient for the **internal A/B double-review procedure**. Self-review is capped at 9.4/10 and normal VERIFIED starts at 9.0/10 when required proofs/gates pass. No external reviewer or two-agent orchestration is a prerequisite.
 
-**Resolution gate:** Implement the harness under GLOBAL-G10-S on a dedicated authorized follow-up, generate two isolated A/B first-user traces (role, specialty, separate profiles/tenants, real UI login, expected/actual before/action/after and exact SHA), independently time-stamp/save reports before unblinding, check cross-isolation and negative RBAC/patient data access, and run two new independent sessions after any product HEAD change. If not achievable, mark `BLIND_USER_GATE=OPEN` and report two internal non-independent perspectives only.
+**Distinct unclosed verification work — GLOBAL-G10-S:** Inventory V1+V1.5 routes/features, execute actual frontend/backend FUE journeys on fictitious tenants starting at login (or a public entry where applicable), preserve BEFORE/ACTION/AFTER, negative RBAC/tenant checks, exact-HEAD evidence and CI statuses. **These tests have NOT been executed by this documentation correction.** An imagined browser session or two written perspectives are not executable test proof.
 
-**Separate gates:** Human/practitioner approval where explicitly required, clinical review, and LOT10 physical observations from actual login on real supported hardware remain distinct and may never be satisfied by this synthetic trial.
+**Unchanged gates:** Specifically required human clinical/regulatory/visual approvals and LOT10 hardware/person-on-device observations remain separate from conversation-based A/B review. No deployment, merge or clinical activation is authorized by this documentation.
+
+**Historical origin:** PR #960, master merge `3cbd1d83cdbcbf97e71019a3182f4699d9645421`. This file supersedes the inaccurate "two-agent independence not yet demonstrated" as an *internal review blocker*.
+
+
+## 2026-10-19 — FUE-first governance migration (#988)
+- ACTIVE doctrine migrated in AGENTS.md, CLAUDE.md, scoring, RPG, visual closeout, PR template, policy contract test and G10-S documentary checker.
+- RESERVE: historical audit/handover files and specialist skills may still describe mandatory A/B reviews. They are historical or domain-specific evidence, not an override of active FUE-first policy; assess applicability before changing them, do not rewrite old evidence.
+- RESERVE: repository-wide policy contract tests and G10-S have not been executed locally in this connector session; CI on final HEAD and applicable gate must be checked before merge. FUE-0 documentary only, no UI journey or clinical/physical certification claimed.
+
+- CLOSEOUT RESERVE (2026-10-19): active `skills/reality-proof-gate/SKILL.md` still imposed mandatory two A/B reviews; corrected in PR #988. Final HEAD after this consistency correction requires fresh exact-HEAD CI results. Previous GREEN on `c91776c` does not certify later commits. PR remains DRAFT/OPEN; no merge or deployment authorized. Historical files remain out of scope.
+
+
+## LOT07 / 07-C — 2026-10-20 — PR #989 trusted visual approval, FUE-0
+
+- **Scope / evidence:** PR #989 corrects only the trusted `pull_request_target` label revocation script and its tests. Canonical FUE level: **FUE-0**, not FUE-I/G; no first-user Cabinet journey or screenshots are claimed. CI on `c54b118e60516ef86b38eddf172d0b30e8980d40`: 22/22 mocked GitHub API contract tests pass in both Visual Gate Security Regression and UI Visual Approval Contract; CI Scope Gate GREEN. Human Visual Approval GREEN is **`skipped-non-ui`**, not proof of an actual UI owner `labeled` approval event.
+- **RESERVE (expected gate restriction):** Until this PR is reviewed and merged with explicit authorization to trusted `master`, the `pull_request_target` workflow still runs the older script; PR #971 still needs fresh exact-HEAD visual evidence plus a genuine owner-applied approval label event. Its `synchronize` failing closed is expected, not a defect to bypass.
+- **RESERVE (proof boundary):** GitHub API failure, absent label, SHA race, label-removal no-op, and owner identity paths are exercised via mocked Node tests, **not** a real GitHub owner-label workflow on a UI PR. This is sufficient FUE-0 code/contract evidence, not a verified FUE-I/G user journey or live end-to-end approval certification.
+- **Next:** confirm final HEAD targeted CI after this documentary reservation; keep PR #989 DRAFT/no merge/deploy without approval; after trusted patch lands, acquire fresh screenshots and exact-head human visual approval for #971.
+
+## LOT07 / 07-C — 2026-10-20 — Integration reconciliation after research PR #961
+
+**Active reservation:** The isolated Command React target has no Cabinet backend, real login, RBAC, patient records, production UI integration or clinical certification. Shared CSS still requests Google Fonts, so fully offline/private egress is NOT certified. Keep 07-D/E frozen.
+
+**Merge conflict and safety decision:** PR #971 diverged from #989's trusted visual approval gate. Resolve by preserving the **unchanged master script** from merged #989 (owner-only labeled event, SHA match and fail-closed synchronize); additionally retain two targeted sanitized 403/500 regression tests from the research branch. Preserve visual UI blobs exactly, do not merge deprecated trusted script from #971. The merge reconciliation creates a new source HEAD, invalidating the previous SHA-bound owner approval until fresh exact-HEAD screenshots and a genuine authorized owner `labeled` event succeed. DO NOT describe the old GREEN as approval of the new SHA. Do not merge #971 until the trusted gate is GREEN again.
+
+**Historical context, not active release gates:** The following #971 branch notes are preserved as an audit trail of earlier experiments. Any historical claim that two independent blind-user agents are mandatory, or that the visual-gate fix/approval remains OPEN on the old SHA, is superseded by the canonical FUE-first policy and later GitHub evidence.
 
 ## LOT07 / 07-C — 2026-10-19 — visual approval revocation error cause unknown
 

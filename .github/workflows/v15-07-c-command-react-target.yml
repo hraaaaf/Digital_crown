@@ -1,4 +1,5 @@
 name: LOT07 07-C Command React isolated visual target
+# 07-C merge reconciliation: recapture exact HEAD after preserving master visual-gate security.
 on:
   push:
     branches:

@@ -1,7 +1,7 @@
 # Digital Crown — Reality Proof Gate (RPG) v0.1
 
 ## Objective
-Prove the *observable outcome* of each V1.5 lot/sub-lot, not just the presence of tests or a green CI. This extends (never replaces) FUE-0 / FUE-I / FUE-G, adversarial reviews, and human/physical approval.
+Prove the *observable outcome* of each V1.5 lot/sub-lot, not just the presence of tests or a green CI. This extends (never replaces) FUE-0 / FUE-I / FUE-G, risk-specific security/clinical controls, and human/physical approval.
 
 ## Applicability by risk
 - **RPG-C (contract)**: every sub-lot. Executed assertions, explicit collection/execution counts, negative permissions, deterministic fictitious fixtures.
@@ -11,16 +11,16 @@ Prove the *observable outcome* of each V1.5 lot/sub-lot, not just the presence o
 - **RPG-P (physical/human)**: hardware-dependent proof (NFC, printers, physical LAN, camera, scanner) cannot be certified by synthetic CI. Mark OPEN until witnessed on actual devices.
 
 ## Evidence contract (per lot and sub-lot)
-Record: lot ID, requirement, risk, actors, isolated fixtures, producer and consumer, exact SHA, CI run/job URLs, executed test counts, skipped tests and reasons, transport/TLS details, expected vs observed outcome, SHA-256 for files, screenshots/traces for UI, denial matrix, cleanup/purge, reviewer A/B findings, physical/human limitations and next action. Missing mandatory evidence = OPEN, not GREEN/CLOSED. Tests only collected but not executed = NOT PROVEN.
+Record: lot ID, requirement, risk, actors, isolated fixtures, producer and consumer, exact SHA, CI run/job URLs, executed test counts, skipped tests and reasons, transport/TLS details, expected vs observed outcome, SHA-256 for files, screenshots/traces for UI, denial matrix, cleanup/purge, FUE findings and risk-specific verification, physical/human limitations and next action. Missing mandatory evidence = OPEN, not GREEN/CLOSED. Tests only collected but not executed = NOT PROVEN.
 
-## Two blind-agent users vs physical/human validation
-- **Reviewer A and B for FUE user testing are two distinct AI agents, not two human testers.** Assign two complementary task-specific specialties, launch them with separate context/synthetic identities/browser sessions and **no cross-report visibility**. Each independently starts from the real UI login (or the public entry route being tested), obtains genuine test-backend authentication and walks real frontend→backend journeys, including refusal/error/recovery cases. Synthetic isolated database only. Record actor, initial state, login result, BEFORE/ACTION/AFTER, exact SHA and independent findings before comparing reports.
-- If the same agent merely performs two passes with shared context, name them **internal adversarial perspectives**, not two independent blind agents. Do not claim the blind-user gate passed without actual separated executions. Technical adversarial reviews and blind-user journeys have different proof and are not substitutes.
-- **Human acceptance and RPG-P are separate**: real people operating real devices for the LOT10 physical FUE start at login for authenticated workflows; physical installation/power-on can precede login when that itself is under test. AI users never satisfy human/physical evidence. Any specifically required human clinician/regulatory review remains a distinct gate.
+## FUE-first evidence vs human/physical validation
+- **FUE is the primary observable verification protocol**, at the applicable FUE-0 / FUE-I / FUE-G level. No mandatory double adversarial A/B review, external reviewer, or two-agent harness is required by default. Optional specialist perspectives are analytical techniques, not proof of independent users.
+- **Executed journeys remain required where applicable.** Exercise actual frontend/backend in an isolated environment with fictitious data, starting at real UI login where relevant. Capture BEFORE/ACTION/AFTER, negative permissions and persisted outcome. Never certify imagined browser behavior or synthetic mockups as a real integrated journey.
+- **Security/privacy/clinical/data/release checks remain risk-triggered and mandatory when applicable.** Human approval, clinical validation and RPG-P physical tests are separate, non-substitutable gates. No FUE score can override them.
 
 ## Gates
 1. Define observable success and failure before implementation.
-2. Execute the smallest risk-appropriate RPG-C/J/X/F/P, then two adversarial reviews on the same HEAD; fix findings and rerun on new HEAD.
+2. Execute the smallest risk-appropriate RPG-C/J/X/F/P and applicable FUE level; run relevant negative/security checks, fix findings and confirm on the final HEAD.
 3. Validate immutable producer→consumer artifact and identity binding; never transfer real patient data to CI.
 4. Inspect artifacts and run/job steps; compare same viewports BEFORE/AFTER for UI; no skipped required assertion.
 5. Close only with exact-HEAD evidence, documented residual risk and human approval when required. GREEN is not CONVERGED, and CONVERGED is not deployed.

@@ -55,10 +55,10 @@ Tous imposent un mode **read-only** pour leur phase d'audit/validation.
 
 Lire et appliquer **à chaque étape matérielle** `.claude/rules/execution-scoring-verification.md`.
 
-- produire `EXECUTION_SCORE /10` puis `ADVERSARIAL_SCORE /10` ;
+- produire `EXECUTION_SCORE /10` puis `FUE_EVIDENCE_SCORE /10` ;
 - retenir le minimum, jamais une moyenne ;
 - tout écart `> 0.5` impose investigation puis rescoring ;
-- auto-revue du même agent : max `9.4/10` ; `9.5+` exige une vraie revue indépendante ;
+- auto-évaluation FUE conversationnelle : plafond prudent `9.4/10` ; aucune double revue A/B ou revue externe n'est requise par défaut ;
 - preuve/gate requis manquant ou rouge : max `7.9/10` ; régression : max `6.9/10` ; blocker sécurité/privacy/data/claim clinique : max `5.9/10` + `BLOCKED` ;
 - UI sans vraie comparaison `Target ↔ Render` : fidélité visuelle max `7.5/10` ; aucune faiblesse critique ne peut être masquée par une moyenne ;
 - `VERIFIED` exige score retenu `>= 9.0/10`, tous les gates binaires applicables verts et une **Perfection Pass finale** terminée.
@@ -189,7 +189,7 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 3. Cartographier scope, invariants et gates binaires applicables.
 4. Audit read-only d'abord lorsque le skill l'impose.
 5. Implémenter dans un lot distinct.
-6. Après chaque étape matérielle : preuve + `EXECUTION_SCORE` + `ADVERSARIAL_SCORE` + minimum retenu ; investiguer tout écart `> 0.5`.
+6. Après chaque étape matérielle : preuve + `EXECUTION_SCORE` + `FUE_EVIDENCE_SCORE` + minimum retenu ; investiguer tout écart `> 0.5`.
 7. Tests ciblés puis régression proportionnée au risque.
 8. Smoke/rehearsal lorsque nécessaire.
 9. Review indépendante si requise, notamment pour toute revendication `>= 9.5/10`.

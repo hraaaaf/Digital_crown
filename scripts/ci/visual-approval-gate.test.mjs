@@ -161,7 +161,7 @@ test('label DELETE success without actual removal fails closed', async () => {
   await assert.rejects(f.run('synchronize'), /label still present/);
 });
 
-test('absent label never invokes DELETE and still rejects changed UI HEAD', async () => {
+test('absent label skips DELETE and still rejects changed UI HEAD', async () => {
   const f = fixture({ label: false });
   await assert.rejects(f.run('synchronize'), /approval revoked/);
   assert.equal(f.deletes, 0);
