@@ -41,14 +41,19 @@ internal sealed class J10DTicketRelay : ServiceBase {
                     if(raw.Length==0 || raw.Length>2048) {
                         response="DENY_J10D_BAD_FRAME";break;
                     }
-                    pipe.ReadTimeout=6000;pipe.WriteTimeout=6000;
                     pipe.WriteByte((byte)'J');
                     pipe.WriteByte((byte)(raw.Length>>8));
                     pipe.WriteByte((byte)(raw.Length&255));
                     pipe.Write(raw,0,raw.Length);
                     pipe.Flush();
                     byte[] ack=new byte[96];
-                    int n=pipe.Read(ack,0,ack.Length);
+                    IAsyncResult receipt=pipe.BeginRead(ack,0,ack.Length,null,null);
+                    int n;
+                    try {
+                        if(!receipt.AsyncWaitHandle.WaitOne(5000))
+                            throw new IOException("pipe reply timeout");
+                        n=pipe.EndRead(receipt);
+                    } finally {receipt.AsyncWaitHandle.Close();}
                     string data=Encoding.ASCII.GetString(ack,0,n).Trim();
                     response=data.StartsWith("DENY_J10D_",StringComparison.Ordinal)?
                         data : "DENY_J10D_INVALID_SERVER";
