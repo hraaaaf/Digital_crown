@@ -1,0 +1,86 @@
+name: LOT07 07-C R8 Command synthetic Chromium visual gate
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v15-07-c-r8-command-visual.yml
+      - docs/research/lot07-07c-command-target-r8.html
+      - scripts/research/lot07_07c_r8_visual.cjs
+      - scripts/research/lot07_07c_r8_native_zoom.cjs
+      - scripts/research/lot07_07c_r8_theme.cjs
+      - frontend/src/index.css
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot07-07c-r8-visual-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  command-r8-target-only:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/lot07-07c-rea-orthalis-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    env:
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      PLAYWRIGHT_LIB: /tmp/lot07-07c-playwright
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Require HEAD and isolated synthetic file
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -f docs/research/lot07-07c-command-target-r8.html
+          test -f scripts/research/lot07_07c_r8_visual.cjs
+          echo "SOURCE_HEAD=$SOURCE_HEAD"
+          echo "TARGET_ACTIVATED_IN_CABINET=false"
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+      - name: Install isolated Playwright Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$PLAYWRIGHT_LIB"
+          npm install --prefix "$PLAYWRIGHT_LIB" --no-audit --no-fund --no-save --ignore-scripts playwright@1.55.0
+          "$PLAYWRIGHT_LIB/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Render four synthetic Command states across desktop widths
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/research/lot07_07c_r8_visual.cjs docs/research/lot07-07c-command-target-r8.html artifacts/lot07-07c-r8
+          test -s artifacts/lot07-07c-r8/manifest.json
+      - name: Attempt OS-level browser-native 200 percent zoom on GUI-hosted Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq xdotool xvfb scrot >/dev/null
+          xvfb-run -a -s '-screen 0 1920x1200x24' node scripts/research/lot07_07c_r8_native_zoom.cjs docs/research/lot07-07c-command-target-r8.html artifacts/lot07-07c-r8
+          test -s artifacts/lot07-07c-r8/native-zoom-result.json
+      - name: Assert all existing themes inherited from canonical Cabinet CSS
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/research/lot07_07c_r8_theme.cjs docs/research/lot07-07c-command-target-r8.html frontend/src/index.css artifacts/lot07-07c-r8
+          test -s artifacts/lot07-07c-r8/theme-inheritance-manifest.json
+      - name: Upload only synthetic target screenshot matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-07c-r8-synthetic-target-${{ env.SOURCE_HEAD }}
+          path: artifacts/lot07-07c-r8/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Explicit boundaries
+        run: |
+          echo "R8_ISOLATED_TARGET_ONLY=true"
+          echo "R8_CABINET_BEFORE_CAPTURED_BY_THIS_JOB=false"
+          echo "R8_NATIVE_ZOOM_200=SEE_MANIFEST_NOT_ASSUMED"
+          echo "R8_PATIENT_DATA_SYNTHETIC_ONLY=true"
+          echo "R8_PRODUCT_IMPLEMENTED=false"
+          echo "R8_CONVERGED=false"

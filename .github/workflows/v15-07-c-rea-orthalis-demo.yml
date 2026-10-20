@@ -1,0 +1,138 @@
+name: LOT07 07-C REA Orthalis public demo lab
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v15-07-c-rea-orthalis-demo.yml
+      - scripts/research/rea_orthalis_probe.mjs
+      - scripts/research/rea_orthalis_visual_states.mjs
+      - scripts/research/rea_orthalis_ocr_gate.mjs
+      - scripts/research/orthalis_tutorial_inventory.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rea-orthalis-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  passive-rea-demo:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/lot07-07c-rea-orthalis-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Node supported by REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+      - name: Passive REA observation of public Orthalis demo (no patient exports)
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_HEAD=$(git rev-parse HEAD)
+          echo "SOURCE_HEAD=$SOURCE_HEAD"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            EXPECTED_HEAD="${{ github.event.pull_request.head.sha }}"
+            if [ "$SOURCE_HEAD" != "$EXPECTED_HEAD" ]; then
+              echo "STOP: checkout does not match PR HEAD"
+              exit 7
+            fi
+          fi
+          npm install --global --no-audit --no-fund rea-agents@6.7.0
+          rea --version
+          BROWSER=$(command -v google-chrome || command -v chromium || true)
+          if [ -z "$BROWSER" ]; then
+            echo "STOP: Chrome-family browser unavailable."
+            exit 2
+          fi
+          LAB="${RUNNER_TEMP}/rea-orthalis-passive"
+          mkdir -p "$LAB"
+          "$BROWSER" --headless=new --no-sandbox --disable-gpu \
+            --no-first-run --password-store=basic \
+            --remote-debugging-address=127.0.0.1 \
+            --remote-debugging-port=9222 \
+            --user-data-dir="$LAB/chrome-profile" \
+            "https://demo.orthalis.com/" >"$LAB/chrome.log" 2>&1 &
+          CHROME_PID=$!
+          trap 'kill "$CHROME_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 20); do
+            if curl --silent --fail --max-time 2 http://127.0.0.1:9222/json/list > "$LAB/cdp.json"; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" != "1" ]; then
+            echo "STOP: Chromium CDP not reachable (no REA claim)."
+            exit 3
+          fi
+          rea list-browser-targets http://127.0.0.1:9222 --json >"$LAB/targets.json"
+          TARGET_ID=$(node - "$LAB/targets.json" <<'NODE'
+          const fs=require('fs');
+          const d=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const found=[];
+          function scan(v) {
+            if (!v || typeof v!=='object') return;
+            if (Array.isArray(v)) { v.forEach(scan); return; }
+            const u=v.url||v.target_url||v.targetUrl||'';
+            const id=v.target_id||v.targetId||v.id;
+            if (typeof u==='string' && u.startsWith('https://demo.orthalis.com/') && typeof id==='string') found.push(id);
+            Object.values(v).forEach(scan);
+          }
+          scan(d);
+          if(found.length===0) process.exit(4);
+          process.stdout.write(found[0]);
+          NODE
+          )
+          if [ -z "$TARGET_ID" ]; then
+            echo "STOP: public-demo Chrome target not discovered by REA."
+            exit 4
+          fi
+          rea inspect-web-page http://127.0.0.1:9222 "$TARGET_ID" \
+            --observation-ms 1000 --json >"$LAB/inspection.json"
+          node - "$LAB/inspection.json" <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const f=process.argv[2],raw=fs.readFileSync(f);
+          const evidence=JSON.parse(raw.toString());
+          const text=JSON.stringify(evidence);
+          if(!text || text.length<20) process.exit(5);
+          const bad=/(?:"status"\s*:\s*"(?:error|failed|unavailable)")/i.test(text);
+          console.log(JSON.stringify({
+            rea_operation:"inspect-web-page",
+            scope:"public_demo_shell_only",
+            access:"passive_read_only",
+            selected_origin:"https://demo.orthalis.com",
+            output_bytes:raw.length,
+            evidence_sha256:crypto.createHash('sha256').update(raw).digest('hex'),
+            result:bad?"failure_reported":"json_captured_review_needed",
+            raw_artifact_exported:false
+          }));
+          if(bad) process.exit(6);
+          NODE
+          cat >"$LAB/readonly-scenario.json" <<SCENARIO
+          {"browser":{"mode":"launch","executable_path":"$BROWSER"},"start_url":{"url":"https://demo.orthalis.com/"},"actions":[{"step_id":"early","action":"wait_for_timeout","duration_ms":700},{"step_id":"settle","action":"wait_for_timeout","duration_ms":2200},{"step_id":"remote-display","action":"wait_for_timeout","duration_ms":5200}],"capture":{"after_each_step":["dom","accessibility","url","screenshot"],"at_end":["dom","accessibility","url","screenshot"]}}
+          SCENARIO
+          rea capture-browser-scenario "$LAB/readonly-scenario.json" --json >"$LAB/scenario-result.json"
+          node - "$LAB/scenario-result.json" <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const raw=fs.readFileSync(process.argv[2]);
+          const value=JSON.parse(raw.toString());
+          const sha=crypto.createHash('sha256').update(raw).digest('hex');
+          const keys=Object.keys(value).filter(k=>!/(?:data|content|text|name|values|urls|storage)/i.test(k)).slice(0,12);
+          console.log(JSON.stringify({rea_operation:"capture-browser-scenario",capture_scope:"public_demo_no_clicks",artifacts_requested:["dom","accessibility","url"],scenario_steps:1,output_bytes:raw.length,evidence_sha256:sha,top_level_metadata_keys:keys,raw_artifact_exported:false,interpretation:"requires_human_review; no clinical or product workflow validation"}));
+          NODE
+          node scripts/research/rea_orthalis_probe.mjs "$LAB/inspection.json" "$LAB/scenario-result.json"
+          node scripts/research/rea_orthalis_visual_states.mjs "$LAB/scenario-result.json"
+          if ! command -v tesseract >/dev/null 2>&1; then
+            echo "OCR_TOOL_INSTALL_SCOPE=EPHEMERAL_GITHUB_RUNNER"
+            sudo apt-get update -qq >/dev/null
+            sudo apt-get install -y -qq tesseract-ocr >/dev/null
+          fi
+          node scripts/research/rea_orthalis_ocr_gate.mjs "$LAB/scenario-result.json"
+          node scripts/research/orthalis_tutorial_inventory.mjs
+          echo "BENCH_REA_ORTHALIS_PUBLIC_DEMO=PASSIVE_OBSERVATION_ONLY"
+          echo "NOT_A_CABINET_OR_ORTHALIS_WORKFLOW_CERTIFICATION=true"

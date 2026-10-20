@@ -1,0 +1,77 @@
+name: LOT07 07-C R9 Command dense-target visual gate
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/v15-07-c-r9-command-visual.yml
+      - docs/research/lot07-07c-command-target-r9.html
+      - scripts/research/lot07_07c_r9_visual.cjs
+      - scripts/research/lot07_07c_r9_native_zoom.cjs
+      - frontend/src/index.css
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot07-07c-r9-command-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  target-only-r9:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/lot07-07c-rea-orthalis-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    env:
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      PLAYWRIGHT_LIB: /tmp/lot07-07c-playwright
+    steps:
+      - name: Checkout source exactly, not synthetic merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Verify target-only boundary and HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -f docs/research/lot07-07c-command-target-r9.html
+          test -f frontend/src/index.css
+          echo "SOURCE_HEAD=$SOURCE_HEAD"
+          echo "R9_PRODUCT_INTEGRATION=false"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+      - name: Install isolated Chromium and X11 evidence tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$PLAYWRIGHT_LIB"
+          npm install --prefix "$PLAYWRIGHT_LIB" --no-audit --no-fund --no-save --ignore-scripts playwright@1.55.0
+          "$PLAYWRIGHT_LIB/node_modules/.bin/playwright" install --with-deps chromium
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq xdotool xvfb scrot >/dev/null
+      - name: Inspect true Cabinet theme inheritance, keyboard and four states
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/research/lot07_07c_r9_visual.cjs
+          test -s artifacts/lot07-07c-r9/manifest.json
+      - name: Inspect genuine X11 browser-native 200 percent zoom
+        shell: bash
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1920x1200x24' node scripts/research/lot07_07c_r9_native_zoom.cjs docs/research/lot07-07c-command-target-r9.html artifacts/lot07-07c-r9
+          test -s artifacts/lot07-07c-r9/native-zoom-result.json
+      - name: Upload synthetic-only visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-07c-r9-synthetic-target-${{ env.SOURCE_HEAD }}
+          path: artifacts/lot07-07c-r9/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Scope boundary
+        run: |
+          echo "R9_TARGET_ONLY=true"
+          echo "R9_SYNTHETIC_PATIENT_IDS=true"
+          echo "R9_CABINET_BEFORE_AFTER_CERTIFIED=false"
+          echo "R9_CLINICAL_RBAC_TESTED=false"
+          echo "R9_MERGE_DEPLOY_AUTHORIZED=false"
