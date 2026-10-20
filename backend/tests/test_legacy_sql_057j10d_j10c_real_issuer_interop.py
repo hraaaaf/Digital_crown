@@ -7,10 +7,10 @@ import os
 import sys
 import subprocess
 from pathlib import Path
-from backend.tests.test_legacy_sql_057j10c_real_scm_bound_sqlcipher_lab import ConnectedJ10C
+from backend.tests import test_legacy_sql_057j10c_real_scm_bound_sqlcipher_lab as issuer_lab
 from backend.tests.fixtures.lot05j10d_signed_replay_lab import verify_and_burn, SignedReplayDenied
 
-class RealIssuerToVerifier(ConnectedJ10C):
+class RealIssuerToVerifier(issuer_lab.ConnectedJ10C):
     def test_01_actual_scm_jwt_rsa_job_manifest_sqlcipher_copy(self):
         super().test_01_actual_scm_jwt_rsa_job_manifest_sqlcipher_copy()
         ticket=json.loads((self.root/"isolated-signed.json").read_text(encoding="utf-8-sig"))
