@@ -1,5 +1,80 @@
 # CB-01 FIRST_VALUE_UI — Protocole de certification d'accessibilité NATIVE
 
+## Addendum de preuves intégrées — 20 octobre 2026 (CB-01 FUE-G, synthétique)
+
+**Source de preuve, à ne pas confondre avec une certification terrain :**
+[Windows FUE-G run #39407423984](https://github.com/hraaaaf/Digital_crown/actions/runs/39407423984), job `118576639411`, `SUCCESS` sur le HEAD exact
+`6edc21ef91d26d0b399a57d01d36a8caa99594be`. Artefact GitHub `#12258118334`
+SHA-256 `0bb951fa88ac57fc149c5a3334fe8c852909a120385a0f630bafc769a5c86a4e`,
+téléchargé et comparé à GitHub, rapport JSON + cinq captures. Un re-check du banc Windows sur le HEAD documentaire suivant
+`04181589329ba70081e5c90439d2647b0ffc56b6` est également [SUCCESS #39410225369](https://github.com/hraaaaf/Digital_crown/actions/runs/39410225369) ; ce re-check ne certifie pas une installation réelle.
+
+**Ce qui est effectivement prouvé dans le même onglet Chromium hébergé Windows :**
+vrai `MainLayout` et `CrownBotChat`, vraies réponses FastAPI sur DB SQLCipher T2 fictive,
+`chrome.tabs.setZoom/getZoom` natif `1 → 2` même onglet, `innerWidth 1920 → 960`,
+DPR `1 → 2`, absence de scroll horizontal, panneau de repli borné dans
+le viewport CSS de 450 px, cinq contrôles visibles, **cinq annonces rôle + nom
+dans le journal du vrai NVDA/Guidepup** (onglets Mémoire contextuelle/Chat et
+trois boutons métier). S05 HTTP `200` avec proposition de RDV `proposal_only`
+visible et non exécutable, S06 HTTP `403` sans identité patient ;
+état final de **119 tables** fictives inchangé côté clinique
+(exceptions techniques `audit_logs` et `workstation_modes`). Ceci prouve un
+parcours synthétique automatisé combiné et **ne prouve pas** l'absence d'une
+écriture transitoire compensée, un test physique ou un résultat en données réelles.
+
+**Matrice de portée, sans promotion artificielle de preuves :**
+
+| Point du protocole | État fondé sur les preuves du 20/10 | Encore à réaliser |
+|---|---|---|
+| N01 / N02 | `PASS_PARTIEL_AUTOMATISÉ` : zoom Chromium natif 200 % / reflow et cinq contrôles accessibles dans le cas FUE-G 1920 × 900 ; pas de capture du menu natif vérifiée humainement | Menus Chrome/Edge et 1280 × 900 / 1600 × 900 demandés par N01/N02, comparaisons BEFORE/AFTER humaines |
+| N03 / N04 / N05 / N06 | `NOT_RUN_GLOBAL` : le banc couvre des actions clavier et S05/S06 mais pas ces parcours natifs complets, historique, états critiques et retour manuel à 100 % | Séquences réelles avec capture et traces de focus |
+| Lecteur écran S01 / S02 / S06 | `PASS_PARTIEL_AUTOMATISÉ` : cinq annonces NVDA authentiques au zoom 200 % dans MainLayout ; pas d'écoute/validation opérateur | Ouverture/fermeture, ordre de focus complet, vidéo ou enregistrement assistif humain |
+| Lecteur écran S03 / S04 / S05 | `NOT_RUN_GLOBAL` | Historique read-only, états dynamiques, homonymes et sélection annoncée |
+| WCAG AA complète, 400 %, couleurs forcées, VoiceOver, contraste exhaustif | `NOT_RUN` | Tests dédiés selon disponibilités et scope matériel |
+| S01–S12 opérateur | `0/12 E2E humains` ; matrice automatisée distincte = 7 tests HTTP + 1 navigateur synthétique PASS, 4 NOT_RUN | Poste T2 fictif autorisé et registre de scénarios |
+| Latence de première valeur | 31 543 ms sur **une séquence** FUE-G contenant huit clics et six réponses saisies, **pas** un p50/p95 d'usage | Campagne répétée définie au runbook (30 mesures de valeur utile par scénario) |
+
+Les sections historiques ci-dessous datées du 18/10 restent des descriptions **datées** de leurs anciens
+HEAD ; leur mention `NOT_RUN` ne doit pas être lue comme le verdict du nouveau banc FUE-G, ni remplacée
+par `WCAG AA conforme`. Les flags opt-in demeurent OFF par défaut et aucune activité sur Pocket
+mobile native n'est incluse.
+
+### Handoff exécutable — validation humaine et revues indépendantes (à planifier, non réalisées)
+
+**Préconditions** : décision et accord explicites d'accès à une **station Windows T2
+isolée et autorisée** ; version SHA/bundle admissible vérifiée suivant la politique
+d'installation, comptes et patients entièrement fictifs, zéro mutation clinique ;
+pas d'installation du HEAD de PR sur poste cabinet, pas de données réelles.
+
+1. **Opérateur métier** : suivre les douze lignes S01–S12 du
+   `CB01_S01_S12_T2_FIELD_REVIEW_RUNBOOK_20261017.md`. Pour chaque cas :
+   `ID | HEAD/bundle | rôle synthétique | viewport réel | zoom natif |
+   réussite/échec/NOT_RUN | capture vidéo/log | diff clinique | date | signataire`.
+   Capturer BEFORE / TARGET / AFTER aux mêmes viewports du parcours concerné ;
+   chronométrer au moins trente premières valeurs réellement utiles par scénario
+   éligible (p50/p95), sans substituer la latence HTTP. Une impossibilité physique
+   reste `BLOQUÉ HUMAIN`, pas `PASS`.
+2. **Reviewer externe A — FUE-C produit/UX** : examiner le parcours neuf, la
+   première valeur **effective**, les 8 gestes du parcours simulé vs utilisateur
+   réel, les mesures répétées, les états accessibilité, les captures égales et
+   la non-exécution du RDV. Rechercher d'abord BLOCKER/MAJOR/faux succès,
+   donner pour chaque constat `gravité, preuve, exact SHA, reproduction`.
+3. **Reviewer externe B — frontière transversale sécurité / vérité des preuves** :
+   partir du même HEAD **sans adopter la conclusion A** ; examiner Session/Station
+   423, permissions S05/S06, tenant/404, homonymes, 409/422/503, SQLCipher
+   avant/après, limites d'écritures transitoires, WS ACK GhostBrain, versions
+   Windows/tzdata et déclenchement CI. Exiger une démonstration ou consigner
+   `NOT_RUN`, ne pas déduire un PASS humain du laboratoire.
+4. **Décision** : les deux rapports, leurs auteurs réels, les preuves et une passe
+   de confirmation doivent porter le **même HEAD final** ; correction ⇒ nouveau
+   HEAD ⇒ nouvelles revues et nouveaux tests impactés. Si les personnes
+   indépendantes ne sont pas disponibles, consigner `REVUE INDÉPENDANTE : NON
+   RÉALISÉE` sans demander de merge. Aucune invitation ni approbation humaine
+   n'est implicite dans le présent document.
+
+---
+
+
 **Statut au 2026-10-18 : zoom NATIF 200 % du composant Crown Bot CERTIFIÉ en laboratoire Windows Chromium ; annonces réelles NVDA des 2 onglets et des 3 CTA CERTIFIÉES en laboratoire Windows distinct. Évaluation WCAG complète avec backend clinique réel, NVDA à 200 % combiné et VoiceOver NON CERTIFIÉE.**
 
 ### Preuve NVDA Windows réellement exécutée — cinq contrôles explicites
