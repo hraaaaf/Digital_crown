@@ -47,6 +47,8 @@ try {
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
   }));
+  assert.ok(new URL(page.url()).pathname === '/07c-windows-native-zoom.html',
+    'Synthetic Windows fixture URL must remain stable before native zoom');
   const before = await measure();
   await page.screenshot({ path: path.join(dest, 'windows-owner-100-before.png'), fullPage: true });
   // Attempt the actual Chrome browser-zoom keyboard accelerator. Never use
@@ -73,6 +75,9 @@ try {
   }
   report.before = before;
   report.after = after;
+  report.documentUrlAfterZoom = new URL(page.url()).pathname;
+  assert.equal(report.documentUrlAfterZoom, '/07c-windows-native-zoom.html',
+    'Browser reload must retain synthetic HTML entry rather than redirect to Cabinet login');
   report.externalHostsBlocked = [...new Set(external)];
   await page.screenshot({ path: path.join(dest, 'windows-owner-native-zoom-attempt.png'), fullPage: true });
   assert.equal(after.cssBodyZoom, '', 'No CSS zoom permitted');
