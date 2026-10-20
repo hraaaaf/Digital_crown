@@ -92,8 +92,20 @@ try {
   const restrictedToken = await loginToken(actorEmail.restricted);
   const restrictedGet = await authGET(restrictedToken, appointmentPath, cookies);
   assert.equal(restrictedGet.status, 200, 'Agenda-only staff may read appointment schedule');
-  assert.ok(restrictedGet.body.some(x => x.id === firstId), 'Agenda-only staff same tenant');
-  point('backend-agenda-only-staff', { httpStatus: restrictedGet.status, sameAppointment: firstId });
+  const restrictedAppointment = restrictedGet.body.find(x => x.id === firstId);
+  assert.ok(restrictedAppointment, 'Agenda-only staff keeps anonymized timetable row');
+  for (const key of ['patient_name', 'patient_id', 'motif', 'notes', 'phone', 'source', 'confirmed_by_id']) {
+    assert.equal(restrictedAppointment[key], null, 'Agenda-only response MUST minimize '+key);
+  }
+  assert.ok(!JSON.stringify(restrictedGet.body).includes('T2 COMMAND SYNTHETIC'),
+    'Agenda-only HTTP response MUST NOT contain a patient identifier');
+  assert.equal(restrictedAppointment.datetime_start, ownerFixture.datetime_start);
+  assert.equal(restrictedAppointment.status, ownerFixture.status);
+  point('backend-agenda-only-staff', { httpStatus: restrictedGet.status, sameAppointment: firstId, httpIdentityRedacted: true });
+
+  const patientDetailGet = await authGET(restrictedToken, '/api/appointments/patient/'+ownerFixture.patient_id, cookies);
+  assert.equal(patientDetailGet.status, 403, 'Agenda-only user cannot fetch another patient appointment history');
+  point('backend-patient-history-forbidden', { httpStatus: 403 });
 
   const deniedToken = await loginToken(actorEmail.denied);
   const deniedGet = await authGET(deniedToken, appointmentPath, cookies);
@@ -187,8 +199,22 @@ try {
         assert.ok(Array.isArray(signatureData), 'Signature actor agenda response is an array');
         assert.ok(signatureData.some(x => x.id === firstId), 'Signature actor gets seeded appointment ID');
         item.signature = signatureData.map(({ id, status, datetime_start }) => ({ id, status, datetime_start }));
-        item.sourceParity = 'Real Dashboard GET 200 + same actor JWT server response; not visual Signature row parity';
-        await capture(page, actor + '-01-signature-before');
+        item.sourceParity = 'Actual Signature Dashboard GET 200, canonical real Cabinet response and rendered room label/time';
+        await page.getByText('File d\'attente & Arrivées du Jour', { exact: false }).waitFor({ state: 'visible', timeout: 30000 });
+        await page.getByText('09:15', { exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+        if (expectName) {
+          await page.getByText('T2 COMMAND SYNTHETIC').first().waitFor({ state: 'visible', timeout: 30000 });
+        } else {
+          assert.ok(!await page.locator('body').innerText().then(x => x.includes('T2 COMMAND SYNTHETIC')),
+            'Agenda-only Signature DOM must not disclose patient name');
+          assert.ok(!signatureData.some(x => x.patient_name != null || x.patient_id != null),
+            'Agenda-only Signature REST must not disclose patient name or id');
+        }
+        assert.ok(!await page.locator('body').innerText().then(x => x.includes('Invalid Date')),
+          'Signature Dashboard must NOT show an invalid appointment date');
+        item.signatureRealDomParity = true;
+        point('signature-real-cabinet-display-'+actor, { time: '09:15', identityShown: expectName });
+        await capture(page, actor + '-01-signature-after');
       } else {
         await capture(page, actor + '-01-dashboard-before');
       }
@@ -219,6 +245,8 @@ try {
         if (expectName) assert.ok(line.includes('T2 COMMAND SYNTHETIC'), 'Owner identity is permitted');
         else assert.ok(!line.includes('T2 COMMAND SYNTHETIC'), 'Agenda-only staff patient identity redacted');
         assert.equal(await page.getByRole('button', { name: 'Actualiser les rendez-vous' }).count(), 1);
+        assert.equal(await page.locator('[data-ux1-c-crownbot-floating]').count(), 0,
+          'CrownBot floating control must not overlay the 07-C Command lab');
         await capture(page, actor + '-02-command-after');
         if (actor === 'owner') {
           await page.evaluate(() => { document.body.style.zoom = '200%'; });
@@ -227,6 +255,8 @@ try {
           }));
           item.cssZoom200 = viewport;
           await capture(page, actor + '-03-command-csszoom200');
+          assert.equal(await page.locator('[data-ux1-c-crownbot-floating]').count(), 0,
+            '200% Command must not be overlapped by floating CrownBot');
           assert.ok(viewport.scrollWidth <= viewport.clientWidth + 2, 'Body must not overflow at CSS 200% lab approximation');
         }
       } else {
