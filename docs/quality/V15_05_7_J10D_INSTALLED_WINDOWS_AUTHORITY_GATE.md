@@ -1,6 +1,6 @@
 ## 2026-10-20 bounded signed-replay lab extension — NOT SCM integration
 - J10C RSA body/signature/pin wire format is independently checked by `backend/tests/fixtures/lot05j10d_signed_replay_lab.py`; it binds owner/job/generation/manifest, nonce and expiry and reserves a nonce with exclusive marker creation + file fsync, returning **DENY only**.
-- Nine synthetic RSA tests cover tamper, false key/owner, expiry, wrong scope, concurrent replay, persistence across function invocations, missing/symlink ledger and no clinical apply. These tests use a *test generated RSA key*, not the genuine installed SCM signer nor an independent vendor pin.
+- Ten synthetic RSA tests cover tamper, false key/owner, expiry, wrong scope, concurrent replay, persistence across independent Python processes, missing/symlink ledger and no clinical apply. These tests use a *test generated RSA key*, not the genuine installed SCM signer nor an independent vendor pin.
 - This module has **NOT** been wired into the real J10D consumer SCM. Windows process restart, ledger rollback/reparse/ACL resistance, power loss and true J10C SCM signing round-trip are **not yet tested**. Do not infer the J10D signer↔consumer gate passed from these Python tests.
 - Install-time ACL, signed package provenance and trusted key anchoring remain blockers. Clinical GuidedRestore stays DENY. Not a completed certification.
 
