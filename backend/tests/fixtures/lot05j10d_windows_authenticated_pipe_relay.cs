@@ -31,6 +31,13 @@ internal sealed class J10DTicketRelay : ServiceBase {
                     PipeOptions.None,TokenImpersonationLevel.Impersonation)) {
                     pipe.Connect(400);
                     byte[] raw=File.ReadAllBytes(a[2]);
+                    // J10C's File.WriteAllText(UTF8) may emit a BOM; do not
+                    // let a transport detail change the signed ASCII body.
+                    if(raw.Length>=3 && raw[0]==239 && raw[1]==187 && raw[2]==191) {
+                        var clean=new byte[raw.Length-3];
+                        Buffer.BlockCopy(raw,3,clean,0,clean.Length);
+                        raw=clean;
+                    }
                     if(raw.Length==0 || raw.Length>2048) {
                         response="DENY_J10D_BAD_FRAME";break;
                     }
