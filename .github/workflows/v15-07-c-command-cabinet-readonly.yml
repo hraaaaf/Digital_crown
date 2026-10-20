@@ -67,4 +67,6 @@ jobs:
           set -euo pipefail
           npx vite build --mode production
           test -f dist/index.html
-          echo "Lab route is guarded by import.meta.env.DEV == false in production; policy assertion executed in Vitest."
+          test ! -e dist/07c-windows-native-zoom.html
+          test ! -e dist/src/features/command/CommandWindowsNativeZoomHarness.js
+          echo "Lab route is guarded by import.meta.env.DEV == false in production; synthetic Windows evidence harness is absent from production."
