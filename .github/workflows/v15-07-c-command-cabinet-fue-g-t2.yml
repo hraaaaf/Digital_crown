@@ -52,6 +52,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Check changed 07-C backend router syntax before boot
+        run: python -m py_compile backend/routers/appointments.py
       - uses: actions/setup-node@v4
         with:
           node-version: '24.11.1'
