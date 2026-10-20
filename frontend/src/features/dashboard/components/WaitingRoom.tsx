@@ -55,7 +55,12 @@ export const WaitingRoom = ({
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
         <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 min-w-0">
-          {isUnavailable ? (
+          {loading && isUnavailable ? (
+            <div role="status" className="h-full flex flex-col items-center justify-center gap-3 py-16 text-sm font-semibold text-text-muted">
+              <Loader2 size={24} className="animate-spin" aria-hidden="true" />
+              Vérification de l'agenda en cours…
+            </div>
+          ) : isUnavailable ? (
             <div role="status" className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
               <div className="w-16 h-16 bg-warning-surface rounded-full flex items-center justify-center border border-warning-border">
                 <AlertTriangle size={28} className="text-warning" aria-hidden="true" />
