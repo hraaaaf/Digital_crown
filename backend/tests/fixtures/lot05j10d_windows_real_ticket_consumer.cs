@@ -76,10 +76,17 @@ internal sealed class J10DRealTicketConsumer : ServiceBase {
 
     void Inspect() {
         bool sid=false,verified=false,first=false,replay=false;
+        bool hostileRead=false,hostileWrite=false;
         string reason="deny";
         try {
             sid=HasSid(a[8]);
-            if(!sid) reason="sid_denied";
+            if(!sid) {
+                // Same-account hostile SCM must fail at both independent NTFS ACLs.
+                try { File.ReadAllBytes(a[2]); hostileRead=true; } catch(UnauthorizedAccessException) {}
+                try { File.WriteAllText(Path.Combine(a[4],"hostile.nonce"),"FORGED"); hostileWrite=true; }
+                catch(UnauthorizedAccessException) {}
+                reason=hostileRead || hostileWrite ? "sid_denied_acl_bypass" : "sid_denied_acl";
+            }
             else {
                 string ticket=File.ReadAllText(a[3],new UTF8Encoding(false,true));
                 string pin=File.ReadAllText(a[2],Encoding.ASCII);
@@ -111,7 +118,7 @@ internal sealed class J10DRealTicketConsumer : ServiceBase {
         // Diagnostic output is not authority and carries no signed body or secrets.
         try {
             File.WriteAllText(a[1],"sid="+sid+"\nverified="+verified+
-              "\nfirst="+first+"\nreplay="+replay+"\nreason="+reason+
+              "\nfirst="+first+"\nreplay="+replay+"\nhostile_pin_read="+hostileRead+"\nhostile_ledger_write="+hostileWrite+"\nreason="+reason+
               "\nclinical_restore_permitted=False\n",Encoding.ASCII);
         } catch(Exception) {}
     }
