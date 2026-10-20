@@ -25,6 +25,8 @@ const appointments: DashboardAppointment[] = [
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 document.body.dataset.syntheticWindowsZoom = 'true';
+// Route-specific chrome must match the real dev-only Command route.
+window.history.replaceState(null, '', '/command-cabinet-lab');
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
