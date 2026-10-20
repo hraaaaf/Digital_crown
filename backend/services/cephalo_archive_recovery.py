@@ -170,3 +170,34 @@ def abort_official_pdf(pending: PendingOfficialPDF) -> None:
         pending.journal.unlink(missing_ok=True)
         _sync_parent(pending.path.parent)
         _sync_parent(pending.journal.parent)
+
+
+
+def clear_committed_official_journal(
+    *, root: Path, patient_id: int, analysis_id: int, revision: int,
+    file_path: str, file_hash: str,
+) -> None:
+    """Discard only a stale journal proven to describe an already committed PDF.
+
+    Handles SIGKILL *after* SQL commit but before normal journal deletion.
+    Does not delete or mutate the referenced PDF.
+    """
+    root = root.resolve()
+    journal = _journal_path(root, patient_id, analysis_id, revision)
+    if not journal.exists():
+        return
+    if journal.is_symlink():
+        raise RuntimeError("Journal post-commit redirigé")
+    try:
+        data = json.loads(journal.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError("Journal post-commit illisible") from exc
+    expected = {
+        "version": 1, "patient_id": patient_id, "analysis_id": analysis_id,
+        "revision": revision, "sha256": file_hash,
+        "relative_path": file_path.removeprefix("static/archives/"),
+    }
+    if not file_path.startswith("static/archives/") or any(data.get(k) != v for k, v in expected.items()):
+        raise RuntimeError("Journal post-commit et archive SQL incompatibles")
+    _safe_target(root, expected["relative_path"], patient_id)
+    finish_official_pdf(PendingOfficialPDF(root / expected["relative_path"], b"", journal, False))
