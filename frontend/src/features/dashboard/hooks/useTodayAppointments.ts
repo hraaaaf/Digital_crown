@@ -4,6 +4,7 @@ import { api } from '../../../services/api';
 import { hasAccess } from '../../../utils/accessControl';
 import { getLocalDayBounds } from '../localDate';
 import type { DashboardAppointment, DataState } from '../types';
+import { normalizeCabinetAppointments } from '../normalizeCabinetAppointments';
 
 export const useTodayAppointments = ({
   user,
@@ -33,14 +34,14 @@ export const useTodayAppointments = ({
     try {
       const { start, end } = getLocalDayBounds();
       const response = await api.get(`/appointments/?start_date=${start}&end_date=${end}`);
-      setAppointments(response.data);
+      setAppointments(normalizeCabinetAppointments(response.data, canReadPatients));
       setAppointmentsState('ready');
     } catch (error) {
       console.error('Erreur chargement rendez-vous du jour', error);
       setAppointments(null);
       setAppointmentsState('error');
     }
-  }, [canUseAgenda, user]);
+  }, [canReadPatients, canUseAgenda, user]);
 
   useEffect(() => {
     if (authLoading) return;
