@@ -488,6 +488,15 @@ class HotFolder:
             return None
 
     def _decrypt(self, blob, identity, digest):
+        # Ledger rows are untrusted after crash/restore or same-SID tampering.
+        # Refuse path traversal/foreign files BEFORE constructing a spool path,
+        # including the bounded cold-start authentication check.
+        if (not isinstance(identity, str) or
+                re.fullmatch(r"[0-9a-f]{64}", identity) is None or
+                not isinstance(blob, str) or blob != identity + ".dc6" or
+                not isinstance(digest, str) or
+                re.fullmatch(r"[0-9a-f]{64}", digest) is None):
+            raise GatewayError("invalid spool ledger reference")
         target = self.spool / blob
         if target.is_symlink() or not target.is_file():
             raise GatewayError("spool missing or symlink")

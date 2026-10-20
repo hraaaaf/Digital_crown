@@ -104,6 +104,21 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(HotFolder(self.config).read_verified(item["id"]), SYNTHETIC)
         self.assertEqual(len(self.agent.items()), 1)
 
+    def test_p2_tampered_ledger_blob_path_refused_before_spool_access(self):
+        """B-06 boundary: malicious ledger path cannot escape LAB spool."""
+        self.assertEqual(self.stage()["staged"], 1)
+        item = self.agent.items()[0]
+        with self.agent._db() as db:
+            db.execute("UPDATE items SET blob=? WHERE id=?",
+                       ("../../unrelated-file", item["id"]))
+        with self.assertRaisesRegex(GatewayError, "invalid spool ledger reference"):
+            HotFolder(self.config)
+        # Rejection must not synthesize a replacement ledger or alter rows.
+        with self.agent._db() as db:
+            self.assertEqual(db.execute(
+                "SELECT blob FROM items WHERE id=?", (item["id"],)
+            ).fetchone(), ("../../unrelated-file",))
+
     def test_p2_missing_spool_refused_at_cold_restart(self):
         """An intact SQLite ledger alone must not count as recovered state."""
         self.assertEqual(self.stage()["staged"], 1)
