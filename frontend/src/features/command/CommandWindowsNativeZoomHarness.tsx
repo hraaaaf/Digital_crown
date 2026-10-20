@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MainLayout } from '../../components/Layout/MainLayout';
 import { CommandCabinetReadOnlyView } from './CommandCabinetReadOnlyRoute';
@@ -25,18 +25,20 @@ const appointments: DashboardAppointment[] = [
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 document.body.dataset.syntheticWindowsZoom = 'true';
-// Route-specific chrome must match the real dev-only Command route.
-window.history.replaceState(null, '', '/command-cabinet-lab');
+// Keep the actual URL on this dev-only HTML entry. Windows Chromium may reload
+// the document when zoom changes, and rewriting history to /command-cabinet-lab
+// would reload the authenticated production SPA instead of this synthetic lab.
+// MemoryRouter gives MainLayout the real Command pathname without changing URL.
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <MemoryRouter initialEntries={['/command-cabinet-lab']}>
         <MainLayout>
           <CommandCabinetReadOnlyView appointments={appointments} appointmentsState="ready"
             canReadPatients onRefresh={() => {}} />
         </MainLayout>
-      </BrowserRouter>
+      </MemoryRouter>
     </QueryClientProvider>
   </React.StrictMode>,
 );
