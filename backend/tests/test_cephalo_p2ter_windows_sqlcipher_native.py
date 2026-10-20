@@ -378,5 +378,82 @@ def test_sqlcipher_ntfs_kill_restart_derived_archive_integrity(tmp_path, phase):
           "sql_rows=1 pdf_count=1 pending=0 plaintext_read=denied")
 
 
+
+# Independent native-Windows negative control: no import or use of the cabinet
+# archive service, SQLCipher, SQLAlchemy, journaling code or production backend.
+# Identical file names and creation APIs must survive the same TerminateProcess.
+_RAW_WINDOWS_BASELINE_CHILD = r"""
+import os
+import sys
+import time
+from pathlib import Path
+root, marker = map(Path, sys.argv[1:3])
+pdf = root / "97531" / "RAPPORT_CEPHALO" / "2026" / "10" / "ceph-t2-windows-native.pdf"
+journal = root / ".cephalo-pending" / "97531" / "86420" / "7.json"
+pdf.parent.mkdir(parents=True, exist_ok=True)
+journal.parent.mkdir(parents=True, exist_ok=True)
+with pdf.open("xb") as stream:
+    stream.write(b"%PDF-1.4\n% T2 only\n%%EOF\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+fd = os.open(journal, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "wb") as stream:
+    stream.write(b'{"test_only":true}\n')
+    stream.flush()
+    os.fsync(stream.fileno())
+with marker.open("wb") as stream:
+    stream.write(b"BASELINE_READY")
+    stream.flush()
+    os.fsync(stream.fileno())
+while True:
+    time.sleep(2)
+"""
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Requires actual Windows native NTFS")
+def test_windows_plain_python_same_paths_survive_real_terminateprocess(tmp_path):
+    """If this fails, the raw Windows runner itself can delete these files."""
+    assert _volume_fs(tmp_path) == "NTFS"
+    root = tmp_path / "private-t2-archives"
+    marker = tmp_path / "plain-baseline-marker"
+    pdf = root / str(PATIENT_ID) / "RAPPORT_CEPHALO" / "2026" / "10" / FILENAME
+    journal = _journal(root)
+    child = subprocess.Popen(
+        [sys.executable, "-c", _RAW_WINDOWS_BASELINE_CHILD, str(root), str(marker)],
+        cwd=Path(__file__).resolve().parents[2],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        cutoff = time.monotonic() + 30
+        while not marker.is_file() and child.poll() is None and time.monotonic() < cutoff:
+            time.sleep(0.1)
+        if not marker.is_file():
+            if child.poll() is None:
+                child.kill()
+            stdout, stderr = child.communicate(timeout=15)
+            raise AssertionError(
+                f"Raw native Windows baseline never reached checkpoint; exit={child.returncode} "
+                f"stderr={stderr[-1200:]} stdout={stdout[-500:]}"
+            )
+        assert marker.read_bytes() == b"BASELINE_READY"
+        assert pdf.is_file() and journal.is_file()
+        assert pdf.read_bytes().startswith(b"%PDF")
+        assert journal.read_bytes().startswith(b"{")
+        assert child.poll() is None
+        child.kill()  # Same Windows TerminateProcess API, no exception/finalizer.
+        child.communicate(timeout=15)
+        assert child.returncode != 0
+        assert pdf.is_file() and journal.is_file(), (
+            "RAW_WINDOWS_NATIVE_FILES_DISAPPEARED_AFTER_TERMINATEPROCESS: "
+            f"pdf={pdf.is_file()} json={journal.is_file()} "
+            f"root_entries={[p.name for p in root.iterdir()]}"
+        )
+        print("P2TER_WINDOWS_RAW_BASELINE_PASS files=2 after=TerminateProcess")
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.communicate(timeout=15)
+
+
 if __name__ == "__main__" and len(sys.argv) >= 6 and sys.argv[1] == "--child":
     _child(*sys.argv[2:6])
