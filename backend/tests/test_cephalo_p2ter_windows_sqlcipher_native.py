@@ -1,0 +1,261 @@
+"""P2ter++ Windows NTFS + SQLCipher native process-kill recovery certification.
+
+Only disposable synthetic T2 records. Not a power-loss / UPS / storage-failure test.
+Explicitly proves that a real Windows process is TerminateProcess-killed in both
+commit windows, then independently reopens an encrypted SQLCipher database.
+"""
+from __future__ import annotations
+
+import ctypes
+import hashlib
+import json
+import os
+from pathlib import Path
+import secrets
+import sqlite3
+import subprocess
+import sys
+import time
+
+import pytest
+
+PATIENT_ID = 97531
+ANALYSIS_ID = 86420
+REVISION = 7
+DIGEST = "p2ter-t2-windows-native"
+FILENAME = "ceph-t2-windows-native.pdf"
+PDF = b"%PDF-1.4\n% T2 synthetic only (NO PATIENT INFORMATION)\n%%EOF\n"
+
+
+def _make_engine(db_path: Path, key: str):
+    """Use SQLAlchemy's actual pysqlcipher dialect and the real sqlcipher3 driver."""
+    import sqlcipher3
+    sys.modules["pysqlcipher3"] = sqlcipher3
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import URL
+    from sqlalchemy.pool import NullPool
+
+    url = URL.create(
+        "sqlite+pysqlcipher", password=key, database=str(db_path)
+    )
+    return create_engine(
+        url, poolclass=NullPool, connect_args={"timeout": 10}
+    )
+
+
+def _check_encrypted(engine, db_path: Path) -> None:
+    with engine.connect() as conn:
+        version = conn.exec_driver_sql("PRAGMA cipher_version").scalar()
+        assert version and isinstance(version, str), "SQLCipher driver not active"
+        assert conn.exec_driver_sql("PRAGMA integrity_check").scalar() == "ok"
+        journal = conn.exec_driver_sql("PRAGMA journal_mode").scalar()
+        assert str(journal).lower() == "wal", f"Expected native WAL, got {journal!r}"
+    if db_path.is_file():
+        assert db_path.read_bytes()[:16] != b"SQLite format 3\x00", (
+            "Encrypted DB has SQLite plaintext header"
+        )
+        try:
+            with sqlite3.connect(db_path) as plaintext:
+                plaintext.execute("SELECT name FROM sqlite_master").fetchall()
+        except sqlite3.DatabaseError:
+            pass
+        else:
+            raise AssertionError("Native SQLite could read the encrypted cabinet fixture")
+
+
+def _setup_engine(db_path: Path, key: str):
+    engine = _make_engine(db_path, key)
+    from backend import models
+    models.DocumentArchive.__table__.create(engine, checkfirst=True)
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        mode = conn.exec_driver_sql("PRAGMA journal_mode=WAL").scalar()
+        assert str(mode).lower() == "wal", f"SQLCipher WAL unavailable: {mode!r}"
+        conn.exec_driver_sql("PRAGMA synchronous=NORMAL")
+    _check_encrypted(engine, db_path)
+    return engine
+
+
+def _journal(root: Path) -> Path:
+    return root / ".cephalo-pending" / str(PATIENT_ID) / str(ANALYSIS_ID) / f"{REVISION}.json"
+
+
+def _rows(engine):
+    from sqlalchemy.orm import Session
+    from backend import models
+    with Session(engine) as session:
+        return [
+            (d.file_path, d.file_hash, d.file_size, d.clinical_data)
+            for d in session.query(models.DocumentArchive).all()
+        ]
+
+
+def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
+    from sqlalchemy.orm import Session
+    from backend import models
+    from backend.services import archive_service
+    from backend.services.cephalo_document_lock import already_archived_pdf
+
+    db_path, root, marker = Path(db_arg), Path(archive_arg), Path(marker_arg)
+    engine = _setup_engine(db_path, os.environ["P2TER_NATIVE_SQLCIPHER_TEST_KEY"])
+    archive_service.ARCHIVE_BASE_DIR = root
+    try:
+        with Session(engine) as session:
+            if mode == "replay":
+                value = already_archived_pdf(
+                    session, patient_id=PATIENT_ID, analysis_id=ANALYSIS_ID,
+                    revision=REVISION, payload_digest=DIGEST,
+                )
+                assert value is not None and value[1] == PDF
+                assert not _journal(root).exists()
+                return
+            if mode in ("kill-before", "kill-after"):
+                original_commit = session.commit
+
+                def interrupted_commit():
+                    if mode == "kill-before":
+                        session.flush()
+                    else:
+                        original_commit()
+                    marker.write_text(mode, encoding="ascii")
+                    with marker.open("rb") as stream:
+                        os.fsync(stream.fileno())
+                    # Parent must invoke actual Windows TerminateProcess; no
+                    # exceptions or Python finalizers may run in the child.
+                    while True:
+                        time.sleep(2)
+                session.commit = interrupted_commit
+
+            archive_service.ArchiveService(session).archive_document(
+                patient_id=PATIENT_ID,
+                analysis_id=ANALYSIS_ID,
+                file_content=PDF,
+                filename=FILENAME,
+                doc_type=models.DocumentType.RAPPORT_CEPHALO,
+                title="SYNTHETIC T2 WINDOWS",
+                clinical_data={
+                    "cephalo_analysis_id": ANALYSIS_ID,
+                    "cephalo_analysis_revision": REVISION,
+                    "cephalo_archive_payload_digest": DIGEST,
+                },
+            )
+    finally:
+        engine.dispose()
+
+
+def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: bool):
+    cmd = [sys.executable, str(Path(__file__).resolve()), "--child",
+           mode, str(db), str(root), str(marker)]
+    if not kill:
+        done = subprocess.run(cmd, cwd=Path(__file__).resolve().parents[2],
+                              env=env, capture_output=True, text=True, timeout=70)
+        assert done.returncode == 0, (
+            f"Native {mode} child failed (exit {done.returncode}): "
+            f"{done.stderr[-1500:]} {done.stdout[-700:]}"
+        )
+        return
+    process = subprocess.Popen(
+        cmd, cwd=Path(__file__).resolve().parents[2],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        cutoff = time.monotonic() + 50
+        while not marker.exists() and process.poll() is None and time.monotonic() < cutoff:
+            time.sleep(0.1)
+        assert marker.exists(), (
+            "Native child never reached correct interruption window; "
+            f"returncode={process.poll()}"
+        )
+        assert marker.read_text(encoding="ascii") == mode
+        assert process.poll() is None, "Child ended before native termination"
+        process.kill()  # Windows API TerminateProcess, not os._exit or fake exception
+        process.communicate(timeout=15)
+        assert process.returncode != 0, "TerminateProcess unexpectedly succeeded as normal exit"
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=15)
+
+
+def _volume_fs(path: Path) -> str:
+    volume = str(path.anchor)
+    fs = ctypes.create_unicode_buffer(128)
+    kernel32 = ctypes.windll.kernel32
+    kernel32.GetVolumeInformationW.argtypes = [
+        ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint,
+        ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p,
+        ctypes.c_wchar_p, ctypes.c_uint,
+    ]
+    kernel32.GetVolumeInformationW.restype = ctypes.c_int
+    ok = kernel32.GetVolumeInformationW(
+        volume, None, 0, None, None, None, fs, len(fs)
+    )
+    assert ok, "Windows GetVolumeInformationW failed"
+    return fs.value
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Requires actual Windows TerminateProcess and NTFS")
+@pytest.mark.parametrize("phase", ["kill-before", "kill-after"])
+def test_sqlcipher_ntfs_kill_restart_derived_archive_integrity(tmp_path, phase):
+    assert _volume_fs(tmp_path) == "NTFS", "Not a native Windows NTFS volume"
+    db = tmp_path / "t2-encrypted-vault.db"
+    root = tmp_path / "private-t2-archives"
+    marker = tmp_path / "child-reached-window"
+    key = secrets.token_hex(32)  # Synthetic only; never print or upload actual secret
+    env = {
+        **os.environ,
+        "P2TER_NATIVE_SQLCIPHER_TEST_KEY": key,
+        "DATABASE_URL": "sqlite:///:memory:",
+        "ENVIRONMENT": "test",
+        "DIGITALCROWN_ISOLATED_RUNTIME": "true",
+        "TELEMETRY_ENABLED": "false",
+        "CLOUD_AI_ENABLED": "false",
+        "CABINET_MASTER_KEY_HEX": "00" * 32,
+        "MEDIA_ROOT": str(tmp_path / "unused-media"),
+    }
+
+    _run_child(phase, db, root, marker, env, kill=True)
+    # A new independent interpreter (not the parent session) must see
+    # encrypted SQLCipher data before the restart/retry.
+    engine = _make_engine(db, key)
+    try:
+        _check_encrypted(engine, db)
+        existing = _rows(engine)
+    finally:
+        engine.dispose()
+    pdfs = list(root.rglob("*.pdf"))
+    assert len(pdfs) == 1
+    assert pdfs[0].read_bytes() == PDF
+    assert _journal(root).is_file()
+    assert json.loads(_journal(root).read_text(encoding="utf-8"))["sha256"] == hashlib.sha256(PDF).hexdigest()
+
+    if phase == "kill-before":
+        assert not existing, "A SQL row survived an uncommitted TerminateProcess"
+        _run_child("retry", db, root, marker, env, kill=False)
+    else:
+        assert len(existing) == 1, "Committed SQL row lost before journal cleanup"
+        _run_child("replay", db, root, marker, env, kill=False)
+
+    engine = _make_engine(db, key)
+    try:
+        _check_encrypted(engine, db)
+        current = _rows(engine)
+    finally:
+        engine.dispose()
+    assert len(current) == 1, current
+    db_path, db_sha, db_size, clinical = current[0]
+    assert clinical["cephalo_analysis_id"] == ANALYSIS_ID
+    assert clinical["cephalo_analysis_revision"] == REVISION
+    assert clinical["cephalo_archive_payload_digest"] == DIGEST
+    referenced = root / db_path.removeprefix("static/archives/")
+    assert db_path.startswith("static/archives/")
+    assert referenced.is_file()
+    assert referenced.read_bytes() == PDF
+    assert db_size == len(PDF) and db_sha == hashlib.sha256(PDF).hexdigest()
+    assert set(root.rglob("*.pdf")) == {referenced}, "Orphan/duplicate PDF after native restart"
+    assert not _journal(root).exists(), "Pending intent persisted after safe recovery"
+    print("P2TER_WINDOWS_SQLCIPHER_NTFS_TERMINATEPROCESS_PASS", phase,
+          "sql_rows=1 pdf_count=1 pending=0 plaintext_read=denied")
+
+
+if __name__ == "__main__" and len(sys.argv) >= 7 and sys.argv[1] == "--child":
+    _child(*sys.argv[2:6])
