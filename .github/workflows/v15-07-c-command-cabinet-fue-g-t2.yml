@@ -10,6 +10,10 @@ on:
       - 'frontend/src/features/dashboard/**'
       - 'frontend/src/components/Layout/MainLayout.tsx'
       - 'backend/routers/appointments.py'
+      - 'techdoubt.md'
+      - '.github/workflows/v15-07-c-windows-native-zoom.yml'
+      - 'frontend/scripts/certify-lot07-windows-native-zoom.mjs'
+      - 'frontend/07c-windows-native-zoom.html'
       - 'frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs'
       - '.github/workflows/v15-07-c-command-cabinet-fue-g-t2.yml'
   workflow_dispatch:
