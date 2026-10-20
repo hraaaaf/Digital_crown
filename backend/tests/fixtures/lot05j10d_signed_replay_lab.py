@@ -18,9 +18,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 AUDIENCE = "LOT05J10C_SQLCIPHER_FAKE"
-HEX32 = re.compile(r"[a-f0-9]{32}\\Z")
-HEX64 = re.compile(r"[a-f0-9]{64}\\Z")
-GEN = re.compile(r"g_[a-f0-9]{32}\\Z")
+HEX32 = re.compile(r"[a-f0-9]{32}\Z")
+HEX64 = re.compile(r"[a-f0-9]{64}\Z")
+GEN = re.compile(r"g_[a-f0-9]{32}\Z")
 
 
 class SignedReplayDenied(PermissionError):
