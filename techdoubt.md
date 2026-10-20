@@ -1,5 +1,13 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-20 — LOT06-P/P2-F01 · Autopilot B-06 cold-start key/sample check
+
+- **Previously open MAJOR B-06:** a 32-byte but incorrect synthetic spool key was accepted at initial `HotFolder` bootstrap of an existing ledger; authentication failed only on later `read_verified`. A lab worker could have reported READY with unreadable stored acquisitions. **Scoped change:** on opening a nonempty existing synthetic ledger, decrypt/authenticate its first recorded encrypted blob before returning from constructor; wrong key or missing/corrupt sampled blob fails closed without creating a clinical receipt or resetting SQLite. Two direct negative restart tests and the B-02 restore tests now require startup refusal.
+- **Limits / reservation OPEN:** first-row verification is deliberately bounded. It is NOT a complete spool scrub, multi-key rotation or escrow scheme, full crypto state attestation, SQLite/SQLCipher production migration, protection from an adversarial same-SID writer, or guarantee against atomic cross-resource rollback. Empty ledgers still offer no ciphertext against which to authenticate a wrong key; incorrect keys must not be certified correct in that case. Native SCM token/Session0/effective DACL, independent actors, Windows crash recovery and real UI remain untested. No key or patient data leaves the synthetic fixture.
+- **Validation required:** check new exact-HEAD Windows+Ubuntu 06-A tests and impacted 06-B/FUE gates before claiming the test fix green. Until then `B-06 FIX PROPOSED / CI OPEN`, P2 native SCM and clinical release remain BLOCKED, PR DRAFT. Avoid full unrelated CI reruns.
+
+
+
 ## 2026-10-18 — P2 synthetic SCM evidence fail-open in unwritable service.error fixed in memory
 
 - Internal re-review of the preceding source patch found a MAJOR false-negative: `sqlite3_close()` failure or Work exception would attempt `service.error` creation, but the marker write is deliberately swallowed; when marker creation fails (disk full or DACL fault), `OnStop()` could return without realizing worker/close failed. This leaves a misleading clean-stop oracle.

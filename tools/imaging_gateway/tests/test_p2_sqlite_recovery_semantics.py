@@ -177,10 +177,11 @@ class P2SyntheticSQLiteWALContract(unittest.TestCase):
         with source._db() as live:
             with closing(sqlite3.connect(restored / "acquisitions.sqlite3")) as snapshot:
                 live.backup(snapshot)
-        incomplete = HotFolder(Config("cabinet1", "device1", watch, restored, key))
-        self.assertEqual(len(incomplete.items()), 1)
         with self.assertRaisesRegex(GatewayError, "spool missing"):
-            incomplete.read_verified(1)
+            HotFolder(Config("cabinet1", "device1", watch, restored, key))
+        # Failed startup must not silently rewrite a legitimate ledger.
+        with closing(sqlite3.connect(restored / "acquisitions.sqlite3")) as check:
+            self.assertEqual(check.execute("SELECT COUNT(*) FROM items").fetchone()[0], 1)
         db_file = restored / "acquisitions.sqlite3"
         db_file.unlink()
         with self.assertRaisesRegex(GatewayError, "database missing; restore required"):
@@ -198,10 +199,11 @@ class P2SyntheticSQLiteWALContract(unittest.TestCase):
         (watch / "fixture.png").write_bytes(SYNTHETIC)
         source.scan_once()
         self.assertEqual(source.scan_once()["staged"], 1)
-        wrong = HotFolder(Config("cabinet1", "device1", watch, private, b"Z" * 32))
-        self.assertEqual(len(wrong.items()), 1)
         with self.assertRaisesRegex(GatewayError, "spool authentication failed"):
-            wrong.read_verified(1)
+            HotFolder(Config("cabinet1", "device1", watch, private, b"Z" * 32))
+        # The original key still reads the original synthetic ciphertext.
+        correct = HotFolder(Config("cabinet1", "device1", watch, private, b"K" * 32))
+        self.assertEqual(correct.read_verified(1), SYNTHETIC)
 
     def test_crash_after_commit_recovers_but_uncommitted_write_does_not(self):
         child_script = r"""

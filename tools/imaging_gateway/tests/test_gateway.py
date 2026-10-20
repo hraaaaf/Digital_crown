@@ -91,6 +91,34 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(len(restarted.items()), 1)
         self.assertEqual(len(list((self.private / "spool").iterdir())), 1)
 
+    def test_p2_wrong_spool_key_refused_at_cold_restart_without_mutation(self):
+        """B-06: wrong key must fail before health, scan or re-encryption."""
+        self.assertEqual(self.stage()["staged"], 1)
+        item = self.agent.items()[0]
+        blob = next((self.private / "spool").glob("*.dc6"))
+        before = hashlib.sha256(blob.read_bytes()).hexdigest()
+        wrong = Config("cabinet1", "device1", self.watch, self.private, b"z" * 32)
+        with self.assertRaisesRegex(GatewayError, "spool authentication failed"):
+            HotFolder(wrong)
+        self.assertEqual(hashlib.sha256(blob.read_bytes()).hexdigest(), before)
+        self.assertEqual(HotFolder(self.config).read_verified(item["id"]), SYNTHETIC)
+        self.assertEqual(len(self.agent.items()), 1)
+
+    def test_p2_missing_spool_refused_at_cold_restart(self):
+        """An intact SQLite ledger alone must not count as recovered state."""
+        self.assertEqual(self.stage()["staged"], 1)
+        item = self.agent.items()[0]
+        blob = next((self.private / "spool").glob("*.dc6"))
+        held = self.private / (blob.name + ".held")
+        blob.rename(held)
+        try:
+            with self.assertRaisesRegex(GatewayError, "spool missing"):
+                HotFolder(self.config)
+            self.assertEqual(len(self.agent.items()), 1)
+        finally:
+            held.rename(blob)
+        self.assertEqual(HotFolder(self.config).read_verified(item["id"]), SYNTHETIC)
+
     def test_recapture_same_filename_and_bytes_is_not_dropped(self):
         self.stage()
         path = self.watch / "fixture.png"

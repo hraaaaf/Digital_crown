@@ -230,6 +230,16 @@ class HotFolder:
             ).fetchone()
             if active != (config.cabinet, config.workstation):
                 raise GatewayError("state directory belongs to another cabinet/workstation")
+            # P2-F01/B-06, LAB only: an existing encrypted acquisition must
+            # authenticate BEFORE this collector can claim a healthy restart.
+            # Test a bounded single recorded blob, not an expensive full spool
+            # scrub. Wrong keys and missing/corrupted first blobs fail closed.
+            # This does not prove that all rows or key escrow are healthy.
+            sample = db.execute(
+                "SELECT dedup_key,blob,digest FROM items ORDER BY id LIMIT 1"
+            ).fetchone()
+            if sample is not None:
+                self._decrypt(sample[1], sample[0], sample[2])
         # Only publish the witness AFTER successful DB schema/scope commit.
         # An interrupted first boot remains fail-closed via the spool root.
         self._seal_continuity_marker()
