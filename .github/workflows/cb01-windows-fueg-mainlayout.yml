@@ -3,8 +3,27 @@ name: CB-01 Windows FUE-G MainLayout FastAPI NVDA Zoom (EXPERIMENTAL)
 on:
   pull_request:
     paths:
+      # FUE-G must retrigger when the real MainLayout, auth/preview contract,
+      # synthetic backend or installed Windows runtime dependencies change.
       - frontend/scripts/certify-cb01-windows-fueg-combined.mjs
+      - frontend/scripts/t2-workstation-session.mjs
+      - frontend/src/components/Layout/MainLayout.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
+      - frontend/src/services/api.ts
+      - frontend/src/services/apiBase.ts
+      - frontend/package.json
+      - frontend/package-lock.json
+      - backend/config.py
+      - backend/database.py
+      - backend/core/runtime_safety.py
+      - backend/routers/auth.py
+      - backend/routers/bot_workflows.py
+      - backend/services/bot/workflow_poc.py
+      - backend/services/bot/patient_selector.py
+      - scripts/t2_runtime_server.py
       - scripts/ci/cb01_windows_fueg_fixture.py
+      - requirements.txt
       - .github/workflows/cb01-windows-fueg-mainlayout.yml
   workflow_dispatch:
 
@@ -79,14 +98,12 @@ jobs:
           Get-Content requirements.txt | Where-Object { $_ -notmatch '^(torch|torchaudio|torchvision)==' } | Set-Content "$env:RUNNER_TEMP\cb01-windows-requirements.txt"
           python -m pip install -r "$env:RUNNER_TEMP\cb01-windows-requirements.txt"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # Python's zoneinfo on Windows needs the IANA tzdata database.
-          # The real /rdv preview intentionally fails closed with HTTP 503
-          # if Africa/Casablanca cannot be loaded. Never mock its result.
-          python -m pip install tzdata==2025.2
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -c "from zoneinfo import ZoneInfo; from datetime import datetime,timezone; zone=ZoneInfo('Africa/Casablanca'); assert datetime.now(timezone.utc).astimezone(zone).tzinfo.key == 'Africa/Casablanca'"
-          if ($LASTEXITCODE -ne 0) { throw 'FAIL: real IANA cabinet timezone unavailable on Windows' }
-          Write-Output 'CB01_WINDOWS_FUEG_IANA_TIMEZONE: PASS Africa/Casablanca'
+          # No CI-only dependency workaround: tzdata must come from the
+          # application's Windows requirements, or the gate refuses startup.
+          # Packaging into an INSTALLABLE_CERTIFIED bundle is a separate proof.
+          python -c "from importlib.metadata import version; from zoneinfo import ZoneInfo; from datetime import datetime,timezone; assert version('tzdata') == '2025.2'; zone=ZoneInfo('Africa/Casablanca'); assert datetime.now(timezone.utc).astimezone(zone).tzinfo.key == 'Africa/Casablanca'"
+          if ($LASTEXITCODE -ne 0) { throw 'FAIL: pinned Windows requirements must provide IANA Africa/Casablanca timezone' }
+          Write-Output 'CB01_WINDOWS_FUEG_IANA_TIMEZONE_FROM_REQUIREMENTS: PASS Africa/Casablanca'
       - name: Install real frontend, headed Chromium and Guidepup NVDA
         working-directory: frontend
         shell: pwsh
