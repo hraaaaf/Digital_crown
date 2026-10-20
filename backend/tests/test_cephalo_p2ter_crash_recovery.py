@@ -257,7 +257,7 @@ def test_pending_journal_without_pdf_recovers_with_new_verified_bytes(tmp_path):
 
 
 
-def test_post_commit_sigkill_window_is_reconciled_by_verified_replay(tmp_path, monkeypatch):
+def test_post_commit_interrupted_cleanup_is_reconciled_by_verified_replay(tmp_path, monkeypatch):
     """SQL COMMIT succeeded, cleanup was interrupted: replay closes only exact journal."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
@@ -283,6 +283,7 @@ def test_post_commit_sigkill_window_is_reconciled_by_verified_replay(tmp_path, m
                 patient_id=97531, analysis_id=86420,
                 document_type=models.DocumentType.RAPPORT_CEPHALO,
                 filename=pending.path.name, original_filename=pending.path.name,
+                document_group_id="t2-postcommit-synthetic-only",
                 file_path="static/archives/" + str(pending.path.relative_to(root)).replace("\\", "/"),
                 file_hash=hashlib.sha256(pdf_bytes).hexdigest(),
                 file_size=len(pdf_bytes),
@@ -294,7 +295,8 @@ def test_post_commit_sigkill_window_is_reconciled_by_verified_replay(tmp_path, m
             )
             db.add(doc)
             db.commit()
-            # Emulates SIGKILL between commit and finish_official_pdf:
+            # Simulate interrupted cleanup after SQL commit; this test does not
+            # execute SIGKILL (the separate pre-commit test does).
             assert pending.journal.exists()
             monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", root)
             result = already_archived_pdf(
