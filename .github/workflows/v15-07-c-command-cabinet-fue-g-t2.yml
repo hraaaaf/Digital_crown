@@ -16,6 +16,7 @@ on:
       - 'frontend/07c-windows-native-zoom.html'
       - 'frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs'
       - '.github/workflows/v15-07-c-command-cabinet-fue-g-t2.yml'
+      - '.github/workflows/v15-07-c-command-cabinet-readonly.yml'
   workflow_dispatch:
 
 permissions:
