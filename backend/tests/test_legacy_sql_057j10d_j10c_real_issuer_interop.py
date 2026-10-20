@@ -49,6 +49,34 @@ class RealIssuerToVerifier(issuer_lab.ConnectedJ10C):
             "J10D_PIPE_NO_CLINICAL_APPLY_PASS"):
             self.assertIn(marker,ipc_output)
             print(marker)
+        # Distinct DIRECT proof: the JWT-verifying SCM signer itself sends the
+        # newly produced RSA ticket under its own Service SID. No relay.
+        direct=Path(__file__).resolve().parent/"fixtures"/"lot05j10d_direct_original_scm_signer_pipe_probe.ps1"
+        direct_env=dict(os.environ,
+            LOT05J9_SIGNER_SID_FAKE_ONLY="1",
+            LOT05J9_FAKE_OUTPUT_ROOT=str(self.root),
+            LOT05J9_FAKE_PYTHON=sys.executable,
+            LOT05J9_FAKE_SOURCE_DB=str(self.source),
+            LOT05J9_FAKE_SQL_KEY=self.fake_key,
+            LOT05J9_FAKE_JWT_SECRET=self.fake_jwt_secret,
+            LOT05J9_FAKE_JWT=self.security.create_access_token({
+                "sub":self.fake_owners[0].email}),
+            LOT05J9_FAKE_OWNER=claims["owner"],
+            LOT05J10C_EXPECT_JOB=claims["job"],
+            LOT05J10C_EXPECT_GENERATION=claims["generation"],
+            LOT05J10C_EXPECT_MANIFEST=claims["manifest"])
+        direct_proc=subprocess.run(["pwsh","-NoProfile","-File",str(direct)],
+                                   capture_output=True,text=True,timeout=260,env=direct_env)
+        direct_proof=direct_proc.stdout+"\\n"+direct_proc.stderr
+        self.assertEqual(direct_proc.returncode,0,direct_proof[-8500:])
+        for marker in (
+           "J10D_DIRECT_SCM_SIGNER_AND_CONSUMER_PRIVATE_ACLS_PASS",
+           "J10D_J10C_ORIGINAL_SCM_SIGNER_DIRECT_AUTHENTICATED_PIPE_PASS",
+           "J10D_DIRECT_ORIGINAL_SCM_SIGNER_REPLAY_AFTER_CONSUMER_RESTART_DENIED_PASS",
+           "J10D_DIRECT_SAME_ACCOUNT_SIDLESS_SIGNER_PIPE_DENIED_PASS",
+           "J10D_DIRECT_NO_CLINICAL_APPLY_PASS"):
+            self.assertIn(marker,direct_proof)
+            print(marker)
         ledger=self.root/"j10d-consumer-synthetic-ledger"
         ledger.mkdir()
         scope=dict(owner=int(claims["owner"]),job=claims["job"],
