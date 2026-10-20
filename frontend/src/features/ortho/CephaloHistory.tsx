@@ -132,7 +132,7 @@ export const CephaloHistory: React.FC<CephaloHistoryProps> = ({ patientId, onSel
           {analyses.map((analysis) => {
             const dateStr = new Date(analysis.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             return (
-              <div key={analysis.id} onClick={() => view === 'active' && onSelect(analysis)} className={`group bg-white border border-slate-200/60 rounded-[1.5rem] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${view === 'active' ? 'cursor-pointer hover:bg-slate-50 hover:shadow-xl hover:shadow-slate-200/40 hover:-translate-y-1 active:scale-[0.98]' : ''}`}>
+              <div key={analysis.id} data-cephalo-history-analysis-id={analysis.id} onClick={() => view === 'active' && onSelect(analysis)} className={`group bg-white border border-slate-200/60 rounded-[1.5rem] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${view === 'active' ? 'cursor-pointer hover:bg-slate-50 hover:shadow-xl hover:shadow-slate-200/40 hover:-translate-y-1 active:scale-[0.98]' : ''}`}>
                 <div className="flex min-w-0 items-center gap-4 sm:gap-6">
                   <div className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300"><Calendar size={24} /></div>
                   <div className="min-w-0">
