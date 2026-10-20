@@ -135,7 +135,7 @@ internal sealed class J9SignerService : ServiceBase {
                 reason="nonce_replay_probe";
             } else if(mode=="pipe_hostile" && !sid) {
                 // Another LocalService without the signer's Service SID.
-                pipeStatus=SendSigned(pipeName,"{\\"body\\":\\"synthetic\\"}");
+                pipeStatus=SendSigned(pipeName,"{\"body\":\"synthetic\"}");
                 reason="hostile_pipe_probe";
             } else reason="invalid_mode_or_sid";
         } catch(Exception ex) {
