@@ -14,7 +14,7 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -108,6 +108,15 @@ jobs:
           set -euo pipefail
           python -m pip install alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 'pydantic[email]==2.6.3' pydantic-settings==2.2.1 fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 python-multipart==0.0.31 python-dotenv==1.2.1 PyYAML==6.0.3 pytest==9.0.3
           python -c "from sqlcipher3 import dbapi2 as d; c=d.connect(':memory:'); assert c.execute('PRAGMA cipher_version').fetchone()[0]; c.close(); print('J10D_REAL_NATIVE_SQLCIPHER_FAKE_PROVEN')"
+      - name: Parse J10D PowerShell SCM authenticated pipe probe
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $path='backend/tests/fixtures/lot05j10d_scm_authenticated_pipe_probe.ps1'
+          $tokens=$null; $parseErrors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$parseErrors) | Out-Null
+          if($parseErrors.Count -ne 0) {throw ('J10D_PIPE_PS_SYNTAX '+($parseErrors -join '; '))}
       - name: Actual J10C Windows SCM JWT RSA ticket to J10D deny-only replay verifier
         if: runner.os == 'Windows'
         shell: bash
@@ -135,5 +144,5 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
           git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
-          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_signed_replay_lab.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1' 'backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_real_ticket_consumer.cs' 'backend/tests/fixtures/lot05j10d_real_issuer_to_installed_consumer_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py' 'backend/tests/test_legacy_sql_057j10d_j10c_real_issuer_interop.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_signed_replay_lab.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1' 'backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_real_ticket_consumer.cs' 'backend/tests/fixtures/lot05j10d_real_issuer_to_installed_consumer_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_authenticated_pipe_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_authenticated_pipe_relay.cs' 'backend/tests/fixtures/lot05j10d_scm_authenticated_pipe_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py' 'backend/tests/test_legacy_sql_057j10d_j10c_real_issuer_interop.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
           diff -u expected.txt actual.txt
