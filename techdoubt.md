@@ -96,3 +96,39 @@ Live PR #971 labels API returns an empty list, while trusted `master` `scripts/c
 **FUE classification:** Standalone React/Vite Command target has a usable synthetic browser UI, so execute **prototype-scoped FUE-I lab** (two fresh browser profiles on synthetic TEST-IDs), not real Cabinet FUE-G, no real login/backend/RBAC or independent human/AI agents. Browser screenshots 390/430/768/1280/1440, eight theme tokens, real native X11 200% zoom, keyboard/confirmation/cancel/identity guard must be evidenced on source exact SHA. Passing scripted assertions is not clinical validation or user-owner visual approval. Google Fonts external requests inherited from shared CSS remain disclosed privacy/offline reserve; do not silently equate them with zero external network egress.
 
 **Next / no-go:** Trigger existing isolated visual/FUE workflow for final PR #971 HEAD via a scoped workflow-evidence integrity change, verify checks, inspect exact-SHA downloadable screenshots, submit images for owner visual review, then require genuine owner-labeled attestation under trusted `master`. Do not auto-add owner label, bypass required gate, integrate into Cabinet, merge, deploy, or open 07-D/E.
+
+
+### CEPH-FAC-PARITY / P2ter++ — extraction chirurgicale vers master : contrat PDF manquant (2026-10-20)
+
+**Statut : BLOCKER d'intégration vers master ; PAS un défaut démontré de la PR #957 sur sa base #953.** Cette note est conservée sur la branche **d'audit documentaire isolée** `audit/ceph-p2ter-master-extraction-20261020` partant de master `a2ad3002414a8a046221bb9993f71d0bfa8471a0`. Elle ne touche ni master, ni #957, ni leurs validations. Autorisation utilisateur : réconciliation technique **sans fusion ni déploiement**. Périmètre inchangé CEPH-FAC-PARITY / P2ter++, roadmap 41/99.
+
+**Sources immuables lues** : #957 HEAD `52c3631f8cfae79a9c5c3b7a145a4d2fab6bbe82`, parent #953 HEAD `945fcd45d34d0cbb550e72d24bf509fb3d72c0b5`, #951 `02d3218b136533eabd8604baf32282052604b68d`, master `a2ad3002414a8a046221bb9993f71d0bfa8471a0`. GitHub compare master→#957 = diverged **572 commits ahead / 723 behind, 167 fichiers**. #878→#911→#938→#941→#944→#951→#953→#957 encore tous DRAFT/non mergées ; #911/#941/#944 affichent explicitement **clinical NO-GO**. La fusion GitHub `mergeable=true` de #957 ne vaut que contre #953.
+
+**BLOCKER 1 — schéma PDF identité/révision, contre-exemple de parsing :**
+- master `backend/schemas/clinical.py::CephaloPDFRequest` a seulement `ai_diagnostic`, `clinical_data`, `archive`. Il n'exige ni `analysis_id` ni `expected_revision`, et ne contient pas `extra="forbid"`.
+- #953 (hérité de #951) impose `model_config=ConfigDict(extra="forbid")`, `analysis_id: int=Field(strict=True,gt=0)` et `expected_revision: int=Field(strict=True,gt=0)`.
+- Démonstration isolée Pydantic dans environnement analytique (PAS un run de l'application) : avec l'ancienne classe, la requête `{"analysis_id":22,"expected_revision":7,"archive":true}` s'instancie mais ces deux clés sont **ignorées**; avec la nouvelle classe, elles sont préservées et l'absence de chacune provoque ValidationError. Une transplantation seulement #957 dans master ne garantit pas la sélection d'étude correcte, et l'accès à `req.analysis_id` risquerait un échec serveur.
+
+**BLOCKER 2 — route PDF pas fail-closed sur master :**
+- master `backend/routers/patients.py::generate_cephalo_pdf` choisit le `last_analysis` du patient par `id.desc()` au lieu de valider le couple (analyse explicitement sélectionnée, révision scientifique) ; en cas d'échec d'archive, son `except Exception` journalise « Archivage ... ignoré » puis renvoie le fichier PDF. Une archive manquante peut ainsi être présentée comme un PDF généré.
+- #953 fournit `_bound_cephalo_study`, validation de `req.analysis_id`/`expected_revision`, en-têtes `X-Cephalo-Analysis-Id`/`X-Cephalo-Revision` et échec explicite en cas de preuve périmée. #957 ajoute le verrou étude/révision, transaction et recovery ; ceux-ci supposent le contrat #951 déjà présent.
+- **Interdit** : copier `archive_service` ou les deux modules natifs seuls et déclarer la parité/atomicité verte.
+
+**BLOCKER 3 — dépendance de l'interface :**
+- master n'a pas `frontend/src/features/ortho/cephaloDocumentSource.ts`. #951 l'a ajouté : `prepareBoundCephaloDocumentSource` sauvegarde l'étude choisie, relit `angles_data.scientific_read_path.revision`, vérifie la sélection pendant les opérations et fournit `analysis_id/expected_revision`.
+- Le `useOrthoStore` de #953 importe ce module, et `cephaloRepository.generatePDF` valide les en-têtes PDF. Un cherry-pick indépendant de `Step4Documents`, `useOrthoStore` ou `cephaloRepository` depuis #957 sans ce contrat serait non fonctionnel/incomplet.
+
+**Éléments isolables sous réserve, pas intégrés :**
+- `backend/services/cephalo_document_lock.py` et `backend/services/cephalo_archive_recovery.py` sont créés par #957 et absents de master/#953, mais ils nécessitent l'API identity-bound de #951, le writer-lock des `CephaloAnalysis` et les appels transactionnels dans `ArchiveService`, route patient et documents.
+- `backend/models.py` est byte-for-byte identique entre master et #953 (blob SHA `6f5a4d4641e02690594d2adbd3dc383e329d8c70`), ce qui est encourageant pour les colonnes communes mais **ne prouve pas** la compatibilité transactionnelle ou runtime.
+- `backend/services/archive_service.py` est identique entre master et #953 avant #957 (blob `14b599914c0db5eef695721aedf7954ebce53024`). Il reste à extraire **les hunks P2ter++ seulement** en conservant les autres logiques financières/documents et les routes protégées.
+- `backend/services/cephalo_pdf_projection.py` diffère entre master et #953 ; toute récupération d'un contrat scientifique de #951 doit être évaluée séparément. Ne jamais recopier l'ensemble #911/#941/#944 ni activer les six HOLD cliniques pour obtenir un test vert.
+
+**Plan d'intégration minimal NON EXÉCUTÉ (fail-closed) :**
+1. Baseline **master immuable** et test négatif réellement exécuté sur un futur candidat isolé : PDF sans IDs refusé ; étude A sélectionnée mais B plus récente ne génère jamais B ; révision absente/périmée refuse 409 ; patient/cabinet/role non autorisé 403/404, pas d'archive créée ; une erreur SQL/FS ne doit jamais retourner faussement succès.
+2. Transplanter le **contrat minimal #951** (schema strict `CephaloPDFRequest`, sélecteur d'étude/révision et headers, `cephaloDocumentSource` et frontend bounded PDF) via diff chirurgical/revue d'impacts, pas les modules cliniques NO-GO ; exécuter tests ciblés et compiler.
+3. **Ensuite seulement** les nouvelles sections P2ter++ dans `ArchiveService`/routes/Step4/store ainsi que lock+journal, avec vrais tests crash/retry, SQLCipher Windows, RBAC, tamper, idempotence, FUE-I desktop (1280×900 /1600×1000) et approval humaine du **nouveau HEAD**.
+4. Au moindre besoin d'activer des projections scientifiquement non validées ou d'importer #911/#941 cliniques, **STOP, NO-GO, scinder ou requalifier le scope**, aucune simplification des guards. Éviter toute mutation production/installation cabinet, merge ou déploiement.
+5. Les statuts verts et l'approbation de #957 `52c3631...` ne sont **pas** transférables à une nouvelle branche/HEAD sans vérification pertinente.
+
+**Preuve actuelle : audit statique de fichiers/blob GitHub + démonstration Pydantic isolée. Aucun candidat fonctionnel n'a été assemblé ni testé contre master ; ne pas déclarer extraction PASS.** La branche actuelle est documentaire, destinée à conserver explicitement ce risque dans `techdoubt.md`, sans toucher le sous-lot certifié. Prochaine étape : mise en place contrôlée d'un candidat réellement testable après arbitrage du contrat #951 sans dépendances cliniques ; toute modification serait un nouveau HEAD et une nouvelle campagne de preuves ciblées.
