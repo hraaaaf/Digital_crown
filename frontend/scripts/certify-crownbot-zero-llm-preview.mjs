@@ -8,8 +8,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
 
+if (process.env.DIGITALCROWN_ISOLATED_RUNTIME !== '1') {
+  throw new Error('REFUSED: isolated T2 runtime required for CB-01 visual');
+}
 const appUrl = process.env.CROWN_BOT_VISUAL_APP_URL || 'http://127.0.0.1:5173';
 const apiUrl = process.env.CROWN_BOT_VISUAL_API_URL || 'http://127.0.0.1:8005';
+for (const raw of [appUrl, apiUrl]) {
+  const u = new URL(raw);
+  if (u.protocol !== 'http:' || !['localhost', '127.0.0.1'].includes(u.hostname)
+      || u.username || u.password || u.search || u.hash
+      || (u.pathname !== '' && u.pathname !== '/')) {
+    throw new Error('REFUSED: loopback-only CB-01 visual origins');
+  }
+}
 const user = process.env.T2_USER;
 const pass = process.env.T2_PASSWORD;
 const exactSourceHead = process.env.CB01_SOURCE_HEAD || '';
