@@ -52,7 +52,7 @@ jobs:
           grep -q 'J10D_UNENROLLED_EXTERNAL_WITNESS_CLI_DENY_NONZERO_PASS' j10d-witness.log
           ! grep -E '^FAILED|skipped=[0-9]+|^ERROR:' j10d-witness.log
           set +e
-          denial="$(PYTHONPATH=. python -B -m backend.tests.fixtures.lot05j10d_external_witness_gate 2>&1)"
+          denial="$(python -B backend/tests/fixtures/lot05j10d_external_witness_gate.py 2>&1)"
           result=$?
           set -e
           test "$result" -eq 3
