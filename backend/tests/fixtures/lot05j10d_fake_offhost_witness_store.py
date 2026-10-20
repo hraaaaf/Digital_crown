@@ -4,6 +4,7 @@ SQLite is on the SAME CI runner, not an independent provider. Keys and
 checkpoint state are controlled by the test Administrator. Never clinical.
 """
 import base64
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -40,7 +41,7 @@ def provision_fake_state(path, device):
     with path.open("xb"):
         pass
     try:
-        with _open_existing(path) as conn:
+        with closing(_open_existing(path)) as conn:
             conn.execute("PRAGMA journal_mode=DELETE")
             conn.execute("PRAGMA synchronous=FULL")
             conn.execute("CREATE TABLE witness (device TEXT PRIMARY KEY, checkpoint INTEGER NOT NULL)")
@@ -132,7 +133,7 @@ class FakeWitness:
 
     def checkpoint(self, device):
         try:
-            with _open_existing(self.db_path) as conn:
+            with closing(_open_existing(self.db_path)) as conn:
                 row = conn.execute("SELECT checkpoint FROM witness WHERE device=?",
                                    (device,)).fetchone()
                 return None if row is None else row[0]
