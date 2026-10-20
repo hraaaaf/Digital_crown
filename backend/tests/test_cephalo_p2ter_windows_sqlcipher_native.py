@@ -140,6 +140,20 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                         stream.write(b"T2-ADJACENT-OSOPEN-CONTROL")
                         stream.flush()
                         os.fsync(stream.fileno())
+                    # Matched-extension controls in the *same folders*, with
+                    # real PDF/JSON suffixes. Their survival distinguishes a
+                    # suffix-level cleanup from archive-specific disappearance.
+                    pdf_suffix_control = saved_pdf.with_name(".native-matched.pdf")
+                    with pdf_suffix_control.open("xb") as stream:
+                        stream.write(PDF)
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                    journal_suffix_control = saved_journal.with_name(".native-matched.json")
+                    fd = os.open(journal_suffix_control, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                    with os.fdopen(fd, "wb") as stream:
+                        stream.write(b'{"test_only":true}\\n')
+                        stream.flush()
+                        os.fsync(stream.fileno())
                     # Observe *before* TerminateProcess, while the archive
                     # writer is still alive. The marker is proof of the state
                     # actually reached, never a fabricated outcome.
@@ -151,8 +165,10 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                         "child_control_exists": child_control.is_file(),
                         "adjacent_xb_exists": adjacent_xb.is_file(),
                         "adjacent_osopen_exists": adjacent_osopen.is_file(),
-                        "pdf_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.pdf")),
-                        "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json")),
+                        "pdf_suffix_control": pdf_suffix_control.is_file(),
+                        "journal_suffix_control": journal_suffix_control.is_file(),
+                        "pdf_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.pdf") if p.name == FILENAME),
+                        "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json") if p.name == f"{REVISION}.json"),
                         "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
                     }
                     marker.write_text(json.dumps(checkpoint, sort_keys=True), encoding="utf-8")
@@ -229,13 +245,15 @@ def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: b
         assert process.returncode != 0, "TerminateProcess unexpectedly succeeded as normal exit"
         after_kill = {
             "root_exists": root.exists(),
-            "pdf_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.pdf")),
-            "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json")),
+            "pdf_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.pdf") if p.name == FILENAME),
+            "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json") if p.name == f"{REVISION}.json"),
             "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
             "control_exists": (root / ".native-test-control").is_file(),
             "child_control_exists": (root / ".native-child-created-control").is_file(),
             "adjacent_xb_exists": (root / checkpoint["pdf_files"][0]).with_name(".native-adjacent-xb-control").is_file(),
             "adjacent_osopen_exists": (root / checkpoint["journal_files"][0]).with_name(".native-adjacent-osopen-control").is_file(),
+            "pdf_suffix_control": (root / checkpoint["pdf_files"][0]).with_name(".native-matched.pdf").is_file(),
+            "journal_suffix_control": (root / checkpoint["journal_files"][0]).with_name(".native-matched.json").is_file(),
             "direct_pdf_exists": (root / checkpoint["pdf_files"][0]).is_file(),
             "direct_journal_exists": (root / checkpoint["journal_files"][0]).is_file(),
             "pdf_parent_entries": sorted(p.name for p in (root / checkpoint["pdf_files"][0]).parent.iterdir()),
@@ -296,6 +314,22 @@ def test_sqlcipher_ntfs_kill_restart_derived_archive_integrity(tmp_path, phase):
     }
 
     _run_child(phase, db, root, marker, env, kill=True)
+    # Remove *only* the explicitly test-owned probe files from the fixture
+    # before the single-official-PDF accounting assertions. The official PDF
+    # and its pending recovery journal are never touched by this cleanup.
+    for probe in (
+        root / str(PATIENT_ID) / "RAPPORT_CEPHALO",
+        root / ".cephalo-pending" / str(PATIENT_ID) / str(ANALYSIS_ID),
+    ):
+        if probe.exists():
+            for name in (".native-matched.pdf", ".native-matched.json"):
+                # PDF is nested by year/month; cleanup happens below.
+                (probe / name).unlink(missing_ok=True)
+    for probe in root.rglob(".native-matched.pdf"):
+        probe.unlink()
+    for probe in root.rglob(".native-matched.json"):
+        probe.unlink()
+
     # A new independent interpreter (not the parent session) must see
     # encrypted SQLCipher data before the restart/retry.
     engine = _make_engine(db, key)
