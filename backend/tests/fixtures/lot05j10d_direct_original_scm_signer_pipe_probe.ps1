@@ -73,6 +73,7 @@ $consumerSource=Join-Path $env:GITHUB_WORKSPACE 'backend\tests\fixtures\lot05j10
 $reportReplay=Join-Path $telemetry 'replay.txt'
 $reportHostile=Join-Path $telemetry 'hostile-pipe.txt'
 $reportJunction=Join-Path $telemetry 'junction-denied.txt'
+$reportAclDrift=Join-Path $telemetry 'acl-drift-denied.txt'
 $exe=Join-Path $root 'signer-scm.exe'
 $publicPin=Join-Path $root 'trusted-rsa-public.fake'
 $rootAttack=Join-Path $root 'J9_SIDLESS_ROOT_WRITE.fake'
@@ -327,6 +328,35 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
  Remove-Item -LiteralPath $junction -Force
  if(Test-Path -LiteralPath $junction) {throw 'J10D_JUNCTION_NOT_REMOVED'}
  Strict 'sc.exe' @('config',$nameC,'binPath=',$cmdConsumer) | Out-Null
+ # ADMIN-INJECTED ACL DRIFT: accidentally grant the shared LocalService
+ # account Modify on the nonce ledger. The Service SID-specific consumer
+ # must refuse despite a valid RSA ticket and correct signed SID.
+ Strict 'icacls.exe' @($consumerLedger,'/grant','*S-1-5-19:(OI)(CI)M') | Out-Null
+ $extraAcl=@((Get-Acl -LiteralPath $consumerLedger).Access | ForEach-Object {
+    $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+ })
+ if('S-1-5-19' -notin $extraAcl) {throw 'J10D_ACL_DRIFT_NOT_INJECTED'}
+ Strict 'sc.exe' @('start',$nameC) | Out-Null
+ (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
+ Configure $nameA 'replay' $reportAclDrift $requestValid $outputSigned
+ Strict 'sc.exe' @('start',$nameA) | Out-Null
+ $aclProof=AwaitProof $reportAclDrift
+ if($aclProof -notmatch 'service_sid_in_token=True' -or
+    $aclProof -notmatch 'pipe_response=DENY_J10D_LEDGER_INVALID' -or
+    @(Get-ChildItem -LiteralPath $consumerLedger -Filter '*.nonce' -File).Count -ne 1) {
+    throw ('J10D_ACL_DRIFT_REPLAY_BYPASS '+$aclProof)
+ }
+ Write-Output 'J10D_DIRECT_WRONG_LEDGER_ACL_FAIL_CLOSED_PASS'
+ Strict 'sc.exe' @('stop',$nameA) | Out-Null
+ Strict 'sc.exe' @('stop',$nameC) | Out-Null
+ (Get-Service $nameC).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(15))
+ Protect $consumerLedger $consumerSid 'Modify' $true
+ $restored=@((Get-Acl -LiteralPath $consumerLedger).Access | ForEach-Object {
+    $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+ })
+ if('S-1-5-19' -in $restored -or $restored.Count -ne 3) {
+    throw 'J10D_ACL_REPAIR_FAILED'
+ }
  # Restore the authentic NTFS ledger and replay after consumer SCM restart.
  Strict 'sc.exe' @('start',$nameC) | Out-Null
  (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
