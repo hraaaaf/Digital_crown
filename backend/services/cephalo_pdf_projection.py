@@ -119,6 +119,7 @@ def build_cephalo_pdf_projection(
         "contract_version": CEPHALO_PDF_PROJECTION_VERSION,
         "patient_id": patient_id,
         "analysis_id": analysis_id,
+        "analysis_revision": graph_payload.get("revision") if typed_projection_verified else None,
         "document_state": "COMPLETE" if is_complete else "INCOMPLETE",
         "authority": "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO",
         "active_runtime_chain_verified": active_runtime_chain_verified,
