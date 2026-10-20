@@ -20,6 +20,9 @@ export interface DashboardStats {
 export interface DashboardAppointment {
   id: number;
   start_time: string;
+  /** Canonical FastAPI AppointmentOut local Cabinet wall clock. */
+  datetime_start?: string;
+  patient_name?: string | null;
   status: string;
   description?: string | null;
   patient_id?: number | null;
