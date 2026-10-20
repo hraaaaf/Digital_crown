@@ -56,6 +56,43 @@ internal sealed class J10DPipeConsumer : ServiceBase {
         } catch(Exception) {return false;}
         return matched;
     }
+    // Laboratory guard: reject reparse points at the pin, ledger or ANY
+    // ancestor. This is pathname validation, NOT a handle-anchored NTFS
+    // TOCTOU or protection against an Administrator with WRITE_DAC.
+    static bool PlainPath(string path,bool directory) {
+        string full=Path.GetFullPath(path);
+        if(!directory &&
+           (File.GetAttributes(full) & FileAttributes.ReparsePoint)!=0) return false;
+        string cursor=directory ? full : Path.GetDirectoryName(full);
+        while(!string.IsNullOrEmpty(cursor)) {
+            FileAttributes attrs=File.GetAttributes(cursor);
+            if((attrs & FileAttributes.Directory)==0 ||
+               (attrs & FileAttributes.ReparsePoint)!=0) return false;
+            string parent=Path.GetDirectoryName(cursor.TrimEnd(
+                Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar));
+            if(string.IsNullOrEmpty(parent) || parent==cursor) break;
+            cursor=parent;
+        }
+        return true;
+    }
+    // The consumer's own SID, SYSTEM and Administrators are the *only*
+    // direct allow ACE identities. Admin remains explicitly in the threat
+    // model of the laboratory fixture, not an independently trusted root.
+    static bool ExactConsumerAcl(FileSystemSecurity security,string consumerSid) {
+        if(!security.AreAccessRulesProtected) return false;
+        var accepted=new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+            consumerSid,"S-1-5-18","S-1-5-32-544"
+        };
+        var found=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var rules=security.GetAccessRules(true,false,typeof(SecurityIdentifier));
+        foreach(AuthorizationRule item in rules) {
+            var rule=item as FileSystemAccessRule;
+            if(rule==null || rule.AccessControlType!=AccessControlType.Allow ||
+               !accepted.Contains(rule.IdentityReference.Value) ||
+               !found.Add(rule.IdentityReference.Value)) return false;
+        }
+        return found.SetEquals(accepted);
+    }
     bool Verify(string json,out string nonce) {
         nonce="";
         if(json.Length>2048 || json.Length<1) return false;
@@ -79,6 +116,10 @@ internal sealed class J10DPipeConsumer : ServiceBase {
         if(!long.TryParse(expire,out expiry) || expiry.ToString()!=expire) return false;
         long now=DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         if(expiry<=now || expiry>now+90) return false;
+        // A J10C signature with an attacker-substituted public pin does not
+        // establish publisher provenance. Enforce only SCM fixture ACL here.
+        if(!PlainPath(a[4],false) ||
+           !ExactConsumerAcl(File.GetAccessControl(a[4]),a[3])) return false;
         var lines=File.ReadAllLines(a[4],Encoding.ASCII);
         if(lines.Length!=3 || lines[2]!=a[6]) return false;
         byte[] mod=Convert.FromBase64String(lines[0]);
@@ -98,7 +139,8 @@ internal sealed class J10DPipeConsumer : ServiceBase {
             string nonce="";
             if(!Verify(json,out nonce)) return Deny("SIGNATURE_OR_SCOPE");
             var folder=new DirectoryInfo(a[5]);
-            if(!folder.Exists || (folder.Attributes & FileAttributes.ReparsePoint)!=0)
+            if(!folder.Exists || !PlainPath(a[5],true) ||
+               !ExactConsumerAcl(Directory.GetAccessControl(a[5]),a[3]))
                 return Deny("LEDGER_INVALID");
             string path=Path.Combine(a[5],nonce+".nonce");
             try {
