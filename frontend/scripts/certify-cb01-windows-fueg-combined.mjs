@@ -338,9 +338,35 @@ try {
   await nativeZoom(zoomWorker,2);
   const at200=await inspectZoomLayout(page);
   report.zoomMeasurements={at100,at200};
-  await page.locator('[data-ux1-c-crownbot-overlay]').waitFor({state:'visible',timeout:30000});
+  const floatingPanel=page.locator('[data-ux1-c-crownbot-overlay]');
+  await floatingPanel.waitFor({state:'visible',timeout:30000});
   if(await page.locator('[data-cb01-associate-sidecar]').count())
     throw Error('FAIL: native 200% retained desktop sidecar instead of responsive overlay');
+  // BEFORE this fix the 600px-tall fixed popup sat above a 450px viewport,
+  // and the focused Chat tab was physically offscreen at top=-192px. Native
+  // zoom is not accessible merely because an element is DOM-visible.
+  const popupGeometry=await floatingPanel.evaluate(el=>{
+    const box=el.getBoundingClientRect();
+    return {top:box.top,bottom:box.bottom,height:box.height,
+      viewportHeight:window.innerHeight};
+  });
+  report.zoomMeasurements.floatingPanelAt200=popupGeometry;
+  if(popupGeometry.top<4 || popupGeometry.bottom>popupGeometry.viewportHeight-4)
+    throw Error('NOT_CERTIFIED: CB-01 floating assistant escaped native 200% viewport; '+
+      JSON.stringify(popupGeometry));
+  const bounds=await Promise.all([
+    panel.getByRole('tab',{name:'Chat',exact:true}),
+    panel.getByRole('tab',{name:/Mémoire contextuelle/}),
+    ...['Mon programme','Trouver un patient','Préparer un RDV']
+      .map(label=>panel.getByRole('button',{name:label,exact:true})),
+  ].map(async control=>control.evaluate(el=>{
+    const r=el.getBoundingClientRect();
+    return {top:r.top,bottom:r.bottom,viewportHeight:window.innerHeight};
+  })));
+  report.zoomMeasurements.controlBoundsAt200=bounds;
+  if(bounds.some(r=>r.top<0||r.bottom>r.viewportHeight||r.bottom<=r.top))
+    throw Error('NOT_CERTIFIED: required screen-reader controls outside native 200% viewport; '+
+      JSON.stringify(bounds));
   if (!(at200.innerWidth<at100.innerWidth && at200.innerWidth<=Math.ceil(at100.innerWidth*0.6)
       && at200.devicePixelRatio>at100.devicePixelRatio
       && at200.scrollWidth<=at200.clientWidth+2))
