@@ -104,149 +104,19 @@ jobs:
           }
           $db = Join-Path $env:GITHUB_WORKSPACE 't2-runtime-cert.db'
           if (Test-Path $db) { throw 'REFUSED: cannot attest pre-existing database' }
-          # The same canonical target identity as backend.core.runtime_safety.
-          # Hash has no secret, but never publish or manipulate SQLCipher key.
           $fingerprint = (python -c "from backend.core.runtime_safety import database_target_fingerprint; print(database_target_fingerprint('sqlite:///./t2-runtime-cert.db'))").Trim()
-          if ($LASTEXITCODE -ne 0 -or $fingerprint -notmatch '^[0-9a-f]{64}
-          $stdout = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stdout.log'
-          $stderr = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stderr.log'
-          $python = (Get-Command python).Source
-          $server = Start-Process -FilePath $python -ArgumentList 'scripts/t2_runtime_server.py' -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden
-          "CB01_FUEG_FASTAPI_PID=$($server.Id)" >> $env:GITHUB_ENV
-          $ready = $false
-          for ($i=0; $i -lt 120; $i++) {
-            if ($server.HasExited) { break }
-            try {
-              $health = Invoke-WebRequest -Uri 'http://127.0.0.1:8005/health' -UseBasicParsing -TimeoutSec 2
-              if ($health.StatusCode -eq 200) { $ready = $true; break }
-            } catch {}
-            Start-Sleep -Seconds 2
-          }
-          if (-not $ready) {
-            Get-Content $stderr -Tail 40 -ErrorAction SilentlyContinue
-            throw 'FAIL: isolated Windows FastAPI did not start'
-          }
-          Write-Output 'CB01_WINDOWS_FUEG_REAL_FASTAPI: READY at loopback'
-      - name: Seed S05 S06 tenant-scoped staff and baseline all synthetic clinical tables
-        shell: pwsh
-        run: |
-          python scripts/ci/cb01_windows_fueg_fixture.py before
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: FUE-G — same headed tab real MainLayout FastAPI NVDA and native zoom
-        working-directory: frontend
-        shell: pwsh
-        run: |
-          node scripts/certify-cb01-windows-fueg-combined.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Fail-closed clinical persistence comparison across all synthetic tables
-        shell: pwsh
-        run: |
-          python scripts/ci/cb01_windows_fueg_fixture.py after
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Verify joint full-stack NVDA zoom FUE evidence on exact HEAD
-        shell: pwsh
-        run: |
-          $root = 'artifacts/cb01-windows-fueg-combined'
-          $report = Get-Content "$root/report.json" -Raw | ConvertFrom-Json
-          $db = Get-Content "$root/clinical-final-state.json" -Raw | ConvertFrom-Json
-          if ($report.sourceHead -ne $env:CB01_SOURCE_HEAD -or $db.sourceHead -ne $env:CB01_SOURCE_HEAD) { throw 'FAIL: source SHA mismatch' }
-          if ($report.error -or $report.simultaneousPass -ne $true -or $report.actualClinicalBackend -ne 'REAL_LOCAL_FASTAPI_SYNTHETIC_DB') { throw 'FAIL: joint real backend + NVDA proof missing' }
-          if ($report.nativeZoomAtSpeech -ne 'PASS_VERIFIED_GETZOOM_2' -or [math]::Abs($report.zoomAfterFUE.observed - 2) -gt 0.01) { throw 'FAIL: native zoom not maintained through FUE-G' }
-          if ($report.roleProof.s06 -ne 'PASS_REAL_HTTP_403_NO_PATIENT' -or $report.roleProof.s05 -ne 'PASS_REAL_HTTP_200_PREVIEW_ONLY') { throw 'FAIL: actual role isolation not proven' }
-          if ($report.firstValue.status -ne 'PASS_REAL_FASTAPI_PROPOSAL_ONLY_VISIBLE_AT_NATIVE_200' -or $report.firstValue.clicks -ne 8 -or $report.firstValue.typedAnswers -ne 6) { throw 'FAIL: FUE First Value not proven' }
-          if (@($report.clinicalWritesAttempted).Count -ne 0 -or $db.status -ne 'PASS_CLINICAL_FINAL_STATE_UNCHANGED' -or @($db.clinicalTablesChanged).Count -ne 0 -or $db.tablesChecked -lt 20) { throw 'FAIL: clinical mutation detected or baseline unavailable' }
-          "### CB-01 Windows FUE-G: PASS on exact HEAD $env:CB01_SOURCE_HEAD" >> $env:GITHUB_STEP_SUMMARY
-          'Full MainLayout + real FastAPI + native 200% zoom + real NVDA speech: automated synthetic runner only, no human cabinet validation.' >> $env:GITHUB_STEP_SUMMARY
-      - name: Record failed runtime diagnostics without credentials
-        if: failure()
-        shell: pwsh
-        run: |
-          $stderr = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stderr.log'
-          if (Test-Path $stderr) { Get-Content $stderr -Tail 35 }
-      - name: Upload Windows combined FUE-G evidence including failures
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cb01-windows-fueg-real-fastapi-nvda-zoom
-          path: artifacts/cb01-windows-fueg-combined
-          if-no-files-found: warn
-          retention-days: 14
-) {
+          if ($LASTEXITCODE -ne 0 -or $fingerprint -notmatch '^[0-9a-f]{64}$') {
             throw 'REFUSED: canonical SQLCipher T2 target attestation failed'
           }
           "DIGITALCROWN_ISOLATION_DB_FINGERPRINT=$fingerprint" >> $env:GITHUB_ENV
-          'T2 target attested using the production canonicalizer; backend fail-closed policy retained.' >> $env:GITHUB_STEP_SUMMARY
+          'T2 target attested with the canonical backend fingerprint; startup guard unchanged.' >> $env:GITHUB_STEP_SUMMARY
       - name: Start genuine FastAPI with disposable T2 database on localhost
         shell: pwsh
         run: |
           $db = Join-Path $env:GITHUB_WORKSPACE 't2-runtime-cert.db'
           if (Test-Path $db) { throw 'REFUSED: unexpected preexisting T2 DB on runner' }
-          if ($env:DIGITALCROWN_ISOLATION_DB_FINGERPRINT -notmatch '^[0-9a-f]{64}
-          $stdout = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stdout.log'
-          $stderr = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stderr.log'
-          $python = (Get-Command python).Source
-          $server = Start-Process -FilePath $python -ArgumentList 'scripts/t2_runtime_server.py' -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden
-          "CB01_FUEG_FASTAPI_PID=$($server.Id)" >> $env:GITHUB_ENV
-          $ready = $false
-          for ($i=0; $i -lt 120; $i++) {
-            if ($server.HasExited) { break }
-            try {
-              $health = Invoke-WebRequest -Uri 'http://127.0.0.1:8005/health' -UseBasicParsing -TimeoutSec 2
-              if ($health.StatusCode -eq 200) { $ready = $true; break }
-            } catch {}
-            Start-Sleep -Seconds 2
-          }
-          if (-not $ready) {
-            Get-Content $stderr -Tail 40 -ErrorAction SilentlyContinue
-            throw 'FAIL: isolated Windows FastAPI did not start'
-          }
-          Write-Output 'CB01_WINDOWS_FUEG_REAL_FASTAPI: READY at loopback'
-      - name: Seed S05 S06 tenant-scoped staff and baseline all synthetic clinical tables
-        shell: pwsh
-        run: |
-          python scripts/ci/cb01_windows_fueg_fixture.py before
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: FUE-G — same headed tab real MainLayout FastAPI NVDA and native zoom
-        working-directory: frontend
-        shell: pwsh
-        run: |
-          node scripts/certify-cb01-windows-fueg-combined.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Fail-closed clinical persistence comparison across all synthetic tables
-        shell: pwsh
-        run: |
-          python scripts/ci/cb01_windows_fueg_fixture.py after
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Verify joint full-stack NVDA zoom FUE evidence on exact HEAD
-        shell: pwsh
-        run: |
-          $root = 'artifacts/cb01-windows-fueg-combined'
-          $report = Get-Content "$root/report.json" -Raw | ConvertFrom-Json
-          $db = Get-Content "$root/clinical-final-state.json" -Raw | ConvertFrom-Json
-          if ($report.sourceHead -ne $env:CB01_SOURCE_HEAD -or $db.sourceHead -ne $env:CB01_SOURCE_HEAD) { throw 'FAIL: source SHA mismatch' }
-          if ($report.error -or $report.simultaneousPass -ne $true -or $report.actualClinicalBackend -ne 'REAL_LOCAL_FASTAPI_SYNTHETIC_DB') { throw 'FAIL: joint real backend + NVDA proof missing' }
-          if ($report.nativeZoomAtSpeech -ne 'PASS_VERIFIED_GETZOOM_2' -or [math]::Abs($report.zoomAfterFUE.observed - 2) -gt 0.01) { throw 'FAIL: native zoom not maintained through FUE-G' }
-          if ($report.roleProof.s06 -ne 'PASS_REAL_HTTP_403_NO_PATIENT' -or $report.roleProof.s05 -ne 'PASS_REAL_HTTP_200_PREVIEW_ONLY') { throw 'FAIL: actual role isolation not proven' }
-          if ($report.firstValue.status -ne 'PASS_REAL_FASTAPI_PROPOSAL_ONLY_VISIBLE_AT_NATIVE_200' -or $report.firstValue.clicks -ne 8 -or $report.firstValue.typedAnswers -ne 6) { throw 'FAIL: FUE First Value not proven' }
-          if (@($report.clinicalWritesAttempted).Count -ne 0 -or $db.status -ne 'PASS_CLINICAL_FINAL_STATE_UNCHANGED' -or @($db.clinicalTablesChanged).Count -ne 0 -or $db.tablesChecked -lt 20) { throw 'FAIL: clinical mutation detected or baseline unavailable' }
-          "### CB-01 Windows FUE-G: PASS on exact HEAD $env:CB01_SOURCE_HEAD" >> $env:GITHUB_STEP_SUMMARY
-          'Full MainLayout + real FastAPI + native 200% zoom + real NVDA speech: automated synthetic runner only, no human cabinet validation.' >> $env:GITHUB_STEP_SUMMARY
-      - name: Record failed runtime diagnostics without credentials
-        if: failure()
-        shell: pwsh
-        run: |
-          $stderr = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stderr.log'
-          if (Test-Path $stderr) { Get-Content $stderr -Tail 35 }
-      - name: Upload Windows combined FUE-G evidence including failures
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cb01-windows-fueg-real-fastapi-nvda-zoom
-          path: artifacts/cb01-windows-fueg-combined
-          if-no-files-found: warn
-          retention-days: 14
-) {
-            throw 'REFUSED: missing canonical isolated database identity'
+          if ($env:DIGITALCROWN_ISOLATION_DB_FINGERPRINT -notmatch '^[0-9a-f]{64}$') {
+            throw 'REFUSED: missing exact isolated database attestation'
           }
           $stdout = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stdout.log'
           $stderr = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stderr.log'
