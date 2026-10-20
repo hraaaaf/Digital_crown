@@ -70,8 +70,10 @@ class RealIssuerToVerifier(issuer_lab.ConnectedJ10C):
         direct_proof=direct_proc.stdout+"\\n"+direct_proc.stderr
         self.assertEqual(direct_proc.returncode,0,direct_proof[-8500:])
         for marker in (
+           "J10D_LAB_BINARIES_UNSIGNED_VENDOR_PROVENANCE_OPEN_NO_GO",
            "J10D_DIRECT_SCM_SIGNER_AND_CONSUMER_PRIVATE_ACLS_PASS",
            "J10D_J10C_ORIGINAL_SCM_SIGNER_DIRECT_AUTHENTICATED_PIPE_PASS",
+           "J10D_DIRECT_REAL_NTFS_JUNCTION_LEDGER_FAIL_CLOSED_PASS",
            "J10D_DIRECT_ORIGINAL_SCM_SIGNER_REPLAY_AFTER_CONSUMER_RESTART_DENIED_PASS",
            "J10D_DIRECT_SAME_ACCOUNT_SIDLESS_SIGNER_PIPE_DENIED_PASS",
            "J10D_DIRECT_NO_CLINICAL_APPLY_PASS"):
