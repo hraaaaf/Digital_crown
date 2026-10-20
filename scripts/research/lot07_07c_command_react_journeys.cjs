@@ -1,0 +1,203 @@
+// LOT07/07-C R4: isolated synthetic user journeys, never Cabinet E2E.
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const {createRequire}=require('node:module');
+const {chromium}=createRequire(path.join(process.env.PLAYWRIGHT_LIB||'/tmp/lot07-07c-playwright','package.json'))('playwright');
+const out=path.resolve('artifacts/lot07-07c-command-react');
+fs.mkdirSync(out,{recursive:true});
+const cases=[],screens=[];
+async function check(page,label,predicate){
+ const ok=await predicate();
+ cases.push({label,pass:!!ok});
+ if(!ok)throw Error('R4_JOURNEY_FAILED: '+label);
+}
+async function snap(page,name){
+ const file=path.join(out,name+'.png');
+ await page.evaluate(()=>window.scrollTo(0,0));
+ const style=await page.addStyleTag({content:'@media(max-width:767px){.cmd-mobile-context{position:relative!important;top:auto!important}}'});
+ try{await page.screenshot({path:file,fullPage:true,animations:'disabled'});}
+ finally{await style.evaluate(e=>e.remove());}
+ screens.push({name:path.basename(file),sha256:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')});
+}
+(async()=>{
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ try{
+  for(const width of [1440,430,390]){
+   const context=await browser.newContext({viewport:{width,height:950},reducedMotion:'reduce'});
+   const page=await context.newPage();
+   const forbidden=[];
+   page.on('request',request=>{if(new URL(request.url()).pathname.startsWith('/api/'))forbidden.push(request.url())});
+   await page.goto('http://127.0.0.1:5193/command-target.html',{waitUntil:'networkidle'});
+   await check(page,'J1 initial context '+width,async()=>
+    await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
+    &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
+    &&(await page.locator('.cmd-patienthero').innerText()).includes('09:00'));
+   if(width<500){
+     await check(page,'R4d sticky active patient identity initialized '+width,async()=>
+       await page.locator('.cmd-mobile-context').isVisible()
+       &&await page.locator('.cmd-mobile-context').getAttribute('data-patient-id')==='TEST-001'
+       &&await page.locator('.cmd-mobile-context').getAttribute('data-appointment-id')==='APT-TEST-001');
+     await page.evaluate(()=>window.scrollTo(0,900));
+     await page.waitForFunction(()=>window.scrollY>500);
+     await check(page,'R4d patient context remains sticky during mobile scrolling '+width,async()=>await page.locator('.cmd-mobile-context').evaluate(el=>{
+       const r=el.getBoundingClientRect();return Math.abs(r.top)<3&&r.width>300;
+     }));
+     await page.getByRole('button',{name:'Revenir au dossier de Patient TEST-001'}).click();
+     await check(page,'R4d dossier shortcut focuses current patient '+width,async()=>await page.evaluate(()=>
+       document.activeElement?.tagName==='H2'&&document.activeElement?.textContent?.includes('TEST-001')));
+   }
+   await check(page,'R4b appointment identity differs from patient identity '+width,async()=>{
+     const appt=page.locator('.cmd-appt[data-appointment-id="APT-TEST-018"]');
+     return await appt.getAttribute('data-patient-id')==='TEST-001'
+       &&(await appt.textContent()).includes('Patient TEST-001')
+       &&(await appt.textContent()).includes('RDV TEST-018')
+       &&(await appt.getAttribute('aria-label')).includes('rendez-vous TEST-018');
+   });
+   if(width<500){
+     await check(page,'R4b mobile typography legible '+width,async()=>await page.evaluate(()=>{
+       const size=selector=>parseFloat(getComputedStyle(document.querySelector(selector)).fontSize);
+       return size('.cmd-appt strong')>=12&&size('.cmd-tabs button')>=12&&size('.cmd-cardhead h3')>=14
+        &&size('.cmd-patientintro>p:not(.cmd-patienteyebrow)')>=12;
+     }));
+   }
+   if(width===1440){
+    await check(page,'Two distinct identifiers present',async()=>await page.locator('.cmd-shell').getAttribute('data-active-appointment-id')==='APT-TEST-001');
+    await check(page,'J1 initial counters tied to mock status',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil'));
+    await page.getByRole('button',{name:'Mettre en pause'}).click();
+    await check(page,'J1 mock pause status',async()=> (await page.locator('.cmd-patienthero').innerText()).includes('En pause')
+      &&(await page.locator('.cmd-appt[data-appointment-id="APT-TEST-001"]').getAttribute('class')).includes('cmd-appt-paused'));
+    await check(page,'J1 paused room remains occupied',async()=>(await page.locator('.cmd-chips').innerText()).includes('1 au fauteuil')&&await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='2');
+    await check(page,'R4b paused patient stays physically seated',async()=>await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='seated'
+      &&(await page.locator('.cmd-patienteyebrow').innerText()).includes('AU FAUTEUIL'));
+    await page.getByRole('button',{name:'Reprendre (simulation)'}).click();
+    await check(page,'J1 mock resume',async()=>(await page.locator('.cmd-patienthero').innerText()).includes('En cours'));
+   }
+   if(width<500)await page.getByRole('button',{name:'Agenda Dr A'}).click();
+   await page.getByRole('button',{name:'Patient suivant (même praticien)'}).click();
+   if(width===1440)await check(page,'J2 keyboard focus to confirmation',async()=>
+      (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Confirmer le changement de patient'));
+   if(width===1440){
+      const modal=page.getByRole('alertdialog');
+      await check(page,'J2 aria modal labeling',async()=>await modal.getAttribute('aria-modal')==='true'&&!!(await modal.getAttribute('aria-labelledby')));
+      await page.keyboard.press('Shift+Tab');
+      await check(page,'J2 modal backwards focus wrap',async()=> (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Annuler le changement'));
+      await page.keyboard.press('Tab');
+      await check(page,'J2 modal forwards focus wrap',async()=> (await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Confirmer le changement de patient'));
+      await check(page,'J2 dialog makes background inert',async()=>await page.locator('.cmd-workbench').evaluate(el=>el.inert));
+      await page.keyboard.press('Escape');
+      await check(page,'J2 escape cancels without switching',async()=>await modal.count()===0&&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
+      await page.waitForFunction(()=>document.activeElement?.textContent?.includes('Patient suivant (même praticien)'));
+      await check(page,'J2 cancel restores focus and interactivity',async()=>
+        !(await page.locator('.cmd-workbench').evaluate(el=>el.inert))
+        &&(await page.evaluate(()=>document.activeElement?.textContent||'')).includes('Patient suivant (même praticien)'));
+      await page.getByRole('button',{name:'Patient suivant (même praticien)'}).click();
+   }
+   if(width<500)await check(page,'R4d modal disables sticky patient shortcut '+width,async()=>
+      await page.locator('.cmd-mobile-context').evaluate(el=>el.inert));
+   await check(page,'J2 explicit confirmation and no early switch '+width,async()=>
+      (await page.getByRole('alertdialog').innerText()).includes('TEST-007')
+      &&await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001');
+   await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+   if(width<500)await check(page,'R4d mobile shortcut restored after modal closes '+width,async()=>
+      !(await page.locator('.cmd-mobile-context').evaluate(el=>el.inert)));
+   if(width<500)await check(page,'R4d mobile context updates atomically on patient switch '+width,async()=>
+      await page.locator('.cmd-mobile-context').getAttribute('data-patient-id')==='TEST-007'
+      &&await page.locator('.cmd-mobile-context').getAttribute('data-appointment-id')==='APT-TEST-007'
+      &&(await page.locator('.cmd-mobile-context').innerText()).includes('RDV TEST-007'));
+   await check(page,'J2 Dr A 10:00 and bound context '+width,async()=>
+      await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-007'
+      &&await page.locator('.cmd-right').getAttribute('data-patient-id')==='TEST-007'
+      &&(await page.locator('.cmd-patienthero').innerText()).includes('Dr A')
+      &&(await page.locator('.cmd-patienthero').innerText()).includes('10:00')
+      &&!(await page.locator('.cmd-right').innerText()).includes('TEST-001'));
+   await check(page,'R4b waiting patient is not wrongly seated '+width,async()=>await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='planned-occupied'
+      &&(await page.locator('.cmd-patienteyebrow').innerText()).includes('PRÉVUE · OCCUPÉE')
+      &&(await page.locator('.cmd-patienthero').innerText()).includes('occupée par un autre rendez-vous'));
+   if(width===1440)await check(page,'J2 excludes urgent and non-arrived next',async()=>
+      await page.getByRole('button',{name:'Patient suivant (même praticien)'}).isDisabled()
+      &&!(await page.locator('.cmd-card').filter({hasText:'File d’attente'}).innerText()).includes('TEST-URG')
+      &&await page.locator('.cmd-shell').getAttribute('data-occupied-rooms')==='1');
+   await page.getByRole('button',{name:'Agenda',exact:true}).click();
+   await check(page,'R4c sidebar Agenda preserves active patient and opens real 15-min calendar '+width,async()=>
+      await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-007'
+      &&await page.locator('.cmd-placeholder').count()===0
+      &&await page.locator('.cmd-appt').count()===21
+      &&await page.getByRole('button',{name:'Agenda',exact:true}).getAttribute('aria-current')==='page'
+      &&await page.evaluate(()=>document.activeElement?.id)==='cmd-agenda');
+   await check(page,'R4c Week and List honest construction '+width,async()=>{
+      const week=page.getByRole('button',{name:'Semaine — en construction'});
+      const list=page.getByRole('button',{name:'Liste — en construction'});
+      return await week.isDisabled()&&await list.isDisabled()
+        &&await week.getAttribute('aria-pressed')==='false'
+        &&await list.getAttribute('aria-pressed')==='false'
+        &&await page.getByRole('button',{name:'Jour — vue disponible'}).getAttribute('aria-pressed')==='true';
+   });
+   await page.getByRole('tab',{name:'Dossier',exact:true}).click();
+   await check(page,'J3 patient B dossier panels '+width,async()=>
+      await page.locator('.cmd-cards > .cmd-card:visible').count()===3
+      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-007');
+   await page.getByRole('tab',{name:'Odontogramme',exact:true}).click();
+   await page.getByRole('tab',{name:'Odontogramme',exact:true}).focus();
+   await page.keyboard.press('ArrowRight');
+   await check(page,'J3 keyboard tab Imagerie '+width,async()=>
+      await page.getByRole('tab',{name:'Imagerie',exact:true}).getAttribute('aria-selected')==='true'
+      &&await page.locator('.cmd-cards > .cmd-card:visible').count()===1
+      &&(await page.locator('.cmd-cards').innerText()).includes('Aucun média pour TEST-007'));
+   await snap(page,'r4-imagerie-test007-'+width);
+   await page.keyboard.press('End');
+   await check(page,'J3 End goes to last tab '+width,async()=>await page.getByRole('tab',{name:'Facturation',exact:true}).getAttribute('aria-selected')==='true'
+      &&(await page.locator('.cmd-cards').innerText()).includes('Aucune transaction pour Patient TEST-007'));
+   await page.keyboard.press('Home');
+   await check(page,'J3 Home returns to overview '+width,async()=>await page.getByRole('tab',{name:'Vue d’ensemble',exact:true}).getAttribute('aria-selected')==='true'
+      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-007');
+   await page.getByRole('tab',{name:'Dossier',exact:true}).click();
+   await check(page,'J3 return same dossier '+width,async()=>
+      await page.locator('.cmd-cards > .cmd-card:visible').count()===3
+      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-007');
+   if(width<500)await page.getByRole('button',{name:'Agenda Dr A'}).click();
+   await page.locator('.cmd-appt[data-appointment-id="APT-TEST-001"]').click();
+   await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+   await check(page,'J2 A-B-A return no previous patient leakage '+width,async()=>
+      await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
+      &&await page.locator('.cmd-cards').getAttribute('data-patient-id')==='TEST-001'
+      &&!(await page.locator('.cmd-patienthero').innerText()).includes('TEST-007')
+      &&(await page.locator('.cmd-cards > .cmd-card').nth(4).textContent()).includes('TEST-001'));
+   if(width===1440){
+     await page.getByRole('button',{name:'Terminer le RDV (simulation)'}).click();
+     await check(page,'J1 mock finish disables clinical-action affordance',async()=> 
+       (await page.locator('.cmd-patienthero').innerText()).includes('Terminé')
+       &&!(await page.getByRole('button',{name:'Mettre en pause'}).isEnabled()));
+     await check(page,'J1 terminal appointment cannot be resumed or ended again',async()=>
+       await page.getByRole('button',{name:'Terminer le RDV (simulation)'}).isDisabled()
+       &&await page.getByRole('button',{name:'Patient suivant (même praticien)'}).isEnabled());
+     await check(page,'J1 finish releases room assignment',async()=>await page.locator('.cmd-shell').getAttribute('data-free-rooms')==='3');
+     await snap(page,'r4-consultation-finished-test001-1440');
+     await page.locator('.cmd-appt').filter({hasText:'TEST-007'}).click();
+     await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+     await check(page,'R4b waiting patient sees available planned room',async()=>await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='planned-free'
+       &&(await page.locator('.cmd-patienteyebrow').innerText()).includes('PRÉVUE · LIBRE'));
+
+     await check(page,'J1 arrived waiting can start after room released',async()=>await page.getByRole('button',{name:'Démarrer la consultation (simulation)'}).isEnabled());
+     await page.getByRole('button',{name:'Démarrer la consultation (simulation)'}).click();
+     await check(page,'J1 start occupies room only in demo',async()=>await page.locator('.cmd-shell').getAttribute('data-occupied-rooms')==='1'
+       &&(await page.locator('.cmd-patienthero').innerText()).includes('En cours'));
+     await page.locator('.cmd-appt').filter({hasText:'TEST-018'}).click();
+     await page.getByRole('button',{name:'Confirmer le changement de patient'}).click();
+     await check(page,'One patient with distinct appointments',async()=>
+        await page.locator('.cmd-shell').getAttribute('data-active-patient-id')==='TEST-001'
+        &&await page.locator('.cmd-shell').getAttribute('data-active-appointment-id')==='APT-TEST-018'
+        &&(await page.locator('.cmd-patienthero').innerText()).includes('16:00'));
+     await check(page,'R4b same patient new RDV is labeled by true ref',async()=>{
+       const hero=await page.locator('.cmd-patienthero').innerText();
+       return hero.includes('RDV TEST-018')&&hero.includes('Patient TEST-001')
+         &&await page.locator('.cmd-patienteyebrow').getAttribute('data-room-state')==='planned-occupied';
+     });
+     await snap(page,'r4b-repeat-patient-test001-rdv-test018-1440');
+   }
+   await check(page,'No Cabinet API requests '+width,async()=>forbidden.length===0);
+   await context.close();
+  }
+ }finally{await browser.close()}
+ const result={source:'LOT07_07C_ISOLATED_SYNTHETIC_R4',pass:cases.every(x=>x.pass),cases,screens,realCabinet:false,patientRbacTested:false};
+ fs.writeFileSync(path.join(out,'journeys-r4.json'),JSON.stringify(result,null,2)+'\n');
+ console.log('R4_SYNTHETIC_JOURNEYS '+JSON.stringify({pass:result.pass,checks:cases.length,screens:screens.length}));
+})().catch(error=>{console.error(String(error.stack||error));process.exitCode=1});

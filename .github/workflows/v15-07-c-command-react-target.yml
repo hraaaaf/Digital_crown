@@ -1,0 +1,166 @@
+name: LOT07 07-C Command React isolated visual target
+# 07-C merge reconciliation: recapture exact HEAD after preserving master visual-gate security.
+on:
+  push:
+    branches:
+      - 'research/lot07-07c-command-react-isolated-*'
+    paths:
+      - 'frontend/command-target.html'
+      - 'frontend/vite.command-target.config.mts'
+      - 'frontend/src/features/command/command-react-target*'
+      - 'scripts/research/lot07_07c_command_react_*'
+      - '.github/workflows/v15-07-c-command-react-target.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: command-react-target-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  command-react-synthetic-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SOURCE_HEAD: ${{ github.sha }}
+      PLAYWRIGHT_LIB: /tmp/lot07-07c-playwright
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Enforce exact SHA, no product routes, synthetic-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -f frontend/src/features/command/command-react-target.tsx
+          test -f frontend/src/assets/logo.png
+          test -f frontend/src/assets/logo-compact.png
+          test -f frontend/public/assets/odontogram/digital-crown-adult-reference-v3.svg
+          echo "SOURCE_HEAD=$SOURCE_HEAD"
+          echo "CABINET_INTEGRATION=false"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install official Frontend locked dependencies
+        run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Build isolated React/Vite entry only
+        shell: bash
+        run: |
+          cd frontend
+          npx vite build --config vite.command-target.config.mts
+          test -f dist-command-target/command-target.html
+      - name: Install ephemeral browser evidence runner
+        shell: bash
+        run: |
+          mkdir -p "$PLAYWRIGHT_LIB"
+          npm install --prefix "$PLAYWRIGHT_LIB" --no-audit --no-fund --no-save --ignore-scripts playwright@1.55.0
+          "$PLAYWRIGHT_LIB/node_modules/.bin/playwright" install --with-deps chromium
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq xvfb xdotool scrot >/dev/null
+      - name: Browser real React render — viewports, eight themes, logo and odontogram
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend
+          npx vite --config vite.command-target.config.mts --host 127.0.0.1 --port 5193 > /tmp/lot07-command-vite.log 2>&1 &
+          echo $! > /tmp/lot07-command-vite.pid
+          trap 'kill "$(cat /tmp/lot07-command-vite.pid)" || true' EXIT
+          for _ in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:5193/command-target.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5193/command-target.html >/dev/null
+          cd ..
+          node scripts/research/lot07_07c_command_react_visual.cjs
+          xvfb-run -a -s '-screen 0 1920x1200x24' node scripts/research/lot07_07c_command_react_zoom.cjs
+          test -s artifacts/lot07-07c-command-react/manifest.json
+          test -s artifacts/lot07-07c-command-react/native-zoom-result.json
+      - name: FUE-A/B isolated fresh browser contexts (synthetic laboratory only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend
+          npx vite --config vite.command-target.config.mts --host 127.0.0.1 --port 5193 > /tmp/lot07-fue-vite.log 2>&1 &
+          vite_pid=$!
+          trap 'kill "$vite_pid" || true' EXIT
+          for _ in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:5193/command-target.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5193/command-target.html >/dev/null
+          cd ..
+          node scripts/research/lot07_07c_command_react_fue.cjs
+          test -s artifacts/lot07-07c-command-react/fue/fue-report.json
+          node -e 'const r=require("./artifacts/lot07-07c-command-react/fue/fue-report.json");if(!r.pass||r.sourceHead!==process.env.SOURCE_HEAD||r.independentAgents!==false||r.realLogin!==false)process.exit(1)'
+
+      - name: Bind screenshots and FUE proof to exact source HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const crypto = require('node:crypto');
+          const assert = require('node:assert/strict');
+          const base = 'artifacts/lot07-07c-command-react';
+          const read = file => JSON.parse(fs.readFileSync(path.join(base,file),'utf8'));
+          const manifest = read('manifest.json');
+          const zoom = read('native-zoom-result.json');
+          const fue = read('fue/fue-report.json');
+          assert.match(process.env.SOURCE_HEAD, /^[0-9a-f]{40}$/);
+          assert.equal(manifest.pass, true);
+          assert.equal(manifest.source, 'REACT_VITE_ISOLATED_NO_APP_ROUTE');
+          assert.deepEqual(manifest.widths, [390,430,768,1280,1440]);
+          assert.equal(manifest.themes.length, 8);
+          assert.ok(manifest.snaps.length >= 15, 'Missing expected screenshots');
+          for (const shot of manifest.snaps) {
+            const file = path.join(base, shot.name);
+            const digest = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+            assert.equal(digest, shot.sha256, 'Screenshot digest mismatch: '+shot.name);
+          }
+          assert.equal(zoom.pass, true);
+          assert.equal(zoom.zoom200, true);
+          for (const name of ['command-react-1440-native-zoom200.png','command-react-1440-native-zoom200-x11.png']) {
+            assert.ok(fs.statSync(path.join(base,name)).size > 0, 'Missing real zoom image: '+name);
+          }
+          assert.equal(fue.pass, true);
+          assert.equal(fue.sourceHead, process.env.SOURCE_HEAD);
+          assert.equal(fue.realLogin, false);
+          assert.equal(fue.backend, false);
+          assert.equal(fue.humanApproval, false);
+          assert.equal(fue.independentAgents, false);
+          assert.ok(fue.checks.length >= 10 && fue.checks.every(x => x.pass), 'FUE assertions missing or failed');
+          for (const name of ['A-before','A-action-confirm','A-after','B-before','B-action-confirm','B-after']) {
+            assert.ok(fs.statSync(path.join(base,'fue',name+'.png')).size > 0, 'Missing synthetic FUE evidence: '+name);
+          }
+          const proof = {
+            sourceHead: process.env.SOURCE_HEAD, verified: true,
+            scope: 'STANDALONE_SYNTHETIC_ONLY_NOT_CABINET',
+            screenshots: manifest.snaps.length + 2 + 6,
+            firstUserChecks: fue.checks.length,
+            humanVisualApproval: false, realCabinetLogin: false
+          };
+          fs.writeFileSync(path.join(base,'exact-head-proof.json'),JSON.stringify(proof,null,2)+'\n');
+          console.log('LOT07_07C_EXACT_HEAD_EVIDENCE '+JSON.stringify(proof));
+          NODE
+
+      - name: Upload ONLY synthetic target screenshots and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-07c-command-react-synthetic-${{ env.SOURCE_HEAD }}
+          path: artifacts/lot07-07c-command-react/
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Explicit evidence limitation
+        if: always()
+        run: |
+          echo "SYNTHETIC_ONLY=true"
+          echo "REAL_CABINET_AFTER_TESTED=false"
+          echo "PATIENT_RBAC_TESTED=false"
+          echo "FUE_A_B_BROWSER_LAB_ONLY=true"
+          echo "TWO_INDEPENDENT_BLIND_AI_AGENTS=false"
+          echo "HUMAN_VISUAL_APPROVAL=false"
+          echo "NO_MERGE_NO_VERCEL=true"

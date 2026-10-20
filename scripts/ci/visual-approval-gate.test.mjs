@@ -140,6 +140,22 @@ test('label DELETE 403 must fail closed: no fake successful revocation', async (
   assert.equal(f.state.labels.has(APPROVAL_LABEL), true);
 });
 
+test('DELETE 403 exposes only numeric HTTP status and remains fail closed', async () => {
+  const f = fixture({ deleteError: 403 });
+  await assert.rejects(f.run('synchronize'), error => {
+    assert.equal(error.message, 'Failed to revoke stale visual approval (HTTP 403)');
+    assert.doesNotMatch(error.message, /DELETE forbidden|Bearer|token/i);
+    return true;
+  });
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), true);
+});
+
+test('DELETE 500 exposes sanitized HTTP status and never approves', async () => {
+  const f = fixture({ deleteError: 500 });
+  await assert.rejects(f.run('synchronize'), /Failed to revoke stale visual approval \(HTTP 500\)/);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), true);
+});
+
 test('label DELETE success without actual removal fails closed', async () => {
   const f = fixture({ deleteNoop: true });
   await assert.rejects(f.run('synchronize'), /label still present/);
