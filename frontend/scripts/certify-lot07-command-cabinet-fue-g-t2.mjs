@@ -110,6 +110,19 @@ try {
   assert.equal(patientDetailGet.status, 403, 'Agenda-only user cannot fetch another patient appointment history');
   point('backend-patient-history-forbidden', { httpStatus: 403 });
 
+  // Conflicts are legitimate schedule metadata, never a route to recover a
+  // concealed patient's name/notes through a different HTTP error body.
+  const restrictedConflict = await authGET(restrictedToken,
+    '/api/appointments/check-conflicts?datetime_start='+
+      encodeURIComponent(ownerFixture.datetime_start)+
+      '&duration_minutes=30&praticien_id='+ownerFixture.praticien_id, cookies);
+  assert.ok([200, 409, 422].includes(restrictedConflict.status),
+    'Agenda-only schedule availability must not produce an unhandled error');
+  assert.ok(!/T2 COMMAND SYNTHETIC|T2_PRIVATE_MOTIF_CANARY|T2_PRIVATE_NOTE_CANARY|0600000000/
+    .test(JSON.stringify(restrictedConflict.body)),
+    'Conflict response must not disclose synthetic patient identity or free text');
+  point('backend-conflict-identity-not-leaked', { httpStatus: restrictedConflict.status });
+
   const deniedToken = await loginToken(actorEmail.denied);
   const deniedGet = await authGET(deniedToken, appointmentPath, cookies);
   assert.equal(deniedGet.status, 403, 'Staff without Agenda permission must be denied by backend');
