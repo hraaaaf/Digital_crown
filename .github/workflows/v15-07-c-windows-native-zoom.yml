@@ -10,6 +10,9 @@ on:
       - 'frontend/src/components/Layout/MainLayout.tsx'
       - 'frontend/scripts/certify-lot07-windows-native-zoom.mjs'
       - '.github/workflows/v15-07-c-windows-native-zoom.yml'
+      - 'techdoubt.md'
+      - '.github/workflows/v15-07-c-command-cabinet-fue-g-t2.yml'
+      - '.github/workflows/v15-07-c-command-cabinet-readonly.yml'
   workflow_dispatch:
 permissions:
   contents: read
