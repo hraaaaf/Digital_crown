@@ -272,8 +272,22 @@ internal sealed class J10DPipeConsumer : ServiceBase {
             // Critical ordering: reparse/ACL checks -> no-follow OPEN DIRECTORY
             // -> create child RELATIVE TO THE SAME DIRECTORY HANDLE. A path
             // rename/swap after opening cannot redirect that child create.
-            using(SafeFileHandle directory=OpenLedgerHandle(a[5]))
+            using(SafeFileHandle directory=OpenLedgerHandle(a[5])) {
+                if(a.Length==13 && a[10]=="LOT05J10D_CI_RACE") {
+                    // ONLY a disposable test-executable branch: CI holds a
+                    // valid no-follow directory handle while its Administrator
+                    // renames the directory and replaces the visible path.
+                    // The handshake is not an authorization mechanism.
+                    File.WriteAllText(a[11],"HANDLE_OPEN",Encoding.ASCII);
+                    bool continued=false;
+                    for(int n=0;n<120;n++) {
+                        if(File.Exists(a[12])) {continued=true;break;}
+                        Thread.Sleep(100);
+                    }
+                    if(!continued) return Deny("LAB_RACE_TIMEOUT");
+                }
                 return BurnNonceRelative(directory,nonce);
+            }
         } catch(Exception) {return Deny("FAIL_CLOSED");}
     }
     void Listen() {
@@ -315,7 +329,9 @@ internal sealed class J10DPipeConsumer : ServiceBase {
         }
     }
     static int Main(string[] args) {
-        if(args.Length!=10 || args[0].Length==0 || args[1].Length==0 ||
+        if((args.Length!=10 && args.Length!=13) ||
+           (args.Length==13 && args[10]!="LOT05J10D_CI_RACE") ||
+           args[0].Length==0 || args[1].Length==0 ||
            !args[2].StartsWith("S-1-5-80-",StringComparison.Ordinal) ||
            !args[3].StartsWith("S-1-5-80-",StringComparison.Ordinal)) return 2;
         ServiceBase.Run(new J10DPipeConsumer(args));
