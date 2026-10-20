@@ -143,6 +143,16 @@ def already_archived_pdf(
         or hashlib.sha256(content).hexdigest() != row.file_hash
     ):
         raise HTTPException(status_code=409, detail="Intégrité du PDF archivé non vérifiée")
+    # A process could have died just after SQL COMMIT but before the
+    # journal cleanup. Only drop an exact identity/path/SHA matching journal.
+    from backend.services.cephalo_archive_recovery import clear_committed_official_journal
+    try:
+        clear_committed_official_journal(
+            root=root, patient_id=patient_id, analysis_id=analysis_id,
+            revision=revision, file_path=row.file_path, file_hash=row.file_hash,
+        )
+    except (OSError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail="Journal de récupération incompatible ou illisible") from exc
     return file_path, content
 
 
@@ -206,4 +216,13 @@ def verified_official_archive_bytes(row: models.DocumentArchive, db: Session) ->
         or hashlib.sha256(pdf).hexdigest() != row.file_hash
     ):
         raise HTTPException(status_code=409, detail="Intégrité de l'archive officielle non vérifiée")
+    from backend.services.cephalo_archive_recovery import clear_committed_official_journal
+    try:
+        clear_committed_official_journal(
+            root=root, patient_id=row.patient_id, analysis_id=row.analysis_id,
+            revision=row.clinical_data["cephalo_analysis_revision"],
+            file_path=row.file_path, file_hash=row.file_hash,
+        )
+    except (OSError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail="Journal de récupération incompatible ou illisible") from exc
     return pdf
