@@ -230,7 +230,7 @@ try {
   // NVDA reads the real operating system accessibility stack, which needs a
   // headed browser/window. Headless or Playwright's accessibility tree is NOT proof.
   browser=await chromium.launchPersistentContext(profilePath,{
-    channel:'chromium', headless:false, viewport:{width:1280,height:900},
+    channel:'chromium', headless:false, viewport:{width:1920,height:900},
     args:['--disable-extensions-except='+extensionPath,
       '--load-extension='+extensionPath,
       '--no-first-run','--disable-background-networking'],
@@ -270,6 +270,8 @@ try {
   await launcher.click();
   const panel=page.locator('[data-cb01-associate-sidecar], [data-ux1-c-crownbot-overlay]');
   await panel.waitFor({state:'visible',timeout:30000});
+  if(!await page.locator('[data-cb01-associate-sidecar]').isVisible())
+    throw Error('FAIL: native 100% desktop did not show the real B Sidecar');
   const chat=panel.getByRole('tab',{name:'Chat',exact:true});
   await chat.waitFor({state:'visible',timeout:20000});
   for(const label of ['Mon programme','Trouver un patient','Préparer un RDV'])
@@ -282,6 +284,9 @@ try {
   await nativeZoom(zoomWorker,2);
   const at200=await inspectZoomLayout(page);
   report.zoomMeasurements={at100,at200};
+  await page.locator('[data-ux1-c-crownbot-overlay]').waitFor({state:'visible',timeout:30000});
+  if(await page.locator('[data-cb01-associate-sidecar]').count())
+    throw Error('FAIL: native 200% retained desktop sidecar instead of responsive overlay');
   if (!(at200.innerWidth<at100.innerWidth && at200.innerWidth<=Math.ceil(at100.innerWidth*0.6)
       && at200.devicePixelRatio>at100.devicePixelRatio
       && at200.scrollWidth<=at200.clientWidth+2))
