@@ -14,6 +14,7 @@ on:
       - 'frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs'
       - 'techdoubt.md'
       - '.github/workflows/v15-07-c-command-cabinet-readonly.yml'
+      - '.github/workflows/v15-07-c-command-cabinet-fue-g-t2.yml'
   workflow_dispatch:
 permissions:
   contents: read
