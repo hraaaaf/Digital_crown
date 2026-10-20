@@ -211,6 +211,12 @@ async def lifespan(app: FastAPI):
     firebase_sync_task = None
     patient_relay_task = None
     station_ttl_cleanup_task = None
+    imaging_bridge_lab_handle = None
+    # Only the isolated test lifespan may publish a supervised LAB handle.
+    # Reset on each startup to prevent stale READY after a previous lifespan.
+    app.state.imaging_bridge_lab_handle = None
+    # Set before starting: even a partially armed timer must be stopped.
+    daily_scheduler_start_attempted = False
     try:
         boot_policy = assert_runtime_startup_allowed(_cfg)
 
@@ -267,6 +273,7 @@ async def lifespan(app: FastAPI):
         # E1 — Scheduler quotidien alertes proactives
         from backend.services.daily_scheduler import start_daily_scheduler
         if boot_policy != REHEARSAL_MIGRATION_ONLY:
+            daily_scheduler_start_attempted = True
             start_daily_scheduler()
 
         # 4. Tâche background : re-synchronisation Firebase toutes les 6h
@@ -299,22 +306,46 @@ async def lifespan(app: FastAPI):
             and str(_cfg.ENVIRONMENT).lower() in {"cabinet", "production"}
             else None
         )
+        # LOT06 isolated LAB only: one local worker within the existing backend.
+        # This is NOT an installer/service activation or a clinical capture.
+        if (boot_policy != REHEARSAL_MIGRATION_ONLY and
+                os.environ.get("DC_V15_06_BRIDGE_LAB") == "1"):
+            # Never import optional LAB tooling during ordinary cabinet startup.
+            from tools.imaging_gateway.bridge_background_lab import start_if_enabled
+            imaging_bridge_lab_handle = start_if_enabled(trusted_environment=str(_cfg.ENVIRONMENT))
+            app.state.imaging_bridge_lab_handle = imaging_bridge_lab_handle
 
+        # Shutdown is part of the same guarded lifetime: normal completion,
+        # request exception, task cancellation and failed partial startup.
+        yield
     except asyncio.CancelledError:
         raise
-    except Exception as e:
-        logger.error(f"Erreur Initialisation : {e}")
+    except Exception:
+        # Exception objects may contain clinical paths/filenames; the caller
+        # receives the exception, but startup logging never repeats its text.
+        logger.error("Erreur initialisation ou execution Digital Crown; arret controle")
         raise
-
-    yield
-
-    if firebase_sync_task is not None:
-        firebase_sync_task.cancel()
-    if patient_relay_task is not None:
-        patient_relay_task.cancel()
-    if station_ttl_cleanup_task is not None:
-        station_ttl_cleanup_task.cancel()
-    logger.info("Arret de l'API...")
+    finally:
+        try:
+            if imaging_bridge_lab_handle is not None:
+                from tools.imaging_gateway.bridge_background_lab import stop_bridge_lab
+                await stop_bridge_lab(imaging_bridge_lab_handle)
+        finally:
+            active = [task for task in (
+                firebase_sync_task, patient_relay_task, station_ttl_cleanup_task
+            ) if task is not None]
+            for task in active:
+                task.cancel()
+            try:
+                if active:
+                    await asyncio.gather(*active, return_exceptions=True)
+            finally:
+                # The scheduler owns a threading.Timer, not an asyncio.Task.
+                # Always stop it on normal exit or failed partial startup.
+                if daily_scheduler_start_attempted:
+                    from backend.services.daily_scheduler import stop_daily_scheduler
+                    stop_daily_scheduler()
+                logger.info("Arret de l'API...")
 
 
 async def _sync_all_licenses_from_firebase() -> None:
@@ -708,6 +739,27 @@ from backend.routers import patient_companion
 app.include_router(patient_companion.router, prefix="/api/patient-companion", tags=["Patient Companion"])
 
 # --- HEALTH CHECK ---
+@app.get("/api/health/imaging-bridge-lab", include_in_schema=False)
+async def imaging_bridge_lab_operational_health():
+    """Non-secret TEST-only child operational state, separate from DB health.
+
+    Normal cabinet/production requests cannot inspect laboratory internals.
+    No PID, paths, keys, acquisition/patient details or device identifiers.
+    """
+    if (str(app_settings.ENVIRONMENT).lower() != "test"
+            or os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME", "").lower()
+            not in {"true", "1"}):
+        raise HTTPException(status_code=404, detail="Not Found")
+    from tools.imaging_gateway.bridge_background_lab import bridge_lab_operational_state
+
+    status = bridge_lab_operational_state(
+        getattr(app.state, "imaging_bridge_lab_handle", None))
+    return JSONResponse(
+        status_code=200 if status in {"DISABLED", "READY"} else 503,
+        content={"scope": "isolated_test_lab", "state": status},
+    )
+
+
 @app.get("/health", include_in_schema=False)
 async def health_check():
     try:

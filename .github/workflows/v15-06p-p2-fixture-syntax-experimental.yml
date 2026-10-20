@@ -1,0 +1,63 @@
+name: V1.5-06P P2 Fixture Syntax Only Experimental
+
+# EXPERIMENTAL / NON-REQUIRED: parse PowerShell and compile C# as source.
+# DO NOT execute fixture, register SCM services, or launch privileged scripts.
+on:
+  pull_request:
+    paths:
+      - 'tools/imaging_gateway/windows/p2_scm_synthetic_service.cs'
+      - 'tools/imaging_gateway/windows/p2_scm_virtual_account_wal_lab.ps1'
+      - 'tools/imaging_gateway/tests/test_p2_scm_fixture_static_guards.py'
+      - '.github/workflows/v15-06p-p2-fixture-syntax-experimental.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source_syntax_only:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 909 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Confirm exact source HEAD
+        shell: powershell
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_SHA) { throw 'P2_SYNTAX_HEAD_MISMATCH' }
+          Write-Host "P2_FIXTURE_SYNTAX_EXACT_HEAD=$actual"
+      - name: Parse PowerShell LAB source without executing
+        shell: powershell
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            'tools/imaging_gateway/windows/p2_scm_virtual_account_wal_lab.ps1',
+            [ref]$tokens, [ref]$parseErrors
+          ) | Out-Null
+          if ($parseErrors.Count -ne 0) {
+            $parseErrors | ForEach-Object { Write-Host ('P2_PS_PARSE_ERROR=' + $_.ErrorId) }
+            throw 'P2_FIXTURE_POWERSHELL_PARSE_FAILED'
+          }
+          Write-Host 'P2_FIXTURE_POWERSHELL_PARSE_ONLY=PASS'
+      - name: Compile CSharp ServiceBase LAB source without executing
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = 'tools/imaging_gateway/windows/p2_scm_synthetic_service.cs'
+          $target = Join-Path $env:RUNNER_TEMP 'P2ServiceFixtureCompileOnly.exe'
+          try {
+            Add-Type -Path $source -OutputAssembly $target -OutputType WindowsApplication -ReferencedAssemblies @('System.ServiceProcess.dll') -ErrorAction Stop
+            if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {
+              throw 'P2_FIXTURE_ASSEMBLY_NOT_EMITTED'
+            }
+            Write-Host 'P2_FIXTURE_CSHARP_COMPILE_ONLY=PASS'
+            Write-Host 'P2_FIXTURE_NATIVE_SCM_TOKEN=NOT_TESTED'
+          } finally {
+            Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
+          }

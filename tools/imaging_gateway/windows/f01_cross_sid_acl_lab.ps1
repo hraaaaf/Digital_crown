@@ -1,0 +1,379 @@
+#Requires -Version 5.1
+<#
+F01 EXPERIMENTAL: disposable hosted Windows CI runner, synthetic bytes only.
+Two real, distinct standard-user SIDs. NO SCM service/installer/clinical data.
+#>
+[CmdletBinding()]
+param(
+    [ValidateSet('Harness','Owner','Peer')][string]$Mode = 'Harness',
+    [string]$WorkRoot = '',
+    [string]$OwnerSid = '',
+    [string]$PeerSid = ''
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+function Assert-F01([bool]$Good, [string]$Code) {
+    if (-not $Good) { throw ('F01_' + $Code) }
+}
+function Private-Path([string]$Leaf) {
+    Join-Path (Join-Path $WorkRoot 'private') $Leaf
+}
+function Evidence-Directory([string]$Stage) {
+    Join-Path (Join-Path $WorkRoot 'evidence') $Stage
+}
+function Evidence-Report([string]$Stage) {
+    Join-Path (Evidence-Directory $Stage) 'report.json'
+}
+function F01-Files {
+    @(
+        (Private-Path 'acquisitions.sqlite3'),
+        (Private-Path 'acquisitions.sqlite3-wal'),
+        (Private-Path 'acquisitions.sqlite3-shm'),
+        (Private-Path 'acquisitions.sqlite3-journal'),
+        (Private-Path 'spool\encrypted.synthetic'),
+        (Private-Path 'keys\synthetic.key')
+    )
+}
+function Write-Report([string]$Stage, [int]$Assertions) {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    $report = @{
+        stage = $Stage
+        sid = $identity.User.Value
+        assertions = $Assertions
+        synthetic = $true
+        standard_user = (-not $principal.IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator))
+    }
+    [IO.File]::WriteAllText((Evidence-Report $Stage),
+        (ConvertTo-Json $report -Compress), [Text.Encoding]::UTF8)
+}
+function Require-Denied([scriptblock]$Attempt, [string]$Name) {
+    try { & $Attempt }
+    catch {
+        $rootCause = $_.Exception
+        while ($rootCause.InnerException) { $rootCause = $rootCause.InnerException }
+        if ($rootCause -is [System.UnauthorizedAccessException]) { return }
+        # FileNotFoundException is NOT an access-denial proof, even if
+        # the elevated parent later observes an unchanged existing file.
+        # An unrelated bad source path must fail the experiment explicitly.
+        throw
+    }
+    throw ('F01_PEER_ACCESS_NOT_DENIED_' + $Name)
+}
+function Invoke-Icacls([string[]]$Arguments) {
+    & icacls.exe @Arguments | Out-Null
+    Assert-F01 ($LASTEXITCODE -eq 0) 'ICACLS_COMMAND_FAILED'
+}
+function Invoke-Child([string]$Stage, [pscredential]$Credential,
+                      [string]$Script, [string]$Root, [string]$Owner, [string]$Peer) {
+    $arguments = @(
+        '-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+        '-File', ('"' + $Script + '"'), '-Mode',$Stage,
+        '-WorkRoot', ('"' + $Root + '"'), '-OwnerSid',$Owner,'-PeerSid',$Peer
+    )
+    $stderr = Join-Path (Evidence-Directory $Stage) 'stderr.txt'
+    $stdout = Join-Path (Evidence-Directory $Stage) 'stdout.txt'
+    $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -Credential $Credential -ArgumentList $arguments -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardError $stderr -RedirectStandardOutput $stdout
+    # PowerShell/PowerShell#5421: with redirected streams, ExitCode may become
+    # unavailable if the native process handle was never materialized BEFORE
+    # WaitForExit. Cache the existing handle without changing logon/launch.
+    # Fail closed if Windows does not expose a real, usable handle.
+    $childHandle = $process.Handle
+    Assert-F01 ($childHandle -ne [IntPtr]::Zero) 'CHILD_PROCESS_HANDLE_INVALID'
+    try {
+        if (-not $process.WaitForExit(90000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw ('F01_CHILD_' + $Stage + '_TIMEOUT')
+        }
+        # Diagnostic only. No fallback conversion of NULL into success.
+        $process.Refresh()
+        Write-Host ('F01_CHILD_' + $Stage + '_PROCESS_TYPE=' + $process.GetType().FullName)
+        Write-Host ('F01_CHILD_' + $Stage + '_HAS_EXITED=' + $process.HasExited)
+        $exitCode = $process.ExitCode
+        Write-Host ('F01_CHILD_' + $Stage + '_EXIT_VALUE_PRESENT=' + ($null -ne $exitCode))
+        # Diagnostic only: compare PowerShell's adapted member view with the
+        # same CLR property accessed through its declared Process type.
+        try {
+            $clrProperty = [System.Diagnostics.Process].GetProperty('ExitCode')
+            $clrValue = $clrProperty.GetValue($process, $null)
+            Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_VALUE_PRESENT=' + ($null -ne $clrValue))
+            Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_VALUE=' + $clrValue)
+        } catch {
+            # Exception types are safe diagnostics: no account names, file
+            # paths, clinical content, or OS exception messages in CI logs.
+            Write-Host ('F01_CHILD_' + $Stage + '_CLR_EXIT_READ_FAILED=TRUE')
+            Write-Host ('F01_CHILD_' + $Stage + '_CLR_ERROR_TYPE=' +
+                $_.Exception.GetType().FullName)
+            if ($_.Exception.InnerException) {
+                Write-Host ('F01_CHILD_' + $Stage + '_CLR_INNER_ERROR_TYPE=' +
+                    $_.Exception.InnerException.GetType().FullName)
+            }
+        }
+    } finally { $process.Dispose() }
+    # The child may have completed its synthetic I/O even when Windows
+    # reports a failure. Record the actual exit status before rejecting it.
+    Write-Host ('F01_CHILD_' + $Stage + '_EXIT_CODE=' + $exitCode)
+    if ($exitCode -ne 0) {
+        $reportPresent = Test-Path -LiteralPath (Evidence-Report $Stage) -PathType Leaf
+        Write-Host ('F01_CHILD_' + $Stage + '_REPORT_PRESENT=' +
+            $reportPresent.ToString().ToUpperInvariant())
+        # No clinical content ever enters this synthetic-only harness.
+        if (Test-Path -LiteralPath $stderr) {
+            Get-Content -LiteralPath $stderr -Tail 15 | ForEach-Object { Write-Host ('F01_CHILD_' + $Stage + '_DIAGNOSTIC=' + $_) }
+        }
+        # Child emits only stage labels, not paths, keys, or user secrets.
+        if (Test-Path -LiteralPath $stdout) {
+            Get-Content -LiteralPath $stdout -Tail 12 | Where-Object { $_ -match '^F01_OWNER_STAGE=' } |
+                ForEach-Object { Write-Host $_ }
+        }
+    }
+    Assert-F01 ($exitCode -eq 0) ('CHILD_' + $Stage + '_FAILED')
+    $report = Evidence-Report $Stage
+    Assert-F01 (Test-Path -LiteralPath $report -PathType Leaf) ('MISSING_REPORT_' + $Stage)
+    Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+}
+function Check-Acl([string]$Path, [string[]]$Allowed) {
+    $acl = Get-Acl -LiteralPath $Path
+    foreach ($ace in $acl.Access) {
+        if ($ace.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) { continue }
+        $sid = $ace.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+        Assert-F01 ($Allowed -contains $sid) 'UNEXPECTED_ACL_ALLOW_SID'
+    }
+}
+
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = [Security.Principal.WindowsPrincipal]::new($identity)
+Assert-F01 ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) 'WINDOWS_REQUIRED'
+if ($Mode -eq 'Owner') {
+    Write-Output 'F01_OWNER_STAGE=ENTERED'
+    Assert-F01 ($identity.User.Value -eq $OwnerSid) 'OWNER_TOKEN_MISMATCH'
+    Write-Output 'F01_OWNER_STAGE=TOKEN_VERIFIED'
+    Assert-F01 (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) 'OWNER_NOT_STANDARD'
+    [IO.Directory]::CreateDirectory((Private-Path 'spool')) | Out-Null
+    [IO.Directory]::CreateDirectory((Private-Path 'keys')) | Out-Null
+    Write-Output 'F01_OWNER_STAGE=PRIVATE_SUBDIRS_CREATED'
+    $n = 0
+    foreach ($file in F01-Files) {
+        [IO.File]::WriteAllBytes($file, [Text.Encoding]::UTF8.GetBytes(
+            ('F01_SYNTHETIC_ONLY_' + [IO.Path]::GetFileName($file))))
+        $stream = [IO.File]::Open($file, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite)
+        try {
+            $byte = $stream.ReadByte()
+            Assert-F01 ($byte -ge 0) 'POSITIVE_EMPTY_FILE'
+            $stream.Position = 0
+            $stream.WriteByte([byte]$byte)
+        } finally { $stream.Dispose() }
+        $n++
+    }
+    Write-Output 'F01_OWNER_STAGE=FILE_IO_COMPLETED'
+    Write-Report 'Owner' $n
+    Write-Output 'F01_OWNER_STAGE=REPORT_COMPLETED'
+    # Child process success is explicit only after six positive assertions and report.
+    exit 0
+}
+if ($Mode -eq 'Peer') {
+    Assert-F01 ($identity.User.Value -eq $PeerSid -and $OwnerSid -ne $PeerSid) 'PEER_TOKEN_MISMATCH'
+    Assert-F01 (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) 'PEER_NOT_STANDARD'
+    $n = 0
+    foreach ($file in F01-Files) {
+        $probe = $file
+        Require-Denied {
+            $stream = [IO.File]::Open($probe, [IO.FileMode]::Open, [IO.FileAccess]::Read)
+            $stream.Dispose()
+        } 'READ'
+        $n++
+        Require-Denied {
+            $stream = [IO.File]::Open($probe, [IO.FileMode]::Open, [IO.FileAccess]::Write)
+            $stream.Dispose()
+        } 'WRITE'
+        $n++
+        # The inaccessible private filename can be cloaked by NTFS, making
+        # Move() return FileNotFoundException (not an access-denial oracle).
+        # Request the native DELETE right on each existing file directly.
+        # A rename needs DELETE on the file or DELETE_CHILD on its parent;
+        # the private parent DACL separately forbids access by this peer.
+        # This proves denial of DELETE access, NOT an actual rename attempt.
+        Require-Denied {
+            $stream = [IO.FileStream]::new($probe, [IO.FileMode]::Open,
+                [Security.AccessControl.FileSystemRights]::Delete,
+                ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete),
+                4096, [IO.FileOptions]::None)
+            $stream.Dispose()
+        } 'DELETE_RIGHT'
+        $n++
+        # WRITE_DAC / WRITE_OWNER must be denied by the actual peer token.
+        # FileStream requests each access mask directly; it does NOT modify
+        # the ACL or take ownership, nor does it require a privileged token.
+        # FileNotFound is explicitly rejected by Require-Denied.
+        Require-Denied {
+            $stream = [IO.FileStream]::new($probe, [IO.FileMode]::Open,
+                [Security.AccessControl.FileSystemRights]::ChangePermissions,
+                ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete),
+                4096, [IO.FileOptions]::None)
+            $stream.Dispose()
+        } 'WRITE_DAC'
+        $n++
+        Require-Denied {
+            $stream = [IO.FileStream]::new($probe, [IO.FileMode]::Open,
+                [Security.AccessControl.FileSystemRights]::TakeOwnership,
+                ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete),
+                4096, [IO.FileOptions]::None)
+            $stream.Dispose()
+        } 'WRITE_OWNER'
+        $n++
+    }
+    Require-Denied {
+        [IO.File]::WriteAllText((Private-Path 'new-peer-created.txt'), 'synthetic')
+    } 'CREATE_NEW'
+    $n++
+    # Validate the adversarial user cannot rewrite source or OWNER evidence.
+    Require-Denied {
+        $stream = [IO.File]::Open((Join-Path $WorkRoot 'f01-probe.ps1'),
+            [IO.FileMode]::Open, [IO.FileAccess]::Write)
+        $stream.Dispose()
+    } 'TAMPER_TRUSTED_SCRIPT'
+    $n++
+    Require-Denied {
+        $stream = [IO.File]::Open((Evidence-Report 'Owner'),
+            [IO.FileMode]::Open, [IO.FileAccess]::Write)
+        $stream.Dispose()
+    } 'TAMPER_OWNER_REPORT'
+    $n++
+    Write-Report 'Peer' $n
+    # Child process success is explicit only after all peer denials and report.
+    exit 0
+}
+
+Assert-F01 ($env:CI -eq 'true' -and $env:GITHUB_ACTIONS -eq 'true') 'CI_ONLY'
+Assert-F01 $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) 'RUNNER_ADMIN_REQUIRED'
+$tag = [Guid]::NewGuid().ToString('N').Substring(0,8)
+$ownerName = 'dcf01o' + $tag
+$peerName = 'dcf01p' + $tag
+$work = Join-Path $env:PUBLIC ('dc-f01-ci-' + $tag)
+$WorkRoot = $work
+$ownerUser = $null
+$peerUser = $null
+$cleanupFailure = $null
+$mainFailure = $null
+try {
+    $random = New-Object byte[] 32
+    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($random)
+    $ownerPassword = 'Ac1!' + [Convert]::ToBase64String($random).Replace('+','X').Replace('/','Y')
+    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($random)
+    $peerPassword = 'Ac1!' + [Convert]::ToBase64String($random).Replace('+','X').Replace('/','Y')
+    $ownerCredential = [pscredential]::new(('.\' + $ownerName),
+        (ConvertTo-SecureString $ownerPassword -AsPlainText -Force))
+    $peerCredential = [pscredential]::new(('.\' + $peerName),
+        (ConvertTo-SecureString $peerPassword -AsPlainText -Force))
+    $ownerUser = New-LocalUser -Name $ownerName -Password $ownerCredential.Password -Description 'Disposable F01 CI user; delete'
+    $peerUser = New-LocalUser -Name $peerName -Password $peerCredential.Password -Description 'Disposable F01 CI peer; delete'
+    $owner = $ownerUser.SID.Value
+    $peer = $peerUser.SID.Value
+    Assert-F01 ($owner -ne $peer -and $owner -ne $identity.User.Value -and
+                $peer -ne $identity.User.Value) 'DISTINCT_ACCOUNT_SIDS_REQUIRED'
+    New-Item -Path $work -ItemType Directory | Out-Null
+    $runner = Join-Path $work 'f01-probe.ps1'
+    Copy-Item -LiteralPath $PSCommandPath -Destination $runner
+    # Trusted script/root: test accounts get read/execute only, never MODIFY.
+    # No parent DELETE_CHILD permissions over code or evidence directories.
+    Invoke-Icacls -Arguments @($work, '/inheritance:r')
+    Invoke-Icacls -Arguments @($work, '/grant:r',
+        ('*' + $owner + ':(OI)(CI)RX'), ('*' + $peer + ':(OI)(CI)RX'),
+        '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F')
+    $trusted = Get-Acl -LiteralPath $work
+    Assert-F01 $trusted.AreAccessRulesProtected 'TRUSTED_ROOT_DACL_NOT_PROTECTED'
+    Check-Acl $work @($owner,$peer,'S-1-5-18','S-1-5-32-544')
+    # The source file was copied BEFORE the parent's DACL was protected.
+    # Explicitly reset its own inherited ACEs; parent ACLs do not retroactively
+    # strip inherited entries already recorded on an existing child file.
+    Invoke-Icacls -Arguments @($runner, '/inheritance:r')
+    Invoke-Icacls -Arguments @($runner, '/grant:r',
+        ('*' + $owner + ':RX'), ('*' + $peer + ':RX'),
+        '*S-1-5-18:F', '*S-1-5-32-544:F')
+    Assert-F01 (Get-Acl -LiteralPath $runner).AreAccessRulesProtected 'SCRIPT_DACL_NOT_PROTECTED'
+    Check-Acl $runner @($owner,$peer,'S-1-5-18','S-1-5-32-544')
+    $evidenceRoot = Join-Path $work 'evidence'
+    New-Item -Path $evidenceRoot -ItemType Directory | Out-Null
+    foreach ($stageAndSid in @(@('Owner',$owner), @('Peer',$peer))) {
+        $stage = $stageAndSid[0]
+        $sid = $stageAndSid[1]
+        $folder = Evidence-Directory $stage
+        New-Item -Path $folder -ItemType Directory | Out-Null
+        Invoke-Icacls -Arguments @($folder, '/inheritance:r')
+        Invoke-Icacls -Arguments @($folder, '/grant:r',
+            ('*' + $sid + ':(OI)(CI)M'),
+            '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F')
+        $stageAcl = Get-Acl -LiteralPath $folder
+        Assert-F01 $stageAcl.AreAccessRulesProtected 'STAGE_DACL_NOT_PROTECTED'
+        Check-Acl $folder @($sid,'S-1-5-18','S-1-5-32-544')
+    }
+    $private = Join-Path $work 'private'
+    New-Item -Path $private -ItemType Directory | Out-Null
+    Invoke-Icacls -Arguments @($private, '/inheritance:r')
+    Invoke-Icacls -Arguments @($private, '/grant:r',
+        ('*' + $owner + ':(OI)(CI)M'),
+        '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F')
+    $acl = Get-Acl -LiteralPath $private
+    Assert-F01 $acl.AreAccessRulesProtected 'PRIVATE_DACL_NOT_PROTECTED'
+    $drive = [IO.DriveInfo]::new(([IO.Path]::GetPathRoot($private)))
+    Assert-F01 ($drive.DriveFormat -eq 'NTFS') 'VOLUME_NOT_NTFS'
+    $allowed = @($owner,'S-1-5-18','S-1-5-32-544')
+    Check-Acl $private $allowed
+    $yes = Invoke-Child 'Owner' $ownerCredential $runner $work $owner $peer
+    Assert-F01 ($yes.sid -eq $owner -and $yes.standard_user -and [int]$yes.assertions -eq 6) 'OWNER_POSITIVE_FAILED'
+    Check-Acl (Evidence-Report 'Owner') @($owner,'S-1-5-18','S-1-5-32-544')
+    $hashes = @{}
+    $securityDescriptors = @{}
+    foreach ($file in F01-Files) {
+        Assert-F01 (Test-Path -LiteralPath $file -PathType Leaf) 'MISSING_FILE'
+        Check-Acl $file $allowed
+        $hashes[$file] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+        $securityDescriptors[$file] = (Get-Acl -LiteralPath $file).Sddl
+    }
+    $no = Invoke-Child 'Peer' $peerCredential $runner $work $owner $peer
+    Assert-F01 ($no.sid -eq $peer -and $no.standard_user -and [int]$no.assertions -eq 33) 'PEER_DENIAL_FAILED'
+    Check-Acl (Evidence-Report 'Peer') @($peer,'S-1-5-18','S-1-5-32-544')
+    foreach ($file in F01-Files) {
+        Assert-F01 ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -eq $hashes[$file]) 'HASH_CHANGED'
+        Assert-F01 ((Get-Acl -LiteralPath $file).Sddl -eq $securityDescriptors[$file]) 'SECURITY_DESCRIPTOR_CHANGED'
+    }
+    Assert-F01 (-not (Test-Path -LiteralPath (Private-Path 'new-peer-created.txt'))) 'PEER_CREATED_FILE'
+    # Never report a PASS before account/file cleanup finishes.
+} catch {
+    $mainFailure = $_
+} finally {
+    if ($work -and (Test-Path -LiteralPath $work)) {
+        try { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction Stop }
+        catch { $cleanupFailure = 'F01_CLEANUP_FILES_FAILED' }
+    }
+    if ($peerUser) {
+        try { Remove-LocalUser -Name $peerName -ErrorAction Stop }
+        catch { $cleanupFailure = 'F01_CLEANUP_PEER_ACCOUNT_FAILED' }
+    }
+    if ($ownerUser) {
+        try { Remove-LocalUser -Name $ownerName -ErrorAction Stop }
+        catch { $cleanupFailure = 'F01_CLEANUP_OWNER_ACCOUNT_FAILED' }
+    }
+}
+if ($cleanupFailure) { throw $cleanupFailure }
+if ($mainFailure) { throw $mainFailure }
+Assert-F01 (-not (Test-Path -LiteralPath $work)) 'WORK_ROOT_LEFT_BEHIND'
+Assert-F01 (-not (Get-LocalUser -Name $ownerName -ErrorAction SilentlyContinue)) 'OWNER_ACCOUNT_LEFT_BEHIND'
+Assert-F01 (-not (Get-LocalUser -Name $peerName -ErrorAction SilentlyContinue)) 'PEER_ACCOUNT_LEFT_BEHIND'
+Write-Host 'F01_DISPOSABLE_USER_AND_ROOT_CLEANUP=PASS'
+    Write-Host 'F01_CROSS_SID_LAB=PASS'
+    Write-Host 'F01_DISTINCT_STANDARD_USER_TOKENS=PASS'
+    Write-Host 'F01_PROTECTED_NTFS_DACL=PASS'
+    Write-Host 'F01_OWNER_POSITIVE_FILE_IO=6/6'
+    Write-Host 'F01_PEER_NEGATIVE_FILE_IO=33/33'
+    Write-Host 'F01_PEER_DELETE_RIGHT_DENIED=6/6'
+    Write-Host 'F01_PEER_WRITE_DAC_REQUEST_DENIED=6/6'
+    Write-Host 'F01_PEER_WRITE_OWNER_REQUEST_DENIED=6/6'
+    Write-Host 'F01_RENAME_DIRECT_ATTEMPT=NOT_TESTED_FILE_NAME_CLOAKED'
+    Write-Host 'F01_TRUSTED_SCRIPT_AND_OWNER_REPORT_PEER_WRITE_DENIED=PASS'
+    Write-Host 'F01_SYNTHETIC_SHA256_UNCHANGED=6/6'
+    Write-Host 'F01_SECURITY_DESCRIPTOR_UNCHANGED=6/6'
+    Write-Host 'F01_SCM_SERVICE_SID=NOT_TESTED'
+    Write-Host 'F01_COMMERCIAL_CERTIFICATION=NOT_AUTHORIZED'

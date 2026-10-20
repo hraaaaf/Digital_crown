@@ -1,0 +1,142 @@
+name: V1.5-06P P2-F01 Two Actor FUE Technical Experimental
+
+# EXPERIMENTAL / NON-REQUIRED: real separate disposable Windows runners.
+# FUE here means first-use TECHNICAL actor oracles, not UI/SCM certification.
+# Do NOT run p2_scm_virtual_account_wal_lab.ps1 or create/start any SCM service.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v15-06p-p2-f01-two-actor-fue-experimental.yml'
+      - 'tools/imaging_gateway/windows/f01_cross_sid_acl_lab.ps1'
+      - 'tools/imaging_gateway/tests/test_p2_backup_lab.py'
+      - 'tools/imaging_gateway/tests/test_p2_sqlite_recovery_semantics.py'
+      - 'tools/imaging_gateway/p2_backup_lab.py'
+      - 'docs/quality/LOT06_P_P2_F01_TWO_ACTOR_FUE_LAB.md'
+
+permissions:
+  contents: read
+
+jobs:
+  fue_a_standard_windows_user:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 909 && github.event.pull_request.head.repo.full_name == github.repository
+    name: FUE-A / standard Windows user / real different SIDs
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: BEFORE - verify exact HEAD and Windows runtime
+        shell: powershell
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $sha = (git rev-parse HEAD).Trim()
+          if ($sha -ne $env:EXPECTED_SHA) { throw 'FUE_A_HEAD_MISMATCH' }
+          if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'FUE_A_WINDOWS_REQUIRED' }
+          Write-Host "FUE_A_EXACT_HEAD=$sha"
+          Write-Host 'FUE_A_BEFORE=DISPOSABLE_WINDOWS_RUNNER_ONLY'
+      - name: ACTION - real standard-user cross-SID file and DACL denials
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $proof = Join-Path $env:RUNNER_TEMP 'fue-a-proof.txt'
+          try {
+            & .\tools\imaging_gateway\windows\f01_cross_sid_acl_lab.ps1 *>&1 |
+              Tee-Object -FilePath $proof
+            $lines = @(Get-Content -LiteralPath $proof)
+            foreach($required in @(
+              'F01_CROSS_SID_LAB=PASS',
+              'F01_DISTINCT_STANDARD_USER_TOKENS=PASS',
+              'F01_OWNER_POSITIVE_FILE_IO=6/6',
+              'F01_PEER_NEGATIVE_FILE_IO=33/33',
+              'F01_PEER_WRITE_DAC_REQUEST_DENIED=6/6',
+              'F01_PEER_WRITE_OWNER_REQUEST_DENIED=6/6',
+              'F01_SYNTHETIC_SHA256_UNCHANGED=6/6',
+              'F01_SECURITY_DESCRIPTOR_UNCHANGED=6/6',
+              'F01_DISPOSABLE_USER_AND_ROOT_CLEANUP=PASS',
+              'F01_SCM_SERVICE_SID=NOT_TESTED'
+            )){
+              if($lines -notcontains $required) { throw "FUE_A_EVIDENCE_MISSING:$required" }
+            }
+            Write-Host 'FUE_A_ACTION=REAL_STANDARD_USER_SID_DENIALS_PASS'
+            Write-Host 'FUE_A_AFTER=HASH_SDDL_AND_CLEANUP_PASS'
+            Write-Host 'FUE_A_NATIVE_SCM=NOT_TESTED'
+            @(
+              "HEAD=$((git rev-parse HEAD).Trim())",
+              'FUE_A_BEFORE=DISPOSABLE_WINDOWS_RUNNER_ONLY',
+              'FUE_A_ACTION=REAL_STANDARD_USER_SID_DENIALS_PASS',
+              'FUE_A_AFTER=HASH_SDDL_AND_CLEANUP_PASS',
+              'FUE_A_NATIVE_SCM=NOT_TESTED'
+            ) | Set-Content -LiteralPath $proof -Encoding Ascii
+          } finally {
+            # No user, service or private fixture is created by this wrapper.
+            # The tested F01 harness itself must attest its own absolute cleanup.
+            if(-not (Test-Path -LiteralPath $proof)) { throw 'FUE_A_MISSING_REPORT' }
+          }
+      - name: Upload FUE-A evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-f01-fue-a-standard-user-evidence
+          path: ${{ runner.temp }}/fue-a-proof.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  fue_b_backup_operator:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 909 && github.event.pull_request.head.repo.full_name == github.repository
+    name: FUE-B / backup restore operator / fresh synthetic fixture
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          # Match the tested Windows 06-A baseline instead of inventing a second runtime.
+          python-version: '3.11'
+      - name: BEFORE - exact SHA and isolated operator session
+        shell: powershell
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $sha = (git rev-parse HEAD).Trim()
+          if($sha -ne $env:EXPECTED_SHA){ throw 'FUE_B_HEAD_MISMATCH' }
+          if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){throw 'FUE_B_WINDOWS_REQUIRED'}
+          Write-Host "FUE_B_EXACT_HEAD=$sha"
+          Write-Host 'FUE_B_BEFORE=SEPARATE_FRESH_WINDOWS_RUNNER'
+      - name: Install minimum synthetic LAB crypto dependency
+        run: python -m pip install "cryptography>=42,<48"
+      - name: ACTION - quiescent backup, restore and hostile recovery
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Each first-use operator exercise gets a pristine Python interpreter.
+          # Do not weaken or skip any assertion after the initial combined-run RED.
+          python -m unittest -v tools.imaging_gateway.tests.test_p2_backup_lab
+          if($LASTEXITCODE -ne 0){throw 'FUE_B_BACKUP_TESTS_FAILED'}
+          Write-Host 'FUE_B_BACKUP_SUBSUITE=PASS'
+          python -m unittest -v tools.imaging_gateway.tests.test_p2_sqlite_recovery_semantics
+          if($LASTEXITCODE -ne 0){throw 'FUE_B_RECOVERY_TESTS_FAILED'}
+          Write-Host 'FUE_B_RECOVERY_SUBSUITE=PASS'
+          Write-Host 'FUE_B_ACTION=DB_SPOOL_AND_KEY_POSITIVE_NEGATIVE_PASS'
+          Write-Host 'FUE_B_AFTER=RESTORE_INTEGRITY_AND_FAIL_CLOSED_PASS'
+          Write-Host 'FUE_B_NATIVE_SCM=NOT_TESTED'
+          @(
+            "HEAD=$((git rev-parse HEAD).Trim())",
+            'FUE_B_BEFORE=SEPARATE_FRESH_WINDOWS_RUNNER',
+            'FUE_B_ACTION=DB_SPOOL_AND_KEY_POSITIVE_NEGATIVE_PASS',
+            'FUE_B_AFTER=RESTORE_INTEGRITY_AND_FAIL_CLOSED_PASS',
+            'FUE_B_NATIVE_SCM=NOT_TESTED'
+          ) | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'fue-b-proof.txt') -Encoding Ascii
+      - name: Upload FUE-B evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-f01-fue-b-recovery-evidence
+          path: ${{ runner.temp }}/fue-b-proof.txt
+          if-no-files-found: warn
+          retention-days: 14
