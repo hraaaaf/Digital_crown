@@ -1,6 +1,7 @@
 """J10D CI-only transactional fake witness: no independence or clinical GO."""
 from concurrent.futures import ThreadPoolExecutor
 import json
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -130,6 +131,28 @@ class FakeRemoteWitnessLab(unittest.TestCase):
                 self.assertEqual(code,"DENY_J10D_FAKE_REMOTE_INVALID_REQUEST")
                 self.assertIsNone(receipt)
         self.assertEqual(self.witness.checkpoint(self.device),0)
+
+    def test_13_full_fake_authority_database_restore_is_not_antirollback(self):
+        # NEGATIVE COUNTEREXAMPLE: an Administrator snapshots the SAME-HOST
+        # fake witness state before commitment, then restores the snapshot.
+        # A newly issued checkpoint can repeat despite valid signatures.
+        # It MUST NOT imply independent rollback protection or a product GO.
+        snapshot=self.root/"fake-authority-before-commit.snapshot"
+        shutil.copyfile(self.db,snapshot)
+        first_status,first_receipt=self.issue()
+        self.assertIsNotNone(first_receipt)
+        self.assertEqual(first_receipt["payload"]["checkpoint"],1)
+        shutil.copyfile(snapshot,self.db)
+        self.assertEqual(self.witness.checkpoint(self.device),0)
+        second_status,second_receipt=self.issue(challenge="f"*32)
+        self.assertIsNotNone(second_receipt)
+        self.assertEqual(second_receipt["payload"]["checkpoint"],1)
+        self.assertEqual(self.witness.checkpoint(self.device),1)
+        self.assertTrue(first_status.endswith("NO_PRODUCT_AUTHORITY"))
+        self.assertTrue(second_status.endswith("NO_PRODUCT_AUTHORITY"))
+        self.assertEqual(gate.product_readiness(second_receipt),
+                         "DENY_J10D_WITNESS_EXTERNAL_AUTHORITY_NOT_ENROLLED")
+        print("J10D_FAKE_REMOTE_COMPLETE_STATE_ROLLBACK_UNPROTECTED_PRODUCT_NO_GO_PASS")
 
     def test_12_separate_worker_process_checkpoint_kept_and_no_go(self):
         key=self.root/"ci-generated-only.fake.key"
