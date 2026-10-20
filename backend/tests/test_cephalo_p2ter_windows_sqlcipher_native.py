@@ -90,6 +90,30 @@ def _rows(engine):
 
 
 def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
+    # This hooks the actual Python filesystem calls made by this child, not a
+    # simulated archive. Native/third-party actors are explicitly not covered.
+    # All trace data is confined to this disposable synthetic test directory.
+    import traceback
+    archive_root = Path(archive_arg).resolve()
+    audit_path = Path(marker_arg).with_name("native-windows-child-file-events.jsonl")
+
+    def audit_archive_fs(event, args):
+        if event not in {"os.remove", "os.rename", "os.rmdir"}:
+            return
+        if not args or not any(str(archive_root).lower() in str(arg).lower() for arg in args):
+            return
+        record = {
+            "event": event,
+            "args": [str(arg) for arg in args[:2]],
+            "stack": [f"{frame.filename}:{frame.lineno}:{frame.name}"
+                      for frame in traceback.extract_stack(limit=9)[:-1]],
+        }
+        with audit_path.open("a", encoding="utf-8") as output:
+            output.write(json.dumps(record, sort_keys=True) + "\\n")
+            output.flush()
+            os.fsync(output.fileno())
+
+    sys.addaudithook(audit_archive_fs)
     from sqlalchemy.orm import Session
     from backend import models
     from backend.services import archive_service
@@ -245,12 +269,38 @@ def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: b
         # the independent parent immediately BEFORE the kill.
         target_pdf = root / checkpoint["pdf_files"][0]
         target_journal = root / checkpoint["journal_files"][0]
+        def native_attributes(path: Path) -> dict:
+            # Independent native Windows path lookup (not pathlib/rglob).
+            dll = ctypes.WinDLL("kernel32", use_last_error=True)
+            func = dll.GetFileAttributesW
+            func.argtypes = (ctypes.c_wchar_p,)
+            func.restype = ctypes.c_uint32
+            attrs = func(str(path))
+            return {"attrs": int(attrs) if attrs != 0xFFFFFFFF else None,
+                    "winerror": ctypes.get_last_error() if attrs == 0xFFFFFFFF else None}
+
+        def stat_result(path: Path) -> dict:
+            try:
+                data = os.stat(path)
+                return {"file": True, "size": data.st_size}
+            except OSError as exc:
+                return {"file": False, "errno": exc.errno, "winerror": getattr(exc, "winerror", None)}
+
+        trace_path = marker.with_name("native-windows-child-file-events.jsonl")
         prekill = {
             "pdf_exists": target_pdf.is_file(),
             "journal_exists": target_journal.is_file(),
+            "pdf_stat": stat_result(target_pdf),
+            "journal_stat": stat_result(target_journal),
+            "pdf_native": native_attributes(target_pdf),
+            "journal_native": native_attributes(target_journal),
+            "pdf_parent_files": sorted(p.name for p in target_pdf.parent.iterdir()),
+            "journal_parent_files": sorted(p.name for p in target_journal.parent.iterdir()),
             "pdf_size": target_pdf.stat().st_size if target_pdf.is_file() else None,
             "journal_size": target_journal.stat().st_size if target_journal.is_file() else None,
             "child_control_exists": (root / ".native-child-created-control").is_file(),
+            "child_still_alive": process.poll() is None,
+            "python_delete_rename_events": trace_path.read_text(encoding="utf-8")[-7000:] if trace_path.exists() else "",
         }
         assert prekill["pdf_exists"] and prekill["journal_exists"], (
             "WINDOWS_ARCHIVE_LOSS_PRECEDES_TERMINATEPROCESS: "
