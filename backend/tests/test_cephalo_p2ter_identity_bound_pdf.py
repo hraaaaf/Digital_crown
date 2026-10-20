@@ -12,9 +12,8 @@ from types import SimpleNamespace
 
 import fitz
 from backend import models
-from backend.tests.test_cephalo_r23g5_authenticated_api import _case, _jwt, _read, PATH
-from backend.tests.test_cephalo_p2bis_http_pdf_continuity import (
-    _cabinet, _temporary_pdf_output,
+from backend.tests.p2ter_bridge_synthetic_support import _case, _jwt, _read, PATH
+from backend.tests.p2ter_bridge_synthetic_support import (    _cabinet, _temporary_pdf_output,
 )
 from backend.tests.conftest import make_user
 from backend.routers.documents import doc_factory

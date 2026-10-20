@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.services.cephalo_document_lock import lock_selected_cephalo_for_archive
-from backend.tests.test_cephalo_r23g5_authenticated_api import _case, _jwt, PATH
-from backend.tests.test_cephalo_p2bis_http_pdf_continuity import _cabinet, _temporary_pdf_output
+from backend.tests.p2ter_bridge_synthetic_support import _case, _jwt, PATH
+from backend.tests.p2ter_bridge_synthetic_support import _cabinet, _temporary_pdf_output
 
 
 def test_database_row_guard_blocks_actual_concurrent_revision_write(tmp_path):

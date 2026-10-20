@@ -7,8 +7,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from backend import models
-from backend.tests.test_cephalo_r23g5_authenticated_api import _case, _jwt
-from backend.tests.test_cephalo_p2bis_http_pdf_continuity import _cabinet, _temporary_pdf_output
+from backend.tests.p2ter_bridge_synthetic_support import _case, _jwt
+from backend.tests.p2ter_bridge_synthetic_support import _cabinet, _temporary_pdf_output
 
 
 def _setup_official(client, db, dentiste, monkeypatch, tmp_path):
