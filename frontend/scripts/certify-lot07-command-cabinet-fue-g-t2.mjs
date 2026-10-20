@@ -160,6 +160,15 @@ try {
       const sessionToken = await page.evaluate(() => localStorage.getItem('token'));
       assert.ok(sessionToken, 'Real UI session token');
       if (actor === 'owner') authenticatedOwnerState = await context.storageState();
+      // Match Dashboard's exact getLocalDayBounds URL on the same browser-local
+      // calendar day, rather than comparing all historical appointments.
+      const todayKey = await page.evaluate(() => {
+        const today = new Date();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${today.getFullYear()}-${month}-${day}`;
+      });
+      const todayPath = `${appointmentPath}?start_date=${todayKey}T00:00:00&end_date=${todayKey}T23:59:59`;
       const dashboardResponsePromise = expectAllowed
         ? page.waitForResponse(r => r.url().includes('/api/appointments/') && r.request().method() === 'GET', { timeout: 30000 })
         : null;
@@ -172,7 +181,7 @@ try {
         // by Chromium CDP. Assert the real Dashboard GET and obtain its schema
         // from an independent authenticated REST read using the same UI JWT.
         // This does NOT claim the legacy Signature rows have visual parity.
-        const signatureGet = await authGET(sessionToken, appointmentPath, cookies);
+        const signatureGet = await authGET(sessionToken, todayPath, cookies);
         assert.equal(signatureGet.status, 200, 'Signature actor must read a live Cabinet agenda');
         const signatureData = signatureGet.body;
         assert.ok(Array.isArray(signatureData), 'Signature actor agenda response is an array');
@@ -194,7 +203,7 @@ try {
         // The real Command GET was observed from this page. Compare stable
         // live backend snapshots with the same browser's JWT on both screens,
         // then verify that Command actually rendered their IDs/time/status.
-        const commandGet = await authGET(sessionToken, appointmentPath, cookies);
+        const commandGet = await authGET(sessionToken, todayPath, cookies);
         assert.equal(commandGet.status, 200, 'Command actor must read a live Cabinet agenda');
         const commandData = commandGet.body;
         assert.ok(Array.isArray(commandData), 'Command actor agenda response is an array');
