@@ -214,7 +214,7 @@ export const WaitingRoom = ({
                       ) : null}
                       <div className="min-w-0">
                         <h4 className="text-sm font-black text-primary font-outfit break-words">
-                          {appointment.patient ? `${appointment.patient.nom.toUpperCase()} ${appointment.patient.prenom}` : 'Patient non spécifié'}
+                          {appointment.patient ? `${appointment.patient.nom.toUpperCase()} ${appointment.patient.prenom}`.trim() : 'Rendez-vous'}
                         </h4>
                         <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-wide break-words">
                           {appointment.description || 'Consultation clinique'}
