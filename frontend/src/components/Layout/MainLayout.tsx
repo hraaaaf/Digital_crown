@@ -210,7 +210,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
             : `fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
                 isPatientRoute
                   ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
-                  : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'
+                  : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px] sm:max-h-[calc(100dvh-8rem)]'
               }`}
         >
           {showAssociateSidecar && (
