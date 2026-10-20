@@ -110,9 +110,12 @@ jobs:
           }
           "DIGITALCROWN_ISOLATION_DB_FINGERPRINT=$fingerprint" >> $env:GITHUB_ENV
           'T2 target attested with the canonical backend fingerprint; startup guard unchanged.' >> $env:GITHUB_STEP_SUMMARY
-      - name: Start genuine FastAPI with disposable T2 database on localhost
+      - name: FUE-G Windows — keep FastAPI alive through seed, NVDA, native zoom and clinical diff
         shell: pwsh
         run: |
+          # Windows runners may terminate child servers between separate job
+          # steps. Own the complete synthetic test lifecycle in ONE PowerShell
+          # step and explicitly shut down FastAPI in finally.
           $db = Join-Path $env:GITHUB_WORKSPACE 't2-runtime-cert.db'
           if (Test-Path $db) { throw 'REFUSED: unexpected preexisting T2 DB on runner' }
           if ($env:DIGITALCROWN_ISOLATION_DB_FINGERPRINT -notmatch '^[0-9a-f]{64}$') {
@@ -121,38 +124,53 @@ jobs:
           $stdout = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stdout.log'
           $stderr = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stderr.log'
           $python = (Get-Command python).Source
-          $server = Start-Process -FilePath $python -ArgumentList 'scripts/t2_runtime_server.py' -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden
-          "CB01_FUEG_FASTAPI_PID=$($server.Id)" >> $env:GITHUB_ENV
-          $ready = $false
-          for ($i=0; $i -lt 120; $i++) {
-            if ($server.HasExited) { break }
+          $server = $null
+          $baselineReady = $false
+          $mainError = $null
+          $diffError = $false
+          try {
+            $server = Start-Process -FilePath $python -ArgumentList 'scripts/t2_runtime_server.py' -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden
+            $ready = $false
+            for ($i=0; $i -lt 120; $i++) {
+              if ($server.HasExited) { break }
+              try {
+                $health = Invoke-WebRequest -Uri 'http://127.0.0.1:8005/health' -UseBasicParsing -TimeoutSec 2
+                if ($health.StatusCode -eq 200) { $ready = $true; break }
+              } catch {}
+              Start-Sleep -Seconds 2
+            }
+            if (-not $ready) { throw 'FAIL: isolated Windows FastAPI did not start' }
+            Write-Output 'CB01_WINDOWS_FUEG_REAL_FASTAPI: READY at loopback'
+            python scripts/ci/cb01_windows_fueg_fixture.py before
+            if ($LASTEXITCODE -ne 0) { throw 'FAIL: isolated FUE-G fixture baseline' }
+            $baselineReady = $true
+            # Confirm the server stayed healthy after DB seeding, immediately
+            # before Playwright authenticates as the synthetic staff member.
+            $health = Invoke-WebRequest -Uri 'http://127.0.0.1:8005/health' -UseBasicParsing -TimeoutSec 5
+            if ($health.StatusCode -ne 200 -or $server.HasExited) {
+              throw 'FAIL: FastAPI exited before Windows FUE-G browser'
+            }
+            Push-Location frontend
             try {
-              $health = Invoke-WebRequest -Uri 'http://127.0.0.1:8005/health' -UseBasicParsing -TimeoutSec 2
-              if ($health.StatusCode -eq 200) { $ready = $true; break }
-            } catch {}
-            Start-Sleep -Seconds 2
+              node scripts/certify-cb01-windows-fueg-combined.mjs
+              if ($LASTEXITCODE -ne 0) { throw 'FAIL: real Windows FUE-G NVDA/zoom/role browser' }
+            } finally {
+              Pop-Location
+            }
+          } catch {
+            $mainError = $_
+          } finally {
+            # Even a RED in the browser must attempt a final table-state diff.
+            if ($baselineReady) {
+              python scripts/ci/cb01_windows_fueg_fixture.py after
+              if ($LASTEXITCODE -ne 0) { $diffError = $true }
+            }
+            if ($null -ne $server -and -not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            }
           }
-          if (-not $ready) {
-            Get-Content $stderr -Tail 40 -ErrorAction SilentlyContinue
-            throw 'FAIL: isolated Windows FastAPI did not start'
-          }
-          Write-Output 'CB01_WINDOWS_FUEG_REAL_FASTAPI: READY at loopback'
-      - name: Seed S05 S06 tenant-scoped staff and baseline all synthetic clinical tables
-        shell: pwsh
-        run: |
-          python scripts/ci/cb01_windows_fueg_fixture.py before
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: FUE-G — same headed tab real MainLayout FastAPI NVDA and native zoom
-        working-directory: frontend
-        shell: pwsh
-        run: |
-          node scripts/certify-cb01-windows-fueg-combined.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Fail-closed clinical persistence comparison across all synthetic tables
-        shell: pwsh
-        run: |
-          python scripts/ci/cb01_windows_fueg_fixture.py after
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($diffError) { throw 'FAIL: clinical SQLite final-state diff after Windows FUE-G' }
+          if ($null -ne $mainError) { throw $mainError }
       - name: Verify joint full-stack NVDA zoom FUE evidence on exact HEAD
         shell: pwsh
         run: |
