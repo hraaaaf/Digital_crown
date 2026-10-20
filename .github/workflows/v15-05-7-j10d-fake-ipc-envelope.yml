@@ -47,7 +47,7 @@ jobs:
           $csc = Get-ChildItem "$env:WINDIR\\Microsoft.NET\\Framework64" -Filter csc.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $csc) { throw 'Windows .NET Framework csc.exe missing' }
           $global:PSNativeCommandUseErrorActionPreference = $false
-          $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_real_ticket_consumer.cs' 'backend/tests/fixtures/lot05j10d_real_issuer_to_installed_consumer_probe.ps1'
+          $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs'
           $output = Join-Path $env:RUNNER_TEMP 'j10d-deny-only-consumer.exe'
           if ((git rev-parse HEAD).Trim() -ne $env:GITHUB_SHA) { throw 'Checkout SHA mismatch' }
           if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
@@ -125,7 +125,7 @@ jobs:
           grep -q '^Ran 1 test' j10d-real-issuer.log
           grep -Eq '^OK[[:space:]]*$' j10d-real-issuer.log
           grep -q 'J10D_J10C_REAL_SCM_RSA_TO_DENY_ONLY_VERIFIER_PASS' j10d-real-issuer.log
-          ! grep -E '^FAILED \\(|skipped=[0-9]+|^ERROR: test_' j10d-real-issuer.log
+          ! grep -E '^FAILED|skipped=[0-9]+|^ERROR: test_' j10d-real-issuer.log
       - name: Strict J10D scope and exact SHA
         shell: bash
         env:
@@ -135,5 +135,5 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
           git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
-          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_signed_replay_lab.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1' 'backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py' 'backend/tests/test_legacy_sql_057j10d_j10c_real_issuer_interop.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_signed_replay_lab.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1' 'backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_real_ticket_consumer.cs' 'backend/tests/fixtures/lot05j10d_real_issuer_to_installed_consumer_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py' 'backend/tests/test_legacy_sql_057j10d_j10c_real_issuer_interop.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
           diff -u expected.txt actual.txt
