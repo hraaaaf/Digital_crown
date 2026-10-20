@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Digital Crown · Reçu synthétique</title>
+<style>
+:root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:Canvas;color:CanvasText}main{max-width:560px;margin:auto;padding:24px 18px 48px}
+.eyebrow{letter-spacing:.1em;text-transform:uppercase;font-size:11px;color:#6684a4;font-weight:800}
+h1{font-size:25px;line-height:1.15;margin:12px 0}p{line-height:1.5;font-size:14px}
+.card{border:1px solid #8e9aa455;border-radius:18px;padding:18px;margin-top:18px}
+label{display:block;font-size:13px;font-weight:700;margin:16px 0 6px}
+textarea,input{display:block;width:100%;font-size:16px;border:1px solid #8794a3;border-radius:10px;padding:12px;background:Canvas;color:CanvasText}
+textarea{min-height:75px;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all}
+input[type=file]{font-size:13px}button{border:0;border-radius:12px;padding:15px 16px;font-size:16px;font-weight:800;width:100%;margin-top:18px;background:#1769a5;color:white;min-height:50px}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #d5a830;outline-offset:2px}
+#result{white-space:pre-wrap;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.ok{border-color:#23844b;background:#23844b12}.bad{border-color:#c75147;background:#c7514712}
+small{line-height:1.5;display:block;opacity:.85}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">Digital Crown · LOT06-M LAB</div>
+<h1>Réception d'un reçu signé</h1>
+<p>Vérification locale Ed25519, sans connexion serveur. Ce résultat <b>ne prouve pas</b> un témoin indépendant, un CAS durable ou un ACK clinique.</p>
+<section class="card" aria-labelledby="test-title"><h2 id="test-title" style="font-size:17px">Contrôle du paquet</h2>
+<label for="packet">1. Sélectionne receipt.json (puis receipt_tampered.json)</label>
+<input id="packet" type="file" accept=".json,application/json">
+<label for="key">2. Colle la clé publique Base64 du résumé GitHub Actions</label>
+<textarea id="key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Clé publique de test (ne pas prendre dans le ZIP)"></textarea>
+<label for="sha">3. SHA du run (40 caractères, depuis GitHub)</label>
+<input id="sha" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="SHA complet">
+<label for="runid">4. Numéro du run GitHub Actions</label>
+<input id="runid" inputmode="numeric" placeholder="Ex. 38813168061">
+<button id="verify" type="button">Vérifier la signature</button>
+<small>Si iOS n'exécute pas le HTML depuis Fichiers, ce contrôle appareil reste BLOQUÉ. Ne désactive pas la sécurité du téléphone.</small>
+</section>
+<section class="card" id="resultBox" role="status" aria-live="polite" aria-atomic="true"><b>Résultat</b><div id="result">Aucun test lancé sur cet appareil.</div></section>
+<script>
+'use strict';
+const DOMAIN='DC06M|gha-to-iphone|synthetic-only|v1\u0000';
+const enc=new TextEncoder();
+const $=id=>document.getElementById(id);
+function fail(message){throw new Error(message)}
+function decodeBase64(s){
+  if(typeof s!=='string'||!s||!/^[A-Za-z0-9+/]*={0,2}$/.test(s)||s.length%4!==0)fail('BASE64_INVALID');
+  const bin=atob(s);return Uint8Array.from(bin,c=>c.charCodeAt(0));
+}
+function hex(bytes){return Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('')}
+function shape(m){
+ const keys=['authority_id','decision','epoch','manifest_digest','next_mac','next_sequence','operation_id','previous_mac','previous_sequence','protocol','run_id','scope','source_sha'];
+ if(!m||typeof m!=='object'||Array.isArray(m)||JSON.stringify(Object.keys(m).sort())!==JSON.stringify(keys.slice().sort()))fail('MESSAGE_SCHEMA_REFUSE');
+ if(m.protocol!=='DC06M-IPHONE-POC-v1'||m.authority_id!=='github-actions-ephemeral-demo'||m.epoch!=='SYNTHETIC_ONLY'||m.decision!=='DEMO_NOT_AUTHORITY_ACK'||m.previous_sequence!==4||m.next_sequence!==5)fail('MESSAGE_BINDING_REFUSE');
+ for(const [name,len] of [['scope',32],['operation_id',32],['previous_mac',64],['next_mac',64],['manifest_digest',64]]){
+  if(typeof m[name]!=='string'||!new RegExp('^[0-9a-f]{'+len+'}$').test(m[name]))fail('FIELD_REFUSE: '+name);
+ }
+ if(typeof m.source_sha!=='string'||!/^[0-9a-f]{40}$/.test(m.source_sha)||typeof m.run_id!=='string'||!/^[1-9][0-9]{0,19}$/.test(m.run_id))fail('RUN_FIELD_REFUSE');
+}
+async function verify(){
+ const files=$('packet').files;if(files.length!==1)fail('Sélectionne un reçu JSON.');
+ if(files[0].size>8192)fail('PACKET_TOO_LARGE');
+ const packet=JSON.parse(await files[0].text());
+ if(!packet||Array.isArray(packet)||JSON.stringify(Object.keys(packet).sort())!==JSON.stringify(['payload_b64','signature_b64','public_key_sha256','disclaimer'].sort()))fail('PACKET_SCHEMA_REFUSE');
+ const pub=decodeBase64($('key').value.trim()),payload=decodeBase64(packet.payload_b64),sig=decodeBase64(packet.signature_b64);
+ if(pub.length!==32||sig.length!==64||payload.length>4096||payload.length===0)fail('KEY_SIGNATURE_SIZE_REFUSE');
+ if(!globalThis.isSecureContext||!globalThis.crypto?.subtle)fail('WEBCRYPTO_UNAVAILABLE_OR_INSECURE_CONTEXT');
+ const digest=hex(new Uint8Array(await crypto.subtle.digest('SHA-256',pub)));
+ if(packet.public_key_sha256!==digest)fail('PUBLIC_KEY_FINGERPRINT_REFUSE');
+ const k=await crypto.subtle.importKey('raw',pub,{name:'Ed25519'},false,['verify']);
+ if(!await crypto.subtle.verify({name:'Ed25519'},k,sig,payload))fail('INVALID_ED25519_SIGNATURE');
+ const decoded=new TextDecoder('utf-8',{fatal:true}).decode(payload);
+ if(!decoded.startsWith(DOMAIN))fail('DOMAIN_REFUSE');
+ const original=decoded.slice(DOMAIN.length),m=JSON.parse(original);
+ shape(m);
+ const ordered=Object.fromEntries(Object.keys(m).sort().map(k=>[k,m[k]]));
+ if(JSON.stringify(ordered)!==original)fail('NONCANONICAL_MESSAGE_REFUSE');
+ if(m.source_sha!==$('sha').value.trim()||m.run_id!==$('runid').value.trim())fail('SOURCE_SHA_OR_RUN_MISMATCH');
+ return 'SIGNATURE ED25519 VÉRIFIÉE (TEST SYNTHÉTIQUE UNIQUEMENT)\nSHA : '+m.source_sha+'\nRun : '+m.run_id+'\nOpération : '+m.operation_id+'\nDécision : '+m.decision+'\n\nAucun témoin durable ou ACK clinique démontré.';
+}
+$('verify').addEventListener('click',async()=>{
+ const box=$('resultBox'),out=$('result');box.className='card';out.textContent='Vérification locale en cours…';
+ try{const text=await verify();box.classList.add('ok');out.textContent=text}
+ catch(e){box.classList.add('bad');out.textContent='REJETÉ / NON VÉRIFIÉ : '+String(e?.message||e)}
+});
+</script>
+</main></body></html>

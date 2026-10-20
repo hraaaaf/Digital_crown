@@ -1,0 +1,51 @@
+name: V1.5-06N Checkpoint C Synthetic LAB
+
+on:
+  push:
+    branches:
+      - feat/v15-06n-checkpoint-c-synthetic-20261016
+      - feat/v15-06-reconcile-master-synthetic-20261016
+    paths:
+      - '.github/workflows/v15-06n-checkpoint-c-synthetic.yml'
+      - 'tools/imaging_gateway/checkpoint_c_lab.py'
+      - 'tools/imaging_gateway/tests/test_checkpoint_c_lab.py'
+      - 'tools/imaging_gateway/tests/test_checkpoint_c_adversarial_synthetic_lab.py'
+      - 'tools/imaging_gateway/durable_cas_lab.py'
+      - 'tools/imaging_gateway/independent_witness_lab.py'
+      - 'tools/imaging_gateway/tests/test_independent_witness_lab.py'
+      - 'docs/quality/V15_06_N_CHECKPOINT_C_SYNTHETIC.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  c-anchor-synthetic:
+    name: C anchor adversarial synthetic / ${{ matrix.os }} / hash ${{ matrix.hashseed }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        hashseed: ['0', '73']
+    env:
+      PYTHONHASHSEED: ${{ matrix.hashseed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Synthetic crypto dependency
+        run: python -m pip install 'cryptography>=42,<48'
+      - name: Check syntax
+        run: python -m compileall -q tools/imaging_gateway/checkpoint_c_lab.py tools/imaging_gateway/tests/test_checkpoint_c_lab.py tools/imaging_gateway/tests/test_checkpoint_c_adversarial_synthetic_lab.py
+      - name: Checkpoint C adversarial, receipt and state-machine synthetics
+        run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_checkpoint_c*.py' -v
+      - name: Regression LOT06-N witness processes
+        run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_independent_witness_lab.py' -v
+      - name: Regression LOT06-M durable CAS
+        run: python -m unittest discover -s tools/imaging_gateway/tests -p 'test_durable_cas_lab.py' -v
+      - name: Complete Imaging Gateway synthetic suite on raw branch HEAD
+        if: matrix.hashseed == '0'
+        run: python -m unittest discover -s tools/imaging_gateway/tests -v
