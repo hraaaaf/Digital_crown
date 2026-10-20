@@ -116,6 +116,14 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                         session.flush()
                     else:
                         original_commit()
+                    # Native-process control proves whether Windows removes
+                    # *any* child-created, closed+fsynced file on hard exit,
+                    # independently of the cephalometric archive code.
+                    child_control = root / ".native-child-created-control"
+                    with child_control.open("wb") as stream:
+                        stream.write(b"T2-CHILD-FILE-DURABLE")
+                        stream.flush()
+                        os.fsync(stream.fileno())
                     # Observe *before* TerminateProcess, while the archive
                     # writer is still alive. The marker is proof of the state
                     # actually reached, never a fabricated outcome.
@@ -124,6 +132,7 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                         "expected_root": str(root.resolve()),
                         "service_root": str(archive_service.ARCHIVE_BASE_DIR.resolve()),
                         "archive_root_exists": root.exists(),
+                        "child_control_exists": child_control.is_file(),
                         "pdf_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.pdf")),
                         "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json")),
                         "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
@@ -206,6 +215,7 @@ def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: b
             "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json")),
             "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
             "control_exists": (root / ".native-test-control").is_file(),
+            "child_control_exists": (root / ".native-child-created-control").is_file(),
         }
         assert after_kill["pdf_files"] == checkpoint["pdf_files"] and after_kill["journal_files"] == checkpoint["journal_files"], (
             "Native NTFS process-kill persistence discrepancy: "
