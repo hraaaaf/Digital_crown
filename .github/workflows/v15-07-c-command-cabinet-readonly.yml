@@ -8,6 +8,8 @@ on:
       - 'frontend/src/App.tsx'
       - 'frontend/src/features/command/CommandCabinetReadOnlyRoute*'
       - 'frontend/src/features/command/command-cabinet-readonly-*'
+      - 'frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs'
+      - 'techdoubt.md'
       - '.github/workflows/v15-07-c-command-cabinet-readonly.yml'
   workflow_dispatch:
 permissions:
@@ -42,6 +44,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install locked frontend dependencies
         run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Check real Cabinet browser harness syntax without running a mock browser
+        run: node --check frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs
       - name: Execute 07-C negative RBAC, identity, error, lab and no-write assertions
         working-directory: frontend
         run: npx vitest run src/features/command/CommandCabinetReadOnlyRoute.test.tsx
