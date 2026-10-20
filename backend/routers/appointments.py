@@ -147,7 +147,30 @@ def get_appointments(
         query = query.filter(models.Appointment.datetime_start >= datetime.fromisoformat(start_date.replace("Z", "+00:00")))
     if end_date:
         query = query.filter(models.Appointment.datetime_start <= datetime.fromisoformat(end_date.replace("Z", "+00:00")))
-    return query.order_by(models.Appointment.datetime_start.asc()).all()
+    rows = query.order_by(models.Appointment.datetime_start.asc()).all()
+    if has_permission(current_user, "patients"):
+        return rows
+
+    # 07-C / C07C-09: agenda-only staff may see the timetable but MUST NOT
+    # receive patient identity or free-text clinical/identifying metadata in
+    # the HTTP response. Serialize fresh copies: never modify ORM instances.
+    # Keep id/time/status/ticket/practitioner for permitted appointment work.
+    return [
+        schemas.AppointmentOut.model_validate(row).model_copy(update={
+            "patient_id": None,
+            "patient_name": None,
+            "motif": None,
+            "notes": None,
+            "phone": None,
+            "source": None,
+            "confirmed_by_id": None,
+            "confirmed_at": None,
+            "reminder_sent": False,
+            "reminder_sent_at": None,
+            "expires_at": None,
+        })
+        for row in rows
+    ]
 
 
 @router.post("/", response_model=schemas.AppointmentOut)
