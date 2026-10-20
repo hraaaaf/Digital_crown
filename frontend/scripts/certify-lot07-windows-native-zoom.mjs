@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { inspectPngVisibleInk } from './lot07-07c-png-visual-proof.mjs';
 
 assert.equal(process.platform, 'win32', 'This lab requires a real Windows runner');
 const sha = process.env.EVALUATED_SHA;
@@ -50,7 +51,9 @@ try {
   assert.ok(new URL(page.url()).pathname === '/07c-windows-native-zoom.html',
     'Synthetic Windows fixture URL must remain stable before native zoom');
   const before = await measure();
-  await page.screenshot({ path: path.join(dest, 'windows-owner-100-before.png'), fullPage: true });
+  const beforePng = await page.screenshot({ path: path.join(dest, 'windows-owner-100-before.png'), fullPage: true });
+  report.visualBefore = inspectPngVisibleInk(beforePng);
+  assert.ok(report.visualBefore.inkPixels > 120, 'BEFORE must contain visible rendered text');
   // Attempt the actual Chrome browser-zoom keyboard accelerator. Never use
   // CSS zoom, Emulation.setPageScaleFactor or devicePixelRatio override.
   await page.bringToFront();
@@ -79,7 +82,6 @@ try {
   assert.equal(report.documentUrlAfterZoom, '/07c-windows-native-zoom.html',
     'Browser reload must retain synthetic HTML entry rather than redirect to Cabinet login');
   report.externalHostsBlocked = [...new Set(external)];
-  await page.screenshot({ path: path.join(dest, 'windows-owner-native-zoom-attempt.png'), fullPage: true });
   assert.equal(after.cssBodyZoom, '', 'No CSS zoom permitted');
   assert.ok(after.devicePixelRatio / before.devicePixelRatio >= 1.95 &&
             after.devicePixelRatio / before.devicePixelRatio <= 2.06,
@@ -92,6 +94,27 @@ try {
   assert.equal((await page.getByTestId('command-count').innerText()).trim(), '2');
   const compact = page.getByRole('region', { name: 'Agenda compact' });
   assert.ok(await compact.isVisible(), 'Read-only agenda remains visible at 200% browser zoom');
+  // Screen pixels, not DOM visibility, must show the actual cockpit. The first
+  // Windows run #39501431409 was SUCCESS while its AFTER PNG was pure white.
+  // Never accept that false-green visual evidence again.
+  await page.waitForTimeout(950);
+  let visualAfter;
+  for (let attempt=1;attempt<=3;attempt++) {
+    await page.evaluate(() => new Promise(resolve =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const png=await page.screenshot({
+      path: path.join(dest, 'windows-owner-native-zoom-attempt.png'), fullPage: true,
+    });
+    visualAfter=inspectPngVisibleInk(png);
+    report.visualAfter=visualAfter;
+    report.screenshotAttempts=attempt;
+    if(visualAfter.inkPixels > 120)break;
+    await page.waitForTimeout(1250);
+  }
+  assert.ok(visualAfter.inkPixels > 120,
+    'Windows 200% AFTER screenshot has no real rendered text: white frame is NOT an approval');
+  assert.equal(await page.getByTestId('command-count').innerText(), '2',
+    'AFTER must retain live mounted synthetic Cabinet count');
   report.nativeBrowserZoom200 = true;
   report.pass = true;
 } catch (e) {
