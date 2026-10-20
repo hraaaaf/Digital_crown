@@ -124,6 +124,22 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                         stream.write(b"T2-CHILD-FILE-DURABLE")
                         stream.flush()
                         os.fsync(stream.fileno())
+                    # Adjacent controls match both archive file-creation modes
+                    # and parent directories. This distinguishes generic x-mode
+                    # or directory effects from product-specific file handling.
+                    saved_pdf = next(root.rglob("*.pdf"))
+                    saved_journal = next(root.rglob("*.json"))
+                    adjacent_xb = saved_pdf.with_name(".native-adjacent-xb-control")
+                    with adjacent_xb.open("xb") as stream:
+                        stream.write(b"T2-ADJACENT-EXCLUSIVE-CONTROL")
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                    adjacent_osopen = saved_journal.with_name(".native-adjacent-osopen-control")
+                    fd = os.open(adjacent_osopen, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                    with os.fdopen(fd, "wb") as stream:
+                        stream.write(b"T2-ADJACENT-OSOPEN-CONTROL")
+                        stream.flush()
+                        os.fsync(stream.fileno())
                     # Observe *before* TerminateProcess, while the archive
                     # writer is still alive. The marker is proof of the state
                     # actually reached, never a fabricated outcome.
@@ -133,6 +149,8 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                         "service_root": str(archive_service.ARCHIVE_BASE_DIR.resolve()),
                         "archive_root_exists": root.exists(),
                         "child_control_exists": child_control.is_file(),
+                        "adjacent_xb_exists": adjacent_xb.is_file(),
+                        "adjacent_osopen_exists": adjacent_osopen.is_file(),
                         "pdf_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.pdf")),
                         "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json")),
                         "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
@@ -216,6 +234,12 @@ def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: b
             "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
             "control_exists": (root / ".native-test-control").is_file(),
             "child_control_exists": (root / ".native-child-created-control").is_file(),
+            "adjacent_xb_exists": (root / checkpoint["pdf_files"][0]).with_name(".native-adjacent-xb-control").is_file(),
+            "adjacent_osopen_exists": (root / checkpoint["journal_files"][0]).with_name(".native-adjacent-osopen-control").is_file(),
+            "direct_pdf_exists": (root / checkpoint["pdf_files"][0]).is_file(),
+            "direct_journal_exists": (root / checkpoint["journal_files"][0]).is_file(),
+            "pdf_parent_entries": sorted(p.name for p in (root / checkpoint["pdf_files"][0]).parent.iterdir()),
+            "journal_parent_entries": sorted(p.name for p in (root / checkpoint["journal_files"][0]).parent.iterdir()),
         }
         assert after_kill["pdf_files"] == checkpoint["pdf_files"] and after_kill["journal_files"] == checkpoint["journal_files"], (
             "Native NTFS process-kill persistence discrepancy: "
