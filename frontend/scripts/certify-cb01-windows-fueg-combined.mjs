@@ -335,9 +335,40 @@ try {
   const at100=await inspectZoomLayout(page);
   await page.screenshot({path:path.join(out,'cb01-combined-100.png')});
   report.screenshots.push('cb01-combined-100.png');
-  await nativeZoom(zoomWorker,2);
+  // chrome.tabs.setZoom/getZoom can settle before the page's JS viewport/DPR
+  // observes the new native scale. Last run measured a stale 1920px/DPR1
+  // but the immediately following panel geometry already saw viewportH450.
+  // Wait for the REAL same-tab Chromium reflow; do not alter its CSS metrics.
+  const zoomSet=await nativeZoom(zoomWorker,2);
+  const zoomImmediate=await inspectZoomLayout(page);
+  try {
+    await page.waitForFunction(
+      ({width,dpr}) =>
+        window.innerWidth < width
+        && window.innerWidth <= Math.ceil(width*0.6)
+        && window.devicePixelRatio > dpr
+        && document.documentElement.scrollWidth <= document.documentElement.clientWidth+2,
+      {width:at100.innerWidth,dpr:at100.devicePixelRatio},
+      {timeout:15000,polling:'raf'},
+    );
+  } catch(err) {
+    report.zoomMeasurements={
+      at100,at200Immediate:zoomImmediate,
+      at200Timeout:await inspectZoomLayout(page),
+      extensionZoomAtTimeout:await readNativeZoom(zoomWorker),
+    };
+    await page.screenshot({path:path.join(out,'cb01-native-zoom-reflow-timeout.png')})
+      .then(()=>report.screenshots.push('cb01-native-zoom-reflow-timeout.png')).catch(()=>{});
+    throw Error('NOT_CERTIFIED: real Chromium native 200% reflow not observed within 15 seconds; '+
+      JSON.stringify(report.zoomMeasurements));
+  }
+  const zoomAfterReflow=await readNativeZoom(zoomWorker);
+  if(zoomAfterReflow.tabId!==zoomSet.tabId
+     || Math.abs(zoomAfterReflow.observed-2)>0.01)
+    throw Error('NOT_CERTIFIED: native zoom 2 or tab identity changed after real reflow');
   const at200=await inspectZoomLayout(page);
-  report.zoomMeasurements={at100,at200};
+  report.zoomMeasurements={at100,at200Immediate:zoomImmediate,at200,zoomAfterReflow};
+  console.log('CB01_WINDOWS_FUEG_NATIVE_REFLOW',JSON.stringify(report.zoomMeasurements));
   const floatingPanel=page.locator('[data-ux1-c-crownbot-overlay]');
   await floatingPanel.waitFor({state:'visible',timeout:30000});
   if(await page.locator('[data-cb01-associate-sidecar]').count())
