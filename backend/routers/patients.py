@@ -1573,11 +1573,14 @@ def generate_cephalo_pdf(
     if revision is not None:
         headers["X-Cephalo-Revision"] = str(revision)
     if req.archive:
-        # Commit already succeeded. Never reopen a mutable PDF path in the
-        # deferred ASGI response after the database lock has been released.
+        # Crash recovery may commit previously rendered, verified bytes.
+        # Never hand the caller a fresh draft that differs from SQL's SHA256.
         from urllib.parse import quote
-        headers["Content-Disposition"] = "attachment; filename*=utf-8''" + quote(os.path.basename(pdf_path))
-        return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+        from backend.services.cephalo_document_lock import verified_official_archive_bytes
+
+        committed_pdf = verified_official_archive_bytes(archived, db)
+        headers["Content-Disposition"] = "attachment; filename*=utf-8''" + quote(archived.filename)
+        return Response(content=committed_pdf, media_type="application/pdf", headers=headers)
     return FileResponse(
         path=pdf_path,
         filename=os.path.basename(pdf_path),
