@@ -109,7 +109,7 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                       for frame in traceback.extract_stack(limit=9)[:-1]],
         }
         with audit_path.open("a", encoding="utf-8") as output:
-            output.write(json.dumps(record, sort_keys=True) + "\\n")
+            output.write(json.dumps(record, sort_keys=True) + "\n")
             output.flush()
             os.fsync(output.fileno())
 
