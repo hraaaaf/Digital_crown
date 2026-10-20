@@ -441,21 +441,43 @@ try {
       p.chatFocused && /Digital Crown/i.test(p.spokenWindowTitle)))
     throw Error('NOT_CERTIFIED: NVDA did not report foreground Digital Crown window; focus probes='+JSON.stringify(report.nvdaOsFocusProbes));
 
+  // NVDA's system focus can be a real Chromium tab yet its browser virtual
+  // document may remain in focus mode or stale after React + native zoom.
+  // These are genuine documented NVDA key commands, not DOM/speech emulation.
   await nvda.clearSpokenPhraseLog();
+  await nvda.perform(nvda.keyboardCommands.exitFocusMode);
+  report.keyboardActions.push('NVDA.exitFocusMode');
+  await nvda.perform(nvda.keyboardCommands.refreshBrowseDocument);
+  report.keyboardActions.push('NVDA.refreshBrowseDocument');
+  await sleep(800);
+  await nvda.perform(nvda.keyboardCommands.reportCurrentFocus);
+  report.keyboardActions.push('NVDA.reportCurrentFocus');
+  await captureSpeech('browse-refresh-current-focus');
+  report.nvdaBrowseProbe={
+    source:'REAL_GUIDEPUP_NVDA_COMMANDS',
+    lastSpokenPhrase:report.lastSpokenPhrase?.slice(0,180)||'',
+    spokenCount:report.spokenPhrases.filter(phrase=>String(phrase).trim()).length,
+  };
   await nvda.next();
   report.keyboardActions.push('NVDA.next.focus-probe');
   await captureSpeech('focused-app-initial');
   if(!report.spokenPhrases.some(phrase=>String(phrase).trim())) {
-    // Diagnose missing real speech in seconds, rather than issuing 135 empty
-    // NVDA commands for minutes. The 5/5 speech oracle remains mandatory.
-    for(let attempt=1;attempt<=4;attempt++) {
-      await nvda.next();
-      report.keyboardActions.push('NVDA.next.focus-probe-'+attempt);
+    // The browse buffer may still not attach to real Chrome content. Try
+    // genuine semantic NVDA form-field navigation before failing closed.
+    for(let attempt=1;attempt<=6;attempt++) {
+      if(attempt%2===0){
+        await nvda.perform(nvda.keyboardCommands.moveToNextFormField);
+        report.keyboardActions.push('NVDA.moveToNextFormField.focus-probe-'+attempt);
+      }else{
+        await nvda.next();
+        report.keyboardActions.push('NVDA.next.focus-probe-'+attempt);
+      }
       await captureSpeech('focused-app-retry-'+attempt);
       if(report.spokenPhrases.some(phrase=>String(phrase).trim())) break;
     }
     if(!report.spokenPhrases.some(phrase=>String(phrase).trim()))
-      throw Error('NOT_CERTIFIED: NVDA emitted no real speech after Windows foreground focus, 5 OS-level navigation attempts');
+      throw Error('NOT_CERTIFIED: no NVDA web/control speech after browse-mode reset, virtual-document refresh, focus report and 7 real NVDA navigations; '+
+        JSON.stringify(report.nvdaBrowseProbe));
   }
   report.nvdaSpeechProbe='PASS_REAL_NONEMPTY_NVDA_PHRASE_IN_FULL_MAINLAYOUT';
   // Trigger real OS-level NVDA navigation, recording each command.
