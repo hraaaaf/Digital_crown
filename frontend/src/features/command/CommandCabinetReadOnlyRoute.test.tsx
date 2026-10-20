@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AppUser } from '../../types';
@@ -108,6 +108,38 @@ describe('07-C / real Cabinet read-only boundary', () => {
     expect(screen.queryByText('TEST-PRÉNOM TEST-NOM')).not.toBeInTheDocument();
     expect(screen.getByTestId('command-count')).toHaveTextContent('—');
     expect(screen.getByRole('button', { name: /Actualiser les rendez-vous/i })).toBeDisabled();
+  });
+
+  it('clears prior patient rows when the signed-in account or cabinet changes', () => {
+    mockToday.mockImplementation(({ user }: { user: AppUser }) => {
+      const firstActor = user.id === 101;
+      return {
+        appointments: firstActor ? [appointment] : null,
+        appointmentsState: firstActor ? 'ready' : 'loading',
+        refreshAppointments: vi.fn(),
+      };
+    });
+    useAuthStore.setState({ user: userWith({ agenda: true, patients: true }), isAuthenticated: true, isLoading: false });
+    const { container } = render(<CommandCabinetReadOnlyRoute />);
+    expect(screen.getByText('TEST-PRÉNOM TEST-NOM')).toBeInTheDocument();
+    const nextActor = { ...userWith({ agenda: true, patients: true }), id: 202, employer_id: 20 } as AppUser;
+    act(() => {
+      useAuthStore.setState({ user: nextActor, isAuthenticated: true, isLoading: false });
+    });
+    expect(container.textContent).not.toContain('TEST-NOM');
+    expect(screen.getByTestId('command-count')).toHaveTextContent('—');
+    expect(mockToday).toHaveBeenCalledWith(expect.objectContaining({ user: nextActor }));
+  });
+
+  it('redacts patient names immediately if the patients permission is revoked', () => {
+    useAuthStore.setState({ user: userWith({ agenda: true, patients: true }), isAuthenticated: true, isLoading: false });
+    const { container } = render(<CommandCabinetReadOnlyRoute />);
+    expect(screen.getByText('TEST-PRÉNOM TEST-NOM')).toBeInTheDocument();
+    act(() => {
+      useAuthStore.setState({ user: userWith({ agenda: true, patients: false }), isAuthenticated: true, isLoading: false });
+    });
+    expect(container.textContent).not.toContain('TEST-NOM');
+    expect(screen.getByText('Rendez-vous')).toBeInTheDocument();
   });
 
   it('rejects mixed-validity API data and preserves local cabinet clock without UTC shifting', () => {
