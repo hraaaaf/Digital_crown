@@ -57,6 +57,19 @@ jobs:
           set -e
           test "$result" -eq 3
           test "$denial" = 'DENY_J10D_WITNESS_EXTERNAL_AUTHORITY_NOT_ENROLLED'
+      - name: Verify fake remote monotonic checkpoint service (not independently trusted)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B backend/tests/test_legacy_sql_057j10d_fake_offhost_witness_store.py -v 2>&1 | tee j10d-fake-remote.log
+          grep -q 'Ran 12 tests' j10d-fake-remote.log
+          grep -Eq '^OK[[:space:]]*$' j10d-fake-remote.log
+          grep -q 'J10D_FAKE_REMOTE_SIGNED_RECEIPT_STILL_PRODUCT_DENY_PASS' j10d-fake-remote.log
+          grep -q 'J10D_FAKE_OFF_LEDGER_CLIENT_ROLLBACK_DENIED_PASS' j10d-fake-remote.log
+          grep -q 'J10D_FAKE_REMOTE_SQLITE_SINGLE_ADVANCE_CONCURRENCY_PASS' j10d-fake-remote.log
+          grep -q 'J10D_FAKE_REMOTE_LOST_ACK_DOES_NOT_REUSE_CHECKPOINT_PASS' j10d-fake-remote.log
+          grep -q 'J10D_FAKE_REMOTE_WORKER_PROCESS_RESTART_ROLLBACK_DENIED_PASS' j10d-fake-remote.log
+          ! grep -E '^FAILED|skipped=[0-9]+|^ERROR:' j10d-fake-remote.log
       - name: Compile deny-only SCM consumer on Windows
         if: runner.os == 'Windows'
         shell: pwsh
@@ -166,5 +179,5 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
           git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
-          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_signed_replay_lab.py' 'backend/tests/fixtures/lot05j10d_external_witness_gate.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1' 'backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_real_ticket_consumer.cs' 'backend/tests/fixtures/lot05j10d_real_issuer_to_installed_consumer_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_authenticated_pipe_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_authenticated_pipe_relay.cs' 'backend/tests/fixtures/lot05j10d_scm_authenticated_pipe_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_direct_scm_jwt_signer.cs' 'backend/tests/fixtures/lot05j10d_direct_original_scm_signer_pipe_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py' 'backend/tests/test_legacy_sql_057j10d_external_witness_gate.py' 'backend/tests/test_legacy_sql_057j10d_j10c_real_issuer_interop.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_signed_replay_lab.py' 'backend/tests/fixtures/lot05j10d_external_witness_gate.py' 'backend/tests/fixtures/lot05j10d_fake_offhost_witness_store.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1' 'backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_real_ticket_consumer.cs' 'backend/tests/fixtures/lot05j10d_real_issuer_to_installed_consumer_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_authenticated_pipe_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_authenticated_pipe_relay.cs' 'backend/tests/fixtures/lot05j10d_scm_authenticated_pipe_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_direct_scm_jwt_signer.cs' 'backend/tests/fixtures/lot05j10d_direct_original_scm_signer_pipe_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py' 'backend/tests/test_legacy_sql_057j10d_external_witness_gate.py' 'backend/tests/test_legacy_sql_057j10d_fake_offhost_witness_store.py' 'backend/tests/test_legacy_sql_057j10d_j10c_real_issuer_interop.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
           diff -u expected.txt actual.txt
