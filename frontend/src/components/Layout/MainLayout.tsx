@@ -58,6 +58,9 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
+  // 07-C dev-only preview: do not float CrownBot over a 200%-zoomed
+  // read-only schedule. Other Desktop and mobile surfaces are unchanged.
+  const isCommandCabinetLab = location.pathname === '/command-cabinet-lab';
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
     && new URLSearchParams(location.search).get('tab') === 'admin';
   const showPractitionerContext = ['/dashboard', '/agenda', '/settings'].includes(location.pathname);
@@ -120,7 +123,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      <div
+      {!isCommandCabinetLab && <div
         data-ux1-c-crownbot-floating
         className={`${isPatientRoute ? 'hidden lg:block' : ''} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
       >
@@ -137,10 +140,10 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
             </span>
           )}
         </button>
-      </div>
+      </div>}
 
       <AnimatePresence>
-        {isBotOpen && (
+        {isBotOpen && !isCommandCabinetLab && (
           <motion.div
             data-ux1-c-crownbot-overlay
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
