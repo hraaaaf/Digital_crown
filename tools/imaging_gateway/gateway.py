@@ -656,6 +656,10 @@ class HotFolder:
         blob, digest, size = previous
         if digest != ready[0] or size != ready[1]:
             raise GatewayError("existing acquisition ledger mismatch")
+        # The cheap ready-manifest duplicate path intentionally skips decryption,
+        # but must not skip canonical path validation of persisted SQLite data.
+        if not isinstance(blob, str) or blob != identity + ".dc6":
+            raise GatewayError("invalid spool ledger reference")
         target = self.spool / blob
         if _is_unsafe_path_component(target) or not target.is_file():
             raise GatewayError("previous spool missing or unsafe")

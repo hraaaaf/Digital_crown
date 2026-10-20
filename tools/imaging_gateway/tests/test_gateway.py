@@ -934,6 +934,32 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(len(restarted.items()), 1)
         self.assertEqual(restarted.read_verified(1), SYNTHETIC)
 
+    def test_ready_mode_tampered_ledger_blob_cannot_fake_duplicate(self):
+        """A corrupted LAB ledger must not redirect the no-decrypt fast-path."""
+        self.enable_ready_mode()
+        (self.watch / "fixture.png").write_bytes(SYNTHETIC)
+        self.ready_marker()
+        self.assertEqual(self.agent.scan_once()["unstable"], 1)
+        self.assertEqual(self.agent.scan_once()["staged"], 1)
+        item = self.agent.items()[0]
+
+        # Path escaping the spool that the old fast-path would stat and accept.
+        unrelated = self.private.parent / "unrelated-file"
+        unrelated.write_bytes(b"U" * len(SYNTHETIC))
+        with self.agent._db() as db:
+            db.execute("UPDATE items SET blob=? WHERE id=?",
+                       ("../../unrelated-file", item["id"]))
+        with patch.object(self.agent, "_read",
+                          side_effect=AssertionError("source unexpectedly read")):
+            with self.assertRaisesRegex(GatewayError, "invalid spool ledger reference"):
+                self.agent.scan_once()
+        self.assertEqual(unrelated.read_bytes(), b"U" * len(SYNTHETIC))
+        self.assertEqual(len(self.agent.items()), 1)
+        with self.agent._db() as db:
+            self.assertEqual(db.execute(
+                "SELECT blob FROM items WHERE id=?", (item["id"],)
+            ).fetchone(), ("../../unrelated-file",))
+
     def test_ready_mode_does_not_quarantine_marker_as_media(self):
         self.enable_ready_mode()
         self.ready_marker()
