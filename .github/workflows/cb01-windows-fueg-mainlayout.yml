@@ -79,6 +79,14 @@ jobs:
           Get-Content requirements.txt | Where-Object { $_ -notmatch '^(torch|torchaudio|torchvision)==' } | Set-Content "$env:RUNNER_TEMP\cb01-windows-requirements.txt"
           python -m pip install -r "$env:RUNNER_TEMP\cb01-windows-requirements.txt"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Python's zoneinfo on Windows needs the IANA tzdata database.
+          # The real /rdv preview intentionally fails closed with HTTP 503
+          # if Africa/Casablanca cannot be loaded. Never mock its result.
+          python -m pip install tzdata==2025.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -c "from zoneinfo import ZoneInfo; from datetime import datetime,timezone; zone=ZoneInfo('Africa/Casablanca'); assert datetime.now(timezone.utc).astimezone(zone).tzinfo.key == 'Africa/Casablanca'"
+          if ($LASTEXITCODE -ne 0) { throw 'FAIL: real IANA cabinet timezone unavailable on Windows' }
+          Write-Output 'CB01_WINDOWS_FUEG_IANA_TIMEZONE: PASS Africa/Casablanca'
       - name: Install real frontend, headed Chromium and Guidepup NVDA
         working-directory: frontend
         shell: pwsh
