@@ -14,7 +14,7 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -101,6 +101,31 @@ jobs:
           $ErrorActionPreference = 'Stop'
           & "$env:GITHUB_WORKSPACE/backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1"
           if (!$?) { throw 'Third-SCM SID negative proof failed' }
+      - name: Install actual J10C Windows SCM JWT and SQLCipher FAKE dependencies
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install alembic==1.20.0 sqlalchemy==2.0.28 sqlcipher3==0.6.2 'pydantic[email]==2.6.3' pydantic-settings==2.2.1 fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 python-multipart==0.0.31 python-dotenv==1.2.1 PyYAML==6.0.3 pytest==9.0.3
+          python -c "from sqlcipher3 import dbapi2 as d; c=d.connect(':memory:'); assert c.execute('PRAGMA cipher_version').fetchone()[0]; c.close(); print('J10D_REAL_NATIVE_SQLCIPHER_FAKE_PROVEN')"
+      - name: Actual J10C Windows SCM JWT RSA ticket to J10D deny-only replay verifier
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          LOT05J10B_SQLCIPHER_FAKE_ONLY: '1'
+          LOT05J9_SIGNER_SID_FAKE_ONLY: '1'
+          LOT05J9_REAL_JWT_SCM_FAKE_ONLY: '1'
+          LOT05E_REAL_SQLCIPHER_FAKE_ONLY: '1'
+          LOT05I_REAL_JWT_WAL_FAKE_ONLY: '1'
+          PYTHONDONTWRITEBYTECODE: '1'
+          ENVIRONMENT: cabinet
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -B backend/tests/test_legacy_sql_057j10d_j10c_real_issuer_interop.py -v 2>&1 | tee j10d-real-issuer.log
+          grep -q '^Ran 1 test' j10d-real-issuer.log
+          grep -Eq '^OK[[:space:]]*$' j10d-real-issuer.log
+          grep -q 'J10D_J10C_REAL_SCM_RSA_TO_DENY_ONLY_VERIFIER_PASS' j10d-real-issuer.log
+          ! grep -E '^FAILED \\(|skipped=[0-9]+|^ERROR: test_' j10d-real-issuer.log
       - name: Strict J10D scope and exact SHA
         shell: bash
         env:
@@ -110,5 +135,5 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           git diff --exit-code "$BASE_SHA" HEAD -- backend/main.py backend/database.py backend/models.py backend/services backend/routers alembic frontend
           git diff --name-only "$BASE_SHA" HEAD | sort > actual.txt
-          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_signed_replay_lab.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1' 'backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
+          printf '%s\n' '.github/workflows/v15-05-7-j10d-fake-ipc-envelope.yml' 'backend/tests/fixtures/lot05j10d_fake_ipc_envelope.py' 'backend/tests/fixtures/lot05j10d_signed_replay_lab.py' 'backend/tests/fixtures/lot05j10d_scm_deny_only_probe.ps1' 'backend/tests/fixtures/lot05j10d_three_scm_sid_adversarial_probe.ps1' 'backend/tests/fixtures/lot05j10d_two_scm_deny_probe.ps1' 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_scm_caller.cs' 'backend/tests/test_legacy_sql_057j10d_fake_ipc_envelope.py' 'backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py' 'backend/tests/test_legacy_sql_057j10d_j10c_real_issuer_interop.py' 'docs/quality/V15_05_7_J10D_INSTALLED_WINDOWS_AUTHORITY_GATE.md' 'techdoubt.md' | sort > expected.txt
           diff -u expected.txt actual.txt
