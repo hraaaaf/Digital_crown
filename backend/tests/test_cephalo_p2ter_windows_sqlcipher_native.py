@@ -116,7 +116,19 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
                         session.flush()
                     else:
                         original_commit()
-                    marker.write_text(mode, encoding="ascii")
+                    # Observe *before* TerminateProcess, while the archive
+                    # writer is still alive. The marker is proof of the state
+                    # actually reached, never a fabricated outcome.
+                    checkpoint = {
+                        "mode": mode,
+                        "expected_root": str(root.resolve()),
+                        "service_root": str(archive_service.ARCHIVE_BASE_DIR.resolve()),
+                        "archive_root_exists": root.exists(),
+                        "pdf_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.pdf")),
+                        "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json")),
+                        "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
+                    }
+                    marker.write_text(json.dumps(checkpoint, sort_keys=True), encoding="utf-8")
                     with marker.open("rb") as stream:
                         os.fsync(stream.fileno())
                     # Parent must invoke actual Windows TerminateProcess; no
@@ -175,8 +187,16 @@ def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: b
                 "Native child failed before interruption window: "
                 f"returncode={process.returncode}, diagnostics={sanitized}"
             )
-        assert marker.read_text(encoding="ascii") == mode
+        checkpoint = json.loads(marker.read_text(encoding="utf-8"))
+        assert checkpoint["mode"] == mode
         assert process.poll() is None, "Child ended before native termination"
+        assert checkpoint["service_root"] == checkpoint["expected_root"], checkpoint
+        # The archive must exist *before* we kill the Windows process.
+        # This detects a wrongly directed test fixture instead of treating
+        # a missing PDF as a valid crash-recovery result.
+        assert len(checkpoint["pdf_files"]) == 1 and len(checkpoint["journal_files"]) == 1, (
+            "Archive missing before TerminateProcess: " + json.dumps(checkpoint, sort_keys=True)
+        )
         process.kill()  # Windows API TerminateProcess, not os._exit or fake exception
         process.communicate(timeout=15)
         assert process.returncode != 0, "TerminateProcess unexpectedly succeeded as normal exit"
