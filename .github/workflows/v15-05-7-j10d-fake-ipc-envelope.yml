@@ -47,7 +47,7 @@ jobs:
           $csc = Get-ChildItem "$env:WINDIR\\Microsoft.NET\\Framework64" -Filter csc.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $csc) { throw 'Windows .NET Framework csc.exe missing' }
           $global:PSNativeCommandUseErrorActionPreference = $false
-          $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs'
+          $source = Join-Path $env:GITHUB_WORKSPACE 'backend/tests/fixtures/lot05j10d_windows_deny_only_consumer.cs' 'backend/tests/fixtures/lot05j10d_windows_real_ticket_consumer.cs' 'backend/tests/fixtures/lot05j10d_real_issuer_to_installed_consumer_probe.ps1'
           $output = Join-Path $env:RUNNER_TEMP 'j10d-deny-only-consumer.exe'
           if ((git rev-parse HEAD).Trim() -ne $env:GITHUB_SHA) { throw 'Checkout SHA mismatch' }
           if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
