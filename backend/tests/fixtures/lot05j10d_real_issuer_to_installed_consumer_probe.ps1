@@ -10,8 +10,8 @@ foreach($k in @('LOT05J10D_SOURCE_ROOT','LOT05J10D_OWNER','LOT05J10D_JOB',
         throw ('J10D_MISSING_FAKE_INPUT '+$k)
     }
 }
-function Native([string]$program,[string[]]$args) {
-    $lines=@(& $program @args 2>&1)
+function Native([string]$program,[string[]]$argv) {
+    $lines=@(& $program @argv 2>&1)
     if($LASTEXITCODE -ne 0) {throw ('J10D_NATIVE_FAIL '+$program+' '+($lines -join ' '))}
 }
 function Sid([string]$service) {
@@ -83,7 +83,7 @@ try {
     Copy-Item -LiteralPath $prepared -Destination $ticket
     Copy-Item -LiteralPath $preparedPin -Destination $pin
     $signed=Get-Content -LiteralPath $ticket -Raw | ConvertFrom-Json
-    if($signed.body -notmatch '^owner=[1-9][0-9]*\\|audience=LOT05J10C_SQLCIPHER_FAKE\\|') {
+    if($signed.body -notmatch '^owner=[1-9][0-9]*\|audience=LOT05J10C_SQLCIPHER_FAKE\|') {
         throw 'J10D_WRONG_ISSUER_AUDIENCE'
     }
     $signed.body=$signed.body.Replace(('job='+$env:LOT05J10D_JOB),('job='+('f'*32)))
