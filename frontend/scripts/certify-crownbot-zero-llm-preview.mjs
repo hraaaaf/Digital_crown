@@ -12,7 +12,10 @@ const appUrl = process.env.CROWN_BOT_VISUAL_APP_URL || 'http://127.0.0.1:5173';
 const apiUrl = process.env.CROWN_BOT_VISUAL_API_URL || 'http://127.0.0.1:8005';
 const user = process.env.T2_USER;
 const pass = process.env.T2_PASSWORD;
-if (!user || !pass) throw new Error('Synthetic T2 staff credentials required');
+const exactSourceHead = process.env.CB01_SOURCE_HEAD || '';
+if (!/^[a-f0-9]{40}$/.test(exactSourceHead))
+  throw new Error('REFUSED: exact CI-verified CB-01 HEAD not supplied');
+if (!user?.startsWith('t2-') || !pass) throw new Error('Synthetic T2 staff credentials required');
 
 const output = path.resolve('../artifacts/crown-bot-zero-llm-preview');
 fs.mkdirSync(output, { recursive: true });
@@ -90,7 +93,7 @@ try {
   }
   fs.writeFileSync(path.join(output, 'summary.json'), JSON.stringify({
     result: 'PASS', kind: 'same-viewport before/after interaction (not historical release diff)',
-    head: process.env.GITHUB_SHA || null, evidence,
+    head: exactSourceHead, evidence,
   }, null, 2));
   console.log('CROWN_BOT_ZERO_LLM_PREVIEW_VISUAL: PASS', JSON.stringify(evidence));
 } finally {
