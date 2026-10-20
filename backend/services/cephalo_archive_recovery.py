@@ -27,12 +27,18 @@ class PendingOfficialPDF:
 
 
 def _sync_parent(path: Path) -> None:
-    """Best-effort directory durability on POSIX; Windows cabinet unverified."""
-    if os.name != "posix":
-        return
-    fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    """Best-effort directory sync; unsupported directory handles remain an OS limit."""
+    # Not all supported filesystems expose directory fsync (notably Windows).
+    # Do not branch directly on the host OS outside the portability abstraction.
     try:
-        os.fsync(fd)
+        fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    except OSError:
+        return
+    try:
+        try:
+            os.fsync(fd)
+        except OSError:
+            pass
     finally:
         os.close(fd)
 
