@@ -58,7 +58,7 @@ internal sealed class J10DTicketRelay : ServiceBase {
                 response="DENY_PIPE_ACCESS";break;
             } catch(System.TimeoutException) {Thread.Sleep(180);}
               catch(IOException) {Thread.Sleep(180);}
-              catch(Exception) {response="DENY_J10D_EXCEPTION";break;}
+              catch(Exception error) {response="DENY_J10D_EXCEPTION_"+error.GetType().Name;break;}
         }
         try {File.WriteAllText(a[3],"service_sid_present="+sid+"\nresponse="+response+"\n",Encoding.ASCII);}
         catch(Exception) {}
