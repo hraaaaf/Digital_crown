@@ -1,5 +1,8 @@
 """Synthetic RSA fixture is format-compatible with actual J10C issuer, not an SCM integration test."""
 import base64
+import json
+import subprocess
+import sys
 import concurrent.futures
 import importlib.util
 from pathlib import Path
@@ -46,6 +49,25 @@ class SignedReplayLab(unittest.TestCase):
         self.burn()
         with self.assertRaisesRegex(m.SignedReplayDenied,"NONCE_REPLAY"):
             self.burn()
+
+    def test_replay_after_process_restart_denied(self):
+        self.burn()
+        fixture=Path(self.temp.name)/"fixture.json"
+        fixture.write_text(json.dumps({"ticket":self.ticket,"pin":self.pin}),encoding="utf8")
+        child = """import importlib.util,json,sys
+p=sys.argv[1];s=importlib.util.spec_from_file_location('j10d_restarted',p)
+m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+d=json.load(open(sys.argv[2],encoding='utf8'))
+try:
+ m.verify_and_burn(d['ticket'],d['pin'],owner=17,job='a'*32,generation='g_'+'b'*32,manifest='c'*64,ledger_dir=sys.argv[3],now=100000)
+except m.SignedReplayDenied as e:
+ print(str(e));sys.exit(0)
+sys.exit(1)
+"""
+        result=subprocess.run([sys.executable,"-B","-c",child,str(p),str(fixture),str(self.ledger)],
+                              capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(result.stdout.strip(),"NONCE_REPLAY")
 
     def test_wrong_scope_denied_without_burn(self):
         for kw in (dict(owner=18),dict(job="e"*32),dict(generation="g_"+"f"*32),dict(manifest="e"*64)):
