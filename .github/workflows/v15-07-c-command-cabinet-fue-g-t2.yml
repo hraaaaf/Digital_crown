@@ -115,6 +115,7 @@ jobs:
                   duration_minutes=30, status=models.AppointmentStatus.EN_SALLE_ATTENTE,
                   scheduling_type=models.SchedulingType.EXACT_TIME, employer_id=owner.id,
                   praticien_id=owner.id, source='internal',
+                  motif='T2_PRIVATE_MOTIF_CANARY', notes='T2_PRIVATE_NOTE_CANARY', phone='0600000000',
               ))
               denied = models.User(
                   email='t2-command-denied@cabinet.ma',
