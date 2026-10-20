@@ -112,13 +112,23 @@ async function viewportRun(viewport) {
     });
     if(ready) ready=await run('ENTER_IMAGING',async()=>{
       await page.getByRole('button',{name:'Imagerie',exact:true}).click();
-      await page.getByRole('button',{name:'Céphalométrie',exact:true})
-        .waitFor({state:'visible',timeout:20000});
+      // A "Céphalométrie" filter button also exists on Vue d'ensemble.
+      // Matching it globally produced a false-green transitional screenshot.
+      // Observe the genuine Imagerie route AND the modality selector container.
+      await page.waitForURL(u=>new URL(u).searchParams.get('tab')==='radiology',
+        {timeout:30000});
+      const modalities=page.locator('[aria-label="Modalités d’imagerie"]');
+      await modalities.waitFor({state:'visible',timeout:30000});
+      await modalities.getByRole('button',{name:'Céphalométrie',exact:true})
+        .waitFor({state:'visible',timeout:30000});
+      const tabs=await modalities.getByRole('button').count();
+      if(tabs<3)throw Error('Patient Imagerie modalities missing: '+tabs);
       await shot('after-imaging-opened');
-      return 'Patient Imagerie opened by visible tab';
+      return 'Imagerie route+real modality control visible; not the overview filter';
     });
     if(ready) ready=await run('OPEN_CEPHALO',async()=>{
-      await page.getByRole('button',{name:'Céphalométrie',exact:true}).click();
+      await page.locator('[aria-label="Modalités d’imagerie"]')
+        .getByRole('button',{name:'Céphalométrie',exact:true}).click();
       await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible',timeout:35000});
       const selectedPath=new URL(page.url());
       if(selectedPath.pathname!=='/patients/'+ids.patient_id
