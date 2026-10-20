@@ -257,5 +257,5 @@ def test_sqlcipher_ntfs_kill_restart_derived_archive_integrity(tmp_path, phase):
           "sql_rows=1 pdf_count=1 pending=0 plaintext_read=denied")
 
 
-if __name__ == "__main__" and len(sys.argv) >= 7 and sys.argv[1] == "--child":
+if __name__ == "__main__" and len(sys.argv) >= 6 and sys.argv[1] == "--child":
     _child(*sys.argv[2:6])
