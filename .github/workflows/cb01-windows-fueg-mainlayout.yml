@@ -1,0 +1,163 @@
+name: CB-01 Windows FUE-G MainLayout FastAPI NVDA Zoom (EXPERIMENTAL)
+
+on:
+  pull_request:
+    paths:
+      - frontend/scripts/certify-cb01-windows-fueg-combined.mjs
+      - scripts/ci/cb01_windows_fueg_fixture.py
+      - .github/workflows/cb01-windows-fueg-mainlayout.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-fueg-full-stack:
+    name: Windows FUE-G real MainLayout + FastAPI + NVDA + native zoom 200 (synthetic)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      CB01_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      GITHUB_ACTIONS: 'true'
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CB01_NVDA_EXPERIMENT: '1'
+      CB01_NVDA_ZOOM_EXPERIMENT: '1'
+      ENVIRONMENT: test
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      VITE_TELEMETRY_ENABLED: 'false'
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: 'true'
+      VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED: 'true'
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: 'true'
+      T2_USER: t2-browser@cabinet.ma
+      T2_S05_USER: t2-s05-reception@cabinet.ma
+      T2_S06_USER: t2-s06-no-agenda@cabinet.ma
+    steps:
+      - name: Checkout immutable PR source without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Prove exact HEAD and isolated GitHub runner
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:CB01_SOURCE_HEAD) {
+            throw 'REFUSED: Windows FUE-G source checkout mismatch'
+          }
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:DIGITALCROWN_ISOLATED_RUNTIME -ne '1') {
+            throw 'REFUSED: Windows FUE-G not isolated GitHub runtime'
+          }
+          "CB-01 FUE-G exact HEAD: $env:CB01_SOURCE_HEAD" >> $env:GITHUB_STEP_SUMMARY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate one-use masked fake account password and storage key
+        shell: pwsh
+        run: |
+          $password = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+          $cipherKey = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLowerInvariant()
+          Write-Output "::add-mask::$password"
+          Write-Output "::add-mask::$cipherKey"
+          "T2_PASSWORD=$password" >> $env:GITHUB_ENV
+          "T2_S05_PASSWORD=$password" >> $env:GITHUB_ENV
+          "T2_S06_PASSWORD=$password" >> $env:GITHUB_ENV
+          "SQLCIPHER_KEY_HEX=$cipherKey" >> $env:GITHUB_ENV
+      - name: Install real T2 backend dependencies for isolated Windows runner
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content requirements.txt | Where-Object { $_ -notmatch '^(torch|torchaudio|torchvision)==' } | Set-Content "$env:RUNNER_TEMP\cb01-windows-requirements.txt"
+          python -m pip install -r "$env:RUNNER_TEMP\cb01-windows-requirements.txt"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install real frontend, headed Chromium and Guidepup NVDA
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm install --no-save --no-audit --no-fund playwright@1.55.0 @guidepup/guidepup@0.36.3 @guidepup/setup@0.29.3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx --no-install guidepup setup --ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx --no-install guidepup install nvda
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Start genuine FastAPI with disposable T2 database on localhost
+        shell: pwsh
+        run: |
+          $db = Join-Path $env:GITHUB_WORKSPACE 't2-runtime-cert.db'
+          if (Test-Path $db) { throw 'REFUSED: unexpected preexisting T2 DB on runner' }
+          $stdout = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stdout.log'
+          $stderr = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stderr.log'
+          $python = (Get-Command python).Source
+          $server = Start-Process -FilePath $python -ArgumentList 'scripts/t2_runtime_server.py' -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden
+          "CB01_FUEG_FASTAPI_PID=$($server.Id)" >> $env:GITHUB_ENV
+          $ready = $false
+          for ($i=0; $i -lt 120; $i++) {
+            if ($server.HasExited) { break }
+            try {
+              $health = Invoke-WebRequest -Uri 'http://127.0.0.1:8005/health' -UseBasicParsing -TimeoutSec 2
+              if ($health.StatusCode -eq 200) { $ready = $true; break }
+            } catch {}
+            Start-Sleep -Seconds 2
+          }
+          if (-not $ready) {
+            Get-Content $stderr -Tail 40 -ErrorAction SilentlyContinue
+            throw 'FAIL: isolated Windows FastAPI did not start'
+          }
+          Write-Output 'CB01_WINDOWS_FUEG_REAL_FASTAPI: READY at loopback'
+      - name: Seed S05 S06 tenant-scoped staff and baseline all synthetic clinical tables
+        shell: pwsh
+        run: |
+          python scripts/ci/cb01_windows_fueg_fixture.py before
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: FUE-G — same headed tab real MainLayout FastAPI NVDA and native zoom
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          node scripts/certify-cb01-windows-fueg-combined.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fail-closed clinical persistence comparison across all synthetic tables
+        shell: pwsh
+        run: |
+          python scripts/ci/cb01_windows_fueg_fixture.py after
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify joint full-stack NVDA zoom FUE evidence on exact HEAD
+        shell: pwsh
+        run: |
+          $root = 'artifacts/cb01-windows-fueg-combined'
+          $report = Get-Content "$root/report.json" -Raw | ConvertFrom-Json
+          $db = Get-Content "$root/clinical-final-state.json" -Raw | ConvertFrom-Json
+          if ($report.sourceHead -ne $env:CB01_SOURCE_HEAD -or $db.sourceHead -ne $env:CB01_SOURCE_HEAD) { throw 'FAIL: source SHA mismatch' }
+          if ($report.error -or $report.simultaneousPass -ne $true -or $report.actualClinicalBackend -ne 'REAL_LOCAL_FASTAPI_SYNTHETIC_DB') { throw 'FAIL: joint real backend + NVDA proof missing' }
+          if ($report.nativeZoomAtSpeech -ne 'PASS_VERIFIED_GETZOOM_2' -or [math]::Abs($report.zoomAfterFUE.observed - 2) -gt 0.01) { throw 'FAIL: native zoom not maintained through FUE-G' }
+          if ($report.roleProof.s06 -ne 'PASS_REAL_HTTP_403_NO_PATIENT' -or $report.roleProof.s05 -ne 'PASS_REAL_HTTP_200_PREVIEW_ONLY') { throw 'FAIL: actual role isolation not proven' }
+          if ($report.firstValue.status -ne 'PASS_REAL_FASTAPI_PROPOSAL_ONLY_VISIBLE_AT_NATIVE_200' -or $report.firstValue.clicks -ne 8 -or $report.firstValue.typedAnswers -ne 6) { throw 'FAIL: FUE First Value not proven' }
+          if (@($report.clinicalWritesAttempted).Count -ne 0 -or $db.status -ne 'PASS_CLINICAL_FINAL_STATE_UNCHANGED' -or @($db.clinicalTablesChanged).Count -ne 0 -or $db.tablesChecked -lt 20) { throw 'FAIL: clinical mutation detected or baseline unavailable' }
+          "### CB-01 Windows FUE-G: PASS on exact HEAD $env:CB01_SOURCE_HEAD" >> $env:GITHUB_STEP_SUMMARY
+          'Full MainLayout + real FastAPI + native 200% zoom + real NVDA speech: automated synthetic runner only, no human cabinet validation.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Record failed runtime diagnostics without credentials
+        if: failure()
+        shell: pwsh
+        run: |
+          $stderr = Join-Path $env:RUNNER_TEMP 'cb01-fueg-fastapi.stderr.log'
+          if (Test-Path $stderr) { Get-Content $stderr -Tail 35 }
+      - name: Upload Windows combined FUE-G evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-windows-fueg-real-fastapi-nvda-zoom
+          path: artifacts/cb01-windows-fueg-combined
+          if-no-files-found: warn
+          retention-days: 14
