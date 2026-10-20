@@ -200,6 +200,17 @@ def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: b
         process.kill()  # Windows API TerminateProcess, not os._exit or fake exception
         process.communicate(timeout=15)
         assert process.returncode != 0, "TerminateProcess unexpectedly succeeded as normal exit"
+        after_kill = {
+            "root_exists": root.exists(),
+            "pdf_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.pdf")),
+            "journal_files": sorted(str(p.relative_to(root)) for p in root.rglob("*.json")),
+            "root_entries": sorted(p.name for p in root.iterdir()) if root.exists() else [],
+            "control_exists": (root / ".native-test-control").is_file(),
+        }
+        assert after_kill["pdf_files"] == checkpoint["pdf_files"] and after_kill["journal_files"] == checkpoint["journal_files"], (
+            "Native NTFS process-kill persistence discrepancy: "
+            + json.dumps({"before": checkpoint, "after": after_kill}, sort_keys=True)
+        )
     finally:
         if process.poll() is None:
             process.kill()
@@ -229,6 +240,13 @@ def test_sqlcipher_ntfs_kill_restart_derived_archive_integrity(tmp_path, phase):
     assert _volume_fs(tmp_path) == "NTFS", "Not a native Windows NTFS volume"
     db = tmp_path / "t2-encrypted-vault.db"
     root = tmp_path / "private-t2-archives"
+    root.mkdir(parents=True, exist_ok=True)
+    # Independent OS file-control: distinguish generic NTFS temp cleanup from
+    # product-specific PDF/journal behavior after TerminateProcess.
+    with (root / ".native-test-control").open("wb") as stream:
+        stream.write(b"T2-NTFS-CONTROL")
+        stream.flush()
+        os.fsync(stream.fileno())
     marker = tmp_path / "child-reached-window"
     key = secrets.token_hex(32)  # Synthetic only; never print or upload actual secret
     env = {
@@ -253,7 +271,12 @@ def test_sqlcipher_ntfs_kill_restart_derived_archive_integrity(tmp_path, phase):
     finally:
         engine.dispose()
     pdfs = list(root.rglob("*.pdf"))
-    assert len(pdfs) == 1
+    assert len(pdfs) == 1, (
+        "Archive vanished between TerminateProcess and SQLCipher reopen: "
+        f"root_exists={root.exists()} "
+        f"root_entries={[p.name for p in root.iterdir()] if root.exists() else []}"
+    )
+    assert (root / ".native-test-control").read_bytes() == b"T2-NTFS-CONTROL"
     assert pdfs[0].read_bytes() == PDF
     assert _journal(root).is_file()
     assert json.loads(_journal(root).read_text(encoding="utf-8"))["sha256"] == hashlib.sha256(PDF).hexdigest()
