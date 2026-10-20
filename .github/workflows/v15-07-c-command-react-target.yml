@@ -94,6 +94,57 @@ jobs:
           test -s artifacts/lot07-07c-command-react/fue/fue-report.json
           node -e 'const r=require("./artifacts/lot07-07c-command-react/fue/fue-report.json");if(!r.pass||r.sourceHead!==process.env.SOURCE_HEAD||r.independentAgents!==false||r.realLogin!==false)process.exit(1)'
 
+      - name: Bind screenshots and FUE proof to exact source HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const crypto = require('node:crypto');
+          const assert = require('node:assert/strict');
+          const base = 'artifacts/lot07-07c-command-react';
+          const read = file => JSON.parse(fs.readFileSync(path.join(base,file),'utf8'));
+          const manifest = read('manifest.json');
+          const zoom = read('native-zoom-result.json');
+          const fue = read('fue/fue-report.json');
+          assert.match(process.env.SOURCE_HEAD, /^[0-9a-f]{40}$/);
+          assert.equal(manifest.pass, true);
+          assert.equal(manifest.source, 'REACT_VITE_ISOLATED_NO_APP_ROUTE');
+          assert.deepEqual(manifest.widths, [390,430,768,1280,1440]);
+          assert.equal(manifest.themes.length, 8);
+          assert.ok(manifest.snaps.length >= 15, 'Missing expected screenshots');
+          for (const shot of manifest.snaps) {
+            const file = path.join(base, shot.name);
+            const digest = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+            assert.equal(digest, shot.sha256, 'Screenshot digest mismatch: '+shot.name);
+          }
+          assert.equal(zoom.pass, true);
+          assert.equal(zoom.zoom200, true);
+          for (const name of ['command-react-1440-native-zoom200.png','command-react-1440-native-zoom200-x11.png']) {
+            assert.ok(fs.statSync(path.join(base,name)).size > 0, 'Missing real zoom image: '+name);
+          }
+          assert.equal(fue.pass, true);
+          assert.equal(fue.sourceHead, process.env.SOURCE_HEAD);
+          assert.equal(fue.realLogin, false);
+          assert.equal(fue.backend, false);
+          assert.equal(fue.humanApproval, false);
+          assert.equal(fue.independentAgents, false);
+          assert.ok(fue.checks.length >= 10 && fue.checks.every(x => x.pass), 'FUE assertions missing or failed');
+          for (const name of ['A-before','A-action-confirm','A-after','B-before','B-action-confirm','B-after']) {
+            assert.ok(fs.statSync(path.join(base,'fue',name+'.png')).size > 0, 'Missing synthetic FUE evidence: '+name);
+          }
+          const proof = {
+            sourceHead: process.env.SOURCE_HEAD, verified: true,
+            scope: 'STANDALONE_SYNTHETIC_ONLY_NOT_CABINET',
+            screenshots: manifest.snaps.length + 2 + 6,
+            firstUserChecks: fue.checks.length,
+            humanVisualApproval: false, realCabinetLogin: false
+          };
+          fs.writeFileSync(path.join(base,'exact-head-proof.json'),JSON.stringify(proof,null,2)+'\n');
+          console.log('LOT07_07C_EXACT_HEAD_EVIDENCE '+JSON.stringify(proof));
+          NODE
+
       - name: Upload ONLY synthetic target screenshots and evidence
         if: always()
         uses: actions/upload-artifact@v4
