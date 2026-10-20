@@ -75,6 +75,7 @@ $reportHostile=Join-Path $telemetry 'hostile-pipe.txt'
 $reportJunction=Join-Path $telemetry 'junction-denied.txt'
 $reportAclDrift=Join-Path $telemetry 'acl-drift-denied.txt'
 $reportHandleSwap=Join-Path $telemetry 'handle-swap-denied.txt'
+$reportPreOpenSwap=Join-Path $telemetry 'preopen-swap-denied.txt'
 $raceReady=Join-Path $telemetry 'handle-open.signal'
 $raceContinue=Join-Path $telemetry 'continue.signal'
 $exe=Join-Path $root 'signer-scm.exe'
@@ -207,10 +208,16 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
      $exe,$name,$mode,$proof,$private,$config,$request,$output,$env:LOT05J9_FAKE_PYTHON,$env:GITHUB_WORKSPACE,$sid,$pipe)
   Strict 'sc.exe' @('config',$name,'binPath=',$command) | Out-Null
  }
- $cmdConsumer=('"{0}" "{1}" "{2}" "{3}" "{4}" "{5}" "{6}" "{7}" "{8}" "{9}" "{10}"' -f
+ # Admin-provisioned fake ledger ID is not an independent trust root.
+ $pinnedLedgerId=(Strict $consumerExe @('--j10d-ledger-id',$consumerLedger)).Trim()
+ if($pinnedLedgerId -notmatch '^[0-9A-Fa-f]{24}$') {
+   throw ('J10D_LEDGER_INSTALLER_ID_INVALID '+$pinnedLedgerId)
+ }
+ $cmdConsumer=('"{0}" "{1}" "{2}" "{3}" "{4}" "{5}" "{6}" "{7}" "{8}" "{9}" "{10}" "{11}"' -f
    $consumerExe,$nameC,$pipe,$sid,$consumerSid,$consumerPin,$consumerLedger,
    $env:LOT05J9_FAKE_OWNER,$env:LOT05J10C_EXPECT_JOB,$env:LOT05J10C_EXPECT_GENERATION,
-   $env:LOT05J10C_EXPECT_MANIFEST)
+   $env:LOT05J10C_EXPECT_MANIFEST,$pinnedLedgerId)
+ Write-Output 'J10D_CI_INSTALLER_PINNED_LEDGER_VOLUME_AND_FILE_ID'
  Strict 'sc.exe' @('config',$nameC,'binPath=',$cmdConsumer) | Out-Null
  Strict 'sc.exe' @('start',$nameC) | Out-Null
  (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
@@ -411,6 +418,38 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
  }
  Strict 'sc.exe' @('config',$nameC,'binPath=',$cmdConsumer) | Out-Null
  Remove-Item -LiteralPath $raceReady,$raceContinue -Force
+ # PRE-OPEN PATH-SWAP: the installer has pinned the authentic NTFS ID.
+ # Before opening the directory, Admin substitutes an empty directory with
+ # the same path and protected ACL. Correct signer SID/RSA must still DENY.
+ $preOpenSave=Join-Path $root ('before-open-original-'+$tag)
+ Rename-Item -LiteralPath $consumerLedger -NewName (Split-Path -Leaf $preOpenSave)
+ New-Item -ItemType Directory -Path $consumerLedger | Out-Null
+ Protect $consumerLedger $consumerSid 'Modify' $true
+ $substitutedId=(Strict $consumerExe @('--j10d-ledger-id',$consumerLedger)).Trim()
+ if($substitutedId -eq $pinnedLedgerId -or
+    @(Get-ChildItem -LiteralPath $preOpenSave -Filter '*.nonce' -File).Count -ne 1 -or
+    @(Get-ChildItem -LiteralPath $consumerLedger -Filter '*.nonce' -File).Count -ne 0) {
+    throw 'J10D_PREOPEN_IDENTITY_ATTACK_PRECONDITION_FAILED'
+ }
+ Strict 'sc.exe' @('start',$nameC) | Out-Null
+ (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
+ Configure $nameA 'replay' $reportPreOpenSwap $requestValid $outputSigned
+ Strict 'sc.exe' @('start',$nameA) | Out-Null
+ $preopenProof=AwaitProof $reportPreOpenSwap
+ if($preopenProof -notmatch 'service_sid_in_token=True' -or
+    $preopenProof -notmatch 'pipe_response=DENY_J10D_LEDGER_IDENTITY' -or
+    @(Get-ChildItem -LiteralPath $consumerLedger -Filter '*.nonce' -File).Count -ne 0 -or
+    @(Get-ChildItem -LiteralPath $preOpenSave -Filter '*.nonce' -File).Count -ne 1) {
+    throw ('J10D_PREOPEN_LEDGER_REPLACEMENT_REPLAY_BYPASS '+$preopenProof)
+ }
+ Write-Output 'J10D_DIRECT_PREOPEN_NTFS_LEDGER_IDENTITY_SWAP_DENIED_PASS'
+ Strict 'sc.exe' @('stop',$nameA) | Out-Null
+ Strict 'sc.exe' @('stop',$nameC) | Out-Null
+ (Get-Service $nameC).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(15))
+ Remove-Item -LiteralPath $consumerLedger -Recurse -Force
+ Rename-Item -LiteralPath $preOpenSave -NewName 'consumer-ledger'
+ if((Strict $consumerExe @('--j10d-ledger-id',$consumerLedger)).Trim() -ne
+    $pinnedLedgerId) {throw 'J10D_PREOPEN_LEDGER_REPAIR_ID_MISMATCH'}
  # Restore the authentic NTFS ledger and replay after consumer SCM restart.
  Strict 'sc.exe' @('start',$nameC) | Out-Null
  (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
