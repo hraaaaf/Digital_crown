@@ -175,6 +175,19 @@ internal sealed class J10DPipeConsumer : ServiceBase {
         return directory;
     }
 
+    // Installer-CI pinned NTFS directory identity, measured from an open
+    // no-follow handle. The test Administrator controls this expected value:
+    // it is NOT an external secure monotonic counter or vendor trust root.
+    static string LedgerIdentity(SafeFileHandle directory) {
+        ByHandleInfo metadata;
+        if(!GetFileInformationByHandle(directory,out metadata) ||
+           (metadata.Attributes & FILE_ATTRIBUTE_DIRECTORY)==0 ||
+           (metadata.Attributes & FILE_ATTRIBUTE_REPARSE_POINT)!=0)
+            throw new IOException("ledger handle identity unavailable");
+        return string.Format("{0:X8}{1:X8}{2:X8}",
+            metadata.VolumeSerial,metadata.FileIndexHigh,metadata.FileIndexLow);
+    }
+
     static string BurnNonceRelative(SafeFileHandle directory,string nonce) {
         if(!Hex(nonce,32)) return Deny("LEDGER_INVALID");
         // This UnicodeName contains only a fixed hex basename. No separators,
@@ -273,15 +286,20 @@ internal sealed class J10DPipeConsumer : ServiceBase {
             // -> create child RELATIVE TO THE SAME DIRECTORY HANDLE. A path
             // rename/swap after opening cannot redirect that child create.
             using(SafeFileHandle directory=OpenLedgerHandle(a[5])) {
-                if(a.Length==13 && a[10]=="LOT05J10D_CI_RACE") {
+                if((a.Length==11 || a.Length==14) &&
+                   !string.Equals(LedgerIdentity(directory),a[10],
+                                  StringComparison.OrdinalIgnoreCase))
+                    return Deny("LEDGER_IDENTITY");
+                if((a.Length==13 && a[10]=="LOT05J10D_CI_RACE") ||
+                   (a.Length==14 && a[11]=="LOT05J10D_CI_RACE")) {
                     // ONLY a disposable test-executable branch: CI holds a
                     // valid no-follow directory handle while its Administrator
                     // renames the directory and replaces the visible path.
                     // The handshake is not an authorization mechanism.
-                    File.WriteAllText(a[11],"HANDLE_OPEN",Encoding.ASCII);
+                    File.WriteAllText(a[a.Length-2],"HANDLE_OPEN",Encoding.ASCII);
                     bool continued=false;
                     for(int n=0;n<120;n++) {
-                        if(File.Exists(a[12])) {continued=true;break;}
+                        if(File.Exists(a[a.Length-1])) {continued=true;break;}
                         Thread.Sleep(100);
                     }
                     if(!continued) return Deny("LAB_RACE_TIMEOUT");
@@ -329,8 +347,21 @@ internal sealed class J10DPipeConsumer : ServiceBase {
         }
     }
     static int Main(string[] args) {
-        if((args.Length!=10 && args.Length!=13) ||
+        if(args.Length==2 && args[0]=="--j10d-ledger-id") {
+            // A read-only installer measurement of the actual open-directory
+            // volume/file ID. Its output is *not* a product trust anchor.
+            try {
+                using(SafeFileHandle handle=OpenLedgerHandle(args[1]))
+                    Console.WriteLine(LedgerIdentity(handle));
+                return 0;
+            } catch(Exception) {return 3;}
+        }
+        if((args.Length!=10 && args.Length!=11 &&
+            args.Length!=13 && args.Length!=14) ||
            (args.Length==13 && args[10]!="LOT05J10D_CI_RACE") ||
+           (args.Length==14 && args[11]!="LOT05J10D_CI_RACE") ||
+           ((args.Length==11 || args.Length==14) &&
+              !Hex(args[10].ToLowerInvariant(),24)) ||
            args[0].Length==0 || args[1].Length==0 ||
            !args[2].StartsWith("S-1-5-80-",StringComparison.Ordinal) ||
            !args[3].StartsWith("S-1-5-80-",StringComparison.Ordinal)) return 2;
