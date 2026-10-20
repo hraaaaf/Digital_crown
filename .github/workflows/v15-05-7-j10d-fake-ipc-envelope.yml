@@ -110,7 +110,7 @@ jobs:
           diff -u expected.txt actual.txt
  j10d.log
           python backend/tests/test_legacy_sql_057j10d_signed_replay_lab.py -v 2>&1 | tee j10d-signed.log
-          grep -q 'Ran 9 tests' j10d-signed.log
+          grep -q 'Ran 10 tests' j10d-signed.log
           grep -Eq '^OK[[:space:]]*
       - name: Compile deny-only SCM consumer on Windows
         if: runner.os == 'Windows'
