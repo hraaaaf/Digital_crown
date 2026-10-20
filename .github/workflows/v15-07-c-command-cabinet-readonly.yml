@@ -7,6 +7,9 @@ on:
     paths:
       - 'frontend/src/App.tsx'
       - 'frontend/src/features/command/CommandCabinetReadOnlyRoute*'
+      - 'frontend/src/features/dashboard/**'
+      - 'frontend/src/components/Layout/MainLayout.tsx'
+      - 'backend/routers/appointments.py'
       - 'frontend/src/features/command/command-cabinet-readonly-*'
       - 'frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs'
       - 'techdoubt.md'
@@ -48,7 +51,7 @@ jobs:
         run: node --check frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs
       - name: Execute 07-C negative RBAC, identity, error, lab and no-write assertions
         working-directory: frontend
-        run: npx vitest run src/features/command/CommandCabinetReadOnlyRoute.test.tsx
+        run: npx vitest run src/features/command/CommandCabinetReadOnlyRoute.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx
       - name: Typecheck current frontend sources
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
