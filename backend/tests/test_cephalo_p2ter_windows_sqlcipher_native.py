@@ -143,28 +143,38 @@ def _child(mode: str, db_arg: str, archive_arg: str, marker_arg: str):
 
 
 def _run_child(mode: str, db: Path, root: Path, marker: Path, env: dict, kill: bool):
+    repo_root = Path(__file__).resolve().parents[2]
+    # Running this file by path normally sets sys.path[0] to backend/tests,
+    # not to the repository root. Keep imports deterministic in the child.
+    child_env = {**env, "PYTHONPATH": str(repo_root) + os.pathsep + env.get("PYTHONPATH", "")}
     cmd = [sys.executable, str(Path(__file__).resolve()), "--child",
            mode, str(db), str(root), str(marker)]
     if not kill:
-        done = subprocess.run(cmd, cwd=Path(__file__).resolve().parents[2],
-                              env=env, capture_output=True, text=True, timeout=70)
+        done = subprocess.run(cmd, cwd=repo_root,
+                              env=child_env, capture_output=True, text=True, timeout=70)
         assert done.returncode == 0, (
             f"Native {mode} child failed (exit {done.returncode}): "
             f"{done.stderr[-1500:]} {done.stdout[-700:]}"
         )
         return
     process = subprocess.Popen(
-        cmd, cwd=Path(__file__).resolve().parents[2],
-        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        cmd, cwd=repo_root,
+        env=child_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
     )
     try:
         cutoff = time.monotonic() + 50
         while not marker.exists() and process.poll() is None and time.monotonic() < cutoff:
             time.sleep(0.1)
-        assert marker.exists(), (
-            "Native child never reached correct interruption window; "
-            f"returncode={process.poll()}"
-        )
+        if not marker.exists():
+            if process.poll() is None:
+                process.kill()
+            output, errors = process.communicate(timeout=15)
+            secret = env["P2TER_NATIVE_SQLCIPHER_TEST_KEY"]
+            sanitized = (errors[-2500:] + "\n" + output[-800:]).replace(secret, "[REDACTED_KEY]")
+            raise AssertionError(
+                "Native child failed before interruption window: "
+                f"returncode={process.returncode}, diagnostics={sanitized}"
+            )
         assert marker.read_text(encoding="ascii") == mode
         assert process.poll() is None, "Child ended before native termination"
         process.kill()  # Windows API TerminateProcess, not os._exit or fake exception
