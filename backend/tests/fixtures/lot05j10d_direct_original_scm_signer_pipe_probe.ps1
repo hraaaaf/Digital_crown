@@ -72,6 +72,7 @@ $consumerExe=Join-Path $root 'consumer-scm.exe'
 $consumerSource=Join-Path $env:GITHUB_WORKSPACE 'backend\tests\fixtures\lot05j10d_windows_authenticated_pipe_consumer.cs'
 $reportReplay=Join-Path $telemetry 'replay.txt'
 $reportHostile=Join-Path $telemetry 'hostile-pipe.txt'
+$reportJunction=Join-Path $telemetry 'junction-denied.txt'
 $exe=Join-Path $root 'signer-scm.exe'
 $publicPin=Join-Path $root 'trusted-rsa-public.fake'
 $rootAttack=Join-Path $root 'J9_SIDLESS_ROOT_WRITE.fake'
@@ -100,6 +101,14 @@ try {
  Strict $csc @('/nologo','/target:exe',('/out:'+$consumerExe),
    '/reference:System.ServiceProcess.dll','/reference:System.Web.Extensions.dll',
    '/reference:System.Core.dll',$consumerSource) | Out-Null
+ # This CI-created EXE and key are not an external publisher trust root.
+ # Confirm that no Authenticode chain was accidentally certified.
+ $publisherSigner=(Get-AuthenticodeSignature -LiteralPath $exe).Status
+ $publisherConsumer=(Get-AuthenticodeSignature -LiteralPath $consumerExe).Status
+ if($publisherSigner -ne 'NotSigned' -or $publisherConsumer -ne 'NotSigned') {
+    throw 'J10D_AUTHENTICODE_LAB_EXPECTED_UNSIGNED'
+ }
+ Write-Output 'J10D_LAB_BINARIES_UNSIGNED_VENDOR_PROVENANCE_OPEN_NO_GO'
  foreach($name in @($nameA,$nameB)) {
    $args= ('"{0}" "{1}" "attacker" "{2}" "{3}" "{4}" "{5}" "{6}" "{7}" "{8}" "{9}"' -f
     $exe,$name,$reportClient,$private,$config,$requestAbsent,$outputDenied,$env:LOT05J9_FAKE_PYTHON,$env:GITHUB_WORKSPACE,'PLACEHOLDER')
@@ -283,12 +292,42 @@ base64.b64encode(pub.e.to_bytes((pub.e.bit_length()+7)//8,'big')).decode('ascii'
     throw ('J10C_SIGNER_ACCEPTED_WRONG_SQLCIPHER_MANIFEST '+$badManifest)
  }
  Write-Output 'J10C_SIGNER_REJECTS_AUTHENTICATED_JWT_WITH_WRONG_SQLCIPHER_MANIFEST'
- # Restart consumer under SCM and replay the exact prior ticket from the
- # SAME Windows signer Service SID, without reissuing JWT or nonce.
+ # ADMIN-INJECTED ATTACK: redirect the otherwise trusted consumer ledger
+ # to an EMPTY NTFS junction target. If a re-used RSA nonce gets burned again,
+ # the consumer has silently accepted a rollback of its replay history.
+ # This proves one installed Windows reparse case, NOT TOCTOU resistance.
  Strict 'sc.exe' @('stop',$nameA) | Out-Null
  Strict 'sc.exe' @('stop',$nameC) | Out-Null
  (Get-Service $nameC).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(15))
- Start-Sleep -Seconds 2
+ $decoy=Join-Path $root 'swapped-empty-ledger'
+ $junction=Join-Path $root 'ledger-junction'
+ New-Item -ItemType Directory -Path $decoy | Out-Null
+ Protect $decoy $consumerSid 'Modify' $true
+ New-Item -ItemType Junction -Path $junction -Target $decoy | Out-Null
+ if(-not ((Get-Item -LiteralPath $junction).Attributes -band
+           [IO.FileAttributes]::ReparsePoint)) {throw 'J10D_EXPECTED_REAL_NTFS_JUNCTION'}
+ $attackCmd=$cmdConsumer.Replace(('"' + $consumerLedger + '"'),('"' + $junction + '"'))
+ if($attackCmd -eq $cmdConsumer) {throw 'J10D_LEDGER_PATH_REPLACEMENT_NOT_ATTEMPTED'}
+ Strict 'sc.exe' @('config',$nameC,'binPath=',$attackCmd) | Out-Null
+ Strict 'sc.exe' @('start',$nameC) | Out-Null
+ (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
+ Configure $nameA 'replay' $reportJunction $requestValid $outputSigned
+ Strict 'sc.exe' @('start',$nameA) | Out-Null
+ $junctionProof=AwaitProof $reportJunction
+ if($junctionProof -notmatch 'service_sid_in_token=True' -or
+    $junctionProof -notmatch 'pipe_response=DENY_J10D_LEDGER_INVALID' -or
+    @(Get-ChildItem -LiteralPath $decoy -Filter '*.nonce' -File).Count -ne 0 -or
+    @(Get-ChildItem -LiteralPath $consumerLedger -Filter '*.nonce' -File).Count -ne 1) {
+    throw ('J10D_JUNCTION_INJECTED_REPLAY_NOT_DENIED '+$junctionProof)
+ }
+ Write-Output 'J10D_DIRECT_REAL_NTFS_JUNCTION_LEDGER_FAIL_CLOSED_PASS'
+ Strict 'sc.exe' @('stop',$nameA) | Out-Null
+ Strict 'sc.exe' @('stop',$nameC) | Out-Null
+ (Get-Service $nameC).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(15))
+ Remove-Item -LiteralPath $junction -Force
+ if(Test-Path -LiteralPath $junction) {throw 'J10D_JUNCTION_NOT_REMOVED'}
+ Strict 'sc.exe' @('config',$nameC,'binPath=',$cmdConsumer) | Out-Null
+ # Restore the authentic NTFS ledger and replay after consumer SCM restart.
  Strict 'sc.exe' @('start',$nameC) | Out-Null
  (Get-Service $nameC).WaitForStatus('Running',[TimeSpan]::FromSeconds(15))
  Configure $nameA 'replay' $reportReplay $requestValid $outputSigned
