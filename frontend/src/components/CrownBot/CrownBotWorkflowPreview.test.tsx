@@ -63,7 +63,11 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
     expect(screen.queryByRole('button', { name: /confirmer cette action/i })).not.toBeInTheDocument();
   });
 
-  it('shows proposals explicitly as NON executable, without a confirm action', async () => {
+  it('shows proposals explicitly as NON executable, automatically reveals the useful result at native zoom', async () => {
+    const oldScroll = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+    const scrollSpy = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrollSpy });
+    try {
     post.mockResolvedValueOnce({ data: {
       status: 'proposal_only',
       message: 'Simulation uniquement, non exécutée.',
@@ -74,6 +78,12 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
     await screen.findByText(/Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable/i);
     expect(screen.queryByRole('button', { name: 'Confirmer' })).not.toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
+    expect(scrollSpy).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+    expect(screen.getByText(/Rendez-vous proposé : aperçu uniquement/)).toHaveAttribute('data-cb01-first-value', 'proposal-only');
+    } finally {
+      if (oldScroll) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', oldScroll);
+      else delete (HTMLElement.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+    }
   });
 
   it('handles a stale 409 without automatic replay or accidentally clearing the previous step', async () => {

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
 
 type CabinetDay = {
@@ -67,6 +67,18 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
     items: ProgrammeAppointment[]; day: string; consultedAt: string; timezone: string;
   } | null>(null);
   const inFlight = useRef(false);
+  const proposalOutcomeRef = useRef<HTMLParagraphElement>(null);
+
+  // FUE-C: a successful server-only proposal must be actually perceivable,
+  // including Chrome native 200% zoom. Scroll the nearest existing preview
+  // container to the result without moving focus or executing an action.
+  // The workflow remains a NON-ACTIONABLE preview.
+  useEffect(() => {
+    if (answer?.status !== 'proposal_only' || !answer.proposal) return;
+    proposalOutcomeRef.current?.scrollIntoView?.({
+      block: 'nearest', inline: 'nearest', behavior: 'auto',
+    });
+  }, [answer]);
 
   // Canonical read-only Agenda route; this response is scoped server-side by
   // require_permission("agenda") and employer_id. Never cache across principals.
@@ -294,7 +306,8 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
             </div>
           )}
           {answer.proposal && (
-            <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs font-semibold text-amber-900">
+            <p ref={proposalOutcomeRef} data-cb01-first-value="proposal-only"
+              className="mt-2 rounded-md bg-amber-50 p-2 text-xs font-semibold text-amber-900">
               {answer.proposal.type === 'CREATE_APPOINTMENT'
                 ? 'Rendez-vous proposé' : 'Brouillon proposé'} : aperçu uniquement, non enregistré et non exécutable.
             </p>

@@ -718,11 +718,30 @@ try {
        .some(key=>serialized.includes('"'+key+'"')))
     throw Error('FAIL: FUE-G resulted in executable/invalid proposal');
   await preview.getByText('Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable.').waitFor();
+  // Playwright's 'visible' also includes elements entirely BELOW a scroller.
+  // First Value only counts if the actionable result itself is fully inside
+  // the visible nested scroll container and Chromium viewport at native 200%.
+  await page.waitForFunction(() => {
+    const result=document.querySelector('[data-cb01-first-value="proposal-only"]');
+    const scroller=result?.closest('section[aria-label="Assistant Crown Bot — consultation"]');
+    if (!result || !scroller) return false;
+    const r=result.getBoundingClientRect(), c=scroller.getBoundingClientRect();
+    return r.width>0 && r.height>0
+      && r.top>=c.top-1 && r.bottom<=c.bottom+1
+      && r.left>=c.left-1 && r.right<=c.right+1
+      && r.top>=0 && r.bottom<=innerHeight
+      && r.left>=0 && r.right<=innerWidth;
+  },null,{timeout:10000});
+  const firstValueBounds=await preview.locator('[data-cb01-first-value="proposal-only"]')
+    .evaluate(el=>{const r=el.getBoundingClientRect();
+      return {top:r.top,bottom:r.bottom,left:r.left,right:r.right};
+    });
   const elapsedMs=Math.round(performance.now()-fueStartedAt);
   if(elapsedMs<=0||requestStatuses.length!==7||requestStatuses.some(x=>x!==200))
     throw Error('FAIL: incomplete FUE-G FastAPI response chain');
   report.firstValue={status:'PASS_REAL_FASTAPI_PROPOSAL_ONLY_VISIBLE_AT_NATIVE_200',
-    elapsedMs,clicks:8,typedAnswers:6,httpStatuses:requestStatuses,noActionId:true};
+    elapsedMs,clicks:8,typedAnswers:6,httpStatuses:requestStatuses,noActionId:true,
+    visibleInViewportAtNative200:true,visibleBounds:firstValueBounds};
   report.uiLogin.elapsedToUsefulMs=Math.round(performance.now()-uiLoginStartedAt);
   if(report.uiLogin.status!=='PASS_REAL_LOGINPAGE_POST_200_FRESH_BROWSER'
       ||report.uiLogin.elapsedToUsefulMs<=elapsedMs)
