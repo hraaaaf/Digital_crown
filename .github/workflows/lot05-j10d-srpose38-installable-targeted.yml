@@ -11,6 +11,7 @@ on:
       - 'backend/tests/test_vision_service_lazy_pytorch.py'
       - 'backend/tests/test_vision_apex_provenance.py'
       - 'backend/tests/test_lot05_runtime_asset_selection.py'
+      - 'backend/tests/test_imaging_release_storage.py'
       - 'backend/tests/test_certified_release_policy.py'
       - '.github/workflows/lot05-j10d-srpose38-installable-targeted.yml'
   workflow_dispatch:
@@ -57,6 +58,7 @@ jobs:
             backend/tests/test_vision_apex_provenance.py \
             backend/tests/test_cephalo_service_evidence_persistence.py \
             backend/tests/test_lot05_runtime_asset_selection.py \
+            backend/tests/test_imaging_release_storage.py \
             backend/tests/test_certified_release_policy.py \
             | tee lot05-j10d-cephalo-targeted-results.log
       - uses: actions/upload-artifact@v4
