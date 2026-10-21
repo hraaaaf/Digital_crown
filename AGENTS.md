@@ -44,6 +44,18 @@ En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
 **But : moins d'interruptions, garanties patient/sécurité/clinique inchangées.**
 
+## Pied de message obligatoire — contrat de communication Digital Crown
+
+**À la fin de chaque message adressé à l'utilisateur dans le projet Digital Crown**, y compris une réponse courte, une question, un point de progression, un rapport de CI, une décision ou un blocage, ajouter **une dernière ligne unique**, sans aucun texte après, au format exact :
+
+**Lot :** <lot réellement actif> · **Sous-lot :** <sous-lot réellement actif> · **Chantier :** <mission précise en cours> · **Roadmap :** <état courant vérifié, prochain lot gelé/différé si pertinent>
+
+- **Identifier avant d'écrire** le lot, le sous-lot et le chantier à partir de la mission autorisée et des références courantes : repository/HEAD et canonique GitHub → roadmap/Notion → contexte conversationnel. Ne pas réutiliser mécaniquement le lot du message précédent si la mission a changé.
+- La **roadmap** indique de façon brève ce qui est `OUVERT`, `EN COURS`, `GELÉ`, `DIFFÉRÉ` ou `CLOS`, seulement si le statut est prouvé. Ne jamais déverrouiller un lot, déduire un `PASS`, une fusion ou un déploiement de cette ligne. Si un fait manque, écrire explicitement `à confirmer` plutôt que l'inventer.
+- Lorsque le travail concerne seulement la gouvernance documentaire, **nommer ce chantier réel** et son sous-lot documentaire, sans le faire passer artificiellement pour une fonctionnalité Crown Bot, clinique ou physique.
+- Placer le résultat, la preuve, le blocage et le **Next avec effort conseillé** avant cette signature. **La signature reste le dernier élément visible** ; pas de liste, note, citation ou question après.
+- **Exemple de forme uniquement, non à recopier comme état permanent :** Lot : Crown Bot 2.0 · Sous-lot : CB-01 FIRST_VALUE_UI · Chantier : alignement de gouvernance et requalification FUE · Roadmap : CB-01 ouvert, CB-02 gelé, Lot 10 physique différé.
+
 ## Architecture courante
 
 - Backend : FastAPI + SQLAlchemy.
