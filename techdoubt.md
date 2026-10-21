@@ -1,5 +1,12 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-21 — LOT06-P/P2-F01 partial-closeout matrix: HOLD vs mandatory native SCM remains OPEN
+
+- On PR #909 HEAD `78c7983de911854ebddc7526d7461ee3a2e8a8df`, all 11 applicable post-integration workflows succeeded (M6-I skipped): software-only CI validates synthetic Imaging Bridge tests, **not** real service SCM W01–W12, commercial SQLCipher continuity, effective service token/DACL/OWNER RIGHTS, installed crash recovery or patient capture/receipt.
+- **Canonical tension / BLOCKER:** roadmap V1.5 and FUE-G 06 explicitly defer the **physical acquisition** to LOT10.4, and `docs/quality/LOT06_P_CODEX_WINDOWS_ISOLATED_LAB_RUNBOOK.md` places *all local Codex Windows/PC rehearsal* under HOLD LOT10. Yet `docs/quality/LOT06_P_P2_WINDOWS_SCM_IDENTITY_WAL_MIGRATION_ADR.md` identifies real native SCM W01–W12 as **REQUIRED** P2 assurance. Neither a synthetic green gate nor the FUE terrain deferral amends or waives P2's SCM requirement. The runbook TEMP-only/no-admin mode cannot establish an installed privileged SCM service either.
+- Decision remains **LOT06-P/P2-F01 OPEN / NO-GO**, PR #909 DRAFT, no merge/master, no SCM/PC operation. Full W01–W12 all `BLOCKED_BY_LOT10_HOLD / NOT_TESTED SCM`. Two fresh independent blind reviews and genuine app FUE still OPEN. Need explicit human/canonical sequencing decision before Wxx privileged lab, any reclassification or final closeout. Source-of-truth matrix: `docs/quality/LOT06_P_P2_F01_PARTIAL_CLOSEOUT_GATE_MATRIX_20261021.md`. This documentary checkpoint does not authorize LOT10 or clinical activation.
+
+
 ## 2026-10-20 LOT06-P/P2-F01 — Autopilot ready-manifest duplicate path guard
 
 **Finding/fix candidate (LAB only):** The encrypted `_decrypt` path already refuses noncanonical ledger blob names, but `_previous_ready_capture` reused an untrusted persisted SQLite `blob` to construct/stat a filesystem path without that check. An altered synthetic ledger plus an unrelated same-size file outside the private spool could make `scan_once` return `duplicate` without reading/authenticating any ciphertext. Patch: reject any blob not equal to recalculated `identity + ".dc6"` before touching the filesystem. One negative fixture corrupts the ledger, plants an external file, demands fail-closed refusal, and confirms no source/file/row mutation.
