@@ -195,3 +195,22 @@ def test_manual_upload_invalid_type_does_not_touch_storage(monkeypatch, tmp_path
         ))
     assert exc.value.status_code == 415
     assert not (tmp_path / "media").exists()
+
+
+@pytest.mark.parametrize("status", ["MANUAL_DRAFT", "MANUAL_REVIEW_REQUIRED"])
+def test_manual_cephalo_never_generates_pdf_without_clinician_attestation(
+    monkeypatch, status,
+):
+    from backend.routers import patients
+    tenant = MagicMock()
+    monkeypatch.setattr(patients, "assert_patient_access", tenant)
+    db, user = MagicMock(), SimpleNamespace(id=7)
+    db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+        id=42, patient_id=7,
+        angles_data={"analysis_status": status, EVIDENCE_GRAPH_KEY: {"revision": 1}},
+    )
+    with pytest.raises(HTTPException) as blocked:
+        patients._bound_cephalo_study(7, 42, 1, db, user)
+    assert blocked.value.status_code == 409
+    assert "manuel non validé" in str(blocked.value.detail)
+    tenant.assert_called_once_with(7, user, db)
