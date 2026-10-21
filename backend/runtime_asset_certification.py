@@ -32,6 +32,7 @@ AI_MODELS_EXCLUDE_DIRNAMES = frozenset(
     {
         "CLdetection2023-master",
         "dentex_repo",
+        "cephld_cca",  # Retired 19-point PyTorch engine: never ship its weights.
         "CL-Detection2023",
         "cephalometric-master",
         "cephmark",
