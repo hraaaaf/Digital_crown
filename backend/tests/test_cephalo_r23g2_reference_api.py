@@ -131,10 +131,28 @@ def test_reference_refuses_corrupt_active_chain_and_other_patient_evidence(
 
     record = db.get(models.CephaloAnalysis, study.id)
     cross_patient = deepcopy(original)
-    cross_patient[EVIDENCE_GRAPH_KEY]["patient_id"] = study.patient_id + 1000
+    cross_patient[EVIDENCE_GRAPH_KEY]["landmarks"][0]["patient_id"] = study.patient_id + 1000
     record.angles_data = cross_patient
     db.commit()
     db.expire_all()
     blocked = _reference(client, study.id, headers)
     assert blocked.status_code == 409
     assert "NEVER-REAL" not in blocked.text
+
+
+def test_distinct_studies_with_identical_synthetic_landmark_names_never_share_selection(
+    client, db, dentiste
+):
+    _, study_a, _ = _case(db, dentiste)
+    _, study_b, _ = _case(db, dentiste)
+    assert study_a.id != study_b.id
+    assert study_a.patient_id != study_b.patient_id
+    headers = _jwt(client, dentiste)
+    a = _assert_source_only(_reference(client, study_a.id, headers), study_a.id, 1)
+    b = _assert_source_only(_reference(client, study_b.id, headers), study_b.id, 1)
+    assert a["analysis_id"] != b["analysis_id"]
+    _, normal_a = _read(client, study_a.id, headers)
+    _, normal_b = _read(client, study_b.id, headers)
+    assert set(normal_a["protocol_profiles"]) == set(normal_b["protocol_profiles"]) == {
+        "steiner", "tweed_merrifield"
+    }
