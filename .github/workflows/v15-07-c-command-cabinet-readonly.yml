@@ -9,6 +9,7 @@ on:
       - 'frontend/src/features/command/CommandCabinetReadOnlyRoute*'
       - 'frontend/src/features/command/CommandWindowsNativeZoomHarness.tsx'
       - 'frontend/src/features/dashboard/**'
+      - 'frontend/src/features/agenda/PendingRequestCard*'
       - 'frontend/src/components/Layout/MainLayout.tsx'
       - 'backend/routers/appointments.py'
       - '.github/workflows/v15-07-c-windows-native-zoom.yml'
@@ -56,7 +57,7 @@ jobs:
         run: node --check frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs
       - name: Execute 07-C negative RBAC, identity, error, lab and no-write assertions
         working-directory: frontend
-        run: npx vitest run src/features/command/CommandCabinetReadOnlyRoute.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/features/dashboard/hooks/useTodayAppointments.07c.test.tsx
+        run: npx vitest run src/features/command/CommandCabinetReadOnlyRoute.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/features/dashboard/hooks/useTodayAppointments.07c.test.tsx src/features/agenda/PendingRequestCard.07c.test.tsx
       - name: Typecheck current frontend sources
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json

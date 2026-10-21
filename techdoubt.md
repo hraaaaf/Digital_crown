@@ -1,3 +1,8 @@
+### LOT07 / 07-C — 2026-10-21 — Agenda Frontdesk redaction visual fallback / proof pending
+
+**Within C07C-11 regression surface**: `PendingRequestCard` now accepts nullable names/phone/motif/source, labels redacted rows « Demande de rendez-vous — identité masquée » rather than a blank name, and disables the patient-addressed letter CTA without `patient_name` (backend remains the final 403 authority). Confirm/reject schedule-only actions remain available. Two focused Vitest checks for redacted and authorized rows were added to the existing 07-C readonly-contract workflow; check exact HEAD green plus actual FUE T2 before marking C07C-11 closed. **No mobile Frontdesk changes and no 07-D work.**
+
+
 ### LOT07 / 07-C — 2026-10-21 — Correctifs C07C-11/12 implémentés ; validation exact HEAD PENDING
 
 **Scope PR #991 uniquement.** C07C-11: données de contact/identité/reason/source du Frontdesk restent disponibles aux acteurs `patients=true`, mais sont masquées pour `agenda=true,patients=false` sur création et liste des demandes ; création blind-entry sans écho ; génération de message adressé au patient exige désormais `patients` AVANT transition de statut. C07C-12: `patient_name` libre reste texte agenda, aucun objet `patient` sans `patient_id` valide, Ghost Action patient sortant seulement pour dossier lié. Tests ciblés Vitest et véritables requêtes FastAPI T2 avec acteurs séparés ajoutés ; leur réussite ne peut être déclarée qu'après inspection des runs du nouveau HEAD. Les droits Frontdesk mobile via API mobile distincte ne sont pas changés ; les usages Agenda-only voient moins de détails et ne peuvent envoyer une lettre sans autorisation Patients : impact intentionnel de confidentialité.

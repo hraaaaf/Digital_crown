@@ -8,13 +8,13 @@ import { AlertCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 export interface PendingRequest {
   id: number;
-  patient_name: string;
-  phone?: string;
+  patient_name: string | null;
+  phone?: string | null;
   datetime_start: string;
   duration_minutes: number;
-  motif?: string;
+  motif?: string | null;
   status: string;
-  source?: string;
+  source?: string | null;
   expires_at?: string;
   created_at: string;
 }
@@ -85,7 +85,7 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
       <div className="flex items-start gap-3 mb-3">
         {statusIcon}
         <div className="flex-1">
-          <h3 className="font-bold text-lg">{request.patient_name}</h3>
+          <h3 className="font-bold text-lg">{request.patient_name || "Demande de rendez-vous — identité masquée"}</h3>
           {request.phone && <p className="text-sm text-gray-600">📱 {request.phone}</p>}
           {request.motif && <p className="text-sm text-gray-600">💊 {request.motif}</p>}
         </div>
@@ -111,12 +111,17 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
         </div>
       )}
 
+      {!request.patient_name && (
+        <p role="status" className="mb-3 text-xs text-gray-600">Informations réservées aux utilisateurs autorisés à consulter les patients.</p>
+      )}
+
       <div className="flex gap-2">
         {request.status === 'EN_ATTENTE_DEMANDE' ? (
           <>
             <button
               onClick={handleRequestConfirm}
-              disabled={loading}
+              disabled={loading || !request.patient_name}
+              title={!request.patient_name ? "Droit Patients requis pour une confirmation nominative" : undefined}
               className="flex-1 px-3 py-2 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 disabled:opacity-50"
             >
               Demander confirmation
