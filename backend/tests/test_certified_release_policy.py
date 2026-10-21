@@ -20,6 +20,7 @@ from backend.release_certification import (
 from backend.runtime_asset_certification import (
     ASSET_CERTIFICATE_FILENAME,
     ASSET_MANIFEST_FILENAME,
+    ASSET_SELECTION_POLICY_VERSION,
     RuntimeAssetCertificationError,
     inspect_registry_coverage,
     sha256_file,
@@ -112,7 +113,7 @@ def _make_installable(tmp_path: Path):
     asset_payload = {
         "certificate_version": 1,
         "artifact_type": "cabinet-runtime-assets",
-        "selection_policy_version": 1,
+        "selection_policy_version": ASSET_SELECTION_POLICY_VERSION,
         "target_commit_sha": CERTIFIED_SHA,
         "scientific_assets_registry_sha256": registry_digest,
         "content_manifest_sha256": sha256_file(asset_manifest),
