@@ -143,6 +143,28 @@ try {
     'Windows 200% AFTER screenshot has no real rendered text: white frame is NOT an approval');
   assert.equal(await page.getByTestId('command-count').innerText(), '2',
     'AFTER must retain live mounted synthetic Cabinet count');
+
+  // 07-C visual REVIEW B: at 200% the first viewport shows only the cockpit
+  // heading. Prove the real appointments table is reachable with ordinary
+  // scrolling and legible in the actual viewport, not just mounted in the DOM.
+  const firstAppointment = page.locator('tbody tr').first().getByText('09:15', { exact: true });
+  await firstAppointment.scrollIntoViewIfNeeded({ timeout: 20000 });
+  await page.waitForTimeout(450);
+  const appointmentBox = await firstAppointment.boundingBox();
+  assert.ok(appointmentBox, 'Native 200% first appointment must be rendered');
+  assert.ok(appointmentBox.x >= -2 && appointmentBox.y >= 0 &&
+            appointmentBox.x + appointmentBox.width <= 720 &&
+            appointmentBox.y + appointmentBox.height <= 450,
+    'Native 200% first appointment must be visibly reachable by scroll: ' +
+    JSON.stringify(appointmentBox));
+  const rowScreenshot = await page.screenshot({
+    path: path.join(dest, 'windows-owner-native-zoom-scrolled-agenda.png'),
+    fullPage: false,
+  });
+  report.visualScrolledAgenda = inspectPngVisibleInk(rowScreenshot);
+  assert.ok(report.visualScrolledAgenda.inkPixels > 120,
+    'Native 200% scrolled appointment screenshot must show visible text');
+  report.appointmentVisibleAtNativeZoom = true;
   report.nativeBrowserZoom200 = true;
   report.pass = true;
 } catch (e) {
