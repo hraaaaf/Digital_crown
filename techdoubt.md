@@ -1,3 +1,5 @@
+LOT05 / 05.7-J10D CI incident 2026-10-21 (PR #1004): Native runtime Windows/macOS on 0a0751a failed in P5 source gate because vision_service was refactored to SRPose38-only while portability_p5_check.py still asserted the old variable spelling; P5 runtime probe also patched retired VisionEngine attributes. Fixed in 9ce9e9f. Legacy apex tests also expected PyTorch 19-point fallback; replaced in 5cb8145. New HEAD unverified until its own Windows/macOS CI and adversarial clinical regression review complete. No merge/release. Existing P5 native dependency smoke still installs torch; this is NOT a second cephalometric weight but warrants later packaging dependency audit within installer scope.
+
 ### LOT05 / 05.7-J10D — SRPose38-only installable (OPEN)
 
 Branch removes legacy CephLD-CCA inference and excludes its weights from runtime packaging. Tests and Windows installation remain unverified. Panoramic ONNX is still missing a certified binary and digest. No INSTALLABLE_CERTIFIED V1.5 claim. Next: CI, regression tests, adversarial review, full asset recovery and isolated Windows install.
