@@ -8,6 +8,10 @@ on:
       - frontend/scripts/certify-cb01-windows-fueg-combined.mjs
       - frontend/scripts/t2-workstation-session.mjs
       - frontend/src/components/Layout/MainLayout.tsx
+      - frontend/src/App.tsx
+      - frontend/src/pages/LoginPage.tsx
+      - frontend/src/components/Auth/CabinetAuthTransitionBoundary.tsx
+      - frontend/src/components/Auth/CabinetAuthTransitionBoundary.test.tsx
       - frontend/src/components/CrownBot/CrownBotChat.tsx
       - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
       - frontend/src/services/api.ts
@@ -118,6 +122,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npx --no-install guidepup install nvda
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Targeted CB-01 guard lifetime regression (Vitest)
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npx --no-install vitest run src/components/Auth/CabinetAuthTransitionBoundary.test.tsx
+          if ($LASTEXITCODE -ne 0) { throw 'FAIL: CB-01 protected auth boundary regression' }
       - name: Attest exact disposable SQLCipher T2 target before backend bootstrap
         shell: pwsh
         run: |

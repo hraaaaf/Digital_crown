@@ -428,14 +428,14 @@ function App() {
           <CabinetAuthTransitionBoundary>
             <ProtectedRoute>
               <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/terms" element={<LegalPage type="terms" />} />
-                <Route path="/privacy" element={<LegalPage type="privacy" />} />
-                <Route path="/setup" element={<SetupWizard />} />
-                <Route path="/*" element={<WorkstationModeGate target="protected"><ProtectedRoutes /></WorkstationModeGate>} />
-              </Routes>
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/terms" element={<LegalPage type="terms" />} />
+                  <Route path="/privacy" element={<LegalPage type="privacy" />} />
+                  <Route path="/setup" element={<SetupWizard />} />
+                  <Route path="/*" element={<WorkstationModeGate target="protected"><ProtectedRoutes /></WorkstationModeGate>} />
+                </Routes>
               </Suspense>
             </ProtectedRoute>
           </CabinetAuthTransitionBoundary>
