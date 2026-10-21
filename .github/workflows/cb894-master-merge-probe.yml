@@ -23,7 +23,6 @@ jobs:
       CLOUD_AI_ENABLED: 'false'
       CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: 'false'
       EXPECTED_CHECKOUT: ${{ github.event.pull_request.head.sha }}
-    env:
       EXPECTED_MASTER_SHA: b6eafd2cec5516a64c5d8013ffd3b3f54430000f
       EXPECTED_SOURCE_SHA: 9cf19e68026fa92d31fb704f5b81b9cd667e5254
       SOURCE_BRANCH: feat/crown-bot-zero-llm-adapter-safe-20261014
