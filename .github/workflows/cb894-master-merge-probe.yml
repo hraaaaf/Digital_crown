@@ -59,6 +59,28 @@ jobs:
             echo 'BLOCKED: actual unresolved paths' >> "$GITHUB_STEP_SUMMARY"
             cat cb894-merge-diagnostic/conflicts.txt >> "$GITHUB_STEP_SUMMARY"
           fi
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path('cb894-merge-diagnostic')
+          paths = [x.strip() for x in (root / 'conflicts.txt').read_text().splitlines() if x.strip()]
+          out = []
+          for name in paths:
+              src = Path(name).read_text(encoding='utf-8').splitlines()
+              beginnings = [i for i, line in enumerate(src) if line.startswith('<<<<<<< ')]
+              if not beginnings:
+                  out.append(f'{name}: no conflict markers despite unmerged index')
+                  continue
+              for start in beginnings:
+                  end = next((i for i in range(start + 1, len(src)) if src[i].startswith('>>>>>>> ')), None)
+                  if end is None:
+                      out.append(f'{name}:{start + 1}: unterminated conflict')
+                      continue
+                  lo, hi = max(0, start - 7), min(len(src), end + 8)
+                  out.append(f'--- {name} conflict lines {start + 1}-{end + 1}, context {lo + 1}-{hi} ---')
+                  out.extend(f'{j+1:05}: {src[j]}' for j in range(lo, hi))
+          (root / 'conflict-hunks.txt').write_text('\n'.join(out) + '\n', encoding='utf-8')
+          PY
           git merge --abort || true
           if test "$result" -ne 0; then
             echo 'NO-GO: #894 cannot currently merge into isolated master-based branch without conflicts'
