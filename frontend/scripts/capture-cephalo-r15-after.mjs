@@ -178,6 +178,21 @@ async function captureAttempt(viewport, attempt) {
       if (request.method() === 'GET' && url.pathname === '/api/patients/915/cephalo-clinical-studio') return route.fulfill(json(r15Snapshot));
       if (request.method() === 'GET' && url.pathname === '/api/patients/915/cephalo-validation') return route.fulfill(json({ is_valid: true, fatals: [], warnings: [] }));
       if (request.method() === 'PUT' && url.pathname === '/api/ia/analyses/9915') return route.fulfill(json({ id: 9915, status: 'saved' }));
+      // P2ter++ rereads its selected study after an audited save. Preserve the
+      // exact synthetic study identity, with descriptive measurements only;
+      // this R15 visual harness must never simulate clinical authorization.
+      if (request.method() === 'GET' && url.pathname === '/api/ia/analyses/9915') {
+        return route.fulfill(json({
+          id: 9915,
+          patient_id: 915,
+          image_original_path: 'r15-visual-fixture-only.svg',
+          landmarks_data: [],
+          angles_data: { calibration_status: 'validated', SNA: 82, SNB: 80, ANB: 2, FMA: 25, IMPA: 90 },
+          is_calibrated: true,
+          mm_per_pixel: 0.1,
+          ai_diagnostic: null,
+        }));
+      }
       return route.fulfill(json({ detail: 'Endpoint neutralisé dans le AFTER visuel R15' }, 418));
     }
     if (url.hostname === 'fonts.googleapis.com') return route.fulfill({ status: 200, contentType: 'text/css; charset=utf-8', body: '/* offline visual harness */' });
