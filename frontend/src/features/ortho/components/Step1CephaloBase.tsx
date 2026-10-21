@@ -131,6 +131,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   // The 38 measured SRPose landmarks exclude two constructed occlusal planes.
   const manualPointIds: readonly string[] = REQUIRED_LANDMARKS.filter(id => id !== 'Occ_Ant' && id !== 'Occ_Post');
   const isManualDraft = anglesData?.analysis_status === 'MANUAL_DRAFT';
+  const manualNeedsReview = anglesData?.analysis_status === 'MANUAL_REVIEW_REQUIRED';
   const manualPointCount = manualPointIds.filter(id => local.landmarks.some(p => p.id === id)).length;
   const manualFallbackOffered = !!manualFallbackFile && !!uploadError?.includes('Placement manuel requis');
 
@@ -816,6 +817,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           </motion.div>
         )}
       </AnimatePresence>
+
+      {manualNeedsReview && (
+        <div
+          role="status"
+          className="absolute bottom-12 left-3 z-40 w-72 max-w-[calc(100%-1.5rem)] rounded-xl border px-4 py-3 text-xs shadow-lg sm:bottom-6 sm:left-6"
+          style={{ background: P.bgPanel, color: P.text, borderColor: P.accentWarning }}
+        >
+          Les 38 repères ont été saisis manuellement. Validation clinique requise avant toute émission de bilan.
+        </div>
+      )}
 
       {isManualDraft && (
         <div
