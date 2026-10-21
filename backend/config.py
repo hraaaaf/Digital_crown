@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     # Tant que ce flag est False, AUCUNE statistique ne quitte le cabinet.
     TELEMETRY_ENABLED: bool = False
 
+    # ZERO-LLM preview adapter: opt-in only, NO action execution or deployment.
+    CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: bool = False
+
     # Storage
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 # 10 Mo
 

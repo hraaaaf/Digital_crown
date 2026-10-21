@@ -33,7 +33,7 @@ def _fake_table_subset():
     return md
 
 
-def _fake_db(version="neo000000031"):
+def _fake_db(version="neo000000032"):
     engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
     md = _fake_table_subset()
     with engine.begin() as c:

@@ -76,6 +76,73 @@ def test_new_mobile_jwt_after_revocation_is_accepted(client, db, dentiste):
     assert _snapshot(client, new_token).status_code == 200
 
 
+def test_revocation_epoch_is_safe_when_windows_clock_never_ticks(
+    client, db, dentiste
+):
+    """Two revocations in one Windows clock tick: fresh passes, older fails.
+
+    Tests exact same issued_us for all tokens so accidental microsecond
+    equality can never cause a false 401 or let an old JWT survive.
+    """
+    from datetime import timezone
+    from jose import jwt
+    from backend.security import SECRET_KEY, ALGORITHM
+
+    fixed = datetime.now(timezone.utc)
+
+    class FrozenClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed if tz is not None else fixed.replace(tzinfo=None)
+
+    with patch("backend.security.datetime", FrozenClock), patch(
+        "backend.routers.mobile.datetime", FrozenClock
+    ):
+        oldest = _paired_mobile_token(db, dentiste)
+        token_blacklist.revoke_mobile_access(dentiste.id, db)
+        fresh = _paired_mobile_token(db, dentiste)
+        old_claims = jwt.decode(oldest, SECRET_KEY, algorithms=[ALGORITHM])
+        fresh_claims = jwt.decode(fresh, SECRET_KEY, algorithms=[ALGORITHM])
+        assert old_claims["jti"].split(":")[2] == fresh_claims["jti"].split(":")[2]
+        assert old_claims["mobile_epoch"] != fresh_claims["mobile_epoch"]
+        assert _snapshot(client, oldest).status_code == 401
+        assert _snapshot(client, fresh).status_code == 200
+
+        # A SECOND revoke in the SAME tick must revoke that fresh JWT too.
+        token_blacklist.revoke_mobile_access(dentiste.id, db)
+        newest = _paired_mobile_token(db, dentiste)
+        latest_claims = jwt.decode(newest, SECRET_KEY, algorithms=[ALGORITHM])
+        assert latest_claims["mobile_epoch"] != fresh_claims["mobile_epoch"]
+        assert _snapshot(client, fresh).status_code == 401
+        token_blacklist._mobile_cutoffs.clear()  # simulate another worker
+        assert _snapshot(client, fresh).status_code == 401
+        assert _snapshot(client, newest).status_code == 200
+
+
+def test_legacy_mobile_token_without_epoch_still_fails_closed_after_revocation(
+    client, db, dentiste
+):
+    from jose import jwt
+    from backend.security import ALGORITHM, SECRET_KEY
+    old_token = _paired_mobile_token(db, dentiste)
+    legacy_claims = jwt.decode(old_token, SECRET_KEY, algorithms=[ALGORITHM])
+    legacy_claims.pop("mobile_epoch")
+    legacy = jwt.encode(legacy_claims, SECRET_KEY, algorithm=ALGORITHM)
+    assert _snapshot(client, legacy).status_code == 200
+    token_blacklist.revoke_mobile_access(dentiste.id, db)
+    assert _snapshot(client, legacy).status_code == 401
+
+
+def test_mobile_jwt_creation_fails_closed_if_epoch_storage_is_unavailable(db, dentiste):
+    with patch.object(
+        token_blacklist, "current_mobile_epoch",
+        side_effect=RuntimeError("synthetic persisted store outage"),
+    ):
+        import pytest
+        with pytest.raises(RuntimeError, match="persisted store outage"):
+            _paired_mobile_token(db, dentiste)
+
+
 def test_revocation_is_tenant_scoped(client, db, dentiste):
     other = _second_cabinet(db)
     own_token = _paired_mobile_token(db, dentiste)

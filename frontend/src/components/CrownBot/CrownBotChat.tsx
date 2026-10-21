@@ -9,6 +9,7 @@ import { api, API_BASE, getRuntimeAuthToken } from '../../services/api';
 import { mobileFetch } from '../../services/zka/mobileFetch';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { cn } from '../../utils/cn';
+import { CrownBotWorkflowPreview } from './CrownBotWorkflowPreview';
 
 interface Message {
   id: string;
@@ -236,6 +237,9 @@ export function CrownBotChat({
   const employerId = user?.employer_id || user?.id;
 
   const pageCtx = getPageContext(location.pathname);
+  // Explicit opt-in on BOTH frontend and server. OFF means the existing screen
+  // remains untouched. Backend independently rejects preview when flag is OFF.
+  const zeroLlmPreviewEnabled = import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
 
   // Chat state
   const [messages, setMessages] = useState<Message[]>([{
@@ -607,7 +611,10 @@ export function CrownBotChat({
       </div>
 
       {/* ── TAB: CHAT — Bientôt disponible ── */}
-      {activeTab === 'chat' && (
+      {activeTab === 'chat' && zeroLlmPreviewEnabled && (
+        <CrownBotWorkflowPreview />
+      )}
+      {activeTab === 'chat' && !zeroLlmPreviewEnabled && (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
           <div className="relative">
             <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner border border-white/60">

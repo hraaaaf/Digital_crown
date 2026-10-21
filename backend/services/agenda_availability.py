@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -248,11 +249,24 @@ def validate_appointment_availability(
     if duration_minutes <= 0:
         return "La durée du rendez-vous doit être positive."
 
+    # In real clinical runtime an unconfigured/incompletely migrated agenda
+    # MUST NOT be interpreted as open at all hours. Keep permissive behavior
+    # only in isolated legacy unit-test fixtures and explicitly non-clinic dev.
+    strict = (
+        os.environ.get("ENVIRONMENT", "").strip().lower() in {"cabinet", "production"}
+        or os.environ.get("CROWN_BOT_CLINICAL_CI_DATABASE") == "synthetic-only"
+    )
     if not _agenda_schema_ready(db):
-        return None
+        return (
+            "Agenda indisponible : schéma à mettre à jour avant réservation."
+            if strict else None
+        )
     settings = _settings_row(db, employer_id)
     if settings is None:
-        return None
+        return (
+            "Agenda indisponible : configurez les horaires du cabinet avant réservation."
+            if strict else None
+        )
 
     start = _local_naive(datetime_start)
     end = start + timedelta(minutes=duration_minutes)
