@@ -140,12 +140,22 @@ class DocumentFactory:
             is_pre_bilan = analysis.get("_is_pre_bilan", False) if isinstance(analysis, dict) else False
             validation_warnings = analysis.get("_validation_warnings", []) if isinstance(analysis, dict) else []
 
+            # Only the typed backend projection is allowed to supply clinical
+            # authority to the PDF. Stored/client narrative dictionaries can
+            # contain free-form legacy keys (analyse_dentaire/is_fallback)
+            # incompatible with the strict DiagnosticSLM display-only DTO.
+            # Do not silently turn those keys into validated clinical claims.
+            # Keep the archive payload/digest unchanged: this copy is solely
+            # for the legacy view-model required by the report renderer.
+            display_results = dict(results_dict)
+            display_results.pop("ai_diagnostic", None)
+            display_results.pop("ai_narrative", None)
             vm = schemas.CephaloViewModel(
                 patient_nom=patient.nom,
                 patient_prenom=patient.prenom,
                 patient_age=str(self._calculate_age(patient.date_naissance)),
                 patient_id=patient_id,
-                analysis=schemas.CephaloAnalysisResult.model_validate(results_dict),
+                analysis=schemas.CephaloAnalysisResult.model_validate(display_results),
                 cabinet_config={
                     "primary_color": cabinet.primary_color if cabinet else "#1A365D",
                     "secondary_color": cabinet.secondary_color if cabinet else "#64748B",
