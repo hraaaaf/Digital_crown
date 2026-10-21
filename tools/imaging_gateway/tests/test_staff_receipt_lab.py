@@ -184,6 +184,20 @@ class StaffReceiptContractLabTests(unittest.TestCase):
                     self.ledger.commit(approval, staff_token=self.token)
                 self.assertEqual(self.ledger.inspect("cab1", "capture1")["receipts"], [])
 
+    def test_rotated_synthetic_session_revokes_previous_staff_token(self):
+        old_token = self.token
+        approval = self.approve()
+        self.token = self.ledger.fixture_staff("cab1", "staff1")
+        with self.assertRaisesRegex(LabReceiptRejected, "STAFF_NOT_AUTHORIZED"):
+            self.ledger.commit(approval, staff_token=old_token)
+        self.assertEqual(self.ledger.inspect("cab1", "capture1")["receipts"], [])
+        # A newly authenticated mock session for the same staff principal
+        # may resume the already-audited approval without fabricating another.
+        r = self.ledger.commit(approval, staff_token=self.token)
+        self.assertEqual(r.state, "LAB_RECEIPT_COMMITTED")
+        self.assertEqual(self.ledger.inspect("cab1", "capture1")["audit"],
+                         ["SYNTHETIC_STAFF_APPROVED", "SYNTHETIC_RECEIPT_COMMITTED"])
+
     def test_conflicting_second_approval_for_same_capture_never_changes_first_receipt(self):
         first = self.approve()
         original = self.ledger.commit(first, staff_token=self.token)
