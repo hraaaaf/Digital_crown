@@ -158,15 +158,47 @@ async function capture(v){
     return {width:img.naturalWidth,height:img.naturalHeight};
   });
   if(decoded.width!==radio.width||decoded.height!==radio.height)fail('Public image did not decode');
-  await page.evaluate((metadata)=>{
-    const label=document.createElement('div');label.dataset.r23g4AuditBanner='true';
-    label.textContent='R23-G4 '+metadata.phase+' · '+metadata.author+' (Wikimedia / CC BY-SA 4.0) · REPÈRES ET PROFILS FICTIFS · AUCUNE MESURE CLINIQUE';
-    Object.assign(label.style,{position:'fixed',top:'4px',left:'4px',maxWidth:'90vw',
-      padding:'5px 6px',borderRadius:'5px',fontFamily:'system-ui',fontSize:'10px',fontWeight:'800',
-      background:'#fff9dc',color:'#5e3600',border:'1px solid #b57b00',
-      zIndex:'99999',pointerEvents:'none'});
-    document.body.append(label);
-  },{phase,author:radio.author});
+  // NONCLINICAL PROOF ONLY: permanently bind a warning to EACH capture target.
+  // A global/fixed page banner does not appear in element-level PNG screenshots.
+  const stampSyntheticWarning=async(target,region)=>{
+    await target.evaluate((host,meta)=>{
+      if(!(host instanceof HTMLElement))throw Error('G4 warning host missing');
+      if(getComputedStyle(host).position==='static')host.style.position='relative';
+      for(const older of host.querySelectorAll(':scope > [data-r23g4-synthetic-warning]'))older.remove();
+      const marker=document.createElement('div');
+      marker.dataset.r23g4SyntheticWarning=meta.region;
+      marker.setAttribute('role','note');
+      marker.textContent=(meta.region==='radiograph'?'RADIOGRAPHIE PUBLIQUE':'TABLEAU DE DÉMONSTRATION')
+        +' · REPÈRES FICTIFS — NON RECALÉS · NE PAS UTILISER CLINIQUEMENT';
+      Object.assign(marker.style,{
+        position:'absolute',top:meta.region==='radiograph'?'10px':'auto',
+        bottom:meta.region==='panel'?'10px':'auto',
+        left:'8px',right:'8px',boxSizing:'border-box',padding:'9px 12px',
+        color:'#8f1525',background:'rgba(255,252,233,0.97)',
+        border:'3px solid #b91c1c',borderRadius:'6px',zIndex:'2147483647',
+        textAlign:'center',fontFamily:'system-ui,sans-serif',fontWeight:'900',
+        fontSize:'14px',lineHeight:'1.35',letterSpacing:'0.02em',
+        whiteSpace:'normal',overflowWrap:'break-word',
+        pointerEvents:'none'
+      });
+      host.append(marker);
+    },{region});
+    const status=await target.evaluate((host,region)=>{
+      const marker=host.querySelector(':scope > [data-r23g4-synthetic-warning="'+region+'"]');
+      if(!marker)return {ok:false,reason:'missing'};
+      const a=host.getBoundingClientRect(),b=marker.getBoundingClientRect();
+      const style=getComputedStyle(marker);
+      const full='REPÈRES FICTIFS — NON RECALÉS · NE PAS UTILISER CLINIQUEMENT';
+      return{ok:marker.textContent.includes(full)
+        && style.visibility==='visible' && style.display!=='none'
+        && b.width>175 && b.height>=26
+        && b.top>=a.top-1 && b.left>=a.left-1
+        && b.right<=a.right+1 && b.bottom<=a.bottom+1,
+        text:marker.textContent,width:b.width,height:b.height};
+    },region);
+    if(!status.ok)fail('NONCLINICAL IMAGE WARNING MISSING OR CROPPED '+region+' '+JSON.stringify(status));
+    return status.text;
+  };
   for(const kind of ['mcnamara','ricketts']){
     // On narrow Cabinet layouts the floating tracing tabs are not visible.
     // The actual accessible workflow entrypoint is the ready-analysis select.
@@ -201,13 +233,16 @@ async function capture(v){
       if(scroll.documentWidth-scroll.viewportWidth>2)fail('Document horizontal overflow '+JSON.stringify(scroll));
       // Preserve BOTH the actual public radiograph viewport and the table:
       // scrolling mobile to the table must never masquerade as proof of image UX.
-      await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+      const stage=page.locator('[data-r20-radiograph-stage]');
+      const warningStage=await stampSyntheticWarning(stage,'radiograph');
+      const warningPanel=await stampSyntheticWarning(panel,'panel');
+      await stage.scrollIntoViewIfNeeded();
       const stageFilename=phase.toLowerCase()+'-'+kind+'-'+variant+'-radiograph-'+viewportName+'.png';
       await page.screenshot({path:path.join(out,stageFilename),fullPage:false});
       await panel.scrollIntoViewIfNeeded();
       const filename=phase.toLowerCase()+'-'+kind+'-'+variant+'-'+viewportName+'.png';
       await page.screenshot({path:path.join(out,filename),fullPage:false});
-      states.push({kind,variant,rows:count,handles,geometry,scroll,focus:'not-authorized',filename,stageFilename,valid:true});
+      states.push({kind,variant,rows:count,handles,geometry,scroll,warningStage,warningPanel,focus:'not-authorized',filename,stageFilename,valid:true});
     }
   }
   await page.locator('#cephalo-ready-analysis').selectOption('com');
@@ -248,13 +283,15 @@ async function capture(v){
   }
   // Two distinct element targets: no two labels for identical viewport PNG bytes.
   const stage=page.locator('[data-r20-radiograph-stage]');
+  const warningStage=await stampSyntheticWarning(stage,'radiograph');
+  const warningPanel=await stampSyntheticWarning(com,'panel');
   await stage.scrollIntoViewIfNeeded();
   const stageFilename=phase.toLowerCase()+'-com-'+variant+'-radiograph-'+viewportName+'.png';
   await stage.screenshot({path:path.join(out,stageFilename)});
   await com.scrollIntoViewIfNeeded();
   const filename=phase.toLowerCase()+'-com-'+variant+'-'+viewportName+'.png';
   await com.screenshot({path:path.join(out,filename)});
-  states.push({kind:'com',variant,rows:count,...extra,filename,stageFilename,valid:true});
+  states.push({kind:'com',variant,rows:count,...extra,warningStage,warningPanel,filename,stageFilename,valid:true});
   if(errors.length)fail('Page errors: '+errors.join(' | ').slice(0,1200));
   return{viewportName,decoded,valid:true,states,pageErrors:errors};
  }catch(e){

@@ -109,6 +109,12 @@ jobs:
                     if(phase==='after'&&(state.handles!==35||state.glyphs!==3||state.legacyGeometry!==0||state.softTemplates!==0||state.visibleRows<4||state.focus!=='not-authorized'))
                       throw Error(id+'/'+phase+':COM source/display/compact assertion');
                   }
+                  const required='REPÈRES FICTIFS — NON RECALÉS · NE PAS UTILISER CLINIQUEMENT';
+                  if(typeof state.warningStage!=='string'||!state.warningStage.includes(required)
+                    ||typeof state.warningPanel!=='string'||!state.warningPanel.includes(required)
+                    ||!state.warningStage.startsWith('RADIOGRAPHIE PUBLIQUE')
+                    ||!state.warningPanel.startsWith('TABLEAU DE DÉMONSTRATION'))
+                    throw Error(id+'/'+phase+'/'+state.kind+':missing visible/nonclinical capture warning');
                   const img=await stat(dir+state.filename);
                   const stage=await stat(dir+state.stageFilename);
                   if(img.size<10000||stage.size<10000)throw Error(id+'/'+phase+':radiograph or panel screenshot missing');
