@@ -21,7 +21,12 @@ from backend.services.cephalo_canonical_method_bridge import project_canonical_m
 from backend.services.cephalo_protocol_projection import (
     project_steiner_static_protocol,
     project_tweed_merrifield_protocol,
+    project_mcnamara_reference_protocol,
+    project_com_reference_protocol,
+    project_ricketts_atlas2009_protocol,
+    project_ricketts_gregoret13_protocol,
 )
+from backend.services.cephalo_runtime_focus import derive_active_runtime_focus
 from backend.services.cephalo_evidence_graph import EvidenceGraphSnapshot
 from backend.services.cephalo_typed_read import (
     CephaloTypedReadError,
@@ -148,8 +153,14 @@ def project_runtime_chain_read_path(
     angles_data: Mapping[str, Any],
     *,
     patient_id: int,
+    include_r23g2_reference_profiles: bool = False,
 ) -> dict[str, Any]:
-    """Project typed CRANIOM values only after active-chain authority is proven."""
+    """Project active science. R23-G2 references require explicit internal opt-in.
+
+    The standard clinical route preserves its current two-profile scientific
+    surface. The optional reference ledger is presentation-only and is never
+    authoritative for a diagnosis, norm or archived clinical document.
+    """
     projected = project_typed_craniom_read_path(angles_data, patient_id=patient_id)
     payload = angles_data.get(EVIDENCE_GRAPH_KEY)
     if payload is None:
@@ -186,4 +197,36 @@ def project_runtime_chain_read_path(
             "tweed_merrifield": project_tweed_merrifield_protocol(canonical_projection["measurements"]),
         },
     }
+    if include_r23g2_reference_profiles:
+        # Reuse the SAME validated typed active graph and canonical convergence.
+        # This opt-in must only be used by the authenticated reference endpoint;
+        # the standard GET and PDF/archiving callers retain the exact old surface.
+        try:
+            canonical_rows = canonical_projection["measurements"]
+            active_focus = derive_active_runtime_focus(
+                canonical_rows,
+                landmarks=chain.landmarks,
+                constructions=chain.constructions,
+                measurements=chain.measurements,
+            )
+            reference_profiles = {
+                "mcnamara": project_mcnamara_reference_protocol(canonical_rows),
+                "com": project_com_reference_protocol(canonical_rows),
+                "ricketts_atlas2009": project_ricketts_atlas2009_protocol(canonical_rows),
+                "ricketts_gregoret13": project_ricketts_gregoret13_protocol(canonical_rows),
+            }
+            for profile in reference_profiles.values():
+                if profile.get("classification_authority") is not False:
+                    raise ValueError("Unapproved normative classification in R23-G2 ledger")
+                for row in profile["rows"]:
+                    if row["availability_status"] != "AVAILABLE" or row["value"] is None:
+                        continue
+                    # Never infer geometry from a label or numerical value.
+                    # Only exact matched current typed method/measurement can focus.
+                    focus = active_focus.get(row["canonical_measurement_id"])
+                    if focus and focus["value_authority_method_id"] == row["value_authority_method_id"]:
+                        row["focus_evidence"] = focus
+        except (ValueError, TypeError, KeyError) as exc:
+            raise CephaloTypedReadError("R23-G2 read-only source contract invalid") from exc
+        projected["scientific_read_path"]["r23g2_reference_profiles"] = reference_profiles
     return projected
