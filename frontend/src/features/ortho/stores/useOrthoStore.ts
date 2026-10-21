@@ -126,7 +126,7 @@ interface OrthoState {
   setIsPreviewLoading: (loading: boolean) => void;
   setSyncState: (state: SyncState) => void;
   clearSyncTimer: () => void;
-  runAnalysis: (file: File) => Promise<void>;
+  runAnalysis: (file: File, manual?: boolean) => Promise<void>;
   silentSave: (id?: number, strict?: boolean) => Promise<void>;
   handleSave: () => Promise<void>;
   applyCalibration: () => Promise<void>;
@@ -554,7 +554,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     if (get().patientId !== s.patientId || get().analysisId !== s.analysisId) return;
     set(prev => ({ completedSteps: new Set([...prev.completedSteps, prev.step]), step: target }));
   },
-  runAnalysis: async (file: File) => {
+  runAnalysis: async (file: File, manual = false) => {
     const state = get();
     if (!state.patientId) return;
     const operation = ++radioUploadGeneration;
@@ -565,7 +565,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
       && get().analysisId === state.analysisId;
     set({ uploadError: null, isUploading: true });
     try {
-      const data = await cephaloRepository.uploadRadio(state.patientId, file);
+      const data = manual
+        ? await cephaloRepository.uploadRadioManual(state.patientId, file)
+        : await cephaloRepository.uploadRadio(state.patientId, file);
       // Do not let an A upload overwrite study B, even after an A→B→A switch.
       // Parallel uploads also obey latest-request-wins within one selection.
       if (!stillCurrent()) return;
@@ -647,7 +649,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
           set(s => ({ etape3Data: { ...s.etape3Data, profil: normalizeProfilFacial(n.profil_cutane) } }));
         }
       }
-      set(s => ({ completedSteps: new Set([...s.completedSteps, 1]) }));
+      if (data.status !== 'manual_required' && data.status !== 'manual_draft') {
+        set(s => ({ completedSteps: new Set([...s.completedSteps, 1]) }));
+      }
     } catch (e: any) {
       if (stillCurrent()) {
         const raw = e?.response?.data?.detail;
