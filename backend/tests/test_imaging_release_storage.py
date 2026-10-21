@@ -56,6 +56,9 @@ def test_radio_read_uses_external_storage_after_tenant_guard(monkeypatch, tmp_pa
     (root / "synthetic.jpg").write_bytes(b"synthetic-test-bytes")
     guard = MagicMock()
     monkeypatch.setattr(main, "_assert_media_tenant", guard)
+    # This positive storage test must explicitly supply the clinical permission.
+    # Other tests below prove that missing permission is denied before tenant lookup.
+    monkeypatch.setattr(main, "has_permission", lambda _user, permission: permission == "cephalo")
     user, db = MagicMock(), MagicMock()
     route = main.serve_radios if modality == "radios" else main.serve_panoramic
     response = asyncio.run(route("synthetic.jpg", user, db))
@@ -72,8 +75,27 @@ def test_radio_read_preserves_legacy_storage(monkeypatch, tmp_path):
     (legacy / "radios" / "synthetic.jpg").write_bytes(b"synthetic-test-bytes")
     monkeypatch.setattr(main, "UPLOAD_DIR", str(legacy))
     monkeypatch.setattr(main, "_assert_media_tenant", MagicMock())
+    monkeypatch.setattr(main, "has_permission", lambda _user, permission: permission == "cephalo")
     response = asyncio.run(main.serve_radios("synthetic.jpg", MagicMock(), MagicMock()))
     assert Path(response.path) == legacy / "radios" / "synthetic.jpg"
+
+
+def test_radio_read_requires_cephalo_permission_before_tenant_query(monkeypatch):
+    import backend.main as main
+
+    tenant_guard = MagicMock()
+    file_serve = MagicMock()
+    monkeypatch.setattr(main, "_assert_media_tenant", tenant_guard)
+    monkeypatch.setattr(main, "_serve_protected_file", file_serve)
+    monkeypatch.setattr(main, "has_permission", lambda _user, _permission: False)
+
+    with pytest.raises(HTTPException) as denied:
+        asyncio.run(main.serve_radios("synthetic.jpg", MagicMock(), MagicMock()))
+
+    assert denied.value.status_code == 403
+    assert "cephalo" in str(denied.value.detail)
+    tenant_guard.assert_not_called()
+    file_serve.assert_not_called()
 
 
 def test_radio_read_denied_before_serving_file(monkeypatch):
