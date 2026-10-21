@@ -1,5 +1,13 @@
 # techdoubt.md — Crown Bot CB-01 / FIRST_VALUE_UI
 
+## CB01-TD-20261021-47 — #42 démarrage direct /dashboard sous latence — TEST CANDIDAT (PAS ENCORE PROUVÉ)
+
+- Test ciblé de cinq ouvertures directes du Dashboard depuis une vraie session login UI S05 Chromium sur FastAPI/SQLCipher fictif isolé, dont deux onglets parallèles avec délais opposés.
+- Les réponses /health, /api/workstation/bootstrap, /api/auth/me, /api/clinics/init-status sont récupérées par route.fetch sur le backend réel et uniquement différées avant livraison. Aucune réponse authentifiée synthétisée. Exiger MainLayout + Crown Bot visibles, mêmes quatre endpoints HTTP200, aucune redirection, erreur JS, écriture clinique ou splash résiduel.
+- Preuve requise : run Windows FUE-G sur le SHA final, report.json.dashboardStartupRace, cinq cas PASS; aucun score augmenté avant inspection. Les opérations de ProtectedRoute sont en partie séquentielles : permutations arbitraires intra-instance NON démontrables par ce test; interleavings multi-onglets et ralentissements sont couverts, pas tous les timings possibles.
+- Réserve #42 toujours OPEN ; cause du blocage initial inconnue. Pas de correctif produit sans RED avéré. Nouveau HEAD invalide l'homologation automatique des preuves sur l'ancien HEAD, y compris accord visuel lié à la capture précédente : requalifier à la décision. CB-01 OPEN, CB-02 gelé, Pocket/Lot10 hors-scope, ni merge ni déploiement.
+
+
 Ce registre contient uniquement des réserves **CB-01** et leur historique probant. Les tests physiques sont réservés au **Lot 10**, pas à cette mission logicielle.
 
 ## CB01-TD-20261021-46 — FUE first-value visuel hors viewport possible à zoom natif 200% — CORRECTIF CANDIDAT / CI ATTENDUE
