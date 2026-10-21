@@ -70,8 +70,12 @@ try {
     const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
     const page = await context.newPage();
     const pageErrors = [];
+    const consoleErrors = [];
     const serverRequests = [];
     page.on('pageerror', error => pageErrors.push(String(error)));
+    page.on('console', message => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
     page.on('request', request => {
       const url = request.url();
       if (url.startsWith('https://fonts.googleapis.com/') || url.startsWith('https://fonts.gstatic.com/')) {
@@ -127,7 +131,18 @@ try {
     });
 
     await page.goto(ui + '/lot05-j10d-manual-visual.html', { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'Importer une radiographie JPEG ou PNG' }).waitFor();
+    await page.getByRole('button', { name: 'Importer une radiographie JPEG ou PNG' }).waitFor({ timeout: 15000 }).catch(async error => {
+      report.failureDetails = {
+        viewport: viewport.name,
+        url: page.url(),
+        bodyText: (await page.locator('body').innerText()).slice(0, 2200),
+        pageErrors,
+        consoleErrors: consoleErrors.slice(-15),
+        serverRequests,
+      };
+      await page.screenshot({ path: path.join(out, 'failed-debug-' + viewport.name + '.png'), fullPage: true });
+      throw error;
+    });
     // Synthetically draw a greyscale, nonpatient x-ray-like fixture; not a clinical radiograph.
     const encoded = await page.evaluate(() => {
       const canvas = document.createElement('canvas');
