@@ -58,6 +58,14 @@ describe('R23-G2 full read-only profile tables', () => {
       expect(document.querySelector('[data-r23g2-protocol-id="COM_DC_LEGACY_V1"]')).toBeTruthy();
       expect(screen.getByText(/0\/10 valeurs disponibles/)).toBeTruthy();
       expect(document.querySelectorAll('[data-r23g2-measurement-id] td')).toHaveLength(20);
+      expect(document.querySelector('[data-r23g2-com-compact="true"]')).toBeTruthy();
+      expect(document.querySelectorAll('[data-r23g2-measurement-id] button[aria-pressed="true"]')).toHaveLength(0);
+      expect(document.querySelectorAll('[data-r23g2-measurement-id] .font-mono')).toHaveLength(0);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_TEST_1_MM_V1"]')!);
+      expect(document.querySelectorAll('[data-r23g2-measurement-id] .font-mono')).toHaveLength(1);
+      expect(screen.getByText(/Focus géométrique non autorisé/)).toBeTruthy();
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_TEST_1_MM_V1"]')!);
+      expect(document.querySelectorAll('[data-r23g2-measurement-id] .font-mono')).toHaveLength(0);
       useOrthoStore.setState({
         anglesData: { scientific_read_path: { ...readings.scientific_read_path, active_chain: 'STALE' } },
       });

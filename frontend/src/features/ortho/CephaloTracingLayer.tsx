@@ -228,7 +228,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode === 'com' ? 'com-readonly' : mode;
   const baseLayers = mode === 'com'
     ? {
-        visibility: { ...(props.layerPresentation?.visibility ?? createDefaultLayerVisibility()), plans: false, measurements: false },
+        visibility: { ...(props.layerPresentation?.visibility ?? createDefaultLayerVisibility()), plans: false, measurements: false, soft_tissue: false, hard_tissue: false, teeth: false },
         opacity: props.layerPresentation?.opacity ?? createDefaultLayerOpacity(),
       }
     : props.layerPresentation;

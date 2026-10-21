@@ -56,17 +56,32 @@ const prettyUnit = (unit: string | null) => unit === 'deg' ? '°' : unit || '';
 
 const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Analysis }> = ({ P, analysis }) => {
   const anglesData = useOrthoStore(state => state.anglesData);
+  const patientId = useOrthoStore(state => state.patientId);
+  const analysisId = useOrthoStore(state => state.analysisId);
+  const imageSrc = useOrthoStore(state => state.imageSrc);
   const landmarks = useOrthoStore(state => state.local.landmarks);
+  const sourceRevision = anglesData?.scientific_read_path?.revision ?? null;
   const [version, setVersion] = React.useState<R23G2RickettsVersion>('atlas');
   const profile = React.useMemo(
     () => readCephaloR23G2Protocol(anglesData, analysis, version),
     [anglesData, analysis, version],
   );
   const rows = profile?.rows ?? [];
-  const [selectedMeasurementId, setSelectedMeasurementId] = React.useState<string | null>(null);
-  // A factor selected under McNamara or Atlas must never remain the focus
-  // after the analysis/profile identity changes.
-  React.useEffect(() => setSelectedMeasurementId(null), [analysis, version]);
+  // Bind selection to this precise study/evidence snapshot, not merely a
+  // canonical factor ID that might recur in another patient or revision.
+  const [selection, setSelection] = React.useState<{
+    id: string; anglesData: typeof anglesData; patientId: typeof patientId;
+    analysisId: typeof analysisId; imageSrc: typeof imageSrc;
+    sourceRevision: typeof sourceRevision; analysis: R23G2Analysis; version: R23G2RickettsVersion;
+  } | null>(null);
+  const sameSource = selection !== null
+    && selection.anglesData === anglesData
+    && selection.patientId === patientId && selection.analysisId === analysisId
+    && selection.imageSrc === imageSrc && selection.sourceRevision === sourceRevision
+    && selection.analysis === analysis && selection.version === version;
+  const selectedMeasurementId = sameSource ? selection.id : null;
+  React.useEffect(() => setSelection(null),
+    [anglesData, patientId, analysisId, imageSrc, sourceRevision, analysis, version]);
   const selectedRow = rows.find(row => row.canonical_measurement_id === selectedMeasurementId);
   const requirements = selectedRow ? findR23G3PinnedRequirements(
     selectedRow.canonical_measurement_id,
@@ -101,17 +116,23 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
         landmarks.map(item => item.id),
       )
     : null;
-  const currentFocus = resolveR23G3RuntimeFocus(selectedRow);
-  // Same semantic event already observed by CephaloTracingLayer; no
-  // invented SVG geometry is emitted. A blocked factor clears old focus.
+  const currentFocus = React.useMemo(() => resolveR23G3RuntimeFocus(selectedRow), [selectedRow]);
+  // Revoke on ANY study/evidence replacement, including same factor/point names
+  // but a different measurement ref or typed method. No stale Focus carry-over.
   React.useEffect(() => {
     publishCephaloMetricFocus(currentFocus);
     return () => publishCephaloMetricFocus(null);
-  }, [currentFocus?.canonicalMeasurementId, currentFocus?.points.join('|'), currentFocus?.constructionIds?.join('|')]);
+  }, [currentFocus, anglesData, patientId, analysisId, imageSrc, sourceRevision, analysis, version]);
   const available = rows.filter(row => row.availability_status === 'AVAILABLE' && row.value !== null).length;
+  const compactCom = analysis === 'com';
+  const selectFactor = (id: string) => {
+    if (selectedMeasurementId === id) { setSelection(null); return; }
+    setSelection({ id, anglesData, patientId, analysisId, imageSrc, sourceRevision, analysis, version });
+  };
   return (
     <aside
       data-r23g2-protocol-panel={analysis}
+      data-r23g2-com-compact={compactCom ? 'true' : undefined}
       data-r23g2-protocol-id={profile?.protocol_profile_id ?? 'UNVERIFIED'}
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border"
       style={{ background: P.bgPanel, borderColor: P.border, boxShadow: P.shadowLg }}
@@ -130,7 +151,7 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
                 data-r23g2-ricketts-version={id}
                 aria-pressed={version === id}
                 className="min-h-10 rounded-lg border px-2 py-1.5 text-xs font-semibold"
-                onClick={() => { setSelectedMeasurementId(null); setVersion(id); }}
+                onClick={() => { setSelection(null); setVersion(id); }}
                 style={{ borderColor: version === id ? P.accent : P.border, background: version === id ? P.bgCard : P.bgPanel, color: P.text }}
               >{label}</button>
             ))}
@@ -144,9 +165,15 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
         <p className="mt-1 text-xs font-bold" style={{ color: P.textMuted }} data-r23g2-coverage>
           {profile ? String(available) + '/' + String(rows.length) + ' valeurs disponibles · ' + String(rows.length) + ' facteurs documentés' : 'Profil non vérifié — mesures désactivées'}
         </p>
-        <p className="mt-1 text-[11px]" style={{ color: P.textMuted }}>
-          Sélectionnez un facteur pour cibler ses repères seulement si les preuves actives les identifient. Tracés complets en cours de construction ; aucun plan n’est simulé.
-        </p>
+        {compactCom ? (
+          <p className="mt-1 text-[11px]" style={{ color: P.textMuted }}>
+            Lecture compacte · choisir une mesure ouvre ses preuves. Repères source éditables ; anciens tracés et gabarits non certifiés masqués.
+          </p>
+        ) : (
+          <p className="mt-1 text-[11px]" style={{ color: P.textMuted }}>
+            Sélectionnez un facteur pour cibler ses repères seulement si les preuves actives les identifient. Tracés complets en cours de construction ; aucun plan n’est simulé.
+          </p>
+        )}
       </div>
       {!profile ? (
         <div role="status" className="flex items-start gap-2 p-4 text-sm" style={{ color: P.accentWarning }}>
@@ -166,27 +193,34 @@ const CephaloR23G2ProtocolPanel: React.FC<{ P: R23G2Palette; analysis: R23G2Anal
             <tbody>
               {rows.map(row => (
                 <tr key={row.canonical_measurement_id} data-r23g2-measurement-id={row.canonical_measurement_id} className="border-b" style={{ borderColor: P.border }}>
-                  <th scope="row" className="break-words px-3 py-2 align-top text-[11px] font-semibold" style={{ color: P.text }}>
+                  <th scope="row" className={compactCom ? "break-words px-2 py-1 align-middle text-xs font-semibold" : "break-words px-3 py-2 align-top text-[11px] font-semibold"} style={{ color: P.text }}>
                     <button type="button"
                       data-r23g3-focus-select={row.canonical_measurement_id}
                       aria-pressed={selectedMeasurementId === row.canonical_measurement_id}
-                      onClick={() => setSelectedMeasurementId(row.canonical_measurement_id)}
-                      className="min-h-9 w-full rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-1"
+                      onClick={() => selectFactor(row.canonical_measurement_id)}
+                      aria-label={'Sélectionner ' + row.label + (selectedMeasurementId === row.canonical_measurement_id ? ' — fermer les preuves' : ' — afficher les preuves')}
+                      className={compactCom ? "min-h-9 w-full rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-1" : "min-h-9 w-full rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-1"}
                       style={{ color: selectedMeasurementId === row.canonical_measurement_id ? P.accent : P.text }}>
                     <span className="block break-words">{row.label === row.canonical_measurement_id
                       ? row.canonical_measurement_id.replace(/^M_/, '').replace(/_(?:DEG|MM)_V\d+$/, '').replaceAll('_', ' ').toLowerCase()
                       : row.label}</span>
                     </button>
-                    <span className="block break-all font-mono text-[9px] font-normal" style={{ color: P.textMuted }} title={row.canonical_measurement_id}>{row.canonical_measurement_id}</span>
+                    {(!compactCom || selectedMeasurementId === row.canonical_measurement_id) && (
+                      <span className="block break-all font-mono text-[9px] font-normal" style={{ color: P.textMuted }} title={row.canonical_measurement_id}>{row.canonical_measurement_id}</span>
+                    )}
                   </th>
-                  <td className="px-1 py-2 align-top text-xs font-semibold tabular-nums" style={{ color: row.value === null ? P.textMuted : P.accentSuccess }}>
+                  <td className={compactCom ? "px-1 py-1 align-middle text-xs font-semibold tabular-nums" : "px-1 py-2 align-top text-xs font-semibold tabular-nums"} style={{ color: row.value === null ? P.textMuted : P.accentSuccess }}>
                     {row.value === null ? 'NC' : row.value.toFixed(1).replace('.', ',') + ' ' + prettyUnit(row.unit)}
                   </td>
-                  <td className="break-words px-1 py-2 align-top text-[11px] leading-relaxed" style={{ color: P.textMuted }}>
+                  <td className={compactCom ? "break-words px-1 py-1 align-middle text-[11px] leading-tight" : "break-words px-1 py-2 align-top text-[11px] leading-relaxed"} style={{ color: P.textMuted }}>
                     <span className="block font-semibold">{AVAILABILITY_LABELS[row.availability_status] ?? 'Non calculable'}</span>
-                    {row.value === null && <span className="block">{statusExplanation(row)}</span>}
-                    {row.contract_gate && <span className="block break-all text-[10px]" title={row.contract_gate}>Gate : {row.contract_gate}</span>}
-                    <span className="block text-[10px]">Contrat : {row.contract_state}</span>
+                    {(!compactCom || selectedMeasurementId === row.canonical_measurement_id) && (
+                      <>
+                        {row.value === null && <span className="block">{statusExplanation(row)}</span>}
+                        {row.contract_gate && <span className="block break-all text-[10px]" title={row.contract_gate}>Gate : {row.contract_gate}</span>}
+                        <span className="block text-[10px]">Contrat : {row.contract_state}</span>
+                      </>
+                    )}
                     {selectedMeasurementId === row.canonical_measurement_id && (
                       <span data-r23g3-focus-source={currentFocus ? 'active-runtime' : 'not-authorized'}
                         className="mt-1 block font-semibold">
