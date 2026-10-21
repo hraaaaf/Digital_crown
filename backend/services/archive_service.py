@@ -34,6 +34,24 @@ _TRASHED_PAYMENT_PREFIX = "CORBEILLE — Lien Doc ID: "
 _INSTALLMENT_TRASH_PREFIX = "__DC_TRASH_DOC__:"
 
 
+def _validate_archive_filename(filename: str) -> None:
+    """Reject client path components, NTFS alternate streams and reserved device names."""
+    invalid = (
+        not isinstance(filename, str)
+        or not filename or filename in {".", ".."}
+        or any(c in filename for c in '/\\<>:"|?*')
+        or any(ord(c) < 32 for c in filename)
+        or filename.rstrip(" .") != filename
+    )
+    if invalid:
+        raise ValueError("Nom de fichier invalide pour archivage")
+    base = filename.split(".", 1)[0].upper()
+    if base in {"CON", "PRN", "AUX", "NUL"} or (
+        len(base) == 4 and base[:3] in {"COM", "LPT"} and base[3] in "123456789"
+    ):
+        raise ValueError("Nom de fichier Windows réservé")
+
+
 class ArchiveService:
     """
     Service de gestion documentaire avec :
@@ -98,14 +116,19 @@ class ArchiveService:
         """Génère le chemin de stockage hiérarchique."""
         today = datetime.now()
         path = ARCHIVE_BASE_DIR / str(patient_id) / doc_type.value / str(today.year) / str(today.month)
+        # Reject client-supplied path components before creating directories.
+        _validate_archive_filename(filename)
         path.mkdir(parents=True, exist_ok=True)
-        
+
         # Ajouter la version dans le nom si > 1
         if version > 1:
             stem = Path(filename).stem
             suffix = Path(filename).suffix
             filename = f"{stem}_v{version}{suffix}"
         
+        # Client filenames are labels, never trusted filesystem paths.
+        # Keep generated archives inside the patient/type/month directory.
+        _validate_archive_filename(filename)
         return path / filename
 
     def _resolve_archive_storage_path(self, doc: models.DocumentArchive) -> Path:
@@ -142,6 +165,8 @@ class ArchiveService:
             raise ValueError("Le document à modifier n'appartient pas à ce patient")
         if doc.document_type != doc_type:
             raise ValueError("Le type du document modifié ne correspond pas à l'archive existante")
+        if doc.document_type == DocumentType.RAPPORT_CEPHALO:
+            raise ValueError("Une archive céphalométrique officielle ne peut pas être remplacée")
         if doc.status != DocumentStatus.ACTIF:
             raise ValueError("Un document placé à la corbeille ne peut pas être modifié")
 
@@ -269,6 +294,12 @@ class ArchiveService:
                 except (TypeError, ValueError) as exc:
                     raise ValueError("Identifiant d'archive à modifier invalide") from exc
         
+        # Official reports are only produced by the identity-bound PDF route.
+        # Generic service calls must never use a client-controlled destination.
+        _validate_archive_filename(filename)
+        if doc_type == DocumentType.RAPPORT_CEPHALO and not commit:
+            raise ValueError("Archive céphalométrique officielle : commit SQL requis")
+
         # Calculer le hash
         file_hash = self._calculate_file_hash(file_content)
         file_size = len(file_content)
@@ -313,6 +344,8 @@ class ArchiveService:
                 # conserver une seconde version visible dans l'archive.
                 old_doc = conflict["existing_document"]
                 if old_doc:
+                    if old_doc.document_type == DocumentType.RAPPORT_CEPHALO:
+                        raise ValueError("Archive céphalométrique officielle immuable")
                     if old_doc.file_path.startswith("static/archives/"):
                         storage_path = MEDIA_DIR / old_doc.file_path.replace("static/", "", 1)
                     else:
@@ -345,6 +378,10 @@ class ArchiveService:
                     return old_doc, False
                 
             elif on_conflict == ConflictResolution.CREATE_VERSION:
+                # Never group a generic upload into an official cephalometric archive.
+                if (conflict["existing_document"] is not None
+                        and conflict["existing_document"].document_type == DocumentType.RAPPORT_CEPHALO):
+                    raise ValueError("Archive céphalométrique officielle immuable")
                 # Créer une nouvelle version du groupe existant
                 if conflict["existing_document"]:
                     force_group_id = conflict["existing_document"].document_group_id
@@ -369,10 +406,43 @@ class ArchiveService:
         
         # Générer le chemin de stockage
         storage_path = self._get_storage_path(patient_id, doc_type, filename, version_number)
-        
-        # Sauvegarder le fichier
-        with open(storage_path, 'wb') as f:
-            f.write(file_content)
+        # A trashed archive may occupy the same filename. Never overwrite any
+        # pre-existing physical file when creating a new version/group.
+        if storage_path.exists() or storage_path.is_symlink():
+            storage_path = storage_path.with_name(
+                f"{storage_path.stem}_{uuid.uuid4().hex}{storage_path.suffix}"
+            )
+
+        # Only official cephalometric reports are enrolled in crash recovery.
+        # The caller must hold the selected-study SQL writer lock throughout
+        # this operation; a journal without matching identity never authorizes
+        # reusing arbitrary files.
+        pending_cephalo = None
+        if doc_type == DocumentType.RAPPORT_CEPHALO:
+            from backend.services.cephalo_archive_recovery import prepare_official_pdf
+
+            if not isinstance(clean_clinical_data, dict) or analysis_id is None:
+                raise ValueError("Archive céphalométrique : identité scientifique absente")
+            if clean_clinical_data.get("cephalo_analysis_id") != analysis_id:
+                raise ValueError("Archive céphalométrique : étude incohérente")
+            pending_cephalo = prepare_official_pdf(
+                self.db,
+                root=ARCHIVE_BASE_DIR,
+                proposed_path=storage_path,
+                patient_id=patient_id,
+                analysis_id=analysis_id,
+                revision=clean_clinical_data.get("cephalo_analysis_revision"),
+                payload_digest=clean_clinical_data.get("cephalo_archive_payload_digest"),
+                content=file_content,
+            )
+            storage_path = pending_cephalo.path
+            file_content = pending_cephalo.content
+            file_hash = self._calculate_file_hash(file_content)
+            file_size = len(file_content)
+        else:
+            # Existing generic archives still use exclusive create.
+            with open(storage_path, 'xb') as f:
+                f.write(file_content)
         
         # --- DOUBLE EXPORT : RESTAURATION DOSSIERS HISTORIQUES (static/documents/YYYY/MM) ---
         if doc_type in [DocumentType.NOTE_HONORAIRES, DocumentType.DEVIS, DocumentType.ORDONNANCE, DocumentType.CERTIFICAT]:
@@ -410,8 +480,32 @@ class ArchiveService:
         
         self.db.add(doc)
         if commit:
-            self.db.commit()
+            try:
+                self.db.commit()
+            except Exception:
+                # An official cephalo PDF is not a successful archive when its
+                # SQL row fails to commit. Remove only the newly written file;
+                # never leave an orphan containing clinical data on disk.
+                self.db.rollback()
+                if pending_cephalo is not None:
+                    from backend.services.cephalo_archive_recovery import abort_official_pdf
+                    try:
+                        abort_official_pdf(pending_cephalo)
+                    except OSError:
+                        # An incomplete cleanup must not disguise the failed
+                        # transaction; recovery will inspect the remaining journal.
+                        pass
+                raise
             self.db.refresh(doc)
+            if pending_cephalo is not None:
+                from backend.services.cephalo_archive_recovery import finish_official_pdf
+                try:
+                    finish_official_pdf(pending_cephalo)
+                except OSError:
+                    # SQL is already committed; replay will verify its SHA256.
+                    # The leftover journal can be reconciled, not treated as
+                    # proof that the SQL transaction failed.
+                    pass
         else:
             self.db.flush()
         
@@ -477,6 +571,31 @@ class ArchiveService:
         
         if not doc:
             raise ValueError("Document non trouvé dans la corbeille")
+
+        # Never reactivate a second official archive for the same study/revision.
+        if doc.document_type == DocumentType.RAPPORT_CEPHALO:
+            if doc.analysis_id is None or not isinstance(doc.clinical_data, dict):
+                raise ValueError("Identité d'archive céphalométrique non vérifiable")
+            from backend.services.cephalo_document_lock import lock_selected_cephalo_for_archive
+            lock_selected_cephalo_for_archive(
+                self.db, patient_id=doc.patient_id, analysis_id=doc.analysis_id,
+            )
+            self.db.refresh(doc)
+            if doc.status != DocumentStatus.SUPPRIME:
+                raise ValueError("Archive modifiée pendant la restauration")
+            same_study = self.db.query(models.DocumentArchive).filter(
+                models.DocumentArchive.id != doc.id,
+                models.DocumentArchive.document_type == DocumentType.RAPPORT_CEPHALO,
+                models.DocumentArchive.analysis_id == doc.analysis_id,
+                models.DocumentArchive.status == DocumentStatus.ACTIF,
+            ).all()
+            old_revision = doc.clinical_data.get("cephalo_analysis_revision")
+            if type(old_revision) is not int or old_revision <= 0:
+                raise ValueError("Révision d'archive céphalométrique non vérifiable")
+            for active in same_study:
+                if (isinstance(active.clinical_data, dict)
+                        and active.clinical_data.get("cephalo_analysis_revision") == old_revision):
+                    raise ValueError("Une archive céphalométrique active existe déjà pour cette étude et révision")
 
         trash_at = doc.deleted_at
         if trash_at is not None:
@@ -589,7 +708,8 @@ class ArchiveService:
                         date_from: Optional[datetime] = None,
                         date_to: Optional[datetime] = None,
                         page: int = 1, page_size: int = 20,
-                        employer_id: Optional[int] = None) -> Tuple[List[models.DocumentArchive], int]:
+                        employer_id: Optional[int] = None,
+                        allowed_doc_types: Optional[List[DocumentType]] = None) -> Tuple[List[models.DocumentArchive], int]:
         """Recherche avancée des documents."""
         query = self.db.query(models.DocumentArchive)
         
@@ -601,6 +721,8 @@ class ArchiveService:
             query = query.filter(models.DocumentArchive.patient_id == patient_id)
         if doc_type:
             query = query.filter(models.DocumentArchive.document_type == doc_type)
+        if allowed_doc_types is not None:
+            query = query.filter(models.DocumentArchive.document_type.in_(allowed_doc_types))
         if status:
             query = query.filter(models.DocumentArchive.status == status)
         if tags:

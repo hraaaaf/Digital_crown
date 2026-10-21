@@ -7,7 +7,7 @@
  */
 
 import React, {
-  useState, useRef, useEffect, useMemo,
+  useState, useRef, useEffect, useLayoutEffect, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -36,7 +36,8 @@ import { Step2BlockerModal } from './components/Step2BlockerModal';
 import { CephaloHistory } from './CephaloHistory';
 import { useOrthoStore } from './stores/useOrthoStore';
 import { cephaloRepository } from './cephaloRepository';
-import { API_BASE, api } from '../../services/api';
+import { hydrateStudyClinicalContext } from './cephaloClinicalIsolation';
+import { API_BASE, api, getRuntimeAuthToken } from '../../services/api';
 import toast from 'react-hot-toast';
 
 export interface CephaloWorkspaceProps {
@@ -54,16 +55,29 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
   const [patientDataError, setPatientDataError] = useState(false);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
+  const historySelectionVersion = useRef(0);
 
   const resolveImageSrc = (imagePath?: string) => {
     if (!imagePath) return undefined;
-    if (/^https?:\/\//i.test(imagePath)) return imagePath;
+    // Never send the Cabinet access token to an untrusted absolute media origin.
+    if (/^https?:\/\//i.test(imagePath)) {
+      try {
+        const imageURL = new URL(imagePath);
+        if (imageURL.origin !== new URL(API_BASE).origin) return undefined;
+        return imageURL.href;
+      } catch { return undefined; }
+    }
     return `${API_BASE.replace(/\/$/, '')}/${imagePath.replace(/^\//, '')}`;
   };
 
   const handleSelectHistory = async (analysis: any) => {
+    const version = ++historySelectionVersion.current;
+    // Fail closed throughout the asynchronous study switch: no old-study
+    // clinical context remains associated with a selected study.
+    store.setAnalysisId(undefined);
     try {
       const loaded = await cephaloRepository.getAnalysis(analysis.id);
+      if (version !== historySelectionVersion.current || useOrthoStore.getState().patientId !== patientId || loaded?.id !== analysis.id) return;
       const landmarks = loaded.landmarks_data || [];
       const anglesData = loaded.angles_data || {};
 
@@ -77,16 +91,13 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       store.setMmPerPixel(typeof loaded.mm_per_pixel === 'number' ? loaded.mm_per_pixel : null);
       store.setCompletedSteps(new Set(landmarks.length ? [1] : []));
 
-      const narrative = anglesData.ai_narrative || loaded.ai_diagnostic;
-      if (narrative) {
-        store.setDiag(prev => ({
-          ...prev,
-          diagnostic_squelettique: narrative.diagnostic_squelettique || prev.diagnostic_squelettique,
-          analyse_moulages: narrative.analyse_moulages || prev.analyse_moulages,
-          synthese_diagnostique: narrative.synthese_diagnostique || prev.synthese_diagnostique,
-          strategie_therapeutique: narrative.strategie_therapeutique || prev.strategie_therapeutique,
-        }));
-      }
+      // Hydrate *only* the selected study; missing data means blank, never
+      // values inherited from a previously selected analysis of this patient.
+      const clinical = hydrateStudyClinicalContext(anglesData);
+      store.setDiag(clinical.diag);
+      store.setDdm(clinical.ddm);
+      store.setEtape2Data(clinical.etape2Data);
+      store.setEtape3Data(clinical.etape3Data);
 
       store.setStep(1);
       setViewMode('studio');
@@ -98,12 +109,15 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   };
 
   const handleDeleteHistory = (analysisId: number) => {
+    historySelectionVersion.current += 1;
     if (store.analysisId === analysisId) {
       store.setAnalysisId(undefined as any);
     }
   };
 
-  useEffect(() => {
+  // Apply patient-scoped store reset before browser paint: the new patient
+  // must never be visibly rendered with the previous patient's images.
+  useLayoutEffect(() => {
     store.setPatientInfo(patientId, patientName);
 
     const syncTheme = () => setThemeRevision(revision => revision + 1);
@@ -111,7 +125,11 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
     syncTheme();
-    return () => observer.disconnect();
+    return () => {
+      // Invalidate any in-flight history GET on patient change or unmount.
+      historySelectionVersion.current += 1;
+      observer.disconnect();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, patientName]);
 
@@ -252,24 +270,49 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
     let cancelled = false;
     let createdBlobUrl: string | null = null;
+    // Media is not a clinical API command. Native fetch with the same Cabinet
+    // JWT/cookie boundary succeeds on the real protected-media endpoint; Axios
+    // XHR has shown intermittent CORS failures that wrongly trigger its generic
+    // "Serveur injoignable" response interceptor even when PDFs succeed.
+    // Keep live failures visible as image-specific errors; do not disable global
+    // network errors for real API calls.
+    const controller = new AbortController();
+    const fetchImage = async () => {
+      const token = getRuntimeAuthToken();
+      const response = await fetch(imageSrc, {
+        signal: controller.signal,
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error(`Image HTTP ${response.status}`);
+      const imageBlob = await response.blob();
+      if (!imageBlob.type.startsWith('image/')) throw new Error('Format image inattendu');
+      return imageBlob;
+    };
 
-    api.get(imageSrc, { responseType: 'blob' })
-      .then(response => {
-        if (cancelled) return;
-        const blobUrl = URL.createObjectURL(response.data as Blob);
+    void fetchImage()
+      .then(imageBlob => {
+        if (cancelled || controller.signal.aborted) return;
+        const blobUrl = URL.createObjectURL(imageBlob);
         createdBlobUrl = blobUrl;
         store.setImageSrc(blobUrl);
         createdBlobUrl = null;
       })
       .catch(() => {
-        if (cancelled) return;
+        if (cancelled || controller.signal.aborted) return;
+        // Legacy image fallback: only report an error when both transports fail.
         const img = new Image();
         img.onload = () => { if (!cancelled) setImgDim({ w: img.naturalWidth, h: img.naturalHeight }); };
+        img.onerror = () => {
+          if (!cancelled && !controller.signal.aborted)
+            toast.error('Image céphalométrique inaccessible.', { id: 'cephalo-media-error' });
+        };
         img.src = imageSrc;
       });
 
     return () => {
       cancelled = true;
+      controller.abort();
       if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl);
     };
   }, [imageSrc, setImgDim]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -342,7 +385,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-6 md:flex-row md:flex-wrap md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
         <div className="min-w-0">
           <h2 data-ortho-workspace-title className="text-lg font-bold leading-tight" style={{ color: P.text }}>Céphalométrie</h2>
-          <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName}</p>
+          <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName} {analysisId ? <span data-cephalo-selected-analysis-id={analysisId}>· Étude #{analysisId}</span> : '· Aucune étude sélectionnée'}</p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex shrink-0 rounded-xl p-1" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>

@@ -1,0 +1,50 @@
+name: CEPH P2ter master bridge backend preflight (experimental)
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ceph-p2ter-master-bridge-preflight.yml'
+      - 'techdoubt.md'
+permissions:
+  contents: read
+jobs:
+  isolated-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SECRET_KEY: 'p2ter-master-bridge-isolated-test-key-32-chars'
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Assert checked out exact SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: 'test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/p2ter-master-bridge-requirements.txt
+          pip install -r /tmp/p2ter-master-bridge-requirements.txt
+          python -m pip check
+      - name: P2ter++ backend identity and crash regression (no Windows claim)
+        run: |
+          set -o pipefail
+          python -m pytest backend/tests/test_cephalo_p2ter_identity_bound_pdf.py backend/tests/test_cephalo_p2ter_atomic_archive.py backend/tests/test_cephalo_p2ter_archive_adversarial.py backend/tests/test_cephalo_p2ter_crash_recovery.py -q | tee bridge-backend-results.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2ter-master-bridge-backend-${{ github.event.pull_request.head.sha }}
+          path: bridge-backend-results.log
+          if-no-files-found: warn
+          retention-days: 14

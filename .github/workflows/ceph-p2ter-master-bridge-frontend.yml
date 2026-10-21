@@ -1,0 +1,46 @@
+name: CEPH P2ter master bridge frontend preflight (experimental)
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/ceph-p2ter-master-bridge-frontend.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Assert checked out exact SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: 'test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Bound document and clinical isolation negative tests
+        working-directory: frontend
+        run: |
+          set -o pipefail
+          npx vitest run src/features/ortho/cephaloDocumentSource.test.ts src/features/ortho/cephaloArchiveGate.test.ts src/features/ortho/cephaloClinicalIsolation.test.ts src/features/ortho/cephaloRepository.document.test.ts | tee ../p2ter-master-frontend-results.log
+      - name: TypeScript project check
+        working-directory: frontend
+        run: |
+          set -o pipefail
+          npx tsc --noEmit -p tsconfig.app.json | tee ../p2ter-master-frontend-typescript.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2ter-master-bridge-frontend-${{ github.event.pull_request.head.sha }}
+          path: p2ter-master-frontend-*.log
+          retention-days: 14
+          if-no-files-found: warn

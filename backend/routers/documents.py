@@ -480,11 +480,32 @@ async def generate_sample_preview(
 
 @router.post("/archive", response_model=schemas.DocumentArchiveResponse)
 async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file: UploadFile = File(...), title: Optional[str] = None, on_conflict: schemas.ConflictResolution = schemas.ConflictResolution.CREATE_VERSION, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    # P2ter++: a generic upload must never mint or overwrite an archive with
+    # official Cephalo status. That type is reserved for the identity/revision-
+    # bound generator at /api/patients/{patient_id}/pdf (archive=true).
+    # Unverified external PDFs may be attached using the AUTRE category.
+    if doc_type == schemas.DocumentType.RAPPORT_CEPHALO:
+        raise HTTPException(
+            status_code=422,
+            detail="Le bilan céphalométrique officiel exige une étude et une révision vérifiées : utilisez le générateur Céphalo.",
+        )
     require_document_permission(doc_type.value if hasattr(doc_type, "value") else str(doc_type), current_user)
     assert_patient_access(patient_id, current_user, db)
     content = await file.read()
     archive_service = get_archive_service(db)
-    doc, is_new = archive_service.archive_document(patient_id=patient_id, file_content=content, filename=file.filename, doc_type=doc_type, uploaded_by_id=current_user.id, title=title, on_conflict=on_conflict)
+    try:
+        doc, is_new = archive_service.archive_document(
+            patient_id=patient_id, file_content=content, filename=file.filename,
+            doc_type=doc_type, uploaded_by_id=current_user.id, title=title, on_conflict=on_conflict,
+        )
+    except ValueError as exc:
+        # Invalid client paths and attempts to mutate official archives are
+        # safe, explicit HTTP refusals, not unhandled internal server errors.
+        detail = str(exc)
+        raise HTTPException(
+            status_code=409 if "céphalométrique officielle" in detail else 400,
+            detail=detail,
+        ) from exc
     doc_dict = {c.key: getattr(doc, c.key) for c in doc.__table__.columns}
     doc_dict["file_exists"] = bool(doc.file_path and os.path.exists(os.path.join(BASE_DIR, doc.file_path)))
     doc_dict["download_url"] = f"/api/documents/{doc.id}/download"
@@ -501,7 +522,18 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
         raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if patient_id:
         assert_patient_access(patient_id, current_user, db)
-    
+    if doc_type is not None:
+        require_document_permission(
+            doc_type.value if hasattr(doc_type, "value") else str(doc_type), current_user,
+        )
+    # Apply role-based type filtering in SQL BEFORE count and pagination;
+    # post-filtering the response would still leak hidden totals and titles.
+    allowed_types = [
+        kind for kind in models.DocumentType
+        if DOCUMENT_TYPE_PERMISSIONS.get(kind.value.lower()) is None
+        or has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS[kind.value.lower()])
+    ]
+
     archive_service = get_archive_service(db)
     docs, total = archive_service.search_documents(
         patient_id=patient_id,
@@ -509,7 +541,8 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
         search_query=search,
         page=page,
         page_size=page_size,
-        employer_id=current_user.get_employer_id()
+        employer_id=current_user.get_employer_id(),
+        allowed_doc_types=allowed_types,
     )
 
     # Enrichir chaque doc avec file_exists pour que le frontend sache quoi afficher
@@ -566,6 +599,25 @@ def download_document(
         current_user,
     )
     assert_patient_access(doc.patient_id, current_user, db)
+
+    # The official identity is not sufficient: snapshot the PDF bytes after
+    # verifying its immutable SQL provenance, stored length and SHA256.
+    if doc.document_type == models.DocumentType.RAPPORT_CEPHALO:
+        from backend.services.cephalo_document_lock import verified_official_archive_bytes
+        from fastapi.responses import Response
+        from urllib.parse import quote
+
+        verified = verified_official_archive_bytes(doc, db)
+        audit_service.log(
+            db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+            action="MEDIA_ACCESS_GRANTED", resource_type=str(doc.document_type), resource_id=str(doc.id),
+            severity="INFO", details=f"Téléchargement officiel vérifié {doc.id} (patient {doc.patient_id})",
+        )
+        return Response(
+            content=verified,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename*=utf-8''" + quote(doc.original_filename or doc.filename)},
+        )
 
     # Résolution du chemin absolu
     if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
@@ -674,7 +726,11 @@ def restore_from_trash(document_id: str, db: Session = Depends(database.get_db),
     assert_patient_access(doc.patient_id, current_user, db)
     
     archive_service = get_archive_service(db)
-    doc = archive_service.restore_from_trash(doc_id)
+    try:
+        doc = archive_service.restore_from_trash(doc_id)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"message": "Restauré", "id": doc.id}
 
 @router.delete("/{document_id}")
@@ -703,23 +759,36 @@ def permanent_delete(document_id: str, confirm: bool = False, db: Session = Depe
     raise HTTPException(status_code=500, detail="Erreur suppression")
 
 @router.post("/patients/{patient_id}/report")
-def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def generate_patient_report(
+    patient_id: int,
+    req: schemas.CephaloPDFRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Legacy document route, now bound to the identical authorized source study.
+
+    No last-analysis fallback, no unversioned report and no silent archive.
+    """
     if not has_permission(current_user, "cephalo"):
         raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : cephalo.")
-    assert_patient_access(patient_id, current_user, db)
-    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    last_analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(models.CephaloAnalysis.id.desc()).first()
-    if not last_analysis: raise HTTPException(status_code=404, detail="Aucune analyse")
 
-    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
-    validation = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
-    if not validation.is_valid:
-        audit_service.log(
-            db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
-            action="CEPHALO_PDF_BLOCKED", resource_type="CephaloAnalysis", resource_id=str(last_analysis.id),
-            severity="WARNING",
-            details=f"PDF céphalo refusé (patient {patient_id}) : {'; '.join(validation.fatals)}",
+    from backend.routers.patients import _bound_cephalo_study
+    from copy import deepcopy
+
+    analysis, revision = _bound_cephalo_study(
+        patient_id, req.analysis_id, req.expected_revision, db, current_user
+    )
+    if req.archive:
+        raise HTTPException(
+            status_code=422,
+            detail="Archivage non pris en charge sur cette route historique",
         )
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    validation = cephalo_consistency_validator.validate(analysis.angles_data or {})
+    if not validation.is_valid:
         raise HTTPException(
             status_code=422,
             detail={
@@ -728,18 +797,40 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
                 "warnings": validation.warnings,
             },
         )
-
-    analysis_data = {"id": last_analysis.id, "image_path": last_analysis.image_original_path, "results": last_analysis.angles_data or {}, "landmarks": last_analysis.landmarks_data}
-    if req.ai_diagnostic: analysis_data["results"]["ai_diagnostic"] = req.ai_diagnostic
-    if req.clinical_data: analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
-
-    pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
-    audit_service.log(
-        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
-        action="CEPHALO_PDF_GENERATED", resource_type="CephaloAnalysis", resource_id=str(last_analysis.id),
-        severity="INFO", details=f"PDF céphalo généré (patient {patient_id})",
+    results = deepcopy(analysis.angles_data or {})
+    if req.ai_diagnostic:
+        results["ai_diagnostic"] = req.ai_diagnostic
+    if req.clinical_data:
+        results["clinical_data"] = req.clinical_data.model_dump()
+    analysis_data = {
+        "id": analysis.id,
+        "image_path": analysis.image_original_path,
+        "results": results,
+        "landmarks": deepcopy(analysis.landmarks_data),
+        "_is_pre_bilan": True,
+        "_validation_warnings": validation.warnings,
+    }
+    pdf_path = doc_factory.create_cephalo_report(
+        patient, analysis_data, db=db, user_id=current_user.id
     )
-    return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
+    audit_service.log(
+        db=db, user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="CEPHALO_PDF_GENERATED",
+        resource_type="CephaloAnalysis",
+        resource_id=str(analysis.id),
+        severity="INFO",
+        details=f"PDF céphalo étude {analysis.id} révision {revision} pour patient {patient_id}",
+    )
+    return FileResponse(
+        path=pdf_path,
+        filename=os.path.basename(pdf_path),
+        media_type="application/pdf",
+        headers={
+            "X-Cephalo-Analysis-Id": str(analysis.id),
+            "X-Cephalo-Revision": str(revision),
+        },
+    )
 
 
 @router.post("/patients/{patient_id}/rvg")
