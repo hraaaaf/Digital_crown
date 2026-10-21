@@ -7,7 +7,7 @@ on:
       - docs/crown-bot/techdoubt.md
       - scripts/ci/cb894_reconcile_clinical_conflicts.py
 permissions:
-  contents: write
+  contents: read
 jobs:
   cb894-merge-conflicts:
     name: Prove isolated clinical merge, Pocket and Agenda regressions
@@ -129,11 +129,11 @@ jobs:
             backend/tests/test_agenda_a3_practitioner_availability.py \
             backend/tests/test_crown_bot_clinical_gate.py
           echo 'Pocket/Frontdesk/Agenda contract tests PASS' >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish ONLY proven merged candidate to pre-created sandbox branch
+      - name: Verify existing proven sandbox candidate is product-equivalent (READ ONLY)
         shell: bash
         env:
-          GH_PUSH_TOKEN: ${{ github.token }}
           EXPECTED_TARGET: integration/cb894-master-reconciled-candidate-20261021
+          EXPECTED_CANDIDATE_SHA: 9c30c1391190a570ed1ef6c3f030be10634a0bef
         run: |
           set -euo pipefail
           test "$GITHUB_EVENT_NAME" = pull_request
@@ -143,11 +143,13 @@ jobs:
           test "$(git rev-parse HEAD^1)" = "$EXPECTED_CHECKOUT"
           test "$(git rev-parse HEAD^2)" = "$EXPECTED_SOURCE_SHA"
           git fetch --no-tags origin "$EXPECTED_TARGET"
-          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_MASTER_SHA" || { echo 'REFUSED: candidate branch was altered'; exit 1; }
-          test -n "$GH_PUSH_TOKEN"
-          encoded=$(printf 'x-access-token:%s' "$GH_PUSH_TOKEN" | base64 -w0)
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" push origin "HEAD:refs/heads/$EXPECTED_TARGET"
-          echo "Candidate published to sandbox branch, never master" >> "$GITHUB_STEP_SUMMARY"
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_CANDIDATE_SHA" || { echo 'REFUSED: pinned certified candidate branch moved'; exit 1; }
+          test "$(git rev-parse FETCH_HEAD^1)" = a97ac5fc64cc88b0d7851a6cd623faff09f7bd53
+          test "$(git rev-parse FETCH_HEAD^2)" = "$EXPECTED_SOURCE_SHA"
+          test "$(git merge-base FETCH_HEAD "$EXPECTED_MASTER_SHA")" = "$EXPECTED_MASTER_SHA"
+          git diff --exit-code --quiet FETCH_HEAD HEAD -- backend frontend alembic tests scripts/ci requirements.txt
+          echo 'CB894_ALREADY_PUBLISHED_AND_EXACT_PRODUCT_TREE_MATCH: PASS' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No push: safely idempotent diagnostic proof; master unchanged' >> "$GITHUB_STEP_SUMMARY"
       - name: Publish diagnostic evidence even if merge conflicts fail
         if: always()
         uses: actions/upload-artifact@v4
