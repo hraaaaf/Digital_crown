@@ -1401,7 +1401,7 @@ def _bound_cephalo_study(
     if source.get("analysis_status") in {"MANUAL_DRAFT", "MANUAL_REVIEW_REQUIRED"}:
         raise HTTPException(
             status_code=409,
-            detail="Traçage manuel non validé : bilan céphalométrique indisponible.",
+            detail="Traçage manuel non validé : validation clinique requise avant tout bilan.",
         )
     graph = source.get(EVIDENCE_GRAPH_KEY)
     revision = None
