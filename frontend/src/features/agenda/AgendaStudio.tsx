@@ -1,3 +1,4 @@
+import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Users, CalendarClock, AlertCircle } from 'lucide-react';
@@ -98,7 +99,7 @@ export const AgendaStudio: React.FC = () => {
       const end = new Date(selectedDate);
       end.setHours(23, 59, 59, 999);
       const res = await api.get('/appointments/multi-practitioner', {
-        params: { start_date: start.toISOString(), end_date: end.toISOString() }
+        params: { start_date: formatAgendaWallClock(start), end_date: formatAgendaWallClock(end) }
       });
       setMultiData(res.data);
     } catch (err: any) {

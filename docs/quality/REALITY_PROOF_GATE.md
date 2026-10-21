@@ -1,7 +1,7 @@
 # Digital Crown — Reality Proof Gate (RPG) v0.1
 
 ## Objective
-Prove the *observable outcome* of each V1.5 lot/sub-lot, not just the presence of tests or a green CI. This extends (never replaces) FUE-0 / FUE-I / FUE-G, adversarial reviews, and human/physical approval.
+Prove the *observable outcome* of V1.5 lots, not a green CI alone. FUE-0/I/G is the primary observable evidence framework; RPG-C/J/X/F/P specifies applicable risk scenarios in **one combined campaign**, not a duplicated gate. Clinical, privacy, data, security, human and physical controls remain mandatory when applicable.
 
 ## Applicability by risk
 - **RPG-C (contract)**: every sub-lot. Executed assertions, explicit collection/execution counts, negative permissions, deterministic fictitious fixtures.
@@ -11,11 +11,16 @@ Prove the *observable outcome* of each V1.5 lot/sub-lot, not just the presence o
 - **RPG-P (physical/human)**: hardware-dependent proof (NFC, printers, physical LAN, camera, scanner) cannot be certified by synthetic CI. Mark OPEN until witnessed on actual devices.
 
 ## Evidence contract (per lot and sub-lot)
-Record: lot ID, requirement, risk, actors, isolated fixtures, producer and consumer, exact SHA, CI run/job URLs, executed test counts, skipped tests and reasons, transport/TLS details, expected vs observed outcome, SHA-256 for files, screenshots/traces for UI, denial matrix, cleanup/purge, reviewer A/B findings, physical/human limitations and next action. Missing mandatory evidence = OPEN, not GREEN/CLOSED. Tests only collected but not executed = NOT PROVEN.
+Record one applicable evidence bundle: lot ID, requirement, risk, actors and synthetic fixtures, producer/consumer when relevant, exact SHA, CI runs/jobs, executed and skipped tests, expected vs observed outcome, TLS, file hash, UI captures, authorization denial, cleanup and physical/human limitations **where relevant**. Document N/A with reason; never invent FUE-0 screenshots or hardware evidence. Missing **applicable** mandatory proof = OPEN, not GREEN/CLOSED. Tests only collected = NOT PROVEN.
+
+## FUE-first evidence vs human/physical validation
+- **FUE is the primary observable verification protocol**, at the applicable FUE-0 / FUE-I / FUE-G level. No mandatory double adversarial A/B review, external reviewer, or two-agent harness is required by default. Optional specialist perspectives are analytical techniques, not proof of independent users.
+- **Executed journeys remain required where applicable.** Exercise actual frontend/backend in an isolated environment with fictitious data, starting at real UI login where relevant. Capture BEFORE/ACTION/AFTER, negative permissions and persisted outcome. Never certify imagined browser behavior or synthetic mockups as a real integrated journey.
+- **Security/privacy/clinical/data/release checks remain risk-triggered and mandatory when applicable.** Human approval, clinical validation and RPG-P physical tests are separate, non-substitutable gates. No FUE score can override them.
 
 ## Gates
 1. Define observable success and failure before implementation.
-2. Execute the smallest risk-appropriate RPG-C/J/X/F/P, then two adversarial reviews on the same HEAD; fix findings and rerun on new HEAD.
+2. Execute a single risk-based FUE + RPG scenario plan, relevant negative/security checks, fixes and final-HEAD confirmation of invalidated evidence; no REQUIRED gate may be waived for speed.
 3. Validate immutable producer→consumer artifact and identity binding; never transfer real patient data to CI.
 4. Inspect artifacts and run/job steps; compare same viewports BEFORE/AFTER for UI; no skipped required assertion.
 5. Close only with exact-HEAD evidence, documented residual risk and human approval when required. GREEN is not CONVERGED, and CONVERGED is not deployed.

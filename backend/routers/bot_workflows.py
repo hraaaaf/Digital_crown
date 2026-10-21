@@ -5,7 +5,8 @@ All read results and write proposals are subject to live user/tenant checks.
 Do not wire proposal dictionaries into ActionDispatcher.execute.
 """
 
-from datetime import date
+from datetime import datetime, date, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,7 +16,7 @@ from sqlalchemy.orm import Session
 from backend import models
 from backend.config import settings
 from backend.database import get_db
-from backend.routers.auth import get_current_user, has_permission
+from backend.routers.auth import get_current_user, has_permission, require_permission
 from backend.services.bot.workflow_poc import PocConversation
 from backend.services.bot.patient_selector import lookup_patient_candidates
 
@@ -27,6 +28,41 @@ COMMAND_PERMISSIONS = {
     "/rdv": "agenda",
     "/devis": "accounting",
 }
+
+
+def cabinet_day_context(*, at_utc: datetime | None = None, timezone_name: str | None = None) -> dict:
+    """CB-01: derive clinic business day server-side, not staff browser time.
+
+    One timezone per runtime for the pilot. Multi-cabinet timezone persistence
+    remains a separate Agenda A5 mission, never inferred from a client header.
+    """
+    zone_name = timezone_name if timezone_name is not None else settings.CROWN_BOT_CABINET_TIMEZONE
+    try:
+        zone = ZoneInfo(zone_name)
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
+        raise HTTPException(status_code=503, detail="Fuseau horaire du cabinet non configuré.")
+    instant = at_utc if at_utc is not None else datetime.now(timezone.utc)
+    if instant.tzinfo is None:
+        raise ValueError("at_utc must include a timezone")
+    now_local = instant.astimezone(zone)
+    day = now_local.date().isoformat()
+    return {
+        "day": day,
+        "timezone": zone_name,
+        "start_date": f"{day}T00:00:00",
+        "end_date": f"{day}T23:59:59.999",
+        "consulted_at": now_local.strftime("%H:%M"),
+    }
+
+
+@router.get("/workflows/cabinet-day")
+def get_cabinet_day(
+    user: models.User = Depends(require_permission("agenda")),
+):
+    """Read-only clinic day metadata. No clinical mutation and no identity disclosure."""
+    if not settings.CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED:
+        raise HTTPException(status_code=404, detail="Not found")
+    return cabinet_day_context()
 
 
 class BotWorkflowPreviewRequest(BaseModel):
@@ -92,11 +128,12 @@ def preview_bot_workflow(
         # Replayed FSM receives only a verified, scoped internal numeric ID.
         transcript[1] = str(matches[0].id)
 
-    workflow = PocConversation(today=date.today())
+    workflow = PocConversation(today=(
+        date.fromisoformat(cabinet_day_context()["day"]) if command == "/rdv" else date.today()
+    ))
     for message in transcript:
         result = workflow.handle(message)
     payload = {"status": result.status, "message": result.message, "proposal": None}
-
     if result.proposal is None:
         return payload
 

@@ -90,7 +90,7 @@ function PendingActionCard({
       {rows.length > 0 && (
         <div className="space-y-1 mb-3">
           {rows.map((row, i) => (
-            <div key={i} className="flex items-start gap-2 text-[11px]">
+            <div key={i} className="flex items-start gap-2 text-xs">
               <span className="text-amber-600 font-bold w-20 shrink-0">{row.label}</span>
               <span className="text-slate-700 font-medium">{row.value}</span>
             </div>
@@ -121,13 +121,13 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
         </div>
         <div>
           <p className="text-white font-black text-xs tracking-wide leading-none">Crown Bot Premium</p>
-          <p className="text-white/75 text-[9px] mt-0.5">Limite de l’assistant atteinte</p>
+          <p className="text-white/75 text-xs mt-0.5">Limite de l’assistant atteinte</p>
         </div>
       </div>
 
       {/* Body */}
       <div className="bg-amber-50 px-4 py-3">
-        <p className="text-amber-900 text-[11px] font-semibold mb-2 leading-relaxed">
+        <p className="text-amber-900 text-xs font-semibold mb-2 leading-relaxed">
           Vous avez utilisé vos <strong>3 échanges</strong> gratuits. Passez à Premium pour des conversations illimitées.
         </p>
         <ul className="space-y-1 mb-3">
@@ -136,7 +136,7 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
             'Mémoire contextuelle étendue',
             'Actions avancées (ordonnances et devis)',
           ].map((item) => (
-            <li key={item} className="flex items-start gap-1.5 text-[10px] text-amber-800 font-medium">
+            <li key={item} className="flex items-start gap-1.5 text-xs text-amber-800 font-medium">
               <Sparkles size={10} className="text-amber-500 mt-0.5 shrink-0" />
               {item}
             </li>
@@ -145,13 +145,13 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
         <div className="flex gap-2">
           <a
             href="/settings?tab=license"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black rounded-[8px] transition-all shadow-md shadow-amber-500/30"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black rounded-[8px] transition-all shadow-md shadow-amber-500/30"
           >
             <Crown size={12} /> Passer à Premium
           </a>
           <button
             onClick={onClose}
-            className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 text-[10px] font-bold rounded-[8px] transition-colors"
+            className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-bold rounded-[8px] transition-colors"
           >
             Plus tard
           </button>
@@ -235,6 +235,8 @@ export function CrownBotChat({
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const employerId = user?.employer_id || user?.id;
+  const ghostScopeKey = `${employerId ?? ''}:${user?.id ?? ''}`;
+  const ghostEpochRef = useRef(0);
 
   const pageCtx = getPageContext(location.pathname);
   // Explicit opt-in on BOTH frontend and server. OFF means the existing screen
@@ -250,18 +252,66 @@ export function CrownBotChat({
   const endRef = useRef<HTMLDivElement>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const historyRequestEpoch = useRef(0);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const historyToggleRef = useRef<HTMLButtonElement>(null);
+  const historyDrawerRef = useRef<HTMLDivElement>(null);
+  const historyCloseRef = useRef<HTMLButtonElement>(null);
+  const brainTabRef = useRef<HTMLButtonElement>(null);
+  const chatTabRef = useRef<HTMLButtonElement>(null);
+  const selectTabFromKeyboard = (event: React.KeyboardEvent<HTMLButtonElement>, current: Tab) => {
+    let next: Tab;
+    switch (event.key) {
+      case 'ArrowRight': next = current === 'brain' ? 'chat' : 'brain'; break;
+      case 'ArrowLeft': next = current === 'brain' ? 'chat' : 'brain'; break;
+      case 'Home': next = 'brain'; break;
+      case 'End': next = 'chat'; break;
+      default: return;
+    }
+    event.preventDefault();
+    setActiveTab(next);
+    (next === 'brain' ? brainTabRef : chatTabRef).current?.focus();
+  };
+  const historyWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (isSidebarOpen) {
+      historyCloseRef.current?.focus();
+    } else if (historyWasOpenRef.current) {
+      // Return focus after Escape, selection or the close button. It remains
+      // visible in both sidecar and floating web layouts.
+      historyToggleRef.current?.focus();
+    }
+    historyWasOpenRef.current = isSidebarOpen;
+  }, [isSidebarOpen]);
 
   // Tab & Mémoire contextuelle state
-  const [activeTab, setActiveTab] = useState<Tab>('brain');
-  const [insights, setInsights] = useState<GhostInsight[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // First value in one click when experimental preview is explicitly ON:
+  // display the three useful read-only actions immediately after opening.
+  // Flag OFF preserves the legacy contextual memory tab unchanged.
+  const [activeTab, setActiveTab] = useState<Tab>(zeroLlmPreviewEnabled ? 'chat' : 'brain');
+  // One atomic server snapshot; never decrement the unread badge without
+  // removing the corresponding insight from the same authoritative version.
+  const [ghostState, setGhostState] = useState<{
+    scopeKey: string; insights: GhostInsight[]; unreadCount: number
+  }>({ scopeKey: '', insights: [], unreadCount: 0 });
+  const { insights, unreadCount } = ghostState.scopeKey === ghostScopeKey
+    ? ghostState : { insights: [], unreadCount: 0 };
+
+  useEffect(() => {
+    setGhostState({ scopeKey: ghostScopeKey, insights: [], unreadCount: 0 });
+    return () => { ghostEpochRef.current += 1; };
+  }, [ghostScopeKey]);
 
   // Reset welcome message when route changes
   useEffect(() => {
     const ctx = getPageContext(location.pathname);
     setMessages([{ id: 'welcome', sender: 'bot', text: ctx.desc, suggestions: ctx.suggestions }]);
     setCurrentSessionId(null);
+    historyRequestEpoch.current += 1;
+    setHistoryBusy(false);
+    setHistoryError('');
   }, [location.pathname]);
 
   // Propagate unread count to parent
@@ -281,21 +331,31 @@ export function CrownBotChat({
     const connectWS = () => {
       if (isCleaned || retryCount >= MAX_RETRIES) return;
       const wsUrl = buildGhostBrainWsUrl(employerId);
-      ws = new WebSocket(wsUrl);
-      ws.onopen = () => { retryCount = 0; };
+      const currentSocket = new WebSocket(wsUrl);
+      ws = currentSocket;
+      ws.onopen = () => {
+        if (!isCleaned && ws === currentSocket) retryCount = 0;
+      };
       ws.onmessage = (event) => {
+        // Disposed tenant sockets and abandoned reconnects cannot push
+        // patient alerts into the current principal's browser session.
+        if (isCleaned || ws !== currentSocket) return;
         try {
           const data = JSON.parse(event.data);
-          if (data.insights) {
-            setInsights(data.insights);
-            setUnreadCount(data.unread_count);
+          if (Array.isArray(data.insights) && Number.isSafeInteger(data.unread_count)
+              && data.unread_count >= 0) {
+            setGhostState({
+              scopeKey: ghostScopeKey,
+              insights: data.insights,
+              unreadCount: data.unread_count,
+            });
           }
         } catch (err) {
           console.error('GhostBrain WS parse error:', err);
         }
       };
       ws.onclose = () => {
-        if (isCleaned) return;
+        if (isCleaned || ws !== currentSocket) return;
         retryCount++;
         reconnectTimer = setTimeout(connectWS, Math.min(5000 * retryCount, 60000));
       };
@@ -307,7 +367,7 @@ export function CrownBotChat({
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) { ws.onclose = null; ws.close(); }
     };
-  }, [employerId]);
+  }, [employerId, ghostScopeKey]);
 
   // Chat scroll
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -324,28 +384,44 @@ export function CrownBotChat({
   useEffect(() => { fetchSessions(); }, []);
 
   const startNewSession = () => {
+    historyRequestEpoch.current += 1;
     setCurrentSessionId(null);
+    setHistoryBusy(false);
+    setHistoryError('');
+    setActiveTab(zeroLlmPreviewEnabled ? 'chat' : 'brain');
     const ctx = getPageContext(location.pathname);
     setMessages([{ id: 'welcome', sender: 'bot', text: ctx.desc, suggestions: ctx.suggestions }]);
     setIsSidebarOpen(false);
   };
 
   const loadSession = async (id: string) => {
+    const epoch = ++historyRequestEpoch.current;
+    setHistoryBusy(true);
+    setHistoryError('');
+    setCurrentSessionId(null);
+    setActiveTab('chat');
+    setIsSidebarOpen(false);
     try {
-      setIsLoading(true);
-      const res = await api.get(`/bot/sessions/${id}/messages`);
-      const loaded = res.data.map((m: any) => ({
-        id: m.id, sender: m.sender, text: m.text,
-        actionType: m.actionType, pendingAction: m.pendingAction, pendingActionId: m.pendingActionId, suggestions: m.suggestions,
-      }));
-      if (loaded.length === 0) { startNewSession(); return; }
-      setMessages(loaded);
+      const res = await api.get(`/bot/sessions/${encodeURIComponent(id)}/messages`);
+      if (epoch !== historyRequestEpoch.current) return;
+      if (!Array.isArray(res.data) || !res.data.every((m: unknown) => {
+        const row = m as { id?: unknown; sender?: unknown; text?: unknown };
+        return (typeof row.id === 'string' || typeof row.id === 'number')
+          && typeof row.text === 'string'
+          && ['user', 'bot', 'assistant'].includes(String(row.sender));
+      })) throw new Error('Invalid history response');
+      // Read-only text only; legacy pending action IDs must never be revived.
+      setMessages(res.data.map((m: {id: string | number;sender: string;text: string}) => ({
+        id: String(m.id), sender: m.sender === 'user' ? 'user' : 'bot', text: m.text,
+      })));
       setCurrentSessionId(id);
-      setIsSidebarOpen(false);
-    } catch (err) {
-      console.error('Session load error:', err);
+    } catch {
+      if (epoch === historyRequestEpoch.current) {
+        setMessages([]);
+        setHistoryError('Historique indisponible. Aucun ancien message affiché.');
+      }
     } finally {
-      setIsLoading(false);
+      if (epoch === historyRequestEpoch.current) setHistoryBusy(false);
     }
   };
 
@@ -495,10 +571,26 @@ export function CrownBotChat({
 
   // Mémoire contextuelle actions
   const markAsRead = async (logId: number) => {
+    const requestEpoch = ghostEpochRef.current;
     try {
-      await api.post(`/ai/ghost-insights/${logId}/read`);
-      setInsights(prev => prev.filter(i => i.id !== logId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      const receipt = await api.post(`/ai/ghost-insights/${logId}/read`);
+      if (receipt?.data?.status !== 'read') {
+        throw new Error('GhostBrain read acknowledgement missing');
+      }
+      setGhostState(previous => {
+        // A late ACK from an obsolete principal or an older WS snapshot
+        // must never acknowledge a different patient's notification.
+        if (ghostEpochRef.current !== requestEpoch
+            || previous.scopeKey !== ghostScopeKey
+            || !previous.insights.some(insight => insight.id === logId)) {
+          return previous;
+        }
+        return {
+          scopeKey: previous.scopeKey,
+          insights: previous.insights.filter(insight => insight.id !== logId),
+          unreadCount: Math.max(0, previous.unreadCount - 1),
+        };
+      });
     } catch (err) {
       console.error('markAsRead error:', err);
     }
@@ -526,13 +618,44 @@ export function CrownBotChat({
       )}
 
       {/* Sidebar */}
-      <div className={cn(
-        'absolute left-0 top-0 bottom-0 w-64 bg-slate-50 border-r border-slate-200 z-50 flex flex-col transition-transform duration-300',
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
-      )}>
+      <div data-cb01-history-drawer
+        ref={historyDrawerRef}
+        role="dialog"
+        aria-modal={isSidebarOpen}
+        aria-label="Historique Crown Bot"
+        inert={!isSidebarOpen}
+        aria-hidden={!isSidebarOpen}
+        onKeyDown={event => {
+          if (isSidebarOpen && event.key === 'Tab') {
+            const buttons = Array.from(historyDrawerRef.current?.querySelectorAll<HTMLButtonElement>(
+              'button:not([disabled])',
+            ) ?? []);
+            if (buttons.length) {
+              const first = buttons[0], last = buttons[buttons.length - 1];
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+              }
+            }
+          }
+          // Do not propagate Escape to the enclosing desktop sidecar:
+          // closing History must not close the whole Crown Bot panel.
+          if (isSidebarOpen && event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsSidebarOpen(false);
+          }
+        }}
+        className={cn(
+          'absolute left-0 top-0 bottom-0 w-64 bg-slate-50 border-r border-slate-200 z-50 flex flex-col transition-transform duration-300',
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}>
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Historique</h3>
-          <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-slate-200 rounded-md">
+          <button type="button" ref={historyCloseRef} aria-label="Fermer l'historique Crown Bot" onClick={() => setIsSidebarOpen(false)} className="min-h-11 min-w-11 rounded-md p-2 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
             <X size={16} className="text-slate-500" />
           </button>
         </div>
@@ -543,18 +666,25 @@ export function CrownBotChat({
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {sessions.length === 0
-            ? <p className="text-xs text-center text-slate-400 mt-4">Aucune conversation</p>
+            ? <p className="text-xs text-center text-slate-600 mt-4">Aucune conversation</p>
             : sessions.map(session => (
-              <div key={session.id} onClick={() => loadSession(session.id)}
-                className={cn('group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors',
+              <div key={session.id}
+                className={cn('group flex items-center gap-1 p-1 rounded-lg transition-colors',
                   currentSessionId === session.id ? 'bg-primary/10 text-primary' : 'hover:bg-slate-200 text-slate-700')}
               >
-                <div className="flex items-center gap-2 overflow-hidden">
+                <button type="button" onClick={() => { void loadSession(session.id); }}
+                  aria-label={`Ouvrir la conversation ${session.title}`}
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                   <MessageSquare size={14} className="shrink-0" />
                   <span className="text-sm truncate">{session.title}</span>
-                </div>
-                <button onClick={(e) => archiveSession(session.id, e)} title="Archiver"
-                  className="p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                </button>
+                <button type="button" onClick={(e) => {
+                    if (window.confirm(`Archiver « ${session.title} » ? Cette conversation ne sera plus accessible depuis l'historique.`)) {
+                      void archiveSession(session.id, e);
+                    }
+                  }}
+                  aria-label={`Archiver la conversation ${session.title}`}
+                  className="min-h-11 min-w-11 rounded-md p-2 text-slate-500 hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                   <Archive size={14} />
                 </button>
               </div>
@@ -567,7 +697,7 @@ export function CrownBotChat({
       <div className="flex flex-col bg-primary text-white shrink-0">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors">
+            <button type="button" ref={historyToggleRef} aria-label="Ouvrir l'historique Crown Bot" aria-expanded={isSidebarOpen} onClick={() => setIsSidebarOpen(true)} className="min-h-11 min-w-11 p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
               <Menu size={18} />
             </button>
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -575,47 +705,97 @@ export function CrownBotChat({
             </div>
             <div>
               <h3 className="font-bold font-outfit text-sm leading-tight">Crown Bot</h3>
-              <p className="text-[10px] text-white/70">{pageCtx.title}</p>
+              <p className="text-xs text-white/90">{pageCtx.title}</p>
             </div>
           </div>
           {onClose && (
-            <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+            <button type="button" aria-label="Fermer Crown Bot" onClick={onClose} className="min-h-11 min-w-11 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
               <X size={16} />
             </button>
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="flex px-4 gap-1">
-          <button
+        {/* Two keyboard-operable tabs: Arrow keys/Home/End select and focus. */}
+        <div className="flex px-4 gap-1" role="tablist" aria-label="Vues de Crown Bot">
+          <button type="button" ref={brainTabRef} role="tab"
+            id="cb01-tab-brain" aria-controls={activeTab === 'brain' ? 'cb01-panel-brain' : undefined}
+            aria-selected={activeTab === 'brain'} tabIndex={activeTab === 'brain' ? 0 : -1}
+            onKeyDown={event => selectTabFromKeyboard(event, 'brain')}
             onClick={() => setActiveTab('brain')}
-            className={cn('flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-t-lg transition-colors relative',
-              activeTab === 'brain' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
+            className={cn('flex min-h-11 items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+              activeTab === 'brain' ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/10 hover:text-white')}
           >
-            <BrainCircuit size={13} /> Mémoire contextuelle
+            <BrainCircuit size={15} aria-hidden="true" /> Mémoire contextuelle
             {unreadCount > 0 && (
-              <span className="ml-1 w-4 h-4 bg-amber-400 text-slate-900 text-[8px] font-black rounded-full flex items-center justify-center animate-pulse">
+              <span aria-label={`${unreadCount} nouvelles alertes`}
+                className="ml-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-xs font-bold text-slate-900">
                 {unreadCount}
               </span>
             )}
           </button>
-          <button
+          <button type="button" ref={chatTabRef} role="tab"
+            id="cb01-tab-chat" aria-controls={activeTab === 'chat' ? 'cb01-panel-chat' : undefined}
+            aria-selected={activeTab === 'chat'} tabIndex={activeTab === 'chat' ? 0 : -1}
+            onKeyDown={event => selectTabFromKeyboard(event, 'chat')}
             onClick={() => setActiveTab('chat')}
-            className={cn('flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-t-lg transition-colors',
-              activeTab === 'chat' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
+            className={cn('flex min-h-11 items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+              activeTab === 'chat' ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/10 hover:text-white')}
           >
-            <MessageSquare size={13} /> Chat
-            
+            <MessageSquare size={15} aria-hidden="true" /> Chat
           </button>
         </div>
       </div>
 
       {/* ── TAB: CHAT — Bientôt disponible ── */}
-      {activeTab === 'chat' && zeroLlmPreviewEnabled && (
-        <CrownBotWorkflowPreview />
+      {activeTab === 'chat' && (historyBusy || !!historyError || !!currentSessionId) && (
+        <section role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
+          className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
+          <div role="region" aria-label="Conversation archivée — lecture seule">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900">Historique · lecture seule</h4>
+              <p className="text-xs text-slate-500">
+                {sessions.find(s => s.id === currentSessionId)?.title || 'Conversation sélectionnée'}
+              </p>
+            </div>
+            <button type="button" onClick={startNewSession}
+              className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800">
+              Retour aux actions
+            </button>
+          </div>
+          {historyBusy && <p role="status">Chargement de la conversation…</p>}
+          {historyError && <p role="alert" className="text-rose-800">{historyError}</p>}
+          {!historyBusy && !historyError && currentSessionId && (
+            <ol aria-label="Messages historiques" className="space-y-2">
+              {messages.length ? messages.map(message => (
+                <li key={message.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-slate-600">
+                    {message.sender === 'user' ? 'Vous' : 'Crown Bot'}
+                  </p>
+                  <p className="whitespace-pre-wrap break-words text-sm text-slate-900">{message.text}</p>
+                </li>
+              )) : <li className="text-sm text-slate-600">Aucun message dans cette conversation.</li>}
+            </ol>
+          )}
+          </div>
+        </section>
       )}
-      {activeTab === 'chat' && !zeroLlmPreviewEnabled && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
+      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && zeroLlmPreviewEnabled && (
+        // Clinical safety: route or staff identity changes invalidate a prior
+        // patient's scoped read/proposal. A responsive 200% reflow leaves the
+        // key unchanged and therefore preserves the unfinished draft.
+        <div role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
+          className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <CrownBotWorkflowPreview
+            key={`${user?.id ?? 'unknown'}:${employerId ?? 'unknown'}:${location.pathname}`}
+            practitionerId={user?.role === 'DENTISTE' ? Number(user.id) : undefined}
+            requirePractitioner={user?.role === 'DENTISTE'}
+          />
+        </div>
+      )}
+      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && !zeroLlmPreviewEnabled && (
+        <div role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
+          className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
           <div className="relative">
             <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner border border-white/60">
               <MessageSquare size={36} className="text-primary/40" />
@@ -625,7 +805,7 @@ export function CrownBotChat({
 
           <div className="text-center space-y-2">
             <h3 className="font-black text-slate-800 text-sm tracking-tight">Assistant conversationnel</h3>
-            <p className="text-[11px] text-slate-500 leading-relaxed max-w-[220px]">
+            <p className="text-xs text-slate-500 leading-relaxed max-w-[220px]">
               Cette fonction n’est pas accessible depuis cet écran.
             </p>
           </div>
@@ -634,12 +814,12 @@ export function CrownBotChat({
             {['Créer un RDV', 'Résumer un dossier', 'Générer une ordonnance'].map((item) => (
               <div key={item} className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-200 rounded-xl opacity-40 cursor-not-allowed select-none">
                 <Sparkles size={13} className="text-primary shrink-0" />
-                <span className="text-[11px] font-semibold text-slate-600">{item}</span>
+                <span className="text-xs font-semibold text-slate-600">{item}</span>
               </div>
             ))}
           </div>
 
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+          <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">
             Assistant Digital Crown
           </p>
         </div>
@@ -647,7 +827,8 @@ export function CrownBotChat({
 
       {/* ── TAB: GHOST BRAIN ── */}
       {activeTab === 'brain' && (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50/50">
+        <div role="tabpanel" id="cb01-panel-brain" aria-labelledby="cb01-tab-brain"
+          className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50/50">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary relative">
@@ -655,12 +836,12 @@ export function CrownBotChat({
                 <BrainCircuit size={14} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Mémoire contextuelle</p>
-                <p className="text-[8px] text-slate-400 font-bold mt-0.5">Suivi contextuel</p>
+                <p className="text-xs font-black text-primary uppercase tracking-widest leading-none">Mémoire contextuelle</p>
+                <p className="text-xs text-slate-600 font-bold mt-0.5">Suivi contextuel</p>
               </div>
             </div>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-[9px] font-bold text-primary hover:underline">
+              <button onClick={markAllRead} className="min-h-11 rounded-md px-2 text-xs font-bold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                 Tout marquer comme lu
               </button>
             )}
@@ -673,33 +854,41 @@ export function CrownBotChat({
                 <div className="flex justify-between items-start mb-1">
                   {insight.patient_id ? (
                     <Link to={`/patients/${insight.patient_id}`} onClick={() => onClose?.()}
-                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors">
+                      className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors">
                       {insight.insight_type}
                     </Link>
                   ) : (
-                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
                       {insight.insight_type}
                     </span>
                   )}
-                  <span className="text-[8px] text-slate-400 font-bold">
+                  <span className="text-xs text-slate-600 font-bold">
                     {new Date(insight.created_at).toLocaleDateString()}
                   </span>
                 </div>
-                <div className="cursor-pointer mt-2" onClick={() => {
-                  if (insight.patient_id) { navigate(`/patients/${insight.patient_id}`); onClose?.(); }
-                }}>
-                  <p className="text-[11px] font-medium text-slate-700 leading-relaxed">
-                    <TypewriterText text={insight.content} delay={8} />
-                  </p>
-                </div>
+                {insight.patient_id ? (
+                  <Link to={`/patients/${insight.patient_id}`} onClick={() => onClose?.()}
+                    aria-label="Ouvrir le dossier patient associé à cette alerte"
+                    className="mt-2 block min-h-11 rounded-md p-2 text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <p className="text-xs font-medium leading-relaxed">
+                      <TypewriterText text={insight.content} delay={8} />
+                    </p>
+                  </Link>
+                ) : (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-slate-700 leading-relaxed">
+                      <TypewriterText text={insight.content} delay={8} />
+                    </p>
+                  </div>
+                )}
                 <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
                   <button onClick={() => markAsRead(insight.id)}
-                    className="flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-green-500 transition-colors uppercase">
+                    className="flex min-h-11 items-center gap-1 rounded-md px-2 text-xs font-black text-slate-700 hover:text-green-700 transition-colors uppercase focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                     <Check size={12} /> Marquer comme lu
                   </button>
                   {quickAction && (
                     <button onClick={quickAction.onClick}
-                      className="flex items-center gap-1.5 text-[9px] font-black bg-primary/10 text-primary px-2 py-1 rounded-lg hover:bg-primary hover:text-white transition-colors uppercase">
+                      className="flex min-h-11 items-center gap-1.5 text-xs font-black bg-primary/10 text-primary px-3 py-2 rounded-lg hover:bg-primary hover:text-white transition-colors uppercase focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                       {quickAction.icon} {quickAction.label}
                     </button>
                   )}
@@ -709,7 +898,7 @@ export function CrownBotChat({
           }) : (
             <div className="text-center py-10 flex flex-col items-center gap-2">
               <Check size={24} className="text-primary/30" />
-              <p className="text-[10px] font-bold text-slate-400 italic">Aucune nouvelle déduction.</p>
+              <p className="text-xs font-bold text-slate-600 italic">Aucune nouvelle déduction.</p>
             </div>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Stethoscope, UsersRound } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
@@ -76,8 +77,8 @@ export const ClinicPractitionerBar: React.FC = () => {
 
         const response = await api.get('/appointments/multi-practitioner', {
           params: {
-            start_date: start.toISOString(),
-            end_date: end.toISOString(),
+            start_date: formatAgendaWallClock(start),
+            end_date: formatAgendaWallClock(end),
           },
         });
 
