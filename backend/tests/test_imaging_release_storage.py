@@ -89,3 +89,27 @@ def test_radio_read_denied_before_serving_file(monkeypatch):
         asyncio.run(main.serve_radios("synthetic.jpg", MagicMock(), MagicMock()))
     assert error.value.status_code == 403
     serve.assert_not_called()
+
+
+def test_srpose_failure_upload_is_denied_and_uncommitted_radio_erased(monkeypatch, tmp_path):
+    """A failed initial analysis is never exposed as a successful manual draft."""
+    from backend.routers import ia
+
+    storage = tmp_path / "isolated-radios"
+    storage.mkdir()
+    monkeypatch.setattr(ia, "RADIO_DIR", str(storage))
+    monkeypatch.setattr(ia, "assert_patient_access", MagicMock())
+    service = MagicMock()
+    service.process_new_radio.side_effect = ValueError(
+        "L'IA n'a détecté aucun point sur cette image. Placement manuel requis."
+    )
+    monkeypatch.setattr(ia, "CephaloService", lambda db: service)
+
+    upload = UploadFile(filename="synthetic.jpg", file=BytesIO(b"synthetic-test-bytes"))
+    with pytest.raises(HTTPException) as failure:
+        asyncio.run(ia.upload_radio(1, BackgroundTasks(), upload, MagicMock(), MagicMock()))
+
+    assert failure.value.status_code == 400
+    assert "Placement manuel requis" in str(failure.value.detail)
+    assert list(storage.iterdir()) == []
+    service.process_new_radio.assert_called_once()
