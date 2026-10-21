@@ -1,3 +1,7 @@
+### LOT05 / 05.7-J10D — SRPose38-only installable (OPEN)
+
+Branch removes legacy CephLD-CCA inference and excludes its weights from runtime packaging. Tests and Windows installation remain unverified. Panoramic ONNX is still missing a certified binary and digest. No INSTALLABLE_CERTIFIED V1.5 claim. Next: CI, regression tests, adversarial review, full asset recovery and isolated Windows install.
+
 ### LOT07 / 07-C — 2026-10-21 — Playwright T2 Frontdesk POST body, retest required
 
 FUE-G #39608276461 on HEAD 79cb7ed4 failed 422 while probing the new Frontdesk endpoint because the newly written Playwright test helper supplied an unsupported `json` option and omitted the HTTP body. This is a harness error, not proven product failure. The helper now passes `data: json` to Playwright for object-to-JSON serialization. Re-test real backend cases on the final SHA and inspect the result before closing C07C-11. No security assertions were relaxed and no patient/production data were involved.
