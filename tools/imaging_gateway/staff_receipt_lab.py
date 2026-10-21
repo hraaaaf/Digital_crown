@@ -146,6 +146,10 @@ class SyntheticReceiptLedger:
         with self._transaction() as db:
             db.execute("INSERT OR REPLACE INTO staff VALUES(?,?,?,?)",
                        (tenant, staff_id, int(active), int(can_confirm)))
+            # Rotating a LAB staff session invalidates all previously minted
+            # session tokens for that mock principal, including prior approvals.
+            db.execute("DELETE FROM sessions WHERE tenant=? AND staff_id=?",
+                       (tenant, staff_id))
             db.execute("INSERT INTO sessions VALUES(?,?,?)",
                        (hashlib.sha256(token.encode()).hexdigest(), tenant, staff_id))
         return token
