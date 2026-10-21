@@ -21,10 +21,19 @@ const report = {
 let browser;
 let activePage;
 try {
-  browser = await chromium.launch({ headless: false });
+  // Windows hosted runners do not guarantee a hardware-backed compositor.
+  // Keep real headed Chromium/native shortcut, but force software rasterization
+  // so screenshot pixels are observable independently of an unstable GPU.
+  browser = await chromium.launch({ headless: false, args: ['--disable-gpu'] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   activePage = page;
+  report.navigations = [];
+  report.pageErrors = [];
+  page.on('framenavigated', frame => {
+    if (frame === page.mainFrame()) report.navigations.push(frame.url().slice(0,160));
+  });
+  page.on('pageerror', error => report.pageErrors.push(String(error).slice(0,300)));
   const external = [];
   await page.route('**/*', route => {
     const url = new URL(route.request().url());
@@ -40,14 +49,30 @@ try {
     'Real MainLayout must suppress floating CrownBot on Command route');
   assert.equal((await page.getByTestId('command-count').innerText()).trim(), '2');
   assert.ok((await page.locator('tbody').innerText()).includes('09:15'));
-  const measure = () => page.evaluate(() => ({
-    devicePixelRatio: window.devicePixelRatio,
-    innerWidth: window.innerWidth,
-    outerWidth: window.outerWidth,
-    cssBodyZoom: document.body.style.zoom,
-    scrollWidth: document.documentElement.scrollWidth,
-    clientWidth: document.documentElement.clientWidth,
-  }));
+  // Native Ctrl-plus can trigger a Chromium document navigation. A single
+  // page.evaluate at that instant throws "Execution context was destroyed".
+  // Retry only that transient navigation; all visual/security assertions remain.
+  async function measure() {
+    let lastError;
+    for (let attempt = 0; attempt < 35; attempt++) {
+      try {
+        const result = await page.evaluate(() => ({
+          devicePixelRatio: window.devicePixelRatio,
+          innerWidth: window.innerWidth,
+          outerWidth: window.outerWidth,
+          cssBodyZoom: document.body.style.zoom,
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+        }));
+        if (result.innerWidth > 0 && result.clientWidth > 0) return result;
+      } catch (err) {
+        lastError = err;
+        if (!/Execution context was destroyed|Cannot find context|navigation/i.test(String(err))) throw err;
+      }
+      await page.waitForTimeout(350);
+    }
+    throw new Error('Windows browser measurement never stabilized after native zoom: '+String(lastError));
+  }
   assert.ok(new URL(page.url()).pathname === '/07c-windows-native-zoom.html',
     'Synthetic Windows fixture URL must remain stable before native zoom');
   const before = await measure();
@@ -78,6 +103,8 @@ try {
   }
   report.before = before;
   report.after = after;
+  await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+  await page.getByTestId('command-cabinet-readonly').waitFor({ state: 'visible', timeout: 20000 });
   report.documentUrlAfterZoom = new URL(page.url()).pathname;
   assert.equal(report.documentUrlAfterZoom, '/07c-windows-native-zoom.html',
     'Browser reload must retain synthetic HTML entry rather than redirect to Cabinet login');
@@ -97,7 +124,8 @@ try {
   // Screen pixels, not DOM visibility, must show the actual cockpit. The first
   // Windows run #39501431409 was SUCCESS while its AFTER PNG was pure white.
   // Never accept that false-green visual evidence again.
-  await page.waitForTimeout(950);
+  await page.bringToFront();
+  await page.waitForTimeout(1500);
   let visualAfter;
   for (let attempt=1;attempt<=3;attempt++) {
     await page.evaluate(() => new Promise(resolve =>
