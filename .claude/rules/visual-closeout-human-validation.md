@@ -9,6 +9,8 @@ paths:
 
 Cette règle est un **gate de procédure avant closeout**, pas un mécanisme de branch protection GitHub. Elle s'applique conjointement à `.claude/rules/execution-scoring-verification.md`.
 
+**Autopilot borné :** itérations UI, corrections et captures intermédiaires dans le scope ne demandent pas de nouvelle validation humaine à chaque commit. L'accord du propriétaire porte sur le HEAD visuel final et ses AFTER observés ; seule une modification qui invalide le rendu approuvé impose une nouvelle validation. Aucune modification/bypass des labels ou workflows trusted. Une modification purement documentaire FUE-0 sans UI n'invente pas de captures. Vérifier l'existence effective de la fonctionnalité sur mobile avant de demander ses captures.
+
 Pour tout lot qui modifie l'UI/UX ou un rendu visuel produit :
 
 1. **BEFORE** : conserver les captures de référence pertinentes avant modification.
@@ -19,7 +21,7 @@ Pour tout lot qui modifie l'UI/UX ou un rendu visuel produit :
 6. Comparer explicitement **Target ↔ Render** et BEFORE ↔ AFTER, relever les écarts et fournir un score visuel argumenté.
 7. Toute dimension critique (dimensions, densité, alignement, hiérarchie, overflow, comportement responsive, affordance fonctionnelle) agit comme un **hard cap** : elle ne peut jamais être masquée par une bonne moyenne sur les autres dimensions.
 8. Sans comparaison réelle **Target ↔ Render**, la fidélité visuelle est plafonnée à `7.5/10`, même si les tests techniques sont verts.
-9. Produire `EXECUTION_SCORE`, `ADVERSARIAL_SCORE` et `RETAINED_SCORE=min(...)` conformément à la règle canonique de scoring.
+9. Produire `EXECUTION_SCORE`, `FUE_EVIDENCE_SCORE` et `RETAINED_SCORE=min(...)` conformément à la règle canonique de scoring.
 10. **Remettre les captures AFTER au propriétaire du projet pour validation humaine explicite.**
 11. Tant que cette validation explicite n'est pas reçue :
    - statut obligatoire : `BLOQUÉ HUMAIN — VALIDATION CAPTURES` ;
@@ -38,7 +40,7 @@ Pour tout lot qui modifie l'UI/UX ou un rendu visuel produit :
 - résultat des tests techniques ;
 - comparaison Target ↔ Render + BEFORE ↔ AFTER ;
 - dimensions critiques vérifiées individuellement ;
-- `EXECUTION_SCORE`, `ADVERSARIAL_SCORE`, minimum retenu et plafonds éventuels ;
+- `EXECUTION_SCORE`, `FUE_EVIDENCE_SCORE`, minimum retenu et plafonds éventuels ;
 - validation explicite du propriétaire.
 
 Un test technique vert prouve seulement la non-régression technique. **Il ne remplace jamais la comparaison visuelle réelle ni la validation humaine des captures avant closeout.**

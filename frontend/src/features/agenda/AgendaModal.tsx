@@ -1,3 +1,4 @@
+import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Clock, User, FileText, Search, Plus, Check, MessageCircle, Calendar, Sparkles, AlertCircle, ArrowRight, Trash2, Ghost } from 'lucide-react';
@@ -102,7 +103,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
     if (editingAppointment) {
         const d = new Date(editingAppointment.datetime_start);
-        setDateValue(d.toISOString().split('T')[0]);
+        setDateValue(formatAgendaWallClock(d).slice(0, 10));
         setTime(`${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`);
         setDuration(editingAppointment.duration_minutes);
         setMotif(editingAppointment.motif || '');
@@ -117,7 +118,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
           setPatientSearch(editingAppointment.patient_name || '');
         }
       } else {
-        setDateValue(selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+        setDateValue(selectedDate ? formatAgendaWallClock(selectedDate).slice(0, 10) : formatAgendaWallClock(new Date()).slice(0, 10));
         setTime(initialTime || '09:00');
         setDuration(30);
         setMotif('');
@@ -296,11 +297,11 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
     const timer = setTimeout(async () => {
       try {
         const [h, m] = time.split(':').map(Number);
-        const dt = new Date(dateValue);
+        const dt = new Date(`${dateValue}T00:00:00`);
         dt.setHours(h, m, 0, 0);
         const res = await api.get('/appointments/check-conflicts', {
           params: {
-            datetime_start: dt.toISOString(),
+            datetime_start: formatAgendaWallClock(dt),
             duration_minutes: duration,
             ...(editingAppointment ? { exclude_id: editingAppointment.id } : {}),
           }
@@ -332,14 +333,14 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
     setLoading(true);
     try {
       const [hours, minutes] = time.split(':').map(Number);
-      const startDateTime = new Date(dateValue);
+      const startDateTime = new Date(`${dateValue}T00:00:00`);
       startDateTime.setHours(hours, minutes, 0, 0);
 
       const payload = {
         patient_id: selectedPatient?.id || null,
         patient_name: selectedPatient ? `${selectedPatient.nom} ${selectedPatient.prenom}` : patientSearch,
         motif: selectedAct ? selectedAct.name : (actSearch || motif),
-        datetime_start: startDateTime.toISOString(),
+        datetime_start: formatAgendaWallClock(startDateTime),
         duration_minutes: duration,
         status: status,
         scheduling_type: schedulingType
@@ -365,7 +366,17 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       setSchedulingType('EXACT_TIME');
     } catch (err: any) {
       console.error("Erreur saving appt", err);
-      toast.error(err?.response?.data?.detail || "Erreur lors de la sauvegarde du rendez-vous.");
+      // The real appointment API returns 409.detail as {message, conflicts}.
+      // Never pass that object directly into toast (React child/render error).
+      const detail = err?.response?.data?.detail;
+      const errorText = typeof detail === 'string'
+        ? detail
+        : detail && typeof detail.message === 'string'
+          ? detail.message
+          : 'Erreur lors de la sauvegarde du rendez-vous.';
+      toast.error(err?.response?.status === 409
+        ? `${errorText} Choisissez un autre créneau avant de réessayer.`
+        : errorText);
     } finally {
       setLoading(false);
     }

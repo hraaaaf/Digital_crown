@@ -1,0 +1,87 @@
+name: CB-01 Windows NVDA Spoken Evidence (EXPERIMENTAL)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cb01-windows-nvda-experimental.yml
+      - frontend/scripts/certify-cb01-windows-nvda.mjs
+      - frontend/cb01-native-zoom-lab.html
+      - frontend/src/components/CrownBot/CB01NativeZoomLab.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cb01-real-nvda:
+    name: Windows NVDA real spoken phrases (EXPERIMENTAL; synthetic lab)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CB01_NVDA_EXPERIMENT: '1'
+      CB01_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CI: 'true'
+    steps:
+      - name: Checkout isolated PR HEAD with no persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Assert exact SHA and synthetic-only source
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:CB01_SOURCE_HEAD) { throw 'REFUSED: Windows NVDA SHA mismatch' }
+          foreach ($file in @(
+            'frontend/cb01-native-zoom-lab.html',
+            'frontend/src/components/CrownBot/CB01NativeZoomLab.tsx',
+            'frontend/scripts/certify-cb01-windows-nvda.mjs'
+          )) {
+            if (-not (Test-Path $file)) { throw "REFUSED: missing NVDA lab file $file" }
+          }
+          "Source SHA: $actual" >> $env:GITHUB_STEP_SUMMARY
+          'EXPERIMENTAL separate from REQUIRED CI. Synthetic Crown Bot only, no live backend/patients.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked app and pinned NVDA test packages (ephemeral)
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm install --no-save --no-audit --no-fund playwright@1.55.0 @guidepup/guidepup@0.36.3 @guidepup/setup@0.29.3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Configure real NVDA on hosted Windows (Guidepup CI)
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npx --no-install guidepup setup --ci
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA OS setup failed' }
+          npx --no-install guidepup install nvda
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: real NVDA asset install failed' }
+      - name: Execute actual NVDA and assert real spoken phrases for Crown Bot
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          node scripts/certify-cb01-windows-nvda.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: real NVDA startup/speech failed (not ARIA mock)' }
+          '### CB-01 real Windows NVDA' >> $env:GITHUB_STEP_SUMMARY
+          'Actual NVDA.start, NVDA navigation, spokenPhraseLog and first-value CTA speech verified on real CrownBotChat React in synthetic loopback.' >> $env:GITHUB_STEP_SUMMARY
+          'Speech log is not raw microphone/audio recording. No clinical backend, human user validation, or broad WCAG certification.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload speech evidence or failure diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-windows-nvda-spoken-evidence
+          path: artifacts/cb01-windows-nvda
+          retention-days: 14
+          if-no-files-found: warn
