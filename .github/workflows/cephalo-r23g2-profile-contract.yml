@@ -44,6 +44,12 @@ on:
       - 'frontend/src/features/ortho/cephaloAnalysisBridge.ts'
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.tsx'
       - 'frontend/src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx'
+      - 'frontend/src/features/ortho/cephaloAnalysisPointFocus.ts'
+      - 'frontend/src/features/ortho/cephaloAnalysisPointFocus.test.ts'
+      - 'frontend/src/features/ortho/CephaloTracingLayer.tsx'
+      - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
+      - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
+      - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx'
       - 'frontend/src/features/ortho/components/CephaloAnalysisWorkbenchPanel.tsx'
       - 'frontend/src/features/ortho/components/Step1Cephalo.tsx'
       - 'backend/tests/test_cephalo_r23g5_authenticated_api.py'
@@ -144,7 +150,7 @@ jobs:
         run: npm ci
       - name: Run fail-closed clinical profile reader tests
         working-directory: frontend
-        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts src/features/ortho/cephaloR23G8W3CranioRequirements.test.ts
+        run: npx vitest run src/features/ortho/cephaloR23G2ClinicalProfiles.test.ts src/features/ortho/cephaloAnalysisPointFocus.test.ts src/features/ortho/components/CephaloR23G2ProtocolPanel.test.tsx src/features/ortho/components/CephaloAnalysisWorkbenchPanel.test.tsx src/features/ortho/cephaloR23G3PointSource.test.ts src/features/ortho/cephaloR23G7AtlasSourceRequirements.test.ts src/features/ortho/cephaloR23G8W1OrientationRequirements.test.ts src/features/ortho/cephaloR23G8W2DentalRequirements.test.ts src/features/ortho/cephaloR23G8W3CranioRequirements.test.ts
       - name: Full TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
