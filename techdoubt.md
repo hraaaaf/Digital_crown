@@ -1,3 +1,7 @@
+### LOT07 / 07-C — 2026-10-21 — Playwright T2 Frontdesk POST body, retest required
+
+FUE-G #39608276461 on HEAD 79cb7ed4 failed 422 while probing the new Frontdesk endpoint because the newly written Playwright test helper supplied an unsupported `json` option and omitted the HTTP body. This is a harness error, not proven product failure. The helper now passes `data: json` to Playwright for object-to-JSON serialization. Re-test real backend cases on the final SHA and inspect the result before closing C07C-11. No security assertions were relaxed and no patient/production data were involved.
+
 ### LOT07 / 07-C — 2026-10-21 — Agenda Frontdesk redaction visual fallback / proof pending
 
 **Within C07C-11 regression surface**: `PendingRequestCard` now accepts nullable names/phone/motif/source, labels redacted rows « Demande de rendez-vous — identité masquée » rather than a blank name, and disables the patient-addressed letter CTA without `patient_name` (backend remains the final 403 authority). Confirm/reject schedule-only actions remain available. Two focused Vitest checks for redacted and authorized rows were added to the existing 07-C readonly-contract workflow; check exact HEAD green plus actual FUE T2 before marking C07C-11 closed. **No mobile Frontdesk changes and no 07-D work.**
