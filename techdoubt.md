@@ -1,5 +1,13 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-21 — LOT06-P/P2-F01 : réserve de séquencement « LOT10 physique-only » vs SCM REQUIRED non testé
+
+- **Constat vérifié :** le runbook `LOT06_P_CODEX_WINDOWS_ISOLATED_LAB_RUNBOOK.md` impose HOLD et renvoie l'exécution Codex sur PC au LOT10 ; la page canonique V1.5-10 qualifie toutefois le LOT10 de **tests physiques exclusivement**, sans développement produit. Le plan FUE n'y reporte explicitement que la validation matérielle réelle (10.4). **Ne pas déduire** que le service Windows SCM et les douze tests natifs W01–W12 sont facultatifs, validés ou automatiquement transférés au LOT10.
+- **Réserve OPEN / BLOCKER du produit :** SCM token/Session0/NTFS owner et OWNER RIGHTS, écritures effectives DB/WAL/SHM, crash/restore et deux revues BLIND réellement indépendantes non attestés sur HEAD `78c7983de911854ebddc7526d7461ee3a2e8a8df` ; le résultat fonctionnel acquisition→Patient/RDV→serveur/audit non prouvé. Les suites synthétiques 06A/06B/F01 sont GREEN dans leur périmètre seulement. #909 reste DRAFT, aucun closeout global.
+- **Arbitrage requis :** décider explicitement du gate de VM/SCM autorisée et de son emplacement dans la séquence avant toute expérience privilégiée ; aucune création de service, extension LOT10, déplacement du gate, déploiement ni merge #909/master par ce document. Matrice détaillée : `docs/quality/LOT06_P_P2_F01_PARTIAL_CLOSEOUT_GATE_MATRIX_20261021.md`.
+
+
+
 ## 2026-10-20 LOT06-P/P2-F01 — Autopilot ready-manifest duplicate path guard
 
 **Finding/fix candidate (LAB only):** The encrypted `_decrypt` path already refuses noncanonical ledger blob names, but `_previous_ready_capture` reused an untrusted persisted SQLite `blob` to construct/stat a filesystem path without that check. An altered synthetic ledger plus an unrelated same-size file outside the private spool could make `scan_once` return `duplicate` without reading/authenticating any ciphertext. Patch: reject any blob not equal to recalculated `identity + ".dc6"` before touching the filesystem. One negative fixture corrupts the ledger, plants an external file, demands fail-closed refusal, and confirms no source/file/row mutation.
