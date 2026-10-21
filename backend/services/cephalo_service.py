@@ -68,9 +68,17 @@ class CephaloService:
     def process_new_radio(self, patient_id: int, file_path: str, db_path: str) -> Dict[str, Any]:
         logger.info("Analyse Vision pour le patient %s...", patient_id)
         vision_result = vision_engine.predict_landmarks(file_path)
-        if not vision_result or "landmarks" not in vision_result:
-            logger.error("VisionEngine a retourné un résultat invalide ou vide.")
-            raise ValueError("L'IA n'a détecté aucun point sur cette image.")
+        # A failed SRPose38 inference must never create a successful analysis.
+        # The radio upload endpoint handles this error without persisting a
+        # fabricated or empty set of landmarks.
+        if (
+            not isinstance(vision_result, dict)
+            or vision_result.get("mode_inference") == "FAILED"
+            or not isinstance(vision_result.get("landmarks"), list)
+            or not vision_result["landmarks"]
+        ):
+            logger.error("SRPose38 n'a fourni aucun repère exploitable; analyse refusée.")
+            raise ValueError("L'IA n'a détecté aucun point sur cette image. Placement manuel requis.")
 
         pts = vision_result["landmarks"]
         logger.info("%s points détectés par le moteur %s", len(pts), vision_result["mode_inference"])
