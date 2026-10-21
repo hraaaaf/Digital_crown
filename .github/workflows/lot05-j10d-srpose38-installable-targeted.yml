@@ -7,6 +7,7 @@ on:
       - 'backend/services/vision_service.py'
       - 'backend/services/cephalo_service.py'
       - 'backend/routers/ia.py'
+      - 'backend/routers/patients.py'
       - 'backend/tests/test_lot05_cephalo_manual_fallback.py'
       - 'frontend/src/features/ortho/**'
       - 'backend/runtime_asset_certification.py'
