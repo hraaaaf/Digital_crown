@@ -214,3 +214,36 @@ def test_manual_cephalo_never_generates_pdf_without_clinician_attestation(
     assert blocked.value.status_code == 409
     assert "manuel non validé" in str(blocked.value.detail)
     tenant.assert_called_once_with(7, user, db)
+
+
+@pytest.mark.parametrize("previous_status", ["MANUAL_DRAFT", "MANUAL_REVIEW_REQUIRED"])
+def test_other_saves_cannot_clear_manual_report_blocker(previous_status):
+    from backend.repositories.cephalo_repository import _merge_calibration_projection
+
+    previous = {
+        "analysis_status": previous_status,
+        "vision_metadata": {"mode_inference": "MANUAL_DRAFT"},
+        "calibration_status": "unverified",
+    }
+    saved = _merge_calibration_projection(previous, {"metrics": {"SNA": 82}})
+
+    assert saved["analysis_status"] == previous_status
+    assert saved["vision_metadata"]["mode_inference"] == "MANUAL_DRAFT"
+
+
+def test_complete_manual_draft_can_only_transition_to_review_required():
+    from backend.repositories.cephalo_repository import _merge_calibration_projection
+
+    previous = {"analysis_status": "MANUAL_DRAFT"}
+    completed = _merge_calibration_projection(
+        previous,
+        {"analysis_status": "MANUAL_REVIEW_REQUIRED"},
+    )
+    assert completed["analysis_status"] == "MANUAL_REVIEW_REQUIRED"
+
+    # Editing a completed manual case must not automatically approve it.
+    updated = _merge_calibration_projection(
+        completed,
+        {"metrics": {"SNA": 83}, "analysis_status": "APPROVED"},
+    )
+    assert updated["analysis_status"] == "MANUAL_REVIEW_REQUIRED"
