@@ -194,6 +194,15 @@ try {
     await manual.waitFor();
     await page.getByText('Placement manuel : 0/38 repères', { exact: false }).waitFor();
     const selectors = await page.locator('#cephalo-manual-point option').count();
+    const canvasRect = await page.locator('[data-lot05-image-canvas]').boundingBox();
+    const controlRect = await manual.boundingBox();
+    const controlsOverlapCanvas = !canvasRect || !controlRect
+      || !(
+        controlRect.x >= canvasRect.x + canvasRect.width
+        || controlRect.x + controlRect.width <= canvasRect.x
+        || controlRect.y >= canvasRect.y + canvasRect.height
+        || controlRect.y + controlRect.height <= canvasRect.y
+      );
     const horizontalOverflow = await page.evaluate(() =>
       document.documentElement.scrollWidth > window.innerWidth + 2
     );
@@ -203,10 +212,10 @@ try {
     });
     await page.screenshot({ path: path.join(out, 'manual-draft-' + viewport.name + '.png'), fullPage: true });
 
-    const valid = selectors === 39 && !horizontalOverflow && noInventedMetrics
+    const valid = selectors === 39 && !horizontalOverflow && !controlsOverlapCanvas && noInventedMetrics
       && pageErrors.length === 0 && serverRequests.join(',') === 'failed-auto,explicit-manual';
     report.captures.push({
-      viewport: viewport.name, valid, selectors, horizontalOverflow,
+      viewport: viewport.name, valid, selectors, horizontalOverflow, controlsOverlapCanvas,
       noInventedMetrics, pageErrors, serverRequests,
       synthetic: true,
     });
