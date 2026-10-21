@@ -47,7 +47,7 @@ const authPOST = async (token, relativePath, json, cookies=[]) => {
   const ctx = await request.newContext({ baseURL: apiBase, storageState: { cookies, origins: [] } });
   try {
     const response = await ctx.post(relativePath, {
-      headers: { Authorization: 'Bearer '+token }, json,
+      headers: { Authorization: 'Bearer '+token }, data: json,
     });
     const status = response.status();
     return { status, body: status === 200 ? await response.json() : null };
