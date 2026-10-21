@@ -104,7 +104,14 @@ def check_fail_closed_source_contract() -> None:
         "SOTA must reject SRPose38 assets with unexpected SHA256",
     )
     _require("return None" in sota, "SOTA unavailable path must return no landmarks")
-    _require('mode_inference = "FAILED"' in vision and "Placement manuel requis" in vision, "Cephalo manual fallback contract missing")
+    _require(
+        '"FAILED"' in vision and "Placement manuel requis" in vision,
+        "Cephalo manual-only fail-closed contract missing",
+    )
+    _require(
+        "_initialize_legacy_engine" not in vision and "ceph_weights.pth" not in vision,
+        "Retired CephLD-CCA engine must not be present in SRPose38-only runtime",
+    )
     _require("if _is_clinical_environment():" in pano and "raise RuntimeError" in pano, "Panoramic clinical fail-closed contract missing")
     print("FAIL_CLOSED_SOURCE_GATE=OK")
 
@@ -266,11 +273,7 @@ def run_fail_closed_runtime() -> None:
             sota = sota_module.SOTAVisionEngine()
         _require(sota.is_ready is False and sota.predict_landmarks(str(image_path)) is None, "SOTA missing-model path must remain disabled")
 
-        with (
-            patch.object(vision_module.sota_vision_engine, "is_ready", False),
-            patch.object(vision_module.vision_engine, "is_ready", False),
-            patch.object(vision_module.vision_engine, "model", None),
-        ):
+        with patch.object(vision_module.sota_vision_engine, "is_ready", False):
             result = vision_module.vision_engine.predict_landmarks(str(image_path))
         _require(result.get("mode_inference") == "FAILED", "Cephalo missing-model path must return FAILED")
         _require(result.get("landmarks") == [], "Cephalo missing-model path must not fabricate landmarks")
