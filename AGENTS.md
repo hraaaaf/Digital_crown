@@ -48,7 +48,7 @@ En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
 **À la fin de chaque message adressé à l'utilisateur dans le projet Digital Crown**, y compris une réponse courte, une question, un point de progression, un rapport de CI, une décision ou un blocage, ajouter **une dernière ligne unique**, sans aucun texte après, au format exact :
 
-**Lot :** <lot réellement actif> · **Sous-lot :** <sous-lot réellement actif> · **Chantier :** <mission précise en cours> · **Roadmap :** <état courant vérifié, prochain lot gelé/différé si pertinent>
+**Lot :** [lot réellement actif] · **Sous-lot :** [sous-lot réellement actif] · **Chantier :** [mission précise en cours] · **Roadmap :** [état courant vérifié, prochain lot gelé/différé si pertinent]
 
 - **Identifier avant d'écrire** le lot, le sous-lot et le chantier à partir de la mission autorisée et des références courantes : repository/HEAD et canonique GitHub → roadmap/Notion → contexte conversationnel. Ne pas réutiliser mécaniquement le lot du message précédent si la mission a changé.
 - La **roadmap** indique de façon brève ce qui est `OUVERT`, `EN COURS`, `GELÉ`, `DIFFÉRÉ` ou `CLOS`, seulement si le statut est prouvé. Ne jamais déverrouiller un lot, déduire un `PASS`, une fusion ou un déploiement de cette ligne. Si un fait manque, écrire explicitement `à confirmer` plutôt que l'inventer.
