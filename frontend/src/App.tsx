@@ -19,6 +19,7 @@ import { LandingPage } from './pages/LandingPage';
 import { DownloadPage } from './pages/DownloadPage';
 import { ActivateTrialPage } from './pages/ActivateTrialPage';
 import { authService } from './services/auth';
+import { CabinetAuthTransitionBoundary } from './components/Auth/CabinetAuthTransitionBoundary';
 import { workstationModeService } from './services/workstationMode';
 
 // Chargés à la demande
@@ -424,8 +425,9 @@ function App() {
 
         {/* Toutes les autres routes passent par le filtre Mode/Init */}
         <Route path="/*" element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader />}>
+          <CabinetAuthTransitionBoundary>
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
@@ -434,8 +436,9 @@ function App() {
                 <Route path="/setup" element={<SetupWizard />} />
                 <Route path="/*" element={<WorkstationModeGate target="protected"><ProtectedRoutes /></WorkstationModeGate>} />
               </Routes>
-            </Suspense>
-          </ProtectedRoute>
+              </Suspense>
+            </ProtectedRoute>
+          </CabinetAuthTransitionBoundary>
         } />
       </Routes>
     </BrowserRouter>
