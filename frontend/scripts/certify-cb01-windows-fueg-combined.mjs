@@ -12,6 +12,7 @@ import { chromium, request } from 'playwright';
 import { enrollT2Workstation } from './t2-workstation-session.mjs';
 import { nvda } from '@guidepup/guidepup';
 import { runCb01DashboardStartupRaces } from './cb01-dashboard-startup-races.mjs';
+import { runCb01DashboardColdBoundaries } from './cb01-dashboard-cold-boundaries.mjs';
 
 const head = process.env.CB01_SOURCE_HEAD;
 if (process.platform !== 'win32'
@@ -79,6 +80,7 @@ const report = {
   nvdaSpeechProbe: 'NOT_RUN',
   frontendStartup: {pageErrors:[],failedRequests:[],httpFailures:[],routes:[],initialAuthStatus:'NOT_RUN',clinicInitStatus:'NOT_RUN',snapshot:null,requestTimeline:[],pendingRequests:[],browserRequestsSeen:0},
   dashboardStartupRace:{status:'NOT_RUN',scenarioCount:0},
+  dashboardColdBoundary:{status:'NOT_RUN',scenarioCount:0},
   converged: false,
   error: null,
 };
@@ -758,6 +760,8 @@ try {
   report.clinicalState='NO_CLINICAL_WRITE_ATTEMPT_BROWSER_DB_DIFF_SEPARATE_GATE';
   report.dashboardStartupRace=await runCb01DashboardStartupRaces({browser,origin,out,sourceHead:head});
   console.log('CB01_DASHBOARD_STARTUP_RACE',JSON.stringify({status:report.dashboardStartupRace.status,scenarioCount:5,sourceHead:head}));
+  report.dashboardColdBoundary=await runCb01DashboardColdBoundaries({browser,origin,out,sourceHead:head,staffToken});
+  console.log('CB01_DASHBOARD_COLD_BOUNDARIES',JSON.stringify({status:report.dashboardColdBoundary.status,scenarioCount:4,sourceHead:head}));
   console.log('CB01_WINDOWS_FUEG_FULL_FASTAPI_NVDA_ZOOM: PASS',JSON.stringify({
     sourceHead:head,terms:report.observedTerms,roles:report.observedAccessibleControls,
     spoken:report.spokenPhrases.length,keyboardActions:report.keyboardActions.length,

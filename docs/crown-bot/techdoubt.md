@@ -1,3 +1,9 @@
+## CB01-TD-20261021-48 — Test négatif direct /dashboard sur profils Chromium froids et 24 s — CANDIDAT, CI NON EXÉCUTÉE
+
+- Suite isolée `frontend/scripts/cb01-dashboard-cold-boundaries.mjs`: trois contextes Chromium vierges, vrai backend SQLCipher fictif : session anonyme à bootstrap lent → /login ; marqueur local JWT intentionnellement expiré et non signé → refresh/auth-me véritables HTTP401 → /login ; JWT valide signé par vrai login synthétique S05 mais navigateur sans cookie poste → probe indépendant de `clinics/init-status` **423 réel** + redirection /hub?enroll=1. Quatrième scénario, session S05 réellement connectée via formulaire du harness, GET /health réel délivré après 24 secondes → vrai Dashboard visible avant plafond, sans manipulation des JSON/headers de réponse.
+- Assertions fail-closed, absence de fenêtre de rendu clinique (`main`/launcher), aucun write clinique, aucune exception JS, résultat exact SHA + rapport. Token expiré artificiellement pour forcer la branche client : **ne démontre pas une véritable expiration cryptographique côté serveur** ; les refus HTTP sont authentiques et non simulés. 24 s < timeout Axios 30 s, ce n'est pas la reproduction du vieux hang 30 s. Le scénario d'appairage attend un vrai 423; si RED, diagnostic avant correctif.
+- À l'écriture : statut CI **NON EXÉCUTÉ**, pas de PASS présumé, anciennes réserves #42/#47 toujours OPEN. Aucun changement produit/UI/API, ni merge/déploiement/flag, Pocket CB-02 Lot 10 exclus. Ne fermer qu'après preuve Windows réelle + nouvelle revue.
+
 # techdoubt.md — Crown Bot CB-01 / FIRST_VALUE_UI
 
 ## CB01-TD-20261021-47 — #42 démarrage direct /dashboard sous latence — TEST CANDIDAT (PAS ENCORE PROUVÉ)

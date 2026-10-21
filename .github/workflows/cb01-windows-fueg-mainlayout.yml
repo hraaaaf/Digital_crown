@@ -7,6 +7,7 @@ on:
       # synthetic backend or installed Windows runtime dependencies change.
       - frontend/scripts/certify-cb01-windows-fueg-combined.mjs
       - frontend/scripts/cb01-dashboard-startup-races.mjs
+      - frontend/scripts/cb01-dashboard-cold-boundaries.mjs
       - frontend/scripts/t2-workstation-session.mjs
       - frontend/src/components/Layout/MainLayout.tsx
       - frontend/src/App.tsx
@@ -220,6 +221,10 @@ jobs:
           if ($report.uiLogin.status -ne 'PASS_REAL_LOGINPAGE_POST_200_FRESH_BROWSER' -or $report.uiLogin.browserProfileFresh -ne $true -or $report.uiLogin.stationCookieOnly -ne $true -or $report.uiLogin.preLoginAuthStorageEmpty -ne $true -or $report.uiLogin.loginResponseStatus -ne 200 -or $report.uiLogin.postLoginTokenPresent -ne $true -or $report.uiLogin.dashboardVisible -ne $true -or $report.uiLogin.elapsedToUsefulMs -le 0) { throw 'FAIL: genuinely fresh real browser LoginPage path not proven' }
           if ($report.dashboardStartupRace.status -ne 'PASS_5_DIRECT_DASHBOARD_REAL_BACKEND_RACE_CASES' -or $report.dashboardStartupRace.scenarioCount -ne 5 -or $report.dashboardStartupRace.sourceHead -ne $env:CB01_SOURCE_HEAD -or @($report.dashboardStartupRace.results).Count -ne 5) { throw 'FAIL: CB-01 #42 five real delayed Dashboard starts not proved' }
           if (@($report.dashboardStartupRace.results | Where-Object { $_.status -ne 'PASS_REAL_BACKEND_DELAYED_RESPONSE' -or $_.pageErrors -ne 0 -or $_.clinicalWrites -ne 0 }).Count -ne 0) { throw 'FAIL: CB-01 #42 race cases not all clean' }
+          if ($report.dashboardColdBoundary.status -ne 'PASS_4_COLD_AUTH_WORKSTATION_AND_24S_REAL_BACKEND' -or $report.dashboardColdBoundary.scenarioCount -ne 4 -or $report.dashboardColdBoundary.sourceHead -ne $env:CB01_SOURCE_HEAD -or @($report.dashboardColdBoundary.results).Count -ne 4) { throw 'FAIL: CB-01 #42 negative cold/24s regression absent' }
+          if (@($report.dashboardColdBoundary.results | Where-Object { $_.pageErrors -ne 0 -or $_.clinicalWrites -ne 0 }).Count -ne 0) { throw 'FAIL: CB-01 #42 cold-boundary JS or clinical writes' }
+          if (@($report.dashboardColdBoundary.results | Where-Object { $_.name -ne 'signed-in-real-health-24s' -and ($_.status -ne 'PASS_COLD_FAIL_CLOSED_REAL_FASTAPI' -or $_.clinicalMainSeen -ne 0) }).Count -ne 0) { throw 'FAIL: CB-01 #42 negative boundary not fail-closed' }
+          if (@($report.dashboardColdBoundary.results | Where-Object { $_.name -eq 'signed-in-real-health-24s' -and ($_.status -ne 'PASS_24S_REAL_BACKEND_RECOVERY' -or $_.elapsedMs -lt 23000) }).Count -ne 0) { throw 'FAIL: CB-01 #42 long bootstrap recovery not proven' }
           if ($report.firstValue.status -ne 'PASS_REAL_FASTAPI_PROPOSAL_ONLY_VISIBLE_AT_NATIVE_200' -or $report.firstValue.clicks -ne 8 -or $report.firstValue.typedAnswers -ne 6 -or $report.firstValue.visibleInViewportAtNative200 -ne $true) { throw 'FAIL: FUE First Value not proven' }
           if (@($report.clinicalWritesAttempted).Count -ne 0 -or $db.status -ne 'PASS_CLINICAL_FINAL_STATE_UNCHANGED' -or @($db.clinicalTablesChanged).Count -ne 0 -or $db.tablesChecked -lt 20) { throw 'FAIL: clinical mutation detected or baseline unavailable' }
           "### CB-01 Windows FUE-G: PASS on exact HEAD $env:CB01_SOURCE_HEAD" >> $env:GITHUB_STEP_SUMMARY
