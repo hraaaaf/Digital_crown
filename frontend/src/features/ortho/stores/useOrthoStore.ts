@@ -539,6 +539,10 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   goToStep: async (target) => {
     const s = get();
     if (target >= 2) {
+      if (s.anglesData?.analysis_status === 'MANUAL_DRAFT') {
+        set({ uploadError: 'Terminez le placement manuel des 38 repères avant de poursuivre.' });
+        return;
+      }
       if (!s.imageSrc) {
         set({ uploadError: 'Veuillez d\'abord uploader une radiographie.' });
         setTimeout(() => set({ uploadError: null }), 4000);
