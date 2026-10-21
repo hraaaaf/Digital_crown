@@ -5,8 +5,10 @@ import { CephaloTracingLayer } from './CephaloTracingLayer';
 import type { Landmark } from './cephaloShared';
 
 const LANDMARKS: Landmark[] = [
-  { id: 'Po', x: 30, y: 40 }, { id: 'Or', x: 100, y: 42 },
+  { id: 'Po', x: 30, y: 40 }, { id: 'Po_anatomic', x: 28, y: 39 },
+  { id: 'Or', x: 100, y: 42 },
   { id: 'N', x: 130, y: 70 }, { id: 'Pog', x: 170, y: 175 },
+  { id: 'Pog_hard', x: 172, y: 174 },
   { id: 'S', x: 75, y: 65 }, { id: 'A', x: 140, y: 100 },
   { id: 'B', x: 155, y: 135 }, { id: 'Go', x: 35, y: 160 },
   { id: 'Me', x: 100, y: 200 },
@@ -94,19 +96,15 @@ describe('DC-CEPH03B independent tracing overlays — render only drag preview',
     expect(document.querySelectorAll('[data-cephalo-line-key]')).not.toHaveLength(0);
   });
 
-  it('COM Frankfort uses the live Porion position without committing and returns to baseline on cancel', () => {
+  it('COM source editing never exposes unverified legacy SVG geometry on preview or cancel', () => {
     render(<Fixture mode="com" />);
-    const fh = () => line('com-frankfort');
-    const po = handle('Po');
-    expect(fh().getAttribute('x1')).toBe('30');
-    pointer(po, 'pointerdown', 30, 40);
-    pointer(po, 'pointermove', 65, 75);
-    expect(fh().getAttribute('x1')).toBe('65');
-    expect(fh().getAttribute('y1')).toBe('75');
+    const po=handle('Po');
+    expect(document.querySelectorAll('[data-r19-construction^="com-"]')).toHaveLength(0);
+    pointer(po,'pointerdown',30,40);
+    pointer(po,'pointermove',65,75);
     expect(commit).not.toHaveBeenCalled();
-    pointer(po, 'pointercancel');
-    expect(fh().getAttribute('x1')).toBe('30');
-    expect(fh().getAttribute('y1')).toBe('40');
+    expect(document.querySelectorAll('[data-r19-construction^="com-"]')).toHaveLength(0);
+    pointer(po,'pointercancel');
     expect(commit).not.toHaveBeenCalled();
   });
 
@@ -126,17 +124,16 @@ describe('DC-CEPH03B independent tracing overlays — render only drag preview',
     expect(commit).not.toHaveBeenCalled();
   });
 
-  it('COM commits the moved landmark exactly once only on pointerup', () => {
+  it('COM still commits the source landmark edit once without legacy drawings', () => {
     render(<Fixture mode="com" />);
-    const fh = () => line('com-frankfort');
-    const po = handle('Po');
-    pointer(po, 'pointerdown', 30, 40);
-    pointer(po, 'pointermove', 50, 55);
+    const po=handle('Po');
+    pointer(po,'pointerdown',30,40);
+    pointer(po,'pointermove',50,55);
     expect(commit).not.toHaveBeenCalled();
-    pointer(po, 'pointerup', 50, 55);
+    pointer(po,'pointerup',50,55);
     expect(commit).toHaveBeenCalledTimes(1);
-    expect(fh().getAttribute('x1')).toBe('50');
-    expect(fh().getAttribute('y1')).toBe('55');
-    expect(commit.mock.calls[0][0].find((p: Landmark) => p.id === 'Or')).toEqual({ id: 'Or', x: 100, y: 42 });
+    expect(commit.mock.calls[0][0].find((p:Landmark)=>p.id==='Po')).toEqual({id:'Po',x:50,y:55});
+    expect(commit.mock.calls[0][0].find((p:Landmark)=>p.id==='Or')).toEqual({id:'Or',x:100,y:42});
+    expect(document.querySelectorAll('[data-r19-construction^="com-"]')).toHaveLength(0);
   });
 });

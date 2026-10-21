@@ -85,6 +85,7 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import {readFile,stat} from 'node:fs/promises';
+          import {createHash} from 'node:crypto';
           const baseline=process.env.G4_BEFORE_SHA;
           for(const id of ['anug','challiyan']){
             const reports={};
@@ -103,10 +104,26 @@ jobs:
                     if(state.handles!==38||state.focus!=='not-authorized')throw Error(id+'/'+phase+':wrong anatomical source count or false focus');
                     const expectedCount=state.kind==='ricketts'&&state.variant==='atlas'?33:13;
                     if(state.rows!==expectedCount)throw Error(id+'/'+phase+':wrong profile rows');
-                  }else if(state.rows!==10)throw Error(id+'/'+phase+':COM regression');
+                  }else {
+                    if(state.rows!==10||state.variant!==(phase==='before'?'legacy':'canonical'))throw Error(id+'/'+phase+':wrong COM variant/rows');
+                    if(phase==='after'&&(state.handles!==35||state.glyphs!==3||state.legacyGeometry!==0||state.softTemplates!==0||state.visibleRows<4||state.focus!=='not-authorized'))
+                      throw Error(id+'/'+phase+':COM source/display/compact assertion');
+                  }
+                  const required='REPÈRES FICTIFS — NON RECALÉS · NE PAS UTILISER CLINIQUEMENT';
+                  if(typeof state.warningStage!=='string'||!state.warningStage.includes(required)
+                    ||typeof state.warningPanel!=='string'||!state.warningPanel.includes(required)
+                    ||!state.warningStage.startsWith('RADIOGRAPHIE PUBLIQUE')
+                    ||!state.warningPanel.startsWith('TABLEAU DE DÉMONSTRATION'))
+                    throw Error(id+'/'+phase+'/'+state.kind+':missing visible/nonclinical capture warning');
                   const img=await stat(dir+state.filename);
                   const stage=await stat(dir+state.stageFilename);
                   if(img.size<10000||stage.size<10000)throw Error(id+'/'+phase+':radiograph or panel screenshot missing');
+                  // ALL protocol variants must contain independent stage/panel
+                  // image captures; COM-only verification hid 24 duplicates.
+                  const [bytesA,bytesB]=await Promise.all([readFile(dir+state.filename),readFile(dir+state.stageFilename)]);
+                  const hash=b=>createHash('sha256').update(b).digest('hex');
+                  if(hash(bytesA)===hash(bytesB))
+                    throw Error(id+'/'+phase+'/'+state.kind+'/'+state.variant+':duplicate panel/radiograph screenshots');
                 }
               }
               reports[phase]=r;
@@ -114,7 +131,8 @@ jobs:
             for(let i=0;i<2;i++){
               const a=reports.before.viewports[i],b=reports.after.viewports[i];
               if(a.viewportName!==b.viewportName||
-                 a.states.map(s=>s.kind+'/'+s.variant).join('|')!==b.states.map(s=>s.kind+'/'+s.variant).join('|'))
+                 a.states.slice(0,3).map(s=>s.kind+'/'+s.variant).join('|')!==b.states.slice(0,3).map(s=>s.kind+'/'+s.variant).join('|')||
+                 a.states[3].variant!=='legacy'||b.states[3].variant!=='canonical')
                 throw Error(id+':before/after comparison mismatch');
             }
             console.log('R23-G4 NONCLINICAL PUBLIC UX VERIFIED',id,baseline,process.env.PRODUCT_HEAD);

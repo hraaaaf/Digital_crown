@@ -112,6 +112,29 @@ def test_unambiguous_pre_r2_snapshot_remains_readable_and_reports_verified_activ
     assert projected["scientific_read_path"]["current_landmark_count"] == 38
 
 
+def test_com_canonical_profile_is_read_only_and_does_not_invent_focus_on_held_rows():
+    scientific = project_runtime_chain_read_path(_angles(), patient_id=7)["scientific_read_path"]
+    assert scientific["active_chain"] == "VERIFIED"
+    com = scientific["protocol_profiles"]["com"]
+    assert com["protocol_profile_id"] == "COM_DC_LEGACY_V1"
+    assert len(com["rows"]) == 10
+    assert com["classification_authority"] is False
+    for row in com["rows"]:
+        assert row["classification_authority"] is False
+        if ("LEGACY_TO_AUDIT" in row["contract_state"]
+                or "PENDING_EQUIVALENCE" in row["contract_state"]):
+            assert row["availability_status"] == "NOT_COMPUTABLE"
+            assert row["value"] is None
+            assert "focus_evidence" not in row
+        if "focus_evidence" in row:
+            evidence = row["focus_evidence"]
+            assert row["availability_status"] == "AVAILABLE"
+            assert row["value"] is not None
+            assert evidence["canonical_measurement_id"] == row["canonical_measurement_id"]
+            assert evidence["value_authority_method_id"] == row["value_authority_method_id"]
+            assert evidence["measurement_ref"] in row["measurement_refs"]
+
+
 def test_explicit_current_landmark_refs_ignore_historical_duplicate():
     angles = _angles()
     payload = angles[EVIDENCE_GRAPH_KEY]

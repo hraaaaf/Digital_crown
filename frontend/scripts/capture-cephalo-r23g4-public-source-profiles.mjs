@@ -47,12 +47,14 @@ const rows=(items,id,kind)=>items.map((r,i)=>({
 const mcnamaraId='MCNAMARA_1984_SINGLE_FILM_V1';
 const atlasId='RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1';
 const gregoretId='RICKETTS_GREGORET_1997_SUMMARIZED_13_PROTOCOL_V1';
+const comId='COM_DC_LEGACY_V1';
 const fakeProfiles={
   mcnamara:{protocol_profile_id:mcnamaraId,profile_status:'WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL',source_lock_gate:'HISTORICAL_WORKING_REFERENCE_ONLY',classification_authority:false,rows:rows(ledger.profiles.mcnamara.rows,mcnamaraId,'historical')},
+  com:{protocol_profile_id:comId,profile_status:'WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL',source_lock_gate:'HISTORICAL_WORKING_REFERENCE_ONLY',classification_authority:false,rows:rows(ledger.profiles.com.rows,comId,'historical')},
   ricketts_atlas2009:{protocol_profile_id:atlasId,profile_status:atlas.status,source_lock_gate:'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED',classification_authority:false,rows:rows(atlas.measurements,atlasId,'ricketts')},
   ricketts_gregoret13:{protocol_profile_id:gregoretId,profile_status:gregoret.status,source_lock_gate:'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED',classification_authority:false,rows:rows(gregoret.measurements,gregoretId,'ricketts')}
 };
-if(fakeProfiles.mcnamara.rows.length!==13||fakeProfiles.ricketts_atlas2009.rows.length!==33||fakeProfiles.ricketts_gregoret13.rows.length!==13)
+if(fakeProfiles.mcnamara.rows.length!==13||fakeProfiles.com.rows.length!==10||fakeProfiles.ricketts_atlas2009.rows.length!==33||fakeProfiles.ricketts_gregoret13.rows.length!==13)
   throw new Error('Protocol source drift; never silently truncate fixture');
 const basePoints=[
 ['S',430,370],['N',650,360],['A',690,620],['B',675,790],['Po',390,500],['Or',650,520],
@@ -156,15 +158,47 @@ async function capture(v){
     return {width:img.naturalWidth,height:img.naturalHeight};
   });
   if(decoded.width!==radio.width||decoded.height!==radio.height)fail('Public image did not decode');
-  await page.evaluate((metadata)=>{
-    const label=document.createElement('div');label.dataset.r23g4AuditBanner='true';
-    label.textContent='R23-G4 '+metadata.phase+' · '+metadata.author+' (Wikimedia / CC BY-SA 4.0) · REPÈRES ET PROFILS FICTIFS · AUCUNE MESURE CLINIQUE';
-    Object.assign(label.style,{position:'fixed',top:'4px',left:'4px',maxWidth:'90vw',
-      padding:'5px 6px',borderRadius:'5px',fontFamily:'system-ui',fontSize:'10px',fontWeight:'800',
-      background:'#fff9dc',color:'#5e3600',border:'1px solid #b57b00',
-      zIndex:'99999',pointerEvents:'none'});
-    document.body.append(label);
-  },{phase,author:radio.author});
+  // NONCLINICAL PROOF ONLY: permanently bind a warning to EACH capture target.
+  // A global/fixed page banner does not appear in element-level PNG screenshots.
+  const stampSyntheticWarning=async(target,region)=>{
+    await target.evaluate((host,meta)=>{
+      if(!(host instanceof HTMLElement))throw Error('G4 warning host missing');
+      if(getComputedStyle(host).position==='static')host.style.position='relative';
+      for(const older of host.querySelectorAll(':scope > [data-r23g4-synthetic-warning]'))older.remove();
+      const marker=document.createElement('div');
+      marker.dataset.r23g4SyntheticWarning=meta.region;
+      marker.setAttribute('role','note');
+      marker.textContent=(meta.region==='radiograph'?'RADIOGRAPHIE PUBLIQUE':'TABLEAU DE DÉMONSTRATION')
+        +' · REPÈRES FICTIFS — NON RECALÉS · NE PAS UTILISER CLINIQUEMENT';
+      Object.assign(marker.style,{
+        position:'absolute',top:meta.region==='radiograph'?'10px':'auto',
+        bottom:meta.region==='panel'?'10px':'auto',
+        left:'8px',right:'8px',boxSizing:'border-box',padding:'9px 12px',
+        color:'#8f1525',background:'rgba(255,252,233,0.97)',
+        border:'3px solid #b91c1c',borderRadius:'6px',zIndex:'2147483647',
+        textAlign:'center',fontFamily:'system-ui,sans-serif',fontWeight:'900',
+        fontSize:'14px',lineHeight:'1.35',letterSpacing:'0.02em',
+        whiteSpace:'normal',overflowWrap:'break-word',
+        pointerEvents:'none'
+      });
+      host.append(marker);
+    },{region});
+    const status=await target.evaluate((host,region)=>{
+      const marker=host.querySelector(':scope > [data-r23g4-synthetic-warning="'+region+'"]');
+      if(!marker)return {ok:false,reason:'missing'};
+      const a=host.getBoundingClientRect(),b=marker.getBoundingClientRect();
+      const style=getComputedStyle(marker);
+      const full='REPÈRES FICTIFS — NON RECALÉS · NE PAS UTILISER CLINIQUEMENT';
+      return{ok:marker.textContent.includes(full)
+        && style.visibility==='visible' && style.display!=='none'
+        && b.width>175 && b.height>=26
+        && b.top>=a.top-1 && b.left>=a.left-1
+        && b.right<=a.right+1 && b.bottom<=a.bottom+1,
+        text:marker.textContent,width:b.width,height:b.height};
+    },region);
+    if(!status.ok)fail('NONCLINICAL IMAGE WARNING MISSING OR CROPPED '+region+' '+JSON.stringify(status));
+    return status.text;
+  };
   for(const kind of ['mcnamara','ricketts']){
     // On narrow Cabinet layouts the floating tracing tabs are not visible.
     // The actual accessible workflow entrypoint is the ready-analysis select.
@@ -197,29 +231,67 @@ async function capture(v){
         documentWidth:document.documentElement.scrollWidth,viewportWidth:document.documentElement.clientWidth
       }));
       if(scroll.documentWidth-scroll.viewportWidth>2)fail('Document horizontal overflow '+JSON.stringify(scroll));
-      // Preserve BOTH the actual public radiograph viewport and the table:
-      // scrolling mobile to the table must never masquerade as proof of image UX.
-      await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+      // Capture independent DOM targets, not two identical whole-viewport
+      // screenshots bearing misleading radiograph/panel filenames.
+      const stage=page.locator('[data-r20-radiograph-stage]');
+      const warningStage=await stampSyntheticWarning(stage,'radiograph');
+      const warningPanel=await stampSyntheticWarning(panel,'panel');
+      await stage.scrollIntoViewIfNeeded();
       const stageFilename=phase.toLowerCase()+'-'+kind+'-'+variant+'-radiograph-'+viewportName+'.png';
-      await page.screenshot({path:path.join(out,stageFilename),fullPage:false});
+      await stage.screenshot({path:path.join(out,stageFilename)});
       await panel.scrollIntoViewIfNeeded();
       const filename=phase.toLowerCase()+'-'+kind+'-'+variant+'-'+viewportName+'.png';
-      await page.screenshot({path:path.join(out,filename),fullPage:false});
-      states.push({kind,variant,rows:count,handles,geometry,scroll,focus:'not-authorized',filename,stageFilename,valid:true});
+      await panel.screenshot({path:path.join(out,filename)});
+      states.push({kind,variant,rows:count,handles,geometry,scroll,warningStage,warningPanel,focus:'not-authorized',filename,stageFilename,valid:true});
     }
   }
   await page.locator('#cephalo-ready-analysis').selectOption('com');
-  const com=page.locator('[data-r19-analysis-panel="com"]');
+  const after=phase==='AFTER';
+  const com=page.locator(after?'[data-r23g2-protocol-panel="com"]':'[data-r19-analysis-panel="com"]');
   await com.waitFor({state:'attached',timeout:10000});
-  const comRows=await com.locator('[data-r19-metric]').count();
-  if(comRows!==10)fail('COM legacy regression: '+comRows);
-  await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
-  const comStage=phase.toLowerCase()+'-com-legacy-radiograph-'+viewportName+'.png';
-  await page.screenshot({path:path.join(out,comStage),fullPage:false});
+  const count=await com.locator(after?'[data-r23g2-measurement-id]':'[data-r19-metric]').count();
+  if(count!==10)fail('COM 10 rows missing');
+  const variant=after?'canonical':'legacy';
+  let extra={};
+  if(after){
+    if(await com.getAttribute('data-r23g2-protocol-id')!==comId)fail('COM typed profile unverified');
+    if(!(await com.locator('[data-r23g2-coverage]').innerText()).includes('0/10'))fail('COM unapproved AVAILABLE');
+    if(await com.getAttribute('data-r23g2-com-compact')!=='true')fail('COM compact evidence reader missing');
+    await com.locator('[data-r23g3-focus-select]').first().click();
+    if(await com.locator('[data-r23g3-focus-source="not-authorized"]').count()!==1)fail('COM false active Focus');
+    // Capture the collapsed readable overview, not a 500px technical expansion.
+    await com.locator('[data-r23g3-focus-select]').first().click();
+    if(await com.locator('[data-r23g3-focus-source]').count()!==0)fail('COM collapsed source detail still shown');
+    const values=await com.locator('tbody tr td:first-of-type').allTextContents();
+    if(values.length!==10||values.some(x=>x.trim()!=='NC'))fail('COM unapproved numeric fallback');
+    const handles=await page.locator('[data-ceph03b-drag-handle]').count();
+    const glyphs=await page.locator('[data-r19-point="N"],[data-r19-point="A"],[data-r19-point="B"]').count();
+    const legacyGeometry=await page.locator('[data-r19-construction^="com-"]').count();
+    const softTemplates=await page.locator('[data-ortho-layer="soft_tissue"]').count();
+    const visibleRows=await com.locator('[data-r23g2-measurement-id]').evaluateAll(rows => {
+      const scroll=rows[0]?.closest('.overflow-y-auto');
+      if(!scroll)return 0;
+      const bounds=scroll.getBoundingClientRect();
+      return rows.filter(row => {
+        const box=row.getBoundingClientRect();
+        return box.bottom>bounds.top && box.top<bounds.bottom;
+      }).length;
+    });
+    if(handles!==35||glyphs!==3||legacyGeometry!==0||softTemplates!==0||visibleRows<4)
+      fail('COM compact/source geometry boundary '+JSON.stringify({handles,glyphs,legacyGeometry,softTemplates,visibleRows}));
+    extra={handles,glyphs,legacyGeometry,softTemplates,visibleRows,focus:'not-authorized'};
+  }
+  // Two distinct element targets: no two labels for identical viewport PNG bytes.
+  const stage=page.locator('[data-r20-radiograph-stage]');
+  const warningStage=await stampSyntheticWarning(stage,'radiograph');
+  const warningPanel=await stampSyntheticWarning(com,'panel');
+  await stage.scrollIntoViewIfNeeded();
+  const stageFilename=phase.toLowerCase()+'-com-'+variant+'-radiograph-'+viewportName+'.png';
+  await stage.screenshot({path:path.join(out,stageFilename)});
   await com.scrollIntoViewIfNeeded();
-  const comFile=phase.toLowerCase()+'-com-legacy-'+viewportName+'.png';
-  await page.screenshot({path:path.join(out,comFile),fullPage:false});
-  states.push({kind:'com',variant:'legacy',rows:comRows,filename:comFile,stageFilename:comStage,valid:true});
+  const filename=phase.toLowerCase()+'-com-'+variant+'-'+viewportName+'.png';
+  await com.screenshot({path:path.join(out,filename)});
+  states.push({kind:'com',variant,rows:count,...extra,warningStage,warningPanel,filename,stageFilename,valid:true});
   if(errors.length)fail('Page errors: '+errors.join(' | ').slice(0,1200));
   return{viewportName,decoded,valid:true,states,pageErrors:errors};
  }catch(e){

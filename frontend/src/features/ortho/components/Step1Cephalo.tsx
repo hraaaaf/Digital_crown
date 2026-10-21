@@ -99,11 +99,11 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const [measuresOpen, setMeasuresOpen] = React.useState(true);
   const [showAllLandmarkNames, setShowAllLandmarkNames] = React.useState(false);
   const [showAllPointMarkers, setShowAllPointMarkers] = React.useState(false);
-  // R23-G2: until R23-G3 derives complete per-factor dependencies, never
-  // hide source landmarks behind the pre-existing 2/3-item legacy UI masks.
+  // R23-G UI: legacy 3/2/10-item menus cannot prove exhaustive point
+  // coverage for McNamara, Ricketts or COM. Keep all source points.
   // This only affects presentation: all stored source coordinates remain intact.
   const pointContract = React.useMemo(() => {
-    if (analysis==='mcnamara'||analysis==='ricketts') {
+    if (analysis==='mcnamara'||analysis==='ricketts'||analysis==='com') {
       return { ids: null, source: 'unverified' as const, missing: [] as string[], count: localLandmarks.length };
     }
     return resolveCephaloAnalysisPointContract(

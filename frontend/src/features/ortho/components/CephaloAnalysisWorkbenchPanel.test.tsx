@@ -17,7 +17,7 @@ const P: any = {
 afterEach(cleanup);
 
 describe('CephaloAnalysisWorkbenchPanel R19 contract', () => {
-  it('keeps semantic measure selection inside native desktop keyboard-accessible buttons', () => {
+  it('does not promote legacy COM metric numbers without a verified typed profile', () => {
     const previous = useOrthoStore.getState().anglesData;
     useOrthoStore.setState({
       anglesData: {
@@ -29,21 +29,12 @@ describe('CephaloAnalysisWorkbenchPanel R19 contract', () => {
     });
     try {
       render(<CephaloAnalysisWorkbenchPanel P={P} analysis="com" />);
-      const first = screen.getByRole('button', { name: 'Sélectionner la mesure Surplomb' });
-      const second = screen.getByRole('button', { name: 'Sélectionner la mesure Recouvrement' });
-      expect(first.getAttribute('aria-pressed')).toBe('true');
-      expect(second.getAttribute('aria-pressed')).toBe('false');
-      expect(first.closest('tr')?.hasAttribute('tabindex')).toBe(false);
-      fireEvent.mouseEnter(first.closest('tr')!);
-      expect(first.getAttribute('aria-pressed')).toBe('true');
-      expect(second.getAttribute('aria-pressed')).toBe('false');
-      fireEvent.focus(second);
-      expect(second.getAttribute('aria-pressed')).toBe('true');
-      expect(first.getAttribute('aria-pressed')).toBe('false');
-      expect(document.querySelector('[data-r19-measure-detail="Recouvrement"]')).toBeTruthy();
-      fireEvent.click(first);
-      expect(first.getAttribute('aria-pressed')).toBe('true');
-      expect(document.querySelector('[data-r19-measure-detail="Surplomb"]')).toBeTruthy();
+      expect(document.querySelector('[data-r23g2-protocol-id="UNVERIFIED"]')).toBeTruthy();
+      expect(screen.getByText(/Profil non vérifié/)).toBeTruthy();
+      expect(document.querySelectorAll('[data-r23g2-measurement-id]')).toHaveLength(0);
+      expect(document.querySelector('[data-r19-measure-detail]')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Sélectionner la mesure Surplomb' })).toBeNull();
+      expect(screen.queryByText('2,2')).toBeNull();
     } finally {
       useOrthoStore.setState({ anglesData: previous });
     }

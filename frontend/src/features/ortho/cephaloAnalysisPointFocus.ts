@@ -36,7 +36,13 @@ export const countDefaultVisiblePointMarkers = (
   contract: CephaloAnalysisPointContract,
   presentIds: readonly string[],
 ): number => {
-  if (!contract.ids) return presentIds.length;
+  if (!contract.ids) {
+    // COM source N/A/B are represented by construction glyphs rather than
+    // duplicate editable dots; keep the counter aligned with rendered markers.
+    if (mode !== 'com') return presentIds.length;
+    const constructionOnly = new Set<string>([...CEPHALO_COM_CONSTRUCTION_ONLY_IDS, 'Nasion', 'Point_A', 'Point_B']);
+    return presentIds.filter(id => !constructionOnly.has(id)).length;
+  }
   const allowed=new Set(contract.ids);
   const hiddenConstructionIds=mode==='com' ? new Set<string>(CEPHALO_COM_CONSTRUCTION_ONLY_IDS) : null;
   return presentIds.filter(id=>allowed.has(id)&&!hiddenConstructionIds?.has(id)).length;
