@@ -64,6 +64,12 @@ const report = {
   actualClinicalBackend: 'REAL_LOCAL_FASTAPI_SYNTHETIC_DB',
   apiMockCount: 0,
   roleProof:{s05:'NOT_RUN',s06:'NOT_RUN'},
+  uiLogin:{
+    status:'NOT_RUN', browserProfileFresh:true,stationCookieOnly:false,
+    preLoginAuthStorageEmpty:false,loginResponseStatus:null,
+    postLoginTokenPresent:false, dashboardVisible:false,
+    elapsedToUsefulMs:null,
+  },
   firstValue:{status:'NOT_RUN',elapsedMs:null,clicks:0,typedAnswers:0,httpStatuses:[],noActionId:false},
   clinicalState:'NOT_PROVEN',
   speechHardwareAudioRecording: 'NOT_RUN',
@@ -336,18 +342,64 @@ try {
       report.clinicalWritesAttempted.push(req.method()+' '+p);
   });
   // NO page.route API mocking: every /api request reaches the real T2 FastAPI.
-  if(!apiStaff)throw new Error('REFUSED: no role-scoped FastAPI authentication');
+  // First-use FUE must go through LoginPage as a real new user. The owner
+  // enrolled the synthetic workstation through the normal backend protocol;
+  // copy ONLY its HttpOnly station cookie, never the staff access token,
+  // refresh token, auth cookie or Zustand/localStorage. The staff API context
+  // above exists solely for role/tenant negative probes; it is not browser auth.
+  if(!apiStaff || !staffToken)throw new Error('REFUSED: no role-scoped FastAPI preflight');
   const staffState=await apiStaff.storageState();
-  if(staffState.cookies.filter(c=>c.name==='access_token').length!==1
-      || staffState.cookies.filter(c=>c.name==='dc_workstation').length!==1)
-    throw new Error('REFUSED: wrong staff+station cookies');
-  await browser.addCookies(staffState.cookies);
-  await browser.addInitScript(token=>{
-    localStorage.setItem('token',token);
-    localStorage.setItem('appMode','prod');
-  },staffToken);
-  await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000});
-  if(new URL(page.url()).pathname!=='/dashboard')throw new Error('FAIL: real MainLayout session redirected');
+  if(staffState.cookies.filter(c=>c.name==='dc_workstation').length!==1)
+    throw new Error('REFUSED: missing synthetic workstation cookie');
+  if(stationCookies.length!==1
+      || stationCookies[0].name!=='dc_workstation'
+      || stationCookies[0].httpOnly!==true)
+    throw new Error('REFUSED: unexpected synthetic enrollment cookies');
+  if((await browser.cookies()).some(c=>
+       ['access_token','refresh_token','dc_workstation'].includes(c.name)))
+    throw new Error('REFUSED: persistent Chromium profile not virgin');
+  await browser.addCookies(stationCookies);
+  const browserCookies=await browser.cookies(apiOrigin);
+  if(browserCookies.length!==1 || browserCookies[0].name!=='dc_workstation')
+    throw new Error('REFUSED: pre-login browser has other cookies');
+  report.uiLogin.stationCookieOnly=true;
+  const uiLoginStartedAt=performance.now();
+  await page.goto(origin+'/login',{waitUntil:'domcontentloaded',timeout:45000});
+  await page.locator('input[type=email]').waitFor({state:'visible',timeout:30000});
+  const initialAuth=await page.evaluate(()=>({
+    tokenPresent:!!localStorage.getItem('token'),
+    refreshPresent:!!localStorage.getItem('refresh_token'),
+    zustandPresent:!!localStorage.getItem('auth-storage'),
+  }));
+  if(initialAuth.tokenPresent||initialAuth.refreshPresent||initialAuth.zustandPresent)
+    throw new Error('REFUSED: browser auth storage not virgin before UI login');
+  if(new URL(page.url()).pathname!=='/login')
+    throw new Error('REFUSED: public LoginPage not presented to fresh browser');
+  report.uiLogin.preLoginAuthStorageEmpty=true;
+  await page.screenshot({path:path.join(out,'cb01-fueg-ui-login-before.png')});
+  report.screenshots.push('cb01-fueg-ui-login-before.png');
+  const browserLoginResponse=page.waitForResponse(resp=>{
+    const u=new URL(resp.url());
+    return u.hostname==='127.0.0.1'
+      && u.pathname==='/api/auth/login'
+      && resp.request().method()==='POST';
+  },{timeout:45000});
+  await page.locator('input[type=email]').fill(process.env.T2_S05_USER);
+  await page.locator('input[type=password]').fill(process.env.T2_S05_PASSWORD);
+  await page.getByRole('button',{name:'Se connecter',exact:true}).click();
+  const loginResult=await browserLoginResponse;
+  report.uiLogin.loginResponseStatus=loginResult.status();
+  if(loginResult.status()!==200)
+    throw new Error('FAIL: actual browser login denied '+loginResult.status());
+  await page.waitForURL(u=>new URL(u).pathname==='/dashboard',{timeout:45000});
+  const afterLogin=await page.evaluate(()=>({
+    tokenPresent:!!localStorage.getItem('token'),
+  }));
+  if(!afterLogin.tokenPresent)
+    throw new Error('FAIL: UI LoginPage did not establish a session');
+  report.uiLogin.postLoginTokenPresent=true;
+  if(new URL(page.url()).pathname!=='/dashboard')
+    throw new Error('FAIL: real MainLayout session redirected');
   try {
     await page.locator('main').first().waitFor({state:'visible',timeout:30000});
   } catch(err) {
@@ -376,6 +428,8 @@ try {
     throw Error('NOT_CERTIFIED: real Cabinet MainLayout did not mount; '+
       JSON.stringify(report.frontendStartup));
   }
+  report.uiLogin.dashboardVisible=true;
+  report.uiLogin.status='PASS_REAL_LOGINPAGE_POST_200_FRESH_BROWSER';
   const launcher=page.getByRole('button',{name:'Ouvrir CrownBot'});
   await launcher.waitFor({state:'visible',timeout:30000});
   await page.screenshot({path:path.join(out,'cb01-fueg-dashboard-before.png')});
@@ -669,6 +723,10 @@ try {
     throw Error('FAIL: incomplete FUE-G FastAPI response chain');
   report.firstValue={status:'PASS_REAL_FASTAPI_PROPOSAL_ONLY_VISIBLE_AT_NATIVE_200',
     elapsedMs,clicks:8,typedAnswers:6,httpStatuses:requestStatuses,noActionId:true};
+  report.uiLogin.elapsedToUsefulMs=Math.round(performance.now()-uiLoginStartedAt);
+  if(report.uiLogin.status!=='PASS_REAL_LOGINPAGE_POST_200_FRESH_BROWSER'
+      ||report.uiLogin.elapsedToUsefulMs<=elapsedMs)
+    throw Error('FAIL: first value not causally downstream of genuine UI login');
   report.zoomAfterFUE=await readNativeZoom(zoomWorker);
   if(report.zoomAfterFUE.tabId!==report.zoomAtSpeech.tabId
        ||Math.abs(report.zoomAfterFUE.observed-2)>0.01)
