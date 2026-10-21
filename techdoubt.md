@@ -1,3 +1,7 @@
+### LOT05 / 05.7-J10D — 2026-10-21 — Targeted CI permission fixture regression (OPEN until new SHA CI)
+
+Targeted run https://github.com/hraaaaf/Digital_crown/actions/runs/39668033171 at HEAD a654f2b returned 40 PASS, 2 FAIL. Both were pre-existing positive imaging storage tests (test_radio_read_uses_external_storage_after_tenant_guard[radios], test_radio_read_preserves_legacy_storage) that invoked serve_radios with MagicMock users lacking the required cephalo permission. Backend serve_radios correctly denied 403 before tenant lookup; production authorization code was NOT changed. Tests now explicitly grant mocked cephalo permission only in their positive storage setup, plus a negative regression asserting 403 precedes tenant/file access for permissionless users. This is a fixture correction, not proof of real-auth production media permission. Keep genuine authorization gate intact. New HEAD CI unverified.
+
 ### LOT05 / 05.7-J10D — 2026-10-21 — Targeted scientific CI and installer completeness (OPEN)
 
 PR #1004 retains SRPose38 as the only cephalometric weight. Production asset selector v2 now allowlists only srpose38-tta-1024.onnx and panoramic_model.onnx, with synthetic selection and completeness tests. V1.5 installable certification now fails if panoramic has no canonical path, byte size and SHA-256 in the scientific registry, or is absent from the bundle. This is deliberate release fail-closed, NOT scientific validation or proof the panoramic binary exists.
