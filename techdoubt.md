@@ -1,3 +1,9 @@
+## CEPH-FAC-PARITY / P2ter++ — PR #994 master-scoped scientific test compatibility (2026-10-21)
+
+**Reservation OPEN until exact final HEAD CI and owner visual approval.** On candidate PR #994 the synthetic _read helper (backend/tests/p2ter_bridge_synthetic_support.py) was bound to the actual master projection set steiner and tweed_merrifield with exact-set fail-closed checks and per-row nonclassification/evidence checks. It rejects unexpected profiles, including mcnamara, ricketts_atlas2009, ricketts_gregoret13, com. The inherited assertions of 13/33/13/10 rows belong to the unmerged R23 clinical source branch and are **NOT VERIFIED by this bridge**. No profile, clinical formula, norm, anatomical HOLD or clinical activation was imported or enabled. This adaptation is not proof of clinical correctness or parity of these four absent profiles. A green backend CI proves only scoped selected-study JWT/identity/revision/PDF/archive/negative protections.
+
+**Outstanding:** all three formerly interrupted PDF/revision tests must actually finish on final HEAD; confirm authenticated FUE-I, R15/R15bis, frontend, Windows, scope, portability and applicable REQUIRED CI; the human AFTER review and authorized owner visual attestation for this PR are separate gates. No automatic label, trusted-gate bypass, Vercel deployment or medical clinical release. Prior physical NTFS/SCM/PG multiprocess/startup reservations stay OPEN. Keep DRAFT / NO-GO if any required gate red or owner approval missing.
+
 # TECHDOUBT — Digital Crown
 
 ## PROCESS-AUTOPILOT / 2026-10-20 — Réserve de gouvernance OPEN
