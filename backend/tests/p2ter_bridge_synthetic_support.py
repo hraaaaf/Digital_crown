@@ -1,8 +1,10 @@
-"""Synthetic P2ter++ HTTP fixtures preserved from source tests, NO CLINICAL AUTHORITY.
+"""Synthetic P2ter++ HTTP fixtures, with a strict master-scoped science contract.
 
-Bridge-only test support: no scientific algorithm code is imported from the
-unmerged R23 clinical branches. Assertions in _read are preserved verbatim;
-a missing protocol or source evidence must fail, not be mocked away.
+This bridge certifies study identity, revision, PDF and archive behavior against
+the current master runtime; it DOES NOT certify unmerged R23 scientific profiles.
+Their original 13/33/13/10 assertions remain owned by the upstream clinical
+branch and must pass there before any clinical activation. Here, unexpected
+activation of any of those profiles is a hard failure, not an assumed PASS.
 """
 from __future__ import annotations
 from datetime import datetime
@@ -13,7 +15,15 @@ from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY, build_
 from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
 
 PATH = "/api/ia/analyses/"
-PROFILES = {"mcnamara": 13, "ricketts_atlas2009": 33, "ricketts_gregoret13": 13, "com": 10}
+# Exact science surface currently exposed by master/cephalo_runtime_chain.py.
+# Do not expand this allowlist without a new scientific source/clinical review.
+MASTER_BRIDGE_PROFILES = frozenset({"steiner", "tweed_merrifield"})
+UNMERGED_R23_PROFILES = {
+    "mcnamara": 13,
+    "ricketts_atlas2009": 33,
+    "ricketts_gregoret13": 13,
+    "com": 10,
+}
 
 def _jwt(client, dentist):
     login = client.post(
@@ -70,10 +80,19 @@ def _read(client, analysis_id, headers):
     assert scientific["authority"] == "EVIDENCE_GRAPH_V1"
     assert scientific["active_chain"] == "VERIFIED"
     assert scientific["current_landmark_count"] == 38
-    for name, size in PROFILES.items():
-        protocol = scientific["protocol_profiles"][name]
-        assert len(protocol["rows"]) == size
-        assert protocol["classification_authority"] is False
+    profiles = scientific["protocol_profiles"]
+    assert isinstance(profiles, dict)
+    # Fail closed on a missing/extra master profile or silent R23 activation.
+    assert set(profiles) == MASTER_BRIDGE_PROFILES, (
+        "Unexpected master scientific profile surface; needs separate clinical review",
+        sorted(profiles),
+    )
+    assert set(profiles).isdisjoint(UNMERGED_R23_PROFILES)
+    for name in sorted(MASTER_BRIDGE_PROFILES):
+        protocol = profiles[name]
+        assert protocol["source_lock_gate"]["status"] == "SATISFIED"
+        assert protocol.get("classification_authority", False) is False
+        assert isinstance(protocol["rows"], list) and protocol["rows"]
         for row in protocol["rows"]:
             assert row["classification_authority"] is False
             if row["availability_status"] != "AVAILABLE":
