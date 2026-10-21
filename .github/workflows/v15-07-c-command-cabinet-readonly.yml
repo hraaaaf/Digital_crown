@@ -1,0 +1,74 @@
+name: LOT07 07-C Command Cabinet read-only contract
+# Only verifies the opt-in dev laboratory. No real Cabinet/T2 FUE or activation.
+on:
+  push:
+    branches:
+      - 'feat/lot07-07c-command-cabinet-readonly-*'
+    paths:
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/features/command/CommandCabinetReadOnlyRoute*'
+      - 'frontend/src/features/command/CommandWindowsNativeZoomHarness.tsx'
+      - 'frontend/src/features/dashboard/**'
+      - 'frontend/src/features/agenda/PendingRequestCard*'
+      - 'frontend/src/components/Layout/MainLayout.tsx'
+      - 'backend/routers/appointments.py'
+      - '.github/workflows/v15-07-c-windows-native-zoom.yml'
+      - 'frontend/scripts/certify-lot07-windows-native-zoom.mjs'
+      - 'frontend/07c-windows-native-zoom.html'
+      - 'frontend/src/features/command/command-cabinet-readonly-*'
+      - 'frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs'
+      - 'techdoubt.md'
+      - '.github/workflows/v15-07-c-command-cabinet-readonly.yml'
+      - '.github/workflows/v15-07-c-command-cabinet-fue-g-t2.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: command-cabinet-readonly-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  readonly-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SOURCE_HEAD: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Confirm exact HEAD and hard closed production flag
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -f frontend/src/features/command/CommandCabinetReadOnlyRoute.tsx
+          test -f frontend/src/features/command/command-cabinet-readonly-policy.ts
+          if grep -Eq 'VITE_COMMAND_CABINET_LAB=true' frontend/.env.production frontend/.env 2>/dev/null; then
+            echo "Forbidden default activation"; exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Check real Cabinet browser harness syntax without running a mock browser
+        run: node --check frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs
+      - name: Execute 07-C negative RBAC, identity, error, lab and no-write assertions
+        working-directory: frontend
+        run: npx vitest run src/features/command/CommandCabinetReadOnlyRoute.test.tsx src/features/dashboard/components/WaitingRoomWallCall.test.tsx src/features/dashboard/hooks/useTodayAppointments.07c.test.tsx src/features/agenda/PendingRequestCard.07c.test.tsx
+      - name: Typecheck current frontend sources
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Confirm no Command Lab in production bundle
+        working-directory: frontend
+        env:
+          VITE_COMMAND_CABINET_LAB: 'true'
+        run: |
+          set -euo pipefail
+          npx vite build --mode production
+          test -f dist/index.html
+          test ! -e dist/07c-windows-native-zoom.html
+          test ! -e dist/src/features/command/CommandWindowsNativeZoomHarness.js
+          echo "Lab route is guarded by import.meta.env.DEV == false in production; synthetic Windows evidence harness is absent from production."

@@ -8,6 +8,7 @@ import { API_BASE } from './services/api';
 import { safeStorage } from './hooks/useLocalStorage';
 import { useAuthStore } from './stores/useAuthStore';
 import { hasAccess } from './utils/accessControl';
+import { isCommandCabinetLabEnabled } from './features/command/command-cabinet-readonly-policy';
 import { canViewMigrationStudio } from './features/admin/migration/MappingStudioPolicy';
 
 // Chargés immédiatement (première interaction utilisateur)
@@ -28,6 +29,7 @@ const AddPatientForm  = lazy(() => import('./features/patients/AddPatientForm').
 const EditPatientForm = lazy(() => import('./features/patients/EditPatientForm').then(m => ({ default: m.EditPatientForm })));
 const PatientDocuments = lazy(() => import('./features/patients/PatientDocuments').then(m => ({ default: m.PatientDocuments })));
 const AgendaPage      = lazy(() => import('./pages/AgendaPage').then(m => ({ default: m.AgendaPage })));
+const CommandCabinetReadOnlyRoute = lazy(() => import('./features/command/CommandCabinetReadOnlyRoute').then(m => ({ default: m.CommandCabinetReadOnlyRoute })));
 const AccountingPage  = lazy(() => import('./pages/AccountingPage').then(m => ({ default: m.AccountingPage })));
 const Settings        = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const MigrationMappingStudio = lazy(() => import('./features/admin/migration/MigrationMappingStudio').then(m => ({ default: m.MigrationMappingStudio })));
@@ -267,6 +269,10 @@ const ProtectedRoutes = () => {
           <Route path="/cabinet" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/agenda" element={<PermissionRoute permission="agenda"><AgendaPage /></PermissionRoute>} />
+          {/* LOT07/07-C opt-in dev laboratory only. Parent auth + workstation gates remain mandatory. */}
+          {isCommandCabinetLabEnabled(import.meta.env.DEV, import.meta.env.VITE_COMMAND_CABINET_LAB) && (
+            <Route path="/command-cabinet-lab" element={<PermissionRoute permission="agenda"><CommandCabinetReadOnlyRoute /></PermissionRoute>} />
+          )}
           <Route path="/accounting" element={<PermissionRoute permission="accounting"><AccountingPage /></PermissionRoute>} />
           <Route path="/patients" element={<PermissionRoute permission="patients"><PatientList /></PermissionRoute>} />
           <Route path="/patients/new" element={<PermissionRoute permission="patients"><AddPatientForm /></PermissionRoute>} />

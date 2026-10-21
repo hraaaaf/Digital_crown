@@ -1,0 +1,191 @@
+name: LOT07 07-C Command real Cabinet T2 browser FUE-G
+
+on:
+  push:
+    branches:
+      - 'feat/lot07-07c-command-cabinet-readonly-*'
+    paths:
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/features/command/**'
+      - 'frontend/src/features/dashboard/**'
+      - 'frontend/src/components/Layout/MainLayout.tsx'
+      - 'backend/routers/appointments.py'
+      - 'backend/routers/frontdesk.py'
+      - 'techdoubt.md'
+      - '.github/workflows/v15-07-c-windows-native-zoom.yml'
+      - 'frontend/scripts/certify-lot07-windows-native-zoom.mjs'
+      - 'frontend/07c-windows-native-zoom.html'
+      - 'frontend/scripts/certify-lot07-command-cabinet-fue-g-t2.mjs'
+      - '.github/workflows/v15-07-c-command-cabinet-fue-g-t2.yml'
+      - '.github/workflows/v15-07-c-command-cabinet-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-command-t2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-cabinet-command:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: lot07-fue-g-isolated-not-production-key-0001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      TZ: Africa/Casablanca
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      VITE_COMMAND_CABINET_LAB: 'true'
+      EVALUATED_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+      - name: Confirm this is the exact approved 07-C branch/HEAD and disposable T2
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EVALUATED_SHA"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check changed 07-C backend router syntax before boot
+        run: python -m py_compile backend/routers/appointments.py backend/routers/frontdesk.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate ephemeral masked credential
+        shell: bash
+        run: |
+          pw="$(python -c 'import secrets;print(secrets.token_urlsafe(28))')"
+          echo "::add-mask::$pw"
+          echo "T2_PASSWORD=$pw" >> "$GITHUB_ENV"
+      - name: Install backend CPU-only dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/lot07-fue-g-deps.txt
+          pip install -r /tmp/lot07-fue-g-deps.txt
+          python -m pip check
+      - name: Install locked frontend + Playwright ephemeral browser
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --check scripts/certify-lot07-command-cabinet-fue-g-t2.mjs
+      - name: Boot real backend.main against clean isolated SQLCipher T2
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/lot07-command-t2-backend.log 2>&1 &
+          for i in {1..90}; do
+            curl -fsS http://127.0.0.1:8005/health >/dev/null && exit 0
+            sleep 1
+          done
+          tail -n 120 /tmp/lot07-command-t2-backend.log
+          exit 1
+      - name: Seed disposable multi-actor multi-cabinet appointments ONLY
+        env:
+          # t2_runtime_server.py overrides SECRET_KEY for its isolated encrypted DB.
+          SECRET_KEY: t2-runtime-certification-secret-key-000001
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime
+          assert os.environ.get('ENVIRONMENT') == 'test'
+          assert os.environ.get('DIGITALCROWN_ISOLATED_RUNTIME') == '1'
+          assert os.environ.get('DATABASE_URL') == 'sqlite:///./t2-runtime-cert.db'
+          from backend import database, models
+          from backend.security import get_password_hash
+          with database.SessionLocal() as db:
+              owner = db.query(models.User).filter_by(email='t2-browser@cabinet.ma').one()
+              patient = db.query(models.Patient).filter_by(employer_id=owner.id, numero_dossier='T2-0001').one()
+              day = datetime.now().replace(hour=9, minute=15, second=0, microsecond=0)
+              assert not db.query(models.Appointment).filter_by(patient_name='T2 COMMAND SYNTHETIC').first()
+              db.add(models.Appointment(
+                  patient_id=patient.id, patient_name='T2 COMMAND SYNTHETIC', datetime_start=day,
+                  duration_minutes=30, status=models.AppointmentStatus.EN_SALLE_ATTENTE,
+                  scheduling_type=models.SchedulingType.EXACT_TIME, employer_id=owner.id,
+                  praticien_id=owner.id, source='internal',
+                  motif='T2_PRIVATE_MOTIF_CANARY', notes='T2_PRIVATE_NOTE_CANARY', phone='0600000000',
+              ))
+              denied = models.User(
+                  email='t2-command-denied@cabinet.ma',
+                  hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
+                  role=models.UserRole.SECRETAIRE, nom_complet='Synthetic No Agenda',
+                  employer_id=owner.id, permissions={'agenda':False,'patients':False},
+                  is_active=True, is_licensed=True,
+                  approval_status=models.ApprovalStatus.APPROVED.value,
+              )
+              db.add(denied)
+              other = models.User(
+                  email='t2-command-other-owner@cabinet.ma',
+                  hashed_password=get_password_hash(os.environ['T2_PASSWORD']),
+                  role=models.UserRole.DENTISTE, nom_complet='Synthetic Other Cabinet',
+                  is_active=True, is_licensed=True,
+                  approval_status=models.ApprovalStatus.APPROVED.value,
+              )
+              db.add(other)
+              db.flush()
+              db.add(models.CabinetConfig(
+                  owner_id=other.id, nom_cabinet='Other T2 Isolated Cabinet',
+                  nom_praticien='Other T2', is_initialized=True,
+                  hide_header=False, hide_footer=False,
+              ))
+              db.add(models.Appointment(
+                  patient_name='OTHER CABINET SYNTHETIC', datetime_start=day,
+                  duration_minutes=30, status=models.AppointmentStatus.PREVU,
+                  scheduling_type=models.SchedulingType.EXACT_TIME,
+                  employer_id=other.id, praticien_id=other.id, source='internal',
+              ))
+              db.commit()
+              print('LOT07_T2_DISPOSABLE_APPOINTMENTS_READY', flush=True)
+          PY
+      - name: Boot actual Vite React App with explicit dev-only Command lab
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/lot07-command-t2-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0
+            sleep 1
+          done
+          tail -n 120 /tmp/lot07-command-t2-vite.log
+          exit 1
+      - name: Real owner restricted and denied UI logins, API parity, tenant, 423, screenshots
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/certify-lot07-command-cabinet-fue-g-t2.mjs
+          test -s ../artifacts/lot07-07c-command-cabinet-fue-g/report.json
+          node -e 'const r=require("../artifacts/lot07-07c-command-cabinet-fue-g/report.json");if(!r.pass||r.sha!==process.env.EVALUATED_SHA||r.backendMocked||r.clinicalProductionData||r.commandRelease||r.nativeZoom200||r.humanVisualApproval)process.exit(1)'
+      - name: Bounded diagnostics ONLY upon failure
+        if: failure()
+        run: |
+          tail -n 100 /tmp/lot07-command-t2-backend.log 2>/dev/null || true
+          tail -n 100 /tmp/lot07-command-t2-vite.log 2>/dev/null || true
+      - name: Upload synthetic screenshots/report, never credentials or DB
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-07c-command-real-cabinet-t2-${{ github.sha }}
+          path: artifacts/lot07-07c-command-cabinet-fue-g
+          if-no-files-found: warn
+          retention-days: 14

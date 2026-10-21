@@ -1,0 +1,80 @@
+name: LOT07 07-C Windows native Chromium 200 zoom
+on:
+  push:
+    branches:
+      - 'feat/lot07-07c-command-cabinet-readonly-*'
+    paths:
+      - 'frontend/07c-windows-native-zoom.html'
+      - 'frontend/src/features/command/CommandWindowsNativeZoomHarness.tsx'
+      - 'frontend/src/features/command/**'
+      - 'frontend/src/features/command/command-cabinet-readonly-policy.ts'
+      - 'frontend/src/features/dashboard/normalizeCabinetAppointments.ts'
+      - 'frontend/src/components/Layout/MainLayout.tsx'
+      - 'frontend/scripts/certify-lot07-windows-native-zoom.mjs'
+      - '.github/workflows/v15-07-c-windows-native-zoom.yml'
+      - 'techdoubt.md'
+      - '.github/workflows/v15-07-c-command-cabinet-fue-g-t2.yml'
+      - '.github/workflows/v15-07-c-command-cabinet-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot07-command-native-windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-native-browser:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      EVALUATED_SHA: ${{ github.sha }}
+      VITE_COMMAND_CABINET_LAB: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+      - name: Verify exact source SHA and isolated synthetic test inputs
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:EVALUATED_SHA) { throw "SHA mismatch" }
+          if (!(Test-Path frontend/07c-windows-native-zoom.html)) { throw "Fixture missing" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend and headed Chromium on real Windows
+        shell: pwsh
+        run: |
+          npm ci --prefix frontend --no-audit --no-fund
+          npm install --prefix frontend --no-save --no-package-lock playwright@1.56.1
+          Push-Location frontend
+          npx playwright install chromium
+          node --check scripts/certify-lot07-windows-native-zoom.mjs
+          Pop-Location
+      - name: Run real Windows browser-native Ctrl-plus zoom, fail closed at less than 200 percent
+        shell: pwsh
+        run: |
+          $ui = Start-Process -FilePath "npm.cmd" -ArgumentList @("run","dev","--","--host","127.0.0.1","--port","5173") -WorkingDirectory "frontend" -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 75; $i++) {
+              try {
+                $response = Invoke-WebRequest -Uri "http://127.0.0.1:5173/07c-windows-native-zoom.html" -TimeoutSec 3 -UseBasicParsing
+                if ($response.StatusCode -eq 200) { $ready = $true; break }
+              } catch { Start-Sleep -Seconds 1 }
+            }
+            if (-not $ready) { throw "Vite Windows fixture not available" }
+            Push-Location frontend
+            try { node scripts/certify-lot07-windows-native-zoom.mjs; if ($LASTEXITCODE -ne 0) { throw "Native zoom FUE failed" } }
+            finally { Pop-Location }
+          } finally {
+            Stop-Process -Id $ui.Id -Force -ErrorAction SilentlyContinue
+          }
+      - name: Upload actual Windows headed native-zoom attempt only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-07c-windows-native-zoom-${{ github.sha }}
+          path: artifacts/lot07-07c-windows-native-zoom
+          if-no-files-found: warn
+          retention-days: 14
