@@ -54,6 +54,40 @@ class RuntimeAssetCertificationError(RuntimeError):
     """Raised when runtime assets cannot be proven immutable/compatible."""
 
 
+V15_REQUIRED_RUNTIME_MODELS = {
+    "cephalo_sota": "backend/ai_models/srpose38-tta-1024.onnx",
+    "panoramic": "backend/ai_models/panoramic_model.onnx",
+}
+
+
+def require_v15_installable_model_coverage(registry: dict[str, Any], paths: set[str]) -> None:
+    """Refuse a feature-complete installable if a required model is unpinned/absent.
+
+    Legacy generic certificate fixtures have no cephalo_sota entry and are
+    intentionally outside this V1.5-specific compatibility gate.
+    """
+    assets = registry.get("assets", [])
+    by_id = {item.get("id"): item for item in assets if isinstance(item, dict)}
+    if "cephalo_sota" not in by_id:
+        return
+
+    for asset_id, canonical in V15_REQUIRED_RUNTIME_MODELS.items():
+        item = by_id.get(asset_id)
+        if not isinstance(item, dict):
+            raise RuntimeAssetCertificationError(f"V1.5 required model not registered: {asset_id}")
+        if (
+            item.get("canonical_path") != canonical
+            or not isinstance(item.get("sha256"), str)
+            or not _DIGEST_RE.fullmatch(item["sha256"].lower())
+            or not isinstance(item.get("size_bytes"), int)
+            or isinstance(item.get("size_bytes"), bool)
+            or item["size_bytes"] <= 0
+        ):
+            raise RuntimeAssetCertificationError(f"V1.5 required model not scientifically pinned: {asset_id}")
+        if canonical not in paths:
+            raise RuntimeAssetCertificationError(f"V1.5 required model missing from bundle: {asset_id}")
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -186,7 +220,6 @@ def verify_runtime_assets(
         raise RuntimeAssetCertificationError("Runtime assets are not certified for this exact code SHA")
 
     registry, actual_registry_digest = _load_scientific_registry(release_root)
-    del registry
     registry_digest = str(payload.get("scientific_assets_registry_sha256", "")).strip().lower()
     if (
         registry_digest != expected_registry_sha256.lower()
@@ -228,6 +261,8 @@ def verify_runtime_assets(
             if sha256_file(path) != expected_digest:
                 raise RuntimeAssetCertificationError(f"Runtime asset changed: {relative}")
             total_bytes += path.stat().st_size
+
+    require_v15_installable_model_coverage(registry, manifest_relpaths)
 
     if require_files:
         ai_models_root = release_root / "backend" / "ai_models"
