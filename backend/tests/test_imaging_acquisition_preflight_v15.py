@@ -229,6 +229,7 @@ def test_real_synthetic_hotfolder_preflight_remains_unconfirmed(
     authorize its transport; even an exact metadata match is not a receipt.
     """
     import base64
+    import json
 
     from tools.imaging_gateway import Config, HotFolder
 
@@ -240,9 +241,20 @@ def test_real_synthetic_hotfolder_preflight_remains_unconfirmed(
     incoming.mkdir()
     source = incoming / "fixture.png"
     source.write_bytes(fake_png)
+    # Exercise the actual background collector's .ready protocol, not only
+    # the legacy stability-only HotFolder mode.
+    source.with_name(source.name + ".ready").write_text(
+        json.dumps({
+            "version": 1,
+            "size": len(fake_png),
+            "sha256": hashlib.sha256(fake_png).hexdigest(),
+        }),
+        encoding="utf-8",
+    )
     agent = HotFolder(Config(
         "fixturecabinet", "fixturestation",
         incoming, tmp_path / "synthetic-private", b"k" * 32,
+        require_ready_manifest=True,
     ))
     assert agent.scan_once()["unstable"] == 1
     assert agent.scan_once()["staged"] == 1
