@@ -218,3 +218,75 @@ def test_repeated_preflight_never_creates_assets_or_receipts(client, db, dentist
     assert all(r.status_code == 200 for r in results)
     assert all(r.json()["receipt_id"] is None and not r.json()["upload_permitted"] for r in results)
     assert db.query(ClinicalAsset).count() == before
+
+
+def test_real_synthetic_hotfolder_preflight_remains_unconfirmed(
+    client, db, dentiste, auth_headers, monkeypatch, tmp_path
+):
+    """LOT06-B: a real encrypted LAB spool + staff preflight is NOT a transfer.
+
+    The preflight endpoint does not authenticate a local spool/producer or
+    authorize its transport; even an exact metadata match is not a receipt.
+    """
+    import base64
+
+    from tools.imaging_gateway import Config, HotFolder
+
+    fake_png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
+        "AAAAFklEQVR4nGPkEpFjYGBgYmBgYGBgAAAC5gBAXKUgWwAAAABJRU5ErkJggg=="
+    )
+    incoming = tmp_path / "synthetic-incoming"
+    incoming.mkdir()
+    source = incoming / "fixture.png"
+    source.write_bytes(fake_png)
+    agent = HotFolder(Config(
+        "fixturecabinet", "fixturestation",
+        incoming, tmp_path / "synthetic-private", b"k" * 32,
+    ))
+    assert agent.scan_once()["unstable"] == 1
+    assert agent.scan_once()["staged"] == 1
+    [item] = agent.items()
+    assert item["state"] == "PENDING_CONFIRMATION"
+    assert item["digest"] == hashlib.sha256(fake_png).hexdigest()
+    assert agent.read_verified(item["id"]) == fake_png
+
+    workstation = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, "BOUNDARY")
+    appointment = _rdv(db, dentiste.id, patient.id)
+    before_assets = db.query(ClinicalAsset).count()
+    proposal = _proposal(
+        workstation,
+        source_capture_id="fixturecapture" + item["digest"][:16],
+        sha256=item["digest"],
+        byte_size=item["size"],
+        mime_type=item["mime"],
+        patient_id=patient.id,
+        appointment_id=appointment.id,
+    )
+    for _ in range(3):
+        response = _post(client, auth_headers, proposal)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["status"] == "STAFF_CONFIRMATION_REQUIRED"
+        assert body["patient_id"] == patient.id
+        assert body["appointment_id"] == appointment.id
+        assert body["requires_staff_confirmation"] is True
+        assert body["upload_permitted"] is False
+        assert body["server_confirmed"] is False
+        assert body["receipt_id"] is None
+
+    # The current API has no cryptographically bound source/spool session:
+    # even attacker-supplied well-formed metadata must never become an ACK.
+    forged_metadata = {**proposal, "sha256": "f" * 64}
+    unbound = _post(client, auth_headers, forged_metadata)
+    assert unbound.status_code == 200, unbound.text
+    assert unbound.json()["upload_permitted"] is False
+    assert unbound.json()["server_confirmed"] is False
+    assert unbound.json()["receipt_id"] is None
+
+    assert db.query(ClinicalAsset).count() == before_assets
+    assert agent.items() == [item]
+    assert agent.audit(item["id"]) == ["PENDING_CONFIRMATION"]
+    assert agent.read_verified(item["id"]) == fake_png
+    assert source.read_bytes() == fake_png

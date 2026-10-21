@@ -1,5 +1,13 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-21 — LOT06-B boundary proof: encrypted hot-folder → Patient/RDV preflight is NOT server ingestion
+
+- **Verified source contract:** `tools/imaging_gateway/gateway.py` stores only a locally encrypted `PENDING_CONFIRMATION` item; `backend/routers/imaging_acquisition_preflight_v15.py` accepts metadata and a staff-authenticated workstation candidate in isolated TEST but returns `upload_permitted=false`, `server_confirmed=false`, `receipt_id=null`. `backend/routers/media_core.py` implements an existing separate authenticated `WEB_API` upload, **not** an authorized bridge transfer/receipt.
+- **LAB regression candidate:** `test_real_synthetic_hotfolder_preflight_remains_unconfirmed` stages and decrypt-verifies the genuine 2x2 synthetic PNG in an encrypted temporary spool, submits matching staff Patient/RDV metadata repeatedly to the real preflight HTTP route, and insists on no asset, no ACK and no queue mutation. It deliberately submits a **well-formed but unbound SHA-256** to prove that the current preview does not authenticate device/spool provenance and must NEVER be treated as confirmation.
+- **OPEN / required before any real integration:** a true capture/device authority and separate staff action; revalidate patient+RDV+tenant at point of write, authenticated bytes and digest from the trusted spool, idempotent durable server reservation/receipt linked to source capture and media asset, retry/rollback/audit without false success, and protected UI operator evidence. No such uploader or clinical staff-confirm route is authorized by the LAB patch. `techdoubt.md` status remains OPEN until exact HEAD CI proves the added regression. Windows SCM W01–W12, keys, physical devices and LOT10 untouched.
+
+
+
 ## 2026-10-20 LOT06-P/P2-F01 — Autopilot ready-manifest duplicate path guard
 
 **Finding/fix candidate (LAB only):** The encrypted `_decrypt` path already refuses noncanonical ledger blob names, but `_previous_ready_capture` reused an untrusted persisted SQLite `blob` to construct/stat a filesystem path without that check. An altered synthetic ledger plus an unrelated same-size file outside the private spool could make `scan_once` return `duplicate` without reading/authenticating any ciphertext. Patch: reject any blob not equal to recalculated `identity + ".dc6"` before touching the filesystem. One negative fixture corrupts the ledger, plants an external file, demands fail-closed refusal, and confirms no source/file/row mutation.
