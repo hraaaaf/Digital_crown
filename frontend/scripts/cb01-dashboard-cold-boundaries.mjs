@@ -29,7 +29,8 @@ export async function runCb01DashboardColdBoundaries({browser,origin,out,sourceH
         const detect=()=>{
           const main=document.querySelector('main');
           const bot=[...document.querySelectorAll('button')].some(b=>b.textContent?.includes('Ouvrir CrownBot'));
-          if(main||bot)window.__cb01MainSeen++;
+          // The public, data-free Hub legitimately renders <main>; count ONLY clinical Dashboard exposure.
+          if(location.pathname==='/dashboard'&&(main||bot))window.__cb01MainSeen++;
         };
         new MutationObserver(detect).observe(document,{childList:true,subtree:true});
       });
