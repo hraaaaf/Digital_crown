@@ -6,11 +6,12 @@ import { findR23G3PinnedRequirements } from './cephaloR23G3PinnedRequirements';
 const points = ['Co','Co_anatomic','Po','Po_anatomic','Pog','Pog_hard','Pt_Ricketts','PTM_McNamara','A','N','Or','Prn','Li_soft'].map(id => ({ id, x: 12, y: 20 })) as Landmark[];
 
 describe('R23-G3 strict anatomical identity and responsive source visibility', () => {
-  it('does not hide the full source landmarks for McNamara/Ricketts on legacy mobile or compact desktop', () => {
-    for (const mode of ['mcnamara','ricketts'] as const) {
+  it('preserves every source landmark in McNamara/Ricketts/COM until exact profile dependencies are proven', () => {
+    for (const mode of ['mcnamara','ricketts','com'] as const) {
       expect(filterCephaloAnalysisLandmarks(points, mode)).toEqual(points);
     }
-    expect(filterCephaloAnalysisLandmarks(points, 'com').length).toBeLessThan(points.length);
+    // Even a source not present in the old COM anchor whitelist stays visible.
+    expect(filterCephaloAnalysisLandmarks(points,'com').some(p=>p.id==='Po_anatomic')).toBe(true);
   });
   it('never substitutes generic Co for source-locked Co_anatomic', () => {
     const found = findR23G3PinnedRequirements('M_CO_A_MM_V1', ['Co','A']);

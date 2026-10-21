@@ -5,8 +5,10 @@ import { CephaloTracingLayer } from './CephaloTracingLayer';
 import type { Landmark } from './cephaloShared';
 
 const LANDMARKS: Landmark[] = [
-  { id: 'Po', x: 30, y: 40 }, { id: 'Or', x: 100, y: 42 },
+  { id: 'Po', x: 30, y: 40 }, { id: 'Po_anatomic', x: 28, y: 39 },
+  { id: 'Or', x: 100, y: 42 },
   { id: 'N', x: 130, y: 70 }, { id: 'Pog', x: 170, y: 175 },
+  { id: 'Pog_hard', x: 172, y: 174 },
   { id: 'S', x: 75, y: 65 }, { id: 'A', x: 140, y: 100 },
   { id: 'B', x: 155, y: 135 }, { id: 'Go', x: 35, y: 160 },
   { id: 'Me', x: 100, y: 200 },
