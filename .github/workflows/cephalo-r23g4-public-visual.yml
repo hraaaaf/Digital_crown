@@ -85,6 +85,7 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import {readFile,stat} from 'node:fs/promises';
+          import {createHash} from 'node:crypto';
           const baseline=process.env.G4_BEFORE_SHA;
           for(const id of ['anug','challiyan']){
             const reports={};
@@ -105,11 +106,17 @@ jobs:
                     if(state.rows!==expectedCount)throw Error(id+'/'+phase+':wrong profile rows');
                   }else {
                     if(state.rows!==10||state.variant!==(phase==='before'?'legacy':'canonical'))throw Error(id+'/'+phase+':wrong COM variant/rows');
-                    if(phase==='after'&&(state.handles!==35||state.glyphs!==3||state.legacyGeometry!==0||state.focus!=='not-authorized'))throw Error(id+'/'+phase+':COM unauthorized drawings');
+                    if(phase==='after'&&(state.handles!==35||state.glyphs!==3||state.legacyGeometry!==0||state.softTemplates!==0||state.visibleRows<4||state.focus!=='not-authorized'))
+                      throw Error(id+'/'+phase+':COM source/display/compact assertion');
                   }
                   const img=await stat(dir+state.filename);
                   const stage=await stat(dir+state.stageFilename);
                   if(img.size<10000||stage.size<10000)throw Error(id+'/'+phase+':radiograph or panel screenshot missing');
+                  if(state.kind==='com'){
+                    const [bytesA,bytesB]=await Promise.all([readFile(dir+state.filename),readFile(dir+state.stageFilename)]);
+                    const hash=b=>createHash('sha256').update(b).digest('hex');
+                    if(hash(bytesA)===hash(bytesB))throw Error(id+'/'+phase+':duplicate COM panel/radiograph screenshots');
+                  }
                 }
               }
               reports[phase]=r;

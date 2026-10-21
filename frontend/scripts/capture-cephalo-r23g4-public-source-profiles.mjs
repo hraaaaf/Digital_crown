@@ -221,22 +221,39 @@ async function capture(v){
   if(after){
     if(await com.getAttribute('data-r23g2-protocol-id')!==comId)fail('COM typed profile unverified');
     if(!(await com.locator('[data-r23g2-coverage]').innerText()).includes('0/10'))fail('COM unapproved AVAILABLE');
+    if(await com.getAttribute('data-r23g2-com-compact')!=='true')fail('COM compact evidence reader missing');
     await com.locator('[data-r23g3-focus-select]').first().click();
     if(await com.locator('[data-r23g3-focus-source="not-authorized"]').count()!==1)fail('COM false active Focus');
+    // Capture the collapsed readable overview, not a 500px technical expansion.
+    await com.locator('[data-r23g3-focus-select]').first().click();
+    if(await com.locator('[data-r23g3-focus-source]').count()!==0)fail('COM collapsed source detail still shown');
     const values=await com.locator('tbody tr td:first-of-type').allTextContents();
     if(values.length!==10||values.some(x=>x.trim()!=='NC'))fail('COM unapproved numeric fallback');
     const handles=await page.locator('[data-ceph03b-drag-handle]').count();
     const glyphs=await page.locator('[data-r19-point="N"],[data-r19-point="A"],[data-r19-point="B"]').count();
     const legacyGeometry=await page.locator('[data-r19-construction^="com-"]').count();
-    if(handles!==35||glyphs!==3||legacyGeometry!==0)fail('COM leaked old geometry '+JSON.stringify({handles,glyphs,legacyGeometry}));
-    extra={handles,glyphs,legacyGeometry,focus:'not-authorized'};
+    const softTemplates=await page.locator('[data-ortho-layer="soft_tissue"]').count();
+    const visibleRows=await com.locator('[data-r23g2-measurement-id]').evaluateAll(rows => {
+      const scroll=rows[0]?.closest('.overflow-y-auto');
+      if(!scroll)return 0;
+      const bounds=scroll.getBoundingClientRect();
+      return rows.filter(row => {
+        const box=row.getBoundingClientRect();
+        return box.bottom>bounds.top && box.top<bounds.bottom;
+      }).length;
+    });
+    if(handles!==35||glyphs!==3||legacyGeometry!==0||softTemplates!==0||visibleRows<4)
+      fail('COM compact/source geometry boundary '+JSON.stringify({handles,glyphs,legacyGeometry,softTemplates,visibleRows}));
+    extra={handles,glyphs,legacyGeometry,softTemplates,visibleRows,focus:'not-authorized'};
   }
-  await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
+  // Two distinct element targets: no two labels for identical viewport PNG bytes.
+  const stage=page.locator('[data-r20-radiograph-stage]');
+  await stage.scrollIntoViewIfNeeded();
   const stageFilename=phase.toLowerCase()+'-com-'+variant+'-radiograph-'+viewportName+'.png';
-  await page.screenshot({path:path.join(out,stageFilename),fullPage:false});
+  await stage.screenshot({path:path.join(out,stageFilename)});
   await com.scrollIntoViewIfNeeded();
   const filename=phase.toLowerCase()+'-com-'+variant+'-'+viewportName+'.png';
-  await page.screenshot({path:path.join(out,filename),fullPage:false});
+  await com.screenshot({path:path.join(out,filename)});
   states.push({kind:'com',variant,rows:count,...extra,filename,stageFilename,valid:true});
   if(errors.length)fail('Page errors: '+errors.join(' | ').slice(0,1200));
   return{viewportName,decoded,valid:true,states,pageErrors:errors};

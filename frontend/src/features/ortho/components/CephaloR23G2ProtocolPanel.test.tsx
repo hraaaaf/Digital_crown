@@ -116,6 +116,56 @@ describe('R23-G2 full read-only profile tables', () => {
     }
   });
 
+  it('clears active COM Focus when typed evidence changes without changing factor or landmark names', () => {
+    const previous = useOrthoStore.getState();
+    const mk = (measurementRef: string) => {
+      const com: any = profile('com');
+      com.rows[2] = {
+        ...com.rows[2], canonical_measurement_id:'M_IMPA_GOME_DEG_V1',
+        availability_status:'AVAILABLE', value:95.2,
+        measurement_refs:[measurementRef], value_authority_method_id:'TWEED_IMPA_DEG_V1',
+        focus_evidence:{
+          authority:'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1',
+          canonical_measurement_id:'M_IMPA_GOME_DEG_V1',
+          measurement_ref:measurementRef, value_authority_method_id:'TWEED_IMPA_DEG_V1',
+          landmark_ids:['Go','Me','L1_incisal','L1_apex'],
+          construction_ids:[], calibration_required:false,
+        },
+      };
+      return { scientific_read_path:{
+        authority:'EVIDENCE_GRAPH_V1', active_chain:'VERIFIED',
+        revision:1, protocol_profiles:{com},
+      } };
+    };
+    const received: Array<CephaloMetricFocus | null> = [];
+    const onFocus = (e: Event) => received.push((e as CustomEvent<CephaloMetricFocus | null>).detail);
+    window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT,onFocus);
+    useOrthoStore.setState({patientId:99101,analysisId:870,imageSrc:'study-one',anglesData:mk('proof:A')});
+    try {
+      render(<CephaloAnalysisWorkbenchPanel P={P} analysis="com" />);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')!);
+      expect(received.at(-1)?.points).toEqual(['Go','Me','L1_incisal','L1_apex']);
+      useOrthoStore.setState({anglesData:mk('proof:B')});
+      expect(received.at(-1)).toBeNull();
+      expect(document.querySelector('[data-r23g3-focus-source="active-runtime"]')).toBeNull();
+      expect(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')?.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')!);
+      expect(received.at(-1)?.points).toEqual(['Go','Me','L1_incisal','L1_apex']);
+      useOrthoStore.setState({analysisId:871,imageSrc:'study-two'});
+      expect(received.at(-1)).toBeNull();
+      expect(document.querySelector('[data-r23g3-focus-source="active-runtime"]')).toBeNull();
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')!);
+      expect(received.at(-1)?.points).toEqual(['Go','Me','L1_incisal','L1_apex']);
+      useOrthoStore.setState({patientId:99102});
+      expect(received.at(-1)).toBeNull();
+      expect(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')?.getAttribute('aria-pressed')).toBe('false');
+    } finally {
+      window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT,onFocus);
+      useOrthoStore.setState({patientId:previous.patientId,analysisId:previous.analysisId,
+        imageSrc:previous.imageSrc,anglesData:previous.anglesData});
+    }
+  });
+
   it('renders 33 Atlas factors, then exactly 13 Gregoret factors without numeric substitution', () => {
     const old = useOrthoStore.getState().anglesData;
     useOrthoStore.setState({ anglesData: readings });
