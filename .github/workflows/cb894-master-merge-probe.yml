@@ -1,18 +1,28 @@
-name: CB-894 vs master merge dry-run (DIAGNOSTIC ONLY)
+name: CB-894 isolated clinical merge repair CI
 on:
   pull_request:
     branches: [master]
     paths:
       - .github/workflows/cb894-master-merge-probe.yml
       - docs/crown-bot/techdoubt.md
+      - scripts/ci/cb894_reconcile_clinical_conflicts.py
 permissions:
-  contents: read
+  contents: write
 jobs:
   cb894-merge-conflicts:
-    name: Reproduce upstream PR 894 conflicts without writing remote refs
+    name: Prove isolated clinical merge, Pocket and Agenda regressions
     if: github.event_name == 'pull_request' && github.event.pull_request.draft == true
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 80
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: 'false'
+      EXPECTED_CHECKOUT: ${{ github.event.pull_request.head.sha }}
     env:
       EXPECTED_MASTER_SHA: b6eafd2cec5516a64c5d8013ffd3b3f54430000f
       EXPECTED_SOURCE_SHA: 9cf19e68026fa92d31fb704f5b81b9cd667e5254
@@ -81,12 +91,72 @@ jobs:
                   out.extend(f'{j+1:05}: {src[j]}' for j in range(lo, hi))
           (root / 'conflict-hunks.txt').write_text('\n'.join(out) + '\n', encoding='utf-8')
           PY
-          git merge --abort || true
-          if test "$result" -ne 0; then
-            echo 'NO-GO: #894 cannot currently merge into isolated master-based branch without conflicts'
+          if test "$result" -ne 1 || test "$count" -ne 2; then
+            echo 'REFUSED: unexpected Git merge result'
+            git merge --abort || true
             exit 1
           fi
-          echo 'Dry-run merge clean (NOT approval for master integration)'
+          python scripts/ci/cb894_reconcile_clinical_conflicts.py
+          python -m compileall -q backend/routers/appointments.py backend/routers/frontdesk.py backend/tests/test_mobile_frontdesk.py
+          git add backend/routers/appointments.py backend/routers/frontdesk.py backend/tests/test_mobile_frontdesk.py
+          test -z "$(git diff --name-only --diff-filter=U)" || { echo 'REFUSED: unmerged paths remain'; exit 1; }
+          git diff --cached --check
+          git -c user.name='CB894 Candidate' -c user.email='cb894-candidate@invalid.example' commit --no-gpg-sign -m 'merge(cb894): scoped clinical output and atomic audit'
+          test "$(git rev-parse HEAD^1)" = "$EXPECTED_CHECKOUT"
+          test "$(git rev-parse HEAD^2)" = "$EXPECTED_SOURCE_SHA"
+          git rev-parse HEAD > cb894-merge-diagnostic/resolved-merge-sha.txt
+          git diff "$EXPECTED_MASTER_SHA"..HEAD -- backend/routers/appointments.py backend/routers/frontdesk.py backend/tests/test_mobile_frontdesk.py > cb894-merge-diagnostic/clinical-merge.patch
+          echo 'Clinical conflict resolution staged on runner only' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies for real isolated tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb894-master-merge-conflict-probe
+          path: cb894-merge-diagnostic/
+          if-no-files-found: warn
+          retention-days: 14
+ requirements.txt > /tmp/cb894-requirements.txt
+          python -m pip install -r /tmp/cb894-requirements.txt
+          python -m pip check
+      - name: REQUIRED integrated Pocket Frontdesk Agenda and authorization tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            backend/tests/test_mobile_frontdesk.py \
+            backend/tests/test_frontdesk.py \
+            backend/tests/test_appointments_multi_practitioner_p0.py \
+            backend/tests/test_agenda_a3_practitioner_availability.py \
+            backend/tests/test_crown_bot_clinical_gate.py
+          echo 'Pocket/Frontdesk/Agenda contract tests PASS' >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish ONLY proven merged candidate to pre-created sandbox branch
+        shell: bash
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+          EXPECTED_TARGET: integration/cb894-master-reconciled-candidate-20261021
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = pull_request
+          test "$GITHUB_HEAD_REF" = integration/cb894-master-reconcile-diagnostic-20261021
+          test "$GITHUB_BASE_REF" = master
+          test "$GITHUB_REPOSITORY" = "$EXPECTED_REPO"
+          test "$(git rev-parse HEAD^1)" = "$EXPECTED_CHECKOUT"
+          test "$(git rev-parse HEAD^2)" = "$EXPECTED_SOURCE_SHA"
+          git fetch --no-tags origin "$EXPECTED_TARGET"
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_MASTER_SHA" || { echo 'REFUSED: candidate branch was altered'; exit 1; }
+          test -n "$GH_PUSH_TOKEN"
+          encoded=$(printf 'x-access-token:%s' "$GH_PUSH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" push origin "HEAD:refs/heads/$EXPECTED_TARGET"
+          echo "Candidate published to sandbox branch, never master" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish diagnostic evidence even if merge conflicts fail
         if: always()
         uses: actions/upload-artifact@v4
