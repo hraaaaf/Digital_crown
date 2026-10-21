@@ -1,3 +1,13 @@
+### LOT05 / 05.7-J10D — 2026-10-21 — Targeted scientific CI and installer completeness (OPEN)
+
+PR #1004 retains SRPose38 as the only cephalometric weight. Production asset selector v2 now allowlists only srpose38-tta-1024.onnx and panoramic_model.onnx, with synthetic selection and completeness tests. V1.5 installable certification now fails if panoramic has no canonical path, byte size and SHA-256 in the scientific registry, or is absent from the bundle. This is deliberate release fail-closed, NOT scientific validation or proof the panoramic binary exists.
+
+A dedicated scoped GitHub Actions job runs targeted cephalo/asset/release tests on each exact PR SHA: .github/workflows/lot05-j10d-srpose38-installable-targeted.yml. Before this job's result, no targeted PASS is claimed. Also added direct upload regression: failed SRPose returns HTTP 400 and erases uncommitted radio without fabricating analysis.
+
+MAJOR OPEN: actual active UI uses useOrthoStore.runAnalysis and only displays uploadError on HTTP 400; there is no evidenced create-manual-analysis path from this failure. Step1Cephalo cannot initialize/save a manually placed full study without an analysisId. Existing UI manual edits are for already persisted studies. Do not claim user-facing manual recovery until tested end-to-end; do not create fake success or allow access to another patient's image.
+
+Review B OPEN: pinned panoramic ONNX and detached/clean Windows install still absent. Model selection policy rejects orphan weights but generated installer content and scientific clinical function remain unverified. No merge/release. Re-review on exact new HEAD after tests.
+
 ### LOT05 / 05.7-J10D — 2026-10-21 — Adversarial review A/B (OPEN)
 
 A / Clinical (MAJOR, addressed in code but unverified): CephaloService.process_new_radio previously accepted VisionEngine's {"landmarks": [], "mode_inference": "FAILED"} and could persist/return "success" with zero points. Guard now rejects empty/FAILED before calibration/DB writes; parametrized regression added. Pending exact-HEAD CI and real end-to-end verification. The API presently deletes the uploaded radio and returns HTTP 400 on this failure; frontend only displays uploadError and does not initialize a new manual analysis/image on this path. Therefore the user-facing "Placement manuel requis" is guidance, NOT a verified accessible fallback. Product behavior remains MAJOR/OPEN if offline/manual fallback is required for installer acceptance.
