@@ -351,7 +351,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
 
   return (
     <div ref={step1ContainerRef} className={`relative flex min-w-0 flex-col rounded-3xl overflow-hidden ${isStep1Fullscreen ? 'fixed inset-0 z-[9999]' : 'h-[80vh] w-full'}`} style={{ ...themeVars, background: cbg, boxShadow: P.shadowLg, border: `1px solid ${P.border}` }}>
-      <div className="absolute inset-3 z-0 overflow-hidden rounded-[1.15rem] border border-[var(--ceph-ui-border)] bg-[var(--ceph-ui-panel)] shadow-lg sm:inset-4">
+      <div
+        data-lot05-image-canvas
+        className={`absolute inset-x-3 top-3 z-0 overflow-hidden rounded-[1.15rem] border border-[var(--ceph-ui-border)] bg-[var(--ceph-ui-panel)] shadow-lg sm:inset-x-4 sm:top-4 ${isManualDraft ? 'bottom-64 sm:bottom-56' : 'bottom-3 sm:bottom-4'}`}
+      >
         <CephaloTracingLayer
           imageSrc={imageSrc}
           imgFilters={imgFilters}
