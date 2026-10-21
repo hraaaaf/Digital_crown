@@ -115,15 +115,7 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
-          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cb894-master-merge-conflict-probe
-          path: cb894-merge-diagnostic/
-          if-no-files-found: warn
-          retention-days: 14
- requirements.txt > /tmp/cb894-requirements.txt
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/cb894-requirements.txt
           python -m pip install -r /tmp/cb894-requirements.txt
           python -m pip check
       - name: REQUIRED integrated Pocket Frontdesk Agenda and authorization tests
