@@ -1,5 +1,13 @@
 # Digital Crown — Technical Doubts / Open Evidence
 
+## 2026-10-21 — LOT06-B confirmation staff/receipt : fixture SQLite ≠ accusé serveur clinique
+
+- **Test de contrat (nouvelle PR fille #998) :** `tools/imaging_gateway/staff_receipt_lab.py` et `tools/imaging_gateway/tests/test_staff_receipt_lab.py` exercent exclusivement en TEMP+TEST les refus d'autorisation staff/tenant/station/patient/RDV, les revalidations au commit, l'unicité `(tenant,capture_id)`, idempotence du même approval, deux erreurs de transaction injectées et la persistance de `PENDING_CONFIRMATION` du vrai HotFolder. `LAB_RECEIPT_COMMITTED` = reçu **de simulation**, pas ACK serveur clinique ; aucun mode production ni route ajoutés.
+- **Réserve BLOCKER OPEN :** `fixture_staff` est une autorité simulée, pas JWT/staff réel ; `fixture_capture` n'atteste aucune identité matériel ; la même base de test héberge à la fois fausses autorisations et reçus et n'isole pas un processus hostile ; aucun transfert/Media Core/ClinicalAsset, source device trust, autorisation au dernier instant clinique, reçu durable cross-ressources, outbox, crash électrique/SCM, rotation clés ou restauration clinique n'est prouvé. L'approbation `explicit_staff_action=True` est un drapeau dans le test et pas un événement UI attesté. Exiger avant produit une vraie identité appareil+session, staff UI authentifié, capture bytes signés/vérifiés, réservation idempotente et audit serveur durable sur le modèle canonique, avec revues indépendantes sur HEAD final.
+- **Gate** : la CI 06A Windows/Ubuntu et Scope doit valider le HEAD exact du nouveau test ; toute erreur sera corrigée sans toucher d'autres lots. Les réserves W01–W12, HOLD LOT10, #909 DRAFT, #996 DRAFT et NO-GO clinique restent inchangés. Voir `docs/quality/LOT06_B_STAFF_RECEIPT_IDEMPOTENCE_LAB_CONTRACT_20261021.md`.
+
+
+
 ## 2026-10-21 — LOT06-B boundary proof: encrypted hot-folder → Patient/RDV preflight is NOT server ingestion
 
 - **Verified source contract:** `tools/imaging_gateway/gateway.py` stores only a locally encrypted `PENDING_CONFIRMATION` item; `backend/routers/imaging_acquisition_preflight_v15.py` accepts metadata and a staff-authenticated workstation candidate in isolated TEST but returns `upload_permitted=false`, `server_confirmed=false`, `receipt_id=null`. `backend/routers/media_core.py` implements an existing separate authenticated `WEB_API` upload, **not** an authorized bridge transfer/receipt.
