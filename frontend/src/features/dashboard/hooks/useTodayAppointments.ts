@@ -89,7 +89,7 @@ export const useTodayAppointments = ({
 
       if (newStatus === 'TERMINÉ') {
         const appointment = appointments?.find(item => item.id === appointmentId);
-        if (appointment?.patient) {
+        if (appointment?.patient_id && appointment.patient?.id === appointment.patient_id) {
           onCompleted(appointment.patient);
         }
       }

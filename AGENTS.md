@@ -29,6 +29,21 @@ Jusqu'à ce que `V1_OPERATIONAL` soit explicitement enregistré dans `docs/clini
 
 En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
+## Autopilot contrôlé — autonomie bornée par mission
+
+**Portée prospective post-V1.** La roadmap consolidée V1 indique `V1_OPERATIONAL` ; elle conserve son rôle historique. Cette politique ne déverrouille aucune feature/lot V1.5+, n'autorise aucune opération cabinet et ne modifie pas rétroactivement les preuves.
+
+1. **Cadrage unique PRE** : mission/lot/sous-lot/chantier courant, Goal, Success observable et oracle, scope/exclusions, HEAD, niveau de risque, actions autorisées et gates REQUIRED/EXPERIMENTAL/HORS SCOPE. Un GO de mission autorise les actions sûres et réversibles **dans ce scope uniquement**.
+2. **Exécution continue** : explorer, coder sur branche isolée, tester, corriger et préparer PR DRAFT sans demander un accord à chaque micro-action ni élargir le périmètre. Arrêter et escalader en cas de risque clinique, d'accès patient, de modification de politique de sécurité ou d'opération irréversible.
+3. **Risque A faible** : documentation, contrats et tests non productifs — FUE-0. **Risque B modéré** : UI/API/parcours limités — tests ciblés + FUE-I/G réellement exécutable + négatifs pertinents. **Risque C critique** : auth/RBAC, données patients, migration, sécurité, clinique, cabinet/release — contrôles spécialisés stricts, fail-closed, restore/rollback et approbations humaines lorsqu'ils s'appliquent. L'impact détermine le risque.
+4. **Une seule chaîne de preuve** : FUE-0/I/G est le cadre de l'issue observable ; RPG-C/J/X/F/P ajoute les scénarios nécessaires selon le risque, sans campagne redondante. Tests ciblés pendant le développement ; réévaluation des seules preuves invalidées et confirmation sur HEAD final. Aucun rerun global systématique, ni polling CI. Sur lot significatif, deux perspectives adversariales internes consolidées à la fin ; pas de fausse revue externe indépendante.
+5. **Un seul bilan de gate** : EXECUTION_SCORE + FUE_EVIDENCE_SCORE, Perfection Pass et validation finale sur candidat/HEAD de clôture (ou gate critique) plutôt qu'après chaque microcommit ; POST Notion compact, risques et Next ; les réserves sont ajoutées à `techdoubt.md`.
+6. **Autorisation distincte toujours nécessaire** pour fusionner, déployer Vercel, installer/releaser cabinet, modifier irréversiblement les données réelles, activer une décision clinique ou changer un gate de sécurité, et pour toute validation clinique/réglementaire/visuelle/physique humaine requise. GO du scope != GO de merge ; ne pas contourner labels, règles et workflows trusted.
+7. **UI** : BEFORE/Target/AFTER sur viewports pertinents ; vérifier l'existence de la feature sur mobile avant d'en certifier le rendu ; accord propriétaire sur rendu final si requis. Les lots purement documentaires FUE-0 ne doivent pas inventer d'écrans ou de preuves navigateur.
+8. **Verdict** : tout BLOCKER/MAJOR, gate REQUIRED rouge, preuve critique absente ou GO humain manquant impose OPEN/BLOCKED. Un check expérimental n'est bloquant que s'il révèle un risque réel. Aucun score ne remplace la preuve.
+
+**But : moins d'interruptions, garanties patient/sécurité/clinique inchangées.**
+
 ## Architecture courante
 
 - Backend : FastAPI + SQLAlchemy.
@@ -218,25 +233,18 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 - `docs/PATIENT_DATA_ROLLBACK.md`
 - `STATE.md`
 
-## Workflow par lot
+## Workflow par lot — Post-V1 Autopilot
 
-1. Lire `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md`, puis `STATE.md`, `.claude/rules/execution-scoring-verification.md` et le skill pertinent.
-2. Vérifier que le scope demandé appartient au **lot V1 actuellement déverrouillé** ; sinon refuser le chantier.
-3. Cartographier scope, invariants et gates binaires applicables.
-4. Audit read-only d'abord lorsque le skill l'impose.
-5. Implémenter uniquement le scope autorisé par le lot courant.
-6. Après chaque étape matérielle : preuve + `EXECUTION_SCORE` + `FUE_EVIDENCE_SCORE` + minimum retenu ; investiguer tout écart `> 0.5`.
-7. Tests ciblés puis régression proportionnée au risque.
-8. Smoke/rehearsal lorsque nécessaire.
-9. Exécuter le niveau FUE applicable et les tests spécialisés fondés sur les risques ; aucune double revue A/B systématique. Les validations scientifiques/humaines distinctes explicitement requises sont conservées.
-10. Mettre à jour le fichier canonique unique et vérifier sa cohérence.
-11. Si le score atteint `9.0+`, exécuter la **Perfection Pass finale**, corriger les faiblesses améliorables, rerun les preuves impactées et rescorrer.
-12. Ne marquer `VERIFIED` qu'avec score retenu `>= 9.0/10` **et** tous les gates binaires applicables verts.
-13. PR/merge/certification seulement après preuves et gates satisfaits.
-14. Pour distribution cabinet : certifier le HEAD master exact en `CODE_CERTIFIED`.
-15. Certifier les assets runtime pour ce même SHA, composer en `INSTALLABLE_CERTIFIED`, puis seulement construire/activer.
+1. Vérifier lot V1.5 réellement déverrouillé, `STATE.md`, règles de domaine et skills. La V1 consolidée est historique après `V1_OPERATIONAL`.
+2. PRE Notion unique : Goal, preuve, scope/risque, HEAD et gates ; aucune dérive de chantier autorisée.
+3. Modifier sur branche isolée ; tests ciblés, corrections et cas négatifs autonomes, sans micro-approbations.
+4. Choisir FUE-0/I/G et scénarios RPG proportionnés, exécuter toutes protections spécialisées pertinentes.
+5. Sur HEAD final, vérifier preuves réellement impactées, CI une fois à la décision ; revue adversariale interne à deux angles si significatif.
+6. Noter les deux scores et faire une Perfection Pass consolidée au verdict ; aucune fausse validation par une CI simplement verte.
+7. POST Notion compact ; réserve dans `techdoubt.md` ; PR DRAFT, liens des runs, Next. Solliciter GO distinct avant merge/déploiement/release ou mutation sensible.
+8. Toute installation reste soumise à `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` et aux gates exact-artifact.
 
-**Dernière révision canonique : 17 septembre 2026 — verrou V1 consolidé actif.**
+**Révision prospective 20 octobre 2026 ; V1 historique intacte.**
 
 ## V1.5 — FUE rétroactif par sous-lot (PR #783 = laboratoire)
 

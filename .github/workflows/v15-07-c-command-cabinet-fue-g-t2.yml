@@ -10,6 +10,7 @@ on:
       - 'frontend/src/features/dashboard/**'
       - 'frontend/src/components/Layout/MainLayout.tsx'
       - 'backend/routers/appointments.py'
+      - 'backend/routers/frontdesk.py'
       - 'techdoubt.md'
       - '.github/workflows/v15-07-c-windows-native-zoom.yml'
       - 'frontend/scripts/certify-lot07-windows-native-zoom.mjs'
@@ -58,7 +59,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check changed 07-C backend router syntax before boot
-        run: python -m py_compile backend/routers/appointments.py
+        run: python -m py_compile backend/routers/appointments.py backend/routers/frontdesk.py
       - uses: actions/setup-node@v4
         with:
           node-version: '24.11.1'

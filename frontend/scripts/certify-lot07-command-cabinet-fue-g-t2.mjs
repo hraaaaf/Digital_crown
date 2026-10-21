@@ -43,6 +43,16 @@ const authGET = async (token, relativePath, cookies=[]) => {
     return { status, body };
   } finally { await ctx.dispose(); }
 };
+const authPOST = async (token, relativePath, json, cookies=[]) => {
+  const ctx = await request.newContext({ baseURL: apiBase, storageState: { cookies, origins: [] } });
+  try {
+    const response = await ctx.post(relativePath, {
+      headers: { Authorization: 'Bearer '+token }, json,
+    });
+    const status = response.status();
+    return { status, body: status === 200 ? await response.json() : null };
+  } finally { await ctx.dispose(); }
+};
 const appointmentPath = '/api/appointments/';
 const actorEmail = {
   owner: 't2-browser@cabinet.ma',
@@ -105,6 +115,61 @@ try {
   assert.equal(restrictedAppointment.datetime_start, ownerFixture.datetime_start);
   assert.equal(restrictedAppointment.status, ownerFixture.status);
   point('backend-agenda-only-staff', { httpStatus: restrictedGet.status, sameAppointment: firstId, httpIdentityRedacted: true });
+
+
+  // C07C-11: the separate Frontdesk router must not bypass the same Patients
+  // privacy boundary. All requests below use the REAL disposable T2 backend.
+  const frontdeskPayload = {
+    first_name: 'PRIVATE-FIRST-07C', last_name: 'PRIVATE-LAST-07C',
+    phone: '0699990011', appointment_reason: 'PRIVATE-MOTIF-07C',
+    notes: 'PRIVATE-NOTES-07C',
+    requested_start: new Date(Date.now() + 3*86400000).toISOString(),
+    source: 'frontdesk',
+  };
+  const ownerCreated = await authPOST(ownerToken, '/api/frontdesk/appointment-request', frontdeskPayload, cookies);
+  assert.equal(ownerCreated.status, 200, 'Owner may create Frontdesk appointment');
+  assert.equal(ownerCreated.body.patient_name, 'PRIVATE-LAST-07C PRIVATE-FIRST-07C');
+  assert.equal(ownerCreated.body.phone, frontdeskPayload.phone);
+  const frontdeskId = ownerCreated.body.id;
+  point('frontdesk-owner-create-preserves-patient-fields', {status: 200});
+
+  const ownerPending = await authGET(ownerToken, '/api/appointments/pending', cookies);
+  assert.equal(ownerPending.status, 200);
+  const ownerRow = ownerPending.body.find(x => x.id === frontdeskId);
+  assert.ok(ownerRow, 'Owner sees synthetic pending Frontdesk appointment');
+  assert.equal(ownerRow.patient_name, ownerCreated.body.patient_name);
+  assert.equal(ownerRow.motif, frontdeskPayload.appointment_reason);
+  point('frontdesk-owner-pending-visible', {status: 200});
+
+  const restrictedPending = await authGET(restrictedToken, '/api/appointments/pending', cookies);
+  assert.equal(restrictedPending.status, 200);
+  const restrictedRow = restrictedPending.body.find(x => x.id === frontdeskId);
+  assert.ok(restrictedRow, 'Agenda-only staff retains anonymous Frontdesk schedule metadata');
+  for (const key of ['patient_name', 'phone', 'motif', 'source']) {
+    assert.equal(restrictedRow[key], null, 'Restricted Frontdesk must redact '+key);
+  }
+  assert.equal(restrictedRow.datetime_start, ownerRow.datetime_start);
+  assert.ok(!/PRIVATE-FIRST-07C|PRIVATE-LAST-07C|PRIVATE-MOTIF-07C|0699990011|PRIVATE-NOTES-07C/
+    .test(JSON.stringify(restrictedPending.body)), 'No Frontdesk personal canary in Agenda-only HTTP');
+  point('frontdesk-restricted-pending-redacted', {status: 200, fieldsRedacted: true});
+
+  const blindCreated = await authPOST(restrictedToken, '/api/frontdesk/appointment-request',
+    { ...frontdeskPayload, first_name: 'BLIND-07C' }, cookies);
+  assert.equal(blindCreated.status, 200, 'Agenda-only user may blind-submit a schedule request');
+  for (const key of ['patient_name', 'phone', 'motif', 'source']) {
+    assert.equal(blindCreated.body[key], null, 'Blind submission must not echo '+key);
+  }
+  assert.ok(!JSON.stringify(blindCreated.body).includes('BLIND-07C'));
+  point('frontdesk-restricted-create-no-personal-echo', {status: 200});
+
+  const restrictedLetter = await authPOST(restrictedToken,
+    '/api/appointments/'+frontdeskId+'/request-confirmation', {}, cookies);
+  assert.equal(restrictedLetter.status, 403,
+    'Agenda-only actor must not receive a patient-addressed Frontdesk letter');
+  const afterForbidden = await authGET(ownerToken, '/api/appointments/pending', cookies);
+  assert.ok(afterForbidden.body.some(x => x.id === frontdeskId && x.status === 'EN_ATTENTE_DEMANDE'),
+    'Rejected letter must not change appointment status');
+  point('frontdesk-restricted-letter-denied-no-mutation', {status: 403});
 
   const patientDetailGet = await authGET(restrictedToken, '/api/appointments/patient/'+ownerFixture.patient_id, cookies);
   assert.equal(patientDetailGet.status, 403, 'Agenda-only user cannot fetch another patient appointment history');

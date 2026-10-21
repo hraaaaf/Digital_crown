@@ -647,7 +647,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
-    expose_headers=["X-Total-Count"],
+    expose_headers=["X-Total-Count", "X-Cephalo-Analysis-Id", "X-Cephalo-Revision", "X-Cephalo-Archive-Replayed"],
 )
 from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,
@@ -834,7 +834,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 from fastapi import Depends
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, has_permission
 from backend import database, models
 
 def _serve_protected_file(base_dir: str, rel_path: str) -> FileResponse:
@@ -896,6 +896,10 @@ async def serve_radios(
     current_user=Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ):
+    # Cephalometric source images require the clinical role, not only tenant
+    # ownership. Mirrors /api/documents permission for official cephalo PDFs.
+    if not has_permission(current_user, "cephalo"):
+        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : cephalo.")
     _assert_media_tenant(db, current_user.get_employer_id(), models.CephaloAnalysis, "image_original_path", f"radios/{rel_path}", current_user)
     from backend.core.media_paths import get_imaging_root
     try:
@@ -913,6 +917,36 @@ async def serve_archives(
     db: Session = Depends(database.get_db),
 ):
     _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path, current_user)
+    # Exactly one active row must authorize this concrete URL. A suffix match
+    # alone is insufficient provenance; a trashed file must not be downloadable.
+    archive_rows = (
+        db.query(models.DocumentArchive)
+        .join(models.Patient, models.DocumentArchive.patient_id == models.Patient.id)
+        .filter(
+            models.DocumentArchive.file_path == "static/archives/" + rel_path,
+            models.Patient.employer_id == current_user.get_employer_id(),
+        ).all()
+    )
+    if not archive_rows:
+        raise HTTPException(status_code=404, detail="Archive non référencée")
+    if len(archive_rows) != 1:
+        raise HTTPException(status_code=409, detail="Chemin d'archive ambigu")
+    doc = archive_rows[0]
+    if doc.status != models.DocumentStatus.ACTIF:
+        raise HTTPException(status_code=404, detail="Archive non active")
+    # A known archive URL must not bypass per-document business permissions.
+    # Import lazily to avoid importing document router at module startup.
+    from backend.routers.documents import require_document_permission
+    require_document_permission(
+        doc.document_type.value if hasattr(doc.document_type, "value") else str(doc.document_type),
+        current_user,
+    )
+    if doc.document_type == models.DocumentType.RAPPORT_CEPHALO:
+        from backend.services.cephalo_document_lock import verified_official_archive_bytes
+        return Response(
+            content=verified_official_archive_bytes(doc, db),
+            media_type="application/pdf",
+        )
     return _serve_protected_file(os.path.join(str(MEDIA_DIR), "archives"), rel_path)
 
 @app.get("/api/static/documents/{rel_path:path}", include_in_schema=False)

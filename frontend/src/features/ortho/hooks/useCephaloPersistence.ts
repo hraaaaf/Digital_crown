@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { cephaloRepository } from '../cephaloRepository';
+import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { 
   buildPayload, computeMcNamaraProjections, 
   calcDDMCephalo, computeLocalImpa 
@@ -52,6 +53,8 @@ export const useCephaloPersistence = (
   // --- Refs ---
   const syncTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latestLocal = useRef(local);
+  const latestSelection = useRef({ patientId, analysisId });
+  latestSelection.current = { patientId, analysisId };
   const latestDdm = useRef(ddm);
   const latestDiag = useRef(diag);
   const latestEtape2 = useRef(etape2Data);
@@ -67,7 +70,7 @@ export const useCephaloPersistence = (
 
   // --- Logic ---
 
-  const silentSave = useCallback(async (id?: number) => {
+  const silentSave = useCallback(async (id?: number, strict = false) => {
     const aid = id ?? analysisId;
     if (!aid) return;
     const l = latestLocal.current;
@@ -87,6 +90,7 @@ export const useCephaloPersistence = (
       await cephaloRepository.saveAnalysis(aid, buildPayload(l.landmarks, max, mand, real, g, projections, mmPerPixel, e2, e3));
     } catch (err) {
       console.warn("Autosave failed:", err);
+      if (strict) throw err;
     }
   }, [analysisId, mmPerPixel]);
 
@@ -216,11 +220,18 @@ export const useCephaloPersistence = (
   const allLandmarksPlaced = tracingPct === 1;
 
   const generateDocumentData = useCallback(async (preview: boolean) => {
+    if (!analysisId) throw Error("Étude Céphalo non sélectionnée");
+    const stillSelected = () => latestSelection.current.analysisId === analysisId
+      && latestSelection.current.patientId === patientId;
+    const bound = await prepareBoundCephaloDocumentSource(
+      patientId, analysisId, stillSelected, () => silentSave(analysisId, true),
+    );
     const max = ddm.maxillaire === '' ? null : Number(ddm.maxillaire);
     const mand = ddm.mandibulaire === '' ? null : Number(ddm.mandibulaire);
     const real = (max !== null && mand !== null) ? (max + mand) : null;
 
     return await cephaloRepository.generatePDF(patientId, {
+      ...bound,
       ai_diagnostic: {
         analyse_dentaire: diag.analyse_dentaire || '',
         diagnostic_squelettique: diag.diagnostic_squelettique || '',
@@ -238,13 +249,12 @@ export const useCephaloPersistence = (
       },
       archive: !preview,
     });
-  }, [patientId, ddm, diag, etape3Data]);
+  }, [patientId, analysisId, ddm, diag, etape3Data, silentSave]);
 
   const handlePreview = useCallback(async () => {
     if (!analysisId || !allLandmarksPlaced) return;
     setIsPreviewLoading(true);
     setPreviewPdfUrl(null);
-    await silentSave();
     try {
       const data = await generateDocumentData(true);
       const blob = new Blob([data], { type: 'application/pdf' });
@@ -259,7 +269,6 @@ export const useCephaloPersistence = (
   const handlePrint = useCallback(async () => {
     if (!analysisId || !allLandmarksPlaced) return;
     setIsPrinting(true);
-    await silentSave();
     try {
       const data = await generateDocumentData(false);
       const blob = new Blob([data], { type: 'application/pdf' });

@@ -4,8 +4,9 @@ import type { AppUser } from '../../../types';
 import { useTodayAppointments } from './useTodayAppointments';
 
 const apiGet = vi.hoisted(() => vi.fn());
+const apiPut = vi.hoisted(() => vi.fn());
 vi.mock('../../../services/api', () => ({
-  api: { get: apiGet, put: vi.fn() },
+  api: { get: apiGet, put: apiPut },
 }));
 
 const canonical = {
@@ -26,7 +27,7 @@ const options = {
   authLoading: false, onStatsRefresh: async () => {}, onCompleted: () => {},
 };
 
-beforeEach(() => { apiGet.mockReset(); });
+beforeEach(() => { apiGet.mockReset(); apiPut.mockReset(); });
 
 describe('LOT07/07-C real Agenda hook session and permission firewall', () => {
   it('removes privileged rows during render before the revoked-permission HTTP fetch completes', async () => {
@@ -66,5 +67,31 @@ describe('LOT07/07-C real Agenda hook session and permission firewall', () => {
     await act(async () => { releaseOld!({ data: [canonical] }); });
     expect(result.current.appointments?.[0]?.patient).toBeNull();
     expect(result.current.appointments?.[0]?.patient_id).toBeNull();
+  });
+
+
+  it('keeps a frontdesk name visible as schedule text without inventing a linked Patient', async () => {
+    apiGet.mockResolvedValue({ data: [{ ...canonical, patient_id: null, patient_name: 'FRONTDESK UNLINKED' }] });
+    apiPut.mockResolvedValue({ data: {} });
+    const onCompleted = vi.fn();
+    const { result } = renderHook(() => useTodayAppointments({ ...options, user: owner, onCompleted }));
+    await waitFor(() => expect(result.current.appointmentsState).toBe('ready'));
+    expect(result.current.appointments?.[0]?.patient_name).toBe('FRONTDESK UNLINKED');
+    expect(result.current.appointments?.[0]?.patient_id).toBeNull();
+    expect(result.current.appointments?.[0]?.patient).toBeNull();
+    await act(async () => { await result.current.updateAppointmentStatus(50, 'TERMINÉ'); });
+    expect(apiPut).toHaveBeenCalledWith('/appointments/50', { status: 'TERMINÉ' });
+    expect(onCompleted).not.toHaveBeenCalled();
+  });
+
+  it('preserves Ghost Action callback for a canonical linked patient after completion', async () => {
+    apiGet.mockResolvedValue({ data: [canonical] });
+    apiPut.mockResolvedValue({ data: {} });
+    const onCompleted = vi.fn();
+    const { result } = renderHook(() => useTodayAppointments({ ...options, user: owner, onCompleted }));
+    await waitFor(() => expect(result.current.appointments?.[0]?.patient?.id).toBe(500));
+    await act(async () => { await result.current.updateAppointmentStatus(50, 'TERMINÉ'); });
+    expect(onCompleted).toHaveBeenCalledTimes(1);
+    expect(onCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 500 }));
   });
 });

@@ -12,6 +12,18 @@ from backend.services.audit_service import audit_service
 router = APIRouter(tags=["frontdesk"])
 
 
+def _visible_frontdesk_fields(payload: dict, current_user: models.User) -> dict:
+    """Keep schedule metadata, but require Patients for identity/contact/clinical text.
+
+    Frontdesk request creation remains allowed to Agenda-only staff as a blind
+    submission; responses and pending lists must not echo submitted PHI.
+    """
+    if has_permission(current_user, "patients"):
+        return payload
+    protected = ("patient_name", "phone", "motif", "source")
+    return {**payload, **{key: None for key in protected if key in payload}}
+
+
 @router.post("/frontdesk/appointment-request")
 async def create_appointment_request(
     req: schemas.FrontdeskCreateRequest,
@@ -52,7 +64,7 @@ async def create_appointment_request(
         details=f"Demande RDV créée : {req.last_name} {req.first_name}",
     )
 
-    return {
+    return _visible_frontdesk_fields({
         "id": appointment.id,
         "patient_name": appointment.patient_name,
         "phone": appointment.phone,
@@ -61,7 +73,7 @@ async def create_appointment_request(
         "status": appointment.status.value,
         "source": appointment.source,
         "created_at": appointment.created_at.isoformat(),
-    }
+    }, current_user)
 
 
 @router.get("/appointments/pending")
@@ -91,7 +103,7 @@ async def list_pending_appointments(
     )
 
     return [
-        {
+        _visible_frontdesk_fields({
             "id": appt.id,
             "patient_name": appt.patient_name,
             "phone": appt.phone,
@@ -102,7 +114,7 @@ async def list_pending_appointments(
             "source": appt.source,
             "expires_at": appt.expires_at.isoformat() if appt.expires_at else None,
             "created_at": appt.created_at.isoformat(),
-        }
+        }, current_user)
         for appt in appointments
     ]
 
@@ -116,6 +128,10 @@ async def request_patient_confirmation(
     """Transition appointment from EN_ATTENTE_DEMANDE to EN_ATTENTE_CONFIRM."""
     if not has_permission(current_user, "agenda"):
         raise HTTPException(status_code=403, detail="Permission refusée.")
+    # This response includes a patient-addressed message containing their name.
+    # Deny before changing status rather than returning a redacted unusable letter.
+    if not has_permission(current_user, "patients"):
+        raise HTTPException(status_code=403, detail="Permission Patients requise.")
 
     employer_id = current_user.get_employer_id()
     appt = db.query(models.Appointment).filter(

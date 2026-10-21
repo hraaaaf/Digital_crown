@@ -43,7 +43,11 @@ export function normalizeCabinetAppointments(
     const legacy = canReadPatients && wire.patient && typeof wire.patient === 'object'
       ? wire.patient as DashboardAppointment['patient'] : null;
     // A canonical patient_name is a single field; do NOT guess name order.
-    const patient = name ? { id: patientId ?? undefined, nom: name, prenom: '' } : legacy;
+    // Free-text frontdesk names are schedule labels, NEVER a linked patient.
+    // Only a canonical patient_id can authorize patient-specific exit actions.
+    const patient = patientId === null ? null
+      : name ? { id: patientId, nom: name, prenom: '' }
+        : legacy?.id === patientId ? legacy : null;
     return {
       id: wire.id as number,
       datetime_start: start,
