@@ -1,0 +1,75 @@
+name: CB-894 vs master merge dry-run (DIAGNOSTIC ONLY)
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/cb894-master-merge-probe.yml
+      - docs/crown-bot/techdoubt.md
+permissions:
+  contents: read
+jobs:
+  cb894-merge-conflicts:
+    name: Reproduce upstream PR 894 conflicts without writing remote refs
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      EXPECTED_MASTER_SHA: b6eafd2cec5516a64c5d8013ffd3b3f54430000f
+      EXPECTED_SOURCE_SHA: 9cf19e68026fa92d31fb704f5b81b9cd667e5254
+      SOURCE_BRANCH: feat/crown-bot-zero-llm-adapter-safe-20261014
+      EXPECTED_REPO: hraaaaf/Digital_crown
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact isolated HEAD and unchanged master source
+        shell: bash
+        env:
+          EXPECTED_CHECKOUT: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "$EXPECTED_REPO"
+          test "$EXPECTED_BASE" = "master"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CHECKOUT"
+          test -z "$(git status --porcelain)"
+          git fetch --no-tags origin master
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_MASTER_SHA" || { echo 'REFUSED: master changed; start new diagnostic'; exit 1; }
+          test "$(git merge-base HEAD "$EXPECTED_MASTER_SHA")" = "$EXPECTED_MASTER_SHA"
+          git fetch --no-tags origin "$SOURCE_BRANCH"
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_SOURCE_SHA" || { echo 'REFUSED: PR #894 HEAD changed'; exit 1; }
+          echo "Exact isolated diagnostic HEAD: $EXPECTED_CHECKOUT" >> "$GITHUB_STEP_SUMMARY"
+      - name: Dry-run real Git merge and list exact conflicts (expected RED)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cb894-merge-diagnostic
+          printf 'target-master=%s\nsource-894=%s\nhead=%s\n' "$EXPECTED_MASTER_SHA" "$EXPECTED_SOURCE_SHA" "$(git rev-parse HEAD)" > cb894-merge-diagnostic/summary.txt
+          set +e
+          git -c user.name='CB894 Diagnostic' -c user.email='cb894-diagnostic@invalid.example' merge --no-commit --no-ff "$EXPECTED_SOURCE_SHA" > cb894-merge-diagnostic/merge-log.txt 2>&1
+          result=$?
+          set -e
+          git diff --name-only --diff-filter=U > cb894-merge-diagnostic/conflicts.txt
+          count=$(wc -l < cb894-merge-diagnostic/conflicts.txt | tr -d ' ')
+          printf 'merge-exit=%s\nunmerged-path-count=%s\n' "$result" "$count" >> cb894-merge-diagnostic/summary.txt
+          cat cb894-merge-diagnostic/summary.txt >> "$GITHUB_STEP_SUMMARY"
+          if test "$count" -gt 0; then
+            echo 'BLOCKED: actual unresolved paths' >> "$GITHUB_STEP_SUMMARY"
+            cat cb894-merge-diagnostic/conflicts.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+          git merge --abort || true
+          if test "$result" -ne 0; then
+            echo 'NO-GO: #894 cannot currently merge into isolated master-based branch without conflicts'
+            exit 1
+          fi
+          echo 'Dry-run merge clean (NOT approval for master integration)'
+      - name: Publish diagnostic evidence even if merge conflicts fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb894-master-merge-conflict-probe
+          path: cb894-merge-diagnostic/
+          if-no-files-found: warn
+          retention-days: 14
