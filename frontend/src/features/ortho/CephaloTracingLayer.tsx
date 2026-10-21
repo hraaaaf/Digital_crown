@@ -78,10 +78,10 @@ const normalizeMode = (value?: string): AnalysisMode => {
 };
 
 export const filterCephaloAnalysisLandmarks = (landmarks: Landmark[], mode: AnalysisMode) => {
-  // R23-G3: McNamara13/Atlas33/Gregoret13 have no complete pinned LOT06
-  // point subset. Never apply their old 3/2-factor landmark whitelists,
-  // including at mobile viewports (compactLabels=false).
-  if (mode === 'all' || mode === 'mcnamara' || mode === 'ricketts') return landmarks;
+  // R23-G: partial historic menus (3 McNamara / 2 Ricketts / 10 COM)
+  // must never hide unlisted source dependencies. Full marker presence
+  // is presentation-only, not permission to draw or measure.
+  if (mode === 'all' || mode === 'mcnamara' || mode === 'ricketts' || mode === 'com') return landmarks;
   const allowed = MODE_LANDMARKS[mode];
   return landmarks.filter(item => allowed.has(item.id.toLowerCase()));
 };

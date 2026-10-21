@@ -189,7 +189,10 @@ def project_runtime_chain_read_path(
         "ricketts_atlas2009": project_ricketts_atlas2009_protocol(canonical_projection["measurements"]),
         "ricketts_gregoret13": project_ricketts_gregoret13_protocol(canonical_projection["measurements"]),
     }
-    for key in ("mcnamara", "ricketts_atlas2009", "ricketts_gregoret13"):
+    # COM shares exact canonical measurements with other families but its
+    # historical UI labels are never authority. Attach focus only when an
+    # active typed measurement matches the profile row's exact method.
+    for key in ("mcnamara", "com", "ricketts_atlas2009", "ricketts_gregoret13"):
         for row in protocol_profiles[key]["rows"]:
             if row["availability_status"] == "AVAILABLE" and row["value"] is not None:
                 focus = verified_focus_by_id.get(row["canonical_measurement_id"])

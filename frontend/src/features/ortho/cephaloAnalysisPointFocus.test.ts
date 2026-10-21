@@ -42,6 +42,12 @@ describe('R23-F read-only clinical per-analysis landmark focus',()=>{
     expect(result.source).toBe('unverified');
     expect(result.count).toBe(present.length);
   });
+  it('does not count COM construction-only glyphs as editable markers in unfiltered fallback',()=> {
+    const all = ['S','N','A','B','Po_anatomic','U1_incisal','Prn'];
+    const fallback = {ids:null,source:'unverified' as const,missing:[],count:all.length};
+    expect(countDefaultVisiblePointMarkers('com',fallback,all)).toBe(4);
+    expect(countDefaultVisiblePointMarkers('mcnamara',fallback,all)).toBe(all.length);
+  });
   it('explicitly bounds legacy workbench display anchors without invented positions',()=>{
     const m=resolveCephaloAnalysisPointContract('mcnamara',['Co_A','Co_Gn','ANS_Me'],present);
     const comMetrics=['Surplomb','Recouvrement','IMPA','I_Francfort','Inter_Incisif',

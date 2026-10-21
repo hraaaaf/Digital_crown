@@ -11,11 +11,12 @@ const P: any = {
   accentWarning: '#b70', accentError: '#c00', shadow: 'none', shadowLg: 'none',
 };
 
-const profile = (kind: 'atlas' | 'gregoret' | 'mcnamara') => {
+const profile = (kind: 'atlas' | 'gregoret' | 'mcnamara' | 'com') => {
   const full = {
     atlas: ['RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1', 33, 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__ALL_33_EXECUTABLE_OR_CONDITIONAL', 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED'],
     gregoret: ['RICKETTS_GREGORET_1997_SUMMARIZED_13_PROTOCOL_V1', 13, 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__FAIL_CLOSED', 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED'],
     mcnamara: ['MCNAMARA_1984_SINGLE_FILM_V1', 13, 'WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL', 'HISTORICAL_WORKING_REFERENCE_ONLY'],
+    com: ['COM_DC_LEGACY_V1', 10, 'WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL', 'HISTORICAL_WORKING_REFERENCE_ONLY'],
   } as const;
   const [id, count, state, gate] = full[kind];
   return {
@@ -40,6 +41,7 @@ const readings = {
       ricketts_atlas2009: profile('atlas'),
       ricketts_gregoret13: profile('gregoret'),
       mcnamara: profile('mcnamara'),
+      com: profile('com'),
     },
   },
 };
@@ -47,6 +49,65 @@ const readings = {
 afterEach(cleanup);
 
 describe('R23-G2 full read-only profile tables', () => {
+  it('replaces legacy COM values with all ten canonical rows and fails closed on stale authority', () => {
+    const old = useOrthoStore.getState().anglesData;
+    useOrthoStore.setState({ anglesData: readings });
+    try {
+      const { rerender } = render(<CephaloAnalysisWorkbenchPanel P={P} analysis="com" />);
+      expect(document.querySelectorAll('[data-r23g2-measurement-id]')).toHaveLength(10);
+      expect(document.querySelector('[data-r23g2-protocol-id="COM_DC_LEGACY_V1"]')).toBeTruthy();
+      expect(screen.getByText(/0\/10 valeurs disponibles/)).toBeTruthy();
+      expect(document.querySelectorAll('[data-r23g2-measurement-id] td')).toHaveLength(20);
+      useOrthoStore.setState({
+        anglesData: { scientific_read_path: { ...readings.scientific_read_path, active_chain: 'STALE' } },
+      });
+      rerender(<CephaloAnalysisWorkbenchPanel P={P} analysis="com" />);
+      expect(document.querySelectorAll('[data-r23g2-measurement-id]')).toHaveLength(0);
+      expect(screen.getByText(/Profil non vérifié/)).toBeTruthy();
+    } finally {
+      useOrthoStore.setState({ anglesData: old });
+    }
+  });
+
+  it('permits COM point focus only on exact active method and clears it for a blocked row', () => {
+    const old = useOrthoStore.getState().anglesData;
+    const com: any = profile('com');
+    com.rows[2] = {
+      ...com.rows[2], canonical_measurement_id:'M_IMPA_GOME_DEG_V1',
+      contract_state:'LOCKED shared geometry', availability_status:'AVAILABLE', value:95.2,
+      measurement_refs:['com:typed:impa'], value_authority_method_id:'TWEED_IMPA_DEG_V1',
+      focus_evidence: {
+        authority:'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1',
+        canonical_measurement_id:'M_IMPA_GOME_DEG_V1',
+        measurement_ref:'com:typed:impa', value_authority_method_id:'TWEED_IMPA_DEG_V1',
+        landmark_ids:['Go','Me','L1_incisal','L1_apex'], construction_ids:[],
+        calibration_required:false,
+      },
+    };
+    const events: Array<CephaloMetricFocus | null> = [];
+    const receive = (event: Event) => events.push((event as CustomEvent<CephaloMetricFocus | null>).detail);
+    window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT, receive);
+    useOrthoStore.setState({ anglesData: {
+      scientific_read_path: {
+        authority:'EVIDENCE_GRAPH_V1', active_chain:'VERIFIED',
+        protocol_profiles:{com},
+      },
+    } });
+    try {
+      render(<CephaloAnalysisWorkbenchPanel P={P} analysis="com" />);
+      expect(screen.getByText(/1\/10 valeurs disponibles/)).toBeTruthy();
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')!);
+      expect(events.at(-1)?.points).toEqual(['Go','Me','L1_incisal','L1_apex']);
+      expect(events.at(-1)?.lines).toEqual([]);
+      fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_TEST_1_MM_V1"]')!);
+      expect(events.at(-1)).toBeNull();
+      expect(document.querySelector('[data-r23g3-focus-source="not-authorized"]')).toBeTruthy();
+    } finally {
+      window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT, receive);
+      useOrthoStore.setState({ anglesData: old });
+    }
+  });
+
   it('renders 33 Atlas factors, then exactly 13 Gregoret factors without numeric substitution', () => {
     const old = useOrthoStore.getState().anglesData;
     useOrthoStore.setState({ anglesData: readings });
