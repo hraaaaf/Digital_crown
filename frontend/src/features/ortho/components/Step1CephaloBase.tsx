@@ -7,6 +7,7 @@ import { CephaloTracingLayer } from '../CephaloTracingLayer';
 import type { 
   UIMode, VTOSettings, ImageFilters 
 } from '../cephaloShared';
+import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import { cephaloRepository } from '../cephaloRepository';
 import { calibrationUiLabel, calibrationUiTone, deriveCalibrationUiState } from '../cephaloCalibration';
@@ -49,6 +50,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   const [showCalibrationAssistant, setShowCalibrationAssistant] = useState(false);
   const [calibrationBusy, setCalibrationBusy] = useState(false);
   const [calibrationActionError, setCalibrationActionError] = useState<string | null>(null);
+  const [manualFallbackFile, setManualFallbackFile] = useState<File | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
   const [desktopZoomAvailable, setDesktopZoomAvailable] = useState(false);
@@ -111,7 +113,8 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
       store.setUploadError('Format non supporté. Utilisez JPEG ou PNG.');
       return;
     }
-    store.runAnalysis(files[0]);
+    setManualFallbackFile(files[0]);
+    void store.runAnalysis(files[0]);
   };
 
   const {
@@ -124,6 +127,12 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     performanceMode, isUploading, uploadError,
     activeMorphing, setActiveMorphing, layerVisibility, layerOpacity, setLayerVisible, setLandmarkEditBaseline
   } = store;
+
+  // The 38 measured SRPose landmarks exclude two constructed occlusal planes.
+  const manualPointIds: readonly string[] = REQUIRED_LANDMARKS.filter(id => id !== 'Occ_Ant' && id !== 'Occ_Post');
+  const isManualDraft = anglesData?.analysis_status === 'MANUAL_DRAFT';
+  const manualPointCount = manualPointIds.filter(id => local.landmarks.some(p => p.id === id)).length;
+  const manualFallbackOffered = !!manualFallbackFile && !!uploadError?.includes('Placement manuel requis');
 
   const calibrationData = anglesData?.__calibrationData ?? null;
   const calibrationState = deriveCalibrationUiState({ isCalibrated, anglesData, calibrationData });
@@ -276,6 +285,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
               {uploadError}
             </div>
           )}
+          {manualFallbackOffered && !isUploading && (
+            <button
+              type="button"
+              className="mt-2 min-h-11 rounded-xl px-4 py-2 text-sm font-bold"
+              style={{ background: P.bgCard, color: P.text, border: `1px solid ${P.borderFocus}` }}
+              onClick={() => { if (manualFallbackFile) void store.runAnalysis(manualFallbackFile, true); }}
+            >
+              Importer cette radiographie en brouillon manuel (sans IA)
+            </button>
+          )}
         </motion.div>
       </div>
     );
@@ -312,6 +331,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
     [anglesData],
   );
 
+  const handleManualPointPlacement = (p: { x: number; y: number }) => {
+    if (!isManualDraft || !activePointId || !manualPointIds.includes(activePointId) || showCalibration) return;
+    const next = [
+      ...local.landmarks.filter(point => point.id !== activePointId),
+      { id: activePointId, x: p.x, y: p.y, isAdjusted: true },
+    ];
+    updateLandmarksOptimistic(next);
+    setActivePointId(manualPointIds.find(id => !next.some(point => point.id === id)) ?? null);
+  };
+
   const handleSteinerExplicitPointPlacement = (p: { x: number; y: number }) => {
     if (!activeSteinerPlacement) return;
     const next = local.landmarks.filter(point => point.id !== activeSteinerPlacement.id);
@@ -338,7 +367,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           focusedPointId={null}
           tweedPoAnatomicCertified={tweedPoAnatomicCertified}
           onPointMouseDown={setActivePointId}
-          onEmptyAreaClick={activeSteinerPlacement ? handleSteinerExplicitPointPlacement : undefined}
+          onEmptyAreaClick={isManualDraft && activePointId ? handleManualPointPlacement : activeSteinerPlacement ? handleSteinerExplicitPointPlacement : undefined}
           visualDebug={anglesData?.visual_debug ?? null}
           isCalibrating={showCalibration}
           calibrationPoints={calibrationClickPoints}
@@ -787,6 +816,34 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
           </motion.div>
         )}
       </AnimatePresence>
+
+      {isManualDraft && (
+        <div
+          role="group"
+          aria-label="Traçage céphalométrique manuel"
+          className="absolute bottom-12 left-3 z-40 w-64 max-w-[calc(100%-1.5rem)] rounded-xl border p-3 shadow-lg sm:bottom-6 sm:left-6"
+          style={{ background: P.bgPanel, color: P.text, borderColor: P.borderFocus }}
+        >
+          <label htmlFor="cephalo-manual-point" className="mb-2 block text-xs font-bold">
+            Placement manuel : {manualPointCount}/38 repères
+          </label>
+          <select
+            id="cephalo-manual-point"
+            className="min-h-11 w-full rounded-lg border px-3 py-2 text-sm"
+            style={{ background: P.bgInput, borderColor: P.border, color: P.text }}
+            value={activePointId && manualPointIds.includes(activePointId) ? activePointId : ''}
+            onChange={e => setActivePointId(e.target.value || null)}
+          >
+            <option value="">Choisir le repère à placer</option>
+            {manualPointIds.map(id => (
+              <option key={id} value={id}>{id}{local.landmarks.some(p => p.id === id) ? ' ✓' : ''}</option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs" style={{ color: P.textMuted }}>
+            Choisissez un repère puis cliquez sur la radio. Le brouillon reste sans diagnostic IA ni calibration implicite.
+          </p>
+        </div>
+      )}
 
       <div className="absolute bottom-3 right-3 flex items-center gap-4 text-[10px] font-mono z-20 pointer-events-none sm:bottom-6 sm:right-6">
         <div className="px-3 py-1.5 rounded-full bg-[var(--ceph-ui-panel)] border border-[var(--ceph-ui-border)] backdrop-blur-md text-[var(--ceph-ui-text)]">
