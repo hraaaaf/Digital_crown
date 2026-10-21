@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
 import { CEPHALO_METRIC_FOCUS_EVENT, type CephaloMetricFocus } from '../cephaloAnalysisBridge';
@@ -140,29 +140,29 @@ describe('R23-G2 full read-only profile tables', () => {
     const received: Array<CephaloMetricFocus | null> = [];
     const onFocus = (e: Event) => received.push((e as CustomEvent<CephaloMetricFocus | null>).detail);
     window.addEventListener(CEPHALO_METRIC_FOCUS_EVENT,onFocus);
-    useOrthoStore.setState({patientId:99101,analysisId:870,imageSrc:'study-one',anglesData:mk('proof:A')});
+    act(() => useOrthoStore.setState({patientId:99101,analysisId:870,imageSrc:'study-one',anglesData:mk('proof:A')}));
     try {
       render(<CephaloAnalysisWorkbenchPanel P={P} analysis="com" />);
       fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')!);
       expect(received.at(-1)?.points).toEqual(['Go','Me','L1_incisal','L1_apex']);
-      useOrthoStore.setState({anglesData:mk('proof:B')});
+      act(() => useOrthoStore.setState({anglesData:mk('proof:B')}));
       expect(received.at(-1)).toBeNull();
       expect(document.querySelector('[data-r23g3-focus-source="active-runtime"]')).toBeNull();
       expect(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')?.getAttribute('aria-pressed')).toBe('false');
       fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')!);
       expect(received.at(-1)?.points).toEqual(['Go','Me','L1_incisal','L1_apex']);
-      useOrthoStore.setState({analysisId:871,imageSrc:'study-two'});
+      act(() => useOrthoStore.setState({analysisId:871,imageSrc:'study-two'}));
       expect(received.at(-1)).toBeNull();
       expect(document.querySelector('[data-r23g3-focus-source="active-runtime"]')).toBeNull();
       fireEvent.click(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')!);
       expect(received.at(-1)?.points).toEqual(['Go','Me','L1_incisal','L1_apex']);
-      useOrthoStore.setState({patientId:99102});
+      act(() => useOrthoStore.setState({patientId:99102}));
       expect(received.at(-1)).toBeNull();
       expect(document.querySelector('[data-r23g3-focus-select="M_IMPA_GOME_DEG_V1"]')?.getAttribute('aria-pressed')).toBe('false');
     } finally {
       window.removeEventListener(CEPHALO_METRIC_FOCUS_EVENT,onFocus);
-      useOrthoStore.setState({patientId:previous.patientId,analysisId:previous.analysisId,
-        imageSrc:previous.imageSrc,anglesData:previous.anglesData});
+      act(() => useOrthoStore.setState({patientId:previous.patientId,analysisId:previous.analysisId,
+        imageSrc:previous.imageSrc,anglesData:previous.anglesData}));
     }
   });
 
