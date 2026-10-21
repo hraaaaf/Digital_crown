@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
 from backend.services.cephalo_landmark_identity_bridge import CANONICAL_LANDMARK_ALIASES
@@ -205,3 +207,28 @@ def test_refine_replaces_current_manual_revision_but_preserves_original_auto(mon
     assert {x["landmark_id"] for x in manual_only} == expected_manual_ids
     assert all(x["validated_by"] == "99" for x in corrected + manual_only)
     assert EVIDENCE_GRAPH_KEY not in response["results"]
+
+@pytest.mark.parametrize(
+    "vision_result",
+    [
+        {"landmarks": [], "mode_inference": "FAILED", "processing_time_ms": 1.0},
+        {"landmarks": [], "mode_inference": "SOTA_ONNX_38", "processing_time_ms": 1.0},
+        {"landmarks": [{"id": "S", "x": 1, "y": 2}], "mode_inference": "FAILED", "processing_time_ms": 1.0},
+        {"mode_inference": "FAILED"},
+    ],
+)
+def test_failed_srpose_must_not_persist_successful_analysis(monkeypatch, vision_result):
+    db = MagicMock()
+    service = CephaloService(db)
+    repo = _Repo()
+    service.repo = repo
+    monkeypatch.setattr(
+        "backend.services.cephalo_service.vision_engine.predict_landmarks",
+        lambda _path: vision_result,
+    )
+
+    with pytest.raises(ValueError, match="Placement manuel requis"):
+        service.process_new_radio(7, "/tmp/radio.jpg", "api/static/radio.jpg")
+
+    assert repo.persisted is None
+    db.query.assert_not_called()
