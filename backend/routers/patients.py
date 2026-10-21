@@ -1395,6 +1395,14 @@ def _bound_cephalo_study(
     from backend.services.cephalo_runtime_chain import project_runtime_chain_read_path
 
     source = selected.angles_data or {}
+    # A manually traced study is not an approved report merely because all
+    # 38 points were placed. Until clinician attestation is supported and
+    # verified, both preview and archival PDF must fail closed.
+    if source.get("analysis_status") in {"MANUAL_DRAFT", "MANUAL_REVIEW_REQUIRED"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Traçage manuel non validé : bilan céphalométrique indisponible.",
+        )
     graph = source.get(EVIDENCE_GRAPH_KEY)
     revision = None
     if graph is not None:
