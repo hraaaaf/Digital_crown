@@ -21,7 +21,14 @@ ASSET_CERTIFICATE_FILENAME = "runtime-assets-certification.json"
 ASSET_MANIFEST_FILENAME = "runtime-assets-content.sha256"
 ASSET_CERTIFICATE_VERSION = 1
 ASSET_ARTIFACT_TYPE = "cabinet-runtime-assets"
-ASSET_SELECTION_POLICY_VERSION = 1
+ASSET_SELECTION_POLICY_VERSION = 2
+# V1.5 runtime binaries loaded by the current scientific services.
+# A second cephalometric model, training checkpoints, and orphan weights
+# must never enter the downloadable installer by recursive discovery.
+RUNTIME_MODEL_ALLOWLIST = frozenset({
+    "srpose38-tta-1024.onnx",
+    "panoramic_model.onnx",
+})
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -56,9 +63,9 @@ def sha256_file(path: Path) -> str:
 
 
 def _is_selected_relative(parts: tuple[str, ...]) -> bool:
-    if any(part in AI_MODELS_EXCLUDE_DIRNAMES for part in parts):
-        return False
-    return not any(parts[: len(prefix)] == prefix for prefix in AI_MODELS_EXCLUDE_RELPATHS)
+    # No unreviewed file, training checkpoint, or nested copy is a runtime
+    # asset even if an operator happens to place it under ai_models/.
+    return len(parts) == 1 and parts[0] in RUNTIME_MODEL_ALLOWLIST
 
 
 def iter_runtime_asset_files(ai_models_root: str | Path) -> Iterable[Path]:
