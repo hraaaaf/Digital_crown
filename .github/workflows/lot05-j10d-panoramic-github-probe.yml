@@ -7,6 +7,7 @@ on:
       - 'experiments/lot05_j10d_panoramic_github_probe.py'
       - 'experiments/lot05_j10d_panoramic_dentex_benchmark.py'
       - 'experiments/lot05_j10d_panoramic_alternative_benchmark.py'
+      - 'experiments/lot05_j10d_panoramic_periapical_specialist.py'
       - '.github/workflows/lot05-j10d-panoramic-github-probe.yml'
   workflow_dispatch:
 
@@ -56,6 +57,10 @@ jobs:
         env:
           LOT05_ALTERNATIVE_REPORT: lot05-panoramic-alternative.json
         run: python experiments/lot05_j10d_panoramic_alternative_benchmark.py
+      - name: Evaluate periapical-only ONNX on the same DENTEX films (exploratory)
+        env:
+          LOT05_PERIAPICAL_REPORT: lot05-periapical-specialist.json
+        run: python experiments/lot05_j10d_panoramic_periapical_specialist.py
       - name: Upload scientific probe results; no model binaries
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,5 +70,6 @@ jobs:
             lot05-panoramic-probe.json
             lot05-dentex-exploratory.json
             lot05-panoramic-alternative.json
+            lot05-periapical-specialist.json
           if-no-files-found: warn
           retention-days: 30
