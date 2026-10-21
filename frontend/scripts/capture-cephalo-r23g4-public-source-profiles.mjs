@@ -231,17 +231,17 @@ async function capture(v){
         documentWidth:document.documentElement.scrollWidth,viewportWidth:document.documentElement.clientWidth
       }));
       if(scroll.documentWidth-scroll.viewportWidth>2)fail('Document horizontal overflow '+JSON.stringify(scroll));
-      // Preserve BOTH the actual public radiograph viewport and the table:
-      // scrolling mobile to the table must never masquerade as proof of image UX.
+      // Capture independent DOM targets, not two identical whole-viewport
+      // screenshots bearing misleading radiograph/panel filenames.
       const stage=page.locator('[data-r20-radiograph-stage]');
       const warningStage=await stampSyntheticWarning(stage,'radiograph');
       const warningPanel=await stampSyntheticWarning(panel,'panel');
       await stage.scrollIntoViewIfNeeded();
       const stageFilename=phase.toLowerCase()+'-'+kind+'-'+variant+'-radiograph-'+viewportName+'.png';
-      await page.screenshot({path:path.join(out,stageFilename),fullPage:false});
+      await stage.screenshot({path:path.join(out,stageFilename)});
       await panel.scrollIntoViewIfNeeded();
       const filename=phase.toLowerCase()+'-'+kind+'-'+variant+'-'+viewportName+'.png';
-      await page.screenshot({path:path.join(out,filename),fullPage:false});
+      await panel.screenshot({path:path.join(out,filename)});
       states.push({kind,variant,rows:count,handles,geometry,scroll,warningStage,warningPanel,focus:'not-authorized',filename,stageFilename,valid:true});
     }
   }

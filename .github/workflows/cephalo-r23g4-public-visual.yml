@@ -118,11 +118,12 @@ jobs:
                   const img=await stat(dir+state.filename);
                   const stage=await stat(dir+state.stageFilename);
                   if(img.size<10000||stage.size<10000)throw Error(id+'/'+phase+':radiograph or panel screenshot missing');
-                  if(state.kind==='com'){
-                    const [bytesA,bytesB]=await Promise.all([readFile(dir+state.filename),readFile(dir+state.stageFilename)]);
-                    const hash=b=>createHash('sha256').update(b).digest('hex');
-                    if(hash(bytesA)===hash(bytesB))throw Error(id+'/'+phase+':duplicate COM panel/radiograph screenshots');
-                  }
+                  // ALL protocol variants must contain independent stage/panel
+                  // image captures; COM-only verification hid 24 duplicates.
+                  const [bytesA,bytesB]=await Promise.all([readFile(dir+state.filename),readFile(dir+state.stageFilename)]);
+                  const hash=b=>createHash('sha256').update(b).digest('hex');
+                  if(hash(bytesA)===hash(bytesB))
+                    throw Error(id+'/'+phase+'/'+state.kind+'/'+state.variant+':duplicate panel/radiograph screenshots');
                 }
               }
               reports[phase]=r;
