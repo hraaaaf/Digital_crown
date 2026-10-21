@@ -85,6 +85,7 @@ describe('CrownBot G9 reachable interaction truth', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it('keeps an insight visible and unread when backend read-ack is refused', async () => {
@@ -129,4 +130,24 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Confirmer' })).not.toBeInTheDocument();
   });
+
+  it('exposes safe ZERO-LLM preview inside existing mobile-responsive Chat only when frontend opt-in is explicit', async () => {
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    postMock.mockResolvedValue({ data: {
+      status: 'clarification', message: 'Identifiant numérique du patient ?',
+    } } as any);
+    renderCrownBot();
+    await waitFor(() => expect(getMock).toHaveBeenCalledWith('/bot/sessions'));
+    fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
+    expect(screen.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' })).toBeInTheDocument();
+    expect(screen.getByText(/aucune écriture/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '/rdv' }));
+    await screen.findByText('Identifiant numérique du patient ?');
+    expect(postMock).toHaveBeenCalledWith('/bot/workflows/preview', {
+      messages: ['/rdv'],
+    });
+    expect(postMock).not.toHaveBeenCalledWith('/bot/execute', expect.anything());
+    expect(screen.queryByRole('button', { name: 'Confirmer' })).not.toBeInTheDocument();
+  });
+
 });

@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import OperationalError
 
 from backend.core.runtime_safety import (
     DEV_BOOTSTRAP,
@@ -464,6 +465,27 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={"detail": exc.detail},
         headers=exc.headers,
     )
+
+@app.exception_handler(OperationalError)
+async def sql_busy_clinical_handler(request: Request, exc: OperationalError):
+    """Fail closed with an actionable conflict for encrypted DB writer contention.
+
+    Never return a success or expose SQL/medical details. On an uncertain
+    transaction outcome the user must inspect Agenda before another attempt.
+    """
+    reason = str(getattr(exc, "orig", exc)).lower()
+    if "locked" in reason or "busy" in reason:
+        logger.warning("Clinical database busy; request declined safely")
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "Agenda occupé par une autre opération. Vérifiez le rendez-vous avant de réessayer."},
+        )
+    logger.error("Clinical database unavailable: %s", type(exc).__name__)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Base clinique temporairement indisponible. Réessayez après vérification."},
+    )
+
 
 # --- MIDDLEWARES ---
 # CORS is added further down after HTTP middlewares

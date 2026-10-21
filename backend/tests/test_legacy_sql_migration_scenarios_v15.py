@@ -165,7 +165,7 @@ class MigrationScenarios(unittest.TestCase):
             self.assertFalse(declared.tenant_verified)
             self.assertFalse(declared.admin_approved)
             self.assertFalse(declared.import_permitted)
-            self.assertEqual(target.schema_revision, "orm-declared:neo000000031")
+            self.assertEqual(target.schema_revision, "orm-declared:neo000000032")
             self.assertFalse(report.import_permitted)
             self.assertFalse(proposal.mapping_approved)
             self.assertFalse(proposal.import_permitted)

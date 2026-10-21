@@ -58,6 +58,19 @@ def test_pocket_frontdesk_requires_paired_device_and_enforces_tenant(client, db,
         f"/api/mobile/frontdesk/requests/{own.id}/invalid", headers=headers
     ).status_code == 404
 
+    # No clinician assigned: a secretary must not silently confirm a slot.
+    refused = client.post(
+        f"/api/mobile/frontdesk/requests/{own.id}/confirm", headers=headers
+    )
+    assert refused.status_code == 422, refused.text
+    assert "praticien_id" in refused.text
+    db.rollback()
+    db.refresh(own)
+    assert own.status == schemas.AppointmentStatus.EN_ATTENTE_DEMANDE
+    assert own.confirmed_by_id is None
+    # Explicitly allocate a practitioner from the same authorized cabinet.
+    own.praticien_id = dentiste.id
+    db.commit()
     confirmed = client.post(
         f"/api/mobile/frontdesk/requests/{own.id}/confirm", headers=headers
     )
