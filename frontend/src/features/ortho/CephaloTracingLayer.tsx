@@ -5,6 +5,7 @@ import { CephaloTracingLayer as BaseCephaloTracingLayer } from './CephaloTracing
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
 import { projectPointOnLine } from './cephaloMath';
+import { createDefaultLayerVisibility, createDefaultLayerOpacity } from './orthoLayerRegistry';
 import { getCephaloConstructionViewport, getCephaloZoomViewBox } from './cephaloConstructionViewport';
 import { getCephaloPalette } from './cephaloTheme';
 import {
@@ -223,7 +224,14 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     props.onUpdateLandmarks(merged);
   }, [mode, props.landmarks, props.onUpdateLandmarks]);
 
-  const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode === 'com' ? 'wits' : mode;
+  // COM canonical rows never authorize legacy Wits or local SVG constructions.
+  const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode === 'com' ? 'com-readonly' : mode;
+  const baseLayers = mode === 'com'
+    ? {
+        visibility: { ...(props.layerPresentation?.visibility ?? createDefaultLayerVisibility()), plans: false, measurements: false },
+        opacity: props.layerPresentation?.opacity ?? createDefaultLayerOpacity(),
+      }
+    : props.layerPresentation;
 
   const po = findPointAny(overlayLandmarks, 'Po', 'Porion');
   // Canonical Ricketts Frankfort and N-Pog overlays are anatomically distinct
@@ -286,7 +294,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   const showRickettsHard = mode === 'ricketts' || mode === 'all';
   const showRickettsMarkers = mode === 'ricketts';
   const showCom = mode === 'com';
-  const hasCanonicalFocus = showCom && metricFocus?.authority === 'LOT06_EXECUTABLE_MEASUREMENT_CONTRACT';
+  // Exact active point/construction IDs are not verified SVG line coordinates.
+  const showComLegacyGeometry = false;
+  const hasCanonicalFocus = showCom && metricFocus?.authority === 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1';
   const focusedConstructionIds = new Set(metricFocus?.constructionIds ?? []);
   const focusedPointIds = new Set((metricFocus?.points ?? []).map(id => id.toLowerCase()));
   const comStyle = (requirements: { constructions?: string[]; points?: string[] }, geometryKey: string) => {
@@ -311,6 +321,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
         onUpdateLandmarks={mergeLandmarkUpdate}
         onLandmarkDragPreview={setDragPreview}
         activeAnalysis={baseAnalysis}
+        layerPresentation={baseLayers}
         hoveredMetric={metricFocus ?? props.hoveredMetric ?? null}
       />
 
@@ -364,55 +375,55 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
             );
           })}
 
-          {showCom && po && orPoint && (() => {
+          {showComLegacyGeometry && po && orPoint && (() => {
             const style = comStyle({ constructions: ['FH_PO_OR_V1'] }, 'fh');
             return <line data-r19-construction="com-frankfort" x1={po.x} y1={po.y} x2={orPoint.x} y2={orPoint.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && go && me && (() => {
+          {showComLegacyGeometry && go && me && (() => {
             const style = comStyle({ constructions: ['TWEED_DC_MP_GO_ME_V1'] }, 'mp');
             return <line data-r19-construction="com-mandibular" x1={go.x} y1={go.y} x2={me.x} y2={me.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && u1a && u1i && (() => {
+          {showComLegacyGeometry && u1a && u1i && (() => {
             const style = comStyle({ points: ['U1_apex', 'U1_incisal'] }, 'u1');
             return <line data-r19-construction="com-u1-axis" x1={u1a.x} y1={u1a.y} x2={u1i.x} y2={u1i.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && l1a && l1i && (() => {
+          {showComLegacyGeometry && l1a && l1i && (() => {
             const style = comStyle({ points: ['L1_apex', 'L1_incisal'] }, 'l1');
             return <line data-r19-construction="com-l1-axis" x1={l1a.x} y1={l1a.y} x2={l1i.x} y2={l1i.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && nVerticalStart && nVerticalEnd && (() => {
+          {showComLegacyGeometry && nVerticalStart && nVerticalEnd && (() => {
             const style = comStyle({ constructions: ['NASION_VERTICAL_FH_V1'] }, 'mcnamara_perp');
             return <line data-r19-construction="com-nasion-vertical" data-cephalo-extended-line="com-nasion" clipPath={`url(#${extendedClipId})`} x1={nVerticalStart.x} y1={nVerticalStart.y} x2={nVerticalEnd.x} y2={nVerticalEnd.y} strokeDasharray="7,5" {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && a && aOnNVertical && (() => {
+          {showComLegacyGeometry && a && aOnNVertical && (() => {
             const style = comStyle({ constructions: ['NASION_VERTICAL_FH_V1'], points: ['A'] }, 'situation_a');
             return <line data-r19-construction="com-situation-a" x1={a.x} y1={a.y} x2={aOnNVertical.x} y2={aOnNVertical.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && b && bOnNVertical && (() => {
+          {showComLegacyGeometry && b && bOnNVertical && (() => {
             const style = comStyle({ constructions: ['NASION_VERTICAL_FH_V1'], points: ['B'] }, 'situation_b');
             return <line data-r19-construction="com-situation-b" x1={b.x} y1={b.y} x2={bOnNVertical.x} y2={bOnNVertical.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && s && sOnNVertical && (() => {
+          {showComLegacyGeometry && s && sOnNVertical && (() => {
             const style = comStyle({ constructions: ['CRANIOM_S_TO_N_VERTICAL_DEPTH_V1'] }, 'facial_depth');
             return <line data-r19-construction="com-facial-depth" x1={s.x} y1={s.y} x2={sOnNVertical.x} y2={sOnNVertical.y} strokeDasharray="4,3" {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && a && aPrime && (() => {
+          {showComLegacyGeometry && a && aPrime && (() => {
             const style = comStyle({ constructions: ['CRANIOM_AB_PRIME_V1'], points: ['A'] }, 'a_prime');
             return <line data-r19-construction="com-a-prime-drop" x1={a.x} y1={a.y} x2={aPrime.x} y2={aPrime.y} strokeDasharray="3,3" {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && b && bPrime && (() => {
+          {showComLegacyGeometry && b && bPrime && (() => {
             const style = comStyle({ constructions: ['CRANIOM_AB_PRIME_V1'], points: ['B'] }, 'b_prime');
             return <line data-r19-construction="com-b-prime-drop" x1={b.x} y1={b.y} x2={bPrime.x} y2={bPrime.y} strokeDasharray="3,3" {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && aPrime && bPrime && (() => {
+          {showComLegacyGeometry && aPrime && bPrime && (() => {
             const style = comStyle({ constructions: ['CRANIOM_AB_PRIME_V1'] }, 'ab_prime');
             return <line data-r19-construction="com-ab-prime" x1={aPrime.x} y1={aPrime.y} x2={bPrime.x} y2={bPrime.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && l1i && overjetEnd && (() => {
+          {showComLegacyGeometry && l1i && overjetEnd && (() => {
             const style = comStyle({}, 'overjet');
             return <line data-r19-construction="com-overjet" x1={l1i.x} y1={l1i.y} x2={overjetEnd.x} y2={overjetEnd.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
-          {showCom && u1i && overjetEnd && (() => {
+          {showComLegacyGeometry && u1i && overjetEnd && (() => {
             const style = comStyle({}, 'overbite');
             return <line data-r19-construction="com-overbite" x1={overjetEnd.x} y1={overjetEnd.y} x2={u1i.x} y2={u1i.y} {...style} vectorEffect="non-scaling-stroke" />;
           })()}
@@ -429,8 +440,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
               </g>
             );
           })}
-          {layerVisible('measurements') && showCom && aPrime && <text opacity={layerOpacity('measurements')} data-r19-construction="com-a-prime-label" x={aPrime.x + 7} y={aPrime.y - 7} fill={CEPHALO_SCIENTIFIC_COLORS.skeletal} fontSize="9" fontWeight="800">A′</text>}
-          {layerVisible('measurements') && showCom && bPrime && <text opacity={layerOpacity('measurements')} data-r19-construction="com-b-prime-label" x={bPrime.x + 7} y={bPrime.y + 13} fill={CEPHALO_SCIENTIFIC_COLORS.skeletal} fontSize="9" fontWeight="800">B′</text>}
+          {layerVisible('measurements') && showComLegacyGeometry && aPrime && <text opacity={layerOpacity('measurements')} data-r19-construction="com-a-prime-label" x={aPrime.x + 7} y={aPrime.y - 7} fill={CEPHALO_SCIENTIFIC_COLORS.skeletal} fontSize="9" fontWeight="800">A′</text>}
+          {layerVisible('measurements') && showComLegacyGeometry && bPrime && <text opacity={layerOpacity('measurements')} data-r19-construction="com-b-prime-label" x={bPrime.x + 7} y={bPrime.y + 13} fill={CEPHALO_SCIENTIFIC_COLORS.skeletal} fontSize="9" fontWeight="800">B′</text>}
         </svg>
       )}
 

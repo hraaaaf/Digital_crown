@@ -149,26 +149,27 @@ describe('DC-CEPH-03B.3 clinical store + desktop keyboard + immutable T1/T2 proj
     expect(cephaloRepository.saveAnalysis).not.toHaveBeenCalled();
     expect(useOrthoStore.getState().landmarkEditTimeline.undoStack).toHaveLength(0);
   });
-  it('renders real visual-only T1/T2 ghost groups independently in COM without changing authoritative landmarks', () => {
+  it('blocks nonauthoritative COM ghost traces without mutating landmark evidence', () => {
     render(<IntegratedDesktopStage analysis="com" />);
     const trace = (id: 't1' | 't2') =>
       document.querySelector('[data-ceph03b-ghost-layer="' + id + '"]');
     const lines = (id: 't1' | 't2') => trace(id)?.querySelectorAll('line').length ?? 0;
     const baseline = useOrthoStore.getState().local.landmarks;
-    expect(lines('t1')).toBeGreaterThan(0);
-    expect(lines('t2')).toBeGreaterThan(0);
-    const t2before = lines('t2');
-    act(() => { useOrthoStore.getState().setLayerVisible('t1', false); });
     expect(lines('t1')).toBe(0);
-    expect(lines('t2')).toBe(t2before);
-    act(() => { useOrthoStore.getState().setLayerVisible('t2', false); });
+    expect(lines('t2')).toBe(0);
+    expect(document.querySelectorAll('[data-r19-construction^="com-"]')).toHaveLength(0);
+    act(() => {
+      useOrthoStore.getState().setLayerVisible('t1',false);
+      useOrthoStore.getState().setLayerVisible('t2',false);
+    });
+    expect(lines('t1')).toBe(0);
     expect(lines('t2')).toBe(0);
     act(() => {
-      useOrthoStore.getState().setLayerVisible('t1', true);
-      useOrthoStore.getState().setLayerVisible('t2', true);
+      useOrthoStore.getState().setLayerVisible('t1',true);
+      useOrthoStore.getState().setLayerVisible('t2',true);
     });
-    expect(lines('t1')).toBeGreaterThan(0);
-    expect(lines('t2')).toBeGreaterThan(0);
+    expect(lines('t1')).toBe(0);
+    expect(lines('t2')).toBe(0);
     expect(useOrthoStore.getState().local.landmarks).toEqual(baseline);
     expect(cephaloRepository.saveAnalysis).not.toHaveBeenCalled();
   });

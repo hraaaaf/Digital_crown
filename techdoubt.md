@@ -10,3 +10,6 @@
 - R23-G2 uses shared Step1/CephaloTracingLayer desktop/mobile components, but full mobile feature parity, screenshots and 390/430/768 acceptance are NOT proven; do not claim mobile certified.
 - The old PR #911 has a FAILED exact-HEAD human visual approval gate. The new child PR must remain DRAFT, not merge or deploy without fresh evidence.
 - The new child branch diverges from the currently advancing master. No automatic rebase, no claim of postmerge CI, and a future integration MUST preserve all concurrent unrelated lots.
+
+## R23-G adversarial source-geometry blocker and correction
+The canonical COM10 read-only panel did not authorize the pre-existing COM/Wits local SVG projections. On this HEAD those COM legacy lines and Base plans/measurements are intentionally disabled; source handles/edits and N/A/B construction glyphs remain. T1/T2 COM line ghosts are temporarily hidden rather than shown as clinically valid. AFTER G4 must prove COM canonical 10/10 rows, NC, no Focus on blocked synthetic evidence, no old COM SVG; BEFORE uses legacy COM for the original comparator. Missing independently validated exact SVG geometry/clinical goldset, mobile visuals, owner approval, and master techdoubt.md reconciliation stay OPEN.

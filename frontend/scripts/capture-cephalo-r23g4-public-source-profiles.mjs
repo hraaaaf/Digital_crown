@@ -47,12 +47,14 @@ const rows=(items,id,kind)=>items.map((r,i)=>({
 const mcnamaraId='MCNAMARA_1984_SINGLE_FILM_V1';
 const atlasId='RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1';
 const gregoretId='RICKETTS_GREGORET_1997_SUMMARIZED_13_PROTOCOL_V1';
+const comId='COM_DC_LEGACY_V1';
 const fakeProfiles={
   mcnamara:{protocol_profile_id:mcnamaraId,profile_status:'WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL',source_lock_gate:'HISTORICAL_WORKING_REFERENCE_ONLY',classification_authority:false,rows:rows(ledger.profiles.mcnamara.rows,mcnamaraId,'historical')},
+  com:{protocol_profile_id:comId,profile_status:'WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL',source_lock_gate:'HISTORICAL_WORKING_REFERENCE_ONLY',classification_authority:false,rows:rows(ledger.profiles.com.rows,comId,'historical')},
   ricketts_atlas2009:{protocol_profile_id:atlasId,profile_status:atlas.status,source_lock_gate:'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED',classification_authority:false,rows:rows(atlas.measurements,atlasId,'ricketts')},
   ricketts_gregoret13:{protocol_profile_id:gregoretId,profile_status:gregoret.status,source_lock_gate:'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED',classification_authority:false,rows:rows(gregoret.measurements,gregoretId,'ricketts')}
 };
-if(fakeProfiles.mcnamara.rows.length!==13||fakeProfiles.ricketts_atlas2009.rows.length!==33||fakeProfiles.ricketts_gregoret13.rows.length!==13)
+if(fakeProfiles.mcnamara.rows.length!==13||fakeProfiles.com.rows.length!==10||fakeProfiles.ricketts_atlas2009.rows.length!==33||fakeProfiles.ricketts_gregoret13.rows.length!==13)
   throw new Error('Protocol source drift; never silently truncate fixture');
 const basePoints=[
 ['S',430,370],['N',650,360],['A',690,620],['B',675,790],['Po',390,500],['Or',650,520],
@@ -209,17 +211,33 @@ async function capture(v){
     }
   }
   await page.locator('#cephalo-ready-analysis').selectOption('com');
-  const com=page.locator('[data-r19-analysis-panel="com"]');
+  const after=phase==='AFTER';
+  const com=page.locator(after?'[data-r23g2-protocol-panel="com"]':'[data-r19-analysis-panel="com"]');
   await com.waitFor({state:'attached',timeout:10000});
-  const comRows=await com.locator('[data-r19-metric]').count();
-  if(comRows!==10)fail('COM legacy regression: '+comRows);
+  const count=await com.locator(after?'[data-r23g2-measurement-id]':'[data-r19-metric]').count();
+  if(count!==10)fail('COM 10 rows missing');
+  const variant=after?'canonical':'legacy';
+  let extra={};
+  if(after){
+    if(await com.getAttribute('data-r23g2-protocol-id')!==comId)fail('COM typed profile unverified');
+    if(!(await com.locator('[data-r23g2-coverage]').innerText()).includes('0/10'))fail('COM unapproved AVAILABLE');
+    await com.locator('[data-r23g3-focus-select]').first().click();
+    if(await com.locator('[data-r23g3-focus-source="not-authorized"]').count()!==1)fail('COM false active Focus');
+    const values=await com.locator('tbody tr td:first-of-type').allTextContents();
+    if(values.length!==10||values.some(x=>x.trim()!=='NC'))fail('COM unapproved numeric fallback');
+    const handles=await page.locator('[data-ceph03b-drag-handle]').count();
+    const glyphs=await page.locator('[data-r19-point="N"],[data-r19-point="A"],[data-r19-point="B"]').count();
+    const legacyGeometry=await page.locator('[data-r19-construction^="com-"]').count();
+    if(handles!==35||glyphs!==3||legacyGeometry!==0)fail('COM leaked old geometry '+JSON.stringify({handles,glyphs,legacyGeometry}));
+    extra={handles,glyphs,legacyGeometry,focus:'not-authorized'};
+  }
   await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
-  const comStage=phase.toLowerCase()+'-com-legacy-radiograph-'+viewportName+'.png';
-  await page.screenshot({path:path.join(out,comStage),fullPage:false});
+  const stageFilename=phase.toLowerCase()+'-com-'+variant+'-radiograph-'+viewportName+'.png';
+  await page.screenshot({path:path.join(out,stageFilename),fullPage:false});
   await com.scrollIntoViewIfNeeded();
-  const comFile=phase.toLowerCase()+'-com-legacy-'+viewportName+'.png';
-  await page.screenshot({path:path.join(out,comFile),fullPage:false});
-  states.push({kind:'com',variant:'legacy',rows:comRows,filename:comFile,stageFilename:comStage,valid:true});
+  const filename=phase.toLowerCase()+'-com-'+variant+'-'+viewportName+'.png';
+  await page.screenshot({path:path.join(out,filename),fullPage:false});
+  states.push({kind:'com',variant,rows:count,...extra,filename,stageFilename,valid:true});
   if(errors.length)fail('Page errors: '+errors.join(' | ').slice(0,1200));
   return{viewportName,decoded,valid:true,states,pageErrors:errors};
  }catch(e){
