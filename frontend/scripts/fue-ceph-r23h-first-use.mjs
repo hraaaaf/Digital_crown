@@ -163,6 +163,15 @@ try {
    ctx=await browser.newContext({viewport:{width:1600,height:1000},
       storageState:{cookies:station.cookies.filter(c=>c.name==='dc_workstation'),origins:[]}});
    page=await ctx.newPage();
+   // A fresh browser must authenticate again through the genuine Cabinet UI.
+   // The workstation cookie alone is NOT a user login/session token.
+   await page.goto('http://127.0.0.1:5173/hub?select=1',{waitUntil:'domcontentloaded',timeout:45000});
+   await page.locator('[data-hub-experience="cabinet"]').waitFor({state:'visible'});
+   await page.locator('[data-hub-experience="cabinet"]').click();
+   await page.locator('input[type=email]').fill('t2-browser@cabinet.ma');
+   await page.locator('input[type=password]').fill(password);
+   await page.getByRole('button',{name:'Se connecter',exact:true}).click();
+   await page.waitForURL(x=>new URL(x).pathname==='/dashboard',{timeout:45000});
    await page.goto('http://127.0.0.1:5173/patients/'+test.patient_id+'?tab=radiology&radioTab=cephalo',{waitUntil:'domcontentloaded'});
    await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible',timeout:40000});
    for(const i of [1,0]){
