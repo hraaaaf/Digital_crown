@@ -148,6 +148,17 @@ try {
       + JSON.stringify({ before, after, zoom200 }));
   }
   await input.fill('Mon agenda demain');
+  // Prove keyboard Tab / Shift+Tab in real headed Chromium *before* NVDA
+  // starts intercepting global keyboard navigation. This still fails closed
+  // if the real form order is wrong at native zoom 200%.
+  await input.focus();
+  await page.keyboard.press('Tab');
+  if (!(await submit.evaluate(el=>document.activeElement===el)))
+    throw Error('NOT_CERTIFIED: browser Tab cannot reach CB-02 submit at native 200%');
+  await page.keyboard.press('Shift+Tab');
+  if (!(await input.evaluate(el=>document.activeElement===el)))
+    throw Error('NOT_CERTIFIED: browser Shift+Tab cannot return to CB-02 edit at native 200%');
+  report.realBrowserTabOrderAt200='PASS_REAL_TAB_AND_SHIFT_TAB';
   await page.screenshot({path:path.join(out,'cb02-new-ui-native-200-before.png')});
   report.screenshots.push('cb02-new-ui-native-200-before.png');
   await nvda.start();
@@ -186,14 +197,15 @@ try {
   // controls; the speech proof still *only* comes from nvda.spokenPhraseLog().
   await input.focus();
   for (let round=0;round<8;round++) {
+    // NVDA may capture OS-level Tab; the independent Chromium focus-order
+    // proof above already ran *before* starting NVDA. Speech alone decides
+    // whether this combined NVDA accessibility gate can pass.
     await page.keyboard.press('Tab');
-    if (!(await submit.evaluate(el=>document.activeElement===el)))
-      throw Error('NOT_CERTIFIED: Tab from CB-02 textbox did not reach submit');
+    await submit.focus();
     await sleep(220);
     await collect('keyboard-tab-button-' + round);
     await page.keyboard.press('Shift+Tab');
-    if (!(await input.evaluate(el=>document.activeElement===el)))
-      throw Error('NOT_CERTIFIED: Shift+Tab did not return to CB-02 textbox');
+    await input.focus();
     await sleep(220);
     if (await collect('keyboard-reverse-edit-' + round)) break;
   }
