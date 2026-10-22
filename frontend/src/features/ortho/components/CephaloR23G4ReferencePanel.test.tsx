@@ -57,6 +57,22 @@ beforeEach(() => {
   };
 });
 describe('R23-G4 COM compact UI, read-only Focus', () => {
+  it('identifies only the isolated T2 plate as synthetic and keeps last rows scrollable', async () => {
+    st.current.imageSrc = 'http://127.0.0.1:8005/api/static/uploads/radios/t2-cephalo-seeded.png';
+    request.mockResolvedValue(serverPayload());
+    render(<CephaloR23G4ReferencePanel P={P} analysis="com" />);
+    await screen.findByRole('table');
+    expect(screen.getByText(/Image synthétique de certification T2/)).toBeTruthy();
+    expect(document.querySelector('[data-r23g4-reference-panel="com"] .overflow-auto')?.classList.contains('pb-36')).toBe(true);
+    expect(screen.getAllByText('NC')).toHaveLength(10);
+  });
+
+  it('does not present any real or generic radiograph as the T2 QA plate', async () => {
+    request.mockResolvedValue(serverPayload());
+    render(<CephaloR23G4ReferencePanel P={P} analysis="com" />);
+    await screen.findByRole('table');
+    expect(document.querySelector('[data-r23g4-qa-image]')).toBeNull();
+  });
   it('renders ten NC factors from the exact authenticated reference payload', async () => {
     request.mockResolvedValue(serverPayload());
     render(<CephaloR23G4ReferencePanel P={P} analysis="com" />);

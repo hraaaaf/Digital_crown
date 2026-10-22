@@ -33,7 +33,22 @@ async function viewportRun(viewport) {
   const api = await request.newContext({baseURL:backend});
   let context;
   let page;
+  // Keep medically relevant toasts fully functional. A stable AFTER
+  // screenshot must wait for the transient toast to fade, never hide/alter it.
+  const waitForTransientToasts = async () => {
+    await page.waitForFunction(() => {
+      const statuses = Array.from(document.querySelectorAll('[data-rht-toaster] [role="status"]'));
+      return statuses.every(node => {
+        const s = window.getComputedStyle(node);
+        const r = node.getBoundingClientRect();
+        return s.display === 'none' || s.visibility === 'hidden'
+          || Number(s.opacity) < 0.02 || r.width === 0 || r.height === 0;
+      });
+    }, null, {timeout:15000});
+  };
   const shot = async name => {
+    // Only AFTER is UI-approval material; real-time toasts are not removed.
+    if (name.startsWith('after-')) await waitForTransientToasts();
     const filename = label + '-' + name + '.png';
     await page.screenshot({path:path.join(output, filename), fullPage:false, animations:'disabled'});
     rec.shots.push(filename);
@@ -109,6 +124,8 @@ async function viewportRun(viewport) {
       if(await table.locator('tbody tr').count()!==10)throw Error('COM table cardinality not ten');
       if(await panel.getByText('non certifiée cliniquement',{exact:false}).count()!==1)
         throw Error('Clinical HOLD label absent');
+      if(await panel.locator('[data-r23g4-qa-image]').count()!==1)
+        throw Error('T2 QA raster must be explicitly identified as synthetic, never patient radiography');
       await shot('after-com-ten-factor');
       return {analysis_id:data.analysis_id,revision:data.revision,count:10,clinical_release:false};
     });
@@ -157,6 +174,29 @@ async function viewportRun(viewport) {
         throw Error('Stale prior Focus was retained across selected study');
       await shot('after-other-study-rebound');
       return {study_id:data.analysis_id,revision:data.revision};
+    });
+    await check('COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED',async()=>{
+      const panel=page.locator('[data-r23g4-reference-panel="com"]');
+      const scroller=panel.locator('.overflow-auto').first();
+      const table=panel.locator('table[data-r23g4-row-count="10"]');
+      const last=table.locator('tbody tr').last();
+      await last.scrollIntoViewIfNeeded();
+      await waitForTransientToasts();
+      const readable=await page.evaluate(() => {
+        const panel=document.querySelector('[data-r23g4-reference-panel="com"]');
+        const scroller=panel?.querySelector('.overflow-auto');
+        const row=panel?.querySelector('tbody tr:last-child');
+        if(!scroller||!row)return null;
+        const r=row.getBoundingClientRect(),c=scroller.getBoundingClientRect();
+        return {rowTop:r.top,rowBottom:r.bottom,scrollTop:c.top,scrollBottom:c.bottom,
+          bottomPadding:parseFloat(getComputedStyle(scroller).paddingBottom)||0,
+          viewportHeight:innerHeight};
+      });
+      if(!readable || readable.bottomPadding<120 || readable.rowBottom>readable.scrollBottom+1
+        || readable.rowTop<readable.scrollTop-1)
+        throw Error('Reference last factor is unreachable or unsafe toasts obstruct its scrolling: '+JSON.stringify(readable));
+      await shot('after-com-last-factor-accessible');
+      return readable;
     });
     await check('NO_DESKTOP_VIEWPORT_OVERFLOW',async()=>{
       const dimensions=await page.evaluate(()=>({width:innerWidth,

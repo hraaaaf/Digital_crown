@@ -6,6 +6,7 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'scripts/ceph_p2ter_seed_t2.py'
+      - 'scripts/t2_runtime_server.py'
       - '.github/workflows/ceph-p2ter-master-bridge-*.yml'
 permissions:
   contents: read
@@ -82,6 +83,30 @@ jobs:
           PY
           )"
           echo "P2TER_STUDIES=$studies" >> "$GITHUB_ENV"
+      - name: Verify synthetic T2 calibration plate (never a patient radiograph)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import struct, zlib
+          data=Path("backend/static/uploads/radios/t2-cephalo-seeded.png").read_bytes()
+          assert data[:8]==bytes.fromhex("89504e470d0a1a0a")
+          width,height,bit_depth,color_type,compression,filter_method,interlace=struct.unpack(">IIBBBBB",data[16:29])
+          assert (width,height,bit_depth,color_type,compression,filter_method,interlace)==(1935,2400,8,0,0,0,0)
+          i=8
+          chunks=[]
+          while i<len(data):
+              size=struct.unpack(">I",data[i:i+4])[0]
+              kind=data[i+4:i+8]
+              if kind==b"IDAT": chunks.append(data[i+8:i+8+size])
+              i+=12+size
+              if kind==b"IEND": break
+          raw=zlib.decompress(b"".join(chunks))
+          assert len(raw)==height*(width+1)
+          sample={(x,y):raw[y*(width+1)+1+x] for x,y in
+              [(100,120),(100,1400),(967,1200),(1000,0),(967,500)]}
+          assert len(set(sample.values()))>=3 and max(sample.values())-min(sample.values())>=60,sample
+          print("R23_G4_NONCLINICAL_SYNTHETIC_PLATE_VISIBLE",sample)
+          PY
       - name: Start real Cabinet React frontend
         working-directory: frontend
         run: |

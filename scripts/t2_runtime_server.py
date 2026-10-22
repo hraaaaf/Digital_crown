@@ -58,22 +58,56 @@ from backend.seed_catalog import CATALOG
 from backend.services import cabinet_catalog_store
 
 def _write_t2_png(path: Path, width: int = 1935, height: int = 2400) -> None:
-    """Generate a deterministic local grayscale PNG for isolated cephalo browser proof."""
+    """Deterministic grayscale QA calibration plate, NOT a patient radiograph.
+
+    Maintain existing image identity and 1935x2400 dimensions for T2 JWT/PDF
+    tests. Real patients' image handling and production rendering are unchanged.
+    The former constant 0x30 background was indistinguishable from a failed
+    image load in R23-G4 visual evidence. This synthetic grid is deliberately
+    schematic, NOT anatomy, a cephalogram, or a clinical landmark goldset.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
         return
-    raw = b"".join(b"\x00" + (b"\x30" * width) for _ in range(height))
+
     def chunk(kind: bytes, data: bytes) -> bytes:
         return (
-            struct.pack(">I", len(data))
-            + kind
-            + data
+            struct.pack(">I", len(data)) + kind + data
             + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
         )
+
+    # Clearly visible, non-anatomical grid and calibration loops: no external
+    # files, font, model weights or patient photographs are needed.
+    raw = bytearray()
+    center_x, center_y = width // 2, height // 2
+    for y in range(height):
+        luminance = 106 + (y * 25 // height)
+        scanline = bytearray(bytes([luminance]) * width)
+        if y % 240 in (0, 1, 2):
+            scanline[:] = bytes([170]) * width
+        else:
+            for x in range(0, width, 240):
+                scanline[x:x + 3] = b"\xaa\xaa\xaa"[:min(3, width - x)]
+        # An abstract elliptical calibration target, not a head silhouette.
+        # Only four sparse rings need shading per scanline.
+        dy = (y - center_y) / (height * 0.43)
+        if abs(dy) < 1:
+            x_radius = int((1 - dy * dy) ** 0.5 * (width * 0.35))
+            for off in (-2, -1, 0, 1, 2):
+                for x in (center_x - x_radius + off, center_x + x_radius + off):
+                    if 0 <= x < width:
+                        scanline[x] = 209
+        # A visible central crosshair and step ruler disambiguate load success.
+        if center_y - 26 <= y <= center_y + 26:
+            scanline[center_x - 2:center_x + 3] = b"\xdf" * 5
+        if abs(y - center_y) <= 2:
+            scanline[center_x - 40:center_x + 41] = b"\xdf" * 81
+        raw.append(0)  # PNG filter type NONE
+        raw.extend(scanline)
     png = (
         b"\x89PNG\r\n\x1a\n"
         + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0))
-        + chunk(b"IDAT", zlib.compress(raw, 9))
+        + chunk(b"IDAT", zlib.compress(bytes(raw), 9))
         + chunk(b"IEND", b"")
     )
     path.write_bytes(png)

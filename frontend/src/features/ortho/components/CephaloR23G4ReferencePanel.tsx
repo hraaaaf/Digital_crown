@@ -123,6 +123,11 @@ const CephaloR23G4ReferencePanel: React.FC<{ P: Palette; analysis: R23G2Analysis
         <p className="mt-1 text-xs leading-snug" style={{ color: P.textMuted }}>
           Référence source en lecture seule, non certifiée cliniquement. Aucune norme ni classification déduite.
         </p>
+        {imageSrc?.endsWith('/t2-cephalo-seeded.png') && (
+          <p data-r23g4-qa-image className="mt-1 text-[11px] font-semibold" style={{ color: P.accentWarning }}>
+            Image synthétique de certification T2 — aucun cliché patient, aucun diagnostic.
+          </p>
+        )}
         {analysis === 'ricketts' && (
           <div className="mt-2 flex flex-wrap gap-2" aria-label="Version Ricketts" role="group">
             {([['atlas', 'Atlas 2009 · 33'], ['gregoret', 'Gregoret · 13']] as const).map(([id, label]) => (
@@ -148,7 +153,7 @@ const CephaloR23G4ReferencePanel: React.FC<{ P: Palette; analysis: R23G2Analysis
             : 'Chaîne ou identité du protocole non vérifiée pour cette étude. Aucun chiffre clinique de remplacement.'}
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain pb-36 scroll-pb-36">
           <table className="w-full table-fixed text-left text-xs" aria-label={`Mesures ${profile.protocol_profile_id}`}
             data-r23g4-row-count={rows.length}>
             <thead className="sticky top-0 z-10" style={{ background: P.bgPanel, color: P.textMuted }}>
