@@ -144,7 +144,11 @@ def markdown(report: dict) -> str:
     for family,group in report["families"].items():
         for point in group["ranked_high_p95_ratio"]:
             lines.append(f"| {family} | {point['id']} | {point['p95_mm']:.3f} | {point['frozen_human_reference_p95_mm']:.3f} | {point['observed_to_human_p95_ratio']:.2f}× |")
-    lines += ["","## Interprétation limitée","",
+    lines += ["","## Intégrité des archives historiques", "",
+       f"- SHA256 du fichier résultats lu : \`{report['source_results_sha256']}\`",
+       f"- SHA256 attendu dans le document detail historique : \`{report['detail_declared_source_results_sha256']}\`",
+       "- Correspondance : **OUI**" if report["evidence_limits"]["archived_detail_sha256_matches_current_results_bytes"] else "- Correspondance : **NON — TRAÇABILITÉ OU SÉRIALISATION HISTORIQUE À ÉLUCIDER**, aucune preuve scientifique nouvelle certifiée.",
+       "", "## Interprétation limitée", "",
       "1. Les groupes sont des **classes de suivi local** (osseux, dentaire, cutané), pas une preuve des 38 noms anatomiques amont.",
       "2. Une p95 élevée sur certains appareils peut signaler un problème de domaine/imagerie, mais les effectifs sont hétérogènes : **pas de causalité démontrée** ni de nouvelle normalisation.",
       "3. **Aucun swap de canaux ne peut être testé ou prouvé** sans coordonnées expertes par cas appariées aux 38 prédictions. Les métriques agrégées seules ne le permettent pas.",
@@ -161,12 +165,20 @@ def run(output: Path, evidence: Path=EVIDENCE, repository_root: Path=ROOT):
         "results":"cephalo_vnext_lot04_results.json",
         "detail":"cephalo_vnext_lot04_acceptance_record_detail.json"}.items()}
     raw={name:path.read_bytes() for name,path in paths.items()}
-    if digest(raw["results"])!=json.loads(raw["detail"])["source_results_sha256"]:
-        raise ValueError("Frozen per-case model predictions SHA256 does not match recorded acceptance detail")
+    # This archive may have been serialized after the original detail attestation.
+    # NEVER suppress or silently repair a mismatch; make it an explicit unresolved gate.
+    actual_sha256 = digest(raw["results"])
     record=json.loads(raw["record"]);results=json.loads(raw["results"]);detail=json.loads(raw["detail"])
+    declared_sha256 = detail["source_results_sha256"]
+    matches_archived_attestation = actual_sha256 == declared_sha256
     mapping=source_mapping(repository_root/"scripts/run_cephalo_vnext_lot04_benchmark.py")
     validate_archived_evidence(record,results,detail,mapping)
-    report=analyze(record,results,source_digest=digest(raw["results"]),manifest_sha=record["manifest_sha256"])
+    report=analyze(record,results,source_digest=actual_sha256,manifest_sha=record["manifest_sha256"])
+    report["detail_declared_source_results_sha256"] = declared_sha256
+    report["evidence_limits"]["archived_detail_sha256_matches_current_results_bytes"] = matches_archived_attestation
+    report["evidence_limits"]["archival_chain_of_custody_verified"] = matches_archived_attestation
+    if not matches_archived_attestation:
+        report["verdict"] = "TECHNICAL_DIAGNOSTIC__ARCHIVE_DIGEST_DRIFT_OPEN__CLINICAL_NO_GO"
     output.mkdir(parents=True,exist_ok=True)
     (output/"report.json").write_text(json.dumps(report,sort_keys=True,indent=2,ensure_ascii=False)+"\n")
     (output/"README.md").write_text(markdown(report),encoding="utf-8")
