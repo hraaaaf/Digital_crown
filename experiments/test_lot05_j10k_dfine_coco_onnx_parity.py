@@ -81,8 +81,9 @@ class TestOnnxContract(unittest.TestCase):
     def test_actions_only_metadata_artifacts_and_no_shipping(self):
         content = WORKFLOW.read_text(encoding="utf-8")
         for term in ("ubuntu-24.04", "windows-2025", "actions/upload-artifact@",
-                     "reports/j10k-", "commercial_release_approved", "CPUExecutionProvider"):
+                     "reports/j10k-", "commercial_release_approved"):
             self.assertIn(term, content)
+        self.assertIn("CPUExecutionProvider", MODULE.read_text(encoding="utf-8"))
         for term in ("deploy-production", "gh release create", "aws s3",
                      "vercel deploy", "huggingface-cli upload", "patient_id"):
             self.assertNotIn(term, content)
