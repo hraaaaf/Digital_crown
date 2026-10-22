@@ -166,7 +166,7 @@ jobs:
 
   fdi-real-public-onnx-parity:
     if: github.event_name == 'pull_request' && github.head_ref == 'exp/lot05-j10e-fdi-model-interactive-prototype-20261022'
-    name: Public research film: pinned FDI PT vs exported ONNX CPU parity
+    name: "Public research film — pinned FDI PT vs exported ONNX CPU parity"
     runs-on: ubuntu-24.04
     needs: fdi-interactive-contract
     timeout-minutes: 50
