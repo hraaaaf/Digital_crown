@@ -114,7 +114,9 @@ jobs:
           const rows = [];
 
           const capture = async (kind, port, viewport) => {
-            const context = await browser.newContext({ viewport, colorScheme: 'light' });
+            // VitePWA dev worker can intercept requests before Playwright routes;
+            // this isolated component screenshot uses a deterministic API fixture.
+            const context = await browser.newContext({ viewport, colorScheme: 'light', serviceWorkers: 'block' });
             const page = await context.newPage();
             const errors = [];
             page.on('pageerror', e => errors.push(`PAGE_ERROR ${String(e)}`));
@@ -129,16 +131,28 @@ jobs:
               const location = message.location();
               errors.push(`CONSOLE_ERROR ${message.text()} @ ${location.url || 'unknown'}:${location.lineNumber || 0}`);
             });
-            await page.route('**/api/motifs**', route => route.fulfill({
+            let mockedMotifGets = 0;
+            await context.route(/\/api\/motifs\/?(?:\?.*)?$/, route => {
+              if (route.request().method() !== 'GET') {
+                errors.push(`UNEXPECTED_MOTIF_METHOD ${route.request().method()} ${route.request().url()}`);
+                return route.abort();
+              }
+              mockedMotifGets += 1;
+              return route.fulfill({
               status: 200,
               contentType: 'application/json',
               body: JSON.stringify([
                 { id:'cm_active', label:'Contrôle gouttière ancienne', category_id:'ORTHODONTIE', urgency:'planifié', is_active:true, source:'cabinet' },
                 { id:'cm_inactive', label:'Ancien contrôle cabinet', category_id:'CABINET', urgency:'normal', is_active:false, source:'cabinet' },
               ]),
-            }));
+              });
+            });
             await page.goto(`http://127.0.0.1:${port}/cust02-motifs.html`, { waitUntil: 'networkidle' });
             await page.getByText('Motif(s) de première consultation', { exact: true }).waitFor();
+            // This label appears only after the mocked inactive cabinet motif loads.
+            // The test MUST fail if the request never reaches the fixture.
+            await page.getByText('Ancien contrôle cabinet', { exact: true }).waitFor();
+            if (mockedMotifGets !== 1) errors.push(`MOTIF_FIXTURE_REQUEST_COUNT ${mockedMotifGets}, expected 1`);
             const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
             const shot = `${kind}-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({ path: path.join(output, shot), fullPage: true, animations: 'disabled' });
