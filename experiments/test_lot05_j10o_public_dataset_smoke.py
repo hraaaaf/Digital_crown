@@ -143,9 +143,8 @@ class TestAcademicPublicJPEG(unittest.TestCase):
         content=WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("rights-before-tests",content)
         self.assertIn("ubuntu-24.04",content)
-        self.assertIn("windows-2025",content)
-        self.assertIn("reports/j10o-",content)
-        self.assertIn("actions/upload-artifact@",content)
+        self.assertIn("experiments/test_lot05_j10o_public_dataset_smoke.py",content)
+        self.assertIn("persist-credentials: false",content)
         for banned in ("roboflow download", "gh release create", "vercel deploy",
                        "datasets download", "patient_image.jpg", "model.onnx"):
             self.assertNotIn(banned,content.lower())
