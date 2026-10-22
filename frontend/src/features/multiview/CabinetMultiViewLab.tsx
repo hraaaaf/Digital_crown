@@ -101,7 +101,8 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
         const current=useAuthStore.getState();
         if (!active || current.user?.id !== user?.id || current.isAuthenticated !== true) return;
         if (state.authenticated === true && state.enrollmentRequired === false &&
-            state.defaultExperience === 'cabinet' && state.stationLocked === false &&
+            (state.defaultExperience === 'cabinet' || state.defaultExperience === null) &&
+            state.stationLocked === false &&
             typeof state.workstationId === 'string' && state.workstationId.trim()) {
           setWorkstationProof({key:identityKey,id:state.workstationId});
         }
