@@ -152,35 +152,68 @@ try {
   report.screenshots.push('cb02-new-ui-native-200-before.png');
   await nvda.start();
   startedNvda=true;
-  await nvda.clearSpokenPhraseLog();
   await page.bringToFront();
+  // NVDA virtual navigation can begin *after* a focused multiline edit.
+  // The previous oracle walked forward from the textarea straight to the
+  // submit button and kept repeating that final control. Explicitly visit
+  // BOTH controls via REAL keyboard focus, and independently use NVDA's
+  // reverse/forward virtual cursor. Nothing is inferred from the DOM as speech.
+  await nvda.clearSpokenPhraseLog();
+  const proof = [];
+  const seen = {
+    requestInput: false,
+    understandButton: false,
+  };
+  const collect = async stage => {
+    const raw = await nvda.spokenPhraseLog();
+    const phrases = Array.isArray(raw) ? raw.map(String) : [String(raw)];
+    report.spoken = phrases.slice(-250);
+    // The role and label must occur in the same genuinely spoken phrase:
+    // prose, ARIA labels retrieved by Playwright, or screen pixels cannot PASS.
+    const editPhrase = phrase => /votre demande en fran[cç]ais/i.test(phrase)
+      && /edit|edition|édition|textbox|multiline|multi-line/i.test(phrase);
+    const buttonPhrase = phrase => /comprendre la demande/i.test(phrase)
+      && /button|bouton/i.test(phrase);
+    seen.requestInput ||= phrases.some(editPhrase);
+    seen.understandButton ||= phrases.some(buttonPhrase);
+    report.controlNamesAnnounced = {...seen};
+    proof.push({stage, phraseCount:phrases.length, controls:{...seen},
+      last:phrases.slice(-6)});
+    console.log('CB02_REAL_NVDA_OBSERVATION',JSON.stringify(proof.at(-1)));
+    return Object.values(seen).every(Boolean);
+  };
+  // Deterministic tab/Shift+Tab focus traversal reaches both named
+  // controls; the speech proof still *only* comes from nvda.spokenPhraseLog().
   await input.focus();
-  for (let i=0; i<80; i++) {
-    await nvda.next();
-    if (i % 5 === 4) {
-      const raw = await nvda.spokenPhraseLog();
-      const all = Array.isArray(raw) ? raw.map(String) : [String(raw)];
-      report.spoken = all.slice(-200);
-      report.controlNamesAnnounced = {
-        requestInput: all.some(x=>/votre demande en fran[cç]ais/i.test(x)),
-        understandButton: all.some(x=>/comprendre la demande/i.test(x)),
-      };
-      if (Object.values(report.controlNamesAnnounced).every(Boolean)) break;
+  for (let round=0;round<8;round++) {
+    await page.keyboard.press('Tab');
+    if (!(await submit.evaluate(el=>document.activeElement===el)))
+      throw Error('NOT_CERTIFIED: Tab from CB-02 textbox did not reach submit');
+    await sleep(220);
+    await collect('keyboard-tab-button-' + round);
+    await page.keyboard.press('Shift+Tab');
+    if (!(await input.evaluate(el=>document.activeElement===el)))
+      throw Error('NOT_CERTIFIED: Shift+Tab did not return to CB-02 textbox');
+    await sleep(220);
+    if (await collect('keyboard-reverse-edit-' + round)) break;
+  }
+  if (!Object.values(seen).every(Boolean)) {
+    // Go backward from the button into the edit rather than endlessly
+    // calling NVDA.next() after the last form field, as in the old red run.
+    await submit.focus();
+    for (let i=0;i<24;i++) {
+      await nvda.previous();
+      if (await collect('nvda-previous-' + (i+1))) break;
+    }
+    if (!Object.values(seen).every(Boolean)) {
+      await input.focus();
+      for (let i=0;i<24;i++) {
+        await nvda.next();
+        if (await collect('nvda-next-' + (i+1))) break;
+      }
     }
   }
-  if (!Object.values(report.controlNamesAnnounced).every(Boolean)) {
-    for (let i=0;i<22;i++) {
-      await nvda.perform(nvda.keyboardCommands.moveToNextFormField);
-      const raw = await nvda.spokenPhraseLog();
-      const all = Array.isArray(raw)?raw.map(String):[String(raw)];
-      report.spoken=all.slice(-200);
-      report.controlNamesAnnounced = {
-        requestInput: all.some(x=>/votre demande en fran[cç]ais/i.test(x)),
-        understandButton: all.some(x=>/comprendre la demande/i.test(x)),
-      };
-      if (Object.values(report.controlNamesAnnounced).every(Boolean)) break;
-    }
-  }
+  report.speechNavigationProof=proof.slice(-65);
   const zoomAtSpeech = await readZoom(worker, null);
   if (zoomAtSpeech.id !== zoom200.id || Math.abs(zoomAtSpeech.value-2)>0.01)
     throw Error('NOT_CERTIFIED: native zoom not 200% when real NVDA spoke');
