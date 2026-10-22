@@ -346,7 +346,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
       <BaseCephaloTracingLayer
         {...props}
         landmarks={baseLandmarks}
-        ghosts={baseGhosts}
+        ghosts={referenceHold ? [] : baseGhosts}
         onUpdateLandmarks={mergeLandmarkUpdate}
         activeAnalysis={baseAnalysis}
         hoveredMetric={metricFocus ?? props.hoveredMetric ?? null}

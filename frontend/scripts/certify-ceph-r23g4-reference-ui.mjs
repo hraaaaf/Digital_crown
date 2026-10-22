@@ -136,14 +136,18 @@ async function viewportRun(viewport) {
       return 'Source-locked Atlas 33 and Gregoret 13 without classification';
     });
     await check('SECOND_STUDY_HAS_NO_STALE_REFERENCE',async()=>{
-      const responsePromise=page.waitForResponse(res=>new URL(res.url()).pathname
-        ==='/api/ia/analyses/'+ids.latest_id+'/r23g2-reference-profiles',{timeout:45000});
       await page.getByRole('button',{name:'Historique',exact:true}).click();
       await page.locator('[data-cephalo-history-analysis-id="'+ids.latest_id+'"]').click();
       await page.locator('[data-cephalo-selected-analysis-id="'+ids.latest_id+'"]').waitFor({state:'visible'});
-      await page.locator('#cephalo-ready-analysis').waitFor({state:'visible'});
+      const selector=page.locator('#cephalo-ready-analysis');
+      await selector.waitFor({state:'visible'});
+      // A newly selected study opens in the default "all" view.
+      // Fetch the opt-in reference only once COM is selected on study B.
+      const responsePromise=page.waitForResponse(res=>new URL(res.url()).pathname
+        ==='/api/ia/analyses/'+ids.latest_id+'/r23g2-reference-profiles'
+          && res.request().method()==='GET',{timeout:45000});
+      await selector.selectOption('com');
       const response=await responsePromise;
-      await page.locator('#cephalo-ready-analysis').selectOption('com');
       if(response.status()!==200)throw Error('Other study reference HTTP '+response.status());
       const data=await response.json();
       if(data.analysis_id!==ids.latest_id || data.clinical_release!==false)
