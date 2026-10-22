@@ -158,8 +158,11 @@ const CephaloR23G4ReferencePanel: React.FC<{ P: Palette; analysis: R23G2Analysis
                     <button type="button" className="min-h-9 w-full rounded-md text-left focus-visible:outline-2"
                       data-r23g4-focus-select={row.canonical_measurement_id}
                       aria-pressed={selectedId === row.canonical_measurement_id}
-                      onClick={() => setSelection(selectedId === row.canonical_measurement_id ? null
-                        : { id: row.canonical_measurement_id, bound, analysis, version })}>
+                      onClick={() => {
+                        if (!bound) return;
+                        setSelection(selectedId === row.canonical_measurement_id ? null
+                          : { id: row.canonical_measurement_id, bound, analysis, version });
+                      }}>
                       {row.label || row.canonical_measurement_id}
                     </button>
                     {selectedId === row.canonical_measurement_id && (
