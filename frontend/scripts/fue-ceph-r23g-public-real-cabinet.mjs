@@ -105,8 +105,20 @@ async function execute(viewport) {
         const data = await source.body();
         if(source.status()!==200 || !String(source.headers()['content-type']).startsWith('image/jpeg')
             || sha256(data)!==spec.sha256)throw Error('Protected JPEG not exact original');
-        const unauth = await api.get('/'+spec.source_path);
-        if(unauth.status()===200)throw Error('Unauthenticated protected media exposed');
+        // IMPORTANT: the authenticated APIRequestContext keeps login/station
+        // cookies. An "unauthenticated" request in that context is NOT anonymous.
+        // Build a wholly separate, clean context to test the denial accurately.
+        const anonymousApi=await request.newContext({baseURL:backend});
+        let unauthStatus;
+        try {
+          const unauth=await anonymousApi.get('/'+spec.source_path);
+          unauthStatus=unauth.status();
+        } finally {
+          await anonymousApi.dispose();
+        }
+        if(unauthStatus===200)throw Error('Unauthenticated protected media exposed');
+        if(![401,403,404].includes(unauthStatus))
+          throw Error('Unexpected unauthenticated media response '+unauthStatus);
         const analysis=await api.get('/api/ia/analyses/'+spec.study_id,{
           headers:{Authorization:'Bearer '+token}
         });
@@ -118,7 +130,7 @@ async function execute(viewport) {
             || x.landmarks_data.length!==0 || (x.angles_data && Object.keys(x.angles_data).length))
           throw Error('Public study has invented evidence or wrong original');
         return {case:name,image_sha256:spec.sha256,width:spec.width,height:spec.height,
-          source_http:source.status(),unauth_media_http:unauth.status(),
+          source_http:source.status(),unauth_media_http:unauthStatus,
           study_id:spec.study_id,landmarks:0,calibration:null};
       });
 
