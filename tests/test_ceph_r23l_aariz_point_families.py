@@ -50,6 +50,9 @@ class FrozenEvidenceTests(unittest.TestCase):
             a=json.loads((Path(tmp)/"report.json").read_text())
             self.assertEqual(a["total_fail"],23)
             self.assertEqual(r["total_pass"],1)
+            self.assertFalse(a["evidence_limits"]["archived_detail_sha256_matches_current_results_bytes"])
+            self.assertFalse(a["evidence_limits"]["archival_chain_of_custody_verified"])
+            self.assertEqual(a["verdict"],"TECHNICAL_DIAGNOSTIC__ARCHIVE_DIGEST_DRIFT_OPEN__CLINICAL_NO_GO")
             report=(Path(tmp)/"report.json").read_text()
             # Aggregates contain no per-case IDs or original coordinates.
             b=json.loads((EVIDENCE/"cephalo_vnext_lot04_results.json").read_text())
