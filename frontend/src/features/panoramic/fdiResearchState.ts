@@ -96,6 +96,11 @@ const requireTooth = (state: FdiResearchState, id: string): FdiTooth => {
   if (!found) throw new Error('Dent introuvable.');
   return found;
 };
+export function isDeliberateFdiDrag(dx: number, dy: number): boolean {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return false;
+  return Math.hypot(dx, dy) >= 0.005;
+}
+
 export function duplicateFdi(state: FdiResearchState): string[] {
   const count = new Map<string, number>();
   for (const tooth of state.teeth) count.set(tooth.fdi, (count.get(tooth.fdi) || 0) + 1);
