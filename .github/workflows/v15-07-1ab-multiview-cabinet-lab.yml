@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ___SOURCE_HEAD___
+          ref: ${{ env.SOURCE_HEAD }}
       - name: Verify exact SHA and explicit DEV-only route gate
         run: |
           set -euo pipefail
