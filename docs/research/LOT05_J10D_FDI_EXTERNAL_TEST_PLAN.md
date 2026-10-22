@@ -30,6 +30,8 @@
       "height": 160,
       "width": 220,
       "dentition": "permanent",
+      "site_group": 1,
+      "device_group": 2,
       "gt": [
         { "fdi": "36", "bbox": [10, 10, 60, 60] },
         { "fdi": "37", "bbox": [70, 10, 120, 60] }
@@ -72,6 +74,8 @@ The example intentionally misnumbers tooth 37 as 36. The evaluator counts this a
 ```bash
 PYTHONPATH=experiments python experiments/lot05_j10d_fdi_local_benchmark.py --manifest /local/manifest.json --predictions /local/predictions.json --report /local/aggregates.json
 ```
+
+The optional `site_group` and `device_group` values must be anonymous integer codes 1–50; the summary groups by these codes only, and suppresses groups with fewer than five films. Missing group metadata on any film yields `NOT_PROVIDED_FOR_ALL_FILMS`, never a misleading complete subgroup result. The evaluator has **no medical-data independence verification** or model diagnosis capability.
 
 ### Metrics and decision criteria
 
