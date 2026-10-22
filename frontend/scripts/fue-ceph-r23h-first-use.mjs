@@ -125,13 +125,20 @@ try {
    const imagePath=(await owner.json()).image_original_path;
    const result={};
    for(const [label,email] of [['restricted','t2-restricted@cabinet.ma'],['other_cabinet','t2-setup-1280@cabinet.ma']]){
-     const r=await api.post('/api/auth/login',{form:{username:email,password}});
-     ensure(r.status()===200,label+' login failed');
-     const outsider=(await r.json()).access_token;
-     const a=await api.get('/api/ia/analyses/'+study,{headers:{Authorization:'Bearer '+outsider}});
-     const m=await api.get('/'+imagePath,{headers:{Authorization:'Bearer '+outsider}});
-     ensure([401,403,404].includes(a.status())&&[401,403,404].includes(m.status()),label+' access leaked');
-     result[label]={study:a.status(),image:m.status()};
+     // SECURITY: each user requires a brand-new HTTP context with an EMPTY
+     // cookie jar. Reusing 'api' keeps the dentist cookie despite outsider
+     // Authorization, which is an invalid cross-cabinet security assertion.
+     const outsiderApi=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+     try {
+       const r=await outsiderApi.post('/api/auth/login',{form:{username:email,password}});
+       ensure(r.status()===200,label+' login failed');
+       const outsider=(await r.json()).access_token;
+       const a=await outsiderApi.get('/api/ia/analyses/'+study,{headers:{Authorization:'Bearer '+outsider}});
+       const m=await outsiderApi.get('/'+imagePath,{headers:{Authorization:'Bearer '+outsider}});
+       ensure([401,403,404].includes(a.status())&&[401,403,404].includes(m.status()),
+         label+' REALLY LEAKED on cookie-isolated session: study='+a.status()+' media='+m.status());
+       result[label]={study:a.status(),image:m.status()};
+     }finally{await outsiderApi.dispose();}
    }
    return result;
  });
