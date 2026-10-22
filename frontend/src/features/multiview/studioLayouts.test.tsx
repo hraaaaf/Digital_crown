@@ -42,6 +42,10 @@ describe('07.1.A/B nine-layout registry FUE-0: defensive client contracts only',
     expect(validLayout({...p,slots:[p.slots[0],p.slots[0]]})).toBe(false);
     expect(validLayout({...p,slots:[p.slots[0],{id:'unknown',module:'billing-secret' as never}]})).toBe(false);
     expect(authorizeLayout(undefined,context)).toEqual({ok:false,reason:'INVALID_LAYOUT'});
+    expect(validLayout({...p,slots:null} as unknown as Layout)).toBe(false);
+    expect(validLayout({...p,slots:[null,p.slots[1]]} as unknown as Layout)).toBe(false);
+    expect(authorizeLayout(p,{...context,allowedModules:null as unknown as never[]}))
+      .toEqual({ok:false,reason:'MODULE_DENIED'});
   });
 
   it('denies rendering without auth, workstation, tenant, patient or every required module', () => {
@@ -68,6 +72,17 @@ describe('07.1.A/B nine-layout registry FUE-0: defensive client contracts only',
     expect(authorizeLayout(p,{...context,independentlyMountable:['cephalo'],cssViewportWidth:1440}))
       .toEqual({ok:false,reason:'UNREADABLE_LAYOUT'});
     expect(authorizeLayout(p,{...context,independentlyMountable:['cephalo']}).ok).toBe(true);
+  });
+
+  it('refuses narrow clinical panes even if total layout width would appear to fit', () => {
+    const two: Layout={id:'narrow-cephalo',label:'Céphalo + Agenda',geometry:'two-columns',
+      slots:[{id:'cephalo',module:'cephalo'},{id:'agenda',module:'agenda'}]};
+    expect(authorizeLayout(two,{...context,cssViewportWidth:1280},37))
+      .toEqual({ok:false,reason:'UNREADABLE_LAYOUT'});
+    expect(authorizeLayout(two,{...context,cssViewportWidth:1920},50).ok).toBe(true);
+    const three=getPreset('comparaison-orthodontique')!;
+    expect(authorizeLayout(three,{...context,independentlyMountable:['cephalo'],cssViewportWidth:1600}))
+      .toEqual({ok:false,reason:'UNREADABLE_LAYOUT'});
   });
 
   it('projects only module/geometry IDs into local user+workstation layout preferences', () => {
