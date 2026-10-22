@@ -57,7 +57,7 @@ def read_evidence(directory: Path) -> tuple[dict, dict]:
     for key, name in FILES.items():
         source = directory / name
         raw = source.read_bytes()
-        git_blob_sha1 = hashlib.sha1((f"blob {len(raw)}\\0").encode().replace(b"\\0",b"\0") + raw).hexdigest()
+        git_blob_sha1 = hashlib.sha1(f"blob {len(raw)}\0".encode() + raw).hexdigest()
         if git_blob_sha1 != FROZEN_GIT_BLOB_SHA1[key]:
             raise EvidenceMismatch(f"Git blob differs from frozen LOT04 commit: {key}")
         docs[key] = json.loads(raw)
