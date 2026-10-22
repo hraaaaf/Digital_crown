@@ -29,6 +29,16 @@ class TestCreatePatient:
         resp = client.post("/api/patients/", json=bad, headers=auth_headers)
         assert resp.status_code == 422
 
+    def test_invalid_patient_input_is_not_logged(self, client, auth_headers, caplog):
+        """Reject malformed patient payload without leaking raw PHI to server logs."""
+        sentinel = "PHI_TEST_SENTINEL_NEVER_LOG_7391"
+        bad = {**VALID_PATIENT, "date_naissance": sentinel}
+        caplog.clear()
+        with caplog.at_level("DEBUG"):
+            resp = client.post("/api/patients/", json=bad, headers=auth_headers)
+        assert resp.status_code == 422
+        assert sentinel not in caplog.text
+
     def test_auto_dossier_number_collision_retries(self, client, auth_headers, monkeypatch):
         """An automatic number conflict for another identity retries after rollback."""
         first = client.post(
