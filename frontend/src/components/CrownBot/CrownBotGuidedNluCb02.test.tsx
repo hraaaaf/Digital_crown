@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 vi.mock('../../services/api', () => ({
@@ -7,11 +7,27 @@ vi.mock('../../services/api', () => ({
 }));
 import { api } from '../../services/api';
 import { CrownBotGuidedNluCb02 } from './CrownBotGuidedNluCb02';
+import { CrownBotWorkflowPreview } from './CrownBotWorkflowPreview';
 const post = vi.mocked(api.post);
 
 beforeEach(() => { vi.clearAllMocks(); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe('CB-02 read-only French guided preview, synthetic transport', () => {
+
+  it('remains completely absent from CB-01 when the separate UI flag is OFF', () => {
+    vi.stubEnv('VITE_CROWN_BOT_GUIDED_NLU_ENABLED', 'false');
+    render(<CrownBotWorkflowPreview />);
+    expect(screen.queryByRole('region', { name: /Français guidé Crown Bot CB-02/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trouver un patient' })).toBeInTheDocument();
+  });
+
+  it('mounts only when the independent CB-02 UI flag is deliberately ON', () => {
+    vi.stubEnv('VITE_CROWN_BOT_GUIDED_NLU_ENABLED', 'true');
+    render(<CrownBotWorkflowPreview />);
+    expect(screen.getByRole('region', { name: /Français guidé Crown Bot CB-02/i })).toBeInTheDocument();
+  });
+
   it('sends only utterance, renders field provenance, never an action', async () => {
     post.mockResolvedValueOnce({ data: {
       status: 'preview_only', intent: 'RDV_PREPARE',
