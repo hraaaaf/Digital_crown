@@ -1,0 +1,51 @@
+name: CEPH R23-K — exact 38 GT/source pair comparator contract (NO REAL RADIO DATA)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ceph-r23k-cl2023-same-film-comparator.yml'
+      - 'scripts/compare_srpose38_cl2023_38.py'
+      - 'tests/test_ceph_r23k_cl2023_pair_comparator.py'
+      - 'docs/audits/CEPH_R23K_CL2023_38_SAME_FILM_COMPARATOR.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-pairing-test-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin exact code revision
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test -z "$(git status --porcelain)"
+      - name: Dependencies for strictly synthetic 2-film MetaImage fixtures
+        run: |
+          python -m pip install 'numpy==2.2.6'
+      - name: Strict parser, pairing, index, scale, and absent-weights negative tests
+        run: |
+          python -m py_compile scripts/compare_srpose38_cl2023_38.py tests/test_ceph_r23k_cl2023_pair_comparator.py
+          python -m unittest discover -s tests -p test_ceph_r23k_cl2023_pair_comparator.py -v
+      - name: Verify immutable model registry identity, no model binary in CI
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.compare_srpose38_cl2023_38 import MODEL_SHA256, MODEL_BYTES
+          reg=json.loads(Path('backend/scientific_assets.json').read_text())
+          pinned=[x for x in reg['assets'] if x['id']=='cephalo_sota']
+          assert len(pinned)==1
+          assert pinned[0]['sha256']==MODEL_SHA256 and pinned[0]['size_bytes']==MODEL_BYTES
+          assert pinned[0]['runtime_provider']=='CPUExecutionProvider'
+          assert not Path('backend/ai_models/srpose38-tta-1024.onnx').is_file()
+          print('R23K_MODEL_IDENTITY_PIN_PASS_NOT_ANATOMY')
+          print('R23K_SYNTHETIC_PARSER_PASS_NO_OFFICIAL_RADIO_PAIR_NO_MODEL_INFERENCE')
+          print('R23K_REAL_COMPARISON_BLOCKED_BY_RESTRICTED_IMAGE__CLINICAL_NO_GO')
+          PY
