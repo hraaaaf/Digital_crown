@@ -117,7 +117,7 @@ def review_catalog(data: object) -> dict:
         "kinds": counts,
         "clinically_authorized_models": 0,
         "commercially_cleared_fdi_checkpoints": 0,
-        "research_priority": "Apache-2.0 RT-DETR foundation + provenance-vetted 32-FDI dataset",
+        "research_priority": "Apache-2.0 D-FINE Nano COCO foundation + provenance-vetted 32-FDI dataset",
         "none_of_the_models_has_been_selected_for_commercial_bundle": True,
     }
 
