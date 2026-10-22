@@ -175,6 +175,8 @@ class PocConversation:
         self.state = "patient"
         return PocTurn(
             "clarification",
-            "Identifiant numérique du patient ? "
-            "La sélection et les droits devront être vérifiés côté serveur.",
+            "Patient : saisissez un identifiant, un nom/prénom exact ou "
+            "un numéro de dossier (ex. dossier:T2-0001). "
+            "Les homonymes demandent une sélection explicite. "
+            "La sélection et les droits sont vérifiés côté serveur.",
         )

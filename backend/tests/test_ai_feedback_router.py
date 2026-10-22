@@ -141,6 +141,39 @@ class TestFeedbackStats:
 
 # ── ghost insights ─────────────────────────────────────────────────────────────
 
+class TestGhostSnapshotDiff:
+    def test_same_unread_count_with_replaced_id_broadcasts_new_patient_alert(self):
+        """A read + B arrives while total remains 1: WebSocket must send B."""
+        from types import SimpleNamespace
+        from backend.routers.ai_feedback import _ghost_snapshot_if_changed
+
+        date = datetime(2026, 10, 17, 12, 0, 0)
+        a = SimpleNamespace(id=101, patient_id=10, insight_type="AGENDA",
+                            content="Ancienne alerte", created_at=date)
+        b = SimpleNamespace(id=102, patient_id=20, insight_type="AGENDA",
+                            content="Nouvelle alerte", created_at=date)
+
+        first, signature_a = _ghost_snapshot_if_changed([a], 1, None)
+        assert first["unread_count"] == 1
+        assert [item["id"] for item in first["insights"]] == [101]
+        unchanged, same_signature = _ghost_snapshot_if_changed([a], 1, signature_a)
+        assert unchanged is None
+        assert same_signature == signature_a
+
+        replacement, signature_b = _ghost_snapshot_if_changed([b], 1, signature_a)
+        assert replacement is not None
+        assert replacement["unread_count"] == 1
+        assert [item["id"] for item in replacement["insights"]] == [102]
+        assert signature_b != signature_a
+
+        # An edited alert must also refresh even if its ID and count do not.
+        changed = SimpleNamespace(id=102, patient_id=20, insight_type="AGENDA",
+                                  content="Alerte mise à jour", created_at=date)
+        updated, signature_c = _ghost_snapshot_if_changed([changed], 1, signature_b)
+        assert updated["insights"][0]["content"] == "Alerte mise à jour"
+        assert signature_c != signature_b
+
+
 class TestGhostInsights:
     def test_requires_auth(self, client):
         r = client.get("/api/ai/ghost-insights")

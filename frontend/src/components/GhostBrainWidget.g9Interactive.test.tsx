@@ -10,9 +10,10 @@ vi.mock('../services/api', () => ({
   API_BASE: 'http://127.0.0.1:8005',
 }));
 
+const authState = vi.hoisted(() => ({ employerId: 42, userId: 9 }));
 vi.mock('../stores/useAuthStore', () => ({
   useAuthStore: () => ({
-    user: { id: 9, employer_id: 42 },
+    user: { id: authState.userId, employer_id: authState.employerId },
   }),
 }));
 
@@ -41,7 +42,7 @@ class FakeWebSocket {
 }
 
 async function renderSeededWidget() {
-  render(
+  const view = render(
     <MemoryRouter initialEntries={['/dashboard']}>
       <GhostBrainWidget />
     </MemoryRouter>,
@@ -63,15 +64,18 @@ async function renderSeededWidget() {
 
   fireEvent.click(screen.getByTitle('Synthèse contextuelle'));
   await screen.findByRole('button', { name: /^Marquer comme lu$/i });
+  return view;
 }
 
 describe('GhostBrainWidget G9 read-ack truth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     FakeWebSocket.instances = [];
+    authState.employerId = 42;
+    authState.userId = 9;
     localStorage.setItem('token', 'g9-token');
     vi.stubGlobal('WebSocket', FakeWebSocket as any);
-    postMock.mockResolvedValue({ data: {} } as any);
+    postMock.mockResolvedValue({ data: { status: 'read' } } as any);
   });
 
   afterEach(() => {
@@ -90,6 +94,231 @@ describe('GhostBrainWidget G9 read-ack truth', () => {
     });
 
     expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
+  });
+
+  it('S12: a real-shaped HTTP 404 keeps the GhostBrain alert unread', async () => {
+    await renderSeededWidget();
+    postMock.mockRejectedValueOnce({
+      response: { status: 404, data: { detail: 'Insight introuvable' } },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
+    expect(screen.queryByText('Aucune nouvelle déduction.')).not.toBeInTheDocument();
+  });
+
+  it('S12: HTTP 200 with absent or malformed read receipt cannot hide an alert', async () => {
+    await renderSeededWidget();
+    postMock.mockResolvedValueOnce({ data: { status: 'pending' } } as any);
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
+    expect(screen.queryByText('Aucune nouvelle déduction.')).not.toBeInTheDocument();
+  });
+
+  it('S12: keeps the notification until a delayed persisted HTTP read ACK', async () => {
+    await renderSeededWidget();
+    let resolveRead: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => {
+      resolveRead = resolve;
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+    expect(screen.getByRole('button', { name: /^Marquer comme lu$/i })).toBeInTheDocument();
+    await act(async () => { resolveRead?.({ data: { status: 'read' } }); });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Aucune nouvelle déduction.')).toBeInTheDocument();
+  });
+
+  it('S12: delayed ACK for an obsolete insight preserves newer WS unread badge', async () => {
+    await renderSeededWidget();
+    let resolveRead: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => {
+      resolveRead = resolve;
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+
+    // A new server snapshot no longer contains 601, but has an unrelated
+    // unread alert 602. The 601 response must not acknowledge 602.
+    act(() => {
+      FakeWebSocket.instances.at(-1)?.emit({
+        unread_count: 1,
+        insights: [{
+          id: 602,
+          insight_type: 'AGENDA',
+          content: 'Nouveau rendez-vous à vérifier',
+          patient_id: null,
+          created_at: '2026-09-24T10:01:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    await act(async () => { resolveRead?.({ data: { status: 'read' } }); });
+
+    // A list without a visible unread badge is a false-negative alert state.
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+  });
+
+  it('S12: tenant switch hides prior insights and rejects a colliding late ACK', async () => {
+    const { rerender } = await renderSeededWidget();
+    let resolveOldAck: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => {
+      resolveOldAck = resolve;
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+
+    // Same mounted widget, different tenant: old data must disappear BEFORE
+    // the new WebSocket delivers its first snapshot.
+    authState.employerId = 43;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Aucune nouvelle déduction.')).toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')).toBeNull();
+
+    await waitFor(() => expect(FakeWebSocket.instances.length).toBe(2));
+    act(() => {
+      FakeWebSocket.instances.at(-1)?.emit({
+        unread_count: 1,
+        insights: [{
+          id: 601, // Deliberate ID collision with tenant 42.
+          insight_type: 'AGENDA',
+          content: 'Nouvelle alerte du cabinet B',
+          patient_id: null,
+          created_at: '2026-09-24T10:01:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    await act(async () => { resolveOldAck?.({ data: { status: 'read' } }); });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+  });
+
+  it('S12: switching staff within one cabinet clears data and re-authenticates WS', async () => {
+    const { rerender } = await renderSeededWidget();
+    authState.userId = 10;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')).toBeNull();
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    expect(FakeWebSocket.instances[1].url).toContain('/ghost-insights/42?token=');
+  });
+
+  it('S12: A-B-A cabinet return cannot let a former A-session ACK remove the new A insight with same ID', async () => {
+    const { rerender } = await renderSeededWidget();
+    let resolveOldRead: ((value: { data: { status: string } }) => void) | undefined;
+    postMock.mockImplementationOnce(() => new Promise(resolve => {
+      resolveOldRead = resolve;
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /^Marquer comme lu$/i }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read'));
+
+    // Switch to another tenant, then return to the original tenant without
+    // destroying the React widget instance. Database-local IDs may collide.
+    authState.employerId = 43;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    authState.employerId = 42;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(3));
+    // Before the new A socket replies, an old A alert must not reappear.
+    expect(screen.queryByRole('button', { name: /^Marquer comme lu$/i })).not.toBeInTheDocument();
+    act(() => {
+      FakeWebSocket.instances[2].emit({
+        unread_count: 1,
+        insights: [{
+          id: 601,
+          insight_type: 'AGENDA',
+          content: 'Alerte actuelle du nouveau contexte A',
+          patient_id: null,
+          created_at: '2026-09-24T10:02:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    await act(async () => { resolveOldRead?.({ data: { status: 'read' } }); });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+  });
+
+  it('S12: reading one of two alerts keeps the other alert and its badge visible', async () => {
+    await renderSeededWidget();
+    act(() => {
+      FakeWebSocket.instances.at(-1)?.emit({
+        unread_count: 2,
+        insights: [
+          { id: 601, insight_type: 'FINANCE', content: 'Impayé à vérifier',
+            patient_id: 4, created_at: '2026-09-24T10:00:00Z' },
+          { id: 602, insight_type: 'AGENDA', content: 'Autre alerte non lue',
+            patient_id: null, created_at: '2026-09-24T10:01:00Z' },
+        ],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })[0]);
+    await waitFor(() => expect(screen.getAllByRole('button', {
+      name: /^Marquer comme lu$/i,
+    })).toHaveLength(1));
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
+    expect(postMock).toHaveBeenCalledWith('/ai/ghost-insights/601/read');
+  });
+
+  it('S12: disposed tenant websocket cannot overwrite the current tenant snapshot', async () => {
+    const { rerender } = await renderSeededWidget();
+    const disposedSocket = FakeWebSocket.instances[0];
+    authState.employerId = 43;
+    rerender(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <GhostBrainWidget />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    act(() => {
+      FakeWebSocket.instances[1].emit({
+        unread_count: 1,
+        insights: [{
+          id: 702, insight_type: 'AGENDA', content: 'Alerte du cabinet B',
+          patient_id: null, created_at: '2026-09-24T10:01:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    act(() => {
+      disposedSocket.emit({
+        unread_count: 1,
+        insights: [{
+          id: 601, insight_type: 'FINANCE', content: 'Rejeu ancien cabinet A',
+          patient_id: 4, created_at: '2026-09-24T10:02:00Z',
+        }],
+      });
+    });
+    expect(screen.getAllByRole('button', { name: /^Marquer comme lu$/i })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Tout marquer comme lu' })).toBeInTheDocument();
+    expect(screen.getByTitle('Synthèse contextuelle').querySelector('span')?.textContent).toBe('1');
   });
 
   it('removes the insight only after backend ACK', async () => {
