@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import {
   PERMANENT_FDI, RESEARCH_SCHEMA, RESEARCH_SPECIALTIES,
   createResearchState, parseResearchInput, addResearchTooth,
@@ -99,14 +99,14 @@ export function FDIResearchPanel() {
       setFeedback(err instanceof Error ? err.message : 'JSON invalide.');
     }
   };
-  const point = (event: React.PointerEvent<SVGSVGElement>) => {
+  const point = (event: PointerEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return [
       Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
       Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
     ] as const;
   };
-  const pointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
+  const pointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (!state) return;
     const [x, y] = point(event);
     if (addMode) {
@@ -126,7 +126,7 @@ export function FDIResearchPanel() {
     dragRef.current = { id, x, y, box: [...selectedTooth.bbox] as FdiBox };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const pointerUp = (event: React.PointerEvent<SVGSVGElement>) => {
+  const pointerUp = (event: PointerEvent<SVGSVGElement>) => {
     const drag = dragRef.current;
     dragRef.current = null;
     if (!drag || !state) return;
