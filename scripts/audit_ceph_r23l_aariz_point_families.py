@@ -145,8 +145,8 @@ def markdown(report: dict) -> str:
         for point in group["ranked_high_p95_ratio"]:
             lines.append(f"| {family} | {point['id']} | {point['p95_mm']:.3f} | {point['frozen_human_reference_p95_mm']:.3f} | {point['observed_to_human_p95_ratio']:.2f}× |")
     lines += ["","## Intégrité des archives historiques", "",
-       f"- SHA256 du fichier résultats lu : \`{report['source_results_sha256']}\`",
-       f"- SHA256 attendu dans le document detail historique : \`{report['detail_declared_source_results_sha256']}\`",
+       f"- SHA256 du fichier résultats lu : `{report['source_results_sha256']}`",
+       f"- SHA256 attendu dans le document detail historique : `{report['detail_declared_source_results_sha256']}`",
        "- Correspondance : **OUI**" if report["evidence_limits"]["archived_detail_sha256_matches_current_results_bytes"] else "- Correspondance : **NON — TRAÇABILITÉ OU SÉRIALISATION HISTORIQUE À ÉLUCIDER**, aucune preuve scientifique nouvelle certifiée.",
        "", "## Interprétation limitée", "",
       "1. Les groupes sont des **classes de suivi local** (osseux, dentaire, cutané), pas une preuve des 38 noms anatomiques amont.",
