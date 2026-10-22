@@ -11,14 +11,13 @@ clearance or clinical AI model is claimed. No credentials, no GitHub secrets.
 """
 from __future__ import annotations
 import argparse
-import hashlib
 from io import BytesIO
 import json
 from pathlib import Path
 import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 DATASET_ID = "73n3kz2k4k"
 VERSION = 3
@@ -45,6 +44,15 @@ def _public_domain(url: str) -> bool:
     )
 
 
+class _AllowlistedRedirects(HTTPRedirectHandler):
+    """Refuse an unapproved 30x target before an HTTP request is sent."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _public_domain(newurl):
+            raise PublicSampleError("untrusted_public_storage_redirect")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _read(url: str, max_bytes: int, accept: str) -> bytes:
     if not _public_domain(url):
         raise PublicSampleError("unapproved_public_source_or_redirect")
@@ -53,14 +61,19 @@ def _read(url: str, max_bytes: int, accept: str) -> bytes:
         "Accept":accept,
     })
     try:
-        with urlopen(request, timeout=18) as response:
+        with build_opener(_AllowlistedRedirects()).open(request, timeout=18) as response:
             if not _public_domain(response.geturl()):
                 raise PublicSampleError("untrusted_public_storage_redirect")
             if response.status != 200:
                 raise PublicSampleError("public_source_http_not_200")
             body=response.read(max_bytes+1)
-    except (HTTPError, URLError) as e:
-        raise PublicSampleError("public_academic_endpoint_unavailable:"+type(e).__name__) from e
+    except HTTPError as e:
+        # Keep the code needed to distinguish wrong endpoints from restricted access.
+        # Never print signed URLs, auth tokens, response bodies or patient content.
+        code = e.code if isinstance(e.code, int) else "unknown"
+        raise PublicSampleError(f"public_academic_http_{code}") from e
+    except URLError as e:
+        raise PublicSampleError("public_academic_transport_unavailable") from e
     if len(body)>max_bytes or not body:
         raise PublicSampleError("public_sample_exceeds_size_limit_or_empty")
     return body
