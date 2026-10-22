@@ -87,7 +87,8 @@ def test_valid_source_locked_xi_pm_evidence_survives_both_profiles_without_class
         assert row["value_authority_method_id"] == METHOD
         assert row["classification_authority"] is False
         assert row["contract_state"] == "CONDITIONAL_EXECUTABLE"
-        assert row["focus_evidence"] if "focus_evidence" in row else True
+        assert row["measurement_refs"] == [measurement.measurement_id]
+        assert row["source_contracts"] == [row["source_contract"]]
     # The profile-specific source gates are distinct; sharing a canonical
     # calculation does NOT by itself validate either clinical protocol.
     assert rows[0]["contract_gate"] != rows[1]["contract_gate"]
@@ -116,7 +117,7 @@ def test_missing_manual_or_anatomical_anchor_cannot_promote_value_or_focus(missi
 def test_unreviewed_auto_ramal_or_pm_landmark_cannot_promote(automatic):
     landmarks = _landmarks()
     item = landmarks[automatic]
-    landmarks[automatic] = item.model_copy(update={
+    landmarks[automatic] = LandmarkEvidence.model_validate({**item.model_dump(),
         "origin": LandmarkOrigin.SRPOSE38_AUTO,
         "model_id": "synthetic-p2", "model_sha256": "a" * 64,
         "pipeline_version": "synthetic-p2",
