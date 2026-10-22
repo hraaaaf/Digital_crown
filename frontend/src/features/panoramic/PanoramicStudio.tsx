@@ -17,6 +17,10 @@ import { ReportViewer } from './ReportViewer';
 import { usePanoramicStore, ANOMALY_TAXONOMY, GLOBAL_FINDINGS } from './stores/usePanoramicStore';
 import { LivePreview } from '../admin/DocumentStudio/LivePreview';
 
+// LOT05/J10F: isolated research overlay. No real patient image is provided to it.
+const FDIResearchPanel = React.lazy(() => import('./FDIResearchPanel').then(m => ({ default: m.FDIResearchPanel })));
+const FDI_RESEARCH_AVAILABLE = import.meta.env.DEV && import.meta.env.VITE_FDI_RESEARCH_WORKSPACE === 'enabled';
+
 interface Annotation {
   id: number;
   x: number;
@@ -105,6 +109,7 @@ const URGENT_ANOMALY_IDS = new Set([
 
 export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, patientName }) => {
   const [loading, setLoading] = useState(false);
+  const [fdiResearchOpen, setFdiResearchOpen] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
   const [imgSize, setImgSize] = useState<{w: number, h: number} | null>(null);
@@ -313,6 +318,22 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
 
   return (
     <div className="flex min-w-0 flex-col lg:flex-row h-auto min-h-screen lg:h-full gap-4 lg:gap-6 bg-slate-50/50 p-4 lg:p-6 overflow-y-auto lg:overflow-hidden">
+      {FDI_RESEARCH_AVAILABLE && fdiResearchOpen && (
+        <div role="dialog" aria-modal="true" aria-label="Laboratoire FDI — recherche uniquement"
+          data-testid="fdi-research-dialog" className="fixed inset-0 z-[999] overflow-y-auto bg-slate-950/95 p-3 md:p-8">
+          <div className="mx-auto max-w-6xl space-y-3">
+            <div className="flex justify-end">
+              <button type="button" onClick={() => setFdiResearchOpen(false)}
+                className="rounded-xl border border-slate-400 bg-slate-800 px-4 py-2 font-semibold text-white">
+                Fermer le laboratoire · sans sauvegarder
+              </button>
+            </div>
+            <React.Suspense fallback={<p className="text-white">Chargement du laboratoire FDI...</p>}>
+              <FDIResearchPanel />
+            </React.Suspense>
+          </div>
+        </div>
+      )}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden min-h-[50vh] lg:min-h-0">
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between shrink-0 gap-4">
           <div>
@@ -323,6 +344,10 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:gap-3 w-full lg:w-auto">
+            {FDI_RESEARCH_AVAILABLE && <button type="button" data-testid="open-fdi-research" onClick={() => setFdiResearchOpen(true)}
+              className="rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+              Laboratoire FDI · recherche
+            </button>}
             <button
               onClick={() => {
                 setCompareMode(!compareMode);
