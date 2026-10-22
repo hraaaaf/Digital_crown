@@ -2,8 +2,9 @@
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from lot05_j10d_fdi_akudental_public_ci import _safe_filename_resolution
+from lot05_j10d_fdi_akudental_public_ci import _safe_filename_resolution, materialize_verified_checkpoint, MODEL_WEIGHTS_SHA256
 from lot05_j10d_fdi_local_benchmark import BenchmarkError
 
 
@@ -22,6 +23,30 @@ class TestPublishedDatasetLoader(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_hub_symlink_is_verified_and_materialized_as_ordinary_file(self):
+        # HF Hub snapshot points to a validated cache blob, no real .pt needed.
+        blob = self.root / "blob.pt"
+        blob.write_bytes(b"trusted synthetic checkpoint")
+        symlink = self.root / "snapshot.pt"
+        symlink.symlink_to(blob)
+        output_dir = self.root / "materialized"
+        output_dir.mkdir()
+        with patch("lot05_j10d_fdi_akudental_public_ci.sha256",
+                   side_effect=lambda p: MODEL_WEIGHTS_SHA256 if p.read_bytes() == blob.read_bytes() else "bad"):
+            regular = materialize_verified_checkpoint(symlink, output_dir)
+        self.assertTrue(regular.is_file())
+        self.assertFalse(regular.is_symlink())
+        self.assertEqual(regular.read_bytes(), blob.read_bytes())
+
+    def test_changed_cache_weight_must_fail_closed(self):
+        source = self.root / "source.pt"
+        source.write_bytes(b"corrupted fake checkpoint")
+        output_dir = self.root / "materialized"
+        output_dir.mkdir()
+        with self.assertRaisesRegex(BenchmarkError, "untrusted_pinned_weights"):
+            materialize_verified_checkpoint(source, output_dir)
+        self.assertFalse((output_dir / "verified-best.pt").exists())
 
     def test_numeric_deterministic_preselection(self):
         updated = _safe_filename_resolution(self.source, self.root, 2)
