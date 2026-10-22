@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   rights-before-tests:
-    name: Public metadata QA offline tests
+    name: Offline fail-closed checks for public source metadata
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -24,16 +24,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install Pillow for synthetic JPEG fixtures
+      - name: Keep commercial and clinical model training blocked
+        run: |
+          python experiments/lot05_j10i_fdi_commercial_rights_gate.py
+          python experiments/lot05_j10l_fdi_training_readiness.py --mode synthetic_geometry
+      - name: Install Pillow for synthetic JPEG unit fixtures
         run: python -m pip install 'pillow==11.3.0'
-      - name: Test public metadata validators without any patient image
+      - name: 15 offline public metadata and safe decoding tests
         run: python experiments/test_lot05_j10o_public_dataset_smoke.py -v
 
   roboflow-public-metadata:
-    name: Public Roboflow FDI32 class and augmented split audit
+    name: Public FDI32 publisher metadata on native runner
     needs: rights-before-tests
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2025
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,21 +51,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Fetch publisher FDI32 metadata only
-        run: python experiments/lot05_j10o_roboflow_fdi_public_metadata.py --output-json reports/j10o-roboflow-ubuntu.json
-      - name: Preserve public metadata JSON only
+      - name: Read only the original published HTML class labels and splits
+        shell: bash
+        run: |
+          python experiments/lot05_j10o_roboflow_fdi_public_metadata.py \
+            --output-json reports/j10o-roboflow-${{ matrix.os }}.json
+      - name: Never conflate declared CC BY with cleared clinical/commercial rights
+        shell: bash
+        run: |
+          python -c "import json, pathlib; d=json.loads(next(pathlib.Path('reports').glob('j10o-roboflow-*.json')).read_text()); assert d['status']=='PUBLIC_FDI32_METADATA_CONFIRMED_RIGHTS_UNVERIFIED'; assert d['fdi_class_count']==32; assert d['cloud_commercial_training_authorized'] is False; assert d['image_data_downloaded'] is False"
+      - name: Metadata JSON only; never upload patient images
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: j10o-roboflow-public-metadata
-          path: reports/j10o-roboflow-ubuntu.json
+          name: j10o-roboflow-fdi-metadata-${{ matrix.os }}
+          path: reports/j10o-roboflow-${{ matrix.os }}.json
+          if-no-files-found: warn
           retention-days: 7
 
-  academic-public-opg:
-    name: Public academic one-image decode research only
+  academic-public-panoramic:
+    name: Public Tunisian academic OPG single image research-only test
     needs: rights-before-tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,14 +81,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install Pillow
+      - name: Pillow in-memory public research image decoding
         run: python -m pip install 'pillow==11.3.0'
-      - name: Public university image one-sample in-memory smoke
-        run: python experiments/lot05_j10o_tunisia_public_opg_sample.py --output-json reports/j10o-tunisia-ubuntu.json
-      - name: Preserve aggregate metadata JSON only
+      - name: Try first-party published CC BY dataset single JPEG without login
+        run: |
+          python experiments/lot05_j10o_tunisia_public_opg_sample.py \
+            --output-json reports/j10o-tunisia-public-academic.json
+      - name: No 32 FDI ground-truth or commercial clinical clearance claim
+        run: |
+          python -c "import json; d=json.load(open('reports/j10o-tunisia-public-academic.json')); assert d['status']=='PUBLIC_ACADEMIC_OPG_ONE_IMAGE_PREPROCESS_PASS'; assert d['fdi_32_ground_truth_available_for_this_test'] is False; assert d['clinical_release_approved'] is False"
+      - name: Upload aggregate academic processing JSON not the public image
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: j10o-tunisia-public-metadata
-          path: reports/j10o-tunisia-ubuntu.json
+          name: j10o-academic-public-opg-metadata
+          path: reports/j10o-tunisia-public-academic.json
+          if-no-files-found: warn
           retention-days: 7
