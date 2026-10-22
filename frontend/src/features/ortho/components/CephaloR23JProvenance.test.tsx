@@ -80,7 +80,7 @@ describe('R23-J actual legacy All panel render — no fabricated clinical succes
     const origin = document.querySelector('[data-r23j-provenance]');
     expect(origin?.getAttribute('data-r23j-provenance')).toBe('AUTOMATIC_SRPOSE38_UNREVIEWED');
     expect(origin?.textContent).toContain('SRPose38');
-    expect(origin?.textContent).toContain('revue par un praticien non attestée');
+    expect(origin?.textContent).toContain('Revue par un praticien non attestée');
     const count = document.querySelector('[data-r23j-raw-metric-count]') as HTMLElement;
     expect(count.textContent).toContain('2/15 mesures brutes calculées');
     expect(count.style.color).toBe('rgb(102, 102, 102)');
