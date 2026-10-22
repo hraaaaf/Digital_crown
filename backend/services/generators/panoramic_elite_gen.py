@@ -9,6 +9,7 @@ import importlib.util
 from backend.services.base_template import BaseTemplate
 from backend import models
 from backend.utils.access_control import assert_patient_access
+from backend.services.panoramic_fdi_report_rows import confirmed_manual_fdi_rows
 from sqlalchemy.orm import Session
 
 WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
@@ -80,6 +81,9 @@ class PanoramicEliteGenerator(BaseTemplate):
             "metrics": metrics,
             "qr_code_base64": qr_base64,
             "denture_type": self._documented_denture_type(analysis),
+            # Only FDI observations already documented by the practitioner.
+            # This does not endorse AI tooth labels or infer normality.
+            "manual_fdi_rows": confirmed_manual_fdi_rows(analysis.detections_data),
         }
 
         template = self.jinja_env.get_template("panoramic_elite.html")
