@@ -3,11 +3,23 @@
 Each utterance is an independent test with a status and intent oracle.
 No FastAPI route, LLM, database, browser or clinical action required.
 """
+import importlib.util
+from pathlib import Path
+import sys
 import unittest
 from dataclasses import fields
 from datetime import date
 
-from backend.services.bot.guided_nlu_cb02 import GuidedResult, parse_guided_french
+# Import by source file: backend/__init__.py eagerly imports clinical models and
+# SQLAlchemy. CB-02 phase A must stay runnable with ONLY the Python stdlib.
+MODULE = Path(__file__).resolve().parents[1] / "services/bot/guided_nlu_cb02.py"
+SPEC = importlib.util.spec_from_file_location("cb02_pure_guided_nlu", MODULE)
+assert SPEC and SPEC.loader
+PARSER = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = PARSER  # dataclasses resolves the module by name
+SPEC.loader.exec_module(PARSER)
+GuidedResult = PARSER.GuidedResult
+parse_guided_french = PARSER.parse_guided_french
 
 DAY = date(2026, 10, 22)
 SCOPE = "synthetic-tenant-A/staff-001"
