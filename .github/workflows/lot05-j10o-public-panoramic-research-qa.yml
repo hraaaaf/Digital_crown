@@ -1,0 +1,142 @@
+name: LOT05 J10O — public FDI dataset metadata + one academic OPG research-only smoke
+
+on:
+  pull_request:
+    branches:
+      - exp/lot05-j10n-fdi-synthetic-annotation-governance-20261022
+    paths:
+      - 'docs/research/LOT05_J10O_*'
+      - 'experiments/lot05_j10o_*'
+      - 'experiments/test_lot05_j10o_*'
+      - '.github/workflows/lot05-j10o-public-panoramic-research-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: j10o-public-datasets-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rights-before-tests:
+    name: "Commercial/clinical NO-GO + public annotation/source adversarial tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify existing FDI model packaging and provenance gates remain blocked
+        run: |
+          python experiments/lot05_j10i_fdi_commercial_rights_gate.py
+          python experiments/lot05_j10l_fdi_training_readiness.py --mode synthetic_geometry
+      - name: Install bounded JPEG decode dependency (unit fixtures only)
+        run: python -m pip install --disable-pip-version-check 'pillow==11.3.0'
+      - name: Public corpus parser and annotation gates: offline adversarial tests
+        run: python experiments/test_lot05_j10o_public_dataset_smoke.py -v
+
+  roboflow-public-fdi32-metadata:
+    name: "Native ${{ matrix.os }} — live Roboflow FDI 32 class and split audit"
+    needs: rights-before-tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exact reviewed SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Analyze publisher metadata only (NO Roboflow credentials or images)
+        shell: bash
+        run: |
+          python experiments/lot05_j10o_roboflow_fdi_public_metadata.py \
+            --output-json reports/j10o-roboflow-${{ matrix.os }}.json
+      - name: Check only declared label map, aug counts and persistent commercial NO-GO
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=next(Path('reports').glob('j10o-roboflow-*.json'))
+          d=json.loads(p.read_text(encoding='utf-8'))
+          assert d['status']=='PUBLIC_FDI32_METADATA_CONFIRMED_RIGHTS_UNVERIFIED'
+          assert d['class_labels']==[q*10+i for q in (1,2,3,4) for i in range(1,9)]
+          assert d['source_image_count_reported']==1577
+          assert d['public_version_augmented_count']==3503
+          assert d['train_augmented_examples']+d['validation_augmented_examples']+d['test_augmented_examples']==3503
+          assert d['image_data_downloaded'] is False
+          assert d['patient_group_leakage_audited'] is False
+          assert d['cloud_commercial_training_authorized'] is False
+          assert d['trained_fdi_weights_generated'] is False
+          assert d['clinical_use_authorized'] is False
+          print('PASS FDI32 publisher metadata, not commercial/clinical authorization')
+          PY
+      - name: Publish JSON metadata ONLY, not patient film/weights
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: j10o-roboflow-public-metadata-${{ matrix.os }}
+          path: reports/j10o-roboflow-${{ matrix.os }}.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  academic-one-public-opg-image:
+    name: "Ubuntu research-only — one CC BY academic panoramic decoded in RAM"
+    needs: rights-before-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Only public academic sample; no datasets, patient secrets or release
+        run: python -m pip install --disable-pip-version-check 'pillow==11.3.0'
+      - name: Verify source CC BY metadata and decode ONE public OPG in memory
+        run: |
+          python experiments/lot05_j10o_tunisia_public_opg_sample.py \
+            --output-json reports/j10o-tunisia-ubuntu-24.04.json
+      - name: Ensure research-only and no FDI diagnostic or commercial claims
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('reports/j10o-tunisia-ubuntu-24.04.json')
+          d=json.loads(p.read_text(encoding='utf-8'))
+          assert d['status']=='PUBLIC_ACADEMIC_OPG_ONE_IMAGE_PREPROCESS_PASS'
+          assert d['public_jpeg_samples_loaded_in_memory']==1
+          assert d['channels_after_preprocessing']==3
+          assert d['fdi_32_ground_truth_available_for_this_test'] is False
+          assert d['dental_fdi_accuracy_validated'] is False
+          assert d['images_or_weights_uploaded_as_ci_artifact'] is False
+          assert d['commercial_training_rights_independently_verified'] is False
+          assert d['clinical_release_approved'] is False
+          print('PASS public academic real-OPG decode/preprocessing, NOT trained FDI')
+          PY
+      - name: Publish aggregate research JSON, NEVER image bytes or filename
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: j10o-academic-one-public-opg-metadata
+          path: reports/j10o-tunisia-ubuntu-24.04.json
+          retention-days: 7
+          if-no-files-found: warn
