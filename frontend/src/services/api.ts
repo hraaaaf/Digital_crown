@@ -161,7 +161,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const { status } = error.response;
+    const { status, data } = error.response;
     // Never log response bodies or request paths: validation details can contain
     // patient data, even in development sessions.
     if (!_authFailed && import.meta.env.DEV) {
