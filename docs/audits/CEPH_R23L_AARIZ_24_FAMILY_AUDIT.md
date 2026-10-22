@@ -52,7 +52,8 @@ Une permutation choisie en regardant les 150 cas d'acceptation violerait de tout
 ## Ce que la nouvelle CI prouve
 
 Le script `scripts/audit_ceph_r23l_aariz_point_families.py` :
-- valide les SHA des preuves, le modèle exact et le hash canonique du manifeste gelé ;
+- vérifie que les **quatre blobs Git** sont strictement identiques au commit historique gelé `cea3fa3cc23963fe4e41ec2666430fd186a79f04`, le modèle exact et le hash canonique du manifeste gelé ;
+- **signale explicitement** que le SHA256 du fichier `cephalo_vnext_lot04_results.json` désormais commité ne correspond pas à `source_results_sha256` dans `cephalo_vnext_lot04_acceptance_record_detail.json`. Origine de la discordance **NON établie** (ne pas attribuer sans preuve à une conversion de fins de ligne, un autre export ou une modification du modèle). Ce défaut empêche d'affirmer que le recalcul original est relié aux **octets actuels** du fichier publié ; l'identité Git du snapshot et les valeurs agrégées concordantes restent vérifiables ;
 - exige 150 cas distincts, 38 coordonnées modèle par cas, exactement 24 lignes d'acceptation et seuils ;
 - reproduit le PASS/FAIL de chaque repère à partir des **seuils d'origine** sans retuning ;
 - sépare osseux/dentaire/cutané, publie les médianes, p95, ratios, directions médianes et statistiques par appareil (avec tailles n et avertissement exploratoire) ;
@@ -68,4 +69,6 @@ Le dossier initial `docs/audits/evidence/lot04/` est **non modifié**, tout comm
 3. Préenregistrer toute hypothèse `i ↔ j`, garder le jeu d'acceptation indépendant, puis produire une **nouvelle** comparaison reproductible; ne jamais modifier ni requalifier rétroactivement le verdict LOT04 gelé.
 4. Même une amélioration technique ne remplace ni la preuve de licence de redistribution du checkpoint, ni les 6 HOLD Ricketts, ni les futures validations cliniques.
 
-**Verdict :** R23-L est une investigation de causalité *non conclue*, et n'autorise aucun changement de mapping, signature clinique, fusion, déploiement, ou mise en service réelle. `CEPH_DETECTOR_SELECTED` reste NON SATISFAIT, **CLINICAL NO-GO**, feuille de route **41/99**.
+**CI / vérité des preuves** : [run #39865378575](https://github.com/hraaaaf/Digital_crown/actions/runs/39865378575) sur le SHA `54ebbae0bbfb43a2568653c22182735d4a1de34c` (HEAD au moment de la première certification) : 11/11 tests PASS, rapport agrégé : `SOURCE_FROZEN_GROUP_STATS_CONFIRMED__RAW_DIGEST_MISMATCH_OPEN__CLINICAL_NO_GO`. Les premiers tests sur SHA antérieur ont échoué en découvrant précisément la discordance du digest — l'échec est conservé et n'est pas requalifié en preuve positive.
+
+**Verdict :** R23-L est une investigation de causalité *non conclue* avec **discordance de provenance encore ouverte** ; elle n'autorise aucun changement de mapping, signature clinique, fusion, déploiement, ou mise en service réelle. `CEPH_DETECTOR_SELECTED` reste NON SATISFAIT, **CLINICAL NO-GO**, feuille de route **41/99**.
