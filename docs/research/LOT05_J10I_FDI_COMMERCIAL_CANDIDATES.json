@@ -127,6 +127,36 @@
       "commercial_release_approval": false,
       "evidence": "Training data explicitly proprietary OralVis; no root LICENSE file obtained; extraordinarily high self-reported mAP without independent reproductions; README does not establish weight redistribution rights.",
       "decision": "BLOCKED_DATA_AND_RUNTIME"
+    },
+    {
+      "id": "ustc-dfine-nano-coco",
+      "kind": "unadapted_base",
+      "upstream": "https://huggingface.co/ustc-community/dfine-nano-coco",
+      "declared_weights_license": "Apache-2.0",
+      "base_runtime_license": "Transformers (Apache-2.0)",
+      "fdi_classes": 0,
+      "rights_to_commercially_distribute": false,
+      "training_dataset_provenance_verified": true,
+      "usable_fd_i_model": false,
+      "independent_clinical_validated": false,
+      "commercial_release_approval": false,
+      "evidence": "Object detection checkpoint trained on COCO (NOT FDI), 15.3 MB of safetensors weights. Listed Apache 2.0 by original hosting source. Candidate for locally trained FDI fine-tuning ONLY after training dataset chain of title, external performance and Windows CPU reviews.",
+      "decision": "RESEARCH_BASE_ONLY"
+    },
+    {
+      "id": "pekingu-rtdetrv2-r18vd",
+      "kind": "unadapted_base",
+      "upstream": "https://huggingface.co/PekingU/rtdetr_v2_r18vd",
+      "declared_weights_license": "Apache-2.0",
+      "base_runtime_license": "Transformers (Apache-2.0)",
+      "fdi_classes": 0,
+      "rights_to_commercially_distribute": false,
+      "training_dataset_provenance_verified": true,
+      "usable_fd_i_model": false,
+      "independent_clinical_validated": false,
+      "commercial_release_approval": false,
+      "evidence": "Object detection checkpoint trained on COCO (NOT FDI), 80.9 MB of safetensors weights. Listed Apache 2.0 by original hosting source. Candidate for locally trained FDI fine-tuning ONLY after training dataset chain of title, external performance and Windows CPU reviews.",
+      "decision": "RESEARCH_BASE_ONLY"
     }
   ]
 }
