@@ -8,6 +8,7 @@ and is NEVER permission to train/transfer a real clinical dataset.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -121,7 +122,7 @@ def synthetic_registry() -> dict:
     records = []
     for i, group, duplicate, site, split, fdis in specs:
         teeth = [_synth_tooth(fdi, index) for index, fdi in enumerate(fdis)]
-        alternative = [dict(t) for t in teeth]
+        alternative = copy.deepcopy(teeth)  # genuinely independent reviewer boxes
         # Intentionally disagree on one FDI label, then require independent
         # adjudication; no reviewer decisions are silently overwritten.
         if i == 3:
