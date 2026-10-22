@@ -1,6 +1,9 @@
-name: LOT05 J10O — public FDI dataset metadata + one academic OPG research-only smoke
+name: LOT05 J10O - Public panoramic research data
 
 on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
   pull_request:
     branches:
       - exp/lot05-j10n-fdi-synthetic-annotation-governance-20261022
