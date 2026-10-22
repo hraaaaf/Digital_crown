@@ -1,0 +1,60 @@
+name: CEPH R23-L — archived Aariz osseous/dental/soft evidence read-only
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ceph-r23l-aariz-families-audit.yml'
+      - 'scripts/audit_ceph_r23l_aariz_point_families.py'
+      - 'tests/test_ceph_r23l_aariz_point_families.py'
+      - 'docs/audits/CEPH_R23L_AARIZ_GROUPS_NONCLINICAL.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  frozen-reference-evidence-no-remapping:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact-HEAD, unmodified archived evidence and strict standard library tests
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python -m py_compile scripts/audit_ceph_r23l_aariz_point_families.py tests/test_ceph_r23l_aariz_point_families.py
+          python -m unittest discover -s tests -p 'test_ceph_r23l_aariz_point_families.py' -v
+      - name: Recompute ONLY aggregated historical point-family observations, no model/case image
+        run: |
+          python scripts/audit_ceph_r23l_aariz_point_families.py --output artifacts/ceph-r23l-families
+      - name: Assert cannot claim mapping corrections or clinical acceptance
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('artifacts/ceph-r23l-families/report.json')
+          r=json.loads(p.read_text())
+          assert r['source_results_sha256']=='673c12d234cffa43661e3658ee84681f081284f77865094d2733df97ff6bc700'
+          assert r['acceptance_cases']==150
+          assert (r['compared_reference_points'],r['other_model_channels_without_Aariz_reference'])==(24,14)
+          assert (r['total_fail'],r['total_pass'])==(23,1)
+          assert {k:(v['passed'],v['failed']) for k,v in r['families'].items()} == {
+            'osseux':(1,13),'dentaire':(0,4),'cutane':(0,6)}
+          assert r['verdict']=='TECHNICAL_DIAGNOSTIC__MAPPING_HYPOTHESIS_OPEN__CLINICAL_NO_GO'
+          assert not r['evidence_limits']['same_case_expert_coordinates_accessible_in_this_archive']
+          assert not r['evidence_limits']['automated_swap_detection_possible']
+          assert not r['evidence_limits']['clinical_release']
+          assert not r['evidence_limits']['scientific_detector_selected']
+          assert r['evidence_limits']['no_posthoc_thresholds_or_remapping']
+          print('R23L_ARCHIVED_FAMILY_EVIDENCE_PASS_ONLY__CLINICAL_NO_GO')
+          PY
+      - name: Upload aggregated summary only (no images, case coordinates, or identifiers)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-r23l-aggregate-families-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-r23l-families/
+          retention-days: 30
+          if-no-files-found: error
