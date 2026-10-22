@@ -15,8 +15,27 @@ import os
 import statistics
 import time
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 from urllib.error import HTTPError
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    """Never follow redirects when sending synthetic credentials or bearer."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_NO_REDIRECT_OPENER = build_opener(_NoRedirect)
+
+
+def checked_origin(url):
+    parsed = urlparse(url)
+    if (parsed.scheme != 'http' or parsed.hostname not in ('127.0.0.1', 'localhost')
+            or parsed.username is not None or parsed.password is not None
+            or parsed.port is None or parsed.path not in ('', '/')
+            or parsed.query or parsed.fragment):
+        raise ValueError('REFUSED: explicit localhost origin+port only')
+    return f'http://{parsed.hostname}:{parsed.port}'
 
 
 def quantile(values, f):
@@ -31,7 +50,7 @@ def post(url, obj, headers=None):
     req = Request(url, data=json.dumps(obj).encode(), headers={
         'Content-Type':'application/json', **(headers or {})}, method='POST')
     t0 = time.perf_counter_ns()
-    with urlopen(req, timeout=15) as response:
+    with _NO_REDIRECT_OPENER.open(req, timeout=15) as response:
         code = response.status
         result = json.loads(response.read().decode())
     duration_ms = (time.perf_counter_ns()-t0)/1e6
@@ -44,9 +63,10 @@ def main():
     ap.add_argument('--n',type=int,default=30)
     ap.add_argument('--out',default='/tmp/crown-bot-cb00-metrics.json')
     args = ap.parse_args()
-    parsed = urlparse(args.api)
-    if parsed.scheme!='http' or parsed.hostname not in ('127.0.0.1','localhost'):
-        raise SystemExit('REFUSED: only synthetic localhost T2')
+    try:
+        api = checked_origin(args.api)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
     if os.getenv('DIGITALCROWN_ISOLATED_RUNTIME')!='1':
         raise SystemExit('REFUSED: DIGITALCROWN_ISOLATED_RUNTIME=1 required')
     user,password=os.getenv('T2_USER',''),os.getenv('T2_PASSWORD','')
@@ -57,16 +77,16 @@ def main():
     # FastAPI login expects form-urlencoded; secrets are never logged/stored.
     from urllib.parse import urlencode
     auth_req=Request(
-        args.api+'/api/auth/login',
+        api+'/api/auth/login',
         data=urlencode({'username':user,'password':password}).encode(),
         headers={'Content-Type':'application/x-www-form-urlencoded'},
         method='POST')
-    with urlopen(auth_req,timeout=15) as response:
+    with _NO_REDIRECT_OPENER.open(auth_req,timeout=15) as response:
         if response.status!=200: raise RuntimeError('T2 login failed')
         token=json.loads(response.read().decode())['access_token']
     headers={'Authorization':'Bearer '+token}
     def call():
-        status,result,elapsed=post(args.api+'/api/bot/workflows/preview',
+        status,result,elapsed=post(api+'/api/bot/workflows/preview',
                                    {'messages':['/patient']},headers)
         if status!=200 or result.get('status')!='clarification' or result.get('proposal'):
             raise RuntimeError('Unexpected T2 response: no timing accepted')

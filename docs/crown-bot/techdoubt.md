@@ -65,3 +65,10 @@
 - Old #902 CI was three SUCCESS, one M6-I SKIPPED; **not evidence** for this candidate. Required CB-00 harness scope: strict localhost/synthetic T2 safety probe and Scope Gate; synthetic desktop evidence is explicitly EXPERIMENTAL, but actual tenant/privacy risks remain blocking. Source scripts must not use real patient data or escape loopback.
 - CB-00 remains OPEN until real authorized workstation T2, genuine flag-OFF BEFORE, B implementation AFTER, 12 complete staff E2E, role/tenant checks, full DB delta, keyboard/zoom and independent review. This evidence-only DRAFT PR does not justify release, master merge, production flag activation, or deployment. CB-02 frozen; #903 and Lot10 separate.
 - Historical #894 reservations elsewhere in this file record old chronology; [PR #1008](https://github.com/hraaaaf/Digital_crown/pull/1008) has already merged. Use current HEAD-specific CI and GitHub proof, not stale chronological 'pending' text.
+
+ 
+## CB00-TD-20261022-02 — synthetic legacy latency probe redirect leak (MITIGATED; CI PENDING)
+
+- The original #902 latency helper followed HTTP 30x redirects on both synthetic credential login and bearer-auth preview via urllib.request.urlopen. Only the initial target was constrained to localhost. A redirect could forward the bearer to another URL; no leak is alleged to have occurred.
+- The new CB-00 candidate uses a strict no-redirect opener for both HTTP calls and a checked explicit loopback origin+port with no userinfo/path/query/fragment. The existing pytest safety suite now includes actual local HTTP 307 bearer negative proof and six invalid-origin cases. Tests have NOT yet been observed on this SHA.
+- No product, patient DB or runtime code changed. Do not merge or release until fresh final-HEAD CI, review and separate owner approval.

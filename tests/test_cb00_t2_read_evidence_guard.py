@@ -439,3 +439,65 @@ def test_s05_rejects_owner_identity(monkeypatch, tmp_path):
     with pytest.raises(ValueError, match="distinct synthetic"):
         probe.require_t2_environment(SimpleNamespace(
             api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json")))
+
+
+def _load_legacy_latency_probe():
+    path = Path(__file__).resolve().parents[1] / "scripts/ci/crownbot_cb00_latency_probe.py"
+    spec = importlib.util.spec_from_file_location("cb00_legacy_latency", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("url", [
+    "https://evil.test:443",
+    "http://evil.test:8005",
+    "http://localhost:8005/other",
+    "http://localhost:8005?token=leak",
+    "http://localhost:8005@evil.test:8005",
+    "http://127.0.0.1:8005/#fragment",
+])
+def test_latency_probe_rejects_non_origin(url):
+    with pytest.raises(ValueError, match="REFUSED"):
+        _load_legacy_latency_probe().checked_origin(url)
+
+
+def test_latency_probe_does_not_forward_bearer_on_redirect():
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+    from urllib.error import HTTPError
+    latency = _load_legacy_latency_probe()
+    observed = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            observed.append((self.path, self.headers.get("Authorization")))
+            if self.path == "/redirect":
+                self.send_response(307)
+                self.send_header(
+                    "Location", f"http://127.0.0.1:{self.server.server_port}/target"
+                )
+                self.end_headers()
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"status":"clarification"}')
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with pytest.raises(HTTPError) as exc:
+            latency.post(
+                f"http://127.0.0.1:{server.server_port}/redirect",
+                {"messages": ["/patient"]},
+                {"Authorization": "Bearer synthetic-only-never-real"},
+            )
+        assert exc.value.code == 307
+        assert observed == [("/redirect", "Bearer synthetic-only-never-real")]
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
