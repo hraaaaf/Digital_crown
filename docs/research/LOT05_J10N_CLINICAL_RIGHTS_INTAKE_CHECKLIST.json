@@ -1,0 +1,35 @@
+{
+  "schema": "digital-crown-fdi-j10n-clinical-image-intake-preflight-v1",
+  "created_on": "2026-10-22",
+  "scope": "MOROCCO_ORIGIN_CLINICAL_XRAYS_FOR_PROPRIETARY_FDI_32_MODEL",
+  "dataset_release_authorized": false,
+  "cloud_upload_authorized": false,
+  "dataset_contains_real_images": false,
+  "purpose": "Reviewable checklist only. Store real consent, radiographs, clinical identifiers and agreements outside GitHub in an access-controlled repository. This JSON is not documentary proof or a regulatory filing.",
+  "evidence_statuses": {
+    "controller_identity_and_accountability": "PENDING",
+    "lawful_basis_for_secondary_ai_training": "PENDING",
+    "cndp_research_or_secondary_purpose_filing_assessed": "PENDING",
+    "patient_information_and_rights_notice": "PENDING",
+    "clinic_radiograph_rights_and_permission_to_train": "PENDING",
+    "subprocessor_contract_and_confidentiality": "PENDING",
+    "cross_border_cloud_transfer_legal_review": "PENDING",
+    "retention_erasure_and_revocation_plan": "PENDING",
+    "deidentification_expert_review": "PENDING",
+    "ethical_and_clinical_protocol_review": "PENDING",
+    "independent_fdi_32_annotation_rubric": "DRAFT_SYNTHETIC_ONLY",
+    "independent_dentist_1_and_dentist_2_review": "PENDING",
+    "adjudication_and_quality_agreement_protocol": "DRAFT_SYNTHETIC_ONLY",
+    "subject_site_splits_and_augmented_siblings_held_together": "DRAFT_SYNTHETIC_ONLY",
+    "independent_external_site_test_set": "PENDING",
+    "security_and_no_patient_exports_to_git": "ENFORCED_SYNTHETIC_CI"
+  },
+  "evidence_reference_policy": "Do not put proof documents, images, patient IDs, source DICOM filenames, hashes computed from clinical data, or precise clinic identifiers into public PRs or workflow artifacts. Legal reviewer signs physical/offline reference numbers in protected records; no self-clearance by editing this file.",
+  "progression": "Only a separate future legal+medical approval workflow, with protected off-GitHub evidence and verified data processing venue, may allow a real dataset. This project CI remains synthetic-only and cannot grant production permission.",
+  "sources": [
+    "https://www.cndp.ma/notifier-un-traitement/",
+    "https://www.cndp.ma/notifier-une-demande-dautorisation-prealable/",
+    "https://www.cndp.ma/transfert-de-donnees-a-letranger/",
+    "https://www.cndp.ma/conditions/"
+  ]
+}
