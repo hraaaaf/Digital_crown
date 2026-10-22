@@ -53,10 +53,31 @@ class FrozenAarizFamiliesTests(unittest.TestCase):
         with self.assertRaisesRegex(EvidenceMismatch,"candidate hash drifted"):
             analyze(docs,self.digests)
 
-    def test_source_results_sha_drift_refuses_metrics(self):
-        digest={**self.digests,"results":"0"*64}
-        with self.assertRaisesRegex(EvidenceMismatch,"not linked"):
-            analyze(self.docs,digest)
+    def test_frozen_sha_mismatch_is_explicitly_reported_not_hidden(self):
+        report=analyze(self.docs,self.digests)
+        self.assertFalse(report["original_results_byte_binding_verified"])
+        self.assertIn("MISMATCH",report["provenance_warning"])
+        self.assertNotEqual(report["source_results_sha256_embedded"],report["source_results_sha256_committed_file"])
+        self.assertFalse(report["clinical_release"])
+
+    def test_original_detail_source_hash_tamper_is_rejected(self):
+        docs=deepcopy(self.docs)
+        docs["acceptance_detail"]["source_results_sha256"]="0"*64
+        with self.assertRaisesRegex(EvidenceMismatch,"record disagrees"):
+            analyze(docs,self.digests)
+
+    def test_frozen_git_blob_changes_are_rejected(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from scripts.audit_ceph_r23l_aariz_point_families import FILES
+        with TemporaryDirectory() as d:
+            dest=Path(d)
+            for fname in FILES.values():
+                (dest/fname).write_bytes((EVIDENCE/fname).read_bytes())
+            with (dest/FILES["results"]).open("ab") as fp:
+                fp.write(b"\\n")
+            with self.assertRaisesRegex(EvidenceMismatch,"Git blob differs"):
+                read_evidence(dest)
 
     def test_coverage_missing_and_permutation_not_implicitly_accepted(self):
         docs=deepcopy(self.docs)
