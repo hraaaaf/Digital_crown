@@ -25,7 +25,7 @@ class RightsReviewTests(unittest.TestCase):
     def test_catalog_explicitly_blocks_all_commercial_and_clinical_use(self):
         result = gate.review_catalog(example())
         self.assertEqual(result["status"], "COMMERCIAL_AND_CLINICAL_RELEASE_BLOCKED")
-        self.assertEqual(result["candidate_count"], 8)
+        self.assertEqual(result["candidate_count"], 10)
         self.assertEqual(result["commercially_cleared_fdi_checkpoints"], 0)
 
     def test_fraudulent_global_go_is_rejected(self):
