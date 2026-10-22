@@ -32,6 +32,7 @@ type BoundReference = {
   revision: number;
   imageSrc: string | undefined;
   anglesData: unknown;
+  localVersion: number;
   data: unknown;
 };
 
@@ -53,6 +54,8 @@ const CephaloR23G4ReferencePanel: React.FC<{ P: Palette; analysis: R23G2Analysis
   const analysisId = useOrthoStore(s => s.analysisId);
   const imageSrc = useOrthoStore(s => s.imageSrc);
   const anglesData = useOrthoStore(s => s.anglesData);
+  const localVersion = useOrthoStore(s => s.local?.version ?? 0);
+  const syncState = useOrthoStore(s => s.syncState ?? 'idle');
   const revision = anglesData?.scientific_read_path?.revision;
   const [version, setVersion] = React.useState<R23G2RickettsVersion>('atlas');
   const [loaded, setLoaded] = React.useState<BoundReference | null>(null);
@@ -73,7 +76,7 @@ const CephaloR23G4ReferencePanel: React.FC<{ P: Palette; analysis: R23G2Analysis
     cephaloRepository.getR23G4ReferenceProfiles(analysisId!, revision, abort.signal)
       .then(data => {
         if (!active) return;
-        setLoaded({ data, patientId, analysisId, revision, imageSrc, anglesData });
+        setLoaded({ data, patientId, analysisId, revision, imageSrc, anglesData, localVersion });
         setRequestState('idle');
       })
       .catch(() => {
@@ -84,7 +87,12 @@ const CephaloR23G4ReferencePanel: React.FC<{ P: Palette; analysis: R23G2Analysis
     return () => { active = false; abort.abort(); };
   }, [patientId, analysisId, imageSrc, revision, anglesData]);
 
+  // A local landmark edit invalidates the old pixel-to-evidence Focus immediately.
+  // Deliberately do NOT refetch merely because localVersion changed: only a new
+  // authoritative anglesData snapshot after PUT may regain source authority.
   const bound = loaded
+    && syncState !== 'syncing' && syncState !== 'error'
+    && loaded.localVersion === localVersion
     && loaded.patientId === patientId && loaded.analysisId === analysisId
     && loaded.revision === revision && loaded.imageSrc === imageSrc
     && loaded.anglesData === anglesData
