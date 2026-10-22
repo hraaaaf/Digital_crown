@@ -1,0 +1,35 @@
+/*
+ * LOT07 / 07.1 dev-lab adapter: keep existing authenticated media components.
+ * Container queries adapt the original Media Timeline inside a ViewSlot;
+ * do not modify global patient styles or cabinet palette.
+ */
+[data-v15-071-viewslot] {
+  container-type: inline-size;
+  min-height: 0;
+  max-height: min(68vh, 760px);
+  overflow-y: auto;
+}
+[data-v15-071-multiview-grid] {
+  min-height: 440px;
+  max-height: 760px;
+  height: min(68vh, 760px);
+}
+@container (max-width: 760px) {
+  [data-v15-071-viewslot="imagerie"] [data-testid="patient-media-timeline"] > div:first-child > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] > label,
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] > button {
+    grid-column: 1 / -1;
+  }
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"],
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] {
+    min-width: 0;
+  }
+}
