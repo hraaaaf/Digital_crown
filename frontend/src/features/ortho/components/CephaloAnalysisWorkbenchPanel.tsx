@@ -1,4 +1,5 @@
 import React from 'react';
+import CephaloR23G4ReferencePanel from './CephaloR23G4ReferencePanel';
 import { Info, Crosshair, CheckCircle2, AlertTriangle, MapPin, ShieldCheck } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import {
@@ -209,7 +210,7 @@ export interface CephaloAnalysisWorkbenchPanelProps {
   analysis: CephaloAnalysisMode;
 }
 
-export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = ({ P, analysis }) => {
+const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = ({ P, analysis }) => {
   const anglesData = useOrthoStore(state => state.anglesData);
   const landmarks = useOrthoStore(state => state.local.landmarks);
   const activePointId = useOrthoStore(state => state.activePointId);
@@ -420,6 +421,13 @@ export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPan
     </aside>
   );
 };
+
+/** Route only R23-G4 historical reference views to the opt-in guarded reader.
+ * The existing Steiner/Tweed/All workbench remains completely unchanged. */
+export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = props =>
+  props.analysis === 'mcnamara' || props.analysis === 'com' || props.analysis === 'ricketts'
+    ? <CephaloR23G4ReferencePanel P={props.P} analysis={props.analysis} />
+    : <CephaloLegacyAnalysisWorkbenchPanel {...props} />;
 
 export const cephaloAnalysisMetricKeys = ANALYSIS_METRICS;
 export { readValue as readCephaloMetricValue, normText as formatCephaloNormText };

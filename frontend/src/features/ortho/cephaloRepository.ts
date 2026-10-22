@@ -15,6 +15,20 @@ export const cephaloRepository = {
     return res.data;
   },
 
+  /** R23-G4: reference-only opt-in, never silently falls back to clinical GET. */
+  async getR23G4ReferenceProfiles(analysisId: number, revision: number, signal?: AbortSignal): Promise<any> {
+    if (!Number.isSafeInteger(analysisId) || analysisId <= 0
+      || !Number.isSafeInteger(revision) || revision <= 0) {
+      throw new Error("Identité ou révision source non vérifiée");
+    }
+    const res = await api.get(`/ia/analyses/${analysisId}/r23g2-reference-profiles`, {
+      params: { expected_revision: revision },
+      signal,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+    return res.data;
+  },
+
   /**
    * Upload une radiographie et lance l'analyse géométrique automatique.
    */
