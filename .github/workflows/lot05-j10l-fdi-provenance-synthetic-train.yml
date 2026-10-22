@@ -91,7 +91,7 @@ jobs:
             --index-url https://download.pytorch.org/whl/cpu
           python -m pip install --disable-pip-version-check --no-cache-dir \
             'transformers==4.57.3' 'huggingface-hub==0.36.0' \
-            'safetensors==0.6.2' 'pillow==11.3.0' 'numpy==2.2.6'
+            'safetensors==0.6.2' 'pillow==11.3.0' 'numpy==2.2.6' 'scipy==1.16.2'
           python -m pip check
       - name: Execute real D-FINE 32-FDI class head loss and backprop on synthetic shapes ONLY
         shell: bash
