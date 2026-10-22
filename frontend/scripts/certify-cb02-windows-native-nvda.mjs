@@ -197,39 +197,56 @@ try {
     console.log('CB02_REAL_NVDA_OBSERVATION',JSON.stringify(proof.at(-1)));
     return Object.values(seen).every(Boolean);
   };
-  // Deterministic tab/Shift+Tab focus traversal reaches both named
-  // controls; the speech proof still *only* comes from nvda.spokenPhraseLog().
+  // Guidepup/NVDA keyboard commands operate on the OS virtual cursor.
+  // A focused textarea can hold NVDA in focus mode: `next()` then just
+  // reiterates the last element or emits empty speech. Return to BROWSE,
+  // start at document top, and explicitly visit actual form fields.
+  // The independent real-browser Tab order was already certified at 200%.
+  // THIS phase accepts only role+name from real NVDA spokenPhraseLog.
+  await page.bringToFront();
   await input.focus();
-  for (let round=0;round<8;round++) {
-    // NVDA may capture OS-level Tab; the independent Chromium focus-order
-    // proof above already ran *before* starting NVDA. Speech alone decides
-    // whether this combined NVDA accessibility gate can pass.
-    await page.keyboard.press('Tab');
-    await submit.focus();
-    await sleep(220);
-    await collect('keyboard-tab-button-' + round);
-    await page.keyboard.press('Shift+Tab');
-    await input.focus();
-    await sleep(220);
-    if (await collect('keyboard-reverse-edit-' + round)) break;
-  }
-  if (!Object.values(seen).every(Boolean)) {
-    // Go backward from the button into the edit rather than endlessly
-    // calling NVDA.next() after the last form field, as in the old red run.
-    await submit.focus();
-    for (let i=0;i<24;i++) {
-      await nvda.previous();
-      if (await collect('nvda-previous-' + (i+1))) break;
+  const navigationErrors=[];
+  const doNavigation = async (stage, callback) => {
+    try {
+      await callback();
+      await sleep(350);
+      await collect(stage);
+    } catch (error) {
+      navigationErrors.push({stage, error:String(error)});
+      console.log('CB02_NVDA_NAVIGATION_DIAGNOSTIC', JSON.stringify(navigationErrors.at(-1)));
     }
-    if (!Object.values(seen).every(Boolean)) {
-      await input.focus();
-      for (let i=0;i<24;i++) {
-        await nvda.next();
-        if (await collect('nvda-next-' + (i+1))) break;
-      }
+    return Object.values(seen).every(Boolean);
+  };
+  // Guidepup documented NVDA keys: Escape leaves automatic focus mode;
+  // Control+Home starts from top of browse document. Neither inserts text.
+  await doNavigation('nvda-exit-focus-mode',
+    ()=>nvda.perform(nvda.keyboardCommands.exitFocusMode));
+  await doNavigation('nvda-browse-document-home',
+    ()=>nvda.press('Control+Home'));
+  for(let i=0;i<5;i++){
+    if(await doNavigation('nvda-next-form-field-'+(i+1),
+      ()=>nvda.perform(nvda.keyboardCommands.moveToNextFormField))) break;
+  }
+  if(!Object.values(seen).every(Boolean)){
+    await doNavigation('nvda-refresh-browse-document',
+      ()=>nvda.perform(nvda.keyboardCommands.refreshBrowseDocument));
+    await doNavigation('nvda-home-after-refresh',()=>nvda.press('Control+Home'));
+    for(let i=0;i<5;i++){
+      if(await doNavigation('nvda-next-form-after-refresh-'+(i+1),
+        ()=>nvda.perform(nvda.keyboardCommands.moveToNextFormField))) break;
+    }
+  }
+  if(!Object.values(seen).every(Boolean)){
+    await doNavigation('nvda-go-back-to-top',()=>nvda.press('Control+Home'));
+    for(let i=0;i<14;i++){
+      if(await doNavigation('nvda-forward-browse-'+(i+1),()=>nvda.next()))break;
     }
   }
   report.speechNavigationProof=proof.slice(-65);
+  report.nvdaNavigationErrors=navigationErrors;
+  report.nvdaItemTextDiagnostics=(await nvda.itemTextLog()).slice(-35);
+  // ItemText diagnostics NEVER satisfy speech checks, including if labels
+  // show in the accessibility tree but NVDA has spoken nothing.
   const zoomAtSpeech = await readZoom(worker, null);
   if (zoomAtSpeech.id !== zoom200.id || Math.abs(zoomAtSpeech.value-2)>0.01)
     throw Error('NOT_CERTIFIED: native zoom not 200% when real NVDA spoke');
