@@ -119,7 +119,7 @@ class DatasetGateUnitTests(unittest.TestCase):
             self.assertEqual(len(rows), 32)
             self.assertEqual(set(r["fdi"] for r in rows), set(gate.FDI_32))
             rows[-1]["class_index"] = 0
-            with self.assertRaises(gate.FDITrainingBlock):
+            with self.assertRaises(module.FDITrainingBlock):
                 module.validate_synthetic_rows(rows)
         finally:
             sys.path.remove(str(TRAINING.parent))
