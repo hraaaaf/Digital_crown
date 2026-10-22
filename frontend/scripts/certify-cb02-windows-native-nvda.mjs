@@ -104,6 +104,13 @@ try {
   // Only a pure read-only fake response, explicitly NOT a real API proof.
   await page.route(/\/api\//, async route => {
     const req = route.request(), url = new URL(req.url());
+    if (url.pathname === '/api/bot/guided/preview' && req.method() === 'OPTIONS') {
+      await route.fulfill({status:204, headers:{'Access-Control-Allow-Origin':origin,
+        'Access-Control-Allow-Credentials':'true',
+        'Access-Control-Allow-Headers':'Content-Type,Authorization',
+        'Access-Control-Allow-Methods':'POST,OPTIONS'}});
+      return;
+    }
     if (url.pathname !== '/api/bot/guided/preview' || req.method() !== 'POST')
       throw Error('REFUSED unexpected API in standalone CB-02 OS lab ' + url.pathname);
     const data = req.postDataJSON();
