@@ -117,8 +117,18 @@ jobs:
             const context = await browser.newContext({ viewport, colorScheme: 'light' });
             const page = await context.newPage();
             const errors = [];
-            page.on('pageerror', e => errors.push(String(e)));
-            page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+            page.on('pageerror', e => errors.push(`PAGE_ERROR ${String(e)}`));
+            page.on('requestfailed', request => {
+              errors.push(`REQUEST_FAILED ${request.method()} ${request.url()} :: ${request.failure()?.errorText || 'unknown'}`);
+            });
+            page.on('response', response => {
+              if (response.status() >= 400) errors.push(`HTTP_${response.status()} ${response.request().method()} ${response.url()}`);
+            });
+            page.on('console', message => {
+              if (message.type() !== 'error') return;
+              const location = message.location();
+              errors.push(`CONSOLE_ERROR ${message.text()} @ ${location.url || 'unknown'}:${location.lineNumber || 0}`);
+            });
             await page.route('**/api/motifs**', route => route.fulfill({
               status: 200,
               contentType: 'application/json',
@@ -164,7 +174,10 @@ jobs:
             screenshots: rows.length,
             failures,
           }, null, 2));
-          if (failures.length) process.exit(1);
+          if (failures.length) {
+            console.error('CUST02_FAIL_CLOSED_DIAGNOSTIC', JSON.stringify(failures, null, 2));
+            process.exit(1);
+          }
           EOF
           BASE_SHA="${{ github.event.pull_request.base.sha }}" HEAD_SHA="${{ github.event.pull_request.head.sha }}" node cust02-visual.mjs
 
