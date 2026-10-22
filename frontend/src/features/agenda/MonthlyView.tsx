@@ -1,3 +1,4 @@
+import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { RefreshCw, Plus } from 'lucide-react';
@@ -60,8 +61,8 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
 
       const res = await api.get('/appointments/', {
         params: {
-          start_date: start.toISOString(),
-          end_date: end.toISOString()
+          start_date: formatAgendaWallClock(start),
+          end_date: formatAgendaWallClock(end)
         }
       });
       setAppointments(res.data);

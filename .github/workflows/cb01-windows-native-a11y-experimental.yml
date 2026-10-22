@@ -1,0 +1,73 @@
+name: CB-01 Windows Native Zoom (EXPERIMENTAL)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cb01-windows-native-a11y-experimental.yml
+      - frontend/cb01-native-zoom-lab.html
+      - frontend/src/components/CrownBot/CB01NativeZoomLab.tsx
+      - frontend/scripts/certify-cb01-windows-native-zoom.mjs
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-native-browser-zoom:
+    name: Windows Chrome extension verified zoom 200% (EXPERIMENTAL; NOT NVDA)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CB01_NATIVE_ZOOM_EXPERIMENT: '1'
+      CB01_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CI: 'true'
+    steps:
+      - name: Check out exact PR commit without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Guard exact source SHA and PR-only lab files
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:CB01_SOURCE_HEAD) { throw "REFUSED: HEAD mismatch" }
+          if (-not (Test-Path 'frontend/cb01-native-zoom-lab.html')) { throw "REFUSED: missing CB-01 lab page" }
+          "Source HEAD: $actual" >> $env:GITHUB_STEP_SUMMARY
+          'EXPERIMENTAL only, not a REQUIRED gate. Lab is synthetic and loopback-only.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frozen frontend and Playwright Chromium
+        shell: pwsh
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm install --no-save playwright@1.55.0 --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Assert REAL browser zoom with chrome.tabs.setZoom/getZoom
+        shell: pwsh
+        working-directory: frontend
+        run: |
+          node scripts/certify-cb01-windows-native-zoom.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: Chrome native 200% test failed or environment unsupported' }
+          '### CB-01 Windows native Chromium zoom' >> $env:GITHUB_STEP_SUMMARY
+          'Browser extension tabs.setZoom/getZoom 100%-200%-100% verified against the actual isolated CrownBotChat React UI; compare evidence report and captures.' >> $env:GITHUB_STEP_SUMMARY
+          'NVDA/VoiceOver human speech NOT_RUN; this test is not full WCAG certification or clinical integration.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload immutable zoom evidence, even if test fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb01-windows-native-zoom-evidence
+          path: artifacts/cb01-windows-native-zoom
+          retention-days: 14
+          if-no-files-found: warn

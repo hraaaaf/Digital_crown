@@ -8,11 +8,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
 
+if (process.env.DIGITALCROWN_ISOLATED_RUNTIME !== '1') {
+  throw new Error('REFUSED: isolated T2 runtime required for CB-01 visual');
+}
 const appUrl = process.env.CROWN_BOT_VISUAL_APP_URL || 'http://127.0.0.1:5173';
 const apiUrl = process.env.CROWN_BOT_VISUAL_API_URL || 'http://127.0.0.1:8005';
+for (const raw of [appUrl, apiUrl]) {
+  const u = new URL(raw);
+  if (u.protocol !== 'http:' || !['localhost', '127.0.0.1'].includes(u.hostname)
+      || u.username || u.password || u.search || u.hash
+      || (u.pathname !== '' && u.pathname !== '/')) {
+    throw new Error('REFUSED: loopback-only CB-01 visual origins');
+  }
+}
 const user = process.env.T2_USER;
 const pass = process.env.T2_PASSWORD;
-if (!user || !pass) throw new Error('Synthetic T2 staff credentials required');
+const exactSourceHead = process.env.CB01_SOURCE_HEAD || '';
+if (!/^[a-f0-9]{40}$/.test(exactSourceHead))
+  throw new Error('REFUSED: exact CI-verified CB-01 HEAD not supplied');
+if (!user?.startsWith('t2-') || !pass) throw new Error('Synthetic T2 staff credentials required');
 
 const output = path.resolve('../artifacts/crown-bot-zero-llm-preview');
 fs.mkdirSync(output, { recursive: true });
@@ -53,17 +67,22 @@ try {
     const before = `crownbot-before-${width}.png`;
     await page.screenshot({ path: path.join(output, before) });
 
-    await page.getByRole('button', { name: 'Chat', exact: true }).click();
-    const preview = page.getByRole('region', { name: 'Simulation ZERO-LLM Crown Bot' });
+    // CB-01 first-value: Chat must already be the selected accessible tab
+    // immediately after opening Crown Bot, with no extra navigation click.
+    const chatTab = overlay.getByRole('tab', { name: 'Chat', exact: true });
+    if (await chatTab.getAttribute('aria-selected') !== 'true') {
+      throw new Error('FAIL: first-value Chat tab not active at '+width);
+    }
+    const preview = page.getByRole('region', { name: 'Assistant Crown Bot — consultation' });
     await preview.waitFor({ state: 'visible' });
-    await preview.getByRole('button', { name: '/patient' }).click();
-    await preview.getByText('Identifiant numérique du patient ?').waitFor({
+    await preview.getByRole('button', { name: 'Trouver un patient' }).click();
+    await preview.getByText('Patient : saisissez un identifiant, un nom/prénom exact ou un numéro de dossier', { exact: false }).waitFor({
       state: 'visible', timeout: 15000,
     });
     const after = `crownbot-after-${width}.png`;
     await page.screenshot({ path: path.join(output, after) });
     const geometry = await page.evaluate(() => {
-      const preview = document.querySelector('[aria-label="Simulation ZERO-LLM Crown Bot"]');
+      const preview = document.querySelector('[aria-label="Assistant Crown Bot — consultation"]');
       const rect = preview?.getBoundingClientRect();
       return {
         documentOverflow: document.documentElement.scrollWidth
@@ -85,7 +104,7 @@ try {
   }
   fs.writeFileSync(path.join(output, 'summary.json'), JSON.stringify({
     result: 'PASS', kind: 'same-viewport before/after interaction (not historical release diff)',
-    head: process.env.GITHUB_SHA || null, evidence,
+    head: exactSourceHead, evidence,
   }, null, 2));
   console.log('CROWN_BOT_ZERO_LLM_PREVIEW_VISUAL: PASS', JSON.stringify(evidence));
 } finally {

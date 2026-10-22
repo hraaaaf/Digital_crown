@@ -204,6 +204,34 @@ def mark_ghost_insight_read(
     return {"status": "read"}
 
 
+def _ghost_snapshot_if_changed(logs, unread_count: int, previous_signature):
+    """Return an unread snapshot only when its visible content or count changes.
+
+    Cardinality alone is insufficient: old alert A can be acknowledged as
+    alert B appears, leaving the total unchanged while the UI must update.
+    This function is deliberately pure so the equal-count transition is tested.
+    """
+    signature = (
+        unread_count,
+        tuple((log.id, log.patient_id, log.insight_type, log.content, log.created_at)
+              for log in logs),
+    )
+    if signature == previous_signature:
+        return None, previous_signature
+    return {
+        "unread_count": unread_count,
+        "insights": [
+            {
+                "id": log.id,
+                "patient_id": log.patient_id,
+                "insight_type": log.insight_type,
+                "content": log.content,
+                "created_at": log.created_at.isoformat(),
+            } for log in logs
+        ],
+    }, signature
+
+
 @router.websocket("/ws/ghost-insights/{employer_id}")
 async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
     """
@@ -243,7 +271,7 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
         return
 
     await websocket.accept()
-    last_count = -1
+    last_signature = None
     try:
         while True:
             # 2. Session courte par tick : revalide Station avant toute lecture
@@ -279,27 +307,21 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
                     return
 
                 unread_count = ghost_memory.get_unread_count(db, employer_id)
-                if unread_count != last_count:
-                    logs = db.query(models.GhostMemoryLog).filter(
-                        models.GhostMemoryLog.employer_id == employer_id,
-                        models.GhostMemoryLog.is_read == False
-                    ).order_by(models.GhostMemoryLog.created_at.desc()).limit(10).all()
-                    payload = {
-                        "unread_count": unread_count,
-                        "insights": [
-                            {
-                                "id": log.id,
-                                "patient_id": log.patient_id,
-                                "insight_type": log.insight_type,
-                                "content": log.content,
-                                "created_at": log.created_at.isoformat()
-                            } for log in logs
-                        ]
-                    }
-            # 3. Envoi hors session (connexion déjà libérée)
+                logs = db.query(models.GhostMemoryLog).filter(
+                    models.GhostMemoryLog.employer_id == employer_id,
+                    models.GhostMemoryLog.is_read == False,
+                ).order_by(
+                    models.GhostMemoryLog.created_at.desc(),
+                    models.GhostMemoryLog.id.desc(),
+                ).limit(10).all()
+                payload, next_signature = _ghost_snapshot_if_changed(
+                    logs, unread_count, last_signature,
+                )
+            # The DB is closed before network I/O. Do not advance the
+            # fingerprint unless the snapshot was actually sent.
             if payload is not None:
                 await websocket.send_json(payload)
-                last_count = payload["unread_count"]
+                last_signature = next_signature
             await asyncio.sleep(5)  # Latence max ~5 s pour un insight proactif
     except (WebSocketDisconnect, asyncio.CancelledError):
         pass
