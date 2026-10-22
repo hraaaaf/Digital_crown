@@ -161,8 +161,12 @@ try {
   report.realBrowserTabOrderAt200='PASS_REAL_TAB_AND_SHIFT_TAB';
   await page.screenshot({path:path.join(out,'cb02-new-ui-native-200-before.png')});
   report.screenshots.push('cb02-new-ui-native-200-before.png');
-  await nvda.start();
+  // Guidepup defaults to initial-page speech capture; this lab needs ALL
+  // subsequent real NVDA announcements after keyboard/virtual navigation.
+  // capture:true preserves the strict speech-only role+label oracle.
+  await nvda.start({capture: true});
   startedNvda=true;
+  await sleep(800);
   await page.bringToFront();
   // NVDA virtual navigation can begin *after* a focused multiline edit.
   // The previous oracle walked forward from the textarea straight to the
