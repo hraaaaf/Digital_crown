@@ -8,7 +8,7 @@ import { api } from '../../services/api';
 vi.mock('../../services/workstationMode',()=>({
   workstationModeService:{getBootstrapState:vi.fn(),subscribe:vi.fn(()=>()=>{})},
 }));
-vi.mock('../../services/api',()=>({api:{get:vi.fn()}}));
+vi.mock('../../services/api',()=>({API_BASE:'http://localhost:8005',api:{get:vi.fn()}}));
 vi.mock('../patients/components/PatientMediaTimeline',()=>({
   PatientMediaTimeline:({patientId}:{patientId:number})=><div data-testid="media-live">Media API module patient {patientId}</div>,
 }));
