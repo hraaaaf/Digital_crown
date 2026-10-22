@@ -1,0 +1,65 @@
+name: CEPH R23-L — frozen Aariz 24 landmark family audit (no inference)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ceph-r23l-frozen-aariz-family-audit.yml'
+      - 'scripts/audit_ceph_r23l_aariz_point_families.py'
+      - 'tests/test_ceph_r23l_aariz_point_families.py'
+      - 'docs/audits/evidence/lot04/**'
+      - 'docs/audits/CEPH_R23L_AARIZ_24_FAMILY_AUDIT.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-only-frozen-source-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact SHA and clean repository
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test -z "$(git status --porcelain)"
+      - name: Source-locked independent audit and 9 adversarial tests
+        run: |
+          python -m py_compile scripts/audit_ceph_r23l_aariz_point_families.py tests/test_ceph_r23l_aariz_point_families.py
+          python -m unittest discover -s tests -p test_ceph_r23l_aariz_point_families.py -v
+          python scripts/audit_ceph_r23l_aariz_point_families.py
+      - name: Verify no false scientific PASS and output contains no patient image
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('artifacts/ceph-r23l-family-audit/report.json')
+          r=json.loads(p.read_text())
+          assert r['model_sha256']=='a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb'
+          assert r['total_pass']==1 and r['total_fail']==23
+          assert r['landmark_counts']['OSSEOUS']['pass']==1
+          assert r['landmark_counts']['OSSEOUS']['fail']==13
+          assert r['landmark_counts']['DENTAL']['fail']==4
+          assert r['landmark_counts']['SOFT_TISSUE']['fail']==6
+          assert r['acceptance_decision_original']=='FAIL'
+          assert r['channel_swap_proven'] is False
+          assert r['channel_relabel_authorized'] is False
+          assert r['has_individual_paired_expert_coordinates'] is False
+          assert r['clinical_release'] is False
+          assert len(r['landmarks'])==24
+          assert sorted(x.name for x in p.parent.iterdir())==['README.md','report.json']
+          print('R23L_FROZEN_24_FAMILY_AUDIT_PASS__SWAP_NOT_PROVEN__CLINICAL_NO_GO')
+          PY
+      - name: Upload aggregate read-only audit only — no case-level images/coordinates
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-r23l-frozen-aariz-families-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            artifacts/ceph-r23l-family-audit/report.json
+            artifacts/ceph-r23l-family-audit/README.md
+          if-no-files-found: error
+          retention-days: 30
