@@ -1,0 +1,88 @@
+name: LOT05 J10S AKUDENTAL Text-Only Research Data Audit
+
+on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
+    paths:
+      - experiments/lot05_j10q_akudental_fdi_yolo_text_only.py
+      - experiments/lot05_j10r_akudental_private_research_workspace.py
+      - .github/workflows/lot05-j10s-akudental-text-only-real-label-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-pinned-text-only-research:
+    name: Audit exactly 333 real FDI labels without images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Sparse checkout source-pinned public annotations only (no images)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p third_party
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            'AKUDENTAL/folds/fold_0/labels/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+      - name: Validate authentic YOLO FDI-32 plus restorative boxes using aggregate output
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          import json
+          from pathlib import Path
+
+          path = Path("experiments/lot05_j10q_akudental_fdi_yolo_text_only.py")
+          spec = importlib.util.spec_from_file_location("j10q", path)
+          assert spec and spec.loader
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+
+          root = Path("third_party/AKUDENTAL/AKUDENTAL/folds/fold_0/labels")
+          counts = {}
+          files = []
+          for split, expected in (("train", 266), ("val", 33), ("test", 34)):
+              part = sorted((root / split).glob("*.txt"))
+              assert len(part) == expected, "source_split_count_mismatch"
+              counts[split] = len(part)
+              files.extend(part)
+          result = mod.inspect_files(files)
+          assert result["files_checked"] == 333
+          assert result["commercial_training_authorized"] is False
+          assert result["clinical_use_authorized"] is False
+          assert result["uses_real_image_pixels"] is False
+          assert all(x not in str(result).casefold() for x in ("patient_", ".jpg", "imagepath"))
+          report = {
+              "source_commit": "92e2cc3ae5eebc9de509311a3edefb7106fca7dd",
+              "status": result["status"],
+              "splits": counts,
+              "files_checked": result["files_checked"],
+              "tooth_instances": result["tooth_instances"],
+              "all_instances": result["instances"],
+              "duplicate_fdi_instances_to_review": result["duplicate_fdi_instances"],
+              "classes_present_count": len(result["classes_present"]),
+              "commercial_rights_verified": False,
+              "clinical_use_authorized": False,
+              "any_real_image_pixels_downloaded": False,
+          }
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Remove transient licensed source labels
+        if: always()
+        shell: bash
+        run: rm -rf third_party/AKUDENTAL
