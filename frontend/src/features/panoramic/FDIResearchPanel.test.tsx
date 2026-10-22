@@ -2,12 +2,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FDIResearchPanel } from './FDIResearchPanel';
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('LOT05/J10F lab within Imagerie — artificial research image only', () => {
   it('requires explicit launch of sample; no patient image and no automatic confirmation', () => {
     render(<FDIResearchPanel />);
-    expect(screen.getByText(/sans transfert/i)).toBeTruthy();
+    expect(screen.getByText(/Ni image patient liée/i)).toBeTruthy();
     expect(screen.queryByText(/3 propositions/i)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Exemple synthétique' }));
     expect(screen.getByText('3 propositions')).toBeTruthy();
@@ -26,10 +26,11 @@ describe('LOT05/J10F lab within Imagerie — artificial research image only', ()
     expect(screen.getByText('0 confirmées')).toBeTruthy();
   });
   it('does not connect to backend or fetch a clinical image when using synthetic samples', async () => {
-    const fetchSpy=vi.spyOn(globalThis,'fetch');
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
     render(<FDIResearchPanel />);
     fireEvent.click(screen.getByRole('button', { name: 'Exemple synthétique' }));
-    expect(screen.getByText(/hors dossier patient/)).toBeTruthy();
+    expect(screen.getByText(/aucune sauvegarde patient/i)).toBeTruthy();
     await waitFor(() => expect(fetchSpy).not.toHaveBeenCalled());
   });
   it('never accepts an act before FDI is confirmed', () => {
