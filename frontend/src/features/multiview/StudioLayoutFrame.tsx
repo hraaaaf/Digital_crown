@@ -7,9 +7,11 @@ import { geometryGridStyle, geometrySlotStyle } from './studioGeometry';
  * A future trusted adapter must supply patient-scoped and server-authorized
  * real modules, cancel stale async work on patient switch, and isolate stores.
  * Denied layouts never invoke renderSlot and never mount clinical content.
+ * The React subtree is re-keyed across patient/actor/tenant/workstation switches;
+ * this cannot replace cancellation and verified server RBAC in the future adapter.
  */
 export function StudioLayoutFrame({
-  layout, context, renderSlot, primaryRatio = 50,
+  layout, context, renderSlot, primaryRatio = layout.geometry === 'hero-two' ? 63 : 50,
 }: {
   layout: Layout;
   context: WorkspaceContext;
@@ -34,7 +36,7 @@ export function StudioLayoutFrame({
         style={geometryGridStyle(decision.layout.geometry, primaryRatio)}
         className="min-w-0">
         {decision.layout.slots.map((slot, index) => (
-          <section key={slot.id} aria-label={'Panneau ' + (index + 1)}
+          <section key={[context.tenantId,context.userId,context.workstationId,context.patientId,slot.id].join(':')} aria-label={'Panneau ' + (index + 1)}
             data-v15-071-viewslot={slot.module}
             style={geometrySlotStyle(decision.layout.geometry, index)}
             className="min-w-0 overflow-auto rounded-lg border border-border-main bg-card">
