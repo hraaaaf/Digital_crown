@@ -1,7 +1,8 @@
 import React from 'react';
 import CephaloR23G4ReferencePanel from './CephaloR23G4ReferencePanel';
-import { Info, Crosshair, CheckCircle2, AlertTriangle, MapPin, ShieldCheck } from 'lucide-react';
+import { Info, Crosshair, AlertTriangle, MapPin, ShieldCheck } from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { deriveCephaloMetricProvenance, rawCephaloMetricStatus } from '../cephaloMetricProvenance';
 import {
   CEPHALO_METRIC_FOCUS_EVENT,
   publishCephaloMetricFocus,
@@ -154,13 +155,6 @@ const normText = (metric: MetricRecord | undefined, unit: string) => {
   return '—';
 };
 
-const statusLabel = (metric?: MetricRecord) => {
-  if (!metric || readValue(metric) === null) return 'Non calculable';
-  const status = (metric.status || '').trim();
-  if (!status || status.toLowerCase() === 'n/a') return 'Mesure brute';
-  return status;
-};
-
 const metricFromResults = (anglesData: any, definition: MetricDefinition): MetricRecord | undefined => {
   if (definition.key.startsWith('M_')) {
     const steinerRow = steinerProtocolRow(anglesData, definition.key);
@@ -212,6 +206,8 @@ export interface CephaloAnalysisWorkbenchPanelProps {
 
 const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = ({ P, analysis }) => {
   const anglesData = useOrthoStore(state => state.anglesData);
+  const analysisId = useOrthoStore(state => state.analysisId);
+  const provenance = React.useMemo(() => deriveCephaloMetricProvenance(anglesData, analysisId), [anglesData, analysisId]);
   const landmarks = useOrthoStore(state => state.local.landmarks);
   const activePointId = useOrthoStore(state => state.activePointId);
   const setActivePointId = useOrthoStore(state => state.setActivePointId);
@@ -247,24 +243,6 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
     };
   }, [activeDefinition, activeFocus]);
 
-  const statusTone = (metric?: MetricRecord) => {
-    if (!metric || readValue(metric) === null) return P.textDim;
-    if (metric.availability_status === 'AVAILABLE') return P.accentSuccess;
-    const status = (metric.status || '').trim().toLowerCase();
-    if (!status || status === 'n/a') return P.textMuted;
-    if (status.includes('missing') || status.includes('non calcul')) return P.textDim;
-    if (status.includes('normal') || status.includes('valid')) return P.accentSuccess;
-    if (
-      status.includes('high') || status.includes('low') || status.includes('compens') ||
-      status.includes('limit') || status.includes('borderline') || status.includes('vigil') ||
-      status.includes('warning')
-    ) return P.accentWarning;
-    if (
-      status.includes('hors') || status.includes('abnormal') || status.includes('severe') ||
-      status.includes('critical') || status.includes('error') || status.includes('invalid')
-    ) return P.accentError;
-    return P.textMuted;
-  };
 
   return (
     <aside
@@ -284,8 +262,13 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" role="status" aria-live="polite">
-          <span className="rounded-lg border px-2 py-1 font-bold" style={{ borderColor: P.border, color: availableCount > 0 ? P.accentSuccess : P.accentWarning }}>{availableCount}/{definitions.length} mesures calculées</span>
+          <span data-r23j-raw-metric-count className="rounded-lg border px-2 py-1 font-bold" style={{ borderColor: P.border, color: P.textMuted }}>{availableCount}/{definitions.length} mesures brutes calculées</span>
           {unavailableCount > 0 && <span className="rounded-lg border px-2 py-1" style={{ borderColor: P.border, color: P.textMuted }}>{unavailableCount} non calculables</span>}
+        </div>
+        <div data-r23j-provenance={provenance.origin} className="mt-2 rounded-lg border px-3 py-2 text-xs leading-snug" style={{ borderColor: P.border, background: P.bgInput, color: P.textMuted }} role="status">
+          <p className="font-semibold">{provenance.methodLabel}</p>
+          <p>{provenance.studyLabel} · {provenance.reviewLabel}</p>
+          <p className="mt-1 text-[10px]">Calcul géométrique ≠ validation anatomique, référence normative ou diagnostic.</p>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1" aria-label="Code couleur céphalométrique">
           {FAMILY_LEGEND.map(([family, label]) => (
@@ -347,7 +330,7 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
             <tr className="border-b text-[10px] font-bold uppercase tracking-[0.06em]" style={{ borderColor: P.border, color: P.textMuted }}>
               <th className="w-[39%] px-3 py-2.5">Mesure</th>
               <th className="w-[20%] px-2 py-2.5">Valeur</th>
-              <th className="w-[25%] px-2 py-2.5">{analysis === 'steiner' ? 'R\u00e9f. hist.' : analysis === 'tweed' ? 'Contexte' : 'Norme'}</th>
+              <th className="w-[25%] px-2 py-2.5">{analysis === 'steiner' ? 'R\u00e9f. hist.' : analysis === 'tweed' ? 'Contexte' : 'Réf. fournie'}</th>
               <th className="w-[16%] px-2 py-2.5 text-right">{analysis === 'steiner' ? '\u0394 r\u00e9f.' : analysis === 'tweed' ? 'Type' : '\u00c9cart'}</th>
             </tr>
           </thead>
@@ -360,7 +343,6 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
                 ? (typeof metric?.reference_delta === 'number' ? metric.reference_delta : null)
                 : (value !== null && typeof metric?.norm_mean === 'number' ? value - metric.norm_mean : null);
               const familyTone = cephaloMetricColor(definition.key);
-              const clinicalTone = statusTone(metric);
               return (
                 <tr
                   key={definition.key}
@@ -386,7 +368,7 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
                   <td className="px-2 py-2.5 text-[11px] leading-snug" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield 1966' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
-                  <td className="px-2 py-2.5 text-right font-mono text-[11px]" style={{ color: analysis === 'tweed' ? P.textMuted : (deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone)) }}>
+                  <td className="px-2 py-2.5 text-right font-mono text-[11px]" style={{ color: deviation === null ? P.textDim : P.textMuted }}>
                     {analysis === 'tweed' ? 'brute' : (deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`)}
                   </td>
                 </tr>
@@ -410,9 +392,9 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
                 </span>
               </div>
               <p className="mt-2 text-xs leading-relaxed" style={{ color: P.textMuted }}>{describeCanonicalMetricFocus(activeFocus)}</p>
-              <div className="mt-2 flex items-start gap-2 rounded-xl px-3 py-2" style={{ background: `${statusTone(activeMetric)}12`, color: statusTone(activeMetric) }}>
-                {readValue(activeMetric) === null ? <AlertTriangle size={13} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={13} className="mt-0.5 shrink-0" />}
-                <span className="text-xs font-semibold leading-relaxed">{statusLabel(activeMetric)}{activeMetric?.interpretation ? ` · ${activeMetric.interpretation}` : ''}</span>
+              <div data-r23j-metric-authority="UNREVIEWED" className="mt-2 flex items-start gap-2 rounded-xl border px-3 py-2" style={{ background: P.bgInput, borderColor: P.border, color: P.textMuted }}>
+                {readValue(activeMetric) === null ? <AlertTriangle size={13} className="mt-0.5 shrink-0" /> : <Info size={13} className="mt-0.5 shrink-0" />}
+                <span className="text-xs font-semibold leading-relaxed">{rawCephaloMetricStatus(readValue(activeMetric) !== null)}</span>
               </div>
             </div>
           </div>
@@ -422,8 +404,8 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
   );
 };
 
-/** Route only R23-G4 historical reference views to the opt-in guarded reader.
- * The existing Steiner/Tweed/All workbench remains completely unchanged. */
+/** R23-G4 historical reference reads remain on their guarded path.
+ * R23-J changes only the presentation authority of the legacy All/Steiner/Tweed reader. */
 export const CephaloAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPanelProps> = props =>
   props.analysis === 'mcnamara' || props.analysis === 'com' || props.analysis === 'ricketts'
     ? <CephaloR23G4ReferencePanel P={props.P} analysis={props.analysis} />
