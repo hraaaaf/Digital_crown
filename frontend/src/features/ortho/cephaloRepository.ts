@@ -24,7 +24,8 @@ export const cephaloRepository = {
     const res = await api.get(`/ia/analyses/${analysisId}/r23g2-reference-profiles`, {
       params: { expected_revision: revision },
       signal,
-      headers: { 'Cache-Control': 'no-store' },
+      // The endpoint responds Cache-Control: no-store. Do not add a custom
+      // request header here: CORS preflight would reject it on local Cabinet.
     });
     return res.data;
   },
