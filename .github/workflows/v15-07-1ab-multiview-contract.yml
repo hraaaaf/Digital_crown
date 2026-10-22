@@ -1,0 +1,60 @@
+name: LOT07 07.1.A-B dormant MultiView nine-layout contract
+on:
+  push:
+    branches:
+      - 'feat/v15-07-1ab-multiview-nine-layout-contract-*'
+    paths:
+      - 'frontend/src/features/multiview/**'
+      - 'docs/architecture/V15_07_1_AB_MULTIVIEW_FOUNDATION.md'
+      - '.github/workflows/v15-07-1ab-multiview-contract.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/features/multiview/**'
+      - 'docs/architecture/V15_07_1_AB_MULTIVIEW_FOUNDATION.md'
+      - '.github/workflows/v15-07-1ab-multiview-contract.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-071ab-layout-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dormant-layout-contract:
+    name: Nine presets / geometry / denial-before-render
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SOURCE_HEAD: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Confirm exact HEAD and feature dormant in Cabinet
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test -f frontend/src/features/multiview/studioLayouts.ts
+          test -f frontend/src/features/multiview/StudioLayoutFrame.tsx
+          if grep -Eq "StudioLayoutFrame|V15_07_1_MULTIVIEW" frontend/src/App.tsx frontend/src/features/patients/PatientDetailsInner.tsx; then
+            echo "Unexpected runtime activation: this PR is FUE-0 only"; exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Assert 9 layouts, 7 geometries and negative security contracts
+        working-directory: frontend
+        run: npx vitest run src/features/multiview/studioLayouts.test.tsx
+      - name: TypeScript exact source typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Production build nonregression
+        working-directory: frontend
+        run: npx vite build --mode production
