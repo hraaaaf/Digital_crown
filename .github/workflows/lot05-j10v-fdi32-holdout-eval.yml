@@ -1,0 +1,71 @@
+name: LOT05 J10V FDI32 Internal Holdout Research Evaluation
+
+on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
+    paths:
+      - .github/workflows/lot05-j10v-fdi32-holdout-eval.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-by-filename-only:
+    name: FDI32 96 train x3 then 33 val + 34 held-out source test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit-test class-exact confusion, AP50, and QA before real images
+        shell: bash
+        run: python experiments/test_lot05_j10v_akudental_fdi_holdout_eval.py -v
+      - name: Install pinned CPU-only Torchvision and Pillow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'pillow==11.3.0'
+          python -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu \
+            'torch==2.5.1' 'torchvision==0.20.1'
+          python -c 'import torch, torchvision; assert not torch.cuda.is_available(); print("CPU_ONLY_CONFIRMED")'
+      - name: Fetch academically published AKUDENTAL exact revision privately in temporary runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            '/AKUDENTAL/folds/fold_0/labels/' '/AKUDENTAL/images/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+      - name: Revalidate real annotation integrity and stage transient images by local symlink
+        shell: bash
+        run: |
+          python experiments/lot05_j10r_akudental_private_research_workspace.py \
+            --source-repo third_party/AKUDENTAL \
+            --fold fold_0 \
+            --workspace "$RUNNER_TEMP/j10v-private"
+      - name: Fit frozen-backbone academic detector and score internal test once
+        shell: bash
+        run: |
+          python experiments/lot05_j10v_akudental_fdi_holdout_eval.py \
+            --workspace "$RUNNER_TEMP/j10v-private"
+      - name: Destroy licensed source images, all labels and all model checkpoint caches
+        if: always()
+        shell: bash
+        run: |
+          rm -rf third_party/AKUDENTAL "$RUNNER_TEMP/j10v-private" \
+            "$HOME/.cache/torch/hub/checkpoints"
+          echo "J10V_TRANSIENT_SOURCE_AND_WEIGHTS_REMOVED"
