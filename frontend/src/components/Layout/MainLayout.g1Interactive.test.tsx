@@ -70,10 +70,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function simulateViewport(wide: boolean) {
-  const matches = wide;
-  vi.stubGlobal('matchMedia', vi.fn(() => ({
-    matches, media: '(min-width: 1600px)', addEventListener: vi.fn(),
+function simulateViewport(wide: boolean, dockable = false) {
+  vi.stubGlobal('matchMedia', vi.fn((media: string) => ({
+    matches: media.includes('1600px') ? wide : dockable,
+    media, addEventListener: vi.fn(),
     removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(),
   })));
 }
@@ -161,17 +161,30 @@ describe('CB-01 Associate Sidecar: double gating and no hidden duplicate', () =>
     expect(screen.getByText('Page content')).toBeTruthy();
   });
 
-  it('preserves the floating assistant at the 1440px clinical safety breakpoint', () => {
+  it('reserves a bottom dock at 1280/1440 instead of masking clinical actions', async () => {
     vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
     vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
-    // Only >=1600 CSS px is allowed to reduce the clinical workspace.
-    simulateViewport(false);
-    const view=renderAt('/patients/42');
-    fireEvent.click(screen.getByRole('button',{name:'Ouvrir CrownBot'}));
-    expect(view.container.querySelector('[data-cb01-associate-sidecar]')).toBeNull();
-    expect(view.container.querySelectorAll('[data-ux1-c-crownbot-overlay]')).toHaveLength(1);
+    simulateViewport(false, true);
+    const view = renderAt('/patients/42');
+    const shell = view.container.querySelector('[data-cb01-workspace-shell]')!;
+    const launcher = screen.getByRole('button', { name: 'Ouvrir CrownBot' });
+    fireEvent.click(launcher);
+    const dock = view.container.querySelector('[data-cb01-workspace-dock]')!;
+    expect(dock).toBeTruthy();
+    expect(shell.className).toContain('flex-col');
+    expect(dock.className).toContain('relative');
+    expect(dock.className).toContain('border-t');
+    expect(dock.className).not.toContain('fixed');
+    expect(view.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Crown Bot — assistant ancré sous le dossier' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Close CrownBot' })).toHaveLength(1);
+    const reducer = screen.getByRole('button', { name: 'Réduire le panneau Crown Bot' });
+    await waitFor(() => expect(document.activeElement).toBe(reducer));
+    fireEvent.click(reducer);
+    expect(view.container.querySelector('[data-cb01-workspace-dock]')).toBeNull();
+    expect(shell.className).toContain('flex-row');
+    await waitFor(() => expect(document.activeElement).toBe(launcher));
     expect(screen.getByText('Page content')).toBeTruthy();
-    expect(screen.getAllByRole('button',{name:'Close CrownBot'})).toHaveLength(1);
   });
 
   it('renders exactly one accessible reflow sidecar at desktop and can collapse', () => {
@@ -243,14 +256,21 @@ describe('CB-01 draft survives responsive 200% reflow', () => {
   it('keeps the exact mounted chat instance and draft when crossing the 1600px sidecar threshold both ways', () => {
     vi.stubEnv('VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED', 'true');
     vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
-    let notify: (() => void) | undefined;
+    let notifyWide: (() => void) | undefined;
+    let notifyDock: (() => void) | undefined;
     const query = {
       matches: true,
       media: '(min-width: 1600px)',
-      addEventListener: vi.fn((_name: string, listener: () => void) => { notify = listener; }),
+      addEventListener: vi.fn((_name: string, listener: () => void) => { notifyWide = listener; }),
       removeEventListener: vi.fn(),
     };
-    vi.stubGlobal('matchMedia', vi.fn(() => query));
+    const dockQuery = {
+      matches: true,
+      media: '(min-width: 768px)',
+      addEventListener: vi.fn((_name: string, listener: () => void) => { notifyDock = listener; }),
+      removeEventListener: vi.fn(),
+    };
+    vi.stubGlobal('matchMedia', vi.fn((media: string) => media.includes('1600px') ? query : dockQuery));
     const result = renderAt('/patients/42');
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir CrownBot' }));
     expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeTruthy();
@@ -258,14 +278,24 @@ describe('CB-01 draft survives responsive 200% reflow', () => {
     fireEvent.change(draft, { target: { value: 'dossier:BEN-2026' } });
     expect(draft.value).toBe('dossier:BEN-2026');
 
-    act(() => { query.matches = false; notify?.(); });
+    act(() => { query.matches = false; notifyWide?.(); });
+    expect(result.container.querySelector('[data-cb01-workspace-dock]')).toBeTruthy();
+    expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Brouillon Crown Bot' })).toBe(draft);
+
+    act(() => { dockQuery.matches = false; notifyDock?.(); });
     expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeTruthy();
-    expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeNull();
+    expect(result.container.querySelector('[data-cb01-workspace-dock]')).toBeNull();
     expect(screen.getByRole('textbox', { name: 'Brouillon Crown Bot' })).toBe(draft);
     expect(draft.value).toBe('dossier:BEN-2026');
 
-    act(() => { query.matches = true; notify?.(); });
+    act(() => { dockQuery.matches = true; notifyDock?.(); });
+    expect(result.container.querySelector('[data-cb01-workspace-dock]')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Brouillon Crown Bot' })).toBe(draft);
+
+    act(() => { query.matches = true; notifyWide?.(); });
     expect(result.container.querySelector('[data-cb01-associate-sidecar]')).toBeTruthy();
+    expect(result.container.querySelector('[data-cb01-workspace-dock]')).toBeNull();
     expect(result.container.querySelector('[data-ux1-c-crownbot-overlay]')).toBeNull();
     expect(screen.getByRole('textbox', { name: 'Brouillon Crown Bot' })).toBe(draft);
     expect(draft.value).toBe('dossier:BEN-2026');
