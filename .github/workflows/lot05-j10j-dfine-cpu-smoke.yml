@@ -1,0 +1,127 @@
+name: LOT05 J10J — D-FINE Nano CPU-only GitHub Actions foundation verification
+
+# Runs exclusively on PR review. workflow_dispatch becomes usable after this
+# workflow is approved on the default branch; no workflow can deploy models.
+on:
+  pull_request:
+    branches:
+      - exp/lot05-j10i-commercial-fdi-licensing-gate-20261022
+    paths:
+      - 'experiments/lot05_j10j_dfine_coco_actions_smoke.py'
+      - 'experiments/test_lot05_j10j_dfine_actions_smoke.py'
+      - '.github/workflows/lot05-j10j-dfine-cpu-smoke.yml'
+      - 'docs/research/LOT05_J10J_*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: j10j-dfine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rights-before-model:
+    name: "NO FDI training or clinical release without rights"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Review all non-cleared FDI candidates
+        run: |
+          python experiments/lot05_j10i_fdi_commercial_rights_gate.py
+          python experiments/test_lot05_j10i_fdi_commercial_rights_gate.py -v
+          python experiments/test_lot05_j10j_dfine_actions_smoke.py -v
+      - name: Confirm only COCO public baseline may run
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          catalog = json.loads(Path('docs/research/LOT05_J10I_FDI_COMMERCIAL_CANDIDATES.json').read_text())
+          assert catalog['commercial_go'] is False
+          assert catalog['clinical_go'] is False
+          assert all(not item['commercial_release_approval'] for item in catalog['candidates'])
+          print('Commercial FDI/clinical release remains BLOCKED, only public COCO CPU smoke authorized')
+          PY
+
+  pinned-public-coco-cpu:
+    name: "Native ${{ matrix.os }} — pinned Apache D-FINE COCO synthetic smoke"
+    needs: rights-before-model
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_HUB_DISABLE_XET: '1'
+      DO_NOT_TRACK: '1'
+      HF_HUB_DISABLE_SYMLINKS_WARNING: '1'
+      OMP_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - name: Checkout immutable PR code — no credentials persisted
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Ensure reviewed SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU torch (no GPU runners)
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            'torch==2.7.1' 'torchvision==0.22.1' \
+            --index-url https://download.pytorch.org/whl/cpu
+      - name: Install pinned minimal HF runtime
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            'transformers==4.57.3' 'huggingface-hub==0.36.0' \
+            'safetensors==0.6.2' 'pillow==11.3.0' 'numpy==2.2.6'
+          python -m pip check
+      - name: Validate pinned SHA and run CPU inference on generated shapes only
+        shell: bash
+        run: |
+          python experiments/lot05_j10j_dfine_coco_actions_smoke.py \
+            --output-json reports/j10j-${{ matrix.os }}.json
+      - name: Explicit fail closed if report claims FDI/clinical/commercial validity
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('reports').glob('j10j-*.json'):
+              r = json.loads(path.read_text())
+              assert r['status'] == 'PUBLIC_COCO_FOUNDATION_SYNTHETIC_CPU_PASS'
+              assert r['synthetic_only'] is True
+              assert r['clinical_approval'] is False
+              assert r['commercial_release_approval'] is False
+              assert r['training_performed'] is False
+              assert r['fdi_detections_validated'] is False
+              assert r['checkpoint_sha256'] == '19e06bdc873da819920a8d373b879721a5b9759d822f8213220bb09abbdab58b'
+              assert r['output_class_count'] > 32
+              print('PASS public COCO smoke; NOTHING clinically or commercially FDI cleared',path)
+          PY
+      - name: Upload metadata ONLY (no model weights, no images)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-coco-metadata-${{ matrix.os }}
+          path: reports/j10j-${{ matrix.os }}.json
+          if-no-files-found: warn
+          retention-days: 7
