@@ -18,7 +18,7 @@ export function StudioLayoutFrame({
   renderSlot: (slot: Slot) => ReactNode;
   primaryRatio?: number;
 }) {
-  const decision = authorizeLayout(layout, context);
+  const decision = authorizeLayout(layout, context, primaryRatio);
   if (!decision.ok) {
     return (
       <p role="alert" data-testid="multiview-denied">
