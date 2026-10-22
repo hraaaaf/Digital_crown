@@ -38,6 +38,16 @@ La p95 est la **distance point-prédit ↔ point-référence** en mm mesurée da
 
 **Signal d'imagerie non causal** : Pour `N`, p95 par appareil de `Rotograph EVO` ≈9,08 mm (n=11), `ART Plus` ≈8,51 mm (n=55), contre d'autres sous-groupes plus bas. Les tailles d'échantillon, modalités et distributions patients diffèrent ; **on ne peut pas attribuer cette variance au seul détecteur ni à l'appareil sans protocole de comparaison contrôlé**. Les strates n<20 sont marquées explicitement dans le rapport reproductible.
 
+## Nouvel écart d'intégrité détecté durant R23-L — preuve SCIENTIFIQUE bloquée
+
+**Le premier run du comparateur a échoué délibérément** à la vérification cryptographique entre le fichier historique `cephalo_vnext_lot04_results.json` et l'empreinte déclarée dans `cephalo_vnext_lot04_acceptance_record_detail.json` :
+
+- SHA256 du fichier `results.json` tel que retrouvé au HEAD courant : `5064f3ef5bbaec8bb51a954d00bb531751588926034a2f6138ebaa80d200805a` (à confirmer par Python sur GitHub Actions).
+- SHA256 cité par le document `detail.json` : `673c12d234cffa43661e3658ee84681f081284f77865094d2733df97ff6bc700`.
+- **Mismatch / OPEN**. Cause inconnue : modification, re-sérialisation sans mise à jour de l'empreinte, ou archive intermédiaire distincte. Ne PAS dire que ces octets sont vérifiés par l'attestation ancienne.
+- Les décomptes 150/24/23 FAIL sont reproductibles à partir des fichiers actuels et restent descriptifs, mais la **chaîne cryptographique d'origine ne peut pas être considérée comme certifiée**. Le workflow actualisé est un contrôle de **détection d'écart (audit exécuté)** et non un nouveau PASS scientifique. Il doit garder ce mismatch visible même quand les tests techniques verts attestent que le contrôle fonctionne.
+- Aucune correction du checksum historique ni remplacement du benchmark n'est autorisé sans retrouver l'archive source exacte d'origine et son historique de provenance. Aucun seuil remodulé.
+
 ## Test « confusion d'indices » : ce qui est prouvé et ce qui ne l'est pas
 
 Le code `scripts/audit_ceph_r23l_aariz_point_families.py` vérifie sans exécuter ONNX l'identité cryptographique des résultats originaux, les 150 cas, les 38 canaux numériques par cas, les 24 comparables et la cohérence du statut scientifique. Il **ne possède pas les positions x/y des points annotés par les humains pour chaque cas** ; seules les prédictions individuelles et erreurs déjà agrégées se trouvent dans ce dépôt.
