@@ -172,45 +172,33 @@ async function execute(viewport) {
       await check(name.toUpperCase()+'_REFERENCE_FAIL_CLOSED_WITHOUT_EVIDENCE',async()=>{
         const selector=page.locator('#cephalo-ready-analysis');
         await selector.waitFor({state:'visible'});
-        // Query the REAL authenticated BFF; empty study MUST NOT become VERIFIED.
-        const responsePromise=page.waitForResponse(r=>{
-          const u=new URL(r.url());
-          return u.pathname==='/api/ia/analyses/'+spec.study_id+'/r23g2-reference-profiles'
-            && r.request().method()==='GET';
-        },{timeout:45000});
+        // The real R23-G4 frontend intentionally refuses an opt-in reference
+        // fetch when the scientific source graph is absent. Requiring a network
+        // response here would penalize a *correct* fail-closed behavior.
+        // Verify the actual rendered refusal for BOTH Atlas and Gregoret.
         await selector.selectOption('ricketts');
-        const response=await responsePromise;
-        if(response.status()>=500)
-          throw Error('Server error on source-only reference '+response.status());
-        let atlasRows=0,gregoretRows=0;
-        if(response.status()===200) {
-          const payload=await response.json();
-          if(payload.analysis_id!==spec.study_id || payload.clinical_release!==false
-             || payload.reference_display_only!==true)
-            throw Error('Unsafe reference payload identity/authority');
-          for(const [slot,expected] of [['ricketts_atlas2009',33],['ricketts_gregoret13',13]]) {
-            const rows=payload.profiles?.[slot]?.rows;
-            if(!Array.isArray(rows)||rows.length!==expected)
-              throw Error('Reference contract rows missing for '+slot);
-            for(const row of rows) {
-              if(row.availability_status==='AVAILABLE'||row.value!==null
-                 ||row.focus_evidence!==undefined||row.classification_authority!==false)
-                throw Error('FABRICATED_RUNTIME_OR_FOCUS on real unannotated image '+slot+
-                  ' '+row.canonical_measurement_id);
-            }
-            if(slot==='ricketts_atlas2009')atlasRows=rows.length;
-            else gregoretRows=rows.length;
-          }
-          if(payload.active_chain==='VERIFIED')
-            throw Error('Source-less study has falsely VERIFIED active graph');
-        } else if(![400,401,403,404,409,422].includes(response.status())) {
-          throw Error('Unexpected non-fail-closed reference status '+response.status());
-        }
+        const panel=page.locator('[data-r23g4-reference-panel="ricketts"]');
+        await panel.waitFor({state:'visible',timeout:20000});
+        const denied=panel.getByText(
+          'Chaîne ou identité du protocole non vérifiée pour cette étude. Aucun chiffre clinique de remplacement.',
+          {exact:true}
+        );
+        await denied.waitFor({state:'visible',timeout:20000});
+        if(await panel.locator('table tbody tr').count())
+          throw Error('Source-less Atlas rendered a clinical measurement row');
         if(await page.locator('[data-r23g4-focus-authority="verified-runtime"]').count())
-          throw Error('Falsely promoted Ricketts Focus in UI');
-        await shot('after-'+name+'-ricketts-refusal');
-        return {http:response.status(),atlasRows,gregoretRows,
-          verified_ricketts_values:0,verified_focus:0,clinical_release:false};
+          throw Error('Source-less Atlas granted runtime Focus');
+        await shot('after-'+name+'-atlas33-blocked');
+        await panel.locator('[data-r23g4-version="gregoret"]').click();
+        await denied.waitFor({state:'visible',timeout:15000});
+        if(await panel.locator('table tbody tr').count()
+           ||await page.locator('[data-r23g4-focus-authority="verified-runtime"]').count())
+          throw Error('Source-less Gregoret rendered a clinical value or Focus');
+        await shot('after-'+name+'-gregoret13-blocked');
+        return {atlas:'SOURCE_GRAPH_UNVERIFIED__NO_CLINICAL_NUMBERS',
+          gregoret:'SOURCE_GRAPH_UNVERIFIED__NO_CLINICAL_NUMBERS',
+          displayed_verified_values:0,displayed_verified_focus:0,
+          calibration_verified:false,clinical_release:false};
       });
     }
     await check('DESKTOP_LAYOUT_NO_HORIZONTAL_OVERFLOW',async()=>{
