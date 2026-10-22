@@ -90,10 +90,36 @@ class ActionDispatcher:
         return query
 
     def _find_patient_by_name(self, db: Session, employer_id: int, name: str):
-        return self._patient_query_by_name(db, employer_id, name).first()
+        # Ambiguous homonyms must never silently resolve to the first record.
+        matches = self._patient_query_by_name(db, employer_id, name).filter(
+            models.Patient.deleted_at.is_(None)
+        ).limit(2).all()
+        return matches[0] if len(matches) == 1 else None
+
+    def _find_patient_for_write(self, db: Session, employer_id: int, name: str):
+        """No substring-only identification for a clinical mutation.
+
+        A full first+last name in either order is required; homonyms are
+        rejected. Reading/search retains its separate fuzzy search.
+        """
+        normalized = " ".join((name or "").casefold().split())
+        if len(normalized.split()) < 2:
+            return None
+        candidates = self._patient_query_by_name(
+            db, employer_id, name
+        ).filter(models.Patient.deleted_at.is_(None)).limit(50).all()
+        matching = [
+            p for p in candidates
+            if normalized in {
+                " ".join(f"{p.prenom} {p.nom}".casefold().split()),
+                " ".join(f"{p.nom} {p.prenom}".casefold().split()),
+            }
+        ]
+        return matching[0] if len(matching) == 1 else None
 
     def execute(
-        self, pending_action: Dict[str, Any], db: Session, user: models.User
+        self, pending_action: Dict[str, Any], db: Session, user: models.User,
+        *, transactional: bool = False,
     ) -> BotResponse:
         """Exécute une pending_action confirmée par l'utilisateur."""
         action_type = pending_action.get("type")
@@ -112,6 +138,8 @@ class ActionDispatcher:
                 action_type="error",
             )
         try:
+            if transactional and action_type in {"CREATE_APPOINTMENT", "CHANGE_STATUS"}:
+                return fn(params, db, user, defer_commit=True)
             return fn(params, db, user)
         except HTTPException:
             # S2 : refus permission/tenant (assert_patient_access) — on laisse
@@ -125,95 +153,179 @@ class ActionDispatcher:
             )
 
     def _exec_create_appointment(
-        self, params: Dict[str, Any], db: Session, user: models.User
+        self, params: Dict[str, Any], db: Session, user: models.User,
+        *, defer_commit: bool = False,
     ) -> BotResponse:
-        """Crée réellement le rendez-vous en base."""
-        from datetime import datetime as dt
+        """Execute through the SAME canonical booking guards as /api/appointments.
 
-        patient_id = params.get("patient_id")
-        patient_name = params.get("patient_name", "")
-        datetime_str = params.get("datetime_start")
-        motif = params.get("motif", "Consultation")
-        duration = params.get("duration_minutes", 30)
+        Never commit a bare Appointment: that bypasses closures, conflicts,
+        practitioner and resource validation. Explicit identity/time are required.
+        """
+        from backend.routers.appointments import _create_appointment_validated
+        from backend.schemas.appointments import AppointmentCreate
+
         employer_id = user.get_employer_id()
-
-        # Résoudre patient_id si absent
-        if not patient_id and patient_name:
-            patient = self._find_patient_by_name(db, employer_id, patient_name)
+        patient_id = params.get("patient_id")
+        if not patient_id and params.get("patient_name"):
+            patient = self._find_patient_for_write(
+                db, employer_id, str(params["patient_name"])
+            )
             if patient:
                 patient_id = patient.id
-                patient_name = f"{patient.prenom} {patient.nom}"
 
-        # S2 : le patient_id de la pending_action est fourni par le client.
-        # On vérifie qu'il appartient bien au cabinet AVANT toute écriture.
-        if patient_id:
-            assert_patient_access(patient_id, user, db)
-
-        if not datetime_str:
+        if isinstance(patient_id, bool) or not isinstance(patient_id, int) or patient_id <= 0:
             return BotResponse(
-                message="Date et heure manquantes pour créer le rendez-vous.",
+                message="Patient ambigu ou introuvable : sélectionnez son identifiant exact.",
                 action_type="error",
             )
+        # Use one scoped read: assert_patient_access can write an audit entry
+        # and COMMIT on denial, which would prematurely persist the bot claim.
+        patient = db.query(models.Patient).filter(
+            models.Patient.id == patient_id,
+            models.Patient.employer_id == employer_id,
+            models.Patient.deleted_at.is_(None),
+        ).first()
+        if patient is None:
+            # Same external response for absent, foreign and archived patients.
+            # Let the router rollback and mark the action failed, not executing.
+            raise HTTPException(status_code=404, detail="Patient introuvable.")
 
+        datetime_str = params.get("datetime_start")
+        motif = params.get("motif")
+        duration = params.get("duration_minutes")
+        if not isinstance(datetime_str, str) or not isinstance(motif, str) or not motif.strip():
+            return BotResponse(message="Date, heure et motif explicites requis.", action_type="error")
+        if isinstance(duration, bool) or not isinstance(duration, int) or not (5 <= duration <= 480):
+            return BotResponse(message="Durée du rendez-vous invalide.", action_type="error")
         try:
-            datetime_start = dt.fromisoformat(datetime_str)
+            datetime_start = datetime.fromisoformat(datetime_str)
         except ValueError:
-            return BotResponse(
-                message=f"Format de date invalide : {datetime_str}",
-                action_type="error",
-            )
+            return BotResponse(message="Date et heure de rendez-vous invalides.", action_type="error")
+        if datetime_start.tzinfo is not None or datetime_start <= datetime.now():
+            return BotResponse(message="Créneau passé ou fuseau non explicité dans l'agenda du cabinet.", action_type="error")
 
-        appt = models.Appointment(
-            patient_id=patient_id,
-            patient_name=patient_name if not patient_id else None,
-            datetime_start=datetime_start,
-            duration_minutes=duration,
-            motif=motif,
-            employer_id=employer_id,
+        # The canonical router validates practitioner assignment (secretaries
+        # must supply one), weekly/exception availability, overlap and resource.
+        # It also commits the appointment and its standard audit event.
+        appointment = _create_appointment_validated(
+            appt=AppointmentCreate(
+                patient_id=patient_id,
+                praticien_id=params.get("praticien_id"),
+                resource_id=params.get("resource_id"),
+                datetime_start=datetime_start,
+                duration_minutes=duration,
+                motif=motif.strip(),
+                source="bot",
+            ),
+            db=db,
+            current_user=user,
+            defer_commit=defer_commit,
         )
-        db.add(appt)
-        db.commit()
-        db.refresh(appt)
-
-        date_label = datetime_start.strftime("%d/%m/%Y à %Hh%M")
         return BotResponse(
             message=(
-                f"✅ **Rendez-vous créé !**\n"
-                f"👤 {patient_name or 'Patient à identifier'}\n"
-                f"📅 {date_label} · {duration} min · {motif}"
+                f"✅ Rendez-vous créé pour {patient.prenom} {patient.nom} : "
+                f"{datetime_start:%d/%m/%Y à %Hh%M}, {duration} min."
             ),
-            data={"appointment_id": appt.id},
+            data={"appointment_id": appointment.id},
             action_type="write_done",
-            suggestions=["Agenda d'aujourd'hui", "Créer un autre RDV"],
+            suggestions=["Agenda d'aujourd'hui"],
         )
 
     def _exec_change_status(
-        self, params: Dict[str, Any], db: Session, user: models.User
+        self, params: Dict[str, Any], db: Session, user: models.User,
+        *, defer_commit: bool = False,
     ) -> BotResponse:
-        """Applique réellement le changement de statut du RDV."""
+        """Change only the STILL-active appointment belonging to the previewed patient."""
         employer_id = user.get_employer_id()
-        appt = db.query(models.Appointment).filter(
-            models.Appointment.id == params.get("appointment_id"),
-            models.Appointment.employer_id == employer_id,
+        expected_patient_id = params.get("patient_id")
+        appointment_id = params.get("appointment_id")
+        expected_status_name = params.get("expected_status")
+        expected_revision = params.get("expected_revision")
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 0
+        ):
+            # The DB-owned monotonic revision is mandatory: old status-only
+            # proposals cannot prove that a booking was not edited and restored.
+            return BotResponse(
+                message="Action ancienne : rendez-vous modifié ou version non vérifiable. Reformulez.",
+                action_type="error",
+            )
+        try:
+            expected_status = models.AppointmentStatus[expected_status_name]
+        except (KeyError, TypeError):
+            # Historical confirmations without original status cannot prove
+            # the appointment is still in the state shown to the user.
+            return BotResponse(
+                message="Statut du rendez-vous non vérifiable : préparez une nouvelle confirmation.",
+                action_type="error",
+            )
+        if (
+            isinstance(expected_patient_id, bool)
+            or not isinstance(expected_patient_id, int)
+            or expected_patient_id <= 0
+            or isinstance(appointment_id, bool)
+            or not isinstance(appointment_id, int)
+        ):
+            # Legacy pending actions without bound patient identity MUST be
+            # regenerated; blindly executing them could change a different case.
+            return BotResponse(
+                message="Action ancienne ou patient non identifié : redemandez la modification.",
+                action_type="error",
+            )
+        patient = db.query(models.Patient).filter(
+            models.Patient.id == expected_patient_id,
+            models.Patient.employer_id == employer_id,
+            models.Patient.deleted_at.is_(None),
         ).first()
-        if not appt:
-            return BotResponse(message="Rendez-vous introuvable.", action_type="error")
-
+        if patient is None:
+            return BotResponse(message="Patient introuvable.", action_type="error")
         status_name = params.get("status", "")
         try:
-            appt.status = models.AppointmentStatus[status_name]
+            next_status = models.AppointmentStatus[status_name]
         except KeyError:
-            return BotResponse(message=f"Statut invalide : {status_name}", action_type="error")
-        db.commit()
+            return BotResponse(
+                message=f"Statut invalide : {status_name}", action_type="error",
+            )
 
+        # SQL CAS locks this exact row until /bot/execute's final commit.
+        # Database trigger advances clinical_revision on EVERY update,
+        # including raw/bulk writes. This rejects ABA (status changes back)
+        # and any rescheduling even if patient and status appear unchanged.
+        # Never modify soft-deleted or another clinic's appointment.
+        updated = db.query(models.Appointment).filter(
+            models.Appointment.id == appointment_id,
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.patient_id == expected_patient_id,
+            models.Appointment.deleted_at.is_(None),
+            models.Appointment.status == expected_status,
+            models.Appointment.clinical_revision == expected_revision,
+        ).update({"status": next_status}, synchronize_session=False)
+        if updated != 1:
+            return BotResponse(
+                message="Rendez-vous modifié, annulé, archivé ou réattribué : actualisez avant de confirmer.",
+                action_type="error",
+            )
+        if defer_commit:
+            db.flush()
+            db.add(models.AuditLog(
+                user_id=user.id,
+                employer_id=employer_id,
+                action="UPDATE",
+                resource_type="Appointment",
+                resource_id=str(appointment_id),
+                details=f"Crown Bot statut -> {status_name} (transaction atomique)",
+            ))
+        else:
+            db.commit()
         return BotResponse(
             message=(
                 f"✅ **Statut mis à jour**\n"
-                f"👤 {params.get('patient_name', '—')}\n"
-                f"📅 {params.get('when', '')}\n"
+                f"👤 {patient.prenom} {patient.nom}\n"
                 f"➡️ {params.get('status_label', status_name)}"
             ),
-            data={"appointment_id": appt.id, "status": status_name},
+            data={"appointment_id": appointment_id, "status": status_name},
             action_type="write_done",
             suggestions=["Agenda d'aujourd'hui"],
         )
@@ -224,9 +336,15 @@ class ActionDispatcher:
         """Retourne un redirect_url pour ouvrir l'éditeur d'ordonnance."""
         patient_id = params.get("patient_id")
         procedure = params.get("procedure", "")
-        # S2 : patient_id client → vérification tenant avant de renvoyer un redirect.
+        # Read-only tenant gate: denied access must not commit bot's claim.
         if patient_id:
-            assert_patient_access(patient_id, user, db)
+            patient = db.query(models.Patient).filter(
+                models.Patient.id == patient_id,
+                models.Patient.employer_id == user.get_employer_id(),
+                models.Patient.deleted_at.is_(None),
+            ).first()
+            if patient is None:
+                raise HTTPException(status_code=404, detail="Patient introuvable.")
         url = f"/bibliotheque?mode=prescription&patient_id={patient_id}"
         if procedure:
             url += f"&procedure={procedure}"
@@ -241,9 +359,15 @@ class ActionDispatcher:
     ) -> BotResponse:
         """Retourne un redirect_url pour ouvrir le module devis."""
         patient_id = params.get("patient_id")
-        # S2 : patient_id client → vérification tenant avant de renvoyer un redirect.
+        # Read-only tenant gate avoids nested audit commits during execution.
         if patient_id:
-            assert_patient_access(patient_id, user, db)
+            patient = db.query(models.Patient).filter(
+                models.Patient.id == patient_id,
+                models.Patient.employer_id == user.get_employer_id(),
+                models.Patient.deleted_at.is_(None),
+            ).first()
+            if patient is None:
+                raise HTTPException(status_code=404, detail="Patient introuvable.")
         url = f"/patients/{patient_id}?tab=admin&documentTab=devis"
         return BotResponse(
             message="✅ Ouverture du module devis...",
@@ -627,40 +751,35 @@ class ActionDispatcher:
         e = parsed.entities
         patient_name = e.get("patient_name", "")
         target_date = e.get("target_date", "")
-        time = e.get("time", "09:00")
-        motif = e.get("motif", "Consultation")
+        time = e.get("time")
+        motif = e.get("motif")
         duration = e.get("duration_minutes", 30)
+
+        # No silent date/time/motif: clinical booking proposals need explicit
+        # fields and will be revalidated by the canonical agenda on execution.
+        if not target_date or not time or not motif:
+            return BotResponse(
+                message="Précisez explicitement la date, l'heure et le motif du rendez-vous.",
+                action_type="clarification",
+            )
 
         # Résoudre le patient
         patient_id = e.get("patient_id")
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = self._find_patient_by_name(db, employer_id, patient_name)
+            patient = self._find_patient_for_write(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
 
-        date_str = target_date or datetime.now().date().isoformat()
-        
-        # Vérifier si la date tombe pendant un congé ou un jour férié
-        try:
-            target_dt = datetime.fromisoformat(date_str)
-            exception = db.query(models.AgendaException).filter(
-                models.AgendaException.start_date <= target_dt,
-                models.AgendaException.end_date >= target_dt
-            ).first()
-            if exception:
-                return BotResponse(
-                    message=(
-                        f"⚠️ **Impossible de prendre RDV le {date_str}.**\n"
-                        f"Le cabinet est fermé pour : **{exception.reason}**.\n"
-                        f"Voulez-vous choisir une autre date ?"
-                    ),
-                    action_type="read",
-                    suggestions=["Demain", "La semaine prochaine"]
-                )
-        except Exception as e:
-            logger.warning("Vérification congés agenda ignorée : %s", e)
+        if not patient_id:
+            return BotResponse(
+                message="Patient ambigu ou introuvable : sélectionnez un dossier patient précis.",
+                action_type="clarification",
+            )
+        date_str = target_date
+        # Final cabinet/practitioner/resource availability MUST be checked
+        # when the pending action is executed, not by a stale chat preview.
 
         return BotResponse(
             message=(
@@ -694,7 +813,7 @@ class ActionDispatcher:
 
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = self._find_patient_by_name(db, employer_id, patient_name)
+            patient = self._find_patient_for_write(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -752,7 +871,7 @@ class ActionDispatcher:
 
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = self._find_patient_by_name(db, employer_id, patient_name)
+            patient = self._find_patient_for_write(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -839,9 +958,10 @@ class ActionDispatcher:
             return db.query(models.Patient).filter(
                 models.Patient.id == entities["patient_id"],
                 models.Patient.employer_id == employer_id,
+                models.Patient.deleted_at.is_(None),
             ).first()
         if "patient_name" in entities:
-            return self._find_patient_by_name(db, employer_id, entities["patient_name"])
+            return self._find_patient_for_write(db, employer_id, entities["patient_name"])
         return None
 
     def _handle_change_status(
@@ -875,6 +995,7 @@ class ActionDispatcher:
         base_q = db.query(models.Appointment).filter(
             models.Appointment.patient_id == patient.id,
             models.Appointment.employer_id == employer_id,
+            models.Appointment.deleted_at.is_(None),
         )
         appt = (
             base_q.filter(
@@ -905,6 +1026,9 @@ class ActionDispatcher:
                 "type": "CHANGE_STATUS",
                 "params": {
                     "appointment_id": appt.id,
+                    "patient_id": patient.id,
+                    "expected_status": appt.status.name,
+                    "expected_revision": appt.clinical_revision,
                     "status": status_name,
                     "status_label": status_label,
                     "patient_name": f"{patient.prenom} {patient.nom}",

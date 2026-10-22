@@ -114,32 +114,108 @@ jobs:
           const rows = [];
 
           const capture = async (kind, port, viewport) => {
-            const context = await browser.newContext({ viewport, colorScheme: 'light' });
+            // VitePWA dev worker can intercept requests before Playwright routes;
+            // this isolated component screenshot uses a deterministic API fixture.
+            const context = await browser.newContext({ viewport, colorScheme: 'light', serviceWorkers: 'block' });
             const page = await context.newPage();
             const errors = [];
-            page.on('pageerror', e => errors.push(String(e)));
-            page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-            await page.route('**/api/motifs**', route => route.fulfill({
-              status: 200,
-              contentType: 'application/json',
-              body: JSON.stringify([
-                { id:'cm_active', label:'Contrôle gouttière ancienne', category_id:'ORTHODONTIE', urgency:'planifié', is_active:true, source:'cabinet' },
-                { id:'cm_inactive', label:'Ancien contrôle cabinet', category_id:'CABINET', urgency:'normal', is_active:false, source:'cabinet' },
-              ]),
-            }));
-            await page.goto(`http://127.0.0.1:${port}/cust02-motifs.html`, { waitUntil: 'networkidle' });
-            await page.getByText('Motif(s) de première consultation', { exact: true }).waitFor();
+            page.on('pageerror', e => errors.push(`PAGE_ERROR ${String(e)}`));
+            page.on('requestfailed', request => {
+              errors.push(`REQUEST_FAILED ${request.method()} ${request.url()} :: ${request.failure()?.errorText || 'unknown'}`);
+            });
+            page.on('response', response => {
+              if (response.status() >= 400) errors.push(`HTTP_${response.status()} ${response.request().method()} ${response.url()}`);
+            });
+            page.on('console', message => {
+              if (message.type() !== 'error') return;
+              const location = message.location();
+              errors.push(`CONSOLE_ERROR ${message.text()} @ ${location.url || 'unknown'}:${location.lineNumber || 0}`);
+            });
+            let mockedMotifGets = 0;
+            let mockedMotifPreflights = 0;
+            const expectedOrigin = `http://127.0.0.1:${port}`;
+            await context.route(/\/api\/motifs\/?(?:\?.*)?$/, route => {
+              const request = route.request();
+              const url = new URL(request.url());
+              // Fail closed if a request for another API or cabinet is intercepted.
+              if (url.origin !== 'http://127.0.0.1:8005' ||
+                  url.pathname !== '/api/motifs/' ||
+                  url.search !== '?include_inactive=true') {
+                errors.push(`UNEXPECTED_MOTIF_URL ${request.method()} ${url.href}`);
+                return route.abort();
+              }
+              const origin = request.headers()['origin'];
+              if (origin && origin !== expectedOrigin) {
+                errors.push(`UNEXPECTED_MOTIF_ORIGIN ${origin}`);
+                return route.abort();
+              }
+              const corsHeaders = {
+                'access-control-allow-origin': expectedOrigin,
+                'access-control-allow-credentials': 'true',
+                'access-control-allow-methods': 'GET, OPTIONS',
+                'access-control-allow-headers': request.headers()['access-control-request-headers'] || 'authorization,content-type',
+                'vary': 'Origin',
+              };
+              if (request.method() === 'OPTIONS') {
+                mockedMotifPreflights += 1;
+                return route.fulfill({ status: 204, headers: corsHeaders });
+              }
+              if (request.method() !== 'GET') {
+                errors.push(`UNEXPECTED_MOTIF_METHOD ${request.method()} ${url.href}`);
+                return route.abort();
+              }
+              mockedMotifGets += 1;
+              return route.fulfill({
+                status: 200,
+                headers: corsHeaders,
+                contentType: 'application/json',
+                body: JSON.stringify([
+                  { id:'cm_active', label:'Contrôle gouttière ancienne', category_id:'ORTHODONTIE', urgency:'planifié', is_active:true, source:'cabinet' },
+                  { id:'cm_inactive', label:'Ancien contrôle cabinet', category_id:'CABINET', urgency:'normal', is_active:false, source:'cabinet' },
+                ]),
+              });
+            });
+            let navStatus = 'NO_RESPONSE';
+            try {
+              const response = await page.goto(`http://127.0.0.1:${port}/cust02-motifs.html`, { waitUntil: 'networkidle', timeout: 15000 });
+              navStatus = response ? String(response.status()) : 'NO_RESPONSE';
+              if (!response || response.status() >= 400) errors.push(`HARNESS_NAVIGATION_HTTP ${navStatus} ${page.url()}`);
+            } catch (error) {
+              errors.push(`HARNESS_NAVIGATION_FAILED ${String(error)}`);
+            }
+            try {
+              await page.getByText('Motif(s) de première consultation', { exact: true }).waitFor({ timeout: 10000 });
+            } catch (error) {
+              const rootText = await page.locator('#root').innerText({ timeout: 1200 }).catch(() => 'ROOT_UNAVAILABLE');
+              const bodyText = await page.locator('body').innerText({ timeout: 1200 }).catch(() => 'BODY_UNAVAILABLE');
+              const overlayCount = await page.locator('vite-error-overlay').count().catch(() => -1);
+              errors.push(`HARNESS_FORM_NOT_RENDERED status=${navStatus} url=${page.url()} root=${rootText.slice(0, 600)} body=${bodyText.slice(0, 600)} viteOverlay=${overlayCount} :: ${String(error).slice(0, 250)}`);
+            }
+            // Preserve evidence on failed API/mock/render; never throw before screenshots.
+            // The inactive cabinet motif is selected in both visual harnesses.
+            try {
+              await page.getByRole('button', { name: 'Retirer Ancien contrôle cabinet', exact: true }).waitFor({ timeout: 8000 });
+            } catch {
+              errors.push(`MOTIF_LABEL_NOT_VISIBLE GET=${mockedMotifGets} OPTIONS=${mockedMotifPreflights}`);
+            }
+            if (mockedMotifGets !== 1) {
+              errors.push(`MOTIF_FIXTURE_REQUEST_COUNT ${mockedMotifGets}, expected 1; OPTIONS=${mockedMotifPreflights}`);
+            }
             const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
             const shot = `${kind}-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({ path: path.join(output, shot), fullPage: true, animations: 'disabled' });
             rows.push({ kind, viewport, overflow, errors, shot });
 
             if (kind === 'after') {
-              await page.getByRole('button', { name: 'Ajouter un motif' }).click();
-              await page.getByRole('dialog').waitFor();
-              const modalShot = `after-modal-${viewport.width}x${viewport.height}.png`;
-              await page.screenshot({ path: path.join(output, modalShot), fullPage: true, animations: 'disabled' });
-              rows.push({ kind:'after-modal', viewport, overflow:false, errors:[], shot:modalShot });
+              try {
+                await page.getByRole('button', { name: 'Ajouter un motif' }).click({ timeout: 5000 });
+                await page.getByRole('dialog').waitFor({ timeout: 5000 });
+                const modalShot = `after-modal-${viewport.width}x${viewport.height}.png`;
+                await page.screenshot({ path: path.join(output, modalShot), fullPage: true, animations: 'disabled' });
+                rows.push({ kind:'after-modal', viewport, overflow:false, errors:[], shot:modalShot });
+              } catch (error) {
+                errors.push(`AFTER_MODAL_NOT_AVAILABLE ${String(error).slice(0, 350)}`);
+              }
             }
             await context.close();
           };
@@ -164,7 +240,10 @@ jobs:
             screenshots: rows.length,
             failures,
           }, null, 2));
-          if (failures.length) process.exit(1);
+          if (failures.length) {
+            console.error('CUST02_FAIL_CLOSED_DIAGNOSTIC', JSON.stringify(failures, null, 2));
+            process.exit(1);
+          }
           EOF
           BASE_SHA="${{ github.event.pull_request.base.sha }}" HEAD_SHA="${{ github.event.pull_request.head.sha }}" node cust02-visual.mjs
 
