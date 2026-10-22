@@ -9,6 +9,7 @@
 1. Lire `AGENTS.md` pour identifier le lot, sous-lot, chantier, mission, GO et contrat de communication.
 2. Lire les références factuelles exigées par `AGENTS.md` (roadmap canonique, `STATE.md`, HEAD, PR, CI) ; ne pas en déduire de GO implicite.
 3. Appliquer les règles de domaine concernées sous `.claude/rules/` et le `SKILL.md` pertinent sous `.claude/skills/` ou `skills/`, puis consulter l'agent spécialisé si le travail le nécessite.
+   **Contrat de scoring applicable :** lire `.claude/rules/execution-scoring-verification.md` pour les définitions de `EXECUTION_SCORE`, `FUE_EVIDENCE_SCORE`, le gate `VERIFIED` et la `Perfection Pass`. Les seuils et tests restent dans cette règle spécialisée, sans duplication ici.
 4. Respecter les restrictions scientifiques, sécurité, confidentialité, read-only, approbations humaines et politiques de release des contrats spécialisés. Ce renvoi ne les remplace pas.
 5. Pour le déroulé, les preuves, le résultat, les runs GitHub, les réserves `techdoubt.md`, le Next/effort et le pied **Lot · Sous-lot · Chantier · Roadmap**, suivre **AGENTS.md**.
 
