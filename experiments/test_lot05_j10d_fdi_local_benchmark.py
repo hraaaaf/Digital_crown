@@ -80,6 +80,27 @@ class TestBenchmark(unittest.TestCase):
         self.assertEqual(r["by_dentition"]["permanent"]["films"], 7)
         self.assertEqual(r["bootstrap_95_percent_ci_fdi_recall_by_film"], [1.0, 1.0])
 
+    def test_site_and_device_groups_anonymous_with_small_count_suppression(self):
+        cases = [case(i) for i in range(6)]
+        for x in cases:
+            x["site_group"] = 1
+            x["device_group"] = 2
+        predictions = {x["case_id"]: [P36, P37] for x in cases}
+        result = evaluate(cases, predictions)
+        self.assertEqual(result["by_site_group"]["group_1"]["films"], 6)
+        self.assertEqual(result["by_device_group"]["group_2"]["fdi_correct_recall"], 1.0)
+        cases[0]["device_group"] = 3
+        result = evaluate(cases, predictions)
+        self.assertEqual(result["by_device_group"]["group_3"]["status"], "SUPPRESSED_SMALL_SUBGROUP")
+        self.assertNotIn("opaque-0", json.dumps(result))
+
+    def test_partial_site_mapping_is_not_reported_as_complete(self):
+        cases = [case(i) for i in range(6)]
+        cases[0]["site_group"] = 1
+        predictions = {x["case_id"]: [P36, P37] for x in cases}
+        result = evaluate(cases, predictions)
+        self.assertEqual(result["by_site_group"]["status"], "NOT_PROVIDED_FOR_ALL_FILMS")
+
     def test_reject_invalid_iou(self):
         for threshold in [0, -1, 1.2, float("nan")]:
             with self.assertRaises(BenchmarkError):
