@@ -1,0 +1,95 @@
+name: LOT05 J10M — FDI primary-source license verification (NO clinical data)
+
+on:
+  pull_request:
+    branches:
+      - exp/lot05-j10l-fdi-provenance-synthetic-train-actions-20261022
+    paths:
+      - 'docs/research/LOT05_J10M_*'
+      - 'experiments/lot05_j10m_*'
+      - 'experiments/test_lot05_j10m_*'
+      - '.github/workflows/lot05-j10m-fdi-public-license-metadata.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fdi-j10m-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rights-before-public-metadata:
+    name: "All clinical FDI training remains BLOCKED"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Existing commercial/clinical/cloud denials
+        run: |
+          python experiments/lot05_j10i_fdi_commercial_rights_gate.py
+          python experiments/lot05_j10l_fdi_training_readiness.py --mode synthetic_geometry
+      - name: Public-source evidence assertions (offline synthetic fixtures)
+        run: python experiments/test_lot05_j10m_public_license_probe.py -v
+
+  public-metadata-only:
+    name: "Native ${{ matrix.os }} — original DENTEX metadata, zero images"
+    needs: rights-before-public-metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Match immutable PR SHA
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fetch ONLY public license metadata via original publisher APIs
+        shell: bash
+        run: |
+          python experiments/lot05_j10m_public_license_probe.py \
+            --output-json reports/j10m-${{ matrix.os }}.json
+      - name: Reject clinical, cloud or commercial authorization claims
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files = list(Path("reports").glob("j10m-*.json"))
+          assert len(files) == 1
+          x = json.loads(files[0].read_text(encoding="utf-8"))
+          assert x["status"] == "PUBLIC_METADATA_CONFIRMS_FDI_COMMERCIAL_HOLD"
+          assert x["publisher_declared_data_license"] == "cc-by-nc-sa-4.0"
+          assert x["huggingface_declared_data_license"] == "cc-by-nc-sa-4.0"
+          assert x["publisher_declared_non_data_code_license"] == "MIT"
+          assert x["data_images_downloaded"] == 0
+          assert x["candidate_count"] == 7
+          assert x["radiograph_licenses_approved_for_commercial_training"] == 0
+          for flag in ("real_data_training_authorized", "clinical_use_authorized", "cloud_patient_radiographs_authorized"):
+              assert x[flag] is False
+          print("PASS: publisher and host confirm DENTEX data NC; no training, no images")
+          PY
+      - name: Upload metadata JSON ONLY (no dataset, model, or images)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: j10m-public-rights-${{ matrix.os }}
+          path: reports/j10m-${{ matrix.os }}.json
+          retention-days: 7
+          if-no-files-found: warn
