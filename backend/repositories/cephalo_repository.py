@@ -66,9 +66,20 @@ def _merge_calibration_projection(previous: Any, results: Dict[str, Any]) -> Dic
     if not isinstance(previous, dict):
         return merged
 
-    for key in ("calibration_candidate", "calibration_decision"):
+    for key in ("calibration_candidate", "calibration_decision", "vision_metadata"):
         if key in previous and key not in merged:
             merged[key] = previous[key]
+
+    # Fail closed across every save/calibration path: a manually-created study
+    # must not become PDF-eligible merely because a later update forgot its
+    # clinical review status. MANUAL_DRAFT -> MANUAL_REVIEW_REQUIRED is only
+    # an explicit transition after all 38 observed points have evidence.
+    manual_status = previous.get("analysis_status")
+    proposed = merged.get("analysis_status")
+    if manual_status == "MANUAL_REVIEW_REQUIRED":
+        merged["analysis_status"] = "MANUAL_REVIEW_REQUIRED"
+    elif manual_status == "MANUAL_DRAFT" and proposed != "MANUAL_REVIEW_REQUIRED":
+        merged["analysis_status"] = "MANUAL_DRAFT"
 
     previous_status = previous.get("calibration_status")
     if (

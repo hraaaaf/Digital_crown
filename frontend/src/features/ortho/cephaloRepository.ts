@@ -25,6 +25,14 @@ export const cephaloRepository = {
     return res.data;
   },
 
+  /** Explicit clinician choice, separate from failed SRPose38 automatic inference. */
+  async uploadRadioManual(patientId: number | string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post(`/ia/upload-radio-manual?patient_id=${patientId}`, form);
+    return res.data;
+  },
+
   /**
    * Sauvegarde l'état complet d'une analyse.
    */

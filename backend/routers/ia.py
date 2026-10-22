@@ -90,6 +90,47 @@ async def upload_radio(patient_id: int, background_tasks: BackgroundTasks, file:
         logger.exception(f"Erreur critique lors de l'upload radio: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/upload-radio-manual")
+async def upload_radio_manual(
+    patient_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Patient-authorized explicit manual radiograph draft, without AI inference.
+
+    This is separate from /upload-radio: failed automatic inference continues
+    to fail closed and remove its file. Only a deliberate user action can create
+    a MANUAL_DRAFT without fabricated measures or landmarks.
+    """
+    assert_patient_access(patient_id, current_user, db)
+    if file.content_type not in {"image/jpeg", "image/png"}:
+        raise HTTPException(status_code=415, detail="Radiographie JPEG ou PNG requise.")
+    max_bytes = 10 * 1024 * 1024
+    data = await file.read(max_bytes + 1)
+    if not data:
+        raise HTTPException(status_code=400, detail="Radiographie vide.")
+    if len(data) > max_bytes:
+        raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 10 Mo)")
+
+    directory = get_imaging_root() / "radios"
+    directory.mkdir(parents=True, exist_ok=True)
+    extension = ".png" if file.content_type == "image/png" else ".jpg"
+    name = f"{uuid.uuid4()}{extension}"
+    path = directory / name
+    db_path = f"api/static/uploads/radios/{name}"
+    try:
+        path.write_bytes(data)
+        result = CephaloService(db).create_manual_draft(patient_id, str(path), db_path)
+        result["file_url"] = f"{os.getenv('BACKEND_URL', 'http://localhost:8005')}/{db_path}"
+        result["image_path"] = db_path
+        return result
+    except Exception as exc:
+        path.unlink(missing_ok=True)
+        logger.exception("Erreur lors de l'import céphalométrique manuel: %s", exc)
+        raise HTTPException(status_code=400, detail="Import manuel impossible.") from exc
+
+
 @router.get("/analyses/{analysis_id}", response_model=schemas.CephaloAnalysisOut)
 def get_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
     analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
@@ -115,7 +156,15 @@ def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session =
     assert_patient_access(analysis.patient_id, current_user, db)
     try:
         service = CephaloService(db)
-        return service.refine_analysis(analysis_id=analysis_id, landmarks=req.landmarks, clinical_data=req.clinical_data, ai_diagnostic=req.ai_diagnostic, mm_per_pixel=req.mm_per_pixel, mcnamara_projections=req.mcnamara_projections.model_dump() if req.mcnamara_projections else None)
+        return service.refine_analysis(
+            analysis_id=analysis_id,
+            landmarks=req.landmarks,
+            clinical_data=req.clinical_data,
+            ai_diagnostic=req.ai_diagnostic,
+            mm_per_pixel=req.mm_per_pixel,
+            mcnamara_projections=req.mcnamara_projections.model_dump() if req.mcnamara_projections else None,
+            clinician_id=str(current_user.id),
+        )
     except HTTPException as e:
         raise e
     except Exception as e: 

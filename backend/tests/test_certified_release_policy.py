@@ -20,6 +20,7 @@ from backend.release_certification import (
 from backend.runtime_asset_certification import (
     ASSET_CERTIFICATE_FILENAME,
     ASSET_MANIFEST_FILENAME,
+    ASSET_SELECTION_POLICY_VERSION,
     RuntimeAssetCertificationError,
     inspect_registry_coverage,
     sha256_file,
@@ -50,7 +51,7 @@ def _write_code_release(tmp_path: Path, *, packs=None, sha=CERTIFIED_SHA, marker
                 "kind": "model",
                 "lifecycle": "external",
                 "p5_required": False,
-                "canonical_path": "backend/ai_models/pinned.onnx",
+                "canonical_path": "backend/ai_models/srpose38-tta-1024.onnx",
                 "sha256": _digest(pinned_bytes),
                 "size_bytes": len(pinned_bytes),
                 "next_gate": "installable release",
@@ -97,14 +98,14 @@ def _make_installable(tmp_path: Path):
     code_payload, pinned_bytes = _write_code_release(tmp_path)
     ai_models = tmp_path / "backend" / "ai_models"
     ai_models.mkdir(parents=True, exist_ok=True)
-    pinned = ai_models / "pinned.onnx"
+    pinned = ai_models / "srpose38-tta-1024.onnx"
     pinned.write_bytes(pinned_bytes)
-    legacy = ai_models / "legacy.bin"
+    legacy = ai_models / "panoramic_model.onnx"
     legacy.write_bytes(b"legacy-deployment-bytes")
 
     asset_lines = [
-        f"{sha256_file(pinned)}  backend/ai_models/pinned.onnx",
-        f"{sha256_file(legacy)}  backend/ai_models/legacy.bin",
+        f"{sha256_file(pinned)}  backend/ai_models/srpose38-tta-1024.onnx",
+        f"{sha256_file(legacy)}  backend/ai_models/panoramic_model.onnx",
     ]
     asset_manifest = tmp_path / ASSET_MANIFEST_FILENAME
     asset_manifest.write_text("\n".join(asset_lines) + "\n", encoding="utf-8")
@@ -112,7 +113,7 @@ def _make_installable(tmp_path: Path):
     asset_payload = {
         "certificate_version": 1,
         "artifact_type": "cabinet-runtime-assets",
-        "selection_policy_version": 1,
+        "selection_policy_version": ASSET_SELECTION_POLICY_VERSION,
         "target_commit_sha": CERTIFIED_SHA,
         "scientific_assets_registry_sha256": registry_digest,
         "content_manifest_sha256": sha256_file(asset_manifest),
@@ -216,7 +217,7 @@ def test_installable_certificate_accepts_basic_gold_elite(tmp_path):
 
 def test_installable_runtime_asset_mutation_is_refused(tmp_path):
     _make_installable(tmp_path)
-    (tmp_path / "backend" / "ai_models" / "legacy.bin").write_bytes(b"changed")
+    (tmp_path / "backend" / "ai_models" / "panoramic_model.onnx").write_bytes(b"changed")
     with pytest.raises(RuntimeAssetCertificationError, match="Runtime asset changed"):
         verify_installable_release_directory(tmp_path)
 

@@ -17,6 +17,9 @@ import datetime as dt
 import logging
 import math
 
+import cv2
+from backend.services.srpose38_contract import SOTA_LANDMARKS_MAPPING
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,12 +68,51 @@ class CephaloService:
         self.db = db
         self.repo = CephaloRepository(db)
 
+    def create_manual_draft(self, patient_id: int, file_path: str, db_path: str) -> Dict[str, Any]:
+        """Explicit clinician-initiated, image-only draft; no automatic diagnosis.
+
+        Caller must authorize the patient before this method and store the
+        file under the isolated tenant-guarded imaging root.
+        """
+        if cv2.imread(file_path, cv2.IMREAD_GRAYSCALE) is None:
+            raise ValueError("Radiographie illisible : import manuel refusé.")
+        metadata = {
+            "mode_inference": "MANUAL_DRAFT",
+            "warning": "Analyse IA non effectuée. Placement manuel des 38 repères requis.",
+            "processing_time_ms": 0,
+        }
+        results = {
+            "analysis_status": "MANUAL_DRAFT",
+            "calibration_status": "unverified",
+            "vision_metadata": metadata,
+        }
+        analysis = self.repo.create(
+            patient_id, db_path, [], results, mm_per_pixel=None,
+        )
+        return {
+            "status": "manual_required",
+            "analysis_id": analysis.id,
+            "results": results,
+            "landmarks": [],
+            "is_calibrated": False,
+            "mm_per_pixel": None,
+            "calibration_candidate": None,
+        }
+
     def process_new_radio(self, patient_id: int, file_path: str, db_path: str) -> Dict[str, Any]:
         logger.info("Analyse Vision pour le patient %s...", patient_id)
         vision_result = vision_engine.predict_landmarks(file_path)
-        if not vision_result or "landmarks" not in vision_result:
-            logger.error("VisionEngine a retourné un résultat invalide ou vide.")
-            raise ValueError("L'IA n'a détecté aucun point sur cette image.")
+        # A failed SRPose38 inference must never create a successful analysis.
+        # The radio upload endpoint handles this error without persisting a
+        # fabricated or empty set of landmarks.
+        if (
+            not isinstance(vision_result, dict)
+            or vision_result.get("mode_inference") == "FAILED"
+            or not isinstance(vision_result.get("landmarks"), list)
+            or not vision_result["landmarks"]
+        ):
+            logger.error("SRPose38 n'a fourni aucun repère exploitable; analyse refusée.")
+            raise ValueError("L'IA n'a détecté aucun point sur cette image. Placement manuel requis.")
 
         pts = vision_result["landmarks"]
         logger.info("%s points détectés par le moteur %s", len(pts), vision_result["mode_inference"])
@@ -189,6 +231,85 @@ class CephaloService:
             raise ValueError(
                 "Le ratio mm/pixel d'une analyse tracée doit être modifié via l'endpoint de calibration."
             )
+
+        draft_status = (
+            existing.angles_data.get("analysis_status")
+            if isinstance(existing.angles_data, dict) else None
+        )
+        if draft_status in {"MANUAL_DRAFT", "MANUAL_REQUIRED"}:
+            # Partial tracing is an image-bound draft, not a clinical analysis.
+            # Only explicit canonical points with finite coordinates are stored.
+            required_ids = frozenset(SOTA_LANDMARKS_MAPPING.values())
+            if not set(points_dict).issubset(required_ids):
+                raise ValueError("Repère non canonique dans le brouillon manuel.")
+            for landmark_id, (x, y) in points_dict.items():
+                try:
+                    finite = math.isfinite(float(x)) and math.isfinite(float(y))
+                except (TypeError, ValueError, OverflowError):
+                    finite = False
+                if not finite:
+                    raise ValueError(f"Coordonnées invalides pour le repère {landmark_id}.")
+
+            if not isinstance(clinician_id, str) or not clinician_id.strip():
+                raise ValueError("Identité du praticien requise pour le traçage manuel.")
+            if set(points_dict) != required_ids:
+                draft = {
+                    "analysis_status": "MANUAL_DRAFT",
+                    "calibration_status": "unverified",
+                    "vision_metadata": {
+                        "mode_inference": "MANUAL_DRAFT",
+                        "warning": "Traçage manuel incomplet. Aucune mesure clinique produite.",
+                        "processing_time_ms": 0,
+                    },
+                }
+                updated = self.repo.update(analysis_id, pts_list, draft, mm_per_pixel=None)
+                if updated is None:
+                    raise ValueError("Brouillon manuel introuvable.")
+                return {
+                    "status": "manual_draft",
+                    "analysis_id": updated.id,
+                    "results": draft,
+                    "landmarks": pts_list,
+                    "is_calibrated": False,
+                    "mm_per_pixel": None,
+                }
+
+            # Complete user-selected 38 landmarks: typed evidence is MANUAL,
+            # never SOTA_ONNX_38 and never a synthesized AI diagnosis.
+            age, sex = _patient_age_and_sex(existing.patient)
+            metrics = cephalo_engine.calculate_metrics(
+                points_dict, custom_mm_ratio=None, age=age, sex=sex,
+            )
+            data = _remove_autonomous_treatment(metrics.model_dump())
+            data["analysis_status"] = "MANUAL_REVIEW_REQUIRED"
+            data["calibration_status"] = "unverified"
+            data["vision_metadata"] = {
+                "mode_inference": "MANUAL",
+                "warning": "38 repères saisis manuellement ; vérification clinique requise.",
+                "processing_time_ms": 0,
+            }
+            evidence = build_cephalo_runtime_evidence_payload(
+                patient_id=existing.patient_id,
+                image_record_id=existing.image_original_path,
+                result=metrics,
+                landmarks=pts_list,
+                inference_mode="MANUAL",
+                manual_revision=True,
+                is_calibrated=False,
+                calibration_data=None,
+            )
+            persisted = {**data, EVIDENCE_GRAPH_KEY: evidence}
+            updated = self.repo.update(analysis_id, pts_list, persisted, mm_per_pixel=None)
+            if updated is None:
+                raise ValueError("Brouillon manuel introuvable.")
+            return {
+                "status": "manual_review_required",
+                "analysis_id": updated.id,
+                "results": data,
+                "landmarks": pts_list,
+                "is_calibrated": False,
+                "mm_per_pixel": None,
+            }
 
         effective_mm_per_pixel = mm_per_pixel if mm_per_pixel is not None else existing.mm_per_pixel
         age, sex = _patient_age_and_sex(existing.patient)

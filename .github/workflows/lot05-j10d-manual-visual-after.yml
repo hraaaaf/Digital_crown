@@ -1,0 +1,73 @@
+name: LOT05 J10D manual rescue visual AFTER (experimental)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/features/ortho/**'
+      - 'frontend/src/lot05-j10d-manual-visual-entry.tsx'
+      - 'frontend/scripts/capture-lot05-manual-after.mjs'
+      - '.github/workflows/lot05-j10d-manual-visual-after.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  manual-visual-after:
+    name: Manual rescue mobile/tablet/desktop synthetic (experimental)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Pin screenshot evidence to exact PR HEAD
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend and headless browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Capture synthetic BEFORE, AI failure, manual AFTER on same viewports
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/capture-lot05-manual-after.mjs
+      - name: Enforce exact-head synthetic visual evidence
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, stat } from 'node:fs/promises';
+          const report = JSON.parse(await readFile('lot05-j10d-manual-after-artifacts/report.json', 'utf8'));
+          if (!report.valid || report.productHead !== process.env.PRODUCT_HEAD
+            || report.evidenceType !== 'synthetic-browser-mocked-api-NOT-authenticated-clinical-proof'
+            || report.captures.length !== 3 || report.blockedExternalRequests.length) {
+            throw new Error('Manual synthetic AFTER contract mismatch');
+          }
+          for (const viewport of ['390x844', '768x1024', '1280x900']) {
+            const capture = report.captures.find(x => x.viewport === viewport);
+            if (!capture?.valid) throw new Error('Invalid capture at ' + viewport);
+            for (const phase of ['before', 'ai-failed', 'manual-draft']) {
+              const file = 'lot05-j10d-manual-after-artifacts/' + phase + '-' + viewport + '.png';
+              if ((await stat(file)).size < 1000) throw new Error('Missing screenshot ' + file);
+            }
+          }
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-j10d-manual-visual-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/lot05-j10d-manual-after-artifacts
+          if-no-files-found: warn
+          retention-days: 30

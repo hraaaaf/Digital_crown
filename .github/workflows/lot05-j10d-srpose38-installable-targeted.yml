@@ -1,0 +1,102 @@
+name: LOT05 J10D SRPose38 and installer asset tests (experimental)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/vision_service.py'
+      - 'backend/services/cephalo_service.py'
+      - 'backend/routers/ia.py'
+      - 'backend/routers/patients.py'
+      - 'backend/tests/test_lot05_cephalo_manual_fallback.py'
+      - 'frontend/src/features/ortho/**'
+      - 'backend/runtime_asset_certification.py'
+      - 'backend/tests/test_cephalo_service_evidence_persistence.py'
+      - 'backend/tests/test_vision_service_lazy_pytorch.py'
+      - 'backend/tests/test_vision_apex_provenance.py'
+      - 'backend/tests/test_lot05_runtime_asset_selection.py'
+      - 'backend/tests/test_imaging_release_storage.py'
+      - 'backend/tests/test_certified_release_policy.py'
+      - '.github/workflows/lot05-j10d-srpose38-installable-targeted.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cephalo-srpose38-targeted:
+    name: Cephalo SRPose38 clinical + asset selector (experimental)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SECRET_KEY: 'lot05-j10d-isolated-test-key-32characters'
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Pin test execution to checked-out SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/lot05-j10d-requirements.txt
+          python -m pip install -r /tmp/lot05-j10d-requirements.txt
+          python -m pip check
+      - name: Execute cephalo fail-closed, provenance and model selection tests
+        run: |
+          set -o pipefail
+          python scripts/check_lazy_pytorch_contract.py
+          python -m pytest -q \
+            backend/tests/test_vision_service_lazy_pytorch.py \
+            backend/tests/test_vision_apex_provenance.py \
+            backend/tests/test_cephalo_service_evidence_persistence.py \
+            backend/tests/test_lot05_cephalo_manual_fallback.py \
+            backend/tests/test_lot05_runtime_asset_selection.py \
+            backend/tests/test_imaging_release_storage.py \
+            backend/tests/test_certified_release_policy.py \
+            | tee lot05-j10d-cephalo-targeted-results.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-j10d-cephalo-targeted-${{ github.event.pull_request.head.sha || github.sha }}
+          path: lot05-j10d-cephalo-targeted-results.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  cephalo-manual-frontend:
+    name: Cephalo manual UI typecheck (experimental)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert checked-out exact SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci --ignore-scripts
+        working-directory: frontend
+      - name: Typecheck full responsive clinical frontend
+        run: npx tsc -b --pretty false
+        working-directory: frontend
+      - name: Run canonical 38-point UI contract test
+        run: npx vitest run src/features/ortho/cephaloManualFallback.test.ts
+        working-directory: frontend

@@ -21,7 +21,14 @@ ASSET_CERTIFICATE_FILENAME = "runtime-assets-certification.json"
 ASSET_MANIFEST_FILENAME = "runtime-assets-content.sha256"
 ASSET_CERTIFICATE_VERSION = 1
 ASSET_ARTIFACT_TYPE = "cabinet-runtime-assets"
-ASSET_SELECTION_POLICY_VERSION = 1
+ASSET_SELECTION_POLICY_VERSION = 2
+# V1.5 runtime binaries loaded by the current scientific services.
+# A second cephalometric model, training checkpoints, and orphan weights
+# must never enter the downloadable installer by recursive discovery.
+RUNTIME_MODEL_ALLOWLIST = frozenset({
+    "srpose38-tta-1024.onnx",
+    "panoramic_model.onnx",
+})
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -32,6 +39,7 @@ AI_MODELS_EXCLUDE_DIRNAMES = frozenset(
     {
         "CLdetection2023-master",
         "dentex_repo",
+        "cephld_cca",  # Retired 19-point PyTorch engine: never ship its weights.
         "CL-Detection2023",
         "cephalometric-master",
         "cephmark",
@@ -46,6 +54,40 @@ class RuntimeAssetCertificationError(RuntimeError):
     """Raised when runtime assets cannot be proven immutable/compatible."""
 
 
+V15_REQUIRED_RUNTIME_MODELS = {
+    "cephalo_sota": "backend/ai_models/srpose38-tta-1024.onnx",
+    "panoramic": "backend/ai_models/panoramic_model.onnx",
+}
+
+
+def require_v15_installable_model_coverage(registry: dict[str, Any], paths: set[str]) -> None:
+    """Refuse a feature-complete installable if a required model is unpinned/absent.
+
+    Legacy generic certificate fixtures have no cephalo_sota entry and are
+    intentionally outside this V1.5-specific compatibility gate.
+    """
+    assets = registry.get("assets", [])
+    by_id = {item.get("id"): item for item in assets if isinstance(item, dict)}
+    if "cephalo_sota" not in by_id:
+        return
+
+    for asset_id, canonical in V15_REQUIRED_RUNTIME_MODELS.items():
+        item = by_id.get(asset_id)
+        if not isinstance(item, dict):
+            raise RuntimeAssetCertificationError(f"V1.5 required model not registered: {asset_id}")
+        if (
+            item.get("canonical_path") != canonical
+            or not isinstance(item.get("sha256"), str)
+            or not _DIGEST_RE.fullmatch(item["sha256"].lower())
+            or not isinstance(item.get("size_bytes"), int)
+            or isinstance(item.get("size_bytes"), bool)
+            or item["size_bytes"] <= 0
+        ):
+            raise RuntimeAssetCertificationError(f"V1.5 required model not scientifically pinned: {asset_id}")
+        if canonical not in paths:
+            raise RuntimeAssetCertificationError(f"V1.5 required model missing from bundle: {asset_id}")
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -55,9 +97,9 @@ def sha256_file(path: Path) -> str:
 
 
 def _is_selected_relative(parts: tuple[str, ...]) -> bool:
-    if any(part in AI_MODELS_EXCLUDE_DIRNAMES for part in parts):
-        return False
-    return not any(parts[: len(prefix)] == prefix for prefix in AI_MODELS_EXCLUDE_RELPATHS)
+    # No unreviewed file, training checkpoint, or nested copy is a runtime
+    # asset even if an operator happens to place it under ai_models/.
+    return len(parts) == 1 and parts[0] in RUNTIME_MODEL_ALLOWLIST
 
 
 def iter_runtime_asset_files(ai_models_root: str | Path) -> Iterable[Path]:
@@ -178,7 +220,6 @@ def verify_runtime_assets(
         raise RuntimeAssetCertificationError("Runtime assets are not certified for this exact code SHA")
 
     registry, actual_registry_digest = _load_scientific_registry(release_root)
-    del registry
     registry_digest = str(payload.get("scientific_assets_registry_sha256", "")).strip().lower()
     if (
         registry_digest != expected_registry_sha256.lower()
@@ -220,6 +261,8 @@ def verify_runtime_assets(
             if sha256_file(path) != expected_digest:
                 raise RuntimeAssetCertificationError(f"Runtime asset changed: {relative}")
             total_bytes += path.stat().st_size
+
+    require_v15_installable_model_coverage(registry, manifest_relpaths)
 
     if require_files:
         ai_models_root = release_root / "backend" / "ai_models"
