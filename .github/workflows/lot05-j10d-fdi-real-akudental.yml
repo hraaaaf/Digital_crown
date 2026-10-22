@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - 'experiments/lot05_j10d_fdi_akudental_public_ci.py'
+      - 'experiments/test_lot05_j10d_fdi_akudental_public_ci.py'
       - '.github/workflows/lot05-j10d-fdi-real-akudental.yml'
   workflow_dispatch:
 
@@ -44,6 +45,8 @@ jobs:
           python -m pip install torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu
           python -m pip install 'ultralytics>=8.3.200,<8.4' 'huggingface_hub>=0.34,<2'
           python -m pip check
+      - name: Verify published-dataset input and privacy contracts using only fake files
+        run: python -m unittest -v experiments/test_lot05_j10d_fdi_akudental_public_ci.py
       - name: Download only published noncommercial-research AKUDENTAL dataset to ephemeral runner
         shell: bash
         run: |
