@@ -1,0 +1,123 @@
+name: LOT05 J10F Imagerie FDI research bridge (blocked clinically)
+
+on:
+  pull_request:
+    branches:
+      - exp/lot05-j10e-fdi-model-interactive-prototype-20261022
+    paths:
+      - 'frontend/src/features/panoramic/FDIResearchPanel*'
+      - 'frontend/src/features/panoramic/fdiResearchState*'
+      - 'frontend/src/features/panoramic/PanoramicStudio.tsx'
+      - '.github/workflows/lot05-j10f-imagerie-fdi-research.yml'
+      - 'docs/research/LOT05_J10F_*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-lab-gate:
+    name: "Imagerie FDI — feature-off product build + research UI unit tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      VITE_FDI_RESEARCH_WORKSPACE: 'disabled'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Pin exact experimental SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install existing frontend packages without scripts
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Typecheck research integration
+        working-directory: frontend
+        run: npx tsc --noEmit
+      - name: Exercise FDI state and React UI with synthetic patient-free fixtures
+        working-directory: frontend
+        run: npx vitest run src/features/panoramic/fdiResearchState.test.ts src/features/panoramic/FDIResearchPanel.test.tsx src/features/panoramic/PanoramicStudio.g4Interactive.test.tsx
+      - name: Build release frontend with research feature DISABLED
+        working-directory: frontend
+        run: npx vite build --mode production
+      - name: Assert fail-closed research gate and no weights or clinical bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "import.meta.env.DEV && import.meta.env.VITE_FDI_RESEARCH_WORKSPACE === 'enabled'" frontend/src/features/panoramic/PanoramicStudio.tsx
+          test ! -f frontend/public/best.pt
+          test ! -f frontend/public/fdi-selected.onnx
+          test ! -f backend/ai_models/fdi-selected.onnx
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('frontend/src/features/panoramic/FDIResearchPanel.tsx').read_text()
+          assert 'api.post(' not in s and 'fetch(' not in s
+          assert 'researchExport' in s and 'createResearchState' in s
+          assert 'localStorage' not in s
+          print('PASS: no new clinical transport or persistence')
+          PY
+
+  windows-cpu-public-parity:
+    name: "Windows CPU — pinned research FDI ONNX vs PT on public films"
+    runs-on: windows-2025
+    needs: frontend-lab-gate
+    timeout-minutes: 55
+    env:
+      ULTRALYTICS_AUTOINSTALL: 'False'
+      WANDB_DISABLED: 'true'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONUNBUFFERED: '1'
+      PYTHONPATH: experiments
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Pin exact experimental SHA
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if ((git rev-parse HEAD) -ne $env:EXPECTED_SHA) { throw 'SHA mismatch' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU-only numerical runtime
+        shell: pwsh
+        run: |
+          python -m pip install torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'ultralytics>=8.3.200,<8.4' 'huggingface_hub>=0.34,<2' onnx==1.21.0 onnxruntime==1.25.0
+          python -m pip check
+      - name: Retrieve author-public noncommercial AKUDENTAL research cohort
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $source = Join-Path $env:RUNNER_TEMP 'dc-fdi-j10f-akudental'
+          git clone --quiet --depth=1 --filter=blob:none --sparse https://github.com/melihoz/AKUDENTAL.git $source
+          if ($LASTEXITCODE -ne 0) { throw 'Dataset clone failed' }
+          git -C $source sparse-checkout set --no-cone '/AKUDENTAL/images/' '/AKUDENTAL/akudental_instances.json'
+          if ($LASTEXITCODE -ne 0) { throw 'Dataset checkout failed' }
+          if ((git -C $source rev-parse HEAD) -ne '92e2cc3ae5eebc9de509311a3edefb7106fca7dd') { throw 'Unpinned public dataset' }
+          "FDI_RESEARCH_DATA_ROOT=$source" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Compare real original model vs ONNX CPU on Windows
+        shell: pwsh
+        run: |
+          python experiments/lot05_j10e_fdi_onnx_parity_ci.py --publisher-repo $env:FDI_RESEARCH_DATA_ROOT --count 2 --report lot05-j10f-windows-fdi-aggregate.json
+          if ($LASTEXITCODE -ne 0) { throw 'Windows parity failed' }
+      - name: Persist ONLY aggregated nonclinical Windows metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-j10f-windows-aggregate-${{ github.event.pull_request.head.sha || github.sha }}
+          path: lot05-j10f-windows-fdi-aggregate.json
+          if-no-files-found: ignore
+          retention-days: 7
