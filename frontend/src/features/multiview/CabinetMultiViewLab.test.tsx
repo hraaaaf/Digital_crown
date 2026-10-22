@@ -71,6 +71,16 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(container.querySelectorAll('[data-v15-071-viewslot]')).toHaveLength(2);
   });
 
+  it('accepts an authenticated enrolled Cabinet workstation with no selected default mode',async()=>{
+    vi.mocked(workstationModeService.getBootstrapState).mockResolvedValue({
+      workstationId:'ws-cabinet-initial',authenticated:true,enrollmentRequired:false,
+      defaultExperience:null,stationLocked:false,stationEscapeAuthorized:false,
+    });
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+  });
+
   it('refuses mounting all clinical slots when workstation enrollment or mode is not verified',async()=>{
     vi.mocked(workstationModeService.getBootstrapState).mockResolvedValue({
       workstationId:null,authenticated:true,enrollmentRequired:true,
