@@ -40,6 +40,8 @@ jobs:
         run: python experiments/test_lot05_j10r_akudental_private_research_workspace.py -v
       - name: 5 synthetic pilot-metrics and partition-isolation unit tests
         run: python experiments/test_lot05_j10t_akudental_torchvision_pilot.py -v
+      - name: 9 synthetic FDI32 confusion, false positives and AP50 evaluator tests
+        run: python experiments/test_lot05_j10v_akudental_fdi_holdout_eval.py -v
 
   roboflow-public-metadata:
     name: Public FDI32 publisher metadata on native runner
