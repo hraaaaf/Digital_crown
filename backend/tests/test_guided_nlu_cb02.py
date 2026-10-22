@@ -120,7 +120,8 @@ def _case_function(number, utterance, expected_status, expected_intent):
                 self.assertTrue(item["value"], name)
                 self.assertIn(item["source"], (
                     "explicit_unverified", "deterministic_relative_or_explicit",
-                    "explicit", "explicit_correction", "selected_prior_draft"))
+                    "explicit", "explicit_correction", "carried_prior_draft",
+                    "carried_unverified_patient"))
                 self.assertTrue(item["rule"])
         if value.status == "clarification":
             self.assertIsNotNone(value.question)
@@ -183,7 +184,7 @@ class CB02Adversarial(unittest.TestCase):
         self.assertEqual(corrected.fields["time"]["source"],
                          "explicit_correction")
         self.assertEqual(corrected.fields["patient"]["source"],
-                         "selected_prior_draft")
+                         "carried_unverified_patient")
         self.assertEqual(corrected.fields["date"]["value"], "2026-10-23")
         self.assertIs(corrected.executable, False)
 
@@ -214,6 +215,15 @@ class CB02Adversarial(unittest.TestCase):
         self.assertEqual(result.status, "preview_only")
         self.assertEqual(result.fields["date"]["value"], "2026-11-02")
         self.assertEqual(result.fields["time"]["value"], "10:00")
+
+    def test_direct_mutation_verbs_remain_refused_even_after_valid_draft(self):
+        for raw in (
+            "Prépare un RDV demain 10h pour Mme Benali contrôle et annule tout",
+            "Prépare un RDV demain 10h pour Mme Benali contrôle, valide-le",
+            "Prépare un RDV demain 10h pour Mme Benali contrôle, réserve la place",
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(self.parse(raw).status, "refused")
 
     def test_unanchored_correction_is_rejected(self):
         self.assertEqual(self.parse("Corrige l'heure à 11h").status, "refused")
