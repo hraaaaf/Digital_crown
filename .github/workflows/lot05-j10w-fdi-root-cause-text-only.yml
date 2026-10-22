@@ -1,0 +1,51 @@
+name: LOT05 J10W FDI Text-Only Source Quality Root Cause
+
+on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
+    paths:
+      - .github/workflows/lot05-j10w-fdi-root-cause-text-only.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-text-only:
+    name: Recheck 333 actual source labels; no image pixels or patient IDs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Six deterministic fully synthetic anomaly-triage tests
+        run: python experiments/test_lot05_j10w_akudental_duplicate_fdi_root_cause.py -v
+      - name: Fetch exact upstream commit with label TXT only, never JPEG/LabelMe JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            '/AKUDENTAL/folds/fold_0/labels/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+      - name: Aggregate FDI31/32 support and real duplicate-pair IoU by split
+        shell: bash
+        run: |
+          set -euo pipefail
+          python experiments/lot05_j10w_akudental_duplicate_fdi_root_cause.py \
+            --labels-dir third_party/AKUDENTAL/AKUDENTAL/folds/fold_0/labels
+      - name: Remove temporary source annotations; do not upload artifacts
+        if: always()
+        shell: bash
+        run: |
+          rm -rf third_party/AKUDENTAL
+          echo "J10W_TEMPORARY_SOURCE_LABELS_REMOVED"
