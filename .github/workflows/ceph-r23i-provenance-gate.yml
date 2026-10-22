@@ -1,0 +1,76 @@
+name: CEPH R23-I post FUE-H raw-metric provenance audit (NO clinical GO)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ceph-r23i-provenance-gate.yml'
+      - 'scripts/audit_ceph_r23i_provenance_gate.py'
+      - 'docs/audits/CEPH_R23I_FUEH_PROVENANCE_CLINICAL_HOLD.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  provenance-risk-detection-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact audit HEAD and prevent inherited approvals
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test -z "$(git status --porcelain)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify immutable prior REAL runtime FUE-H run and its artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=39836036083
+          expected_sha=8ebd8b013c54ee9417b4edce091c942fbdbaf22b
+          actual_sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq '.head_sha')"
+          actual_status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq '.conclusion')"
+          artifact_name="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/12450269332" --jq '.name')"
+          artifact_expired="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/12450269332" --jq '.expired')"
+          test "$actual_sha" = "$expected_sha"
+          test "$actual_status" = success
+          test "$artifact_expired" = false
+          test "$artifact_name" = "ceph-r23h-real-first-use-$expected_sha"
+          echo "FUE_H_EXTERNAL_REAL_RUNTIME_PROVENANCE_VERIFIED ($actual_sha; artifact 12450269332)"
+      - name: Evidence-locked static audit of clinical-provenance presentation
+        run: |
+          set -e
+          python -m py_compile scripts/audit_ceph_r23i_provenance_gate.py
+          python scripts/audit_ceph_r23i_provenance_gate.py
+      - name: Assert audit is RED clinical despite successful verification
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('artifacts/ceph-r23i-provenance-gate/report.json').read_text())
+          assert r['source_head']=='${{ github.event.pull_request.head.sha || github.sha }}'
+          assert r['clinical_release'] is False
+          assert r['owner_approval']=='REQUIRED_NOT_INHERITED'
+          assert r['this_audit_replayed_runtime'] is False
+          assert r['result']=='AUDIT_EXECUTED__UX_PROMOTION_RISK_OPEN__CLINICAL_NO_GO'
+          assert len(r['observed_ux_ambiguities'])==3
+          assert len(r['checks'])==10
+          assert r['independent_runtime_fue_run']['exact_head']=='8ebd8b013c54ee9417b4edce091c942fbdbaf22b'
+          print('R23I_AUDIT_PASS_RISKS_OPEN_CLINICAL_NO_GO')
+          PY
+      - name: Attach read-only source-evidence report (30 days)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-r23i-ux-risk-audit-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-r23i-provenance-gate/
+          retention-days: 30
+          if-no-files-found: warn
