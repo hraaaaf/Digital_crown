@@ -5,10 +5,9 @@ from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib.utils import ImageReader
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE
 
@@ -193,27 +192,9 @@ class PanoramicGenerator:
         elements.append(header_table)
         elements.append(Spacer(1, 0.8*cm))
 
-        # 2. Insertion de l'image (Full Width)
-        try:
-            full_img_path = os.path.join(self.base_path, img_rel_path)
-            if os.path.exists(full_img_path):
-                img_reader = ImageReader(full_img_path)
-                orig_w, orig_h = img_reader.getSize()
-                aspect = orig_h / float(orig_w)
-                target_w = 18 * cm
-                target_h = target_w * aspect
-                
-                # Container pour l'image avec bordure
-                img_flowable = Image(full_img_path, width=target_w, height=target_h)
-                elements.append(KeepTogether([
-                    Paragraph("<font color='#64748b' size='8'>CLICHÉ RADIOGRAPHIQUE ANALYSÉ</font>", self.styles['BilanText']),
-                    Spacer(1, 0.2*cm),
-                    img_flowable
-                ]))
-                elements.append(Spacer(1, 0.8*cm))
-        except Exception as e:
-            elements.append(Paragraph("<i>[Image panoramique non disponible pour ce bilan]</i>", self.styles['BilanText']))
-        
+        # 2. Bilan écrit uniquement : ne jamais ouvrir ni intégrer l'image.
+        # img_rel_path reste accepté pour compatibilité, mais n'est pas utilisé.
+
         # 3. Contenu structuré
         content_flowables = self._markdown_to_flowables(report_markdown)
         elements.extend(content_flowables)
@@ -223,7 +204,7 @@ class PanoramicGenerator:
             canvas.saveState()
             canvas.setFont('Helvetica', 8)
             canvas.setFillColor(colors.HexColor('#94a3b8'))
-            canvas.drawCentredString(A4[0]/2, 0.8*cm, f"Document clinique généré par Digital Crown AI - Page {canvas.getPageNumber()}")
+            canvas.drawCentredString(A4[0]/2, 0.8*cm, f"Compte rendu radiographique Digital Crown - Page {canvas.getPageNumber()}")
             canvas.restoreState()
 
         doc.build(elements, onFirstPage=draw_canvas, onLaterPages=draw_canvas)

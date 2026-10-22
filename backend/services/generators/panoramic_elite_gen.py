@@ -1,7 +1,7 @@
 import os
 import re
 import logging
-from typing import Optional, List, Dict
+from typing import List, Dict
 from datetime import datetime
 from jinja2 import Environment, FileSystemLoader
 import importlib.util
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class PanoramicEliteGenerator(BaseTemplate):
-    """Générateur PDF du bilan radiographique Élite.
+    """Générateur PDF du seul compte rendu radiographique panoramique, sans image.
 
     Scientific boundary: the PDF is a presentation layer. It must not infer
     dentition status, cephalometric status, diagnosis, treatment, or clinician
@@ -43,26 +43,12 @@ class PanoramicEliteGenerator(BaseTemplate):
 
         patient = db.query(models.Patient).filter(models.Patient.id == analysis.patient_id).first()
         config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == current_user.id).first()
-        cephalo = db.query(models.CephaloAnalysis).filter(
-            models.CephaloAnalysis.patient_id == analysis.patient_id
-        ).order_by(models.CephaloAnalysis.created_at.desc()).first()
-
-        pano_url = self._format_image_url(analysis.image_path)
-        cephalo_url = self._format_image_url(cephalo.image_original_path) if cephalo else None
+        # The panoramic PDF is the written report ONLY; do not resolve/read
+        # radiographs or query cephalometric records to render a PDF.
         categories = self._categorize_findings(analysis.report_narrative or "")
-        metrics = []
-        if cephalo and cephalo.angles_data:
-            metrics = self._prepare_metrics(cephalo.angles_data)
 
         p_color = config.primary_color if config and config.primary_color else '#003380'
         s_color = config.secondary_color if config and config.secondary_color else '#64748B'
-
-        from backend.services.qr_service import qr_service
-        qr_color = config.qr_code_color if config and config.qr_code_color else p_color
-        qr_style = config.qr_code_style if config and config.qr_code_style else 'dots'
-        qr_base64 = qr_service.generate_document_qr_base64(
-            "RADIO", str(analysis_id), color=qr_color, qr_style=qr_style
-        )
 
         age = self._calculate_age(patient.date_naissance)
         context = {
@@ -74,11 +60,7 @@ class PanoramicEliteGenerator(BaseTemplate):
             "patient_age": age,
             "date_analyse": analysis.created_at.strftime('%d/%m/%Y'),
             "doctor_name": current_user.nom_complet or "Dr. " + current_user.username,
-            "pano_url": pano_url,
-            "cephalo_url": cephalo_url,
             "categories": categories,
-            "metrics": metrics,
-            "qr_code_base64": qr_base64,
             "denture_type": self._documented_denture_type(analysis),
         }
 
@@ -95,29 +77,6 @@ class PanoramicEliteGenerator(BaseTemplate):
             raise ImportError("WeasyPrint est requis pour le Bilan Élite.")
 
         return f"api/static/reports/panoramic/{filename}"
-
-    def _format_image_url(self, db_path: str) -> Optional[str]:
-        if not db_path:
-            return None
-        clean_path = db_path.replace("api/", "")
-        dev_path = os.path.join(self.base_path, clean_path)
-        from backend.core.paths import AppPaths
-        media_dir = AppPaths.get_user_data_dir() / "media"
-        prod_path = str(media_dir / clean_path.replace("static/", ""))
-        abs_path = None
-        if os.path.exists(dev_path):
-            abs_path = os.path.abspath(dev_path)
-        elif os.path.exists(prod_path):
-            abs_path = os.path.abspath(prod_path)
-        if abs_path:
-            return f"file:///{abs_path.replace('\\', '/')}"
-        logger.warning(
-            "Image introuvable pour le PDF: %s (tenté: %s et %s)",
-            db_path,
-            dev_path,
-            prod_path,
-        )
-        return None
 
     def _calculate_age(self, born):
         if not born:
@@ -158,55 +117,6 @@ class PanoramicEliteGenerator(BaseTemplate):
                 items = [markdown]
             return [{"name": "Observations radiographiques", "findings": items}]
         return categories
-
-    def _prepare_metrics(self, angles_data: Dict) -> List[Dict]:
-        """Format only complete cephalometric measurements without inventing values/status."""
-        metrics = []
-        key_metrics = ["SNA", "SNB", "ANB", "Angle_de_Tweed", "IMPA", "I_Francfort", "Situation_A"]
-        for name in key_metrics:
-            data = angles_data.get(name)
-            if not isinstance(data, dict):
-                continue
-
-            val = data.get('valeur')
-            n_min = data.get('norm_min')
-            n_max = data.get('norm_max')
-            if val is None or n_min is None or n_max is None:
-                continue
-
-            n_min_safe = min(n_min, n_max)
-            n_max_safe = max(n_min, n_max)
-            if n_max_safe != n_min_safe:
-                mean = (n_min_safe + n_max_safe) / 2
-                dev = (n_max_safe - n_min_safe) / 2
-                z = (val - mean) / dev
-                percent = 50 + (z * 15)
-            else:
-                percent = 50 if val == n_min_safe else (75 if val > n_min_safe else 25)
-            percent = max(5, min(95, percent))
-
-            source_status = data.get('status')
-            status_map = {
-                "High": ("High", "Au-dessus de la plage de référence"),
-                "Low": ("Low", "En dessous de la plage de référence"),
-                "Normal": ("Normal", "Dans la plage de référence"),
-                "Compensated": ("Compensated", "Compensé"),
-            }
-            status, status_label = status_map.get(
-                source_status,
-                ("Unverified", "Non évalué"),
-            )
-
-            metrics.append({
-                "name": name.replace('_', ' '),
-                "valeur": f"{val:.1f}",
-                "unite": "mm" if "Situation" in name else "°",
-                "norme": f"[{n_min} - {n_max}]",
-                "visual_percent": int(percent),
-                "status": status,
-                "status_label": status_label,
-            })
-        return metrics
 
     def _sanitize_rendered_html(self, html_content: str) -> str:
         """Neutralise les assertions de présentation incompatibles avec le contrat fail-closed."""
