@@ -71,7 +71,7 @@ jobs:
       HF_HUB_DISABLE_TELEMETRY: '1'
       PYTHONUNBUFFERED: '1'
       PYTHONPATH: experiments
-      DATASET_ROOT: ${{ runner.temp }}/lot05-fdi-public-akudental
+      DATASET_ROOT: /tmp/lot05-fdi-public-akudental
       LOT05_FDI_REPORT: lot05-fdi-real-akudental-aggregates.json
     steps:
       - uses: actions/checkout@v4
