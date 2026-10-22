@@ -51,7 +51,7 @@ export function setFdi(state, id, fdi) {
   const next = cloneState(state), tooth = getTooth(next, id);
   if (tooth.confirmed) noConfirmedDuplicate(next, id, fdi);
   tooth.fdi = fdi;
-  if (tooth.origin === 'model') tooth.confirmed = false;
+  tooth.confirmed = false; // any FDI change invalidates prior clinician confirmation
   tooth.acts = []; // invalidate previous clinical relation after change
   return next;
 }
