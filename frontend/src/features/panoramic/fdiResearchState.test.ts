@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  RESEARCH_SCHEMA, PERMANENT_FDI, createResearchState, parseResearchInput,
+  RESEARCH_SCHEMA, PERMANENT_FDI, isDeliberateFdiDrag, createResearchState, parseResearchInput,
   addResearchTooth, duplicateFdi, confirmResearchTooth, editResearchTooth,
   undoResearchConfirmation, addResearchAct, attachResearchAct, researchExport,
 } from './fdiResearchState';
@@ -24,6 +24,12 @@ describe('LOT05/J10F FDI research state (never a clinical patient record)', () =
     expect(() => parseResearchInput({...source(), image_width: -1})).toThrow();
     expect(() => parseResearchInput({...source(),proposals:[{...source().proposals[0], fdi:'55'}]})).toThrow();
     expect(() => parseResearchInput({...source(),proposals:[{...source().proposals[0], bbox:[.2,.1,Infinity,.9]}]})).toThrow();
+  });
+  it('does not treat a click or pointer jitter as an anatomy edit', () => {
+    expect(isDeliberateFdiDrag(0, 0)).toBe(false);
+    expect(isDeliberateFdiDrag(0.002, 0.001)).toBe(false);
+    expect(isDeliberateFdiDrag(NaN, 0)).toBe(false);
+    expect(isDeliberateFdiDrag(0.02, 0.01)).toBe(true);
   });
   it('never starts with any automatic confirmation or selected clinical act', () => {
     const state=createResearchState(source());
