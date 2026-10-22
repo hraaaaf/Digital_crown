@@ -109,7 +109,8 @@ class TestAcademicPublicJPEG(unittest.TestCase):
                     "https://mendeley.com.evil.org/foo.jpg",
                     "https://evil.s3.amazonaws.com/whatever",
                     "https://user:password@api.data.mendeley.com/foo"):
-            with self.subTest(url=url),self.assertFalse(m._public_domain(url))
+            with self.subTest(url=url):
+                self.assertFalse(m._public_domain(url))
 
     def test_no_image_file_in_list_is_not_success(self):
         with self.assertRaises(m.PublicSampleError):
