@@ -1,5 +1,8 @@
 # Digital Crown LOT05 / 05.7-J10D — Panoramic FDI Tooth Localization Goal (2026-10-22)
 
+> **DÉCISION PROPRIÉTAIRE DU 22/10/2026 — modèle FDI validé pour sélection et prototypage.** `miquic/app-odonto-fdi-yolov8s`, poids et version épinglés, devient la référence du prochain sous-lot expérimental. Voir [`LOT05_J10D_FDI_MODEL_OWNER_APPROVAL_2026-10-22.md`](LOT05_J10D_FDI_MODEL_OWNER_APPROVAL_2026-10-22.md) et la validation réelle de [40 panoramiques dans GitHub Actions #39764642070](https://github.com/hraaaaf/Digital_crown/actions/runs/39764642070). **Cette approbation ne lève ni le NO-GO clinique, ni l'absence de licence commerciale, ni les gates ONNX/Windows/UX ; aucun merge, bundle ou déploiement n'est autorisé.**
+
+
 **DECISION SUPERSEDES previous OralGuard-as-target recommendation.** Owner clarified the actual goal: detect/position **all visible teeth with correct FDI numbers** on panoramic images. Pathology detection, caries, periapical alerts, automatic diagnoses and automatic clinical act selection are **not required** by the model. OralGuard's four-class pathology checkpoint was built for the wrong task. **Research remains Draft/NO-GO on cabinet installation**, but engineering effort is now directed exclusively to the tooth-numbering component.
 
 ## 1. Target UX / requirements boundary
