@@ -217,13 +217,9 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
   return (
     <section aria-label="Assistant Crown Bot — consultation"
       className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto bg-slate-50 p-3 sm:p-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-800">
-        <p className="text-sm font-bold">Que souhaitez-vous consulter ?</p>
-        <p className="mt-1 text-xs leading-relaxed">
-          Aperçu en lecture seule : aucune écriture. Préparer un RDV ne réserve aucun créneau.
-          Les informations proviennent du serveur de votre cabinet après contrôle de vos droits.
-        </p>
-      </div>
+      {/* First-value actions remain visible before the description at native 200%
+          zoom. Their keyboard/reading order matches their visual order.
+          Safety notice remains intact and the parent dock labels no-writing. */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Actions métier disponibles">
         {ACTIONS.map(action => (
           <button key={action.key} type="button" disabled={busy}
@@ -235,6 +231,13 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
             {action.label}
           </button>
         ))}
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-800">
+        <p className="text-sm font-bold">Que souhaitez-vous consulter ?</p>
+        <p className="mt-1 text-xs leading-relaxed">
+          Aperçu en lecture seule : aucune écriture. Préparer un RDV ne réserve aucun créneau.
+          Les informations proviennent du serveur de votre cabinet après contrôle de vos droits.
+        </p>
       </div>
       {programme && (
         <div role="status" aria-label="Programme du jour" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800">
