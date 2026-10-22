@@ -112,7 +112,8 @@ class PanoramicWrittenReportQuality(unittest.TestCase):
 
     def test_real_pdf_retains_written_data_and_is_image_free(self):
         html, pdf, reader, text = render(sample_md())
-        self.assertGreaterEqual(len(reader.pages), 1)
+        self.assertEqual(len(reader.pages), 1,
+                         'Ordinary written report must not strand a clinician footer on page two')
         for token in (
             "SYNTHÉTIQUE", "Dr DÉMONSTRATION",
             "COMPTE RENDU", "QUESTION CLINIQUE", "TECHNIQUE",
