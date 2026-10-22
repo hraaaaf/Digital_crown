@@ -8,6 +8,7 @@ on:
       - 'frontend/src/features/panoramic/FDIResearchPanel*'
       - 'frontend/src/features/panoramic/fdiResearchState*'
       - 'frontend/src/features/panoramic/PanoramicStudio.tsx'
+      - 'experiments/lot05_j10e_fdi_onnx_parity_ci.py'
       - '.github/workflows/lot05-j10f-imagerie-fdi-research.yml'
       - 'docs/research/LOT05_J10F_*'
   workflow_dispatch:
