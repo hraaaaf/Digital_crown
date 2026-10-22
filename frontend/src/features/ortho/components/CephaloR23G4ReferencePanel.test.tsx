@@ -104,6 +104,28 @@ describe('R23-G4 COM compact UI, read-only Focus', () => {
     window.removeEventListener('digital-crown:cephalo-metric', handler);
   });
 
+  it('revokes Focus immediately after a local unsaved landmark change and does not refetch stale values', async () => {
+    request.mockResolvedValue(serverPayload(9, 2, true));
+    const received: any[] = [];
+    const handler = (event: Event) => received.push((event as CustomEvent).detail);
+    window.addEventListener('digital-crown:cephalo-metric', handler);
+    const rendered = render(<CephaloR23G4ReferencePanel P={P} analysis="com" />);
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: /^Facteur 1$/ }));
+    await waitFor(() => expect(received.some(x => x?.authority === 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1')).toBe(true));
+    const calls = request.mock.calls.length;
+    (st.current as any).local = { version: 8 };
+    (st.current as any).syncState = 'syncing';
+    rendered.rerender(<CephaloR23G4ReferencePanel P={P} analysis="com" />);
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(received.at(-1)).toBeNull();
+    (st.current as any).syncState = 'idle';
+    rendered.rerender(<CephaloR23G4ReferencePanel P={P} analysis="com" />);
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(request.mock.calls.length).toBe(calls);
+    window.removeEventListener('digital-crown:cephalo-metric', handler);
+  });
+
   it('refuses a stale response from the wrong study even when all names coincide', async () => {
     request.mockResolvedValue(serverPayload(8, 2, true));
     render(<CephaloR23G4ReferencePanel P={P} analysis="com" />);
