@@ -76,9 +76,14 @@ def _intent(text: str) -> str | None:
                          r"prends|fixe\w*|cree\w*)\b", text)
                and re.search(r"\b(?:rdv|rendez[\s-]*vous|controle|consultation)\b", text))
     agenda = bool(re.search(r"\b(?:agenda|planning|programme|mes rdv|mes rendez[\s-]*vous)\b", text))
-    lookup = bool(re.search(r"\b(?:trouv\w*|cherch\w*|recherch\w*|retrouv\w*|"
-                           r"fiche|dossier|patient)\b", text)
-                  and re.search(r"\b(?:mme|madame|monsieur|mr|patient|dossier)\b", text))
+    # A patient selector inside a RDV draft is NOT a second "lookup" intent.
+    # Conversely an explicit "find" command mixed with RDV/agenda is refused.
+    find_verb = bool(re.search(r"\b(?:trouv\w*|cherch\w*|recherch\w*|"
+                               r"retrouv\w*|fiche|ouvre)\b", text))
+    patient_marker = bool(re.search(r"\b(?:mme|madame|monsieur|mr|patient|dossier)\b", text))
+    lookup = patient_marker and (find_verb or
+                                 (not rdv and not agenda and
+                                  bool(re.search(r"\b(?:patient|dossier)\b", text))))
     matches = [name for name, yes in (
         ("RDV_PREPARE", rdv), ("AGENDA_READ", agenda), ("PATIENT_LOOKUP", lookup),
     ) if yes]
