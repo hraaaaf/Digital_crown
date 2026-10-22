@@ -126,7 +126,16 @@ try {
         proposal: null, executable: false,
       }) });
   });
-  await page.goto(target, { waitUntil:'domcontentloaded', timeout:45000 });
+  // Vite dev/PWA can optimize workbox-window and issue a full reload only
+  // after the first navigation. Pre-warm the dependency graph *before* any
+  // controlled React form state is entered or NVDA begins speaking.
+  let documentLoads=0;
+  page.on('load',()=>{documentLoads++;});
+  await page.goto(target, { waitUntil:'networkidle', timeout:45000 });
+  await sleep(2000);
+  await page.reload({waitUntil:'networkidle',timeout:45000});
+  await sleep(1400);
+  const warmDocumentLoads=documentLoads;
   const panel = page.getByRole('region', {name:'Français guidé Crown Bot CB-02'});
   await panel.waitFor({state:'visible'});
   const input = panel.getByRole('textbox', {name:'Votre demande en français'});
@@ -147,7 +156,14 @@ try {
     throw Error('NOT_CERTIFIED: native 200% layout/zoom drift or horizontal overflow '
       + JSON.stringify({ before, after, zoom200 }));
   }
+  // Force a genuine React onChange in the warmed-up document; the browser
+  // may preserve the textarea DOM value through an HMR reload while React
+  // state silently resets to empty (leaving submit disabled).
+  await input.fill('');
   await input.fill('Mon agenda demain');
+  if (!(await submit.isEnabled()))
+    throw Error('NOT_CERTIFIED: React draft button disabled before NVDA');
+  report.reactSubmitEnabledBeforeNvda=true;
   // Prove keyboard Tab / Shift+Tab in real headed Chromium *before* NVDA
   // starts intercepting global keyboard navigation. This still fails closed
   // if the real form order is wrong at native zoom 200%.
@@ -255,7 +271,17 @@ try {
   report.nativeZoomFactor=zoomAtSpeech.value;
   report.nativeZoomAtSpeech='PASS_EXTENSION_GETZOOM_2_REAL_NVDA';
   report.nvdaSpeechCaptured='PASS_REAL_NVDA_2_CONTROLS';
-  await submit.click();
+  // Speech alone is insufficient: prove the same warmed-up React form
+  // remained live through NVDA and retained valid user-entered state.
+  const currentText=await input.inputValue();
+  const isEnabled=await submit.isEnabled();
+  report.reactDraftAtNvdaEnd={currentText,buttonEnabled:isEnabled,
+    documentLoads,warmDocumentLoads};
+  if(documentLoads!==warmDocumentLoads)
+    throw Error('NOT_CERTIFIED: unexpected Vite/HMR page reload during NVDA test');
+  if(currentText!=='Mon agenda demain'||!isEnabled)
+    throw Error('NOT_CERTIFIED: React form state lost or submit unavailable during NVDA');
+  await submit.click({timeout:10000});
   await panel.getByText('Syntaxe comprise ; contrôles serveur obligatoires.').waitFor({
     state:'visible', timeout:15000 });
   report.uiResponse='PASS_SYNTHETIC_NON_EXECUTABLE';
