@@ -139,6 +139,8 @@ try {
   const input = panel.getByRole('textbox', {name:'Votre demande en français'});
   const submit = panel.getByRole('button', {name:'Comprendre la demande'});
   await input.waitFor(); await submit.waitFor();
+  // Count the fully loaded initial lab document, not a late 'load' event.
+  await page.waitForLoadState('load',{timeout:20000});
   const sw = await page.evaluate(async () => ({
     controlled: !!navigator.serviceWorker?.controller,
     registrations: navigator.serviceWorker ? (await navigator.serviceWorker.getRegistrations()).length : 0,
