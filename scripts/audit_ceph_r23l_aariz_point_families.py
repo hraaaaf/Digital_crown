@@ -27,6 +27,15 @@ FILES = {
     "acceptance": "cephalo_vnext_lot04_acceptance_record.json",
     "acceptance_detail": "cephalo_vnext_lot04_acceptance_record_detail.json",
 }
+# Immutably published in commit cea3fa3cc23963fe4e41ec2666430fd186a79f04.
+# These Git blob SHA1 values are NOT the same digest as the embedded raw-file
+# SHA256. Never substitute one for another or suppress a failed byte binding.
+FROZEN_GIT_BLOB_SHA1 = {
+    "manifest": "580da70729a99b09dce6322c6f127bb9ccf5cde9",
+    "results": "4be6106a258135886f1e21dad7f976122d3c0787",
+    "acceptance": "24374e300f81247ffc3c5494132e0d1bceab99fd",
+    "acceptance_detail": "040981e59c234c972959980ff6258a519fd3f732",
+}
 
 
 class EvidenceMismatch(ValueError):
@@ -48,6 +57,9 @@ def read_evidence(directory: Path) -> tuple[dict, dict]:
     for key, name in FILES.items():
         source = directory / name
         raw = source.read_bytes()
+        git_blob_sha1 = hashlib.sha1((f"blob {len(raw)}\\0").encode().replace(b"\\0",b"\0") + raw).hexdigest()
+        if git_blob_sha1 != FROZEN_GIT_BLOB_SHA1[key]:
+            raise EvidenceMismatch(f"Git blob differs from frozen LOT04 commit: {key}")
         docs[key] = json.loads(raw)
         digests[key] = sha256_bytes(raw)
     return docs, digests
@@ -73,8 +85,18 @@ def analyze(docs: dict, digests: dict) -> dict:
             raise EvidenceMismatch(f"{name} no longer binds frozen manifest")
         if payload["candidate_model_sha256"] != MODEL_SHA256:
             raise EvidenceMismatch(f"{name} no longer binds exact ONNX hash")
-    if detail["source_results_sha256"] != digests["results"]:
-        raise EvidenceMismatch("acceptance detail not linked to exact source results bytes")
+    # Preserve the disagreement as an UNRESOLVED provenance defect rather than
+    # either silently declaring a clean match or discarding the aggregate data.
+    # All four file blobs are identical to the initial source-freeze commit;
+    # this proves no subsequent repo edit, NOT that the original recomputation
+    # was byte-bound to its currently committed inputs.
+    embedded_results_sha = detail["source_results_sha256"]
+    binding_ok = embedded_results_sha == digests["results"]
+    if not isinstance(embedded_results_sha,str) or len(embedded_results_sha)!=64:
+        raise EvidenceMismatch("invalid embedded source hash")
+    reasons = acceptance.get("decision_reasons",[])
+    if not any(embedded_results_sha in x for x in reasons):
+        raise EvidenceMismatch("acceptance record disagrees with original detail source hash")
     if manifest["acceptance_policy"]["tolerance_version"] != "REFERENCE_EQUIVALENCE_V1":
         raise EvidenceMismatch("source threshold version drifted")
     if not manifest["acceptance_policy"]["preregistered"]:
@@ -170,12 +192,23 @@ def analyze(docs: dict, digests: dict) -> dict:
         "model_sha256":MODEL_SHA256,
         "manifest_canonical_sha256":manifest_hash,
         "evidence_file_sha256":digests,
+        "source_results_sha256_embedded": embedded_results_sha,
+        "source_results_sha256_committed_file": digests["results"],
+        "original_results_byte_binding_verified": binding_ok,
+        "provenance_warning": (
+            None if binding_ok else
+            "FROZEN_GIT_BLOBS_UNCHANGED__EMBEDDED_SOURCE_RESULTS_SHA256_MISMATCH__NOT_RECONCILED"
+        ),
         "acceptance_cases":150,
         "landmark_counts":group_counts,
         "total_pass":sum(x["decision"]=="PASS" for x in rows),
         "total_fail":sum(x["decision"]=="FAIL" for x in rows),
         "acceptance_decision_original":"FAIL",
-        "audit_conclusion":"FROZEN_RESULTS_VERIFIED_MAPPING_CAUSALITY_UNPROVEN_CLINICAL_NO_GO",
+        "audit_conclusion":(
+            "SOURCE_FROZEN_GROUP_STATS_CONFIRMED__RAW_DIGEST_MISMATCH_OPEN__CLINICAL_NO_GO"
+            if not binding_ok else
+            "FROZEN_RESULTS_BYTES_BOUND__MAPPING_CAUSALITY_UNPROVEN__CLINICAL_NO_GO"
+        ),
         "clinical_release":False,
         "channel_swap_proven":False,
         "channel_relabel_authorized":False,
@@ -187,6 +220,7 @@ def analyze(docs: dict, digests: dict) -> dict:
             "Per-landmark eligible n varies across 150 films; many device groups are small.",
             "Some dermatologic/soft-tissue model channels remain outside Aariz compatible 24; 24-point audit never certifies all 38.",
             "The existing scientific rejection of the candidate under frozen thresholds remains unchanged.",
+            "Original embedded prediction-file SHA256 differs from SHA256 of the frozen Git blob; investigate serialization/history before claiming a clean original recomputation link.",
         ],
         "landmarks":rows,
     }
@@ -199,6 +233,8 @@ def to_markdown(report: dict) -> str:
         f"Exact pinned SRPose38 SHA256: \`{report['model_sha256']}\`.",
         f"Source: {report['acceptance_cases']} frozen untouched acceptance films; **no new inference**.",
         "**Clinical decision remains NO-GO**; mapping swap is NOT established.",
+        f"**Source provenance caveat:** {report['provenance_warning'] or 'embedded source-results SHA256 matches frozen file bytes'}.",
+
         "",
         "| Family | PASS | FAIL | Total |",
         "|---|---:|---:|---:|",
