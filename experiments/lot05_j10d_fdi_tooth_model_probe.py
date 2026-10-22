@@ -13,6 +13,9 @@ import json
 from pathlib import Path
 
 MODEL_REPO = "miquic/app-odonto-fdi-yolov8s"
+MODEL_REVISION = "82b4d9a02f9e6f32a746dc17afe681e20e8b99e2"
+MODEL_WEIGHTS_FILE = "best.pt"
+MODEL_WEIGHTS_SHA256 = "533833a4244f092f82bc94a6c2d6fac7e1656c9437994e98d09843c54aafd3f6"
 CLASS_ORDER = tuple(str(10 * q + i) for q in (1, 2, 3, 4) for i in range(1, 9))
 
 
@@ -78,17 +81,19 @@ def run() -> dict:
     from huggingface_hub import HfApi, hf_hub_download
     from ultralytics import YOLO
 
-    metadata = HfApi().model_info(MODEL_REPO)
+    metadata = HfApi().model_info(MODEL_REPO, revision=MODEL_REVISION)
     revision = metadata.sha
-    if not isinstance(revision, str) or len(revision) != 40:
+    if revision != MODEL_REVISION:
         raise FDIProbeError("untrusted_hub_revision")
     files = [item.rfilename for item in metadata.siblings]
-    pt = sorted(f for f in files if f.endswith(".pt") and not f.startswith("."))
-    if len(pt) != 1:
-        raise FDIProbeError(f"expected_one_pytorch_weights_file_found_{len(pt)}")
-    file_path = Path(hf_hub_download(repo_id=MODEL_REPO, filename=pt[0], revision=revision))
+    if MODEL_WEIGHTS_FILE not in files:
+        raise FDIProbeError("pinned_model_weight_missing")
+    file_path = Path(hf_hub_download(repo_id=MODEL_REPO, filename=MODEL_WEIGHTS_FILE, revision=revision))
     if not file_path.is_file() or not 1_000_000 < file_path.stat().st_size < 200_000_000:
         raise FDIProbeError("unexpected_weights_size")
+    actual_sha256 = digest(file_path)
+    if actual_sha256 != MODEL_WEIGHTS_SHA256:
+        raise FDIProbeError("pinned_model_weight_sha256_mismatch")
     # .pt uses pickle; ONLY run on ephemeral unprivileged CI without credentials.
     model = YOLO(str(file_path), task="detect")
     class_names = verify_names(model.names)
@@ -104,8 +109,8 @@ def run() -> dict:
         "status": "PASS_SYNTHETIC_TECH_ONLY",
         "mission": "LOT05/05.7-J10D",
         "purpose": "32-class tooth boxes and FDI labels; no pathology detection",
-        "source_repo": MODEL_REPO, "source_commit": revision, "weights_file": pt[0],
-        "weights_sha256": digest(file_path), "weights_bytes": file_path.stat().st_size,
+        "source_repo": MODEL_REPO, "source_commit": revision, "weights_file": MODEL_WEIGHTS_FILE,
+        "weights_sha256": actual_sha256, "weights_bytes": file_path.stat().st_size,
         "class_order": list(class_names), "synthetic_output": summary,
         "clinical_approved": False, "commercial_redistribution_cleared": False,
         "installed_in_cabinet": False, "tested_on_real_radiographs": False,
