@@ -1,0 +1,75 @@
+name: CB-02 Guided French NLU Deterministic Contract (SOURCE ONLY)
+
+# This is an isolated, no-LLM, no-database, no-server-route test gate.
+# Does NOT certify UI integration, patient authorization, cabinet operation,
+# appointment creation or any CB-03 transactional action.
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - backend/services/bot/guided_nlu_cb02.py
+      - backend/tests/test_guided_nlu_cb02.py
+      - .github/workflows/cb02-guided-nlu-contract.yml
+  push:
+    branches: [master]
+    paths:
+      - backend/services/bot/guided_nlu_cb02.py
+      - backend/tests/test_guided_nlu_cb02.py
+      - .github/workflows/cb02-guided-nlu-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb02-guided-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guided-nlu-synthetic:
+    name: CB-02 60+ declared French intents / contradictions / corrections (no writes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CB02_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CB02_SOURCE_HEAD }}
+          persist-credentials: false
+      - name: Verify immutable checked-out source and no network dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB02_SOURCE_HEAD"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$CLOUD_AI_ENABLED" = false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile isolated parser and corpus
+        run: python -m py_compile backend/services/bot/guided_nlu_cb02.py backend/tests/test_guided_nlu_cb02.py
+      - name: Enforce declared 60+ synthetic cases and intent diversity
+        shell: bash
+        run: |
+          python - <<'PY'
+          from backend.tests.test_guided_nlu_cb02 import CASES
+          from collections import Counter
+          counter = Counter(row[1] for row in CASES)
+          assert len(CASES) >= 60, "Missing 60-case corpus"
+          assert len({row[0].casefold() for row in CASES}) == len(CASES)
+          assert counter["refused"] >= 15 and counter["clarification"] >= 5
+          assert counter["preview_only"] >= 10 and counter["requires_server_authorization"] >= 15
+          print("CB02_CORPUS_DECLARED:", len(CASES), dict(counter))
+          PY
+      - name: Run every declared case and all isolation/provenance assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s backend/tests -p test_guided_nlu_cb02.py -v
+          echo '### CB-02 source-only deterministic contract tested on exact HEAD' >> "$GITHUB_STEP_SUMMARY"
+          echo "SHA: $CB02_SOURCE_HEAD" >> "$GITHUB_STEP_SUMMARY"
+          echo 'No FastAPI integration, patient lookup, LLM, appointment execution, clinic activation or human certification.' >> "$GITHUB_STEP_SUMMARY"
