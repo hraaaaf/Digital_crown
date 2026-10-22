@@ -224,13 +224,19 @@ jobs:
           checks={"GENUINE_CABINET_LOGIN_AND_STUDY_SELECTION",
                   "COM10_SOURCE_ROWS_EXACT_REVISION","NO_FABRICATED_FOCUS_ON_COM_HOLD",
                   "RICKETTS_ATLAS33_VS_GREGORET13","SECOND_STUDY_HAS_NO_STALE_REFERENCE",
-                  "NO_DESKTOP_VIEWPORT_OVERFLOW"}
+                  "COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED","NO_DESKTOP_VIEWPORT_OVERFLOW"}
           screenshots={"before-from-stable-all","after-com-ten-factor","after-com-focus-hold",
-                       "after-ricketts-atlas33","after-ricketts-gregoret13","after-other-study-rebound"}
+                       "after-ricketts-atlas33","after-ricketts-gregoret13","after-other-study-rebound",
+                       "after-com-last-factor-accessible"}
           for v in report["viewports"]:
               assert v["valid"] and not v["errors"], v
               assert {c["id"] for c in v["checks"]}==checks
               assert all(c["status"]=="PASS" for c in v["checks"])
+              last=next(c for c in v["checks"] if c["id"]=="COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED")
+              evidence=last["evidence"]
+              assert evidence["bottomPadding"] >= 120
+              assert evidence["rowTop"] >= evidence["scrollTop"]-1
+              assert evidence["rowBottom"] <= evidence["scrollBottom"]+1
               for label in screenshots:
                   assert (root/(v["viewport"]+"-"+label+".png")).is_file()
           print("R23_G4_EXPERIMENTAL_AFTER_TWO_DESKTOP_VIEWPORTS_PASS")
