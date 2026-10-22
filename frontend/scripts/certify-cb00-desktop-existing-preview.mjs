@@ -60,16 +60,22 @@ try {
     const overlay=page.locator('[data-ux1-c-crownbot-overlay]');
     await overlay.waitFor({state:'visible',timeout:15000});
     const firstOpenMs=performance.now()-t0;
-    await page.getByRole('button',{name:'Chat',exact:true}).click();
-    const preview=page.getByRole('region',{name:'Simulation ZERO-LLM Crown Bot'});
+    // CB-01 a11y compatibility: Chat is now a semantic tab and FIRST_VALUE
+    // already selects it on open. A retired button locator would time out
+    // despite the clinical read remaining available.
+    const chatTab=overlay.getByRole('tab',{name:'Chat',exact:true});
+    await chatTab.waitFor({state:'visible'});
+    if(await chatTab.getAttribute('aria-selected')!=='true')
+      throw new Error('FAIL: existing flagged preview does not open on Chat');
+    const preview=page.getByRole('region',{name:'Assistant Crown Bot — consultation'});
     await preview.waitFor({state:'visible'});
     const before='existing-flagged-preview-'+width+'.png';
     await page.screenshot({path:path.join(output,before)});
     const samples=[];
     for(let i=0;i<31;i++){
       await preview.getByRole('button',{name:'Réinitialiser la simulation'}).click();
-      await preview.getByRole('button',{name:'/patient'}).click();
-      await preview.getByText('Identifiant numérique du patient ?').waitFor({state:'visible'});
+      await preview.getByRole('button',{name:'Trouver un patient'}).click();
+      await preview.getByText('Patient : saisissez un identifiant, un nom/prénom exact ou un numéro de dossier', { exact: false }).waitFor({state:'visible'});
       await preview.getByRole('textbox',{name:'Votre réponse de simulation'}).fill(patientId);
       const started=performance.now();
       const responsePromise=page.waitForResponse(r=>
@@ -86,7 +92,7 @@ try {
     const after='existing-flagged-preview-useful-'+width+'.png';
     await page.screenshot({path:path.join(output,after)});
     const geometry=await page.evaluate(()=>{
-      const el=document.querySelector('[aria-label="Simulation ZERO-LLM Crown Bot"]');
+      const el=document.querySelector('[aria-label="Assistant Crown Bot — consultation"]');
       const r=el?.getBoundingClientRect();
       return {
         overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,

@@ -32,7 +32,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Attest exact CB-01 preview source
+        shell: bash
+        env:
+          EXPECTED: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED"
+          test "${#EXPECTED}" -eq 40
+          echo "CB01_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_ENV"
+          echo "CB01_ZERO_LLM_VISUAL_SOURCE_HEAD=$EXPECTED" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

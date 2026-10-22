@@ -1,14 +1,47 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
+
+type CabinetDay = {
+  day: string; timezone: string; start_date: string; end_date: string;
+  consulted_at: string;
+};
+
+function verifyCabinetDay(value: CabinetDay): CabinetDay {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value.day)
+      || value.start_date !== value.day + 'T00:00:00'
+      || value.end_date !== value.day + 'T23:59:59.999'
+      || typeof value.timezone !== 'string' || !value.timezone
+      || !/^\d{2}:\d{2}$/.test(value.consulted_at)) {
+    throw new Error('Invalid server cabinet day');
+  }
+  return value;
+}
 
 type PreviewResponse = {
   status: string;
   message: string;
   proposal?: { type?: string; params?: Record<string, unknown> } | null;
-  patient?: { id: number; nom: string; prenom: string };
+  patient?: { id: number; nom: string; prenom: string; numero_dossier?: string | null };
+  candidates?: Array<{ id: number; nom: string; prenom: string; numero_dossier: string | null }>;
 };
 
-const COMMANDS = ['/patient', '/rdv', '/devis'] as const;
+// Stable, explicit UI intentions; only the two patient-facing commands are
+// translated to their existing deterministic backend protocol.
+const ACTIONS = [
+  { key: 'programme', label: 'Mon programme' },
+  { key: '/patient', label: 'Trouver un patient' },
+  { key: '/rdv', label: 'Préparer un RDV' },
+] as const;
+const ACTION_LABELS: Record<string, string> = {
+  '/patient': 'Trouver un patient',
+  '/rdv': 'Préparer un RDV',
+};
+type PatientChoice = NonNullable<PreviewResponse['candidates']>[number];
+
+type ProgrammeAppointment = {
+  id: number; datetime_start: string; patient_name?: string | null;
+  motif?: string | null; status?: string | null;
+};
 const MAX_TURNS = 8;
 
 /**
@@ -17,26 +50,115 @@ const MAX_TURNS = 8;
  * NEVER feed a preview proposal to /bot/execute.
  * Transcript lives only in component memory, not persistent chat history.
  */
-export function CrownBotWorkflowPreview() {
+export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = false }: {
+  practitionerId?: number;
+  requirePractitioner?: boolean;
+} = {}) {
   const [transcript, setTranscript] = useState<string[]>([]);
   const [answer, setAnswer] = useState<PreviewResponse | null>(null);
+  // Display-only identity copied from a server-authorized homonym picker.
+  // Never serialize this label into an API request or use it for authorization.
+  const [chosenPatient, setChosenPatient] = useState<PatientChoice | null>(null);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [lastPreviewReadAt, setLastPreviewReadAt] = useState<string | null>(null);
+  const [programme, setProgramme] = useState<{
+    items: ProgrammeAppointment[]; day: string; consultedAt: string; timezone: string;
+  } | null>(null);
   const inFlight = useRef(false);
+  const proposalOutcomeRef = useRef<HTMLParagraphElement>(null);
+
+  // FUE-C: a successful server-only proposal must be actually perceivable,
+  // including Chrome native 200% zoom. Scroll the nearest existing preview
+  // container to the result without moving focus or executing an action.
+  // The workflow remains a NON-ACTIONABLE preview.
+  useEffect(() => {
+    if (answer?.status !== 'proposal_only' || !answer.proposal) return;
+    proposalOutcomeRef.current?.scrollIntoView?.({
+      block: 'nearest', inline: 'nearest', behavior: 'auto',
+    });
+  }, [answer]);
+
+  // Canonical read-only Agenda route; this response is scoped server-side by
+  // require_permission("agenda") and employer_id. Never cache across principals.
+  const readProgramme = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError('');
+    setAnswer(null);
+    setChosenPatient(null);
+    setLastPreviewReadAt(null);
+    setProgramme(null);
+    setTranscript([]);
+    setInput('');
+    if (requirePractitioner && !(Number.isSafeInteger(practitionerId) && Number(practitionerId) > 0)) {
+      setError('Praticien non identifié. Rechargez votre session avant de consulter le programme.');
+      inFlight.current = false;
+      setBusy(false);
+      return;
+    }
+    try {
+      // The server, not the staff browser, defines the cabinet calendar day.
+      // CB-01 uses a configured pilot timezone; A5 owns tenant TZ persistence.
+      const dayResponse = await api.get<CabinetDay>('/bot/workflows/cabinet-day');
+      const cabinetDay = verifyCabinetDay(dayResponse.data);
+      const response = await api.get<ProgrammeAppointment[]>('/appointments/', {
+        params: {
+          start_date: cabinetDay.start_date, end_date: cabinetDay.end_date,
+          ...(practitionerId && Number.isSafeInteger(practitionerId)
+            ? { praticien_id: practitionerId } : {}),
+        },
+      });
+      if (!Array.isArray(response.data) || !response.data.every(item =>
+        Number.isSafeInteger(item?.id) && typeof item.datetime_start === 'string')) {
+        throw new Error('Invalid agenda read contract');
+      }
+      setProgramme({
+        items: [...response.data].sort((a, b) =>
+          a.datetime_start.localeCompare(b.datetime_start)),
+        day: new Date(cabinetDay.day + 'T12:00:00Z').toLocaleDateString('fr-FR', {
+          day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+        }),
+        consultedAt: cabinetDay.consulted_at,
+        timezone: cabinetDay.timezone,
+      });
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(status === 403 ? 'Accès Agenda refusé pour votre compte.'
+        : status === 423 ? 'Poste verrouillé. Aucune donnée Agenda affichée.'
+        : 'Impossible de consulter le programme. Aucune donnée périmée affichée.');
+    } finally {
+      setBusy(false);
+      inFlight.current = false;
+    }
+  };
 
   const reset = () => {
     if (inFlight.current) return;
     setTranscript([]);
     setAnswer(null);
+    setChosenPatient(null);
+    setLastPreviewReadAt(null);
+    setProgramme(null);
     setError('');
     setInput('');
   };
 
-  const send = async (raw: string, newWorkflow = false) => {
+  const send = async (raw: string, newWorkflow = false, replacePatient = false, verifiedChoice?: PatientChoice) => {
     const text = raw.trim();
     if (!text || text.length > 80 || inFlight.current) return;
-    const next = newWorkflow ? [text] : [...transcript, text];
+    // An ambiguous name must be replaced by the selected, server-scoped ID;
+    // never append a new identity as if it were a date or procedure slot.
+    const retryPatient = replacePatient || (
+      transcript.length === 2 && answer?.status === 'disambiguation'
+    ) || (
+      transcript.length === 2 && answer?.status === 'clarification'
+      && answer.message.startsWith('Plusieurs correspondances')
+    );
+    const next = newWorkflow ? [text]
+      : retryPatient ? [transcript[0], text] : [...transcript, text];
     if (next.length > MAX_TURNS) {
       setError('Limite de simulation atteinte. Réinitialisez le parcours.');
       return;
@@ -44,17 +166,41 @@ export function CrownBotWorkflowPreview() {
     inFlight.current = true;
     setBusy(true);
     setError('');
+    setProgramme(null);
+    setLastPreviewReadAt(null);
+    // Never show an old patient's successful result as the result of a new
+    // workflow (or a subsequent request that fails). Preserve only validated
+    // steps when retrying within the same workflow.
+    setAnswer(null);
+    if (newWorkflow || retryPatient) setChosenPatient(null);
+    if (newWorkflow) {
+      setTranscript([]);
+      setInput('');
+    }
     try {
       const response = await api.post<PreviewResponse>('/bot/workflows/preview', {
         messages: next,
       });
       setTranscript(next);
       setAnswer(response.data);
+      // The backend replays the transcript and validates the selected ID;
+      // only its successful response may make the original picker label visible.
+      if (verifiedChoice && next[0] === '/rdv'
+          && ['clarification', 'confirmation_required', 'proposal_only'].includes(response.data.status)) {
+        setChosenPatient(verifiedChoice);
+      }
+      setLastPreviewReadAt(new Date().toLocaleTimeString('fr-FR', {
+        hour: '2-digit', minute: '2-digit',
+      }));
       setInput('');
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
+      setChosenPatient(null);
+      const status = (err as { response?: { status?: number; data?: { detail?: string } } })?.response?.status;
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setError(
-        status === 404 ? 'Simulation indisponible sur ce serveur.'
+        status === 404 && detail === 'Patient introuvable.'
+          ? 'Aucun dossier correspondant dans votre cabinet. Vérifiez le nom ou le numéro de dossier.'
+          : status === 404 ? 'Simulation indisponible sur ce serveur.'
           : status === 403 ? 'Accès refusé pour ce parcours.'
           : status === 409 ? 'Demande modifiée. Réinitialisez avant de reprendre.'
           : status === 422 ? 'Réponse invalide. Vérifiez le format demandé.'
@@ -69,41 +215,101 @@ export function CrownBotWorkflowPreview() {
   const completed = ['read', 'proposal_only', 'cancelled'].includes(answer?.status || '');
   const full = transcript.length >= MAX_TURNS;
   return (
-    <section aria-label="Simulation ZERO-LLM Crown Bot"
+    <section aria-label="Assistant Crown Bot — consultation"
       className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto bg-slate-50 p-3 sm:p-4">
-      <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-900">
-        <p className="text-sm font-bold">Simulation ZERO-LLM — aucune écriture</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-800">
+        <p className="text-sm font-bold">Que souhaitez-vous consulter ?</p>
         <p className="mt-1 text-xs leading-relaxed">
-          Les propositions ne réservent aucun créneau et ne créent ni devis ni dossier.
-          Une validation métier et une confirmation serveur restent indispensables.
+          Aperçu en lecture seule : aucune écriture. Préparer un RDV ne réserve aucun créneau.
+          Les informations proviennent du serveur de votre cabinet après contrôle de vos droits.
         </p>
       </div>
-      <div className="flex flex-wrap gap-2" aria-label="Parcours disponibles">
-        {COMMANDS.map(command => (
-          <button key={command} type="button" disabled={busy}
-            onClick={() => { void send(command, true); }}
-            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">
-            {command}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Actions métier disponibles">
+        {ACTIONS.map(action => (
+          <button key={action.key} type="button" disabled={busy}
+            onClick={() => {
+              if (action.key === 'programme') void readProgramme();
+              else void send(action.key, true);
+            }}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 text-left hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+            {action.label}
           </button>
         ))}
       </div>
+      {programme && (
+        <div role="status" aria-label="Programme du jour" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800">
+          <p className="font-semibold">Programme du {programme.day}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Source : Agenda du cabinet · Lecture serveur à {programme.consultedAt} · Fuseau {programme.timezone}
+          </p>
+          {programme.items.length === 0 ? (
+            <p className="mt-2 text-sm">Aucun rendez-vous dans ce programme aujourd’hui.</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              <p className="text-xs font-semibold">{programme.items.length} rendez-vous dans l’Agenda du cabinet</p>
+              <ol className="space-y-1">
+                {programme.items.slice(0, 8).map(item => (
+                  <li key={item.id} className="rounded-md border border-slate-100 bg-slate-50 p-2 text-xs">
+                    {item.datetime_start.slice(11, 16)} — {item.patient_name || 'Patient non renseigné'}
+                    {item.motif ? ` · ${item.motif}` : ''}
+                    {item.status ? ` · ${item.status}` : ''}
+                  </li>
+                ))}
+              </ol>
+              {programme.items.length > 8 && (
+                <p className="text-xs text-slate-500">Affichage des 8 premiers rendez-vous. Ouvrez l’Agenda pour la liste complète.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {transcript.length > 0 && (
         <div className="min-w-0 rounded-lg bg-white p-3 text-xs text-slate-700 shadow-sm">
           <p className="mb-2 font-semibold">Étapes saisies : {transcript.length}/{MAX_TURNS}</p>
           <ol className="list-inside list-decimal space-y-1 break-words">
-            {transcript.map((turn, index) => <li key={index}>{turn}</li>)}
+            {transcript.map((turn, index) => (
+              <li key={index}>{ACTION_LABELS[turn] || (turn.startsWith('id:')
+                ? 'Dossier choisi' : turn)}</li>
+            ))}
           </ol>
         </div>
       )}
       {answer && (
         <div role="status" className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
           <p className="break-words text-sm text-slate-800">{answer.message}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Source : consultation du serveur du cabinet
+            {lastPreviewReadAt ? ` · Réponse reçue à ${lastPreviewReadAt}` : ''}
+            {' · Aucun changement enregistré'}
+          </p>
           {answer.patient && (
-            <p className="mt-2 break-words text-xs">Patient identifié : {answer.patient.prenom} {answer.patient.nom}</p>
+            <p className="mt-2 break-words text-xs">
+              {transcript[0] === '/rdv' ? 'Patient sélectionné (vérifié par le serveur)' : 'Patient identifié'} : {answer.patient.prenom} {answer.patient.nom}
+              {answer.patient.numero_dossier ? ` — Dossier ${answer.patient.numero_dossier}` : ''}
+            </p>
+          )}
+          {transcript[0] === '/rdv' && chosenPatient && (
+            <p className="mt-2 break-words text-xs" data-cb01-verified-homonym>
+              Patient sélectionné (vérifié par le serveur) : {chosenPatient.prenom} {chosenPatient.nom}
+              {chosenPatient.numero_dossier ? ` — Dossier ${chosenPatient.numero_dossier}` : ' — Dossier non renseigné'}
+            </p>
+          )}
+          {answer.status === 'disambiguation' && !!answer.candidates?.length && (
+            <div className="mt-3 grid gap-2" aria-label="Choisir le dossier patient">
+              {answer.candidates.map(candidate => (
+                <button key={candidate.id} type="button" disabled={busy}
+                  onClick={() => { void send(`id:${candidate.id}`, false, true, candidate); }}
+                  className="min-h-11 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left text-xs text-slate-800 hover:bg-slate-100 disabled:opacity-50">
+                  {candidate.prenom} {candidate.nom} — Dossier {candidate.numero_dossier || 'non renseigné'}
+                </button>
+              ))}
+            </div>
           )}
           {answer.proposal && (
-            <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs font-semibold text-amber-900">
-              Proposition {answer.proposal.type || ''} : simulation uniquement, non exécutable.
+            <p ref={proposalOutcomeRef} data-cb01-first-value="proposal-only"
+              className="mt-2 rounded-md bg-amber-50 p-2 text-xs font-semibold text-amber-900">
+              {answer.proposal.type === 'CREATE_APPOINTMENT'
+                ? 'Rendez-vous proposé' : 'Brouillon proposé'} : aperçu uniquement, non enregistré et non exécutable.
             </p>
           )}
         </div>
@@ -115,7 +321,9 @@ export function CrownBotWorkflowPreview() {
           <input aria-label="Votre réponse de simulation" value={input}
             onChange={event => setInput(event.target.value)}
             maxLength={80} autoComplete="off"
-            placeholder="Réponse demandée par Crown Bot"
+            placeholder={transcript.length === 1
+              ? 'Nom, prénom, n° dossier ou ID patient'
+              : 'Réponse demandée par Crown Bot'}
             disabled={busy}
             className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm"
           />

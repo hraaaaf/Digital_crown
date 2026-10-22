@@ -1,3 +1,4 @@
+import { formatAgendaWallClock } from '../../utils/agendaWallClock';
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
@@ -82,8 +83,8 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
 
       const res = await api.get('/appointments/', {
         params: {
-          start_date: startOfDay.toISOString(),
-          end_date: endOfDay.toISOString()
+          start_date: formatAgendaWallClock(startOfDay),
+          end_date: formatAgendaWallClock(endOfDay)
         }
       });
       setAppointments(res.data);
