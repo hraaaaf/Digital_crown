@@ -109,7 +109,7 @@ jobs:
           retention-days: 7
 
   fdi-browser-synthetic:
-    name: Browser proof: synthetic FDI corrections and manual act gating
+    name: "Browser proof — synthetic FDI corrections and manual act gating"
     needs: fdi-interactive-contract
     runs-on: ubuntu-24.04
     timeout-minutes: 15
