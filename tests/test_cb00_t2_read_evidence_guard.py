@@ -1,0 +1,441 @@
+"""CB-00 probe safety checks (synthetic only; does NOT exercise the T2 backend)."""
+import importlib.util
+from pathlib import Path
+from types import SimpleNamespace
+import pytest
+
+path = Path(__file__).resolve().parents[1] / "scripts/ci/crownbot_cb00_t2_read_evidence.py"
+spec = importlib.util.spec_from_file_location("cb00_probe", path)
+probe = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(probe)
+
+
+def _fake_s08_reply(messages):
+    """Owner quote smoke added to run(); keep earlier regression mocks honest."""
+    if messages == ["/devis", "1", "couronne"]:
+        return 200, {"status": "confirmation_required", "proposal": None}, 1.0
+    if messages == ["/devis", "1", "couronne", "CONFIRMER"]:
+        return 200, {
+            "status": "proposal_only",
+            "message": "Simulation uniquement, non exécutée.",
+            "proposal": {
+                "type": "OPEN_DEVIS_EDITOR",
+                "params": {"patient_id": 1, "procedure": "COURONNE",
+                           "draft_only": True},
+            },
+        }, 1.0
+    return None
+
+
+@pytest.mark.parametrize("url", [
+    "https://example.com:443",
+    "http://evil.com:8005",
+    "http://127.0.0.1:8005/api/admin",
+    "http://127.0.0.1:8005?token=x",
+    "http://127.0.0.1:8005/#x",
+    "http://localhost:8005@other.test:8005",
+    "http://localhost:8005",
+])
+def test_local_origin_only(url):
+    if url == "http://localhost:8005":
+        assert probe.checked_origin(url) == url
+    else:
+        with pytest.raises(ValueError):
+            probe.checked_origin(url)
+
+
+def test_redirect_refused():
+    assert probe._NoRedirect().redirect_request(
+        None, None, 302, "Found", {}, "https://evil.test"
+    ) is None
+
+
+def test_environment_refuses_without_t2(monkeypatch, tmp_path):
+    monkeypatch.delenv("DIGITALCROWN_ISOLATED_RUNTIME", raising=False)
+    monkeypatch.setenv("T2_USER", "t2-user@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    with pytest.raises(ValueError):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path/"out.json")
+        ))
+
+
+def test_fail_closed_read_contract():
+    valid = {"status": "read", "patient": {"id": 9}, "proposal": None}
+    probe.assert_read(200, valid, 9)
+    for payload in [
+        dict(valid, proposal={"type": "unsafe"}),
+        dict(valid, pending_action_id="x"),
+        dict(valid, patient={"id": 7}),
+    ]:
+        with pytest.raises(RuntimeError):
+            probe.assert_read(200, payload, 9)
+
+
+@pytest.mark.parametrize("samples,ratio,expected", [
+    ([10, 20, 30], .5, 20),
+    ([10, 20, 30], .95, 29),
+])
+def test_percentile(samples, ratio, expected):
+    assert probe.percentile(samples, ratio) == expected
+
+
+def test_no_redirect_forwarding_network():
+    """Local redirect must not forward test bearer token to another endpoint."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+    observed = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            observed.append((self.path, self.headers.get("Authorization")))
+            if self.path == "/redirect":
+                self.send_response(307)
+                self.send_header(
+                    "Location", f"http://127.0.0.1:{self.server.server_port}/target"
+                )
+                self.end_headers()
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"status":"read"}')
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with pytest.raises(RuntimeError):
+            probe.http_json(
+                f"http://127.0.0.1:{server.server_port}/redirect",
+                {"messages": ["/patient"]},
+                "synthetic-not-real-token",
+            )
+        assert observed == [("/redirect", "Bearer synthetic-not-real-token")]
+    finally:
+        server.shutdown()
+
+
+@pytest.mark.parametrize("enroll,expected_suffixes", [
+    (False, ["/api/auth/login"]),
+    (True, ["/api/auth/login", "/api/workstation/enroll"]),
+])
+def test_denied_role_reuses_owner_station_without_enrollment(
+    monkeypatch, enroll, expected_suffixes
+):
+    """A restricted staff user must not attempt the owner-only enrollment route."""
+    called = []
+
+    def fake_http(url, data, bearer=None, form=False, anonymous=False):
+        called.append(url)
+        if url.endswith("/api/auth/login"):
+            assert form is True
+            return 200, {"access_token": "synthetic-only"}, 1
+        if url.endswith("/api/workstation/enroll"):
+            assert bearer == "synthetic-only"
+            assert data == {"accountPassword": "synthetic-pass"}
+            return 200, {"workstationId": "synthetic"}, 1
+        raise AssertionError("unexpected endpoint")
+
+    monkeypatch.setattr(probe, "http_json", fake_http)
+    assert probe.login(
+        "http://127.0.0.1:8005", "t2-denied@example.test",
+        "synthetic-pass", enroll_workstation=enroll,
+    ) == "synthetic-only"
+    assert called == [
+        "http://127.0.0.1:8005" + suffix for suffix in expected_suffixes
+    ]
+
+
+@pytest.mark.parametrize("same_404", [True, False])
+def test_existing_foreign_patient_must_match_unknown_404(monkeypatch, tmp_path, same_404):
+    """No leak if a valid OTHER-tenant patient exists: indistinguishable 404."""
+    vals = {
+        "DIGITALCROWN_ISOLATED_RUNTIME": "1",
+        "T2_USER": "t2-dentist@example.test",
+        "T2_PASSWORD": "fictional-only",
+        "T2_PATIENT_ID": "1",
+        "T2_FOREIGN_PATIENT_ID": "3",
+        "T2_UNKNOWN_PATIENT_ID": "10003",
+        "T2_SOURCE_HEAD": "synthetic-test-head",
+    }
+    for name, value in vals.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.delenv("T2_DENIED_USER", raising=False)
+    monkeypatch.delenv("T2_DENIED_PASSWORD", raising=False)
+    monkeypatch.setattr(probe, "login", lambda *args: "fictional-only-token")
+    seen = []
+
+    def fake_http(url, data, bearer=None, form=False, anonymous=False):
+        messages = data["messages"]
+        seen.append(messages)
+        if not anonymous:
+            quote = _fake_s08_reply(messages)
+            if quote is not None:
+                return quote
+        if anonymous:
+            return 401, {"detail": "Unauthorized"}, 1.0
+        if messages == ["/patient"]:
+            return 200, {"status": "clarification", "proposal": None}, 1.0
+        if messages == ["/patient", "1"]:
+            return 200, {"status": "read", "proposal": None, "patient": {"id": 1}}, 1.0
+        if messages == ["/patient", "3"]:
+            return 404, {"detail": "Patient introuvable."}, 1.0
+        if messages == ["/patient", "10003"]:
+            return 404, {
+                "detail": "Patient introuvable." if same_404 else "Patient externe"
+            }, 1.0
+        raise AssertionError("unexpected request")
+
+    monkeypatch.setattr(probe, "http_json", fake_http)
+    args = SimpleNamespace(api="http://127.0.0.1:8005", n=30,
+                           out=str(tmp_path / "evidence.json"))
+    if same_404:
+        result = probe.run(args)
+        assert result["checks"]["foreign_patient_404"] == "PASS"
+        assert result["checks"]["foreign_unknown_same_404"] == "PASS"
+        assert ["/patient", "3"] in seen and ["/patient", "10003"] in seen
+    else:
+        with pytest.raises(RuntimeError, match="tenant 404 differs"):
+            probe.run(args)
+        assert not (tmp_path / "evidence.json").exists()
+
+
+def test_missing_foreign_pair_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    monkeypatch.setenv("T2_USER", "t2-dentist@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    monkeypatch.setenv("T2_FOREIGN_PATIENT_ID", "3")
+    monkeypatch.delenv("T2_UNKNOWN_PATIENT_ID", raising=False)
+    with pytest.raises(ValueError, match="both foreign and unknown"):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json")
+        ))
+
+
+def test_owner_tenant_404_precedes_restricted_login_cookie_change(monkeypatch, tmp_path):
+    """Role login changes shared cookie; foreign 404 must use owner session."""
+    env = {
+        "DIGITALCROWN_ISOLATED_RUNTIME": "1",
+        "T2_USER": "t2-owner@example.test", "T2_PASSWORD": "fictional",
+        "T2_PATIENT_ID": "1", "T2_FOREIGN_PATIENT_ID": "3",
+        "T2_UNKNOWN_PATIENT_ID": "10003",
+        "T2_DENIED_USER": "t2-restricted@example.test",
+        "T2_DENIED_PASSWORD": "fictional",
+        "T2_DENIED_COMMAND": "/patient",
+    }
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    sequence = []
+
+    def fake_login(url, user, password, *, enroll_workstation=True):
+        sequence.append("restricted_login" if not enroll_workstation else "owner_login")
+        return "owner-token" if enroll_workstation else "restricted-token"
+
+    def fake_http(url, payload, bearer=None, form=False, anonymous=False):
+        messages = payload["messages"]
+        if not anonymous:
+            quote = _fake_s08_reply(messages)
+            if quote is not None:
+                return quote
+        if anonymous:
+            return 401, {"detail": "Unauthorized"}, 1.0
+        if messages == ["/patient"]:
+            if bearer == "restricted-token":
+                return 403, {"detail": "Denied"}, 1.0
+            return 200, {"status": "clarification", "proposal": None}, 1.0
+        if messages == ["/patient", "1"]:
+            return 200, {"status": "read", "patient": {"id": 1},
+                         "proposal": None}, 1.0
+        if messages in ([ "/patient", "3" ], [ "/patient", "10003" ]):
+            sequence.append("foreign_check")
+            assert bearer == "owner-token"
+            return 404, {"detail": "Patient introuvable."}, 1.0
+        raise AssertionError("Unexpected synthetic request")
+
+    monkeypatch.setattr(probe, "login", fake_login)
+    monkeypatch.setattr(probe, "http_json", fake_http)
+    result = probe.run(SimpleNamespace(
+        api="http://127.0.0.1:8005", n=30, out=str(tmp_path/"evidence.json")))
+    assert result["checks"]["foreign_unknown_same_404"] == "PASS"
+    assert result["checks"]["permission_denied_403"] == "PASS"
+    assert sequence.index("foreign_check") < sequence.index("restricted_login")
+
+
+@pytest.mark.parametrize("full_result", [
+    (403, {"detail": "Accès refusé."}),
+    (200, {"status": "proposal_only", "proposal": {"type": "CREATE_APPOINTMENT"}}),
+    (403, {"detail": "Accès refusé.", "patient": {"id": 1}}),
+    (404, {"detail": "Not found"}),
+])
+def test_s06_denies_full_appointment_proposal_fail_closed(
+    monkeypatch, tmp_path, full_result
+):
+    """Only a generic 403 for BOTH forms is accepted as S06 evidence."""
+    env = {
+        "DIGITALCROWN_ISOLATED_RUNTIME": "1",
+        "T2_USER": "t2-owner@example.test", "T2_PASSWORD": "fake",
+        "T2_PATIENT_ID": "1",
+        "T2_S06_USER": "t2-s06@example.test",
+        "T2_S06_PASSWORD": "fake",
+    }
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    for k in ("T2_DENIED_USER", "T2_DENIED_PASSWORD", "T2_FOREIGN_PATIENT_ID",
+              "T2_UNKNOWN_PATIENT_ID"):
+        monkeypatch.delenv(k, raising=False)
+    logins, requests = [], []
+
+    def fake_login(url, user, password, *, enroll_workstation=True):
+        logins.append((user, enroll_workstation))
+        return "s06" if user == env["T2_S06_USER"] else "owner"
+
+    def fake_http(url, data, bearer=None, form=False, anonymous=False):
+        messages = data["messages"]
+        requests.append((messages, bearer))
+        if not anonymous:
+            quote = _fake_s08_reply(messages)
+            if quote is not None:
+                return quote
+        if anonymous:
+            return 401, {"detail": "Unauthorized"}, 1.0
+        if bearer == "s06":
+            assert messages[0] == "/rdv"
+            if len(messages) == 1:
+                return 403, {"detail": "Accès refusé."}, 1.0
+            return full_result[0], full_result[1], 1.0
+        if messages == ["/patient"]:
+            return 200, {"status": "clarification", "proposal": None}, 1.0
+        if messages == ["/patient", "1"]:
+            return 200, {"status": "read", "proposal": None, "patient": {"id": 1}}, 1.0
+        raise AssertionError("unexpected request")
+
+    monkeypatch.setattr(probe, "login", fake_login)
+    monkeypatch.setattr(probe, "http_json", fake_http)
+    outfile = tmp_path / "result.json"
+    args = SimpleNamespace(api="http://127.0.0.1:8005", n=30, out=str(outfile))
+    if full_result == (403, {"detail": "Accès refusé."}):
+        result = probe.run(args)
+        assert result["checks"]["s06_no_agenda_403"] == "PASS"
+        assert result["checks"]["s06_full_proposal_denied_403"] == "PASS"
+        assert outfile.exists()
+        assert len([x for x in requests if x[1] == "s06"]) == 2
+        assert len([x for x in requests if x[1] == "s06" and
+                    x[0][0] == "/rdv" and len(x[0]) == 7]) == 1
+        assert logins == [("t2-owner@example.test", True), ("t2-s06@example.test", False)]
+    else:
+        with pytest.raises(RuntimeError, match="S06 agenda denial"):
+            probe.run(args)
+        assert not outfile.exists()
+
+
+def test_s06_fixture_missing_password_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    monkeypatch.setenv("T2_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    monkeypatch.setenv("T2_S06_USER", "t2-s06@example.test")
+    monkeypatch.delenv("T2_S06_PASSWORD", raising=False)
+    with pytest.raises(ValueError, match="S06 no-agenda identity"):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json"),
+        ))
+
+
+def test_s06_same_identity_as_owner_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    monkeypatch.setenv("T2_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    monkeypatch.setenv("T2_S06_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_S06_PASSWORD", "fake")
+    with pytest.raises(ValueError, match="distinct synthetic"):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json"),
+        ))
+
+
+@pytest.mark.parametrize("bad_payload", [
+    {"status": "proposal_only", "message": "Simulation uniquement, non exécutée.",
+     "proposal": {"type": "OPEN_DEVIS_EDITOR", "params": {
+         "patient_id": 1, "procedure": "COURONNE", "draft_only": False}}},
+    {"status": "proposal_only", "message": "Simulation uniquement, non exécutée.",
+     "proposal": {"type": "OPEN_DEVIS_EDITOR", "params": {
+         "patient_id": 1, "procedure": "COURONNE", "draft_only": True,
+         "pendingActionId": "fake"}}},
+    {"status": "proposal_only", "message": "Simulation uniquement, non exécutée.",
+     "proposal": {"type": "CREATE_APPOINTMENT", "params": {
+         "patient_id": 1, "procedure": "COURONNE", "draft_only": True}}},
+    {"status": "proposal_only", "message": "Simulation uniquement, non exécutée.",
+     "patient": {"nom": "LEAK"}, "proposal": {"type": "OPEN_DEVIS_EDITOR",
+          "params": {"patient_id": 1, "procedure": "COURONNE", "draft_only": True}}},
+])
+def test_s08_rejects_draft_leaks_and_action_ids(bad_payload):
+    with pytest.raises(RuntimeError, match="FAIL CLOSED"):
+        probe.assert_non_executable_proposal(
+            200, bad_payload, command="/devis", patient_id=1)
+
+
+def test_s08_valid_only_as_non_executable_draft():
+    status, payload, _ = _fake_s08_reply(["/devis", "1", "couronne", "CONFIRMER"])
+    probe.assert_non_executable_proposal(
+        status, payload, command="/devis", patient_id=1)
+    with pytest.raises(RuntimeError, match="FAIL CLOSED"):
+        probe.assert_confirmation_required(status, payload)
+
+
+@pytest.mark.parametrize("params", [
+    {"patient_id": 1, "datetime_start": "2099-01-01T10:00:00",
+     "duration_minutes": 30, "motif": "CONSULTATION"},
+    {"patient_id": 2, "datetime_start": "2099-01-01T10:00:00",
+     "duration_minutes": 30, "motif": "CONSULTATION"},
+    {"patient_id": 1, "datetime_start": "2099-01-01T10:00:00",
+     "duration_minutes": 15, "motif": "CONSULTATION"},
+    {"patient_id": 1, "datetime_start": "2099-01-01T10:00:00",
+     "duration_minutes": 30, "motif": "COURONNE"},
+])
+def test_s05_exact_parameters_on_reception_appointment(params):
+    valid = {
+        "status": "proposal_only",
+        "message": "Simulation uniquement, non exécutée.",
+        "proposal": {"type": "CREATE_APPOINTMENT", "params": params},
+    }
+    if params == {"patient_id": 1, "datetime_start": "2099-01-01T10:00:00",
+                  "duration_minutes": 30, "motif": "CONSULTATION"}:
+        probe.assert_non_executable_proposal(
+            200, valid, command="/rdv", patient_id=1,
+            when="2099-01-01T10:00:00")
+    else:
+        with pytest.raises(RuntimeError, match="FAIL CLOSED"):
+            probe.assert_non_executable_proposal(
+                200, valid, command="/rdv", patient_id=1,
+                when="2099-01-01T10:00:00")
+
+
+def test_s05_requires_distinct_credential_pair(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    monkeypatch.setenv("T2_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    monkeypatch.setenv("T2_S05_USER", "t2-accueil@example.test")
+    monkeypatch.delenv("T2_S05_PASSWORD", raising=False)
+    with pytest.raises(ValueError, match="S05 staff identity"):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json")))
+
+
+def test_s05_rejects_owner_identity(monkeypatch, tmp_path):
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    monkeypatch.setenv("T2_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_PASSWORD", "fake")
+    monkeypatch.setenv("T2_PATIENT_ID", "1")
+    monkeypatch.setenv("T2_S05_USER", "t2-owner@example.test")
+    monkeypatch.setenv("T2_S05_PASSWORD", "fake")
+    with pytest.raises(ValueError, match="distinct synthetic"):
+        probe.require_t2_environment(SimpleNamespace(
+            api="http://127.0.0.1:8005", n=30, out=str(tmp_path / "out.json")))
