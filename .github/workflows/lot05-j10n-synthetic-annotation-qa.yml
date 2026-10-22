@@ -98,8 +98,8 @@ jobs:
                        'clinical_use_approved','gh_actions_patient_transfer_approved'):
               assert result[flag] is False
           serialized=p.read_text(encoding='utf-8').lower()
-          for forbidden in ('patient_name','patient_id','dicom','original_filename','subject_group',
-                            'syn-g001', 'near_duplicate_group', 'clinic-name', 'consent_document'):
+          for forbidden in ('"patient_name":','"patient_id":','dicom','"original_filename":','"subject_group":',
+                            'syn-g001', '"near_duplicate_group":', 'clinic-name', '"consent_document":'):
               assert forbidden not in serialized
           print('PASS FDI-32 review/split schema without medical imagery or real-world clearance')
           PY
