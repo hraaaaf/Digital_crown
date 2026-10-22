@@ -487,22 +487,28 @@ try {
   const at200=await inspectZoomLayout(page);
   report.zoomMeasurements={at100,at200Immediate:zoomImmediate,at200,zoomAfterReflow};
   console.log('CB01_WINDOWS_FUEG_NATIVE_REFLOW',JSON.stringify(report.zoomMeasurements));
-  const floatingPanel=page.locator('[data-ux1-c-crownbot-overlay]');
-  await floatingPanel.waitFor({state:'visible',timeout:30000});
-  if(await page.locator('[data-cb01-associate-sidecar]').count())
-    throw Error('FAIL: native 200% retained desktop sidecar instead of responsive overlay');
-  // BEFORE this fix the 600px-tall fixed popup sat above a 450px viewport,
-  // and the focused Chat tab was physically offscreen at top=-192px. Native
-  // zoom is not accessible merely because an element is DOM-visible.
-  const popupGeometry=await floatingPanel.evaluate(el=>{
-    const box=el.getBoundingClientRect();
-    return {top:box.top,bottom:box.bottom,height:box.height,
-      viewportHeight:window.innerHeight};
+  // Native 200% transforms 1920 CSS px into 960 CSS px: the experimental
+  // assistant must reflow to the medium-width bottom dock without obscuring
+  // the clinical main area. Keep all zoom/visible-control/NVDA gates strict.
+  const dockPanel=page.locator('[data-cb01-workspace-dock]');
+  await dockPanel.waitFor({state:'visible',timeout:30000});
+  if(await page.locator('[data-ux1-c-crownbot-overlay]').count()
+     || !await page.locator('[data-cb01-associate-sidecar]').count())
+    throw Error('FAIL: native 200% did not reflow to the non-overlapping workspace dock');
+  const dockGeometry=await page.evaluate(()=>{
+    const dock=document.querySelector('[data-cb01-workspace-dock]')?.getBoundingClientRect();
+    const main=document.querySelector('main')?.getBoundingClientRect();
+    if(!dock||!main)return null;
+    return {dockTop:dock.top,dockBottom:dock.bottom,dockHeight:dock.height,
+      mainBottom:main.bottom,mainHeight:main.height,viewportHeight:window.innerHeight};
   });
-  report.zoomMeasurements.floatingPanelAt200=popupGeometry;
-  if(popupGeometry.top<4 || popupGeometry.bottom>popupGeometry.viewportHeight-4)
-    throw Error('NOT_CERTIFIED: CB-01 floating assistant escaped native 200% viewport; '+
-      JSON.stringify(popupGeometry));
+  report.zoomMeasurements.dockPanelAt200=dockGeometry;
+  if(!dockGeometry || dockGeometry.dockTop<4
+     || dockGeometry.dockBottom>dockGeometry.viewportHeight+2
+     || dockGeometry.mainBottom>dockGeometry.dockTop+3
+     || dockGeometry.mainHeight<100)
+    throw Error('NOT_CERTIFIED: CB-01 native 200% dock overlaps the clinical workspace or leaves unusable main height; '+
+      JSON.stringify(dockGeometry));
   const bounds=await Promise.all([
     panel.getByRole('tab',{name:'Chat',exact:true}),
     panel.getByRole('tab',{name:/Mémoire contextuelle/}),
