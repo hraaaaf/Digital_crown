@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Digital Crown · Éditeur FDI (prototype local)</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;background:#091321;color:#edf4fa}
+*{box-sizing:border-box}body{margin:0}header{padding:23px clamp(18px,4vw,52px);border-bottom:1px solid #263648;background:#0c1a2a}
+header h1{font-size:23px;margin:2px 0 5px;letter-spacing:-.03em}header p{margin:0;color:#9cacc0;font-size:13px}
+.label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#5bc6d3;font-weight:800}
+.warning{padding:11px 16px;border-radius:11px;background:#322515;border:1px solid #78603a;color:#ffdda4;font-size:13px;margin-top:14px}
+main{display:grid;grid-template-columns:minmax(0,2fr) minmax(290px,390px);gap:18px;max-width:1550px;margin:20px auto;padding:0 20px;align-items:start}
+section,.panel{border:1px solid #283b4e;border-radius:18px;background:#101f30;overflow:hidden}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:16px;border-bottom:1px solid #25384a}
+button,.file-label,select,input{font:inherit}button,.file-label{display:inline-flex;cursor:pointer;align-items:center;justify-content:center;border:1px solid #37536b;background:#172c40;color:#edf4fa;border-radius:9px;padding:9px 13px;font-size:13px}
+button:hover,.file-label:hover{background:#24435b}button.primary{background:#0b8b99;border-color:#0ca1ae}button.primary:hover{background:#0e9eaa}button.danger{border-color:#6b474b;color:#ffc0b9}button:disabled{opacity:.45;cursor:not-allowed}
+.file-label input{display:none}.toolbar small{color:#9fb1c1;font-size:12px}
+#stage{position:relative;min-height:340px;display:grid;place-items:center;background:#0b1119}#stage.has-image{min-height:0;display:block}
+#photo{width:100%;height:auto;display:none;user-select:none;pointer-events:none}
+#overlay{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:none;overflow:visible}
+#empty{color:#8fa4b4;text-align:center;padding:40px;font-size:14px;line-height:1.9}
+#overlay .tooth rect{fill:rgba(25,189,195,.07);stroke:#42cbd1;stroke-width:2.5;vector-effect:non-scaling-stroke;cursor:grab}
+#overlay .tooth.confirmed rect{fill:rgba(50,220,154,.09);stroke:#43d1a0}
+#overlay .tooth.selected rect{stroke:#ffe19d;stroke-width:4}
+#overlay .tooth text{font-size:26px;paint-order:stroke;stroke:#0a1520;stroke-width:6;fill:#fff;font-weight:800;pointer-events:none}
+aside{display:flex;flex-direction:column;gap:14px}h2{font-size:15px;margin:0 0 14px}
+.content{padding:18px}.content p{color:#9cb1bf;font-size:13px;line-height:1.6}
+.stats{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid #25384a;font-size:12px;color:#a8bdcd}
+.stat{padding:4px 10px;border:1px solid #345065;border-radius:20px}
+.row{display:flex;gap:9px;align-items:center;margin:9px 0;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#9eb2c0;flex:1;min-width:95px}
+select,input[type="number"],input[type="text"]{background:#0b1929;border:1px solid #3a5067;color:#fff;padding:9px;border-radius:9px;min-width:0;width:100%}
+#toothList{max-height:300px;overflow:auto;border-top:1px solid #283c50}
+.toothitem{display:flex;padding:8px 14px;gap:8px;align-items:center;border-bottom:1px solid #26394b;cursor:pointer;font-size:12px}
+.toothitem.selected{background:#213b4c}.toothitem b{font-size:14px;min-width:32px}.toothitem span{color:#a5b6c7;flex:1}
+.ok{color:#5ee0b8}.pending{color:#ffd59b}#status{padding:10px 18px;color:#9bc6c8;font-size:12px;min-height:36px}
+#status.error{color:#ffb5b6}.foot{margin:0 auto;padding:6px 20px 30px;color:#758d9d;font-size:12px;max-width:1550px}
+@media(max-width:850px){main{grid-template-columns:1fr}#stage{min-height:220px}.content{padding:14px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header>
+ <div class="label">Digital Crown · LOT05 / 05.7-J10E</div>
+ <h1>Repérage dentaire FDI — prototype praticien</h1>
+ <p>Panoramique locale · suggestions corrigeables · confirmation manuelle · aucun diagnostic automatique</p>
+ <div class="warning"><strong>Prototype de recherche, non validé pour soins.</strong> Les suggestions doivent être contrôlées par le dentiste. Les images et annotations ne sont jamais envoyées à un serveur ni enregistrées automatiquement. Licence commerciale du modèle non acquise.</div>
+</header>
+<main>
+<section aria-label="Radiographie panoramique et repérages">
+ <div class="toolbar">
+  <label class="file-label">Ouvrir une image locale <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp"></label>
+  <label class="file-label">Importer les propositions FDI <input id="predictionInput" type="file" accept=".json,application/json"></label>
+  <button id="addModeBtn" type="button">＋ Ajouter une dent</button>
+  <small>Déplacer un rectangle avec le doigt ou la souris</small>
+ </div>
+ <div class="stats"><span class="stat" id="count">0 dent</span><span class="stat" id="confirmed">0 confirmée</span><span class="stat" id="duplicates">Aucun doublon</span></div>
+ <div id="stage"><div id="empty">1. Ouvrir une image locale<br>2. Importer les propositions FDI du modèle<br>3. Corriger et confirmer chaque dent</div><img id="photo" alt="Panoramique fournie localement par le praticien"><svg id="overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Boîtes et numéros FDI modifiables"></svg></div>
+ <div id="toothList" aria-label="Dents proposées"></div><div id="status" role="status" aria-live="polite"></div>
+</section>
+<aside>
+ <section><div class="content"><h2>Dent sélectionnée</h2><div id="noSelection"><p>Sélectionne une proposition sur l'image ou dans la liste.</p></div><div id="edit" hidden>
+ <div class="row"><label class="field">Numéro FDI<select id="fdiSelect"></select></label><label class="field">Statut<input id="confirmStatus" type="text" readonly></label></div>
+ <div class="row"><label class="field">X min (%)<input id="x1" type="number" step=".1" min="0" max="100"></label><label class="field">Y min (%)<input id="y1" type="number" step=".1" min="0" max="100"></label></div>
+ <div class="row"><label class="field">X max (%)<input id="x2" type="number" step=".1" min="0" max="100"></label><label class="field">Y max (%)<input id="y2" type="number" step=".1" min="0" max="100"></label></div>
+ <div class="row"><button id="applyBoxBtn">Corriger le rectangle</button><button id="confirmBtn" class="primary">Confirmer FDI</button><button id="unconfirmBtn">Annuler validation</button><button id="removeBtn" class="danger">Supprimer proposition</button></div>
+ <p>Une modification de la dent annule sa confirmation et ses actes associés.</p>
+ </div></div></section>
+ <section><div class="content"><h2>Ajouter une dent oubliée</h2><p>Choisir explicitement son numéro puis cliquer sur l'image.</p><div class="row"><label class="field">Numéro FDI manuel<select id="manualFdi"></select></label><button id="addModeBtnAside">Placer sur l'image</button></div></div></section>
+ <section><div class="content"><h2>Actes — choix du praticien</h2><p>Aucun acte n'est proposé par le modèle. Le catalogue de démonstration contient uniquement les actes que tu ajoutes. Les définitions sont conservées dans <em>ce navigateur</em>, sans association à un patient.</p>
+ <div class="row"><label class="field">Spécialité<select id="specialty"></select></label></div><div class="row"><label class="field">Libellé d'acte<input id="actLabel" type="text" maxlength="100" placeholder="Saisie manuelle du praticien"></label></div>
+ <button id="addActBtn">Ajouter au dictionnaire local</button>
+ <div class="row"><label class="field">Acte existant<select id="actSelect"></select></label><button id="assignActBtn">Associer à la dent confirmée</button></div><p id="selectedActs"></p>
+ </div></section>
+ <section><div class="content"><h2>Relecture et export</h2><p>Le JSON exporté ne contient que les dents confirmées. Ce fichier reste local et ne modifie aucun dossier patient.</p><button class="primary" id="exportBtn">Exporter la relecture confirmée</button></div></section>
+</aside>
+</main>
+<div class="foot">Mode expérimental hors application clinique. Modèle adulte FDI 11–48 uniquement. Denture temporaire/mixte : correction manuelle sans numéro inventé. Aucun réseau requis pour cette page.</div>
+<script type="module">
+import {FDI_PERMANENT,REVIEW_SCHEMA,SPECIALTIES,createReview,setFdi,setBox,addTooth,removeTooth,confirmTooth,unconfirmTooth,duplicateFDIs,createActDictionary,addActToDictionary,assignManualAct,exportReview} from './lot05_j10e_fdi_review_state.mjs';
+const $=id=>document.getElementById(id);
+let state=null,selected=null,imgURL=null,addMode=false,drag=null;
+let dictionary=createActDictionary();
+try{const records=JSON.parse(localStorage.getItem('dc-fdi-prototype-dictionary')||'[]');if(Array.isArray(records)){records.forEach(a=>{dictionary=addActToDictionary(dictionary,a.specialty,a.label);});}}catch{}
+function status(message,error=false){$('status').textContent=message;$('status').className=error?'error':'';}
+function tooth(){return state?.teeth.find(t=>t.id===selected)||null;}
+function refresh(){
+ const teeth=state?.teeth||[],valid=teeth.filter(t=>t.confirmed);
+ $('count').textContent=teeth.length+' propositions';$('confirmed').textContent=valid.length+' confirmées';
+ const duplicate=state?duplicateFDIs(state):[];
+ $('duplicates').textContent=duplicate.length?'Doublons FDI à revoir : '+duplicate.join(', '):'Aucun doublon FDI';
+ $('overlay').replaceChildren();$('toothList').replaceChildren();
+ for(const t of teeth){
+  const ns='http://www.w3.org/2000/svg',g=document.createElementNS(ns,'g'),rect=document.createElementNS(ns,'rect'),label=document.createElementNS(ns,'text');
+  g.dataset.id=t.id;g.setAttribute('class','tooth'+(t.confirmed?' confirmed':'')+(selected===t.id?' selected':''));
+  const [x1,y1,x2,y2]=t.bbox.map(x=>x*1000);
+  for(const [key,value] of Object.entries({x:x1,y:y1,width:x2-x1,height:y2-y1}))rect.setAttribute(key,String(value));
+  label.setAttribute('x',String(x1+3));label.setAttribute('y',String(Math.max(23,y1-4)));label.textContent=t.fdi;
+  g.append(rect,label);$('overlay').append(g);
+  const entry=document.createElement('div');entry.className='toothitem'+(selected===t.id?' selected':'');
+  entry.tabIndex=0;entry.setAttribute('role','button');
+  const name=document.createElement('b');name.textContent=t.fdi;
+  const info=document.createElement('span');info.textContent=(t.origin==='model'?'Modèle '+Math.round(t.confidence*100)+' %':'Ajout manuel');
+  const flag=document.createElement('strong');flag.className=t.confirmed?'ok':'pending';flag.textContent=t.confirmed?'Confirmée':'À vérifier';
+  entry.append(name,info,flag);
+  entry.onclick=()=>{selected=t.id;refresh();};
+  entry.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selected=t.id;refresh();}};
+  $('toothList').append(entry);
+ }
+ const t=tooth();$('edit').hidden=!t;$('noSelection').hidden=!!t;
+ if(t){$('fdiSelect').value=t.fdi;$('confirmStatus').value=t.confirmed?'Confirmée':'À vérifier';['x1','y1','x2','y2'].forEach((id,i)=>$(id).value=(t.bbox[i]*100).toFixed(1));
+ $('selectedActs').textContent='Actes manuels : '+(t.acts.length?t.acts.map(id=>dictionary.find(a=>a.id===id)?.label||'[acte supprimé]').join(', '):'aucun');}
+ else $('selectedActs').textContent='Sélectionne une dent confirmée pour lui associer un acte.';
+ $('addModeBtn').className=addMode?'primary':'';$('addModeBtnAside').className=addMode?'primary':'';
+ const old=$('actSelect').value;$('actSelect').replaceChildren();
+ for(const a of dictionary){const o=document.createElement('option');o.value=a.id;o.textContent=a.specialty+' · '+a.label;$('actSelect').append(o);}
+ if(dictionary.some(a=>a.id===old))$('actSelect').value=old;
+}
+function change(fn){try{state=fn();refresh();status('Modification locale effectuée.');}catch(e){status(e.message,true);}}
+for(const fdi of FDI_PERMANENT){for(const id of ['fdiSelect','manualFdi']){const option=document.createElement('option');option.value=fdi;option.textContent=fdi;$(id).append(option);}}
+for(const item of SPECIALTIES){const option=document.createElement('option');option.value=item;option.textContent=item;$('specialty').append(option);}
+$('imageInput').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ if(!['image/png','image/jpeg','image/webp'].includes(file.type)){status('Format image non pris en charge.',true);return;}
+ const u=URL.createObjectURL(file),image=new Image();
+ image.onload=()=>{
+  if(state && (state.image_width!==image.naturalWidth||state.image_height!==image.naturalHeight)){URL.revokeObjectURL(u);status('Dimensions incompatibles avec les propositions : importer une image correspondante.',true);return;}
+  if(imgURL)URL.revokeObjectURL(imgURL);
+  imgURL=u;$('stage').classList.add('has-image');$('photo').src=u;$('photo').style.display='block';$('overlay').style.display='block';$('empty').style.display='none';
+  if(!state)state=createReview({schema:REVIEW_SCHEMA,image_width:image.naturalWidth,image_height:image.naturalHeight,proposals:[]});
+  refresh();status('Image chargée localement. Aucune transmission réseau.');
+ };
+ image.onerror=()=>{URL.revokeObjectURL(u);status('Image illisible.',true);};
+ image.src=u;
+});
+$('predictionInput').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  if(file.size>2000000)throw Error('JSON trop volumineux');
+  const data=JSON.parse(await file.text());const fresh=createReview(data);
+  if(imgURL && (fresh.image_width!==$('photo').naturalWidth||fresh.image_height!==$('photo').naturalHeight))throw Error('Dimensions du JSON et de l’image différentes.');
+  state=fresh;selected=null;refresh();status('Propositions importées. Toutes nécessitent confirmation.');
+ }catch(err){status(err.message,true);}
+});
+$('fdiSelect').addEventListener('change',e=>{if(tooth())change(()=>setFdi(state,selected,e.target.value));});
+$('applyBoxBtn').onclick=()=>{if(!tooth())return;change(()=>setBox(state,selected,['x1','y1','x2','y2'].map(id=>Number($(id).value)/100)));};
+$('confirmBtn').onclick=()=>{if(tooth())change(()=>confirmTooth(state,selected));};
+$('unconfirmBtn').onclick=()=>{if(tooth())change(()=>unconfirmTooth(state,selected));};
+$('removeBtn').onclick=()=>{if(!tooth())return;change(()=>{const next=removeTooth(state,selected);selected=null;return next;});};
+function toggleAdd(){addMode=!addMode;refresh();status(addMode?'Clique sur l’image pour placer la dent choisie.':'Ajout manuel désactivé.');}
+$('addModeBtn').onclick=toggleAdd;$('addModeBtnAside').onclick=toggleAdd;
+const svg=$('overlay');
+function point(e){const b=svg.getBoundingClientRect();return [Math.min(1,Math.max(0,(e.clientX-b.left)/b.width)),Math.min(1,Math.max(0,(e.clientY-b.top)/b.height))];}
+svg.addEventListener('pointerdown',e=>{
+ if(!state)return;
+ const [x,y]=point(e);
+ if(addMode){const width=.085,height=.14;const x1=Math.max(0,Math.min(1-width,x-width/2)),y1=Math.max(0,Math.min(1-height,y-height/2));
+ change(()=>{const next=addTooth(state,$('manualFdi').value,[x1,y1,x1+width,y1+height]);selected=next.teeth.at(-1).id;addMode=false;return next;});return;}
+ const g=e.target.closest?.('g[data-id]');if(!g)return;
+ selected=g.dataset.id;const t=tooth();if(!t)return;refresh();drag={id:t.id,start:point(e),original:[...t.bbox]};
+ svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener('pointerup',e=>{
+ if(!drag)return;
+ const [x,y]=point(e);const dx=x-drag.start[0],dy=y-drag.start[1],box=drag.original;
+ const width=box[2]-box[0],height=box[3]-box[1];const x1=Math.max(0,Math.min(1-width,box[0]+dx)),y1=Math.max(0,Math.min(1-height,box[1]+dy));
+ const id=drag.id;drag=null;change(()=>setBox(state,id,[x1,y1,x1+width,y1+height]));
+ try{svg.releasePointerCapture(e.pointerId);}catch{}
+});
+svg.addEventListener('pointercancel',()=>{drag=null;});
+$('addActBtn').onclick=()=>{
+ try{dictionary=addActToDictionary(dictionary,$('specialty').value,$('actLabel').value);
+ localStorage.setItem('dc-fdi-prototype-dictionary',JSON.stringify(dictionary));
+ $('actLabel').value='';refresh();status('Définition d’acte ajoutée au dictionnaire du navigateur.');}
+ catch(e){status(e.message,true);}
+};
+$('assignActBtn').onclick=()=>{if(!tooth()){status('Sélectionne une dent.',true);return;}change(()=>assignManualAct(state,selected,$('actSelect').value,dictionary));};
+$('exportBtn').onclick=()=>{
+ try{const data=exportReview(state,dictionary);const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='relecture-fdi-recherche.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Relecture exportée localement (hors dossier patient).');}
+ catch(e){status(e.message,true);}
+};
+window.addEventListener('pagehide',()=>{if(imgURL)URL.revokeObjectURL(imgURL);});
+refresh();
+</script>
+</body>
+</html>
