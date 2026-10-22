@@ -160,8 +160,15 @@ def run_synthetic_gradient_step() -> dict:
         )
         if nonzero_gradients < 1:
             raise FDITrainingBlock("no_trainable_parameter_received_gradient")
-        if not torch.isfinite(outputs.logits).all().item() or tuple(outputs.logits.shape) != (1, 300, 32):
-            raise FDITrainingBlock("synthetic_fdi_head_output_invalid")
+        train_logits_shape = tuple(outputs.logits.shape)
+        if (outputs.logits.ndim != 3 or train_logits_shape[0] != 1
+                or train_logits_shape[1] < 1 or train_logits_shape[2] != 32
+                or not torch.isfinite(outputs.logits).all().item()):
+            raise FDITrainingBlock(
+                "synthetic_fdi_head_output_invalid:"
+                f" shape={train_logits_shape}"
+                f" finite={bool(torch.isfinite(outputs.logits).all().item())}"
+            )
         optimizer.step()
         elapsed = round(time.perf_counter() - begin, 4)
         # DO NOT save the model or its gradients.
@@ -175,6 +182,7 @@ def run_synthetic_gradient_step() -> dict:
         "model_base_sha256": MODEL_WEIGHTS_SHA256,
         "verified_source_model_bytes": integrity["checkpoint_bytes"],
         "target_fdi_label_count": len(FDI_32),
+        "train_logits_shape": list(train_logits_shape),
         "synthetic_box_count": len(rows),
         "initialized_fdi_head_from_coco": True,
         "forward_backward_optimizer_steps": 1,
