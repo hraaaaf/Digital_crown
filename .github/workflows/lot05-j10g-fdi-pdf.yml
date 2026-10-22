@@ -1,0 +1,86 @@
+name: LOT05 J10G commercial-license research and FDI PDF proof
+
+on:
+  pull_request:
+    branches:
+      - exp/lot05-j10f-imagerie-fdi-dev-gated-20261022
+    paths:
+      - 'backend/services/generators/fdi_research_pdf.py'
+      - 'backend/services/generators/panoramic_elite_gen.py'
+      - 'backend/services/panoramic_fdi_report_rows.py'
+      - 'backend/templates/panoramic_elite.html'
+      - 'backend/tests/test_lot05_j10g_manual_pdf_rows.py'
+      - 'backend/tests/test_lot05_j10g_fdi_research_pdf.py'
+      - 'docs/research/LOT05_J10G_*'
+      - '.github/workflows/lot05-j10g-fdi-pdf.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pdf-research-gate:
+    name: "FDI PDF — synthetic confirmed teeth, manual acts, provenance and refusal tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .
+      PYTHONUNBUFFERED: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install standalone PDF renderer and reader, no application service/database
+        run: python -m pip install reportlab==4.4.10 pillow==12.2.0 pypdf==6.1.1 jinja2==3.1.6
+      - name: Execute isolated PDF tests without initializing production database or medical services
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          # These contracts test pure PDF components, NOT backend startup. The
+          # application's backend __init__ registers dozens of database models.
+          import sys, types, unittest
+          package = types.ModuleType('backend')
+          package.__path__ = ['backend']
+          sys.modules['backend'] = package
+          names = ['backend.tests.test_lot05_j10g_fdi_research_pdf',
+                   'backend.tests.test_lot05_j10g_manual_pdf_rows']
+          suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful():
+              raise SystemExit(1)
+          PY
+      - name: Build example PDF with entirely synthetic patient and image data
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import sys, types
+          package = types.ModuleType('backend')
+          package.__path__ = ['backend']
+          sys.modules['backend'] = package
+          from backend.services.generators.fdi_research_pdf import render_research_pdf
+          from backend.tests.test_lot05_j10g_fdi_research_pdf import draft, sample_image
+          out = Path("lot05-j10g-PDF-SYNTHETIC-NOT-CLINICAL.pdf")
+          out.write_bytes(render_research_pdf(draft(), sample_image()))
+          assert out.read_bytes().startswith(b"%PDF-")
+          print("PASS_SYNTHETIC_ONLY_PDF", out.stat().st_size)
+          PY
+      - name: Upload ONLY synthetic demo PDF (no medical or model data)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-j10g-panoramic-fdi-synthetic-report-${{ github.event.pull_request.head.sha || github.sha }}
+          path: lot05-j10g-PDF-SYNTHETIC-NOT-CLINICAL.pdf
+          retention-days: 7
+          if-no-files-found: error
