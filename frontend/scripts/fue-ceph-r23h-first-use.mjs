@@ -128,17 +128,26 @@ try {
      // SECURITY: each user requires a brand-new HTTP context with an EMPTY
      // cookie jar. Reusing 'api' keeps the dentist cookie despite outsider
      // Authorization, which is an invalid cross-cabinet security assertion.
-     const outsiderApi=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+     // Staff uses the CABINET OWNER'S already-enrolled workstation (normal
+     // shared office device), but authenticates as an independent secretary.
+     // Another cabinet owner enrolls their OWN new test workstation.
+     const sameCabinetCookies=(await api.storageState()).cookies
+       .filter(c=>c.name==='dc_workstation');
+     const opts=label==='restricted'
+       ?{baseURL:'http://127.0.0.1:8005',storageState:{cookies:sameCabinetCookies,origins:[]}}
+       :{baseURL:'http://127.0.0.1:8005'};
+     const outsiderApi=await request.newContext(opts);
      try {
        const r=await outsiderApi.post('/api/auth/login',{form:{username:email,password}});
        ensure(r.status()===200,label+' login failed');
        const outsider=(await r.json()).access_token;
-       // Before role/tenant authorization is evaluated the product enforces a
-       // workstation enrollment (HTTP 423). Enroll the REAL outsider in its
-       // own cookie jar; a naked 423 is *not* a business-permission proof.
-       const outsiderStation=await enrollT2Workstation(outsiderApi,outsider,password);
-       ensure(outsiderStation.cookies.filter(c=>c.name==='dc_workstation').length===1,
-         label+' workstation enrollment failed');
+       if(label==='other_cabinet'){
+         const outsiderStation=await enrollT2Workstation(outsiderApi,outsider,password);
+         ensure(outsiderStation.cookies.some(c=>c.name==='dc_workstation'),
+           'second cabinet workstation not enrolled');
+       } else {
+         ensure(sameCabinetCookies.length===1,'owner workstation provenance missing');
+       }
        const a=await outsiderApi.get('/api/ia/analyses/'+study,{headers:{Authorization:'Bearer '+outsider}});
        const m=await outsiderApi.get('/'+imagePath,{headers:{Authorization:'Bearer '+outsider}});
        ensure([401,403,404].includes(a.status())&&[401,403,404].includes(m.status()),
