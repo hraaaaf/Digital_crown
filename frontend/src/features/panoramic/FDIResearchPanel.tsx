@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import {
   PERMANENT_FDI, RESEARCH_SCHEMA, RESEARCH_SPECIALTIES,
   createResearchState, parseResearchInput, addResearchTooth,
-  confirmResearchTooth, discardResearchTooth, duplicateFdi,
+  confirmResearchTooth, discardResearchTooth, duplicateFdi, isDeliberateFdiDrag,
   editResearchTooth, undoResearchConfirmation, addResearchAct,
   attachResearchAct, researchExport,
   type FdiBox, type FdiResearchState, type ResearchAct,
@@ -134,7 +134,7 @@ export function FDIResearchPanel() {
     const [x, y] = point(event), dx = x-drag.x, dy=y-drag.y;
     // A tap/click selects. Only deliberate pointer motion edits anatomy and
     // invalidates an existing clinician confirmation/its linked manual acts.
-    if (Math.hypot(dx, dy) < 0.005) {
+    if (!isDeliberateFdiDrag(dx, dy)) {
       try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* released */ }
       return;
     }
