@@ -126,21 +126,27 @@ try {
         proposal: null, executable: false,
       }) });
   });
-  // Vite dev/PWA can optimize workbox-window and issue a full reload only
-  // after the first navigation. Pre-warm the dependency graph *before* any
-  // controlled React form state is entered or NVDA begins speaking.
+  // This explicit loopback-only Vite lab disables DEV PWA registration at
+  // config level. Never force a reload into Workbox's offline index fallback,
+  // which can silently replace this lab's React entry with the normal App.
+  // Fail if a service worker unexpectedly takes control or the document
+  // later reloads while real NVDA speech is being certified.
   let documentLoads=0;
   page.on('load',()=>{documentLoads++;});
-  await page.goto(target, { waitUntil:'networkidle', timeout:45000 });
-  await sleep(2000);
-  await page.reload({waitUntil:'networkidle',timeout:45000});
-  await sleep(1400);
-  const warmDocumentLoads=documentLoads;
+  await page.goto(target, { waitUntil:'domcontentloaded', timeout:45000 });
   const panel = page.getByRole('region', {name:'Français guidé Crown Bot CB-02'});
   await panel.waitFor({state:'visible'});
   const input = panel.getByRole('textbox', {name:'Votre demande en français'});
   const submit = panel.getByRole('button', {name:'Comprendre la demande'});
   await input.waitFor(); await submit.waitFor();
+  const sw = await page.evaluate(async () => ({
+    controlled: !!navigator.serviceWorker?.controller,
+    registrations: navigator.serviceWorker ? (await navigator.serviceWorker.getRegistrations()).length : 0,
+  }));
+  report.devPwaLab={...sw, disabledByEnvironment:true};
+  if(sw.controlled || sw.registrations)
+    throw Error('NOT_CERTIFIED: isolated CB-02 lab unexpectedly controlled by a PWA service worker');
+  const warmDocumentLoads=documentLoads;
   await page.bringToFront();
   const zoom100 = await readZoom(worker, 1);
   const before = await dimensions(page);
