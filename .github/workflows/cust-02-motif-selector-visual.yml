@@ -180,7 +180,7 @@ jobs:
             // Preserve evidence on failed API/mock/render; never throw before screenshots.
             // The inactive cabinet motif is selected in both visual harnesses.
             try {
-              await page.getByText('Ancien contrôle cabinet', { exact: true }).waitFor({ timeout: 8000 });
+              await page.getByRole('button', { name: 'Retirer Ancien contrôle cabinet', exact: true }).waitFor({ timeout: 8000 });
             } catch {
               errors.push(`MOTIF_LABEL_NOT_VISIBLE GET=${mockedMotifGets} OPTIONS=${mockedMotifPreflights}`);
             }
