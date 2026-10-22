@@ -46,6 +46,16 @@ test('correcting a confirmed tooth resets confirmation and acts', () => {
   assert.deepEqual(s.teeth[0].acts, []);
   assert.throws(() => assignManualAct(s, 't1', dict[0].id, dict), /unconfirmed_tooth/);
 });
+test('manual confirmed tooth must be re-confirmed after FDI edit', () => {
+  let s = addTooth(createReview(image()), '38', [.4,.3,.49,.69]);
+  const id = s.teeth.at(-1).id;
+  s = confirmTooth(s, id);
+  assert.equal(s.teeth.at(-1).confirmed, true);
+  s = setFdi(s, id, '37');
+  assert.equal(s.teeth.at(-1).confirmed, false);
+  assert.throws(() => assignManualAct(s, id, 'act-1', [{id:'act-1',label:'Manual',specialty:'Endodontie'}]),/unconfirmed_tooth/);
+});
+
 test('moving a tooth does not silently change FDI or adjacent proposals', () => {
   const s = setBox(createReview(image()), 't1', [.15,.21,.24,.65]);
   assert.equal(s.teeth[0].fdi, '36');
