@@ -133,6 +133,12 @@ try {
        const r=await outsiderApi.post('/api/auth/login',{form:{username:email,password}});
        ensure(r.status()===200,label+' login failed');
        const outsider=(await r.json()).access_token;
+       // Before role/tenant authorization is evaluated the product enforces a
+       // workstation enrollment (HTTP 423). Enroll the REAL outsider in its
+       // own cookie jar; a naked 423 is *not* a business-permission proof.
+       const outsiderStation=await enrollT2Workstation(outsiderApi,outsider,password);
+       ensure(outsiderStation.cookies.filter(c=>c.name==='dc_workstation').length===1,
+         label+' workstation enrollment failed');
        const a=await outsiderApi.get('/api/ia/analyses/'+study,{headers:{Authorization:'Bearer '+outsider}});
        const m=await outsiderApi.get('/'+imagePath,{headers:{Authorization:'Bearer '+outsider}});
        ensure([401,403,404].includes(a.status())&&[401,403,404].includes(m.status()),
