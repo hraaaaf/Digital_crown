@@ -172,6 +172,10 @@ def _get_manifest(file: Path):
             raise BenchmarkError("invalid_dentition")
         if not isinstance(case.get("height"), int) or not isinstance(case.get("width"), int) or min(case["height"], case["width"]) <= 0:
             raise BenchmarkError("invalid_image_dimensions")
+        for key in ("site_group", "device_group"):
+            group = case.get(key)
+            if group is not None and (isinstance(group, bool) or not isinstance(group, int) or not 1 <= group <= 50):
+                raise BenchmarkError("invalid_anonymous_group")
     if len(set(opaque_ids)) != len(opaque_ids):
         raise BenchmarkError("duplicate_case_ids")
     return cases
@@ -233,11 +237,23 @@ def evaluate(cases, predictions, iou_threshold=0.5, *, independence_audited=Fals
         raise BenchmarkError("invalid_iou_threshold")
     rows = []
     strata = defaultdict(list)
+    site_rows = defaultdict(list)
+    device_rows = defaultdict(list)
     for case in cases:
         row = _case_metrics(case.get("gt"), predictions[case["case_id"]],
             height=case["height"], width=case["width"], iou_threshold=iou_threshold)
         rows.append(row)
         strata[case["dentition"]].append(row)
+        if case.get("site_group") is not None:
+            site_rows[case["site_group"]].append(row)
+        if case.get("device_group") is not None:
+            device_rows[case["device_group"]].append(row)
+    def safe_groups(mapping, expected_total):
+        if sum(len(group) for group in mapping.values()) != expected_total:
+            return {"status": "NOT_PROVIDED_FOR_ALL_FILMS"}
+        return {f"group_{k}": _aggregate(v) if len(v) >= MIN_SUBGROUP_IMAGES
+            else {"films": len(v), "status": "SUPPRESSED_SMALL_SUBGROUP"}
+            for k, v in sorted(mapping.items())}
     result = {
         "mode": "OFFLINE_EVALUATION_RESEARCH_ONLY",
         "clinical_approval": False,
@@ -252,6 +268,8 @@ def evaluate(cases, predictions, iou_threshold=0.5, *, independence_audited=Fals
             else {"films": len(v), "status": "SUPPRESSED_SMALL_SUBGROUP"}
             for k, v in sorted(strata.items())
         },
+        "by_site_group": safe_groups(site_rows, len(rows)),
+        "by_device_group": safe_groups(device_rows, len(rows)),
         "patient_data_logged": False,
         "report_contains_images_or_case_ids": False,
         "note": "Localization IoU >= threshold; FDI errors scored separately. Bootstrap samples films, not individual teeth. Human review and independent split audit still required.",
