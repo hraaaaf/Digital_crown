@@ -123,7 +123,7 @@ const CephaloR23G4ReferencePanel: React.FC<{ P: Palette; analysis: R23G2Analysis
         <p className="mt-1 text-xs leading-snug" style={{ color: P.textMuted }}>
           Référence source en lecture seule, non certifiée cliniquement. Aucune norme ni classification déduite.
         </p>
-        {imageSrc?.endsWith('/t2-cephalo-seeded.png') && (
+        {(anglesData?.__r23g4SyntheticQaFixture === true || imageSrc?.endsWith('/t2-cephalo-seeded.png')) && (
           <p data-r23g4-qa-image className="mt-1 text-[11px] font-semibold" style={{ color: P.accentWarning }}>
             Image synthétique de certification T2 — aucun cliché patient, aucun diagnostic.
           </p>
