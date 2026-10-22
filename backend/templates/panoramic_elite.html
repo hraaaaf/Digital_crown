@@ -407,6 +407,33 @@
             {% endif %}
         </div>
 
+        {% if manual_fdi_rows %}
+        <div class="findings-section fdi-manual-detail">
+            <h2 class="section-title">Détail des constatations documentées dent par dent</h2>
+            <p style="font-size: 8pt; color: #64748b; margin: 0 0 12px;">
+                Numérotation FDI reprise exclusivement des annotations saisies par le praticien.
+                Les autres dents ne sont pas évaluées par ce tableau.
+            </p>
+            <table class="metric-table" aria-label="Constatations manuelles par numéro FDI">
+                <thead>
+                    <tr><th>FDI</th><th>Constatations enregistrées par le praticien</th></tr>
+                </thead>
+                <tbody>
+                {% for item in manual_fdi_rows %}
+                    <tr class="metric-row">
+                        <td class="metric-name">{{ item.fdi | e }}</td>
+                        <td style="white-space: normal; overflow-wrap: anywhere;">
+                        {% for observation in item.observations %}
+                            {{ observation | e }}{% if not loop.last %} ; {% endif %}
+                        {% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
         <div class="findings-section">
             <h2 class="section-title">Observations radiographiques documentées</h2>
             
