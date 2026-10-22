@@ -29,7 +29,7 @@ with database.SessionLocal() as db:
         date_naissance=datetime(1990,1,1), sexe="M",
         employer_id=dentist.id,
         telephone="0600000000",
-        email="fueh-test@example.invalid",
+        email="fueh-test@example.com",
         assurance="AUCUNE",
     )
     db.add(patient)
