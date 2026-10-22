@@ -36,6 +36,8 @@ jobs:
         run: python experiments/test_lot05_j10p_roboflow_coco_offline_intake.py -v
       - name: 12 synthetic AKUDENTAL research-only YOLO FDI32/35 text label tests
         run: python experiments/test_lot05_j10q_akudental_fdi_yolo_text_only.py -v
+      - name: 6 synthetic private-workspace staging tests (never read pixels)
+        run: python experiments/test_lot05_j10r_akudental_private_research_workspace.py -v
 
   roboflow-public-metadata:
     name: Public FDI32 publisher metadata on native runner
