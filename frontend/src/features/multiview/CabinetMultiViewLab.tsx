@@ -3,6 +3,7 @@ import type { AppUser } from '../../types';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { hasAccess } from '../../utils/accessControl';
 import { workstationModeService } from '../../services/workstationMode';
+import { api } from '../../services/api';
 import { PatientMediaTimeline } from '../patients/components/PatientMediaTimeline';
 import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
 import { StudioLayoutFrame } from './StudioLayoutFrame';
@@ -67,7 +68,8 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
   user: AppUser | null;
 }) {
   const desktop = useSyncExternalStore(desktopSubscribe, desktopSnapshot, () => false);
-  const [workstationId,setWorkstationId] = useState<string | null>(null);
+  const [workstationProof,setWorkstationProof] = useState<{key:string;id:string}|null>(null);
+  const [patientProof,setPatientProof] = useState<{key:string;patient:MultiViewPatient}|null>(null);
   const [workspaceWidth,setWorkspaceWidth] = useState(0);
   const [appliedId,setAppliedId] = useState(PILOT_LAYOUTS[0].id);
   const [draftId,setDraftId] = useState(PILOT_LAYOUTS[0].id);
@@ -77,35 +79,56 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
   const root = useRef<HTMLDivElement>(null);
 
   const activeIdentity = useAuthStore(state => state.isAuthenticated);
-  const identityKey = String(user?.id ?? '') + ':' + String(tenantKey(user) ?? '');
+  const identityKey = JSON.stringify([user?.id ?? null,tenantKey(user),user?.role,
+    user?.permissions ?? null,activeIdentity]);
+  const workstationId = workstationProof?.key===identityKey ? workstationProof.id : null;
+  const proofKey = identityKey + ':' + String(patient.id);
+  const trustedPatient = patientProof?.key===proofKey ? patientProof.patient : null;
   const canPatients = Boolean(activeIdentity && hasAccess(user,'patients'));
   const canCephalo = Boolean(activeIdentity && hasAccess(user,'cephalo'));
   const patientMatches = Boolean(patient && Number.isSafeInteger(patient.id) &&
     patient.id > 0 && String(patient.id) === routePatientId);
 
   useEffect(() => {
-    setWorkstationId(null);
+    setWorkstationProof(null);
     if (!desktop || !canPatients || !patientMatches) return;
     let active=true;
     const load=async()=>{
       // UI is fail-closed while this authenticated bootstrap is pending or denied.
-      setWorkstationId(null);
+      setWorkstationProof(null);
       try {
         const state=await workstationModeService.getBootstrapState();
-        if (!active || useAuthStore.getState().user?.id !== user?.id ||
-            useAuthStore.getState().isAuthenticated !== true) return;
-        setWorkstationId(state.authenticated === true && state.enrollmentRequired === false &&
-          state.defaultExperience === 'cabinet' && state.stationLocked === false &&
-          typeof state.workstationId === 'string' && state.workstationId.trim()
-          ? state.workstationId : null);
+        const current=useAuthStore.getState();
+        if (!active || current.user?.id !== user?.id || current.isAuthenticated !== true) return;
+        if (state.authenticated === true && state.enrollmentRequired === false &&
+            state.defaultExperience === 'cabinet' && state.stationLocked === false &&
+            typeof state.workstationId === 'string' && state.workstationId.trim()) {
+          setWorkstationProof({key:identityKey,id:state.workstationId});
+        }
       } catch {
-        if (active) setWorkstationId(null);
+        if (active) setWorkstationProof(null);
       }
     };
     void load();
     const unsub=workstationModeService.subscribe(()=>{void load();});
     return ()=>{active=false;unsub();};
   },[desktop,canPatients,patientMatches,identityKey,user?.id]);
+
+  useEffect(() => {
+    setPatientProof(null);
+    if (!desktop || !canPatients || !patientMatches || !user?.id) return;
+    let active=true;
+    api.get('/patients/' + patient.id).then(response => {
+      const current=useAuthStore.getState();
+      if (!active || current.user?.id !== user.id || current.isAuthenticated !== true) return;
+      const verified=response.data as Partial<MultiViewPatient> | null;
+      if (verified && verified.id===patient.id && typeof verified.nom==='string' &&
+          typeof verified.prenom==='string' && typeof verified.numero_dossier==='string') {
+        setPatientProof({key:proofKey,patient:verified as MultiViewPatient});
+      }
+    }).catch(()=>{if(active)setPatientProof(null);});
+    return ()=>{active=false;};
+  },[desktop,canPatients,patientMatches,proofKey,user?.id,patient.id]);
 
   useEffect(() => {
     if (!desktop || !canPatients || !patientMatches) {
@@ -138,7 +161,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
     userId:user?.id ? String(user.id) : null,
     workstationId,
     tenantId:tenantKey(user),
-    patientId:patientMatches ? patient.id : null,
+    patientId:patientMatches && trustedPatient ? trustedPatient.id : null,
     cssViewportWidth:workspaceWidth,
     allowedModules: [
       ...(canPatients ? ['dossier','imagerie'] as ModuleKey[] : []),
@@ -149,18 +172,19 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
   const canApply=authorizeLayout(draft,context,50).ok;
 
   const renderSlot=(slot:{module:ModuleKey})=>{
-    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={patient.id}/>;
+    if (!trustedPatient) return null;
+    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id}/>;
     if (slot.module==='dossier') return (
       <div data-testid="multiview-real-dossier" className="space-y-2 p-3 text-sm">
         <p className="font-semibold">Dossier patient</p>
         <dl className="space-y-2">
-          <div><dt className="text-text-muted">Patient</dt><dd className="font-medium">{patient.prenom} {patient.nom}</dd></div>
-          <div><dt className="text-text-muted">N° de dossier</dt><dd className="font-medium">{patient.numero_dossier}</dd></div>
+          <div><dt className="text-text-muted">Patient</dt><dd className="font-medium" >{trustedPatient.prenom} {trustedPatient.nom}</dd></div>
+          <div><dt className="text-text-muted">N° de dossier</dt><dd className="font-medium" >{trustedPatient.numero_dossier}</dd></div>
         </dl>
       </div>
     );
     if (slot.module==='suivi' && canCephalo) {
-      return <OrthoLongitudinalComparePanel patientId={patient.id}/>;
+      return <OrthoLongitudinalComparePanel patientId={trustedPatient.id}/>;
     }
     // Never synthesize absent business modules: the resolver must deny them.
     return null;
