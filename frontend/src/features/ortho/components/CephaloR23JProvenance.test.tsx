@@ -86,7 +86,7 @@ describe('R23-J actual legacy All panel render — no fabricated clinical succes
     expect(count.style.color).toBe('rgb(102, 102, 102)');
     const row = document.querySelector('[data-r19-metric="SNA"]');
     expect(row?.textContent).toContain('82,3 °');
-    expect(row?.textContent).toContain('Réf.');
+    expect(screen.getByRole('columnheader', {name: 'Réf. fournie'})).toBeTruthy();
     const detail = document.querySelector('[data-r23j-metric-authority]');
     expect(detail?.getAttribute('data-r23j-metric-authority')).toBe('UNREVIEWED');
     expect(detail?.textContent).toContain('Mesure brute · non validée cliniquement');
