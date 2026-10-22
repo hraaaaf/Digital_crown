@@ -1,10 +1,10 @@
 # Crown Bot 2.0 — CB-00 GO / Direction B (2026-10-16)
 
-**STATE: CB-00 OPEN / CB-01 NOT STARTED.** Owner explicitly chose B — Associate Sidecar as the Cabinet Web Desktop UX TARGET. This does not approve merging, activating, deploying or expanding into Pocket.
+**STATE (2026-10-22): CB-00 OPEN; CB-01 implementation/prototype work exists on an unmerged downstream draft (#903), but is NOT released, activated or accepted in the Cabinet.** Owner explicitly chose B — Associate Sidecar as the Cabinet Web Desktop UX TARGET. This does not approve merging, activating, deploying or expanding into Pocket.
 
 ## Source and proof boundary
 
-- Technical base: PR #894, HEAD 9cf19e68026fa92d31fb704f5b81b9cd667e5254, draft/unmerged. This separate documentation branch does not change PR #894.
+- Historical drafting source: PR #894, HEAD `9cf19e68026fa92d31fb704f5b81b9cd667e5254`. Its verified clinical integration was **merged into `master` via PR #1008**, merge commit `c3af28b6aad02664ce6e10aca2458450851f7cf1` on 2026-10-22. This CB-00 evidence-only candidate starts from that master and does not include downstream PR #903 or release CB-01.
 - Actual existing UI: frontend/src/components/CrownBot/CrownBotChat.tsx, CrownBotWorkflowPreview.tsx.
 - Backend: backend/routers/bot_workflows.py, POST /api/bot/workflows/preview, exact slash commands, at most 8 turns, patient by numeric ID. No executable pending action ID; flags default OFF.
 - Pocket: separate mobile JWT/device trust boundary, assistant “En cours de construction”, out of scope.
@@ -12,8 +12,8 @@
 ## Completed vs not proven
 
 - DONE: product truth matrix, 12 specified synthetic business tasks, 9 concept mockups at 1280/1440/1920, existing 1280 interaction-state capture, owner direction B approval.
-- DONE, narrow: new scripts/ci/crownbot_cb00_t2_read_evidence.py to measure a **useful authenticated /patient + ID HTTP read** across 30 warm repetitions, alongside anonymous 401 and optional synthetic 403/404 checks. Syntax and local guard/contract assertions checked; no T2 execution.
-- NOT MEASURED: actual T2 HTTP results, click-to-useful-DOM p50/p95, genuine process cold start, actual BEFORE 1440/1920, 12 full staff E2E journeys, full DB write delta, 200% zoom and staff UX.
+- DONE on **historical isolated synthetic CI**: `scripts/ci/crownbot_cb00_t2_read_evidence.py` measured an authorized useful `/patient`+ID read across 30 warm repetitions, anonymous 401 and synthetic 403/404 controls; [CB-00 synthetic run #38942585020](https://github.com/hraaaaf/Digital_crown/actions/runs/38942585020) was successful. This is not a measurement on a physical cabinet or an authorized real workstation T2. A new clean integration HEAD needs its own CI.
+- NOT MEASURED on an authorized physical/workstation T2: actual cabinet useful-read HTTP and click-to-useful-DOM p50/p95 (historical **synthetic CI** values exist separately), genuine process cold start, actual flag-OFF BEFORE 1440/1920, 12 full staff E2E journeys, full DB write delta, 200% zoom and staff UX.
 - BLOCKED: authorized remote Desktop Commander device DESKTOP-3MAJEEH was OFFLINE when inspected. Never label SQL conflict query timings (0.7–2.1ms) as Crown Bot response time.
 
 ## Required T2 evidence procedure (not yet run)
@@ -45,4 +45,4 @@ Information architecture:
 
 ## Next exact
 
-HIGH effort: reconnect a permissioned isolated T2 → real HTTP and browser p50/p95, snapshots, synthetic S01–S12, desktop baseline → validate B at 1280 → CB-00 exit only if evidence complete → CB-01 proposal separately. No merge, activation or deployment from this handover.
+HIGH effort: revalidate this evidence harness on the clean candidate based on merged master `c3af28b6`; reconnect a permissioned isolated T2 → real HTTP and browser p50/p95, snapshots, synthetic S01–S12, desktop baseline → validate B at 1280 → CB-00 exit only when evidence complete. Evaluate the existing downstream DRAFT #903 separately; it is not a CB-01 release or permission to activate. No merge, activation or deployment from this handover.

@@ -1,9 +1,9 @@
 # CB-00 — Crown Bot PRODUCT_TRUTH (baseline 2026-10-16)
 
 **STATUS: OPEN — B selected as TARGET; isolated synthetic CI HTTP/DOM measurements and cross-tenant 404 now obtained, but real cabinet UX evidence and B implementation are incomplete.**
-**Reference (not to mutate):** [PR #894](https://github.com/hraaaaf/Digital_crown/pull/894), source HEAD `9cf19e68026fa92d31fb704f5b81b9cd667e5254`, DRAFT / unmerged. Source canonical plan: [Crown Bot 2.0 Notion roadmap](https://app.notion.com/p/3fb77c66336281dda0a3d295c5625d95). This doc branch is **separate**, not an amendment to certified #894.
+**Source and lineage (updated 2026-10-22):** historical PR #894 source HEAD `9cf19e68026fa92d31fb704f5b81b9cd667e5254` has been integrated via [merged PR #1008](https://github.com/hraaaaf/Digital_crown/pull/1008), new master `c3af28b6aad02664ce6e10aca2458450851f7cf1`. CB-00's historic synthetic measurements below came from prior PR #902 snapshots, not this clean integration candidate. The downstream [PR #903](https://github.com/hraaaaf/Digital_crown/pull/903) remains DRAFT and **is not part of current master**, nor does this file prove that its name/dossier search or CB-01 Sidecar is shipped. Canonical plan: [Crown Bot 2.0 Notion roadmap](https://app.notion.com/p/3fb77c66336281dda0a3d295c5625d95).
 
-## Truth matrix — source HEAD
+## Truth matrix — integrated #894 runtime on master; CB-00 synthetic evidence historical
 
 | Capability | Backend exists? | Currently usable in Cabinet UI? | Flagged preview | Proof / limitation |
 |---|---|---|---|---|
@@ -36,7 +36,7 @@
 
 All cases use fictitious fixture values. **0/12 complete end-to-end human-UX repetitions measured**, not « 0/12 feature works ».
 
-### Latest exact-HEAD CB-00 synthetic evidence (2026-10-16)
+### Historical exact-HEAD CB-00 synthetic evidence (2026-10-16; revalidation required on clean candidate)
 **Source:** [PR #902](https://github.com/hraaaaf/Digital_crown/pull/902), tested SHA `dcc0709aaef96c5f926217fd16447115b986d713`; [Scope #38942584883](https://github.com/hraaaaf/Digital_crown/actions/runs/38942584883), [Probe Guard #38942584960](https://github.com/hraaaaf/Digital_crown/actions/runs/38942584960) (**36 pytest PASSED**) and [isolated synthetic Desktop/API #38942585020](https://github.com/hraaaaf/Digital_crown/actions/runs/38942585020) all SUCCESS. **None of these is human staff E2E or an implemented B UI**.
 
 - Live isolated preview route checks: `s05_reception_rdv_proposal_only=PASS`, `s08_crown_draft_proposal_only=PASS`, `s06_no_agenda_403=PASS`, `s06_full_proposal_denied_403=PASS`, `foreign_patient_404=PASS`, `foreign_unknown_same_404=PASS`.
@@ -76,4 +76,4 @@ Scored heuristically on common rubric: time-to-value 30%, identity/error clarity
 ## CB-00 status / gates
 **Completed:** HEAD inventory, source-traceable 12 scenarios, chosen B TARGET, synthetic CI HTTP useful-read p50/p95, synthetic DOM p50/p95 and screenshot interaction states at three desktop widths, genuine existing 1280 earlier reference, and **DB-existing cross-tenant 404 identical to unknown 404** ([run #38930309390](https://github.com/hraaaaf/Digital_crown/actions/runs/38930309390)). 19 guard tests passed on [run #38930309404](https://github.com/hraaaaf/Digital_crown/actions/runs/38930309404); synthetic Appointment/BotPendingAction row counts unchanged. **OPEN / BLOCKED:** true process cold-start; real product flag-OFF BEFORE 1440/1920; full DB diff; all 12 staff E2E journeys and role-agenda S06; keyboard/200% zoom; B UI implementation/AFTER; 2 distinct adversarial reviews and real workstation T2.
 
-**NEXT exact / HIGH:** preserve [PR #902](https://github.com/hraaaaf/Digital_crown/pull/902) DRAFT and [PR #894](https://github.com/hraaaaf/Digital_crown/pull/894) separate; run remaining 12 staff E2E scenarios with real user result/role evidence, 200% zoom/keyboard, real cabinet flag-OFF BEFORE and B AFTER at 1280/1440/1920, true startup and DB diff on authorized isolated workstation, then adversarial review before considering CB-00 closure. No release, merge, production flag, deployment or Pocket code.
+**NEXT exact / HIGH (2026-10-22):** treat [original PR #902](https://github.com/hraaaaf/Digital_crown/pull/902) as historical DRAFT; revalidate the clean CB-00 evidence-only candidate based on [merged #1008](https://github.com/hraaaaf/Digital_crown/pull/1008). After exact-HEAD safety and desktop CI, obtain the missing 12 staff E2E scenarios, 200% zoom/keyboard, true flag-OFF BEFORE and B AFTER at 1280/1440/1920, cold-start and full DB diff on authorized isolated workstation. Treat downstream #903 as a separately stacked draft. No CB-00 closure, release, merge, production flag, deployment or Pocket code from this document.
