@@ -78,7 +78,11 @@ describe('ZERO-LLM simulation — guarded, non-executable mobile/desktop contrac
     await screen.findByText(/Rendez-vous proposé : aperçu uniquement, non enregistré et non exécutable/i);
     expect(screen.queryByRole('button', { name: 'Confirmer' })).not.toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
-    expect(scrollSpy).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+    // React's passive effect can run after the async text first appears, notably
+    // on GitHub-hosted Windows. Await the real scroll effect, never mock success.
+    await waitFor(() => expect(scrollSpy).toHaveBeenCalledWith({
+      block: 'nearest', inline: 'nearest', behavior: 'auto',
+    }));
     expect(screen.getByText(/Rendez-vous proposé : aperçu uniquement/)).toHaveAttribute('data-cb01-first-value', 'proposal-only');
     } finally {
       if (oldScroll) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', oldScroll);
