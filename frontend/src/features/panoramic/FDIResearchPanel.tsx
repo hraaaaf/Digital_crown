@@ -70,15 +70,16 @@ export function FDIResearchPanel() {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      if (img.naturalWidth > 10000 || img.naturalHeight > 10000
-          || (state && (state.image_width !== img.naturalWidth || state.image_height !== img.naturalHeight))) {
+      if (img.naturalWidth <= 0 || img.naturalHeight <= 0 || img.naturalWidth > 10000 || img.naturalHeight > 10000) {
         URL.revokeObjectURL(url);
-        setFeedback('Dimensions incompatibles avec les propositions importées.'); return;
+        setFeedback('Dimensions d’image invalides.'); return;
       }
       if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
       imageUrlRef.current = url; setImageUrl(url); setSample(false);
       setImageDims({ width: img.naturalWidth, height: img.naturalHeight });
-      if (!state) resetSelection(createResearchState({
+      // Image identity changed. Prior confirmation/FDI/acts MUST NOT migrate,
+      // even between two different research images with identical dimensions.
+      resetSelection(createResearchState({
         schema: RESEARCH_SCHEMA, image_width: img.naturalWidth, image_height: img.naturalHeight, proposals: [],
       }));
       setFeedback('Fichier de recherche chargé dans le navigateur, sans transfert.');
@@ -131,6 +132,12 @@ export function FDIResearchPanel() {
     dragRef.current = null;
     if (!drag || !state) return;
     const [x, y] = point(event), dx = x-drag.x, dy=y-drag.y;
+    // A tap/click selects. Only deliberate pointer motion edits anatomy and
+    // invalidates an existing clinician confirmation/its linked manual acts.
+    if (Math.hypot(dx, dy) < 0.005) {
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* released */ }
+      return;
+    }
     const width = drag.box[2]-drag.box[0], height=drag.box[3]-drag.box[1];
     const x1 = Math.max(0, Math.min(1-width, drag.box[0]+dx));
     const y1 = Math.max(0, Math.min(1-height, drag.box[1]+dy));
