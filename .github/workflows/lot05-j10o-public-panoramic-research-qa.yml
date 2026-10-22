@@ -28,3 +28,49 @@ jobs:
         run: python -m pip install 'pillow==11.3.0'
       - name: Test public metadata validators without any patient image
         run: python experiments/test_lot05_j10o_public_dataset_smoke.py -v
+
+  roboflow-public-metadata:
+    name: Public Roboflow FDI32 class and augmented split audit
+    needs: rights-before-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fetch publisher FDI32 metadata only
+        run: python experiments/lot05_j10o_roboflow_fdi_public_metadata.py --output-json reports/j10o-roboflow-ubuntu.json
+      - name: Preserve public metadata JSON only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: j10o-roboflow-public-metadata
+          path: reports/j10o-roboflow-ubuntu.json
+          retention-days: 7
+
+  academic-public-opg:
+    name: Public academic one-image decode research only
+    needs: rights-before-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Pillow
+        run: python -m pip install 'pillow==11.3.0'
+      - name: Public university image one-sample in-memory smoke
+        run: python experiments/lot05_j10o_tunisia_public_opg_sample.py --output-json reports/j10o-tunisia-ubuntu.json
+      - name: Preserve aggregate metadata JSON only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: j10o-tunisia-public-metadata
+          path: reports/j10o-tunisia-ubuntu.json
+          retention-days: 7
