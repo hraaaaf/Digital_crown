@@ -50,6 +50,14 @@ with database.SessionLocal() as db:
     patient = db.query(models.Patient).filter_by(
         numero_dossier="T2-0001", employer_id=owner.id
     ).one()
+    # The product rightly locks Cephalo when orthodontic follow-up is off.
+    # Only enable it for this disposable, synthetic T2 patient (as prior
+    # ceph_p2ter_seed_t2.py does); never bypass product permission checks.
+    clinical = db.query(models.DossierClinique).filter_by(
+        patient_id=patient.id,
+    ).one()
+    clinical.is_ortho_active = True
+    db.flush()
     for name, spec in SOURCES.items():
         original = source_dir / (name + ".jpg")
         data = original.read_bytes()
