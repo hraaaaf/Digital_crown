@@ -41,14 +41,34 @@ jobs:
           python-version: '3.11'
       - name: Install standalone PDF renderer and reader, no application service/database
         run: python -m pip install reportlab==4.4.10 pillow==12.2.0 pypdf==6.1.1 jinja2==3.1.6
-      - name: Execute actual synthetic research PDF rendering and adversarial checks
-        run: python -m unittest -v backend.tests.test_lot05_j10g_fdi_research_pdf backend.tests.test_lot05_j10g_manual_pdf_rows
+      - name: Execute isolated PDF tests without initializing production database or medical services
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          # These contracts test pure PDF components, NOT backend startup. The
+          # application's backend __init__ registers dozens of database models.
+          import sys, types, unittest
+          package = types.ModuleType('backend')
+          package.__path__ = ['backend']
+          sys.modules['backend'] = package
+          names = ['backend.tests.test_lot05_j10g_fdi_research_pdf',
+                   'backend.tests.test_lot05_j10g_manual_pdf_rows']
+          suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful():
+              raise SystemExit(1)
+          PY
       - name: Build example PDF with entirely synthetic patient and image data
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import sys, types
+          package = types.ModuleType('backend')
+          package.__path__ = ['backend']
+          sys.modules['backend'] = package
           from backend.services.generators.fdi_research_pdf import render_research_pdf
           from backend.tests.test_lot05_j10g_fdi_research_pdf import draft, sample_image
           out = Path("lot05-j10g-PDF-SYNTHETIC-NOT-CLINICAL.pdf")
