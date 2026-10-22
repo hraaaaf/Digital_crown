@@ -1,0 +1,113 @@
+name: LOT05 J10N — synthetic FDI corpus annotation & split-safety gate
+
+on:
+  pull_request:
+    branches:
+      - exp/lot05-j10m-fdi-primary-license-evidence-actions-20261022
+    paths:
+      - 'docs/research/LOT05_J10N_*'
+      - 'experiments/lot05_j10n_*'
+      - 'experiments/test_lot05_j10n_*'
+      - '.github/workflows/lot05-j10n-synthetic-annotation-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: j10n-synthetic-fdi-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rights-and-adversarial-tests:
+    name: "HOLD real images + 20 synthetic annotation QA tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Ensure commercial and actual dataset training remain NO-GO
+        run: |
+          python experiments/lot05_j10i_fdi_commercial_rights_gate.py
+          python experiments/lot05_j10l_fdi_training_readiness.py --mode synthetic_geometry
+      - name: Test 32 tooth labels, two independent reviews, no leakage, no clinical assets
+        run: |
+          python experiments/test_lot05_j10n_fdi_synthetic_annotation_quality.py -v
+      - name: Synthetic-only checks; no user-supplied dataset path, image library or model serialization
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('experiments/lot05_j10n_fdi_synthetic_annotation_quality.py')
+          code=p.read_text(encoding='utf-8')
+          for forbidden in ('Image.open(', 'pydicom', 'torch.save(', 'save_pretrained(', 'dataset-path', 'input-json', 'requests.get('):
+              assert forbidden not in code, forbidden
+          assert 'mode": "synthetic_only"' in code
+          assert 'patient_data_present' in code
+          print('PASS synthetic metadata only; legal + clinical training holds remain closed')
+          PY
+
+  native-annotation-qa:
+    name: "Native ${{ matrix.os }} — FDI 32 review and external-test isolation"
+    needs: rights-and-adversarial-tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exact PR commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate synthetic metadata without X-rays and create JSON report only
+        shell: bash
+        run: |
+          python experiments/lot05_j10n_fdi_synthetic_annotation_quality.py \
+            --mode synthetic_only --output-json reports/j10n-${{ matrix.os }}.json
+      - name: Prove fail-closed release boundaries and no raw patient IDs
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('reports/j10n-${{ matrix.os }}.json')
+          result=json.loads(p.read_text(encoding='utf-8'))
+          assert result['status'] == 'SYNTHETIC_ANNOTATION_QA_PASS_REAL_DATA_BLOCKED'
+          assert result['fdi_classes_supported'] == 32
+          assert result['synthetic_subject_groups'] == 4
+          assert result['split_counts'] == {'train':3,'val':1,'test_external':1}
+          assert result['adjudicated_synthetic_cases'] == 1
+          assert result['synthetic_edentulous_cases'] == 1
+          assert result['external_test_site_isolated'] is True
+          assert result['clinical_radiographs_processed'] == 0
+          for flag in ('real_dataset_training_approved','commercial_model_release_approved',
+                       'clinical_use_approved','gh_actions_patient_transfer_approved'):
+              assert result[flag] is False
+          serialized=p.read_text(encoding='utf-8').lower()
+          for forbidden in ('"patient_name":','"patient_id":','dicom','"original_filename":','"subject_group":',
+                            'syn-g001', '"near_duplicate_group":', 'clinic-name', '"consent_document":'):
+              assert forbidden not in serialized
+          print('PASS FDI-32 review/split schema without medical imagery or real-world clearance')
+          PY
+      - name: Upload aggregate anonymous JSON metrics ONLY
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: j10n-synthetic-annotation-qa-${{ matrix.os }}
+          path: reports/j10n-${{ matrix.os }}.json
+          retention-days: 7
+          if-no-files-found: warn
