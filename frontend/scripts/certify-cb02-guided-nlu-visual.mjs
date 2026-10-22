@@ -44,7 +44,7 @@ try {
     page.on('pageerror', err => errors.push(String(err)));
     page.on('request', req => {
       const u = new URL(req.url());
-      if (u.origin === apiOrigin && req.method() !== 'GET'
+      if (req.method() !== 'GET'
           && (/^\/api\/bot\/execute\b/.test(u.pathname)
               || /^\/api\/appointments\b/.test(u.pathname)
               || /^\/api\/patients\b/.test(u.pathname))) {
