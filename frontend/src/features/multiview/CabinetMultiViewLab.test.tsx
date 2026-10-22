@@ -1,0 +1,155 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AppUser } from '../../types';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { workstationModeService } from '../../services/workstationMode';
+import { api } from '../../services/api';
+
+vi.mock('../../services/workstationMode',()=>({
+  workstationModeService:{getBootstrapState:vi.fn(),subscribe:vi.fn(()=>()=>{})},
+}));
+vi.mock('../../services/api',()=>({api:{get:vi.fn()}}));
+vi.mock('../patients/components/PatientMediaTimeline',()=>({
+  PatientMediaTimeline:({patientId}:{patientId:number})=><div data-testid="media-live">Media API module patient {patientId}</div>,
+}));
+vi.mock('../ortho/OrthoLongitudinalComparePanel',()=>({
+  OrthoLongitudinalComparePanel:({patientId}:{patientId:number})=><div data-testid="suivi-live">Longitudinal patient {patientId}</div>,
+}));
+import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled } from './CabinetMultiViewLab';
+
+const patient={id:17,prenom:'Prénom-A',nom:'NOM-A',numero_dossier:'DOS-A'};
+const user=(permissions:Record<string,boolean>={patients:true,cephalo:true})=>({
+  id:'actor-A',role:'SECRETAIRE',employer_id:11,permissions,
+} as unknown as AppUser);
+let desktop=true;
+
+beforeEach(()=>{
+  vi.clearAllMocks();
+  desktop=true;
+  Object.defineProperty(window,'innerWidth',{configurable:true,value:1920});
+  Object.defineProperty(window,'matchMedia',{configurable:true,value:vi.fn(()=>({
+    get matches(){return desktop;},media:'(min-width: 1280px)',
+    addEventListener:vi.fn(),removeEventListener:vi.fn(),
+  }))});
+  vi.stubGlobal('ResizeObserver',class {
+    observe=vi.fn();disconnect=vi.fn();unobserve=vi.fn();
+    constructor(_cb:ResizeObserverCallback){}
+  });
+  vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(()=>({
+    x:0,y:0,top:0,left:0,right:1600,bottom:800,width:1600,height:800,toJSON:()=>({}),
+  }));
+  vi.mocked(workstationModeService.getBootstrapState).mockResolvedValue({
+    workstationId:'workstation-verified',authenticated:true,enrollmentRequired:false,
+    defaultExperience:'cabinet',stationLocked:false,stationEscapeAuthorized:false,
+  });
+  vi.mocked(api.get).mockResolvedValue({data:patient} as never);
+  useAuthStore.setState({user:user(),isAuthenticated:true,isLoading:false});
+});
+afterEach(()=>{
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  useAuthStore.setState({user:null,isAuthenticated:false,isLoading:false});
+});
+
+describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
+  it('is hard-disabled in production even if the opt-in flag is set',()=>{
+    expect(isCabinetMultiViewLabEnabled(false,'1')).toBe(false);
+    expect(isCabinetMultiViewLabEnabled(true,undefined)).toBe(false);
+    expect(isCabinetMultiViewLabEnabled(true,'true')).toBe(false);
+    expect(isCabinetMultiViewLabEnabled(true,'1')).toBe(true);
+  });
+
+  it('requires real signed-in workstation bootstrap AND fresh exact-patient GET before mounting media',async()=>{
+    const {container}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByText('DOS-A')).toBeTruthy();
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/patients/17');
+    expect(vi.mocked(workstationModeService.getBootstrapState)).toHaveBeenCalled();
+    expect(container.querySelectorAll('[data-v15-071-viewslot]')).toHaveLength(2);
+  });
+
+  it('refuses mounting all clinical slots when workstation enrollment or mode is not verified',async()=>{
+    vi.mocked(workstationModeService.getBootstrapState).mockResolvedValue({
+      workstationId:null,authenticated:true,enrollmentRequired:true,
+      defaultExperience:'station',stationLocked:true,stationEscapeAuthorized:false,
+    });
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
+    await waitFor(()=>expect(vi.mocked(api.get)).toHaveBeenCalled());
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(screen.getByRole('alert').textContent).toContain('indisponibles');
+  });
+
+  it('does not query any patient or mount views when route patient differs, or when patients access is revoked',async()=>{
+    const actor=user({patients:false,cephalo:true});
+    useAuthStore.setState({user:actor,isAuthenticated:true});
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}/>);
+    expect(screen.getByRole('alert').textContent).toContain('refusées');
+    expect(vi.mocked(api.get)).not.toHaveBeenCalled();
+    expect(vi.mocked(workstationModeService.getBootstrapState)).not.toHaveBeenCalled();
+    const permitted=user();
+    useAuthStore.setState({user:permitted,isAuthenticated:true});
+    rerender(<CabinetMultiViewLab patient={patient} routePatientId="18" user={permitted}/>);
+    expect(screen.getByRole('alert').textContent).toContain('refusées');
+    expect(vi.mocked(api.get)).not.toHaveBeenCalled();
+  });
+
+  it('shows all 9 roadmap directions disabled and previews without mounting extra API modules',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(9);
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    fireEvent.change(select,{target:{value:'dossier-media-suivi-3cols'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    expect(screen.getByTestId('multiview-schematic-preview')).toBeTruthy();
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(await screen.findByTestId('suivi-live')).toBeTruthy();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.queryByTestId('multiview-schematic-preview')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Échanger les vues'}));
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+  });
+
+  it('does not offer longitudinal comparison without the canonical cephalo permission',async()=>{
+    const actor=user({patients:true,cephalo:false});
+    useAuthStore.setState({user:actor,isAuthenticated:true});
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}/>);
+    await screen.findByTestId('media-live');
+    const s=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(s.querySelector('option[value="dossier-media-suivi-3cols"]')).toBeNull();
+    expect(s.querySelector('option[value="dossier-media-suivi-hero"]')).toBeNull();
+  });
+
+  it('preserves the existing single media module on narrow screens with no workspace bootstrap',async()=>{
+    desktop=false;
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(vi.mocked(workstationModeService.getBootstrapState)).not.toHaveBeenCalled();
+    expect(vi.mocked(api.get)).not.toHaveBeenCalled();
+  });
+
+  it('synchronously denies and removes old clinical viewer on account logout and patient A→B',async()=>{
+    const actor=user();
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const next={id:18,nom:'NOM-B',prenom:'Prénom-B',numero_dossier:'DOS-B'};
+    vi.mocked(api.get).mockResolvedValue({data:next} as never);
+    rerender(<CabinetMultiViewLab patient={next} routePatientId="18" user={actor}/>);
+    expect(screen.queryByText('NOM-A')).toBeNull();
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    await screen.findByText('DOS-B');
+    expect(screen.getByTestId('media-live').textContent).toContain('18');
+    act(()=>{useAuthStore.setState({user:null,isAuthenticated:false});});
+    rerender(<CabinetMultiViewLab patient={next} routePatientId="18" user={null}/>);
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    expect(screen.queryByText('DOS-B')).toBeNull();
+  });
+});
