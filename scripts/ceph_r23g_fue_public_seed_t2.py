@@ -53,7 +53,7 @@ with database.SessionLocal() as db:
     for name, spec in SOURCES.items():
         original = source_dir / (name + ".jpg")
         data = original.read_bytes()
-        if not data.startswith(b"\\xff\\xd8\\xff"):
+        if not data.startswith(bytes.fromhex("ffd8ff")):
             raise RuntimeError(name + ": not a JPEG source")
         if hashlib.sha1(data).hexdigest() != spec["sha1"]:
             raise RuntimeError(name + ": original image digest mismatch")
