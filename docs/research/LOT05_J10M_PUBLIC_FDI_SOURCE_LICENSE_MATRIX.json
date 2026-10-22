@@ -1,0 +1,119 @@
+{
+  "schema": "digital-crown-fdi-j10m-public-licensing-review-v1",
+  "reviewed_at": "2026-10-22",
+  "commercial_training_approval": false,
+  "real_patient_radiographs_cloud_approved": false,
+  "policy": "Research inventory only. A paper's Creative Commons license is not the same as the underlying dataset license; a user-published repository label is not sufficient proof of third-party image rights. Cannot self-authorize by editing this file.",
+  "candidates": [
+    {
+      "id": "dentex-official",
+      "reported_images": "634 panoramic FDI-enumeration annotations plus distinct other challenge splits",
+      "fdi_32": true,
+      "source": "https://github.com/ibrahimethemhamamci/DENTEX",
+      "first_party_evidence": [
+        "https://github.com/ibrahimethemhamamci/DENTEX/blob/main/README.md",
+        "https://huggingface.co/datasets/ibrahimhamamci/DENTEX"
+      ],
+      "explicit_dataset_license": "CC BY-NC-SA 4.0",
+      "code_license": "MIT (different material)",
+      "commercial_decision": "BLOCK_EXPLICIT_NONCOMMERCIAL",
+      "image_rights_verified_for_commercial_cloud": false,
+      "commercial_use_approved": false,
+      "evidence": "Official publisher README: data licensed CC BY-NC-SA 4.0 while the rest of code MIT; Hugging Face dataset metadata also cc-by-nc-sa-4.0. Third-party papers reporting CC BY-SA must not override rights-holder noncommercial text."
+    },
+    {
+      "id": "aku-250",
+      "reported_images": 250,
+      "fdi_32": true,
+      "source": "https://zenodo.org/records/10538750",
+      "first_party_evidence": [
+        "https://zenodo.org/records/10538750",
+        "https://doi.org/10.1016/j.dib.2024.111152"
+      ],
+      "explicit_dataset_license": "NOT SPECIFIED on Zenodo page",
+      "code_license": "NOT VERIFIED",
+      "commercial_decision": "HOLD_DATASET_LICENSE_UNSPECIFIED_AND_MIXED_ORIGIN",
+      "image_rights_verified_for_commercial_cloud": false,
+      "commercial_use_approved": false,
+      "evidence": "Zenodo uploader Niha Adnan, 250 panoramic JSON annotations, Rights/License field blank; article in Data in Brief CC BY-NC and 250 samples aggregated from three original datasets. Article license does not independently establish commercial rights for dataset images."
+    },
+    {
+      "id": "dual-labeled-kaggle",
+      "reported_images": "about 2066 publicly cited; original paper describes a larger 5000 mixed-origin collection",
+      "fdi_32": true,
+      "source": "https://www.kaggle.com/datasets/zwbzwb12341234/a-dual-labeled-dataset",
+      "first_party_evidence": [
+        "https://www.kaggle.com/datasets/zwbzwb12341234/a-dual-labeled-dataset",
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC11465503/"
+      ],
+      "explicit_dataset_license": "NOT INDEPENDENTLY VERIFIED",
+      "code_license": "NOT APPLICABLE",
+      "commercial_decision": "HOLD_UNVERIFIED_LICENSE_AND_MIXED_ORIGIN",
+      "image_rights_verified_for_commercial_cloud": false,
+      "commercial_use_approved": false,
+      "evidence": "Original clinical ethics approval #2024011704 is research-specific and not a commercial redistribution permission; data aggregate hospital and externally obtained radiographs, with unclear image-level commercial/cloud rights; paper open-access license does not prove Kaggle dataset license."
+    },
+    {
+      "id": "roboflow-dentalxray-1577",
+      "reported_images": 1577,
+      "fdi_32": true,
+      "source": "https://universe.roboflow.com/dentalxray-yjztn/panoramic-dental-xray-fdi",
+      "first_party_evidence": [
+        "https://universe.roboflow.com/dentalxray-yjztn/panoramic-dental-xray-fdi",
+        "https://universe.roboflow.com/dentalxray-yjztn/panoramic-dental-xray-fdi/dataset/1"
+      ],
+      "explicit_dataset_license": "CC BY 4.0 label (publisher claim)",
+      "code_license": "NOT APPLICABLE",
+      "commercial_decision": "HOLD_NO_ORIGINAL_CLINICAL_RIGHTS_CHAIN",
+      "image_rights_verified_for_commercial_cloud": false,
+      "commercial_use_approved": false,
+      "evidence": "Public page shows 1577 source images and all 32 labels but expressly no description. Dataset version 1 has 3503 AUGMENTED examples, not independently acquired radiographs; requires provenance, patient-level split and augmentation leakage audit."
+    },
+    {
+      "id": "roboflow-dentalwork-623",
+      "reported_images": 623,
+      "fdi_32": true,
+      "source": "https://universe.roboflow.com/dentalwork/teeth-fdi-fhsfa",
+      "first_party_evidence": [
+        "https://universe.roboflow.com/dentalwork/teeth-fdi-fhsfa"
+      ],
+      "explicit_dataset_license": "CC BY 4.0 label (publisher claim)",
+      "code_license": "NOT APPLICABLE",
+      "commercial_decision": "HOLD_NO_CLINICAL_ORIGINAL_SOURCE_INFORMATION",
+      "image_rights_verified_for_commercial_cloud": false,
+      "commercial_use_approved": false,
+      "evidence": "Roboflow instance segmentation lists 623 images and 32 FDI labels with CC BY 4.0 card, but project description unprovided, unknown clinic/image rights and deduplication against previous datasets."
+    },
+    {
+      "id": "tunisia-brahmi-v3",
+      "reported_images": "107 original instance-segmented plus 60 anatomical-type images and 54 later additions",
+      "fdi_32": false,
+      "source": "https://data.mendeley.com/datasets/73n3kz2k4k/3",
+      "first_party_evidence": [
+        "https://data.mendeley.com/datasets/73n3kz2k4k/3"
+      ],
+      "explicit_dataset_license": "CC BY 4.0",
+      "code_license": "NOT APPLICABLE",
+      "commercial_decision": "HOLD_NOT_PROVEN_PER_TOOTH_FDI32_AND_CLOUD_RIGHTS",
+      "image_rights_verified_for_commercial_cloud": false,
+      "commercial_use_approved": false,
+      "evidence": "University identifiable and source clinics reported, but 60 labels refer to eight anatomical tooth types, not to the specific 32 permanent FDI identifiers. Consent/clinical image copyright/cloud processing still unverified."
+    },
+    {
+      "id": "figshare-3000",
+      "reported_images": 3000,
+      "fdi_32": false,
+      "source": "https://figshare.com/articles/dataset/_b_Panoramic_Radiography_Dataset_b_/32812913",
+      "first_party_evidence": [
+        "https://datasetcatalog.nlm.nih.gov/dataset?q=0003374872",
+        "https://figshare.com/articles/dataset/_b_Panoramic_Radiography_Dataset_b_/32812913"
+      ],
+      "explicit_dataset_license": "CC BY 4.0 (NLM secondary catalogue)",
+      "code_license": "NOT APPLICABLE",
+      "commercial_decision": "HOLD_NO_PROVEN_FDI32_LABELS_AND_ORIGINAL_IMAGE_CHAIN",
+      "image_rights_verified_for_commercial_cloud": false,
+      "commercial_use_approved": false,
+      "evidence": "NLM public catalog shows 3000 OPGs with segmentation and COCO annotations, but class schema not verified as 32 FDI identifiers; original patient-image sublicensing and cloud rights not reviewed."
+    }
+  ]
+}
