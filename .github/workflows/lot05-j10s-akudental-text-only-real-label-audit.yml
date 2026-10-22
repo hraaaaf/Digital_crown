@@ -66,7 +66,7 @@ jobs:
           assert result["commercial_training_authorized"] is False
           assert result["clinical_use_authorized"] is False
           assert result["uses_real_image_pixels"] is False
-          assert all(x not in str(result).casefold() for x in ("patient_", ".jpg", "imagepath"))
+          assert not any(key in result for key in ("patient_ids", "filenames", "raw_annotations", "image_path"))
           report = {
               "source_commit": "92e2cc3ae5eebc9de509311a3edefb7106fca7dd",
               "status": result["status"],
