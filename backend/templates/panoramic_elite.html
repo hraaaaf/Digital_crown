@@ -1,270 +1,213 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Bilan radiographique panoramique - {{ patient_nom }}</title>
-    <style>
-        :root {
-            --dc-primary: {{ primary_color }};
-            --dc-secondary: {{ secondary_color }};
-            --dc-accent: #0f172a;
-            --dc-slate-50: #f8fafc;
-            --dc-slate-100: #f1f5f9;
-            --dc-slate-200: #e2e8f0;
-            --dc-slate-400: #94a3b8;
-            --dc-slate-500: #64748b;
-            --dc-slate-700: #334155;
-            --dc-slate-900: #0f172a;
-        }
-
-        @page {
-            size: A4;
-            margin: 0; /* On gère les marges en interne pour un contrôle total */
-        }
-        
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
-            color: var(--dc-slate-900);
-            line-height: 1.5;
-            margin: 0;
-            padding: 0;
-            background-color: white;
-        }
-
-        .page-container {
-            padding: 4.5cm 1.5cm 3.5cm 1.5cm; /* Marges standard Digital Crown */
-        }
-
-        .elite-header {
-            text-align: center;
-            margin-bottom: 30px;
-            position: relative;
-        }
-
-        .elite-header h1 {
-            font-family: 'Outfit', sans-serif;
-            color: var(--dc-primary);
-            font-size: 24pt;
-            font-weight: 700;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        /* Patient Info Grid */
-        .patient-card {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            background-color: var(--dc-slate-50);
-            border: 1px solid var(--dc-slate-200);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-
-        .info-item {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .info-label {
-            font-size: 7pt;
-            text-transform: uppercase;
-            color: var(--dc-slate-500);
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-
-        .info-value {
-            font-size: 11pt;
-            font-weight: 600;
-            color: var(--dc-slate-900);
-            margin-top: 4px;
-        }
-
-        /* Clinical Content */
-        .findings-section {
-            margin-bottom: 30px;
-        }
-
-        .section-title {
-            font-family: 'Outfit', sans-serif;
-            color: var(--dc-primary);
-            font-size: 14pt;
-            font-weight: 600;
-            border-bottom: 2px solid var(--dc-slate-100);
-            padding-bottom: 8px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-        }
-
-        .category-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .finding-category {
-            background-color: white;
-            border: 1px solid var(--dc-slate-100);
-            border-radius: 8px;
-            padding: 15px;
-        }
-
-        .category-header {
-            font-size: 9pt;
-            font-weight: 700;
-            color: var(--dc-slate-700);
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .category-header .dot {
-            width: 6px;
-            height: 6px;
-            background-color: var(--dc-primary);
-            border-radius: 50%;
-        }
-
-        .finding-list {
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        .finding-list li {
-            font-size: 9.5pt;
-            color: var(--dc-slate-900);
-            margin-bottom: 6px;
-            padding-left: 15px;
-            position: relative;
-        }
-
-        .finding-list li::before {
-            content: "•";
-            position: absolute;
-            left: 0;
-            color: var(--dc-primary);
-        }
-
-        .confidentiality-note {
-            margin-top: 40px;
-            font-size: 6.5pt;
-            color: var(--dc-slate-400);
-            text-align: center;
-            font-style: italic;
-            border-top: 1px dashed var(--dc-slate-100);
-            padding-top: 15px;
-        }
-
-        /* Signature & Verification */
-        .validation-footer {
-            margin-top: 60px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            border-top: 1px solid var(--dc-slate-200);
-            padding-top: 30px;
-        }
-
-        .signature-block {
-            text-align: right;
-        }
-
-        .doctor-signature {
-            font-family: 'Outfit', sans-serif;
-            font-size: 14pt;
-            font-weight: 700;
-            color: var(--dc-primary);
-        }
-
-        .sig-status {
-            font-size: 8pt;
-            color: var(--dc-slate-500);
-            margin-top: 5px;
-        }
-
-    </style>
+  <meta charset="UTF-8">
+  <title>Compte rendu panoramique — {{ patient_nom }} {{ patient_prenom }}</title>
+  <style>
+    :root {
+      --ink: #182942;
+      --navy: {{ primary_color }};
+      --muted: #526176;
+      --rule: #dbe3ed;
+      --paper: #ffffff;
+    }
+    @page {
+      size: A4;
+      margin: 19mm 18mm 18mm;
+      @bottom-left {
+        content: "DIGITAL CROWN  ·  Compte rendu panoramique";
+        color: #8390a0;
+        font: 8pt "DejaVu Sans", sans-serif;
+      }
+      @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        color: #8390a0;
+        font: 8pt "DejaVu Sans", sans-serif;
+      }
+    }
+    html, body {
+      background: var(--paper);
+      margin: 0;
+      padding: 0;
+      font-family: "DejaVu Sans", Arial, sans-serif;
+      color: var(--ink);
+      font-size: 9.25pt;
+      line-height: 1.6;
+    }
+    * { box-sizing: border-box; }
+    .report-header {
+      padding: 0 0 15px;
+      border-bottom: 2px solid var(--navy);
+      margin-bottom: 17px;
+    }
+    .brand {
+      font-size: 9pt;
+      letter-spacing: 1.8px;
+      font-weight: 750;
+      text-transform: uppercase;
+      color: var(--navy);
+    }
+    h1 {
+      margin: 6px 0 2px;
+      font-size: 18pt;
+      line-height: 1.3;
+      font-weight: 750;
+      letter-spacing: -.2px;
+    }
+    .subtitle {
+      font-size: 8.7pt;
+      color: var(--muted);
+      margin: 3px 0 0;
+    }
+    .patient-card {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 10px 20px;
+      padding: 0 0 16px;
+      margin: 0 0 21px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .patient-field { break-inside: avoid; }
+    .patient-field .label {
+      display: block;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 7.1pt;
+      font-weight: 700;
+      letter-spacing: .6px;
+    }
+    .patient-field .value {
+      display: block;
+      font-weight: 600;
+      font-size: 9.1pt;
+      padding-top: 2px;
+      overflow-wrap: anywhere;
+    }
+    .report-section {
+      margin: 0 0 14px;
+      padding: 0 0 4px;
+      break-inside: auto;
+    }
+    .report-section h3 {
+      margin: 0 0 7px;
+      font-size: 10.1pt;
+      line-height: 1.4;
+      color: var(--navy);
+      font-weight: 700;
+      break-after: avoid;
+      text-transform: uppercase;
+      letter-spacing: .2px;
+    }
+    .report-section p {
+      margin: 0 0 5px;
+      orphans: 2;
+      widows: 2;
+      overflow-wrap: anywhere;
+    }
+    .section-superhead {
+      border-top: 1px solid var(--rule);
+      padding-top: 12px;
+      margin: 19px 0 12px;
+      font-size: 11.2pt;
+      text-transform: uppercase;
+      letter-spacing: .55px;
+      color: var(--ink);
+      break-after: avoid;
+    }
+    .report-section.indication,
+    .report-section.technique,
+    .report-section.response {
+      padding-left: 0;
+    }
+    .report-section.conclusion {
+      border-top: 1px solid var(--rule);
+      border-left: 3px solid var(--navy);
+      padding: 11px 12px 7px;
+      margin: 20px 0 24px;
+      break-inside: auto;
+    }
+    .report-section.conclusion h3 { font-size: 11.2pt; }
+    .report-section.conclusion p { font-weight: 550; }
+    .validation-footer {
+      margin-top: 19px;
+      padding-top: 12px;
+      border-top: 1px solid var(--rule);
+      break-inside: avoid;
+    }
+    .doctor-caption {
+      text-transform: uppercase;
+      letter-spacing: .55px;
+      color: var(--muted);
+      font-size: 7.1pt;
+      font-weight: 700;
+    }
+    .doctor-name {
+      font-weight: 700;
+      font-size: 9.3pt;
+      padding-top: 3px;
+      overflow-wrap: anywhere;
+    }
+    .confidentiality-note {
+      font-size: 7.4pt;
+      line-height: 1.55;
+      margin: 14px 0 0;
+      color: var(--muted);
+    }
+  </style>
 </head>
 <body>
-    <div class="page-container">
-        
-        <div class="elite-header">
-            <h1>Bilan radiographique panoramique</h1>
+  <header class="report-header">
+    <div class="brand">Digital Crown</div>
+    <h1>Compte rendu radiographique</h1>
+    <p class="subtitle">Panoramique dentaire · Orthopantomogramme</p>
+  </header>
 
-        </div>
-
-        <div class="patient-card">
-            <div class="info-item">
-                <span class="info-label">Identité du Patient</span>
-                <span class="info-value">{{ patient_nom.upper() }} {{ patient_prenom.capitalize() }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Identifiant Dossier</span>
-                <span class="info-value">#{{ patient_id }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Date d'Examen</span>
-                <span class="info-value">{{ date_analyse }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Âge Clinique</span>
-                <span class="info-value">{{ patient_age }} ans</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Praticien Requérant</span>
-                <span class="info-value">{{ doctor_name }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Statut Dentaire</span>
-                <span class="info-value">{{ denture_type or 'Denture Adulte' }}</span>
-            </div>
-        </div>
-
-        <div class="findings-section">
-            <h2 class="section-title">Observations radiographiques documentées</h2>
-            
-            <div class="category-grid">
-                {% for cat in categories %}
-                <div class="finding-category">
-                    <div class="category-header">
-                        <span class="dot"></span>
-                        {{ cat.name }}
-                    </div>
-                    <ul class="finding-list">
-                        {% for item in cat.findings %}
-                        <li>{{ item }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="validation-footer">
-            <div class="signature-block">
-                <div class="sig-status">Praticien associé au dossier</div>
-                <div class="doctor-signature">{{ doctor_name }}</div>
-                
-            </div>
-        </div>
-
-        <div class="confidentiality-note" style="font-style: italic;">
-            Le traitement automatique est limité au repérage dentaire. Les observations affichées proviennent des
-            annotations du praticien. L'absence d'annotation ne constitue pas une conclusion de normalité.
-            Aucun diagnostic ni traitement n'est généré automatiquement.
-        </div>
-
-        <div class="confidentiality-note">
-            Ce document contient des informations médicales confidentielles protégées par le secret professionnel.
-            Toute divulgation non autorisée est strictement interdite. Digital Crown.
-        </div>
-
+  <div class="patient-card">
+    <div class="patient-field">
+      <span class="label">Patient</span>
+      <span class="value">{{ patient_nom.upper() }} {{ patient_prenom.capitalize() }}</span>
     </div>
+    <div class="patient-field">
+      <span class="label">Date de l'examen</span>
+      <span class="value">{{ date_analyse }}</span>
+    </div>
+    <div class="patient-field">
+      <span class="label">Référence du dossier</span>
+      <span class="value">{{ patient_id }}</span>
+    </div>
+    <div class="patient-field">
+      <span class="label">Type de denture documenté</span>
+      <span class="value">{{ denture_type or 'Non documenté' }}</span>
+    </div>
+  </div>
+
+  {% set ns = namespace(observations_started=false) %}
+  {% for cat in categories %}
+    {% set kind = cat.kind | default('observation') %}
+    {% if kind == 'observation' and not ns.observations_started %}
+      <h2 class="section-superhead">Observations radiographiques documentées</h2>
+      {% set ns.observations_started = true %}
+    {% endif %}
+    <section class="report-section {{ kind }}">
+      <h3>{{ cat.name }}</h3>
+      {% for finding in cat.findings %}
+        <p>{{ finding }}</p>
+      {% endfor %}
+    </section>
+  {% endfor %}
+
+  <footer class="validation-footer">
+    <div class="doctor-caption">Praticien associé au dossier</div>
+    <div class="doctor-name">{{ doctor_name }}</div>
+    <p class="confidentiality-note" style="font-style: italic;">
+      Le compte rendu reprend uniquement les constatations documentées par le praticien.
+      Une région non évaluée n'est pas réputée normale. Aucune décision thérapeutique
+      ni interprétation diagnostique n'est générée à partir du repérage dentaire automatique.
+    </p>
+    <p class="confidentiality-note">
+      Document médical confidentiel. La radiographie originale reste accessible
+      séparément dans l'espace Imagerie du dossier patient.
+    </p>
+  </footer>
 </body>
 </html>
