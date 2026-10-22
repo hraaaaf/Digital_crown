@@ -1,0 +1,67 @@
+name: LOT05 J10I — commercial FDI candidate rights audit HOLD
+
+on:
+  pull_request:
+    branches:
+      - exp/lot05-j10h-structured-panoramic-pdf-quality-20261022
+    paths:
+      - 'docs/research/LOT05_J10I_FDI_COMMERCIAL_CANDIDATES.json'
+      - 'docs/research/LOT05_J10I_FDI_COMMERCIAL_MODEL_SEARCH.md'
+      - 'experiments/lot05_j10i_fdi_commercial_rights_gate.py'
+      - 'experiments/test_lot05_j10i_fdi_commercial_rights_gate.py'
+      - '.github/workflows/lot05-j10i-fdi-commercial-rights-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deny-unlicensed-release-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Require exact source ref
+        env:
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Rights gate — NO model release may be authorized by audit
+        run: python experiments/lot05_j10i_fdi_commercial_rights_gate.py
+      - name: Negative rights/provenance tests
+        run: python experiments/test_lot05_j10i_fdi_commercial_rights_gate.py -v
+      - name: Retain NO executable commercial inference dependencies
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('experiments/lot05_j10i_fdi_commercial_rights_gate.py').read_text()
+          assert 'import ultralytics' not in p
+          assert 'import torch' not in p
+          assert 'import requests' not in p
+          assert 'COMMERCIAL_AND_CLINICAL_RELEASE_BLOCKED' in p
+          print('PASS research only; licensing review cannot activate any inference path')
+          PY
+
+  deny-unlicensed-release-windows:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Native Windows candidate gate
+        shell: pwsh
+        run: |
+          python experiments/lot05_j10i_fdi_commercial_rights_gate.py
+          if ($LASTEXITCODE -ne 0) { throw 'FDI commercial rights audit fail closed' }
+          python experiments/test_lot05_j10i_fdi_commercial_rights_gate.py -v
+          if ($LASTEXITCODE -ne 0) { throw 'FDI commercial rights regression' }
