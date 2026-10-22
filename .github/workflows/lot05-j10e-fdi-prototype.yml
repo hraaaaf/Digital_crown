@@ -107,3 +107,44 @@ jobs:
           path: lot05-j10e-onnx-parity-aggregate.json
           if-no-files-found: ignore
           retention-days: 7
+
+  fdi-browser-synthetic:
+    name: Browser proof: synthetic FDI corrections and manual act gating
+    needs: fdi-interactive-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact PR head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Playwright protocol client (use pre-installed runner Chrome)
+        run: npm install --prefix experiments --no-save --ignore-scripts playwright-core@1.56.1
+      - name: Run localhost-only standalone editor with synthetic film
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m http.server 8765 --bind 127.0.0.1 --directory experiments >/tmp/lot05-j10e-browser.log 2>&1 &
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:8765/lot05_j10e_fdi_review_demo.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node experiments/lot05_j10e_fdi_editor_browser_gate.mjs
+      - name: Artifact only synthetic preview, never actual medical films
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-j10e-fdi-synthetic-browser-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          path: lot05-j10e-fdi-synthetic-preview.png
+          retention-days: 7
+          if-no-files-found: warn
