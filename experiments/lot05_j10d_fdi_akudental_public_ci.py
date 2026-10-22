@@ -12,7 +12,9 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
+import tempfile
 
 from lot05_j10d_fdi_akudental_coco_adapter import coco_to_manifest
 from lot05_j10d_fdi_local_benchmark import BenchmarkError, evaluate, _run_local_model
@@ -22,6 +24,17 @@ from lot05_j10d_fdi_tooth_model_probe import (
 
 IMAGE_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"})
 SAFE_ERROR_CLASSES = ("BenchmarkError", "FileNotFoundError", "RuntimeError", "ValueError", "KeyError", "OSError")
+BENCHMARK_PHASE = "preflight"
+SAFE_BENCHMARK_CODES = frozenset({"checkpoint_missing", "checkpoint_sha256_mismatch",
+    "invalid_local_image_or_metadata", "untrusted_image_path", "invalid_image_type",
+    "out_of_frame_bbox", "nonfinite_bbox", "invalid_fdi_label",
+    "untrusted_pinned_weights", "untrusted_local_checkpoint",
+    "missing_or_extra_prediction_cases", "insufficient_real_annotated_sample",
+    "duplicate_fdi_category_name", "invalid_coco_image", "image_filename_traversal",
+    "coco_bbox_outside_image", "unknown_image_or_category_in_annotation",
+    "akudental_expected_32_fdi_plus_3_non_tooth_categories",
+    "duplicate_or_invalid_coco_image", "invalid_source_dimensions",
+    "wrong_checkpoint_metadata", "unknown_or_repeated_coco_category"})
 
 
 def sha256(path: Path) -> str:
@@ -30,6 +43,21 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: fd.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def materialize_verified_checkpoint(downloaded: Path, scratch: Path) -> Path:
+    """Copy an immutable Hub-cache blob into an ordinary hashed .pt before inference.
+
+    Hugging Face snapshots usually expose symlinks. Local evaluator deliberately
+    forbids symlinks to reduce accidental redirection of loaded weight binaries.
+    """
+    if not downloaded.is_file() or sha256(downloaded) != MODEL_WEIGHTS_SHA256:
+        raise BenchmarkError("untrusted_pinned_weights")
+    ordinary = scratch / "verified-best.pt"
+    shutil.copyfile(downloaded, ordinary)
+    if not ordinary.is_file() or ordinary.is_symlink() or sha256(ordinary) != MODEL_WEIGHTS_SHA256:
+        raise BenchmarkError("untrusted_local_checkpoint")
+    return ordinary
 
 
 def _safe_filename_resolution(coco: dict, images_root: Path, sample_size: int) -> dict:
@@ -76,6 +104,8 @@ def _safe_filename_resolution(coco: dict, images_root: Path, sample_size: int) -
 
 
 def execute(source: Path, sample_size: int = 40) -> dict:
+    global BENCHMARK_PHASE
+    BENCHMARK_PHASE = "source_load"
     from huggingface_hub import hf_hub_download
     from ultralytics import YOLO
     # Source is a pinned reference to a public publisher, not private patient data.
@@ -87,18 +117,24 @@ def execute(source: Path, sample_size: int = 40) -> dict:
     original = json.loads(annotation_file.read_text(encoding="utf-8"))
     if not isinstance(original, dict):
         raise BenchmarkError("invalid_public_coco_root")
+    BENCHMARK_PHASE = "source_filename_resolution"
     cleaned = _safe_filename_resolution(original, images_root, sample_size)
+    BENCHMARK_PHASE = "coco_annotation_contract"
     manifest, audit = coco_to_manifest(cleaned, images_root=images_root, max_images=sample_size)
     cases = manifest["cases"]
     if len(cases) < 5 or audit["ground_truth_teeth_selected"] < 20:
         raise BenchmarkError("insufficient_real_annotated_sample")
+    BENCHMARK_PHASE = "checkpoint_fetch"
     downloaded = Path(hf_hub_download(repo_id=MODEL_REPO, filename=MODEL_WEIGHTS_FILE,
                                       revision=MODEL_REVISION))
-    if not downloaded.is_file() or sha256(downloaded) != MODEL_WEIGHTS_SHA256:
-        raise BenchmarkError("untrusted_pinned_weights")
     # Real model inference entirely in ephemeral job. Never log individual film
     # identifiers, filenames, film pixels or nonaggregated model predictions.
-    predictions = _run_local_model(cases, images_root, downloaded, .25)
+    with tempfile.TemporaryDirectory(prefix="lot05-fdi-pinned-weight-") as working:
+        BENCHMARK_PHASE = "checkpoint_materialization"
+        verified = materialize_verified_checkpoint(downloaded, Path(working))
+        BENCHMARK_PHASE = "model_inference"
+        predictions = _run_local_model(cases, images_root, verified, .25)
+    BENCHMARK_PHASE = "aggregate_scoring"
     summary = evaluate(cases, predictions, .50, independence_audited=False)
     # Controls ensure only aggregates leave runner.
     return {
@@ -162,7 +198,12 @@ def main():
         reason = type(exc).__name__
         if reason not in SAFE_ERROR_CLASSES:
             reason = "UnexpectedResearchError"
+        code = str(exc)
+        if code not in SAFE_BENCHMARK_CODES:
+            code = "details_withheld"
         print(json.dumps({"status": "FAILED_RESEARCH_BENCHMARK",
+                          "error_phase": BENCHMARK_PHASE,
+                          "safe_error_code": code,
                           "error_class": reason, "clinical_approved": False}))
         raise SystemExit(1)
 
