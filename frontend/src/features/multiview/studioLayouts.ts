@@ -49,11 +49,15 @@ export function slotsRequired(geometry: Geometry): number {
 }
 
 export function validLayout(value: Layout): boolean {
-  if (!GEOMETRIES.includes(value.geometry) || value.slots.length !== slotsRequired(value.geometry)) return false;
+  // Preferences may eventually arrive as untrusted JSON despite static TS types.
+  if (!value || !Array.isArray(value.slots) || typeof value.id !== 'string' ||
+      typeof value.label !== 'string' || !GEOMETRIES.includes(value.geometry) ||
+      value.slots.length !== slotsRequired(value.geometry)) return false;
   if (!/^[a-z0-9-]{1,60}$/.test(value.id) || !value.label.trim() || value.label.length > 80) return false;
   const ids = new Set<string>();
   for (const slot of value.slots) {
-    if (!/^[a-z0-9-]{1,60}$/.test(slot.id) || ids.has(slot.id) ||
+    if (!slot || typeof slot.id !== 'string' || typeof slot.module !== 'string' ||
+        !/^[a-z0-9-]{1,60}$/.test(slot.id) || ids.has(slot.id) ||
         !Object.prototype.hasOwnProperty.call(MODULE_POLICY, slot.module)) return false;
     ids.add(slot.id);
   }
@@ -86,13 +90,14 @@ function minimumWidth(layout: Layout): number {
   if (layout.geometry === 'single') return width(0);
   if (layout.geometry === 'two-rows') return Math.max(width(0), width(1));
   if (layout.geometry === 'two-columns') return width(0) + width(1) + 12;
-  if (layout.geometry === 'three-columns') return width(0) + width(1) + width(2) + 24;
+  // Equal three-column tracks must EACH fit the widest module, not merely total fit.
+  if (layout.geometry === 'three-columns') return 3 * Math.max(width(0),width(1),width(2)) + 24;
   if (layout.geometry === 'grid-2x2') return Math.max(width(0),width(2)) + Math.max(width(1),width(3)) + 12;
   return width(0) + Math.max(width(1),width(2)) + 12;
 }
 
 /** Defence-in-depth UI precondition. Real adapter MUST authorize per slot on server. */
-export function authorizeLayout(layout: Layout | undefined, context: WorkspaceContext): LayoutGate {
+export function authorizeLayout(layout: Layout | undefined, context: WorkspaceContext, primaryRatio = 50): LayoutGate {
   if (!layout || !validLayout(layout)) return {ok:false,reason:'INVALID_LAYOUT'};
   if (!context.authenticated || !context.userId?.trim() ||
       !context.workstationId?.trim() || !context.tenantId?.trim()) {
@@ -105,7 +110,7 @@ export function authorizeLayout(layout: Layout | undefined, context: WorkspaceCo
       (!Number.isSafeInteger(context.patientId) || Number(context.patientId) <= 0)) {
     return {ok:false,reason:'PATIENT_MISSING'};
   }
-  if (layout.slots.some(slot => !context.allowedModules.includes(slot.module))) {
+  if (!Array.isArray(context.allowedModules) || layout.slots.some(slot => !context.allowedModules.includes(slot.module))) {
     return {ok:false,reason:'MODULE_DENIED'};
   }
   const seen = new Set<ModuleKey>();
@@ -115,7 +120,20 @@ export function authorizeLayout(layout: Layout | undefined, context: WorkspaceCo
     }
     seen.add(slot.module);
   }
+  const usableWidth = context.cssViewportWidth - 12;
+  const paneMin = (index: number) => MODULE_POLICY[layout.slots[index].module].minWidth;
+  const ratio = Number.isFinite(primaryRatio) ? Math.max(37,Math.min(63,primaryRatio)) : 50;
   if (context.cssViewportWidth < Math.max(1280, minimumWidth(layout))) {
+    return {ok:false,reason:'UNREADABLE_LAYOUT'};
+  }
+  if (layout.geometry === 'two-columns' || layout.geometry === 'hero-two') {
+    const rightMin = layout.geometry === 'hero-two' ? Math.max(paneMin(1),paneMin(2)) : paneMin(1);
+    if (usableWidth * ratio / 100 < paneMin(0) || usableWidth * (100-ratio) / 100 < rightMin) {
+      return {ok:false,reason:'UNREADABLE_LAYOUT'};
+    }
+  }
+  if (layout.geometry === 'focus-rail' && (usableWidth * 0.75 < paneMin(0) ||
+      usableWidth * 0.25 < Math.max(paneMin(1),paneMin(2)))) {
     return {ok:false,reason:'UNREADABLE_LAYOUT'};
   }
   return {ok:true,layout};
