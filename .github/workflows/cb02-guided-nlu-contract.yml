@@ -56,7 +56,8 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          from backend.tests.test_guided_nlu_cb02 import CASES
+          from runpy import run_path
+          CASES = run_path('backend/tests/test_guided_nlu_cb02.py')['CASES']
           from collections import Counter
           counter = Counter(row[1] for row in CASES)
           assert len(CASES) >= 60, "Missing 60-case corpus"
