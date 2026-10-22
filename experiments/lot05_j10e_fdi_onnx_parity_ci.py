@@ -9,6 +9,7 @@ from collections import Counter
 import json
 from pathlib import Path
 import tempfile
+import platform
 
 from lot05_j10d_fdi_akudental_public_ci import (
     _safe_filename_resolution, materialize_verified_checkpoint,
@@ -106,7 +107,7 @@ def run(source: Path, count: int = 2):
         "disagreement_count":total["fdi_mismatch_or_missing"],
         "parity_threshold":{"box_iou":.9,"confidence_abs_delta":.08},
         "status":"TECHNICAL_CPU_PARITY" if total["pt"]>0 and total["fdi_mismatch_or_missing"]==0 else "PARITY_NOT_ESTABLISHED",
-        "tested_windows":False,"clinical_approval":False,"commercial_rights_cleared":False,
+        "tested_windows":platform.system() == "Windows","clinical_approval":False,"commercial_rights_cleared":False,
         "patient_data_uploaded":False,
     }
     return report
