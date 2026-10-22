@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { authorizeLayout, GEOMETRIES, getPreset, PRESETS, projectLayoutPreference,
@@ -82,6 +83,14 @@ describe('07.1.A/B nine-layout registry FUE-0: defensive client contracts only',
     expect(serialized).not.toContain('SECRET-TEST');
     expect(serialized).not.toContain('PRIVATE-TEST');
     expect(projectLayoutPreference(enriched,'user-A','')).toBeNull();
+    const sneaky: Layout={id:'patient-987',label:'A patient secret',geometry:'two-columns',
+      slots:[{id:'pat-987',module:'dossier'},{id:'secret-987',module:'agenda'}]};
+    expect(validLayout(sneaky)).toBe(true);
+    const safeCustom=projectLayoutPreference(sneaky,'user-A','poste-A');
+    expect(JSON.stringify(safeCustom)).not.toContain('987');
+    expect(JSON.stringify(safeCustom)).not.toContain('secret');
+    expect(safeCustom?.id).toBe('custom-two-columns-dossier-agenda');
+    expect(safeCustom?.slots[0].id).toBe('slot-1');
   });
 
   it('NEVER mounts or invokes clinical viewers if a guard denies this layout', () => {
@@ -94,6 +103,22 @@ describe('07.1.A/B nine-layout registry FUE-0: defensive client contracts only',
     rerender(<StudioLayoutFrame layout={p} context={context} renderSlot={view}/>);
     expect(screen.getAllByLabelText(/^Panneau /)).toHaveLength(3);
     expect(view).toHaveBeenCalledTimes(3);
+  });
+
+  it('remounts old clinical slot children when the patient changes; future adapter still needs async cancellation', () => {
+    const mounted=vi.fn();
+    const unmounted=vi.fn();
+    function Module() {
+      useEffect(() => { mounted(); return () => unmounted(); }, []);
+      return <p>Fake module</p>;
+    }
+    const p=getPreset('consultation')!;
+    const renderSlot=()=><Module/>;
+    const {rerender}=render(<StudioLayoutFrame layout={p} context={context} renderSlot={renderSlot}/>);
+    expect(mounted).toHaveBeenCalledTimes(2);
+    rerender(<StudioLayoutFrame layout={p} context={{...context,patientId:18}} renderSlot={renderSlot}/>);
+    expect(unmounted).toHaveBeenCalledTimes(2);
+    expect(mounted).toHaveBeenCalledTimes(4);
   });
 
   it('supports structural personal 2x2 arrangements without persisting clinical state', () => {
