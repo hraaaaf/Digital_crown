@@ -132,27 +132,61 @@ jobs:
               errors.push(`CONSOLE_ERROR ${message.text()} @ ${location.url || 'unknown'}:${location.lineNumber || 0}`);
             });
             let mockedMotifGets = 0;
+            let mockedMotifPreflights = 0;
+            const expectedOrigin = `http://127.0.0.1:${port}`;
             await context.route(/\/api\/motifs\/?(?:\?.*)?$/, route => {
-              if (route.request().method() !== 'GET') {
-                errors.push(`UNEXPECTED_MOTIF_METHOD ${route.request().method()} ${route.request().url()}`);
+              const request = route.request();
+              const url = new URL(request.url());
+              // Fail closed if a request for another API or cabinet is intercepted.
+              if (url.origin !== 'http://127.0.0.1:8005' ||
+                  url.pathname !== '/api/motifs/' ||
+                  url.search !== '?include_inactive=true') {
+                errors.push(`UNEXPECTED_MOTIF_URL ${request.method()} ${url.href}`);
+                return route.abort();
+              }
+              const origin = request.headers()['origin'];
+              if (origin && origin !== expectedOrigin) {
+                errors.push(`UNEXPECTED_MOTIF_ORIGIN ${origin}`);
+                return route.abort();
+              }
+              const corsHeaders = {
+                'access-control-allow-origin': expectedOrigin,
+                'access-control-allow-credentials': 'true',
+                'access-control-allow-methods': 'GET, OPTIONS',
+                'access-control-allow-headers': request.headers()['access-control-request-headers'] || 'authorization,content-type',
+                'vary': 'Origin',
+              };
+              if (request.method() === 'OPTIONS') {
+                mockedMotifPreflights += 1;
+                return route.fulfill({ status: 204, headers: corsHeaders });
+              }
+              if (request.method() !== 'GET') {
+                errors.push(`UNEXPECTED_MOTIF_METHOD ${request.method()} ${url.href}`);
                 return route.abort();
               }
               mockedMotifGets += 1;
               return route.fulfill({
-              status: 200,
-              contentType: 'application/json',
-              body: JSON.stringify([
-                { id:'cm_active', label:'Contrôle gouttière ancienne', category_id:'ORTHODONTIE', urgency:'planifié', is_active:true, source:'cabinet' },
-                { id:'cm_inactive', label:'Ancien contrôle cabinet', category_id:'CABINET', urgency:'normal', is_active:false, source:'cabinet' },
-              ]),
+                status: 200,
+                headers: corsHeaders,
+                contentType: 'application/json',
+                body: JSON.stringify([
+                  { id:'cm_active', label:'Contrôle gouttière ancienne', category_id:'ORTHODONTIE', urgency:'planifié', is_active:true, source:'cabinet' },
+                  { id:'cm_inactive', label:'Ancien contrôle cabinet', category_id:'CABINET', urgency:'normal', is_active:false, source:'cabinet' },
+                ]),
               });
             });
             await page.goto(`http://127.0.0.1:${port}/cust02-motifs.html`, { waitUntil: 'networkidle' });
             await page.getByText('Motif(s) de première consultation', { exact: true }).waitFor();
-            // This label appears only after the mocked inactive cabinet motif loads.
-            // The test MUST fail if the request never reaches the fixture.
-            await page.getByText('Ancien contrôle cabinet', { exact: true }).waitFor();
-            if (mockedMotifGets !== 1) errors.push(`MOTIF_FIXTURE_REQUEST_COUNT ${mockedMotifGets}, expected 1`);
+            // Preserve evidence on failed API/mock/render; never throw before screenshots.
+            // The inactive cabinet motif is selected in both visual harnesses.
+            try {
+              await page.getByText('Ancien contrôle cabinet', { exact: true }).waitFor({ timeout: 8000 });
+            } catch {
+              errors.push(`MOTIF_LABEL_NOT_VISIBLE GET=${mockedMotifGets} OPTIONS=${mockedMotifPreflights}`);
+            }
+            if (mockedMotifGets !== 1) {
+              errors.push(`MOTIF_FIXTURE_REQUEST_COUNT ${mockedMotifGets}, expected 1; OPTIONS=${mockedMotifPreflights}`);
+            }
             const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
             const shot = `${kind}-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({ path: path.join(output, shot), fullPage: true, animations: 'disabled' });
