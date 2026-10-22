@@ -36,13 +36,43 @@ En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 1. **Cadrage unique PRE** : mission/lot/sous-lot/chantier courant, Goal, Success observable et oracle, scope/exclusions, HEAD, niveau de risque, actions autorisées et gates REQUIRED/EXPERIMENTAL/HORS SCOPE. Un GO de mission autorise les actions sûres et réversibles **dans ce scope uniquement**.
 2. **Exécution continue** : explorer, coder sur branche isolée, tester, corriger et préparer PR DRAFT sans demander un accord à chaque micro-action ni élargir le périmètre. Arrêter et escalader en cas de risque clinique, d'accès patient, de modification de politique de sécurité ou d'opération irréversible.
 3. **Risque A faible** : documentation, contrats et tests non productifs — FUE-0. **Risque B modéré** : UI/API/parcours limités — tests ciblés + FUE-I/G réellement exécutable + négatifs pertinents. **Risque C critique** : auth/RBAC, données patients, migration, sécurité, clinique, cabinet/release — contrôles spécialisés stricts, fail-closed, restore/rollback et approbations humaines lorsqu'ils s'appliquent. L'impact détermine le risque.
-4. **Une seule chaîne de preuve** : FUE-0/I/G est le cadre de l'issue observable ; RPG-C/J/X/F/P ajoute les scénarios nécessaires selon le risque, sans campagne redondante. Tests ciblés pendant le développement ; réévaluation des seules preuves invalidées et confirmation sur HEAD final. Aucun rerun global systématique, ni polling CI. Sur lot significatif, deux perspectives adversariales internes consolidées à la fin ; pas de fausse revue externe indépendante.
+4. **Une seule chaîne de preuve** : FUE-0/I/G est le cadre de l'issue observable ; RPG-C/J/X/F/P ajoute les scénarios nécessaires selon le risque, sans campagne redondante. Tests ciblés pendant le développement ; réévaluation des seules preuves invalidées et confirmation sur HEAD final. Aucun rerun global systématique, ni polling CI. Sur lot significatif, une analyse adversariale transversale proportionnée au risque ; pas de double revue mécanique ni fausse indépendance.
 5. **Un seul bilan de gate** : EXECUTION_SCORE + FUE_EVIDENCE_SCORE, Perfection Pass et validation finale sur candidat/HEAD de clôture (ou gate critique) plutôt qu'après chaque microcommit ; POST Notion compact, risques et Next ; les réserves sont ajoutées à `techdoubt.md`.
 6. **Autorisation distincte toujours nécessaire** pour fusionner, déployer Vercel, installer/releaser cabinet, modifier irréversiblement les données réelles, activer une décision clinique ou changer un gate de sécurité, et pour toute validation clinique/réglementaire/visuelle/physique humaine requise. GO du scope != GO de merge ; ne pas contourner labels, règles et workflows trusted.
 7. **UI** : BEFORE/Target/AFTER sur viewports pertinents ; vérifier l'existence de la feature sur mobile avant d'en certifier le rendu ; accord propriétaire sur rendu final si requis. Les lots purement documentaires FUE-0 ne doivent pas inventer d'écrans ou de preuves navigateur.
 8. **Verdict** : tout BLOCKER/MAJOR, gate REQUIRED rouge, preuve critique absente ou GO humain manquant impose OPEN/BLOCKED. Un check expérimental n'est bloquant que s'il révèle un risque réel. Aucun score ne remplace la preuve.
 
 **But : moins d'interruptions, garanties patient/sécurité/clinique inchangées.**
+
+## Doctrine générale unique — commune à tous les assistants
+
+**AGENTS.md est la seule source de consignes générales Digital Crown.** `CLAUDE.md` doit renvoyer ici sans recopier de doctrine. Les documents de roadmap, `STATE.md` et Notion apportent des faits, décisions et preuves ; les règles `.claude/rules/`, agents spécialisés et `SKILL.md` ajoutent uniquement des contrats propres à leur domaine. Ne jamais atténuer une exigence clinique, légale, de confidentialité, de sécurité ou de validation humaine applicable.
+
+**Hiérarchie des faits :** repo/runtime/DB et HEAD vérifiés → documentation canonique GitHub → Notion canonique → sources Project → mémoire. Une ancienne instruction générale supprimée ne doit plus servir d'autorité concurrente.
+
+### Discipline d'exécution et de communication
+
+- **Périmètre verrouillé :** avant chaque action, vérifier qu'on reste dans le lot, sous-lot, chantier et mission autorisés. Fixer Goal, résultat observable, preuve et gates ; suspendre toute dérive et demander un GO distinct.
+- **Notion : maximum deux notes par mission matérielle** lorsque la connexion le permet : PRE (objectif/état) puis POST (résultat/preuve/blocage/Next), avant le bilan final. Aucune prétention d'écriture lorsque l'outil échoue ; pas de micro-journal.
+- **Autonomie :** contexte → agir dans le scope sûr/réversible → tester → corriger → preuve → POST → répondre. Ne pas annoncer du travail asynchrone fictif. Merge, Vercel, release cabinet, mutation irréversible et activation clinique ou changement d'un gate critique exigent une autorisation distincte.
+- **GitHub Actions :** donner systématiquement **l'URL exacte de tout run effectivement lancé**. Contrôler HEAD/tests/skips une fois, travailler sur ce qui est indépendant, revérifier à la décision, jamais de polling. Échec REQUIRED = investigation/correction ; run encore en cours sans autre action possible = **BLOQUÉ ASYNCHRONE**, URL du run et Next, jamais PASS inventé.
+- **Gates :** distinguer REQUIRED / EXPERIMENTAL / HORS SCOPE. Un gate expérimental n'est pas automatiquement bloquant, sauf risque réel sécurité, données, clinique ou production. Valider seulement ce que le diff ou les dépendances transversales peuvent invalider.
+- **Closeout ordonné :** tests/FUE réels adaptés au risque → preuves exact HEAD → Perfection Pass → source canonique pertinente → cohérence roadmap → décision de merge distincte → contrôles post-merge → suite seulement si ses dépendances sont closes. Une CI verte et un merge ne valent ni certification ni GO de déploiement.
+- **Mobile :** ne tester que les surfaces effectivement implémentées ; vérifier les routes avant d'imposer mobile. Fonction desktop-only = mobile non applicable motivé, sauf smoke ciblé pour un risque partagé.
+- **Revue :** rechercher BLOCKER/MAJOR, fail-open, régression et fausses preuves par une analyse adversariale transversale proportionnée au risque. Deux reviewers indépendants ne sont pas une condition mécanique de CONVERGED ; toute revue/validation spécialisée explicitement exigée reste distincte.
+- **Messages :** résultat → preuve → blocage → Next précis, avec effort recommandé (Instant/simple, Medium/standard, High/critique, Extra High si nécessaire et disponible ; en cas de doute choisir l'effort supérieur). Inscrire les réserves significatives dans `techdoubt.md` dès qu'une écriture sûre est possible. Terminer par le pied Lot · Sous-lot · Chantier · Roadmap défini ci-dessous.
+
+## Pied de message obligatoire — contrat de communication Digital Crown
+
+**À la fin de chaque message adressé à l'utilisateur dans le projet Digital Crown**, y compris une réponse courte, une question, un point de progression, un rapport de CI, une décision ou un blocage, ajouter **une dernière ligne unique**, sans aucun texte après, au format exact :
+
+**Lot :** [lot réellement actif] · **Sous-lot :** [sous-lot réellement actif] · **Chantier :** [mission précise en cours] · **Roadmap :** [état courant vérifié, prochain lot gelé/différé si pertinent]
+
+- **Identifier avant d'écrire** le lot, le sous-lot et le chantier à partir de la mission autorisée et des références courantes : repository/HEAD et canonique GitHub → roadmap/Notion → contexte conversationnel. Ne pas réutiliser mécaniquement le lot du message précédent si la mission a changé.
+- La **roadmap** indique de façon brève ce qui est `OUVERT`, `EN COURS`, `GELÉ`, `DIFFÉRÉ` ou `CLOS`, seulement si le statut est prouvé. Ne jamais déverrouiller un lot, déduire un `PASS`, une fusion ou un déploiement de cette ligne. Si un fait manque, écrire explicitement `à confirmer` plutôt que l'inventer.
+- Lorsque le travail concerne seulement la gouvernance documentaire, **nommer ce chantier réel** et son sous-lot documentaire, sans le faire passer artificiellement pour une fonctionnalité Crown Bot, clinique ou physique.
+- Placer le résultat, la preuve, le blocage et le **Next avec effort conseillé** avant cette signature. **La signature reste le dernier élément visible** ; pas de liste, note, citation ou question après.
+- **Exemple de forme uniquement, non à recopier comme état permanent :** Lot : Crown Bot 2.0 · Sous-lot : CB-01 FIRST_VALUE_UI · Chantier : alignement de gouvernance et requalification FUE · Roadmap : CB-01 ouvert, CB-02 gelé, Lot 10 physique différé.
 
 ## Architecture courante
 
@@ -239,7 +269,7 @@ Objectif : réduire les reruns inutiles sans diminuer le niveau de preuve final.
 2. PRE Notion unique : Goal, preuve, scope/risque, HEAD et gates ; aucune dérive de chantier autorisée.
 3. Modifier sur branche isolée ; tests ciblés, corrections et cas négatifs autonomes, sans micro-approbations.
 4. Choisir FUE-0/I/G et scénarios RPG proportionnés, exécuter toutes protections spécialisées pertinentes.
-5. Sur HEAD final, vérifier preuves réellement impactées, CI une fois à la décision ; revue adversariale interne à deux angles si significatif.
+5. Sur HEAD final, vérifier preuves réellement impactées, CI une fois à la décision ; revue adversariale transversale proportionnée au risque si significatif.
 6. Noter les deux scores et faire une Perfection Pass consolidée au verdict ; aucune fausse validation par une CI simplement verte.
 7. POST Notion compact ; réserve dans `techdoubt.md` ; PR DRAFT, liens des runs, Next. Solliciter GO distinct avant merge/déploiement/release ou mutation sensible.
 8. Toute installation reste soumise à `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` et aux gates exact-artifact.
