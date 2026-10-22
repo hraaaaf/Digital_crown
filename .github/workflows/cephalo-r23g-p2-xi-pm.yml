@@ -1,0 +1,41 @@
+name: Cephalo R23-G P2 Xi/Pm Evidence (experimental)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g-p2-xi-pm.yml'
+      - 'backend/tests/test_cephalo_r23g_p2_xi_pm_evidence.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  xi-pm-typed-refusal:
+    name: Xi/Pm typed gates to Atlas/Gregoret and Focus (synthetic)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: rehearsal
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact branch HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated schema and test dependencies
+        run: python -m pip install pytest==9.0.3 pydantic==2.6.3 SQLAlchemy==2.0.28 email-validator==2.3.0 fastapi==0.115.6
+      - name: Execute negative typed Xi/Pm cases without clinic runtime
+        run: python -m pytest --noconftest backend/tests/test_cephalo_r23g_p2_xi_pm_evidence.py -q
+      - name: Ensure test changes do not activate reference protocols in standard path
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s = Path("backend/services/cephalo_runtime_chain.py").read_text()
+          block = s.split('"protocol_profiles": {', 1)[1].split('}', 1)[0]
+          assert '"steiner"' in block and '"tweed_merrifield"' in block
+          assert not any(f'"{name}"' in block for name in ("mcnamara","com","ricketts_atlas2009","ricketts_gregoret13"))
+          print("PASS: reference protocols remain opt-in")
+          PY
