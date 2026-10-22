@@ -588,10 +588,26 @@ try {
       const proxyWidth=Math.floor(width/2);
       // Reflow PROXY: half the CSS viewport width; NOT native Chrome zoom.
       await page.setViewportSize({width:proxyWidth,height});
-      await sidecar.waitFor({state:'visible'});
-      if ((await sidecar.getAttribute('data-cb01-workspace-dock'))===null || await overlay.count()) {
-        throw Error('FAIL: desktop sidecar did not reflow to medium desktop dock');
+      // The already-mounted Sidecar can remain visible before matchMedia's
+      // responsive update. Require the actual dock transition; stay fail-closed.
+      try {
+        await page.waitForFunction(() => {
+          const panel=document.querySelector('[data-cb01-associate-sidecar]');
+          return panel?.hasAttribute('data-cb01-workspace-dock')
+            && !document.querySelector('[data-ux1-c-crownbot-overlay]');
+        },null,{timeout:15000});
+      } catch {
+        const diagnostic=await page.evaluate(() => ({
+          width:window.innerWidth,
+          wideQuery:matchMedia('(min-width: 1600px)').matches,
+          dockQuery:matchMedia('(min-width: 768px)').matches,
+          isDock:!!document.querySelector('[data-cb01-workspace-dock]'),
+          hasOverlay:!!document.querySelector('[data-ux1-c-crownbot-overlay]'),
+        }));
+        throw Error('FAIL: desktop sidecar did not reflow to medium desktop dock '+
+          JSON.stringify(diagnostic));
       }
+      await sidecar.waitFor({state:'visible'});
       const floatingPreview=sidecar.getByRole('region',{name:'Assistant Crown Bot — consultation'});
       const floatingDraft=await floatingPreview.getByRole('textbox',{
         name:'Votre réponse de simulation',
