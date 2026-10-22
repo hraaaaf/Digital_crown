@@ -28,7 +28,8 @@ STOP_NAME = {
 }
 BLOCKED = re.compile(
     r"\b(?:confirme(?:r|z)?|execute(?:r|z)?|enregistre(?:r|z)?|"
-    r"supprime(?:r|z)?|efface(?:r|z)?|prescri(?:s|re)|ordonnance|"
+    r"supprime(?:r|z)?|efface(?:r|z)?|annul\w*|valid\w*|"
+    r"reserv\w*|sauvegard\w*|prescri(?:s|re)|ordonnance|"
     r"prescription|diagnostic|facture|paye(?:r|z)?|"
     r"ignore[rz]?|bypass|sans autorisation|autre cabinet)\b"
 )
@@ -200,7 +201,10 @@ def parse_guided_french(
             return _refuse("Correction de deux champs refusée.")
         if changing_date and _time(text)[0] is not None:
             return _refuse("Correction de deux champs refusée.")
-        updated = {k: {**v, "source": "selected_prior_draft"} for k, v in previous.fields.items()}
+        # Carried patient text is still NOT a selected/authorized dossier.
+        updated = {k: {**v, "source": ("carried_unverified_patient"
+                                      if k == "patient" else "carried_prior_draft")}
+                   for k, v in previous.fields.items()}
         key = "time" if changing_time else "date"
         updated[key] = _field(value, "explicit_correction", "CB02_CORRECTION")
         return _finish("RDV_PREPARE", updated, principal_scope, cabinet_today)
