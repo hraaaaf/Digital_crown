@@ -1,0 +1,76 @@
+name: LOT05 J10T AKUDENTAL Disposable CPU Research Pilot
+
+on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
+    paths:
+      - .github/workflows/lot05-j10t-akudental-cpu-training-pilot.yml
+      - experiments/lot05_j10t_akudental_torchvision_pilot.py
+      - experiments/lot05_j10r_akudental_private_research_workspace.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capped-academic-smoke:
+    name: CPU 24 train / 8 val, no uploaded pixels or model weights
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+      YOLO_OFFLINE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PyTorch torchvision CPU only and image decoder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'pillow==11.3.0'
+          python -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu \
+            'torch==2.5.1' 'torchvision==0.20.1'
+          python -c 'import torch, torchvision; assert not torch.cuda.is_available(); print("TORCH_CPU_ONLY_READY")'
+      - name: Pull pinned academic research data into temporary runner (not app repository artifacts)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            '/AKUDENTAL/folds/fold_0/labels/' '/AKUDENTAL/images/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          echo "SOURCE_SHA_MATCH_IMAGES_TEMPORARILY_LOCAL"
+      - name: Validate 333 original annotations and stage non-copying private YOLO workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          python experiments/lot05_j10r_akudental_private_research_workspace.py \
+            --source-repo third_party/AKUDENTAL \
+            --fold fold_0 \
+            --workspace "$RUNNER_TEMP/j10t-private-data"
+      - name: One epoch fine-tune disposable research head and measure limited validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python experiments/lot05_j10t_akudental_torchvision_pilot.py \
+            --workspace "$RUNNER_TEMP/j10t-private-data" \
+            --train-limit 24 \
+            --val-limit 8
+      - name: Delete temporary dataset, labels, pretrained weights and derived pilot workspace
+        if: always()
+        shell: bash
+        run: |
+          rm -rf third_party/AKUDENTAL "$RUNNER_TEMP/j10t-private-data" \
+            "$HOME/.cache/torch/hub/checkpoints"
+          echo "RESEARCH_RUNNER_LOCAL_FILES_CLEANED_NO_ARTIFACTS"
