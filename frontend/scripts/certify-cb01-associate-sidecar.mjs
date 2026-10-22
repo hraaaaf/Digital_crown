@@ -438,7 +438,9 @@ try {
       }
       // WCAG 1.4.3 — measure real computed foreground/background pixels for
       // essential first-value instruction text (normal-size: at least 4.5:1).
-      const firstValueContrast=await preview.locator('.bg-white').first().locator('p').first().evaluate(element => {
+      // Stable semantic target: the action grid now precedes the safety card.
+      // Still evaluates the same instruction text and its actual white parent.
+      const firstValueContrast=await preview.getByText('Que souhaitez-vous consulter ?', {exact:true}).evaluate(element => {
         // Tailwind 4 computed colors are often OKLCH, not legacy rgb().
         // Ask Chromium itself for an explicit sRGB conversion via CSS Color 4.
         const parse = value => {
