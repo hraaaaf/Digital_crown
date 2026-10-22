@@ -1,6 +1,38 @@
 name: CB-01 Windows FUE-G MainLayout FastAPI NVDA Zoom (EXPERIMENTAL)
 
+# Automated isolated runner certification on PR and the exact merged master.
+# Experimental flags apply to disposable GitHub Actions jobs only.
+# Not a human/physical-cabinet certification or a deployment.
 on:
+  push:
+    branches: [master]
+    paths:
+      - frontend/scripts/certify-cb01-windows-fueg-combined.mjs
+      - frontend/scripts/cb01-dashboard-startup-races.mjs
+      - frontend/scripts/cb01-dashboard-cold-boundaries.mjs
+      - frontend/scripts/t2-workstation-session.mjs
+      - frontend/src/components/Layout/MainLayout.tsx
+      - frontend/src/App.tsx
+      - frontend/src/pages/LoginPage.tsx
+      - frontend/src/components/Auth/CabinetAuthTransitionBoundary.tsx
+      - frontend/src/components/Auth/CabinetAuthTransitionBoundary.test.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
+      - frontend/src/services/api.ts
+      - frontend/src/services/apiBase.ts
+      - frontend/package.json
+      - frontend/package-lock.json
+      - backend/config.py
+      - backend/database.py
+      - backend/core/runtime_safety.py
+      - backend/routers/auth.py
+      - backend/routers/bot_workflows.py
+      - backend/services/bot/workflow_poc.py
+      - backend/services/bot/patient_selector.py
+      - scripts/t2_runtime_server.py
+      - scripts/ci/cb01_windows_fueg_fixture.py
+      - requirements.txt
+      - .github/workflows/cb01-windows-fueg-mainlayout.yml
   pull_request:
     paths:
       # FUE-G must retrigger when the real MainLayout, auth/preview contract,

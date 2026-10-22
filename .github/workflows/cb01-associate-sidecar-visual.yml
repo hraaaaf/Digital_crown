@@ -1,6 +1,31 @@
 name: CB-01 Associate Sidecar Visual (EXPERIMENTAL)
 
+# Automated isolated runner certification on PR and the exact merged master.
+# Experimental test flags apply to disposable GitHub Actions jobs only.
+# Not a human/physical-cabinet certification or a deployment.
 on:
+  push:
+    branches: [master]
+    paths:
+      - frontend/src/components/Layout/MainLayout.tsx
+      - frontend/src/components/Layout/MainLayout.g1Interactive.test.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
+      - frontend/scripts/certify-cb01-associate-sidecar.mjs
+      - frontend/scripts/certify-cb01-s01-s12-matrix.mjs
+      - scripts/ci/cb01_s07_s09_http_pg.py
+      - scripts/ci/cb01_evidence_ledger.py
+      - frontend/src/features/agenda/AgendaModal.tsx
+      - scripts/ci/cb01_s07_s09_sqlcipher.py
+      - scripts/ci/cb01_s07_s09_postgres.py
+      - frontend/src/features/agenda/AgendaModal.g3Interactive.test.tsx
+      - backend/routers/ai_feedback.py
+      - backend/tests/test_ai_feedback_router.py
+      - frontend/src/components/GhostBrainWidget.tsx
+      - frontend/src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+      - frontend/src/components/GhostBrainWidget.g9Interactive.test.tsx
+      - .github/workflows/cb01-associate-sidecar-visual.yml
   pull_request:
     paths:
       - frontend/src/components/Layout/MainLayout.tsx
