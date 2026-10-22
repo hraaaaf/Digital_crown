@@ -10,6 +10,8 @@ import importlib.util
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
+from urllib.error import HTTPError
 
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
@@ -111,6 +113,25 @@ class TestAcademicPublicJPEG(unittest.TestCase):
                     "https://user:password@api.data.mendeley.com/foo"):
             with self.subTest(url=url):
                 self.assertFalse(m._public_domain(url))
+
+    def test_unsafe_redirect_is_denied_before_network(self):
+        for destination in ("http://169.254.169.254/latest/meta-data",
+                            "https://example.com/private",
+                            "file:///tmp/patient.jpg"):
+            with self.subTest(destination=destination), self.assertRaisesRegex(
+                    m.PublicSampleError, "untrusted_public_storage_redirect"):
+                m._AllowlistedRedirects().redirect_request(
+                    None, None, 302, "Found", {}, destination)
+
+    def test_http_403_is_reported_without_url_or_body(self):
+        class DeniedOpener:
+            def open(self, request, timeout):
+                raise HTTPError(request.full_url, 403, "Forbidden", {}, None)
+
+        with patch.object(m, "build_opener", return_value=DeniedOpener()):
+            with self.assertRaisesRegex(m.PublicSampleError,
+                                        "^public_academic_http_403$"):
+                m._read(m.DATASET_API, 1000, "application/json")
 
     def test_no_image_file_in_list_is_not_success(self):
         with self.assertRaises(m.PublicSampleError):
