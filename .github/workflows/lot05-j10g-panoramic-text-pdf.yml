@@ -40,7 +40,7 @@ jobs:
           python -m pip install 'weasyprint==68.1' 'jinja2==3.1.6' 'pypdf==6.1.3'
           python -m pip check
       - name: Render real PDF from synthetic narrative and inspect EVERY page for embedded images
-        run: python -m unittest -v backend/tests/test_panoramic_pdf_text_only_j10g.py
+        run: python backend/tests/test_panoramic_pdf_text_only_j10g.py -v
       - name: Confirm the PDF path remains protected
         run: |
           python - <<'PY'
