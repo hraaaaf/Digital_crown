@@ -33,6 +33,33 @@ describe('LOT05/J10F lab within Imagerie — artificial research image only', ()
     expect(screen.getByText(/aucune sauvegarde patient/i)).toBeTruthy();
     await waitFor(() => expect(fetchSpy).not.toHaveBeenCalled());
   });
+  it('never carries confirmed FDI or acts into a different research image, even same dimensions', async () => {
+    const create = vi.fn(() => 'blob:new-research-image');
+    const revoke = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: revoke });
+    vi.stubGlobal('Image', class FakeImage {
+      naturalWidth = 1200;
+      naturalHeight = 600;
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      set src(_value: string) { Promise.resolve().then(() => this.onload?.()); }
+    });
+    render(<FDIResearchPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Exemple synthétique' }));
+    fireEvent.click(screen.getByRole('button', { name: /36 · à vérifier/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer FDI' }));
+    expect(screen.getByText('1 confirmées')).toBeTruthy();
+    const researchImage = new File(['fake image bytes'], 'research-2.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText('Image locale de recherche'), {
+      target: { files: [researchImage] },
+    });
+    await waitFor(() => {
+      expect(screen.getByText('0 propositions')).toBeTruthy();
+      expect(screen.getByText('0 confirmées')).toBeTruthy();
+    });
+    expect(create).toHaveBeenCalledOnce();
+  });
+
   it('never accepts an act before FDI is confirmed', () => {
     render(<FDIResearchPanel />);
     fireEvent.click(screen.getByRole('button', { name: 'Exemple synthétique' }));
