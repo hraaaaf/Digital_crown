@@ -71,22 +71,37 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       && typeof window.matchMedia === 'function'
       && window.matchMedia('(min-width: 1600px)').matches,
   );
+  const [isDockableDesktop, setIsDockableDesktop] = useState(
+    () => typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(min-width: 768px)').matches,
+  );
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
-    const query = window.matchMedia('(min-width: 1600px)');
-    const onChange = () => setIsWideDesktop(query.matches);
-    onChange();
-    query.addEventListener('change', onChange);
-    return () => query.removeEventListener('change', onChange);
+    const wideQuery = window.matchMedia('(min-width: 1600px)');
+    const dockQuery = window.matchMedia('(min-width: 768px)');
+    const onWideChange = () => setIsWideDesktop(wideQuery.matches);
+    const onDockChange = () => setIsDockableDesktop(dockQuery.matches);
+    onWideChange();
+    onDockChange();
+    wideQuery.addEventListener('change', onWideChange);
+    dockQuery.addEventListener('change', onDockChange);
+    return () => {
+      wideQuery.removeEventListener('change', onWideChange);
+      dockQuery.removeEventListener('change', onDockChange);
+    };
   }, []);
-  // CB-01 experiment: permanent sidecar only from 1600 CSS px. At 1280/1440,
-  // real Agenda/PatientDetails screenshots showed clipped patient tabs and
-  // crowded clinical controls; use dismissible floating web fallback instead.
-  // Desktop web only, double opt-in; cabinet stays on the old floating UI.
+  // CB-01: >=1600 CSS px keeps the sidecar. At 768-1599 CSS px a
+  // non-overlapping bottom dock reserves space in the scrollable clinical
+  // workspace, instead of covering patient or agenda actions.
+  // Below 768 CSS px retain the original web floating fallback (not Pocket).
+  // Both opt-in flags stay OFF in the actual cabinet.
   const associateSidecarEnabled =
     import.meta.env.VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED === 'true'
     && import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
   const showAssociateSidecar = associateSidecarEnabled && isWideDesktop;
+  const showWorkspaceDock = associateSidecarEnabled && isDockableDesktop && !isWideDesktop;
+  const showStructuredPanel = showAssociateSidecar || showWorkspaceDock;
   const sidecarCloseButtonRef = React.useRef<HTMLButtonElement>(null);
   const associatePanelRef = React.useRef<HTMLDivElement>(null);
   const wasSidecarOpenRef = React.useRef(false);
@@ -97,7 +112,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     setIsBotOpen(false);
   };
   useEffect(() => {
-    const sidecarOpen = showAssociateSidecar && isBotOpen;
+    const sidecarOpen = showStructuredPanel && isBotOpen;
     if (sidecarOpen && !wasSidecarOpenRef.current) {
       sidecarCloseButtonRef.current?.focus();
     } else if (isBotOpen && wasSidecarOpenRef.current && !sidecarOpen) {
@@ -109,7 +124,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       crownBotLauncherRef.current?.focus();
     }
     wasSidecarOpenRef.current = sidecarOpen;
-  }, [showAssociateSidecar, isBotOpen]);
+  }, [showStructuredPanel, isBotOpen]);
   // Parent badge survives a closed chat: scope its state to the exact
   // principal/rights key, not just the keyed CrownBotChat subtree. When
   // changing tenants the old count is hidden on the FIRST render.
@@ -149,7 +164,11 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col relative z-10 overflow-hidden min-w-0">
+      <div
+        data-cb01-workspace-shell
+        className={`relative z-10 flex flex-1 min-h-0 min-w-0 ${showWorkspaceDock && isBotOpen && !isCommandCabinetLab ? 'flex-col' : 'flex-row'}`}
+      >
+      <div className="flex-1 flex flex-col relative z-10 overflow-hidden min-w-0 min-h-0">
         <LicenseBanner />
         <button
           onClick={() => setIsSidebarOpen(true)}
@@ -165,7 +184,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         />
         <VoluntaryTutorialPanel />
 
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-3 sm:p-4 lg:p-8'}`}>
+        <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-3 sm:p-4 lg:p-8'}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -196,12 +215,15 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         <div
           ref={associatePanelRef}
           tabIndex={-1}
-          data-cb01-associate-sidecar={showAssociateSidecar ? true : undefined}
-          data-ux1-c-crownbot-overlay={!showAssociateSidecar ? true : undefined}
-          role={showAssociateSidecar ? 'complementary' : undefined}
-          aria-label={showAssociateSidecar ? 'Crown Bot — assistant latéral expérimental' : undefined}
+          data-cb01-associate-sidecar={showStructuredPanel ? true : undefined}
+          data-cb01-workspace-dock={showWorkspaceDock ? true : undefined}
+          data-ux1-c-crownbot-overlay={!showStructuredPanel ? true : undefined}
+          role={showStructuredPanel ? 'complementary' : undefined}
+          aria-label={showAssociateSidecar
+            ? 'Crown Bot — assistant latéral expérimental'
+            : showWorkspaceDock ? 'Crown Bot — assistant ancré sous le dossier' : undefined}
           onKeyDown={event => {
-            if (showAssociateSidecar && event.key === 'Escape') {
+            if (showStructuredPanel && event.key === 'Escape') {
               event.preventDefault();
               event.stopPropagation();
               closeAssociateSidecar();
@@ -209,13 +231,15 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
           }}
           className={showAssociateSidecar
             ? 'relative z-20 flex h-full min-h-0 w-[clamp(360px,30vw,480px)] shrink-0 flex-col border-l border-slate-200 bg-white shadow-2xl'
-            : `fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
+            : showWorkspaceDock
+              ? 'relative z-20 flex h-[clamp(250px,36dvh,340px)] min-h-0 w-full shrink-0 flex-col border-t border-slate-200 bg-white shadow-2xl'
+              : `fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
                 isPatientRoute
                   ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
                   : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px] sm:max-h-[calc(100dvh-8rem)]'
               }`}
         >
-          {showAssociateSidecar && (
+          {showStructuredPanel && (
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-800">Crown Bot · Associate</p>
@@ -232,19 +256,20 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
               </button>
             </div>
           )}
-          <div className={showAssociateSidecar ? 'min-h-0 flex-1' : 'h-full'}>
+          <div className={showStructuredPanel ? 'min-h-0 flex-1' : 'h-full'}>
             <CrownBotChat
               key={crownBotPrincipalKey}
-              onClose={showAssociateSidecar ? closeAssociateSidecar : () => setIsBotOpen(false)}
+              onClose={showStructuredPanel ? closeAssociateSidecar : () => setIsBotOpen(false)}
               onUnreadChange={onCrownBotUnreadChange}
             />
           </div>
         </div>
       )}
+      </div>
 
       {!isCommandCabinetLab && <div
         data-ux1-c-crownbot-floating
-        className={`${showAssociateSidecar && isBotOpen ? 'hidden lg:hidden' : (isPatientRoute ? 'hidden lg:block' : '')} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
+        className={`${showStructuredPanel && isBotOpen ? 'hidden lg:hidden' : (isPatientRoute ? 'hidden lg:block' : '')} fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-8 sm:right-8`}
       >
         <button
           ref={crownBotLauncherRef}
