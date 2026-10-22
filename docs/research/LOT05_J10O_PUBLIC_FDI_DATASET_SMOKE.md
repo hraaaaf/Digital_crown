@@ -38,3 +38,7 @@ Les portes suivantes doivent être distinguées : **(1) l'accès à un dataset p
 Un futur entraînement efficace devrait choisir des panoramiques avec 32 positions FDI par dent, vérifier l'orientation, contrôler doublons/permutations, reconstruire un split au niveau du patient/source plutôt qu'au niveau des augmentations 90° et mesurer précision de numérotation des films entièrement corrects. Après cela, seulement, entraînement D-FINE Nano sur ces classes et comparaison indépendante sur Windows et Linux.
 
 **Contrat de l'interface propriétaire** : le PDF panoramique validé contient **exclusivement le compte rendu écrit**, aucune image radiographique n'est insérée dans le PDF.
+
+## Déclenchement GitHub Actions en branches Draft empilées
+
+Le workflow J10O a été enregistré également dans la branche parente expérimentale J10N pour garantir l'éligibilité de l'événement pull_request, sans merge sur une branche produit, sans changement des jobs certifiés J10N et sans déploiement. Le commit de branche parente est `691db386eab58a62a95440d60e50ea3e9f932f18`. Le workflow sur J10O reste identique ; seules des requêtes publiques limitées sont autorisées.
