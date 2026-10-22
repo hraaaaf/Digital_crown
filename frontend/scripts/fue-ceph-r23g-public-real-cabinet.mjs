@@ -139,6 +139,10 @@ async function execute(viewport) {
       });
 
       await check(name.toUpperCase()+'_BEFORE_ACTION_AFTER_TRUE_BROWSER_IMAGE',async()=>{
+        // Observe previous study media to refuse a stale A image in study B.
+        const previousHref=await page.evaluate(()=>
+          document.querySelector('svg[data-cephalo-viewport="base"] image')?.getAttribute('href') || null
+        );
         await page.getByRole('button',{name:'Historique',exact:true}).click();
         await page.locator('[data-cephalo-history-analysis-id="'+spec.study_id+'"]')
           .waitFor({state:'visible'});
@@ -146,11 +150,11 @@ async function execute(viewport) {
         await page.locator('[data-cephalo-history-analysis-id="'+spec.study_id+'"]').click();
         await page.locator('[data-cephalo-selected-analysis-id="'+spec.study_id+'"]')
           .waitFor({state:'visible',timeout:30000});
-        await page.waitForFunction(()=>{
+        await page.waitForFunction((prior)=>{
           const source=document.querySelector('svg[data-cephalo-viewport="base"] image');
           const url=source?.getAttribute('href') || source?.getAttribute('xlink:href') || '';
-          return url.startsWith('blob:');
-        },null,{timeout:30000});
+          return url.startsWith('blob:') && (!prior || url!==prior);
+        },previousHref,{timeout:30000});
         const displayed=await page.evaluate(async()=>{
           const source=document.querySelector('svg[data-cephalo-viewport="base"] image');
           const url=source?.getAttribute('href') || source?.getAttribute('xlink:href');
