@@ -3,10 +3,11 @@ import re
 import logging
 from typing import List, Dict
 from datetime import datetime
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 import importlib.util
 
 from backend.services.base_template import BaseTemplate
+from backend.services.panoramic_pdf_outline import parse_panoramic_report
 from backend import models
 from backend.utils.access_control import assert_patient_access
 from sqlalchemy.orm import Session
@@ -31,7 +32,10 @@ class PanoramicEliteGenerator(BaseTemplate):
         self.full_output_dir = os.path.join(self.base_path, self.output_dir)
         os.makedirs(self.full_output_dir, exist_ok=True)
         template_dir = os.path.join(self.base_path, "templates")
-        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
+        self.jinja_env = Environment(
+            loader=FileSystemLoader(template_dir),
+            autoescape=select_autoescape(enabled_extensions=('html', 'xml'), default=True),
+        )
 
     def generate(self, db: Session, analysis_id: int, current_user: models.User) -> str:
         """Génère le PDF uniquement après validation de l'accès au patient."""
@@ -66,7 +70,7 @@ class PanoramicEliteGenerator(BaseTemplate):
 
         template = self.jinja_env.get_template("panoramic_elite.html")
         html_content = self._sanitize_rendered_html(template.render(context))
-        filename = f"RADIO_ELITE_{patient.nom.upper()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        filename = f"PANORAMIQUE_BILAN_{analysis_id}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.pdf"
         file_path = os.path.join(self.full_output_dir, filename)
 
         if WEASYPRINT_AVAILABLE:
@@ -97,26 +101,8 @@ class PanoramicEliteGenerator(BaseTemplate):
         return "Non documenté"
 
     def _categorize_findings(self, markdown: str) -> List[Dict]:
-        categories = []
-        if not markdown or len(markdown) < 10:
-            return [{"name": "Observations radiographiques", "findings": ["Aucune observation documentée."]}]
-        current_cat = None
-        lines = markdown.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.startswith('## ') or line.startswith('### '):
-                name = line.replace('#', '').strip()
-                current_cat = {"name": name, "findings": []}
-                categories.append(current_cat)
-            elif (line.startswith('- ') or line.startswith('* ')) and current_cat is not None:
-                item = line[2:].replace('**', '').strip()
-                current_cat["findings"].append(item)
-        if not categories:
-            items = [line[2:].strip() for line in lines if line.startswith('- ') or line.startswith('* ')]
-            if not items:
-                items = [markdown]
-            return [{"name": "Observations radiographiques", "findings": items}]
-        return categories
+        """Preserve every authored section and paragraph, without diagnosis."""
+        return parse_panoramic_report(markdown)
 
     def _sanitize_rendered_html(self, html_content: str) -> str:
         """Neutralise les assertions de présentation incompatibles avec le contrat fail-closed."""
