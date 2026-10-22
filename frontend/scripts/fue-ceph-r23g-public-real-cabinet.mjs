@@ -127,7 +127,11 @@ async function execute(viewport) {
         if(x.id!==spec.study_id || x.image_original_path!==spec.source_path
             || x.is_calibrated!==false || x.mm_per_pixel!=null
             || x.calibration_data!=null || !Array.isArray(x.landmarks_data)
-            || x.landmarks_data.length!==0 || (x.angles_data && Object.keys(x.angles_data).length))
+            || x.landmarks_data.length!==0
+            // This read-only compatibility status is added by GET /ia/analyses
+            // for legacy payloads. It is NOT a calibration or numeric oracle.
+            || !x.angles_data || Object.keys(x.angles_data).length!==1
+            || x.angles_data.calibration_status!=='unverified')
           throw Error('Public study has invented evidence or wrong original');
         return {case:name,image_sha256:spec.sha256,width:spec.width,height:spec.height,
           source_http:source.status(),unauth_media_http:unauthStatus,
