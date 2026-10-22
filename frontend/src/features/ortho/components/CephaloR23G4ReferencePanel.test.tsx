@@ -75,7 +75,7 @@ describe('R23-G4 COM compact UI, read-only Focus', () => {
     window.addEventListener('digital-crown:cephalo-metric', handler);
     const rendered = render(<CephaloR23G4ReferencePanel P={P} analysis="com" />);
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: /Facteur 1/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Facteur 1$/ }));
     expect(screen.getByText(/Focus non autorisé/)).toBeTruthy();
     expect(received.every(x => x === null)).toBe(true);
     st.current = { patientId: 7, analysisId: 10, imageSrc: 'synthetic-10.png',
@@ -94,7 +94,7 @@ describe('R23-G4 COM compact UI, read-only Focus', () => {
     window.addEventListener('digital-crown:cephalo-metric', handler);
     const rendered = render(<CephaloR23G4ReferencePanel P={P} analysis="com" />);
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: /Facteur 1/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Facteur 1$/ }));
     await waitFor(() => expect(received.some(x => x?.authority === 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1')).toBe(true));
     const focus = received.find(x => x?.authority === 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1');
     expect(focus.points).toEqual(['A', 'B']);
