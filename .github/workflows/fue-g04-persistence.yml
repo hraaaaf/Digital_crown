@@ -27,7 +27,28 @@ jobs:
           python-version: '3.12'
       - name: Install SQLCipher build dependency on Linux
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libsqlcipher-dev
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Runner images can register unrelated vendor repos (e.g. Microsoft).
+          # A failed/blocked vendor InRelease must not prevent official Ubuntu
+          # libsqlcipher-dev from being installed. Do not disable TLS/signatures.
+          # Fail closed if GitHub's Ubuntu signed source manifest is absent.
+          ubuntu_sources=/etc/apt/sources.list.d/ubuntu.sources
+          test -f "$ubuntu_sources"
+          grep -q '^Signed-By:' "$ubuntu_sources"
+          ubuntu_apt=(
+            -o "Dir::Etc::sourcelist=$ubuntu_sources"
+            -o 'Dir::Etc::sourceparts=-'
+            -o 'Acquire::Retries=1'
+            -o 'Acquire::http::Timeout=20'
+            -o 'Acquire::https::Timeout=20'
+          )
+          sudo timeout --signal=TERM --kill-after=10s 120s apt-get "${ubuntu_apt[@]}" update
+          sudo timeout --signal=TERM --kill-after=10s 120s env DEBIAN_FRONTEND=noninteractive \
+            apt-get "${ubuntu_apt[@]}" install -y --no-install-recommends libsqlcipher-dev
+          dpkg-query -W -f='${Status}\n' libsqlcipher-dev | grep -Fx 'install ok installed'
       - name: Install isolated test dependencies matching runtime contract
         run: >
           pip install pytest sqlalchemy==2.0.48 alembic==1.20.0 passlib==1.7.4
