@@ -129,7 +129,12 @@ export type LayoutPreference = Readonly<{
 /** Allowlist projection only. NO patient IDs, clinical subviews, media, tokens or drafts. */
 export function projectLayoutPreference(layout: Layout, userId: string, workstationId: string, ratio = 50): LayoutPreference | null {
   if (!validLayout(layout) || !userId.trim() || !workstationId.trim() || !Number.isFinite(ratio)) return null;
-  return {version:1,userId,workstationId,id:layout.id,geometry:layout.geometry,
-    slots:layout.slots.map(slot => ({id:slot.id,module:slot.module})),
+  // Never persist free-form layout or slot IDs: users could embed patient names/IDs.
+  // Derive identifiers solely from pre-declared module names and geometry.
+  const isExactPreset = PRESETS.some(p => p.id === layout.id && p.geometry === layout.geometry &&
+    p.slots.length === layout.slots.length && p.slots.every((s,i) => s.module === layout.slots[i].module));
+  const safeId = isExactPreset ? layout.id : ['custom',layout.geometry,...layout.slots.map(s => s.module)].join('-');
+  return {version:1,userId,workstationId,id:safeId,geometry:layout.geometry,
+    slots:layout.slots.map((slot,index) => ({id:'slot-' + (index+1),module:slot.module})),
     ratio:Math.max(37,Math.min(63,Math.round(ratio)))};
 }
