@@ -209,6 +209,7 @@ try {
   };
   for (const width of [390, 430, 1280, 1440, 1600, 1920]) {
     const desktop = width >= 1600;
+    const docked = width >= 768 && width < 1600;
     const height = desktop ? 900 : 844;
     const context = await browser.newContext({ viewport:{width,height} });
     await context.addInitScript(({access,refresh}) => {
@@ -248,7 +249,7 @@ try {
     await opener.click();
     const sidecar=page.locator('[data-cb01-associate-sidecar]');
     const overlay=page.locator('[data-ux1-c-crownbot-overlay]');
-    if (desktop) {
+    if (desktop || docked) {
       await sidecar.waitFor({state:'visible',timeout:15000});
       if(await overlay.count()) throw new Error('FAIL: hidden duplicate chatbot mounted');
       const initialClose=page.getByRole('button',{name:'Réduire le panneau Crown Bot'});
@@ -285,6 +286,7 @@ try {
       if (!await initialClose.evaluate(el=>el===document.activeElement)) {
         throw new Error('FAIL: Shift+Tab did not return to Reduce');
       }
+      if (desktop) {
       // B-NEW-01: real Chromium keyboard navigation of the History drawer.
       // The operator must enter History, dismiss it with Escape and return
       // to the original trigger without closing the entire sidecar.
@@ -331,10 +333,16 @@ try {
       }
       await historyView.getByRole('button',{name:'Retour aux actions'}).click();
       await sidecar.getByRole('button',{name:'Mon programme'}).waitFor({state:'visible'});
+      }
+      if (docked) {
+        await sidecar.getByRole('region',{name:'Assistant Crown Bot — consultation'}).waitFor({state:'visible'});
+        if ((await sidecar.getAttribute('data-cb01-workspace-dock'))===null)
+          throw Error('FAIL: medium desktop must reserve a bottom dock');
+      }
     } else {
       await overlay.waitFor({state:'visible',timeout:15000});
       if(await sidecar.count()) throw new Error('FAIL: sidecar wrongly mounted on fallback');
-      // CB-01 web mobile/tablet fallback exists at 390/430/1280/1440.
+      // CB-01 narrow web fallback exists at 390/430; 1280/1440 use a bottom dock.
       // Accessibility must not be tested only in the 1600/1920 sidecar.
       const tabs=overlay.getByRole('tablist',{name:'Vues de Crown Bot'});
       const chatTab=tabs.getByRole('tab',{name:'Chat'});
@@ -368,7 +376,7 @@ try {
       const rect=el => {
         if(!el) return null;
         const r=el.getBoundingClientRect();
-        return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right};
+        return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};
       };
       return {
         viewport:root.clientWidth,
@@ -386,6 +394,13 @@ try {
       || result.sidecar.right > width+3)) {
       throw new Error('FAIL: sidecar does not preserve clinical workspace at '+width+
         ' '+JSON.stringify(result));
+    }
+    if (docked && (!result.sidecar || !result.main || result.overlay
+      || result.sidecar.width < 700 || result.main.width < 700
+      || result.main.bottom > result.sidecar.y+3
+      || result.sidecar.bottom > height+3)) {
+      throw Error('FAIL: medium desktop panel overlaps the clinical workspace at '+
+        width+' '+JSON.stringify(result));
     }
     let staffSearchChecks = 'NOT_RUN_WEB_FALLBACK';
     if (desktop) {
@@ -542,7 +557,7 @@ try {
     }
     await assertDashboardReady(page,width,'AFTER');
     await page.screenshot({path:path.join(output,'after-'+width+'.png')});
-    evidence.push({width,mode:desktop?'sidecar-reflow':'web-floating-fallback',
+    evidence.push({width,mode:desktop?'sidecar-reflow':docked?'workspace-bottom-dock':'web-floating-fallback',
       staffSearchChecks,
       result,errors:errors.length,writes:writes.length});
     if(desktop) {
@@ -573,11 +588,11 @@ try {
       const proxyWidth=Math.floor(width/2);
       // Reflow PROXY: half the CSS viewport width; NOT native Chrome zoom.
       await page.setViewportSize({width:proxyWidth,height});
-      await overlay.waitFor({state:'visible'});
-      if(await sidecar.count()) {
-        throw new Error('FAIL: desktop sidecar did not reflow to web floating fallback');
+      await sidecar.waitFor({state:'visible'});
+      if ((await sidecar.getAttribute('data-cb01-workspace-dock'))===null || await overlay.count()) {
+        throw Error('FAIL: desktop sidecar did not reflow to medium desktop dock');
       }
-      const floatingPreview=overlay.getByRole('region',{name:'Assistant Crown Bot — consultation'});
+      const floatingPreview=sidecar.getByRole('region',{name:'Assistant Crown Bot — consultation'});
       const floatingDraft=await floatingPreview.getByRole('textbox',{
         name:'Votre réponse de simulation',
       }).inputValue();
@@ -586,7 +601,7 @@ try {
       }
       const reflow=await page.evaluate(() => {
         const root=document.documentElement;
-        const overlay=document.querySelector('[data-ux1-c-crownbot-overlay]');
+        const overlay=document.querySelector('[data-cb01-workspace-dock]');
         const box=overlay?.getBoundingClientRect();
         return {
           viewport:root.clientWidth,
@@ -596,7 +611,7 @@ try {
       });
       if (reflow.overflow || !reflow.overlay ||
         reflow.overlay.x < -1 || reflow.overlay.right>proxyWidth+1) {
-        throw new Error('FAIL: 200% CSS reflow proxy clipped the assistant at '+width+
+        throw new Error('FAIL: 200% CSS reflow proxy clipped the dock at '+width+
           ' '+JSON.stringify(reflow));
       }
       await page.screenshot({
@@ -623,7 +638,7 @@ try {
   }
   // CB-01 synthetic layout-only clinical views: these are the REAL routed
   // React Agenda and PatientDetails screens, not a dashboard mockup. The tests
-  // preserve the full workspace at 1280/1440 (floating) and sidecar >=1600.
+  // reserve a non-overlapping dock at 1280/1440 and reflow >=1600.
   // They do NOT prove that staff completed a clinical workflow or that
   // records/appointments were written, confirmed, or usable at native 200%.
   const clinicalRouteEvidence=[];
@@ -685,22 +700,22 @@ try {
         const expectedSidecar=width>=1600;
         const sidecar=page.locator('[data-cb01-associate-sidecar]');
         const overlay=page.locator('[data-ux1-c-crownbot-overlay]');
-        await (expectedSidecar?sidecar:overlay).waitFor({
-          state:'visible',timeout:15000,
-        });
-        if(await (expectedSidecar?overlay:sidecar).count()) {
+        const dock=page.locator('[data-cb01-workspace-dock]');
+        await sidecar.waitFor({state:'visible',timeout:15000});
+        if(await overlay.count() || (expectedSidecar ? (await dock.count())>0 : (await dock.count())!==1)) {
           throw new Error('FAIL: wrong assistant mode at clinical width '+width);
         }
         const geometry=await page.evaluate(()=>{
           const rect=el=>{
             const r=el?.getBoundingClientRect();
-            return r?{left:r.left,right:r.right,width:r.width}:null;
+            return r?{left:r.left,right:r.right,width:r.width,top:r.top,bottom:r.bottom,height:r.height}:null;
           };
           const root=document.documentElement;
           return {
             overflow:root.scrollWidth>root.clientWidth+2,
             main:rect(document.querySelector('main')),
             sidecar:rect(document.querySelector('[data-cb01-associate-sidecar]')),
+            dock:rect(document.querySelector('[data-cb01-workspace-dock]')),
             overlay:rect(document.querySelector('[data-ux1-c-crownbot-overlay]')),
             visibleClinicalText:(document.querySelector('main')?.innerText||'').trim().length>10,
           };
@@ -712,9 +727,11 @@ try {
             || geometry.main.width<780
             || geometry.main.right>geometry.sidecar.left+3
             || geometry.sidecar.right>width+3)
-          : (!geometry.overlay || geometry.sidecar
+          : (!geometry.dock || geometry.overlay || !geometry.sidecar
             || Math.abs(geometry.main.width-baseline.width)>3
-            || geometry.overlay.left < -1 || geometry.overlay.right>width+1);
+            || geometry.main.bottom>geometry.dock.top+3
+            || geometry.dock.right>width+3
+            || geometry.main.height<200);
         if(commonFailure || layoutFailure) {
           throw new Error('FAIL: clinical width safety '+
             spec.slug+' '+width+' '+JSON.stringify({
@@ -723,19 +740,18 @@ try {
         }
         await page.screenshot({path:path.join(output,
           'clinical-'+spec.slug+'-after-'+width+'.png')});
-        // At intermediate widths the assistant must remain dismissible.
-        // A named close control is essential for screen readers and makes
-        // the unobstructed clinical page immediately recoverable.
+        // On intermediate widths the dock restores full clinical height
+        // on close without masking underlying commands.
         if(!expectedSidecar) {
-          await overlay.getByRole('button',{name:'Fermer Crown Bot'}).click();
-          await overlay.waitFor({state:'detached'});
+          await sidecar.getByRole('button',{name:'Réduire le panneau Crown Bot'}).click();
+          await sidecar.waitFor({state:'detached'});
           // PatientDetails nests its own <main> inside MainLayout's clinical
           // <main>. Compare the same OUTER workspace used by querySelector
           // in baseline/AFTER, rather than a strict locator matching both.
           const restored=await page.locator('main').first().boundingBox();
           if(!restored || Math.abs(restored.width-baseline.width)>3
               || errors.length || writes.length) {
-            throw new Error('FAIL: floating assistant close did not restore clinic page '+
+            throw new Error('FAIL: dock close did not restore clinic page '+
               spec.slug+' '+width);
           }
         }
@@ -743,7 +759,7 @@ try {
           route:spec.slug,width,
           status:expectedSidecar
             ? 'PASS_SYNTHETIC_SIDECAR_LAYOUT_ONLY'
-            : 'PASS_SYNTHETIC_FLOATING_NO_CLINICAL_SHRINK_AND_CLOSE',
+            : 'PASS_SYNTHETIC_DOCK_NO_OVERLAP_AND_CLOSE',
           baseline,geometry,errors:0,writes:0,
         });
       } finally {
