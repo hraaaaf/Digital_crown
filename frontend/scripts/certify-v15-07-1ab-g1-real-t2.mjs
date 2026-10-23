@@ -256,6 +256,51 @@ try {
   pass('A→B→A restores only patient A verified dossier',
     await page.getByText(patientB.numero_dossier,{exact:true}).count()===0);
   await capture(page,'after-client-route-patient-A-return-1920.png');
+
+  // Use only genuine authenticated content responses; never fake/intercept a
+  // patient or media endpoint. An open clinical modal must not survive B.
+  await page.getByRole('button',{name:'Ouvrir le média sélectionné en plein écran'}).click();
+  await page.getByRole('dialog',{name:'Visionneuse média clinique'})
+    .waitFor({state:'visible',timeout:30000});
+  pass('real media full-screen viewer opened with patient A');
+  await goPatient(patientB.id);
+  await page.locator('[data-testid="multiview-real-dossier"]')
+    .getByText(patientB.numero_dossier,{exact:true})
+    .waitFor({state:'visible',timeout:30000});
+  pass('full-screen patient A media cannot persist on patient B',
+    await page.getByRole('dialog',{name:'Visionneuse média clinique'}).count()===0 &&
+    await page.locator('[data-testid="media-asset-rail"]').count()===0);
+  await page.getByText('Aucun média longitudinal',{exact:true})
+    .waitFor({state:'visible',timeout:30000});
+
+  // Genuine network latency via browser emulation, NOT route interception.
+  // Exercise overlapping requests in the same SPA: only the last B is valid.
+  const cdp=await context.newCDPSession(page);
+  await cdp.send('Network.enable');
+  await cdp.send('Network.emulateNetworkConditions',{
+    offline:false,latency:800,downloadThroughput:-1,uploadThroughput:-1,
+  });
+  await goPatient(patient.id);
+  await goPatient(patientB.id);
+  await goPatient(patient.id);
+  await goPatient(patientB.id);
+  await page.locator('[data-testid="multiview-real-dossier"]')
+    .getByText(patientB.numero_dossier,{exact:true})
+    .waitFor({state:'visible',timeout:45000});
+  // Let all intentionally slowed in-flight responses settle before asserting.
+  await page.waitForTimeout(2200);
+  pass('slow genuine A/B responses cannot restore stale patient A UI',
+    await page.getByText(patient.numero_dossier,{exact:true}).count()===0 &&
+    await page.locator('[data-testid="multiview-real-dossier"]')
+      .getByText(patientB.numero_dossier,{exact:true}).count()===1);
+  pass('slow genuine A/B media does not cross patients',
+    await page.getByText('Aucun média longitudinal',{exact:true}).count()===1 &&
+    await page.locator('[data-testid="media-asset-rail"]').count()===0);
+  await cdp.send('Network.emulateNetworkConditions',{
+    offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1,
+  });
+  await cdp.detach();
+  await capture(page,'after-slow-network-route-B-1920.png');
   pass('no browser JavaScript page errors',errors.length===0,{errors:errors.slice(0,5)});
 
   // RBAC proof cannot be inferred from HTTP 423 (missing workstation).
