@@ -99,9 +99,10 @@ class OrthoV5DocumentContract(unittest.TestCase):
         source = typed_study()
         source["practitioner_approved_sections"] = clinician_approved()
         self.assertFalse(build_ortho_bilan_document(source)["moulages"])
-        source["clinical_validation_available"] = True
-        source["document_state"] = "COMPLETE"
-        source["blocking_gates"] = []
+        # Authenticated practitioner NOTE approval is independent of R14:
+        # scientific clinical_validation_available must stay False.
+        source["practitioner_sections_authorized"] = True
+        self.assertFalse(source["clinical_validation_available"])
         odf = build_ortho_bilan_document(source)
         self.assertEqual(len(odf["moulages"]), 3)
         self.assertIn("-3 mm", str(odf["moulages"]))
