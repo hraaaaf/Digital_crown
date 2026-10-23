@@ -6,6 +6,7 @@ on:
       - 'frontend/src/features/admin/DocumentStudio/**'
       - 'frontend/scripts/certify-ordonnance-fidelity-v3.mjs'
       - 'frontend/scripts/capture-acig-autocomplete-proof.mjs'
+      - 'frontend/scripts/certify-ordonnance-current-safety-v3.mjs'
       - 'frontend/src/features/admin/DocumentStudio/OrdonnanceCatalogProvenance.r2.test.ts'
       - '.github/workflows/ordonnance-fidelity-v3-visual-cert.yml'
   workflow_dispatch:
@@ -57,6 +58,9 @@ jobs:
           pip install -r /tmp/requirements-ordonnance-v3.txt
           pip install httpx==0.27.2
 
+      - name: Certify C2 IE fail-closed rule independently from clinician UI
+        run: python -m pytest -q backend/tests/test_prescription_c2_ie_evaluation_endpoint.py
+
       - name: Install frontend and Chromium
         working-directory: frontend
         run: |
@@ -93,9 +97,28 @@ jobs:
         working-directory: frontend
         run: node scripts/capture-acig-autocomplete-proof.mjs
 
-      - name: Capture deterministic Fidelity V3 evidence
+      - name: Capture current clinical boundary Fidelity V3 evidence
         working-directory: frontend
-        run: node scripts/certify-ordonnance-fidelity-v3.mjs
+        run: node scripts/certify-ordonnance-current-safety-v3.mjs
+
+      - name: Assert exact-HEAD current clinical Fidelity evidence
+        working-directory: frontend
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('../artifacts/ordonnance-fidelity-v3/results.json', 'utf8'));
+          const expected = ['390x844','430x932','768x1024','1280x900'];
+          if (r.head !== process.env.GITHUB_SHA || r.status !== 'PASS' ||
+              r.contract !== 'NEO_N4_3B_READ_ONLY_GENERIC_ALERT_AND_SEPARATE_C2' ||
+              r.syntheticOnly !== true || JSON.stringify(r.viewports) !== JSON.stringify(expected) ||
+              r.captures.length !== 4) {
+            throw new Error('REFUSED: missing or incomplete current-clinical Fidelity exact-head artifact');
+          }
+          if (r.failures.length || !r.captures.every(c => c.pageErrorCount === 0)) {
+            throw new Error('REFUSED: current-clinical Fidelity failures');
+          }
+          console.log('LOT07_R2_CURRENT_CLINICAL_FIDELITY_EXACT_HEAD_PASS');
+          NODE
 
       - name: Dump runtime logs on failure
         if: failure()
