@@ -17,6 +17,7 @@ const root=path.resolve('../artifacts/lot07-071-g1-real-t2');
 fs.mkdirSync(root,{recursive:true});
 const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 let browser;
+let page;
 const evidence={sourceHead:sha,tests:[],screens:[],denials:[]};
 function pass(name,okay,details={}) {
   evidence.tests.push({name,pass:Boolean(okay),...details});
@@ -52,8 +53,10 @@ try {
     localStorage.setItem('refresh_token',refresh||'');
     localStorage.setItem('appMode','prod');
   },{access:auth.access_token,refresh:auth.refresh_token});
-  const page=await context.newPage();
+  page=await context.newPage();
   const errors=[],responses=[];
+  evidence.browserErrors=errors;
+  evidence.network=responses;
   page.on('pageerror',err=>errors.push(String(err).slice(0,400)));
   page.on('response',r=>{
     const url=new URL(r.url());
@@ -61,6 +64,12 @@ try {
       responses.push({path:url.pathname,status:r.status()});
     }
   });
+  // Register the actual network oracle BEFORE navigating: the clinical media list
+  // is loaded asynchronously after the container mounts, not when the slot appears.
+  const mediaListResponsePromise=page.waitForResponse(r=>
+    new URL(r.url()).pathname==='/api/patients/'+patient.id+'/assets' &&
+    r.request().method()==='GET',
+    {timeout:60000});
   await page.goto('http://127.0.0.1:5173/patients/'+patient.id+'?tab=radiology&radioTab=media',{
     waitUntil:'domcontentloaded',timeout:90000,
   });
@@ -69,7 +78,19 @@ try {
   await page.locator('[data-v15-071-viewslot="imagerie"]').waitFor({state:'visible',timeout:90000});
   pass('real patient route re-read',responses.some(r=>r.path==='/api/patients/'+patient.id && r.status===200));
   pass('server registered workstation revalidated',responses.some(r=>r.path==='/api/workstation/bootstrap' && r.status===200));
-  pass('real media API response',responses.some(r=>r.path.includes('/assets') && r.status===200));
+  const mediaListResponse=await mediaListResponsePromise;
+  const mediaListPayload=mediaListResponse.status()===200 ? await mediaListResponse.json() : null;
+  pass('real media API response',mediaListResponse.status()===200 &&
+    Array.isArray(mediaListPayload?.items),{status:mediaListResponse.status()});
+  const mediaTimepoints=new Set(mediaListPayload.items.map(item=>item.timepoint));
+  pass('T0 and T1 synthetic media returned by API',
+    mediaTimepoints.has('T0') && mediaTimepoints.has('T1'),
+    {timepoints:[...mediaTimepoints].sort()});
+  // Do not capture a premature empty timeline before React commits the response.
+  await page.locator('[data-testid="patient-media-timeline"]').getByText('T0',{exact:true}).first()
+    .waitFor({state:'visible',timeout:30000});
+  await page.locator('[data-testid="patient-media-timeline"]').getByText('T1',{exact:true}).first()
+    .waitFor({state:'visible',timeout:30000});
   pass('exactly one live real Media Timeline',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
   pass('real patient dossier name', (await page.locator('[data-testid="multiview-real-dossier"]').innerText()).includes(patient.numero_dossier));
   pass('nine product directions explicitly unavailable',await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9);
@@ -111,9 +132,16 @@ try {
   const forbidden=await api.get('/api/patients/'+patient.id,{headers:{Authorization:'Bearer '+deniedAuth.access_token}});
   pass('restricted actor cannot read patient',!forbidden.ok(),{status:forbidden.status()});
   evidence.denials.push({actor:'synthetic-restricted',resource:'patient-by-id',status:forbidden.status()});
-  fs.writeFileSync(path.join(root,'manifest.json'),JSON.stringify(evidence,null,2));
   console.log('LOT07 07.1 FUE-I REAL T2 PASS '+evidence.tests.length+' authentic assertions on '+sha);
+} catch (error) {
+  evidence.failure=String(error).slice(0,700);
+  if (page) {
+    try { await capture(page,'failure-snapshot-1920.png'); } catch { /* page not available */ }
+  }
+  throw error;
 } finally {
+  // Persist evidence even when an assertion fails; never turn a failure into PASS.
+  fs.writeFileSync(path.join(root,'manifest.json'),JSON.stringify(evidence,null,2));
   await browser?.close();
   await api.dispose();
 }
