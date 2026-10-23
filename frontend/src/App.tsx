@@ -267,9 +267,15 @@ const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const ProtectedRoutes = () => {
   const user = useAuthStore((state) => state.user);
+  // A principal/tenant/permission transition must not reuse any mounted
+  // dossier, editor, image viewer or async media subtree across identities.
+  // Viewport changes leave this key stable and preserve ordinary drafts.
+  const clinicalScope = user
+    ? JSON.stringify([user.id, user.employer_id, user.role, user.permissions])
+    : 'anonymous';
 
   return (
-    <MainLayout>
+    <MainLayout key={clinicalScope}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
