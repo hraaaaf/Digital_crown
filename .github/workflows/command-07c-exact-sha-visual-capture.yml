@@ -1,0 +1,90 @@
+name: Command 07-C real browser screenshot (exact candidate SHA; isolated)
+on:
+  push:
+    branches:
+      - evidence/command-07c-12659051-20261023
+permissions:
+  contents: read
+jobs:
+  screenshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      EXACT_SOURCE_SHA: 12659051a46ef475effc56f1b1f7acfd53019915
+    steps:
+      - name: Checkout exact immutable code under visual review
+        uses: actions/checkout@v4
+        with:
+          ref: 12659051a46ef475effc56f1b1f7acfd53019915
+          persist-credentials: false
+      - name: Verify actual source and synthetic-only target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_SOURCE_SHA"
+          grep -q 'Démonstration fictive' frontend/src/features/command/command-react-target.tsx
+          grep -q 'Données TEST uniquement' frontend/src/features/command/command-react-target.tsx
+          test -f frontend/command-target.html
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact SHA frontend and local browser client
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --no-package-lock playwright-core@1.56.1
+      - name: Run isolated synthetic Command target and capture real Chrome
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm run dev -- --config vite.command-target.config.mts --host 127.0.0.1 > /tmp/command-target-vite.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:5193/command-target.html >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:5193/command-target.html >/dev/null
+          mkdir -p command-evidence
+          node --input-type=module <<'JAVASCRIPT'
+          import { chromium } from 'playwright-core';
+          import { writeFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const paths = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium'];
+          const fs = await import('node:fs');
+          const executablePath = paths.find(p => fs.existsSync(p));
+          if (!executablePath) throw new Error('Chrome browser not available');
+          const browser = await chromium.launch({ executablePath, headless:true, args:['--no-sandbox','--disable-dev-shm-usage'] });
+          const screens = [];
+          for (const [name,width,height] of [['desktop-1440',1440,900], ['desktop-1280',1280,900], ['mobile-390',390,844]]) {
+            const page=await browser.newPage({ viewport:{ width,height }, deviceScaleFactor:1, reducedMotion:'reduce' });
+            const consoleErrors=[];
+            page.on('pageerror', e => consoleErrors.push(e.message));
+            const response=await page.goto('http://127.0.0.1:5193/command-target.html',{waitUntil:'networkidle',timeout:60000});
+            if (!response?.ok()) throw Error(name+': Command target GET not OK');
+            await page.locator('[data-command-target="07-C-react-isolated"]').waitFor({state:'visible',timeout:15000});
+            const footer=await page.locator('.cmd-sidebarfooter').innerText();
+            if (!footer.includes('Démonstration fictive')||!footer.includes('Données TEST uniquement')) throw Error(name+': footer content mismatch '+footer);
+            if (consoleErrors.length) throw Error(name+': JavaScript errors: '+consoleErrors.join(' | '));
+            await page.screenshot({path:'command-evidence/command-'+name+'.png',fullPage:true,animations:'disabled'});
+            if (name==='desktop-1440') {
+              await page.locator('.cmd-sidebar').screenshot({path:'command-evidence/command-sidebar-desktop-1440.png'});
+              await page.locator('.cmd-sidebarfooter').screenshot({path:'command-evidence/command-footer-exact-change.png'});
+            }
+            screens.push({name,viewport:{width,height},footer,synthetic:await page.locator('[data-synthetic-fixtures="true"]').count()===1,title:await page.title(),url:page.url(),consoleErrors});
+            await page.close();
+          }
+          await browser.close();
+          writeFileSync('command-evidence/proof.json',JSON.stringify({checkedOutCommit:process.env.EXACT_SOURCE_SHA,sourcePath:'frontend/src/features/command/command-react-target.tsx',target:'frontend/command-target.html',screens,productionDeployment:false,clinicalDataUsed:false},null,2));
+          console.log('COMMAND_SCREENSHOT_PASS '+JSON.stringify(screens));
+          JAVASCRIPT
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: command-exact-sha-12659051-screenshots
+          path: |
+            frontend/command-evidence/
+            /tmp/command-target-vite.log
+          retention-days: 14
+          if-no-files-found: warn
