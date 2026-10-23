@@ -44,7 +44,7 @@ function SyntheticEditor() {
           }} />
       </label>
       <button onClick={() => navigate('/patients/' + (id === '17' ? '18' : '17'))}>Changer patient</button>
-      <button onClick={() => navigate('/patients/' + id + '?tab=clinical')}>Changer onglet</button>
+      <button onClick={() => navigate('/patients/' + id + '?tab=admin&filter=draft')}>Changer onglet</button>
       <button onClick={() => navigate('/agenda')}>Aller Agenda</button>
       <button onClick={() => navigate('/login')}>Sortir</button>
     </section>
@@ -114,9 +114,20 @@ describe('R2 live root guard contract on Data Router (synthetic pages only)', ()
     const router=mount();
     fireEvent.change(screen.getByLabelText('Éditeur synthétique'),{target:{value:'SAFE-TAB-A'}});
     fireEvent.click(screen.getByRole('button',{name:'Changer onglet'}));
-    await waitFor(()=>expect(router.state.location.search).toBe('?tab=clinical'));
+    await waitFor(()=>expect(router.state.location.search).toBe('?tab=admin&filter=draft'));
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect((screen.getByLabelText('Éditeur synthétique') as HTMLInputElement).value).toBe('SAFE-TAB-A');
+  });
+
+  it('blocks a same-patient document-tab exit via browser Back and preserves the editor on cancel', async () => {
+    const router = mount(['/patients/17?tab=tracking','/patients/17?tab=admin'],1);
+    fireEvent.change(screen.getByLabelText('Éditeur synthétique'),{target:{value:'SAME_PATIENT_REAL_TAB_GUARD'}});
+    void router.navigate(-1);
+    expect(await screen.findByRole('alertdialog')).toBeTruthy();
+    expect(router.state.location.search).toBe('?tab=admin');
+    fireEvent.click(screen.getByRole('button',{name:'Rester sur ce dossier'}));
+    expect(router.state.location.search).toBe('?tab=admin');
+    expect((screen.getByLabelText('Éditeur synthétique') as HTMLInputElement).value).toBe('SAME_PATIENT_REAL_TAB_GUARD');
   });
 
   it('blocks browser history POP with dirty B; cancel preserves B, then discard allows A', async () => {
