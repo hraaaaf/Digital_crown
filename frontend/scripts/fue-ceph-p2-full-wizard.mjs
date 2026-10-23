@@ -43,7 +43,7 @@ async function point(p){
   const pt=svg.createSVGPoint();pt.x=p.x;pt.y=p.y;
   const screen=pt.matrixTransform(svg.getScreenCTM());return {x:screen.x,y:screen.y};
  },p);
- ok(x>0&&x<1600&&y>0&&y<1000,'Phantom ruler offscreen');
+ ok(x>0&&x<1600&&y>0&&y<1000,'Phantom ruler offscreen '+JSON.stringify({x,y,px:p}));
  await page.mouse.click(x,y);
 }
 try{
