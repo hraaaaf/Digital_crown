@@ -143,13 +143,16 @@ def test_commit_failure_rolls_back_user_and_organization(client, db, monkeypatch
     def fail_commit():
         raise RuntimeError("forced commit failure")
 
-    monkeypatch.setattr(db, "commit", fail_commit)
-    with pytest.raises(RuntimeError, match="forced commit failure"):
-        client.put(
-            "/api/clinics/me",
-            json={"nom": "Partial User", "nom_cabinet": "Partial Cabinet"},
-            headers=headers,
-        )
+    # Scope the injected SQL commit failure to this request only. The db
+    # fixture must recover its normal commit for its own teardown cleanup.
+    with monkeypatch.context() as fault:
+        fault.setattr(db, "commit", fail_commit)
+        with pytest.raises(RuntimeError, match="forced commit failure"):
+            client.put(
+                "/api/clinics/me",
+                json={"nom": "Partial User", "nom_cabinet": "Partial Cabinet"},
+                headers=headers,
+            )
 
     db.refresh(owner)
     db.refresh(cabinet)

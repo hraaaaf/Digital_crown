@@ -13,6 +13,7 @@ from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, creat
 from backend.services.station_print_cabinet_preflight_v15 import (
     inspect_cabinet_care_sheet_preflight,
 )
+from backend import models as canonical_models
 
 NOW = datetime(2026, 10, 13, 10, 0, tzinfo=timezone.utc)
 SESSION_ID = "00000000-0000-4000-8000-000000000001"
@@ -51,16 +52,13 @@ def cabinet():
         Column("expires_at", DateTime()),
         Column("purged_at", DateTime()),
     )
+    # Materialize the current DocumentArchive column contract for the SQL
+    # lock/read. Do not recreate its optional foreign-key graph in this
+    # synthetic-deny-only preflight, and never stub any clinical authorization.
     docs = Table(
         "document_archives", meta,
-        Column("id", Integer, primary_key=True),
-        Column("patient_id", Integer),
-        Column("file_hash", String(64)),
-        Column("file_size", Integer),
-        Column("filename", String(64)),
-        Column("status", String(16)),
-        Column("is_latest_version", Integer),
-        Column("deleted_at", DateTime()),
+        *(Column(column.name, column.type, primary_key=column.primary_key)
+          for column in canonical_models.DocumentArchive.__table__.columns),
     )
     meta.create_all(engine)
     created = NOW - timedelta(seconds=40)

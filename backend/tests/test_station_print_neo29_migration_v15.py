@@ -15,7 +15,8 @@ from alembic.operations import Operations
 from sqlalchemy import Column, Integer, MetaData, Table, create_engine, event, inspect, insert, select, text
 from sqlalchemy.exc import IntegrityError
 
-MIGRATION = Path(__file__).with_name("migration_station_print_neo29.py")
+# Use the checked-in neo29 revision; the old tests/ copy no longer exists.
+MIGRATION = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "neo000000029_station_print_staged_registry_ledger.py"
 
 
 def load_migration():
