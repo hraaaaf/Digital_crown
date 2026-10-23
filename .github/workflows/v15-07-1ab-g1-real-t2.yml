@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:
-      SOURCE_HEAD: ${{ github.sha }}
+      SOURCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       VITE_V15_07_1_MULTIVIEW_LAB: '1'
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: '1'
