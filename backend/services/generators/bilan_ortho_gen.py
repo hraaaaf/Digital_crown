@@ -236,6 +236,15 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "stages": stages,
         }
 
+    @staticmethod
+    def _clinician_measurement_label(identifier, index, short_label):
+        """No leaked machine IDs when a measurement has no approved short name."""
+        raw = str(identifier).rsplit(":", 1)[-1]
+        approved = short_label(raw)
+        if "_" in raw and approved == raw.replace("_", " "):
+            return f"Mesure complémentaire {index}"
+        return approved
+
     def _generate_weasyprint(
         self,
         vm: schemas.CephaloViewModel,
@@ -264,9 +273,10 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         context["measurements"] = [
             {
                 **measurement,
-                "measurement_id": short_label(measurement["measurement_id"].rsplit(":", 1)[-1]),
+                "measurement_id": self._clinician_measurement_label(
+                    measurement["measurement_id"], index, short_label),
             }
-            for measurement in context["measurements"]
+            for index, measurement in enumerate(context["measurements"], 1)
         ]
         template = self.jinja_env.get_template("bilan_ortho_authoritative.html")
         html_content = template.render(context)
@@ -277,7 +287,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         from reportlab.pdfgen.canvas import Canvas
         from PyPDF2 import PdfReader, PdfWriter
 
-        body_pdf = weasyprint.HTML(string=html_content).write_pdf()
+        body_pdf = weasyprint.HTML(string=html_content, base_url=self.base_path).write_pdf()
         reader = PdfReader(BytesIO(body_pdf))
         if not reader.pages:
             raise ValueError("Bilan PDF sans page : habillage impossible")
