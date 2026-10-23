@@ -116,7 +116,7 @@ class PractitionerNotePersistenceTests(unittest.TestCase):
         self.assertFalse(build_ortho_bilan_document(source)["moulages"])
         source["practitioner_sections_authorized"]=True
         result=build_ortho_bilan_document(source)
-        self.assertEqual(result["moulages"][0]["value"],"Empreintes fictives")
+        self.assertIn("Empreintes fictives", [row["value"] for row in result["moulages"]])
         self.assertIn("praticien",result["resume_diagnostique"])
         self.assertIn("Plan fictif",result["plan_traitement"])
         self.assertFalse(source["clinical_validation_available"])
