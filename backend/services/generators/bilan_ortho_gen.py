@@ -288,13 +288,14 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         self.draw_static_elements(stationery, doc, config=config, user=user)
         stationery.showPage()
         stationery.save()
-        overlay = PdfReader(BytesIO(stationery_bytes.getvalue())).pages[0]
-
+        stationery_pdf = stationery_bytes.getvalue()
         writer = PdfWriter()
         for page in reader.pages:
-            # Place the common header/footer/letterhead UNDER clinical content.
-            page.merge_page(overlay, over=False)
-            writer.add_page(page)
+            # PyPDF2 3.x has no merge_page(over=False); merge the clinical
+            # content ON TOP of a fresh canonical BaseTemplate stationery page.
+            branded_page = PdfReader(BytesIO(stationery_pdf)).pages[0]
+            branded_page.merge_page(page)
+            writer.add_page(branded_page)
         with open(output_path, "wb") as target:
             writer.write(target)
         return output_path
