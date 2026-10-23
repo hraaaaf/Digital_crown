@@ -138,6 +138,14 @@ def save_practitioner_draft(db: Session, *, patient_id:int, analysis_id:int,
         row.approved_digest=None
         row.updated_at=datetime.now(timezone.utc).replace(tzinfo=None)
     db.flush()
+    # Atomic audit: an approval/draft commit must not succeed without the
+    # corresponding durable trace. Store IDs only, never patient narrative.
+    db.add(models.AuditLog(
+        employer_id=actor.get_employer_id(), user_id=actor.id,
+        action="ORTHO_BILAN_DRAFT_SAVED", resource_type="CephaloAnalysis",
+        resource_id=str(analysis_id),
+        severity="INFO", details=f"patient={patient_id};revision={revision};draft={row.draft_version}",
+    ))
     # Repeat source check BEFORE commit to reduce stale-scientific-source race.
     _get_current(db,patient_id,analysis_id,expected_revision,actor)
     db.commit()
@@ -164,6 +172,12 @@ def approve_practitioner_draft(db: Session, *, patient_id:int, analysis_id:int,
     row.approved_at=datetime.now(timezone.utc).replace(tzinfo=None)
     row.approved_digest=_digest([row.notes_json,digest,row.draft_version,actor.id])
     db.flush()
+    db.add(models.AuditLog(
+        employer_id=actor.get_employer_id(), user_id=actor.id,
+        action="ORTHO_BILAN_NOTES_APPROVED", resource_type="CephaloAnalysis",
+        resource_id=str(analysis_id),
+        severity="INFO", details=f"patient={patient_id};revision={revision};draft={row.draft_version}",
+    ))
     _get_current(db,patient_id,analysis_id,expected_revision,actor)
     db.commit()
     return get_practitioner_note(db,patient_id=patient_id,
