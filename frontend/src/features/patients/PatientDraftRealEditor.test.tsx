@@ -44,6 +44,7 @@ afterEach(() => {
 function ActualLibreEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const activeTab = new URLSearchParams(useLocation().search).get('tab') || 'tracking';
   const [title,setTitle] = useState('Note médicale');
   const [content,setContent] = useState('');
   const [customPatient,setCustomPatient] = useState('');
@@ -56,7 +57,7 @@ function ActualLibreEditor() {
       <span data-testid="patient-id">T2 dossier {id}</span>
       <button onClick={() => navigate('/patients/' + (id === '17' ? '18' : '17'))}>Patient suivant</button>
       <button onClick={() => navigate('/patients/' + id + '?tab=admin')}>Onglet documents</button>
-      <LibreForm
+      {activeTab === 'admin' ? <LibreForm
         title={title} setTitle={setTitle}
         content={content} setContent={setContent}
         customPatient={customPatient} setCustomPatient={setCustomPatient}
@@ -64,7 +65,7 @@ function ActualLibreEditor() {
         hideHeader={hideHeader} setHideHeader={setHideHeader}
         pageSize={pageSize} setPageSize={setPageSize}
         alignment={alignment} setAlignment={setAlignment}
-      />
+      /> : <p>Suivi patient synthétique — éditeur non monté</p>}
     </main>
   );
 }
@@ -116,6 +117,26 @@ describe('R2 actual Document Libre editor under draft route guard (synthetic pat
     fireEvent.click(screen.getByRole('button',{name:'Patient suivant'}));
     await waitFor(()=>expect(router.state.location.pathname).toBe('/patients/17'));
     expect(editor().value).toBe('');
+  });
+
+  it('blocks same-patient browser Back from Documents to Tracking before REAL LibreForm unmount', async () => {
+    const router = createMemoryRouter([{path:'*',element:<ActualClinicalRoute/>}],{
+      initialEntries:['/patients/17?tab=tracking','/patients/17?tab=admin'],initialIndex:1,
+    });
+    render(<RouterProvider router={router}/>);
+    fireEvent.change(editor(),{target:{value:'T2_REAL_EDITOR_SAME_PATIENT_BACK'}});
+    void router.navigate(-1);
+    await screen.findByRole('alertdialog');
+    expect(router.state.location.search).toBe('?tab=admin');
+    expect(editor().value).toBe('T2_REAL_EDITOR_SAME_PATIENT_BACK');
+    fireEvent.click(screen.getByRole('button',{name:'Rester sur ce dossier'}));
+    expect(editor().value).toBe('T2_REAL_EDITOR_SAME_PATIENT_BACK');
+    void router.navigate(-1);
+    await screen.findByRole('alertdialog');
+    fireEvent.click(screen.getByRole('button',{name:'Quitter sans sauvegarder'}));
+    await waitFor(()=>expect(router.state.location.search).toBe('?tab=tracking'));
+    expect(screen.queryByPlaceholderText(/Rédigez votre document ici/i)).toBeNull();
+    expect(isLibreDirty()).toBe(false);
   });
 
   it('keeps the real LibreForm draft across search-only tab navigation', async () => {
