@@ -1,6 +1,7 @@
 """Premium V3 — real synthetic PDF parity without a patient or clinical promotion."""
 from __future__ import annotations
-from io import BytesIO
+import os
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -107,6 +108,10 @@ class PdfV3Contract(unittest.TestCase):
                     self.assertNotIn("EVIDENCE_GRAPH_V1", full)
                     self.assertNotIn("diagnostic_rule_registry_empty", full)
                     self.assertNotIn("Chaîne clinique R11", full)
+                    capture = os.environ.get("CEPH_V3_CAPTURE_DIR")
+                    if capture:
+                        Path(capture).mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(output, Path(capture) / Path(output).name)
                     for page in pdf.pages:
                         self.assertAlmostEqual(float(page.mediabox.width), A4[0], delta=0.5)
                         self.assertAlmostEqual(float(page.mediabox.height), A4[1], delta=0.5)
@@ -125,6 +130,55 @@ class PdfV3Contract(unittest.TestCase):
             self.assertIn("Rue Exemple 123", text)
             self.assertNotIn("source-lock", text)
             self.assertNotIn("NOT_COMPUTABLE", text)
+            capture = os.environ.get("CEPH_V3_CAPTURE_DIR")
+            if capture:
+                Path(capture).mkdir(parents=True, exist_ok=True)
+                shutil.copy2(output, Path(capture) / Path(output).name)
+
+    def test_custom_letterhead_image_repeated_on_all_pages(self):
+        from PIL import Image, ImageDraw
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            media = root / "synthetic_media"
+            media.mkdir()
+            letterhead = media / "letterhead.png"
+            picture = Image.new("RGB", (595, 842), "white")
+            art = ImageDraw.Draw(picture)
+            art.rectangle((0, 0, 595, 45), fill="#29476a")
+            art.rectangle((0, 810, 595, 842), fill="#29476a")
+            picture.save(letterhead)
+            previous = os.environ.get("MEDIA_ROOT")
+            os.environ["MEDIA_ROOT"] = str(media)
+            try:
+                vm = synthetic_vm("swiss")
+                vm.cabinet_config.update(
+                    use_letterhead=True, letterhead_path="letterhead.png",
+                    hide_header=True, hide_footer=True,
+                )
+                output = str(root / "bilan_papier_personnalise.pdf")
+                generator = BilanOrthoPDFGenerator(str(root))
+                generator._generate_weasyprint(vm, output,
+                    projection=synthetic_projection(n=65))
+                pdf = PdfReader(output)
+                self.assertGreaterEqual(len(pdf.pages), 2)
+                for page in pdf.pages:
+                    resources = page["/Resources"]
+                    xobjects = resources.get("/XObject")
+                    self.assertIsNotNone(xobjects)
+                    images = xobjects.get_object()
+                    self.assertTrue(any(
+                        obj.get_object().get("/Subtype") == "/Image"
+                        for obj in images.values()
+                    ), "Image de papier à en-tête attendue sur chaque page")
+                capture = os.environ.get("CEPH_V3_CAPTURE_DIR")
+                if capture:
+                    Path(capture).mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(output, Path(capture) / Path(output).name)
+            finally:
+                if previous is None:
+                    os.environ.pop("MEDIA_ROOT", None)
+                else:
+                    os.environ["MEDIA_ROOT"] = previous
 
 if __name__ == "__main__":
     unittest.main()
