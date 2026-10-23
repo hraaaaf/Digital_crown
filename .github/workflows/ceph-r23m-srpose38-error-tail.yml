@@ -1,0 +1,62 @@
+name: CEPH R23-M — frozen SRPose38 error-tail diagnostic (aggregate only)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ceph-r23m-srpose38-error-tail.yml'
+      - 'scripts/audit_ceph_r23m_srpose38_error_tail.py'
+      - 'tests/test_ceph_r23m_srpose38_error_tail.py'
+      - 'scripts/audit_ceph_r23l_aariz_point_families.py'
+      - 'docs/audits/evidence/lot04/**'
+      - 'docs/audits/CEPH_R23M_SRPOSE38_ERROR_TAIL_DIAGNOSTIC.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-only-srpose38-tail-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      TARGET_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact HEAD and no repository modification
+        run: |
+          test "$(git rev-parse HEAD)" = "$TARGET_HEAD_SHA"
+          test -z "$(git status --porcelain)"
+      - name: Read-only source-hash / aggregate consistency tests
+        run: |
+          python -m py_compile scripts/audit_ceph_r23m_srpose38_error_tail.py tests/test_ceph_r23m_srpose38_error_tail.py
+          python -m unittest discover -s tests -p test_ceph_r23m_srpose38_error_tail.py -v
+          python scripts/audit_ceph_r23m_srpose38_error_tail.py
+      - name: Verify narrow aggregate output and explicit clinical NO-GO
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('artifacts/ceph-r23m-error-tail/report.json')
+          report = json.loads(p.read_text(encoding='utf-8'))
+          assert report['qualified_point_comparisons'] == 3374
+          assert report['aggregate_compatible_landmarks'] == 24
+          assert report['go_tail']['two_observations_share_of_total_absolute_error'] > 0.438
+          assert report['original_results_byte_binding_verified'] is False
+          assert report['original_frozen_acceptance_decision'] == 'FAIL'
+          assert report['clinical_release'] is False
+          assert report['channel_swap_proven'] is False
+          assert not any(k in report for k in ['predictions','coordinates','case_id'])
+          assert sorted(x.name for x in p.parent.iterdir()) == ['README.md','report.json']
+          print('R23M_SOURCE_ONLY_METRICS_REPRODUCED__CLINICAL_NO_GO')
+          PY
+      - name: Upload aggregates only — never any images/film-level data
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-r23m-srpose38-tail-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            artifacts/ceph-r23m-error-tail/report.json
+            artifacts/ceph-r23m-error-tail/README.md
+          if-no-files-found: error
+          retention-days: 30
