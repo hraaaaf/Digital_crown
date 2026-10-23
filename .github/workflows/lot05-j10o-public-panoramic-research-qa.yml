@@ -50,6 +50,8 @@ jobs:
         run: python experiments/test_lot05_j10y_akudental_resolution_ablation.py -v
       - name: 4 synthetic 640px three-versus-six-epochs comparison tests
         run: python experiments/test_lot05_j10z_fdi640_epoch_ablation.py -v
+      - name: 8 synthetic academic cross-split JPEG fingerprint and privacy tests
+        run: python experiments/test_lot05_j11a_akudental_cross_split_image_fingerprint.py -v
 
   roboflow-public-metadata:
     name: Public FDI32 publisher metadata on native runner
