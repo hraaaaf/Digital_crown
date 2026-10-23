@@ -254,18 +254,22 @@ li { margin-bottom: 3pt; }
 
 <div class="meta">
 <strong>Patient :</strong> {{ patient_nom.upper() }} {{ patient_prenom.capitalize() }} &nbsp; | &nbsp;
-{% if not document_branding_applied | default(false) %}<strong>Étude Céphalo ID :</strong> {{ cephalo_source_analysis_id or 'NON VÉRIFIÉ' }} &nbsp; | &nbsp;{% endif %}
-<strong>Révision :</strong> {{ cephalo_source_analysis_revision or 'non renseignée' }}<br>
 <strong>Âge :</strong> {{ patient_age }} ans &nbsp; | &nbsp;
-<strong>Date :</strong> {{ date_analyse }}<br>
+<strong>Date :</strong> {{ date_analyse }}
+{% if not document_branding_applied | default(false) %}
+<br><strong>Étude Céphalo ID :</strong> {{ cephalo_source_analysis_id or 'NON VÉRIFIÉ' }} &nbsp; | &nbsp;
+<strong>Révision :</strong> {{ cephalo_source_analysis_revision or 'non renseignée' }}<br>
 <strong>Origine des mesures :</strong> {{ display_authority | default(authority or 'indisponible') }}<br>
 <strong>Vérification des données :</strong> {{ 'Données techniques vérifiées, sans validation clinique automatique' if active_runtime_chain_verified else 'Vérification technique non confirmée' }}
+{% endif %}
 </div>
+{% if not document_branding_applied | default(false) %}
 <div class="overview">
   <div class="overview-item"><strong>{{ measurements | length }}</strong><span>Lignes de mesures documentées</span></div>
   <div class="overview-item"><strong>{{ measurements | selectattr('availability_status','equalto','AVAILABLE') | list | length }}</strong><span>Mesures disponibles (non validées)</span></div>
   <div class="overview-item"><strong>{{ measurements | rejectattr('availability_status','equalto','AVAILABLE') | list | length }}</strong><span>Indisponibles / non calculables</span></div>
 </div>
+{% endif %}
 
 {% if document_state != 'COMPLETE' %}
 <div class="notice incomplete">
@@ -285,25 +289,33 @@ Les données absentes, non calculables ou non validées restent explicitement no
 <div class="notice"><strong>Points à vérifier :</strong><ul>{% for item in display_validation_warnings | default(validation_warnings) %}<li>{{ item }}</li>{% endfor %}</ul></div>
 {% endif %}
 
-<h2>Inventaire des mesures scientifiques</h2>
-<p class="section-intro">Chaque mesure est présentée avec sa disponibilité, sa méthode et sa traçabilité. Une mesure disponible ne vaut pas validation clinique.</p>
+<h2>{{ 'Mesures céphalométriques' if document_branding_applied | default(false) else 'Inventaire des mesures scientifiques' }}</h2>
+{% if not document_branding_applied | default(false) %}<p class="section-intro">Chaque mesure est présentée avec sa disponibilité, sa méthode et sa traçabilité. Une mesure disponible ne vaut pas validation clinique.</p>{% endif %}
 <table>
 <thead><tr>
+{% if document_branding_applied | default(false) %}
+  <th style="width:55%">Mesure</th><th style="width:45%">Résultat</th>
+{% else %}
   <th style="width:33%">Mesure · méthode</th>
   <th style="width:22%">Valeur et disponibilité</th>
   <th style="width:45%">Source et calibration</th>
+{% endif %}
 </tr></thead>
 <tbody>
 {% if measurements %}
 {% for m in measurements %}
 <tr class="{{ 'is-missing' if m.availability_status != 'AVAILABLE' else '' }}">
+  {% if document_branding_applied | default(false) %}
+  <td>{{ m.measurement_id }}</td><td><strong>{{ m.display_value | default(m.value) }}</strong></td>
+  {% else %}
   <td>{{ m.measurement_id }}<span class="row-meta">{{ m.display_method | default(m.method) }}</span></td>
   <td><strong>{{ m.display_value | default(m.value) }}</strong><span class="row-meta">{{ m.display_availability_status | default(m.availability_status) }}</span></td>
   <td>{{ m.display_source | default(m.source) }}<span class="row-meta">{{ m.display_calibration | default(m.calibration) }}</span></td>
+  {% endif %}
 </tr>
 {% endfor %}
 {% else %}
-<tr><td colspan="3">{% if document_branding_applied | default(false) %}Aucune mesure exploitable disponible. Le calcul n'est pas possible avec les données du dossier.{% else %}Aucune mesure typée autoritaire disponible. État : NOT_COMPUTABLE / indisponible selon la preuve backend.{% endif %}</td></tr>
+<tr><td colspan="{{ 2 if document_branding_applied | default(false) else 3 }}">{% if document_branding_applied | default(false) %}Aucune mesure exploitable disponible. Le calcul n'est pas possible avec les données du dossier.{% else %}Aucune mesure typée autoritaire disponible. État : NOT_COMPUTABLE / indisponible selon la preuve backend.{% endif %}</td></tr>
 {% endif %}
 </tbody>
 </table>
@@ -311,8 +323,8 @@ Les données absentes, non calculables ou non validées restent explicitement no
 {% if steiner_protocol %}
 <h2>Steiner · lecture comparative</h2>
 <div class="notice">
-{% if document_branding_applied | default(false) %}<strong>État de la référence :</strong> {{ steiner_protocol.display_source_lock_status }}.<br>{% else %}<strong>{{ steiner_protocol.protocol_profile_id }}</strong> - source-lock {{ steiner_protocol.source_lock_status }}.<br>{% endif %}
-<span class="small">Références historiques affichées à titre comparatif uniquement. Elles ne constituent pas une classification clinique universelle.</span>
+{% if not document_branding_applied | default(false) %}<strong>{{ steiner_protocol.protocol_profile_id }}</strong> - source-lock {{ steiner_protocol.source_lock_status }}.<br>{% endif %}
+<span class="small">Références historiques à titre comparatif uniquement, sans classification clinique automatique.</span>
 </div>
 <table>
 <thead><tr><th style="width:40%">Mesure et statut</th><th style="width:19%">Valeur</th><th style="width:21%">Réf. historique</th><th style="width:20%">Écart</th></tr></thead>
@@ -327,14 +339,14 @@ Les données absentes, non calculables ou non validées restent explicitement no
 {% if tweed_merrifield_protocol %}
 <h2>Tweed–Merrifield · valeurs brutes</h2>
 <div class="notice">
-{% if document_branding_applied | default(false) %}<strong>État de la référence :</strong> {{ tweed_merrifield_protocol.display_source_lock_status }}.<br>{% else %}<strong>{{ tweed_merrifield_protocol.protocol_profile_id }}</strong> - source-lock {{ tweed_merrifield_protocol.source_lock_status }}.<br>{% endif %}
-<span class="small">Variante Digital Crown Po_anatomic-Or / Go-Me. Aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée; les références historiques restent contextuelles et non classificatoires.</span>
+{% if not document_branding_applied | default(false) %}<strong>{{ tweed_merrifield_protocol.protocol_profile_id }}</strong> - source-lock {{ tweed_merrifield_protocol.source_lock_status }}.<br>{% endif %}
+<span class="small">Mesures brutes selon la méthode du dossier. Pas d'équivalence géométrique stricte avec les références historiques Tweed 1954, ni de classification automatique.</span>
 </div>
 <table>
-<thead><tr><th style="width:30%">Mesure / profil</th><th style="width:22%">Valeur</th><th style="width:48%">Autorité et état (contexte uniquement)</th></tr></thead>
+<thead><tr><th style="width:30%">Mesure</th><th style="width:22%">Valeur</th><th style="width:48%">{{ 'Précision' if document_branding_applied | default(false) else 'Autorité et état (contexte uniquement)' }}</th></tr></thead>
 <tbody>
 {% for row in tweed_merrifield_protocol.rows %}
-<tr><td>{{ row.label }}<span class="row-meta">{{ row.display_profile_section | default(row.profile_section) }}</span></td><td>{{ row.value }}</td><td>{{ row.display_reference_authority | default(row.reference_authority) }}<span class="row-meta">{{ row.display_interpretation_status | default(row.interpretation_status) }}</span></td></tr>
+<tr><td>{{ row.label }}{% if not document_branding_applied | default(false) %}<span class="row-meta">{{ row.display_profile_section | default(row.profile_section) }}</span>{% endif %}</td><td>{{ row.value }}</td><td>{% if document_branding_applied | default(false) %}Comparaison normative non validée{% else %}{{ row.display_reference_authority | default(row.reference_authority) }}<span class="row-meta">{{ row.display_interpretation_status | default(row.interpretation_status) }}</span>{% endif %}</td></tr>
 {% endfor %}
 </tbody>
 </table>
@@ -343,7 +355,7 @@ Les données absentes, non calculables ou non validées restent explicitement no
 <h2>{% if document_branding_applied | default(false) %}État des vérifications cliniques{% else %}Chaîne clinique R11 → R14 · état de validation{% endif %}</h2>
 {% for stage in stages %}
 <div class="stage">
-<div class="state">{% if document_branding_applied | default(false) %}{{ stage.display_title }} : {{ stage.display_presentation_state }}{% else %}{{ stage.stage_id }} - {{ stage.title }} : {{ stage.presentation_state }}{% endif %}</div>
+<div class="state">{% if document_branding_applied | default(false) %}{{ stage.title }} : {{ stage.display_presentation_state }}{% else %}{{ stage.stage_id }} - {{ stage.title }} : {{ stage.presentation_state }}{% endif %}</div>
 {% if stage.summary %}<div>{{ stage.display_summary | default(stage.summary) }}</div>{% endif %}
 {% if stage.blocking_gates %}<div><strong>Points à résoudre :</strong><ul>{% for item in stage.display_blocking_gates | default(stage.blocking_gates) %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
 {% if stage.missing_data_refs %}<div><strong>Données manquantes :</strong><ul>{% for item in stage.display_missing_data_refs | default(stage.missing_data_refs) %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
