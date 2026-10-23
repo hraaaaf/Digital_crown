@@ -5,8 +5,8 @@ import { hasUnsavedPatientDocumentDraft, resetPatientDocumentBoundary } from './
 /**
  * LOT07 R2: pure policy for patient-dossier draft transitions.
  *
- * A change of search params (document tab) is not a dossier exit. Only the
- * departure from a patient dossier pathname can discard a clinical draft.
+ * A document tab switch CAN unmount DocumentHub and lose a draft without
+ * changing pathname. Allow only search changes retaining the current tab.
  * An explicit account revocation/unmount is not an "undoable" navigation:
  * the caller must clear sensitive state independently on logout.
  */
@@ -14,10 +14,16 @@ export function shouldBlockPatientDraftExit(
   currentPathname: string,
   nextPathname: string,
   dirty: boolean,
+  currentSearch = '',
+  nextSearch = '',
 ): boolean {
-  return dirty &&
-    /^\/patients\/\d+\/?$/.test(currentPathname) &&
-    currentPathname !== nextPathname;
+  if (!dirty || !/^\/patients\/\d+\/?$/.test(currentPathname)) return false;
+  if (currentPathname !== nextPathname) return true;
+  // A query-only switch away from DocumentHub destroys its editor in
+  // PatientDetailsInner even though the /patients/:id pathname is unchanged.
+  const currentTab = new URLSearchParams(currentSearch).get('tab') || 'tracking';
+  const nextTab = new URLSearchParams(nextSearch).get('tab') || 'tracking';
+  return currentTab !== nextTab;
 }
 
 /**
@@ -38,6 +44,8 @@ export function usePatientDraftExitBlocker() {
       currentLocation.pathname,
       nextLocation.pathname,
       hasUnsavedPatientDocumentDraft(),
+      currentLocation.search,
+      nextLocation.search,
     );
   });
 
