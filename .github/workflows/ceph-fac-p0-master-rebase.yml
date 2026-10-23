@@ -1,0 +1,65 @@
+name: CEPH FAC P0 — exact-master static code evidence only
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ceph-fac-p0-master-rebase.yml'
+      - 'scripts/audit_ceph_facad_p0_master_rebase.py'
+      - 'tests/test_ceph_facad_p0_master_rebase.py'
+      - 'docs/audits/CEPH_FAC_P0_MASTER_REBASE_2026-10-23.md'
+      - 'docs/audits/data/CEPH_FACAD_PARITY_P0_DESKTOP_EVIDENCE_MATRIX_2026-10-17.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-only-static-rebase:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PINNED_MASTER_SHA: 372c236610b3b621c708be9bc0a0141dfe66c494
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Lock both Git commit snapshots (no vendor/runtime)
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test -z "$(git status --porcelain)"
+          git fetch --no-tags --depth=1 origin "$PINNED_MASTER_SHA"
+          test "$(git rev-parse "${PINNED_MASTER_SHA}^{commit}")" = "$PINNED_MASTER_SHA"
+      - name: Python standard library unit tests
+        run: |
+          python3 -m py_compile scripts/audit_ceph_facad_p0_master_rebase.py tests/test_ceph_facad_p0_master_rebase.py
+          python3 -m unittest discover -s tests -p test_ceph_facad_p0_master_rebase.py -v
+      - name: Exact original matrix versus pinned master code evidence
+        run: |
+          python3 scripts/audit_ceph_facad_p0_master_rebase.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('artifacts/ceph-fac-p0-master-rebase')
+          data=json.loads((root/'report.json').read_text(encoding='utf-8'))
+          c=data['counts']
+          assert c['vendor_menus_documented']==9
+          assert (c['toolbar_total'],c['toolbar_code_string_matched_only'],c['toolbar_not_proven'])==(30,9,21)
+          assert (c['workflow_total'],c['workflow_source_paths_present'])==(7,7)
+          assert c['toolbar_vendor_actions_verified']==0
+          assert c['workflow_e2e_parity_verified']==0
+          assert data['reconciled_master_sha']=='372c236610b3b621c708be9bc0a0141dfe66c494'
+          assert data['clinical_go'] is False
+          assert data['facad_storage_isolation']=='UNVERIFIED'
+          assert data['roadmap_before']==data['roadmap_after']=='41/99'
+          assert sorted(p.name for p in root.iterdir())==['README.md','report.json']
+          print('P0_9_30_7_SOURCE_ONLY_EXACT_MASTER_PASS__NO_ROADMAP_PROMOTION')
+          PY
+      - name: Upload source-path assertions ONLY, no screenshots or patient media
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-fac-p0-9-30-7-source-only-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            artifacts/ceph-fac-p0-master-rebase/report.json
+            artifacts/ceph-fac-p0-master-rebase/README.md
+          if-no-files-found: error
+          retention-days: 30
