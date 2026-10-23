@@ -1,0 +1,132 @@
+
+name: LOT07 R2 real Cabinet draft navigation T2 (experimental)
+on:
+  push:
+    branches:
+      - 'feat/v15-07-r2-patient-route-guard-*'
+    paths:
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/features/patients/**'
+      - 'frontend/scripts/certify-lot07-r2-real-document-route.mjs'
+      - 'scripts/lot07_r2_seed_t2.py'
+      - '.github/workflows/v15-07-r2-real-cabinet-draft-e2e.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lot07-r2-clinic-${{ github.sha }}
+  cancel-in-progress: true
+jobs:
+  disposable-real-cabinet-navigation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: r2-t2-disposable-only-secret-key-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      PRODUCT_HEAD: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Refuse non-exact or non-isolated runtime
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test "$DATABASE_URL" = 'sqlite:///./t2-runtime-cert.db'
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test ! -f t2-runtime-cert.db
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.1"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate ephemeral credentials and encrypted-key fixture
+        run: |
+          set -euo pipefail
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+          key="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$key"
+          echo "SQLCIPHER_KEY_HEX=$key" >> "$GITHUB_ENV"
+      - name: Install backend dependencies in disposable runner
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/lot07-r2-requirements.txt
+          pip install -r /tmp/lot07-r2-requirements.txt
+          python -m pip check
+      - name: Install frontend and real Chromium
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start disposable T2 FastAPI with synthetic owner and patient A
+        run: |
+          set -euo pipefail
+          python scripts/t2_runtime_server.py > /tmp/lot07-r2-backend.log 2>&1 &
+          echo $! >/tmp/lot07-r2-backend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/lot07-r2-backend.log
+          exit 1
+      - name: Seed isolated second synthetic patient B
+        run: |
+          set -euo pipefail
+          python scripts/lot07_r2_seed_t2.py | tee /tmp/lot07-r2-seed.log
+          grep -E '^R2_T2_PATIENT_[AB]_ID=[1-9][0-9]*$' /tmp/lot07-r2-seed.log >> "$GITHUB_ENV"
+          test "$(grep -c '^R2_T2_PATIENT_[AB]_ID=' /tmp/lot07-r2-seed.log)" = 2
+      - name: Start actual Cabinet React frontend
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/lot07-r2-frontend.log 2>&1 &
+          echo $! >/tmp/lot07-r2-frontend.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/lot07-r2-frontend.log
+          exit 1
+      - name: Real UI login / Document Libre / A-B-A / Back / staff denial
+        working-directory: frontend
+        run: node scripts/certify-lot07-r2-real-document-route.mjs
+      - name: Assert sanitized exact SHA evidence
+        run: |
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          r=json.loads(Path('artifacts/lot07-r2-real-cabinet/report.json').read_text())
+          assert r['head']==os.environ['PRODUCT_HEAD']
+          assert r['environment']=='DISPOSABLE_T2_REAL_FASTAPI_AND_REAL_CABINET'
+          assert r['patientReal'] is False and r['clinicalRelease'] is False
+          assert r['status']=='PASS_TARGETED_REAL_CABINET_FUE_I_T2'
+          assert len(r['checks'])>=8 and all(isinstance(v,str) for v in r['checks'])
+          assert not any(k in r for k in ('token','password','patientName','notes'))
+          print('LOT07_R2_REAL_CABINET_T2_EXACT_HEAD_GATE_PASS')
+          PY
+      - name: Diagnostic on failure (do not expose patient payload)
+        if: failure()
+        run: |
+          tail -40 /tmp/lot07-r2-backend.log 2>/dev/null || true
+          tail -40 /tmp/lot07-r2-frontend.log 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot07-r2-real-cabinet-${{ github.sha }}
+          path: artifacts/lot07-r2-real-cabinet/report.json
+          retention-days: 21
+          if-no-files-found: ignore
