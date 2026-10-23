@@ -276,6 +276,9 @@ li { margin-bottom: 3pt; }
 <strong>DOCUMENT CLINIQUE INCOMPLET</strong><br>
 Les données absentes, non calculables ou non validées restent explicitement non résolues. Aucune conclusion clinique ou thérapeutique n'est reconstruite pour compléter le document. La décision clinique relève exclusivement du praticien responsable.
 {% if clinical_validation_reason %}<div class="small">{{ display_clinical_validation_reason | default(clinical_validation_reason) }}</div>{% endif %}
+{% if document_branding_applied | default(false) and blocking_gates %}
+<ul>{% for item in display_blocking_gates %}<li>{{ item }}</li>{% endfor %}</ul>
+{% endif %}
 </div>
 {% else %}
 <div class="notice ok"><strong>État documentaire : {{ display_document_state | default('COMPLETE') }}</strong></div>
@@ -365,8 +368,8 @@ Les données absentes, non calculables ou non validées restent explicitement no
 </div>
 {% endfor %}
 
-{% if blocking_gates %}
-<h2>{% if document_branding_applied | default(false) %}Vérifications encore nécessaires{% else %}Blockers globaux{% endif %}</h2>
+{% if blocking_gates and not document_branding_applied | default(false) %}
+<h2>Blockers globaux</h2>
 <div class="notice tech-blockers"><ul>{% for item in display_blocking_gates | default(blocking_gates) %}<li>{{ item }}</li>{% endfor %}</ul></div>
 {% endif %}
 
