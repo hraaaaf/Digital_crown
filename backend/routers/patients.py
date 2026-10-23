@@ -1777,3 +1777,65 @@ async def import_patients_csv(
 
     return {"created": created, "skipped_duplicates": skipped_duplicates, "errors": errors}
 
+
+
+# --- ODF V5 — cabinet-authenticated clinician notes, distinct from R14 ---
+from backend.schemas.ortho_bilan_notes import (
+    OrthoPractitionerDraftWrite, OrthoPractitionerDraftApproval,
+)
+
+
+@router.get("/{patient_id}/ortho-bilan/{analysis_id}/notes")
+def read_ortho_bilan_practitioner_notes(
+    patient_id: int, analysis_id: int, expected_revision: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_bilan_practitioner_notes import get_practitioner_note
+    return get_practitioner_note(
+        db, patient_id=patient_id, analysis_id=analysis_id,
+        expected_revision=expected_revision, actor=current_user)
+
+
+@router.put("/{patient_id}/ortho-bilan/{analysis_id}/notes/draft")
+def update_ortho_bilan_practitioner_notes(
+    patient_id: int, analysis_id: int, req: OrthoPractitionerDraftWrite,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_bilan_practitioner_notes import save_practitioner_draft
+    result=save_practitioner_draft(
+        db, patient_id=patient_id, analysis_id=analysis_id,
+        expected_revision=req.expected_revision,
+        expected_draft_version=req.expected_draft_version,
+        casts=req.moulages, summary=req.resume_diagnostique,
+        plan=req.plan_traitement, actor=current_user)
+    from backend.services.audit_service import audit_service
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="ORTHO_BILAN_DRAFT_SAVED", resource_type="CephaloAnalysis",
+        resource_id=str(analysis_id),
+        details=f"patient_id={patient_id} revision={req.expected_revision} draft_version={result['draft_version']}",
+    )
+    return result
+
+
+@router.post("/{patient_id}/ortho-bilan/{analysis_id}/notes/approve")
+def approve_ortho_bilan_practitioner_notes(
+    patient_id: int, analysis_id: int, req: OrthoPractitionerDraftApproval,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_bilan_practitioner_notes import approve_practitioner_draft
+    result=approve_practitioner_draft(
+        db, patient_id=patient_id, analysis_id=analysis_id,
+        expected_revision=req.expected_revision,
+        expected_draft_version=req.expected_draft_version,actor=current_user)
+    from backend.services.audit_service import audit_service
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="ORTHO_BILAN_NOTES_APPROVED", resource_type="CephaloAnalysis",
+        resource_id=str(analysis_id),
+        details=f"patient_id={patient_id} revision={req.expected_revision} draft_version={result['draft_version']}",
+    )
+    return result
