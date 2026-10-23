@@ -14,7 +14,7 @@ const viewports = [
 ];
 
 const browser = await chromium.launch({ headless: true });
-const exactHead = process.env.GITHUB_SHA || 'local';
+const exactHead = process.env.PRODUCT_HEAD || 'local';
 const captures = [];
 
 // D6: the visual contract certifies only practitioner-explicit quantity as documentary data.
@@ -44,14 +44,22 @@ for (const viewport of viewports) {
   const cards = page.locator('[data-ordonnance-drug-card]');
   await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
 
-  // Require the real fixture DOM to remain stable before capturing evidence.
-  // A transient mount followed by an async unmount must not be certified.
-  await page.waitForFunction(
-    () => document.querySelectorAll('[data-ordonnance-drug-card]').length === 2,
-    undefined,
-    { timeout: 20000 },
-  );
-  await page.waitForTimeout(250);
+  // Require 900ms of continuously rendered REAL DrugRow cards before
+  // measuring. A previous runner saw mount -> transient unmount -> zero cards
+  // between a one-frame check and its next evaluation. The 2-card assertion
+  // and post-capture check remain strict.
+  await page.waitForFunction(() => {
+    const count = document.querySelectorAll('[data-ordonnance-drug-card]').length;
+    if (count !== 2) {
+      window.__r2CardsStableSince = null;
+      return false;
+    }
+    if (typeof window.__r2CardsStableSince !== 'number') {
+      window.__r2CardsStableSince = performance.now();
+      return false;
+    }
+    return performance.now() - window.__r2CardsStableSince >= 900;
+  }, undefined, { timeout: 30000 });
   const cardCount = await cards.count();
   if (cardCount !== 2) {
     throw new Error(`Expected stable 2 DrugRow cards at ${viewport.width}x${viewport.height}, got ${cardCount}; pageErrors=${pageErrors.join(' | ')}`);
@@ -92,10 +100,21 @@ for (const viewport of viewports) {
     });
 
     const shot = `ordonnance-composer-${viewport.width}x${viewport.height}-${label}.png`;
-    await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
+    // Render must finish, not just DOM mount. Keep screenshot as a hard gate;
+    // disabled animations/caret avoid Playwright's flaky transient frame waits.
+    await page.screenshot({
+      path: path.join(outDir, shot),
+      fullPage: false,
+      animations: 'disabled',
+      caret: 'hide',
+      timeout: 90000,
+    });
     scenes.push({ label, screenshot: shot, metrics });
   }
 
+  if (await cards.count() !== 2) {
+    throw new Error('DrugRow fixture unmounted during capture at ' + viewport.width + 'x' + viewport.height);
+  }
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   const resolvedTheme = await page.evaluate(() => {
     const root = document.documentElement;
@@ -153,7 +172,15 @@ for (const capture of captures) {
   const medicationNameFits = await page.locator('input[placeholder="NOM OU DCI DU MÉDICAMENT..."]').first().evaluate(node => node.scrollWidth <= node.clientWidth + 1);
   const quantityFieldVisible = await page.locator('input[aria-label="Quantité à délivrer"]').first().isVisible();
   const shot = 'ordonnance-composer-390x844-text-200.png';
-  await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
+  // Render must finish, not just DOM mount. Keep screenshot as a hard gate;
+    // disabled animations/caret avoid Playwright's flaky transient frame waits.
+    await page.screenshot({
+      path: path.join(outDir, shot),
+      fullPage: false,
+      animations: 'disabled',
+      caret: 'hide',
+      timeout: 90000,
+    });
   const resolvedTheme = await page.evaluate(() => {
     const root = document.documentElement;
     const style = getComputedStyle(root);
