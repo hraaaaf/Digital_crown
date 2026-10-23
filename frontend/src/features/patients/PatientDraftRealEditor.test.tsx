@@ -12,7 +12,17 @@ import type { AppUser } from '../../types';
 
 // Use the REAL clinical Document Libre editor. Only the T2 backend is stubbed
 // for this component test. Nothing writes to any real clinic or saves a draft.
-vi.mock('../../services/api', () => ({ api: { get: vi.fn(async () => ({data: []})), post: vi.fn() } }));
+vi.mock('../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/api')>();
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      get: vi.fn(async () => ({ data: [] })),
+      post: vi.fn(),
+    },
+  };
+});
 
 class NativeRequestAbortController {
   private readonly controller = transferableAbortController();
