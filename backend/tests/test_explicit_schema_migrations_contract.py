@@ -8,6 +8,8 @@ from sqlalchemy import MetaData, Table, Column, Integer, create_engine, inspect,
 
 from backend.core.schema_runtime import CURRENT_ALEMBIC_HEAD
 from backend.core.sqlite_alembic_baseline import bootstrap_empty_sqlite_to_head
+from backend.core.operator_baseline_metadata import register_operator_baseline_metadata
+from backend.core.print_audit_ddl import PROTECTED_PRINT_AUDITS
 from backend.models import Base
 from backend.services import cabinet_catalog_store as _cabinet_catalog_store  # noqa: F401
 
@@ -109,8 +111,11 @@ def test_catalog_store_does_not_create_schema_implicitly():
 
 
 def test_empty_sqlite_alembic_baseline_materializes_current_metadata_and_stamps_exact_head():
-    engine = create_engine("sqlite:///:memory:")
+    # Match the precise metadata registrations used by alembic/env.py.
+    register_operator_baseline_metadata(Base.metadata)
     expected_tables = {table.name for table in Base.metadata.sorted_tables}
+    assert set(PROTECTED_PRINT_AUDITS) <= expected_tables
+    engine = create_engine("sqlite:///:memory:")
 
     with engine.begin() as connection:
         assert bootstrap_empty_sqlite_to_head(
@@ -122,6 +127,12 @@ def test_empty_sqlite_alembic_baseline_materializes_current_metadata_and_stamps_
         inspector = inspect(connection)
         actual_tables = set(inspector.get_table_names())
         assert actual_tables >= expected_tables | {"alembic_version"}
+        for table in PROTECTED_PRINT_AUDITS:
+            triggers = connection.execute(text(
+                "SELECT name FROM sqlite_master WHERE type='trigger' "
+                "AND tbl_name=:table AND name LIKE 'dc_immutable_%'"
+            ), {"table": table}).scalars().all()
+            assert len(triggers) == 2, (table, triggers)
         assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == CURRENT_ALEMBIC_HEAD
 
         # Representative high-risk runtime schema must come from the same snapshot.
