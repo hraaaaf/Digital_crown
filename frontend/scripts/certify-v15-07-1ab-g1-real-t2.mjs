@@ -197,10 +197,9 @@ try {
   pass('mobile keeps original authenticated media',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
   const patientHeaderToast=await page.evaluate(()=>{
     const heading=document.querySelector('header h1');
-    const toast=[...document.querySelectorAll('div')].find(el=>{
-      const style=getComputedStyle(el);
-      return style.position==='fixed' && style.zIndex==='9999';
-    });
+    // A stable Toaster root avoids coupling this test to incidental z-index
+    // values or the temporary presence of an individual toast.
+    const toast=document.querySelector('.dc-global-toast-position');
     const style=toast?getComputedStyle(toast):null;
     return {found:Boolean(heading&&toast),top:style?.top,bottom:style?.bottom,
       headingBottom:Math.round(heading?.getBoundingClientRect().bottom||0),
