@@ -38,6 +38,7 @@ function GuardedDossier() {
       <p data-testid="active-patient">Dossier {id}</p>
       <DraftInput patientId={String(id)} key={id} />
       <button onClick={() => navigate('/patients/18')}>Ouvrir patient B</button>
+      <button onClick={() => navigate('/patients/17')}>Retour au patient A</button>
       <button onClick={() => navigate('/patients/17?tab=clinical')}>Changer onglet</button>
       {blocker.state === 'blocked' && (
         <div role="alertdialog" aria-label="Brouillon non enregistré">
@@ -84,6 +85,20 @@ describe('LOT07 R2 dormant data-router patient-draft exit policy', () => {
     await waitFor(() => expect(screen.getByTestId('active-patient').textContent).toBe('Dossier 18'));
     expect((screen.getByLabelText('Brouillon clinique') as HTMLInputElement).value).toBe('');
     expect(screen.queryByText('private synthetic A')).toBeNull();
+    expect(isPrescriptionDirty()).toBe(false);
+  });
+
+  it('keeps A isolated across the complete A->B->A synthetic route sequence', async () => {
+    renderDataRouter();
+    fireEvent.change(screen.getByLabelText('Brouillon clinique'), { target: { value: 'T2_A_private_draft' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir patient B' }));
+    await screen.findByRole('alertdialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Quitter sans sauvegarder' }));
+    await waitFor(() => expect(screen.getByTestId('active-patient').textContent).toBe('Dossier 18'));
+    expect((screen.getByLabelText('Brouillon clinique') as HTMLInputElement).value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Retour au patient A' }));
+    await waitFor(() => expect(screen.getByTestId('active-patient').textContent).toBe('Dossier 17'));
+    expect((screen.getByLabelText('Brouillon clinique') as HTMLInputElement).value).toBe('');
     expect(isPrescriptionDirty()).toBe(false);
   });
 
