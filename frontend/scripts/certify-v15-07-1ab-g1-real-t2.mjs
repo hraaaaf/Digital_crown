@@ -261,7 +261,7 @@ try {
   await page.getByRole('button',{name:'Ouvrir le média sélectionné en plein écran'}).click();
   await page.getByRole('dialog',{name:'Visionneuse média clinique'})
     .waitFor({state:'visible',timeout:30000});
-  pass('real media full-screen viewer opened with patient A');
+  pass('real media full-screen viewer opened with patient A', await page.getByRole('dialog',{name:'Visionneuse média clinique'}).count()===1);
   await goPatient(patientB.id);
   await page.locator('[data-testid="multiview-real-dossier"]')
     .getByText(patientB.numero_dossier,{exact:true})
