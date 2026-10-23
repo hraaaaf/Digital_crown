@@ -347,20 +347,14 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         elements = [
             Paragraph("BILAN ORTHODONTIQUE", title),
-            Paragraph(f"Révision du document : {escape(str(context.get('cephalo_source_analysis_revision') or 'non renseignée'))}", body),
             Paragraph(
                 f"Patient : {escape(str(vm.patient_nom).upper())} {escape(str(vm.patient_prenom).capitalize())} - Âge : {escape(str(vm.patient_age))} ans",
                 body,
             ),
-            Paragraph(f"État du bilan : <b>{escape(context['display_document_state'])}</b>", body),
-            Paragraph("Ce bilan ne constitue pas un diagnostic automatique.", body),
         ]
 
-        if context["document_state"] != "COMPLETE":
-            elements.append(Paragraph("Document clinique explicitement incomplet. Aucune conclusion manquante n'est reconstruite.", body))
-        if context["clinical_validation_reason"]:
-            elements.append(Paragraph(escape(context["display_clinical_validation_reason"]), body))
-
+        # Operational verification and pre-bilan state stay exclusively in
+        # the authoritative projection. They are not print content.
         elements.append(Paragraph("Mesures scientifiques", h2))
         small = ParagraphStyle("R17Cell", parent=body, fontSize=7, leading=9)
         def cell(value):
@@ -433,42 +427,19 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             ]))
             elements.extend([protocol_table, Spacer(1, 0.4*cm)])
 
-        elements.append(Paragraph("État des vérifications cliniques", h2))
+        # Only substantive safety findings are printable. Internal gate
+        # status, evidence registry, provenance and archive workflow stay in
+        # the clinical engine and do not disappear from enforcement.
         for stage in context["stages"]:
-            label = f"{stage['display_title']} : {stage['display_presentation_state']}"
-            elements.append(Paragraph(f"<b>{escape(label)}</b>", body))
-            if stage.get("display_summary"):
-                elements.append(Paragraph(escape(str(stage["display_summary"])), body))
-            for heading, key in (
-                ("Points à résoudre", "display_blocking_gates"),
-                ("Données manquantes", "display_missing_data_refs"),
-                ("Contradictions", "display_contradictions"),
-                ("Contre-indications", "display_contraindications"),
-            ):
-                values = stage.get(key) or []
-                if values:
-                    rendered_values = "; ".join(escape(str(value)) for value in values)
-                    elements.append(Paragraph(f"{heading}: {rendered_values}", body))
-            provenance = stage.get("display_provenance") or []
-            if provenance:
-                text = "; ".join(
-                    f"{escape(str(item.get('label')))}: {escape(str(item.get('value')))}"
-                    for item in provenance
-                )
-                elements.append(Paragraph("Provenance: " + text, body))
-
-        if context["blocking_gates"]:
-            elements.append(Paragraph("Points restant à vérifier", h2))
-            elements.append(
-                Paragraph(
-                    "; ".join(escape(str(value)) for value in context["display_blocking_gates"]),
-                    body,
-                )
-            )
+            alerts = list(stage.get("display_contraindications") or []) + list(
+                stage.get("display_contradictions") or [])
+            if alerts:
+                elements.append(Paragraph("Points cliniques à examiner", h2))
+                for alert in alerts:
+                    elements.append(Paragraph(escape(str(alert)), body))
 
         elements.append(Paragraph(
-            f"Praticien responsable : {escape(str(context.get('doctor_name') or 'non renseigné'))}. "
-            "Toute décision clinique exige une validation par le praticien.", body))
+            f"Praticien responsable : {escape(str(context.get('doctor_name') or 'non renseigné'))}.", body))
         draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config, user=user)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return file_path
