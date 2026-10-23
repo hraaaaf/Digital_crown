@@ -1819,13 +1819,6 @@ def update_ortho_bilan_practitioner_notes(
         expected_draft_version=req.expected_draft_version,
         casts=req.moulages, summary=req.resume_diagnostique,
         plan=req.plan_traitement, actor=current_user)
-    from backend.services.audit_service import audit_service
-    audit_service.log(
-        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
-        action="ORTHO_BILAN_DRAFT_SAVED", resource_type="CephaloAnalysis",
-        resource_id=str(analysis_id),
-        details=f"patient_id={patient_id} revision={req.expected_revision} draft_version={result['draft_version']}",
-    )
     return result
 
 
@@ -1840,11 +1833,4 @@ def approve_ortho_bilan_practitioner_notes(
         db, patient_id=patient_id, analysis_id=analysis_id,
         expected_revision=req.expected_revision,
         expected_draft_version=req.expected_draft_version,actor=current_user)
-    from backend.services.audit_service import audit_service
-    audit_service.log(
-        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
-        action="ORTHO_BILAN_NOTES_APPROVED", resource_type="CephaloAnalysis",
-        resource_id=str(analysis_id),
-        details=f"patient_id={patient_id} revision={req.expected_revision} draft_version={result['draft_version']}",
-    )
     return result
