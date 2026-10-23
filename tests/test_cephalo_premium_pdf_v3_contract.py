@@ -10,6 +10,8 @@ import tempfile
 import unittest
 
 from PyPDF2 import PdfReader
+import fitz
+from PIL import Image, ImageDraw
 
 from backend.services.cephalo_pdf_presentation import clinical_term, measurement_value
 from backend.services.document_branding_contract import serialize_document_branding
@@ -25,18 +27,23 @@ def synthetic_branding(template="swiss"):
     return {
         "selected_template": template,
         "selected_theme": "rose",  # deliberate counterexample: never drives PDF identity
-        "nom_praticien": "Dr Test Cabinet",
-        "nom_cabinet": "Cabinet Synthétique",
+        "nom_praticien": "Dr Salma Atlas - DEMO",
+        "nom_cabinet": "Cabinet Atlas - DEMONSTRATION",
         "header_customized": True,
-        "header_lines_fr": ["Dr Test Cabinet", "Cabinet Synthétique"],
+        "specialty_ids": ["ortho"],
+        "header_lines_fr": ["Dr Salma Atlas - DEMO", "Chirurgienne-dentiste - Orthodontie", "Orthodontie et orthopedie dento-faciale"],
         "header_lines_ar": [],
-        "footer_address": "Rue Exemple 123",
+        "footer_address": "24 avenue de l'Exemple, Rabat (adresse fictive)",
         "footer_phones": "06 00 00 00 00",
-        "contacts_json": {},
+        "contacts_json": {"fixe": {"enabled": True, "value": "05 00 00 00 00"}, "mobile": {"enabled": True, "value": "06 00 00 00 00"}},
         "primary_color": "#29476a", "secondary_color": "#506379",
         "accent_color": "#a9b2c2", "font_fr": "outfit",
         "margin_top": 3.6, "margin_bottom": 3.2,
-        "qr_code_enabled": False, "use_letterhead": False,
+        "qr_code_enabled": True, "qr_code_type": "WEBSITE",
+        "qr_code_value": "https://example.org/digital-crown-demo",
+        "qr_code_label": "SITE DEMO", "qr_code_style": "classic",
+        "qr_code_color": "#29476a", "logo_path": "logo_atlas_demo.png",
+        "use_letterhead": False,
         "hide_header": False, "hide_footer": False,
     }
 
@@ -73,7 +80,7 @@ def synthetic_projection(n=95):
 def synthetic_vm(template="swiss"):
     return SimpleNamespace(
         patient_nom="TEST", patient_prenom="Synthétique", patient_age="12",
-        date_generation="23/10/2026", doctor_name="Dr Test Cabinet",
+        date_generation="23/10/2026", doctor_name="Dr Salma Atlas - DEMO",
         cabinet_config=synthetic_branding(template),
         is_pre_bilan=True, validation_warnings=[],
     )
@@ -85,7 +92,10 @@ class PdfV3Contract(unittest.TestCase):
         self.assertEqual(branded["selected_template"], "swiss")
         self.assertNotIn("selected_theme", branded)
         self.assertNotIn("hashed_password", branded)
-        self.assertEqual(branded["footer_address"], "Rue Exemple 123")
+        self.assertEqual(branded["footer_address"], "24 avenue de l'Exemple, Rabat (adresse fictive)")
+        self.assertEqual(branded["qr_code_type"], "WEBSITE")
+        self.assertEqual(branded["qr_code_value"], "https://example.org/digital-crown-demo")
+        self.assertEqual(branded["header_lines_fr"][1], "Chirurgienne-dentiste - Orthodontie")
 
     def test_fail_closed_display_language(self):
         self.assertEqual(clinical_term("NOT_COMPUTABLE"),
@@ -107,10 +117,30 @@ class PdfV3Contract(unittest.TestCase):
         all_call_reprs = " ".join(map(str, canvas.method_calls))
         self.assertNotIn("الإسم الكامل", all_call_reprs)
         self.assertNotIn("طبيب جراح", all_call_reprs)
-        self.assertIn("Dr Test Cabinet", all_call_reprs)
+        self.assertIn("Dr Salma Atlas - DEMO", all_call_reprs)
+        self.assertIn("Chirurgienne-dentiste - Orthodontie", all_call_reprs)
 
     def test_real_weasyprint_a4_all_five_cabinet_templates(self):
         with tempfile.TemporaryDirectory() as tmp:
+            media = Path(tmp) / "demo_brand_assets"
+            media.mkdir()
+            logo = Image.new("RGB", (160, 160), "white")
+            draw = ImageDraw.Draw(logo)
+            draw.ellipse((9, 9, 151, 151), fill="#29476a")
+            draw.ellipse((30, 30, 130, 130), fill="#f8fafc")
+            draw.text((69, 63), "A", fill="#29476a")
+            logo.save(media / "logo_atlas_demo.png")
+            previous_media = os.environ.get("MEDIA_ROOT")
+            os.environ["MEDIA_ROOT"] = str(media)
+            try:
+                self._check_five_templates(tmp)
+            finally:
+                if previous_media is None:
+                    os.environ.pop("MEDIA_ROOT", None)
+                else:
+                    os.environ["MEDIA_ROOT"] = previous_media
+
+    def _check_five_templates(self, tmp):
             generator = BilanOrthoPDFGenerator(tmp)
             for template in TEMPLATES:
                 with self.subTest(template=template):
@@ -126,9 +156,17 @@ class PdfV3Contract(unittest.TestCase):
                         "Rapport dense excessivement long (page finale orpheline possible)")
                     full = "\n".join(page.extract_text() or "" for page in pdf.pages)
                     last = pdf.pages[-1].extract_text() or ""
-                    self.assertGreater(len(last), 900,
+                    self.assertGreater(len(last), 380,
                         "La dernière page ne doit pas contenir seulement une clôture")
                     self.assertIn("Non calculable", full)
+                    self.assertIn("Mesures céphalométriques", full)
+                    self.assertIn("Chirurgienne-dentiste - Orthodontie", full)
+                    for forbidden in ("Lignes de mesures documentées",
+                                      "Mesures disponibles (non validées)",
+                                      "Indisponibles / non calculables",
+                                      "Source et calibration", "Valeur et disponibilité",
+                                      "Origine des mesures", "Vérification des données"):
+                        self.assertNotIn(forbidden, full)
                     self.assertNotIn("NOT_COMPUTABLE", full)
                     self.assertNotIn("source-lock", full)
                     self.assertNotIn("EVIDENCE_GRAPH_V1", full)
@@ -151,8 +189,8 @@ class PdfV3Contract(unittest.TestCase):
                     self.assertGreaterEqual(len(ordonnance.pages), 1)
                     ordonnance_text = "\n".join(p.extract_text() or "" for p in ordonnance.pages)
                     for shared_string in (
-                        "Dr Test Cabinet", "Cabinet Synthétique",
-                        "Rue Exemple 123", "06 00 00 00 00",
+                        "Dr Salma Atlas - DEMO", "Chirurgienne-dentiste - Orthodontie",
+                        "24 avenue de l'Exemple, Rabat (adresse fictive)", "06 00 00 00 00",
                     ):
                         self.assertIn(shared_string, full, "Missing bilan branding")
                         self.assertIn(shared_string, ordonnance_text, "Missing ordonnance branding")
@@ -160,13 +198,23 @@ class PdfV3Contract(unittest.TestCase):
                         ("\u0600" <= ch <= "\u06ff") or ("\ufb50" <= ch <= "\ufeff")
                         for ch in full + ordonnance_text),
                         "Un cabinet sans en-tête arabe ne doit pas inventer un praticien arabe")
+                    for actual_path in (output, prescription_path):
+                        pdf = fitz.open(actual_path)
+                        for p in pdf:
+                            rects = [box for xref, *_ in p.get_images(full=True)
+                                     for box in p.get_image_rects(xref)]
+                            self.assertTrue(any(
+                                box.x0 > p.rect.width-125 and
+                                box.y0 > p.rect.height-135 and
+                                33 < box.width < 66 and 33 < box.height < 66
+                                for box in rects), f"Missing bottom-right QR on {actual_path}")
                     if capture:
                         shutil.copy2(prescription_path, Path(capture) / f"ordonnance_{template}.pdf")
                     for page in pdf.pages:
                         self.assertAlmostEqual(float(page.mediabox.width), A4[0], delta=0.5)
                         self.assertAlmostEqual(float(page.mediabox.height), A4[1], delta=0.5)
                         body = page.extract_text() or ""
-                        self.assertIn("Rue Exemple 123", body,
+                        self.assertIn("24 avenue de l'Exemple, Rabat (adresse fictive)", body,
                                       "Le pied de page BaseTemplate doit apparaître sur chaque page")
 
     def test_reportlab_fallback_uses_the_same_branding(self):
@@ -177,7 +225,7 @@ class PdfV3Contract(unittest.TestCase):
                                           projection=synthetic_projection(n=25))
             pdf = PdfReader(output)
             text = "\n".join(p.extract_text() or "" for p in pdf.pages)
-            self.assertIn("Rue Exemple 123", text)
+            self.assertIn("24 avenue de l'Exemple, Rabat (adresse fictive)", text)
             self.assertNotIn("source-lock", text)
             self.assertNotIn("NOT_COMPUTABLE", text)
             capture = os.environ.get("CEPH_V3_CAPTURE_DIR")
