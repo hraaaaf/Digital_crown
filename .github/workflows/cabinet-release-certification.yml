@@ -82,9 +82,12 @@ jobs:
         run: |
           # This file is a standalone PostgreSQL/rehearsal gate, not a pytest
           # module: its top-level safety assertions reject the general SQLite
-          # suite. Keep its strict checks and dedicated CI workflow intact.
+          # suite. A separate standalone staff-gateway unittest script also
+          # imports an unqualified sibling module under a constrained process.
+          # Keep both independent security harnesses and their CI intact.
           python -m pytest backend/tests -q --maxfail=1 \
-            --ignore=backend/tests/test_legacy_migration_http_pg_v15.py
+            --ignore=backend/tests/test_legacy_migration_http_pg_v15.py \
+            --ignore=backend/tests/test_legacy_migration_staff_gateway_v15.py
 
   postgres18:
     name: PostgreSQL 18 upgrade + preservation

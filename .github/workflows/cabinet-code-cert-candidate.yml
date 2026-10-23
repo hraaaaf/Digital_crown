@@ -47,7 +47,8 @@ jobs:
       - name: Full backend regression / rehearsal-only file isolated
         run: |
           python -m pytest backend/tests -q --maxfail=1 \
-            --ignore=backend/tests/test_legacy_migration_http_pg_v15.py
+            --ignore=backend/tests/test_legacy_migration_http_pg_v15.py \
+            --ignore=backend/tests/test_legacy_migration_staff_gateway_v15.py
 
   frontend-full:
     name: Full frontend Vitest + production build
@@ -128,3 +129,10 @@ jobs:
           set -euo pipefail
           PYTHONPATH=. python backend/tests/test_legacy_migration_http_pg_v15.py 2>&1 | tee /tmp/candidate-rehearsal.log
           grep -q '^LOT05_6_HTTP_PG_PASS ' /tmp/candidate-rehearsal.log
+      - name: Preserve independent staff-gateway unittest guards
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_staff_gateway_v15.py -v 2>&1 | tee /tmp/candidate-staff-gateway.log
+          grep -q '^Ran 14 tests' /tmp/candidate-staff-gateway.log
+          grep -q '^OK
+ /tmp/candidate-staff-gateway.log

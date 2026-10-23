@@ -134,7 +134,7 @@ describe('Cephalo Step4 G4 document controls',()=>{
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
 
     const archive=screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement;
-    expect(archive.disabled).toBe(false);
+    await waitFor(()=>expect(archive.disabled).toBe(false));
     fireEvent.click(archive);
 
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(2));
@@ -149,7 +149,9 @@ describe('Cephalo Step4 G4 document controls',()=>{
     render(<Step4Documents P={P}/>);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(screen.getByRole('button',{name:/Archiver le bilan/i}));
+    const archive=screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement;
+    await waitFor(()=>expect(archive.disabled).toBe(false));
+    fireEvent.click(archive);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(2));
     expect(state.handlePrint).not.toHaveBeenCalled();
     expect(await screen.findByText('Landmarks incohérents')).toBeTruthy();
