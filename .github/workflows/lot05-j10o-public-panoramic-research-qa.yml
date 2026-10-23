@@ -52,6 +52,8 @@ jobs:
         run: python experiments/test_lot05_j10z_fdi640_epoch_ablation.py -v
       - name: 8 synthetic academic cross-split JPEG fingerprint and privacy tests
         run: python experiments/test_lot05_j11a_akudental_cross_split_image_fingerprint.py -v
+      - name: 6 synthetic local-only candidate pair roster privacy and safe-path tests
+        run: python experiments/test_lot05_j11b_private_candidate_pair_roster.py -v
 
   roboflow-public-metadata:
     name: Public FDI32 publisher metadata on native runner
