@@ -199,8 +199,8 @@ class PdfV3Contract(unittest.TestCase):
                         for ch in full + ordonnance_text),
                         "Un cabinet sans en-tête arabe ne doit pas inventer un praticien arabe")
                     for actual_path in (output, prescription_path):
-                        pdf = fitz.open(actual_path)
-                        for p in pdf:
+                        image_doc = fitz.open(actual_path)
+                        for p in image_doc:
                             rects = [box for xref, *_ in p.get_images(full=True)
                                      for box in p.get_image_rects(xref)]
                             self.assertTrue(any(
