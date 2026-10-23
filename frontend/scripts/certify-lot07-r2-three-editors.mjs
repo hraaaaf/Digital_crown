@@ -111,11 +111,16 @@ try {
 
   // Honest minimal-note scenario: no act line exists; changing payment mode
   // must still count as an unsaved Honoraires draft.
+  // The Studio footer ALSO exposes a "Virement" button. Only target the
+  // actual treasury dialog, never an unrelated footer control.
+  const treasury=page.locator('div.fixed').filter({
+    has:page.getByRole('heading',{name:'Encaissement',exact:true}),
+  });
+  const mode=treasury.getByRole('button',{name:'Virement',exact:true});
   const openTreasury=async()=>{
     await page.getByRole('button',{name:/Échéances & options/i}).click();
-    await page.getByRole('button',{name:'Virement',exact:true}).waitFor({state:'visible'});
+    await mode.waitFor({state:'visible'});
   };
-  const mode=page.getByRole('button',{name:'Virement',exact:true});
   const selected=async()=>(await mode.getAttribute('class')||'').includes('bg-white text-slate-800');
   await exercise({
     type:'HONORAIRES_PAYMENT_ONLY',tab:'honoraires',
