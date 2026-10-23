@@ -104,7 +104,10 @@ def seed():
     with database.SessionLocal() as db:
         dentist = db.query(models.User).filter(models.User.email == "t2-browser@cabinet.ma").one()
         assert dentist.role == models.UserRole.DENTISTE and dentist.get_employer_id() == dentist.id
+        dentist.email = "odf-lab-dentiste@example.invalid"
         dentist.nom_complet = "Dr Salma Atlas - LAB TEST"
+        secretary = db.query(models.User).filter(models.User.email == "t2-restricted@cabinet.ma").one()
+        secretary.email = "odf-lab-secretaire@example.invalid"
         cfg = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentist.id).one()
         cfg.nom_cabinet = "Cabinet Atlas - LABORATOIRE FICTIF"
         cfg.nom_praticien = "Dr Salma Atlas - LAB TEST"
