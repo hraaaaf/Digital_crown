@@ -36,7 +36,7 @@ jobs:
             'reportlab==4.4.10' 'arabic-reshaper==3.0.0' 'python-bidi==0.6.7' \
             'qrcode==8.2' 'svglib==1.5.1' 'pillow==12.2.0' \
             'SQLAlchemy==2.0.28' 'pydantic==2.6.3' 'fastapi==0.115.6' \
-            'python-jose==3.5.0' 'python-multipart==0.0.31' 'email-validator==2.3.0'
+            'python-jose==3.5.0' 'python-multipart==0.0.31' 'email-validator==2.3.0' 'PyMuPDF==1.27.2.3'
       - name: Compile and test synthetic clinician-facing PDF contracts
         env:
           CEPH_V3_CAPTURE_DIR: artifacts/ceph-pdf-v3
@@ -45,10 +45,12 @@ jobs:
           python -m unittest discover -s tests -p 'test_cephalo_premium_pdf_v2_contract.py' -v
           python -m unittest discover -s tests -p 'test_cephalo_premium_pdf_v3_contract.py' -v
 
+      - name: Render real A5 ordonnance vs A4 bilan pairs and last-page inspection sheets
+        run: python scripts/ceph_pdf_v3_visual_contact_sheet.py
       - name: Upload five synthetic cabinet PDFs and letterhead check
         uses: actions/upload-artifact@v4
         with:
           name: ceph-pdf-v3-synthetic-${{ github.event.pull_request.head.sha || github.sha }}
-          path: artifacts/ceph-pdf-v3/*.pdf
+          path: artifacts/ceph-pdf-v3/*
           if-no-files-found: error
           retention-days: 21
