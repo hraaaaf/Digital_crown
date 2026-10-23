@@ -59,7 +59,7 @@ function tenantKey(user: AppUser | null): string | null {
 
 /**
  * Actual patient dossier route adapter, opt-in development only.
- * Reuses ONE authenticated PatientMediaTimeline and optional existing longitudinal
+ * Reuses ONE authenticated read-only PatientMediaTimeline and optional existing longitudinal
  * comparison; never mounts arbitrary module names or second CephaloWorkspace.
  */
 export function CabinetMultiViewLab({patient, routePatientId, user}: {
@@ -182,7 +182,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
 
   const renderSlot=(slot:{module:ModuleKey})=>{
     if (!trustedPatient) return null;
-    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id}/>;
+    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>;
     if (slot.module==='dossier') return (
       <div data-testid="multiview-real-dossier" className="space-y-2 p-3 text-sm">
         <p className="font-semibold">Dossier patient</p>
