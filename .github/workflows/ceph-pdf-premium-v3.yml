@@ -38,7 +38,17 @@ jobs:
             'SQLAlchemy==2.0.28' 'pydantic==2.6.3' 'fastapi==0.115.6' \
             'python-jose==3.5.0' 'python-multipart==0.0.31' 'email-validator==2.3.0'
       - name: Compile and test synthetic clinician-facing PDF contracts
+        env:
+          CEPH_V3_CAPTURE_DIR: artifacts/ceph-pdf-v3
         run: |
           python -m compileall -q backend/services/document_branding_contract.py backend/services/cephalo_pdf_presentation.py backend/services/generators/bilan_ortho_gen.py
           python -m unittest discover -s tests -p 'test_cephalo_premium_pdf_v2_contract.py' -v
           python -m unittest discover -s tests -p 'test_cephalo_premium_pdf_v3_contract.py' -v
+
+      - name: Upload five synthetic cabinet PDFs and letterhead check
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-pdf-v3-synthetic-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-pdf-v3/*.pdf
+          if-no-files-found: error
+          retention-days: 21
