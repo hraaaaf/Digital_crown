@@ -10,7 +10,7 @@ vi.mock('../../services/workstationMode',()=>({
 }));
 vi.mock('../../services/api',()=>({API_BASE:'http://localhost:8005',api:{get:vi.fn()}}));
 vi.mock('../patients/components/PatientMediaTimeline',()=>({
-  PatientMediaTimeline:({patientId}:{patientId:number})=><div data-testid="media-live">Media API module patient {patientId}</div>,
+  PatientMediaTimeline:({patientId,readOnly}:{patientId:number;readOnly?:boolean})=><div data-testid="media-live" data-read-only={String(Boolean(readOnly))}>Media API module patient {patientId}</div>,
 }));
 vi.mock('../ortho/OrthoLongitudinalComparePanel',()=>({
   OrthoLongitudinalComparePanel:({patientId}:{patientId:number})=><div data-testid="suivi-live">Longitudinal patient {patientId}</div>,
@@ -58,6 +58,16 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(isCabinetMultiViewLabEnabled(true,undefined)).toBe(false);
     expect(isCabinetMultiViewLabEnabled(true,'true')).toBe(false);
     expect(isCabinetMultiViewLabEnabled(true,'1')).toBe(true);
+  });
+
+  it('mounts imagerie as R-only in live MultiView, while preserving normal non-desktop fallback',async()=>{
+    const actor=user();
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    desktop=false;
+    rerender(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}/>);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('false');
   });
 
   it('requires real signed-in workstation bootstrap AND fresh exact-patient GET before mounting media',async()=>{
