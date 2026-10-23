@@ -248,8 +248,7 @@ li { margin-bottom: 3pt; }
 <header class="hero-report">
   <div class="kicker">ORTHODONTIE &nbsp;/&nbsp; DONNÉES CÉPHALOMÉTRIQUES</div>
   <h1>Étude céphalométrique.</h1>
-  <div class="subtitle">Bilan scientifique sourcé{% if not document_branding_applied | default(false) %} · {{ contract_version or 'contrat indisponible' }}{% endif %}<br>
-  La présence d'une mesure ne constitue jamais une validation clinique.</div>
+  <div class="subtitle">Bilan céphalométrique{% if not document_branding_applied | default(false) %} · {{ contract_version or 'contrat indisponible' }}<br>La présence d'une mesure ne constitue jamais une validation clinique.{% endif %}</div>
 </header>
 
 <div class="meta">
@@ -271,6 +270,11 @@ li { margin-bottom: 3pt; }
 </div>
 {% endif %}
 
+{# Keep this operational audit panel only in the legacy technical preview.
+   The branded clinician report never publishes internal validation state,
+   registry availability, archive flags or backend gate references. The
+   projection/gating is unchanged and still blocks clinical sign-off. #}
+{% if not document_branding_applied | default(false) %}
 {% if document_state != 'COMPLETE' %}
 <div class="notice incomplete">
 <strong>DOCUMENT CLINIQUE INCOMPLET</strong><br>
@@ -290,6 +294,7 @@ Les données absentes, non calculables ou non validées restent explicitement no
 
 {% if validation_warnings %}
 <div class="notice"><strong>Points à vérifier :</strong><ul>{% for item in display_validation_warnings | default(validation_warnings) %}<li>{{ item }}</li>{% endfor %}</ul></div>
+{% endif %}
 {% endif %}
 
 <h2>{{ 'Mesures céphalométriques' if document_branding_applied | default(false) else 'Inventaire des mesures scientifiques' }}</h2>
@@ -355,6 +360,19 @@ Les données absentes, non calculables ou non validées restent explicitement no
 </table>
 {% endif %}
 
+{% if document_branding_applied | default(false) %}
+{# Actual clinical contraindications/contradictions may be important patient
+   safety information, unlike internal pipeline statuses. Never hide those. #}
+{% for stage in stages %}
+{% if stage.contraindications or stage.contradictions %}
+<section class="notice">
+<strong>Points cliniques à examiner</strong>
+{% if stage.contraindications %}<ul>{% for item in stage.display_contraindications %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+{% if stage.contradictions %}<ul>{% for item in stage.display_contradictions %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+{% endfor %}
+{% else %}
 <h2>{% if document_branding_applied | default(false) %}État des vérifications cliniques{% else %}Chaîne clinique R11 → R14 · état de validation{% endif %}</h2>
 {% for stage in stages %}
 <div class="stage">
@@ -374,9 +392,10 @@ Les données absentes, non calculables ou non validées restent explicitement no
 {% endif %}
 
 {% if not document_branding_applied | default(false) %}
+{% endif %}
+
 <div class="footer">
-Praticien responsable : {{ doctor_name or 'non renseigné' }}.<br>
-{% if document_branding_applied | default(false) %}Ce document restitue uniquement les informations disponibles et leur état de vérification. Il ne constitue pas un diagnostic automatique. Toute décision clinique exige une validation par le praticien responsable.{% else %}Ce document restitue l'état clinique autoritaire disponible. EVALUABLE n'implique jamais sélection ; BLOCKED n'implique jamais DROPPED ; une validation finale R14 exige une preuve praticien autoritaire.{% endif %}
+Praticien responsable : {{ doctor_name or 'non renseigné' }}.{% if not document_branding_applied | default(false) %}<br>Ce document restitue l'état clinique autoritaire disponible. EVALUABLE n'implique jamais sélection ; BLOCKED n'implique jamais DROPPED ; une validation finale R14 exige une preuve praticien autoritaire.{% endif %}
 </div>
 {% endif %}
 </body>
