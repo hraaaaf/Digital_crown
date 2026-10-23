@@ -1,6 +1,8 @@
 """Premium V3 — real synthetic PDF parity without a patient or clinical promotion."""
 from __future__ import annotations
 import os
+from datetime import date
+from unittest.mock import MagicMock
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,6 +14,10 @@ from PyPDF2 import PdfReader
 from backend.services.cephalo_pdf_presentation import clinical_term, measurement_value
 from backend.services.document_branding_contract import serialize_document_branding
 from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
+from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
+from backend.services.base_template import BaseTemplate
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
 
 TEMPLATES = ("swiss", "royal", "clinical", "modern", "heritage")
 
@@ -89,19 +95,39 @@ class PdfV3Contract(unittest.TestCase):
         self.assertNotIn("method_id", clinical_term("method_id_unknown"))
         self.assertNotIn("source-lock", clinical_term("source-lock SATISFIED"))
 
+    def test_no_fictitious_arabic_practitioner_in_explicitly_unilingual_cabinet(self):
+        canvas = MagicMock()
+        base = BaseTemplate()
+        cfg = synthetic_branding()
+        base._draw_auto_header(
+            canvas, cfg, None, colors.HexColor("#29476a"),
+            colors.HexColor("#506379"), colors.HexColor("#a9b2c2"),
+            *A4,
+        )
+        all_call_reprs = " ".join(map(str, canvas.method_calls))
+        self.assertNotIn("الإسم الكامل", all_call_reprs)
+        self.assertNotIn("طبيب جراح", all_call_reprs)
+        self.assertIn("Dr Test Cabinet", all_call_reprs)
+
     def test_real_weasyprint_a4_all_five_cabinet_templates(self):
-        from reportlab.lib.pagesizes import A4
         with tempfile.TemporaryDirectory() as tmp:
             generator = BilanOrthoPDFGenerator(tmp)
             for template in TEMPLATES:
                 with self.subTest(template=template):
                     vm = synthetic_vm(template)
+                    vm.cabinet_config = serialize_document_branding(
+                        SimpleNamespace(**vm.cabinet_config))
                     output = str(Path(tmp) / f"bilan_{template}.pdf")
                     generator._generate_weasyprint(vm, output,
                         projection=synthetic_projection(), user=None)
                     pdf = PdfReader(output)
                     self.assertGreaterEqual(len(pdf.pages), 2)
+                    self.assertLessEqual(len(pdf.pages), 9,
+                        "Rapport dense excessivement long (page finale orpheline possible)")
                     full = "\n".join(page.extract_text() or "" for page in pdf.pages)
+                    last = pdf.pages[-1].extract_text() or ""
+                    self.assertGreater(len(last), 900,
+                        "La dernière page ne doit pas contenir seulement une clôture")
                     self.assertIn("Non calculable", full)
                     self.assertNotIn("NOT_COMPUTABLE", full)
                     self.assertNotIn("source-lock", full)
@@ -112,6 +138,30 @@ class PdfV3Contract(unittest.TestCase):
                     if capture:
                         Path(capture).mkdir(parents=True, exist_ok=True)
                         shutil.copy2(output, Path(capture) / Path(output).name)
+                    # Actual A5 prescription and A4 report from one *identical*
+                    # authorized document configuration; not a fake stylesheet.
+                    prescription = OrdonnanceGenerator(str(Path(tmp) / "ordonnances"))
+                    patient = SimpleNamespace(nom="TEST", prenom="Synthétique",
+                                              date_naissance=date(2014, 1, 1))
+                    prescription_data = SimpleNamespace(
+                        doc_date=date(2026, 10, 23), medications=[])
+                    prescription_path = prescription.generate(
+                        patient, prescription_data, custom_config=vm.cabinet_config)
+                    ordonnance = PdfReader(prescription_path)
+                    self.assertGreaterEqual(len(ordonnance.pages), 1)
+                    ordonnance_text = "\n".join(p.extract_text() or "" for p in ordonnance.pages)
+                    for shared_string in (
+                        "Dr Test Cabinet", "Cabinet Synthétique",
+                        "Rue Exemple 123", "06 00 00 00 00",
+                    ):
+                        self.assertIn(shared_string, full, "Missing bilan branding")
+                        self.assertIn(shared_string, ordonnance_text, "Missing ordonnance branding")
+                    self.assertFalse(any(
+                        ("\u0600" <= ch <= "\u06ff") or ("\ufb50" <= ch <= "\ufeff")
+                        for ch in full + ordonnance_text),
+                        "Un cabinet sans en-tête arabe ne doit pas inventer un praticien arabe")
+                    if capture:
+                        shutil.copy2(prescription_path, Path(capture) / f"ordonnance_{template}.pdf")
                     for page in pdf.pages:
                         self.assertAlmostEqual(float(page.mediabox.width), A4[0], delta=0.5)
                         self.assertAlmostEqual(float(page.mediabox.height), A4[1], delta=0.5)
