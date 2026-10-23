@@ -46,9 +46,12 @@ jobs:
         run: python scripts/prod_safety_check.py
       - name: Full backend regression / rehearsal-only file isolated
         run: |
+          # The 14 legacy-migration scripts have a standalone subprocess entrypoint.
+          # Their own mandatory PG18/SQLite isolated job runs ALL of them;
+          # collecting them inside this shared pytest runtime violates isolation.
           python -m pytest backend/tests -q --maxfail=1 \
-            --ignore=backend/tests/test_legacy_migration_http_pg_v15.py \
-            --ignore=backend/tests/test_legacy_migration_staff_gateway_v15.py
+            --ignore-glob='backend/tests/test_legacy_migration_*.py' \
+            --ignore-glob='backend/tests/test_legacy_sql_*.py'
 
   frontend-full:
     name: Full frontend Vitest + production build
@@ -135,3 +138,28 @@ jobs:
           PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_staff_gateway_v15.py -v 2>&1 | tee /tmp/candidate-staff-gateway.log
           grep -q '^Ran 14 tests' /tmp/candidate-staff-gateway.log
           grep -q '^OK$' /tmp/candidate-staff-gateway.log
+      - name: Official synthetic-file and preceding legacy-migration safety contracts
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_synthetic_file_v15.py -v 2>&1 | tee /tmp/candidate-synthetic-file.log
+          grep -q 'Ran 12 tests' /tmp/candidate-synthetic-file.log
+          grep -q '^OK$' /tmp/candidate-synthetic-file.log
+          for item in \
+            "test_legacy_sql_sqlite_e2e_100x200_v15.py:11" \
+            "test_legacy_sql_tenant_link_guard_lab_v15.py:7" \
+            "test_legacy_sql_physical_schema_gate_lab_v15.py:6" \
+            "test_legacy_sql_replay_restore_lab_v15.py:8" \
+            "test_legacy_sql_real_orm_scratch_v15.py:10" \
+            "test_legacy_sql_synthetic_dryrun_v15.py:19" \
+            "test_legacy_sql_migration_scenarios_v15.py:12" \
+            "test_legacy_sql_mapping_v15.py:25" \
+            "test_legacy_sql_target_manifest_v15.py:25"; do
+            name="${item%%:*}"
+            count="${item##*:}"
+            python "backend/tests/${name}" -v 2>&1 | tee "/tmp/${name}.log"
+            grep -q "Ran ${count} tests" "/tmp/${name}.log"
+            grep -q '^OK$' "/tmp/${name}.log"
+          done
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/candidate-inspector.log
+          grep -q 'Ran 28 tests' /tmp/candidate-inspector.log
+          grep -q '^OK$' /tmp/candidate-inspector.log

@@ -85,9 +85,12 @@ jobs:
           # suite. A separate standalone staff-gateway unittest script also
           # imports an unqualified sibling module under a constrained process.
           # Keep both independent security harnesses and their CI intact.
+          # The 14 legacy-migration scripts have a standalone subprocess entrypoint.
+          # Their own mandatory PG18/SQLite isolated job runs ALL of them;
+          # collecting them inside this shared pytest runtime violates isolation.
           python -m pytest backend/tests -q --maxfail=1 \
-            --ignore=backend/tests/test_legacy_migration_http_pg_v15.py \
-            --ignore=backend/tests/test_legacy_migration_staff_gateway_v15.py
+            --ignore-glob='backend/tests/test_legacy_migration_*.py' \
+            --ignore-glob='backend/tests/test_legacy_sql_*.py'
 
   postgres18:
     name: PostgreSQL 18 upgrade + preservation
@@ -164,9 +167,94 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  legacy-standalone:
+    name: Independent 14-script PostgreSQL 18 legacy-migration gate
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dc_cert_candidate_rehearsal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dc_cert_candidate_rehearsal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dc_cert_candidate_rehearsal
+      ENVIRONMENT: rehearsal
+      SECRET_KEY: candidate-rehearsal-jwt-secret-key-minimum-32-characters
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+      - name: Verify exact PR head
+        env:
+          EXPECTED_HEAD: ${{ inputs.commit_sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated HTTP/PG dependencies
+        run: |
+          python -m pip install alembic==1.20.0 sqlalchemy==2.0.28 psycopg2-binary==2.9.9 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3
+      - name: Migrate fresh isolated PostgreSQL 18
+        run: alembic upgrade head
+      - name: Execute standalone safety contract (no pytest collection)
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python backend/tests/test_legacy_migration_http_pg_v15.py 2>&1 | tee /tmp/candidate-rehearsal.log
+          grep -q '^LOT05_6_HTTP_PG_PASS ' /tmp/candidate-rehearsal.log
+      - name: Preserve independent staff-gateway unittest guards
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_staff_gateway_v15.py -v 2>&1 | tee /tmp/candidate-staff-gateway.log
+          grep -q '^Ran 14 tests' /tmp/candidate-staff-gateway.log
+          grep -q '^OK$' /tmp/candidate-staff-gateway.log
+      - name: Official synthetic-file and preceding legacy-migration safety contracts
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_synthetic_file_v15.py -v 2>&1 | tee /tmp/candidate-synthetic-file.log
+          grep -q 'Ran 12 tests' /tmp/candidate-synthetic-file.log
+          grep -q '^OK$' /tmp/candidate-synthetic-file.log
+          for item in \
+            "test_legacy_sql_sqlite_e2e_100x200_v15.py:11" \
+            "test_legacy_sql_tenant_link_guard_lab_v15.py:7" \
+            "test_legacy_sql_physical_schema_gate_lab_v15.py:6" \
+            "test_legacy_sql_replay_restore_lab_v15.py:8" \
+            "test_legacy_sql_real_orm_scratch_v15.py:10" \
+            "test_legacy_sql_synthetic_dryrun_v15.py:19" \
+            "test_legacy_sql_migration_scenarios_v15.py:12" \
+            "test_legacy_sql_mapping_v15.py:25" \
+            "test_legacy_sql_target_manifest_v15.py:25"; do
+            name="${item%%:*}"
+            count="${item##*:}"
+            python "backend/tests/${name}" -v 2>&1 | tee "/tmp/${name}.log"
+            grep -q "Ran ${count} tests" "/tmp/${name}.log"
+            grep -q '^OK$' "/tmp/${name}.log"
+          done
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/candidate-inspector.log
+          grep -q 'Ran 28 tests' /tmp/candidate-inspector.log
+          grep -q '^OK$' /tmp/candidate-inspector.log
+
   package:
     name: Emit attested CODE_CERTIFIED universal artifact
-    needs: [preflight, backend, postgres18, frontend]
+    needs: [preflight, backend, postgres18, frontend, legacy-standalone]
     runs-on: ubuntu-latest
     env:
       PYTHONDONTWRITEBYTECODE: "1"
