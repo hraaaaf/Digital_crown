@@ -66,9 +66,27 @@ try{
   check(await page.evaluate(()=>Boolean(localStorage.getItem('token'))),'REAL_BROWSER_JWT_LOGIN');
   await snap('02-authenticated-dashboard');
 
-  await page.goto(root+'/patients/'+ids.patient_id+'?tab=radiology&radioTab=cephalo',
-    {waitUntil:'domcontentloaded'});
+  // True first-user discovery: visible dashboard search, patient click,
+  // then Imagerie -> Cephalometrie. No deep-link to a seeded study.
+  await page.getByRole('heading',{name:/^Bonjour,/}).waitFor({state:'visible',timeout:30000});
+  await page.getByRole('button',{name:'Chercher un patient'}).click();
+  const search=page.getByRole('textbox',{name:'Chercher un patient'});
+  await search.fill('ESSAI-ODF');
+  const option=page.locator('#dashboard-patient-search-results button')
+    .filter({hasText:'T2-0001'});
+  await option.waitFor({state:'visible',timeout:30000});
+  await snap('02b-discovered-fictitious-patient');
+  await option.click();
+  await page.waitForURL(u=>new URL(u).pathname==='/patients/'+ids.patient_id,
+    {timeout:30000});
+  check(true,'REAL_FIRST_USER_DASHBOARD_PATIENT_DISCOVERY');
+  await page.getByRole('button',{name:'Imagerie',exact:true}).click();
+  await page.waitForURL(u=>new URL(u).searchParams.get('tab')==='radiology',
+    {timeout:30000});
+  const modalities=page.locator('[aria-label="Modalités d’imagerie"]');
+  await modalities.getByRole('button',{name:'Céphalométrie',exact:true}).click();
   await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible',timeout:35000});
+  check(true,'REAL_IMAGING_AND_CEPHALOMETRY_NAVIGATION');
   await page.getByRole('button',{name:'Historique',exact:true}).click();
   await page.locator('[data-cephalo-history-analysis-id="'+ids.older_id+'"]').click();
   await page.locator('[data-cephalo-selected-analysis-id="'+ids.older_id+'"]')
