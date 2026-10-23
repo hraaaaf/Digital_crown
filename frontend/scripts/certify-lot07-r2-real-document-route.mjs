@@ -120,6 +120,11 @@ try {
   await patientB.waitFor({state:'visible',timeout:30000});
   await patientB.click();
   await page.waitForURL(url=>new URL(url).pathname==='/patients/'+b,{timeout:30000});
+  // A selected from the patient list opens Tracking by default. Switch into
+  // Documents using the REAL Cabinet tab button, preserving SPA navigation.
+  await page.getByRole('button',{name:'Document',exact:true}).click();
+  await page.waitForURL(url=>new URL(url).pathname==='/patients/'+b
+    && new URL(url).searchParams.get('tab')==='admin',{timeout:15000});
   await page.locator('[data-tour="tab-libre"]').waitFor({state:'visible',timeout:30000});
   await page.locator('[data-tour="tab-libre"]').click();
   await editor.waitFor({state:'visible',timeout:30000});
@@ -130,14 +135,16 @@ try {
   // Use the browser history POP path with B's dirty draft: cancel must keep B.
   const bSentinel='T2_R2_B_REAL_DOCUMENT_UNSAVED';
   await editor.fill(bSentinel);
-  await page.goBack({waitUntil:'domcontentloaded',timeout:18000}).catch(()=>{});
+  // The first Back goes from ?tab=admin to the SAME patient's Tracking tab;
+  // React would unmount the dirty DocumentHub here without the R2 query guard.
+  await page.evaluate(()=>history.back());
   await modal.waitFor({state:'visible',timeout:16000});
   if(new URL(page.url()).pathname!=='/patients/'+b || await editor.inputValue()!==bSentinel)
     throw Error('FAIL: browser Back abandoned B draft without consent');
   await modal.getByRole('button',{name:'Rester sur ce dossier'}).click();
   if((await editor.inputValue())!==bSentinel)
     throw Error('FAIL: browser Back cancel lost real B draft');
-  report.checks.push('REAL_BROWSER_BACK_DRAFT_GUARD');
+  report.checks.push('REAL_BROWSER_BACK_SAME_PATIENT_TAB_DRAFT_GUARD');
 
   await backToList.click();
   await modal.waitFor({state:'visible'});
@@ -147,6 +154,9 @@ try {
   await patientA.waitFor({state:'visible',timeout:30000});
   await patientA.click();
   await page.waitForURL(url=>new URL(url).pathname==='/patients/'+a,{timeout:30000});
+  await page.getByRole('button',{name:'Document',exact:true}).click();
+  await page.waitForURL(url=>new URL(url).pathname==='/patients/'+a
+    && new URL(url).searchParams.get('tab')==='admin',{timeout:15000});
   await page.locator('[data-tour="tab-libre"]').click();
   await editor.waitFor({state:'visible',timeout:30000});
   if((await editor.inputValue()).includes(syntheticSentinel) || (await editor.inputValue()).includes(bSentinel))
