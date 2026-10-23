@@ -143,6 +143,15 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(s.querySelector('option[value="dossier-media-suivi-hero"]')).toBeNull();
   });
 
+  it('uses read-only mode for the verified desktop fallback when panels are too narrow',async()=>{
+    vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(()=>({
+      x:0,y:0,top:0,left:0,right:1200,bottom:800,width:1200,height:800,toJSON:()=>({}),
+    }));
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
+    await screen.findByTestId('multiview-responsive-single-media-fallback');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+  });
+
   it('preserves the existing single media module on narrow screens with no workspace bootstrap',async()=>{
     desktop=false;
     render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
