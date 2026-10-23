@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install template renderer (no clinical app or patient data)
-        run: python -m pip install 'jinja2==3.1.6' 'weasyprint==68.1'
+        run: python -m pip install 'jinja2==3.1.6' 'weasyprint==68.1' 'pypdf==5.8.0'
       - name: Execute exact template source and status tests
         run: |
           python -m unittest discover -s tests -p test_cephalo_premium_pdf_v2_contract.py -v
@@ -49,6 +49,11 @@ jobs:
           out.mkdir(parents=True,exist_ok=True)
           data=HTML(string=html,base_url=str(Path('backend/templates').resolve())).write_pdf()
           assert data.startswith(b'%PDF') and len(data)>1500
+          from pypdf import PdfReader
+          from io import BytesIO
+          pages=PdfReader(BytesIO(data)).pages
+          assert len(pages)==2, f'Synthetic reference report spilled onto {len(pages)} pages (orphan check)'
+          assert 'Praticien responsable' in pages[-1].extract_text()
           (out/'synthetic-contract-preview.pdf').write_bytes(data)
           print('PREMIUM_V2_RENDERED_SYNTHETIC_PDF__NO_CLINICAL_PROMOTION', len(data))
           PY
