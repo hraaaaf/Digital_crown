@@ -133,6 +133,8 @@ export const PatientDetails = () => {
   const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotifSummary[]>([]);
   const lastEditingDoc = useRef(null);
   const flowContentRef = useRef<HTMLElement>(null);
+  // Invalidate responses from previous patient routes and retried requests.
+  const patientLoadEpochRef = useRef(0);
   const flowHandoff = useFlowHandoff();
   const initialFlowSurface = useRef(true);
 
@@ -176,21 +178,27 @@ export const PatientDetails = () => {
 
   const fetchPatient = useCallback(async () => {
     if (!id) return;
+    const epoch = ++patientLoadEpochRef.current;
     try {
       setFetchError(false);
       if (!cachedPatient) setLoading(true);
       const response = await api.get(`/patients/${id}`);
+      // An old A response must NEVER replace B after a SPA route change.
+      if (patientLoadEpochRef.current !== epoch) return;
+      if (String(response.data?.id) !== id) throw new Error('Patient response does not match active route');
       setPatient(response.data);
     } catch (error) {
+      if (patientLoadEpochRef.current !== epoch) return;
       console.error('❌ Erreur chargement patient:', error);
       setFetchError(true);
     } finally {
-      setLoading(false);
+      if (patientLoadEpochRef.current === epoch) setLoading(false);
     }
   }, [id, cachedPatient]);
 
   useEffect(() => {
-    fetchPatient();
+    void fetchPatient();
+    return () => { patientLoadEpochRef.current += 1; };
   }, [fetchPatient]);
 
   useEffect(() => {
