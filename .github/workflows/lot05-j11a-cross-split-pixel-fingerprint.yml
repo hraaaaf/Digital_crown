@@ -1,0 +1,60 @@
+name: LOT05 J11A Cross Split Academic Image Fingerprint Screen
+
+on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
+    paths:
+      - .github/workflows/lot05-j11a-cross-split-pixel-fingerprint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-pinned-private-leakage-screen:
+    name: Compare all 333 academic JPEG fingerprints, no images in artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install image decoder only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'pillow==11.3.0'
+      - name: Eight synthetic integrity, leakage and privacy tests
+        run: python experiments/test_lot05_j11a_akudental_cross_split_image_fingerprint.py -v
+      - name: Clone only public academic JPEGs and split annotation filenames into ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            '/AKUDENTAL/folds/fold_0/labels/' '/AKUDENTAL/images/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+      - name: Compute aggregate SHA256 and mirror-aware dHash cross split pairs in private memory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python experiments/lot05_j11a_akudental_cross_split_image_fingerprint.py \
+            --images-dir third_party/AKUDENTAL/AKUDENTAL/images \
+            --labels-dir third_party/AKUDENTAL/AKUDENTAL/folds/fold_0/labels
+      - name: Destroy transient academic JPEGs and computed data on success or failure
+        if: always()
+        shell: bash
+        run: |
+          rm -rf third_party/AKUDENTAL
+          echo "J11A_EPHEMERAL_ACADEMIC_IMAGES_REMOVED_NO_ARTIFACTS"
