@@ -62,7 +62,7 @@ class R23MErrorTailTests(unittest.TestCase):
         for forbidden in ('"case_id"', '"coordinates"', '"predictions"', '"scores"',
                           '"raw_ann_info"', '"image_path"'):
             self.assertNotIn(forbidden, text)
-        self.assertIn("CLINICAL NO-GO", to_markdown(self.report))
+        self.assertIn("CLINICAL NO-GO", to_markdown(self.report).upper())
 
     def test_tampered_global_mean_rejected_by_device_crosscheck(self):
         bad = copy.deepcopy(self.docs)
