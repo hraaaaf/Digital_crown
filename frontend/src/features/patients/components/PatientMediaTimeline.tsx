@@ -20,6 +20,8 @@ interface ClinicalAsset {
 
 interface PatientMediaTimelineProps {
   patientId: number;
+  /** MultiView R-mode: hides editing actions; backend RBAC remains authoritative. */
+  readOnly?: boolean;
 }
 
 interface ViewerState {
@@ -119,7 +121,7 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
-export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) => {
+export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => {
   const [items, setItems] = useState<ClinicalAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -310,7 +312,7 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file) return;
+    if (!file || readOnly) return; // Deny stale/programmatic file events in R-mode.
     const expectedDocument = file.type === 'application/pdf';
     if (expectedDocument && assetType !== 'DOCUMENT') return void toast.error('Un PDF doit être importé comme Document');
     if (!expectedDocument && assetType === 'DOCUMENT') return void toast.error('Le type Document attend un PDF');
@@ -363,6 +365,7 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
         </div>
       </div>
 
+      {!readOnly && (
       <div className="rounded-xl border border-border-main bg-card-bg px-2 py-2 sm:px-2.5">
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" aria-label="Import média clinique">
           <select aria-label="Type de média" value={assetType} onChange={(event) => setAssetType(event.target.value as 'PHOTO' | 'RADIOGRAPH' | 'DOCUMENT')} className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2.5 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary"><option value="PHOTO">Photo</option><option value="RADIOGRAPH">Radiographie</option><option value="DOCUMENT">Document PDF</option></select>
@@ -371,6 +374,7 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
           <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={handleFile} />
         </div>
       </div>
+      )}
 
       {loading && <div className="flex min-h-[220px] items-center justify-center text-text-muted"><Loader2 size={28} className="animate-spin" /></div>}
       {!loading && loadError && <div className="flex min-h-[220px] flex-col items-center justify-center gap-4 rounded-[1.25rem] border border-border-main bg-card-bg p-6 text-center"><RefreshCcw size={30} className="text-text-muted" /><div><h3 className="font-black text-main">Médiathèque indisponible</h3><p className="mt-1 text-sm text-text-muted">La liste des médias n’a pas pu être chargée.</p></div><button type="button" onClick={() => void loadAssets()} className="rounded-xl border border-border-main px-4 py-2 text-xs font-black uppercase tracking-widest text-primary">Réessayer</button></div>}
