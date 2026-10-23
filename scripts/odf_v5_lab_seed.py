@@ -88,6 +88,18 @@ def seed():
     out = ROOT / "artifacts/ortho-v5-first-user-lab"
     media = public_film(out)
 
+    # Small original synthetic lab logo; no real clinic branding or identities.
+    from PIL import Image, ImageDraw
+    logo = Image.new("RGB", (240, 240), "white")
+    mark = ImageDraw.Draw(logo)
+    mark.ellipse((18,18,222,222), fill="#213d59")
+    mark.ellipse((40,40,200,200), fill="#eaf1f5")
+    mark.text((75,105),"ODF", fill="#213d59")
+    logo_file = ROOT / "backend/static/uploads/radios/odf-lab-logo.png"
+    logo_file.parent.mkdir(parents=True, exist_ok=True)
+    logo.save(logo_file)
+    logo.save(out / "logo-cabinet-fictif.png")
+
     from backend import models, database
     with database.SessionLocal() as db:
         dentist = db.query(models.User).filter(models.User.email == "t2-browser@cabinet.ma").one()
@@ -96,6 +108,7 @@ def seed():
         cfg = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == dentist.id).one()
         cfg.nom_cabinet = "Cabinet Atlas - LABORATOIRE FICTIF"
         cfg.nom_praticien = "Dr Salma Atlas - LAB TEST"
+        cfg.logo_path = "radios/odf-lab-logo.png"
         cfg.header_customized = True
         cfg.header_lines_fr = [
             "Dr Salma Atlas - LAB TEST",
