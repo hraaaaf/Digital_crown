@@ -70,15 +70,15 @@ jobs:
           print('SIX_CANDIDATE_PAIRS_QUEUED_FOR_RSA_ENCRYPTION')
           PY
           cat > /tmp/j11c_public.pem <<'PUBLIC_KEY'
------BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvN/SSApvVEot5BSknOiY
-u1/AyXOf5MmeJ3mus/UlqoCSwNibgKZjx2VmSUk0cE7B8Qqdu1phwZG8aD7YkV+n
-TQGn20WofC2IyHzxFRW1BTIcSe3gE3Ig6M/XxaMqmOETJiLQwUF5l9mvErdiIt+N
-nyu2Rg7IYEroSilcx8xZexcLVpatI3jIiRte6jaBhsCcWbUtyXTXo8+9Dark3DXu
-9TK90lCLpbJ3keKLMPosjkDXP/xsR3jAK5ZdahhF8cAebKl3Or9GOn6kHWSfzicp
-ioNGl3Qy2x6BsojyXr7yDCY/E3hHfK3S2VzjMk503akwaKU2IwL/sq6W5cDT1big
-qwIDAQAB
------END PUBLIC KEY-----
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvN/SSApvVEot5BSknOiY
+          u1/AyXOf5MmeJ3mus/UlqoCSwNibgKZjx2VmSUk0cE7B8Qqdu1phwZG8aD7YkV+n
+          TQGn20WofC2IyHzxFRW1BTIcSe3gE3Ig6M/XxaMqmOETJiLQwUF5l9mvErdiIt+N
+          nyu2Rg7IYEroSilcx8xZexcLVpatI3jIiRte6jaBhsCcWbUtyXTXo8+9Dark3DXu
+          9TK90lCLpbJ3keKLMPosjkDXP/xsR3jAK5ZdahhF8cAebKl3Or9GOn6kHWSfzicp
+          ioNGl3Qy2x6BsojyXr7yDCY/E3hHfK3S2VzjMk503akwaKU2IwL/sq6W5cDT1big
+          qwIDAQAB
+          -----END PUBLIC KEY-----
 PUBLIC_KEY
           openssl pkeyutl -encrypt -pubin -inkey /tmp/j11c_public.pem \
             -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 \
