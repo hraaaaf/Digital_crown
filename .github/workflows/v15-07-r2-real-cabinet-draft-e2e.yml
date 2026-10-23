@@ -44,17 +44,6 @@ jobs:
           test "$ENVIRONMENT" = test
           test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
           test ! -f t2-runtime-cert.db
-          python - <<'PY'
-          import os
-          from backend.core.runtime_safety import (
-              database_target_fingerprint, is_explicitly_isolated, is_known_cabinet_database,
-          )
-          db_url = os.environ['DATABASE_URL']
-          assert database_target_fingerprint(db_url) == os.environ['DIGITALCROWN_ISOLATION_DB_FINGERPRINT']
-          assert not is_known_cabinet_database(db_url)
-          assert is_explicitly_isolated(db_url)
-          print('T2_R2_ISOLATED_DATABASE_ATTESTED')
-          PY
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -80,6 +69,20 @@ jobs:
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/lot07-r2-requirements.txt
           pip install -r /tmp/lot07-r2-requirements.txt
           python -m pip check
+      - name: Verify disposable isolation against actual fail-closed backend policy
+        run: |
+          python - <<'PY'
+          import os
+          from backend.core.runtime_safety import (
+              database_target_fingerprint, is_explicitly_isolated, is_known_cabinet_database,
+          )
+          db_url = os.environ['DATABASE_URL']
+          assert db_url == 'sqlite:///./t2-runtime-cert.db'
+          assert database_target_fingerprint(db_url) == os.environ['DIGITALCROWN_ISOLATION_DB_FINGERPRINT']
+          assert not is_known_cabinet_database(db_url)
+          assert is_explicitly_isolated(db_url)
+          print('T2_R2_ISOLATED_DATABASE_ATTESTED')
+          PY
       - name: Install frontend and real Chromium
         working-directory: frontend
         run: |
