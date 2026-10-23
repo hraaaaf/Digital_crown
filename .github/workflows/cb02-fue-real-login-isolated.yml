@@ -1,0 +1,142 @@
+name: CB-02 FUE fresh UI LoginPage + backend and clinical diff (synthetic, no release)
+
+# Explicitly new CB-02 UI screenshot evidence; CB-01 screenshots are not reused.
+# Browser evidence here is Chromium headless, NOT real NVDA or native Windows zoom.
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'scripts/ci/cb02_fue_real_login.cjs'
+      - '.github/workflows/cb02-fue-real-login-isolated.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  new-guided-ui-chromium:
+    name: Real LoginPage S05/S06 + CrownBot FUE and zero clinical DB mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: cb02-b-visual-only-secret-long-enough-2026
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: 'true'
+      CROWN_BOT_GUIDED_NLU_ENABLED: 'true'
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: 'true'
+      VITE_CROWN_BOT_GUIDED_NLU_ENABLED: 'true'
+      CB02_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CB01_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Prove exact source and isolated-only opt-in
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB02_SOURCE_HEAD"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$CROWN_BOT_GUIDED_NLU_ENABLED" = true
+          test "$VITE_CROWN_BOT_GUIDED_NLU_ENABLED" = true
+          test "$CLOUD_AI_ENABLED" = false
+          echo "CB-02 NEW UI exact HEAD: $CB02_SOURCE_HEAD" >> "$GITHUB_STEP_SUMMARY"
+          echo "This is a disposable localhost simulation, never a flag rollout." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Seed synthetic-only login identity
+        shell: bash
+        run: |
+          # The canonical isolated T2 seeder creates exactly this synthetic account.
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+      - name: Install isolated backend requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb02-b-visual-requirements.txt
+          pip install -r /tmp/cb02-b-visual-requirements.txt
+      - name: Install locked frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start disposable synthetic FastAPI
+        shell: bash
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/cb02-b-api.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cb02-b-api.log
+          exit 1
+      - name: Seed synthetic S05/S06 roles and clinical table baseline
+        run: python scripts/ci/cb01_windows_fueg_fixture.py before
+      - name: Start opt-in UI locally only
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/cb02-b-vite.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cb02-b-vite.log
+          exit 1
+      - name: REAL fresh LoginPage, authorized Agenda, CB-02 preview and S06 denial
+        run: node scripts/ci/cb02_fue_real_login.cjs
+      - name: Full clinical state diff before versus after FUE
+        if: always()
+        run: |
+          test -f "$RUNNER_TEMP/cb01-windows-fueg-before.json"
+          python scripts/ci/cb01_windows_fueg_fixture.py after
+          mkdir -p artifacts/cb02-fue-real-login
+          cp artifacts/cb01-windows-fueg-combined/clinical-final-state.json artifacts/cb02-fue-real-login/clinical-final-state.json
+      - name: Verify FUE report and exact SHA immutable clinical evidence
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path('artifacts/cb02-fue-real-login')
+          a=json.loads((p/'report.json').read_text())
+          b=json.loads((p/'clinical-final-state.json').read_text())
+          assert a['sha']==b['sourceHead']==os.environ['CB02_SOURCE_HEAD']
+          assert a['status']=='PASS_AUTOMATED_SYNTHETIC_FUE'
+          assert a['realUiLogin'] and a['mainLayout'] and a['authorizedProgramme']
+          assert a['guidedPreview'] and a['rejectedZeroPatient'] and a['roleDeniedBeforePatient']
+          assert a['zeroClinicalWrites'] and b['status']=='PASS_CLINICAL_FINAL_STATE_UNCHANGED'
+          assert b['tablesChecked']>=20 and not b['clinicalTablesChanged']
+          print('CB02_FUE_REAL_LOGIN_AND_CLINICAL_DIFF=PASS')
+          PY
+      - name: Failure-only isolated server logs
+        if: failure()
+        run: |
+          tail -n 100 /tmp/cb02-b-api.log || true
+          tail -n 100 /tmp/cb02-b-vite.log || true
+      - name: Upload FUE screenshots + exact SHA clinical proof including RED
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb02-fue-real-login-isolated
+          path: artifacts/cb02-fue-real-login
+          if-no-files-found: warn
+          retention-days: 14
