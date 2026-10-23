@@ -31,6 +31,8 @@ jobs:
   ordonnance-composer-visual:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
 
     steps:
       - name: Checkout exact PR head
@@ -92,7 +94,7 @@ jobs:
           if (report.status !== 'PASS') throw new Error(JSON.stringify(report.failures));
           const expected = ['390x844', '430x932', '768x900', '1280x900'];
           if (JSON.stringify(report.viewports) !== JSON.stringify(expected)) throw new Error('Unexpected D5.7 viewports: ' + JSON.stringify(report.viewports));
-          if (report.exactHead !== process.env.GITHUB_SHA) throw new Error(`Visual report HEAD ${report.exactHead} != ${process.env.GITHUB_SHA}`);
+          if (report.exactHead !== process.env.PRODUCT_HEAD) throw new Error(`Visual report HEAD ${report.exactHead} != ${process.env.PRODUCT_HEAD}`);
           const scale = report.captures.find(x => x.textScale === 200);
           if (!scale || scale.viewport.width !== 390 || scale.viewport.height !== 844) throw new Error('Missing 390x844 200% text evidence');
           console.log('D5.7 exact visual contract PASS');
