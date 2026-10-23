@@ -139,6 +139,13 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
   const workspaceRef = useRef<HTMLDivElement>(null);
   const workspaceTopBeforeCompareRef = useRef<number | null>(null);
   const requestIdRef = useRef(0);
+  const viewerRequestIdRef = useRef(0);
+
+  // Late responses after unmount must not recreate blob URLs or stale media.
+  useEffect(() => () => {
+    requestIdRef.current += 1;
+    viewerRequestIdRef.current += 1;
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchTerm.trim()), 250);
@@ -264,23 +271,30 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
   }, [comparedAssets.length]);
 
   const openAsset = async (asset: ClinicalAsset) => {
+    const requestId = ++viewerRequestIdRef.current;
     setSelectedAssetId(asset.id);
     try {
       const response = await api.get(`/patients/${patientId}/assets/${asset.id}/content`, { responseType: 'blob' });
+      if (requestId !== viewerRequestIdRef.current) return;
       const url = URL.createObjectURL(response.data);
       setViewer((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
         return { asset, url };
       });
     } catch {
-      toast.error("Impossible d'ouvrir ce média clinique");
+      if (requestId === viewerRequestIdRef.current) {
+        toast.error("Impossible d'ouvrir ce média clinique");
+      }
     }
   };
 
-  const closeViewer = () => setViewer((current) => {
-    if (current?.url) URL.revokeObjectURL(current.url);
-    return null;
-  });
+  const closeViewer = () => {
+    viewerRequestIdRef.current += 1; // Prevent a late open from reviving a closed modal.
+    setViewer((current) => {
+      if (current?.url) URL.revokeObjectURL(current.url);
+      return null;
+    });
+  };
 
   const toggleCompare = (assetId: number) => {
     setCompareIds((current) => {

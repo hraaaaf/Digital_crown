@@ -79,14 +79,19 @@ const ContextualToaster = () => {
   }, []);
 
   const patientCompact = /^\/patients(?:\/|$)/.test(location.pathname) && compactViewport;
+  // Patient identity stays visible: the old top-centred toast obscured its header.
+  const patientDetailCompact = /^\/patients\/\d+(?:\/|$)/.test(location.pathname) && compactViewport;
 
   // Public wall must never inherit staff/application transient chrome.
   if (location.pathname === '/station/wall') return null;
 
   return (
     <Toaster
-      position={patientCompact ? 'top-center' : 'bottom-right'}
-      containerStyle={patientCompact ? { top: 12, left: 12, right: 12, bottom: 'auto' } : undefined}
+      containerClassName="dc-global-toast-position"
+      position={patientDetailCompact ? 'bottom-center' : patientCompact ? 'top-center' : 'bottom-right'}
+      containerStyle={patientDetailCompact
+        ? { top: 'auto', bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', left: 12, right: 12 }
+        : patientCompact ? { top: 12, left: 12, right: 12, bottom: 'auto' } : undefined}
       toastOptions={{
         style: {
           borderRadius: '16px',

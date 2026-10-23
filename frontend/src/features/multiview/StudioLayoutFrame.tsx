@@ -32,7 +32,7 @@ export function StudioLayoutFrame({
       data-v15-071-multiview-scaffold
       className="min-w-0 rounded-xl border border-border-main bg-card-bg p-3 text-text-main">
       <h2 className="mb-3 text-sm font-semibold">{decision.layout.label}</h2>
-      <div data-v15-071-multiview-grid
+      <div data-v15-071-multiview-grid data-v15-071-geometry={decision.layout.geometry}
         style={geometryGridStyle(decision.layout.geometry, primaryRatio)}
         className="min-w-0">
         {decision.layout.slots.map((slot, index) => (
