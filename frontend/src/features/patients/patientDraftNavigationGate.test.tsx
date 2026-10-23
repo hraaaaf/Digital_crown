@@ -56,7 +56,7 @@ function GuardedDossier() {
       <DraftInput patientId={String(id)} key={id} />
       <button onClick={() => navigate('/patients/18')}>Ouvrir patient B</button>
       <button onClick={() => navigate('/patients/17')}>Retour au patient A</button>
-      <button onClick={() => navigate('/patients/17?tab=clinical')}>Changer onglet</button>
+      <button onClick={() => navigate('/patients/17?tab=admin&filter=draft')}>Changer onglet</button>
       {blocker.state === 'blocked' && (
         <div role="alertdialog" aria-label="Brouillon non enregistré">
           <p>Vous avez des modifications non enregistrées.</p>
@@ -123,10 +123,21 @@ describe('LOT07 R2 dormant data-router patient-draft exit policy', () => {
     const router = renderDataRouter();
     fireEvent.change(screen.getByLabelText('Brouillon clinique'), { target: { value: 'tab-safe A' } });
     fireEvent.click(screen.getByRole('button', { name: 'Changer onglet' }));
-    await waitFor(() => expect(router.state.location.search).toBe('?tab=clinical'));
+    await waitFor(() => expect(router.state.location.search).toBe('?tab=admin&filter=draft'));
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect((screen.getByLabelText('Brouillon clinique') as HTMLInputElement).value).toBe('tab-safe A');
     expect(isPrescriptionDirty()).toBe(true);
+  });
+
+  it('blocks leaving the editor tab on the same patient but keeps the draft when Stay is selected', async () => {
+    const router = renderDataRouter();
+    fireEvent.change(screen.getByLabelText('Brouillon clinique'), { target: { value: 'A DOCUMENT UNSAVED' } });
+    void router.navigate('/patients/17?tab=tracking');
+    expect(await screen.findByRole('alertdialog')).toBeTruthy();
+    expect(router.state.location.search).toBe('?tab=admin');
+    fireEvent.click(screen.getByRole('button', { name: 'Rester sur ce dossier' }));
+    expect(router.state.location.search).toBe('?tab=admin');
+    expect((screen.getByLabelText('Brouillon clinique') as HTMLInputElement).value).toBe('A DOCUMENT UNSAVED');
   });
 
   it('does not block clean drafts or unrelated paths', () => {
@@ -134,6 +145,9 @@ describe('LOT07 R2 dormant data-router patient-draft exit policy', () => {
     expect(shouldBlockPatientDraftExit('/patients/17', '/patients/17', true)).toBe(false);
     expect(shouldBlockPatientDraftExit('/agenda', '/patients/18', true)).toBe(false);
     expect(shouldBlockPatientDraftExit('/patients/17', '/patients/18', true)).toBe(true);
+    expect(shouldBlockPatientDraftExit('/patients/17', '/patients/17', true, '?tab=admin', '?tab=tracking')).toBe(true);
+    expect(shouldBlockPatientDraftExit('/patients/17', '/patients/17', true, '?tab=admin', '?tab=admin&filter=abc')).toBe(false);
+    expect(shouldBlockPatientDraftExit('/patients/17', '/patients/17', false, '?tab=admin', '?tab=clinical')).toBe(false);
     expect(shouldBlockPatientDraftExit('/patients/17', '/login', true)).toBe(true);
   });
 });
