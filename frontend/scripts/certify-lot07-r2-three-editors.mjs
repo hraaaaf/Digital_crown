@@ -59,7 +59,11 @@ try {
 
     await back.click();
     await modal.waitFor({state:'visible',timeout:20000});
-    if(new URL(page.url()).pathname!=='/patients/'+a || !await read())
+    // An open alertdialog correctly blocks interaction with the background
+    // treasury modal. Verify Honoraires's live mode immediately AFTER Stay;
+    // other editors expose their textarea behind the dialog and can be read.
+    const visibleDraft=type==='HONORAIRES_PAYMENT_ONLY' ? true : await read();
+    if(new URL(page.url()).pathname!=='/patients/'+a || !visibleDraft)
       throw Error('FAIL: '+type+' route switched or lost draft before consent');
     await modal.getByRole('button',{name:'Rester sur ce dossier'}).click();
     await modal.waitFor({state:'hidden',timeout:15000});
