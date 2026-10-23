@@ -7,6 +7,7 @@ from xml.sax.saxutils import escape
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from backend.services.base_template import BaseTemplate
+from backend.services.cephalo_pdf_presentation import clinical_term, measurement_value, practitioner_stage
 from backend import schemas
 
 import importlib.util
@@ -38,6 +39,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         filename: Optional[str] = None,
         *,
         projection: Optional[dict[str, Any]] = None,
+        user=None,
     ):
         if not filename:
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -63,10 +65,10 @@ class BilanOrthoPDFGenerator(BaseTemplate):
 
         if WEASYPRINT_AVAILABLE:
             try:
-                return self._generate_weasyprint(vm, file_path, projection=document)
+                return self._generate_weasyprint(vm, file_path, projection=document, user=user)
             except Exception as exc:
                 logger.error("Échec WeasyPrint Bilan Ortho, repli sur ReportLab: %s", exc)
-        return self._generate_reportlab(vm, file_path, projection=document)
+        return self._generate_reportlab(vm, file_path, projection=document, user=user)
 
     @staticmethod
     def _measurement_display(row: dict[str, Any]) -> dict[str, str]:
@@ -112,9 +114,25 @@ class BilanOrthoPDFGenerator(BaseTemplate):
     def _shared_context(self, vm: schemas.CephaloViewModel, projection: dict[str, Any]) -> dict[str, Any]:
         config = vm.cabinet_config or {}
         measurements = [self._measurement_display(row) for row in projection.get("measurements", [])]
+        for measurement in measurements:
+            measurement.update({
+                "display_value": measurement_value(
+                    measurement["value"], measurement["availability_status"]),
+                "display_availability_status": clinical_term(
+                    measurement["availability_status"], "Mesure indisponible"),
+                "display_method": clinical_term(
+                    measurement["method"], "Méthode consultable dans le dossier technique"),
+                "display_source": clinical_term(
+                    measurement["source"], "Source scientifique consultable dans le dossier"),
+                "display_calibration": clinical_term(
+                    measurement["calibration"], "Calibration à vérifier"),
+            })
         protocol_profiles = dict(projection.get("protocol_profiles") or {})
         steiner_profile = dict(protocol_profiles.get("steiner") or {})
         steiner_rows = [self._protocol_row_display(row) for row in steiner_profile.get("rows", [])]
+        for row in steiner_rows:
+            row["display_interpretation_status"] = clinical_term(
+                row["interpretation_status"], "Référence contextuelle — sans diagnostic")
         tweed_merrifield_profile = dict(protocol_profiles.get("tweed_merrifield") or {})
         tweed_merrifield_rows = []
         for row in tweed_merrifield_profile.get("rows", []):
@@ -126,10 +144,29 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 "profile_section": str(row.get("profile_section") or ""),
                 "reference_authority": str(row.get("reference_authority") or ""),
                 "interpretation_status": str(row.get("interpretation_status") or ""),
+                "display_profile_section": clinical_term(
+                    row.get("profile_section"), "Profil scientifique documenté"),
+                "display_reference_authority": clinical_term(
+                    row.get("reference_authority"), "Référence à consulter dans le dossier"),
+                "display_interpretation_status": clinical_term(
+                    row.get("interpretation_status"), "Mesure brute — sans classification"),
             })
         stages = []
-        for stage in projection.get("stages", []):
+        for stage_index, stage in enumerate(projection.get("stages", []), 1):
             stages.append({
+                "display_title": practitioner_stage(stage, stage_index),
+                "display_presentation_state": clinical_term(
+                    stage.get("presentation_state"), "Validation en attente"),
+                "display_summary": clinical_term(stage.get("summary"), ""),
+                "display_blocking_gates": [clinical_term(item) for item in (stage.get("blocking_gates") or [])],
+                "display_missing_data_refs": [clinical_term(item) for item in (stage.get("missing_data_refs") or [])],
+                "display_contradictions": [clinical_term(item) for item in (stage.get("contradictions") or [])],
+                "display_contraindications": [clinical_term(item) for item in (stage.get("contraindications") or [])],
+                "display_provenance": [
+                    {"label": clinical_term(item.get("label"), "Référence"),
+                     "value": clinical_term(item.get("value"), "Source consultable dans le dossier")}
+                    for item in (stage.get("provenance") or []) if isinstance(item, dict)
+                ],
                 "stage_id": stage.get("stage_id"),
                 "title": stage.get("title"),
                 "presentation_state": stage.get("presentation_state"),
@@ -144,6 +181,13 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         return {
             "primary_color": config.get("primary_color", "#003380"),
             "secondary_color": config.get("secondary_color", "#64748B"),
+            "document_branding_applied": True,
+            "body_font_family": {
+                "outfit": "Outfit, DejaVu Sans, sans-serif",
+                "inter": "DejaVu Sans, sans-serif",
+                "serif": "DejaVu Serif, serif",
+                "playfair": "DejaVu Serif, serif",
+            }.get(str(config.get("font_fr") or "").lower(), "DejaVu Sans, sans-serif"),
             "patient_nom": vm.patient_nom,
             "patient_prenom": vm.patient_prenom,
             "patient_age": vm.patient_age,
@@ -161,11 +205,20 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "evidence_graph_present": bool(projection.get("evidence_graph_present")),
             "clinical_validation_available": bool(projection.get("clinical_validation_available")),
             "clinical_validation_reason": projection.get("clinical_validation_reason"),
+            "display_clinical_validation_reason": clinical_term(
+                projection.get("clinical_validation_reason"), "La validation clinique n'est pas confirmée."),
+            "display_authority": clinical_term(
+                projection.get("authority"), "Données issues du dossier scientifique"),
+            "display_document_state": clinical_term(
+                projection.get("document_state", "INCOMPLETE"), "Dossier incomplet"),
             "blocking_gates": list(projection.get("blocking_gates") or []),
+            "display_blocking_gates": [clinical_term(item) for item in (projection.get("blocking_gates") or [])],
             "measurements": measurements,
             "steiner_protocol": {
                 "protocol_profile_id": steiner_profile.get("protocol_profile_id"),
                 "source_lock_status": (steiner_profile.get("source_lock_gate") or {}).get("status"),
+                "display_source_lock_status": clinical_term(
+                    (steiner_profile.get("source_lock_gate") or {}).get("status"), "Référence non vérifiée"),
                 "final_gate_status": (steiner_profile.get("final_gate") or {}).get("status"),
                 "norm_set": dict(steiner_profile.get("norm_set") or {}),
                 "rows": steiner_rows,
@@ -173,6 +226,8 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "tweed_merrifield_protocol": {
                 "protocol_profile_id": tweed_merrifield_profile.get("protocol_profile_id"),
                 "source_lock_status": (tweed_merrifield_profile.get("source_lock_gate") or {}).get("status"),
+                "display_source_lock_status": clinical_term(
+                    (tweed_merrifield_profile.get("source_lock_gate") or {}).get("status"), "Référence non vérifiée"),
                 "final_gate_status": (tweed_merrifield_profile.get("final_gate") or {}).get("status"),
                 "rows": tweed_merrifield_rows,
                 "reference_contexts": list(tweed_merrifield_profile.get("reference_contexts") or []),
@@ -186,6 +241,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         output_path: str,
         *,
         projection: Optional[dict[str, Any]] = None,
+        user=None,
     ):
         import weasyprint
         from backend.services.generators.document_typography import short_label
@@ -196,6 +252,14 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         _ = LINEAR_MEASURES_EXCLUDED
 
         context = self._shared_context(vm, projection or {})
+        config = vm.cabinet_config or {}
+        from reportlab.lib.pagesizes import A4
+        self.update_active_fonts(config)
+        top, bottom, left, right = self.get_document_margins(config, A4[0])
+        context["page_margins_pt"] = {
+            "top": round(top, 3), "bottom": round(bottom, 3),
+            "left": round(left, 3), "right": round(right, 3),
+        }
         context["measurements"] = [
             {
                 **measurement,
@@ -205,7 +269,33 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         ]
         template = self.jinja_env.get_template("bilan_ortho_authoritative.html")
         html_content = template.render(context)
-        weasyprint.HTML(string=html_content).write_pdf(output_path)
+        # The brand stationery is drawn by the SAME BaseTemplate instance as
+        # an ordonnance, not imitated with a parallel CSS implementation.
+        from io import BytesIO
+        from types import SimpleNamespace
+        from reportlab.pdfgen.canvas import Canvas
+        from PyPDF2 import PdfReader, PdfWriter
+
+        body_pdf = weasyprint.HTML(string=html_content).write_pdf()
+        reader = PdfReader(BytesIO(body_pdf))
+        if not reader.pages:
+            raise ValueError("Bilan PDF sans page : habillage impossible")
+        stationery_bytes = BytesIO()
+        stationery = Canvas(stationery_bytes, pagesize=A4)
+        doc = SimpleNamespace(pagesize=A4, doc_id=(
+            projection or {}).get("analysis_id") or "CEPHALO")
+        self.draw_static_elements(stationery, doc, config=config, user=user)
+        stationery.showPage()
+        stationery.save()
+        overlay = PdfReader(BytesIO(stationery_bytes.getvalue())).pages[0]
+
+        writer = PdfWriter()
+        for page in reader.pages:
+            # Place the common header/footer/letterhead UNDER clinical content.
+            page.merge_page(overlay, over=False)
+            writer.add_page(page)
+        with open(output_path, "wb") as target:
+            writer.write(target)
         return output_path
 
     def _generate_reportlab(
@@ -214,6 +304,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         file_path: str,
         *,
         projection: Optional[dict[str, Any]] = None,
+        user=None,
     ):
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER
@@ -232,6 +323,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             for measurement in context["measurements"]
         ]
         config = vm.cabinet_config or {}
+        self.update_active_fonts(config)
         p_color = colors.HexColor(config.get("primary_color", "#003380"))
         styles = getSampleStyleSheet()
         title = ParagraphStyle("R17Title", parent=styles["Heading1"], fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
@@ -248,26 +340,29 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 f"Patient : {escape(str(vm.patient_nom).upper())} {escape(str(vm.patient_prenom).capitalize())} - Âge : {escape(str(vm.patient_age))} ans",
                 body,
             ),
-            Paragraph(f"État documentaire : <b>{escape(str(context['document_state']))}</b>", body),
-            Paragraph(f"Contrat : {escape(str(context['contract_version'] or 'non disponible'))}", body),
+            Paragraph(f"État du bilan : <b>{escape(context['display_document_state'])}</b>", body),
         ]
 
         if context["document_state"] != "COMPLETE":
             elements.append(Paragraph("Document clinique explicitement incomplet. Aucune conclusion manquante n'est reconstruite.", body))
         if context["clinical_validation_reason"]:
-            elements.append(Paragraph(escape(str(context["clinical_validation_reason"])), body))
+            elements.append(Paragraph(escape(context["display_clinical_validation_reason"]), body))
 
         elements.append(Paragraph("Mesures scientifiques", h2))
-        rows = [["Mesure", "Valeur / disponibilité", "Méthode", "Source"]]
+        small = ParagraphStyle("R17Cell", parent=body, fontSize=7, leading=9)
+        def cell(value):
+            return Paragraph(escape(str(value)), small)
+        rows = [[cell("Mesure"), cell("Valeur"), cell("Méthode"), cell("Source")]]
         for measurement in context["measurements"]:
             rows.append([
-                measurement["measurement_id"],
-                measurement["value"],
-                measurement["method"],
-                measurement["source"],
+                cell(measurement["measurement_id"]),
+                cell(measurement["display_value"]),
+                cell(measurement["display_method"]),
+                cell(measurement["display_source"]),
             ])
         if len(rows) == 1:
-            rows.append(["Aucune mesure typée autoritaire disponible", "NOT_COMPUTABLE", "-", "-"])
+            rows.append([cell("Aucune mesure scientifique disponible"),
+                         cell("Non calculable"), cell("-"), cell("-")])
         table = Table(rows, repeatRows=1, colWidths=[6.0*cm, 4.0*cm, 3.5*cm, 3.2*cm])
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), p_color),
@@ -282,15 +377,14 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             steiner = context["steiner_protocol"]
             elements.append(Paragraph("Analyse protocolaire Steiner", h2))
             elements.append(Paragraph(
-                f"{escape(str(steiner.get('protocol_profile_id') or 'Steiner'))} — "
-                f"source-lock {escape(str(steiner.get('source_lock_status') or 'non vérifié'))}. "
+                f"Référence scientifique : {escape(steiner.get('display_source_lock_status') or 'non vérifiée')}. "
                 "Références historiques affichées à titre comparatif uniquement; aucune classification clinique universelle n'est produite.",
                 body,
             ))
             protocol_rows = [["Mesure", "Valeur", "Réf. hist.", "Écart réf.", "Statut"]]
             for row in steiner.get("rows", []):
                 protocol_rows.append([
-                    row["label"], row["value"], row["reference"], row["delta"], row["interpretation_status"]
+                    cell(row["label"]), cell(row["value"]), cell(row["reference"]), cell(row["delta"]), cell(row.get("display_interpretation_status", ""))
                 ])
             protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[4.2*cm, 2.8*cm, 2.8*cm, 2.8*cm, 4.0*cm])
             protocol_table.setStyle(TableStyle([
@@ -306,8 +400,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             tweed = context["tweed_merrifield_protocol"]
             elements.append(Paragraph("Analyse protocolaire Tweed–Merrifield", h2))
             elements.append(Paragraph(
-                f"{escape(str(tweed.get('protocol_profile_id') or 'Tweed-Merrifield'))} — "
-                f"source-lock {escape(str(tweed.get('source_lock_status') or 'non vérifié'))}. "
+                f"Référence scientifique : {escape(tweed.get('display_source_lock_status') or 'non vérifiée')}. "
                 "Variante Digital Crown Po_anatomic-Or / Go-Me; aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée. "
                 "Références historiques affichées comme contexte uniquement; aucune classification automatique.",
                 body,
@@ -315,8 +408,8 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             protocol_rows = [["Mesure", "Valeur", "Profil", "Autorité", "Statut"]]
             for row in tweed.get("rows", []):
                 protocol_rows.append([
-                    row["label"], row["value"], row["profile_section"],
-                    row["reference_authority"], row["interpretation_status"],
+                    cell(row["label"]), cell(row["value"]), cell(row["display_profile_section"]),
+                    cell(row["display_reference_authority"]), cell(row["display_interpretation_status"]),
                 ])
             protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[4.0*cm, 2.4*cm, 4.2*cm, 3.2*cm, 3.4*cm])
             protocol_table.setStyle(TableStyle([
@@ -328,26 +421,23 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             ]))
             elements.extend([protocol_table, Spacer(1, 0.4*cm)])
 
-        elements.append(Paragraph("Chaîne clinique R11 -&gt; R14", h2))
+        elements.append(Paragraph("État des vérifications cliniques", h2))
         for stage in context["stages"]:
-            label = (
-                f"{stage.get('stage_id') or ''} - {stage.get('title') or ''}: "
-                f"{stage.get('presentation_state') or 'INCONNU'}"
-            )
+            label = f"{stage['display_title']} : {stage['display_presentation_state']}"
             elements.append(Paragraph(f"<b>{escape(label)}</b>", body))
-            if stage.get("summary"):
-                elements.append(Paragraph(escape(str(stage["summary"])), body))
+            if stage.get("display_summary"):
+                elements.append(Paragraph(escape(str(stage["display_summary"])), body))
             for heading, key in (
-                ("Blockers", "blocking_gates"),
-                ("Données manquantes", "missing_data_refs"),
-                ("Contradictions", "contradictions"),
-                ("Contre-indications", "contraindications"),
+                ("Points à résoudre", "display_blocking_gates"),
+                ("Données manquantes", "display_missing_data_refs"),
+                ("Contradictions", "display_contradictions"),
+                ("Contre-indications", "display_contraindications"),
             ):
                 values = stage.get(key) or []
                 if values:
                     rendered_values = "; ".join(escape(str(value)) for value in values)
                     elements.append(Paragraph(f"{heading}: {rendered_values}", body))
-            provenance = stage.get("provenance") or []
+            provenance = stage.get("display_provenance") or []
             if provenance:
                 text = "; ".join(
                     f"{escape(str(item.get('label')))}: {escape(str(item.get('value')))}"
@@ -356,14 +446,14 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 elements.append(Paragraph("Provenance: " + text, body))
 
         if context["blocking_gates"]:
-            elements.append(Paragraph("Blockers globaux", h2))
+            elements.append(Paragraph("Points restant à vérifier", h2))
             elements.append(
                 Paragraph(
-                    "; ".join(escape(str(value)) for value in context["blocking_gates"]),
+                    "; ".join(escape(str(value)) for value in context["display_blocking_gates"]),
                     body,
                 )
             )
 
-        draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config)
+        draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config, user=user)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return file_path
