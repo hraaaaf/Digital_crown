@@ -158,7 +158,7 @@ class DocumentFactory:
                 patient_id=patient_id,
                 analysis=schemas.CephaloAnalysisResult.model_validate(display_results),
                 cabinet_config=serialize_document_branding(cabinet, user),
-                doctor_name=user.nom_complet if user and user.nom_complet.startswith("Dr") else (f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova"),
+                doctor_name=user.nom_complet if user and user.nom_complet.startswith("Dr") else (f"Dr. {user.nom_complet}" if user and user.nom_complet else "Praticien non renseigné"),
                 radio_image_path=radio_image_path,
                 is_pre_bilan=is_pre_bilan,
                 validation_warnings=validation_warnings
