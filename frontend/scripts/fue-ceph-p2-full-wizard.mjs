@@ -112,7 +112,9 @@ try{
   for(let idx=1;idx<4;idx++){
    const tab=page.locator('[data-tour="cephalo-stepper"] > button').nth(idx);
    await tab.click();
-   await tab.waitFor({state:'visible'});
+   await page.waitForFunction(
+     i=>document.querySelectorAll('[data-tour="cephalo-stepper"] > button')[i]?.getAttribute('aria-current')==='step',
+     idx,{timeout:20000});
    ok((await tab.getAttribute('aria-current'))==='step','Failed transition to step '+(idx+1));
    await shot('04-step-'+(idx+1));
   }
