@@ -125,9 +125,9 @@ try {
     mediaTimepoints.has('T0') && mediaTimepoints.has('T1'),
     {timepoints:[...mediaTimepoints].sort()});
   // Do not capture a premature empty timeline before React commits the response.
-  await page.locator('[data-testid="patient-media-timeline"]').getByText('T0',{exact:true}).first()
+  await page.locator('[data-testid="media-asset-rail"] section[aria-label="Temps T0"]')
     .waitFor({state:'visible',timeout:30000});
-  await page.locator('[data-testid="patient-media-timeline"]').getByText('T1',{exact:true}).first()
+  await page.locator('[data-testid="media-asset-rail"] section[aria-label="Temps T1"]')
     .waitFor({state:'visible',timeout:30000});
   pass('exactly one live real Media Timeline',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
   pass('real patient dossier name', (await page.locator('[data-testid="multiview-real-dossier"]').innerText()).includes(patient.numero_dossier));
@@ -189,8 +189,8 @@ try {
   await page.locator('[data-testid="multiview-real-dossier"]')
     .getByText(patient.numero_dossier,{exact:true})
     .waitFor({state:'visible',timeout:30000});
-  await page.locator('[data-testid="patient-media-timeline"]')
-    .getByText('T0',{exact:true}).first().waitFor({state:'visible',timeout:30000});
+  await page.locator('[data-testid="media-asset-rail"] section[aria-label="Temps T0"]')
+    .waitFor({state:'visible',timeout:30000});
   pass('A→B→A restores only patient A verified dossier',
     await page.getByText(patientB.numero_dossier,{exact:true}).count()===0);
   await capture(page,'after-client-route-patient-A-return-1920.png');
