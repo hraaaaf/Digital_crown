@@ -99,10 +99,6 @@
   grid-row: 2;
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
-  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] .min-h-\\[220px\\],
-[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
-  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] .sm\\:min-h-\\[280px\\],
-[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
-  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] .lg\\:min-h-\\[360px\\] {
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] > :last-child {
   min-height: 220px;
 }
