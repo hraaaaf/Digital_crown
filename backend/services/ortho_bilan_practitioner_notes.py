@@ -110,6 +110,8 @@ def save_practitioner_draft(db: Session, *, patient_id:int, analysis_id:int,
                             casts:Mapping[str,Any], summary:str, plan:str,
                             actor:models.User) -> dict:
     _dentist(actor)
+    # Authorize patient/cabinet identity BEFORE taking a database write lock.
+    _get_current(db,patient_id,analysis_id,expected_revision,actor)
     # Use the same serialization point as PDF archives and landmark edits:
     # PostgreSQL SELECT FOR UPDATE / SQLite writer intent, then fresh read.
     from backend.services.cephalo_document_lock import lock_selected_cephalo_for_archive
@@ -157,6 +159,7 @@ def approve_practitioner_draft(db: Session, *, patient_id:int, analysis_id:int,
                                expected_revision:int, expected_draft_version:int,
                                actor:models.User) -> dict:
     _dentist(actor)
+    _get_current(db,patient_id,analysis_id,expected_revision,actor)
     from backend.services.cephalo_document_lock import lock_selected_cephalo_for_archive
     lock_selected_cephalo_for_archive(db, patient_id=patient_id, analysis_id=analysis_id)
     study,revision,digest=_get_current(db,patient_id,analysis_id,expected_revision,actor)
