@@ -156,6 +156,13 @@ class PdfV3Contract(unittest.TestCase):
                         "Rapport dense excessivement long (page finale orpheline possible)")
                     full = "\n".join(page.extract_text() or "" for page in pdf.pages)
                     last = pdf.pages[-1].extract_text() or ""
+                    print("CEPH_V4_LAST_PAGE_DIAGNOSTIC", template, len(pdf.pages),
+                          [len(p.extract_text() or "") for p in pdf.pages],
+                          repr(last[-530:]))
+                    capture_debug = os.environ.get("CEPH_V3_CAPTURE_DIR")
+                    if capture_debug:
+                        Path(capture_debug).mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(output, Path(capture_debug) / f"bilan_{template}.pdf")
                     self.assertGreater(len(last), 380,
                         "La dernière page ne doit pas contenir seulement une clôture")
                     self.assertIn("Non calculable", full)
