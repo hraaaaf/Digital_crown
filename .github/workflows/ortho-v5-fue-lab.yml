@@ -139,7 +139,7 @@ jobs:
               assert [text.index(p) for p in phases]==sorted(text.index(p) for p in phases)
               assert text.count('Classe I')>=2
               assert 'LAB EXCLUSIVEMENT' in text
-              assert '24 avenue de l'+"'Exemple"+''' in text
+              assert "24 avenue de l'Exemple" in text
               for forbidden in ('Mesure complémentaire','NOT_COMPUTABLE','DOCUMENT CLINIQUE INCOMPLET','PRÉ-BILAN'):
                   assert forbidden not in text,forbidden
           assert hashlib.sha1((root/'public-cephalo-ANUG-original.jpg').read_bytes()).hexdigest()=='2a284993c666790a72d0c004044b35a92534ce9d'
