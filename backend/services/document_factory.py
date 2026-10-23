@@ -19,6 +19,7 @@ from backend.services.certificate_payload_policy import normalize_and_validate_c
 from backend.services.document_provenance_context import effective_document_practitioner_id
 from backend.services.honoraires_contract import validate_honoraires_document_data
 from backend.services.cephalo_pdf_projection import build_cephalo_pdf_projection
+from backend.services.document_branding_contract import serialize_document_branding
 
 logger = logging.getLogger(__name__)
 
@@ -156,22 +157,13 @@ class DocumentFactory:
                 patient_age=str(self._calculate_age(patient.date_naissance)),
                 patient_id=patient_id,
                 analysis=schemas.CephaloAnalysisResult.model_validate(display_results),
-                cabinet_config={
-                    "primary_color": cabinet.primary_color if cabinet else "#1A365D",
-                    "secondary_color": cabinet.secondary_color if cabinet else "#64748B",
-                    "logo_path": cabinet.logo_path if cabinet else None,
-                    "margin_top": cabinet.margin_top if cabinet else 4.5,
-                    "margin_bottom": cabinet.margin_bottom if cabinet else 3.5,
-                    "qr_code_style": cabinet.qr_code_style if cabinet else "dots",
-                    "qr_code_color": cabinet.qr_code_color if cabinet else None,
-                    "qr_code_enabled": cabinet.qr_code_enabled if cabinet else False
-                },
+                cabinet_config=serialize_document_branding(cabinet, user),
                 doctor_name=user.nom_complet if user and user.nom_complet.startswith("Dr") else (f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova"),
                 radio_image_path=radio_image_path,
                 is_pre_bilan=is_pre_bilan,
                 validation_warnings=validation_warnings
             )
-            return self.ceph_gen.generate(vm, projection=projection)
+            return self.ceph_gen.generate(vm, projection=projection, user=user)
         except Exception as e:
             logger.error(f"Erreur rapport céphalo: {e}")
             raise
