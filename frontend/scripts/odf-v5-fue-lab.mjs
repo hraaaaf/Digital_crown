@@ -38,7 +38,7 @@ const snap=async label=>{
 };
 try{
   const auth=await api.post('/api/auth/login',
-    {form:{username:'t2-browser@cabinet.ma',password}});
+    {form:{username:'odf-lab-dentiste@example.invalid',password}});
   check(auth.status()===200,'REAL_CABINET_LOGIN_API');
   const token=(await auth.json()).access_token;
   const headers={Authorization:'Bearer '+token};
@@ -59,7 +59,7 @@ try{
   await page.goto(root+'/hub?select=1',{waitUntil:'domcontentloaded'});
   await snap('01-welcome');
   await page.locator('[data-hub-experience="cabinet"]').click();
-  await page.locator('input[type=email]').fill('t2-browser@cabinet.ma');
+  await page.locator('input[type=email]').fill('odf-lab-dentiste@example.invalid');
   await page.locator('input[type=password]').fill(password);
   await page.getByRole('button',{name:'Se connecter',exact:true}).click();
   await page.waitForURL(url=>new URL(url).pathname==='/dashboard',{timeout:45000});
@@ -129,7 +129,7 @@ try{
     'A_NOTES_NOT_APPROVED_ON_DISTINCT_STUDY_B');
 
   const secretary=await api.post('/api/auth/login',
-    {form:{username:'t2-restricted@cabinet.ma',password}});
+    {form:{username:'odf-lab-secretaire@example.invalid',password}});
   check(secretary.status()===200,'RESTRICTED_TEST_STAFF_HAS_REAL_LOGIN');
   const denied=await api.post(noteUrl+'/approve',{
     headers:{Authorization:'Bearer '+(await secretary.json()).access_token},
