@@ -23,12 +23,18 @@ export function PatientDraftRouteGuard({ children }: { children: ReactNode }) {
     const previous = previousScope.current;
     // Invalidation is not an undoable patient switch. Never retain sensitive
     // in-progress document stores across logout, role change or account switch.
-    if ((previous && previous !== scope) || (!scope && hasUnsavedPatientDocumentDraft())) {
+    const identityChanged = Boolean(previous && previous !== scope);
+    if (identityChanged || (!scope && hasUnsavedPatientDocumentDraft())) {
       resetPatientDocumentBoundary();
     }
     previousScope.current = scope;
-    // A blocked patient transition must never keep the user on a revoked route.
-    if (!scope && blocker.state === 'blocked') blocker.proceed();
+    if (blocker.state === 'blocked') {
+      // Invalidation/logout is not a user-approved clinical navigation.
+      // Proceed only for an invalidated session; another authenticated
+      // principal/role must cancel the stale navigation entirely.
+      if (!scope) blocker.proceed();
+      else if (identityChanged) blocker.reset();
+    }
   }, [scope, blocker.state, blocker]);
 
   useEffect(() => {
