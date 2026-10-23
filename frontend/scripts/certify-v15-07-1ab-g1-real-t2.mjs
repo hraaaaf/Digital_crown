@@ -201,14 +201,19 @@ try {
     // values or the temporary presence of an individual toast.
     const toast=document.querySelector('.dc-global-toast-position');
     const style=toast?getComputedStyle(toast):null;
-    return {found:Boolean(heading&&toast),top:style?.top,bottom:style?.bottom,
+    // The fixed toast *container* spans the viewport even when its visible
+    // toast card is at the bottom. Compare the actual message, not the root.
+    const phrase='Dossier à compléter';
+    const leaf=toast?[...toast.querySelectorAll('*')].find(el=>
+      el.textContent?.includes(phrase) &&
+      ![...el.children].some(child=>child.textContent?.includes(phrase))):null;
+    return {found:Boolean(heading&&toast&&leaf),bottom:style?.bottom,
       headingBottom:Math.round(heading?.getBoundingClientRect().bottom||0),
-      toasterTop:Math.round(toast?.getBoundingClientRect().top||0)};
+      messageTop:Math.round(leaf?.getBoundingClientRect().top||0)};
   });
   pass('compact patient notifications anchored below identity, not on name',
-    patientHeaderToast.found && patientHeaderToast.top==='auto' &&
-    patientHeaderToast.bottom!=='auto' &&
-    patientHeaderToast.toasterTop>patientHeaderToast.headingBottom,
+    patientHeaderToast.found && patientHeaderToast.bottom!=='auto' &&
+    patientHeaderToast.messageTop>patientHeaderToast.headingBottom,
     patientHeaderToast);
   await capture(page,'mobile-single-media-regression-390.png');
   for(const width of [430,768,1280]){
