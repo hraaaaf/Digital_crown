@@ -134,6 +134,28 @@ class DocumentFactory:
                 angles_data=results_dict,
             )
 
+            # ODF V5 G2: trusted server DB join, NEVER req.ai_diagnostic or
+            # persisted legacy clinical_data. This is *notes approval only*,
+            # explicitly separate from the R14 scientific clinical gate.
+            if db is not None and user is not None and patient_id and analysis_id:
+                from backend.services.ortho_bilan_practitioner_notes import (
+                    resolve_approved_practitioner_sections,
+                )
+                source_row = db.query(models.CephaloAnalysis).filter(
+                    models.CephaloAnalysis.id == analysis_id,
+                    models.CephaloAnalysis.patient_id == patient_id,
+                ).first()
+                if source_row is not None:
+                    approved_sections = resolve_approved_practitioner_sections(
+                        db, patient_id=patient_id, analysis_id=analysis_id,
+                        expected_revision=projection.get("analysis_revision"),
+                        study_data=source_row.angles_data or {},
+                        employer_id=user.get_employer_id(),
+                    )
+                    if approved_sections:
+                        projection["practitioner_approved_sections"] = approved_sections
+                        projection["practitioner_sections_authorized"] = True
+
             radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))
             if isinstance(analysis, dict):
                 radio_image_path = analysis.get('image_path') or analysis.get('image_original_path')
