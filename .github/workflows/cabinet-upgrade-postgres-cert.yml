@@ -25,9 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        # Pin the ECR Public PostgreSQL 18 image to the digest actually pulled
-        # by successful PR run #37995248190; avoid tag drift and Docker Hub auth.
-        image: public.ecr.aws/docker/library/postgres@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        # Immutable official PostgreSQL 18 image, identical manifest digest to
+        # the previous ECR Public source (which began returning
+        # toomanyrequests: Data limit exceeded before tests on master).
+        # Docker Hub hosts this exact digest: do not replace it with :18.
+        # The database version, fixtures and certification oracle are unchanged.
+        image: docker.io/library/postgres@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
