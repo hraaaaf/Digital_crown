@@ -79,7 +79,12 @@ jobs:
       - name: Production safety contract
         run: python scripts/prod_safety_check.py
       - name: Full backend regression
-        run: python -m pytest backend/tests -q --maxfail=1
+        run: |
+          # This file is a standalone PostgreSQL/rehearsal gate, not a pytest
+          # module: its top-level safety assertions reject the general SQLite
+          # suite. Keep its strict checks and dedicated CI workflow intact.
+          python -m pytest backend/tests -q --maxfail=1 \
+            --ignore=backend/tests/test_legacy_migration_http_pg_v15.py
 
   postgres18:
     name: PostgreSQL 18 upgrade + preservation

@@ -55,5 +55,7 @@ it('explicit placement controls must wrap at 200 percent text scaling', () => {
   const source = read('components/CephaloAnalysisWorkbenchPanel.tsx');
   expect(source).not.toContain('block truncate text-[9px] font-black');
   expect(source).not.toContain('block truncate text-[8px]');
-  expect(source).toContain('break-words text-[9px] font-black leading-tight');
+  // The readable 10px label must wrap at 200%, not be truncated.
+  expect(source).toContain('block break-words text-[10px] font-bold leading-tight');
+  expect(source).toContain('min-w-0');
 });
