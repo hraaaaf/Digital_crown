@@ -260,7 +260,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
         ? <section data-testid="multiview-responsive-single-media-fallback"
             aria-label="Médiathèque clinique seule — repli de lisibilité"
             className="min-w-0 rounded-xl border border-border-main bg-card-bg p-2">
-            <PatientMediaTimeline patientId={trustedPatient.id}/>
+            <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>
           </section>
         : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
             renderSlot={renderSlot}/>} 
