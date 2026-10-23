@@ -108,7 +108,9 @@ def _patient(text: str) -> tuple[str | None, str | None]:
     if not identities:
         return None, None
     kind, value = next(iter(identities))
-    if kind == "dossier" and int(value) < 1:
+    # Both numeric forms ("patient 0" -> id and "dossier 0" -> dossier)
+    # must refuse sentinel zero before any tenant-scoped lookup.
+    if kind in ("id", "dossier") and int(value) < 1:
         return None, "Identifiant patient invalide."
     return f"{kind}:{value}", None
 
