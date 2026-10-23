@@ -4,7 +4,9 @@
  */
 export type Geometry = 'single' | 'two-columns' | 'two-rows' | 'three-columns' | 'hero-two' | 'grid-2x2' | 'focus-rail';
 export type ModuleKey = 'dossier' | 'agenda' | 'imagerie' | 'galerie' | 'cephalo' | 'photos' | 'traitement' | 'suivi' | 'documents' | 'presentation';
-export type Slot = Readonly<{ id: string; module: ModuleKey }>;
+/** R: consultation; W: focused edit; X: exclusive action, certified in a later gate only. */
+export type SlotAccess = 'R' | 'W' | 'X';
+export type Slot = Readonly<{ id: string; module: ModuleKey; access?: SlotAccess }>;
 export type Layout = Readonly<{ id: string; label: string; geometry: Geometry; slots: readonly Slot[] }>;
 
 export const GEOMETRIES: readonly Geometry[] = [
@@ -58,7 +60,8 @@ export function validLayout(value: Layout): boolean {
   for (const slot of value.slots) {
     if (!slot || typeof slot.id !== 'string' || typeof slot.module !== 'string' ||
         !/^[a-z0-9-]{1,60}$/.test(slot.id) || ids.has(slot.id) ||
-        !Object.prototype.hasOwnProperty.call(MODULE_POLICY, slot.module)) return false;
+        !Object.prototype.hasOwnProperty.call(MODULE_POLICY, slot.module) ||
+        (slot.access !== undefined && slot.access !== 'R' && slot.access !== 'W' && slot.access !== 'X')) return false;
     ids.add(slot.id);
   }
   return true;
@@ -82,7 +85,8 @@ export type WorkspaceContext = Readonly<{
 }>;
 
 export type Denial = 'INVALID_LAYOUT' | 'SESSION_NOT_VERIFIED' | 'DESKTOP_ONLY' |
-  'PATIENT_MISSING' | 'MODULE_DENIED' | 'INSTANCE_ISOLATION_MISSING' | 'UNREADABLE_LAYOUT';
+  'PATIENT_MISSING' | 'MODULE_DENIED' | 'INSTANCE_ISOLATION_MISSING' | 'UNREADABLE_LAYOUT' |
+  'WRITE_SLOT_NOT_CERTIFIED' | 'EXCLUSIVE_SLOT_NOT_CERTIFIED';
 export type LayoutGate = { ok: false; reason: Denial } | { ok: true; layout: Layout };
 
 function minimumWidth(layout: Layout): number {
@@ -113,6 +117,10 @@ export function authorizeLayout(layout: Layout | undefined, context: WorkspaceCo
   if (!Array.isArray(context.allowedModules) || layout.slots.some(slot => !context.allowedModules.includes(slot.module))) {
     return {ok:false,reason:'MODULE_DENIED'};
   }
+  // An allowlisted module does NOT grant mutation. W requires a verified focused
+  // editor and X an exclusive transactional workflow; neither is in the G1 lab.
+  if (layout.slots.some(slot => slot.access === 'X')) return {ok:false,reason:'EXCLUSIVE_SLOT_NOT_CERTIFIED'};
+  if (layout.slots.some(slot => slot.access === 'W')) return {ok:false,reason:'WRITE_SLOT_NOT_CERTIFIED'};
   const seen = new Set<ModuleKey>();
   for (const slot of layout.slots) {
     if (seen.has(slot.module) && !context.independentlyMountable?.includes(slot.module)) {
@@ -146,7 +154,8 @@ export type LayoutPreference = Readonly<{
 
 /** Allowlist projection only. NO patient IDs, clinical subviews, media, tokens or drafts. */
 export function projectLayoutPreference(layout: Layout, userId: string, workstationId: string, ratio = 50): LayoutPreference | null {
-  if (!validLayout(layout) || !userId.trim() || !workstationId.trim() || !Number.isFinite(ratio)) return null;
+  if (!validLayout(layout) || layout.slots.some(slot => slot.access && slot.access !== 'R') ||
+      !userId.trim() || !workstationId.trim() || !Number.isFinite(ratio)) return null;
   // Never persist free-form layout or slot IDs: users could embed patient names/IDs.
   // Derive identifiers solely from pre-declared module names and geometry.
   const isExactPreset = PRESETS.some(p => p.id === layout.id && p.geometry === layout.geometry &&

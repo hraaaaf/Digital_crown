@@ -10,7 +10,7 @@ vi.mock('../../services/workstationMode',()=>({
 }));
 vi.mock('../../services/api',()=>({API_BASE:'http://localhost:8005',api:{get:vi.fn()}}));
 vi.mock('../patients/components/PatientMediaTimeline',()=>({
-  PatientMediaTimeline:({patientId}:{patientId:number})=><div data-testid="media-live">Media API module patient {patientId}</div>,
+  PatientMediaTimeline:({patientId,readOnly}:{patientId:number;readOnly?:boolean})=><div data-testid="media-live" data-read-only={String(Boolean(readOnly))}>Media API module patient {patientId}</div>,
 }));
 vi.mock('../ortho/OrthoLongitudinalComparePanel',()=>({
   OrthoLongitudinalComparePanel:({patientId}:{patientId:number})=><div data-testid="suivi-live">Longitudinal patient {patientId}</div>,
@@ -58,6 +58,12 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(isCabinetMultiViewLabEnabled(true,undefined)).toBe(false);
     expect(isCabinetMultiViewLabEnabled(true,'true')).toBe(false);
     expect(isCabinetMultiViewLabEnabled(true,'1')).toBe(true);
+  });
+
+  it('mounts the real MultiView imagerie adapter in read-only R mode',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
   });
 
   it('requires real signed-in workstation bootstrap AND fresh exact-patient GET before mounting media',async()=>{
@@ -137,13 +143,61 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(s.querySelector('option[value="dossier-media-suivi-hero"]')).toBeNull();
   });
 
+  it('uses read-only mode for the verified desktop fallback when panels are too narrow',async()=>{
+    vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(()=>({
+      x:0,y:0,top:0,left:0,right:1200,bottom:800,width:1200,height:800,toJSON:()=>({}),
+    }));
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
+    await screen.findByTestId('multiview-responsive-single-media-fallback');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+  });
+
   it('preserves the existing single media module on narrow screens with no workspace bootstrap',async()=>{
     desktop=false;
     render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('false');
     expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
     expect(vi.mocked(workstationModeService.getBootstrapState)).not.toHaveBeenCalled();
     expect(vi.mocked(api.get)).not.toHaveBeenCalled();
+  });
+
+  it('unmounts all clinical slots immediately after a mid-session patients permission revocation',async()=>{
+    const allowed=user({patients:true,cephalo:true});
+    useAuthStore.setState({user:allowed,isAuthenticated:true});
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={allowed}/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('media-live')).toBeTruthy();
+    const revoked=user({patients:false,cephalo:true});
+    useAuthStore.setState({user:revoked,isAuthenticated:true});
+    rerender(<CabinetMultiViewLab patient={patient} routePatientId="17" user={revoked}/>);
+    expect(screen.getByRole('alert').textContent).toContain('refusées');
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    expect(screen.queryByText('DOS-A')).toBeNull();
+  });
+
+  it('ignores a late API response for A after route patient switches to B',async()=>{
+    const actor=user();
+    const next={id:18,nom:'NOM-B',prenom:'Prénom-B',numero_dossier:'DOS-B'};
+    let resolveA: ((result: unknown) => void) | undefined;
+    vi.mocked(api.get).mockImplementation((url) =>
+      url==='/patients/17'
+        ? new Promise(resolve=>{resolveA=resolve;}) as never
+        : Promise.resolve({data:next}) as never
+    );
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}/>);
+    await waitFor(()=>expect(vi.mocked(api.get)).toHaveBeenCalledWith('/patients/17'));
+    rerender(<CabinetMultiViewLab patient={next} routePatientId="18" user={actor}/>);
+    await screen.findByText('DOS-B');
+    expect(screen.getByTestId('media-live').textContent).toContain('18');
+    await act(async()=>{
+      if (!resolveA) throw new Error('old synthetic request not created');
+      resolveA({data:patient});
+      await Promise.resolve();
+    });
+    expect(screen.queryByText('DOS-A')).toBeNull();
+    expect(screen.queryByText('NOM-A')).toBeNull();
+    expect(screen.getByTestId('media-live').textContent).toContain('18');
   });
 
   it('synchronously denies and removes old clinical viewer on account logout and patient A→B',async()=>{

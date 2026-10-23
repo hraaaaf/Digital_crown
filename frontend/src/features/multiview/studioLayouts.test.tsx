@@ -14,6 +14,25 @@ const context: WorkspaceContext = {
 afterEach(() => cleanup());
 
 describe('07.1.A/B nine-layout registry FUE-0: defensive client contracts only', () => {
+  it('treats R as view-only and blocks W/X modes until focus and exclusive-action gates exist', () => {
+    const p=getPreset('consultation')!;
+    const write: Layout={...p,slots:[{...p.slots[0],access:'W'},p.slots[1]]};
+    const exclusive: Layout={...p,slots:[p.slots[0],{...p.slots[1],access:'X'}]};
+    const viewOnly: Layout={...p,slots:[{...p.slots[0],access:'R'},p.slots[1]]};
+    expect(validLayout(write)).toBe(true);
+    expect(validLayout(exclusive)).toBe(true);
+    expect(authorizeLayout(write,context)).toEqual({ok:false,reason:'WRITE_SLOT_NOT_CERTIFIED'});
+    expect(authorizeLayout(exclusive,context)).toEqual({ok:false,reason:'EXCLUSIVE_SLOT_NOT_CERTIFIED'});
+    expect(authorizeLayout(viewOnly,context).ok).toBe(true);
+    expect(projectLayoutPreference(write,'user-A','poste-A')).toBeNull();
+    expect(projectLayoutPreference(exclusive,'user-A','poste-A')).toBeNull();
+    expect(validLayout({...p,slots:[{...p.slots[0],access:'ADMIN' as never},p.slots[1]]})).toBe(false);
+    const renderSlot=vi.fn(()=> <p>Confidentiel</p>);
+    render(<StudioLayoutFrame layout={write} context={context} renderSlot={renderSlot}/>);
+    expect(renderSlot).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
   it('has the nine owner-approved product directions in French, favourite first', () => {
     expect(PRESETS.map(p => p.label)).toEqual([
       'Vue d’ensemble','Consultation','Agenda du cabinet','Imagerie',
