@@ -70,6 +70,11 @@ try{
    await shot('02-calibration-unverified');
    // Never enter invented mm or claim physical calibration; reload is a user-safe cancel.
    await page.reload({waitUntil:'domcontentloaded'});
+   await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible'});
+   if(!(await page.locator('[data-cephalo-selected-analysis-id="'+report.case_id+'"]').isVisible())){
+     await page.getByRole('button',{name:'Historique',exact:true}).click();
+     await page.locator('[data-cephalo-history-analysis-id="'+report.case_id+'"]').click();
+   }
    await page.locator('[data-cephalo-selected-analysis-id="'+report.case_id+'"]').waitFor({state:'visible'});
    const after=await detail();
    ensure(before.is_calibrated===false && after.is_calibrated===false && after.mm_per_pixel==null,
