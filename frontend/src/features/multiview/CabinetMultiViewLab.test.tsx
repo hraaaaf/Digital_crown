@@ -162,6 +162,20 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(vi.mocked(api.get)).not.toHaveBeenCalled();
   });
 
+  it('unmounts all clinical slots immediately after a mid-session patients permission revocation',async()=>{
+    const allowed=user({patients:true,cephalo:true});
+    useAuthStore.setState({user:allowed,isAuthenticated:true});
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={allowed}/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('media-live')).toBeTruthy();
+    const revoked=user({patients:false,cephalo:true});
+    useAuthStore.setState({user:revoked,isAuthenticated:true});
+    rerender(<CabinetMultiViewLab patient={patient} routePatientId="17" user={revoked}/>);
+    expect(screen.getByRole('alert').textContent).toContain('refusées');
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    expect(screen.queryByText('DOS-A')).toBeNull();
+  });
+
   it('ignores a late API response for A after route patient switches to B',async()=>{
     const actor=user();
     const next={id:18,nom:'NOM-B',prenom:'Prénom-B',numero_dossier:'DOS-B'};
