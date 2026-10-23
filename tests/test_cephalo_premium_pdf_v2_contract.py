@@ -101,7 +101,7 @@ class PremiumCephalometryPdfTests(unittest.TestCase):
     def test_original_clinical_safety_and_source_lock_states_remain(self):
         doc=render_sample()
         for s in ["DOCUMENT CLINIQUE INCOMPLET","R14 NO VERIFIED PRACTITIONER SNAPSHOT",
-                  "PRE-BILAN","SATISFIED","BLOCKED","diagnostic_rule_registry_empty",
+                  "PRÉ-BILAN","SATISFIED","BLOCKED","diagnostic_rule_registry_empty",
                   "r14_authoritative_snapshot_not_persisted","r11_provenance_missing"]:
             self.assertIn(s,doc)
         self.assertNotIn("Classe II diagnostiquée",doc)
