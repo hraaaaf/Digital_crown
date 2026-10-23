@@ -16,6 +16,14 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
   const [record, setRecord] = useState<NoteState | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [molarRight, setMolarRight] = useState('');
+  const [molarLeft, setMolarLeft] = useState('');
+  const [canineRight, setCanineRight] = useState('');
+  const [canineLeft, setCanineLeft] = useState('');
+  const noteSignature = () => JSON.stringify({
+    patientId, analysisId, molarRight, molarLeft, canineRight, canineLeft,
+    source: sourceSignature(),
+  });
   const approvedFingerprint = useRef<string | null>(null);
   const sequence = useRef(0);
   const sourceSignature = () => {
@@ -47,6 +55,7 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
     setRecord(null);
     setMessage('');
     approvedFingerprint.current = null;
+    setMolarRight(''); setMolarLeft(''); setCanineRight(''); setCanineLeft('');
     if (!patientId || !analysisId) return;
     (async () => {
       try {
@@ -54,6 +63,10 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
         const loaded = await cephaloRepository.readPractitionerNotes(patientId, analysisId, revision);
         if (generation !== sequence.current || !stillSelected(patientId,analysisId)) return;
         setRecord(loaded);
+        setMolarRight(String(loaded.notes?.moulages?.classe_molaire_droite || ''));
+        setMolarLeft(String(loaded.notes?.moulages?.classe_molaire_gauche || ''));
+        setCanineRight(String(loaded.notes?.moulages?.classe_canine_droite || ''));
+        setCanineLeft(String(loaded.notes?.moulages?.classe_canine_gauche || ''));
         // An approval loaded from another screen is intentionally NOT enough
         // to treat the current unsaved workspace as unchanged.
       } catch {
@@ -76,6 +89,10 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
       const previous = await cephaloRepository.readPractitionerNotes(patientId, analysisId, revision);
       const latest = useOrthoStore.getState();
       const casts: Record<string, string | number> = {};
+      if (molarRight) casts.classe_molaire_droite = molarRight;
+      if (molarLeft) casts.classe_molaire_gauche = molarLeft;
+      if (canineRight) casts.classe_canine_droite = canineRight;
+      if (canineLeft) casts.classe_canine_gauche = canineLeft;
       if (latest.diag.analyse_moulages.trim()) casts.commentaire = latest.diag.analyse_moulages.trim();
       if (latest.ddm.maxillaire !== '' && Number.isFinite(Number(latest.ddm.maxillaire))) {
         casts.ddm_maxillaire = Number(latest.ddm.maxillaire);
@@ -109,7 +126,7 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
       });
       if (!stillSelected(patientId, analysisId)) throw Error('Étude changée.');
       setRecord(approved);
-      approvedFingerprint.current = sourceSignature();
+      approvedFingerprint.current = noteSignature();
       setMessage('Notes approuvées par le dentiste connecté (validation R14 distincte).');
     } catch (error: any) {
       setMessage(error?.response?.data?.detail || error?.message || 'Approbation refusée.');
@@ -120,7 +137,7 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
     if (!patientId || !analysisId || !record?.approved || busy) return;
     setBusy(true); setMessage('');
     try {
-      if (approvedFingerprint.current !== sourceSignature()) {
+      if (approvedFingerprint.current !== noteSignature()) {
         throw Error('L’espace de travail a changé ou a été rechargé. Réenregistrez et approuvez avant l’export.');
       }
       const revision = await fetchCurrentRevision(patientId, analysisId);
@@ -146,7 +163,7 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
   };
 
   if (!patientId || !analysisId) return null;
-  const changed = approvedFingerprint.current !== sourceSignature();
+  const changed = approvedFingerprint.current !== noteSignature();
   return (
     <section className="rounded-xl border p-4 space-y-3" style={{ borderColor: P.border, background: P.bgCard }}>
       <h3 className="text-sm font-bold" style={{ color: P.text }}>Validation des notes du bilan orthodontique</h3>
@@ -158,6 +175,34 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
         {record?.approved ? 'Notes approuvées' : record?.stale ? 'Anciennes notes invalidées par une modification de l’étude' : 'Notes non approuvées'}
         {record ? ` · Version ${record.draft_version}` : ''}
       </p>
+      <fieldset className="grid grid-cols-2 gap-2">
+        <legend className="mb-2 text-xs font-semibold" style={{ color: P.text }}>
+          Classe d’Angle — examen clinique des moulages uniquement
+        </legend>
+        {([
+          ['Molaire droite', molarRight, setMolarRight, 'molaire-droite'],
+          ['Molaire gauche', molarLeft, setMolarLeft, 'molaire-gauche'],
+          ['Canine droite', canineRight, setCanineRight, 'canine-droite'],
+          ['Canine gauche', canineLeft, setCanineLeft, 'canine-gauche'],
+        ] as const).map(([label, value, update, id]) => (
+          <label key={id} className="text-xs" style={{ color: P.textMuted }}>
+            {label}
+            <select data-testid={`odf-angle-${id}`} value={value}
+              onChange={event => update(event.target.value)}
+              className="mt-1 w-full rounded-lg border px-2 py-2 text-xs"
+              style={{ borderColor: P.border, background: P.bgCard, color: P.text }}>
+              <option value="">Non renseignée</option>
+              <option value="Classe I">Classe I</option>
+              <option value="Classe II">Classe II</option>
+              <option value="Classe III">Classe III</option>
+            </select>
+          </label>
+        ))}
+        <p className="col-span-2 text-xs" style={{ color: P.textMuted }}>
+          Ces classes sont renseignées par le dentiste après examen occlusal.
+          Elles ne sont pas déduites de la téléradiographie de profil.
+        </p>
+      </fieldset>
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={busy} onClick={saveDraft}
           className="rounded-lg border px-3 py-2 text-xs font-semibold"
