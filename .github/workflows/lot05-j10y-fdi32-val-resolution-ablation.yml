@@ -1,0 +1,73 @@
+name: LOT05 J10Y FDI32 Validation Resolution Ablation
+
+on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
+    paths:
+      - .github/workflows/lot05-j10y-fdi32-val-resolution-ablation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-validation-only-cpu:
+    name: Two academic CPU models 320 vs 640, only 33 validation images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test all private-review selection and ablation geometry fixtures
+        shell: bash
+        run: |
+          python experiments/test_lot05_j10x_local_private_fdi_visual_reviewer.py -v
+          python experiments/test_lot05_j10y_akudental_resolution_ablation.py -v
+      - name: Install pinned CPU Torchvision and Pillow, no Ultralytics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'pillow==11.3.0'
+          python -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu \
+            'torch==2.5.1' 'torchvision==0.20.1'
+          python -c 'import torch; assert not torch.cuda.is_available(); print("CPU_ONLY")'
+      - name: Fetch exact public academic source in ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            '/AKUDENTAL/folds/fold_0/labels/' '/AKUDENTAL/images/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+      - name: Revalidate annotations and stage temporary data without image copies
+        shell: bash
+        run: |
+          python experiments/lot05_j10r_akudental_private_research_workspace.py \
+            --source-repo third_party/AKUDENTAL \
+            --fold fold_0 \
+            --workspace "$RUNNER_TEMP/j10y-private"
+      - name: Compare pre-registered 320 vs 640 resolution on validation only
+        shell: bash
+        run: |
+          python experiments/lot05_j10y_akudental_resolution_ablation.py \
+            --workspace "$RUNNER_TEMP/j10y-private"
+      - name: Destroy all source JPEG, temporary annotations and weights
+        if: always()
+        shell: bash
+        run: |
+          rm -rf third_party/AKUDENTAL "$RUNNER_TEMP/j10y-private" \
+            "$HOME/.cache/torch/hub/checkpoints"
+          echo "J10Y_EPHEMERAL_DATA_AND_MODEL_REMOVED_NO_ARTIFACTS"
