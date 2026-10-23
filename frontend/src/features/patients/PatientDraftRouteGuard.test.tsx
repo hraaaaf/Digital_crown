@@ -53,9 +53,13 @@ function SyntheticEditor() {
 
 function CurrentPathContent() {
   const location = useLocation();
+  const user = useAuthStore(state => state.user);
+  const actorKey = user
+    ? JSON.stringify([user.id, user.employer_id, user.role, user.permissions])
+    : 'anonymous';
   return (
-    // Mirrors MainLayout's pathname-keyed editor subtree: the guard is above it.
-    <div key={location.pathname}>
+    // Mirrors real MainLayout actor-scoped remount plus pathname-keyed animation.
+    <div key={actorKey + ':' + location.pathname}>
       <Routes>
         <Route path="/patients/:id" element={<SyntheticEditor />} />
         <Route path="/agenda" element={<p>Agenda synthétique</p>} />
@@ -128,6 +132,36 @@ describe('R2 live root guard contract on Data Router (synthetic pages only)', ()
     fireEvent.click(screen.getByRole('button',{name:'Quitter sans sauvegarder'}));
     await waitFor(()=>expect(router.state.location.pathname).toBe('/patients/17'));
     expect((screen.getByLabelText('Éditeur synthétique') as HTMLInputElement).value).toBe('');
+  });
+
+  it('discards the stale blocked A navigation and wipes A draft on permission revocation', async () => {
+    const router = mount();
+    fireEvent.change(screen.getByLabelText('Éditeur synthétique'), { target: { value:'SECRET-A-ROLE-REVOKED' } });
+    fireEvent.click(screen.getByRole('button', { name:'Changer patient' }));
+    await screen.findByRole('alertdialog');
+    useAuthStore.setState({
+      user: { id:'r2-actor', role:'DENTISTE', employer_id:null, permissions:{patients:false} } as unknown as AppUser,
+      isAuthenticated:true,
+    });
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(router.state.location.pathname).toBe('/patients/17');
+    expect((screen.getByLabelText('Éditeur synthétique') as HTMLInputElement).value).toBe('');
+    expect(isPrescriptionDirty()).toBe(false);
+  });
+
+  it('never proceeds with A blocked navigation after switching to another signed-in tenant', async () => {
+    const router = mount();
+    fireEvent.change(screen.getByLabelText('Éditeur synthétique'), { target: { value:'SYNTHETIC-TENANT-A' } });
+    fireEvent.click(screen.getByRole('button', { name:'Changer patient' }));
+    await screen.findByRole('alertdialog');
+    useAuthStore.setState({
+      user: { id:'r2-new-principal', role:'DENTISTE', employer_id:'other-tenant', permissions:{patients:true} } as unknown as AppUser,
+      isAuthenticated:true,
+    });
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(router.state.location.pathname).toBe('/patients/17');
+    expect((screen.getByLabelText('Éditeur synthétique') as HTMLInputElement).value).toBe('');
+    expect(isPrescriptionDirty()).toBe(false);
   });
 
   it('purges the editor draft when the logged-in actor loses authorization during a blocked navigation', async () => {
