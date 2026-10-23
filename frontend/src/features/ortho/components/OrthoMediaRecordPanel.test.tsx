@@ -53,8 +53,9 @@ describe('OrthoMediaRecordPanel LOT07-F', () => {
 
   it('uploads a photo only through the canonical patient record endpoint with explicit timepoint/acquisition', async () => {
     render(<OrthoMediaRecordPanel patientId={7} P={P} />);
-    await screen.findByText(/8 vues standardisées/i);
-    const input = document.querySelector('[data-ortho-photo-slot="EXTRA_PROFILE"] input[type=file]') as HTMLInputElement;
+    // Header renders during loading; wait for the upload control itself.
+    const input = await screen.findByLabelText('Importer Profil') as HTMLInputElement;
+    expect(input).toHaveAttribute('type', 'file');
     const file = new File(['photo'], 'profile.png', { type: 'image/png' });
     fireEvent.change(input, { target: { files: [file] } });
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
@@ -85,7 +86,8 @@ describe('OrthoMediaRecordPanel LOT07-F', () => {
     render(<OrthoMediaRecordPanel patientId={7} P={P} />);
     await screen.findByText(/8 vues/i);
     fireEvent.change(screen.getByLabelText('Date de prise de vue'), { target: { value: '' } });
-    const input = document.querySelector('[data-ortho-photo-slot="EXTRA_PROFILE"] input[type=file]') as HTMLInputElement;
+    const input = await screen.findByLabelText('Importer Profil') as HTMLInputElement;
+    expect(input).toHaveAttribute('type', 'file');
     fireEvent.change(input, { target: { files: [new File(['photo'], 'profile.png', { type: 'image/png' })] } });
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(post).not.toHaveBeenCalled();
