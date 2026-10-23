@@ -74,17 +74,20 @@ def _identity_equal(a: Any, b: Any) -> bool:
 def _verified_clinician_snapshot(projection: Mapping[str, Any]) -> dict[str, Any] | None:
     """Only a server-supplied approved source bound to the exact study.
 
-    IMPORTANT: the current R15 real backend always reports clinical validation
-    unavailable. This gate is intentionally unreachable via client-submitted
-    legacy ai_diagnostic/clinical_data; no new API exposes this snapshot.
+    An independently approved practitioner note may be rendered even while
+    scientific R14 remains NO-GO. The document factory injects this evidence
+    exclusively after verifying the DB row, actor, source revision and digest;
+    legacy client/analysis narrative dictionaries cannot set this flag.
     """
     snap = projection.get("practitioner_approved_sections")
     if not isinstance(snap, dict):
         return None
     if not (
-        projection.get("clinical_validation_available") is True
-        and projection.get("document_state") == "COMPLETE"
-        and not projection.get("blocking_gates")
+        # Independent practitioner NOTE sign-off. The R14 scientific
+        # validation must remain false until its separate source-locked
+        # clinical authority exists. Only document_factory may set this
+        # flag after verifying the stored DB record and active clinician.
+        projection.get("practitioner_sections_authorized") is True
         and snap.get("contract_version") == "ORTHO_PRACTITIONER_APPROVED_V1"
         and snap.get("validation_state") == "APPROVED"
         and isinstance(snap.get("practitioner_id"), int)
