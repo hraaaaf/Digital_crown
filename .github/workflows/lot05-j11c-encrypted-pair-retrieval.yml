@@ -79,7 +79,7 @@ jobs:
           ioNGl3Qy2x6BsojyXr7yDCY/E3hHfK3S2VzjMk503akwaKU2IwL/sq6W5cDT1big
           qwIDAQAB
           -----END PUBLIC KEY-----
-PUBLIC_KEY
+          PUBLIC_KEY
           openssl pkeyutl -encrypt -pubin -inkey /tmp/j11c_public.pem \
             -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 \
             -in /tmp/j11c_pairs_plaintext -out /tmp/j11c_pairs_encrypted
