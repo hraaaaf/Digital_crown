@@ -162,6 +162,30 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(vi.mocked(api.get)).not.toHaveBeenCalled();
   });
 
+  it('ignores a late API response for A after route patient switches to B',async()=>{
+    const actor=user();
+    const next={id:18,nom:'NOM-B',prenom:'Prénom-B',numero_dossier:'DOS-B'};
+    let resolveA: ((result: unknown) => void) | undefined;
+    vi.mocked(api.get).mockImplementation((url) =>
+      url==='/patients/17'
+        ? new Promise(resolve=>{resolveA=resolve;}) as never
+        : Promise.resolve({data:next}) as never
+    );
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}/>);
+    await waitFor(()=>expect(vi.mocked(api.get)).toHaveBeenCalledWith('/patients/17'));
+    rerender(<CabinetMultiViewLab patient={next} routePatientId="18" user={actor}/>);
+    await screen.findByText('DOS-B');
+    expect(screen.getByTestId('media-live').textContent).toContain('18');
+    await act(async()=>{
+      if (!resolveA) throw new Error('old synthetic request not created');
+      resolveA({data:patient});
+      await Promise.resolve();
+    });
+    expect(screen.queryByText('DOS-A')).toBeNull();
+    expect(screen.queryByText('NOM-A')).toBeNull();
+    expect(screen.getByTestId('media-live').textContent).toContain('18');
+  });
+
   it('synchronously denies and removes old clinical viewer on account logout and patient A→B',async()=>{
     const actor=user();
     const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}/>);
