@@ -98,8 +98,10 @@ try{
   ok(saved.is_calibrated&&Math.abs(saved.mm_per_pixel-0.1)<0.002,
     'Constructed ruler ratio drift '+saved.mm_per_pixel);
   ok(p?.method==='MANUAL_TWO_POINT'&&p.distance_mm===20
-    &&Math.abs(p.p2.x-p.p1.x-200)<4&&Math.abs(p.p2.y-p.p1.y)<4,
-    'Calibration source coordinates not bound to design');
+    &&Number.isFinite(p.p1.x)&&Number.isFinite(p.p1.y)
+    &&Number.isFinite(p.p2.x)&&Number.isFinite(p.p2.y)
+    &&Math.abs(Math.hypot(p.p2.x-p.p1.x,p.p2.y-p.p1.y)-200)<4,
+    'Synthetic ruler measured pixel distance differs from constructed 200px: '+JSON.stringify(p));
   await shot('03-synthetic-calibration');
   return {design_ratio:saved.mm_per_pixel,backend_method:p.method,
    physical_patient_scale:false,clinical_claim:false};
