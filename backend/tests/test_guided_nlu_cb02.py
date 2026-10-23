@@ -152,6 +152,32 @@ class CB02Adversarial(unittest.TestCase):
         self.assertTrue(any(r[1] == "clarification" for r in CASES))
         self.assertTrue(any(r[1] == "refused" for r in CASES))
 
+    def test_zero_patient_and_dossier_identifiers_fail_closed(self):
+        # Regression: tranche B split numeric identifiers into "id"/"dossier"
+        # but left the original zero check applying only to "dossier".
+        # Zero must never reach patient lookup, even with leading zeroes.
+        for utterance in (
+            "Trouve patient 0",
+            "Trouve patient 00",
+            "Trouve patient 000000000",
+            "Cherche dossier 0",
+            "Cherche dossier 000",
+        ):
+            with self.subTest(utterance=utterance):
+                result = self.parse(utterance)
+                self.assertEqual((result.status, result.intent), ("refused", None))
+                self.assertEqual(result.fields, {})
+                self.assertFalse(result.executable)
+
+    def test_positive_numeric_ids_still_require_server_authorization(self):
+        for utterance in ("Trouve patient 1", "Cherche dossier 1", "Patient 42"):
+            with self.subTest(utterance=utterance):
+                result = self.parse(utterance)
+                self.assertEqual((result.status, result.intent),
+                                 ("requires_server_authorization", "PATIENT_LOOKUP"))
+                self.assertFalse(result.executable)
+                self.assertIn("patient", result.fields)
+
     def test_missing_principal_scope_fails_closed(self):
         value = parse_guided_french(
             "Mon agenda demain", cabinet_today=DAY, principal_scope="")
