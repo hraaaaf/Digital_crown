@@ -48,3 +48,61 @@
 [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] > [data-v15-071-viewslot="dossier"] {
   max-height: none;
 }
+
+/*
+ * LOT07 / 07.1 narrow clinical view: a desktop viewport does not make a
+ * nested 3-column media slot a desktop-sized media workspace.  React media
+ * controls use xl/md viewport breakpoints; keep them usable at slot width.
+ * This is scoped to the actual DEV Cabinet 3-column geometry only.
+ */
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="patient-media-timeline"] > div:first-child > div:first-child {
+  flex-direction: column;
+  align-items: stretch;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] > label,
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] > button {
+  grid-column: 1 / -1;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Import média clinique"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Import média clinique"] > button {
+  grid-column: 1 / -1;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"],
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] {
+  grid-row: 1;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] {
+  grid-row: 2;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] .min-h-\\[220px\\],
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] .sm\\:min-h-\\[280px\\],
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] .lg\\:min-h-\\[360px\\] {
+  min-height: 220px;
+}
