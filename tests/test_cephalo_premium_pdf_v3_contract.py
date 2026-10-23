@@ -1,6 +1,7 @@
 """Premium V3 — real synthetic PDF parity without a patient or clinical promotion."""
 from __future__ import annotations
 import os
+import copy
 from datetime import date
 from unittest.mock import MagicMock
 import shutil
@@ -148,8 +149,12 @@ class PdfV3Contract(unittest.TestCase):
                     vm.cabinet_config = serialize_document_branding(
                         SimpleNamespace(**vm.cabinet_config))
                     output = str(Path(tmp) / f"bilan_{template}.pdf")
+                    source_projection = synthetic_projection()
+                    frozen_projection = copy.deepcopy(source_projection)
                     generator._generate_weasyprint(vm, output,
-                        projection=synthetic_projection(), user=None)
+                        projection=source_projection, user=None)
+                    self.assertEqual(source_projection, frozen_projection,
+                        "The PDF presentation must never alter the clinical projection")
                     pdf = PdfReader(output)
                     self.assertGreaterEqual(len(pdf.pages), 2)
                     self.assertLessEqual(len(pdf.pages), 9,
@@ -172,7 +177,16 @@ class PdfV3Contract(unittest.TestCase):
                                       "Mesures disponibles (non validées)",
                                       "Indisponibles / non calculables",
                                       "Source et calibration", "Valeur et disponibilité",
-                                      "Origine des mesures", "Vérification des données"):
+                                      "Origine des mesures", "Vérification des données",
+                                      "DOCUMENT CLINIQUE INCOMPLET",
+                                      "PRÉ-BILAN",
+                                      "document de travail non archivé",
+                                      "Le référentiel de diagnostic n'est pas disponible",
+                                      "La validation finale du praticien n'est pas enregistrée",
+                                      "La validation finale du praticien n'est pas confirmée",
+                                      "État des vérifications cliniques",
+                                      "Vérifications encore nécessaires",
+                                      "État documentaire", "Points à vérifier"):
                         self.assertNotIn(forbidden, full)
                     self.assertNotIn("NOT_COMPUTABLE", full)
                     self.assertNotIn("source-lock", full)
@@ -235,10 +249,39 @@ class PdfV3Contract(unittest.TestCase):
             self.assertIn("24 avenue de l'Exemple, Rabat (adresse fictive)", text)
             self.assertNotIn("source-lock", text)
             self.assertNotIn("NOT_COMPUTABLE", text)
+            for forbidden in ("Document clinique explicitement incomplet",
+                              "État du bilan", "Révision du document",
+                              "État des vérifications cliniques",
+                              "Points restant à vérifier",
+                              "validation finale du praticien",
+                              "Le référentiel de diagnostic"):
+                self.assertNotIn(forbidden, text)
             capture = os.environ.get("CEPH_V3_CAPTURE_DIR")
             if capture:
                 Path(capture).mkdir(parents=True, exist_ok=True)
                 shutil.copy2(output, Path(capture) / Path(output).name)
+
+    def test_only_real_clinical_alerts_survive_workflow_panel_removal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            vm = synthetic_vm()
+            study = synthetic_projection(n=2)
+            study["stages"][0]["contraindications"] = [
+                "Alerte clinique synthétique : vérification médicale requise"
+            ]
+            study["stages"][0]["contradictions"] = [
+                "Résultats cliniques contradictoires à examiner"
+            ]
+            frozen_study = copy.deepcopy(study)
+            output = str(Path(tmp) / "clinical_alerts.pdf")
+            BilanOrthoPDFGenerator(tmp)._generate_weasyprint(
+                vm, output, projection=study)
+            text = "\n".join(p.extract_text() or "" for p in PdfReader(output).pages)
+            self.assertIn("Alerte clinique synthétique", text)
+            self.assertIn("Résultats cliniques contradictoires", text)
+            self.assertNotIn("DOCUMENT CLINIQUE INCOMPLET", text)
+            self.assertNotIn("PRÉ-BILAN", text)
+            self.assertNotIn("Le référentiel de diagnostic", text)
+            self.assertEqual(study, frozen_study)
 
     def test_custom_letterhead_image_repeated_on_all_pages(self):
         from PIL import Image, ImageDraw
