@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       ENVIRONMENT: test
       SECRET_KEY: ordonnance-fidelity-v3-secret-key-000001
       DATABASE_URL: sqlite:///./ordonnance-fidelity-v3.db
@@ -33,6 +34,14 @@ jobs:
       T2_USER: t2-browser@cabinet.ma
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert actual checkout is the exact PR HEAD
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$PRODUCT_HEAD"
+          echo "R2_FIDELITY_EXACT_CHECKOUT_PASS"
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
@@ -108,7 +117,7 @@ jobs:
           const fs = require('fs');
           const r = JSON.parse(fs.readFileSync('../artifacts/ordonnance-fidelity-v3/results.json', 'utf8'));
           const expected = ['390x844','430x932','768x1024','1280x900'];
-          if (r.head !== process.env.GITHUB_SHA || r.status !== 'PASS' ||
+          if (r.head !== process.env.PRODUCT_HEAD || r.status !== 'PASS' ||
               r.contract !== 'NEO_N4_3B_READ_ONLY_GENERIC_ALERT_AND_SEPARATE_C2' ||
               r.syntheticOnly !== true || JSON.stringify(r.viewports) !== JSON.stringify(expected) ||
               r.captures.length !== 4) {
