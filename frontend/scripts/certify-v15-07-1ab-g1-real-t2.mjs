@@ -146,6 +146,18 @@ try {
   await page.getByRole('button',{name:'Aperçu',exact:true}).click();
   await page.getByRole('button',{name:'Appliquer',exact:true}).click();
   pass('vertical split applied',await page.locator('[data-v15-071-multiview-grid]').evaluate(n=>getComputedStyle(n).gridTemplateRows.split(' ').length===2));
+  const verticalLayout=await page.locator('[data-v15-071-multiview-grid]').evaluate(grid=>{
+    const summary=grid.querySelector('[data-v15-071-viewslot="dossier"]');
+    const media=grid.querySelector('[data-v15-071-viewslot="imagerie"]');
+    return {geometry:grid.getAttribute('data-v15-071-geometry'),
+      summaryHeight:Math.round(summary?.getBoundingClientRect().height||0),
+      mediaTop:Math.round(media?.getBoundingClientRect().top||0)};
+  });
+  pass('two-row dossier is content-fit instead of wasting half the viewport',
+    verticalLayout.geometry==='two-rows' && verticalLayout.summaryHeight>90 &&
+    verticalLayout.summaryHeight<240,{summaryHeight:verticalLayout.summaryHeight});
+  pass('two-row clinical media starts inside first desktop viewport',
+    verticalLayout.mediaTop<950,{mediaTop:verticalLayout.mediaTop});
   pass('still one authenticated media module',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
   await capture(page,'after-two-rows-1920.png');
 
