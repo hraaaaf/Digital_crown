@@ -5,6 +5,9 @@ on:
       - 'backend/services/document_factory.py'
       - 'backend/services/document_branding_contract.py'
       - 'backend/services/cephalo_pdf_presentation.py'
+      - 'backend/services/ortho_bilan_document_v5.py'
+      - 'backend/templates/bilan_ortho_v5.html'
+      - 'tests/test_ortho_bilan_v5_contract.py'
       - 'backend/services/generators/bilan_ortho_gen.py'
       - 'backend/templates/bilan_ortho_authoritative.html'
       - 'tests/test_cephalo_premium_pdf_v3_contract.py'
@@ -41,9 +44,10 @@ jobs:
         env:
           CEPH_V3_CAPTURE_DIR: artifacts/ceph-pdf-v3
         run: |
-          python -m compileall -q backend/services/document_branding_contract.py backend/services/cephalo_pdf_presentation.py backend/services/generators/bilan_ortho_gen.py
+          python -m compileall -q backend/services/document_branding_contract.py backend/services/cephalo_pdf_presentation.py backend/services/generators/bilan_ortho_gen.py backend/services/ortho_bilan_document_v5.py
           python -m unittest discover -s tests -p 'test_cephalo_premium_pdf_v2_contract.py' -v
           python -m unittest discover -s tests -p 'test_cephalo_premium_pdf_v3_contract.py' -v
+          python -m unittest discover -s tests -p 'test_ortho_bilan_v5_contract.py' -v
 
       - name: Render real A5 ordonnance vs A4 bilan pairs and last-page inspection sheets
         run: python scripts/ceph_pdf_v3_visual_contact_sheet.py
