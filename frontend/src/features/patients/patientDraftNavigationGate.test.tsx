@@ -1,10 +1,23 @@
+import { transferableAbortController } from 'node:util';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, useNavigate, useParams } from 'react-router-dom';
 import { isPrescriptionDirty, setPrescriptionDirty } from '../admin/DocumentStudio/PrescriptionDirtyState';
 import { shouldBlockPatientDraftExit, usePatientDraftExitBlocker } from './patientDraftNavigationGate';
 import { resetPatientDocumentBoundary } from './patientDocumentBoundary';
 import { useState } from 'react';
+
+// Vitest jsdom installs its own AbortController, while Node's native undici
+// Request demands a Node-native AbortSignal. Keep real cancellation semantics
+// through node:util, exclusively inside this synthetic Data Router test suite.
+class NativeRequestAbortController {
+  private readonly nativeController = transferableAbortController();
+  readonly signal = this.nativeController.signal;
+  abort(reason?: unknown) { this.nativeController.abort(reason); }
+}
+
+beforeAll(() => vi.stubGlobal('AbortController', NativeRequestAbortController));
+afterAll(() => vi.unstubAllGlobals());
 
 afterEach(() => {
   cleanup();
