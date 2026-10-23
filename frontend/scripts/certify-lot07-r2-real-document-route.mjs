@@ -122,7 +122,7 @@ try {
   await page.waitForURL(url=>new URL(url).pathname==='/patients/'+b,{timeout:30000});
   // A selected from the patient list opens Tracking by default. Switch into
   // Documents using the REAL Cabinet tab button, preserving SPA navigation.
-  await page.getByRole('button',{name:'Document',exact:true}).click();
+  await page.locator('[data-tour="patient-tabs"]').getByRole('button',{name:'Document',exact:true}).click();
   await page.waitForURL(url=>new URL(url).pathname==='/patients/'+b
     && new URL(url).searchParams.get('tab')==='admin',{timeout:15000});
   await page.locator('[data-tour="tab-libre"]').waitFor({state:'visible',timeout:30000});
@@ -154,7 +154,7 @@ try {
   await patientA.waitFor({state:'visible',timeout:30000});
   await patientA.click();
   await page.waitForURL(url=>new URL(url).pathname==='/patients/'+a,{timeout:30000});
-  await page.getByRole('button',{name:'Document',exact:true}).click();
+  await page.locator('[data-tour="patient-tabs"]').getByRole('button',{name:'Document',exact:true}).click();
   await page.waitForURL(url=>new URL(url).pathname==='/patients/'+a
     && new URL(url).searchParams.get('tab')==='admin',{timeout:15000});
   await page.locator('[data-tour="tab-libre"]').click();
