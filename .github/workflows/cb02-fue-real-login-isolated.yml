@@ -62,8 +62,16 @@ jobs:
         shell: bash
         run: |
           # The canonical isolated T2 seeder creates exactly this synthetic account.
+          set -euo pipefail
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          cipher="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$password"
+          echo "::add-mask::$cipher"
           echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
-          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+          # Same ephemeral SQLCipher key for server subprocess AND external
+          # exact-SHA snapshot. No fixed key, no key in repo, no unencrypted DB.
+          echo "SQLCIPHER_KEY_HEX=$cipher" >> "$GITHUB_ENV"
       - name: Install isolated backend requirements
         shell: bash
         run: |
