@@ -33,3 +33,18 @@
     min-width: 0;
   }
 }
+
+/*
+ * DEV-only two-row Cabinet adapter: content-fit the factual dossier summary
+ * instead of giving an almost empty summary half of a 68vh clinical workspace.
+ * Shared geometry contracts remain unchanged; no effect on dormant presets.
+ */
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] {
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  grid-template-rows: max-content minmax(360px, auto) !important;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] > [data-v15-071-viewslot="dossier"] {
+  max-height: none;
+}
