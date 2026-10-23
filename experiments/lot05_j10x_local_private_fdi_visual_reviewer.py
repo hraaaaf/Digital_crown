@@ -60,6 +60,14 @@ def private_review(images_dir: Path, labels_dir: Path, output_dir: Path,
         raise ReviewError("output_already_exists")
     if output_dir.parent.is_symlink() or not output_dir.parent.is_dir():
         raise ReviewError("output_parent_invalid")
+    # Fail closed if derived radiographs could land inside a Git checkout
+    # (including nested checkout paths), or within the original dataset.
+    dest = output_dir.resolve(strict=False)
+    if any((parent / ".git").exists() for parent in (dest, *dest.parents)):
+        raise ReviewError("private_output_inside_git_checkout")
+    for root in (images_dir.resolve(), labels_dir.resolve()):
+        if dest == root or dest in root.parents or root in dest.parents:
+            raise ReviewError("private_output_overlaps_source")
     if images_dir.is_symlink() or not images_dir.is_dir():
         raise ReviewError("images_dir_invalid")
     # Validate 333 original TXT files BEFORE any image read or output write.
