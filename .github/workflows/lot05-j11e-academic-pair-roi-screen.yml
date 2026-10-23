@@ -1,0 +1,60 @@
+name: LOT05 J11E Academic Cross-Split Dental ROI Similarity (Aggregate)
+
+on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
+    paths:
+      - .github/workflows/lot05-j11e-academic-pair-roi-screen.yml
+      - experiments/lot05_j11e_academic_pair_roi_screen.py
+      - experiments/test_lot05_j11e_academic_pair_roi_screen.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  academic-ephemeral-pair-screen:
+    name: Compare six dHash candidate pairs using normalized dental ROI (no media export)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Academic JPEG decoding library
+        run: python -m pip install --disable-pip-version-check 'pillow==11.3.0'
+      - name: Nine synthetic privacy and image-distance tests
+        run: python experiments/test_lot05_j11e_academic_pair_roi_screen.py -v
+      - name: Pinned academic JPEG and annotation split names in disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p third_party
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            '/AKUDENTAL/folds/fold_0/labels/' '/AKUDENTAL/images/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+      - name: Aggregate only central dental-region photometric similarity for six candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python experiments/lot05_j11e_academic_pair_roi_screen.py \
+            --images-dir third_party/AKUDENTAL/AKUDENTAL/images \
+            --labels-dir third_party/AKUDENTAL/AKUDENTAL/folds/fold_0/labels
+      - name: Delete all temporary academic images and labels even after failure
+        if: always()
+        shell: bash
+        run: |
+          rm -rf third_party/AKUDENTAL
+          echo "J11E_TEMPORARY_ACADEMIC_PIXELS_REMOVED_NO_ARTIFACTS"
