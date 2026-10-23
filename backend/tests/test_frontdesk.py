@@ -140,10 +140,20 @@ class TestConfirmAppointment:
     """Tests confirming appointments."""
 
     def test_confirm_sets_confirmed_by_and_at(self, client, auth_headers, dentiste, db):
-        """Confirm appointment → CONFIRME, sets confirmed_by_id and confirmed_at."""
+        """Confirm a request in a configured, open cabinet slot."""
+        from backend.routers.agenda_settings import _create_default_settings, _settings_row
+
+        employer_id = dentiste.get_employer_id()
+        # Configure real synthetic-cabinet hours instead of disabling the
+        # Agenda fail-closed guard. The same window is valid every weekday.
+        _create_default_settings(db, employer_id)
+        assert _settings_row(db, employer_id) is not None
+        tomorrow_at_ten = (datetime.utcnow() + timedelta(days=1)).replace(
+            hour=10, minute=0, second=0, microsecond=0,
+        )
         appt = models.Appointment(
             patient_name="Test Patient",
-            datetime_start=datetime.utcnow() + timedelta(days=1),
+            datetime_start=tomorrow_at_ten,
             duration_minutes=30,
             status=schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
             employer_id=dentiste.get_employer_id(),
