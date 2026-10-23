@@ -198,6 +198,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "doctor_name": vm.doctor_name,
             "is_pre_bilan": vm.is_pre_bilan,
             "validation_warnings": list(vm.validation_warnings or []),
+            "display_validation_warnings": [clinical_term(item) for item in (vm.validation_warnings or [])],
             "document_state": projection.get("document_state", "INCOMPLETE"),
             "contract_version": projection.get("contract_version"),
             "authority": projection.get("authority"),
@@ -334,13 +335,14 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         m_top, m_bottom, m_left, m_right = self.get_document_margins(config, p_width)
         doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         elements = [
-            Paragraph("BILAN ORTHODONTIQUE - RESTITUTION AUTORITAIRE", title),
-            Paragraph(f"ÉTUDE CÉPHALO ID : {escape(str(context.get('cephalo_source_analysis_id') or 'NON VÉRIFIÉ'))} | RÉVISION : {escape(str(context.get('cephalo_source_analysis_revision') or 'NON VÉRIFIÉE'))}", body),
+            Paragraph("BILAN ORTHODONTIQUE", title),
+            Paragraph(f"Révision du document : {escape(str(context.get('cephalo_source_analysis_revision') or 'non renseignée'))}", body),
             Paragraph(
                 f"Patient : {escape(str(vm.patient_nom).upper())} {escape(str(vm.patient_prenom).capitalize())} - Âge : {escape(str(vm.patient_age))} ans",
                 body,
             ),
             Paragraph(f"État du bilan : <b>{escape(context['display_document_state'])}</b>", body),
+            Paragraph("Ce bilan ne constitue pas un diagnostic automatique.", body),
         ]
 
         if context["document_state"] != "COMPLETE":
@@ -454,6 +456,9 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 )
             )
 
+        elements.append(Paragraph(
+            f"Praticien responsable : {escape(str(context.get('doctor_name') or 'non renseigné'))}. "
+            "Toute décision clinique exige une validation par le praticien.", body))
         draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config, user=user)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return file_path
