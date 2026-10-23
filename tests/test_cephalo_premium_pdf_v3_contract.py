@@ -100,6 +100,7 @@ def synthetic_approved_projection(n=95):
         "document_state": "COMPLETE",
         "clinical_validation_available": True,
         "blocking_gates": [],
+        "practitioner_sections_authorized": True,  # synthetic test fixture; live authority only injected by document_factory
         "practitioner_approved_sections": {
             "contract_version": "ORTHO_PRACTITIONER_APPROVED_V1",
             "validation_state": "APPROVED",
