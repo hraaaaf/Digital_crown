@@ -4,27 +4,237 @@
 <meta charset="UTF-8">
 <title>Bilan orthodontique - {{ patient_nom }}</title>
 <style>
-:root { --primary: {{ primary_color }}; --secondary: {{ secondary_color }}; }
-@page { size:A4; margin:1.5cm; @bottom-center { content:"Page " counter(page) " / " counter(pages); font-size:8pt; color:var(--secondary); } }
-body { font-family:Helvetica,Arial,sans-serif; color:#1f2937; font-size:9.5pt; line-height:1.45; }
-h1 { color:var(--primary); text-align:center; font-size:19pt; margin:0 0 5px; }
-h2 { color:var(--primary); font-size:13pt; margin:20px 0 8px; border-bottom:1px solid #dbe3ec; padding-bottom:4px; }
-.meta,.notice,.stage { border:1px solid #dbe3ec; border-radius:5px; padding:10px 12px; margin:8px 0; page-break-inside:avoid; }
-.notice { background:#fff7ed; border-left:4px solid #ea580c; }
-.incomplete { background:#fef2f2; border-left:4px solid #dc2626; }
-.ok { background:#f0fdf4; border-left:4px solid #16a34a; }
-.small { color:var(--secondary); font-size:8pt; }
-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:8pt; }
-th { background:var(--primary); color:white; padding:6px; border:1px solid #dbe3ec; text-align:left; }
-td { padding:6px; border:1px solid #dbe3ec; vertical-align:top; overflow-wrap:anywhere; }
-ul { margin:4px 0 4px 18px; padding:0; }
-.state { font-weight:bold; }
-.footer { margin-top:24px; padding-top:10px; border-top:1px solid #dbe3ec; font-size:8pt; color:var(--secondary); }
+:root {
+  --primary: {{ primary_color }};
+  --secondary: {{ secondary_color }};
+  --navy: #0b2948;
+  --teal: #258c92;
+  --ink: #20364c;
+  --muted: #62768a;
+  --line: #dce6ec;
+  --surface: #f6f9fa;
+}
+@page {
+  size: A4;
+  margin: 1.45cm 1.55cm 1.7cm;
+  @bottom-left {
+    content: "DIGITAL CROWN  /  DOCUMENT DE TRAVAIL";
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 0.7pt;
+    color: #68818d;
+    border-top: 0.5pt solid #dce6ec;
+    padding-top: 6pt;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-size: 8pt;
+    color: #68818d;
+    border-top: 0.5pt solid #dce6ec;
+    padding-top: 6pt;
+  }
+}
+body {
+  font-family: "DejaVu Sans", "Helvetica", Arial, sans-serif;
+  font-size: 8.6pt;
+  color: var(--ink);
+  line-height: 1.55;
+  margin: 0;
+}
+.brandline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 11pt;
+}
+.wordmark {
+  font-size: 10pt;
+  letter-spacing: 2pt;
+  font-weight: 800;
+  color: var(--navy);
+}
+.wordmark span { color: var(--teal); }
+.brand-caption {
+  font-size: 7pt;
+  color: var(--muted);
+  background: #eaf5f5;
+  border-radius: 7pt;
+  padding: 5pt 8pt;
+  font-weight: 700;
+}
+.hero-report {
+  background: var(--navy);
+  color: #fff;
+  padding: 23pt 23pt 21pt;
+  margin: 0 0 16pt;
+  border-right: 5pt solid var(--teal);
+}
+.hero-report .kicker {
+  font-size: 7pt;
+  color: #a8e6df;
+  font-weight: 700;
+  letter-spacing: 1.6pt;
+  margin-bottom: 7pt;
+}
+h1 {
+  font-size: 23pt;
+  font-weight: 800;
+  letter-spacing: -.45pt;
+  color: #fff;
+  margin: 0 0 6pt;
+  line-height: 1.15;
+}
+.hero-report .subtitle {
+  font-size: 8pt;
+  color: #e5edf2;
+  line-height: 1.5;
+}
+h2 {
+  font-size: 12.5pt;
+  font-weight: 800;
+  color: var(--navy);
+  padding: 0 0 7pt;
+  margin: 21pt 0 11pt;
+  border-bottom: 1pt solid var(--line);
+  break-after: avoid;
+}
+.meta {
+  border: 1pt solid var(--line);
+  border-radius: 9pt;
+  padding: 12pt 15pt;
+  background: #fbfcfd;
+  margin-bottom: 12pt;
+  line-height: 1.85;
+  font-size: 8.2pt;
+}
+.meta strong { color: var(--navy); }
+.meta .technical-source { color: var(--muted); font-size: 7.3pt; }
+.overview {
+  display: flex;
+  gap: 8pt;
+  margin: 0 0 18pt;
+}
+.overview-item {
+  flex: 1;
+  border: 1pt solid var(--line);
+  border-radius: 7pt;
+  background: var(--surface);
+  padding: 9pt 12pt;
+}
+.overview-item strong {
+  display:block;
+  color: var(--navy);
+  font-size: 17pt;
+  line-height: 1.2;
+}
+.overview-item span {
+  display:block;
+  color: var(--muted);
+  font-size: 7pt;
+  margin-top: 3pt;
+}
+.notice {
+  border-left: 3pt solid #d49b4a;
+  background: #fcf7ed;
+  border-radius: 5pt;
+  padding: 10pt 13pt;
+  margin: 11pt 0 13pt;
+  color: #604f36;
+  line-height: 1.55;
+  break-inside: avoid;
+}
+.notice.incomplete {
+  border-left-color: #bd744d;
+  background: #fdf6f2;
+}
+.notice.ok {
+  border-left-color: #248d82;
+  background: #f2faf8;
+  color: #2c6059;
+}
+.small { font-size: 7.2pt; color: var(--muted); }
+.section-intro {
+  font-size: 8pt;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0 0 8pt;
+}
+.section-meta { color: var(--muted); font-size: 7pt; margin: -6pt 0 8pt; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 7.8pt;
+  margin: 5pt 0 14pt;
+}
+thead { display: table-header-group; }
+th {
+  background: #e6f1f3;
+  color: #2a536c;
+  border-bottom: 1pt solid #cbdfe6;
+  font-size: 7pt;
+  text-align: left;
+  letter-spacing: .25pt;
+  padding: 7pt 8pt;
+}
+td {
+  border-bottom: .6pt solid #e3ebf0;
+  color: #264057;
+  padding: 7pt 8pt;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  line-height: 1.45;
+}
+tr { break-inside: avoid; }
+tbody tr:nth-child(even) { background: #fbfcfd; }
+td:first-child { font-weight: 600; }
+td strong { color: var(--navy); }
+.row-meta { display: block; font-size: 6.8pt; color: #8798a6; margin-top: 3pt; overflow-wrap: anywhere; }
+.is-missing td:nth-child(2) strong { color: #95653b; }
+.is-missing td:nth-child(2) .row-meta { color: #ae865e; }
+.protocol-label { display: block; font-size: 7.2pt; color: #53687a; margin-top: 3pt; font-weight: 400; }
+.stage {
+  border: .9pt solid var(--line);
+  background: #fbfcfd;
+  border-radius: 9pt;
+  padding: 12pt 14pt;
+  margin: 8pt 0;
+  break-inside: avoid;
+}
+.stage .state {
+  font-weight: 800;
+  font-size: 9.3pt;
+  color: var(--navy);
+  margin-bottom: 5pt;
+}
+.stage strong { color: var(--navy); }
+.stage ul { margin: 4pt 0 5pt 16pt; padding:0; }
+.stage li { margin-bottom: 3pt; font-size: 7.5pt; overflow-wrap:anywhere; }
+.tech-blockers ul { columns: 2; column-gap: 16pt; }
+ul { margin: 5pt 0 6pt 19pt; padding:0; }
+li { margin-bottom: 3pt; }
+.footer {
+  margin-top: 22pt;
+  border-top: 1pt solid var(--line);
+  padding-top: 11pt;
+  font-size: 7.4pt;
+  color: var(--muted);
+  line-height: 1.65;
+  break-inside: avoid;
+}
 </style>
 </head>
 <body>
-<h1>Bilan orthodontique</h1>
-<div class="small" style="text-align:center;">Restitution scientifique autoritaire - {{ contract_version or 'contrat indisponible' }}</div>
+<div class="brandline">
+  <div class="wordmark">DIGITAL <span>CROWN</span></div>
+  <div class="brand-caption">{{ 'BROUILLON / NON ARCHIVÉ' if is_pre_bilan else 'RESTITUTION SCIENTIFIQUE' }}</div>
+</div>
+<header class="hero-report">
+  <div class="kicker">ORTHODONTIE &nbsp;/&nbsp; DONNÉES CÉPHALOMÉTRIQUES</div>
+  <h1>Étude céphalométrique.</h1>
+  <div class="subtitle">Bilan scientifique sourcé · {{ contract_version or 'contrat indisponible' }}<br>
+  La présence d'une mesure ne constitue jamais une validation clinique.</div>
+</header>
 
 <div class="meta">
 <strong>Patient :</strong> {{ patient_nom.upper() }} {{ patient_prenom.capitalize() }} &nbsp; | &nbsp;
@@ -34,6 +244,11 @@ ul { margin:4px 0 4px 18px; padding:0; }
 <strong>Date :</strong> {{ date_analyse }}<br>
 <strong>Autorité :</strong> {{ authority or 'indisponible' }}<br>
 <strong>Chaîne typée active :</strong> {{ 'VERIFIED' if active_runtime_chain_verified else 'NON VERIFIED' }}
+</div>
+<div class="overview">
+  <div class="overview-item"><strong>{{ measurements | length }}</strong><span>Lignes de mesures documentées</span></div>
+  <div class="overview-item"><strong>{{ measurements | selectattr('availability_status','equalto','AVAILABLE') | list | length }}</strong><span>Mesures disponibles (non validées)</span></div>
+  <div class="overview-item"><strong>{{ measurements | rejectattr('availability_status','equalto','AVAILABLE') | list | length }}</strong><span>Indisponibles / non calculables</span></div>
 </div>
 
 {% if document_state != 'COMPLETE' %}
@@ -54,53 +269,62 @@ Les données absentes, non calculables ou non validées restent explicitement no
 <div class="notice"><strong>Points à vérifier :</strong><ul>{% for item in validation_warnings %}<li>{{ item }}</li>{% endfor %}</ul></div>
 {% endif %}
 
-<h2>Mesures scientifiques</h2>
+<h2>Inventaire des mesures scientifiques</h2>
+<p class="section-intro">Données issues de la projection backend typée : valeurs, méthode d'origine et calibration vérifiables sur une même ligne. Les états indisponibles restent explicitement non calculables.</p>
 <table>
-<thead><tr><th style="width:28%">Mesure</th><th style="width:20%">Valeur / disponibilité</th><th style="width:22%">Méthode</th><th style="width:15%">Source</th><th style="width:15%">Calibration</th></tr></thead>
+<thead><tr>
+  <th style="width:33%">Mesure · méthode</th>
+  <th style="width:22%">Valeur et disponibilité</th>
+  <th style="width:45%">Source et calibration</th>
+</tr></thead>
 <tbody>
 {% if measurements %}
 {% for m in measurements %}
-<tr><td>{{ m.measurement_id }}</td><td><strong>{{ m.value }}</strong><br><span class="small">{{ m.availability_status }}</span></td><td>{{ m.method }}</td><td>{{ m.source }}</td><td>{{ m.calibration }}</td></tr>
+<tr class="{{ 'is-missing' if m.availability_status != 'AVAILABLE' else '' }}">
+  <td>{{ m.measurement_id }}<span class="row-meta">{{ m.method }}</span></td>
+  <td><strong>{{ m.value }}</strong><span class="row-meta">{{ m.availability_status }}</span></td>
+  <td>{{ m.source }}<span class="row-meta">{{ m.calibration }}</span></td>
+</tr>
 {% endfor %}
 {% else %}
-<tr><td colspan="5">Aucune mesure typée autoritaire disponible. État : NOT_COMPUTABLE / indisponible selon la preuve backend.</td></tr>
+<tr><td colspan="3">Aucune mesure typée autoritaire disponible. État : NOT_COMPUTABLE / indisponible selon la preuve backend.</td></tr>
 {% endif %}
 </tbody>
 </table>
 
 {% if steiner_protocol %}
-<h2>Analyse protocolaire Steiner</h2>
+<h2>Steiner · lecture comparative</h2>
 <div class="notice">
 <strong>{{ steiner_protocol.protocol_profile_id }}</strong> - source-lock {{ steiner_protocol.source_lock_status }}.<br>
 <span class="small">Références historiques affichées à titre comparatif uniquement. Elles ne constituent pas une classification clinique universelle.</span>
 </div>
 <table>
-<thead><tr><th>Mesure</th><th>Valeur</th><th>Ref. hist.</th><th>Delta ref.</th><th>État interprétatif</th></tr></thead>
+<thead><tr><th style="width:40%">Mesure et statut</th><th style="width:19%">Valeur</th><th style="width:21%">Réf. historique</th><th style="width:20%">Écart</th></tr></thead>
 <tbody>
 {% for row in steiner_protocol.rows %}
-<tr><td>{{ row.label }}</td><td>{{ row.value }}</td><td>{{ row.reference }}</td><td>{{ row.delta }}</td><td>{{ row.interpretation_status }}</td></tr>
+<tr><td>{{ row.label }}<span class="protocol-label">{{ row.interpretation_status }}</span></td><td>{{ row.value }}</td><td>{{ row.reference }}</td><td>{{ row.delta }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
 {% endif %}
 
 {% if tweed_merrifield_protocol %}
-<h2>Analyse protocolaire Tweed–Merrifield</h2>
+<h2>Tweed–Merrifield · valeurs brutes</h2>
 <div class="notice">
 <strong>{{ tweed_merrifield_protocol.protocol_profile_id }}</strong> - source-lock {{ tweed_merrifield_protocol.source_lock_status }}.<br>
 <span class="small">Variante Digital Crown Po_anatomic-Or / Go-Me. Aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée; les références historiques restent contextuelles et non classificatoires.</span>
 </div>
 <table>
-<thead><tr><th>Mesure</th><th>Valeur</th><th>Profil</th><th>Autorité</th><th>État</th></tr></thead>
+<thead><tr><th style="width:30%">Mesure / profil</th><th style="width:22%">Valeur</th><th style="width:48%">Autorité et état (contexte uniquement)</th></tr></thead>
 <tbody>
 {% for row in tweed_merrifield_protocol.rows %}
-<tr><td>{{ row.label }}</td><td>{{ row.value }}</td><td>{{ row.profile_section }}</td><td>{{ row.reference_authority }}</td><td>{{ row.interpretation_status }}</td></tr>
+<tr><td>{{ row.label }}<span class="row-meta">{{ row.profile_section }}</span></td><td>{{ row.value }}</td><td>{{ row.reference_authority }}<span class="row-meta">{{ row.interpretation_status }}</span></td></tr>
 {% endfor %}
 </tbody>
 </table>
 {% endif %}
 
-<h2>Chaîne clinique R11 → R14</h2>
+<h2>Chaîne clinique R11 → R14 · état de validation</h2>
 {% for stage in stages %}
 <div class="stage">
 <div class="state">{{ stage.stage_id }} - {{ stage.title }} : {{ stage.presentation_state }}</div>
@@ -115,7 +339,7 @@ Les données absentes, non calculables ou non validées restent explicitement no
 
 {% if blocking_gates %}
 <h2>Blockers globaux</h2>
-<div class="notice"><ul>{% for item in blocking_gates %}<li>{{ item }}</li>{% endfor %}</ul></div>
+<div class="notice tech-blockers"><ul>{% for item in blocking_gates %}<li>{{ item }}</li>{% endfor %}</ul></div>
 {% endif %}
 
 <div class="footer">
