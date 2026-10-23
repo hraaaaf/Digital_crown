@@ -67,7 +67,7 @@ beforeEach(()=>{
 
   vi.mocked(cephaloRepository.getAnalysis).mockResolvedValue({id:99, angles_data:{scientific_read_path:{revision:3}}} as never);
   vi.mocked(cephaloRepository.generatePDF).mockResolvedValue(new Uint8Array([1,2,3]) as never);
-  vi.mocked(api.get).mockResolvedValue({data:{analysis_id:99,analysis_revision:3,is_valid:true,fatals:[],warnings:[]}} as never);
+  vi.mocked(api.get).mockResolvedValue({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:[]}} as never);
   vi.mocked(api.post).mockResolvedValue({data:new Uint8Array([1,2,3])} as never);
   vi.stubGlobal('URL',{createObjectURL:vi.fn(()=> 'blob:draft'),revokeObjectURL:vi.fn()});
 });
@@ -127,8 +127,8 @@ describe('Cephalo Step4 G4 document controls',()=>{
 
   it('revalidates immediately before archive and archives only when no fatal remains',async()=>{
     vi.mocked(api.get)
-      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,is_valid:true,fatals:[],warnings:[]}} as never)
-      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,is_valid:true,fatals:[],warnings:['Avertissement']}} as never);
+      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:[]}} as never)
+      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:['Avertissement']}} as never);
 
     render(<Step4Documents P={P}/>);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
@@ -143,8 +143,8 @@ describe('Cephalo Step4 G4 document controls',()=>{
 
   it('blocks archive when the just-in-time backend validation returns a fatal',async()=>{
     vi.mocked(api.get)
-      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,is_valid:true,fatals:[],warnings:[]}} as never)
-      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,is_valid:false,fatals:['Landmarks incohérents'],warnings:[]}} as never);
+      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:[]}} as never)
+      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:false,fatals:['Landmarks incohérents'],warnings:[]}} as never);
 
     render(<Step4Documents P={P}/>);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
