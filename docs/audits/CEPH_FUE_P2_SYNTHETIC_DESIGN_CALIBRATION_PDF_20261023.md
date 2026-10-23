@@ -6,7 +6,7 @@
 
 Continuation of [FUE-P1 #1043](https://github.com/hraaaaf/Digital_crown/pull/1043), whose exact HEAD `be2a4464ba11a97b0d3325b15de24ee930683d45` had green 6/6 real P1 checks, after FUE-H 6/6. User authorized running P2.
 
-An authentic **manual two-point calibration workflow** needs known geometry. We do NOT invent physical mm on a real person's radiograph. Instead `scripts/ceph_fue_p2_generate_phantom.py` creates a **completely nonhuman**, deterministic 1024×1024 image with manufactured digital ruler marks at (420,862) and (620,862). The distance is **200 digital pixels = 20 design mm**, or 0.1 **design mm/px**, exactly by construction. This is NOT the true physical scale of any anatomy, NOT clinical ground truth, and is absolutely NOT a validation of cephalometric measurements.
+An authentic **manual two-point calibration workflow** needs known geometry. We do NOT invent physical mm on a real person's radiograph. Instead `scripts/ceph_fue_p2_generate_phantom.py` creates a **completely nonhuman**, deterministic 1024×1024 image with manufactured digital ruler marks at (420,500) and (620,500). The distance is **200 digital pixels = 20 design mm**, or 0.1 **design mm/px**, exactly by construction. This is NOT the true physical scale of any anatomy, NOT clinical ground truth, and is absolutely NOT a validation of cephalometric measurements.
 
 ## Actual end-to-end browser scenario
 
