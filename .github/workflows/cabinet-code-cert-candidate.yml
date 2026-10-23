@@ -134,5 +134,4 @@ jobs:
           set -euo pipefail
           PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_staff_gateway_v15.py -v 2>&1 | tee /tmp/candidate-staff-gateway.log
           grep -q '^Ran 14 tests' /tmp/candidate-staff-gateway.log
-          grep -q '^OK
- /tmp/candidate-staff-gateway.log
+          grep -q '^OK$' /tmp/candidate-staff-gateway.log
