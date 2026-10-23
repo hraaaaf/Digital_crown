@@ -59,13 +59,18 @@ def synthetic_projection(n=95):
         "M_FMIA_L1_FH_DEG_V1", "M_INTERINCISAL_DEG_V1",
         "M_RICKETTS_OVERJET_FOP_MM_V1", "M_RICKETTS_OVERBITE_FOP_MM_V1",
     )
+    # Human-plausible but entirely synthetic measurements; a repeated 82
+    # across unrelated angles and mm lengths is not an acceptable visual test.
+    demo_values = (82.0, 80.0, 2.0, 32.0, 25.0, 0.8, 84.0, 22.0,
+                   4.0, 25.0, 4.0, 92.0, 64.0, 132.0, 2.0, 2.5)
     for i in range(n):
-        available = i % 3 == 0
+        available = i < len(known) and i % 3 == 0
         measurement.append({
             "measurement_id": (known[i] if i < len(known) else f"ANALYSIS_MEASURE_{i:03d}"),
             "availability_status": "AVAILABLE" if available else "NOT_COMPUTABLE",
-            "value": 82.0 if available else None,
-            "unit": "deg", "method_id": "STEINER_SNA_DEG_V1",
+            "value": demo_values[i] if available else None,
+            "unit": "°" if i < len(known) and "_DEG_" in known[i] else "mm",
+            "method_id": "STEINER_SNA_DEG_V1",
             "method_version": "1", "scientific_source": "EVIDENCE_GRAPH_V1",
             "calibration_ref": "non requise",
         })
