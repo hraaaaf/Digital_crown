@@ -87,6 +87,42 @@ def synthetic_projection(n=95):
         ],
     }
 
+def synthetic_approved_projection(n=95):
+    """Purpose-built TEST-only clinician-approved narrative, never a live R15 snapshot."""
+    projection = synthetic_projection(n)
+    projection.update({
+        "patient_id": 17,
+        "document_state": "COMPLETE",
+        "clinical_validation_available": True,
+        "blocking_gates": [],
+        "practitioner_approved_sections": {
+            "contract_version": "ORTHO_PRACTITIONER_APPROVED_V1",
+            "validation_state": "APPROVED",
+            "patient_id": 17, "analysis_id": 41, "analysis_revision": 3,
+            "practitioner_id": 9,
+            "validated_at": "2026-10-23T16:00:00+01:00",
+            "moulages": {
+                "classe_molaire_droite": "Classe I (démonstration)",
+                "classe_molaire_gauche": "Classe I (démonstration)",
+                "classe_canine_droite": "Classe I (démonstration)",
+                "classe_canine_gauche": "Classe I (démonstration)",
+                "forme_arcade": "Ovale (démonstration)",
+                "ddm_maxillaire": -2.0,
+                "ddm_mandibulaire": -1.0,
+                "commentaire": "Examen effectué sur moulages fictifs.",
+            },
+            "resume_diagnostique": (
+                "Compte rendu synthétique saisi et approuvé par un dentiste de test : "
+                "observations dentaires fictives à fins exclusives de mise en page."
+            ),
+            "plan_traitement": (
+                "Plan fictif rédigé par un dentiste de test : "
+                "aucune indication thérapeutique pour un patient réel."
+            ),
+        },
+    })
+    return projection
+
 def synthetic_vm(template="swiss"):
     return SimpleNamespace(
         patient_nom="TEST", patient_prenom="Synthétique", patient_age="12",
@@ -158,7 +194,7 @@ class PdfV3Contract(unittest.TestCase):
                     vm.cabinet_config = serialize_document_branding(
                         SimpleNamespace(**vm.cabinet_config))
                     output = str(Path(tmp) / f"bilan_{template}.pdf")
-                    source_projection = synthetic_projection()
+                    source_projection = synthetic_approved_projection()
                     frozen_projection = copy.deepcopy(source_projection)
                     generator._generate_weasyprint(vm, output,
                         projection=source_projection, user=None)
@@ -188,6 +224,9 @@ class PdfV3Contract(unittest.TestCase):
                                         for i in range(len(phases)-1)))
                     for item in phases:
                         self.assertIn(item, full)
+                    self.assertIn("moulages fictifs", full)
+                    self.assertIn("dentiste de test", full)
+                    self.assertIn("Plan fictif", full)
                     self.assertIn("SNA", full)
                     self.assertIn("IMPA", full)
                     self.assertNotIn("Mesure complémentaire", full)
