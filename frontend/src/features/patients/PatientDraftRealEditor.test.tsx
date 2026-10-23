@@ -112,10 +112,18 @@ describe('R2 actual Document Libre editor under draft route guard (synthetic pat
     await screen.findByRole('alertdialog');
     fireEvent.click(screen.getByRole('button',{name:'Quitter sans sauvegarder'}));
     await waitFor(()=>expect(router.state.location.pathname).toBe('/patients/18'));
+    // Real patient B opens Tracking by default: Document Libre is not mounted
+    // until the clinician clicks the Documents tab.
+    expect(screen.queryByPlaceholderText(/Rédigez votre document ici/i)).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Onglet documents'}));
+    await waitFor(()=>expect(router.state.location.search).toBe('?tab=admin'));
     expect(editor().value).toBe('');
     expect(isLibreDirty()).toBe(false);
     fireEvent.click(screen.getByRole('button',{name:'Patient suivant'}));
     await waitFor(()=>expect(router.state.location.pathname).toBe('/patients/17'));
+    expect(screen.queryByPlaceholderText(/Rédigez votre document ici/i)).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Onglet documents'}));
+    await waitFor(()=>expect(router.state.location.search).toBe('?tab=admin'));
     expect(editor().value).toBe('');
   });
 
