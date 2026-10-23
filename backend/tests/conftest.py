@@ -4,15 +4,11 @@ L'env var DATABASE_URL est forcée AVANT tout import backend.
 """
 import os
 import uuid
-import tempfile
 
 # Doit être fait avant tout import backend (database.py lit l'env au chargement)
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] = "true"
-# A disposable media tree for all synthetic tests; never write real cabinet files.
-_SYNTHETIC_MEDIA = tempfile.TemporaryDirectory(prefix="digital_crown_pytest_media_")
-os.environ["MEDIA_ROOT"] = _SYNTHETIC_MEDIA.name
 os.environ.setdefault("CABINET_MASTER_KEY_HEX", "00" * 32)
 os.environ.setdefault("SECRET_KEY", "test-only-secret-key-minimum-32chars-x")
 
@@ -37,9 +33,6 @@ def _create_tables():
     """Crée toutes les tables SQLAlchemy une seule fois pour la session de tests."""
     from backend import models, database
     from backend.models_document_provenance_p3 import install_document_provenance_p3
-    from backend.services import archive_service as _archive_service
-    from backend.core.media_paths import get_media_root
-    assert _archive_service.ARCHIVE_BASE_DIR == get_media_root() / "archives"
 
     database.engine = _engine
     database.SessionLocal = _SessionLocal
@@ -56,7 +49,6 @@ def _create_tables():
         install_appointment_overlap_index(conn)
     yield
     models.Base.metadata.drop_all(bind=_engine)
-    _SYNTHETIC_MEDIA.cleanup()
 
 
 @pytest.fixture(autouse=True)
@@ -69,6 +61,38 @@ def _reset_global_rate_limit_state(tmp_path, monkeypatch):
     yield
     rate_limit._attempts.clear()
     rate_limit._loaded = False
+
+
+@pytest.fixture(autouse=True)
+def _station_document_test_media(request, tmp_path, monkeypatch):
+    """Keep synthetic Station document files isolated and root-consistent.
+
+    ArchiveService caches a module-level archive root at import time while
+    station_care_sheet resolves MEDIA_ROOT at read time. For Station document
+    tests, pin BOTH roots to the same per-test directory so checksums, tenant
+    permissions and no-symlink rules are tested against actual bytes.
+    Do not alter global imports used by independent Céphalo tests.
+    """
+    if request.node.path.name not in {
+        "test_station_care_sheet_v15.py",
+        "test_station_companion_delivery_v15.py",
+        "test_station_document_delivery_purge_v15.py",
+        "test_station_document_handoff_v15.py",
+        "test_station_https_cross_process_v15.py",
+    }:
+        yield
+        return
+
+    from backend.services import archive_service
+    from backend.core.media_paths import get_media_root
+
+    media = tmp_path / "synthetic_station_media"
+    monkeypatch.setenv("MEDIA_ROOT", str(media))
+    monkeypatch.setattr(archive_service, "MEDIA_DIR", media)
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", media / "archives")
+    monkeypatch.setattr(archive_service, "LEGACY_DOCS_DIR", media / "documents")
+    assert archive_service.ARCHIVE_BASE_DIR == get_media_root() / "archives"
+    yield
 
 
 @pytest.fixture()
