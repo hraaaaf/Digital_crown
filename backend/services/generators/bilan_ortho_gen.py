@@ -365,18 +365,17 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         small = ParagraphStyle("R17Cell", parent=body, fontSize=7, leading=9)
         def cell(value):
             return Paragraph(escape(str(value)), small)
-        rows = [[cell("Mesure"), cell("Valeur"), cell("Méthode"), cell("Source")]]
+        # Practitioner PDF: methods/provenance stay in the authoritative typed
+        # projection; they are not an audit table displayed to the patient.
+        rows = [[cell("Mesure"), cell("Résultat")]]
         for measurement in context["measurements"]:
-            rows.append([
-                cell(measurement["measurement_id"]),
-                cell(measurement["display_value"]),
-                cell(measurement["display_method"]),
-                cell(measurement["display_source"]),
-            ])
+            rows.append([cell(self._clinician_measurement_label(
+                measurement["measurement_id"], len(rows), short_label)),
+                cell(measurement["display_value"])])
         if len(rows) == 1:
             rows.append([cell("Aucune mesure scientifique disponible"),
-                         cell("Non calculable"), cell("-"), cell("-")])
-        table = Table(rows, repeatRows=1, colWidths=[6.0*cm, 4.0*cm, 3.5*cm, 3.2*cm])
+                         cell("Non calculable")])
+        table = Table(rows, repeatRows=1, colWidths=[8.4*cm, 8.4*cm])
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), p_color),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
