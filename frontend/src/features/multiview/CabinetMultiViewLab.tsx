@@ -169,7 +169,15 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
       ...(canCephalo ? ['suivi'] as ModuleKey[] : []),
     ],
   };
-  const accepted=authorizeLayout(mounted,context,ratio).ok;
+  const mountedGate=authorizeLayout(mounted,context,ratio);
+  const accepted=mountedGate.ok;
+  // At 1280px the desktop viewport can be wide while the actual Cabinet
+  // workspace is too narrow for any safe MultiView composition.  Never force
+  // undersized clinical slots or leave a blank pane: show the existing genuine
+  // single-media experience, but only with a verified patient and workstation.
+  const responsiveSingleMediaFallback=!accepted &&
+    (mountedGate.reason==='DESKTOP_ONLY' || mountedGate.reason==='UNREADABLE_LAYOUT') &&
+    Boolean(workstationId && trustedPatient);
   const canApply=authorizeLayout(draft,context,50).ok;
 
   const renderSlot=(slot:{module:ModuleKey})=>{
@@ -244,10 +252,18 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
         </div>
       </header>
       {!accepted && <p role="status" className="text-xs text-text-muted">
-        Disposition protégée : identité du poste, permissions ou largeur des panneaux à vérifier.
+        {responsiveSingleMediaFallback
+          ? 'Disposition trop large pour cet écran : affichage sécurisé de la médiathèque seule.'
+          : 'Disposition protégée : identité du poste, permissions ou largeur des panneaux à vérifier.'}
       </p>}
-      <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
-        renderSlot={renderSlot}/>
+      {responsiveSingleMediaFallback && trustedPatient
+        ? <section data-testid="multiview-responsive-single-media-fallback"
+            aria-label="Médiathèque clinique seule — repli de lisibilité"
+            className="min-w-0 rounded-xl border border-border-main bg-card-bg p-2">
+            <PatientMediaTimeline patientId={trustedPatient.id}/>
+          </section>
+        : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
+            renderSlot={renderSlot}/>} 
     </div>
   );
 }
