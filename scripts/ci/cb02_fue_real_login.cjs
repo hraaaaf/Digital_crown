@@ -35,6 +35,7 @@ const report={schema:'CB02_FUE_REAL_LOGIN_ISOLATED_V1',sha,
   rejectedZeroPatient:false,roleDeniedBeforePatient:false,
   zeroClinicalWrites:true,synthetic:true,humanE2E:false,
   clinicalDBSnapshot:'SEPARATE_REQUIRED',screenshots:[],errors:[],httpProof:{}};
+async function main(){
 const http=await request.newContext({baseURL:apiOrigin});
 let browser;
 try {
@@ -166,3 +167,6 @@ try {
   if(browser)await browser.close();
   await http.dispose();
 }
+
+}
+main().catch(e=>{console.error('CB02_FUE_BOOTSTRAP_FAILURE',String(e));process.exitCode=1;});
