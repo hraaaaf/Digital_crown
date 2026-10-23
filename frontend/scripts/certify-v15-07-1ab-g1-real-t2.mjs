@@ -46,6 +46,34 @@ try {
     });
     pass('real authenticated synthetic media import '+timepoint,r.ok(),{status:r.status()});
   }
+  // A third clinical panel is meaningful only with genuine, seeded T0/T1 data.
+  // Create an orthodontic case via the real authenticated API in the disposable T2 DB.
+  const syntheticMediaList=await api.get('/api/patients/'+patient.id+'/assets',{headers:head});
+  pass('real synthetic media index before ortho linkage',syntheticMediaList.status()===200,
+    {status:syntheticMediaList.status()});
+  const mediaIndex=await syntheticMediaList.json();
+  const byTimepoint=Object.fromEntries(['T0','T1'].map(timepoint=>
+    [timepoint,mediaIndex.items?.find(item=>item.timepoint===timepoint)?.id]));
+  pass('two persisted synthetic clinical asset ids',Boolean(byTimepoint.T0 && byTimepoint.T1),
+    {timepoints:Object.keys(byTimepoint)});
+  const orthoCase=await api.post('/api/patients/'+patient.id+'/ortho-case',{
+    headers:head,data:{started_at:'2026-01-02T09:00:00'},
+  });
+  pass('authenticated real synthetic ortho case created',orthoCase.status()===201,
+    {status:orthoCase.status()});
+  const orthoCaseId=(await orthoCase.json()).id;
+  for (const [ordinal,timepoint,occurredAt] of
+    [[0,'T0','2026-01-02T09:00:00'],[1,'T1','2026-06-02T09:00:00']]) {
+    const tp=await api.post('/api/patients/'+patient.id+'/ortho-case/'+orthoCaseId+'/timepoints',{
+      headers:head,data:{ordinal,occurred_at:occurredAt,note:'Repère entièrement synthétique '+timepoint},
+    });
+    pass('real synthetic ortho '+timepoint+' created',tp.status()===201,
+      {status:tp.status()});
+    const tpId=(await tp.json()).id;
+    const link=await api.post('/api/patients/'+patient.id+'/ortho-case/'+orthoCaseId+
+      '/timepoints/'+tpId+'/evidences',{headers:head,data:{clinical_asset_id:byTimepoint[timepoint]}});
+    pass('real synthetic evidence linked '+timepoint,link.status()===201,{status:link.status()});
+  }
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext({viewport:{width:1920,height:1080},locale:'fr-FR'});
   await context.addInitScript(({access,refresh})=>{
@@ -115,6 +143,10 @@ try {
   await page.getByRole('button',{name:'Aperçu',exact:true}).click();
   await page.getByRole('button',{name:'Appliquer',exact:true}).click();
   await page.locator('[data-v15-071-viewslot="suivi"]').waitFor({state:'visible',timeout:30000});
+  await page.locator('[data-v15-071-viewslot="suivi"] [data-ortho-f3-compare]')
+    .waitFor({state:'visible',timeout:30000});
+  pass('third clinical panel renders populated genuine T0/T1 comparison',
+    await page.locator('[data-v15-071-viewslot="suivi"] [data-ortho-f3-compare]').count()===1);
   pass('three real module slots applied',await page.locator('[data-v15-071-viewslot]').count()===3);
   pass('no CephaloWorkspace duplicate',await page.locator('[data-v15-071-viewslot="cephalo"]').count()===0);
   await capture(page,'after-three-columns-1920.png');
