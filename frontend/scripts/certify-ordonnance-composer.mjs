@@ -92,7 +92,15 @@ for (const viewport of viewports) {
     });
 
     const shot = `ordonnance-composer-${viewport.width}x${viewport.height}-${label}.png`;
-    await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
+    // Render must finish, not just DOM mount. Keep screenshot as a hard gate;
+    // disabled animations/caret avoid Playwright's flaky transient frame waits.
+    await page.screenshot({
+      path: path.join(outDir, shot),
+      fullPage: false,
+      animations: 'disabled',
+      caret: 'hide',
+      timeout: 90000,
+    });
     scenes.push({ label, screenshot: shot, metrics });
   }
 
@@ -153,7 +161,15 @@ for (const capture of captures) {
   const medicationNameFits = await page.locator('input[placeholder="NOM OU DCI DU MÉDICAMENT..."]').first().evaluate(node => node.scrollWidth <= node.clientWidth + 1);
   const quantityFieldVisible = await page.locator('input[aria-label="Quantité à délivrer"]').first().isVisible();
   const shot = 'ordonnance-composer-390x844-text-200.png';
-  await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
+  // Render must finish, not just DOM mount. Keep screenshot as a hard gate;
+    // disabled animations/caret avoid Playwright's flaky transient frame waits.
+    await page.screenshot({
+      path: path.join(outDir, shot),
+      fullPage: false,
+      animations: 'disabled',
+      caret: 'hide',
+      timeout: 90000,
+    });
   const resolvedTheme = await page.evaluate(() => {
     const root = document.documentElement;
     const style = getComputedStyle(root);
