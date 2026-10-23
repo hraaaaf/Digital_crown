@@ -12,6 +12,7 @@ on:
     branches:
       - master
       - 'feat/v15-07-1ab-multiview-nine-layout-contract-*'
+      - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-*'
 
 permissions:
   contents: read
