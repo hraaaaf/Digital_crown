@@ -47,11 +47,22 @@ try {
     });
     if(restrictedLogin.status()!==200)throw Error('FAIL: restricted synthetic actor login unavailable');
     const restrictedToken=(await restrictedLogin.json()).access_token;
-    const forbidden=await restrictedApi.get('/api/patients/'+a,{
-      headers:{Authorization:'Bearer '+restrictedToken},
+    const staffState=await restrictedApi.storageState();
+    const staffCookies=staffState.cookies.filter(c=>c.name==='access_token');
+    if(staffCookies.length!==1 || staffCookies[0].value!==restrictedToken)
+      throw Error('REFUSED: unambiguous restricted actor cookie missing');
+    const staffOnOwnerEnrolledWorkstation=await request.newContext({
+      baseURL:backend,
+      storageState:{cookies:[...staffCookies,...workstation],origins:[]},
     });
-    if(forbidden.status()===200)throw Error('FAIL: restricted actor unexpectedly read a synthetic patient');
-    report.checks.push('RESTRICTED_ROLE_PATIENT_GET_DENIED_'+forbidden.status());
+    try {
+      const forbidden=await staffOnOwnerEnrolledWorkstation.get('/api/patients/'+a,{
+        headers:{Authorization:'Bearer '+restrictedToken},
+      });
+      if(forbidden.status()!==403)
+        throw Error('FAIL: restricted staff with valid workstation must receive 403, not '+forbidden.status());
+      report.checks.push('ENROLLED_RESTRICTED_ROLE_PATIENT_GET_HTTP_403');
+    } finally {await staffOnOwnerEnrolledWorkstation.dispose();}
   } finally {await restrictedApi.dispose();}
 
   context = await browser.newContext({
