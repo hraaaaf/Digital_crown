@@ -18,7 +18,7 @@ describe('07.1.A clinical media R-mode contract (synthetic)', () => {
     render(<PatientMediaTimeline patientId={17} readOnly />);
     await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Importer' })).toBeNull();
-    expect(screen.queryByLabelText('Import média clinique')).toBeNull();
+    expect(document.querySelector('[aria-label="Import média clinique"]')).toBeNull();
     expect(document.querySelector('input[type="file"]')).toBeNull();
     expect(vi.mocked(api.post)).not.toHaveBeenCalled();
   });
@@ -27,7 +27,7 @@ describe('07.1.A clinical media R-mode contract (synthetic)', () => {
     render(<PatientMediaTimeline patientId={17} />);
     await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalled());
     expect(screen.getByRole('button', { name: 'Importer' })).toBeTruthy();
-    expect(screen.getByLabelText('Import média clinique')).toBeTruthy();
+    expect(document.querySelector('[aria-label="Import média clinique"]')).toBeTruthy();
     expect(vi.mocked(api.post)).not.toHaveBeenCalled();
   });
 });
