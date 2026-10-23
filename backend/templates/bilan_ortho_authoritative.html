@@ -274,7 +274,7 @@ li { margin-bottom: 3pt; }
 {% if document_state != 'COMPLETE' %}
 <div class="notice incomplete">
 <strong>DOCUMENT CLINIQUE INCOMPLET</strong><br>
-Les données absentes, non calculables ou non validées restent explicitement non résolues. Aucune conclusion clinique ou thérapeutique n'est reconstruite pour compléter le document.
+Les données absentes, non calculables ou non validées restent explicitement non résolues. Aucune conclusion clinique ou thérapeutique n'est reconstruite pour compléter le document. La décision clinique relève exclusivement du praticien responsable.
 {% if clinical_validation_reason %}<div class="small">{{ display_clinical_validation_reason | default(clinical_validation_reason) }}</div>{% endif %}
 </div>
 {% else %}
@@ -370,9 +370,11 @@ Les données absentes, non calculables ou non validées restent explicitement no
 <div class="notice tech-blockers"><ul>{% for item in display_blocking_gates | default(blocking_gates) %}<li>{{ item }}</li>{% endfor %}</ul></div>
 {% endif %}
 
+{% if not document_branding_applied | default(false) %}
 <div class="footer">
 Praticien responsable : {{ doctor_name or 'non renseigné' }}.<br>
 {% if document_branding_applied | default(false) %}Ce document restitue uniquement les informations disponibles et leur état de vérification. Il ne constitue pas un diagnostic automatique. Toute décision clinique exige une validation par le praticien responsable.{% else %}Ce document restitue l'état clinique autoritaire disponible. EVALUABLE n'implique jamais sélection ; BLOCKED n'implique jamais DROPPED ; une validation finale R14 exige une preuve praticien autoritaire.{% endif %}
 </div>
+{% endif %}
 </body>
 </html>
