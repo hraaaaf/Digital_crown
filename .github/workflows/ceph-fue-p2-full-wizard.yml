@@ -187,6 +187,23 @@ jobs:
           assert report['archived'] is False and not report['errors']
           assert report['pdf']['archive'] is False and report['pdf']['bytes']>1500
           assert (Path('artifacts/ceph-fue-p2-real')/'synthetic-unarchived-draft.pdf').read_bytes().startswith(b'%PDF')
+          # Calibration provenance is intentionally absent from public CephaloAnalysisOut.
+          # Verify it from the disposable local T2 database, without changing API schemas.
+          import math
+          from backend import database, models
+          with database.SessionLocal() as db:
+            row=db.query(models.CephaloAnalysis).filter_by(id=report['study_id']).one()
+            p=row.calibration_data
+            assert row.is_calibrated is True
+            assert math.isclose(row.mm_per_pixel,0.1,abs_tol=0.002)
+            assert isinstance(p,dict) and p.get('method')=='MANUAL_TWO_POINT'
+            assert p.get('schema_version')=='CEPHALO_CALIBRATION_V1'
+            assert math.isclose(p.get('distance_mm'),20.0,abs_tol=1e-7)
+            a,b=p['p1'],p['p2']
+            assert abs(math.hypot(b['x']-a['x'],b['y']-a['y'])-200)<4
+            assert p.get('calibrated_by') and p.get('calibrated_at')
+            assert row.angles_data['calibration_status']=='verified'
+          print('FUE_P2_DB_SOURCE_BOUND_DESIGN_CALIBRATION_PASS__NONCLINICAL')
           print('FUE_P2_FULL_USER_DESIGN_ONLY_PDF_PASS__CLINICAL_NO_GO')
           PY
       - name: Diagnostics on failure — no patient images or secrets in logs
