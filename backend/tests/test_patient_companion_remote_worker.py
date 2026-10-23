@@ -145,6 +145,8 @@ def test_remote_worker_default_registry_executes_pc02_create_idempotently(db, de
         patient_encryption_kid=patient_enc_public["kid"], patient_encryption_public_jwk=patient_enc_public,
         protect=_protect,
     )
+    from backend.routers.agenda_settings import _create_default_settings
+    _create_default_settings(db, dentiste.id)
     slot = PatientCompanionAgendaSlot(
         public_id=str(uuid.uuid4()), employer_id=dentiste.id, practitioner_id=dentiste.id,
         datetime_start=datetime(2030, 1, 4, 10, 0), duration_minutes=30,

@@ -1075,10 +1075,14 @@ def test_wall_call_requires_waiting_state_and_unique_explicit_ticket(client, db,
 
 
 def _presence_appointment(db, owner, patient, *, status=models.AppointmentStatus.PREVU):
+    from backend.routers.agenda_settings import _create_default_settings, _settings_row
+    if _settings_row(db, owner.id) is None:
+        _create_default_settings(db, owner.id)
     appointment = models.Appointment(
         patient_id=patient.id,
         employer_id=owner.id,
-        datetime_start=datetime.now().replace(second=0, microsecond=0),
+        # Presence remains today's visit; rescheduling +1 minute stays open.
+        datetime_start=datetime.now().replace(hour=10, minute=0, second=0, microsecond=0),
         duration_minutes=30,
         status=status,
         scheduling_type=models.SchedulingType.EXACT_TIME,
