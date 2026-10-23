@@ -41,7 +41,11 @@ def cabinet():
         Column("id", String(36), primary_key=True),
         Column("employer_id", Integer, nullable=False),
         Column("workstation_id", String(36)),
+        # ORM reads the complete synthetic Station identity before denying print.
+        Column("claim_token_hash", String(64)),
+        Column("patient_access_id", Integer),
         Column("patient_id", Integer),
+        Column("fallback_failed_attempts", Integer, nullable=False, default=0),
         Column("created_at", DateTime()),
         Column("claimed_at", DateTime()),
         Column("expires_at", DateTime()),

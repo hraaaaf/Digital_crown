@@ -4,11 +4,15 @@ L'env var DATABASE_URL est forcée AVANT tout import backend.
 """
 import os
 import uuid
+import tempfile
 
 # Doit être fait avant tout import backend (database.py lit l'env au chargement)
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] = "true"
+# A disposable media tree for all synthetic tests; never write real cabinet files.
+_SYNTHETIC_MEDIA = tempfile.TemporaryDirectory(prefix="digital_crown_pytest_media_")
+os.environ["MEDIA_ROOT"] = _SYNTHETIC_MEDIA.name
 os.environ.setdefault("CABINET_MASTER_KEY_HEX", "00" * 32)
 os.environ.setdefault("SECRET_KEY", "test-only-secret-key-minimum-32chars-x")
 
@@ -33,6 +37,9 @@ def _create_tables():
     """Crée toutes les tables SQLAlchemy une seule fois pour la session de tests."""
     from backend import models, database
     from backend.models_document_provenance_p3 import install_document_provenance_p3
+    from backend.services import archive_service as _archive_service
+    from backend.core.media_paths import get_media_root
+    assert _archive_service.ARCHIVE_BASE_DIR == get_media_root() / "archives"
 
     database.engine = _engine
     database.SessionLocal = _SessionLocal
@@ -49,11 +56,14 @@ def _create_tables():
         install_appointment_overlap_index(conn)
     yield
     models.Base.metadata.drop_all(bind=_engine)
+    _SYNTHETIC_MEDIA.cleanup()
 
 
 @pytest.fixture(autouse=True)
-def _reset_global_rate_limit_state():
+def _reset_global_rate_limit_state(tmp_path, monkeypatch):
     from backend.utils import rate_limit
+    # Preserve production rate limiting inside a test; isolate its disk state.
+    monkeypatch.setattr(rate_limit, "_store_path", lambda: tmp_path / "rate_limit_store.json")
     rate_limit._attempts.clear()
     rate_limit._loaded = False
     yield

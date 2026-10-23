@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from backend import models, schemas
 from backend.tests.test_mobile_pocket_security_boundary import _claim_mobile, _user
+from backend.routers.agenda_settings import _create_default_settings
 
 
 def test_pocket_frontdesk_requires_paired_device_and_enforces_tenant(client, db, dentiste):
@@ -19,9 +20,14 @@ def test_pocket_frontdesk_requires_paired_device_and_enforces_tenant(client, db,
         role=models.UserRole.DENTISTE,
         permissions={"agenda": True, "patients": True},
     )
+    # Confirmations require real synthetic cabinet opening hours.
+    _create_default_settings(db, dentiste.id)
+    three_days_at_ten = (datetime.utcnow() + timedelta(days=3)).replace(
+        hour=10, minute=0, second=0, microsecond=0,
+    )
     own = models.Appointment(
         patient_name="Own Cabinet Request",
-        datetime_start=datetime.utcnow() + timedelta(days=3),
+        datetime_start=three_days_at_ten,
         duration_minutes=30,
         status=schemas.AppointmentStatus.EN_ATTENTE_DEMANDE,
         employer_id=dentiste.id,

@@ -19,7 +19,8 @@ from backend.services.station_document_print_store import (
     audit, configuration, printers, stations,
 )
 
-MIGRATION = Path(__file__).with_name("migration_station_print_owner_config.py")
+# Use the actual immutable neo28 Alembic script, not an old test copy.
+MIGRATION = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "neo000000028_station_print_owner_config.py"
 PRINT_TABLES = {
     "station_print_configurations", "station_print_config_stations",
     "station_print_config_printers", "station_print_config_audit",
