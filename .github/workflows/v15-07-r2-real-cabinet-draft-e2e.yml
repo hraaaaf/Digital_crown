@@ -4,10 +4,13 @@ on:
   pull_request:
     branches:
       - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-r2-security-*'
+      - 'feat/v15-07-r2-patient-route-guard-*'
     paths:
       - 'frontend/src/App.tsx'
       - 'frontend/src/features/patients/**'
       - 'frontend/scripts/certify-lot07-r2-real-document-route.mjs'
+      - 'frontend/scripts/certify-lot07-r2-three-editors.mjs'
+      - 'frontend/src/features/admin/**'
       - 'scripts/lot07_r2_seed_t2.py'
       - '.github/workflows/v15-07-r2-real-cabinet-draft-e2e.yml'
 permissions:
@@ -121,6 +124,25 @@ jobs:
       - name: Real UI login / Document Libre / A-B-A / Back / staff denial
         working-directory: frontend
         run: node scripts/certify-lot07-r2-real-document-route.mjs
+      - name: Real Prescription / Certificate / Honoraires draft protection on T2
+        working-directory: frontend
+        run: node scripts/certify-lot07-r2-three-editors.mjs
+      - name: Verify sanitized three-editor exact-SHA evidence
+        run: |
+          python - <<'PY'
+          import os, json
+          from pathlib import Path
+          p=Path('artifacts/lot07-r2-real-cabinet/three-editors.json')
+          assert p.is_file(), 'missing R2 three-editor artifact'
+          r=json.loads(p.read_text())
+          assert r['head']==os.environ['PRODUCT_HEAD']
+          assert r['environment']=='DISPOSABLE_T2_THREE_CLINICAL_EDITORS'
+          assert r['syntheticOnly'] is True and r['clinicalRelease'] is False
+          assert r['status']=='PASS_R2_THREE_REAL_EDITORS_T2'
+          assert len(r['checks']) == 14 and all(isinstance(c,str) for c in r['checks'])
+          assert not any(k in r for k in ('patientName','token','password','medicalContent'))
+          print('LOT07_R2_THREE_REAL_EDITORS_T2_EXACT_HEAD_PASS')
+          PY
       - name: Assert sanitized exact SHA evidence
         run: |
           python - <<'PY'
@@ -144,6 +166,8 @@ jobs:
         if: always()
         with:
           name: lot07-r2-real-cabinet-${{ github.event.pull_request.head.sha || github.sha }}
-          path: artifacts/lot07-r2-real-cabinet/report.json
+          path: |
+            artifacts/lot07-r2-real-cabinet/report.json
+            artifacts/lot07-r2-real-cabinet/three-editors.json
           retention-days: 21
           if-no-files-found: ignore
