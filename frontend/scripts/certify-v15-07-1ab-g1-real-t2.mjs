@@ -171,13 +171,63 @@ try {
     await page.locator('[data-v15-071-viewslot="suivi"] [data-ortho-f3-compare]').count()===1);
   pass('three real module slots applied',await page.locator('[data-v15-071-viewslot]').count()===3);
   pass('no CephaloWorkspace duplicate',await page.locator('[data-v15-071-viewslot="cephalo"]').count()===0);
+  const compact3=await page.locator('[data-v15-071-geometry="three-columns"]').evaluate(grid=>{
+    const slot=grid.querySelector('[data-v15-071-viewslot="imagerie"]');
+    const rail=slot?.querySelector('[data-testid="media-asset-rail"]');
+    const viewer=slot?.querySelector('[data-testid="media-inline-viewer"]');
+    const filters=slot?.querySelector('[aria-label="Recherche et filtres médias"]');
+    if(!slot||!rail||!viewer||!filters) return {found:false};
+    const pane=slot.getBoundingClientRect();
+    const a=rail.getBoundingClientRect(),b=viewer.getBoundingClientRect();
+    return {found:true,paneWidth:Math.round(pane.width),railWidth:Math.round(a.width),
+      viewerWidth:Math.round(b.width),railTop:Math.round(a.top),viewerTop:Math.round(b.top),
+      filtersOverflow:filters.scrollWidth-filters.clientWidth};
+  });
+  pass('three-column media rail and genuine preview use full slot width',
+    compact3.found && compact3.railWidth>=compact3.paneWidth-30 &&
+    compact3.viewerWidth>=compact3.paneWidth-30 && compact3.viewerTop>compact3.railTop,
+    compact3);
+  pass('three-column clinical search and filters have no horizontal overflow',
+    compact3.found && compact3.filtersOverflow<=2,{overflow:compact3.filtersOverflow});
   await capture(page,'after-three-columns-1920.png');
 
   await page.setViewportSize({width:390,height:844});
   await page.locator('[data-v15-071-real-cabinet-lab]').waitFor({state:'detached',timeout:25000}).catch(()=>{});
   pass('mobile no MultiView workspace slots',await page.locator('[data-v15-071-viewslot]').count()===0);
   pass('mobile keeps original authenticated media',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
+  const patientHeaderToast=await page.evaluate(()=>{
+    const heading=document.querySelector('header h1');
+    const toast=[...document.querySelectorAll('div')].find(el=>{
+      const style=getComputedStyle(el);
+      return style.position==='fixed' && style.zIndex==='9999';
+    });
+    const style=toast?getComputedStyle(toast):null;
+    return {found:Boolean(heading&&toast),top:style?.top,bottom:style?.bottom,
+      headingBottom:Math.round(heading?.getBoundingClientRect().bottom||0),
+      toasterTop:Math.round(toast?.getBoundingClientRect().top||0)};
+  });
+  pass('compact patient notifications anchored below identity, not on name',
+    patientHeaderToast.found && patientHeaderToast.top==='auto' &&
+    patientHeaderToast.bottom!=='auto' &&
+    patientHeaderToast.toasterTop>patientHeaderToast.headingBottom,
+    patientHeaderToast);
   await capture(page,'mobile-single-media-regression-390.png');
+  for(const width of [430,768,1280]){
+    await page.setViewportSize({width,height:900});
+    if(width<1280) {
+      await page.locator('[data-testid="patient-media-timeline"]').waitFor({state:'visible'});
+      pass('original authenticated media preserved at '+width+'px',
+        await page.locator('[data-v15-071-viewslot]').count()===0 &&
+        await page.locator('[data-testid="patient-media-timeline"]').count()===1);
+    } else {
+      // Three clinical columns are denied fail-closed when their minimum widths
+      // are not met; never force unreadable or unauthorized panels into 1280px.
+      await page.locator('[data-testid="multiview-denied"]').waitFor({state:'visible',timeout:30000});
+      pass('three-column layout denied when 1280px cannot fit safe panel widths',
+        await page.locator('[data-v15-071-viewslot]').count()===0);
+    }
+    await capture(page,'responsive-'+width+'.png');
+  }
   // React Router navigation in the same Chromium tab, not a full page reload.
   await page.setViewportSize({width:1920,height:1080});
   const goPatient=async(id)=>{
