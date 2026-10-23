@@ -48,7 +48,7 @@ jobs:
         run: npm ci --prefix frontend --no-audit --no-fund
       - name: Execute foundation plus integrated desktop, workstation and patient denial tests
         working-directory: frontend
-        run: npx vitest run src/features/multiview/studioLayouts.test.tsx src/features/multiview/CabinetMultiViewLab.test.tsx src/features/patients/components/PatientMediaTimeline.multiviewReadonly.test.tsx
+        run: npx vitest run src/features/multiview/studioLayouts.test.tsx src/features/multiview/CabinetMultiViewLab.test.tsx src/features/patients/components/PatientMediaTimeline.multiviewReadonly.test.tsx src/features/patients/patientDraftNavigationGate.test.tsx
       - name: TypeScript full frontend sources
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json
