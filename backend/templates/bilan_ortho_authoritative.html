@@ -230,9 +230,15 @@ li { margin-bottom: 3pt; }
 .cabinet-document .hero-report { background:transparent; color:var(--ink); border-right:0; border-bottom:1pt solid var(--primary); padding:0 0 10pt; margin-bottom:12pt; }
 .cabinet-document .hero-report h1 { color:var(--primary); font-size:19pt; }
 .cabinet-document .hero-report .kicker, .cabinet-document .hero-report .subtitle { color:var(--muted); }
+/* Dense scientific inventories remain legible but should not produce a
+   near-empty last page containing only status/disclaimer. */
+.compact-report td { padding: 4.4pt 7pt; line-height: 1.33; }
+.compact-report .row-meta { margin-top: 1.5pt; }
+.compact-report .stage { padding: 8pt 11pt; margin: 5pt 0; }
+.compact-report .footer { margin-top: 5pt; }
 </style>
 </head>
-<body class="{{ 'cabinet-document' if document_branding_applied | default(false) else 'legacy-preview' }}">
+<body class="{{ 'cabinet-document' if document_branding_applied | default(false) else 'legacy-preview' }}{{ ' compact-report' if measurements | length >= 60 else '' }}">
 {% if not document_branding_applied | default(false) %}
 <div class="brandline">
   <div class="wordmark">DIGITAL <span>CROWN</span></div>
