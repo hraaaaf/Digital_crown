@@ -15,8 +15,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 W=H=1024
-P1=(420, 862)
-P2=(620, 862)
+P1=(420, 500)
+P2=(620, 500)
 DESIGN_MM=20.0
 RATIO=DESIGN_MM / (P2[0]-P1[0])
 OUT=Path(os.environ.get("CEPH_FUE_P2_PHANTOM_DIR", "/tmp/ceph-fue-p2-phantom"))
@@ -43,9 +43,9 @@ d.line([(180,740),(844,740)],fill=(90,95,103),width=2)
 # The only known length is between exact *digital* endpoints.
 d.line([P1,P2],fill=(255,255,255),width=5)
 for x in [P1[0],P2[0]]:
-    d.line([(x,828),(x,900)],fill=(255,255,255),width=5)
-    d.ellipse((x-5,857,x+5,867),fill=(255,190,0))
-d.text((432,898),"20 DESIGN mm = 200 px",fill=(255,240,198))
+    d.line([(x,466),(x,538)],fill=(255,255,255),width=5)
+    d.ellipse((x-5,495,x+5,505),fill=(255,190,0))
+d.text((432,540),"20 DESIGN mm = 200 px",fill=(255,240,198))
 d.text((36,50),"SYNTHETIC TEST PHANTOM - NO PATIENT",fill=(252,240,164))
 d.text((36,80),"NOT A MEDICAL RADIOGRAPH OR CLINICALLY MEASURED RULER",fill=(252,240,164))
 filename=OUT/"ceph_fue_p2_phantom.png"
