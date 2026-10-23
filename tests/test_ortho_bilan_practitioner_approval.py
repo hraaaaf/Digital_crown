@@ -22,7 +22,8 @@ class PractitionerNotePersistenceTests(unittest.TestCase):
         self.engine=create_engine("sqlite://",connect_args={"check_same_thread":False},
                                   poolclass=StaticPool)
         tables=[models.User.__table__,models.Patient.__table__,
-                models.CephaloAnalysis.__table__,models.OrthoBilanPractitionerNote.__table__]
+                models.CephaloAnalysis.__table__,models.OrthoBilanPractitionerNote.__table__,
+                models.AuditLog.__table__]
         Base.metadata.create_all(self.engine,tables=tables)
         self.db=Session(self.engine)
         self.owner=models.User(id=10,email="dentist-a@example.invalid",
@@ -91,6 +92,8 @@ class PractitionerNotePersistenceTests(unittest.TestCase):
         self.assertIsNone(self.resolve())
         approved=self.approve()
         self.assertTrue(approved["approved"])
+        actions=[r.action for r in self.db.query(models.AuditLog).order_by(models.AuditLog.id).all()]
+        self.assertEqual(actions, ["ORTHO_BILAN_DRAFT_SAVED", "ORTHO_BILAN_NOTES_APPROVED"])
         sections=self.resolve()
         self.assertEqual(sections["practitioner_id"],10)
         self.assertEqual(sections["moulages"]["ddm_maxillaire"],-2.5)
