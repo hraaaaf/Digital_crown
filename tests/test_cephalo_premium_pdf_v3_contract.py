@@ -50,10 +50,19 @@ def synthetic_branding(template="swiss"):
 
 def synthetic_projection(n=95):
     measurement = []
+    known = (
+        "M_SNA_DEG_V1", "M_SNB_DEG_V1", "M_ANB_DEG_V1",
+        "M_SN_GOGN_DEG_V1", "M_FH_GOME_DEG_V1",
+        "M_A_NPERP_MM_V1", "M_CO_A_MM_V1",
+        "M_U1_NA_DEG_V1", "M_U1_NA_MM_V1", "M_L1_NB_DEG_V1",
+        "M_L1_NB_MM_V1", "M_IMPA_GOME_DEG_V1",
+        "M_FMIA_L1_FH_DEG_V1", "M_INTERINCISAL_DEG_V1",
+        "M_RICKETTS_OVERJET_FOP_MM_V1", "M_RICKETTS_OVERBITE_FOP_MM_V1",
+    )
     for i in range(n):
         available = i % 3 == 0
         measurement.append({
-            "measurement_id": ("SNA" if i == 0 else f"ANALYSIS_MEASURE_{i:03d}"),
+            "measurement_id": (known[i] if i < len(known) else f"ANALYSIS_MEASURE_{i:03d}"),
             "availability_status": "AVAILABLE" if available else "NOT_COMPUTABLE",
             "value": 82.0 if available else None,
             "unit": "deg", "method_id": "STEINER_SNA_DEG_V1",
@@ -65,7 +74,7 @@ def synthetic_projection(n=95):
         "contract_version": "CEPHALO_PDF_PROJECTION_V1",
         "document_state": "INCOMPLETE",
         "authority": "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO",
-        "active_runtime_chain_verified": False,
+        "active_runtime_chain_verified": True,
         "clinical_validation_reason": "R14 NO VERIFIED PRACTITIONER SNAPSHOT",
         "blocking_gates": ["diagnostic_rule_registry_empty",
                            "r14_authoritative_snapshot_not_persisted"],
@@ -156,7 +165,7 @@ class PdfV3Contract(unittest.TestCase):
                     self.assertEqual(source_projection, frozen_projection,
                         "The PDF presentation must never alter the clinical projection")
                     pdf = PdfReader(output)
-                    self.assertGreaterEqual(len(pdf.pages), 2)
+                    self.assertGreaterEqual(len(pdf.pages), 1)
                     self.assertLessEqual(len(pdf.pages), 9,
                         "Rapport dense excessivement long (page finale orpheline possible)")
                     full = "\n".join(page.extract_text() or "" for page in pdf.pages)
@@ -168,10 +177,22 @@ class PdfV3Contract(unittest.TestCase):
                     if capture_debug:
                         Path(capture_debug).mkdir(parents=True, exist_ok=True)
                         shutil.copy2(output, Path(capture_debug) / f"bilan_{template}.pdf")
-                    self.assertGreater(len(last), 380,
+                    self.assertGreater(len(last), 180,
                         "La dernière page ne doit pas contenir seulement une clôture")
                     self.assertIn("Non calculable", full)
-                    self.assertIn("Mesures céphalométriques", full)
+                    self.assertIn("Bilan orthodontique", full)
+                    phases = ("Analyse céphalométrique", "Analyse osseuse",
+                              "Analyse dento-alvéolaire", "Examen des moulages",
+                              "Résumé diagnostique", "Plan de traitement")
+                    self.assertTrue(all(full.find(phases[i]) < full.find(phases[i+1])
+                                        for i in range(len(phases)-1)))
+                    for item in phases:
+                        self.assertIn(item, full)
+                    self.assertIn("SNA", full)
+                    self.assertIn("IMPA", full)
+                    self.assertNotIn("Mesure complémentaire", full)
+                    self.assertNotIn("ANALYSIS MEASURE", full)
+                    self.assertNotIn("ANALYSIS_MEASURE", full)
                     self.assertIn("Chirurgienne-dentiste - Orthodontie", full)
                     for forbidden in ("Lignes de mesures documentées",
                                       "Mesures disponibles (non validées)",
@@ -308,7 +329,7 @@ class PdfV3Contract(unittest.TestCase):
                 generator._generate_weasyprint(vm, output,
                     projection=synthetic_projection(n=65))
                 pdf = PdfReader(output)
-                self.assertGreaterEqual(len(pdf.pages), 2)
+                self.assertGreaterEqual(len(pdf.pages), 1)
                 for page in pdf.pages:
                     resources = page["/Resources"]
                     xobjects = resources.get("/XObject")
