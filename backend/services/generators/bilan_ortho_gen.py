@@ -8,6 +8,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from backend.services.base_template import BaseTemplate
 from backend.services.cephalo_pdf_presentation import clinical_term, measurement_value, practitioner_stage
+from backend.services.ortho_bilan_document_v5 import build_ortho_bilan_document
 from backend import schemas
 
 import importlib.util
@@ -215,6 +216,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "blocking_gates": list(projection.get("blocking_gates") or []),
             "display_blocking_gates": [clinical_term(item) for item in (projection.get("blocking_gates") or [])],
             "measurements": measurements,
+            "odf": build_ortho_bilan_document(projection),
             "steiner_protocol": {
                 "protocol_profile_id": steiner_profile.get("protocol_profile_id"),
                 "source_lock_status": (steiner_profile.get("source_lock_gate") or {}).get("status"),
@@ -242,7 +244,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         raw = str(identifier).rsplit(":", 1)[-1]
         approved = short_label(raw)
         if "_" in raw and approved == raw.replace("_", " "):
-            return f"Mesure complémentaire {index}"
+            return ""  # fail closed: never invent a clinical measurement name
         return approved
 
     def _generate_weasyprint(
@@ -270,15 +272,9 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "top": round(top, 3), "bottom": round(bottom, 3),
             "left": round(left, 3), "right": round(right, 3),
         }
-        context["measurements"] = [
-            {
-                **measurement,
-                "measurement_id": self._clinician_measurement_label(
-                    measurement["measurement_id"], index, short_label),
-            }
-            for index, measurement in enumerate(context["measurements"], 1)
-        ]
-        template = self.jinja_env.get_template("bilan_ortho_authoritative.html")
+        # Practitioner-facing four-phase document. R17 raw audit template is
+        # retained independently for legacy regression / technical previews.
+        template = self.jinja_env.get_template("bilan_ortho_v5.html")
         html_content = template.render(context)
         # The brand stationery is drawn by the SAME BaseTemplate instance as
         # an ordonnance, not imitated with a parallel CSS implementation.
@@ -318,128 +314,105 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         projection: Optional[dict[str, Any]] = None,
         user=None,
     ):
+        """ReportLab fallback renders the same V5 four-phase model as Weasy."""
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import cm
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-        from backend.services.generators.document_typography import short_label
 
         context = self._shared_context(vm, projection or {})
-        context["measurements"] = [
-            {
-                **measurement,
-                "measurement_id": short_label(measurement["measurement_id"].rsplit(":", 1)[-1]),
-            }
-            for measurement in context["measurements"]
-        ]
+        odf = context["odf"]
         config = vm.cabinet_config or {}
         self.update_active_fonts(config)
         p_color = colors.HexColor(config.get("primary_color", "#003380"))
         styles = getSampleStyleSheet()
-        title = ParagraphStyle("R17Title", parent=styles["Heading1"], fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        h2 = ParagraphStyle("R17Section", parent=styles["Heading2"], fontSize=12, textColor=p_color, spaceBefore=10, spaceAfter=6)
-        body = ParagraphStyle("R17Body", parent=styles["Normal"], fontSize=9, leading=13, spaceAfter=5)
-
-        p_width = A4[0]
-        m_top, m_bottom, m_left, m_right = self.get_document_margins(config, p_width)
-        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
-        elements = [
-            Paragraph("BILAN ORTHODONTIQUE", title),
-            Paragraph(
-                f"Patient : {escape(str(vm.patient_nom).upper())} {escape(str(vm.patient_prenom).capitalize())} - Âge : {escape(str(vm.patient_age))} ans",
-                body,
-            ),
-        ]
-
-        # Operational verification and pre-bilan state stay exclusively in
-        # the authoritative projection. They are not print content.
-        elements.append(Paragraph("Mesures scientifiques", h2))
-        small = ParagraphStyle("R17Cell", parent=body, fontSize=7, leading=9)
+        title = ParagraphStyle(
+            "ODFV5Title", parent=styles["Heading1"], fontSize=17,
+            textColor=p_color, alignment=TA_CENTER, spaceAfter=13)
+        heading = ParagraphStyle(
+            "ODFV5Heading", parent=styles["Heading2"], fontSize=12,
+            textColor=p_color, spaceBefore=13, spaceAfter=7)
+        subheading = ParagraphStyle(
+            "ODFV5Subheading", parent=styles["Heading3"], fontSize=10,
+            textColor=p_color, spaceBefore=9, spaceAfter=5)
+        body = ParagraphStyle(
+            "ODFV5Body", parent=styles["Normal"], fontSize=9, leading=13,
+            spaceAfter=7)
+        cell_style = ParagraphStyle(
+            "ODFV5Cell", parent=body, fontSize=8.5, leading=11, spaceAfter=1)
         def cell(value):
-            return Paragraph(escape(str(value)), small)
-        # Practitioner PDF: methods/provenance stay in the authoritative typed
-        # projection; they are not an audit table displayed to the patient.
-        rows = [[cell("Mesure"), cell("Résultat")]]
-        for measurement in context["measurements"]:
-            rows.append([cell(self._clinician_measurement_label(
-                measurement["measurement_id"], len(rows), short_label)),
-                cell(measurement["display_value"])])
-        if len(rows) == 1:
-            rows.append([cell("Aucune mesure scientifique disponible"),
-                         cell("Non calculable")])
-        table = Table(rows, repeatRows=1, colWidths=[8.4*cm, 8.4*cm])
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), p_color),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
-            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]))
-        elements.extend([table, Spacer(1, 0.4*cm)])
+            return Paragraph(escape(str(value)), cell_style)
 
-        if context["steiner_protocol"]:
-            steiner = context["steiner_protocol"]
-            elements.append(Paragraph("Analyse protocolaire Steiner", h2))
-            elements.append(Paragraph(
-                f"Référence scientifique : {escape(steiner.get('display_source_lock_status') or 'non vérifiée')}. "
-                "Références historiques affichées à titre comparatif uniquement; aucune classification clinique universelle n'est produite.",
-                body,
-            ))
-            protocol_rows = [["Mesure", "Valeur", "Réf. hist.", "Écart réf.", "Statut"]]
-            for row in steiner.get("rows", []):
-                protocol_rows.append([
-                    cell(row["label"]), cell(row["value"]), cell(row["reference"]), cell(row["delta"]), cell(row.get("display_interpretation_status", ""))
-                ])
-            protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[4.2*cm, 2.8*cm, 2.8*cm, 2.8*cm, 4.0*cm])
-            protocol_table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), p_color),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
-                ("FONTSIZE", (0, 0), (-1, -1), 7.0),
+        m_top, m_bottom, m_left, m_right = self.get_document_margins(config, A4[0])
+        doc = SimpleDocTemplate(
+            file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left,
+            topMargin=m_top, bottomMargin=m_bottom)
+        elements = [
+            Paragraph("Bilan orthodontique", title),
+            Paragraph(
+                "Patient : " + escape(str(vm.patient_nom).upper()) + " " +
+                escape(str(vm.patient_prenom).capitalize()) +
+                "  |  Âge : " + escape(str(vm.patient_age)) +
+                " ans  |  Date : " + escape(str(vm.date_generation)), body),
+        ]
+        def add_table(rows, columns):
+            table = Table(
+                [[cell(a), cell(b)] for a, b in
+                 [(columns[0], columns[1])] +
+                 [(r["label"], r["value"]) for r in rows]],
+                repeatRows=1, colWidths=[9.0 * cm, 7.0 * cm],
+                hAlign="LEFT")
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eaf1f5")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), p_color),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.25,
+                 colors.HexColor("#e1e8ec")),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
             ]))
-            elements.extend([protocol_table, Spacer(1, 0.4*cm)])
+            elements.append(table)
+            elements.append(Spacer(1, 0.13 * cm))
 
-        if context["tweed_merrifield_protocol"]:
-            tweed = context["tweed_merrifield_protocol"]
-            elements.append(Paragraph("Analyse protocolaire Tweed–Merrifield", h2))
+        elements.append(Paragraph("01  Analyse céphalométrique", heading))
+        for key, label in (
+            ("osseuse", "A. Analyse osseuse"),
+            ("dentoalveolaire", "B. Analyse dento-alvéolaire"),
+        ):
+            elements.append(Paragraph(label, subheading))
+            if odf[key]:
+                add_table(odf[key], ("Mesure", "Résultat"))
+            else:
+                elements.append(Paragraph(
+                    "Mesures à renseigner par le praticien.", body))
+
+        elements.append(Paragraph("02  Examen des moulages", heading))
+        if odf["moulages"]:
+            add_table(odf["moulages"], ("Observation", "Constat"))
+        else:
             elements.append(Paragraph(
-                f"Référence scientifique : {escape(tweed.get('display_source_lock_status') or 'non vérifiée')}. "
-                "Variante Digital Crown Po_anatomic-Or / Go-Me; aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée. "
-                "Références historiques affichées comme contexte uniquement; aucune classification automatique.",
-                body,
-            ))
-            protocol_rows = [["Mesure", "Valeur", "Profil", "Autorité", "Statut"]]
-            for row in tweed.get("rows", []):
-                protocol_rows.append([
-                    cell(row["label"]), cell(row["value"]), cell(row["display_profile_section"]),
-                    cell(row["display_reference_authority"]), cell(row["display_interpretation_status"]),
-                ])
-            protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[4.0*cm, 2.4*cm, 4.2*cm, 3.2*cm, 3.4*cm])
-            protocol_table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), p_color),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
-                ("FONTSIZE", (0, 0), (-1, -1), 6.6),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]))
-            elements.extend([protocol_table, Spacer(1, 0.4*cm)])
+                "Examen des moulages à renseigner par le praticien.", body))
 
-        # Only substantive safety findings are printable. Internal gate
-        # status, evidence registry, provenance and archive workflow stay in
-        # the clinical engine and do not disappear from enforcement.
-        for stage in context["stages"]:
-            alerts = list(stage.get("display_contraindications") or []) + list(
-                stage.get("display_contradictions") or [])
-            if alerts:
-                elements.append(Paragraph("Points cliniques à examiner", h2))
-                for alert in alerts:
-                    elements.append(Paragraph(escape(str(alert)), body))
-
+        elements.append(Paragraph("03  Résumé diagnostique", heading))
         elements.append(Paragraph(
-            f"Praticien responsable : {escape(str(context.get('doctor_name') or 'non renseigné'))}.", body))
-        draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config, user=user)
+            escape(odf["resume_diagnostique"]) if odf["resume_diagnostique"]
+            else "Synthèse diagnostique à renseigner par le praticien.",
+            body))
+        elements.append(Paragraph("04  Plan de traitement", heading))
+        elements.append(Paragraph(
+            escape(odf["plan_traitement"]) if odf["plan_traitement"]
+            else "Plan de traitement à renseigner par le praticien.",
+            body))
+        if odf["clinical_alerts"]:
+            elements.append(Paragraph(
+                "Éléments cliniques nécessitant une attention particulière",
+                heading))
+            for alert in odf["clinical_alerts"]:
+                elements.append(Paragraph(escape(str(alert)), body))
+
+        draw_method = lambda canv, d: self.draw_static_elements(
+            canv, d, config=config, user=user)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return file_path
