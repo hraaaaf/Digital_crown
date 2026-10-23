@@ -10,10 +10,19 @@ on:
       - 'frontend/scripts/certify-lot07-r2-real-document-route.mjs'
       - 'scripts/lot07_r2_seed_t2.py'
       - '.github/workflows/v15-07-r2-real-cabinet-draft-e2e.yml'
+  pull_request:
+    branches:
+      - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-r2-security-*'
+    paths:
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/features/patients/**'
+      - 'frontend/scripts/certify-lot07-r2-real-document-route.mjs'
+      - 'scripts/lot07_r2_seed_t2.py'
+      - '.github/workflows/v15-07-r2-real-cabinet-draft-e2e.yml'
 permissions:
   contents: read
 concurrency:
-  group: lot07-r2-clinic-${{ github.sha }}
+  group: lot07-r2-clinic-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 jobs:
   disposable-real-cabinet-navigation:
@@ -28,11 +37,11 @@ jobs:
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"
       ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
-      PRODUCT_HEAD: ${{ github.sha }}
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Refuse non-exact or non-isolated runtime
         run: |
           set -euo pipefail
@@ -126,7 +135,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: lot07-r2-real-cabinet-${{ github.sha }}
+          name: lot07-r2-real-cabinet-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/lot07-r2-real-cabinet/report.json
           retention-days: 21
           if-no-files-found: ignore
