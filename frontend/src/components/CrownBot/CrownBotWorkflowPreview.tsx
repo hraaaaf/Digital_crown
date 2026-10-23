@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
+import { CrownBotGuidedNluCb02 } from './CrownBotGuidedNluCb02';
 
 type CabinetDay = {
   day: string; timezone: string; start_date: string; end_date: string;
@@ -239,6 +240,11 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
           Les informations proviennent du serveur de votre cabinet après contrôle de vos droits.
         </p>
       </div>
+      {/* CB-02 stays entirely hidden unless its separate frontend flag is ON.
+          CB-01 and the real cabinet remain unchanged when it is OFF. */}
+      {import.meta.env.VITE_CROWN_BOT_GUIDED_NLU_ENABLED === 'true' && (
+        <CrownBotGuidedNluCb02 />
+      )}
       {programme && (
         <div role="status" aria-label="Programme du jour" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800">
           <p className="font-semibold">Programme du {programme.day}</p>

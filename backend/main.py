@@ -713,6 +713,9 @@ app.include_router(stock.router, prefix="/api/stock", tags=["Stock"])
 app.include_router(partner_orders.router, prefix="/api/partner-orders", tags=["Partner Orders"])
 app.include_router(partner_catalog.router, prefix="/api/partner-catalog", tags=["Partner Catalog"])
 app.include_router(bot.router, prefix="/api/bot", tags=["Crown Bot"])
+# CB-02: separate double-flagged, tenant-scoped, non-executable preview.
+from backend.routers import bot_guided_nlu_cb02
+app.include_router(bot_guided_nlu_cb02.router, prefix="/api/bot", tags=["CB-02 French Preview"])
 app.include_router(catalog.router, prefix="/api/catalog", tags=["Catalog"])
 app.include_router(motifs.router, prefix="/api/motifs", tags=["Consultation Motifs"])
 app.include_router(medications.router, prefix="/api/medications", tags=["Medications"])

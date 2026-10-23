@@ -40,7 +40,11 @@ export default defineConfig({
       includeAssets: ['logo.svg', 'logo.png'],
       manifest: false, // Utilise public/manifest.json
       devOptions: {
-        enabled: true,
+        // Disable DEV service-worker registration only in the loopback-only
+        // CB-02 Windows native NVDA lab. Workbox dependency reoptimization
+        // caused full Vite reloads during speech and reset React form state.
+        // Normal development and all production PWA settings remain intact.
+        enabled: process.env.VITE_CB02_NATIVE_A11Y_LAB !== 'true',
         type: 'classic',
       },
       workbox: {

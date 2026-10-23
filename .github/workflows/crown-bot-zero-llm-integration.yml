@@ -6,6 +6,10 @@ on:
       - backend/config.py
       - backend/routers/bot.py
       - backend/routers/bot_workflows.py
+      - backend/routers/bot_guided_nlu_cb02.py
+      - backend/services/bot/guided_nlu_cb02.py
+      - backend/tests/test_bot_guided_nlu_cb02_api.py
+      - backend/tests/test_guided_nlu_cb02.py
       - backend/routers/bot_reconciliation.py
       - tests/test_fue_g04_crown_bot_sqlcipher.py
       - backend/services/bot/workflow_poc.py
@@ -25,6 +29,8 @@ on:
       - frontend/src/components/CrownBot/CrownBotChat.tsx
       - frontend/src/components/CrownBot/CrownBotWorkflowPreview.tsx
       - frontend/src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+      - frontend/src/components/CrownBot/CrownBotGuidedNluCb02.tsx
+      - frontend/src/components/CrownBot/CrownBotGuidedNluCb02.test.tsx
       - frontend/src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
       - frontend/.env.example
       - backend/tests/test_bot_atomic_claim_postgres.py
@@ -59,7 +65,7 @@ jobs:
         run: npm ci
       - name: Test flag OFF, guarded preview and non-executable actions
         working-directory: frontend
-        run: npx vitest run src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx
+        run: npx vitest run src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx src/components/CrownBot/CrownBotWorkflowPreview.test.tsx src/components/CrownBot/CrownBotGuidedNluCb02.test.tsx
 
   pure:
     name: Pure FSM (synthetic no-deps)
@@ -74,7 +80,7 @@ jobs:
           python-version: '3.12'
       - name: Compile changed code
         run: |
-          python -m compileall -q backend/services/bot/workflow_poc.py backend/services/bot/atomic_action_claim.py backend/services/bot/action_dispatcher.py backend/services/agenda_transaction_lock.py backend/routers/appointments.py backend/routers/frontdesk.py backend/routers/mobile_legacy.py backend/services/patient_companion_agenda.py backend/routers/bot_workflows.py backend/routers/bot_reconciliation.py backend/routers/bot.py backend/config.py
+          python -m compileall -q backend/services/bot/workflow_poc.py backend/services/bot/atomic_action_claim.py backend/services/bot/action_dispatcher.py backend/services/agenda_transaction_lock.py backend/routers/appointments.py backend/routers/frontdesk.py backend/routers/mobile_legacy.py backend/services/patient_companion_agenda.py backend/routers/bot_workflows.py backend/routers/bot_guided_nlu_cb02.py backend/services/bot/guided_nlu_cb02.py backend/routers/bot_reconciliation.py backend/routers/bot.py backend/config.py
       - name: Run pure FSM tests
         run: python -m unittest discover -s backend/tests -p 'test_crown_bot_zero_llm_poc.py' -v
 
@@ -172,6 +178,7 @@ jobs:
         run: |
           python -m pytest -q \
             backend/tests/test_bot_workflow_api_safe.py \
+            backend/tests/test_bot_guided_nlu_cb02_api.py \
             backend/tests/test_bot_action_strict.py \
             backend/tests/test_bot_router.py \
             backend/tests/test_crown_bot_clinical_gate.py \

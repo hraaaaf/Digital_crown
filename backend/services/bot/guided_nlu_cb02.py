@@ -98,8 +98,11 @@ def _patient(text: str) -> tuple[str | None, str | None]:
         if len(words) == 2 and words[1] in STOP_NAME:
             words.pop()
         names.append(" ".join(words))
-    ids = IDENTIFIER.findall(text)
-    identities = set(("name", n) for n in names) | set(("dossier", v) for v in ids)
+    identifiers = [
+        ("id" if m.group().startswith("patient") else "dossier", m.group(1))
+        for m in IDENTIFIER.finditer(text)
+    ]
+    identities = set(("name", n) for n in names) | set(identifiers)
     if len(identities) > 1:
         return None, "Identités patient contradictoires ou multiples."
     if not identities:
