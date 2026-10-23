@@ -18,6 +18,7 @@ fs.mkdirSync(root,{recursive:true});
 const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 let browser;
 let page;
+const otherContexts=[];
 const evidence={sourceHead:sha,tests:[],screens:[],denials:[]};
 function pass(name,okay,details={}) {
   evidence.tests.push({name,pass:Boolean(okay),...details});
@@ -158,12 +159,38 @@ try {
   await capture(page,'mobile-single-media-regression-390.png');
   pass('no browser JavaScript page errors',errors.length===0,{errors:errors.slice(0,5)});
 
-  const deniedLogin=await api.post('/api/auth/login',{form:{username:'t2-restricted@cabinet.ma',password:secret}});
+  // RBAC proof cannot be inferred from HTTP 423 (missing workstation).
+  // Enroll the owner with the product endpoint, and give staff ONLY the opaque
+  // workstation cookie. Never share the owner bearer token with staff.
+  const enrolled=await api.post('/api/workstation/enroll',{
+    headers:head,data:{accountPassword:secret},
+  });
+  pass('authentic synthetic owner workstation enrollment',enrolled.status()===200,
+    {status:enrolled.status()});
+  const ownerState=await api.storageState();
+  const workstationCookies=ownerState.cookies.filter(c=>c.name==='dc_workstation');
+  pass('workstation identity cookie available',workstationCookies.length===1);
+  const restrictedContext=await request.newContext({
+    baseURL:'http://127.0.0.1:8005',
+    storageState:{cookies:workstationCookies,origins:[]},
+  });
+  otherContexts.push(restrictedContext);
+  const deniedLogin=await restrictedContext.post('/api/auth/login',{
+    form:{username:'t2-restricted@cabinet.ma',password:secret},
+  });
   pass('restricted actor login',deniedLogin.ok(),{status:deniedLogin.status()});
   const deniedAuth=await deniedLogin.json();
-  const forbidden=await api.get('/api/patients/'+patient.id,{headers:{Authorization:'Bearer '+deniedAuth.access_token}});
-  pass('restricted actor cannot read patient',!forbidden.ok(),{status:forbidden.status()});
-  evidence.denials.push({actor:'synthetic-restricted',resource:'patient-by-id',status:forbidden.status()});
+  const restrictedHead={Authorization:'Bearer '+deniedAuth.access_token};
+  const restrictedBootstrap=await restrictedContext.get('/api/workstation/bootstrap',{
+    headers:restrictedHead,
+  });
+  pass('restricted actor has a valid synthetic workstation',
+    restrictedBootstrap.status()===200,{status:restrictedBootstrap.status()});
+  const forbidden=await restrictedContext.get('/api/patients/'+patient.id,{headers:restrictedHead});
+  pass('patient read is denied by RBAC rather than workstation',
+    forbidden.status()===403,{status:forbidden.status()});
+  evidence.denials.push({actor:'synthetic-restricted',resource:'patient-by-id',
+    status:forbidden.status(),workstationValidated:true});
   console.log('LOT07 07.1 FUE-I REAL T2 PASS '+evidence.tests.length+' authentic assertions on '+sha);
 } catch (error) {
   evidence.failure=String(error).slice(0,700);
@@ -175,5 +202,6 @@ try {
   // Persist evidence even when an assertion fails; never turn a failure into PASS.
   fs.writeFileSync(path.join(root,'manifest.json'),JSON.stringify(evidence,null,2));
   await browser?.close();
+  for (const context of otherContexts) await context.dispose();
   await api.dispose();
 }
