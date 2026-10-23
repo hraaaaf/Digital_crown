@@ -70,6 +70,9 @@ def kind(boxes: list[tuple], mids: tuple[float, float]) -> str:
 
 
 def analyze(by_class: dict[int,list[tuple]]) -> list[dict]:
+    # Skip arch inference entirely on files with no duplicate label groups.
+    if not any(cid < 32 and len(boxes) > 1 for cid, boxes in by_class.items()):
+        return []
     mids = medians(by_class)
     duplicated = []
     for cid, boxes in by_class.items():
@@ -173,8 +176,10 @@ def main():
     try:
         report=triage(args.labels_dir)
     except (PretriageError,J10W.TriageError,J10W.J10Q.LabelAuditError,
-            OSError,UnicodeError,ValueError):
-        print(json.dumps({"schema":SCHEMA,"status":"FAIL_CLOSED"}))
+            OSError,UnicodeError,ValueError) as exc:
+        # Only static, non-identifier error codes from this module may be logged.
+        code = str(exc) if isinstance(exc,PretriageError) else "validation_or_io_failure"
+        print(json.dumps({"schema":SCHEMA,"status":"FAIL_CLOSED","reason_code":code}))
         return 1
     print("J11D_AGGREGATE_ONLY="+json.dumps(report,sort_keys=True))
     return 0
