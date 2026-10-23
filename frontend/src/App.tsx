@@ -87,6 +87,7 @@ const ContextualToaster = () => {
 
   return (
     <Toaster
+      containerClassName="dc-global-toast-position"
       position={patientDetailCompact ? 'bottom-center' : patientCompact ? 'top-center' : 'bottom-right'}
       containerStyle={patientDetailCompact
         ? { top: 'auto', bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', left: 12, right: 12 }
