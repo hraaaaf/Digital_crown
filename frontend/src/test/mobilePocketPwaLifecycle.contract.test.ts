@@ -25,7 +25,9 @@ describe('Pocket is a persistent standalone app, not a pairing deep-link', () =>
     const app = source('src/App.tsx');
     expect(main).not.toContain('return <BrowserRouter><OnboardingScanner /></BrowserRouter>');
     expect(main).toContain("const { default: App } = await import('./App.tsx')");
-    expect(app).toContain('<BrowserRouter>');
+    expect(app).toContain('const cabinetDataRouter = createBrowserRouter([');
+    expect(app).toContain('<RouterProvider router={cabinetDataRouter} />');
+    expect(app).toContain('<PatientDraftRouteGuard>');
     expect(app).toContain('path="/mobile/onboarding"');
     expect(app).toContain('path="/mobile/dashboard"');
     expect(app).toContain('<MobileProtectedRoute>');

@@ -3,9 +3,13 @@ on:
   push:
     branches:
       - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-*'
+      - 'feat/v15-07-r2-patient-route-guard-*'
     paths:
       - 'frontend/src/features/multiview/**'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/PatientDraftRouteGuard.tsx'
+      - 'frontend/src/features/patients/patientDraftNavigationGate.ts'
+      - 'frontend/src/App.tsx'
       - '.github/workflows/v15-07-1ab-multiview-cabinet-lab.yml'
       - 'docs/architecture/V15_07_1_AB_CABINET_G1_INTEGRATION.md'
   pull_request:
@@ -13,6 +17,7 @@ on:
       - master
       - 'feat/v15-07-1ab-multiview-nine-layout-contract-*'
       - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-*'
+      - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-r2-security-*'
 
 permissions:
   contents: read
@@ -49,7 +54,7 @@ jobs:
         run: npm ci --prefix frontend --no-audit --no-fund
       - name: Execute foundation plus integrated desktop, workstation and patient denial tests
         working-directory: frontend
-        run: npx vitest run src/features/multiview/studioLayouts.test.tsx src/features/multiview/CabinetMultiViewLab.test.tsx src/features/patients/components/PatientMediaTimeline.multiviewReadonly.test.tsx src/features/patients/patientDraftNavigationGate.test.tsx
+        run: npx vitest run src/features/multiview/studioLayouts.test.tsx src/features/multiview/CabinetMultiViewLab.test.tsx src/features/patients/components/PatientMediaTimeline.multiviewReadonly.test.tsx src/features/patients/patientDraftNavigationGate.test.tsx src/features/patients/PatientDraftRouteGuard.test.tsx src/features/patients/PatientDraftRealEditor.test.tsx
       - name: TypeScript full frontend sources
         working-directory: frontend
         run: npx tsc --noEmit -p tsconfig.app.json

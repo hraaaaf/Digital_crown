@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import axios from 'axios';
@@ -21,6 +21,7 @@ import { DownloadPage } from './pages/DownloadPage';
 import { ActivateTrialPage } from './pages/ActivateTrialPage';
 import { authService } from './services/auth';
 import { CabinetAuthTransitionBoundary } from './components/Auth/CabinetAuthTransitionBoundary';
+import { PatientDraftRouteGuard } from './features/patients/PatientDraftRouteGuard';
 import { workstationModeService } from './services/workstationMode';
 
 // Chargés à la demande
@@ -266,9 +267,15 @@ const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const ProtectedRoutes = () => {
   const user = useAuthStore((state) => state.user);
+  // A principal/tenant/permission transition must not reuse any mounted
+  // dossier, editor, image viewer or async media subtree across identities.
+  // Viewport changes leave this key stable and preserve ordinary drafts.
+  const clinicalScope = user
+    ? JSON.stringify([user.id, user.employer_id, user.role, user.permissions])
+    : 'anonymous';
 
   return (
-    <MainLayout>
+    <MainLayout key={clinicalScope}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -395,7 +402,15 @@ function App() {
   }, []);
 
   return (
-    <BrowserRouter>
+    <RouterProvider router={cabinetDataRouter} />
+  );
+}
+
+// Keep the existing route table intact inside a single data-router root.
+// The draft exit guard must mount ABOVE nested Routes and MainLayout animations.
+function CabinetRouteTree() {
+  return (
+    <PatientDraftRouteGuard>
       <OfflineQueueViewer />
       <ContextualToaster />
       <Routes>
@@ -452,8 +467,12 @@ function App() {
           </CabinetAuthTransitionBoundary>
         } />
       </Routes>
-    </BrowserRouter>
+    </PatientDraftRouteGuard>
   );
 }
+
+const cabinetDataRouter = createBrowserRouter([
+  { path: '*', element: <CabinetRouteTree /> },
+]);
 
 export default App;
