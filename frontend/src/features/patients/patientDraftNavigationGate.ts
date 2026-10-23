@@ -1,4 +1,5 @@
 import { useBlocker } from 'react-router-dom';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { hasUnsavedPatientDocumentDraft, resetPatientDocumentBoundary } from './patientDocumentBoundary';
 
 /**
@@ -22,19 +23,23 @@ export function shouldBlockPatientDraftExit(
 /**
  * Requires a React Router DATA router; do not mount under current BrowserRouter.
  *
- * Deliberately dormant while the global routing migration is tested. The
+ * Mounted only by the isolated R2 Data Router candidate. The
  * blocker must be installed ABOVE any keyed/animated patient subtree so that
  * a cancelled A->B navigation preserves its real editor, focused input, draft
  * and media tree. Mounting it only after the route has switched is TOO LATE.
  */
 export function usePatientDraftExitBlocker() {
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    shouldBlockPatientDraftExit(
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    // Session invalidation and logout must not be stopped by a stale dirty bit.
+    // The root navigation guard separately clears document state on revocation.
+    const auth = useAuthStore.getState();
+    if (!auth.isAuthenticated || !auth.user) return false;
+    return shouldBlockPatientDraftExit(
       currentLocation.pathname,
       nextLocation.pathname,
       hasUnsavedPatientDocumentDraft(),
-    ),
-  );
+    );
+  });
 
   const discardAndProceed = () => {
     if (blocker.state !== 'blocked') return;
