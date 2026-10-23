@@ -1492,9 +1492,18 @@ def generate_cephalo_pdf(
 
     if req.archive:
         from backend.services.cephalo_document_lock import render_payload_digest
+        from backend.services.ortho_bilan_practitioner_notes import (
+            resolve_approved_practitioner_sections,
+        )
+        approved_practitioner_notes = resolve_approved_practitioner_sections(
+            db, patient_id=patient_id, analysis_id=selected.id,
+            expected_revision=revision, study_data=selected.angles_data or {},
+            employer_id=current_user.get_employer_id(),
+        )
         payload_digest = render_payload_digest(
             clinical_data=results.get("clinical_data", {}),
             ai_diagnostic=results.get("ai_diagnostic", {}),
+            practitioner_note_approval=approved_practitioner_notes,
         )
         # Same study/revision and IDENTICAL report input must replay the original.
         # A changed clinician payload with unchanged revision fails closed.
