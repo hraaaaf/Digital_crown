@@ -480,10 +480,25 @@ class BaseTemplate:
         selected_template = self._get_val(config, 'selected_template', 'swiss')
         
         fr_lines = self._get_val(config, 'header_lines_fr')
-        if not fr_lines: fr_lines = ["Dr. Nom Prénom", "Chirurgien Dentiste"]
-        
+        if not fr_lines:
+            # Keep placeholders only for genuine unconfigured layout previews.
+            explicitly_set_fr = (isinstance(config, dict) and 'header_lines_fr' in config) or (
+                config is not None and not isinstance(config, dict) and hasattr(config, 'header_lines_fr')
+            )
+            name_fr = self._get_val(config, 'nom_praticien', None)
+            fr_lines = ([str(name_fr)] if name_fr else []) if explicitly_set_fr else ["Dr. Nom Prénom", "Chirurgien Dentiste"]
+
         ar_lines = self._get_val(config, 'header_lines_ar')
-        if not ar_lines: ar_lines = ["د. الإسم الكامل", "طبيب جراح للأسنان"]
+        if not ar_lines:
+            # An expressly empty AR header means that no Arabic identity was
+            # supplied. Printing "د. الإسم الكامل" on a real report would
+            # impersonate an unnamed practitioner. Both the prescription and
+            # cephalometric report follow this same canonical policy.
+            explicitly_set_ar = (isinstance(config, dict) and 'header_lines_ar' in config) or (
+                config is not None and not isinstance(config, dict) and hasattr(config, 'header_lines_ar')
+            )
+            name_ar = self._get_val(config, 'nom_praticien_ar', None)
+            ar_lines = ([str(name_ar)] if name_ar else []) if explicitly_set_ar else ["د. الإسم الكامل", "طبيب جراح للأسنان"]
 
         # Échelle globale de l'en-tête
         h_scale = self._get_val(config, 'header_scale', 1.0)
