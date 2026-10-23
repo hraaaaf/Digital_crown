@@ -44,6 +44,10 @@ jobs:
         run: python experiments/test_lot05_j10v_akudental_fdi_holdout_eval.py -v
       - name: 6 synthetic FDI31/32 and duplicate-location root-cause tests
         run: python experiments/test_lot05_j10w_akudental_duplicate_fdi_root_cause.py -v
+      - name: 4 synthetic private visual-review source selection tests
+        run: python experiments/test_lot05_j10x_local_private_fdi_visual_reviewer.py -v
+      - name: 5 synthetic FDI32 resolution-ablation metric tests
+        run: python experiments/test_lot05_j10y_akudental_resolution_ablation.py -v
 
   roboflow-public-metadata:
     name: Public FDI32 publisher metadata on native runner
