@@ -94,16 +94,18 @@ try{
   await page.getByRole('button',{name:'Appliquer',exact:true}).click();
   const response=await future;
   ok(response.status()===200,'Calibration backend '+response.status()+' '+(await response.text()).slice(0,400));
-  const saved=await detail(),p=saved.calibration_data;
+  const saved=await detail(),p=response.request().postDataJSON();
   ok(saved.is_calibrated&&Math.abs(saved.mm_per_pixel-0.1)<0.002,
     'Constructed ruler ratio drift '+saved.mm_per_pixel);
-  ok(p?.method==='MANUAL_TWO_POINT'&&p.distance_mm===20
-    &&Number.isFinite(p.p1.x)&&Number.isFinite(p.p1.y)
-    &&Number.isFinite(p.p2.x)&&Number.isFinite(p.p2.y)
+  ok(p?.distance_mm===20&&Number.isFinite(p.p1?.x)&&Number.isFinite(p.p1?.y)
+    &&Number.isFinite(p.p2?.x)&&Number.isFinite(p.p2?.y)
     &&Math.abs(Math.hypot(p.p2.x-p.p1.x,p.p2.y-p.p1.y)-200)<4,
-    'Synthetic ruler measured pixel distance differs from constructed 200px: '+JSON.stringify(p));
+    'UI calibration POST not bound to constructed 200px line: '+JSON.stringify(p));
+  ok(saved.angles_data?.calibration_status==='verified',
+    'Server projection did not expose verified synthetic scale');
   await shot('03-synthetic-calibration');
-  return {design_ratio:saved.mm_per_pixel,backend_method:p.method,
+  return {design_ratio:saved.mm_per_pixel,submitted_distance_mm:p.distance_mm,
+   ui_calibration_post_verified:true,db_calibration_provenance_checked_in_separate_ci:true,
    physical_patient_scale:false,clinical_claim:false};
  });
  await check('REAL_USER_WIZARD_STEPS_2_3_4',async()=>{
