@@ -55,7 +55,8 @@ class TestAutotriage(unittest.TestCase):
                              capture_output=True,text=True)
             self.assertEqual(r.returncode,1)
             self.assertEqual(json.loads(r.stdout),
-                             {"schema":m.SCHEMA,"status":"FAIL_CLOSED"})
+                             {"schema":m.SCHEMA,"status":"FAIL_CLOSED",
+                              "reason_code":"source_partition_missing"})
             self.assertEqual(r.stderr,"")
 
 if __name__=="__main__":
