@@ -109,7 +109,7 @@ try{
    const initial=await lm.getAttribute('aria-pressed');
    ensure(initial==='true'||initial==='false','Landmark layer lacks truthful accessible pressed state');
    await lm.click();
-   ensure((await lm.getAttribute('aria-pressed'))!===initial,'Layer toggle did not change');
+   ensure((await lm.getAttribute('aria-pressed'))!==initial,'Layer toggle did not change');
    await lm.click();
    ensure((await lm.getAttribute('aria-pressed'))===initial,'Layer toggle failed restore');
    await shot('05-controls-and-layers');
