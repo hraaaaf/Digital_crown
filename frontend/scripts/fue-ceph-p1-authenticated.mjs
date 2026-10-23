@@ -156,12 +156,12 @@ try{
    return {real_drag:true,undo:true,redo:true,saved:true,reloaded:true,validated_clinically:false};
  });
  await check('DOCUMENT_STEPPER_SAFELY_BLOCKS_UNCALIBRATED_STUDY',async()=>{
-   const docs=page.getByRole('button',{name:'Documents & stratégie',exact:true});
+   const docs=page.locator('[data-tour="cephalo-stepper"] > button').nth(3);
    await docs.waitFor({state:'visible'});
    await docs.click();
    // The current UI intentionally refuses to advance without a physical scale.
    await page.getByText('Calibration manuelle',{exact:true}).waitFor({state:'visible',timeout:6000});
-   ensure(await page.getByRole('button',{name:'Céphalométrie',exact:true}).count()>0,
+   ensure(await page.locator('[data-tour="cephalo-stepper"] > button').count()>0,
      'Actual stepper missing');
    const still=await detail();
    ensure(still.is_calibrated===false&&still.mm_per_pixel==null,'Step navigation silently invented a scale');
