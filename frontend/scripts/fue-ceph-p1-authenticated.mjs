@@ -63,9 +63,12 @@ try{
    await badge.click();
    const assistant=page.locator('[data-cephalo-calibration-assistant]');
    await assistant.waitFor({state:'visible'});
-   ensure((await assistant.innerText()).includes('Aucune échelle physique vérifiée'),
-      'No physical scale not transparently disclosed');
-   await assistant.getByRole('button',{name:'Calibrer manuellement'}).click();
+   const scaleDisclosure=await assistant.innerText();
+   ensure(!/Échelle utilisable|Auto-calibration confirmée|Échelle active/i.test(scaleDisclosure),
+      'Assistant falsely announces verified physical scale on uncalibrated original');
+   ensure(/échelle|calibration|réglette/i.test(scaleDisclosure),
+      'No calibration provenance context exposed');
+   await assistant.getByRole('button',{name:/Calibrer manuellement|Modifier manuellement|Recalibrer manuellement/}).click();
    await page.getByText('Calibration manuelle',{exact:true}).waitFor({state:'visible'});
    await shot('02-calibration-unverified');
    // Never enter invented mm or claim physical calibration; reload is a user-safe cancel.
@@ -126,13 +129,27 @@ try{
    const redo=page.getByRole('button',{name:'Rétablir correction'});
    ensure(await undo.isDisabled(),'Unexpected preexisting edit history');
    const original=(await detail()).landmarks_data;
-   const pt=page.locator('g[data-ortho-layer="landmarks"] g[style*="pointer-events"]').first();
-   await pt.waitFor({state:'visible'});
-   const rect=await pt.boundingBox();ensure(rect&&rect.width>1,'Landmark drag geometry unavailable');
-   const x=rect.x+rect.width/2,y=rect.y+rect.height/2;
-   await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+16,y+9,{steps:8});await page.mouse.up();
+   const targets=page.locator('g[data-ortho-layer="landmarks"] circle[r="20"]');
+   let drag=null;
+   for(let i=0;i<Math.min(await targets.count(),38);i++){
+     const r=await targets.nth(i).boundingBox();
+     if(!r||r.width<2||r.height<2)continue;
+     const x=r.x+r.width/2,y=r.y+r.height/2;
+     if(y<145||x<70||x>1170||y>850)continue;
+     const hit=await page.evaluate(({x,y})=>{
+       const node=document.elementFromPoint(x,y);
+       return node?.tagName?.toLowerCase()==='circle' && node?.getAttribute('r')==='20';
+     },{x,y});
+     if(hit){drag={x,y,index:i};break}
+   }
+   ensure(drag,'No unobstructed real SVG landmark reticle hit target');
+   await page.mouse.move(drag.x,drag.y);
+   await page.mouse.down();
+   await page.mouse.move(drag.x+22,drag.y+15,{steps:12});
+   await page.mouse.up();
    await undo.waitFor({state:'visible'});
-   ensure(!(await undo.isDisabled()),'Real drag did not create an undo transaction');
+   await page.waitForTimeout(250);
+   ensure(!(await undo.isDisabled()),'Precise SVG drag did not create an undo transaction');
    await undo.click();ensure(!(await redo.isDisabled()),'Undo did not produce redo');
    await redo.click();ensure(!(await undo.isDisabled()),'Redo not restored');
    await page.getByRole('button',{name:'Sauvegarder l’analyse céphalométrique'}).click();
@@ -156,6 +173,15 @@ try{
    return {real_drag:true,undo:true,redo:true,saved:true,reloaded:true,validated_clinically:false};
  });
  await check('DOCUMENT_STEPPER_SAFELY_BLOCKS_UNCALIBRATED_STUDY',async()=>{
+   // A failed earlier exploratory control may leave a calibration overlay open.
+   // Re-enter through genuine UI, never force-click through an intervening dialog.
+   await page.reload({waitUntil:'domcontentloaded'});
+   await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible'});
+   if(!(await page.locator('[data-cephalo-selected-analysis-id="'+report.case_id+'"]').isVisible())){
+     await page.getByRole('button',{name:'Historique',exact:true}).click();
+     await page.locator('[data-cephalo-history-analysis-id="'+report.case_id+'"]').click();
+   }
+   await page.locator('[data-cephalo-selected-analysis-id="'+report.case_id+'"]').waitFor({state:'visible'});
    const docs=page.locator('[data-tour="cephalo-stepper"] > button').nth(3);
    await docs.waitFor({state:'visible'});
    await docs.click();
