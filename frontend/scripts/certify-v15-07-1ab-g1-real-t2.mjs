@@ -75,6 +75,15 @@ try {
       '/timepoints/'+tpId+'/evidences',{headers:head,data:{clinical_asset_id:byTimepoint[timepoint]}});
     pass('real synthetic evidence linked '+timepoint,link.status()===201,{status:link.status()});
   }
+  // Distinct patient B in the SAME disposable cabinet for real SPA A→B→A.
+  const otherPatientResponse=await api.post('/api/patients/',{
+    headers:head,data:{numero_dossier:'T2-0002',nom:'ISOLATION',prenom:'BETA',
+      date_naissance:'1992-05-04',sexe:'F'},
+  });
+  pass('second synthetic patient B created',otherPatientResponse.ok(),
+    {status:otherPatientResponse.status()});
+  const patientB=await otherPatientResponse.json();
+  pass('patient B has distinct identity',Boolean(patientB.id && patientB.id!==patient.id));
   browser=await chromium.launch({headless:true});
   const context=await browser.newContext({viewport:{width:1920,height:1080},locale:'fr-FR'});
   await context.addInitScript(({access,refresh})=>{
@@ -157,6 +166,34 @@ try {
   pass('mobile no MultiView workspace slots',await page.locator('[data-v15-071-viewslot]').count()===0);
   pass('mobile keeps original authenticated media',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
   await capture(page,'mobile-single-media-regression-390.png');
+  // React Router navigation in the same Chromium tab, not a full page reload.
+  await page.setViewportSize({width:1920,height:1080});
+  const goPatient=async(id)=>{
+    await page.evaluate(url=>{
+      window.history.pushState({},'',url);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    },'/patients/'+id+'?tab=radiology&radioTab=media');
+  };
+  await goPatient(patientB.id);
+  await page.locator('[data-testid="multiview-real-dossier"]')
+    .getByText(patientB.numero_dossier,{exact:true})
+    .waitFor({state:'visible',timeout:30000});
+  pass('patient A detail not retained on B route',
+    await page.getByText(patient.numero_dossier,{exact:true}).count()===0);
+  await page.getByText('Aucun média longitudinal',{exact:true})
+    .waitFor({state:'visible',timeout:30000});
+  pass('patient A media not retained on B route',
+    await page.getByText('Aucun média longitudinal',{exact:true}).count()===1);
+  await capture(page,'after-client-route-patient-B-1920.png');
+  await goPatient(patient.id);
+  await page.locator('[data-testid="multiview-real-dossier"]')
+    .getByText(patient.numero_dossier,{exact:true})
+    .waitFor({state:'visible',timeout:30000});
+  await page.locator('[data-testid="patient-media-timeline"]')
+    .getByText('T0',{exact:true}).first().waitFor({state:'visible',timeout:30000});
+  pass('A→B→A restores only patient A verified dossier',
+    await page.getByText(patientB.numero_dossier,{exact:true}).count()===0);
+  await capture(page,'after-client-route-patient-A-return-1920.png');
   pass('no browser JavaScript page errors',errors.length===0,{errors:errors.slice(0,5)});
 
   // RBAC proof cannot be inferred from HTTP 423 (missing workstation).
@@ -191,6 +228,36 @@ try {
     forbidden.status()===403,{status:forbidden.status()});
   evidence.denials.push({actor:'synthetic-restricted',resource:'patient-by-id',
     status:forbidden.status(),workstationValidated:true});
+
+  // Distinct synthetic DENTISTE owner in a second tenant, enrolled normally.
+  // A denied foreign patient and its media must not be misreported as RBAC-only.
+  const foreignContext=await request.newContext({baseURL:'http://127.0.0.1:8005'});
+  otherContexts.push(foreignContext);
+  const foreignLogin=await foreignContext.post('/api/auth/login',{
+    form:{username:'t2-setup-1280@cabinet.ma',password:secret},
+  });
+  pass('independent synthetic tenant B login',foreignLogin.ok(),
+    {status:foreignLogin.status()});
+  const foreignAuth=await foreignLogin.json();
+  const foreignHead={Authorization:'Bearer '+foreignAuth.access_token};
+  const foreignEnrollment=await foreignContext.post('/api/workstation/enroll',{
+    headers:foreignHead,data:{accountPassword:secret},
+  });
+  pass('independent tenant B workstation enrolled',
+    foreignEnrollment.status()===200,{status:foreignEnrollment.status()});
+  const foreignPatient=await foreignContext.get('/api/patients/'+patient.id,{
+    headers:foreignHead,
+  });
+  pass('different tenant cannot read patient A (not workstation 423)',
+    foreignPatient.status()===403,{status:foreignPatient.status()});
+  const foreignMedia=await foreignContext.get('/api/patients/'+patient.id+'/assets',{
+    headers:foreignHead,
+  });
+  pass('different tenant cannot list patient A media',
+    foreignMedia.status()===403,{status:foreignMedia.status()});
+  evidence.denials.push({actor:'synthetic-foreign-tenant',resource:'patient-and-media',
+    patientStatus:foreignPatient.status(),mediaStatus:foreignMedia.status(),
+    workstationValidated:true});
   console.log('LOT07 07.1 FUE-I REAL T2 PASS '+evidence.tests.length+' authentic assertions on '+sha);
 } catch (error) {
   evidence.failure=String(error).slice(0,700);
