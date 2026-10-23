@@ -12,7 +12,8 @@ import { enrollT2Workstation } from './t2-workstation-session.mjs';
 
 if (process.env.ENVIRONMENT !== 'test' ||
     process.env.DIGITALCROWN_ISOLATED_RUNTIME !== '1' ||
-    process.env.DATABASE_URL !== 'sqlite:///./ordonnance-fidelity-v3.db') {
+    process.env.DATABASE_URL !== 'sqlite:///./ordonnance-fidelity-v3.db' ||
+    !/^[0-9a-f]{40}$/.test(process.env.PRODUCT_HEAD || '')) {
   throw new Error('REFUSED: current Ordonnance safety visual only on disposable T2 database');
 }
 const password = process.env.T2_PASSWORD;
@@ -182,7 +183,7 @@ try {
 }
 
 const report = {
-  head: process.env.GITHUB_SHA || null,
+  head: process.env.PRODUCT_HEAD,
   contract: 'NEO_N4_3B_READ_ONLY_GENERIC_ALERT_AND_SEPARATE_C2',
   syntheticOnly: true, status: failures.length ? 'FAIL' : 'PASS',
   viewports: viewports.map(v => v.width + 'x' + v.height),
