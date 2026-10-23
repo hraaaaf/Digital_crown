@@ -97,9 +97,9 @@ def synthetic_approved_projection(n=95):
     projection = synthetic_projection(n)
     projection.update({
         "patient_id": 17,
-        "document_state": "COMPLETE",
-        "clinical_validation_available": True,
-        "blocking_gates": [],
+        "document_state": "INCOMPLETE",
+        "clinical_validation_available": False,
+        "blocking_gates": ["r14_authoritative_snapshot_not_persisted"],
         "practitioner_sections_authorized": True,  # synthetic test fixture; live authority only injected by document_factory
         "practitioner_approved_sections": {
             "contract_version": "ORTHO_PRACTITIONER_APPROVED_V1",
