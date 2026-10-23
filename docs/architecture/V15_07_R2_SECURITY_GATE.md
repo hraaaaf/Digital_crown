@@ -6,7 +6,7 @@
 
 Le pilote clinique G1 #1039 utilise `PatientMediaTimeline`, qui proposait la mutation `POST /patients/:id/assets/import` en plus de la consultation. Un slot théoriquement « R » ne peut pas laisser un bouton Importer actif. Dans cette branche :
 - `PatientMediaTimeline.readOnly` masque l'interface d'import, supprime l'input file et refuse les événements de fichier reçus malgré tout. `readOnly` vaut **false par défaut**, afin de ne pas modifier le Cabinet normal hors MultiView.
-- L'**adapter MultiView en colonne Imagerie** monte la vraie `PatientMediaTimeline readOnly`. Les autres panneaux G1 restent consultatifs (dossier résumé ; suivi orthodontique comparatif existant sans écriture). Sur tablette/mobile et en repli monovue hors MultiView, le Cabinet normal conserve son comportement antérieur.
+- L'**adapter MultiView en colonne Imagerie** monte la vraie `PatientMediaTimeline readOnly`. Les autres panneaux G1 restent consultatifs (dossier résumé ; suivi orthodontique comparatif existant sans écriture). Le **repli monovue du laboratoire Desktop** reste lui aussi `readOnly`. En revanche, hors MultiView (dont mobile/tablette), le Cabinet normal conserve son comportement antérieur.
 - `studioLayouts.ts` formalise `R` (read), `W` (focused edit) et `X` (exclusive sensitive action). **R seul est accepté par le pilote** ; `W` et `X` sont refusés avant rendu et exclus des préférences sérialisées. Les rejets ne constituent **pas** une implémentation d'édition ni d'action exclusive.
 
 La restriction readOnly est une défense d'interface, **pas une autorisation de données**. Le serveur reste source de vérité pour chaque requête (session, tenant, patient, RBAC, protocole et opération).
