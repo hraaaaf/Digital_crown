@@ -224,11 +224,16 @@ try {
         await page.locator('[data-v15-071-viewslot]').count()===0 &&
         await page.locator('[data-testid="patient-media-timeline"]').count()===1);
     } else {
-      // Three clinical columns are denied fail-closed when their minimum widths
-      // are not met; never force unreadable or unauthorized panels into 1280px.
-      await page.locator('[data-testid="multiview-denied"]').waitFor({state:'visible',timeout:30000});
-      pass('three-column layout denied when 1280px cannot fit safe panel widths',
-        await page.locator('[data-v15-071-viewslot]').count()===0);
+      // Three clinical columns are denied fail-closed at 1280px, but the
+      // authenticated single-media legacy view remains available and legible.
+      await page.locator('[data-testid="multiview-responsive-single-media-fallback"]')
+        .waitFor({state:'visible',timeout:30000});
+      pass('1280px uses authenticated single media instead of blank three-column workspace',
+        await page.locator('[data-v15-071-viewslot]').count()===0 &&
+        await page.locator('[data-testid="patient-media-timeline"]').count()===1 &&
+        await page.locator('[data-testid="multiview-denied"]').count()===0);
+      pass('1280px fallback visibly explains safe compact layout',
+        await page.getByText('Disposition trop large pour cet écran',{exact:false}).count()===1);
     }
     await capture(page,'responsive-'+width+'.png');
   }
