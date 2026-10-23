@@ -24,6 +24,9 @@ jobs:
       SECRET_KEY: r2-t2-disposable-only-secret-key-000001
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      # SHA256 of canonical sqlite:/./t2-runtime-cert.db, as required by
+      # backend.core.runtime_safety; does not disable the known-cabinet check.
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
       TELEMETRY_ENABLED: "false"
       CLOUD_AI_ENABLED: "false"
       DEBUG: "false"
@@ -41,6 +44,17 @@ jobs:
           test "$ENVIRONMENT" = test
           test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
           test ! -f t2-runtime-cert.db
+          python - <<'PY'
+          import os
+          from backend.core.runtime_safety import (
+              database_target_fingerprint, is_explicitly_isolated, is_known_cabinet_database,
+          )
+          db_url = os.environ['DATABASE_URL']
+          assert database_target_fingerprint(db_url) == os.environ['DIGITALCROWN_ISOLATION_DB_FINGERPRINT']
+          assert not is_known_cabinet_database(db_url)
+          assert is_explicitly_isolated(db_url)
+          print('T2_R2_ISOLATED_DATABASE_ATTESTED')
+          PY
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
