@@ -1,0 +1,61 @@
+name: CEPH PDF Premium V2 — Authoritative Render Contract
+on:
+  pull_request:
+    paths:
+      - 'backend/templates/bilan_ortho_authoritative.html'
+      - 'tests/test_cephalo_premium_pdf_v2_contract.py'
+      - '.github/workflows/ceph-pdf-premium-v2.yml'
+      - 'docs/audits/CEPH_PDF_PREMIUM_V2_BENCHMARK_2026-10-23.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  semantic-pdf-template:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact review HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Verify immutable CI review scope
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test -z "$(git status --porcelain)"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install template renderer (no clinical app or patient data)
+        run: python -m pip install 'jinja2==3.1.6' 'weasyprint==68.1'
+      - name: Execute exact template source and status tests
+        run: |
+          python -m unittest discover -s tests -p test_cephalo_premium_pdf_v2_contract.py -v
+      - name: Print smoke — HTML PDF with synthetic fixture only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          from weasyprint import HTML
+          t=Path('tests/test_cephalo_premium_pdf_v2_contract.py')
+          spec=importlib.util.spec_from_file_location('premium_pdf_v2_test',t)
+          mod=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          html=mod.render_sample()
+          out=Path('artifacts/ceph-pdf-premium-v2')
+          out.mkdir(parents=True,exist_ok=True)
+          data=HTML(string=html,base_url=str(Path('backend/templates').resolve())).write_pdf()
+          assert data.startswith(b'%PDF') and len(data)>1500
+          (out/'synthetic-contract-preview.pdf').write_bytes(data)
+          print('PREMIUM_V2_RENDERED_SYNTHETIC_PDF__NO_CLINICAL_PROMOTION', len(data))
+          PY
+      - name: Upload synthetic-only PDF render (no patient media)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-pdf-premium-v2-synthetic-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-pdf-premium-v2/synthetic-contract-preview.pdf
+          if-no-files-found: error
+          retention-days: 21
