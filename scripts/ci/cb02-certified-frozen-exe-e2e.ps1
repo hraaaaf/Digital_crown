@@ -107,23 +107,6 @@ try {
   $fingerprint=(& $py -c "import os; from backend.core.runtime_safety import database_target_fingerprint; print(database_target_fingerprint(os.environ['DATABASE_URL']))").Trim()
   Need ($LASTEXITCODE -eq 0 -and $fingerprint -match '^[0-9a-f]{64}$') 'Invalid DB attestation'
   $env:DIGITALCROWN_ISOLATION_DB_FINGERPRINT=$fingerprint
-  Need (-not (Test-Path -LiteralPath $db)) 'DB unexpectedly preexisted'
-  & $py -m alembic -c alembic.ini upgrade head
-  Need ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $db -PathType Leaf)) 'Explicit disposable encrypted DB migration failed'
-  $bytes=[IO.File]::ReadAllBytes($db)
-  Need (-not ([Text.Encoding]::ASCII.GetString($bytes,0,[Math]::Min(16,$bytes.Length)).StartsWith('SQLite format 3'))) 'Database plaintext'
-  $check=@'
-from backend.database import engine
-from sqlalchemy import text
-c=engine.connect()
-assert c.execute(text("SELECT version_num FROM alembic_version")).scalar()=="neo000000032"
-assert c.execute(text("SELECT COUNT(*) FROM patients")).scalar()==0
-assert c.execute(text("SELECT COUNT(*) FROM users")).scalar()==0
-c.close()
-print("ZERO_REAL_OR_SYNTHETIC_PATIENT_ROWS=PASS")
-'@
-  & $py -c $check
-  Need ($LASTEXITCODE -eq 0) 'Prepared DB not empty/current'
   $profileBody=@(
     'ENVIRONMENT=rehearsal',
     ('SECRET_KEY='+$env:SECRET_KEY),
@@ -146,6 +129,25 @@ print("ZERO_REAL_OR_SYNTHETIC_PATIENT_ROWS=PASS")
     'DEBUG=false'
   )
   $profileBody | Set-Content -LiteralPath $profile -Encoding utf8
+  Need (Test-Path -LiteralPath $profile -PathType Leaf) 'Explicit .env must exist before migration'
+  Need (-not (Test-Path -LiteralPath $db)) 'DB unexpectedly preexisted'
+  & $py -m alembic -c alembic.ini upgrade head
+  Need ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $db -PathType Leaf)) 'Explicit disposable encrypted DB migration failed'
+  $bytes=[IO.File]::ReadAllBytes($db)
+  Need (-not ([Text.Encoding]::ASCII.GetString($bytes,0,[Math]::Min(16,$bytes.Length)).StartsWith('SQLite format 3'))) 'Database plaintext'
+  $check=@'
+from backend.database import engine
+from sqlalchemy import text
+c=engine.connect()
+assert c.execute(text("SELECT version_num FROM alembic_version")).scalar()=="neo000000032"
+assert c.execute(text("SELECT COUNT(*) FROM patients")).scalar()==0
+assert c.execute(text("SELECT COUNT(*) FROM users")).scalar()==0
+c.close()
+print("ZERO_REAL_OR_SYNTHETIC_PATIENT_ROWS=PASS")
+'@
+  & $py -c $check
+  Need ($LASTEXITCODE -eq 0) 'Prepared DB not empty/current'
+
   Proof 'DISPOSABLE_EMPTY_SQLCIPHER_ALEMBIC_HEAD=PASS; PATIENT_ROWS=0; USER_ROWS=0'
   Need ($null -eq (Probe)) 'Health port preoccupied before launch'
   $app=Start-Process -FilePath $exe -WorkingDirectory $install -PassThru -WindowStyle Hidden
