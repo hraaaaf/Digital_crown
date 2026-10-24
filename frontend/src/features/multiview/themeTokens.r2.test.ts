@@ -54,7 +54,10 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(css).toContain('--color-text-muted: color-mix(');
     expect(css).toContain('.dc-radiology-tab-scroll-hint');
     expect(patient).toContain('aria-describedby={isRadiology');
-    expect(patient).toContain('Faites glisser pour afficher les autres onglets');
+    expect(patient).toContain('Afficher les autres onglets');
+    expect(patient).toContain('hasOverflowingPatientTabs');
+    expect(patient).toContain('ResizeObserver');
+    expect(patient).toContain('rail.scrollTo(');
     expect(multiview).toContain('multiview-responsive-single-media-fallback');
     expect(multiview).toContain('Disposition trop large pour cet écran');
     expect(multiview).toContain('bg-info-surface');
@@ -75,8 +78,11 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(css).toContain('--color-text-muted: var(--text-muted)');
     expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
     expect(css).toContain('object-fit: contain');
+    expect(css).toContain('.dc-radiology-tabs-next');
+    expect(css).toContain('.dc-c5-expand-button');
     expect(media).toContain('dc-c5-compare-grid');
     expect(media).toContain('dc-c5-compare-asset');
+    expect(media).toContain('dc-c5-expand-label');
     expect(lab).toContain('multiview-layout-safe-info');
     expect(lab).toContain('Mode compact sécurisé');
     expect(lab).toContain('multiview-responsive-single-media-fallback');
