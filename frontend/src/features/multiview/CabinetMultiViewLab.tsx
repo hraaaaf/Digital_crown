@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowLeftRight, CheckCircle2, Eye, LayoutGrid, LockKeyhole } from 'lucide-react';
+import { Activity, ArrowLeftRight, CheckCircle2, Eye, FileText, Images, LayoutGrid, LockKeyhole } from 'lucide-react';
 import type { AppUser } from '../../types';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { hasAccess } from '../../utils/accessControl';
@@ -262,12 +262,24 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
         </div>
         {preview && (
           <div aria-label="Aperçu schématique sans données patient" data-testid="multiview-schematic-preview"
-            className="rounded-lg border border-dashed border-border-main p-2">
-            <p className="text-xs mb-2">Aperçu de la disposition — sans chargement clinique</p>
-            <div data-testid="multiview-preview-geometry" style={{...geometryGridStyle(draft.geometry),height:124}}>
+            className="rounded-xl border border-dashed border-border-hover bg-card p-3">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-text-main">Prévisualisation des panneaux</p>
+              <span className="rounded-full border border-border-main bg-medical-pearl px-2 py-1 text-[11px] font-medium text-text-muted">
+                Schéma · aucune donnée patient
+              </span>
+            </div>
+            <div data-testid="multiview-preview-geometry" style={{...geometryGridStyle(draft.geometry),height:146}}>
               {draft.slots.map((slot,index)=><div key={slot.id} style={geometrySlotStyle(draft.geometry,index)}
-                className="flex items-center justify-center min-w-0 rounded-xl border border-border-hover bg-gradient-to-br from-medical-pearl to-card text-xs font-bold capitalize text-text-main shadow-sm">
-                {slot.module}</div>)}
+                className="flex min-w-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-border-main bg-medical-pearl px-2 text-center shadow-sm">
+                {slot.module === 'dossier' ? <FileText size={21} className="text-primary"/> :
+                  slot.module === 'imagerie' ? <Images size={21} className="text-primary"/> :
+                  <Activity size={21} className="text-primary"/>}
+                <span className="text-xs font-bold text-text-main">
+                  {slot.module === 'dossier' ? 'Dossier patient' : slot.module === 'imagerie' ? 'Médiathèque' : 'Suivi longitudinal'}
+                </span>
+                <span className="text-[11px] text-text-muted">Lecture seule</span>
+              </div>)}
             </div>
           </div>
         )}
