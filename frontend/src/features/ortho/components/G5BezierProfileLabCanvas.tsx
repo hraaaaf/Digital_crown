@@ -83,12 +83,19 @@ export const G5BezierProfileLabCanvas:React.FC<Props>=({
     history.current.push(nodes);
     commit(next);
   };
-  const path=segments(nodes).map((s,i)=>[
-    i===0?`M ${s.start[0]} ${s.start[1]}`:'',
-    `C ${s.control1[0]} ${s.control1[1]}`,
-    `${s.control2[0]} ${s.control2[1]}`,
-    `${s.end[0]} ${s.end[1]}`,
-  ].filter(Boolean).join(' ')).join(' ');
+  // Render the exact same deterministic V1 pixel samples that the API stores
+  // and that the two PDF views draw; cubic-only SVG would misrepresent output.
+  let renderedPoints:G5PixelPoint[]=[];
+  if(nodes.length>1){
+    try{
+      renderedPoints=g5SampleBezierContour(segments(nodes),{
+        imageWidth,imageHeight,maxStepPixels:5,
+      });
+    }catch{
+      // Keep the last valid stored contour until the editor accepts an update.
+    }
+  }
+  const renderedPolyline=renderedPoints.map(p=>p.join(',')).join(' ');
   const updateDrag=(p:G5PixelPoint)=>{
     const d=dragging.current;
     if(!d||!nodes[d.index])return;
@@ -159,11 +166,13 @@ export const G5BezierProfileLabCanvas:React.FC<Props>=({
         points={curve.points.map(p=>p.join(',')).join(' ')}
         fill="none" stroke={curve.color} strokeWidth="5"
         strokeLinecap="round" strokeLinejoin="round" pointerEvents="none"/>)}
-      {path&&<>
-        <path d={path} fill="none" stroke="#19222e" strokeWidth="10"
-          strokeLinejoin="round" strokeLinecap="round" pointerEvents="none"/>
-        <path d={path} fill="none" stroke="#ffac85" strokeWidth="5"
-          strokeLinejoin="round" strokeLinecap="round" pointerEvents="none"/>
+      {renderedPolyline&&<>
+        <polyline points={renderedPolyline} fill="none" stroke="#19222e"
+          strokeWidth="10" strokeLinejoin="round" strokeLinecap="round"
+          pointerEvents="none"/>
+        <polyline points={renderedPolyline} fill="none" stroke="#ffac85"
+          strokeWidth="5" strokeLinejoin="round" strokeLinecap="round"
+          pointerEvents="none"/>
       </>}
       {nodes.map((node,index)=><g key={index}>
         {(['incoming','outgoing'] as const).map(key=>{
