@@ -454,6 +454,8 @@ class OrthoAnatomicalTrace(Base):
     image_height: Mapped[int] = mapped_column(Integer, nullable=False)
     contour_digest: Mapped[str] = mapped_column(String(64), nullable=False)
     contours_json: Mapped[list] = mapped_column(JSON, nullable=False)
+    # G5 LAB V2 optional manual editable skin handles; V1 polylines stay canonical.
+    bezier_profile_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     draft_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     drafted_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
