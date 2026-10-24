@@ -250,3 +250,19 @@
   [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] {
   max-height: 245px;
 }
+
+// Reflow-only 1280px safety panel. The resolver still forbids unreadable
+// MultiView geometry; this makes the authenticated R-mode fallback legible.
+[data-v15-071-real-cabinet-lab] [data-testid="multiview-layout-safe-info"] {
+  box-shadow: var(--shadow-elite);
+  border-color: var(--border-color);
+  background: var(--card-bg);
+}
+[data-v15-071-real-cabinet-lab] [data-testid="multiview-layout-safe-info"] > div {
+  min-width: 0;
+}
+@media (max-width: 1400px) {
+  [data-v15-071-real-cabinet-lab] [data-testid="multiview-layout-safe-info"] {
+    gap: 10px;
+  }
+}
