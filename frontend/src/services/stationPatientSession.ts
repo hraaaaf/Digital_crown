@@ -38,8 +38,8 @@ export type StationTodayAppointments = {
 };
 
 export const stationPatientSessionService = {
-  async create(): Promise<StationPatientSessionCreated> {
-    const { data } = await api.post<StationPatientSessionCreated>('/workstation/patient-session');
+  async create(purpose: 'appointment' | 'documents' = 'appointment'): Promise<StationPatientSessionCreated> {
+    const { data } = await api.post<StationPatientSessionCreated>('/workstation/patient-session', { purpose });
     return data;
   },
 
