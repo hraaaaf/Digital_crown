@@ -31,7 +31,7 @@ type Phase =
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_STATUSES = [
-  { value: 'salle d attente', label: "En salle d'attente" },
+  { value: "salle d'attente", label: "En salle d'attente" },
   { value: 'fauteuil', label: 'En fauteuil' },
   { value: 'termine', label: 'Terminé' },
   { value: 'annule', label: 'Annulé' },
