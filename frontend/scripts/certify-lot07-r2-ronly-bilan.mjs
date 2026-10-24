@@ -209,6 +209,13 @@ try {
         colors.darkContrast.mediaTitle >= 4.5 &&
         colors.darkContrast.modeBadge >= 4.5, colors.darkContrast);
     }
+    if (chosenTheme === 'prestige') {
+      assert('Prestige clinical text and R badge reach real WCAG AA 4.5:1',
+        colors.darkContrast !== null &&
+        colors.darkContrast.intro >= 4.5 &&
+        colors.darkContrast.mediaTitle >= 4.5 &&
+        colors.darkContrast.modeBadge >= 4.5, colors.darkContrast);
+    }
     if (chosenTheme === 'high-contrast') {
       assert('high-contrast clinical labels and R-mode badge reach AAA 7:1 measured contrast',
         colors.darkContrast !== null &&
@@ -222,7 +229,7 @@ try {
           renderedBadgeInk: colors.renderedBadgeInk, expected: colors.expected.text });
     }
     themeColors[chosenTheme] = colors;
-    if (['emerald','dark','high-contrast'].includes(chosenTheme)) {
+    if (['emerald','prestige','dark','high-contrast'].includes(chosenTheme)) {
       await page.screenshot({
         path: path.join(root, 'theme-' + chosenTheme + '-clinical-1920.png'),
         fullPage: false,
