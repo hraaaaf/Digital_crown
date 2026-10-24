@@ -102,7 +102,7 @@ try {
     // no service-worker registration or Workbox fallback in this disposable tab.
     env:{...process.env,VITE_CB03_G3_VISUAL_LAB:'true',
       VITE_CROWN_BOT_CB03_G3_ENABLED:'true',
-      VITE_CB02_NATIVE_A11Y_LAB:'true'},
+      VITE_CB03_G4_NATIVE_A11Y_LAB:'true'},
     stdio:['ignore','pipe','pipe'],
   });
   server.stdout.on('data',d=>process.stdout.write('[G3-Vite] '+String(d)));
