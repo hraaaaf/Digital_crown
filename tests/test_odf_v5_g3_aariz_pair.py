@@ -65,7 +65,7 @@ class AarizMatchedSourceContract(unittest.TestCase):
             plate=build_verified_aariz_research_plate(evidence,film)
             self.assertIsNotNone(plate)
             self.assertIn("Aariz",plate["caption"])
-            self.assertTrue(b64decode(plate["image_b64"]).startswith(b"\\xff\\xd8"))
+            self.assertTrue(b64decode(plate["image_b64"]).startswith(bytes((255, 216))))
             film.write_bytes(b"forged-bytes")
             self.assertIsNone(build_verified_aariz_research_plate(evidence,film))
             Image.new("RGB",(1935,2400),(18,27,33)).save(film)
