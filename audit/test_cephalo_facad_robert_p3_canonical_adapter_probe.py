@@ -47,13 +47,14 @@ class CanonicalV2ProvisionalCrosswalkTests(unittest.TestCase):
         self.assertNotIn("InterIncisal", {m["facad_factor"] for m in methods})
 
     def test_reject_fabricated_anatomical_frankfort(self):
+        del self.fixture["points_mm"]["SN"]
         self.fixture["points_mm"]["Or"] = [1.0, 5.0]
         with self.assertRaisesRegex(ValueError, "review authentic Frankfort"):
             p3.assess(self.fixture)
 
     def test_reject_modified_coordinate_source_semantics(self):
         self.fixture["coordinate_system"] = "DC_VERIFIED"
-        with self.assertRaisesRegex(ValueError, "precision or orientation changed"):
+        with self.assertRaisesRegex(ValueError, "unverified frame"):
             p3.assess(self.fixture)
 
     def test_reject_modified_facad_data_asserting_clinical_authority(self):
