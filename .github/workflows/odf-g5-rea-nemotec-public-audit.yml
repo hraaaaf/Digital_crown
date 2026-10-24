@@ -1,0 +1,120 @@
+name: ODF G5 LAB - Ubuntu REA browser audit of public Nemotec demos (no license bypass)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/odf-g5-rea-nemotec-public-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rea-public-website-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      REA_CDP_ENDPOINT: http://127.0.0.1:9222
+      REA_NEMOTEC_PUBLIC_URL: https://nemouniversity.nemotec.com/en/demo/
+    steps:
+      - name: Checkout exact PR head (no merge, no deploy)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up supported Node.js 24 for REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Prepare isolated evidence folder and pin REA npm version
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rea-public-evidence
+          cat /etc/os-release > rea-public-evidence/host-os.txt
+          node --version | tee rea-public-evidence/node-version.txt
+          npm --version | tee rea-public-evidence/npm-version.txt
+          RESOLVED_REA_VERSION="$(npm view rea-agents version)"
+          echo "REA_VERSION=$RESOLVED_REA_VERSION" >> "$GITHUB_ENV"
+          echo "$RESOLVED_REA_VERSION" | tee rea-public-evidence/rea-version.txt
+          npm install --prefix /tmp/rea-public-lab --no-audit --no-fund --no-save "rea-agents@${RESOLVED_REA_VERSION}"
+          test -x /tmp/rea-public-lab/node_modules/.bin/rea
+          /tmp/rea-public-lab/node_modules/.bin/rea --help > rea-public-evidence/rea-help.txt
+          /tmp/rea-public-lab/node_modules/.bin/rea doctor --json > rea-public-evidence/rea-doctor.json || true
+
+      - name: Open public Nemotec demo with a dedicated local headless Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v google-chrome || command -v chromium
+          curl --fail --location --silent --show-error --max-time 40 \
+            -o /dev/null -w 'Nemotec public HTTP %{http_code}\n' "$REA_NEMOTEC_PUBLIC_URL"
+          google-chrome --headless=new --disable-gpu --no-sandbox \
+            --disable-dev-shm-usage --no-first-run --no-default-browser-check \
+            --remote-debugging-address=127.0.0.1 \
+            --remote-debugging-port=9222 \
+            --user-data-dir=/tmp/g5-rea-public-browser \
+            --window-size=1440,900 \
+            "$REA_NEMOTEC_PUBLIC_URL" \
+            >/tmp/g5-rea-chrome.log 2>&1 &
+          echo "$!" > /tmp/g5-rea-chrome.pid
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 1 "http://127.0.0.1:9222/json/list" > rea-public-evidence/chrome-targets-cdp.json; then
+              break
+            fi
+            sleep 1
+          done
+          test -s rea-public-evidence/chrome-targets-cdp.json
+          curl --fail --silent --show-error --max-time 5 \
+            "http://127.0.0.1:9222/json/version" > rea-public-evidence/chrome-version.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          targets=json.loads(Path("rea-public-evidence/chrome-targets-cdp.json").read_text())
+          match=[t for t in targets if t.get("type") == "page" and "nemouniversity.nemotec.com" in t.get("url", "")]
+          if not match:
+              raise SystemExit("NO_NEMOTEC_PUBLIC_PAGE_CDP")
+          Path("rea-public-evidence/chrome-target-id.txt").write_text(match[0]["id"])
+          print("CDP_PUBLIC_PAGE_READY", match[0]["url"])
+          PY
+
+      - name: REA observes the public NemoUniversity page without interaction or credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          REA=/tmp/rea-public-lab/node_modules/.bin/rea
+          "$REA" list-browser-targets "$REA_CDP_ENDPOINT" --json \
+            > rea-public-evidence/rea-list-browser-targets.json
+          TARGET_ID="$(cat rea-public-evidence/chrome-target-id.txt)"
+          "$REA" inspect-web-page "$REA_CDP_ENDPOINT" "$TARGET_ID" \
+            --observation-ms 1000 --include-accessibility-text --json \
+            > rea-public-evidence/rea-inspect-nemotec-public-demo.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("rea-public-evidence/rea-inspect-nemotec-public-demo.json")
+          d=json.loads(p.read_text())
+          assert isinstance(d, dict)
+          assert p.stat().st_size > 100
+          print("REA_BROWSER_INSPECTION_EVIDENCE_GENERATED", p.stat().st_size, "bytes", list(d)[:12])
+          PY
+
+      - name: Ensure browser shutdown and discard dedicated profile
+        if: always()
+        shell: bash
+        run: |
+          if test -f /tmp/g5-rea-chrome.pid; then
+            kill "$(cat /tmp/g5-rea-chrome.pid)" 2>/dev/null || true
+          fi
+          rm -rf /tmp/g5-rea-public-browser
+
+      - name: Upload only public website evidence; never patients or proprietary software
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g5-rea-nemotec-public-audit-${{ github.run_id }}
+          path: rea-public-evidence/
+          retention-days: 7
+          if-no-files-found: warn
