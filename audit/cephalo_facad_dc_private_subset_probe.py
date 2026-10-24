@@ -32,7 +32,7 @@ def _load_production_geometry(filename: str):
     return module
 
 rg = _load_production_geometry('cephalo_ricketts_geometry.py')
-sg = _load_production_geometry('cephalo_steiner_geometry.py')
+ca = _load_production_geometry('cephalo_craniom_angular.py')
 FACTOR_32 = {'InterIncisal','Convexity','Ii to A-Pog','Is to A-Pog','ILi/A-Pog','ILs/A-Pog','Li-EL','Upper lip len','Facial cone angle'}
 FACTOR_13 = {'InterIncisal','Convexity','Ii to A-Pog','ILi/A-Pog','Li-EL'}
 BLOCKED = {
@@ -91,7 +91,7 @@ def raw_helpers(points):
     values = {
         'ILi/A-Pog': rg.ricketts_l1_apog_inclination_deg_v1(p['Ii'],p['Iia'],p['A'],p['Pog']),
         'ILs/A-Pog': rg.ricketts_u1_apog_inclination_deg_v1(p['Is'],p['Isa'],p['A'],p['Pog']),
-        'InterIncisal': sg._ray_angle_deg(p['Is'],p['Isa'],p['Ii'],p['Iia']),
+        'InterIncisal': ca.craniom_interincisal_deg_v1(p['Isa'],p['Is'],p['Iia'],p['Ii']),
         'Facial cone angle': rg.ricketts_line_angle_acute_deg_v1(vec('Go','Me'),vec('N','Pog')),
     }
     require(all(v is not None and math.isfinite(v) for v in values.values()),
