@@ -141,10 +141,35 @@ export const PatientDetails = () => {
   const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotifSummary[]>([]);
   const lastEditingDoc = useRef(null);
   const flowContentRef = useRef<HTMLElement>(null);
+  const tabRailRef = useRef<HTMLDivElement>(null);
+  const [hasOverflowingPatientTabs, setHasOverflowingPatientTabs] = useState(false);
   // Invalidate responses from previous patient routes and retried requests.
   const patientLoadEpochRef = useRef(0);
   const flowHandoff = useFlowHandoff();
   const initialFlowSurface = useRef(true);
+
+  // Real overflow detection: never render an inert "more tabs" button for
+  // restricted user roles whose three permitted tabs already fit on mobile.
+  useEffect(() => {
+    if (activeTab !== 'radiology' || loading || fetchError) {
+      setHasOverflowingPatientTabs(false);
+      return;
+    }
+    const rail = tabRailRef.current;
+    if (!rail) return;
+    const refresh = () => setHasOverflowingPatientTabs(rail.scrollWidth > rail.clientWidth + 8);
+    refresh();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(refresh) : null;
+    if (observer) {
+      observer.observe(rail);
+      Array.from(rail.children).forEach(child => observer.observe(child));
+    }
+    window.addEventListener('resize', refresh);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', refresh);
+    };
+  }, [activeTab, loading, fetchError, canClinical, canFinance, ownerOrAdmin]);
 
   useEffect(() => {
     if (requestedRadioTab !== radioTab && activeTab === 'radiology') {
@@ -366,8 +391,8 @@ export const PatientDetails = () => {
             </div>
           </div>
 
-          <div id="dc-radiology-patient-tabs" data-tour="patient-tabs"
-            aria-describedby={isRadiology ? 'dc-radiology-tab-scroll-hint' : undefined}
+          <div id="dc-radiology-patient-tabs" ref={tabRailRef} data-tour="patient-tabs"
+            aria-describedby={isRadiology && hasOverflowingPatientTabs ? 'dc-radiology-tab-scroll-hint' : undefined}
             style={isRadiology ? {
               display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
               minWidth: 0, maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden',
@@ -381,7 +406,25 @@ export const PatientDetails = () => {
             {ownerOrAdmin && <TabButton compact={isRadiology} active={activeTab === 'companion'} onClick={() => handleTabChange('companion')} icon={<Smartphone size={17} />} label="Companion" mobileLabel="Companion" />}
             {canFinance && <TabButton compact={isRadiology} active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" mobileLabel="Finance" />}
           </div>
-          {isRadiology && <p id="dc-radiology-tab-scroll-hint" className="dc-radiology-tab-scroll-hint md:hidden">↔ Faites glisser pour afficher les autres onglets</p>}
+          {isRadiology && hasOverflowingPatientTabs && (
+            <div id="dc-radiology-tab-scroll-hint" className="dc-radiology-tab-scroll-hint md:hidden">
+              <span>↔ Glissez pour parcourir</span>
+              <button type="button" className="dc-radiology-tabs-next"
+                aria-label="Afficher les autres onglets"
+                onClick={() => {
+                  const rail = tabRailRef.current;
+                  if (!rail) return;
+                  const maxScroll = Math.max(0, rail.scrollWidth - rail.clientWidth);
+                  if (maxScroll < 8) return;
+                  rail.scrollTo({
+                    left: rail.scrollLeft >= maxScroll - 8 ? 0 : Math.min(maxScroll, rail.scrollLeft + Math.max(180, rail.clientWidth * 0.65)),
+                    behavior: 'auto',
+                  });
+                }}>
+                Autres onglets <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
