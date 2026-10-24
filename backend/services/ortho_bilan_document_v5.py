@@ -111,6 +111,10 @@ def _ceph_rows(projection: Mapping[str, Any]) -> tuple[list[dict], list[dict]]:
     """
     if projection.get("active_runtime_chain_verified") is not True:
         return [], []
+    if projection.get("lab_image_landmark_alignment") == "UNVERIFIED":
+        # T2 points were computed for a different synthetic image and may
+        # never be presented as values from the real public lab radiograph.
+        return [], []
     from math import isfinite, isclose
     from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
 
