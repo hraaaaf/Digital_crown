@@ -50,9 +50,24 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     );
     await screen.findByAltText('QR d’identification Patient Companion');
     expect(stationPatientSessionService.create).toHaveBeenCalledTimes(1);
+    expect(stationPatientSessionService.create).toHaveBeenCalledWith('appointment');
     expect(stationPatientSessionService.purge).not.toHaveBeenCalled();
     mounted.unmount();
     await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
+  });
+
+  it('requests a document-scoped QR when starting the Station document flow', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'pending',
+      sessionId: 'session-1',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+    const result = render(
+      <StationPatientIdentity purpose='documents' onBack={vi.fn()} backLabel='Retour' />,
+    );
+    await screen.findByAltText('QR d’identification Patient Companion');
+    expect(stationPatientSessionService.create).toHaveBeenCalledWith('documents');
+    result.unmount();
   });
 
   it('shows one-shot QR/NFC handoff and never claims arrival before identification', async () => {
