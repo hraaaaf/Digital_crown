@@ -43,6 +43,7 @@ import { PatientFinances } from './components/PatientFinances';
 import { PatientRvgPanel } from './components/PatientRvgPanel';
 import { PatientMediaTimeline } from './components/PatientMediaTimeline';
 import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled } from '../multiview/CabinetMultiViewLab';
+import './PatientRadiologyPolish.css';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientCompanionPanel } from './components/PatientCompanionPanel';
 import { usePatientStore } from '../../stores/usePatientStore';
@@ -130,6 +131,13 @@ export const PatientDetails = () => {
   const [loading, setLoading] = useState(!cachedPatient);
   const [fetchError, setFetchError] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  // Read-only contextual advice lives in the radiology layout rather than
+  // over clinical data. Key by patient to prevent A→B transient disclosure.
+  const [radiologyAdvice, setRadiologyAdvice] = useState<{
+    patientId: string; title: string; message: string; action?: string;
+  } | null>(null);
+  const [adviceExpanded, setAdviceExpanded] = useState(false);
+  const [dismissedAdvicePatient, setDismissedAdvicePatient] = useState<string | null>(null);
   const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotifSummary[]>([]);
   const lastEditingDoc = useRef(null);
   const flowContentRef = useRef<HTMLElement>(null);
@@ -218,15 +226,29 @@ export const PatientDetails = () => {
   }, [patient?.motif_consultation]);
 
   useEffect(() => {
-    // The contextual next-best-action belongs to clinical navigation, not the Companion admin flow.
-    // Keeping it out of Companion also prevents a large mobile toast from obscuring the access controls.
+    // Informational advice is not an emergency. In radiology it is presented
+    // in-flow and collapsible so it never covers actions, patient or media.
     if (!id || activeTab === 'companion') return;
+    let cancelled = false;
+    setAdviceExpanded(false);
+    if (activeTab === 'radiology') setRadiologyAdvice(null);
     const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
-        if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, { duration: 7000 });
+        if (cancelled || !res.data?.nba) return;
+        const tip = res.data.nba;
+        const title = typeof tip.title === 'string' ? tip.title : 'Conseil contextuel';
+        const message = typeof tip.message === 'string' ? tip.message : '';
+        const action = typeof tip.action === 'string' ? tip.action : undefined;
+        if (activeTab === 'radiology') {
+          setRadiologyAdvice({ patientId: id, title, message, action });
+          return;
+        }
+        toast(`💡 ${title} — ${message}${action ? ` · Action : ${action}` : ''}`, {
+          id: `patient-nba-${id}`, duration: 7000,
+        });
       }).catch(() => {});
     }, 1500);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [id, activeTab]);
 
   useEffect(() => {
@@ -306,7 +328,8 @@ export const PatientDetails = () => {
   const birthLabel = Number.isNaN(birthDate.getTime()) ? patient.date_naissance : birthDate.toLocaleDateString('fr-FR');
 
   return (
-    <div className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
+    <div data-dc-patient-radiology={isRadiology ? 'true' : undefined}
+      className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
       <header className="lg:sticky lg:top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">
         <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>
           <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>
@@ -323,7 +346,7 @@ export const PatientDetails = () => {
                 <div className={cn('flex flex-wrap items-center', isRadiology ? 'gap-1.5' : 'gap-2')}>
                   <h1 className={cn('font-black tracking-tight truncate', isRadiology ? 'text-base md:text-lg' : 'text-lg sm:text-xl md:text-2xl')} style={{ color: 'var(--primary)' }}>{fullName}</h1>
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
-                  {patient.antecedents_medicaux && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wide"><AlertTriangle size={12} /> Alerte médicale</span>}
+                  {patient.antecedents_medicaux && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-danger-surface border border-danger-border text-danger text-[10px] font-black uppercase tracking-wide"><AlertTriangle size={12} /> Alerte médicale</span>}
                   <button onClick={() => navigate(`/patients/${id}/edit`)} className={cn('font-black uppercase rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors', isRadiology ? 'px-2 py-0.5 text-[9px] tracking-wide' : 'px-2.5 py-1 text-[10px] tracking-widest')} style={{ color: 'var(--primary)' }}>Modifier</button>
                 </div>
                 <div className={cn('flex flex-wrap items-center font-bold text-text-muted', isRadiology ? 'mt-0.5 gap-x-2 gap-y-0.5 text-[10px]' : 'mt-1 gap-x-2 gap-y-0.5 text-[11px] sm:mt-1.5 sm:gap-x-3 sm:gap-y-1 sm:text-xs')}>
@@ -343,7 +366,13 @@ export const PatientDetails = () => {
             </div>
           </div>
 
-          <div data-tour="patient-tabs" className={cn('flex overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none', isRadiology ? 'gap-0.5 sm:gap-1.5' : 'gap-1 sm:gap-3')}>
+          <div id="dc-radiology-patient-tabs" data-tour="patient-tabs"
+            style={isRadiology ? {
+              display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
+              minWidth: 0, maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden',
+              whiteSpace: 'nowrap', alignItems: 'center',
+            } : undefined}
+            className={cn('flex overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none', isRadiology ? 'gap-0.5 sm:gap-1.5' : 'gap-1 sm:gap-3')}>
             <TabButton compact={isRadiology} active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={17} />} label="Vue d’ensemble" mobileLabel="Suivi" />
             {canClinical && <TabButton compact={isRadiology} active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" mobileLabel="Clinique" />}
             <TabButton compact={isRadiology} active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" mobileLabel="Image" />
@@ -357,9 +386,9 @@ export const PatientDetails = () => {
       <main ref={flowContentRef} data-flow-patient-surface={activeTab} className={cn('max-w-[1600px] mx-auto w-full transition-all duration-500', isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : isRadiology ? 'flex-1 px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 space-y-2' : 'flex-1 px-3 py-3 sm:px-4 sm:py-6 md:px-8 md:py-8 space-y-4 sm:space-y-6')}>
         {!isDocuments && (patient.antecedents_medicaux || patient.motif_consultation) && (
           <div className={cn('flex flex-col animate-in fade-in slide-in-from-top-4 duration-500', isRadiology ? 'gap-2' : 'gap-3')}>
-            {patient.antecedents_medicaux && <div className={cn('bg-red-50 border border-red-200 flex items-start text-red-700 shadow-sm', isRadiology ? 'p-2.5 rounded-xl gap-2' : 'p-4 rounded-2xl gap-3')}><AlertTriangle className={cn('shrink-0 mt-0.5', isRadiology ? 'w-4 h-4' : 'w-5 h-5')} /><div><h4 className={cn('font-black uppercase tracking-widest', isRadiology ? 'text-[10px] mb-0.5' : 'text-sm mb-1')}>Antécédents Médicaux</h4><p className={cn('font-medium whitespace-pre-wrap', isRadiology ? 'text-xs line-clamp-2' : 'text-sm')}>{patient.antecedents_medicaux}</p></div></div>}
+            {patient.antecedents_medicaux && <div className={cn('bg-danger-surface border border-danger-border flex items-start text-danger shadow-sm', isRadiology ? 'p-2.5 rounded-xl gap-2' : 'p-4 rounded-2xl gap-3')}><AlertTriangle className={cn('shrink-0 mt-0.5', isRadiology ? 'w-4 h-4' : 'w-5 h-5')} /><div><h4 className={cn('font-black uppercase tracking-widest', isRadiology ? 'text-[10px] mb-0.5' : 'text-sm mb-1')}>Antécédents Médicaux</h4><p className={cn('font-medium whitespace-pre-wrap', isRadiology ? 'text-xs line-clamp-2' : 'text-sm')}>{patient.antecedents_medicaux}</p></div></div>}
             {patient.motif_consultation && (
-              <div className={cn('bg-blue-50 border border-blue-100 flex items-start text-blue-800 shadow-sm', isRadiology ? 'p-2.5 rounded-xl gap-2' : 'p-4 rounded-2xl gap-3')}>
+              <div className={cn('bg-info-surface border border-info-border flex items-start text-info shadow-sm', isRadiology ? 'p-2.5 rounded-xl gap-2' : 'p-4 rounded-2xl gap-3')}>
                 <Activity className={cn('shrink-0 mt-0.5', isRadiology ? 'w-4 h-4' : 'w-5 h-5')} />
                 <div className="flex-1">
                   <h4 className={cn('font-black uppercase tracking-widest', isRadiology ? 'text-[10px] mb-1' : 'text-sm mb-2')}>Motif de Consultation Initial</h4>
@@ -372,7 +401,7 @@ export const PatientDetails = () => {
                         return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider bg-slate-100 text-slate-600 border border-slate-200', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs')}>{motifId}<span className="text-[9px] uppercase tracking-wider text-slate-400">Historique</span></div>;
                       }
                       const isUrgent = motif.urgency === 'urgence';
-                      return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs', isUrgent ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200')}>{motif.label}{cabinetMotif && <span className="text-[9px] uppercase tracking-wider opacity-60">{cabinetMotif.is_active ? 'Cabinet' : 'Historique'}</span>}{isUrgent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}</div>;
+                      return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs', isUrgent ? 'bg-danger-surface text-danger border border-danger-border' : 'bg-info-surface text-info border border-info-border')}>{motif.label}{cabinetMotif && <span className="text-[9px] uppercase tracking-wider opacity-60">{cabinetMotif.is_active ? 'Cabinet' : 'Historique'}</span>}{isUrgent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />}</div>;
                     })}
                   </div>
                 </div>
@@ -384,8 +413,41 @@ export const PatientDetails = () => {
         <div className={cn('animate-in fade-in slide-in-from-bottom-8 duration-700 h-full', !isDocuments && 'delay-150')}>
           {activeTab === 'radiology' && (
             <div className="space-y-2">
+              {radiologyAdvice !== null && radiologyAdvice.patientId === id && dismissedAdvicePatient !== id && (
+                <aside data-testid="patient-radiology-advice" aria-label="Conseil contextuel du dossier"
+                  className="dc-radiology-advice rounded-xl border border-border-main bg-card px-3 py-2.5 shadow-sm">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span aria-hidden="true" className="shrink-0 text-lg">💡</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-main">
+                      {radiologyAdvice?.title}
+                    </span>
+                    <button type="button" aria-expanded={adviceExpanded}
+                      onClick={() => setAdviceExpanded(value => !value)}
+                      className="shrink-0 rounded-lg border border-border-main px-2.5 py-1.5 text-xs font-semibold text-primary">
+                      {adviceExpanded ? 'Réduire' : 'Détails'}
+                    </button>
+                    <button type="button" aria-label="Masquer ce conseil"
+                      onClick={() => setDismissedAdvicePatient(id ?? null)}
+                      className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-text-muted">
+                      Fermer
+                    </button>
+                  </div>
+                  {adviceExpanded && (
+                    <div className="mt-2 border-t border-border-main pt-2 text-sm leading-relaxed text-text-main">
+                      <p>{radiologyAdvice?.message}</p>
+                      {radiologyAdvice?.action && <p className="mt-1 font-semibold">Action suggérée : {radiologyAdvice.action}</p>}
+                    </div>
+                  )}
+                </aside>
+              )}
               <div className="flex min-w-0 justify-center">
-                <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card-bg/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" aria-label="Modalités d’imagerie">
+                <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card-bg/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" id="dc-radiology-modalities" aria-label="Modalités d’imagerie"
+                  style={{
+                    display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
+                    minWidth: 0, maxWidth: '100%', overflowX: 'auto',
+                    overflowY: 'hidden', whiteSpace: 'nowrap',
+                    alignItems: 'center',
+                  }}>
                   <ImagingButton active={radioTab === 'media'} onClick={() => handleRadioTabChange('media')} icon={<Images size={14} />} label="Médiathèque" />
                   <ImagingButton active={radioTab === 'rvg'} onClick={() => handleRadioTabChange('rvg')} icon={<Image size={14} />} label="RVG" />
                   {canPanoramic && <ImagingButton active={radioTab === 'panoramic'} onClick={() => handleRadioTabChange('panoramic')} icon={<Target size={14} />} label="Panoramique" />}
@@ -453,19 +515,19 @@ export const PatientDetails = () => {
 };
 
 const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
-  <button onClick={onClick} aria-label={label} className={cn('h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95', accent === 'emerald' ? 'text-text-muted hover:text-emerald-600 hover:border-emerald-500/30 hover:bg-emerald-500/5' : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5')}>
+  <button onClick={onClick} aria-label={label} className={cn('h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95', accent === 'emerald' ? 'text-text-muted hover:text-success hover:border-success-border hover:bg-success-surface' : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5')}>
     {icon}<span className="inline text-[8px] sm:text-[10px] leading-none font-black uppercase tracking-[0.04em] sm:tracking-widest whitespace-nowrap">{label}</span>
   </button>
 );
 
 const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compact = false }: any) => (
-  <button onClick={onClick} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
+  <button onClick={onClick} aria-current={active ? 'page' : undefined} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
     {icon}<span data-patient-tab-mobile-label className="sm:hidden text-[8px] leading-none tracking-[0.02em]">{mobileLabel || label}</span><span data-patient-tab-desktop-label className="hidden sm:inline">{label}</span>
   </button>
 );
 
 const ImagingButton = ({ active, onClick, icon, label }: any) => (
-  <button onClick={onClick} className={cn('shrink-0 px-2 py-1.5 text-[9px] sm:px-3 sm:py-2 sm:text-[10px] md:px-4 md:text-[11px] font-black uppercase tracking-[0.06em] sm:tracking-[0.08em] rounded-lg transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap', active ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
+  <button onClick={onClick} aria-pressed={active} className={cn('shrink-0 px-2 py-1.5 text-[9px] sm:px-3 sm:py-2 sm:text-[10px] md:px-4 md:text-[11px] font-black uppercase tracking-[0.06em] sm:tracking-[0.08em] rounded-lg transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap', active ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
     {icon} {label}
   </button>
 );
