@@ -8,13 +8,31 @@ The Object Values coordinates are already [mm]: never rescale by mm_per_pixel.
 from __future__ import annotations
 import argparse
 import hashlib
+import importlib.util
 import json
 import math
 from pathlib import Path
-from backend.services import cephalo_ricketts_geometry as rg
-from backend.services import cephalo_steiner_geometry as sg
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def _load_production_geometry(filename: str):
+    """Execute the checked-out original module without backend.__init__ side effects.
+
+    These geometry modules are math-only. The clinical adapter is NOT executed.
+    """
+    source = (ROOT / 'backend' / 'services' / filename).resolve(strict=True)
+    require_root = ROOT / 'backend' / 'services'
+    if source.parent != require_root:
+        raise ValueError('noncanonical DC geometry module path')
+    spec = importlib.util.spec_from_file_location('_facad_dc_' + filename[:-3], source)
+    if spec is None or spec.loader is None:
+        raise ValueError('DC production geometry loader unavailable')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+rg = _load_production_geometry('cephalo_ricketts_geometry.py')
+sg = _load_production_geometry('cephalo_steiner_geometry.py')
 FACTOR_32 = {'InterIncisal','Convexity','Ii to A-Pog','Is to A-Pog','ILi/A-Pog','ILs/A-Pog','Li-EL','Upper lip len','Facial cone angle'}
 FACTOR_13 = {'InterIncisal','Convexity','Ii to A-Pog','ILi/A-Pog','Li-EL'}
 BLOCKED = {
