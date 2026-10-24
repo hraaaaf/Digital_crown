@@ -3,8 +3,10 @@
 NEVER run against a cabinet or any non-disposable database.
 """
 import argparse
+import hashlib
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -73,6 +75,12 @@ def expire_session(session_id):
 def verify():
     patients = json.loads(SEED.read_text(encoding="utf-8"))["patients"]
     evidence = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    exact_sha = os.environ.get("EVALUATED_SHA", "")
+    assert len(exact_sha) == 40 and all(c in "0123456789abcdef" for c in exact_sha), "missing exact SHA"
+    checkout_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, timeout=10
+    ).strip()
+    assert evidence["head"] == exact_sha == checkout_sha, "CI checkout/artifact SHA mismatch"
     assert evidence["cases"].get("phone_success") is True
     assert evidence["cases"].get("name_success") is True
     assert evidence["cases"].get("collision_lock") == [403, 403, 403, 403, 429]
@@ -83,7 +91,30 @@ def verify():
     assert evidence["cases"].get("wrong_dob_unknown") == [403, 403]
     assert evidence["cases"].get("other_station_accepted") == 200
     assert evidence["cases"].get("expiry") in (404, 409)
-    assert len(evidence["screenshots"]) >= 9, "missing before/after visual artifacts"
+    assert len(evidence["screenshots"]) >= 10, "missing before/after visual artifacts"
+    manifest = evidence["screenshotManifest"]
+    assert set(evidence["screenshots"]) == set(manifest), "screenshot manifest mismatch"
+    assert len(evidence["screenshots"]) == len(set(evidence["screenshots"])), "duplicate screenshot name"
+    for filename, spec in manifest.items():
+        assert filename.endswith(".png") and Path(filename).name == filename, "unsafe screenshot name"
+        raw = (OUT / filename).read_bytes()
+        assert len(raw) >= 1000 and raw[:8] == b"\x89PNG\r\n\x1a\n", "invalid PNG proof"
+        w = int.from_bytes(raw[16:20], "big")
+        h = int.from_bytes(raw[20:24], "big")
+        assert w == spec["width"] and h == spec["height"], "PNG header mismatch"
+        assert len(raw) == spec["bytes"], "PNG size mismatch"
+        assert hashlib.sha256(raw).hexdigest() == spec["sha256"], "PNG integrity mismatch"
+    assert {390, 430, 768, 1280}.issubset(
+        {int(spec["width"]) for spec in manifest.values()}
+    ), "missing required responsive viewport"
+    for image in (
+        "03-phone-identified-after.png",
+        "04-name-normalized-after.png",
+        "07-invalid-dob-and-phone-denied.png",
+        "08-expired-session-verified.png",
+        "10-collision-locked-after.png",
+    ):
+        assert image in manifest, "missing essential AFTER screenshot: " + image
     assert not any(item.get("pageerror") for item in evidence["http"]), "browser runtime error"
     assert all("stationSession=" not in json.dumps(item) for item in evidence["http"]), "QR bearer leakage"
     owner_station = evidence["actors"]["kiosk"]
@@ -105,7 +136,7 @@ def verify():
         assert db.query(models.Patient).filter(models.Patient.id.in_(ids)).count() == 3
         assert db.query(models.Appointment).filter(models.Appointment.patient_id.in_(ids)).count() == 0
         result = {
-            "status": "PASS", "environment": "disposable SQLCipher SQLite",
+            "status": "PASS", "head": exact_sha, "environment": "disposable SQLCipher SQLite",
             "seedPatients": 3, "appointmentCount": 0,
             "successfulFallbackAuditEvents": len(audits),
             "stationFailureCount": failure_count,
@@ -114,7 +145,11 @@ def verify():
             "wrongDobAndUnknownPhoneRefused": True,
             "crossStationDenied": True,
             "expiredSessionDenied": True,
-            "visualCaptures": len(evidence["screenshots"])
+            "visualCaptures": len(evidence["screenshots"]),
+            "verifiedViewports": sorted({int(spec["width"]) for spec in manifest.values()}),
+            "screenManifestSha256": hashlib.sha256(
+                json.dumps(manifest, sort_keys=True).encode("utf-8")
+            ).hexdigest()
         }
     (OUT / "sql-after.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     print("G03_A2_INDEPENDENT_SQL_PASS " + json.dumps(result))
