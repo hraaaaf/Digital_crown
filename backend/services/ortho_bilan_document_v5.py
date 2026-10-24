@@ -174,9 +174,11 @@ def _ceph_rows(projection: Mapping[str, Any]) -> tuple[list[dict], list[dict]]:
                 continue
             display = f"{value:g} {registry.unit}"
         else:
-            if value is not None or raw_value is not None:
-                continue
-            display = "Non calculable"
+            # The clinical printout lists measurements that can actually be
+            # read, not a long audit inventory of unavailable calculations.
+            # Availability and blocked values remain untouched in the typed
+            # scientific projection and are still inspectable internally.
+            continue
         seen.add(key)
         pair = (key, {"label": allowed[key], "value": display})
         (osseuses if key in MESURES_OSSEUSES else dentaires).append(pair)
@@ -231,4 +233,8 @@ def build_ortho_bilan_document(projection: Mapping[str, Any]) -> dict[str, Any]:
         "plan_traitement": traitement.strip()[:10000],
         "clinical_alerts": clinical_alerts,
         "practitioner_sections_authorized": approved is not None,
+        # Lab-only source-bound research plate; the document factory injects
+        # this after independent image/landmark verification. Never derive it
+        # from user-provided narrative or an arbitrary image filename.
+        "research_figure": projection.get("lab_verified_research_figure"),
     }
