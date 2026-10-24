@@ -61,10 +61,10 @@ def _archived_row(db, patient, kind):
     return doc
 
 
-def _credentials(client, actor):
+def _credentials(client, actor, password="SyntheticR2DocPass123!"):
     login = client.post(
         "/api/auth/login",
-        data={"username": actor.email, "password": "SyntheticR2DocPass123!"},
+        data={"username": actor.email, "password": password},
     )
     assert login.status_code == 200, login.text
     jwt = login.json()["access_token"]
@@ -135,7 +135,7 @@ def test_r2_cannot_access_or_mutate_cross_tenant_document_even_with_right_role(c
     )
     patient = _patient(db, other_owner.id, "ALIEN")
     doc = _archived_row(db, patient, models.DocumentType.ORDONNANCE)
-    headers = _credentials(client, dentiste)
+    headers = _credentials(client, dentiste, password="TestPass123!")
 
     read = client.get("/api/documents/", params={"patient_id": patient.id}, headers=headers)
     download = client.get(f"/api/documents/{doc.id}/download", headers=headers)
