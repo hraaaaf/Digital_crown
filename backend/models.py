@@ -430,6 +430,37 @@ class OrthoBilanPractitionerNote(Base):
     approved_digest: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
 
+
+class OrthoAnatomicalTrace(Base):
+    """Independent manual G5 anatomy tracing, separate from diagnostic R14.
+
+    No contour is derived automatically from the cephalometric landmarks.
+    Publication requires an explicit source/revision-bound dentist approval.
+    """
+    __tablename__ = "ortho_anatomical_traces"
+    __table_args__ = (
+        UniqueConstraint("analysis_id", name="uq_ortho_anatomic_trace_analysis"),
+        Index("ix_ortho_anatomic_trace_tenant_patient", "employer_id", "patient_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    analysis_id: Mapped[int] = mapped_column(ForeignKey("cephalo_analyses.id", ondelete="CASCADE"), nullable=False)
+    analysis_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    scientific_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    image_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    image_width: Mapped[int] = mapped_column(Integer, nullable=False)
+    image_height: Mapped[int] = mapped_column(Integer, nullable=False)
+    contour_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    contours_json: Mapped[list] = mapped_column(JSON, nullable=False)
+    draft_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    drafted_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    approved_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    approved_digest: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
 class PanoramicAnalysis(Base):
     """Stockage des analyses radiographiques panoramiques (DENTEX IA)."""
     __tablename__ = "panoramic_analyses"
