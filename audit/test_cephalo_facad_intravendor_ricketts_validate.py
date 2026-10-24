@@ -68,7 +68,7 @@ class FacadIntraVendorTests(unittest.TestCase):
     def test_13_same_vendor_signatures_and_four_distinct_norms(self):
         r = d.validate_schema(self.cross, self.roster)
         self.assertEqual(r["same_displayed_calc_type_and_refs"], 13)
-        self.assertEqual(r["distinct_displayed_norms"], 4)
+        self.assertEqual(r["different_displayed_norms"], 4)
         self.assertEqual(r["distinct_norm_labels"], ["Facial axis", "ML/FH", "LFH", "Convexity"])
         self.assertEqual(r["numeric_parity_observed"], 0)
         self.assertEqual(r["digital_crown_cross_product_parity_observed"], 0)
