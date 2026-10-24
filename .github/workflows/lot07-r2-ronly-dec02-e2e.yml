@@ -115,6 +115,7 @@ jobs:
           rm -f t2-runtime-cert.db
           python scripts/t2_runtime_server.py >/tmp/dec02-api.log 2>&1 &
           pid=$!
+          echo "T2_SERVER_PID=$pid" >> "$GITHUB_ENV"
           for i in {1..110}; do
             if ! kill -0 "$pid" 2>/dev/null; then tail -70 /tmp/dec02-api.log; exit 1; fi
             if curl -fsS http://127.0.0.1:8005/health >/dev/null; then break; fi
@@ -146,6 +147,54 @@ jobs:
           set -euo pipefail
           node scripts/certify-lot07-r2-ronly-bilan.mjs | tee /tmp/dec02-real-browser.txt
           grep -q 'LOT07_R2_DEC01_DEC02_REAL_BROWSER_E2E_PASS' /tmp/dec02-real-browser.txt
+      - name: Reset disposable T2 runtime between INDEPENDENT browser suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test "$SOURCE_HEAD" = "$(git rev-parse HEAD)"
+          test -n "${T2_SERVER_PID:-}"
+          # An enrollment persists in T2 and correctly rejects a subsequent
+          # unpaired HTTP client with 423. G1 requires a genuinely fresh test
+          # cabinet. Never delete a real database or weaken workstation checks.
+          kill "$T2_SERVER_PID"
+          for i in {1..30}; do
+            if ! kill -0 "$T2_SERVER_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if kill -0 "$T2_SERVER_PID" 2>/dev/null; then
+            echo "REFUSED: old T2 server still alive"; exit 1
+          fi
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from backend.core.runtime_safety import is_known_cabinet_database
+          assert os.environ["ENVIRONMENT"] == "test"
+          assert os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] == "1"
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target)
+          base = Path.cwd()
+          assert base.name == "Digital_crown"
+          for basename in ("t2-runtime-cert.db", "t2-runtime-cert.db-wal", "t2-runtime-cert.db-shm"):
+              file = base / basename
+              assert file.parent == base and file.name.startswith("t2-runtime-cert.db")
+              file.unlink(missing_ok=True)
+          print("LOT07_R2_ONLY_DISPOSABLE_T2_RESET")
+          PY
+          python scripts/t2_runtime_server.py >/tmp/dec02-api-fresh-g1.log 2>&1 &
+          new_pid=$!
+          echo "T2_SERVER_PID=$new_pid" >> "$GITHUB_ENV"
+          for i in {1..110}; do
+            if ! kill -0 "$new_pid" 2>/dev/null; then
+              tail -70 /tmp/dec02-api-fresh-g1.log; exit 1
+            fi
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8005/health >/dev/null
       - name: Browser existing G1 A-B-A cross-patient and real-media multiview E2E
         working-directory: frontend
         shell: bash
