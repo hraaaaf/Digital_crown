@@ -17,6 +17,8 @@ jobs:
       CERTIFIED_SHA: 3cffc06c23c5be2086cdb18e23aae93d66dee700
       CERT_RUN_ID: '40043891636'
       MODEL_RUN_ID: '34281082926'
+      PATCH_SHA: 017beb40e6e36ec2bdaf7de315c0f9e196e7dd55
+      PATCH_ISS_BLOB_SHA: 08ef5779890eb733862ef501cc0fd4ac25be8f11
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@v4
@@ -146,10 +148,11 @@ jobs:
             python -m PyInstaller --noconfirm --clean DigitalCrown.spec
             if ($LASTEXITCODE -ne 0) {throw 'PyInstaller failed'}
             if (-not (Test-Path 'dist/DigitalCrown/DigitalCrown.exe')) {throw 'EXE not found'}
-            foreach($f in @('release-certification.json','installable-certification.json','runtime-assets-certification.json','github-attestation-verification.json')) {
-              if (-not (Test-Path "dist/DigitalCrown/$f")) {throw "Installer guard missing bundled $f at root; correct source via separate PR, no bypass"}
+            $proofs=@('release-certification.json','.digitalcrown-release-sha','release-content.sha256','installable-certification.json','runtime-assets-certification.json','runtime-assets-content.sha256','github-attestation-verification.json')
+            foreach($f in $proofs) {
+              if (-not (Test-Path -LiteralPath "dist/DigitalCrown/_internal/$f" -PathType Leaf)) {throw "PyInstaller bundle missing required identity file in _internal: $f"}
             }
-            Write-Host 'CERTIFIED_WINDOWS_EXE_CREATED=SUCCESS'
+            Write-Host 'CERTIFIED_SOURCE_TO_WINDOWS_EXE_BUNDLE=SUCCESS; INNO_CANDIDATE_NOT_CERTIFIED'
           } finally { Pop-Location }
       - name: Diagnostic certified onedir layout (read-only, even after packaging failure)
         if: always()
@@ -191,23 +194,69 @@ jobs:
           }
           $lines | Set-Content -LiteralPath $report -Encoding utf8
           $lines | ForEach-Object {Write-Host $_}
-      - name: Compile certified Inno Setup installer without executing it
+      - name: Candidate Inno Setup compile and seven negative guards (not a certified installer)
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
+          $report=Join-Path $env:GITHUB_WORKSPACE 'evidence/output/inno-candidate-validation.txt'
+          $record=New-Object System.Collections.Generic.List[string]
+          $record.Add('CB02_TEST_ONLY=YES; THIS IS NOT A CERTIFIED INSTALLER')
+          $record.Add("CERTIFIED_SOURCE=$env:CERTIFIED_SHA")
+          $record.Add("CANDIDATE_SOURCE=$env:PATCH_SHA")
           $release=(Get-Content evidence/output/release-dir.txt -Raw).Trim()
           $compiler='C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
-          if (-not (Test-Path -LiteralPath $compiler)) {throw 'Pinned ISCC compiler missing; do not download unsigned substitute automatically'}
-          Push-Location $release
-          try {
-            & $compiler 'installer/DigitalCrown.iss'
-            if ($LASTEXITCODE -ne 0) {throw 'Inno Setup compilation rejected'}
-            $setup=Get-Item 'dist_installer/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe' -ErrorAction Stop
-            $digest=(Get-FileHash $setup.FullName -Algorithm SHA256).Hash
-            Write-Host "INSTALLER_SHA256=$digest; SIZE=$($setup.Length)"
-            Copy-Item $setup.FullName "$env:GITHUB_WORKSPACE/evidence/output/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe"
-            Write-Host 'INSTALLER_WINDOWS_CREATED_NOT_EXECUTED'
-          } finally { Pop-Location }
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {throw 'Pinned ISCC missing on Windows runner; no unsigned substitution'}
+          # The tested script is fetched at its immutable PR commit, never from floating master or PR head.
+          $endpoint="repos/$env:GITHUB_REPOSITORY/contents/installer/DigitalCrown.iss?ref=$env:PATCH_SHA"
+          $entry=(gh api $endpoint | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0 -or $entry.sha -ne $env:PATCH_ISS_BLOB_SHA) {throw 'Unpinned or mismatched PR candidate script'}
+          $candidate=Join-Path $env:RUNNER_TEMP 'CB02-INNO-CANDIDATE'
+          New-Item -ItemType Directory -Force -Path (Join-Path $candidate 'installer') | Out-Null
+          $script=Join-Path $candidate 'installer/DigitalCrown.iss'
+          [IO.File]::WriteAllBytes($script,[Convert]::FromBase64String($entry.content))
+          $scriptText=Get-Content -LiteralPath $script -Raw
+          if (-not $scriptText.Contains('MyBundledProofDir')) {throw 'Candidate guards do not target _internal'}
+          $record.Add("CANDIDATE_SCRIPT_BLOB=$($entry.sha)")
+          $record.Add("CANDIDATE_SCRIPT_SHA256=$((Get-FileHash -LiteralPath $script -Algorithm SHA256).Hash.ToLowerInvariant())")
+          # Junction points to immutable certified-source-derived EXE bundle; signed release files are NOT rewritten.
+          $distSource=Join-Path $release 'dist'
+          $distJunction=Join-Path $candidate 'dist'
+          & cmd /c mklink /J "$distJunction" "$distSource"
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $distJunction 'DigitalCrown/_internal/release-certification.json'))) {throw 'Isolated junction to proven bundle missing'}
+          # Positive compile tests exact DRAFT PR script against real PyInstaller bundle.
+          & $compiler $script
+          if ($LASTEXITCODE -ne 0) {throw 'Real-bundle candidate Inno compilation failed'}
+          $setup=Get-Item (Join-Path $candidate 'dist_installer/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe') -ErrorAction Stop
+          $record.Add("REAL_BUNDLE_CANDIDATE_INNO=PASS SIZE=$($setup.Length) SHA256=$((Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant())")
+          # A separate synthetic test tree verifies all seven fail-closed Inno preprocessor guards.
+          # Synthetic placeholders are NEVER used for the above real-bundle compilation.
+          $fake=Join-Path $env:RUNNER_TEMP 'CB02-INNO-NEGATIVE'
+          $fakeInternal=Join-Path $fake 'dist/DigitalCrown/_internal'
+          New-Item -ItemType Directory -Force -Path $fakeInternal,(Join-Path $fake 'installer') | Out-Null
+          Copy-Item -LiteralPath $script -Destination (Join-Path $fake 'installer/DigitalCrown.iss')
+          Set-Content -LiteralPath (Join-Path $fake 'dist/DigitalCrown/DigitalCrown.exe') -Value 'Synthetic placeholder, not executable' -Encoding ascii
+          $proofs=@('release-certification.json','.digitalcrown-release-sha','release-content.sha256','installable-certification.json','runtime-assets-certification.json','runtime-assets-content.sha256','github-attestation-verification.json')
+          foreach($name in $proofs) {Set-Content -LiteralPath (Join-Path $fakeInternal $name) -Value 'Synthetic placeholder: NOT CERTIFIED' -Encoding ascii}
+          $fakeScript=Join-Path $fake 'installer/DigitalCrown.iss'
+          & $compiler $fakeScript | Out-Null
+          if ($LASTEXITCODE -ne 0) {throw 'Inno synthetic positive fixture unexpectedly rejected'}
+          $record.Add('SYNTHETIC_POSITIVE_GUARDS=PASS; FIXTURE_NOT_AUTHENTIC')
+          foreach($name in $proofs) {
+            $full=Join-Path $fakeInternal $name
+            Remove-Item -LiteralPath $full -Force
+            try {
+              $log=(& $compiler $fakeScript 2>&1 | Out-String)
+              if ($LASTEXITCODE -eq 0) {throw "MISSING_PROOF_ACCEPTED=$name"}
+              if ($log -notlike "*INSTALLABLE_CERTIFIED REQUIRED*" -or $log -notlike "*$name*") {throw "Missing-proof rejection reason not found: $name"}
+              $record.Add("MISSING_$name=REJECTED")
+            } finally {
+              Set-Content -LiteralPath $full -Value 'Synthetic placeholder: NOT CERTIFIED' -Encoding ascii
+            }
+          }
+          $record.Add('SEVEN_MISSING_CERT_GUARDS=PASS')
+          $record | Set-Content -LiteralPath $report -Encoding utf8
+          $record | ForEach-Object { Write-Host $_ }
+          Write-Host 'CANDIDATE_INNO_TEST_ONLY=PASS; NO_INSTALLATION; NO_CERTIFIED_SETUP_ARTIFACT'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -215,6 +264,6 @@ jobs:
           path: |
             evidence/output/installable-certification-proof.json
             evidence/output/windows-bundle-layout.txt
-            evidence/output/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe
+            evidence/output/inno-candidate-validation.txt
           retention-days: 14
           if-no-files-found: warn
