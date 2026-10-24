@@ -1,0 +1,69 @@
+name: LOT07 R2 server RBAC tenant and revocation negative matrix
+on:
+  pull_request:
+    branches:
+      - 'fix/v15-07-r2-ordonnance-current-safety-visual-*'
+    paths:
+      - 'backend/tests/test_lot07_r2_server_negative_matrix.py'
+      - '.github/workflows/lot07-r2-server-negative-matrix.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-r2-server-neg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-negative-api:
+    name: Five real FastAPI denial checks on exact source HEAD
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: 'sqlite:///:memory:'
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      SECRET_KEY: 'r2-negative-ci-synthetic-secret-20261024'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact PR source instead of synthetic merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_HEAD }}
+      - name: Refuse non-isolated runner or mismatched source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DATABASE_URL" = 'sqlite:///:memory:'
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test ! -f t2-runtime-cert.db
+          test ! -f digitalcrown.db
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/r2-neg-requirements.txt
+          pip install -r /tmp/r2-neg-requirements.txt
+          python -m pip check
+      - name: Execute five real HTTP negative scenarios (SQLite memory only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest backend/tests/test_lot07_r2_server_negative_matrix.py -q -rs --disable-warnings | tee /tmp/r2-server-negative-result.txt
+          grep -Eq '5 passed' /tmp/r2-server-negative-result.txt
+          if grep -Eq 'skipped|xfailed|xpassed' /tmp/r2-server-negative-result.txt; then
+            echo 'R2_REQUIRED_TESTS_NOT_EXECUTED'
+            exit 1
+          fi
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          echo 'LOT07_R2_SERVER_NEGATIVE_EXACT_HEAD_PASS'
