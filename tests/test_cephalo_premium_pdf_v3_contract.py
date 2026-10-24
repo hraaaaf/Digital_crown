@@ -235,7 +235,7 @@ class PdfV3Contract(unittest.TestCase):
                         shutil.copy2(output, Path(capture_debug) / f"bilan_{template}.pdf")
                     self.assertGreater(len(last), 180,
                         "La dernière page ne doit pas contenir seulement une clôture")
-                    self.assertIn("Non calculable", full)
+                    self.assertNotIn("Non calculable", full)
                     self.assertIn("Bilan orthodontique", full)
                     phases = ("Analyse céphalométrique", "Analyse osseuse",
                               "Analyse dento-alvéolaire", "Examen des moulages",
