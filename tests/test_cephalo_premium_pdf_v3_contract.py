@@ -65,7 +65,7 @@ def synthetic_projection(n=95):
                    4.0, 25.0, 4.0, 92.0, 64.0, 132.0, 2.0, 2.5)
     canonical = []
     for i in range(n):
-        available = i < len(known) and i % 3 == 0
+        available = i < len(known) and (i % 3 == 0 or i == 11)
         name = known[i] if i < len(known) else f"ANALYSIS_MEASURE_{i:03d}"
         original_ref = f"evidence:demo:{i}"
         method = f"DEMO_TYPED_METHOD_{i:03d}"
