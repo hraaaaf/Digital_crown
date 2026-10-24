@@ -23,6 +23,13 @@ if (
 ):
     raise SystemExit("FAIL CLOSED: isolated T2 Station FUE SQLite context required")
 
+# The isolated T2 server intentionally sets these key values BEFORE importing its
+# engine. This separate seed/verify process must use the exact same ephemeral
+# SQLCipher passphrase; the CI workflow auth key is not the storage key.
+# This affects ONLY the guarded synthetic T2 test database, never a cabinet.
+os.environ["SECRET_KEY"] = "t2-runtime-certification-secret-key-000001"
+os.environ["MOBILE_PAIRING_KEY_HEX"] = "2" * 64
+
 from backend import database, models  # noqa: E402
 
 OUT = Path("frontend/artifacts/v15-03-real-integration")
