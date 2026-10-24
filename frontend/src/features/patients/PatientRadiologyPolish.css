@@ -416,3 +416,80 @@
     display: none;
   }
 }
+
+// LOT07 R2 next polish: the accessibility palette stays strict black/white.
+// Tailwind v4's inherited --color-* aliases must follow the *selected* theme,
+// not the default Elite Blue values captured at root.
+[data-theme='high-contrast'] [data-dc-patient-radiology="true"] {
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary);
+  --color-on-primary: var(--text-on-primary);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-border-main: var(--border-color);
+  --color-border-hover: var(--border-hover);
+  --color-card: var(--card-bg);
+  --color-medical-pearl: var(--bg-medical-pearl);
+  --color-background: var(--bg-medical-pearl);
+  --color-success: var(--status-success);
+  --color-info: var(--status-info);
+}
+[data-theme='high-contrast'] [data-dc-patient-radiology="true"] [data-v15-071-real-cabinet-lab] .dc-mv-commandbar {
+  box-shadow: none;
+}
+[data-theme='high-contrast'] [data-dc-patient-radiology="true"] [data-v15-071-real-cabinet-lab] .dc-mv-commandbar > div:last-child {
+  border-color: transparent;
+  padding-inline: 0;
+}
+[data-theme='high-contrast'] [data-dc-patient-radiology="true"] [data-v15-071-real-cabinet-lab] .dc-mv-commandbar button:disabled {
+  opacity: 1 !important;
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+/* C5 mobile: simultaneous T0/T2, full content preserved by object-contain.
+   Full-screen buttons remain available for actual clinical inspection. */
+@media (max-width: 540px) {
+  [data-dc-patient-radiology="true"] [data-testid="media-compare-panel"] {
+    border-radius: 16px;
+  }
+  [data-dc-patient-radiology="true"] .dc-c5-compare-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  [data-dc-patient-radiology="true"] .dc-c5-compare-asset {
+    min-width: 0;
+  }
+  [data-dc-patient-radiology="true"] .dc-c5-compare-asset > div:first-child {
+    padding: 7px 8px;
+    min-height: 57px;
+    align-items: flex-start;
+  }
+  [data-dc-patient-radiology="true"] .dc-c5-compare-asset > div:first-child p {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+  [data-dc-patient-radiology="true"] .dc-c5-compare-asset > div:last-child {
+    height: min(42vw, 176px);
+    min-height: 155px !important;
+    max-height: 176px;
+  }
+  [data-dc-patient-radiology="true"] .dc-c5-compare-asset > div:last-child img {
+    max-height: 176px;
+    max-width: 100%;
+    object-fit: contain;
+  }
+  [data-dc-patient-radiology="true"] .dc-c5-compare-asset > div:first-child button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+  [data-dc-patient-radiology="true"] .dc-c5-mobile-hint {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+}
