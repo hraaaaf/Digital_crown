@@ -9,6 +9,7 @@
 - The actual repository `master` may be newer; no assertion that the isolated test code is the latest master.
 - **Only synthetic accounts and patients** in freshly created `t2-runtime-cert.db`. Guard `ENVIRONMENT=test`, `T2_STATION_FUE=1`, `T2_G03_A1=1`, `DIGITALCROWN_ISOLATED_RUNTIME=1`, exact SQLite URL. No external patient data, no production/station device access or Vercel.
 - Genuine Chromium browsers, FastAPI localhost HTTP and SQLCipher SQLite. The phone's app uses its **actual Patient Companion pairing UI and encrypted IndexedDB**.
+- On **Linux CI**, the default remote key enrollment correctly returns `503 Protection OS des clés distantes indisponible` because Cabinet OS-bound protection is unavailable. Do NOT bypass the server key-protection policy. This particular test uses the product-supported **local-only Companion** capability profile: `crypto.randomUUID` is absent in the synthetic Chromium phone context, while WebCrypto `subtle` (AES-GCM) and IndexedDB remain fully available. No HTTP mocks, no production security change. This establishes local-first real pairing and QR Station handoff only, **not default remote-key enrollment / OS-bound private-key protection**.
 - Credentials and QR bearer links are used only in memory; sanitized HTTP logs must never include headers, response bodies, tokens or query strings.
 
 ## Criteria with exact oracles
