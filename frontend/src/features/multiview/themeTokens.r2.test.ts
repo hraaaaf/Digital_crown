@@ -67,6 +67,9 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(css).toContain(`[data-theme='high-contrast'] [data-dc-patient-radiology="true"]`);
     expect(css).toContain('--primary: var(--text-main)');
     expect(css).toContain('--color-primary: var(--text-main)');
+    expect(css).toContain('--color-primary: var(--primary)');
+    expect(css).toContain('--color-primary-ink: var(--primary)');
+    expect(css).toContain('--color-on-primary: var(--text-on-primary)');
     expect(css).toContain('--color-primary-ink: var(--text-main)');
     expect(css).toContain('--color-on-primary: var(--card-bg)');
     expect(css).toContain('--color-text-muted: var(--text-muted)');
@@ -77,6 +80,9 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(lab).toContain('multiview-layout-safe-info');
     expect(lab).toContain('Mode compact sécurisé');
     expect(lab).toContain('multiview-responsive-single-media-fallback');
+    const labCss = source('features/multiview/CabinetMultiViewLab.css');
+    expect(labCss).toContain('accent-color: var(--primary)');
+    expect(css.match(/#[0-9a-f]{3,8}\\b|\\brgba?\\s*\\(\\s*(?:\\d|\\.\\d)/gi) ?? []).toEqual([]);
   });
 
   it('theme engine exposes all configured semantic color roles', () => {
