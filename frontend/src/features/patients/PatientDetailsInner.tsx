@@ -131,6 +131,13 @@ export const PatientDetails = () => {
   const [loading, setLoading] = useState(!cachedPatient);
   const [fetchError, setFetchError] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  // Read-only contextual advice lives in the radiology layout rather than
+  // over clinical data. Key by patient to prevent A→B transient disclosure.
+  const [radiologyAdvice, setRadiologyAdvice] = useState<{
+    patientId: string; title: string; message: string; action?: string;
+  } | null>(null);
+  const [adviceExpanded, setAdviceExpanded] = useState(false);
+  const [dismissedAdvicePatient, setDismissedAdvicePatient] = useState<string | null>(null);
   const [cabinetMotifs, setCabinetMotifs] = useState<CabinetMotifSummary[]>([]);
   const lastEditingDoc = useRef(null);
   const flowContentRef = useRef<HTMLElement>(null);
@@ -219,17 +226,29 @@ export const PatientDetails = () => {
   }, [patient?.motif_consultation]);
 
   useEffect(() => {
-    // The contextual next-best-action belongs to clinical navigation, not the Companion admin flow.
-    // Keeping it out of Companion also prevents a large mobile toast from obscuring the access controls.
+    // Informational advice is not an emergency. In radiology it is presented
+    // in-flow and collapsible so it never covers actions, patient or media.
     if (!id || activeTab === 'companion') return;
+    let cancelled = false;
+    setAdviceExpanded(false);
+    if (activeTab === 'radiology') setRadiologyAdvice(null);
     const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
-        if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, {
+        if (cancelled || !res.data?.nba) return;
+        const tip = res.data.nba;
+        const title = typeof tip.title === 'string' ? tip.title : 'Conseil contextuel';
+        const message = typeof tip.message === 'string' ? tip.message : '';
+        const action = typeof tip.action === 'string' ? tip.action : undefined;
+        if (activeTab === 'radiology') {
+          setRadiologyAdvice({ patientId: id, title, message, action });
+          return;
+        }
+        toast(`💡 ${title} — ${message}${action ? ` · Action : ${action}` : ''}`, {
           id: `patient-nba-${id}`, duration: 7000,
         });
       }).catch(() => {});
     }, 1500);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [id, activeTab]);
 
   useEffect(() => {
@@ -388,6 +407,33 @@ export const PatientDetails = () => {
         <div className={cn('animate-in fade-in slide-in-from-bottom-8 duration-700 h-full', !isDocuments && 'delay-150')}>
           {activeTab === 'radiology' && (
             <div className="space-y-2">
+              {radiologyAdvice?.patientId === id && dismissedAdvicePatient !== id && (
+                <aside data-testid="patient-radiology-advice" aria-label="Conseil contextuel du dossier"
+                  className="dc-radiology-advice rounded-xl border border-border-main bg-card px-3 py-2.5 shadow-sm">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span aria-hidden="true" className="shrink-0 text-lg">💡</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-main">
+                      {radiologyAdvice.title}
+                    </span>
+                    <button type="button" aria-expanded={adviceExpanded}
+                      onClick={() => setAdviceExpanded(value => !value)}
+                      className="shrink-0 rounded-lg border border-border-main px-2.5 py-1.5 text-xs font-semibold text-primary">
+                      {adviceExpanded ? 'Réduire' : 'Détails'}
+                    </button>
+                    <button type="button" aria-label="Masquer ce conseil"
+                      onClick={() => setDismissedAdvicePatient(id)}
+                      className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-text-muted">
+                      Fermer
+                    </button>
+                  </div>
+                  {adviceExpanded && (
+                    <div className="mt-2 border-t border-border-main pt-2 text-sm leading-relaxed text-text-main">
+                      <p>{radiologyAdvice.message}</p>
+                      {radiologyAdvice.action && <p className="mt-1 font-semibold">Action suggérée : {radiologyAdvice.action}</p>}
+                    </div>
+                  )}
+                </aside>
+              )}
               <div className="flex min-w-0 justify-center">
                 <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card-bg/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" aria-label="Modalités d’imagerie">
                   <ImagingButton active={radioTab === 'media'} onClick={() => handleRadioTabChange('media')} icon={<Images size={14} />} label="Médiathèque" />
@@ -463,13 +509,13 @@ const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
 );
 
 const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compact = false }: any) => (
-  <button onClick={onClick} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
+  <button onClick={onClick} aria-current={active ? 'page' : undefined} aria-label={ariaLabel || label} className={cn('shrink-0 flex items-center font-black uppercase transition-all border-b-[3px] whitespace-nowrap', compact ? 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] md:gap-1.5 md:px-2 md:text-[11px] md:tracking-[0.06em]' : 'gap-1 pb-1.5 px-1 text-[9px] tracking-[0.04em] sm:gap-2 sm:pb-2 sm:px-1.5 sm:text-[10px] sm:tracking-[0.06em] md:px-3 md:text-[12px] md:tracking-[0.08em]', active ? 'text-primary' : 'border-transparent text-text-muted hover:text-main hover:border-border-main')} style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}>
     {icon}<span data-patient-tab-mobile-label className="sm:hidden text-[8px] leading-none tracking-[0.02em]">{mobileLabel || label}</span><span data-patient-tab-desktop-label className="hidden sm:inline">{label}</span>
   </button>
 );
 
 const ImagingButton = ({ active, onClick, icon, label }: any) => (
-  <button onClick={onClick} className={cn('shrink-0 px-2 py-1.5 text-[9px] sm:px-3 sm:py-2 sm:text-[10px] md:px-4 md:text-[11px] font-black uppercase tracking-[0.06em] sm:tracking-[0.08em] rounded-lg transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap', active ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
+  <button onClick={onClick} aria-pressed={active} className={cn('shrink-0 px-2 py-1.5 text-[9px] sm:px-3 sm:py-2 sm:text-[10px] md:px-4 md:text-[11px] font-black uppercase tracking-[0.06em] sm:tracking-[0.08em] rounded-lg transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap', active ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
     {icon} {label}
   </button>
 );
