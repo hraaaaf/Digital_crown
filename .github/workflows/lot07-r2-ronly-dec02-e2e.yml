@@ -27,6 +27,9 @@ jobs:
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: '1'
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      # A single dedicated synthetic SQLCipher key shared by FastAPI and
+      # the separate T2 fixture process.  Never an actual cabinet key.
+      SQLCIPHER_KEY_HEX: '1111111111111111111111111111111111111111111111111111111111111111'
       TELEMETRY_ENABLED: 'false'
       CLOUD_AI_ENABLED: 'false'
       DEBUG: 'false'
