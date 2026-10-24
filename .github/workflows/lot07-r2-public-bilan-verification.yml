@@ -52,7 +52,7 @@ jobs:
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/verification-reqs.txt
           pip install -r /tmp/verification-reqs.txt
           python -m pip check
-      - name: Execute 33 HTTP cases including identity-existence oracle
+      - name: Execute 34 HTTP cases including all public BILAN verification routes
         shell: bash
         run: |
           set -euo pipefail
@@ -63,7 +63,7 @@ jobs:
             backend/tests/test_document_signature_permissions_p3.py \
             backend/tests/test_verification_router.py \
             | tee /tmp/verification-r2.txt
-          grep -Eq '33 passed' /tmp/verification-r2.txt
+          grep -Eq '34 passed' /tmp/verification-r2.txt
           if grep -Eq 'skipped|xfailed|xpassed' /tmp/verification-r2.txt; then exit 1; fi
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           echo "LOT07_R2_PUBLIC_BILAN_NO_IDENTITY_LEAK_EXACT_SHA_PASS $EXPECTED_SHA"
