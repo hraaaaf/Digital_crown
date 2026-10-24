@@ -106,7 +106,7 @@ jobs:
           $registry=Get-Content evidence/code-release/backend/scientific_assets.json -Raw | ConvertFrom-Json
           $report=@{
             source_sha=$env:EXACT_SOURCE_SHA
-            code_certification_run_id=[int]$env:RELEASE_RUN_ID
+            code_certification_run_id=[long]$env:RELEASE_RUN_ID
             code_certification_verified=$true
             github_sigstore_verified=$true
             windows_build_dependency_lock_verified=$true
