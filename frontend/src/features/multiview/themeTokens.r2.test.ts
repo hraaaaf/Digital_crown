@@ -51,6 +51,11 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(css).toContain('--color-primary: var(--status-info)');
     expect(css).toContain('--color-primary-ink: var(--status-info)');
     expect(css).toContain('--color-on-primary: var(--bg-medical-pearl)');
+    expect(css).toContain(`[data-theme='prestige'] [data-dc-patient-radiology="true"]`);
+    expect(css).toContain('--primary: var(--status-info)');
+    expect(css).toContain('--color-primary-ink: var(--status-info)');
+    expect(patient).toContain('Afficher les autres onglets');
+    expect(patient).not.toContain('↔ Glissez pour parcourir');
     expect(css).toContain('--color-text-muted: color-mix(');
     expect(css).toContain('.dc-radiology-tab-scroll-hint');
     expect(patient).toContain('aria-describedby={isRadiology');
@@ -83,6 +88,7 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(media).toContain('dc-c5-compare-grid');
     expect(media).toContain('dc-c5-compare-asset');
     expect(media).toContain('dc-c5-expand-label');
+    expect(media).toContain('className="dc-c5-expand-label">Zoom</span>');
     expect(lab).toContain('multiview-layout-safe-info');
     expect(lab).toContain('Mode compact sécurisé');
     expect(lab).toContain('multiview-responsive-single-media-fallback');
