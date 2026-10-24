@@ -61,7 +61,7 @@ const isStatus = (s: unknown): s is StatusSummary => {
   return validPatient(a.patient) && positiveInt(a.appointment_id) &&
     typeof a.datetime_start === 'string' && APPOINTMENT_RE.test(a.datetime_start) &&
     typeof a.expected_status === 'string' &&
-    Number.isSafeInteger(a.expected_revision) && Number(a.expected_revision) >= 0 &&
+    typeof a.expected_revision === 'number' && Number.isSafeInteger(a.expected_revision) && a.expected_revision >= 0 &&
     typeof a.new_status === 'string' && typeof a.new_status_label === 'string';
 };
 function verifiedPreparation(value: unknown, mode: Mode): Prepared | null {
