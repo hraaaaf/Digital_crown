@@ -5,6 +5,11 @@ on:
       - 'scripts/odf_v5_g3_aariz_matched_pair.py'
       - 'backend/services/cephalo_pdf_projection.py'
       - 'backend/services/ortho_bilan_document_v5.py'
+      - 'backend/services/ortho_lab_image_integrity.py'
+      - 'backend/services/generators/bilan_ortho_gen.py'
+      - 'backend/templates/bilan_ortho_v5.html'
+      - 'tests/test_odf_v5_g3_aariz_pair.py'
+      - 'tests/test_ortho_bilan_v5_contract.py'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'scripts/odf_v5_lab_seed.py'
       - 'frontend/scripts/odf-v5-fue-lab.mjs'
@@ -170,6 +175,10 @@ jobs:
               assert 'SNA' in text and 'ANB' in text, 'Expert-traced skeletal measurements missing'
               assert ('IMPA' in text or 'Incisive' in text), 'Expert-traced dental analysis missing'
               assert text.count('Classe I')>=2
+              assert 'Téléradiographie de profil' in text, 'Missing research image annex'
+              assert 'Aariz Cephalometric Dataset' in text, 'Missing research attribution'
+              assert len(pdf)>=2, 'Research image must be a separate page'
+              assert len(pdf[-1].get_images())>=3, 'Expected anatomy plate plus QR/logo on last page'
               assert 'LAB EXCLUSIVEMENT' in text
               assert "24 avenue de l'Exemple" in text
               for forbidden in ('Mesure complémentaire','NOT_COMPUTABLE','DOCUMENT CLINIQUE INCOMPLET','PRÉ-BILAN'):
