@@ -366,7 +366,7 @@ export const PatientDetails = () => {
             </div>
           </div>
 
-          <div data-tour="patient-tabs"
+          <div id="dc-radiology-patient-tabs" data-tour="patient-tabs"
             style={isRadiology ? {
               display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
               minWidth: 0, maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden',
@@ -441,7 +441,7 @@ export const PatientDetails = () => {
                 </aside>
               )}
               <div className="flex min-w-0 justify-center">
-                <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card-bg/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" aria-label="Modalités d’imagerie"
+                <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card-bg/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" id="dc-radiology-modalities" aria-label="Modalités d’imagerie"
                   style={{
                     display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
                     minWidth: 0, maxWidth: '100%', overflowX: 'auto',
