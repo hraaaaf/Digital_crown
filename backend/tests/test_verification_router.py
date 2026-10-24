@@ -88,13 +88,26 @@ class TestVerifySpecialDocument:
     def test_bilan_with_existing_patient(self, client, db, dentiste):
         pat = _make_patient(db, dentiste, "VERBILAN")
         r = client.get(f"/api/documents/verify/{pat.id}/BILAN")
-        assert r.status_code == 200
-        assert "Bilan" in r.text or "Certifi" in r.text
+        assert r.status_code == 404
+        assert "text/html" in r.headers["content-type"]
+        assert "VERBILAN" not in r.text
+        assert "Bilan Orthodontique Certifié" not in r.text
+        assert "Vérification publique indisponible" in r.text
+        assert r.headers["cache-control"] == "no-store"
 
     def test_bilan_with_nonexistent_patient(self, client):
         r = client.get("/api/documents/verify/999999/BILAN")
-        assert r.status_code == 200
+        assert r.status_code == 404
         assert "text/html" in r.headers["content-type"]
+        assert "NON DISPONIBLE" in r.text
+
+    def test_bilan_guessed_patient_id_does_not_reveal_existence(self, client, db, dentiste):
+        pat = _make_patient(db, dentiste, "GUESSABLE_PRIVATE")
+        existing = client.get(f"/api/documents/verify/{pat.id}/BILAN")
+        missing = client.get("/api/documents/verify/999999/BILAN")
+        assert existing.status_code == missing.status_code == 404
+        assert existing.text == missing.text
+        assert "GUESSABLE_PRIVATE" not in existing.text
 
     def test_radio_with_nonexistent_id(self, client):
         r = client.get("/api/documents/verify/999999/RADIO")
