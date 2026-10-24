@@ -105,6 +105,10 @@ jobs:
           node scripts/certify-v15-02-photo-fresh-login.mjs
       - name: FUE 02 failed upload/retry/single-flight/delete UI
         working-directory: frontend
+        # The preceding lifecycle flow consumes the one-use mobile pairing token.
+        # This case authenticates the workstation only and MUST NOT reclaim mobile.
+        env:
+          T2_MOBILE_PAIRING_TOKEN: ""
         run: |
           node --check scripts/certify-v15-02-patient-photo-actions.mjs
           node scripts/run-with-t2-workstation.mjs scripts/certify-v15-02-patient-photo-actions.mjs
