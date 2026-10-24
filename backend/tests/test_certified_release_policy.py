@@ -289,6 +289,32 @@ def test_repo_guards_cannot_fall_back_to_master_or_working_tree():
     assert "github-attestation-verification.json" in installer
 
 
+def test_inno_proofs_match_pyinstaller_six_onedir_layout():
+    """Keep compiled installer checks aligned with PyInstaller 6 frozen data paths."""
+    root = Path(__file__).resolve().parents[2]
+    spec = (root / "DigitalCrown.spec").read_text(encoding="utf-8-sig")
+    launcher = (root / "run.py").read_text(encoding="utf-8-sig")
+    installer = (root / "installer/DigitalCrown.iss").read_text(encoding="utf-8-sig")
+
+    # No legacy root layout override: in onedir PyInstaller 6 collects datas in _internal.
+    assert "contents_directory=" not in spec
+    assert 'getattr(sys, "_MEIPASS"' in launcher
+    assert r'#define MyBundledProofDir MyDistDir + "\_internal"' in installer
+
+    proofs = (
+        "release-certification.json",
+        ".digitalcrown-release-sha",
+        "release-content.sha256",
+        "installable-certification.json",
+        "runtime-assets-certification.json",
+        "runtime-assets-content.sha256",
+        "github-attestation-verification.json",
+    )
+    for filename in proofs:
+        assert rf'FileExists(MyBundledProofDir + "\{filename}")' in installer
+    assert "recursesubdirs createallsubdirs" in installer
+
+
 def test_installer_never_creates_implicit_shortcut_to_historical_cabinet():
     root = Path(__file__).resolve().parents[2]
     helper = (root / "scripts/install-desktop-shortcut.ps1").read_text(encoding="utf-8-sig")
