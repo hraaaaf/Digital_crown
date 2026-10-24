@@ -65,6 +65,14 @@ FALLBACK_FAILURE_WINDOW_SECONDS = 15 * 60
 FALLBACK_MODES = {"phone_dob", "name_dob", "disabled"}
 
 
+class StationPatientSessionCreate(BaseModel):
+    # Intent is integrity-bound into the one-shot opaque QR secret, so the
+    # Companion cannot mistake a visit check-in for a document withdrawal.
+    # The default preserves older clients that only used document handoffs.
+    model_config = ConfigDict(extra="forbid")
+    purpose: Literal["appointment", "documents"] = "documents"
+
+
 class StationPatientClaim(BaseModel):
     model_config = ConfigDict(extra="forbid")
     token: str = Field(min_length=32, max_length=256)
@@ -269,6 +277,7 @@ def update_station_patient_session_config(
 @router.post("/patient-session", status_code=201)
 def create_station_patient_session(
     request: Request,
+    body: StationPatientSessionCreate | None = None,
     response: Response,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -304,7 +313,11 @@ def create_station_patient_session(
                 details="patient_binding_cleared=true;actor=new_station_session",
             ))
 
-    raw = secrets.token_urlsafe(32)
+    # Bind purpose to the bearer value hashed in SQL. Simply editing the QR
+    # URL or supplying an alternate purpose invalidates the claim token.
+    # No schema migration, no separate untrusted intent query parameter.
+    purpose = body.purpose if body is not None else "documents"
+    raw = secrets.token_urlsafe(32) + "." + purpose
     row = models.WorkstationPatientSession(
         employer_id=workstation.employer_id,
         workstation_id=workstation.id,
@@ -392,7 +405,12 @@ def claim_station_patient_session(
         raise HTTPException(status_code=409, detail="STATION_SESSION_ALREADY_USED")
     db.commit()
     response.headers["Cache-Control"] = "no-store"
-    return {"status": "identified", "sessionId": row.id}
+    # Only the already validated, one-shot token determines the UX intent.
+    # Legacy random-only tokens retain the earlier document flow.
+    purpose = body.token.rsplit(".", 1)[-1]
+    if purpose not in ("appointment", "documents"):
+        purpose = "documents"
+    return {"status": "identified", "sessionId": row.id, "purpose": purpose}
 
 
 
