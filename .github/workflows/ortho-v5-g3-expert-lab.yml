@@ -5,6 +5,9 @@ on:
       - 'scripts/odf_v5_g3_aariz_matched_pair.py'
       - 'backend/services/cephalo_pdf_projection.py'
       - 'backend/services/ortho_bilan_document_v5.py'
+      - 'backend/services/ortho_ceph_tracing.py'
+      - 'docs/audits/ODF_V5_G4_TRACE_CEPHALOMETRIQUE_DOD_2026-10-24.md'
+      - 'tests/test_odf_v5_g4_tracing.py'
       - 'backend/services/ortho_lab_image_integrity.py'
       - 'backend/services/generators/bilan_ortho_gen.py'
       - 'backend/templates/bilan_ortho_v5.html'
@@ -31,6 +34,7 @@ jobs:
     env:
       ENVIRONMENT: test
       ODF_G3_MATCHED_ANNOTATIONS: "1"
+      ODF_G4_REQUIRE_TRACE: "1"
       VITE_ODF_G3_MATCHED_ANNOTATIONS: "1"
       ODF_G3_FULL_ARCHIVE_FALLBACK: "1"
       SECRET_KEY: odf-v5-lab-test-only-secret-key-with-no-prod-access-001
@@ -119,7 +123,9 @@ jobs:
           print('LAB_PUBLIC_REAL_LATERAL_RADIO_CHECKSUM_CC_BY_SA_PASS')
           PY
       - name: Check offline expert-image matching contract before downloading dataset
-        run: python -m unittest discover -s tests -p 'test_odf_v5_g3_aariz_pair.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_odf_v5_g3_aariz_pair.py' -v
+          python -m unittest discover -s tests -p 'test_odf_v5_g4_tracing.py' -v
       - name: Source-matched Aariz expert landmark import (real image AND two annotations)
         run: |
           python -m scripts.odf_v5_g3_aariz_matched_pair
@@ -175,10 +181,15 @@ jobs:
               assert 'SNA' in text and 'ANB' in text, 'Expert-traced skeletal measurements missing'
               assert ('IMPA' in text or 'Incisive' in text), 'Expert-traced dental analysis missing'
               assert text.count('Classe I')>=2
-              assert 'Téléradiographie de profil' in text, 'Missing research image annex'
+              assert 'Tracé céphalométrique' in text, 'Missing geometric tracing'
               assert 'Aariz Cephalometric Dataset' in text, 'Missing research attribution'
-              assert len(pdf)>=2, 'Research image must be a separate page'
-              assert len(pdf[-1].get_images())>=3, 'Expected anatomy plate plus QR/logo on last page'
+              assert text.index('Analyse céphalométrique') < text.index('Tracé céphalométrique') < text.index('Analyse osseuse') < text.index('Examen des moulages'), 'Traced film must be in PHASE 01'
+              assert len(pdf)>=2, 'Traced image must be readable in official PDF'
+              traced_pages=[p for p in pdf if 'Tracé céphalométrique' in p.get_text()]
+              assert traced_pages and any(len(p.get_images()) >= 2 for p in traced_pages), 'Tracing image missing from its PHASE 01 page'
+              assert 'Contours anatomiques non tracés' in text, 'Missing contours limitation disclosure'
+              for legend in ('SN','FH','NA','NB','U1','L1'):
+                  assert legend in text, f'Missing tracing plan legend {legend}'
               assert 'LAB EXCLUSIVEMENT' in text
               assert "24 avenue de l'Exemple" in text
               for forbidden in ('Mesure complémentaire','NOT_COMPUTABLE','DOCUMENT CLINIQUE INCOMPLET','PRÉ-BILAN'):
