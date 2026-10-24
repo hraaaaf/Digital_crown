@@ -103,42 +103,73 @@ def _verified_clinician_snapshot(projection: Mapping[str, Any]) -> dict[str, Any
 
 
 def _ceph_rows(projection: Mapping[str, Any]) -> tuple[list[dict], list[dict]]:
+    """Print only exact typed->canonical convergence from the verified R17 chain.
+
+    Typed measurement_id values are evidence IDs (NOT canonical M_* IDs).
+    The previous V5 erroneously compared these IDs to the clinical registry
+    and silently emitted empty cephalometric sections in live PDFs.
+    """
     if projection.get("active_runtime_chain_verified") is not True:
         return [], []
+    from math import isfinite, isclose
+    from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
+
+    backed: dict[str, dict[str, Any]] = {}
+    for raw in projection.get("measurements") or []:
+        if isinstance(raw, dict) and raw.get("scientific_source") == "EVIDENCE_GRAPH_V1":
+            raw_id = raw.get("measurement_id")
+            if isinstance(raw_id, str) and raw_id and raw_id not in backed:
+                backed[raw_id] = raw
+
     osseuses, dentaires = [], []
     seen: set[str] = set()
-    available_ids = {**MESURES_OSSEUSES, **MESURES_DENTOALVEOLAIRES}
-    for m in projection.get("measurements") or []:
-        if not isinstance(m, dict):
+    allowed = {**MESURES_OSSEUSES, **MESURES_DENTOALVEOLAIRES}
+    for row in projection.get("canonical_measurements") or []:
+        if not isinstance(row, dict):
             continue
-        key = m.get("measurement_id")
-        if not isinstance(key, str) or key not in available_ids or key in seen:
+        key = row.get("canonical_measurement_id")
+        if not isinstance(key, str) or key not in allowed or key in seen:
             continue
-        if m.get("scientific_source") != "EVIDENCE_GRAPH_V1":
-            continue
-        seen.add(key)
-        status = m.get("availability_status")
-        value = m.get("value")
-        from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
         registry = CANONICAL_MEASUREMENTS.get(key)
-        # Unit and source status are NOT freely derived from payload.
-        if registry is None or registry.unit is None:
+        if registry is None or row.get("unit") != registry.unit:
             continue
-        # A missing or intentionally blocked value is never shown as valid.
-        if status == "AVAILABLE" and isinstance(value, (int, float)) and not isinstance(value, bool):
-            from math import isfinite
-            if isfinite(value):
-                displayed = f"{value:g} {registry.unit}"
-            else:
-                displayed = "Non calculable"
+        refs = row.get("measurement_refs")
+        if not isinstance(refs, list) or not refs or not all(
+            isinstance(ref, str) and ref in backed for ref in refs
+        ):
+            continue
+        method_id = row.get("value_authority_method_id")
+        original = next(
+            (backed[ref] for ref in refs if backed[ref].get("method_id") == method_id),
+            None,
+        )
+        if original is None or original.get("unit") != registry.unit:
+            continue
+        status = row.get("availability_status")
+        if status != original.get("availability_status"):
+            continue
+        value = row.get("value")
+        raw_value = original.get("value")
+        if status == "AVAILABLE":
+            if (
+                not isinstance(value, (float, int)) or isinstance(value, bool)
+                or not isinstance(raw_value, (float, int)) or isinstance(raw_value, bool)
+                or not isfinite(value) or not isfinite(raw_value)
+                or not isclose(float(value), float(raw_value), rel_tol=1e-12, abs_tol=1e-12)
+            ):
+                continue
+            display = f"{value:g} {registry.unit}"
         else:
-            displayed = "Non calculable"
-        row = {"label": available_ids[key], "value": displayed}
-        (osseuses if key in MESURES_OSSEUSES else dentaires).append((key, row))
-    # Registry order = display order, not unpredictable evidence graph order.
-    osseuses.sort(key=lambda x: list(MESURES_OSSEUSES).index(x[0]))
-    dentaires.sort(key=lambda x: list(MESURES_DENTOALVEOLAIRES).index(x[0]))
-    return [row for _, row in osseuses], [row for _, row in dentaires]
+            if value is not None or raw_value is not None:
+                continue
+            display = "Non calculable"
+        seen.add(key)
+        pair = (key, {"label": allowed[key], "value": display})
+        (osseuses if key in MESURES_OSSEUSES else dentaires).append(pair)
+
+    osseuses.sort(key=lambda pair: list(MESURES_OSSEUSES).index(pair[0]))
+    dentaires.sort(key=lambda pair: list(MESURES_DENTOALVEOLAIRES).index(pair[0]))
+    return [item for _, item in osseuses], [item for _, item in dentaires]
 
 
 def build_ortho_bilan_document(projection: Mapping[str, Any]) -> dict[str, Any]:
