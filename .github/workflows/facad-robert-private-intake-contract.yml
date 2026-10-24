@@ -13,6 +13,9 @@ on:
       - audit/test_cephalo_facad_manual_delta_diagnostic.py
       - audit/cephalo_facad_historical_roster_verify.py
       - audit/test_cephalo_facad_historical_roster_verify.py
+      - audit/cephalo_facad_intravendor_ricketts_validate.py
+      - audit/test_cephalo_facad_intravendor_ricketts_validate.py
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
   pull_request:
@@ -24,6 +27,9 @@ on:
       - audit/test_cephalo_facad_manual_delta_diagnostic.py
       - audit/cephalo_facad_historical_roster_verify.py
       - audit/test_cephalo_facad_historical_roster_verify.py
+      - audit/cephalo_facad_intravendor_ricketts_validate.py
+      - audit/test_cephalo_facad_intravendor_ricketts_validate.py
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
   workflow_dispatch:
@@ -91,6 +97,11 @@ jobs:
           python -m unittest -v audit.test_cephalo_facad_historical_roster_verify
           python -m py_compile audit/cephalo_facad_historical_roster_verify.py
 
+      - name: Verify intra-FACAD vendor signature/norm crosswalk (synthetic only)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_intravendor_ricketts_validate
+          python -m audit.cephalo_facad_intravendor_ricketts_validate
+
       - name: Revalidate canonical repository schema without vendor files
         run: python audit/cephalo_lot08_facad_parity_validate.py
 
@@ -102,4 +113,5 @@ jobs:
           echo "Synthetic-only staging tests do not prove authentic vendor data or numeric parity." >> "$GITHUB_STEP_SUMMARY"
           echo "FACAD_SOURCE_LOCK=32 named 32F + 13 named 13F historical UIA editor definitions, 7 blocked direct aliases; zero runtime parities." >> "$GITHUB_STEP_SUMMARY"
           echo "Historical archive verification uses synthetic ZIP fixtures in CI; authentic old archives stay private." >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_13F_VS_32F_EDITOR_SIGNATURES=13/13 same types/refs; 4 separate displayed norm strings." >> "$GITHUB_STEP_SUMMARY"
           echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
