@@ -77,6 +77,15 @@ def verify():
     assert evidence["cases"].get("name_success") is True
     assert evidence["cases"].get("collision_lock") == [403, 403, 403, 403, 429]
     assert evidence["cases"].get("regen_locked") == 429
+    assert evidence["cases"].get("wrong_pin") == 403
+    assert evidence["cases"].get("disabled") == 403
+    assert evidence["cases"].get("wrong_station") == 404
+    assert evidence["cases"].get("wrong_dob_unknown") == [403, 403]
+    assert evidence["cases"].get("other_station_accepted") == 200
+    assert evidence["cases"].get("expiry") in (404, 409)
+    assert len(evidence["screenshots"]) >= 9, "missing before/after visual artifacts"
+    assert not any(item.get("pageerror") for item in evidence["http"]), "browser runtime error"
+    assert all("stationSession=" not in json.dumps(item) for item in evidence["http"]), "QR bearer leakage"
     owner_station = evidence["actors"]["kiosk"]
     with database.SessionLocal() as db:
         owner = db.query(models.User).filter_by(email="t2-browser@cabinet.ma").one()
@@ -101,7 +110,11 @@ def verify():
             "successfulFallbackAuditEvents": len(audits),
             "stationFailureCount": failure_count,
             "blockedRegeneration": True, "noClinicalArrivalMutation": True,
-            "auditCredentialsExcluded": True
+            "auditCredentialsExcluded": True,
+            "wrongDobAndUnknownPhoneRefused": True,
+            "crossStationDenied": True,
+            "expiredSessionDenied": True,
+            "visualCaptures": len(evidence["screenshots"])
         }
     (OUT / "sql-after.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     print("G03_A2_INDEPENDENT_SQL_PASS " + json.dumps(result))
