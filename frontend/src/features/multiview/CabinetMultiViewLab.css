@@ -167,9 +167,20 @@
 [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] > [data-v15-071-viewslot="dossier"] {
   /* Keep media visible without hiding historical PDFs: this panel scrolls
      independently and the underlying dataset/authorization is unchanged. */
-  max-height: 290px;
+  max-height: 225px;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"]
+  [data-testid="multiview-real-dossier"] {
+  display: grid;
+  grid-template-columns: minmax(230px, .6fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: 12px;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"]
+  [data-testid="multiview-real-dossier"] > * + * {
+  margin-top: 0 !important;
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"] [data-v15-071-viewslot="dossier"] {
   font-size: 13px;
