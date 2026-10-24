@@ -3,8 +3,11 @@ on:
   pull_request:
     branches:
       - 'fix/v15-07-r2-ordonnance-current-safety-visual-*'
+      - 'test/lot07-r2-server-negative-matrix-*'
     paths:
       - 'backend/tests/test_lot07_r2_server_negative_matrix.py'
+      - 'backend/tests/test_lot07_r2_document_server_matrix.py'
+      - 'backend/routers/documents.py'
       - '.github/workflows/lot07-r2-server-negative-matrix.yml'
 
 permissions:
@@ -16,7 +19,7 @@ concurrency:
 
 jobs:
   isolated-negative-api:
-    name: Five real FastAPI denial checks on exact source HEAD
+    name: Eleven real FastAPI media and document denial checks on exact source HEAD
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
@@ -55,15 +58,15 @@ jobs:
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/r2-neg-requirements.txt
           pip install -r /tmp/r2-neg-requirements.txt
           python -m pip check
-      - name: Execute five real HTTP negative scenarios (SQLite memory only)
+      - name: Execute eleven real HTTP negative scenarios (SQLite memory only)
         shell: bash
         run: |
           set -euo pipefail
-          python -m pytest backend/tests/test_lot07_r2_server_negative_matrix.py -q -rs --disable-warnings | tee /tmp/r2-server-negative-result.txt
-          grep -Eq '5 passed' /tmp/r2-server-negative-result.txt
+          python -m pytest backend/tests/test_lot07_r2_server_negative_matrix.py backend/tests/test_lot07_r2_document_server_matrix.py -q -rs --disable-warnings | tee /tmp/r2-server-negative-result.txt
+          grep -Eq '11 passed' /tmp/r2-server-negative-result.txt
           if grep -Eq 'skipped|xfailed|xpassed' /tmp/r2-server-negative-result.txt; then
             echo 'R2_REQUIRED_TESTS_NOT_EXECUTED'
             exit 1
           fi
           test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
-          echo 'LOT07_R2_SERVER_NEGATIVE_EXACT_HEAD_PASS'
+          echo 'LOT07_R2_SERVER_AND_DOCUMENT_NEGATIVE_EXACT_HEAD_PASS'
