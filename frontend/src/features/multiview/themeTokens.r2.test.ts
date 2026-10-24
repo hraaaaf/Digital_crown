@@ -65,8 +65,10 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     const media = source('features/patients/components/PatientMediaTimeline.tsx');
     const lab = source('features/multiview/CabinetMultiViewLab.tsx');
     expect(css).toContain(`[data-theme='high-contrast'] [data-dc-patient-radiology="true"]`);
-    expect(css).toContain('--color-primary: var(--primary)');
-    expect(css).toContain('--color-on-primary: var(--text-on-primary)');
+    expect(css).toContain('--primary: var(--text-main)');
+    expect(css).toContain('--color-primary: var(--text-main)');
+    expect(css).toContain('--color-primary-ink: var(--text-main)');
+    expect(css).toContain('--color-on-primary: var(--card-bg)');
     expect(css).toContain('--color-text-muted: var(--text-muted)');
     expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
     expect(css).toContain('object-fit: contain');
