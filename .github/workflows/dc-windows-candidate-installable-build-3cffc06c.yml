@@ -151,6 +151,46 @@ jobs:
             }
             Write-Host 'CERTIFIED_WINDOWS_EXE_CREATED=SUCCESS'
           } finally { Pop-Location }
+      - name: Diagnostic certified onedir layout (read-only, even after packaging failure)
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $report=Join-Path $env:GITHUB_WORKSPACE 'evidence/output/windows-bundle-layout.txt'
+          $lines=New-Object System.Collections.Generic.List[string]
+          $lines.Add("SOURCE_CERTIFIED_SHA=$env:CERTIFIED_SHA")
+          $lines.Add("WORKFLOW_HEAD_SHA=$env:GITHUB_SHA")
+          if (-not (Test-Path 'evidence/output/release-dir.txt')) {
+            $lines.Add('RELEASE_DIR_MARKER=MISSING')
+          } else {
+            $release=(Get-Content evidence/output/release-dir.txt -Raw).Trim()
+            $dist=Join-Path $release 'dist/DigitalCrown'
+            $lines.Add("DIST=$dist")
+            foreach ($name in @('.', '_internal')) {
+              $folder=Join-Path $dist $name
+              $lines.Add("DIRECTORY=$name EXISTS=$(Test-Path -LiteralPath $folder -PathType Container)")
+              if (Test-Path -LiteralPath $folder -PathType Container) {
+                Get-ChildItem -LiteralPath $folder -Force | Sort-Object Name | ForEach-Object {
+                  $lines.Add("ENTRY=$name/$($_.Name) TYPE=$(if ($_.PSIsContainer) {'DIR'} else {'FILE'}) SIZE=$($_.Length)")
+                }
+              }
+            }
+            $proofs=@('release-certification.json','.digitalcrown-release-sha','release-content.sha256','installable-certification.json','runtime-assets-certification.json','runtime-assets-content.sha256','github-attestation-verification.json')
+            foreach ($f in $proofs) {
+              foreach ($name in @('.', '_internal')) {
+                $candidate=Join-Path (Join-Path $dist $name) $f
+                if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                  $file=Get-Item -LiteralPath $candidate
+                  $sha=(Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
+                  $lines.Add("PROOF=$name/$f EXISTS=YES SIZE=$($file.Length) SHA256=$sha")
+                } else {
+                  $lines.Add("PROOF=$name/$f EXISTS=NO")
+                }
+              }
+            }
+          }
+          $lines | Set-Content -LiteralPath $report -Encoding utf8
+          $lines | ForEach-Object {Write-Host $_}
       - name: Compile certified Inno Setup installer without executing it
         shell: pwsh
         run: |
@@ -174,6 +214,7 @@ jobs:
           name: dc-windows-candidate-installer-3cffc06c
           path: |
             evidence/output/installable-certification-proof.json
+            evidence/output/windows-bundle-layout.txt
             evidence/output/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe
           retention-days: 14
           if-no-files-found: warn
