@@ -124,30 +124,30 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
 
   return (
     <section aria-label="BILAN historiques — lecture seule" data-testid="multiview-bilan-readonly"
-      className="space-y-3 rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50/70 to-white p-3 sm:p-4">
+      className="space-y-3 rounded-2xl border border-border-main bg-gradient-to-b from-medical-pearl/70 to-card p-3 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-900 text-white shadow-sm">
+          <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary shadow-sm">
             <FileText size={20}/>
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-extrabold tracking-tight text-slate-900 sm:text-base">Bilans historiques</h3>
-            <p className="text-xs leading-relaxed text-slate-600">Documents accessibles en lecture seule</p>
+            <h3 className="text-sm font-extrabold tracking-tight text-text-main sm:text-base">Bilans historiques</h3>
+            <p className="text-xs leading-relaxed text-text-muted">Documents accessibles en lecture seule</p>
           </div>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-[11px] font-bold text-blue-900">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border-hover bg-card px-2 py-1 text-[11px] font-bold text-primary-ink">
           <ShieldCheck size={13}/> R
         </span>
       </div>
-      {loading && <p role="status" className="rounded-xl bg-white p-4 text-sm text-slate-600">Vérification des documents autorisés…</p>}
-      {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">
+      {loading && <p role="status" className="rounded-xl bg-card p-4 text-sm text-text-muted">Vérification des documents autorisés…</p>}
+      {error && <p role="alert" className="rounded-xl border border-warning-border bg-warning-surface p-3 text-sm font-medium text-warning">
         Consultation BILAN indisponible ou refusée.
       </p>}
       {!loading && bilans.length === 0 && (
-        <div className="rounded-xl border border-dashed border-blue-200 bg-white/85 px-4 py-5 text-center">
-          <FileText size={25} className="mx-auto mb-2 text-blue-600" aria-hidden="true"/>
-          <p className="font-semibold text-slate-800">Aucun bilan consultable.</p>
-          <p className="mt-1 text-xs text-slate-500">Seuls les bilans classés et autorisés apparaissent ici.</p>
+        <div className="rounded-xl border border-dashed border-border-hover bg-card/85 px-4 py-5 text-center">
+          <FileText size={25} className="mx-auto mb-2 text-primary" aria-hidden="true"/>
+          <p className="font-semibold text-text-main">Aucun bilan consultable.</p>
+          <p className="mt-1 text-xs text-text-muted">Seuls les bilans classés et autorisés apparaissent ici.</p>
         </div>
       )}
       {bilans.length > 0 && (
@@ -155,54 +155,54 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
           {bilans.map(item => (
             <button key={item.id} type="button" onClick={() => void open(item)}
               aria-label={`Consulter : ${item.name}`}
-              className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-blue-100 bg-white px-3 py-2.5 text-left text-sm shadow-sm transition hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
-              <FileText size={18} className="shrink-0 text-blue-700" aria-hidden="true"/>
-              <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">{item.name}</span>
-              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-blue-800"><Eye size={16}/> Lire</span>
+              className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-border-main bg-card px-3 py-2.5 text-left text-sm shadow-sm transition hover:border-border-hover hover:bg-medical-pearl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              <FileText size={18} className="shrink-0 text-primary" aria-hidden="true"/>
+              <span className="min-w-0 flex-1 truncate font-semibold text-text-main">{item.name}</span>
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary-ink"><Eye size={16}/> Lire</span>
             </button>
           ))}
         </div>
       )}
       {viewerUrl && (
-        <div className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 bg-slate-50 px-3 py-2">
-            <span className="min-w-0 truncate text-xs font-bold text-slate-800">{selectedName}</span>
+        <div className="overflow-hidden rounded-2xl border border-border-main bg-card shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-main bg-medical-pearl px-3 py-2">
+            <span className="min-w-0 truncate text-xs font-bold text-text-main">{selectedName}</span>
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => setExpanded(true)}
-                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-blue-900 hover:bg-blue-100">
+                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-primary-ink hover:bg-medical-pearl">
                 <Maximize2 size={15}/> Agrandir
               </button>
               <button type="button" onClick={() => { requestId.current += 1; setExpanded(false); revokeViewer(); }}
-                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">
+                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-text-main hover:bg-medical-pearl">
                 <X size={15}/> Fermer l'aperçu
               </button>
             </div>
           </div>
-          {pageCount > 1 && <nav aria-label="Pages du bilan historique" className="flex items-center justify-center gap-2 border-b border-blue-100 py-2">
+          {pageCount > 1 && <nav aria-label="Pages du bilan historique" className="flex items-center justify-center gap-2 border-b border-border-main py-2">
             <button type="button" onClick={() => changePage(currentPage - 1)} disabled={currentPage <= 1}
               className="min-h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-40">Page précédente</button>
-            <span className="text-xs font-semibold text-slate-700">Page {currentPage} / {pageCount}</span>
+            <span className="text-xs font-semibold text-text-main">Page {currentPage} / {pageCount}</span>
             <button type="button" onClick={() => changePage(currentPage + 1)} disabled={currentPage >= pageCount}
               className="min-h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-40">Page suivante</button>
           </nav>}
           {pageImageUrl
-            ? <div className="h-[420px] overflow-auto bg-slate-100 p-2 text-center">
+            ? <div className="h-[420px] overflow-auto bg-medical-pearl p-2 text-center">
                 <img data-testid="bilan-page-image" src={pageImageUrl}
                   alt={`Page ${currentPage} du bilan historique ${selectedName}`}
-                  className="mx-auto h-auto max-w-full bg-white shadow-md" />
+                  className="mx-auto h-auto max-w-full bg-card shadow-md" />
               </div>
             : <iframe title={`Bilan historique : ${selectedName}`} src={viewerUrl}
-                className="block h-[420px] w-full bg-white" />}
+                className="block h-[420px] w-full bg-card" />}
         </div>
       )}
       {expanded && viewerUrl && createPortal(
-        <div className="fixed inset-0 z-[750] flex flex-col bg-slate-950/80 p-3 backdrop-blur-sm sm:p-8"
+        <div className="fixed inset-0 z-[750] flex flex-col bg-background/90 p-3 backdrop-blur-sm sm:p-8"
           role="dialog" aria-modal="true" aria-label={`Bilan historique agrandi : ${selectedName}`}>
-          <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden rounded-2xl bg-card shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-              <span className="truncate font-bold text-slate-900">{selectedName} <span className="text-xs font-normal text-slate-500">· Lecture seule</span></span>
+              <span className="truncate font-bold text-text-main">{selectedName} <span className="text-xs font-normal text-text-muted">· Lecture seule</span></span>
               <button type="button" autoFocus onClick={() => setExpanded(false)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-semibold text-slate-900">
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-semibold text-text-main">
                 <X size={17}/> Fermer
               </button>
             </div>
@@ -214,13 +214,13 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
                 className="min-h-10 rounded-lg border px-3 text-sm disabled:opacity-40">Suivante</button>
             </nav>}
             {pageImageUrl
-              ? <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3 text-center sm:p-5">
+              ? <div className="min-h-0 flex-1 overflow-auto bg-medical-pearl p-3 text-center sm:p-5">
                   <img data-testid="bilan-page-image-expanded" src={pageImageUrl}
                     alt={`Page ${currentPage} agrandie du bilan historique ${selectedName}`}
-                    className="mx-auto h-auto max-w-full bg-white shadow-xl"/>
+                    className="mx-auto h-auto max-w-full bg-card shadow-xl"/>
                 </div>
               : <iframe title={`Aperçu agrandi du bilan historique : ${selectedName}`} src={viewerUrl}
-                  className="min-h-0 w-full flex-1 bg-white"/>}
+                  className="min-h-0 w-full flex-1 bg-card"/>}
           </div>
         </div>, document.body
       )}
