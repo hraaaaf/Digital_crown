@@ -14,25 +14,42 @@ from backend.services.ortho_bilan_document_v5 import (
 from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
 
 def typed_study():
+    # Real format: typed measurement IDs are evidence-node IDs; the M_* IDs
+    # only exist in a separate canonical convergence projection.
+    cases = [
+        ("M_SNA_DEG_V1", "STEINER_SNA_DEG_V1", 82.0),
+        ("M_ANB_DEG_V1", "STEINER_ANB_DEG_V1", 4.5),
+        ("M_U1_NA_DEG_V1", "STEINER_U1_NA_DEG_V1", 25.0),
+        ("M_IMPA_GOME_DEG_V1", "TWEED_IMPA_DEG_V1", None),
+    ]
+    raws, canonical = [], []
+    for i, (canonical_id, method, value) in enumerate(cases):
+        ref = f"evidence:typed:{i}"
+        status = "AVAILABLE" if value is not None else "NOT_COMPUTABLE"
+        raws.append({
+            "measurement_id": ref, "method_id": method,
+            "availability_status": status, "value": value, "unit": "°",
+            "scientific_source": "EVIDENCE_GRAPH_V1",
+        })
+        canonical.append({
+            "canonical_measurement_id": canonical_id,
+            "value_authority_method_id": method,
+            "measurement_refs": [ref],
+            "availability_status": status, "value": value, "unit": "°",
+        })
+    # Deliberately unknown typed node must never appear.
+    raws.append({"measurement_id":"evidence:unmapped:923","method_id":"UNKNOWN",
+                 "availability_status":"AVAILABLE","value":150.0,"unit":"°",
+                 "scientific_source":"EVIDENCE_GRAPH_V1"})
     return {
         "patient_id": 17, "analysis_id": 41, "analysis_revision": 3,
         "document_state": "INCOMPLETE", "clinical_validation_available": False,
         "active_runtime_chain_verified": True,
         "blocking_gates": ["r14_authoritative_snapshot_not_persisted"],
-        "measurements": [
-            {"measurement_id":"M_SNA_DEG_V1","availability_status":"AVAILABLE",
-             "value":82.0,"unit":"°","scientific_source":"EVIDENCE_GRAPH_V1"},
-            {"measurement_id":"M_ANB_DEG_V1","availability_status":"AVAILABLE",
-             "value":4.5,"unit":"°","scientific_source":"EVIDENCE_GRAPH_V1"},
-            {"measurement_id":"M_U1_NA_DEG_V1","availability_status":"AVAILABLE",
-             "value":25.0,"unit":"°","scientific_source":"EVIDENCE_GRAPH_V1"},
-            {"measurement_id":"M_IMPA_GOME_DEG_V1","availability_status":"NOT_COMPUTABLE",
-             "value":None,"unit":"°","scientific_source":"EVIDENCE_GRAPH_V1"},
-            {"measurement_id":"ANALYSIS_MEASURE_923","availability_status":"AVAILABLE",
-             "value":150.0,"unit":"°","scientific_source":"EVIDENCE_GRAPH_V1"},
-        ],
+        "measurements": raws, "canonical_measurements": canonical,
         "stages": [],
     }
+
 
 def clinician_approved():
     return {
@@ -83,6 +100,27 @@ class OrthoV5DocumentContract(unittest.TestCase):
         self.assertEqual(odf["plan_traitement"], "")
         self.assertNotIn("Mesure complémentaire", str(odf))
         self.assertNotIn("ANALYSIS_MEASURE_923", str(odf))
+
+    def test_canonical_is_never_promoted_if_typed_source_disagrees(self):
+        source = typed_study()
+        for mutation in (
+            {"value": 117.0},
+            {"unit": "mm"},
+            {"measurement_refs": ["nonexistent-evidence-node"]},
+            {"value_authority_method_id": "UNKNOWN"},
+            {"availability_status": "NOT_COMPUTABLE"},
+        ):
+            bad = deepcopy(source)
+            bad["canonical_measurements"][0].update(mutation)
+            names = [r["label"] for r in build_ortho_bilan_document(bad)["osseuse"]]
+            self.assertNotIn("SNA", names, mutation)
+
+    def test_no_direct_raw_id_leak_when_canonical_missing(self):
+        study = typed_study()
+        study["canonical_measurements"] = []
+        result = build_ortho_bilan_document(study)
+        self.assertFalse(result["osseuse"])
+        self.assertFalse(result["dentoalveolaire"])
 
     def test_no_unverified_values_and_no_legacy_diagnosis_promotion(self):
         source = typed_study()
