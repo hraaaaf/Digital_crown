@@ -143,7 +143,7 @@ export const StationPatientIdentity = ({
 
   const createSession = async (generation: number) => {
     try {
-      const created = await stationPatientSessionService.create();
+      const created = await stationPatientSessionService.create(purpose);
       if (!mountedRef.current || generation !== generationRef.current) {
         requestPurge(created.sessionId);
         return;
