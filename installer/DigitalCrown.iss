@@ -12,26 +12,31 @@
 #endif
 #define MyInstanceName "DigitalCrown-" + CabinetInstanceId
 #define MyDistDir "..\dist\DigitalCrown"
+#define MyBundledProofDir MyDistDir + "\_internal"
+; PyInstaller 6 onedir COLLECT places all datas, including proof files,
+; under _internal. run.py uses sys._MEIPASS at runtime for identity verification.
+; Preserve the fail-closed proof requirements and Inno's recursive file copy.
 
-#if !FileExists(MyDistDir + "\release-certification.json")
+
+#if !FileExists(MyBundledProofDir + "\release-certification.json")
   #error "INSTALLABLE_CERTIFIED REQUIRED: release-certification.json is missing"
 #endif
-#if !FileExists(MyDistDir + "\.digitalcrown-release-sha")
+#if !FileExists(MyBundledProofDir + "\.digitalcrown-release-sha")
   #error "INSTALLABLE_CERTIFIED REQUIRED: .digitalcrown-release-sha is missing"
 #endif
-#if !FileExists(MyDistDir + "\release-content.sha256")
+#if !FileExists(MyBundledProofDir + "\release-content.sha256")
   #error "INSTALLABLE_CERTIFIED REQUIRED: release-content.sha256 is missing"
 #endif
-#if !FileExists(MyDistDir + "\installable-certification.json")
+#if !FileExists(MyBundledProofDir + "\installable-certification.json")
   #error "INSTALLABLE_CERTIFIED REQUIRED: installable-certification.json is missing"
 #endif
-#if !FileExists(MyDistDir + "\runtime-assets-certification.json")
+#if !FileExists(MyBundledProofDir + "\runtime-assets-certification.json")
   #error "INSTALLABLE_CERTIFIED REQUIRED: runtime-assets-certification.json is missing"
 #endif
-#if !FileExists(MyDistDir + "\runtime-assets-content.sha256")
+#if !FileExists(MyBundledProofDir + "\runtime-assets-content.sha256")
   #error "INSTALLABLE_CERTIFIED REQUIRED: runtime-assets-content.sha256 is missing"
 #endif
-#if !FileExists(MyDistDir + "\github-attestation-verification.json")
+#if !FileExists(MyBundledProofDir + "\github-attestation-verification.json")
   #error "INSTALLABLE_CERTIFIED REQUIRED: GitHub attestation verification evidence is missing"
 #endif
 
