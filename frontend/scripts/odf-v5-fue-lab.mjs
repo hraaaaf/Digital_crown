@@ -108,6 +108,112 @@ try{
   }
 
   await page.getByRole('button',{name:'3. Synthèse clinique',exact:true}).click();
+  // G5 TECHNICAL FUE: the automation operates the real SVG drawing UI.
+  // Coordinates are synthetic TEST strokes, explicitly NOT anatomical
+  // annotations. Only a human-reviewed expert contour can pass visual GO.
+  if(process.env.ODF_G5_E2E_SYNTHETIC_STROKES==='1'){
+    const g5Url='/api/patients/'+ids.patient_id+'/ortho-bilan/'
+      +ids.older_id+'/anatomical-trace';
+    const studyRead=await api.get('/api/ia/analyses/'+ids.older_id,{headers});
+    check(studyRead.status()===200,'G5_STUDY_READABLE');
+    const studyData=(await studyRead.json()).angles_data;
+    const revision=studyData.scientific_read_path?.revision;
+    check(Number.isSafeInteger(revision) && revision>0,'G5_REVISION_READABLE');
+    const surface=page.getByTestId('odf-g5-drawing-surface');
+    await surface.waitFor({state:'visible',timeout:30000});
+    const ui=page.getByTestId('odf-g5-manual-tracing');
+    await ui.getByRole('button',{name:/Base du crâne/}).waitFor({state:'visible'});
+    await page.waitForFunction(()=>{const b=[...document.querySelectorAll(
+      '[data-testid="odf-g5-manual-tracing"] button')].find(
+      b=>b.textContent?.includes('Base du crâne'));
+      return Boolean(b && !b.disabled);
+    },{timeout:30000});
+    const before=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    check(before.status()===200 && (await before.json()).draft_version===0,
+      'G5_NO_INHERITED_ANATOMY_CONTOURS_BEFORE_DRAWING');
+    const noContourApproval=await api.post(g5Url+'/approve',{
+      headers,data:{expected_revision:revision,expected_draft_version:1,
+        confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE'}});
+    check(noContourApproval.status()===409,'G5_CANNOT_APPROVE_WITHOUT_MANUAL_STROKES');
+    const shortCurve=await api.put(g5Url+'/draft',{headers,data:{
+      expected_revision:revision,expected_draft_version:0,
+      contours:['cranial_base','maxilla','mandible','upper_incisor',
+        'lower_incisor','soft_tissue_profile'].map(id=>({
+          id,points:[[100,100],[200,200]],
+        })),
+    }});
+    check(shortCurve.status()===422,'G5_MISSING_REAL_CURVE_LENGTH_REFUSED');
+
+    // Distinct smooth pointer strokes are executed in the actual browser.
+    // Their positions are AUTOMATION DEMO, not expert ceph traces.
+    const layers=['Base du crâne','Maxillaire','Mandibule',
+      'Incisive supérieure','Incisive inférieure','Profil cutané'];
+    for(const [i,label] of layers.entries()){
+      await ui.getByRole('button',{name:new RegExp('^'+label)}).click();
+      await surface.scrollIntoViewIfNeeded();
+      const bounds=await surface.boundingBox();
+      check(Boolean(bounds&&bounds.width>200&&bounds.height>300),
+        'G5_ACTUAL_DRAWING_CANVAS_VISIBLE_'+i);
+      const left=bounds.x + 64;
+      const top=bounds.y + 34 + i*68;
+      await page.mouse.move(left,top);
+      await page.mouse.down();
+      for(let n=1;n<=27;n++){
+        await page.mouse.move(left+n*10,top+n*4+Math.sin(n/3)*9);
+      }
+      await page.mouse.up();
+      const count=await ui.getByRole('button',{name:new RegExp('^'+label)})
+        .innerText();
+      check(/2[0-9]\/\d+ points minimum/.test(count),
+        'G5_BROWSER_POINTER_STROKE_RECORDED_'+i);
+    }
+    await snap('g5-01-six-browser-strokes-lab-only');
+    await ui.getByRole('button',{name:'Enregistrer les six contours'}).click();
+    await ui.getByRole('status')
+      .getByText(/Brouillon manuel enregistré/).waitFor({timeout:25000});
+    const saved=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    const savedData=await saved.json();
+    check(saved.status()===200&&savedData.draft_version===1
+      &&!savedData.approved&&savedData.contours?.length===6,
+      'G5_BROWSER_SAVED_SIX_DISTINCT_STROKES');
+    await snap('g5-02-manual-strokes-saved-unapproved');
+
+    const secretaryLogin=await api.post('/api/auth/login',{
+      form:{username:'odf-lab-secretaire@example.com',password}});
+    check(secretaryLogin.status()===200,'G5_SECRETARY_TEST_ACCOUNT');
+    const unauthorized=await api.post(g5Url+'/approve',{
+      headers:{Authorization:'Bearer '+(await secretaryLogin.json()).access_token},
+      data:{expected_revision:revision,expected_draft_version:1,
+        confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE'},
+    });
+    check(unauthorized.status()===403,'G5_SECRETARY_FORBIDDEN_APPROVAL');
+    const forgedRevision=await api.get(g5Url,{
+      headers,params:{expected_revision:revision+1}});
+    check(forgedRevision.status()===409,'G5_OTHER_REVISION_REFUSED');
+    const changedStudy=await api.get(
+      '/api/patients/'+ids.patient_id+'/ortho-bilan/'
+        +ids.latest_id+'/anatomical-trace',
+      {headers,params:{expected_revision:2}});
+    check([403,404,409].includes(changedStudy.status()),
+      'G5_DIFFERENT_STUDY_NOT_SHARED');
+    const outsider=await request.newContext({baseURL:backend});
+    const anon=await outsider.get(g5Url,{params:{expected_revision:revision}});
+    check(anon.status()===401,'G5_ANONYMOUS_TRACE_REFUSED');
+    await outsider.dispose();
+
+    await ui.getByRole('button',{name:'Approuver explicitement le tracé'}).click();
+    await ui.getByRole('status')
+      .getByText(/Six contours approuvés/).waitFor({timeout:25000});
+    const final=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    const finalData=await final.json();
+    check(final.status()===200&&finalData.approved
+      &&finalData.contours.length===6,
+      'G5_REAL_BROWSER_EXPLICIT_DENTIST_TEST_APPROVAL');
+    await snap('g5-03-six-browser-strokes-test-approved');
+    report.g5={mode:'SYNTHETIC_BROWSER_STROKES_NOT_EXPERT_CONTOURS',
+      status:'TECHNICAL_E2E_ONLY',approved_test_dentist:true,
+      contour_count:6,expert_anatomical_validation:false};
+  }
   await page.getByRole('button',{name:/3. Examen des moulages/}).click();
   await page.locator('textarea[placeholder^="Note libre — auteur non vérifié"]').fill(
     'LAB EXCLUSIVEMENT — Examen fictif des moulages : Angle classe I bilatérale; '
@@ -198,6 +304,10 @@ try{
   await download.saveAs(pdfFile);
   const pdf=await fs.readFile(pdfFile);
   check(pdf.subarray(0,4).toString('latin1')==='%PDF','SIGNED_NOTES_REAL_PDF_DOWNLOADED');
+  if(process.env.ODF_G5_E2E_SYNTHETIC_STROKES==='1'){
+    check(pdf.length>200000,'G5_REAL_PDF_TWO_VIEWS_NONEMPTY');
+    report.g5.pdf=path.basename(pdfFile);
+  }
   await snap('07-first-use-success');
   const headerPosition = await page.locator('[data-patient-record-header]').evaluate(
     el => getComputedStyle(el).position);
