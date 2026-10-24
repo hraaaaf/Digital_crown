@@ -97,6 +97,25 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(css.match(literalColor) ?? []).toEqual([]);
   });
 
+  it('desktop 1280 shows real read-only media first; MultiView controls stay at readable widths', () => {
+    const lab = source('features/multiview/CabinetMultiViewLab.tsx');
+    const css = source('features/multiview/CabinetMultiViewLab.css');
+    expect(lab).toContain('responsiveSingleMediaFallback && trustedPatient ? (');
+    expect(lab).toContain('dc-mv-desktop-compact');
+    expect(lab).toContain('multiview-layout-safe-info');
+    expect(lab).toContain('multiview-responsive-single-media-fallback');
+    expect(lab).toContain('!accepted && !responsiveSingleMediaFallback');
+    expect(lab).toContain('Mode compact sécurisé');
+    expect(lab).toContain('R · lecture seule');
+    expect(lab).toContain('authorizeLayout(mounted,context,ratio)');
+    expect(lab).toContain('PatientMediaTimeline patientId={trustedPatient.id} readOnly');
+    expect(css).toContain('var(--border-color)');
+    expect(css).toContain('var(--card-bg)');
+    expect(css).toContain('var(--bg-medical-pearl)');
+    expect(css).toContain('.dc-mv-desktop-compact');
+    expect(css.match(literalColor) ?? []).toEqual([]);
+  });
+
   it('theme engine exposes all configured semantic color roles', () => {
     const theme = source('index.css');
     for (const name of ['--card-bg', '--bg-medical-pearl', '--text-main',
