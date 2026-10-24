@@ -19,6 +19,9 @@ on:
       - audit/test_cephalo_facad_dc_private_subset_probe.py
       - audit/cephalo_facad_robert_public_ci.py
       - audit/test_cephalo_facad_robert_public_ci.py
+      - audit/cephalo_facad_robert_p2_geometry_gate.py
+      - audit/test_cephalo_facad_robert_p2_geometry_gate.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
       - audit/fixtures/facad_robert_public_example_20261024_v1.json
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
@@ -38,6 +41,9 @@ on:
       - audit/test_cephalo_facad_dc_private_subset_probe.py
       - audit/cephalo_facad_robert_public_ci.py
       - audit/test_cephalo_facad_robert_public_ci.py
+      - audit/cephalo_facad_robert_p2_geometry_gate.py
+      - audit/test_cephalo_facad_robert_p2_geometry_gate.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
       - audit/fixtures/facad_robert_public_example_20261024_v1.json
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
@@ -122,6 +128,11 @@ jobs:
         run: |
           python -m unittest -v audit.test_cephalo_facad_robert_public_ci
           python -m audit.cephalo_facad_robert_public_ci --github-summary
+
+      - name: FACAD P2 source-locked angular rounding gate on Robert (3 candidates, 1 forbidden alias)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_p2_geometry_gate
+          python -m audit.cephalo_facad_robert_p2_geometry_gate --github-summary
 
       - name: Revalidate canonical repository schema without vendor files
         run: python audit/cephalo_lot08_facad_parity_validate.py
