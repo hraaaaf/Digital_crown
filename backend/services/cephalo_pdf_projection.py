@@ -123,6 +123,14 @@ def build_cephalo_pdf_projection(
         "document_state": "COMPLETE" if is_complete else "INCOMPLETE",
         "authority": "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO",
         "active_runtime_chain_verified": active_runtime_chain_verified,
+        # Disposable first-user research LAB guard. Public lateral image and
+        # unrelated T2 fixture coordinates must never masquerade as one trace.
+        "lab_image_landmark_alignment": (
+            payload.get("odf_lab_image_landmark_alignment")
+            if __import__("os").environ.get("ENVIRONMENT") == "test"
+            and __import__("os").environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "1"
+            else None
+        ),
         "evidence_graph_present": bool(studio.get("evidence_graph_present")),
         "measurements": measurements,
         "canonical_measurements": canonical_measurements,

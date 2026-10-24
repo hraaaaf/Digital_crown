@@ -19,6 +19,7 @@ from backend.services.certificate_payload_policy import normalize_and_validate_c
 from backend.services.document_provenance_context import effective_document_practitioner_id
 from backend.services.honoraires_contract import validate_honoraires_document_data
 from backend.services.cephalo_pdf_projection import build_cephalo_pdf_projection
+from backend.services.document_branding_contract import serialize_document_branding
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,68 @@ class DocumentFactory:
                 angles_data=results_dict,
             )
 
+            # ODF V5 G2: trusted server DB join, NEVER req.ai_diagnostic or
+            # persisted legacy clinical_data. This is *notes approval only*,
+            # explicitly separate from the R14 scientific clinical gate.
+            if db is not None and user is not None and patient_id and analysis_id:
+                from backend.services.ortho_bilan_practitioner_notes import (
+                    resolve_approved_practitioner_sections,
+                )
+                source_row = db.query(models.CephaloAnalysis).filter(
+                    models.CephaloAnalysis.id == analysis_id,
+                    models.CephaloAnalysis.patient_id == patient_id,
+                ).first()
+                if source_row is not None:
+                    # G3 isolated research lab only: neither a correct file name
+                    # nor a verified science graph proves the *actual image*
+                    # matches its experts' pixel coordinates. Compare the PNG
+                    # bytes to the fixture-bound SHA256 before publishing any
+                    # canonical angles. Never change production document gates.
+                    import os as _os
+                    if (_os.environ.get("ENVIRONMENT") == "test"
+                        and _os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "1"
+                        and source_row.image_original_path == "api/static/uploads/radios/t2-cephalo-seeded.png"
+                        and projection.get("lab_image_landmark_alignment") == "VERIFIED_AARIZ_EXPERT_PAIR"):
+                        from pathlib import Path as _Path
+                        from backend.services.ortho_lab_image_integrity import verified_aariz_display_image_pair
+                        image_file = (_Path(__file__).resolve().parents[1]
+                                      / "static" / "uploads" / "radios"
+                                      / "t2-cephalo-seeded.png")
+                        if not verified_aariz_display_image_pair(
+                            source_row.angles_data or {}, image_file
+                        ):
+                            projection["lab_image_landmark_alignment"] = "UNVERIFIED"
+                        else:
+                            from backend.services.ortho_lab_image_integrity import (
+                                build_verified_aariz_research_plate,
+                            )
+                            plate = build_verified_aariz_research_plate(
+                                source_row.angles_data or {}, image_file
+                            )
+                            if plate is None:
+                                projection["lab_image_landmark_alignment"] = "UNVERIFIED"
+                            else:
+                                projection["lab_verified_research_figure"] = plate
+                    # G4 certification explicitly refuses producing a supposed
+                    # source-matched cephalometric report WITHOUT the trace.
+                    # This gate is restricted to the disposable CI lab; no
+                    # production account is touched by this work.
+                    if (_os.environ.get("ENVIRONMENT") == "test"
+                        and _os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "1"
+                        and _os.environ.get("ODF_G4_REQUIRE_TRACE") == "1"
+                        and source_row.image_original_path == "api/static/uploads/radios/t2-cephalo-seeded.png"
+                        and not projection.get("lab_verified_research_figure")):
+                        raise ValueError("G4_CEPHALOMETRIC_TRACE_REQUIRED_AND_SOURCE_BOUND")
+                    approved_sections = resolve_approved_practitioner_sections(
+                        db, patient_id=patient_id, analysis_id=analysis_id,
+                        expected_revision=projection.get("analysis_revision"),
+                        study_data=source_row.angles_data or {},
+                        employer_id=user.get_employer_id(),
+                    )
+                    if approved_sections:
+                        projection["practitioner_approved_sections"] = approved_sections
+                        projection["practitioner_sections_authorized"] = True
+
             radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))
             if isinstance(analysis, dict):
                 radio_image_path = analysis.get('image_path') or analysis.get('image_original_path')
@@ -156,22 +219,13 @@ class DocumentFactory:
                 patient_age=str(self._calculate_age(patient.date_naissance)),
                 patient_id=patient_id,
                 analysis=schemas.CephaloAnalysisResult.model_validate(display_results),
-                cabinet_config={
-                    "primary_color": cabinet.primary_color if cabinet else "#1A365D",
-                    "secondary_color": cabinet.secondary_color if cabinet else "#64748B",
-                    "logo_path": cabinet.logo_path if cabinet else None,
-                    "margin_top": cabinet.margin_top if cabinet else 4.5,
-                    "margin_bottom": cabinet.margin_bottom if cabinet else 3.5,
-                    "qr_code_style": cabinet.qr_code_style if cabinet else "dots",
-                    "qr_code_color": cabinet.qr_code_color if cabinet else None,
-                    "qr_code_enabled": cabinet.qr_code_enabled if cabinet else False
-                },
-                doctor_name=user.nom_complet if user and user.nom_complet.startswith("Dr") else (f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova"),
+                cabinet_config=serialize_document_branding(cabinet, user),
+                doctor_name=user.nom_complet if user and user.nom_complet.startswith("Dr") else (f"Dr. {user.nom_complet}" if user and user.nom_complet else "Praticien non renseigné"),
                 radio_image_path=radio_image_path,
                 is_pre_bilan=is_pre_bilan,
                 validation_warnings=validation_warnings
             )
-            return self.ceph_gen.generate(vm, projection=projection)
+            return self.ceph_gen.generate(vm, projection=projection, user=user)
         except Exception as e:
             logger.error(f"Erreur rapport céphalo: {e}")
             raise

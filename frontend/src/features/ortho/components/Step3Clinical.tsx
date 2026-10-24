@@ -4,6 +4,7 @@ import type { DiagnosticTexts, DonneesEtape3 } from '../cephaloTypes';
 import { fmtNum } from '../cephaloUtils';
 import { cn } from '../../../utils/cn';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { OrthoPractitionerNotesApproval } from './OrthoPractitionerNotesApproval';
 
 interface Step3ClinicalProps {
   P: any;
@@ -203,6 +204,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
           />
         </AccordionSection>
       </div>
+      <OrthoPractitionerNotesApproval P={P} />
     </div>
   );
 };
