@@ -1,0 +1,77 @@
+name: CB-03 G1-B Safe Status Preparation (synthetic only)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - master
+      - feature/cb03-g1a-safe-appointment-prepare-20261024
+    paths:
+      - backend/config.py
+      - backend/main.py
+      - backend/routers/bot_cb03_status_prepare.py
+      - backend/services/bot/guided_status_cb03.py
+      - backend/tests/test_bot_cb03_g1b_status_prepare.py
+      - .github/workflows/cb03-g1b-safe-status-prepare.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb03-g1b-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-fastapi-status:
+    name: G1-B tenant/RBAC and non-executable status contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: "false"
+      CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Assert exact immutable source
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test "$CLOUD_AI_ENABLED" = false
+          test "$CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED" = false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile G1-A and G1-B source and tests
+        run: |
+          python -m py_compile backend/routers/bot_cb03_safe_actions.py backend/routers/bot_cb03_status_prepare.py backend/services/bot/guided_status_cb03.py backend/tests/test_bot_cb03_g1a_prepare.py backend/tests/test_bot_cb03_g1b_status_prepare.py backend/config.py backend/main.py
+      - name: Install backend test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/requirements-cb03-g1b.txt
+          pip install -r /tmp/requirements-cb03-g1b.txt
+          python -m pip check
+      - name: Run G1-B, G1-A, CB-02 and legacy workflow synthetic HTTP tests
+        run: |
+          python -m pytest backend/tests/test_bot_cb03_g1b_status_prepare.py backend/tests/test_bot_cb03_g1a_prepare.py backend/tests/test_bot_guided_nlu_cb02_api.py backend/tests/test_bot_workflow_api_safe.py -q
+      - name: Evidence classification
+        run: |
+          echo "CB-03 G1-B: isolated synthetic FastAPI/SQLite only, exact SHA ${{ github.event.pull_request.head.sha }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "No status mutation, G2 confirmation, PG/SQLCipher clinical rehearsal or deployment." >> "$GITHUB_STEP_SUMMARY"
