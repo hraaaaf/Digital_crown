@@ -11,6 +11,12 @@ on:
       - "backend/models.py"
       - "alembic/versions/cust02000015_add_cabinet_motifs.py"
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-cust-02-motif-selector-visual-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

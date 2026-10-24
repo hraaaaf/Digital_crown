@@ -9,6 +9,12 @@ on:
       - 'frontend/scripts/fue-ceph-p2-full-wizard.mjs'
       - 'scripts/ceph_fue_p2_generate_phantom.py'
   workflow_dispatch:
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-ceph-fue-p2-full-wizard-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   actions: read

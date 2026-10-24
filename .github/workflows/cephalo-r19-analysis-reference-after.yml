@@ -21,6 +21,12 @@ on:
       - 'frontend/scripts/capture-cephalo-r19-analysis-reference-after.mjs'
       - '.github/workflows/cephalo-r19-analysis-reference-after.yml'
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-cephalo-r19-analysis-reference-after-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

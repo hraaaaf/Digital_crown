@@ -8,6 +8,12 @@ on:
       - 'scripts/ceph_p2ter_seed_t2.py'
       - 'scripts/t2_runtime_server.py'
       - '.github/workflows/ceph-p2ter-master-bridge-*.yml'
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-ceph-p2ter-master-bridge-real-cabinet-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:

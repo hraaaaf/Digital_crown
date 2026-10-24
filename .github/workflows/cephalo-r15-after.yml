@@ -29,6 +29,12 @@ on:
       - '.github/workflows/cephalo-r15-after.yml'
       - 'docs/CEPHALO_R15_STUDIO_UX_UI.md'
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-cephalo-r15-after-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

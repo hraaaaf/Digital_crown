@@ -6,6 +6,12 @@ on:
       - 'scripts/ceph_r23h_seed_empty_patient_t2.py'
       - 'frontend/scripts/fue-ceph-r23h-first-use.mjs'
   workflow_dispatch:
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-ceph-r23h-fue-first-use-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   actions: read

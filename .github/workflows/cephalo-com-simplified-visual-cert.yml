@@ -7,6 +7,12 @@ on:
       - ".github/workflows/cephalo-com-simplified-visual-cert.yml"
   workflow_dispatch:
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-cephalo-com-simplified-visual-cert-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
