@@ -139,12 +139,26 @@ def verify_approved_anatomical_trace(
         return None
     if data["contour_digest"]!=source["contour_digest"]:
         return None
-    proof=canonical_digest([
+    # V2 LAB: bind editable controls to the same signed V1 sampled contour.
+    # Legacy signed V1 drafts have no nodes and keep their existing digest.
+    signed_fields=[
         source["patient_id"],source["analysis_id"],
         source["analysis_revision"],source["scientific_digest"],
         source["image_sha256"],source["version"],
         source["contour_digest"],source["approved_by"],
-    ])
+    ]
+    editable_nodes=source.get("bezier_profile_nodes")
+    if editable_nodes is not None:
+        from backend.services.ortho_g5_bezier_profile import (
+            G5BezierRejected, verify_bezier_profile_matches,
+        )
+        try:
+            canonical_nodes=verify_bezier_profile_matches(
+                editable_nodes,contours=source["contours"],image_size=image_size)
+        except (G5BezierRejected, ValueError, TypeError):
+            return None
+        signed_fields.append(canonical_digest(canonical_nodes))
+    proof=canonical_digest(signed_fields)
     if proof!=source["approved_digest"]:
         return None
     return data
