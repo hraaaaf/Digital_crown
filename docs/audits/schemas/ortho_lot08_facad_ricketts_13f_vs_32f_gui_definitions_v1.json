@@ -1,0 +1,251 @@
+{
+  "schema_version": "ORTHO_LOT08_FACAD_RICKETTS_13F_VS_32F_GUI_DEFINITIONS_V1",
+  "status": "HISTORICAL_EDITOR_SIGNATURE_COMPARISON_ONLY_NOT_RUNTIME_PARITY",
+  "source_artifacts": {
+    "profile_32f": 11586908104,
+    "profile_13f": 11587723671
+  },
+  "source_roster": "docs/audits/schemas/ortho_lot08_facad_ricketts_editor_uia_45_roster_v1.json",
+  "source_window": "Edit Cephalometric Analysis",
+  "source_surface": "first Measurements DataGrid / UIAutomation",
+  "meanings": {
+    "same_signature": "Same displayed FACAD editor calc_type and Arg1..Arg4 for equal vendor labels; hidden flags, landmarks, runtime computations, display rounding and cross-product parity are not established.",
+    "norm_difference": "Displayed per-profile norm string differs; NOT normative authority for Digital Crown and must never be silently unified."
+  },
+  "scientific_authority": false,
+  "compatibility_only": true,
+  "same_editor_signature_count": 13,
+  "distinct_display_norm_count": 4,
+  "pairings": [
+    {
+      "facad_13f_order": 1,
+      "facad_32f_label": "Facial axis",
+      "facad_label": "Facial axis",
+      "calc_type": "Angle4p",
+      "arg_refs": [
+        "Pt",
+        "Gn",
+        "N",
+        "Ba"
+      ],
+      "norm_13f": "90±3.5",
+      "norm_32f": "90±3",
+      "norm_display_same": false,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 2,
+      "facad_32f_label": "Facial depth",
+      "facad_label": "Facial depth",
+      "calc_type": "Angle2ln",
+      "arg_refs": [
+        "FL",
+        "FH"
+      ],
+      "norm_13f": "89±3",
+      "norm_32f": "89±3",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 3,
+      "facad_32f_label": "ML/FH",
+      "facad_label": "ML/FH",
+      "calc_type": "Angle2ln",
+      "arg_refs": [
+        "FH",
+        "ML"
+      ],
+      "norm_13f": "26±4.5",
+      "norm_32f": "26±4",
+      "norm_display_same": false,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 4,
+      "facad_32f_label": "LFH",
+      "facad_label": "LFH",
+      "calc_type": "Angle3p",
+      "arg_refs": [
+        "Xi",
+        "ANS",
+        "PM"
+      ],
+      "norm_13f": "45±4",
+      "norm_32f": "47±4",
+      "norm_display_same": false,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 5,
+      "facad_32f_label": "PFH",
+      "facad_label": "PFH",
+      "calc_type": "Dist2p",
+      "arg_refs": [
+        "CF",
+        "Go"
+      ],
+      "norm_13f": "63±3.5",
+      "norm_32f": "63±3.5",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 6,
+      "facad_32f_label": "Mand arc",
+      "facad_label": "Mand arc",
+      "calc_type": "Angle4p",
+      "arg_refs": [
+        "Xi",
+        "PM",
+        "DC",
+        "Xi"
+      ],
+      "norm_13f": "30±4",
+      "norm_32f": "30±4",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 7,
+      "facad_32f_label": "Convexity",
+      "facad_label": "Convexity",
+      "calc_type": "DistLine",
+      "arg_refs": [
+        "FL",
+        "A"
+      ],
+      "norm_13f": "0±2",
+      "norm_32f": "0.4±2",
+      "norm_display_same": false,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 8,
+      "facad_32f_label": "Max depth",
+      "facad_label": "Max depth",
+      "calc_type": "Angle4p",
+      "arg_refs": [
+        "A",
+        "N",
+        "P",
+        "Or"
+      ],
+      "norm_13f": "90±3",
+      "norm_32f": "90±3",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 9,
+      "facad_32f_label": "Ii to A-Pog",
+      "facad_label": "Ii to A-Pog",
+      "calc_type": "Dist3p",
+      "arg_refs": [
+        "Pog",
+        "A",
+        "Ii"
+      ],
+      "norm_13f": "1±2",
+      "norm_32f": "1±2",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 10,
+      "facad_32f_label": "ILi/A-Pog",
+      "facad_label": "ILi/A-Pog",
+      "calc_type": "Angle4p",
+      "arg_refs": [
+        "Pog",
+        "A",
+        "Iia",
+        "Ii"
+      ],
+      "norm_13f": "22±4",
+      "norm_32f": "22±4",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 11,
+      "facad_32f_label": "Ms-PtV",
+      "facad_label": "Ms-PtV",
+      "calc_type": "ProjLine",
+      "arg_refs": [
+        "FH",
+        "Pt",
+        "Ms-d"
+      ],
+      "norm_13f": "19±3",
+      "norm_32f": "19±3",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 12,
+      "facad_32f_label": "InterIncisal",
+      "facad_label": "InterIncisal",
+      "calc_type": "Angle4p",
+      "arg_refs": [
+        "Iia",
+        "Ii",
+        "Isa",
+        "Is"
+      ],
+      "norm_13f": "130±10",
+      "norm_32f": "130±10",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    },
+    {
+      "facad_13f_order": 13,
+      "facad_32f_label": "Li-EL",
+      "facad_label": "Li-EL",
+      "calc_type": "DistLine",
+      "arg_refs": [
+        "EL",
+        "Li"
+      ],
+      "norm_13f": "-2±2",
+      "norm_32f": "-2±2",
+      "norm_display_same": true,
+      "same_vendor_editor_calc_type_and_refs": true,
+      "numeric_same_trace_observed": false,
+      "digital_crown_geometry_parity_observed": false
+    }
+  ],
+  "safety_rules": {
+    "no_runtime_actions": true,
+    "do_not_unify_norms": true,
+    "no_clinical_norm_authority": true,
+    "no_numeric_parity_inference": true,
+    "no_dc_direct_alias_inference": true,
+    "no_hidden_flags_assumed": true,
+    "no_patient_data": true
+  }
+}
