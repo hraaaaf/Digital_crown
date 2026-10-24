@@ -150,6 +150,8 @@ try {
       localProbe.style.color = 'var(--color-on-primary)';
       node.appendChild(localProbe);
       const expectedScopedPrimaryText = getComputedStyle(localProbe).color;
+      localProbe.style.color = 'var(--primary)';
+      const expectedSemanticPrimary = getComputedStyle(localProbe).color;
       localProbe.remove();
       const rgb = value => (value.match(/[0-9.]+/g) || []).slice(0, 3).map(Number);
       const luminance = value => {
@@ -175,9 +177,14 @@ try {
       const badge = node.querySelector('[data-testid="multiview-ronly-contract"]');
       const hero = node.querySelector('[data-testid="multiview-real-dossier"] > div:first-child');
       return {
-        expected, expectedSurface, expectedPrimaryText, expectedScopedPrimaryText, darkContrast,
+        expected, expectedSurface, expectedPrimaryText, expectedScopedPrimaryText,
+        expectedSemanticPrimary, darkContrast,
         renderedPrimaryLabel: intro ? getComputedStyle(intro).color : null,
         renderedBadgeInk: modeBadge ? getComputedStyle(modeBadge).color : null,
+        renderedSliderAccent: (() => {
+          const slider = node.querySelector('input[type="range"]');
+          return slider ? getComputedStyle(slider).accentColor : null;
+        })(),
         card: media ? getComputedStyle(media).backgroundColor : 'absent',
         text: getComputedStyle(node).color,
         surface: badge ? getComputedStyle(badge).backgroundColor : 'absent',
@@ -189,6 +196,12 @@ try {
       colors.text === colors.expected.text &&
       colors.surface === colors.expectedSurface &&
       colors.primaryText === colors.expectedScopedPrimaryText, colors);
+    assert('theme ' + chosenTheme + ' uses selected semantic PRIMARY on label, badge and range control',
+      colors.renderedPrimaryLabel === colors.expectedSemanticPrimary &&
+      colors.renderedBadgeInk === colors.expectedSemanticPrimary &&
+      colors.renderedSliderAccent === colors.expectedSemanticPrimary,
+      { token: colors.expectedSemanticPrimary, label: colors.renderedPrimaryLabel,
+        badge: colors.renderedBadgeInk, slider: colors.renderedSliderAccent });
     if (chosenTheme === 'dark') {
       assert('dark radiology primary labels and mode badge pass WCAG AA 4.5:1 against their real themed surfaces',
         colors.darkContrast !== null &&
