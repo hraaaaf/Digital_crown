@@ -56,92 +56,19 @@ python3.12 -m venv .venv-a2-cert
 # shellcheck disable=SC1091
 source .venv-a2-cert/bin/activate
 python -m pip install --upgrade pip
-# Avoid replacing CPU-only torch with multi-GB CUDA packages during requirements install.
-# These CPU versions correspond to requirements.txt and remain test-only.
+# Match the previously reviewed A1/A2 CI Python dependency contract.
 python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 \
   --index-url https://download.pytorch.org/whl/cpu
 grep -vE '^(torch|torchvision|torchaudio)==' requirements.txt > .venv-a2-cert/requirements-no-torch.txt
 python -m pip install -r .venv-a2-cert/requirements-no-torch.txt
 python -m py_compile scripts/seed_v15_station_fallback_a2.py
-# OpenCV's native import requires OS runtime libraries. Fail before pytest if
-# missing instead of confusing a dependency error with a product regression.
+# Native OpenCV Linux libraries are required for backend test collection.
 if command -v apt-get >/dev/null 2>&1; then
-  command -v sudo >/dev/null 2>&1 || fail "sudo is required to install isolated browser/OpenCV libraries"
+  command -v sudo >/dev/null 2>&1 || fail 'sudo required for isolated native OpenCV test deps'
   sudo apt-get update -qq
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    libxcb1 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libxcb1 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1
 fi
 python -c 'import cv2; print("A2_OPENCV_NATIVE_IMPORT_PASS", cv2.__version__)'
-python -m pytest backend/tests/test_station_patient_session_v15.py \
-  backend/tests/test_station_identity_pairing_migration_v15.py \
-  -q --disable-warnings
-
-(
-  cd frontend
-  npm ci
-  npm install --no-save --package-lock=false playwright@1.55.0
-  npx playwright install --with-deps chromium
-  node --check scripts/certify-v15-03-a2-real-fallback.mjs
-  npx vitest run src/features/hub/StationPatientIdentity.test.tsx \
-    --maxWorkers=1 --fileParallelism=false
-  npm run build
-)
-
-python scripts/t2_runtime_server.py > /tmp/v15-g03-a2-manual-backend.log 2>&1 &
-backend_pid=$!
-backend_ready=0
-for i in $(seq 1 90); do
-  if curl --fail --silent http://127.0.0.1:8005/health > /dev/null; then
-    backend_ready=1
-    break
-  fi
-  sleep 1
-done
-if [[ "$backend_ready" != 1 ]]; then
-  tail -60 /tmp/v15-g03-a2-manual-backend.log >&2
-  fail "isolated backend did not become healthy"
-fi
-python scripts/seed_v15_station_fallback_a2.py
-
-(
-  cd frontend
-  exec npm run dev -- --host 127.0.0.1 --port 5173
-) > /tmp/v15-g03-a2-manual-frontend.log 2>&1 &
-frontend_pid=$!
-frontend_ready=0
-for i in $(seq 1 90); do
-  if curl --fail --silent http://127.0.0.1:5173/ > /dev/null; then
-    frontend_ready=1
-    break
-  fi
-  sleep 1
-done
-if [[ "$frontend_ready" != 1 ]]; then
-  tail -60 /tmp/v15-g03-a2-manual-frontend.log >&2
-  fail "Vite Station did not become healthy"
-fi
-
-(cd frontend && node scripts/certify-v15-03-a2-real-fallback.mjs)
-python scripts/seed_v15_station_fallback_a2.py --verify
-
-python - <<'PY'
-import json, os
-from pathlib import Path
-p=Path("frontend/artifacts/v15-03-a2-fallback-real/sql-after.json")
-d=json.loads(p.read_text())
-assert d["status"]=="PASS" and d["head"]==os.environ["EVALUATED_SHA"]
-assert d["visualCaptures"]>=10
-assert {390,430,768,1280}.issubset(d["verifiedViewports"])
-print("A2_MANUAL_ISOLATED_LAB_PASS", os.environ["EVALUATED_SHA"])
-PY
-python -m zipfile -c A2_REAL_AFTER_LAB_EVIDENCE.zip \
-  frontend/artifacts/v15-03-a2-fallback-real
-sha256sum A2_REAL_AFTER_LAB_EVIDENCE.zip
-printf '\nDONE — synthetic proof archive: A2_REAL_AFTER_LAB_EVIDENCE.zip\n'
-printf 'Manual Codespaces lab only. Does NOT waive required GitHub CI/human approval.\n' requirements.txt \
-  > .venv-a2-cert/requirements-no-torch.txt
-python -m pip install -r .venv-a2-cert/requirements-no-torch.txt
-python -m py_compile scripts/seed_v15_station_fallback_a2.py
 python -m pytest backend/tests/test_station_patient_session_v15.py \
   backend/tests/test_station_identity_pairing_migration_v15.py \
   -q --disable-warnings
