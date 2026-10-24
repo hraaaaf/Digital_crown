@@ -4,7 +4,11 @@ No image generated here is passed off as a real cephalogram, and no data are
 downloaded. The live HTTP range/MD5 path is verified separately in G3 CI.
 """
 import json
+import hashlib
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
+from backend.services.ortho_lab_image_integrity import verified_aariz_display_image_pair
 from scripts.odf_v5_g3_aariz_matched_pair import _paired_names, _landmarks, AARIZ_TO_DC
 
 def _case(prefix, stem="029"):
@@ -15,6 +19,24 @@ def _case(prefix, stem="029"):
     ]
 
 class AarizMatchedSourceContract(unittest.TestCase):
+    def test_image_byte_change_revokes_paired_expert_results(self):
+        with TemporaryDirectory() as tmp:
+            file=Path(tmp)/"trace-paired-demo.png"
+            file.write_bytes(b"synthetic-bytes-not-an-image")
+            data={
+                "odf_lab_image_landmark_alignment":"VERIFIED_AARIZ_EXPERT_PAIR",
+                "odf_lab_dataset_image_id":"Aariz/Valid/Cephalograms/029.png",
+                "odf_lab_display_png_sha256":hashlib.sha256(file.read_bytes()).hexdigest(),
+                "odf_lab_source_image_sha256":"1"*64,
+                "odf_lab_source_senior_sha256":"2"*64,
+                "odf_lab_source_junior_sha256":"3"*64,
+            }
+            self.assertTrue(verified_aariz_display_image_pair(data,file))
+            file.write_bytes(b"swapped-image")
+            self.assertFalse(verified_aariz_display_image_pair(data,file))
+            data["odf_lab_image_landmark_alignment"]="UNVERIFIED"
+            self.assertFalse(verified_aariz_display_image_pair(data,file))
+
     def test_requires_exact_film_id_and_two_expert_files(self):
         names=_case("Aariz/Train","013")+_case("Aariz/Valid","029")
         image,senior,junior=_paired_names(names)
