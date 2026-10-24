@@ -129,7 +129,7 @@ def validate_manifest(data):
     changes = data.get("relabels")
     unresolved = data.get("unresolved")
     drops = data.get("exact_duplicate_deletions")
-    if (not isinstance(changes, list) or len(changes) != 19
+    if (not isinstance(changes, list) or len(changes) != 21
             or not isinstance(unresolved, list) or len(unresolved) != 10
             or not isinstance(drops, list) or len(drops) != 1):
         reject("private_manifest_decision_census_mismatch")
@@ -237,9 +237,9 @@ def evaluate_private(root: Path, manifest: dict):
         "schema": SCHEMA,
         "status": "PRIVATE_CLINICIAN_STAGING_PRECHECK",
         "source_label_files": 333,
-        "clinician_relabels_requested": 19,
+        "clinician_relabels_requested": 21,
         "clinician_relabels_safe": edited,
-        "clinician_relabels_blocked_by_existing_target_class": 19-edited,
+        "clinician_relabels_blocked_by_existing_target_class": 21-edited,
         "case_files_with_target_collision": colliding,
         "exact_duplicate_entries_safe_to_remove": 1,
         "unresolved_clinician_cases": 10,

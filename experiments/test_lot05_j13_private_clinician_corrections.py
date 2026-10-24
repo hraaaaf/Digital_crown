@@ -40,7 +40,7 @@ def fixture(root):
         changes.append({"case":i+1,"split":split,"stem":stem,
             "from_fdi":"15","to_fdi":"16",
             "expected_bbox":[.41,.40,.04,.15]})
-        if i<2:
+        if i<4:
             changes.append({"case":i+1,"split":split,"stem":stem,
                 "from_fdi":"17","to_fdi":"18",
                 "expected_bbox":[.58,.40,.04,.15]})
@@ -84,7 +84,7 @@ class J13SyntheticTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             manifest,_=fixture(Path(d))
             M.validate_manifest(manifest)
-            self.assertEqual(len(manifest["relabels"]),19)
+            self.assertEqual(len(manifest["relabels"]),21)
 
     def test_specific_row_only_relabels_and_original_unchanged(self):
         with tempfile.TemporaryDirectory() as d:
@@ -92,7 +92,7 @@ class J13SyntheticTest(unittest.TestCase):
             sample=root/flagged[0][0]/(flagged[0][1]+".txt")
             before=sample.read_text()
             result,replacements=M.evaluate_private(root,manifest)
-            self.assertEqual(result["clinician_relabels_safe"],19)
+            self.assertEqual(result["clinician_relabels_safe"],21)
             self.assertEqual(result["case_files_with_target_collision"],0)
             self.assertEqual(before,sample.read_text())
             self.assertIn("5 0.41 0.40 0.04 0.15",replacements[flagged[0]])
@@ -122,6 +122,24 @@ class J13SyntheticTest(unittest.TestCase):
             result,changed=M.evaluate_private(root,manifest)
             self.assertGreater(result["clinician_relabels_blocked_by_existing_target_class"],0)
             self.assertNotIn(flagged[0],changed)
+
+    def test_two_clinician_relabels_resolve_preexisting_target(self):
+        # A destination class can be freed by another clinician-approved change
+        # in the same file, checked atomically instead of silently overwriting it.
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); manifest,flagged=fixture(root)
+            first=root/flagged[0][0]/(flagged[0][1]+".txt")
+            first.write_text(first.read_text()+"5 0.75 0.40 0.04 0.15\n")
+            rec=next(r for r in manifest["relabels"]
+                     if r["case"]==1 and r["from_fdi"]=="17")
+            rec["from_fdi"]="16"
+            rec["to_fdi"]="21"
+            rec["expected_bbox"]=[.75,.40,.04,.15]
+            result,changed=M.evaluate_private(root,manifest)
+            self.assertEqual(result["clinician_relabels_safe"],21)
+            self.assertEqual(result["case_files_with_target_collision"],0)
+            self.assertIn("5 0.41 0.40 0.04 0.15",changed[flagged[0]])
+            self.assertIn("8 0.75 0.40 0.04 0.15",changed[flagged[0]])
 
     def test_preexisting_private_destination_rejected(self):
         with tempfile.TemporaryDirectory() as d:

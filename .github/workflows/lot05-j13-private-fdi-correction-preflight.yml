@@ -32,7 +32,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Test fourteen synthetic source-integrity, collision and privacy cases
+      - name: Test fifteen synthetic source-integrity, collision and privacy cases
         run: python experiments/test_lot05_j13_private_clinician_corrections.py -v
       - name: Pin academic YOLO TXT ONLY in disposable runner, never pixels
         shell: bash
