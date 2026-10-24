@@ -143,11 +143,39 @@ try {
       probe.style.color = 'var(--text-on-primary)';
       const expectedPrimaryText = getComputedStyle(probe).color;
       probe.remove();
+
+      /* The local radiology theme overrides Tailwind v4 semantic aliases.
+         Measure the actual inherited text roles, not global root aliases. */
+      const localProbe = document.createElement('div');
+      localProbe.style.color = 'var(--color-on-primary)';
+      node.appendChild(localProbe);
+      const expectedScopedPrimaryText = getComputedStyle(localProbe).color;
+      localProbe.remove();
+      const rgb = value => (value.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+      const luminance = value => {
+        const [r,g,b] = rgb(value).map(v => {
+          const x = v / 255;
+          return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126*r + 0.7152*g + 0.0722*b;
+      };
+      const contrast = (a,b) => {
+        const first = luminance(a), second = luminance(b);
+        return (Math.max(first,second)+0.05)/(Math.min(first,second)+0.05);
+      };
+      const intro = node.querySelector('.dc-mv-commandbar .text-primary');
+      const mediaHeading = node.querySelector('[data-testid="patient-media-timeline"] h2');
+      const modeBadge = node.querySelector('[data-testid="multiview-ronly-contract"]');
+      const darkContrast = intro && mediaHeading && modeBadge ? {
+        intro: contrast(getComputedStyle(intro).color,expected.card),
+        mediaTitle: contrast(getComputedStyle(mediaHeading).color,expected.card),
+        modeBadge: contrast(getComputedStyle(modeBadge).color,expectedSurface),
+      } : null;
       const media = node.querySelector('[data-v15-071-viewslot="imagerie"]');
       const badge = node.querySelector('[data-testid="multiview-ronly-contract"]');
       const hero = node.querySelector('[data-testid="multiview-real-dossier"] > div:first-child');
       return {
-        expected, expectedSurface, expectedPrimaryText,
+        expected, expectedSurface, expectedPrimaryText, expectedScopedPrimaryText, darkContrast,
         card: media ? getComputedStyle(media).backgroundColor : 'absent',
         text: getComputedStyle(node).color,
         surface: badge ? getComputedStyle(badge).backgroundColor : 'absent',
@@ -158,7 +186,14 @@ try {
       colors.card === colors.expected.card &&
       colors.text === colors.expected.text &&
       colors.surface === colors.expectedSurface &&
-      colors.primaryText === colors.expectedPrimaryText, colors);
+      colors.primaryText === colors.expectedScopedPrimaryText, colors);
+    if (chosenTheme === 'dark') {
+      assert('dark radiology primary labels and mode badge pass WCAG AA 4.5:1 against their real themed surfaces',
+        colors.darkContrast !== null &&
+        colors.darkContrast.intro >= 4.5 &&
+        colors.darkContrast.mediaTitle >= 4.5 &&
+        colors.darkContrast.modeBadge >= 4.5, colors.darkContrast);
+    }
     themeColors[chosenTheme] = colors;
     if (['emerald','dark','high-contrast'].includes(chosenTheme)) {
       await page.screenshot({
