@@ -88,21 +88,58 @@ def _landmarks(blob:bytes) -> dict[str,tuple[float,float]]:
     return result
 
 
+def _extract_pair(archive):
+    image_name,senior_name,junior_name=_paired_names(archive.namelist())
+    out=[]
+    for name,cap in [(image_name,12_000_000),(senior_name,800_000),(junior_name,800_000)]:
+        info=archive.getinfo(name)
+        if info.file_size<=0 or info.file_size>cap:
+            raise RuntimeError("AARIZ_ENTRY_SIZE_NOT_WITHIN_ALLOWLIST")
+        data=archive.read(name)
+        if len(data)!=info.file_size:
+            raise RuntimeError("AARIZ_ENTRY_TRUNCATED")
+        out.append(data)
+    return (image_name,senior_name,junior_name,*out)
+
+
 def matched_pair():
     from remotezip import RemoteZip
-    with RemoteZip(AARIZ_DOWNLOAD,initial_buffer_size=1024*1024,
-                   support_suffix_range=True) as archive:
-        image_name,senior_name,junior_name=_paired_names(archive.namelist())
-        out=[]
-        for name,cap in [(image_name,12_000_000),(senior_name,800_000),(junior_name,800_000)]:
-            info=archive.getinfo(name)
-            if info.file_size<=0 or info.file_size>cap:
-                raise RuntimeError("AARIZ_ENTRY_SIZE_NOT_WITHIN_ALLOWLIST")
-            data=archive.read(name)
-            if len(data)!=info.file_size:
-                raise RuntimeError("AARIZ_ENTRY_TRUNCATED")
-            out.append(data)
-        return (image_name,senior_name,junior_name,*out)
+    from zipfile import ZipFile
+    from hashlib import md5
+    import tempfile
+    from urllib.request import urlopen, Request
+
+    try:
+        # Cheap: only the ZIP central directory and three source-bound entries.
+        with RemoteZip(AARIZ_DOWNLOAD, initial_buffer_size=1024*1024,
+                       support_suffix_range=True,timeout=45) as archive:
+            return _extract_pair(archive)
+    except Exception as exc:
+        print("AARIZ_RANGE_UNAVAILABLE=" + type(exc).__name__, flush=True)
+        if os.getenv("ODF_G3_FULL_ARCHIVE_FALLBACK") != "1":
+            raise RuntimeError("AARIZ_RANGE_DOWNLOAD_BLOCKED") from exc
+    # The official host may reject HTTP ranges. In a *disposable CI runner*
+    # only, permit one exact MD5 checked archive download (<2.15 GiB), then
+    # extract a single paired film and two expert traces. No redistribution.
+    with tempfile.TemporaryDirectory(prefix="odf-g3-aariz-") as tmp:
+        target=Path(tmp)/"Aariz.zip"
+        hasher=md5()
+        count=0
+        with urlopen(Request(AARIZ_DOWNLOAD,headers={
+            "User-Agent":"DigitalCrown-ODF-G3-ResearchLab/1.0"}),timeout=60) as src:
+            with target.open("wb") as sink:
+                while True:
+                    chunk=src.read(8*1024*1024)
+                    if not chunk:break
+                    count+=len(chunk)
+                    if count>2_200_000_000:
+                        raise RuntimeError("AARIZ_REMOTE_ARCHIVE_EXCEEDS_VERIFIED_SOURCE")
+                    hasher.update(chunk)
+                    sink.write(chunk)
+        if hasher.hexdigest()!=AARIZ_ZIP_MD5:
+            raise RuntimeError("AARIZ_SOURCE_ZIP_MD5_INTEGRITY_FAILED")
+        with ZipFile(target) as archive:
+            return _extract_pair(archive)
 
 
 def seed_verified_pair():
@@ -123,6 +160,8 @@ def seed_verified_pair():
     # The actual numerical positioning is derived only from these JSON files.
     factor=min(1935/image.width,2400/image.height)
     new_w,new_h=round(image.width*factor),round(image.height*factor)
+    scale_x=new_w/image.width
+    scale_y=new_h/image.height
     left=(1935-new_w)//2
     top=(2400-new_h)//2
     transformed=[]
@@ -132,7 +171,7 @@ def seed_verified_pair():
         if not(0<=src_x<image.width and 0<=src_y<image.height):
             raise RuntimeError("AARIZ_EXPERT_COORDINATE_OUTSIDE_MATCHED_IMAGE")
         transformed.append({"id":AARIZ_TO_DC[key],
-             "x":float(src_x*factor+left),"y":float(src_y*factor+top)})
+             "x":float(src_x*scale_x+left),"y":float(src_y*scale_y+top)})
     if len({p["id"] for p in transformed})!=len(transformed):
         raise RuntimeError("AARIZ_CANONICAL_LANDMARK_DUPLICATION")
 
@@ -219,7 +258,7 @@ def seed_verified_pair():
           "junior_sha256":sha256(junior_bytes).hexdigest(),
           "original_dimensions":original_shape,
           "display_dimensions":[1935,2400],
-          "transform":{"factor":factor,"left":left,"top":top},
+          "transform":{"scale_x":scale_x,"scale_y":scale_y,"left":left,"top":top},
           "expert_point_count":len(transformed),
           "patient_id":patient.id,"analysis_id":study.id,
           "analysis_revision":read["revision"],
