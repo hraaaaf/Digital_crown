@@ -88,6 +88,23 @@ jobs:
           sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' /tmp/r2-dec02-vitest.txt > /tmp/r2-dec02-vitest-plain.txt
           grep -Eq 'Test Files[[:space:]]+4 passed' /tmp/r2-dec02-vitest-plain.txt
           if grep -Eq '[[:space:]]+[1-9][0-9]* (skipped|failed)' /tmp/r2-dec02-vitest-plain.txt; then exit 1; fi
+      - name: Assert independently fingerprinted disposable SQLite target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import (
+              database_target_fingerprint, is_known_cabinet_database,
+          )
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target)
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(target))
+          PY
       - name: Start genuine disposable FastAPI server seeded only with T2
         shell: bash
         run: |
