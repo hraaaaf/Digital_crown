@@ -1,4 +1,4 @@
-name: LOT07 07.1.A-B dormant MultiView nine-layout contract
+name: LOT07 07.1.A-B MultiView nine-layout R-only contract
 on:
   push:
     branches:
@@ -22,26 +22,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  dormant-layout-contract:
+  ronly-layout-contract:
     name: Nine presets / geometry / denial-before-render
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
-      SOURCE_HEAD: ${{ github.sha }}
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_HEAD }}
-      - name: Confirm exact HEAD and feature dormant in Cabinet
+      - name: Confirm exact HEAD and strict R-only layout authorization
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
           test -f frontend/src/features/multiview/studioLayouts.ts
           test -f frontend/src/features/multiview/StudioLayoutFrame.tsx
-          if grep -Eq "StudioLayoutFrame|V15_07_1_MULTIVIEW" frontend/src/App.tsx frontend/src/features/patients/PatientDetailsInner.tsx; then
-            echo "Unexpected runtime activation: this PR is FUE-0 only"; exit 1
-          fi
+          grep -Fq 'WRITE_SLOT_NOT_CERTIFIED' frontend/src/features/multiview/studioLayouts.ts
+          grep -Fq 'EXCLUSIVE_SLOT_NOT_CERTIFIED' frontend/src/features/multiview/studioLayouts.ts
+          grep -Fq 'authorizeLayout' frontend/src/features/multiview/CabinetMultiViewLab.tsx
+          grep -Fq 'readOnly' frontend/src/features/multiview/CabinetMultiViewLab.tsx
+          echo 'LOT07_R2_LAYOUT_R_ONLY_GUARD_SOURCE_PASS'
       - uses: actions/setup-node@v4
         with:
           node-version: '24.11.1'
