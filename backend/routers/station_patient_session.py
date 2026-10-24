@@ -277,8 +277,8 @@ def update_station_patient_session_config(
 @router.post("/patient-session", status_code=201)
 def create_station_patient_session(
     request: Request,
-    body: StationPatientSessionCreate | None = None,
     response: Response,
+    body: StationPatientSessionCreate | None = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
