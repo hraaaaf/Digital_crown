@@ -320,7 +320,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import cm
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, Image as RLImage, PageBreak
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, Image as RLImage, KeepTogether
 
         context = self._shared_context(vm, projection or {})
         odf = context["odf"]
@@ -376,7 +376,26 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             elements.append(table)
             elements.append(Spacer(1, 0.13 * cm))
 
-        elements.append(Paragraph("01  Analyse céphalométrique", heading))
+        trace = odf.get("research_figure")
+        if trace:
+            from io import BytesIO
+            from base64 import b64decode
+            traced_image = b64decode(trace["image_b64"], validate=True)
+            legend = ", ".join(x["name"] for x in trace.get("legend", []))
+            # Keep the traced image and its source in PHASE 01, with the same
+            # geometry (no distortion) as the WeasyPrint view.
+            elements.append(KeepTogether([
+                Paragraph("01  Analyse céphalométrique", heading),
+                Paragraph("Tracé céphalométrique — téléradiographie de profil", subheading),
+                RLImage(BytesIO(traced_image),
+                        width=11.0 * cm, height=(11.0 * 2400 / 1935) * cm),
+                Spacer(1, 0.16 * cm),
+                Paragraph(escape("Plans : " + legend), body),
+                Paragraph(escape(trace["caption"]), body),
+                Paragraph("Source : " + escape(trace["source_url"]), body),
+            ]))
+        else:
+            elements.append(Paragraph("01  Analyse céphalométrique", heading))
         for key, label in (
             ("osseuse", "A. Analyse osseuse"),
             ("dentoalveolaire", "B. Analyse dento-alvéolaire"),
@@ -411,24 +430,6 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 heading))
             for alert in odf["clinical_alerts"]:
                 elements.append(Paragraph(escape(str(alert)), body))
-        if odf.get("research_figure"):
-            # Same verified image/source as the WeasyPrint research annex,
-            # separate from the four clinical phases.
-            from io import BytesIO
-            from base64 import b64decode
-            image_bytes = b64decode(odf["research_figure"]["image_b64"])
-            elements.append(PageBreak())
-            elements.append(Paragraph(
-                "Téléradiographie de profil — iconographie", heading))
-            elements.append(Spacer(1, 0.20 * cm))
-            elements.append(RLImage(BytesIO(image_bytes),
-                                    width=12.0 * cm, height=14.88 * cm))
-            elements.append(Spacer(1, 0.25 * cm))
-            elements.append(Paragraph(
-                escape(odf["research_figure"]["caption"]), body))
-            elements.append(Paragraph(
-                "Source : " + escape(odf["research_figure"]["source_url"]), body))
-
         draw_method = lambda canv, d: self.draw_static_elements(
             canv, d, config=config, user=user)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
