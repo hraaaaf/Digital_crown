@@ -379,22 +379,22 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
       {loading && <div className="flex min-h-[220px] items-center justify-center text-text-muted"><Loader2 size={28} className="animate-spin" /></div>}
       {!loading && loadError && <div className="flex min-h-[220px] flex-col items-center justify-center gap-4 rounded-[1.25rem] border border-border-main bg-card-bg p-6 text-center"><RefreshCcw size={30} className="text-text-muted" /><div><h3 className="font-black text-main">Médiathèque indisponible</h3><p className="mt-1 text-sm text-text-muted">La liste des médias n’a pas pu être chargée.</p></div><button type="button" onClick={() => void loadAssets()} className="rounded-xl border border-border-main px-4 py-2 text-xs font-black uppercase tracking-widest text-primary">Réessayer</button></div>}
       {!loading && !loadError && items.length === 0 && (
-        <div className="flex min-h-[170px] flex-col items-center justify-center rounded-2xl border border-dashed border-blue-200 bg-gradient-to-br from-blue-50/70 to-white px-5 py-7 text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-800 shadow-sm"><Images size={24}/></div>
-          <h3 className="text-base font-extrabold tracking-tight text-slate-900">Aucun média longitudinal</h3>
-          <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-600">
+        <div className="flex min-h-[170px] flex-col items-center justify-center rounded-2xl border border-dashed border-border-hover bg-gradient-to-br from-medical-pearl/70 to-card px-5 py-7 text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-card text-primary-ink shadow-sm"><Images size={24}/></div>
+          <h3 className="text-base font-extrabold tracking-tight text-text-main">Aucun média longitudinal</h3>
+          <p className="mt-1 max-w-sm text-xs leading-relaxed text-text-muted">
             Photos, radiographies et documents apparaîtront ici lorsqu’ils seront disponibles dans ce dossier.
           </p>
-          {readOnly && <span className="mt-3 rounded-full border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-900">Consultation seule</span>}
+          {readOnly && <span className="mt-3 rounded-full border border-border-hover bg-card px-2.5 py-1 text-xs font-semibold text-primary-ink">Consultation seule</span>}
         </div>
       )}
       {!loading && !loadError && items.length > 0 && filteredItems.length === 0 && (
-        <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 p-5 text-center">
-          <Search size={28} className="mb-2 text-blue-700"/>
-          <h3 className="font-extrabold text-slate-900">Aucun média ne correspond aux filtres</h3>
-          <p className="mt-1 text-xs text-slate-600">Essayez une recherche différente ou réinitialisez les critères.</p>
+        <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-border-hover bg-medical-pearl/50 p-5 text-center">
+          <Search size={28} className="mb-2 text-primary"/>
+          <h3 className="font-extrabold text-text-main">Aucun média ne correspond aux filtres</h3>
+          <p className="mt-1 text-xs text-text-muted">Essayez une recherche différente ou réinitialisez les critères.</p>
           <button type="button" onClick={() => { setSearchTerm(''); setTypeFilter('ALL'); setTimepointFilter('ALL'); }}
-            className="mt-3 min-h-10 rounded-xl border border-blue-200 bg-white px-4 text-xs font-semibold text-blue-900">
+            className="mt-3 min-h-10 rounded-xl border border-border-hover bg-card px-4 text-xs font-semibold text-primary-ink">
             Effacer les filtres
           </button>
         </div>
