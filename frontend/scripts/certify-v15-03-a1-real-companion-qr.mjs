@@ -183,8 +183,15 @@ try {
     await phone.locator('[data-pc00-pair-manual]').click();
     const result=await reply;
     await expected(result,key+' patient phone pairing',[201]);
-    await phone.getByText('Coffre local actif',{exact:false}).waitFor({state:'visible',timeout:35000});
-    return await result.json();
+    // After adding the second account from the "Plus" tab the app correctly
+    // returns to the active patient context but preserves the selected tab.
+    // Navigate visibly back to "Aujourd’hui" before asserting the local vault
+    // status; otherwise this test expects an element hidden on "Plus".
+    await phone.getByRole('button',{name:'Aujourd’hui'}).click();
+    await phone.getByText('Coffre local actif',{exact:false}).waitFor({state:'visible',timeout:15000});
+    const pairedContext=await result.json();
+    await phone.getByText(pairedContext.context.patient.display_name,{exact:false}).first().waitFor({state:'visible',timeout:15000});
+    return pairedContext;
   };
   const primaryAccess=await pairPhone('primary');
   await snap(phone,'03-companion-paired-primary.png');
