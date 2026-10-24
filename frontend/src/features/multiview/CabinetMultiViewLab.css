@@ -106,12 +106,12 @@
 /* LOT07 R2 visual review — strictly opt-in DEV MultiView R-only.
    Styling cannot grant clinical permissions or introduce edit callbacks. */
 [data-v15-071-real-cabinet-lab] {
-  color: #142744;
-  --dc-r2-line: #dce7f4;
+  color: var(--text-main);
+  --dc-r2-line: var(--border-color);
 }
 [data-v15-071-real-cabinet-lab] .dc-mv-commandbar {
-  background: linear-gradient(125deg,#ffffff 0%,#f8fbff 100%);
-  box-shadow: 0 10px 28px -24px rgba(15,44,92,.40);
+  background: linear-gradient(125deg, var(--card-bg) 0%, var(--bg-medical-pearl) 100%);
+  box-shadow: var(--shadow-elite);
 }
 [data-v15-071-real-cabinet-lab] .dc-mv-commandbar select,
 [data-v15-071-real-cabinet-lab] .dc-mv-commandbar button {
@@ -121,24 +121,24 @@
 }
 [data-v15-071-real-cabinet-lab] .dc-mv-commandbar button:focus-visible,
 [data-v15-071-real-cabinet-lab] .dc-mv-commandbar select:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--primary);
   outline-offset: 3px;
 }
 [data-v15-071-real-cabinet-lab] .dc-mv-commandbar button:not(:disabled):hover {
-  border-color: #93b4e1;
-  box-shadow: 0 4px 12px rgba(17,63,135,.08);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-elite);
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-multiview-scaffold] {
   border-radius: 18px;
-  border-color: #dce7f4;
+  border-color: var(--border-color);
   padding: 14px;
-  background: #f8fbff;
+  background: var(--bg-medical-pearl);
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-multiview-scaffold] > h2 {
   margin-bottom: 12px;
   font-size: 14px;
   font-weight: 800;
-  color: #173968;
+  color: var(--text-main);
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-multiview-grid] {
   height: min(78vh,880px);
@@ -150,13 +150,13 @@
   max-height: min(78vh,880px);
   border: 1px solid var(--dc-r2-line);
   border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 4px 16px -13px rgba(14,40,86,.30);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-elite);
   scrollbar-width: thin;
-  scrollbar-color: #b7c9dd transparent;
+  scrollbar-color: var(--border-hover) transparent;
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-viewslot="dossier"] {
-  background: linear-gradient(180deg,#fff 0%,#f9fbff 100%);
+  background: linear-gradient(180deg, var(--card-bg) 0%, var(--bg-medical-pearl) 100%);
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] {
   max-height: none;
