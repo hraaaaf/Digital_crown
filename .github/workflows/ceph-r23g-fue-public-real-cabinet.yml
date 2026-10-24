@@ -6,6 +6,12 @@ on:
       - 'scripts/ceph_r23g_fue_public_seed_t2.py'
       - 'frontend/scripts/fue-ceph-r23g-public-real-cabinet.mjs'
   workflow_dispatch:
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-ceph-r23g-fue-public-real-cabinet-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:
