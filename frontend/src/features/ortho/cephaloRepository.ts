@@ -72,12 +72,16 @@ export const cephaloRepository = {
       draft_version: number; analysis_revision: number;
       approved: boolean; stale: boolean;
       contours: {id: string;points: number[][]}[];
+      bezier_profile_nodes?: {anchor:number[];incoming:number[];outgoing:number[]}[]|null;
     };
   },
 
   async saveAnatomicalTraceDraft(patientId: number, analysisId: number, payload: {
     expected_revision: number; expected_draft_version: number;
     contours: {id: string;points: number[][]}[];
+    bezier_profile_nodes?: readonly {
+      anchor:readonly number[];incoming:readonly number[];outgoing:readonly number[];
+    }[]|null;
   }) {
     const res = await api.put(
       `/patients/${patientId}/ortho-bilan/${analysisId}/anatomical-trace/draft`, payload,
