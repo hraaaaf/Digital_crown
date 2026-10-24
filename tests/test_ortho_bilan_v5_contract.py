@@ -276,10 +276,19 @@ class OrthoV5DocumentContract(unittest.TestCase):
                                 text.index("Examen des moulages"))
                 self.assertNotIn("Non calculable",text)
                 self.assertGreaterEqual(len(pages),2)
-                import fitz
-                with fitz.open(output) as rendered:
-                    self.assertGreaterEqual(sum(len(page.get_images()) for page in rendered),2,
-                        'Both clinical overlay and white anatomical drawing must be embedded')
+                # The minimal G2/Premium CI installs PyPDF2, not PyMuPDF.
+                # Count real image XObjects, not page count nor text labels.
+                image_count=0
+                for page in pages:
+                    resources=page.get("/Resources")
+                    resources=resources.get_object() if resources is not None else {}
+                    objects=resources.get("/XObject")
+                    if objects is not None:
+                        for entry in objects.get_object().values():
+                            if entry.get_object().get("/Subtype")=="/Image":
+                                image_count+=1
+                self.assertGreaterEqual(image_count,2,
+                    'Both traced radiograph and white anatomical drawing must be embedded')
 
     def test_real_pdf_weasyprint_and_fallback_have_same_four_phases(self):
         source = typed_study()
