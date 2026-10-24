@@ -367,3 +367,43 @@
     min-height: 44px;
   }
 }
+
+
+/* LOT07 R2 micropolish: dark-on-dark actions must use readable semantic roles.
+   Restrict overrides to patient radiology; never change global theme settings. */
+[data-theme='dark'] [data-dc-patient-radiology="true"] {
+  --primary: var(--status-info);
+  --primary-ink: var(--status-info);
+  --text-on-primary: var(--bg-medical-pearl);
+  --text-muted: color-mix(in srgb, var(--text-main) 76%, var(--card-bg));
+}
+
+/* Horizontal tabs remain accessible with touch, pointer and keyboard; the
+   visible hint explains that navigation continues outside the viewport. */
+@media (max-width: 767px) {
+  [data-dc-patient-radiology="true"] .dc-radiology-tab-scroll-hint {
+    margin: 1px 4px 0;
+    padding: 2px 1px 3px;
+    color: var(--text-muted);
+    text-align: right;
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.35;
+  }
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs {
+    scroll-padding-inline: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs::-webkit-scrollbar {
+    height: 4px;
+  }
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs::-webkit-scrollbar-thumb {
+    background: var(--border-hover);
+    border-radius: 999px;
+  }
+}
+@media (min-width: 768px) {
+  [data-dc-patient-radiology="true"] .dc-radiology-tab-scroll-hint {
+    display: none;
+  }
+}
