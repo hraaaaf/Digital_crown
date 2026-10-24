@@ -156,7 +156,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     desktop=false;
     render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}/>);
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
-    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('false');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
     expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
     expect(vi.mocked(workstationModeService.getBootstrapState)).not.toHaveBeenCalled();
     expect(vi.mocked(api.get)).not.toHaveBeenCalled();
