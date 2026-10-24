@@ -7,6 +7,7 @@ import { api } from '../../services/api';
 import { PatientMediaTimeline } from '../patients/components/PatientMediaTimeline';
 import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
 import { StudioLayoutFrame } from './StudioLayoutFrame';
+import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
 import { geometryGridStyle, geometrySlotStyle } from './studioGeometry';
 import './CabinetMultiViewLab.css';
@@ -150,7 +151,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
     return <p role="alert">Vues multiples refusées : patient ou autorisation non vérifiés.</p>;
   }
   // Genuine legacy mobile/tablet content is preserved; no MultiView slot mounted.
-  if (!desktop) return <PatientMediaTimeline patientId={patient.id}/>;
+  if (!desktop) return <PatientMediaTimeline patientId={patient.id} readOnly/>;
 
   const possible=selectablePilotLayouts(canCephalo);
   const applied=possible.find(item=>item.id===appliedId) || possible[0];
@@ -190,6 +191,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
           <div><dt className="text-text-muted">Patient</dt><dd className="font-medium" >{trustedPatient.prenom} {trustedPatient.nom}</dd></div>
           <div><dt className="text-text-muted">N° de dossier</dt><dd className="font-medium" >{trustedPatient.numero_dossier}</dd></div>
         </dl>
+        <HistoricBilanReadonlyPanel patientId={trustedPatient.id} />
       </div>
     );
     if (slot.module==='suivi' && canCephalo) {
@@ -202,6 +204,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
   return (
     <div ref={root} data-v15-071-real-cabinet-lab className="min-w-0 space-y-3">
       <header className="rounded-xl border border-border-main bg-card-bg p-3 space-y-2">
+        <span className="text-xs font-semibold text-text-muted" data-testid="multiview-ronly-contract">Mode R · consultation seule — édition et signature indisponibles ici</span>
         <p className="text-sm font-bold text-text-main">Vues multiples · laboratoire Cabinet Desktop</p>
         <p className="text-xs text-text-muted">Une seule identité patient. Dispositions de démonstration non enregistrées.</p>
         <div className="flex flex-wrap items-center gap-2">
