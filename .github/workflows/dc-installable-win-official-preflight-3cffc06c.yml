@@ -1,0 +1,104 @@
+name: INSTALLABLE preparation Windows isolated official SHA (no install)
+on:
+  push:
+    branches:
+      - evidence/installable-preflight-win-3cffc06c-20261024
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+jobs:
+  windows-official-source-preflight:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXACT_SOURCE_SHA: 3cffc06c23c5be2086cdb18e23aae93d66dee700
+      RELEASE_RUN_ID: '40043891636'
+      CERTIFIED_ARTIFACT_NAME: code-certified-dc-cabinet-3cffc06c23c5-run40043891636
+    steps:
+      - name: Check out the certified source SHA, not this evidence branch
+        uses: actions/checkout@v4
+        with:
+          ref: 3cffc06c23c5be2086cdb18e23aae93d66dee700
+          persist-credentials: false
+      - name: Assert immutable certified revision
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:EXACT_SOURCE_SHA) { throw "Wrong source SHA" }
+          $master=(gh api "repos/$env:GITHUB_REPOSITORY/branches/master" --jq '.commit.sha').Trim()
+          if ($master -ne $env:EXACT_SOURCE_SHA) { throw "Master moved; refuse stale INSTALLABLE proof" }
+          Write-Host "CODE_SOURCE_SHA_OK=$master"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download immutable CODE_CERTIFIED artifact from official run
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force -Path evidence/code-release | Out-Null
+          gh run download $env:RELEASE_RUN_ID --repo $env:GITHUB_REPOSITORY --name $env:CERTIFIED_ARTIFACT_NAME --dir evidence/code-release
+          if ($LASTEXITCODE -ne 0) {throw "Official artifact unavailable"}
+          $required=@('release-certification.json','release-content.sha256','.digitalcrown-release-sha','backend/scripts/verify_certified_release.py')
+          foreach ($p in $required) { if (-not (Test-Path -LiteralPath "evidence/code-release/$p")) {throw "Missing official file $p"} }
+      - name: Revalidate all CODE manifests and Windows dependency contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:PYTHONPATH=(Resolve-Path evidence/code-release).Path
+          $cert=(Get-Content evidence/code-release/release-certification.json -Raw | ConvertFrom-Json)
+          if ($cert.commit_sha -ne $env:EXACT_SOURCE_SHA -or $cert.certification_level -ne 'CODE_CERTIFIED' -or $cert.installable -ne $false) { throw "Source certificate does not match exact safe release" }
+          foreach($pack in @('BASIC','GOLD','ELITE')) {
+            python evidence/code-release/backend/scripts/verify_certified_release.py --release-dir evidence/code-release --expected-pack $pack
+            if ($LASTEXITCODE -ne 0) {throw "Code verification failed for $pack"}
+          }
+          python evidence/code-release/backend/scripts/windows_build_dependency_contract.py
+          if ($LASTEXITCODE -ne 0) {throw "Windows dependency contract failed"}
+          Write-Host 'THREE_PACK_CODE_CERTIFIED=SUCCESS'
+      - name: Verify real GitHub Sigstore attestation for this exact source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          gh attestation verify evidence/code-release/release-content.sha256 --repo $env:GITHUB_REPOSITORY --signer-workflow "$env:GITHUB_REPOSITORY/.github/workflows/cabinet-release-certification.yml" --source-digest $env:EXACT_SOURCE_SHA --source-ref refs/heads/master --deny-self-hosted-runners --format json | Out-File -FilePath evidence/github-attestation-windows.json -Encoding utf8
+          if ($LASTEXITCODE -ne 0) {throw "GitHub Sigstore provenance rejected"}
+          $evidence=Get-Content evidence/github-attestation-windows.json -Raw | ConvertFrom-Json
+          if (@($evidence).Count -lt 1) {throw "Attestation evidence empty"}
+          Write-Host 'SIGSTORE_EXACT_SHA=SUCCESS'
+      - name: Refuse false installable when external runtime models unavailable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:PYTHONPATH=(Resolve-Path evidence/code-release).Path
+          if (Test-Path 'evidence/code-release/backend/ai_models') {throw "CODE payload must not contain models"}
+          python evidence/code-release/backend/scripts/verify_installable_release.py --release-dir evidence/code-release
+          if ($LASTEXITCODE -eq 0) {throw "Security failure: code-only artifact accepted as INSTALLABLE"}
+          $registry=Get-Content evidence/code-release/backend/scientific_assets.json -Raw | ConvertFrom-Json
+          $report=@{
+            source_sha=$env:EXACT_SOURCE_SHA
+            code_certification_run_id=[int]$env:RELEASE_RUN_ID
+            code_certification_verified=$true
+            github_sigstore_verified=$true
+            windows_build_dependency_lock_verified=$true
+            code_profiles=@('BASIC','GOLD','ELITE')
+            model_bytes_packaged=$false
+            runtime_assets_present=$false
+            runtime_assets_certified=$false
+            installable_certified=$false
+            exe_built=$false
+            cabinet_installed=$false
+            clinical_flags_activated=$false
+            result='WINDOWS_SOURCE_PREFLIGHT_GREEN__INSTALLABLE_BLOCKED_MISSING_EXTERNAL_RUNTIME_ASSETS'
+            pinned_model_requirements=@($registry.assets | Where-Object {$_.sha256 -and $_.size_bytes} | ForEach-Object {@{id=$_.id; canonical_path=$_.canonical_path;sha256=$_.sha256;size_bytes=[long]$_.size_bytes}})
+          }
+          $report | ConvertTo-Json -Depth 8 | Out-File -Encoding utf8 evidence/windows-runtime-preflight-report.json
+          Write-Host 'MISSING_RUNTIME_ASSETS_FAIL_CLOSED=SUCCESS'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-windows-installable-preflight-3cffc06c
+          path: |
+            evidence/windows-runtime-preflight-report.json
+            evidence/github-attestation-windows.json
+          retention-days: 30
+          if-no-files-found: warn
