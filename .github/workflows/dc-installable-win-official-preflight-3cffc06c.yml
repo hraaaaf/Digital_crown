@@ -51,20 +51,20 @@ jobs:
           if ($cert.commit_sha -ne $env:EXACT_SOURCE_SHA -or $cert.certification_level -ne 'CODE_CERTIFIED' -or $cert.installable -ne $false) { throw "Source certificate does not match exact safe release" }
           # Certification modules are pure-stdlib. A package shim prevents importing
           # the unrelated clinical ORM in backend/__init__.py on this minimal runner.
-          $verifier = @'
-import sys
-import types
-from pathlib import Path
-root = Path(sys.argv[1]).resolve()
-pkg = types.ModuleType("backend")
-pkg.__path__ = [str(root / "backend")]
-sys.modules["backend"] = pkg
-from backend.release_certification import verify_release_directory
-for pack in ("BASIC", "GOLD", "ELITE"):
-    proof = verify_release_directory(root, expected_pack=pack)
-    print(f"CODE_PROFILE_VERIFIED={pack}; SHA={proof['commit_sha']}")
-'@
-          $verifier | python - evidence/code-release
+          $verifier = @(
+            'import sys, types'
+            'from pathlib import Path'
+            'root = Path(sys.argv[1]).resolve()'
+            'pkg = types.ModuleType("backend")'
+            'pkg.__path__ = [str(root / "backend")]'
+            'sys.modules["backend"] = pkg'
+            'from backend.release_certification import verify_release_directory'
+            'for pack in ("BASIC", "GOLD", "ELITE"):'
+            '    proof = verify_release_directory(root, expected_pack=pack)'
+            '    print("CODE_PROFILE_VERIFIED", pack, proof["commit_sha"])'
+          )
+          $verifier | Set-Content -LiteralPath evidence/verify_code.py -Encoding utf8
+          python evidence/verify_code.py evidence/code-release
           if ($LASTEXITCODE -ne 0) {throw "Exact source code manifest verification failed"}
           python evidence/code-release/backend/scripts/windows_build_dependency_contract.py
           if ($LASTEXITCODE -ne 0) {throw "Windows dependency contract failed"}
@@ -84,24 +84,24 @@ for pack in ("BASIC", "GOLD", "ELITE"):
           $ErrorActionPreference='Stop'
           $env:PYTHONPATH=(Resolve-Path evidence/code-release).Path
           if (Test-Path 'evidence/code-release/backend/ai_models') {throw "CODE payload must not contain models"}
-          $negative = @'
-import sys
-import types
-from pathlib import Path
-root = Path(sys.argv[1]).resolve()
-pkg = types.ModuleType("backend")
-pkg.__path__ = [str(root / "backend")]
-sys.modules["backend"] = pkg
-from backend.release_certification import verify_installable_release_directory, ReleaseCertificationError
-try:
-    verify_installable_release_directory(root)
-except ReleaseCertificationError as exc:
-    print(f"EXPECTED_FAIL_CLOSED={exc}")
-    raise SystemExit(0)
-print("ERROR: unsupported code-only installable accepted")
-raise SystemExit(1)
-'@
-          $negative | python - evidence/code-release
+          $negative = @(
+            'import sys, types'
+            'from pathlib import Path'
+            'root = Path(sys.argv[1]).resolve()'
+            'pkg = types.ModuleType("backend")'
+            'pkg.__path__ = [str(root / "backend")]'
+            'sys.modules["backend"] = pkg'
+            'from backend.release_certification import verify_installable_release_directory, ReleaseCertificationError'
+            'try:'
+            '    verify_installable_release_directory(root)'
+            'except ReleaseCertificationError as exc:'
+            '    print("EXPECTED_FAIL_CLOSED", exc)'
+            '    raise SystemExit(0)'
+            'print("ERROR: CODE-only installable wrongly accepted")'
+            'raise SystemExit(1)'
+          )
+          $negative | Set-Content -LiteralPath evidence/verify_negative.py -Encoding utf8
+          python evidence/verify_negative.py evidence/code-release
           if ($LASTEXITCODE -ne 0) {throw "Security failure: CODE-only artifact accepted as INSTALLABLE"}
           $registry=Get-Content evidence/code-release/backend/scientific_assets.json -Raw | ConvertFrom-Json
           $report=@{
