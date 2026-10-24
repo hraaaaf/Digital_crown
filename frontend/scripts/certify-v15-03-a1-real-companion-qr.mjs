@@ -120,16 +120,39 @@ try {
     headers:third.headers,data:{code,displayName:'Duplicate Station'},
   });
   await expected(stalePair,'replayed workstation code denied',[403]);
-  evidence.cases['02_station_pairing']={newStation:true,distinct:true,usedCodeDenied:stalePair.status()};
   evidence.actors.secondaryStation={workstationId:secondaryStation};
 
-  // Product-issued invitations and product Pair endpoint: no synthetic
-  // Companion access tokens or manually constructed encrypted vault.
+  // A Station is deliberately forbidden to issue a staff invitation.
+  // Keep this as an explicit real HTTP negative authorization assertion.
+  const lockedInvitation=await kiosk.api.post(
+    '/api/patient-companion/admin/patients/'+fixtures.primary.patientId+'/local-invitation',{
+      headers:kiosk.headers,data:{relationship_type:'SELF',expires_in_minutes:15},
+    });
+  await expected(lockedInvitation,'station staff invitation denied',[423]);
+
+  // Separate, independently enrolled authorized cabinet workstation. Do NOT
+  // change the Station mode or bypass the Station-lock authorization boundary.
+  const cabinetEnroll=await expected(await third.api.post('/api/workstation/enroll',{
+    headers:third.headers,data:{accountPassword:password},
+  }),'fresh staff workstation enroll',[200]);
+  const cabinetWorkstation=(await cabinetEnroll.json()).workstationId;
+  assert(![owner,secondaryStation].includes(cabinetWorkstation),'third workstation must be distinct');
+  await expected(await third.api.post('/api/workstation/mode',{
+    headers:third.headers,data:{mode:'cabinet',ownerPin:pin},
+  }),'staff workstation cabinet mode',[200]);
+  evidence.cases['02_station_pairing']={
+    newStation:true,distinct:true,usedCodeDenied:stalePair.status(),
+    stationStaffAccessDenied:lockedInvitation.status(), authorizedCabinetActor:true,
+  };
+  evidence.actors.staffCabinet={workstationId:cabinetWorkstation,mode:'cabinet'};
+
+  // Product-issued invitations originate ONLY from the independent staff
+  // Cabinet workstation; Product Companion still pairs through real /pair.
   const invitations={};
   for (const key of ['primary','secondary']) {
-    const res=await expected(await kiosk.api.post(
+    const res=await expected(await third.api.post(
       '/api/patient-companion/admin/patients/'+fixtures[key].patientId+'/local-invitation',{
-        headers:kiosk.headers,data:{relationship_type:'SELF',expires_in_minutes:15},
+        headers:third.headers,data:{relationship_type:'SELF',expires_in_minutes:15},
       }),key+' real invitation',[201]);
     invitations[key]=(await res.json()).manual_code;
   }
