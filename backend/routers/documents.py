@@ -148,6 +148,54 @@ def view_historic_bilan(
     )
 
 
+@router.get("/bilan/{document_id}/page", include_in_schema=True)
+def view_historic_bilan_page(
+    document_id: int,
+    page: int = 1,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """DEC-R2-01: securely render a BILAN PDF page for browsers without PDF plugins.
+
+    Reuses the exact typed, patient-scoped and actor-scoped PDF authorization,
+    file provenance and status checks. Returns in-memory pixels, never a public
+    static PNG or a mutation. The original PDF route remains available.
+    """
+    from fastapi.responses import Response
+    import fitz
+
+    if not 1 <= page <= 100:
+        raise HTTPException(status_code=404, detail="Page BILAN introuvable.")
+    guarded_pdf = view_historic_bilan(document_id, db, current_user)
+    source = pathlib.Path(str(guarded_pdf.path))
+    # Bound decoding to prevent untrusted huge clinical PDFs exhausting memory.
+    if source.stat().st_size > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Aperçu BILAN trop volumineux.")
+    try:
+        with fitz.open(str(source)) as pdf:
+            if page > pdf.page_count:
+                raise HTTPException(status_code=404, detail="Page BILAN introuvable.")
+            sheet = pdf[page - 1]
+            if not (100 <= sheet.rect.width <= 2000 and 100 <= sheet.rect.height <= 2000):
+                raise HTTPException(status_code=422, detail="Format de page BILAN non pris en charge.")
+            bitmap = sheet.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
+            if bitmap.width * bitmap.height > 6_000_000:
+                raise HTTPException(status_code=422, detail="Page BILAN trop grande.")
+            pixels = bitmap.tobytes("png")
+            count = pdf.page_count
+    except (fitz.FileDataError, fitz.EmptyFileError, ValueError):
+        raise HTTPException(status_code=422, detail="PDF BILAN illisible.")
+    return Response(
+        content=pixels,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "no-store, private",
+            "X-Bilan-Page-Count": str(count),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.post("/generate",
     summary="Générer un document PDF",
     description="Génère une ordonnance, certificat, devis ou note d'honoraires. La génération ReportLab tourne dans un thread dédié pour ne pas bloquer l'event loop.")
