@@ -81,7 +81,8 @@ try {
 
   // Genuine browser login: do not inject tokens, intercept APIs or force stores.
   context = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
+    viewport: { width: 1920, height: 1080 },
+    locale: 'fr-FR',
     storageState: { cookies, origins: [] },
   });
   const page = await context.newPage();
@@ -105,6 +106,7 @@ try {
   await page.locator('[data-v15-071-real-cabinet-lab]').waitFor({ state: 'visible', timeout: 60000 });
   await page.locator('[data-testid="multiview-ronly-contract"]').waitFor({ state: 'visible' });
   const scope = page.locator('[data-v15-071-real-cabinet-lab]');
+  await scope.locator('[data-testid="multiview-real-dossier"]').waitFor({ state: 'visible', timeout: 30000 });
   await scope.locator('[data-testid="multiview-bilan-readonly"]').waitFor({ state: 'visible' });
   const open = scope.getByRole('button', { name: 'Consulter : T2-historical-bilan.pdf' });
   await open.waitFor({ state: 'visible', timeout: 30000 });
@@ -117,7 +119,7 @@ try {
   assert('real BILAN PDF read in browser using authenticated blob', true);
   assert('no BILAN write request from MultiView', writes.length === 0, { writes });
   assert('no uncaught browser errors', failures.length === 0, { failures });
-  await page.screenshot({ path: path.join(root, 'synthetic-r-only-bilan-1440.png'), fullPage: false });
+  await page.screenshot({ path: path.join(root, 'synthetic-r-only-bilan-1920.png'), fullPage: false });
   await fs.writeFile(path.join(root, 'assertions.json'), JSON.stringify({
     sourceHead: sha, syntheticOnly: true, browser: 'chromium', checks, failures, writes,
   }, null, 2));
