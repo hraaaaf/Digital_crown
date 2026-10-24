@@ -222,6 +222,22 @@ try {
       selectedTab: !!tabs?.querySelector('[aria-current="page"]'),
       selectedModality: !!modalities?.querySelector('[aria-pressed="true"]'),
       navOverflowHidden: tabs ? getComputedStyle(tabs).overflowY==='hidden':false,
+      patientRailComputed: tabs ? {
+        display: getComputedStyle(tabs).display,
+        direction: getComputedStyle(tabs).flexDirection,
+        wrap: getComputedStyle(tabs).flexWrap,
+        overflowX: getComputedStyle(tabs).overflowX,
+        overflowY: getComputedStyle(tabs).overflowY,
+        tops: [...tabs.querySelectorAll(':scope > button')].map(el => Math.round(el.getBoundingClientRect().top)),
+      } : null,
+      modalitiesRailComputed: modalities ? {
+        display: getComputedStyle(modalities).display,
+        direction: getComputedStyle(modalities).flexDirection,
+        wrap: getComputedStyle(modalities).flexWrap,
+        overflowX: getComputedStyle(modalities).overflowX,
+        overflowY: getComputedStyle(modalities).overflowY,
+        tops: [...modalities.querySelectorAll(':scope > button')].map(el => Math.round(el.getBoundingClientRect().top)),
+      } : null,
     };
   });
   await capture(page,'mobile-single-media-regression-390.png');
