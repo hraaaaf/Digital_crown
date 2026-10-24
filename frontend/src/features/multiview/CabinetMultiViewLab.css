@@ -1,0 +1,298 @@
+/*
+ * LOT07 / 07.1 dev-lab adapter: keep existing authenticated media components.
+ * Container queries adapt the original Media Timeline inside a ViewSlot;
+ * do not modify global patient styles or cabinet palette.
+ */
+[data-v15-071-viewslot] {
+  container-type: inline-size;
+  min-height: 0;
+  max-height: min(68vh, 760px);
+  overflow-y: auto;
+}
+[data-v15-071-multiview-grid] {
+  min-height: 440px;
+  max-height: 760px;
+  height: min(68vh, 760px);
+}
+@container (max-width: 760px) {
+  [data-v15-071-viewslot="imagerie"] [data-testid="patient-media-timeline"] > div:first-child > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] > label,
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] > button {
+    grid-column: 1 / -1;
+  }
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"],
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] {
+    min-width: 0;
+  }
+}
+
+/*
+ * DEV-only two-row Cabinet adapter: content-fit the factual dossier summary
+ * instead of giving an almost empty summary half of a 68vh clinical workspace.
+ * Shared geometry contracts remain unchanged; no effect on dormant presets.
+ */
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] {
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  grid-template-rows: max-content minmax(360px, auto) !important;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] > [data-v15-071-viewslot="dossier"] {
+  max-height: none;
+}
+
+/*
+ * LOT07 / 07.1 narrow clinical view: a desktop viewport does not make a
+ * nested 3-column media slot a desktop-sized media workspace.  React media
+ * controls use xl/md viewport breakpoints; keep them usable at slot width.
+ * This is scoped to the actual DEV Cabinet 3-column geometry only.
+ */
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="patient-media-timeline"] > div:first-child > div:first-child {
+  flex-direction: column;
+  align-items: stretch;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] > label,
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] > button {
+  grid-column: 1 / -1;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Import média clinique"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Import média clinique"] > button {
+  grid-column: 1 / -1;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"],
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] {
+  grid-row: 1;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] {
+  grid-row: 2;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] > :last-child {
+  min-height: 220px;
+}
+
+/* LOT07 R2 visual review — strictly opt-in DEV MultiView R-only.
+   Styling cannot grant clinical permissions or introduce edit callbacks. */
+[data-v15-071-real-cabinet-lab] {
+  color: var(--text-main);
+  --dc-r2-line: var(--border-color);
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar {
+  background: linear-gradient(125deg, var(--card-bg) 0%, var(--bg-medical-pearl) 100%);
+  box-shadow: var(--shadow-elite);
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar select,
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar button {
+  min-height: 40px;
+  border-radius: 10px;
+  transition: background-color .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar button:focus-visible,
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar button:not(:disabled):hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-elite);
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-multiview-scaffold] {
+  border-radius: 18px;
+  border-color: var(--border-color);
+  padding: 14px;
+  background: var(--bg-medical-pearl);
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-multiview-scaffold] > h2 {
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-multiview-grid] {
+  height: min(78vh,880px);
+  max-height: 880px;
+  min-height: 520px;
+  gap: 12px !important;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-viewslot] {
+  max-height: min(78vh,880px);
+  border: 1px solid var(--dc-r2-line);
+  border-radius: 16px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-elite);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hover) transparent;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-viewslot="dossier"] {
+  background: linear-gradient(180deg, var(--card-bg) 0%, var(--bg-medical-pearl) 100%);
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] {
+  max-height: none;
+  height: auto;
+  min-height: 0;
+  grid-template-rows: max-content minmax(460px,auto) !important;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] > [data-v15-071-viewslot="dossier"] {
+  /* The G1 real-browser contract requires the genuine media to start in
+     the initial 1920px viewport (<950px Y). Keep the summary content reachable
+     through independently scrollable read-only panel and BILAN fullscreen.
+     No clipping of document data or modification to business permissions. */
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"]
+  [data-testid="multiview-real-dossier"] {
+  display: grid;
+  grid-template-columns: minmax(230px, .6fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: 12px;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"]
+  [data-testid="multiview-real-dossier"] > * + * {
+  margin-top: 0 !important;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"] [data-v15-071-viewslot="dossier"] {
+  font-size: 13px;
+}
+/* The genuine media adapter is responsive to slot width, not outer viewport. */
+[data-v15-071-real-cabinet-lab] [aria-label="Recherche et filtres médias"] input,
+[data-v15-071-real-cabinet-lab] [aria-label="Recherche et filtres médias"] select,
+[data-v15-071-real-cabinet-lab] [aria-label="Recherche et filtres médias"] button {
+  min-height: 38px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: normal;
+}
+[data-v15-071-real-cabinet-lab] [data-testid="media-asset-rail"] article {
+  border-radius: 12px;
+}
+[data-v15-071-real-cabinet-lab] [data-testid="media-asset-rail"] article button {
+  min-height: 40px;
+}
+[data-v15-071-real-cabinet-lab] [data-testid="multiview-bilan-readonly"] iframe {
+  border: 0;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"] [data-testid="multiview-bilan-readonly"] h3 {
+  font-size: 14px;
+}
+@media (prefers-reduced-motion:reduce) {
+  [data-v15-071-real-cabinet-lab] button,[data-v15-071-real-cabinet-lab] select {transition:none !important;}
+}
+
+/* LOT07 G2 clinical legibility in narrow real slots, without changing module
+   geometry rules or converting R-only media into editable widgets. */
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="patient-media-timeline"] h2 {
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: normal;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] article span,
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] article p {
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: normal;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] h3 {
+  font-size: 13px;
+  line-height: 1.35;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] {
+  gap: 7px;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] :is(input,select,button) {
+  min-height: 42px;
+  padding-inline: 8px;
+  font-size: 12px;
+  color: var(--text-main);
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] {
+  max-height: 245px;
+}
+
+/* Reflow-only 1280px safety panel; preserve the resolver's rejection
+   of unreadable MultiView geometry and authenticated R-mode fallback. */
+[data-v15-071-real-cabinet-lab] [data-testid="multiview-layout-safe-info"] {
+  box-shadow: var(--shadow-elite);
+  border-color: var(--border-color);
+  background: var(--card-bg);
+}
+[data-v15-071-real-cabinet-lab] [data-testid="multiview-layout-safe-info"] > div {
+  min-width: 0;
+}
+@media (max-width: 1400px) {
+  [data-v15-071-real-cabinet-lab] [data-testid="multiview-layout-safe-info"] {
+    gap: 10px;
+  }
+}
+
+/* Native range controls also derive their accent from the selected theme
+   rather than Chromium's default blue thumb (especially in High Contrast). */
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar input[type="range"] {
+  accent-color: var(--primary);
+}
+
+/* Compact desktop fallback: preserve the authenticated R-only gate while
+   removing nonfunctional MultiView controls above the clinical media.
+   Every ink and surface inherits from the active cabinet theme tokens. */
+[data-v15-071-real-cabinet-lab] .dc-mv-desktop-compact {
+  border-color: var(--border-color);
+  background: linear-gradient(120deg, var(--card-bg), var(--bg-medical-pearl));
+  box-shadow: var(--shadow-elite);
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-desktop-compact .dc-mv-compact-readonly {
+  color: var(--primary-ink);
+  border-color: var(--border-color);
+  background: var(--bg-medical-pearl);
+}
+@media (min-width: 1280px) and (max-width: 1400px) {
+  [data-v15-071-real-cabinet-lab] .dc-mv-desktop-compact {
+    padding: 12px 14px;
+    gap: 10px;
+    align-items: center;
+  }
+  [data-v15-071-real-cabinet-lab] [data-testid="multiview-responsive-single-media-fallback"] {
+    padding: 6px;
+  }
+}

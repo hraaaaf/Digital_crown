@@ -1,0 +1,69 @@
+name: LOT07 R2 DEC01 public verification fail-closed regression
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'backend/routers/verification.py'
+      - 'backend/tests/test_verification_router.py'
+      - '.github/workflows/lot07-r2-public-bilan-verification.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: lot07-r2-public-bilan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-route-matrix:
+    name: All synthetic BILAN reader and public verification denial tests (exact HEAD)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: 'sqlite:///:memory:'
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      SECRET_KEY: 'r2-public-verification-t2-test-only-20261024'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+      - name: Exact SHA and SQLite-only proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$DATABASE_URL" = 'sqlite:///:memory:'
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test ! -f digitalcrown.db
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install synthetic-only backend requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/verification-reqs.txt
+          pip install -r /tmp/verification-reqs.txt
+          python -m pip check
+      - name: Execute 34 HTTP cases including all public BILAN verification routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q -rs --disable-warnings \
+            backend/tests/test_lot07_r2_server_negative_matrix.py \
+            backend/tests/test_lot07_r2_document_server_matrix.py \
+            backend/tests/test_lot07_r2_bilan_readonly_dec01.py \
+            backend/tests/test_document_signature_permissions_p3.py \
+            backend/tests/test_verification_router.py \
+            | tee /tmp/verification-r2.txt
+          grep -Eq '34 passed' /tmp/verification-r2.txt
+          if grep -Eq 'skipped|xfailed|xpassed' /tmp/verification-r2.txt; then exit 1; fi
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          echo "LOT07_R2_PUBLIC_BILAN_NO_IDENTITY_LEAK_EXACT_SHA_PASS $EXPECTED_SHA"

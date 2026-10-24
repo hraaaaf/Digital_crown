@@ -991,6 +991,15 @@ async def serve_documents(
         current_user,
         allow_missing=True,
     )
+    # DEC-R2-01: a typed historical BILAN cannot bypass its dedicated
+    # owner/admin R entitlement through a generic static documents URL.
+    # Even its owner must use /api/documents/bilan/{id}/view.
+    linked_bilans = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.file_path == "static/documents/" + rel_path,
+        models.DocumentArchive.document_type == models.DocumentType.BILAN,
+    ).first()
+    if linked_bilans is not None:
+        raise HTTPException(status_code=403, detail="Lecture BILAN via route dédiée uniquement.")
     if not owned:
         from backend.services.document_preview_token import verify_document_preview_token
 

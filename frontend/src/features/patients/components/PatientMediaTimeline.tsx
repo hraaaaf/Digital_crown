@@ -20,6 +20,8 @@ interface ClinicalAsset {
 
 interface PatientMediaTimelineProps {
   patientId: number;
+  /** MultiView R-mode: hides editing actions; backend RBAC remains authoritative. */
+  readOnly?: boolean;
 }
 
 interface ViewerState {
@@ -119,7 +121,7 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
-export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) => {
+export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => {
   const [items, setItems] = useState<ClinicalAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -139,6 +141,13 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
   const workspaceRef = useRef<HTMLDivElement>(null);
   const workspaceTopBeforeCompareRef = useRef<number | null>(null);
   const requestIdRef = useRef(0);
+  const viewerRequestIdRef = useRef(0);
+
+  // Late responses after unmount must not recreate blob URLs or stale media.
+  useEffect(() => () => {
+    requestIdRef.current += 1;
+    viewerRequestIdRef.current += 1;
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchTerm.trim()), 250);
@@ -264,23 +273,30 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
   }, [comparedAssets.length]);
 
   const openAsset = async (asset: ClinicalAsset) => {
+    const requestId = ++viewerRequestIdRef.current;
     setSelectedAssetId(asset.id);
     try {
       const response = await api.get(`/patients/${patientId}/assets/${asset.id}/content`, { responseType: 'blob' });
+      if (requestId !== viewerRequestIdRef.current) return;
       const url = URL.createObjectURL(response.data);
       setViewer((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
         return { asset, url };
       });
     } catch {
-      toast.error("Impossible d'ouvrir ce média clinique");
+      if (requestId === viewerRequestIdRef.current) {
+        toast.error("Impossible d'ouvrir ce média clinique");
+      }
     }
   };
 
-  const closeViewer = () => setViewer((current) => {
-    if (current?.url) URL.revokeObjectURL(current.url);
-    return null;
-  });
+  const closeViewer = () => {
+    viewerRequestIdRef.current += 1; // Prevent a late open from reviving a closed modal.
+    setViewer((current) => {
+      if (current?.url) URL.revokeObjectURL(current.url);
+      return null;
+    });
+  };
 
   const toggleCompare = (assetId: number) => {
     setCompareIds((current) => {
@@ -296,7 +312,7 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file) return;
+    if (!file || readOnly) return; // Deny stale/programmatic file events in R-mode.
     const expectedDocument = file.type === 'application/pdf';
     if (expectedDocument && assetType !== 'DOCUMENT') return void toast.error('Un PDF doit être importé comme Document');
     if (!expectedDocument && assetType === 'DOCUMENT') return void toast.error('Le type Document attend un PDF');
@@ -336,19 +352,20 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
           <div className="grid w-full gap-1.5 sm:grid-cols-2 xl:w-auto xl:min-w-[650px] xl:grid-cols-[minmax(180px,1.3fr)_minmax(120px,.8fr)_minmax(120px,.8fr)_auto]" aria-label="Recherche et filtres médias">
             <label className="relative block min-w-0">
               <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher média…" aria-label="Rechercher un média" className="h-8 w-full rounded-lg border border-border-main bg-card-bg pl-8 pr-2 text-[11px] font-bold text-main outline-none focus:border-primary" />
+              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher média…" aria-label="Rechercher un média" className="h-10 w-full rounded-xl border border-border-main bg-card-bg pl-9 pr-2 text-xs font-semibold text-main outline-none focus:border-primary focus:ring-2 focus:ring-blue-100" />
             </label>
-            <select aria-label="Filtrer par type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary">
+            <select aria-label="Filtrer par type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary">
               <option value="ALL">Tous types</option><option value="PHOTO">Photos</option><option value="RADIOGRAPH">Radios</option><option value="DOCUMENT">Documents</option>
             </select>
-            <select aria-label="Filtrer par repère" value={timepointFilter} onChange={(event) => setTimepointFilter(event.target.value)} className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary">
+            <select aria-label="Filtrer par repère" value={timepointFilter} onChange={(event) => setTimepointFilter(event.target.value)} className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary">
               <option value="ALL">Tous repères</option>{availableTimepoints.map((label) => <option key={label} value={label}>{label}</option>)}
             </select>
-            <button type="button" onClick={() => setCompareIds([])} disabled={compareIds.length === 0} className="inline-flex h-8 items-center justify-center rounded-lg border border-border-main px-3 text-[10px] font-black uppercase tracking-wider text-primary disabled:opacity-40">Réinitialiser compare</button>
+            <button type="button" onClick={() => setCompareIds([])} disabled={compareIds.length === 0} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border-main bg-white px-3 text-xs font-semibold text-primary disabled:opacity-40">Réinitialiser compare</button>
           </div>
         </div>
       </div>
 
+      {!readOnly && (
       <div className="rounded-xl border border-border-main bg-card-bg px-2 py-2 sm:px-2.5">
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" aria-label="Import média clinique">
           <select aria-label="Type de média" value={assetType} onChange={(event) => setAssetType(event.target.value as 'PHOTO' | 'RADIOGRAPH' | 'DOCUMENT')} className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2.5 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary"><option value="PHOTO">Photo</option><option value="RADIOGRAPH">Radiographie</option><option value="DOCUMENT">Document PDF</option></select>
@@ -357,19 +374,39 @@ export const PatientMediaTimeline = ({ patientId }: PatientMediaTimelineProps) =
           <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={handleFile} />
         </div>
       </div>
+      )}
 
       {loading && <div className="flex min-h-[220px] items-center justify-center text-text-muted"><Loader2 size={28} className="animate-spin" /></div>}
       {!loading && loadError && <div className="flex min-h-[220px] flex-col items-center justify-center gap-4 rounded-[1.25rem] border border-border-main bg-card-bg p-6 text-center"><RefreshCcw size={30} className="text-text-muted" /><div><h3 className="font-black text-main">Médiathèque indisponible</h3><p className="mt-1 text-sm text-text-muted">La liste des médias n’a pas pu être chargée.</p></div><button type="button" onClick={() => void loadAssets()} className="rounded-xl border border-border-main px-4 py-2 text-xs font-black uppercase tracking-widest text-primary">Réessayer</button></div>}
-      {!loading && !loadError && items.length === 0 && <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[1.25rem] border border-dashed border-border-main bg-card-bg/60 p-6 text-center"><Images size={34} className="mb-3 text-primary" /><h3 className="text-base font-black text-main">Aucun média longitudinal</h3></div>}
-      {!loading && !loadError && items.length > 0 && filteredItems.length === 0 && <div className="flex min-h-[160px] flex-col items-center justify-center rounded-[1.25rem] border border-dashed border-border-main bg-card-bg/60 p-6 text-center"><Search size={28} className="mb-2 text-text-muted" /><h3 className="font-black text-main">Aucun média ne correspond aux filtres</h3></div>}
+      {!loading && !loadError && items.length === 0 && (
+        <div className="flex min-h-[170px] flex-col items-center justify-center rounded-2xl border border-dashed border-border-hover bg-gradient-to-br from-medical-pearl/70 to-card px-5 py-7 text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-card text-primary-ink shadow-sm"><Images size={24}/></div>
+          <h3 className="text-base font-extrabold tracking-tight text-text-main">Aucun média longitudinal</h3>
+          <p className="mt-1 max-w-sm text-xs leading-relaxed text-text-muted">
+            Photos, radiographies et documents apparaîtront ici lorsqu’ils seront disponibles dans ce dossier.
+          </p>
+          {readOnly && <span className="mt-3 rounded-full border border-border-hover bg-card px-2.5 py-1 text-xs font-semibold text-primary-ink">Consultation seule</span>}
+        </div>
+      )}
+      {!loading && !loadError && items.length > 0 && filteredItems.length === 0 && (
+        <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-border-hover bg-medical-pearl/50 p-5 text-center">
+          <Search size={28} className="mb-2 text-primary"/>
+          <h3 className="font-extrabold text-text-main">Aucun média ne correspond aux filtres</h3>
+          <p className="mt-1 text-xs text-text-muted">Essayez une recherche différente ou réinitialisez les critères.</p>
+          <button type="button" onClick={() => { setSearchTerm(''); setTypeFilter('ALL'); setTimepointFilter('ALL'); }}
+            className="mt-3 min-h-10 rounded-xl border border-border-hover bg-card px-4 text-xs font-semibold text-primary-ink">
+            Effacer les filtres
+          </button>
+        </div>
+      )}
 
       {!loading && !loadError && filteredItems.length > 0 && (
         <>
           {comparedAssets.length === 2 && (
             <section data-testid="media-compare-panel" aria-label="Comparaison de médias" className="overflow-hidden rounded-[1.25rem] border border-primary/20 bg-card-bg shadow-sm">
-              <div className="flex items-center justify-between border-b border-border-main px-3 py-2.5"><div><p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">Comparaison</p><h3 className="text-sm font-black text-main">{comparedAssets[0].timepoint || 'Sans repère'} ↔ {comparedAssets[1].timepoint || 'Sans repère'}</h3></div><button type="button" onClick={() => setCompareIds([])} className="rounded-lg border border-border-main p-2 text-text-muted hover:text-main" aria-label="Fermer la comparaison"><X size={15} /></button></div>
-              <div className="grid gap-px bg-border-main md:grid-cols-2">
-                {comparedAssets.map((asset) => <div key={asset.id} className="min-w-0 bg-card-bg"><div className="flex items-center justify-between gap-2 px-3 py-2"><div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-primary">{asset.timepoint || 'Sans repère'}</p><p className="truncate text-xs font-black text-main">{assetTypeLabel[asset.asset_type] || asset.asset_type} · {formatDate(asset.captured_at || asset.created_at)}</p></div><button type="button" onClick={() => void openAsset(asset)} className="rounded-lg border border-border-main p-2 text-primary" aria-label="Ouvrir ce média en plein écran"><Maximize2 size={14} /></button></div><AuthenticatedAssetPreview patientId={patientId} asset={asset} compact /></div>)}
+              <div className="flex items-center justify-between border-b border-border-main px-3 py-2.5"><div><p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">Comparaison</p><h3 className="text-sm font-black text-main">{comparedAssets[0].timepoint || 'Sans repère'} ↔ {comparedAssets[1].timepoint || 'Sans repère'}</h3><span className="dc-c5-mobile-hint hidden">Touchez l’agrandissement pour examiner chaque image</span></div><button type="button" onClick={() => setCompareIds([])} className="rounded-lg border border-border-main p-2 text-text-muted hover:text-main" aria-label="Fermer la comparaison"><X size={15} /></button></div>
+              <div className="dc-c5-compare-grid grid gap-px bg-border-main md:grid-cols-2">
+                {comparedAssets.map((asset) => <div key={asset.id} className="dc-c5-compare-asset min-w-0 bg-card-bg"><div className="flex items-center justify-between gap-2 px-3 py-2"><div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-primary">{asset.timepoint || 'Sans repère'}</p><p className="truncate text-xs font-black text-main">{assetTypeLabel[asset.asset_type] || asset.asset_type} · {formatDate(asset.captured_at || asset.created_at)}</p></div><button type="button" onClick={() => void openAsset(asset)} className="dc-c5-expand-button rounded-lg border border-border-main p-2 text-primary" aria-label="Ouvrir ce média en plein écran"><Maximize2 size={14} /><span className="dc-c5-expand-label">Zoom</span></button></div><AuthenticatedAssetPreview patientId={patientId} asset={asset} compact /></div>)}
               </div>
             </section>
           )}

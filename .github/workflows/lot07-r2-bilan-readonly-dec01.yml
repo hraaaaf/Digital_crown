@@ -1,0 +1,71 @@
+name: LOT07 R2 DEC-01 historical BILAN read-only HTTP gate
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'backend/routers/documents.py'
+      - 'backend/routers/patients.py'
+      - 'backend/main.py'
+      - 'backend/tests/test_lot07_r2_bilan_readonly_dec01.py'
+      - '.github/workflows/lot07-r2-bilan-readonly-dec01.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-dec01-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certified-synthetic:
+    name: Nineteen exact-SHA synthetic FastAPI BILAN and legacy-negative HTTP checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: 'sqlite:///:memory:'
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      SECRET_KEY: 'dec01-r2-synthetic-isolated-only'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+      - name: Fail closed preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$DATABASE_URL" = 'sqlite:///:memory:'
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test ! -f digitalcrown.db
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/dec01-reqs.txt
+          pip install -r /tmp/dec01-reqs.txt
+          python -m pip check
+      - name: Five owner/admin BILAN + twelve existing negatives + two P3 signature checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q -rs --disable-warnings \
+            backend/tests/test_lot07_r2_server_negative_matrix.py \
+            backend/tests/test_lot07_r2_document_server_matrix.py \
+            backend/tests/test_lot07_r2_bilan_readonly_dec01.py \
+            backend/tests/test_document_signature_permissions_p3.py \
+            | tee /tmp/dec01-results.txt
+          grep -Eq '19 passed' /tmp/dec01-results.txt
+          if grep -Eq 'skipped|xfailed|xpassed' /tmp/dec01-results.txt; then exit 1; fi
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          echo "LOT07_DEC_R2_01_BILAN_READONLY_EXACT_HEAD_PASS $EXPECTED_HEAD"
