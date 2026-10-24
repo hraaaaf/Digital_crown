@@ -1,0 +1,38 @@
+name: Owner GO dispatch of official Cabinet Certified Release (one-shot)
+on:
+  push:
+    branches:
+      - evidence/code-certified-manual-dispatch-3cffc06c-20261024
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch-official:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.repository == 'hraaaaf/Digital_crown' && github.ref == 'refs/heads/evidence/code-certified-manual-dispatch-3cffc06c-20261024'
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXACT_MASTER_SHA: 3cffc06c23c5be2086cdb18e23aae93d66dee700
+    steps:
+      - name: Ensure immutable, current master and official manual workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_master="$(gh api "repos/${GITHUB_REPOSITORY}/branches/master" --jq '.commit.sha')"
+          echo "EXPECTED_MASTER=$EXACT_MASTER_SHA"
+          echo "CURRENT_MASTER=$actual_master"
+          if [[ "$actual_master" != "$EXACT_MASTER_SHA" ]]; then
+            echo "::error::STOP: master moved; refuse to dispatch certification"
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/cabinet-release-certification.yml" --jq '.name'
+      - name: Dispatch only the official master workflow on exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_master="$(gh api "repos/${GITHUB_REPOSITORY}/branches/master" --jq '.commit.sha')"
+          test "$actual_master" = "$EXACT_MASTER_SHA"
+          gh api --method POST             "repos/${GITHUB_REPOSITORY}/actions/workflows/cabinet-release-certification.yml/dispatches"             -f ref=master             -f "inputs[commit_sha]=$EXACT_MASTER_SHA"
+          echo "OFFICIAL_CODE_CERT_DISPATCH_ACCEPTED SHA=$EXACT_MASTER_SHA"
+          echo "No cabinet deployment or feature flag changes executed"
