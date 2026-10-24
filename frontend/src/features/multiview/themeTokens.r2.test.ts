@@ -46,7 +46,7 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     const css = source('features/patients/PatientRadiologyPolish.css');
     const patient = source('features/patients/PatientDetailsInner.tsx');
     const multiview = source('features/multiview/CabinetMultiViewLab.tsx');
-    expect(css).toContain('[data-theme=\\'dark\\'] [data-dc-patient-radiology="true"]');
+    expect(css).toContain(`[data-theme='dark'] [data-dc-patient-radiology="true"]`);
     expect(css).toContain('--primary: var(--status-info)');
     expect(css).toContain('.dc-radiology-tab-scroll-hint');
     expect(patient).toContain('aria-describedby={isRadiology');
