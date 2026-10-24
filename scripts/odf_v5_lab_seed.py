@@ -147,6 +147,9 @@ def seed():
         for study in studies:
             if study.image_original_path == "api/static/uploads/radios/t2-cephalo-seeded.png":
                 assert isinstance(study.landmarks_data, list)
+                data = dict(study.angles_data or {})
+                data["odf_lab_image_landmark_alignment"] = "UNVERIFIED"
+                study.angles_data = data
         db.commit()
         result = {
             "lab": "ODF_V5_FIRST_USER_LAB_NONCLINICAL",
