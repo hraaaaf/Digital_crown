@@ -280,6 +280,39 @@ try {
   await enlarged.getByRole('button', { name: 'Fermer', exact: true }).click();
   assert('fullscreen BILAN preview closes without mutation', await page.getByRole('dialog', { name: /Bilan historique agrandi/ }).count() === 0 &&
     writes.length === 0);
+  // 1280px actual viewport: the unchanged width gate must reject multi-panel
+  // geometry, but must render real read-only media without a dead toolbar.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const compact = page.getByTestId('multiview-layout-safe-info');
+  const compactMedia = page.getByTestId('multiview-responsive-single-media-fallback');
+  await compact.waitFor({ state: 'visible', timeout: 20000 });
+  await compactMedia.waitFor({ state: 'visible', timeout: 20000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const desktopCompact = await page.locator('[data-v15-071-real-cabinet-lab]').evaluate(node => {
+    const status = node.querySelector('[data-testid="multiview-layout-safe-info"]');
+    const media = node.querySelector('[data-testid="multiview-responsive-single-media-fallback"]');
+    const toolbar = node.querySelector('.dc-mv-commandbar');
+    const selectors = node.querySelectorAll('#multiview-pilot-select');
+    const secure = status?.textContent?.includes('R · lecture seule') &&
+      status?.textContent?.includes('Mode compact sécurisé');
+    const mediaTop = media?.getBoundingClientRect().top ?? Infinity;
+    const statusBottom = status?.getBoundingClientRect().bottom ?? Infinity;
+    return {
+      secure: Boolean(secure),
+      toolbarHidden: !toolbar && selectors.length === 0,
+      mediaTop, statusBottom,
+      realMedia: Boolean(media?.querySelector('[data-testid="patient-media-timeline"]')),
+      withinViewport: mediaTop < window.innerHeight - 60 && statusBottom < mediaTop,
+    };
+  });
+  assert('1280 safe desktop panel is compact, secured, authenticated media above the fold',
+    desktopCompact.secure && desktopCompact.toolbarHidden && desktopCompact.realMedia &&
+    desktopCompact.withinViewport, desktopCompact);
+  assert('1280 fallback has no clinical upload or mutation buttons',
+    await compactMedia.locator('input[type=file]').count() === 0 &&
+    await compactMedia.getByRole('button', { name: /^(Enregistrer|Supprimer|Signer|Importer)$/i }).count() === 0);
+  await page.screenshot({ path: path.join(root, 'desktop-compact-secure-1280.png'), fullPage: false });
+
   await fs.writeFile(path.join(root, 'assertions.json'), JSON.stringify({
     sourceHead: sha, syntheticOnly: true, browser: 'chromium', checks, failures, writes,
   }, null, 2));
