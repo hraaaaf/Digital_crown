@@ -211,8 +211,8 @@ class OrthoV5DocumentContract(unittest.TestCase):
                 offsets=[result.index(h) for h in headings]
                 self.assertEqual(offsets,sorted(offsets))
                 self.assertIn("SNA",result)
-                self.assertIn("IMPA",result)
-                self.assertIn("Non calculable",result)
+                self.assertIn("Inclinaison incisive supérieure",result)
+                self.assertNotIn("Non calculable",result)
                 self.assertNotIn("Mesure complémentaire",result)
                 self.assertNotIn("ANALYSIS_MEASURE",result)
                 self.assertNotIn("DOCUMENT CLINIQUE INCOMPLET",result)
