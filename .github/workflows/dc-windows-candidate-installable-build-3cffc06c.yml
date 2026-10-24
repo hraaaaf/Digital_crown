@@ -269,6 +269,11 @@ jobs:
           $record | Set-Content -LiteralPath $report -Encoding utf8
           $record | ForEach-Object { Write-Host $_ }
           Write-Host 'CANDIDATE_INNO_TEST_ONLY=PASS; NO_INSTALLATION; NO_CERTIFIED_SETUP_ARTIFACT'
+          # The last intentional negative ISCC invocation exits nonzero by design.
+          # PowerShell's final native $LASTEXITCODE otherwise makes the step RED
+          # despite every asserted fail-closed check passing. Only reachable after
+          # all seven expected rejections and the genuine positive compilation.
+          exit 0
       - uses: actions/upload-artifact@v4
         if: always()
         with:
