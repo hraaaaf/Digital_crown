@@ -5,8 +5,14 @@ No app endpoint can create a BILAN: this explicitly creates a disposable
 classified archive and PDF to verify that an R-only UI can read it.
 """
 import os
+import sys
 from hashlib import sha256
 from pathlib import Path
+
+# Run as a script without depending on PYTHONPATH or weakening DB isolation.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 if (os.environ.get("ENVIRONMENT") != "test"
     or os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") != "1"
