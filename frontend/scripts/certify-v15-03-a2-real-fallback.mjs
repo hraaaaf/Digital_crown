@@ -6,6 +6,7 @@ import { chromium, request } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 if (process.env.T2_G03_A2 !== '1' ||
     process.env.T2_STATION_FUE !== '1' ||
@@ -20,6 +21,8 @@ const user=process.env.T2_USER, password=process.env.T2_PASSWORD;
 if (!user || !password || !/^[0-9a-f]{40}$/.test(process.env.EVALUATED_SHA||'')) {
   throw Error('Missing synthetic login or exact CI SHA');
 }
+const actualHead=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',timeout:10000}).trim();
+if(actualHead!==process.env.EVALUATED_SHA) throw Error('A2 CI SHA differs from checkout HEAD');
 const pin='2468';
 const out=path.resolve('artifacts/v15-03-a2-fallback-real');
 await fs.mkdir(out,{recursive:true});
@@ -27,7 +30,7 @@ const fixtures=JSON.parse(await fs.readFile(path.join(out,'seed.json'),'utf8')).
 const evidence={
   gate:'FUE-G03-A2',head:process.env.EVALUATED_SHA,
   scope:'Actual Chromium Station + local HTTP FastAPI + isolated SQLCipher; synthetic patient only; no real camera/NFC/LAN/Windows',
-  cases:{}, actors:{}, http:[], screenshots:[]
+  cases:{}, actors:{}, http:[], screenshots:[], screenshotManifest:{}
 };
 function assert(ok,msg){if(!ok)throw Error(msg)}
 async function expectStatus(res,label,codes){
@@ -43,8 +46,17 @@ async function actor(){
   return {api,access,headers:{Authorization:'Bearer '+access}};
 }
 async function screenshot(page,name){
-  await page.screenshot({path:path.join(out,name),fullPage:true,animations:'disabled'});
+  assert(!evidence.screenshots.includes(name),'Duplicate A2 screenshot name: '+name);
+  const bytes=await page.screenshot({path:path.join(out,name),fullPage:true,animations:'disabled'});
+  const signature=Buffer.from([137,80,78,71,13,10,26,10]);
+  assert(bytes.length>=1000 && bytes.subarray(0,8).equals(signature),'PNG image missing or invalid: '+name);
+  const width=bytes.readUInt32BE(16), height=bytes.readUInt32BE(20);
+  assert(width===page.viewportSize()?.width && height>=300,'A2 screenshot has invalid dimensions: '+name);
   evidence.screenshots.push(name);
+  evidence.screenshotManifest[name]={
+    sha256:createHash('sha256').update(bytes).digest('hex'),
+    bytes:bytes.length,width,height
+  };
 }
 function observe(page){
   page.on('response',r=>{
@@ -224,7 +236,7 @@ try{
   const collision=await kioskFlow(browser,kiosk);
   await showFallback(collision);
   await enter(collision,'phone_dob',{phone:'0698877665',birthDate:'1990-06-07'});
-  await screenshot(collision.page,'06-collision-before.png');
+  await screenshot(collision.page,'09-collision-before.png');
   const denied=[];
   for(let attempt=1;attempt<=5;attempt++){
     const res=await submit(collision,[attempt===5?429:403]);
@@ -236,7 +248,7 @@ try{
   }
   await collision.page.getByRole('alert').filter({hasText:'Trop de tentatives'})
     .waitFor({state:'visible',timeout:15000});
-  await screenshot(collision.page,'07-collision-locked-after.png');
+  await screenshot(collision.page,'10-collision-locked-after.png');
   evidence.cases.collision_lock=denied;
   await collision.ctx.close();
 
@@ -268,7 +280,15 @@ try{
 
   // Do not leak tokens, birth dates or phone values into evidence.
   assert(evidence.http.every(h=>!h.pageerror),'real browser JavaScript error');
-  assert(evidence.screenshots.length>=9,'Missing multi-width before/after screenshots');
+  assert(evidence.screenshots.length>=10,'Missing multi-width before/after screenshots');
+  const widths=new Set(Object.values(evidence.screenshotManifest).map(x=>x.width));
+  for(const expectedWidth of [390,430,768,1280]){
+    assert(widths.has(expectedWidth),'Missing verified A2 viewport '+expectedWidth);
+  }
+  const requiredAfter=['03-phone-identified-after.png','04-name-normalized-after.png',
+    '07-invalid-dob-and-phone-denied.png','08-expired-session-verified.png',
+    '10-collision-locked-after.png'];
+  assert(requiredAfter.every(name=>evidence.screenshotManifest[name]),'Missing required A2 AFTER images');
   assert(evidence.http.every(h=>!JSON.stringify(h).includes('stationSession=')),
     'QR bearer secret accidentally logged');
   console.log('G03_A2_REAL_FALLBACK_PASS '+JSON.stringify(evidence.cases));
