@@ -1,4 +1,4 @@
-name: FACAD Robert private intake contract (synthetic only)
+name: FACAD Robert source-lock and optional public example (safe CI)
 
 # No vendor install, license action, patient data, or FACAD executable use.
 on:
@@ -17,6 +17,9 @@ on:
       - audit/test_cephalo_facad_intravendor_ricketts_validate.py
       - audit/cephalo_facad_dc_private_subset_probe.py
       - audit/test_cephalo_facad_dc_private_subset_probe.py
+      - audit/cephalo_facad_robert_public_ci.py
+      - audit/test_cephalo_facad_robert_public_ci.py
+      - audit/fixtures/facad_robert_public_example_20261024_v1.json
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
@@ -33,6 +36,9 @@ on:
       - audit/test_cephalo_facad_intravendor_ricketts_validate.py
       - audit/cephalo_facad_dc_private_subset_probe.py
       - audit/test_cephalo_facad_dc_private_subset_probe.py
+      - audit/cephalo_facad_robert_public_ci.py
+      - audit/test_cephalo_facad_robert_public_ci.py
+      - audit/fixtures/facad_robert_public_example_20261024_v1.json
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
@@ -47,7 +53,7 @@ concurrency:
 
 jobs:
   private-intake-contract:
-    name: Offline, synthetic, fail-closed evidence staging
+    name: Source-lock tests and optional public demo helper run
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
@@ -111,6 +117,12 @@ jobs:
           python -m unittest -v audit.test_cephalo_facad_dc_private_subset_probe
           python -m py_compile audit/cephalo_facad_dc_private_subset_probe.py
 
+      - name: Public Robert example math-only DC comparison (requires separately reviewed fixture)
+        shell: bash
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_public_ci
+          python -m audit.cephalo_facad_robert_public_ci --github-summary
+
       - name: Revalidate canonical repository schema without vendor files
         run: python audit/cephalo_lot08_facad_parity_validate.py
 
@@ -119,7 +131,7 @@ jobs:
         run: |
           echo "FACAD_PRIVATE_INTAKE_CONTRACT=PASS" >> "$GITHUB_STEP_SUMMARY"
           echo "No Facad installer, binary, GUI, EULA acceptance, license or patient file was touched." >> "$GITHUB_STEP_SUMMARY"
-          echo "Synthetic-only staging tests do not prove authentic vendor data or numeric parity." >> "$GITHUB_STEP_SUMMARY"
+          echo "Synthetic guards plus optional educational Robert sample do not certify clinical numeric parity." >> "$GITHUB_STEP_SUMMARY"
           echo "FACAD_SOURCE_LOCK=32 named 32F + 13 named 13F historical UIA editor definitions, 7 blocked direct aliases; zero runtime parities." >> "$GITHUB_STEP_SUMMARY"
           echo "Historical archive verification uses synthetic ZIP fixtures in CI; authentic old archives stay private." >> "$GITHUB_STEP_SUMMARY"
           echo "FACAD_13F_VS_32F_EDITOR_SIGNATURES=13/13 same types/refs; 4 separate displayed norm strings." >> "$GITHUB_STEP_SUMMARY"
