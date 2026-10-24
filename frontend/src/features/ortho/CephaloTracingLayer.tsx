@@ -162,9 +162,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   );
 
   const baseLandmarks = React.useMemo(
-    () => mode === 'com'
-      ? filteredLandmarks.filter(item => !COM_BASE_SUPPRESSED_LANDMARKS.has(item.id.toLowerCase()))
-      : filteredLandmarks,
+    () => filteredLandmarks,
     [filteredLandmarks, mode],
   );
 
@@ -263,7 +261,12 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
     props.onUpdateLandmarks(merged);
   }, [mode, props.landmarks, props.onUpdateLandmarks]);
 
-  const baseAnalysis = mode === 'ricketts' ? 'esthetique' : mode === 'com' ? 'wits' : mode;
+  // R23-G4: historical reference views are NOT evidence-authorized geometry.
+  // Keep source landmarks editable, but refuse old Wits/McNamara/Ricketts
+  // SVG templates unless an exact source-specific visual contract is validated.
+  // The base engine uses this non-matching mode to draw no clinical plans.
+  const referenceHold = mode === 'com' || mode === 'mcnamara' || mode === 'ricketts';
+  const baseAnalysis = referenceHold ? 'r23-reference-hold' : mode;
 
   const po = findPointAny(props.landmarks, 'Po', 'Porion');
   const orPoint = findPointAny(props.landmarks, 'Or', 'Orbitale');
@@ -319,9 +322,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
       })()
     : null;
 
-  const showRickettsHard = mode === 'ricketts' || mode === 'all';
-  const showRickettsMarkers = mode === 'ricketts';
-  const showCom = mode === 'com';
+  const showRickettsHard = mode === 'all'; // unchanged historical All only
+  const showRickettsMarkers = false; // R23-G4 source-only, no unapproved tracing
+  const showCom = false; // COM reference rows never imply geometry
   const hasCanonicalFocus = showCom && metricFocus?.authority === 'LOT06_EXECUTABLE_MEASUREMENT_CONTRACT';
   const focusedConstructionIds = new Set(metricFocus?.constructionIds ?? []);
   const focusedPointIds = new Set((metricFocus?.points ?? []).map(id => id.toLowerCase()));
@@ -343,7 +346,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
       <BaseCephaloTracingLayer
         {...props}
         landmarks={baseLandmarks}
-        ghosts={baseGhosts}
+        ghosts={referenceHold ? [] : baseGhosts}
         onUpdateLandmarks={mergeLandmarkUpdate}
         activeAnalysis={baseAnalysis}
         hoveredMetric={metricFocus ?? props.hoveredMetric ?? null}

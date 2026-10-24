@@ -63,6 +63,14 @@ async function waitForServer(url,timeoutMs=30000){const start=Date.now();while(D
 function modeContract(mode, metrics) {
   if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk) return false;
   if (metrics.selectorButtons.length !== 6) return false;
+  if (['mcnamara','com','ricketts'].includes(mode)) {
+    // R23-G4 source-only modes: unauthenticated fixture MUST fail closed.
+    // This R19 historical fixture is NOT a valid JWT/source-locked study.
+    return metrics.referenceHold === true && metrics.panelRows === 0
+      && metrics.referencePanelDisplayed === true
+      && metrics.comConstructionCount === 0 && metrics.rickettsConstructionCount === 0
+      && metrics.legacyMcNamaraLeakCount === 0;
+  }
   const labels = new Set(metrics.landmarkLabels);
   if (mode === 'all') return metrics.svgLines > 8 && metrics.panelRows >= 10 && metrics.labelModeContract
     && (metrics.landmarkTitleCount===null || metrics.landmarkTitleCount===29)
@@ -133,7 +141,8 @@ async function captureViewport(viewport,attempt){
    await page.locator('#cephalo-ready-analysis').selectOption(requested);
    await page.waitForFunction(mode=>{
     const overlay=document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis');
-    const panel=document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel');
+    const panel=document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')
+      || document.querySelector('[data-r23g4-reference-panel]')?.getAttribute('data-r23g4-reference-panel');
     const select=document.querySelector('#cephalo-ready-analysis');
     return overlay===mode && panel===mode && select?.value===mode;
    },requested,{timeout:6000});
@@ -141,6 +150,7 @@ async function captureViewport(viewport,attempt){
     chosen:document.querySelector('#cephalo-ready-analysis')?.value,
     overlay:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis'),
     panel:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')
+      || document.querySelector('[data-r23g4-reference-panel]')?.getAttribute('data-r23g4-reference-panel')
    }));
    selectorChecks.push({requested,...result,valid:result.chosen===requested&&result.overlay===requested&&result.panel===requested});
    if(requested==='steiner') await page.screenshot({path:path.join(OUTPUT_DIR,`after-selector-steiner-${viewport.name}.png`),fullPage:false});
@@ -148,10 +158,13 @@ async function captureViewport(viewport,attempt){
   const states=[];
   for(const mode of modes){
    await page.locator(`[data-analysis="${mode}"]`).click();
-   await page.waitForFunction(expected=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')===expected && document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')===expected,mode,{timeout:5000});
+   await page.waitForFunction(expected=>document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')===expected && (
+     document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')===expected ||
+     document.querySelector('[data-r23g4-reference-panel]')?.getAttribute('data-r23g4-reference-panel')===expected),mode,{timeout:6000});
    if(mode==='com'){
-     await page.locator('[data-r19-metric="I_Francfort"]').click();
-     await page.waitForFunction(()=>document.querySelector('[data-r19-measure-detail="I_Francfort"]')!==null,{timeout:3000});
+     // No JWT/active revision in this static fixture. A historical numeric COM
+     // row or legacy Focus would be a safety regression, not a success.
+     await page.locator('[data-r23g4-refusal]').waitFor({state:'visible',timeout:6000});
    }
    await page.waitForTimeout(80);
    const metrics=await page.evaluate(()=>{
@@ -159,7 +172,7 @@ async function captureViewport(viewport,attempt){
     const tabBar=document.querySelector('[aria-label="Analyse du tracé"]');
     const barRect=tabBar?.getBoundingClientRect();
     const tabsFullyVisible=Boolean(barRect && tabs.length===6 && tabs.every(tab=>{const rect=tab.getBoundingClientRect();return rect.left>=barRect.left-1 && rect.right<=barRect.right+1;}));
-    const panel=document.querySelector('[data-r19-analysis-panel]');
+    const panel=document.querySelector('[data-r19-analysis-panel]') || document.querySelector('[data-r23g4-reference-panel]');
     const detail=document.querySelector('[data-r19-measure-detail]');
     const panelRect=panel?.getBoundingClientRect();
     const detailRect=detail?.getBoundingClientRect();
@@ -197,7 +210,11 @@ async function captureViewport(viewport,attempt){
       : incisal?.textContent==='U1_incisal' && incisal?.getAttribute('font-size')==='10';
     return {
       analysis:document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis')||null,
-      panelAnalysis:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')||null,
+      panelAnalysis:document.querySelector('[data-r19-analysis-panel]')?.getAttribute('data-r19-analysis-panel')
+        || document.querySelector('[data-r23g4-reference-panel]')?.getAttribute('data-r23g4-reference-panel')||null,
+      referencePanelDisplayed:Boolean(document.querySelector('[data-r23g4-reference-panel]')),
+      referenceHold:Boolean(document.querySelector('[data-r23g4-refusal]')),
+      referenceUnauthorizedFocusCount:document.querySelectorAll('[data-r23g4-focus-authority="verified-runtime"]').length,
       hasAnalysisSelector:Boolean(document.querySelector('[aria-label="Analyse du tracé"]')),
       selectorButtons:Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button')).map(n=>n.getAttribute('data-analysis')),
       panelRows:document.querySelectorAll('[data-r19-metric]').length,
@@ -218,11 +235,11 @@ async function captureViewport(viewport,attempt){
       horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1,
       tabsFullyVisible,
       detailContained,
-      desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && detailContained)
+      desktopLayoutOk:innerWidth<1280 || (tabsFullyVisible && (Boolean(document.querySelector('[data-r23g4-refusal]')) || detailContained))
     };
    });
    let zoomCheck=null;
-   if (viewport.width>=1280 && ['all','steiner','com'].includes(mode)) {
+   if (viewport.width>=1280 && ['all','steiner'].includes(mode)) {
      const initial=await readZoomState(page);
      await page.getByRole('button',{name:'Agrandir la radiographie'}).click();
      await page.getByRole('button',{name:'Agrandir la radiographie'}).click();
@@ -262,10 +279,12 @@ async function captureViewport(viewport,attempt){
        && restored.baseViewBox===initial.baseViewBox && restored.overlayViewBox===initial.overlayViewBox,
        initial,enlarged,panned,panRestored,restored};
    }
-   const valid=(metrics.minLabelPx===null||metrics.minLabelPx>=12.5) && modeContract(mode,metrics) && (mode!=='com'||metrics.selectedDetail==='I_Francfort') && (zoomCheck===null||zoomCheck.valid);
+   const valid=(metrics.minLabelPx===null||metrics.minLabelPx>=12.5) && modeContract(mode,metrics)
+     && (mode!=='com'||(metrics.referenceHold && metrics.referenceUnauthorizedFocusCount===0))
+     && (zoomCheck===null||zoomCheck.valid);
    await page.screenshot({path:path.join(OUTPUT_DIR,`after-reference-${mode}-${viewport.name}.png`),fullPage:false});
    if(mode==='com'){
-     await page.locator('[data-r19-analysis-panel="com"]').scrollIntoViewIfNeeded();
+     await page.locator('[data-r23g4-reference-panel="com"]').scrollIntoViewIfNeeded();
      await page.screenshot({path:path.join(OUTPUT_DIR,`after-com-panel-${viewport.name}.png`),fullPage:false});
    }
    states.push({mode,valid,metrics,zoomCheck});
@@ -285,5 +304,5 @@ try{
   captures.push({...finalAttempt,attempts:attempts.map(a=>({attempt:a.attempt,valid:a.valid,pageErrors:a.pageErrors,consoleErrors:a.consoleErrors,states:a.states})),recoveredTransientRender:attempts.length===2&&!attempts[0].valid&&attempts[1].valid});
  }
 }finally{if(!server.killed)server.kill('SIGTERM');await Promise.race([once(server,'exit'),new Promise(r=>setTimeout(r,3000))]).catch(()=>{});await writeFile(path.join(OUTPUT_DIR,'vite.log'),serverLog,'utf8')}
-const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R19-ANALYSIS-REFERENCE-LAYOUT',phase:'AFTER',theme:CAPTURE_THEME,productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'R18 deterministic fixture lineage; default Digital Crown theme; same 390/768/1280 viewports; R19 adds analysis panel and autonomous COM; validates rendered constructions and rejects legacy McNamara leakage in COM; fresh Chromium per viewport; one retry only after invalid first render.',captures,blockedExternalRequests,invalidCount:invalid.length};
+const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R19-ANALYSIS-REFERENCE-LAYOUT',phase:'AFTER',theme:CAPTURE_THEME,productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'R18 deterministic fixture lineage and unchanged All/Steiner/Tweed at 390/768/1280; R23-G4 experimental COM/McNamara/Ricketts MUST refuse legacy numeric fixture, decline Focus, and show no unverified geometry; full authenticated R23-G4 desktop evidence is in separate exact-HEAD T2 Cabinet workflow.',captures,blockedExternalRequests,invalidCount:invalid.length};
 await writeFile(path.join(OUTPUT_DIR,'report.json'),JSON.stringify(report,null,2),'utf8'); console.log(JSON.stringify(report,null,2)); if(invalid.length||blockedExternalRequests.length)process.exitCode=1;

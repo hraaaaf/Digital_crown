@@ -133,3 +133,176 @@ def project_tweed_merrifield_protocol(
         "historical_geometry_resolution": dict(profile["historical_geometry_resolution"]),
         "scope_resolutions": dict(profile["scope_resolutions"]),
     }
+
+
+# R23-G2: presentation-only projections. Canonical measurements remain the sole
+# numeric authority; a protocol membership is never itself evidence of a value.
+_R23G2_ASSET_ROOT = Path(__file__).resolve().parents[1] / "data" / "cephalometry"
+_R23G2_RICKETTS_ATLAS = _R23G2_ASSET_ROOT / "ricketts_atlas2009_complete33_protocol_profile_v1.json"
+_R23G2_RICKETTS_GREGORET = _R23G2_ASSET_ROOT / "ricketts_gregoret13_protocol_profile_v1.json"
+_R23G2_REFERENCE_LEDGER = _R23G2_ASSET_ROOT / "clinical_reference_profiles_v1.json"
+_R23G2_AVAILABILITY = {"AVAILABLE", "MISSING", "INVALID", "NOT_APPLICABLE", "NOT_COMPUTABLE"}
+_R23G2_BLOCKED_CONTRACT_MARKERS = (
+    "BLOCKED", "PENDING_EQUIVALENCE", "IMPLEMENTATION_MISSING",
+    "LEGACY_TO_AUDIT", "SOURCE_LOCK_REQUIRED",
+)
+
+
+def _r23g2_frozen_profile(path: Path, expected_id: str, expected_size: int, expected_status: str) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = data.get("measurements")
+    if (data.get("protocol_id") != expected_id
+            or data.get("status") != expected_status
+            or not isinstance(rows, list) or len(rows) != expected_size
+            or [row.get("order") for row in rows] != list(range(1, expected_size + 1))
+            or len({row.get("measurement_id") for row in rows}) != expected_size
+            or any(row.get("state") not in {"EXECUTABLE", "CONDITIONAL_EXECUTABLE"} for row in rows)
+            or data.get("normative_state", {}).get("universal_classification") is not False):
+        raise ValueError("R23-G2 source-locked protocol composition/gate is invalid")
+    return data
+
+
+def _r23g2_historical_ledger() -> dict[str, Any]:
+    data = json.loads(_R23G2_REFERENCE_LEDGER.read_text(encoding="utf-8"))
+    profiles = data.get("profiles") or {}
+    if (data.get("status") != "WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL"
+            or data.get("rules", {}).get("formula_authority") is not False
+            or data.get("rules", {}).get("normative_classification") is not False):
+        raise ValueError("R23-G2 historical display ledger lacks fail-closed safeguards")
+    for key, count, protocol in (
+        ("mcnamara", 13, "MCNAMARA_1984_SINGLE_FILM_V1"),
+        ("com", 10, "COM_DC_LEGACY_V1"),
+    ):
+        item = profiles.get(key) or {}
+        rows = item.get("rows")
+        if (item.get("protocol_profile_id") != protocol
+                or not isinstance(rows, list) or len(rows) != count
+                or [row.get("order") for row in rows] != list(range(1, count + 1))
+                or len({row.get("measurement_id") for row in rows}) != count):
+            raise ValueError("R23-G2 historical display ledger composition mismatch")
+    return data
+
+
+def _r23g2_rows(
+    definitions: Sequence[Mapping[str, Any]],
+    canonical_measurements: Sequence[Mapping[str, Any]],
+    *,
+    contract_key: str,
+    profile_id: str,
+) -> list[dict[str, Any]]:
+    # Backend canonical projection has already passed active-chain and canonical
+    # convergence checks. Do not read the parallel legacy metric payload here.
+    by_id = {str(item.get("canonical_measurement_id")): item for item in canonical_measurements}
+    rows = []
+    for source in definitions:
+        cid = str(source["measurement_id"])
+        state = str(source[contract_key])
+        projected = by_id.get(cid) or {}
+        supplied_status = projected.get("availability_status")
+        status = str(supplied_status) if supplied_status in _R23G2_AVAILABILITY else "NOT_COMPUTABLE"
+        hold = any(marker in state for marker in _R23G2_BLOCKED_CONTRACT_MARKERS)
+        raw_value = projected.get("value")
+        # "AVAILABLE" only comes from verified typed backend evidence.
+        # A missing, held or malformed measurement can never become numeric.
+        import math
+        valid = (not hold and status == "AVAILABLE"
+                 and isinstance(raw_value, (int, float))
+                 and not isinstance(raw_value, bool)
+                 and math.isfinite(raw_value)
+                 and bool(projected.get("measurement_refs"))
+                 and bool(projected.get("value_authority_method_id")))
+        if not valid and status == "AVAILABLE":
+            status = "NOT_COMPUTABLE"
+        if hold:
+            status = "NOT_COMPUTABLE"
+        rows.append({
+            "order": int(source["order"]),
+            "canonical_measurement_id": cid,
+            "label": source.get("label") or cid,
+            "unit": projected.get("unit") or ("deg" if "_DEG_" in cid else "mm" if "_MM_" in cid else None),
+            "contract_state": state,
+            "contract_gate": source.get("gate"),
+            "source_contract": profile_id,
+            "source_contracts": [profile_id],
+            "availability_status": status,
+            "value": raw_value if valid else None,
+            "measurement_refs": list(projected.get("measurement_refs") or []) if valid else [],
+            "value_authority_method_id": projected.get("value_authority_method_id") if valid else None,
+            "classification_authority": False,
+            "interpretation_status": "REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION",
+        })
+    return rows
+
+
+def _r23g2_source_locked_protocol(
+    path: Path,
+    protocol: str,
+    count: int,
+    status: str,
+    canonical_measurements: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    data = _r23g2_frozen_profile(path, protocol, count, status)
+    rows = _r23g2_rows(
+        data["measurements"], canonical_measurements,
+        contract_key="state", profile_id=protocol,
+    )
+    return {
+        "protocol_profile_id": protocol,
+        "profile_status": data["status"],
+        "source_lock_gate": "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED",
+        "classification_authority": False,
+        "rows": rows,
+    }
+
+
+def project_ricketts_atlas2009_protocol(
+    canonical_measurements: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    return _r23g2_source_locked_protocol(
+        _R23G2_RICKETTS_ATLAS,
+        "RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1",
+        33,
+        "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__ALL_33_EXECUTABLE_OR_CONDITIONAL",
+        canonical_measurements,
+    )
+
+
+def project_ricketts_gregoret13_protocol(
+    canonical_measurements: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    return _r23g2_source_locked_protocol(
+        _R23G2_RICKETTS_GREGORET,
+        "RICKETTS_GREGORET_1997_SUMMARIZED_13_PROTOCOL_V1",
+        13,
+        "COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__FAIL_CLOSED",
+        canonical_measurements,
+    )
+
+
+def _r23g2_reference_protocol(
+    name: str, canonical_measurements: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    ledger = _r23g2_historical_ledger()
+    data = ledger["profiles"][name]
+    return {
+        "protocol_profile_id": data["protocol_profile_id"],
+        "profile_status": ledger["status"],
+        "source_lock_gate": "HISTORICAL_WORKING_REFERENCE_ONLY",
+        "classification_authority": False,
+        "rows": _r23g2_rows(
+            data["rows"], canonical_measurements,
+            contract_key="contract_state", profile_id=data["protocol_profile_id"],
+        ),
+    }
+
+
+def project_mcnamara_reference_protocol(
+    canonical_measurements: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    return _r23g2_reference_protocol("mcnamara", canonical_measurements)
+
+
+def project_com_reference_protocol(
+    canonical_measurements: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    return _r23g2_reference_protocol("com", canonical_measurements)

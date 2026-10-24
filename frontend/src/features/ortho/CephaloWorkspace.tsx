@@ -85,7 +85,16 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       store.setImageSrc(resolveImageSrc(loaded.image_original_path));
       store.setLocal({ landmarks, version: Date.now() });
       store.setLandmarkEditBaseline(landmarks);
-      store.setAnglesData({ ...anglesData, __calibrationData: loaded.calibration_data || null });
+      // Ephemeral presentation-only T2 provenance. Protected media URLs are
+      // swapped for blob: by the authenticated image loader; the original
+      // persisted source path is the only reliable source for this warning.
+      // This marker is never sent to the backend or used as clinical authority.
+      store.setAnglesData({
+        ...anglesData,
+        __calibrationData: loaded.calibration_data || null,
+        __r23g4SyntheticQaFixture:
+          loaded.image_original_path === 'api/static/uploads/radios/t2-cephalo-seeded.png',
+      });
       store.setVisionMetadata(anglesData.vision_metadata || {});
       store.setIsCalibrated(Boolean(loaded.is_calibrated));
       store.setMmPerPixel(typeof loaded.mm_per_pixel === 'number' ? loaded.mm_per_pixel : null);
