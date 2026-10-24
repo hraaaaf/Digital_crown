@@ -26,8 +26,12 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const analysisId=useOrthoStore(s=>s.analysisId);
   const svgRef=useRef<SVGSVGElement|null>(null);
   const drawing=useRef(false);
+  const panStart=useRef<{clientX:number;clientY:number;center:Point}|null>(null);
   const requestId=useRef(0);
   const [curves,setCurves]=useState<Curve[]>(fresh);
+  const [zoom,setZoom]=useState<1|2|4|8>(1);
+  const [panMode,setPanMode]=useState(false);
+  const [viewportCenter,setViewportCenter]=useState<Point>([W/2,H/2]);
   const [selected,setSelected]=useState<CurveId>('cranial_base');
   const [revision,setRevision]=useState<number|null>(null);
   const [draftVersion,setDraftVersion]=useState(0);
@@ -37,10 +41,15 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
+  // Zoom/pan changes viewport only; original source image pixel space persists.
+  const viewW=W/zoom,viewH=H/zoom;
+  const viewLeft=Math.max(0,Math.min(W-viewW,viewportCenter[0]-viewW/2));
+  const viewTop=Math.max(0,Math.min(H-viewH,viewportCenter[1]-viewH/2));
 
   useEffect(()=>{
     const id=++requestId.current;
-    drawing.current=false;
+    drawing.current=false;panStart.current=null;
+    setZoom(1);setPanMode(false);setViewportCenter([W/2,H/2]);
     setCurves(fresh());setRevision(null);setDraftVersion(0);
     setDirty(false);setServerApproved(false);setError('');setNotice('');
     if(!patientId||!analysisId)return;
@@ -71,8 +80,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     const svg=svgRef.current;if(!svg)return null;
     const rect=svg.getBoundingClientRect();
     if(!rect.width||!rect.height)return null;
-    const x=(e.clientX-rect.left)*W/rect.width;
-    const y=(e.clientY-rect.top)*H/rect.height;
+    const x=viewLeft+(e.clientX-rect.left)*viewW/rect.width;
+    const y=viewTop+(e.clientY-rect.top)*viewH/rect.height;
     if(x<0||y<0||x>=W||y>=H)return null;
     return [Math.round(x*10)/10,Math.round(y*10)/10];
   };
@@ -151,23 +160,64 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         </button>;
       })}
     </div>
+    <div className="flex flex-wrap items-center gap-2" role="group"
+      aria-label="Zoom et déplacement du tracé">
+      <span className="text-xs" style={{color:P.textMuted}}>Zoom</span>
+      {([1,2,4,8] as const).map(level=>
+        <button key={level} type="button" data-testid={`g5-zoom-${level}`}
+          disabled={!revision||loading||busy} aria-pressed={zoom===level}
+          className="rounded-lg border px-3 py-2 text-xs"
+          style={{borderColor:zoom===level?P.accent:P.border,color:P.text}}
+          onClick={()=>{
+            setZoom(level);
+            if(level===1){setPanMode(false);setViewportCenter([W/2,H/2]);}
+          }}>×{level}</button>)}
+      <button type="button" data-testid="g5-pan-toggle"
+        disabled={zoom===1||!revision||loading||busy} aria-pressed={panMode}
+        className="rounded-lg border px-3 py-2 text-xs"
+        style={{borderColor:panMode?P.accent:P.border,color:P.text}}
+        onClick={()=>setPanMode(v=>!v)}>Déplacer l'image</button>
+      <span className="text-xs" style={{color:P.textMuted}}>
+        {panMode?'Glissez pour déplacer, sans dessiner':'Coordonnées de l’image source'}
+      </span>
+    </div>
     <svg ref={svgRef} data-testid="odf-g5-drawing-surface"
-      viewBox={`0 0 ${W} ${H}`} role="img"
+      viewBox={`${viewLeft} ${viewTop} ${viewW} ${viewH}`} role="img"
       aria-label="Dessiner le contour sélectionné directement sur la téléradiographie"
       className="mx-auto block w-full max-w-[530px] touch-none rounded-lg border"
-      style={{aspectRatio:`${W} / ${H}`,borderColor:P.border,background:'#18202b',cursor:'crosshair'}}
+      style={{aspectRatio:`${W} / ${H}`,borderColor:P.border,
+        background:'#18202b',cursor:panMode?'grab':'crosshair'}}
       onPointerDown={e=>{
         if(busy||loading||!revision)return;
-        const p=loc(e);if(!p)return;drawing.current=true;
+        if(panMode){
+          if(zoom===1)return;
+          panStart.current={clientX:e.clientX,clientY:e.clientY,
+            center:[viewLeft+viewW/2,viewTop+viewH/2]};
+          e.currentTarget.setPointerCapture(e.pointerId);return;
+        }
+        const p=loc(e);if(!p)return;
+        drawing.current=true;
         e.currentTarget.setPointerCapture(e.pointerId);add(p);
       }}
       onPointerMove={e=>{
+        if(panStart.current){
+          const rect=e.currentTarget.getBoundingClientRect();
+          if(!rect.width||!rect.height)return;
+          const start=panStart.current;
+          setViewportCenter([
+            Math.max(viewW/2,Math.min(W-viewW/2,
+              start.center[0]-(e.clientX-start.clientX)*viewW/rect.width)),
+            Math.max(viewH/2,Math.min(H-viewH/2,
+              start.center[1]-(e.clientY-start.clientY)*viewH/rect.height)),
+          ]);
+          return;
+        }
         if(!drawing.current||busy)return;
         const p=loc(e);if(p)add(p);
       }}
-      onPointerUp={e=>{drawing.current=false;
+      onPointerUp={e=>{drawing.current=false;panStart.current=null;
         if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
-      onPointerCancel={()=>{drawing.current=false;}}>
+      onPointerCancel={()=>{drawing.current=false;panStart.current=null;}}>
       <image href={pairedImage} x="0" y="0" width={W} height={H}/>
       {curves.map(curve=>{
         const color=STRUCTURES.find(s=>s.id===curve.id)?.color||'#111111';
