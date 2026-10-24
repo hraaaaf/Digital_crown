@@ -17,6 +17,7 @@ jobs:
       CERTIFIED_SHA: 3cffc06c23c5be2086cdb18e23aae93d66dee700
       CERT_RUN_ID: '40043891636'
       MODEL_RUN_ID: '34281082926'
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
