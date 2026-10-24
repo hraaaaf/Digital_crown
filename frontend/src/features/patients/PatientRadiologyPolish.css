@@ -333,3 +333,37 @@
     letter-spacing: 0;
   }
 }
+
+/* Fail-closed mobile scroll tracks: dedicated IDs intentionally outrank
+   older global header layout rules, including stale responsive grid rules.
+   IDs are scoped to the one patient's radiology page; all colors inherited. */
+@media (max-width: 1023px) {
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs,
+  [data-dc-patient-radiology="true"] #dc-radiology-modalities {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-content: center !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    isolation: isolate;
+    touch-action: pan-x pan-y;
+  }
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs > button,
+  [data-dc-patient-radiology="true"] #dc-radiology-modalities > button {
+    display: inline-flex !important;
+    position: relative;
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-self: center !important;
+    white-space: nowrap !important;
+    float: none !important;
+    min-height: 44px;
+  }
+}
