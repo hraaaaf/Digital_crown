@@ -2,6 +2,7 @@
  * No mutation handlers, no unsanitized file URLs, and no global editor state.
  */
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../services/api';
 import { Eye, FileText, ShieldCheck, Maximize2, X } from 'lucide-react';
 
@@ -139,7 +140,7 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
             className="block h-[420px] w-full bg-white" />
         </div>
       )}
-      {expanded && viewerUrl && (
+      {expanded && viewerUrl && createPortal(
         <div className="fixed inset-0 z-[750] flex flex-col bg-slate-950/80 p-3 backdrop-blur-sm sm:p-8"
           role="dialog" aria-modal="true" aria-label={`Bilan historique agrandi : ${selectedName}`}>
           <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -153,7 +154,7 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
             <iframe title={`Aperçu agrandi du bilan historique : ${selectedName}`} src={viewerUrl}
               className="min-h-0 w-full flex-1 bg-white"/>
           </div>
-        </div>
+        </div>, document.body
       )}
     </section>
   );
