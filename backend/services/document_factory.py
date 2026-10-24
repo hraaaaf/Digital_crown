@@ -146,6 +146,25 @@ class DocumentFactory:
                     models.CephaloAnalysis.patient_id == patient_id,
                 ).first()
                 if source_row is not None:
+                    # G3 isolated research lab only: neither a correct file name
+                    # nor a verified science graph proves the *actual image*
+                    # matches its experts' pixel coordinates. Compare the PNG
+                    # bytes to the fixture-bound SHA256 before publishing any
+                    # canonical angles. Never change production document gates.
+                    import os as _os
+                    if (_os.environ.get("ENVIRONMENT") == "test"
+                        and _os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "1"
+                        and source_row.image_original_path == "api/static/uploads/radios/t2-cephalo-seeded.png"
+                        and projection.get("lab_image_landmark_alignment") == "VERIFIED_AARIZ_EXPERT_PAIR"):
+                        from pathlib import Path as _Path
+                        from backend.services.ortho_lab_image_integrity import verified_aariz_display_image_pair
+                        image_file = (_Path(__file__).resolve().parents[1]
+                                      / "static" / "uploads" / "radios"
+                                      / "t2-cephalo-seeded.png")
+                        if not verified_aariz_display_image_pair(
+                            source_row.angles_data or {}, image_file
+                        ):
+                            projection["lab_image_landmark_alignment"] = "UNVERIFIED"
                     approved_sections = resolve_approved_practitioner_sections(
                         db, patient_id=patient_id, analysis_id=analysis_id,
                         expected_revision=projection.get("analysis_revision"),
