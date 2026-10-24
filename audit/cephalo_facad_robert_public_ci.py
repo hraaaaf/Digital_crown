@@ -100,7 +100,7 @@ def main() -> int:
         print("FACAD_CLINICAL_NO_GO=true")
         return 0
     try:
-        result = read_checked_fixture()
+        result = read_checked_fixture(FIXTURE)
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         print("FACAD_PUBLIC_ROBERT=FAIL_CLOSED_" + type(exc).__name__)
         return 2
