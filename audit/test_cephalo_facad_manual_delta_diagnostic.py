@@ -17,11 +17,14 @@ class FacadManualDeltaFailClosedTests(unittest.TestCase):
             "rows": [],
         }
 
-    def candidate(self, label=None, order=1, target=d.TARGET_32F):
+    def candidate(self, label=None, order=None, target=d.TARGET_32F):
+        label = label or self.label
+        if order is None:
+            order = self.lock["label_orders"][target].get(label, 1)
         return {
             "profile_target_id": target,
             "facad_order": order,
-            "facad_label": label or self.label,
+            "facad_label": label,
             "facad_value": "22.250",
             "facad_unit": "mm",
             "dc_measurement_id": "M_SYNTHETIC_TEST_V1",
@@ -36,7 +39,13 @@ class FacadManualDeltaFailClosedTests(unittest.TestCase):
         x = d.readiness_report()
         self.assertEqual(x["source_32f_label_count"], 32)
         self.assertEqual(x["source_13f_factor_positions"], list(range(1, 14)))
-        self.assertFalse(x["source_13f_named_roster_independently_available"])
+        self.assertTrue(x["source_13f_named_roster_independently_available"])
+        self.assertEqual(len(x["source_13f_ordered_factor_labels"]), 13)
+        self.assertEqual(x["source_13f_ordered_factor_labels"][0], "Facial axis")
+        self.assertEqual(x["source_13f_ordered_factor_labels"][5], "Mand arc")
+        self.assertEqual(x["source_13f_ordered_factor_labels"][-1], "Li-EL")
+        self.assertEqual(x["source_32f_ordered_factor_labels"][13], "Xi-OL")
+        self.assertEqual(x["source_32f_ordered_factor_labels"][-1], "Mand len")
         self.assertEqual(len(x["sensitive_32f_no_direct_alias"]), 7)
         self.assertEqual(x["numeric_clinical_parity_rows"], 0)
         self.assertFalse(x["numeric_clinical_parity_proved"])
@@ -77,11 +86,19 @@ class FacadManualDeltaFailClosedTests(unittest.TestCase):
         self.assertIn("VENDOR_VARIANT_REQUIRES_SEPARATE_GEOMETRY", x["gates"])
         self.assertIsNone(x["raw_decimal_delta_facad_minus_dc"])
 
-    def test_thirteen_factors_are_not_silently_claimed_mapped(self):
-        self.body["rows"] = [self.candidate("VendorNameUnknownHere", 1, d.TARGET_13F)]
+    def test_thirteen_named_ui_factors_still_are_not_clinical_geometry_matches(self):
+        self.body["rows"] = [self.candidate("Facial axis", 1, d.TARGET_13F)]
         x = d.diagnostic(self.body)["manual_candidate_delta_rows"][0]
-        self.assertIn("13F_NAMED_VENDOR_ROSTER_NOT_IN_THIS_SOURCE", x["gates"])
+        self.assertIn("13F_GEOMETRY_CROSSWALK_NOT_SOURCE_LOCKED", x["gates"])
         self.assertIsNone(x["raw_decimal_delta_facad_minus_dc"])
+        for candidate in (
+            self.candidate("VendorNameUnknownHere", 1, d.TARGET_13F),
+            self.candidate("Mand arc", 1, d.TARGET_13F),
+        ):
+            with self.subTest(candidate=candidate):
+                self.body["rows"] = [candidate]
+                with self.assertRaises(ValueError):
+                    d.diagnostic(self.body)
 
     def test_missing_anatomical_sign_or_rounding_proof_abstains(self):
         for flag in ("geometry_identity_verified", "sign_orientation_verified", "rounding_verified"):
@@ -136,6 +153,19 @@ class FacadManualDeltaFailClosedTests(unittest.TestCase):
         self.assertFalse(out["vendor_source_data_read"])
         self.assertTrue(out["clinical_no_go"])
         self.assertEqual(out["manual_candidate_delta_rows"], [])
+
+    def test_historical_named_roster_tampering_detected(self):
+        original = d.read
+        def unsafe(path):
+            j = copy.deepcopy(original(path))
+            if path == d.ROSTER:
+                j["profile_rosters"][1]["ordered_factor_labels"][0]["facad_label"] = "FAKE-VENDOR-NAME"
+                j["profile_rosters"][1]["ordered_factor_labels"][1]["facad_label"] = "FAKE-VENDOR-NAME"
+            return j
+        from unittest.mock import patch
+        with patch.object(d, "read", side_effect=unsafe):
+            with self.assertRaises(ValueError):
+                d.source_lock()
 
     def test_source_guard_detects_unsafe_seven_alias(self):
         original = d.read
