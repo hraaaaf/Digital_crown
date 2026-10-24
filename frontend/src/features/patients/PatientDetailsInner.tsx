@@ -225,7 +225,7 @@ export const PatientDetails = () => {
     const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
         if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, {
-          id: `patient-nba-${id}`, duration: 4200,
+          id: `patient-nba-${id}`, duration: 7000,
         });
       }).catch(() => {});
     }, 1500);
