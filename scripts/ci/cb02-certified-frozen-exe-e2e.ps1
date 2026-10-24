@@ -160,6 +160,78 @@ print("ZERO_REAL_OR_SYNTHETIC_PATIENT_ROWS=PASS")
     Start-Sleep -Seconds 1
   }
   if(-not $ready) {
+    # Before application logging exists, a windowed PyInstaller error may appear
+    # as a native modal Windows dialog and keep the process alive indefinitely.
+    # Inspect only this isolated EXE's windows, not other runner applications.
+    $windowType=@'
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class Cb02NativeWindowDiagnostics {
+    public delegate bool Walker(IntPtr hWnd, IntPtr param);
+    [DllImport("user32.dll")] static extern bool EnumWindows(Walker callback, IntPtr param);
+    [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, Walker callback, IntPtr param);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr hWnd, StringBuilder text, int count);
+    static string Description(IntPtr h) {
+      var name = new StringBuilder(1024); var klass = new StringBuilder(128);
+      GetWindowText(h,name,name.Capacity); GetClassName(h,klass,klass.Capacity);
+      return klass.ToString()+" "+name.ToString();
+    }
+    public static string[] Inspect(uint pid) {
+      var lines=new List<string>();
+      EnumWindows((h,l)=>{
+        uint current; GetWindowThreadProcessId(h,out current);
+        if(current==pid) {
+          lines.Add("TOP "+Description(h));
+          EnumChildWindows(h,(c,p)=> {
+            if(lines.Count<32) lines.Add("CHILD "+Description(c));
+            return lines.Count<32;
+          },IntPtr.Zero);
+        }
+        return true;
+      },IntPtr.Zero);
+      return lines.ToArray();
+    }
+}
+'@
+    try {
+      Add-Type -TypeDefinition $windowType -ErrorAction Stop
+      $nativeWindows=@([Cb02NativeWindowDiagnostics]::Inspect([uint32]$app.Id))
+      if($nativeWindows.Count -eq 0) {Proof 'RUNTIME_WINDOWS_UI=NONE_VISIBLE'}
+      foreach($label in ($nativeWindows | Select-Object -First 18)) {
+        $filtered=$label -replace '(?i)(secret|password|key|token)([=:\s]+)[^\s,;]+','$1$2[REDACTED]' -replace '(?i)\b[a-f0-9]{32,}\b','[REDACTED_HEX]'
+        Proof ("RUNTIME_WINDOWS_UI="+$filtered.Substring(0,[Math]::Min(300,$filtered.Length)))
+      }
+    } catch {Proof ("RUNTIME_WINDOWS_UI_DIAGNOSTIC_FAILED="+$_.Exception.GetType().Name)}
+    # Windows UI Automation can read cross-process Static error dialog text,
+    # which GetWindowText intentionally cannot retrieve for certain controls.
+    try {
+      Add-Type -AssemblyName UIAutomationClient -ErrorAction Stop
+      $desktop=[System.Windows.Automation.AutomationElement]::RootElement
+      $condition=New-Object System.Windows.Automation.PropertyCondition(
+        [System.Windows.Automation.AutomationElement]::ProcessIdProperty,
+        [int]$app.Id
+      )
+      $top=$desktop.FindAll([System.Windows.Automation.TreeScope]::Children,$condition)
+      for($w=0;$w -lt [Math]::Min($top.Count,4);$w++){
+        $desc=$top.Item($w).FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+        for($i=0;$i -lt [Math]::Min($desc.Count,24);$i++) {
+          $name=$desc.Item($i).Current.Name
+          if($name -and $name.Trim()) {
+            $filtered=$name -replace '(?i)(secret|password|key|token)([=:\s]+)[^\s,;]+','$1$2[REDACTED]' -replace '(?i)\b[a-f0-9]{32,}\b','[REDACTED_HEX]'
+            Proof ("RUNTIME_UIA_MESSAGE="+$filtered.Substring(0,[Math]::Min(300,$filtered.Length)))
+          }
+        }
+      }
+      if($top.Count -eq 0) {Proof 'RUNTIME_UIA_TOP_LEVEL_WINDOWS=NONE'}
+    } catch {Proof ("RUNTIME_UIA_DIAGNOSTIC_FAILED="+$_.Exception.GetType().Name)}
+    $metrics=Get-Process -Id $app.Id -ErrorAction SilentlyContinue
+    if($metrics) {Proof ("RUNTIME_PROCESS_METRICS=CPU_SEC:{0:N1}; RAM_MB:{1:N1}; THREADS:{2}" -f $metrics.CPU,($metrics.WorkingSet64 / 1MB),$metrics.Threads.Count)}
+    $sockets=@(Get-NetTCPConnection -LocalPort 18765 -ErrorAction SilentlyContinue)
+    Proof "RUNTIME_LOOPBACK_PORT_LISTENERS=$(@($sockets | Where-Object State -eq 'Listen').Count)"
     $app.Refresh()
     if($app.HasExited) {
       Proof "REAL_EXE_NO_HEALTH=EXITED; EXIT_CODE=$($app.ExitCode); PID=$($app.Id)"
