@@ -2,7 +2,7 @@
 
 Date: 2026-09-30
 Repository: hraaaaf/Digital_crown
-Remote workstation: DESKTOP-3MAJEEH
+Remote workstation at the time (historical reference, NOT required for future work): DESKTOP-3MAJEEH
 
 ## Canonical starting point
 
@@ -82,15 +82,15 @@ Required contract:
 
 A post-merge production dependency audit observed existing vulnerabilities, including axios/react-router related findings. No package dependency delta was introduced by 00.2. Treat this as separate repository debt; do not silently fold dependency upgrades into 00.3 unless explicitly scoped and tested.
 
-## Execution rule
+## Execution rule — superseded by AGENTS.md on 2026-10-24
 
-Work directly on DESKTOP-3MAJEEH through Remote Desktop Commander. GitHub Actions are secondary CI evidence, not the primary implementation environment.
+**The previous mandatory Desktop Commander instruction is withdrawn.** This historical handover does not require working on `DESKTOP-3MAJEEH`, connecting to Remote Desktop Commander, or treating GitHub Actions as secondary. For GitHub-based documentation, development, PRs, and synthetic verification, use the GitHub repository and Actions without any remote workstation dependency. Where an independently authorized physical/cabinet test is genuinely required, use a suitable explicitly approved device and preserve the applicable real-hardware evidence gate. A disconnected historical workstation must not be treated as a blocker to unrelated GitHub work. The current general doctrine is `AGENTS.md`.
 
 ## Required first actions in the next conversation
 
 1. Read this handover.
-2. `git fetch origin master`.
-3. Verify current `origin/master`, worktree cleanliness, PR/CI state.
+2. Verify the current GitHub `master` HEAD and applicable PR/CI evidence; no remote-PC shell required.
+3. Check local worktree cleanliness **only if** a local checkout was explicitly selected and authorized.
 4. Read the 00.2 closeout and the 00.1 read-only architecture audit.
 5. Do not reimplement the Hub.
 6. Start 00.3 with an explicit workstation-mode threat model before persistence or PIN implementation.
