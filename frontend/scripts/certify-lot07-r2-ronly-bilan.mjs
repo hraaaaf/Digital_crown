@@ -131,6 +131,17 @@ try {
   });
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(root, 'synthetic-r-only-bilan-1920.png'), fullPage: false });
+  // This additional visual proof exposes the entire real PDF instead of only
+  // the top strip of an iframe below the 900px desktop fold.
+  await scope.getByRole('button', { name: /Agrandir/ }).click();
+  const enlarged = page.getByRole('dialog', { name: /Bilan historique agrandi/ });
+  await enlarged.waitFor({ state: 'visible', timeout: 20000 });
+  await enlarged.locator('iframe').waitFor({ state: 'visible' });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(root, 'synthetic-bilan-expanded-pdf-1920.png'), fullPage: false });
+  await enlarged.getByRole('button', { name: 'Fermer', exact: true }).click();
+  assert('fullscreen BILAN preview closes without mutation', await page.getByRole('dialog', { name: /Bilan historique agrandi/ }).count() === 0 &&
+    writes.length === 0);
   await fs.writeFile(path.join(root, 'assertions.json'), JSON.stringify({
     sourceHead: sha, syntheticOnly: true, browser: 'chromium', checks, failures, writes,
   }, null, 2));
