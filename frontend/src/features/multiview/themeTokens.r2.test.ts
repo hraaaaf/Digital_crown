@@ -48,6 +48,10 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     const multiview = source('features/multiview/CabinetMultiViewLab.tsx');
     expect(css).toContain(`[data-theme='dark'] [data-dc-patient-radiology="true"]`);
     expect(css).toContain('--primary: var(--status-info)');
+    expect(css).toContain('--color-primary: var(--status-info)');
+    expect(css).toContain('--color-primary-ink: var(--status-info)');
+    expect(css).toContain('--color-on-primary: var(--bg-medical-pearl)');
+    expect(css).toContain('--color-text-muted: color-mix(');
     expect(css).toContain('.dc-radiology-tab-scroll-hint');
     expect(patient).toContain('aria-describedby={isRadiology');
     expect(patient).toContain('Faites glisser pour afficher les autres onglets');
