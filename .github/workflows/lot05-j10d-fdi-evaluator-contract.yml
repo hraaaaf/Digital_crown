@@ -1,0 +1,41 @@
+name: LOT05 J10D FDI local evaluator synthetic tests (experimental)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'experiments/lot05_j10d_fdi_local_benchmark.py'
+      - 'experiments/test_lot05_j10d_fdi_local_benchmark.py'
+      - '.github/workflows/lot05-j10d-fdi-evaluator-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluator-contract:
+    name: Synthetic-only FDI evaluation correctness, privacy and failure paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: experiments
+      PYTHONUNBUFFERED: '1'
+      GIT_TERMINAL_PROMPT: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact PR head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run adversarial unit and CLI smoke tests with synthetic annotations only
+        run: python -m unittest -v experiments/test_lot05_j10d_fdi_local_benchmark.py
+      - name: Confirm no patient data or model artifacts in job
+        run: |
+          test ! -e lot05-fdi-raw-images
+          test ! -e best.pt
