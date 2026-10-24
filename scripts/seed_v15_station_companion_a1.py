@@ -112,7 +112,28 @@ def verify():
     print("G03_A1_INDEPENDENT_SQL_PASS " + json.dumps(result))
 
 
+def expire_session(session_id: str):
+    # Test-injected past deadline exercises the *real* expiry enforcement.
+    # Only an unclaimed synthetic Station session may be altered here.
+    from datetime import timedelta
+    with database.SessionLocal() as db:
+        owner = db.query(models.User).filter_by(email="t2-browser@cabinet.ma").one()
+        session = db.query(models.WorkstationPatientSession).filter_by(
+            id=session_id, employer_id=owner.id, claimed_at=None, purged_at=None,
+        ).one()
+        session.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        db.commit()
+    print("G03_A1_TEST_EXPIRY_PREPARED")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--verify", action="store_true")
-    verify() if parser.parse_args().verify else seed()
+    parser.add_argument("--expire-session")
+    args = parser.parse_args()
+    if args.verify:
+        verify()
+    elif args.expire_session:
+        expire_session(args.expire_session)
+    else:
+        seed()
