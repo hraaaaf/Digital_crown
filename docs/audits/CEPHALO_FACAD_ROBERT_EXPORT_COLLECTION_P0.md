@@ -139,3 +139,31 @@ Exécution privée locale, jamais sur des patients :
 Les ZIP ne sont PAS ajoutés au dépôt et ne sont PAS utilisés dans la CI. Le workflow synthetic-only exécute les 12 nouveaux tests audit/test_cephalo_facad_historical_roster_verify.py avec de faux ZIP générés pendant le job. Les tests négatifs couvrent les empreintes fausses, mauvais profil, ordre modifié, source altérée et l'affirmation impossible de parité par une archive d'éditeur.
 
 **Domaine : 45 définitions d'éditeur observées historiquement ; 0 exports vendor réels de valeurs Ricketts ; 0/45 parités numériques. CLINICAL NO-GO reste obligatoire.**
+
+## 2026-10-24 — Comparaison intra-FACAD Ricketts 13F vs 32F sur définitions d'éditeur (non clinique)
+
+En analysant côte à côte les deux anciens fichiers Measurements UIAutomation Ricketts originaux, de manière locale et en lecture seule, l'on observe un **point nouveau** : les **13 facteurs inclus dans le profil 13F ont tous le même label, le même type de calcul affiché et les mêmes Arg1..Arg4 que l'entrée correspondante du 32F**. Ceci est une identité de la **signature affichée de l'éditeur FACAD**, *pas* une preuve que les résultats numériques seraient les mêmes pour Robert ni que l'identité des marqueurs, signes, conventions, variables dérivées et arrondis seraient cliniquement équivalents.
+
+**Quatre normes affichées diffèrent malgré des signatures de calcul communes** :
+
+| Label FACAD | Profil 13F | Profil 32F |
+| --- | --- | --- |
+| Facial axis | 90±3.5 | 90±3 |
+| ML/FH | 26±4.5 | 26±4 |
+| LFH | 45±4 | 47±4 |
+| Convexity | 0±2 | 0.4±2 |
+
+Ne **jamais** fusionner ces normes ni les recopier comme autorité scientifique dans Digital Crown. Les neuf autres 13F affichent exactement la même chaîne de norme que leur entrée 32F. Aucune signification clinique nouvelle n'est accordée à ces textes.
+
+**Nouvelles pièces source-lockées de PR DRAFT #1065 :**
+- docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json : **13 entrées ordonnées**, signatures calc_type + Arg1..Arg4, normes per-profile, liens aux deux archives historiques, drapeaux séparant l'observation définition de la parité numérique et DC.
+- audit/cephalo_facad_intravendor_ricketts_validate.py : vérifie la cohérence des 13 entrées avec le roster 45 et les **quatre norm differences** en lecture statique, et peut optionnellement comparer directement les signatures et normes contre les **deux vrais ZIP historiques** fournis localement en réutilisant le vérificateur SHA256 précédent. Le mode statique seul **ne constitue pas une revue cryptographique des archives** ; le mode ZIP vérifie indépendamment les octets.
+- audit/test_cephalo_facad_intravendor_ricketts_validate.py : tests synthétiques, incluant archive inventée cohérente et cas refusés : normes changées, calc_type et refs différents, profil détourné, références non alignées, faux statut clinique.
+
+Exécution en lecture seule sur les archives locales :
+
+    python -m audit.cephalo_facad_intravendor_ricketts_validate \
+      --ricketts32f-zip /private/facad-history-11586908104.zip \
+      --ricketts13f-zip /private/facad-history-11587723671.zip
+
+**Aucun FACAD GUI/binaire ni EULA/trial utilisé de nouveau.** Ces 13 identités de signatures affichées **ne convertissent pas le statut 0/45 parités numériques ni les 0/6 exports**, et ne justifient aucun alias DC ni norm clinico-scientifique. CLINICAL NO-GO reste vrai.
