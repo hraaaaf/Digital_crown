@@ -119,7 +119,7 @@ jobs:
         run: |
           python -m scripts.odf_v5_g3_aariz_matched_pair
           python - <<'PY'
-          import json
+          import json,hashlib
           from pathlib import Path
           root=Path('artifacts/ortho-v5-g3-expert-lateral')
           source=json.loads((root/'expert-pair-provenance.json').read_text())
