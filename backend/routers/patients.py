@@ -544,9 +544,20 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
 
-    # 1. BDD
+    # 1. BDD — filter sensitive document types BEFORE reading rows or
+    # enriching provenance; patient visibility alone is not financial,
+    # prescription or clinical document authority.
+    from backend.routers.auth import has_permission
+    from backend.routers.documents import DOCUMENT_TYPE_PERMISSIONS
+
+    allowed_doc_types = [
+        kind for kind in models.DocumentType
+        if DOCUMENT_TYPE_PERMISSIONS.get(kind.value.lower()) is not None
+        and has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS[kind.value.lower()])
+    ]
     docs = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient_id,
+        models.DocumentArchive.document_type.in_(allowed_doc_types),
         or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),
         or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None)
     ).order_by(models.DocumentArchive.created_at.desc()).all()

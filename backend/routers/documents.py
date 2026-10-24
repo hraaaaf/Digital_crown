@@ -67,9 +67,15 @@ DOCUMENT_TYPE_PERMISSIONS = {
 
 
 def require_document_permission(doc_type: str, current_user: models.User) -> None:
-    normalized_type = doc_type.lower()
+    """Fail closed for document kinds without an explicit server-side permission."""
+    normalized_type = str(doc_type or "").lower()
     permission = DOCUMENT_TYPE_PERMISSIONS.get(normalized_type)
-    if permission and not has_permission(current_user, permission):
+    if permission is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Type de document sans politique d'autorisation explicite.",
+        )
+    if not has_permission(current_user, permission):
         raise HTTPException(status_code=403, detail=f"Accès refusé. Permission requise : {permission}.")
 
 @router.post("/generate",
@@ -530,8 +536,8 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
     # post-filtering the response would still leak hidden totals and titles.
     allowed_types = [
         kind for kind in models.DocumentType
-        if DOCUMENT_TYPE_PERMISSIONS.get(kind.value.lower()) is None
-        or has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS[kind.value.lower()])
+        if DOCUMENT_TYPE_PERMISSIONS.get(kind.value.lower()) is not None
+        and has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS[kind.value.lower()])
     ]
 
     archive_service = get_archive_service(db)
