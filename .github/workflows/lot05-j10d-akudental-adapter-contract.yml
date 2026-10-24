@@ -1,0 +1,41 @@
+name: LOT05 J10D AKUDENTAL FDI COCO adapter contract (experimental)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'experiments/lot05_j10d_fdi_akudental_coco_adapter.py'
+      - 'experiments/test_lot05_j10d_fdi_akudental_coco_adapter.py'
+      - '.github/workflows/lot05-j10d-akudental-adapter-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  akudental-manifest:
+    name: FDI COCO category and local-path contracts (synthetic only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: experiments
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact PR HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run synthetic COCO/FDI tests and offline manifest validation
+        run: python -m unittest -v experiments/test_lot05_j10d_fdi_akudental_coco_adapter.py
+      - name: No medical assets allowed
+        run: |
+          test ! -e AKUDENTAL/images
+          test ! -e best.pt
+          test ! -e patient-manifest.json
