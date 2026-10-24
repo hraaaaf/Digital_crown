@@ -178,8 +178,21 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
               </button>
             </div>
           </div>
-          <iframe title={`Bilan historique : ${selectedName}`} src={viewerUrl}
-            className="block h-[420px] w-full bg-white" />
+          {pageCount > 1 && <nav aria-label="Pages du bilan historique" className="flex items-center justify-center gap-2 border-b border-blue-100 py-2">
+            <button type="button" onClick={() => changePage(currentPage - 1)} disabled={currentPage <= 1}
+              className="min-h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-40">Page précédente</button>
+            <span className="text-xs font-semibold text-slate-700">Page {currentPage} / {pageCount}</span>
+            <button type="button" onClick={() => changePage(currentPage + 1)} disabled={currentPage >= pageCount}
+              className="min-h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-40">Page suivante</button>
+          </nav>}
+          {pageImageUrl
+            ? <div className="h-[420px] overflow-auto bg-slate-100 p-2 text-center">
+                <img data-testid="bilan-page-image" src={pageImageUrl}
+                  alt={`Page ${currentPage} du bilan historique ${selectedName}`}
+                  className="mx-auto h-auto max-w-full bg-white shadow-md" />
+              </div>
+            : <iframe title={`Bilan historique : ${selectedName}`} src={viewerUrl}
+                className="block h-[420px] w-full bg-white" />}
         </div>
       )}
       {expanded && viewerUrl && createPortal(
@@ -193,8 +206,21 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
                 <X size={17}/> Fermer
               </button>
             </div>
-            <iframe title={`Aperçu agrandi du bilan historique : ${selectedName}`} src={viewerUrl}
-              className="min-h-0 w-full flex-1 bg-white"/>
+            {pageCount > 1 && <nav aria-label="Navigation des pages agrandies" className="flex items-center justify-center gap-3 border-b px-3 py-2">
+              <button type="button" disabled={currentPage <= 1} onClick={() => changePage(currentPage - 1)}
+                className="min-h-10 rounded-lg border px-3 text-sm disabled:opacity-40">Précédente</button>
+              <span className="text-xs font-bold">Page {currentPage} sur {pageCount}</span>
+              <button type="button" disabled={currentPage >= pageCount} onClick={() => changePage(currentPage + 1)}
+                className="min-h-10 rounded-lg border px-3 text-sm disabled:opacity-40">Suivante</button>
+            </nav>}
+            {pageImageUrl
+              ? <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3 text-center sm:p-5">
+                  <img data-testid="bilan-page-image-expanded" src={pageImageUrl}
+                    alt={`Page ${currentPage} agrandie du bilan historique ${selectedName}`}
+                    className="mx-auto h-auto max-w-full bg-white shadow-xl"/>
+                </div>
+              : <iframe title={`Aperçu agrandi du bilan historique : ${selectedName}`} src={viewerUrl}
+                  className="min-h-0 w-full flex-1 bg-white"/>}
           </div>
         </div>, document.body
       )}
