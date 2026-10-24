@@ -438,3 +438,40 @@ def test_foreign_patient_reassigned_after_preparation_fails_closed(
     assert a.patient_id == other.id
     assert a.status == models.AppointmentStatus.PREVU
     assert count_confirm_audits(db) == 0
+
+
+def test_schema_introspection_preserves_in_flight_prepared_claim(
+    client, db, dentiste, auth_headers,
+):
+    """SQLite StaticPool schema inspection must reuse the transaction connection."""
+    from backend.services.bot.atomic_action_claim import claim_prepared_action
+    from backend.services.agenda_availability import validate_appointment_availability
+
+    patient(db, dentiste)
+    with enabled():
+        prep = prepare_booking(client, auth_headers)
+    assert prep.status_code == 200, prep.text
+    action = db.query(models.BotPendingAction).filter_by(
+        id=prep.json()["preparation_id"]
+    ).one()
+    assert claim_prepared_action(
+        db, models.BotPendingAction, action.id, dentiste.id,
+        dentiste.id, datetime.utcnow(),
+    )
+    assert db.query(models.BotPendingAction).filter_by(
+        id=action.id, status="executing"
+    ).count() == 1
+    validate_appointment_availability(
+        db, dentiste.id,
+        datetime.fromisoformat(action.params_json["datetime_start"]),
+        action.params_json["duration_minutes"],
+        models.SchedulingType.EXACT_TIME,
+        practitioner_id=dentiste.id,
+    )
+    assert db.query(models.BotPendingAction).filter_by(
+        id=action.id, status="executing"
+    ).count() == 1, "Schema inspector rolled back the in-flight confirmation CAS"
+    db.rollback()
+    assert db.query(models.BotPendingAction).filter_by(
+        id=action.id, status="prepared"
+    ).count() == 1
