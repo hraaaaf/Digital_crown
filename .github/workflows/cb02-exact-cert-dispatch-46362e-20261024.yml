@@ -1,0 +1,31 @@
+name: CB-02 dispatch exact-master certification (isolated no deployment)
+on:
+  push:
+    branches:
+      - evidence/cb02-certify-dispatch-46362e-20261024
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch-exact:
+    name: Dispatch official existing release certification at locked master SHA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SHA: 46362e2986e3b6b08598f518eff95fa01f161571
+    steps:
+      - name: Guard repo, push identity and exact master against concurrent changes
+        env:
+          EXPECTED_REF: refs/heads/evidence/cb02-certify-dispatch-46362e-20261024
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hraaaaf/Digital_crown"
+          test "$GITHUB_REF" = "$EXPECTED_REF"
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/branches/master" --jq '.commit.sha')"
+          echo "EXPECTED_CERTIFIED_MASTER_SHA=$EXPECTED_SHA"
+          echo "ACTUAL_MASTER_SHA=$CURRENT_SHA"
+          test "$CURRENT_SHA" = "$EXPECTED_SHA" || { echo "::error::Moving master: stop before certification dispatch"; exit 1; }
+          gh workflow run cabinet-release-certification.yml --repo "$GITHUB_REPOSITORY" --ref master --field commit_sha="$EXPECTED_SHA"
+          echo "CB02_OFFICIAL_CERTIFICATION_DISPATCHED_ON_MASTER=$EXPECTED_SHA"
