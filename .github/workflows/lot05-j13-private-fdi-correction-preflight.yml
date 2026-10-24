@@ -1,0 +1,61 @@
+name: LOT05 J13 Private FDI Correction Engine - Public Safe Preflight
+
+on:
+  push:
+    branches:
+      - exp/lot05-j10o-public-panoramic-datasets-research-smoke-20261022
+    paths:
+      - .github/workflows/lot05-j13-private-fdi-correction-preflight.yml
+      - experiments/lot05_j13_private_clinician_corrections.py
+      - experiments/test_lot05_j13_private_clinician_corrections.py
+      - docs/research/LOT05_J13_PRIVATE_CLINICIAN_CORRECTION_ENGINE_PRE_20261024.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-safe-structural-preflight:
+    name: Synthetic correction tests and 333 pinned academic TXT checks, no private cases
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      GITHUB_ACTIONS: 'true'
+    steps:
+      - name: Checkout experimental branch without retained token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.11 - stdlib only
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test fourteen synthetic source-integrity, collision and privacy cases
+        run: python experiments/test_lot05_j13_private_clinician_corrections.py -v
+      - name: Pin academic YOLO TXT ONLY in disposable runner, never pixels
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p third_party
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            '/AKUDENTAL/folds/fold_0/labels/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+      - name: Real source read-only aggregate 333/333 label census only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python experiments/lot05_j13_private_clinician_corrections.py \
+            --labels-dir third_party/AKUDENTAL/AKUDENTAL/folds/fold_0/labels
+      - name: Erase source labels also on error, never export samples
+        if: always()
+        shell: bash
+        run: |
+          rm -rf third_party/AKUDENTAL
+          echo "J13_TEMPORARY_PUBLIC_ACADEMIC_YOLO_TEXT_REMOVED_NO_ARTIFACTS"
