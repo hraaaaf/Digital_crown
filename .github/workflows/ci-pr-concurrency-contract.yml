@@ -1,0 +1,32 @@
+name: CI PR Concurrency Contract
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/ci/assert_pr_workflow_concurrency.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-pr-concurrency-contract-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Enforce PR latest-only concurrency on modified workflow files
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/ci/assert_pr_workflow_concurrency.py "$BASE_SHA" "$HEAD_SHA"
