@@ -1,0 +1,79 @@
+name: CB-03 G2 Explicit Confirmation and Reconciliation (synthetic)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - master
+      - feature/cb03-g1b-safe-status-prepare-20261024
+    paths:
+      - backend/config.py
+      - backend/main.py
+      - backend/routers/bot_cb03_confirm_g2.py
+      - backend/services/bot/atomic_action_claim.py
+      - backend/tests/test_bot_cb03_g2_confirm.py
+      - .github/workflows/cb03-g2-confirm-reconcile.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb03-g2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-http:
+    name: G2 canonical commit + replay + reconciliation exact-SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: "false"
+      CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Check exact immutable head and all clinical flags OFF
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test "$CLOUD_AI_ENABLED" = false
+          test "$TELEMETRY_ENABLED" = false
+          test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile all CB-03 source and tests
+        run: |
+          python -m py_compile backend/routers/bot_cb03_confirm_g2.py backend/routers/bot_cb03_safe_actions.py backend/routers/bot_cb03_status_prepare.py backend/services/bot/atomic_action_claim.py backend/tests/test_bot_cb03_g2_confirm.py backend/tests/test_bot_cb03_g1a_prepare.py backend/tests/test_bot_cb03_g1b_status_prepare.py backend/config.py backend/main.py
+      - name: Install isolated backend test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/requirements-cb03-g2.txt
+          pip install -r /tmp/requirements-cb03-g2.txt
+          python -m pip check
+      - name: Synthetic FastAPI HTTP and canonical regression tests
+        run: |
+          python -m pytest backend/tests/test_bot_cb03_g2_confirm.py backend/tests/test_bot_cb03_g1b_status_prepare.py backend/tests/test_bot_cb03_g1a_prepare.py backend/tests/test_bot_guided_nlu_cb02_api.py backend/tests/test_bot_workflow_api_safe.py -q
+      - name: Evidence classification
+        run: |
+          echo "G2 synthetic FastAPI/SQLite only. SHA: ${{ github.event.pull_request.head.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "G2 code is NOT approved for clinical activation, PG/SQLCipher/Windows or production." >> "$GITHUB_STEP_SUMMARY"
