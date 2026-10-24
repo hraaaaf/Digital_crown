@@ -251,7 +251,13 @@ try{
     check(unauthorized.status()===403,'G5_SECRETARY_FORBIDDEN_APPROVAL');
     const forgedRevision=await api.get(g5Url,{
       headers,params:{expected_revision:revision+1}});
-    check(forgedRevision.status()===409,'G5_OTHER_REVISION_REFUSED');
+    const forgedStatus=forgedRevision.status();
+    const forgedBody=await forgedRevision.text();
+    console.log('G5_STALE_REVISION_PROBE',JSON.stringify({
+      requested_revision:revision+1,current_revision:revision,
+      http_status:forgedStatus,body:forgedBody.slice(0,350),
+    }));
+    check(forgedStatus===409,'G5_OTHER_REVISION_REFUSED_HTTP_'+forgedStatus);
     const changedStudy=await api.get(
       '/api/patients/'+ids.patient_id+'/ortho-bilan/'
         +ids.latest_id+'/anatomical-trace',
