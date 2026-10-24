@@ -222,6 +222,53 @@ def seed_verified_pair():
             is_calibrated=False,calibration_data=None,
             case_id=f"odf-v5-aariz-pair:{patient.id}:{study.id}",
         )
+        # G4 PRE-FLIGHT: inspect the exact persisted evidence graph and the
+        # same derived tracing contract that the PDF factory will consume.
+        # Early failure exposes the cause without a blind 40s browser timeout.
+        if os.getenv("ODF_G4_REQUIRE_TRACE") == "1":
+            from backend.services.ortho_ceph_tracing import (
+                trace_geometry_from_evidence, TRACE_SEGMENTS, MIN_LANDMARKS,
+            )
+            from backend.services.ortho_lab_image_integrity import (
+                build_verified_aariz_research_plate,
+            )
+            raw_points=graph.get("landmarks") or []
+            by_id={p.get("landmark_id"):p for p in raw_points if isinstance(p,dict)}
+            trace=trace_geometry_from_evidence(raw_points,(1935,2400))
+            if trace is None:
+                distances={}
+                for name,a,b,_,_ in TRACE_SEGMENTS:
+                    if a in by_id and b in by_id:
+                        va,vb=by_id[a],by_id[b]
+                        distances[name]=round(math.hypot(float(va["x"])-float(vb["x"]),
+                                                           float(va["y"])-float(vb["y"])),3)
+                    else:
+                        distances[name]="MISSING"
+                print("ODF_G4_TRACE_PREFLIGHT_REFUSED="+json.dumps({
+                    "raw_landmarks":len(raw_points),
+                    "ids":sorted(str(x) for x in by_id),
+                    "missing_required":sorted(MIN_LANDMARKS-set(by_id)),
+                    "plan_distances_px":distances,
+                }),flush=True)
+                raise RuntimeError("ODF_G4_TRACE_GEOMETRY_SOURCE_REFUSED")
+            print("ODF_G4_TRACE_PREFLIGHT_GEOMETRY_PASS="+json.dumps({
+                "segments": [x["label"] for x in trace["segments"]],
+                "landmark_count":trace["landmark_count"],
+                "geometry_sha256":trace["geometry_sha256"],
+            }),flush=True)
+            study_for_figure={
+                EVIDENCE_GRAPH_KEY:graph,
+                "odf_lab_image_landmark_alignment":"VERIFIED_AARIZ_EXPERT_PAIR",
+                "odf_lab_source_image_sha256":sha256(image_bytes).hexdigest(),
+                "odf_lab_display_png_sha256":sha256(png.read_bytes()).hexdigest(),
+                "odf_lab_source_senior_sha256":sha256(senior_bytes).hexdigest(),
+                "odf_lab_source_junior_sha256":sha256(junior_bytes).hexdigest(),
+                "odf_lab_dataset_image_id":image_name,
+            }
+            figure=build_verified_aariz_research_plate(study_for_figure,png)
+            if figure is None:
+                raise RuntimeError("ODF_G4_TRACE_PLATE_IMAGE_OR_RENDER_REFUSED")
+            print("ODF_G4_TRACE_PREFLIGHT_FIGURE_PASS="+str(figure["segment_count"]),flush=True)
         payload={**metrics.model_dump(),EVIDENCE_GRAPH_KEY:graph,
                  "odf_lab_image_landmark_alignment":"VERIFIED_AARIZ_EXPERT_PAIR",
                  "odf_lab_source_image_sha256":sha256(image_bytes).hexdigest(),
