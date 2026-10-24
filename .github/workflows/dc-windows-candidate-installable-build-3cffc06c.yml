@@ -81,13 +81,33 @@ jobs:
           $env:PYTHONPATH=(Resolve-Path evidence/code).Path
           python evidence/code/backend/scripts/certify_runtime_assets.py --code-release-dir evidence/code --ai-models-dir evidence/models-ai --output evidence/output/dc-runtime-assets.zip
           if ($LASTEXITCODE -ne 0) {throw 'Real model asset certification failed'}
+          # Pack ONLY the immutable source files named in the signed CODE manifest;
+          # dependency imports can generate unrelated __pycache__ on Windows.
+          # Never amend the certificate, content manifest, or certified bytes.
           $script=@(
-            'import sys,zipfile,pathlib'
+            'import sys,zipfile,pathlib,hashlib,re,json'
             'src=pathlib.Path(sys.argv[1]).resolve()'
             'dest=pathlib.Path(sys.argv[2]).resolve()'
+            'cert=json.loads((src/"release-certification.json").read_text(encoding="utf-8"))'
+            'manifest=(src/"release-content.sha256").read_bytes()'
+            'assert hashlib.sha256(manifest).hexdigest()==cert["content_manifest_sha256"]'
+            'names={"release-certification.json",".digitalcrown-release-sha","release-content.sha256"}'
+            'for line in manifest.decode("utf-8").splitlines():'
+            '    m=re.fullmatch(r"([0-9a-f]{64})  (.+)",line)'
+            '    if not m: raise ValueError("malformed signed manifest")'
+            '    digest,name=m.groups()'
+            '    path=pathlib.PurePosixPath(name)'
+            '    if path.is_absolute() or ".." in path.parts or name in names: raise ValueError("unsafe/duplicate signed path")'
+            '    full=src.joinpath(*path.parts)'
+            '    if not full.is_file() or full.is_symlink(): raise ValueError("missing/unsafe signed code file "+name)'
+            '    if hashlib.sha256(full.read_bytes()).hexdigest()!=digest: raise ValueError("certified byte mismatch "+name)'
+            '    names.add(name)'
             'with zipfile.ZipFile(dest,"w",zipfile.ZIP_DEFLATED,allowZip64=True) as z:'
-            '    for item in sorted(src.rglob("*")):'
-            '        if item.is_file(): z.write(item,item.relative_to(src).as_posix())'
+            '    for name in sorted(names):'
+            '        full=src.joinpath(*pathlib.PurePosixPath(name).parts)'
+            '        if not full.is_file() or full.is_symlink(): raise ValueError("missing certified metadata "+name)'
+            '        z.write(full,name)'
+            'print("EXACT_SIGNED_CODE_FILESET_PACKED",len(names))'
           )
           $script | Set-Content evidence/repack.py -Encoding utf8
           python evidence/repack.py evidence/code evidence/output/dc-official-code.zip
