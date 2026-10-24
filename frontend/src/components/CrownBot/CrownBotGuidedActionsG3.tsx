@@ -122,7 +122,7 @@ export function CrownBotGuidedActionsG3({ practitionerId }: { practitionerId?: n
   const [resource, setResource] = useState('');
   const [duration, setDuration] = useState('30');
   const [appointmentId, setAppointmentId] = useState('');
-  const [targetStatus, setTargetStatus] = useState<(typeof VALID_STATUSES)[number]['value']>('salle d attente');
+  const [targetStatus, setTargetStatus] = useState<(typeof VALID_STATUSES)[number]['value']>("salle d'attente");
   const [phase, setPhase] = useState<Phase | null>(null);
   const [candidates, setCandidates] = useState<Patient[]>([]);
   const [acknowledged, setAcknowledged] = useState(false);
