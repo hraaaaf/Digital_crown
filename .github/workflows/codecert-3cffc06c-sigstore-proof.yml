@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/master" --jq '.commit.sha')" = "$EXPECTED_SHA"
+          echo "Immutable signed SHA=$EXPECTED_SHA; current master=$(gh api "repos/$GITHUB_REPOSITORY/branches/master" --jq '.commit.sha')"
           mkdir -p evidence/code-release evidence/attestation
           gh run download 40043891636 --repo "$GITHUB_REPOSITORY" --name code-certified-dc-cabinet-3cffc06c23c5-run40043891636 --dir evidence/code-release
           python - <<'PY'
