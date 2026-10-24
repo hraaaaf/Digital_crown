@@ -421,9 +421,14 @@
    Tailwind v4 inherited aliases must follow the selected theme, not
    default Elite Blue values captured at the root. */
 [data-theme='high-contrast'] [data-dc-patient-radiology="true"] {
-  --color-primary: var(--primary);
-  --color-primary-ink: var(--primary);
-  --color-on-primary: var(--text-on-primary);
+  /* Clinical text/surfaces are authoritative even if legacy branding sets
+     --primary inline on the document root. Preserve strict white/black mode. */
+  --primary: var(--text-main);
+  --primary-ink: var(--text-main);
+  --text-on-primary: var(--card-bg);
+  --color-primary: var(--text-main);
+  --color-primary-ink: var(--text-main);
+  --color-on-primary: var(--card-bg);
   --color-text-main: var(--text-main);
   --color-text-muted: var(--text-muted);
   --color-border-main: var(--border-color);
