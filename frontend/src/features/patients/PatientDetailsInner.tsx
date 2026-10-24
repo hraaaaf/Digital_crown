@@ -366,7 +366,13 @@ export const PatientDetails = () => {
             </div>
           </div>
 
-          <div data-tour="patient-tabs" className={cn('flex overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none', isRadiology ? 'gap-0.5 sm:gap-1.5' : 'gap-1 sm:gap-3')}>
+          <div data-tour="patient-tabs"
+            style={isRadiology ? {
+              display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
+              minWidth: 0, maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden',
+              whiteSpace: 'nowrap', alignItems: 'center',
+            } : undefined}
+            className={cn('flex overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none', isRadiology ? 'gap-0.5 sm:gap-1.5' : 'gap-1 sm:gap-3')}>
             <TabButton compact={isRadiology} active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={17} />} label="Vue d’ensemble" mobileLabel="Suivi" />
             {canClinical && <TabButton compact={isRadiology} active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" mobileLabel="Clinique" />}
             <TabButton compact={isRadiology} active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" mobileLabel="Image" />
@@ -435,7 +441,13 @@ export const PatientDetails = () => {
                 </aside>
               )}
               <div className="flex min-w-0 justify-center">
-                <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card-bg/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" aria-label="Modalités d’imagerie">
+                <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card-bg/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" aria-label="Modalités d’imagerie"
+                  style={{
+                    display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
+                    minWidth: 0, maxWidth: '100%', overflowX: 'auto',
+                    overflowY: 'hidden', whiteSpace: 'nowrap',
+                    alignItems: 'center',
+                  }}>
                   <ImagingButton active={radioTab === 'media'} onClick={() => handleRadioTabChange('media')} icon={<Images size={14} />} label="Médiathèque" />
                   <ImagingButton active={radioTab === 'rvg'} onClick={() => handleRadioTabChange('rvg')} icon={<Image size={14} />} label="RVG" />
                   {canPanoramic && <ImagingButton active={radioTab === 'panoramic'} onClick={() => handleRadioTabChange('panoramic')} icon={<Target size={14} />} label="Panoramique" />}
