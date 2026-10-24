@@ -42,8 +42,11 @@ try {
   const bilan = docs.find(d => d.type === 'BILAN' && d.name === 'T2-historical-bilan.pdf');
   assert('BILAN classified R URL without static path', bilan?.url === '/api/documents/bilan/' + bilan?.id + '/view');
   const pdf = await api.get('/api/documents/bilan/' + bilan.id + '/view', { headers });
-  assert('owner can read R-only PDF', pdf.status() === 200 &&
-    (pdf.headers()['content-type'] ?? '').includes('application/pdf'));
+  const pdfBytes = await pdf.body();
+  assert('owner receives actual paginated PDF bytes for visual review',
+    pdf.status() === 200 && (pdf.headers()['content-type'] ?? '').includes('application/pdf') &&
+    pdfBytes.subarray(0,5).toString() === '%PDF-' && pdfBytes.includes(Buffer.from('%%EOF')) &&
+    pdfBytes.length > 900, { status: pdf.status(), bytes: pdfBytes.length });
   for (const [name, req] of [
     ['ordinary download blocked', api.get('/api/documents/' + bilan.id + '/download', { headers })],
     ['archive URL blocked', api.get('/api/static/archives/r2-dec01-t2/synthetic-bilan.pdf', { headers })],
@@ -119,7 +122,26 @@ try {
   assert('real BILAN PDF read in browser using authenticated blob', true);
   assert('no BILAN write request from MultiView', writes.length === 0, { writes });
   assert('no uncaught browser errors', failures.length === 0, { failures });
+  // The authenticated blob viewer needs its own load event after the frame
+  // appears. The fixture is a real ReportLab PDF; do not claim a rendered
+  // document merely because an iframe node exists.
+  await scope.locator('iframe[title^="Bilan historique :"]').evaluate((frame) => {
+    if (!(frame instanceof HTMLIFrameElement)) throw Error('BILAN iframe missing');
+    if (!frame.src.startsWith('blob:')) throw Error('BILAN not loaded from guarded PDF blob');
+  });
+  await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(root, 'synthetic-r-only-bilan-1920.png'), fullPage: false });
+  // This additional visual proof exposes the entire real PDF instead of only
+  // the top strip of an iframe below the 900px desktop fold.
+  await scope.getByRole('button', { name: /Agrandir/ }).click();
+  const enlarged = page.getByRole('dialog', { name: /Bilan historique agrandi/ });
+  await enlarged.waitFor({ state: 'visible', timeout: 20000 });
+  await enlarged.locator('iframe').waitFor({ state: 'visible' });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(root, 'synthetic-bilan-expanded-pdf-1920.png'), fullPage: false });
+  await enlarged.getByRole('button', { name: 'Fermer', exact: true }).click();
+  assert('fullscreen BILAN preview closes without mutation', await page.getByRole('dialog', { name: /Bilan historique agrandi/ }).count() === 0 &&
+    writes.length === 0);
   await fs.writeFile(path.join(root, 'assertions.json'), JSON.stringify({
     sourceHead: sha, syntheticOnly: true, browser: 'chromium', checks, failures, writes,
   }, null, 2));

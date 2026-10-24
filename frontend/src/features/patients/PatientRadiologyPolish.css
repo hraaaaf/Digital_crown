@@ -1,0 +1,132 @@
+/* LOT07 R2 human visual review — patient radiology only.
+   Never change RBAC, workstation bootstrap or hidden W/X controls here. */
+[data-dc-patient-radiology="true"] {
+  --dc-rad-border: #dce6f2;
+  --dc-rad-ink: #152e4e;
+  min-width: 0;
+  color: var(--dc-rad-ink);
+}
+[data-dc-patient-radiology="true"] > header {
+  border-bottom-color: #dbe6f4;
+  box-shadow: 0 8px 26px -24px rgba(12,39,84,.4);
+}
+[data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 12px;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  gap: 5px;
+}
+[data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+  flex: 0 0 auto;
+  min-height: 43px;
+  scroll-snap-align: start;
+  white-space: nowrap;
+}
+[data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
+  border-color: var(--dc-rad-border);
+  background: #f7faff;
+  padding: 4px;
+  gap: 4px;
+  box-shadow: 0 6px 22px -20px rgba(7,40,95,.40);
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 8px;
+  overscroll-behavior-x: contain;
+}
+[data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] button {
+  min-height: 40px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  scroll-snap-align: start;
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] {
+  min-width: 0;
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] > div:first-child {
+  border-color: #dce7f4;
+  border-radius: 16px;
+  box-shadow: 0 7px 18px -20px rgba(13,38,90,.40);
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] input,
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] select {
+  min-height: 39px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] button {
+  min-height: 39px;
+  font-size: 11px;
+  letter-spacing: normal;
+}
+[data-dc-patient-radiology="true"] [data-testid="media-inline-viewer"] {
+  border-radius: 16px;
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] button:focus-visible,
+[data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] button:focus-visible,
+[data-dc-patient-radiology="true"] [data-tour="patient-tabs"] button:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  [data-dc-patient-radiology="true"] > header > div {
+    padding-inline: 12px;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
+    margin-inline: -12px;
+    padding-inline: 12px;
+    padding-block: 3px;
+    gap: 6px;
+    scrollbar-width: none;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+    min-width: 92px;
+    min-height: 45px;
+    justify-content: center;
+    border-radius: 10px 10px 0 0;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
+    width: 100%;
+    gap: 5px;
+    border-radius: 13px;
+    scroll-padding-inline: 8px;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] button {
+    min-height: 44px;
+    font-size: 12px;
+    padding-inline: 10px;
+  }
+  [data-dc-patient-radiology="true"] main[data-flow-patient-surface="radiology"] {
+    padding-inline: 10px;
+    padding-top: 8px;
+  }
+  [data-dc-patient-radiology="true"] main[data-flow-patient-surface="radiology"] > div > div > div {
+    border-radius: 18px;
+  }
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] {
+    display: grid;
+    gap: 10px;
+  }
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 8px;
+  }
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] > label,
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] > button {
+    grid-column: 1 / -1;
+  }
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] h2 {
+    font-size: 17px;
+    line-height: 1.3;
+  }
+}
+@media (max-width: 420px) {
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+    min-width: 90px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-dc-patient-radiology="true"] * {
+    scroll-behavior: auto !important;
+  }
+}

@@ -102,3 +102,110 @@
   [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] > :last-child {
   min-height: 220px;
 }
+
+/* LOT07 R2 visual review — strictly opt-in DEV MultiView R-only.
+   Styling cannot grant clinical permissions or introduce edit callbacks. */
+[data-v15-071-real-cabinet-lab] {
+  color: #142744;
+  --dc-r2-line: #dce7f4;
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar {
+  background: linear-gradient(125deg,#ffffff 0%,#f8fbff 100%);
+  box-shadow: 0 10px 28px -24px rgba(15,44,92,.40);
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar select,
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar button {
+  min-height: 40px;
+  border-radius: 10px;
+  transition: background-color .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar button:focus-visible,
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar select:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar button:not(:disabled):hover {
+  border-color: #93b4e1;
+  box-shadow: 0 4px 12px rgba(17,63,135,.08);
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-multiview-scaffold] {
+  border-radius: 18px;
+  border-color: #dce7f4;
+  padding: 14px;
+  background: #f8fbff;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-multiview-scaffold] > h2 {
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #173968;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-multiview-grid] {
+  height: min(78vh,880px);
+  max-height: 880px;
+  min-height: 520px;
+  gap: 12px !important;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-viewslot] {
+  max-height: min(78vh,880px);
+  border: 1px solid var(--dc-r2-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 16px -13px rgba(14,40,86,.30);
+  scrollbar-width: thin;
+  scrollbar-color: #b7c9dd transparent;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-viewslot="dossier"] {
+  background: linear-gradient(180deg,#fff 0%,#f9fbff 100%);
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] {
+  max-height: none;
+  height: auto;
+  min-height: 0;
+  grid-template-rows: max-content minmax(460px,auto) !important;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] > [data-v15-071-viewslot="dossier"] {
+  /* Keep media visible without hiding historical PDFs: this panel scrolls
+     independently and the underlying dataset/authorization is unchanged. */
+  max-height: 225px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"]
+  [data-testid="multiview-real-dossier"] {
+  display: grid;
+  grid-template-columns: minmax(230px, .6fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: 12px;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"]
+  [data-testid="multiview-real-dossier"] > * + * {
+  margin-top: 0 !important;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"] [data-v15-071-viewslot="dossier"] {
+  font-size: 13px;
+}
+/* The genuine media adapter is responsive to slot width, not outer viewport. */
+[data-v15-071-real-cabinet-lab] [aria-label="Recherche et filtres médias"] input,
+[data-v15-071-real-cabinet-lab] [aria-label="Recherche et filtres médias"] select,
+[data-v15-071-real-cabinet-lab] [aria-label="Recherche et filtres médias"] button {
+  min-height: 38px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: normal;
+}
+[data-v15-071-real-cabinet-lab] [data-testid="media-asset-rail"] article {
+  border-radius: 12px;
+}
+[data-v15-071-real-cabinet-lab] [data-testid="media-asset-rail"] article button {
+  min-height: 40px;
+}
+[data-v15-071-real-cabinet-lab] [data-testid="multiview-bilan-readonly"] iframe {
+  border: 0;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"] [data-testid="multiview-bilan-readonly"] h3 {
+  font-size: 14px;
+}
+@media (prefers-reduced-motion:reduce) {
+  [data-v15-071-real-cabinet-lab] button,[data-v15-071-real-cabinet-lab] select {transition:none !important;}
+}

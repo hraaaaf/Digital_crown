@@ -1,0 +1,150 @@
+name: LOT07 R2 UX candidate disposable master HEAD integration
+on:
+  pull_request:
+    branches:
+      - 'feat/lot07-r2-multiview-ronly-dec02-20261024'
+    paths:
+      - 'frontend/src/features/multiview/**'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/PatientRadiologyPolish.css'
+      - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
+      - 'scripts/lot07_r2_seed_bilan_t2.py'
+      - '.github/workflows/lot07-r2-ux-master-integration.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-r2-ux-master-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  temporary-integration:
+    name: Exact R2 HEAD + pinned master; no commit, backend HTTP and frontend W/X
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      R2_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      MASTER_SHA: 46362e2986e3b6b08598f518eff95fa01f161571
+      ENVIRONMENT: test
+      DATABASE_URL: 'sqlite:///:memory:'
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      SECRET_KEY: 'r2-master-integration-test-only-key-20261024'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - name: Checkout exact source PR HEAD with full ancestry
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.R2_SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Preflight fail-closed source/environment checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$R2_SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+          test "$ENVIRONMENT" = test
+          test "$DATABASE_URL" = 'sqlite:///:memory:'
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test ! -f digitalcrown.db
+          test ! -f t2-runtime-cert.db
+          echo "R2_SOURCE_HEAD=$R2_SOURCE_SHA"
+
+      - name: Fetch pinned master and simulate merge ONLY on throwaway runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin master
+          test "$(git rev-parse FETCH_HEAD)" = "$MASTER_SHA"
+          # This is a temporary filesystem integration, NOT a git merge commit
+          # and never a push, rebase, branch mutation, or deployment.
+          # Git checks the committer identity even with --no-commit.
+          # Provide an ephemeral identity to this invocation only (no config write).
+          git -c user.name='Disposable R2 CI' -c user.email='r2-disposable@example.invalid' merge --no-commit --no-ff FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$R2_SOURCE_SHA"
+          test -f .git/MERGE_HEAD
+          test "$(git rev-parse MERGE_HEAD)" = "$MASTER_SHA"
+          test -z "$(git diff --name-only --diff-filter=U)"
+          printf 'R2_FUE_TEMP_MERGE_CONFLICT_FREE source=%s master=%s\n' "$R2_SOURCE_SHA" "$MASTER_SHA"
+          git diff --cached --name-only | head -80
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies in disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/r2-integration-requirements.txt
+          pip install -r /tmp/r2-integration-requirements.txt
+          python -m pip check
+
+      - name: DEC01 BILAN synthetic API and all current archive authorization regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q -rs --disable-warnings \
+            backend/tests/test_lot07_r2_server_negative_matrix.py \
+            backend/tests/test_lot07_r2_document_server_matrix.py \
+            backend/tests/test_lot07_r2_bilan_readonly_dec01.py \
+            backend/tests/test_document_libre_permission_p3.py \
+            backend/tests/test_document_signature_permissions_p3.py \
+            backend/tests/test_document_download_auth_contract.py \
+            | tee /tmp/r2-integrated-backend.txt
+          grep -Eq '28 passed' /tmp/r2-integrated-backend.txt
+          if grep -Eq 'skipped|xfailed|xpassed' /tmp/r2-integrated-backend.txt; then
+            echo 'R2_INTEGRATED_BACKEND_INCOMPLETE'
+            exit 1
+          fi
+          test "$(git rev-parse HEAD)" = "$R2_SOURCE_SHA"
+          echo 'R2_INTEGRATED_BACKEND_DENIAL_PASS'
+
+      - name: Install locked frontend dependencies
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+
+      - name: All DEC02 R-only adapters W/X denial and document-tab RBAC
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm test -- src/features/multiview/studioLayouts.test.tsx \
+            src/features/admin/DocumentStudio/DocumentStudioPermissionPolicy.r2.test.ts \
+            src/features/multiview/HistoricBilanReadonlyPanel.test.tsx \
+            src/features/multiview/CabinetMultiViewLab.test.tsx \
+            src/features/patients/components/PatientMediaTimeline.multiviewReadonly.test.tsx \
+            | tee /tmp/r2-integrated-frontend.txt
+          # Vitest emits ANSI color codes even in CI; remove them only from
+          # the log used for count assertions, without changing the test run.
+          sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' /tmp/r2-integrated-frontend.txt > /tmp/r2-integrated-frontend-plain.txt
+          grep -Eq 'Test Files[[:space:]]+5 passed' /tmp/r2-integrated-frontend-plain.txt
+          if grep -Eq '[[:space:]]+[1-9][0-9]* skipped' /tmp/r2-integrated-frontend.txt; then
+            echo 'R2_INTEGRATED_FRONTEND_SKIPPED'
+            exit 1
+          fi
+          test "$(git rev-parse HEAD)" = "$R2_SOURCE_SHA"
+          echo 'R2_DEC01_DEC02_INTEGRATED_FRONTEND_R_ONLY_PASS'
+
+      - name: Final explicit no-commit/no-production attestation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$R2_SOURCE_SHA"
+          test "$(git rev-parse MERGE_HEAD)" = "$MASTER_SHA"
+          test "$DATABASE_URL" = 'sqlite:///:memory:'
+          echo "LOT07_R2_UX_MASTER_HEAD_NO_COMMIT_PASS source=$R2_SOURCE_SHA master=$MASTER_SHA"

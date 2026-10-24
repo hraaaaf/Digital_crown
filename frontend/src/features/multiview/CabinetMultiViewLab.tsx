@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { ArrowLeftRight, CheckCircle2, Eye, LayoutGrid, LockKeyhole } from 'lucide-react';
 import type { AppUser } from '../../types';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { hasAccess } from '../../utils/accessControl';
@@ -151,7 +152,16 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
     return <p role="alert">Vues multiples refusées : patient ou autorisation non vérifiés.</p>;
   }
   // Genuine legacy mobile/tablet content is preserved; no MultiView slot mounted.
-  if (!desktop) return <PatientMediaTimeline patientId={patient.id} readOnly/>;
+  if (!desktop) return <section data-testid="multiview-mobile-safe-view" className="space-y-3">
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-3 py-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <Eye size={18} className="shrink-0 text-blue-800"/>
+        <div className="min-w-0"><h2 className="text-sm font-extrabold text-slate-900">Imagerie clinique</h2><p className="text-xs text-slate-600">Lecture seule · format adapté à cet écran</p></div>
+      </div>
+      <span className="shrink-0 rounded-full bg-blue-900 px-2.5 py-1 text-xs font-bold text-white">R</span>
+    </div>
+    <PatientMediaTimeline patientId={patient.id} readOnly/>
+  </section>;
 
   const possible=selectablePilotLayouts(canCephalo);
   const applied=possible.find(item=>item.id===appliedId) || possible[0];
@@ -185,12 +195,22 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
     if (!trustedPatient) return null;
     if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>;
     if (slot.module==='dossier') return (
-      <div data-testid="multiview-real-dossier" className="space-y-2 p-3 text-sm">
-        <p className="font-semibold">Dossier patient</p>
-        <dl className="space-y-2">
-          <div><dt className="text-text-muted">Patient</dt><dd className="font-medium" >{trustedPatient.prenom} {trustedPatient.nom}</dd></div>
-          <div><dt className="text-text-muted">N° de dossier</dt><dd className="font-medium" >{trustedPatient.numero_dossier}</dd></div>
-        </dl>
+      <div data-testid="multiview-real-dossier" className="min-w-0 space-y-3 p-2.5 text-sm sm:p-3.5">
+        <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 p-4 text-white shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-100">Dossier patient</p>
+            <span className="inline-flex items-center gap-1 rounded-full border border-blue-300/30 bg-white/10 px-2 py-1 text-[11px] font-semibold"><CheckCircle2 size={12}/> Identité vérifiée</span>
+          </div>
+          <div className="mt-3 flex min-w-0 items-center gap-3">
+            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-lg font-extrabold">
+              {trustedPatient.prenom.slice(0,1)}{trustedPatient.nom.slice(0,1)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-extrabold leading-tight">{trustedPatient.prenom} {trustedPatient.nom}</p>
+              <p className="mt-1 font-mono text-xs text-blue-100">{trustedPatient.numero_dossier}</p>
+            </div>
+          </div>
+        </div>
         <HistoricBilanReadonlyPanel patientId={trustedPatient.id} />
       </div>
     );
@@ -203,10 +223,21 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
 
   return (
     <div ref={root} data-v15-071-real-cabinet-lab className="min-w-0 space-y-3">
-      <header className="rounded-xl border border-border-main bg-card-bg p-3 space-y-2">
-        <span className="text-xs font-semibold text-text-muted" data-testid="multiview-ronly-contract">Mode R · consultation seule — édition et signature indisponibles ici</span>
-        <p className="text-sm font-bold text-text-main">Vues multiples · laboratoire Cabinet Desktop</p>
-        <p className="text-xs text-text-muted">Une seule identité patient. Dispositions de démonstration non enregistrées.</p>
+      <header className="dc-mv-commandbar rounded-2xl border border-blue-100 bg-white p-3 shadow-sm sm:p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-900 text-white"><LayoutGrid size={21}/></span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-blue-700">Espace clinique · MultiView</p>
+              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight text-slate-900">Vues multiples</h2>
+              <p className="text-xs text-slate-600">Un dossier patient, plusieurs perspectives. Dispositions de démonstration non enregistrées.</p>
+            </div>
+          </div>
+          <span data-testid="multiview-ronly-contract" className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-900">
+            <LockKeyhole size={15}/> Mode R · consultation seule — édition et signature indisponibles ici
+          </span>
+        </div>
+        <div className="mt-3 space-y-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="multiview-pilot-select" className="text-sm">Disposition</label>
           <select id="multiview-pilot-select" aria-label="Disposition MultiView"
@@ -233,9 +264,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
           <div aria-label="Aperçu schématique sans données patient" data-testid="multiview-schematic-preview"
             className="rounded-lg border border-dashed border-border-main p-2">
             <p className="text-xs mb-2">Aperçu de la disposition — sans chargement clinique</p>
-            <div style={{...geometryGridStyle(draft.geometry),height:96}}>
+            <div data-testid="multiview-preview-geometry" style={{...geometryGridStyle(draft.geometry),height:124}}>
               {draft.slots.map((slot,index)=><div key={slot.id} style={geometrySlotStyle(draft.geometry,index)}
-                className="flex items-center justify-center min-w-0 rounded border border-border-main bg-medical-pearl text-xs">
+                className="flex items-center justify-center min-w-0 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white text-xs font-bold capitalize text-blue-950 shadow-sm">
                 {slot.module}</div>)}
             </div>
           </div>
@@ -243,7 +274,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" disabled={applied.slots.length<2}
             onClick={()=>setExchanged(value=>!value)} className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">
-            Échanger les vues
+            <ArrowLeftRight size={15} className="mr-1 inline-block align-middle"/> Échanger les vues
           </button>
           {(applied.geometry==='two-columns' || applied.geometry==='hero-two') &&
             <label className="flex items-center gap-2 text-xs">
@@ -253,8 +284,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
               <span>{ratio} %</span>
             </label>}
         </div>
+        </div>
       </header>
-      {!accepted && <p role="status" className="text-xs text-text-muted">
+      {!accepted && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-medium text-amber-950">
         {responsiveSingleMediaFallback
           ? 'Disposition trop large pour cet écran : affichage sécurisé de la médiathèque seule.'
           : 'Disposition protégée : identité du poste, permissions ou largeur des panneaux à vérifier.'}
