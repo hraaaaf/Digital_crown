@@ -8,7 +8,11 @@ import hashlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from backend.services.ortho_lab_image_integrity import verified_aariz_display_image_pair
+from backend.services.ortho_lab_image_integrity import (
+    verified_aariz_display_image_pair, build_verified_aariz_research_plate,
+)
+from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
+from PIL import Image
 from scripts.odf_v5_g3_aariz_matched_pair import _paired_names, _landmarks, AARIZ_TO_DC
 
 def _case(prefix, stem="029"):
@@ -36,6 +40,37 @@ class AarizMatchedSourceContract(unittest.TestCase):
             self.assertFalse(verified_aariz_display_image_pair(data,file))
             data["odf_lab_image_landmark_alignment"]="UNVERIFIED"
             self.assertFalse(verified_aariz_display_image_pair(data,file))
+
+    def test_research_plate_is_evidence_bound_and_never_uses_an_arbitrary_image(self):
+        # Only synthetic pixels in this test. The end-to-end lab separately
+        # proves actual source-matched Aariz expert annotation provenance.
+        from base64 import b64decode
+        with TemporaryDirectory() as tmp:
+            film=Path(tmp)/"demo.png"
+            Image.new("RGB",(1935,2400),(18,27,33)).save(film)
+            symbols=("S","N","A","B","Po","Or","Go","Me","Gn",
+                     "U1_incisal","L1_incisal","U1_apex","L1_apex",
+                     "ANS","PNS","Co","Ar","Li_soft","Ls_soft")
+            points=[{"landmark_id":name,"x":200+i*30,"y":400+i*53}
+                    for i,name in enumerate(symbols)]
+            evidence={
+                "odf_lab_image_landmark_alignment":"VERIFIED_AARIZ_EXPERT_PAIR",
+                "odf_lab_dataset_image_id":"Aariz/test/Cephalograms/demo.png",
+                "odf_lab_display_png_sha256":hashlib.sha256(film.read_bytes()).hexdigest(),
+                "odf_lab_source_image_sha256":"a"*64,
+                "odf_lab_source_senior_sha256":"b"*64,
+                "odf_lab_source_junior_sha256":"c"*64,
+                EVIDENCE_GRAPH_KEY:{"landmarks":points},
+            }
+            plate=build_verified_aariz_research_plate(evidence,film)
+            self.assertIsNotNone(plate)
+            self.assertIn("Aariz",plate["caption"])
+            self.assertTrue(b64decode(plate["image_b64"]).startswith(b"\\xff\\xd8"))
+            film.write_bytes(b"forged-bytes")
+            self.assertIsNone(build_verified_aariz_research_plate(evidence,film))
+            Image.new("RGB",(1935,2400),(18,27,33)).save(film)
+            evidence[EVIDENCE_GRAPH_KEY]["landmarks"][0]["x"]=999999
+            self.assertIsNone(build_verified_aariz_research_plate(evidence,film))
 
     def test_requires_exact_film_id_and_two_expert_files(self):
         names=_case("Aariz/Train","013")+_case("Aariz/Valid","029")
