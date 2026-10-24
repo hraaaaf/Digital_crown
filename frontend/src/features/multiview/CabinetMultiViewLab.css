@@ -251,8 +251,8 @@
   max-height: 245px;
 }
 
-// Reflow-only 1280px safety panel. The resolver still forbids unreadable
-// MultiView geometry; this makes the authenticated R-mode fallback legible.
+/* Reflow-only 1280px safety panel; preserve the resolver's rejection
+   of unreadable MultiView geometry and authenticated R-mode fallback. */
 [data-v15-071-real-cabinet-lab] [data-testid="multiview-layout-safe-info"] {
   box-shadow: var(--shadow-elite);
   border-color: var(--border-color);
