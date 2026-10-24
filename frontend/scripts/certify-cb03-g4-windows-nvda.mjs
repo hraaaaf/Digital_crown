@@ -98,8 +98,11 @@ try {
     '--host','127.0.0.1','--port','5173','--strictPort',
   ],{
     cwd:process.cwd(),windowsHide:true,
+    // Reuse the existing DEV-only PWA blocker used by the CB-02 NVDA lab:
+    // no service-worker registration or Workbox fallback in this disposable tab.
     env:{...process.env,VITE_CB03_G3_VISUAL_LAB:'true',
-      VITE_CROWN_BOT_CB03_G3_ENABLED:'true'},
+      VITE_CROWN_BOT_CB03_G3_ENABLED:'true',
+      VITE_CB02_NATIVE_A11Y_LAB:'true'},
     stdio:['ignore','pipe','pipe'],
   });
   server.stdout.on('data',d=>process.stdout.write('[G3-Vite] '+String(d)));
