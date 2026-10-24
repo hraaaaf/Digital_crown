@@ -266,3 +266,9 @@
     gap: 10px;
   }
 }
+
+/* Native range controls also derive their accent from the selected theme
+   rather than Chromium's default blue thumb (especially in High Contrast). */
+[data-v15-071-real-cabinet-lab] .dc-mv-commandbar input[type="range"] {
+  accent-color: var(--primary);
+}
