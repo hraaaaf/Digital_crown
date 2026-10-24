@@ -224,6 +224,7 @@ def seed_verified_pair():
         payload={**metrics.model_dump(),EVIDENCE_GRAPH_KEY:graph,
                  "odf_lab_image_landmark_alignment":"VERIFIED_AARIZ_EXPERT_PAIR",
                  "odf_lab_source_image_sha256":sha256(image_bytes).hexdigest(),
+                 "odf_lab_display_png_sha256":sha256(png.read_bytes()).hexdigest(),
                  "odf_lab_source_senior_sha256":sha256(senior_bytes).hexdigest(),
                  "odf_lab_source_junior_sha256":sha256(junior_bytes).hexdigest(),
                  "odf_lab_dataset_image_id":image_name,
