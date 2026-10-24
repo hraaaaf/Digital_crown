@@ -132,3 +132,71 @@ def test_update_uses_calibration_safe_projection_merge(monkeypatch):
     assert updated is analysis
     assert analysis.angles_data["calibration_status"] == "auto_verified"
     assert analysis.angles_data["calibration_decision"]["state"] == "AUTO_VERIFIED"
+
+def test_g4_isolated_unchanged_graph_preserves_expert_image_provenance(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "1")
+    graph={
+        "schema_version":"CEPHALO_EVIDENCE_V1",
+        "landmarks":[{"evidence_id":"lm:S:manual","landmark_id":"S","x":170.0,"y":130.0}],
+        "current_landmark_refs":["lm:S:manual"],
+        "measurements":[{"measurement_id":"measure:1","value":82.0}],
+    }
+    keys={
+        "odf_lab_image_landmark_alignment":"VERIFIED_AARIZ_EXPERT_PAIR",
+        "odf_lab_display_png_sha256":"a"*64,
+        "odf_lab_source_image_sha256":"b"*64,
+        "odf_lab_source_senior_sha256":"c"*64,
+        "odf_lab_source_junior_sha256":"d"*64,
+        "odf_lab_dataset_image_id":"Aariz/test/Cephalograms/test.png",
+    }
+    persisted={**keys,"_evidence_graph_v1":graph,"clinical_data":{"old":True}}
+    ordinary={"_evidence_graph_v1":graph,"clinical_data":{"new":True}}
+    updated=_merge_calibration_projection(persisted,ordinary)
+    assert updated["clinical_data"] == {"new":True}
+    assert updated["_evidence_graph_v1"] == graph
+    assert {k:updated.get(k) for k in keys} == keys
+
+
+def test_g4_revised_graph_or_production_context_never_inherits_expert_hashes(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT","test")
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME","1")
+    graph={"revision":1,"landmarks":[{"evidence_id":"lm:S","landmark_id":"S","x":170.0}]}
+    hashes={
+        "odf_lab_image_landmark_alignment":"VERIFIED_AARIZ_EXPERT_PAIR",
+        "odf_lab_display_png_sha256":"1"*64,
+        "odf_lab_source_image_sha256":"2"*64,
+        "odf_lab_source_senior_sha256":"3"*64,
+        "odf_lab_source_junior_sha256":"4"*64,
+        "odf_lab_dataset_image_id":"Aariz/test/Cephalograms/example.png",
+    }
+    previous={"_evidence_graph_v1":graph,**hashes}
+    new_graph={"revision":2,"landmarks":[{"evidence_id":"lm:S","landmark_id":"S","x":190.0}]}
+    changed=_merge_calibration_projection(previous,{
+        "_evidence_graph_v1":new_graph,**hashes,
+    })
+    assert all(k not in changed for k in hashes), "Edited geometry must revoke expert trust"
+    monkeypatch.setenv("ENVIRONMENT","production")
+    not_lab=_merge_calibration_projection(previous,{
+        "_evidence_graph_v1":graph,**hashes,
+    })
+    assert all(k not in not_lab for k in hashes)
+    monkeypatch.setenv("ENVIRONMENT","test")
+    monkeypatch.delenv("DIGITALCROWN_ISOLATED_RUNTIME")
+    not_isolated=_merge_calibration_projection(previous,{"_evidence_graph_v1":graph})
+    assert all(k not in not_isolated for k in hashes)
+
+
+def test_g4_lab_metadata_cannot_be_injected_into_untrusted_save(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT","test")
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME","1")
+    injected={
+        "odf_lab_image_landmark_alignment":"VERIFIED_AARIZ_EXPERT_PAIR",
+        "odf_lab_display_png_sha256":"f"*64,
+        "odf_lab_source_image_sha256":"f"*64,
+    }
+    merged=_merge_calibration_projection(
+        {"_evidence_graph_v1":{"revision":1}},
+        {"_evidence_graph_v1":{"revision":1},**injected},
+    )
+    assert all(k not in merged for k in injected)
