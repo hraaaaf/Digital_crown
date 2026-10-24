@@ -40,7 +40,7 @@ jobs:
       - name: P2ter++ backend identity and crash regression (no Windows claim)
         run: |
           set -o pipefail
-          python -m pytest backend/tests/test_cephalo_p2ter_identity_bound_pdf.py backend/tests/test_cephalo_p2ter_atomic_archive.py backend/tests/test_cephalo_p2ter_archive_adversarial.py backend/tests/test_cephalo_p2ter_crash_recovery.py -q | tee bridge-backend-results.log
+          python -m pytest backend/tests/test_cephalo_p2ter_identity_bound_pdf.py backend/tests/test_cephalo_p2ter_atomic_archive.py backend/tests/test_cephalo_p2ter_archive_adversarial.py backend/tests/test_cephalo_p2ter_crash_recovery.py backend/tests/test_cephalo_r23g2_reference_api.py -q | tee bridge-backend-results.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -64,6 +64,13 @@ try {
         const canonicalName = String(clinic?.nom_cabinet || '').trim();
         if (canonicalName !== 'Cabinet T2 Certification') throw Error('Unexpected synthetic clinic context');
         item.checks.push('Tenant identity from authenticated backend');
+        // The dashboard action button can hydrate before the header's
+        // asynchronous tenant identity. Wait for the actual backend-bound
+        // header, not a fixed delay and never a test-supplied DOM value.
+        await page.waitForFunction(expectedName => {
+          const node = document.querySelector('[data-testid="shared-header-cabinet-name"]');
+          return node?.textContent?.trim() === expectedName;
+        }, canonicalName, { timeout: 20000 });
         const header = await page.getByTestId('shared-header-cabinet-name').textContent();
         if (header?.trim() !== canonicalName) throw Error('Header not equal to API tenant identity');
         item.checks.push('Header is tenant-scoped');

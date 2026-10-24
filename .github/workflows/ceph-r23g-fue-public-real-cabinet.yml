@@ -1,0 +1,141 @@
+name: CEPH R23-G FUE-G real public radios in authenticated Cabinet (experimental)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ceph-r23g-fue-public-real-cabinet.yml'
+      - 'scripts/ceph_r23g_fue_public_seed_t2.py'
+      - 'frontend/scripts/fue-ceph-r23g-public-real-cabinet.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-public-jpegs-real-cabinet:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: p2ter-t2-disposable-only-secret-key-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CEPH_PUBLIC_SOURCE_DIR: /tmp/ceph-public-originals
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact HEAD of this DRAFT
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate isolated password and SQLCipher key without publishing secrets
+        run: |
+          password="$(python -c 'import secrets;print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+          storage_key="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+          echo "::add-mask::$storage_key"
+          echo "SQLCIPHER_KEY_HEX=$storage_key" >> "$GITHUB_ENV"
+      - name: Install isolated Cabinet backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-fue-deps.txt
+          python -m pip install -r /tmp/ceph-fue-deps.txt
+          python -m pip check
+      - name: Install real Cabinet frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Download TWO ORIGINAL PUBLIC radiographs and lock their bytes
+        run: |
+          mkdir -p "$CEPH_PUBLIC_SOURCE_DIR"
+          curl -fL --retry 4 --retry-delay 3 --max-time 120 -A 'DigitalCrown-PublicFUE/1.0' 'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG' -o "$CEPH_PUBLIC_SOURCE_DIR/anug.jpg"
+          curl -fL --retry 4 --retry-delay 3 --max-time 120 -A 'DigitalCrown-PublicFUE/1.0' 'https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg' -o "$CEPH_PUBLIC_SOURCE_DIR/challiyan.jpg"
+          echo '2a284993c666790a72d0c004044b35a92534ce9d  /tmp/ceph-public-originals/anug.jpg' | sha1sum -c -
+          echo '66c74c588af3c54dfc581f8a870c5276c3427498  /tmp/ceph-public-originals/challiyan.jpg' | sha1sum -c -
+      - name: Start REAL FastAPI + JWT on disposable SQLite T2 only
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/ceph-fue-real-backend.log 2>&1 &
+          echo $! > /tmp/ceph-fue-real-backend.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/ceph-fue-real-backend.log
+          exit 1
+      - name: Seed original JPEGs in two UNCALIBRATED UNANNOTATED studies
+        run: |
+          python -m scripts.ceph_r23g_fue_public_seed_t2 | tee /tmp/ceph-fue-real-seed.log
+          python - <<'PY'
+          import json,os
+          data=json.loads(next(line.split('=',1)[1] for line in open('/tmp/ceph-fue-real-seed.log') if line.startswith('CEPH_R23G_FUE_REAL_PUBLIC_STUDIES=')))
+          assert set(data['cases'])=={'anug','challiyan'} and data['scientific_goldset'] is False
+          assert all(c['landmark_count']==0 and c['calibration'] is None for c in data['cases'].values())
+          with open(os.environ['GITHUB_ENV'],'a') as f: f.write('CEPH_REAL_PUBLIC_STUDIES='+json.dumps(data,separators=(',',':'))+'\n')
+          PY
+      - name: Start genuine Vite Cabinet UI
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/ceph-fue-real-frontend.log 2>&1 &
+          echo $! > /tmp/ceph-fue-real-frontend.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/ceph-fue-real-frontend.log
+          exit 1
+      - name: FUE-G real browser — authentic login, original images, source refusal
+        working-directory: frontend
+        run: node scripts/fue-ceph-r23g-public-real-cabinet.mjs
+      - name: Inspect report and prove no scientific promotion
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from backend import database,models
+          r=json.loads(Path('artifacts/ceph-r23g-public-real-cabinet/report.json').read_text())
+          assert r['head']=='${{ github.event.pull_request.head.sha || github.sha }}'
+          assert r['overall']=='FUE_G_PUBLIC_ORIGINALS_REAL_CABINET_NONCLINICAL_PASS'
+          assert r['clinical_release'] is False and r['landmarks_validated']==0
+          assert {v['viewport'] for v in r['viewports']}=={'1280x900','1600x1000'}
+          expected={'REAL_UI_LOGIN_AND_PATIENT_IMAGING','DESKTOP_LAYOUT_NO_HORIZONTAL_OVERFLOW'}
+          for name in ('ANUG','CHALLIYAN'):
+            expected|={name+'_SOURCE_IDENTITY_AND_PROTECTED_JPEG',name+'_BEFORE_ACTION_AFTER_TRUE_BROWSER_IMAGE',name+'_REFERENCE_FAIL_CLOSED_WITHOUT_EVIDENCE'}
+          for v in r['viewports']:
+            assert v['valid'] and not v['errors'] and {c['id'] for c in v['checks']}==expected
+            assert all(c['status']=='PASS' for c in v['checks'])
+          data=json.loads(next(x.split('=',1)[1] for x in Path('/tmp/ceph-fue-real-seed.log').read_text().splitlines() if x.startswith('CEPH_R23G_FUE_REAL_PUBLIC_STUDIES=')))
+          with database.SessionLocal() as db:
+            for c in data['cases'].values():
+              s=db.get(models.CephaloAnalysis,c['study_id'])
+              assert s and s.patient_id==data['patient_id']
+              assert s.landmarks_data==[] and s.angles_data=={}
+              assert s.is_calibrated is False and s.mm_per_pixel is None and s.calibration_data is None
+          print('CEPH_R23G_REAL_PUBLIC_FUE_G_PASS_NONCLINICAL; NO CALIBRATION OR ANATOMY')
+          PY
+      - name: Diagnostics on failure — no patient images or secrets in logs
+        if: failure()
+        run: |
+          tail -100 /tmp/ceph-fue-real-backend.log 2>/dev/null || true
+          tail -100 /tmp/ceph-fue-real-frontend.log 2>/dev/null || true
+      - name: Upload attributed public evidence only — 30 days
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-r23g-public-fue-g-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-r23g-public-real-cabinet/
+          if-no-files-found: warn
+          retention-days: 30

@@ -6,6 +6,7 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'scripts/ceph_p2ter_seed_t2.py'
+      - 'scripts/t2_runtime_server.py'
       - '.github/workflows/ceph-p2ter-master-bridge-*.yml'
 permissions:
   contents: read
@@ -82,6 +83,30 @@ jobs:
           PY
           )"
           echo "P2TER_STUDIES=$studies" >> "$GITHUB_ENV"
+      - name: Verify synthetic T2 calibration plate (never a patient radiograph)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import struct, zlib
+          data=Path("backend/static/uploads/radios/t2-cephalo-seeded.png").read_bytes()
+          assert data[:8]==bytes.fromhex("89504e470d0a1a0a")
+          width,height,bit_depth,color_type,compression,filter_method,interlace=struct.unpack(">IIBBBBB",data[16:29])
+          assert (width,height,bit_depth,color_type,compression,filter_method,interlace)==(1935,2400,8,0,0,0,0)
+          i=8
+          chunks=[]
+          while i<len(data):
+              size=struct.unpack(">I",data[i:i+4])[0]
+              kind=data[i+4:i+8]
+              if kind==b"IDAT": chunks.append(data[i+8:i+8+size])
+              i+=12+size
+              if kind==b"IEND": break
+          raw=zlib.decompress(b"".join(chunks))
+          assert len(raw)==height*(width+1)
+          sample={(x,y):raw[y*(width+1)+1+x] for x,y in
+              [(100,120),(100,1400),(967,1200),(1000,0),(967,500)]}
+          assert len(set(sample.values()))>=3 and max(sample.values())-min(sample.values())>=60,sample
+          print("R23_G4_NONCLINICAL_SYNTHETIC_PLATE_VISIBLE",sample)
+          PY
       - name: Start real Cabinet React frontend
         working-directory: frontend
         run: |
@@ -183,6 +208,39 @@ jobs:
                   assert (report_path.parent/filename).is_file(), filename
           print("P2TER_FUE_I_AUTOMATED_EVIDENCE_VERIFIED")
           PY
+      - name: R23-G4 EXPERIMENTAL authenticated desktop AFTER evidence (COM/Focus)
+        working-directory: frontend
+        run: node scripts/certify-ceph-r23g4-reference-ui.mjs
+      - name: Verify R23-G4 two-viewport real UI source-proof screenshots
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("artifacts/ceph-r23g4-reference-ui")
+          report=json.loads((root/"report.json").read_text())
+          assert report["head"]=="${{ github.event.pull_request.head.sha || github.sha }}"
+          assert report["overall"]=="R23_G4_EXPERIMENTAL_DESKTOP_AFTER_PASS"
+          assert {v["viewport"] for v in report["viewports"]}=={"1280x900","1600x1000"}
+          checks={"GENUINE_CABINET_LOGIN_AND_STUDY_SELECTION",
+                  "COM10_SOURCE_ROWS_EXACT_REVISION","NO_FABRICATED_FOCUS_ON_COM_HOLD",
+                  "RICKETTS_ATLAS33_VS_GREGORET13","SECOND_STUDY_HAS_NO_STALE_REFERENCE",
+                  "COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED","NO_DESKTOP_VIEWPORT_OVERFLOW"}
+          screenshots={"before-from-stable-all","after-com-ten-factor","after-com-focus-hold",
+                       "after-ricketts-atlas33","after-ricketts-gregoret13","after-other-study-rebound",
+                       "after-com-last-factor-accessible"}
+          for v in report["viewports"]:
+              assert v["valid"] and not v["errors"], v
+              assert {c["id"] for c in v["checks"]}==checks
+              assert all(c["status"]=="PASS" for c in v["checks"])
+              last=next(c for c in v["checks"] if c["id"]=="COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED")
+              evidence=last["evidence"]
+              assert evidence["bottomPadding"] >= 120
+              assert evidence["rowTop"] >= evidence["scrollTop"]-1
+              assert evidence["rowBottom"] <= evidence["scrollBottom"]+1
+              for label in screenshots:
+                  assert (root/(v["viewport"]+"-"+label+".png")).is_file()
+          print("R23_G4_EXPERIMENTAL_AFTER_TWO_DESKTOP_VIEWPORTS_PASS")
+          PY
       - name: Dump isolated runtime diagnostic on failure
         if: failure()
         run: |
@@ -195,5 +253,6 @@ jobs:
           path: |
             artifacts/ceph-p2ter-authenticated-desktop/
             artifacts/ceph-p2ter-fue-i/
+            artifacts/ceph-r23g4-reference-ui/
           if-no-files-found: warn
           retention-days: 30
