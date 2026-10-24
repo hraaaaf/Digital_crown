@@ -156,10 +156,29 @@ for (const viewport of viewports) {
       workspaceTop,
     };
   });
+  // At 390 px compare both clinical media simultaneously, with full-screen
+  // actions preserved and no crop of clinical image pixels.
+  const mobileCompare = viewport.width === 390 ? await comparePanel.evaluate(panel => {
+    const grid = panel.querySelector('.dc-c5-compare-grid');
+    const cards = [...panel.querySelectorAll('.dc-c5-compare-asset')];
+    if (!(grid instanceof HTMLElement) || cards.length !== 2) return { pass: false, reason: 'missing-grid' };
+    const style = getComputedStyle(grid);
+    const columns = style.gridTemplateColumns.split(' ').filter(Boolean).length;
+    const contentFit = cards.every(card => {
+      const img = card.querySelector('img');
+      const preview = card.children[1];
+      return preview instanceof HTMLElement &&
+        preview.getBoundingClientRect().height <= 180 &&
+        (!img || getComputedStyle(img).objectFit === 'contain');
+    });
+    const buttons = cards.every(card => !!card.querySelector('button[aria-label="Ouvrir ce média en plein écran"]'));
+    return { pass: columns === 2 && contentFit && buttons, columns, contentFit, buttons };
+  }) : null;
+  if (mobileCompare && !mobileCompare.pass) throw new Error('C5 mobile side-by-side full-content contract: ' + JSON.stringify(mobileCompare));
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   const shot = `c5-after-compare-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
-  evidence.push({ viewport, shot, overflow, visualFrame, pageErrors, http5xx });
+  evidence.push({ viewport, shot, overflow, visualFrame, mobileCompare, pageErrors, http5xx });
   await context.close();
 }
 
