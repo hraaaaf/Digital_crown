@@ -198,7 +198,8 @@ def build_g5_anatomical_two_views(
              if __import__("os").environ.get("ODF_G5_E2E_SYNTHETIC_STROKES") == "1"
              else "")
             + "Tracé manuel enregistré par l'utilisateur authentifié du laboratoire, "
-            + "superposé à la téléradiographie appariée Aariz (CC BY 4.0). "
+            + "superposé à la téléradiographie appariée du "
+            + "Aariz Cephalometric Dataset (CC BY 4.0). "
             + "Ces courbes sont des annotations saisies, jamais des contours "
             + "déduits des 24 repères. "
             + "Document de recherche sans validation diagnostique R14."
