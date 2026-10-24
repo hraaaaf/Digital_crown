@@ -21,7 +21,7 @@
 | A2-06 Restart/reset | refreshed session still 429; independent station remains 200 | actual backend + station-scoped SQL counter |
 | A2-07 Boundaries | wrong workstation 404 and test-only expired session 409, or 404 when UI status poll already purged the expired row | distinct workstation cookie + injected disposable SQL expiry + expired screen |
 | A2-08 Data minimization | sanitized HTTP path+status, no query/body/cookie/token/clinical data | evidence-after.json inspection |
-| A2-09 Independent readback | persisted 5 failed attempts, successful identity audits, 3 intact fictitious patients, 0 clinical appointment mutation and >=9 screenshots | separate SQLCipher process |
+| A2-09 Independent readback | persisted 5 failed attempts, successful identity audits, 3 intact fictitious patients, 0 clinical appointment mutation and >=10 verified screenshots with byte-level SHA256 manifest and responsive 390/430/768/1280 | separate SQLCipher process |
 | A2-10 Negative credentials | wrong DOB and unknown phone return generic 403, no patient name; PIN 403; independent station remains 200 | live Chromium / FastAPI / SQL |
 | A2-11 Regression | previous Station API pytest and React Station identity Vitest unchanged | exact HEAD run required |
 
@@ -30,7 +30,7 @@
 ## Proof entry points
 
 - `scripts/seed_v15_station_fallback_a2.py` seeds exactly three fictitious patients; `--verify` reads SQLCipher independently and `--expire-session` injects only isolated expiry.
-- `frontend/scripts/certify-v15-03-a2-real-fallback.mjs` runs real Chromium-to-FastAPI cases and writes 9+ PNGs plus sanitized `evidence-after.json` (must be executed before any PASS).
+- `frontend/scripts/certify-v15-03-a2-real-fallback.mjs` runs real Chromium-to-FastAPI cases and writes 10+ PNGs plus sanitized `evidence-after.json` (must be executed before any PASS).
 - **CI blocker at creation:** editing the dedicated `.github/workflows/v15-fue-g03-a2-fallback.yml` was blocked by the GitHub tool security controls. Do not bypass the block, and do not claim executable certification until an authorized CI workflow is committed and an exact-HEAD run + artifacts are independently checked.
 
 ## Closure / exclusions
@@ -38,3 +38,10 @@
 A2 requires completed exact-SHA CI, jobs and step logs, actual negative responses, all genuine screenshots inspected, independent SQL oracle PASS, and human visual sign-off if UI/visual changes justify it. Failing any required case = A2 OPEN. No merge, Vercel, Production, patient real data or physical certification. A3 (deep 0/1/N RDV and public Wall) is a separate next step, not implicitly started.
 
 **CI escalation:** GitHub Issues is disabled (HTTP 410); the security-reviewed Actions workflow request is lodged in PR #1069 conversation. No privileged workflow-file write attempted after its explicit security-control block.
+
+## Correctif de robustesse des preuves — 24 octobre 2026
+
+- Exact-HEAD produit par `git rev-parse HEAD` comparé à `EVALUATED_SHA` **avant** lancement du navigateur ; le processus SQL indépendant compare aussi ce HEAD au JSON de preuves.
+- `screenshotManifest` inclut pour chaque vraie capture PNG nom, largeur, hauteur, taille exacte et SHA-256 ; l'oracle SQL vérifie les bytes sur disque, l'en-tête PNG et les largeurs obligatoires 390/430/768/1280.
+- Dix captures minimum, dont cinq AFTER obligatoires (phone, name, refus générique, expiration, verrouillage), numérotées sans collision. Un fichier manquant, modifié ou ne correspondant pas au manifeste est RED.
+- **Tests non encore exécutés :** le workflow dédié est protégé et absent du dépôt. Aucun PNG ou SQL `PASS` revendiqué. La voie autorisée reste une revue CI par mainteneur dans la PR, sans tentative de contournement.
