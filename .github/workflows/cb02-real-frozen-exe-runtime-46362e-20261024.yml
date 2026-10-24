@@ -1,0 +1,57 @@
+name: CB-02 real certified frozen EXE runtime on Windows (no activation)
+on:
+  push:
+    branches:
+      - evidence/cb02-real-frozen-exe-smoke-46362e-20261024
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-windows-frozen-runtime:
+    name: Real installed DigitalCrown.exe + loopback SQLCipher /health + Sigstore refusal
+    runs-on: windows-2022
+    timeout-minutes: 95
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CB02_SOURCE_SHA: 46362e2986e3b6b08598f518eff95fa01f161571
+      GITHUB_ACTIONS: 'true'
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CROWN_BOT_GUIDED_NLU_ENABLED: 'false'
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify evidence harness only, no changes to certified application bytes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:GITHUB_SHA) {throw 'Runner HEAD mismatch'}
+          & git merge-base --is-ancestor $env:CB02_SOURCE_SHA HEAD
+          if ($LASTEXITCODE -ne 0) {throw 'Not a descendant of signed certified source'}
+          $delta=@(git diff --name-only $env:CB02_SOURCE_SHA HEAD | Sort-Object)
+          if ($delta.Count -ne 2 -or $delta[0] -cne '.github/workflows/cb02-real-frozen-exe-runtime-46362e-20261024.yml' -or $delta[1] -cne 'scripts/ci/cb02-certified-frozen-exe-e2e.ps1') {
+            throw "Certified code diverged from exact source; refuse: $($delta -join ',')"
+          }
+          Write-Host "CB02_CERTIFIED_SOURCE_UNMODIFIED=PASS $env:CB02_SOURCE_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned genuine Windows setup, run actual EXE, validate read-only health and denial
+        shell: pwsh
+        timeout-minutes: 83
+        run: |
+          & ./scripts/ci/cb02-certified-frozen-exe-e2e.ps1
+          if ($LASTEXITCODE -ne 0) {throw 'Real EXE runtime test failed'}
+      - name: Upload non-sensitive exact-SHA real runtime proof only
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cb02-real-certified-exe-runtime-46362e
+          path: evidence/output/cb02-real-exe-runtime-smoke.txt
+          retention-days: 14
+          if-no-files-found: warn
