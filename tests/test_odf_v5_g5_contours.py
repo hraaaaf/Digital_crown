@@ -11,11 +11,25 @@ from unittest import TestCase, main
 
 from PIL import Image
 
-from backend.services.ortho_anatomical_trace import (
-    CONTOUR_CONTRACT, CONTOUR_LABELS, MIN_POINTS, ContourRejected,
-    canonical_digest,normalize_manual_contours,
-    verify_approved_anatomical_trace,draw_contours,
-)
+# Load the pure contour contract directly: backend/__init__ bootstraps
+# SQLAlchemy and application services, which are NOT needed for this
+# dependency-minimal geometry/unit safety gate.
+import importlib.util
+from pathlib import Path
+
+module_path=Path(__file__).resolve().parents[1]/"backend/services/ortho_anatomical_trace.py"
+spec=importlib.util.spec_from_file_location("odf_g5_anatomy_contract",module_path)
+assert spec is not None and spec.loader is not None
+contract=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(contract)
+CONTOUR_CONTRACT=contract.CONTOUR_CONTRACT
+CONTOUR_LABELS=contract.CONTOUR_LABELS
+MIN_POINTS=contract.MIN_POINTS
+ContourRejected=contract.ContourRejected
+canonical_digest=contract.canonical_digest
+normalize_manual_contours=contract.normalize_manual_contours
+verify_approved_anatomical_trace=contract.verify_approved_anatomical_trace
+draw_contours=contract.draw_contours
 
 
 def artificial_polylines():
