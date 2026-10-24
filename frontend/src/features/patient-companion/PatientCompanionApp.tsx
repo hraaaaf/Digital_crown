@@ -325,7 +325,14 @@ export const PatientCompanionApp = () => {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || 'Session borne invalide ou expirée.');
       setStationHandoffToken(null);
-      if (typeof payload.sessionId === 'string' && payload.sessionId.trim()) {
+      if (typeof payload.sessionId === 'string' && payload.sessionId.trim() && payload.purpose === 'appointment') {
+        // Backend derives intent only from the cryptographically matched token,
+        // not an editable query parameter or a self-reported patient choice.
+        setStationDocumentSession(null);
+        setActiveTab('today');
+        setStationHandoffMessage('Identité confirmée. Revenez à la borne pour sélectionner votre rendez-vous et confirmer votre arrivée.');
+      } else if (typeof payload.sessionId === 'string' && payload.sessionId.trim()) {
+        // Legacy tokens remain document flows for backwards compatibility.
         setStationDocumentSession({ sessionId: payload.sessionId, accessId: pairing.context.access_id });
         setActiveTab('documents');
         setStationHandoffMessage('Identité confirmée sur la station. Vos documents autorisés pour ce retrait sont disponibles dans l’onglet Documents.');
