@@ -9,6 +9,7 @@ on:
       - 'frontend/src/features/patients/PatientRadiologyPolish.css'
       - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
       - 'scripts/lot07_r2_seed_bilan_t2.py'
+      - '.github/workflows/media-c5-visual-cert.yml'
       - '.github/workflows/lot07-r2-ux-master-integration.yml'
 
 permissions:
