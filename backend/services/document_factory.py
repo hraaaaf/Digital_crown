@@ -165,6 +165,17 @@ class DocumentFactory:
                             source_row.angles_data or {}, image_file
                         ):
                             projection["lab_image_landmark_alignment"] = "UNVERIFIED"
+                        else:
+                            from backend.services.ortho_lab_image_integrity import (
+                                build_verified_aariz_research_plate,
+                            )
+                            plate = build_verified_aariz_research_plate(
+                                source_row.angles_data or {}, image_file
+                            )
+                            if plate is None:
+                                projection["lab_image_landmark_alignment"] = "UNVERIFIED"
+                            else:
+                                projection["lab_verified_research_figure"] = plate
                     approved_sections = resolve_approved_practitioner_sections(
                         db, patient_id=patient_id, analysis_id=analysis_id,
                         expected_revision=projection.get("analysis_revision"),
