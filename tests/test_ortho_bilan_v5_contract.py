@@ -101,6 +101,23 @@ class OrthoV5DocumentContract(unittest.TestCase):
         self.assertNotIn("Mesure complémentaire", str(odf))
         self.assertNotIn("ANALYSIS_MEASURE_923", str(odf))
 
+    def test_runtime_deg_unit_is_equivalent_to_degree_symbol_only(self):
+        # Production typed graph uses 'deg', while the display registry uses '°'.
+        # Do not silently drop genuine source-bound angles or accept radians/mm.
+        source = typed_study()
+        for row in source['measurements']:
+            if row.get('unit') == '°': row['unit'] = 'deg'
+        for row in source['canonical_measurements']:
+            row['unit'] = 'deg'
+        odf = build_ortho_bilan_document(source)
+        self.assertEqual(odf['osseuse'][0], {'label':'SNA','value':'82 °'})
+        self.assertEqual(odf['osseuse'][1], {'label':'ANB','value':'4.5 °'})
+        self.assertEqual(odf['dentoalveolaire'][0]['value'], '25 °')
+        for invalid in ('rad','mm','°'):
+            tampered = deepcopy(source)
+            tampered['canonical_measurements'][0]['unit'] = invalid
+            self.assertNotIn('SNA', [row['label'] for row in build_ortho_bilan_document(tampered)['osseuse']])
+
     def test_canonical_is_never_promoted_if_typed_source_disagrees(self):
         source = typed_study()
         for mutation in (

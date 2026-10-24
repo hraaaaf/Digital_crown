@@ -118,6 +118,12 @@ def _ceph_rows(projection: Mapping[str, Any]) -> tuple[list[dict], list[dict]]:
     from math import isfinite, isclose
     from backend.services.cephalo_measure_registry import CANONICAL_MEASUREMENTS
 
+    def matches_registry_unit(unit: Any, expected: str) -> bool:
+        # The typed evidence engine serializes angles as 'deg'; the canonical
+        # presentation registry uses '°'. Both denote the identical unit.
+        # All other aliases, and every uncalibrated metric unit, fail closed.
+        return unit == expected or (expected == '°' and unit == 'deg')
+
     backed: dict[str, dict[str, Any]] = {}
     for raw in projection.get("measurements") or []:
         if isinstance(raw, dict) and raw.get("scientific_source") == "EVIDENCE_GRAPH_V1":
@@ -135,7 +141,7 @@ def _ceph_rows(projection: Mapping[str, Any]) -> tuple[list[dict], list[dict]]:
         if not isinstance(key, str) or key not in allowed or key in seen:
             continue
         registry = CANONICAL_MEASUREMENTS.get(key)
-        if registry is None or row.get("unit") != registry.unit:
+        if registry is None or not matches_registry_unit(row.get("unit"), registry.unit):
             continue
         refs = row.get("measurement_refs")
         if not isinstance(refs, list) or not refs or not all(
@@ -147,7 +153,7 @@ def _ceph_rows(projection: Mapping[str, Any]) -> tuple[list[dict], list[dict]]:
             (backed[ref] for ref in refs if backed[ref].get("method_id") == method_id),
             None,
         )
-        if original is None or original.get("unit") != registry.unit:
+        if original is None or original.get("unit") != row.get("unit"):
             continue
         status = row.get("availability_status")
         if status != original.get("availability_status"):

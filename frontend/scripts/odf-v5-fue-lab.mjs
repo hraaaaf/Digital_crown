@@ -5,6 +5,7 @@
  * coordinates and Angle class in the lab are independent simulated inputs.
  */
 import fs from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
 import { enrollT2Workstation } from './t2-workstation-session.mjs';
@@ -93,6 +94,18 @@ try{
       .waitFor({state:'visible',timeout:20000});
   await snap('03-real-public-film-selected');
   check(true,'SELECT_EXACT_OLDER_SYNTHETIC_STUDY');
+  if(process.env.ODF_G3_MATCHED_ANNOTATIONS==='1'){
+    const sourceRead=await api.get('/api/ia/analyses/'+ids.older_id,{headers});
+    check(sourceRead.status()===200,'G3_SELECTED_STUDY_READABLE');
+    const bound=await sourceRead.json();
+    check(bound.image_original_path==='api/static/uploads/radios/t2-cephalo-seeded.png'
+      && bound.angles_data?.odf_lab_image_landmark_alignment==='VERIFIED_AARIZ_EXPERT_PAIR'
+      && bound.is_calibrated===false && bound.mm_per_pixel==null,
+      'G3_SOURCE_BOUND_UNCALIBRATED_EXPERT_STUDY');
+    check(createHash('sha256').update(media).digest('hex')===bound.angles_data.odf_lab_display_png_sha256,
+      'G3_REAL_DISPLAYED_IMAGE_SHA256_MATCHES_EXPERT_TRACING');
+    report.analysis_from_film=true; // Geometric angles only, never diagnosis or metric distances.
+  }
 
   await page.getByRole('button',{name:'3. Synthèse clinique',exact:true}).click();
   await page.getByRole('button',{name:/3. Examen des moulages/}).click();

@@ -8,6 +8,7 @@ on:
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'scripts/odf_v5_lab_seed.py'
       - 'frontend/scripts/odf-v5-fue-lab.mjs'
+      - 'frontend/src/features/ortho/stores/useOrthoStore.ts'
       - 'frontend/src/features/ortho/components/OrthoPractitionerNotesApproval.tsx'
       - 'backend/services/ortho_bilan_practitioner_notes.py'
       - 'backend/services/ortho_bilan_document_v5.py'
@@ -25,6 +26,7 @@ jobs:
     env:
       ENVIRONMENT: test
       ODF_G3_MATCHED_ANNOTATIONS: "1"
+      VITE_ODF_G3_MATCHED_ANNOTATIONS: "1"
       ODF_G3_FULL_ARCHIVE_FALLBACK: "1"
       SECRET_KEY: odf-v5-lab-test-only-secret-key-with-no-prod-access-001
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
@@ -125,6 +127,11 @@ jobs:
           assert source['scientific_state']=='VERIFIED'
           assert source['source_license']=='https://creativecommons.org/licenses/by/4.0/'
           assert (root/'expert-landmarks-on-same-real-film.png').exists()
+          assert source['display_png_sha256']==hashlib.sha256((root/'expert-matched-cephalogram.png').read_bytes()).hexdigest()
+          angles=json.loads((root/'recomputed-canonical-angles.json').read_text())
+          available={row['id'] for row in angles if row['availability']=='AVAILABLE' and row['unit'] in ('deg','°') and isinstance(row['value'],(int,float))}
+          assert {'M_SNA_DEG_V1','M_ANB_DEG_V1'}.issubset(available), 'SOURCE_BOUND_SNA_ANB_NOT_AVAILABLE'
+          assert available.intersection({'M_U1_NA_DEG_V1','M_L1_NB_DEG_V1','M_INTERINCISAL_DEG_V1','M_IMPA_GOME_DEG_V1'}), 'SOURCE_BOUND_DENTAL_ANGLE_NOT_AVAILABLE'
           print('ODF_G3_REAL_IMAGE_EXPERT_COORDINATES_MATCH_VERIFIED')
           PY
       - name: Start isolated real React Cabinet

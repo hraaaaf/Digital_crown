@@ -255,6 +255,8 @@ def seed_verified_pair():
           "image_entry":image_name,"senior_entry":senior_name,
           "junior_entry":junior_name,
           "image_sha256":sha256(image_bytes).hexdigest(),
+          "display_png_sha256":sha256(png.read_bytes()).hexdigest(),
+          "annotation_consensus":"SENIOR_JUNIOR_MEAN_PIXELS",
           "senior_sha256":sha256(senior_bytes).hexdigest(),
           "junior_sha256":sha256(junior_bytes).hexdigest(),
           "original_dimensions":original_shape,
@@ -271,12 +273,21 @@ def seed_verified_pair():
         }
         (output/"expert-pair-provenance.json").write_text(
             json.dumps(source,indent=2,ensure_ascii=False),encoding="utf-8")
-        (output/"recomputed-canonical-angles.json").write_text(json.dumps([
+        angles=[
             {"id":m["canonical_measurement_id"],"availability":m["availability_status"],
              "value":m["value"],"unit":m["unit"]}
             for m in read.get("canonical_measurements") or []
-            if m.get("unit")=="°"
-        ],indent=2,ensure_ascii=False),encoding="utf-8")
+            if m.get("unit") in ("deg","°")
+        ]
+        available={m["id"] for m in angles if m["availability"]=="AVAILABLE"
+                   and isinstance(m["value"],(int,float)) and math.isfinite(m["value"])}
+        if not {"M_SNA_DEG_V1","M_ANB_DEG_V1"}.issubset(available):
+            raise RuntimeError("AARIZ_SOURCE_BOUND_SNA_ANB_NOT_AVAILABLE")
+        if not available.intersection({"M_U1_NA_DEG_V1","M_L1_NB_DEG_V1",
+                                      "M_INTERINCISAL_DEG_V1","M_IMPA_GOME_DEG_V1"}):
+            raise RuntimeError("AARIZ_SOURCE_BOUND_DENTAL_ANGLE_NOT_AVAILABLE")
+        (output/"recomputed-canonical-angles.json").write_text(
+            json.dumps(angles,indent=2,ensure_ascii=False),encoding="utf-8")
         print("ODF_G3_EXPERT_IMAGE_MATCHED_SOURCE_VERIFIED="+json.dumps({
             "head":os.environ.get("PRODUCT_HEAD"),"analysis_id":study.id,
             "point_count":len(transformed),"canonical_count":len(read.get("canonical_measurements") or []),

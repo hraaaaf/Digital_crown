@@ -538,18 +538,25 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   },
   goToStep: async (target) => {
     const s = get();
+    // Only the disposable G3 research runner may navigate an uncalibrated,
+    // source-matched expert image. This never enables metric distances or
+    // mutates the verified expert tracing when changing clinical-note tabs.
+    const g3SourceLockedLab = import.meta.env.VITE_ODF_G3_MATCHED_ANNOTATIONS === '1'
+      && s.anglesData?.odf_lab_image_landmark_alignment === 'VERIFIED_AARIZ_EXPERT_PAIR'
+      && /^[a-f0-9]{64}$/.test(String(s.anglesData?.odf_lab_display_png_sha256 || ''))
+      && s.mmPerPixel == null && !s.isCalibrated;
     if (target >= 2) {
       if (!s.imageSrc) {
         set({ uploadError: 'Veuillez d\'abord uploader une radiographie.' });
         setTimeout(() => set({ uploadError: null }), 4000);
         return;
       }
-      if (!s.isCalibrated) {
+      if (!s.isCalibrated && !g3SourceLockedLab) {
         set({ showCalibration: true, calibrationClickPoints: [], calibrationDistance: '', calibrationStep: 'selecting' });
         return;
       }
     }
-    await s.silentSave();
+    if (!g3SourceLockedLab) await s.silentSave();
     // A delayed save from study A must never move study B's workflow.
     if (get().patientId !== s.patientId || get().analysisId !== s.analysisId) return;
     set(prev => ({ completedSteps: new Set([...prev.completedSteps, prev.step]), step: target }));
