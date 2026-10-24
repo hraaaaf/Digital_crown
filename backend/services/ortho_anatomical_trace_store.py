@@ -20,6 +20,9 @@ from backend.services.ortho_anatomical_trace import (
     normalize_manual_contours, verify_approved_anatomical_trace,
 )
 from backend.services.ortho_bilan_practitioner_notes import source_digest
+from backend.services.ortho_g5_bezier_profile import (
+    G5BezierRejected, verify_bezier_profile_matches,
+)
 
 LAB_IMAGE = Path(__file__).resolve().parents[1] / "static/uploads/radios/t2-cephalo-seeded.png"
 
@@ -74,6 +77,15 @@ def _snapshot(row: models.OrthoAnatomicalTrace | None,
     is_current=(row.analysis_revision == revision
         and row.scientific_digest == digest and row.image_sha256 == image_sha)
     approved = False
+    editable_nodes = None
+    if is_current and row.bezier_profile_json is not None:
+        try:
+            editable_nodes = verify_bezier_profile_matches(
+                row.bezier_profile_json,
+                contours=row.contours_json,
+                image_size=(row.image_width,row.image_height))
+        except (G5BezierRejected, TypeError, ValueError):
+            editable_nodes = None
     if is_current and row.approved_by is not None and row.approved_at is not None:
         metadata=_signed_payload(row,state="APPROVED")
         approved=verify_approved_anatomical_trace(
@@ -85,6 +97,7 @@ def _snapshot(row: models.OrthoAnatomicalTrace | None,
         "analysis_revision":revision,
         "draft_version":row.draft_version,
         "contours":row.contours_json if is_current else [],
+        "bezier_profile_nodes":editable_nodes,
         "approved":approved,"stale":not is_current,
         "approved_by":row.approved_by if approved else None,
         "approved_at":row.approved_at.isoformat() if approved else None,
@@ -104,6 +117,7 @@ def _signed_payload(row:models.OrthoAnatomicalTrace,*,state:str="APPROVED") -> d
         "version":row.draft_version,
         "contour_digest":row.contour_digest,
         "contours":row.contours_json,
+        "bezier_profile_nodes":row.bezier_profile_json,
         "approved_by":row.approved_by,
         "approved_at":row.approved_at.isoformat() if row.approved_at else None,
         "approved_digest":row.approved_digest,
@@ -122,7 +136,8 @@ def get_g5_trace(db:Session, *, patient_id:int, analysis_id:int,
 
 def save_g5_manual_draft(db:Session, *,patient_id:int,analysis_id:int,
                          expected_revision:int,expected_draft_version:int,
-                         contours:object,actor:models.User) -> dict:
+                         contours:object,actor:models.User,
+                         bezier_profile_nodes:object=None) -> dict:
     _guard(); _dentist(actor)
     _source(db,patient_id=patient_id,analysis_id=analysis_id,
             expected_revision=expected_revision,actor=actor)
@@ -136,6 +151,14 @@ def save_g5_manual_draft(db:Session, *,patient_id:int,analysis_id:int,
         normalized=normalize_manual_contours(contours,image_size=(1935,2400))
     except ContourRejected as exc:
         raise HTTPException(status_code=422,detail=str(exc)) from exc
+    valid_nodes = None
+    if bezier_profile_nodes is not None:
+        try:
+            valid_nodes = verify_bezier_profile_matches(
+                bezier_profile_nodes, contours=normalized["contours"],
+                image_size=(1935,2400))
+        except G5BezierRejected as exc:
+            raise HTTPException(status_code=422,detail=str(exc)) from exc
     row=_row(db,patient_id=patient_id,analysis_id=analysis_id,actor=actor,lock=True)
     if (row.draft_version if row else 0) != expected_draft_version:
         raise HTTPException(status_code=409,detail="Version de tracé modifiée")
@@ -150,6 +173,7 @@ def save_g5_manual_draft(db:Session, *,patient_id:int,analysis_id:int,
                 {"id":x["id"],"points":x["points"]}
                 for x in normalized["contours"]],
             contour_digest=normalized["contour_digest"],
+            bezier_profile_json=valid_nodes,
             drafted_by=actor.id,updated_at=_now())
         db.add(row)
     else:
@@ -162,6 +186,7 @@ def save_g5_manual_draft(db:Session, *,patient_id:int,analysis_id:int,
         row.contours_json=[{"id":x["id"],"points":x["points"]}
                            for x in normalized["contours"]]
         row.contour_digest=normalized["contour_digest"]
+        row.bezier_profile_json=valid_nodes
         row.drafted_by=actor.id
         row.updated_at=_now()
         row.approved_by=None
@@ -205,12 +230,21 @@ def approve_g5_manual_trace(db:Session, *,patient_id:int,analysis_id:int,
         raise HTTPException(status_code=409,detail=str(exc)) from exc
     if canonical["contour_digest"]!=row.contour_digest:
         raise HTTPException(status_code=409,detail="Courbes modifiées depuis le brouillon")
+    valid_nodes = None
+    if row.bezier_profile_json is not None:
+        try:
+            valid_nodes=verify_bezier_profile_matches(
+                row.bezier_profile_json,contours=row.contours_json,
+                image_size=(row.image_width,row.image_height))
+        except G5BezierRejected as exc:
+            raise HTTPException(status_code=409,detail=str(exc)) from exc
     row.approved_by=actor.id
     row.approved_at=_now()
-    row.approved_digest=canonical_digest([
-        patient_id,analysis_id,revision,digest,image_sha,
-        row.draft_version,row.contour_digest,actor.id,
-    ])
+    proof=[patient_id,analysis_id,revision,digest,image_sha,
+           row.draft_version,row.contour_digest,actor.id]
+    if valid_nodes is not None:
+        proof.append(canonical_digest(valid_nodes))
+    row.approved_digest=canonical_digest(proof)
     db.flush()
     db.add(models.AuditLog(
         employer_id=actor.get_employer_id(),user_id=actor.id,
@@ -253,4 +287,12 @@ def resolve_approved_g5_trace(db:Session, *,
     from backend.services.ortho_lab_image_integrity import verified_aariz_display_image_pair
     if not verified_aariz_display_image_pair(study.angles_data or {},LAB_IMAGE):
         return None
-    return _signed_payload(row)
+    metadata=_signed_payload(row)
+    if verify_approved_anatomical_trace(
+        metadata,patient_id=patient_id,analysis_id=analysis_id,
+        revision=expected_revision,scientific_digest=row.scientific_digest,
+        image_sha256=row.image_sha256,
+        image_size=(row.image_width,row.image_height),
+    ) is None:
+        return None
+    return metadata
