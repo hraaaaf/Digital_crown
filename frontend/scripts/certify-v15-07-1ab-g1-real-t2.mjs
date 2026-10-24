@@ -195,27 +195,57 @@ try {
   await page.locator('[data-v15-071-real-cabinet-lab]').waitFor({state:'detached',timeout:25000}).catch(()=>{});
   pass('mobile no MultiView workspace slots',await page.locator('[data-v15-071-viewslot]').count()===0);
   pass('mobile keeps original authenticated media',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
-  const patientHeaderToast=await page.evaluate(()=>{
-    const heading=document.querySelector('header h1');
-    // A stable Toaster root avoids coupling this test to incidental z-index
-    // values or the temporary presence of an individual toast.
-    const toast=document.querySelector('.dc-global-toast-position');
-    const style=toast?getComputedStyle(toast):null;
-    // The fixed toast *container* spans the viewport even when its visible
-    // toast card is at the bottom. Compare the actual message, not the root.
-    const phrase='Dossier à compléter';
-    const leaf=toast?[...toast.querySelectorAll('*')].find(el=>
-      el.textContent?.includes(phrase) &&
-      ![...el.children].some(child=>child.textContent?.includes(phrase))):null;
-    return {found:Boolean(heading&&toast&&leaf),bottom:style?.bottom,
-      headingBottom:Math.round(heading?.getBoundingClientRect().bottom||0),
-      messageTop:Math.round(leaf?.getBoundingClientRect().top||0)};
+  // The context tip must be in clinical document flow, not a toast
+  // covering the patient header, media, or touch actions.
+  await page.locator('[data-testid="patient-radiology-advice"]').waitFor({
+    state:'visible',timeout:25000,
   });
-  pass('compact patient notifications anchored below identity, not on name',
-    patientHeaderToast.found && patientHeaderToast.bottom!=='auto' &&
-    patientHeaderToast.messageTop>patientHeaderToast.headingBottom,
-    patientHeaderToast);
+  const compactUi = await page.evaluate(() => {
+    const header=document.querySelector('header h1');
+    const advice=document.querySelector('[data-testid="patient-radiology-advice"]');
+    const tabs=document.querySelector('[data-tour="patient-tabs"]');
+    const modalities=document.querySelector('[aria-label="Modalités d’imagerie"]');
+    const sameRow=(parent)=>{
+      if(!parent) return false;
+      const children=[...parent.children].filter(n=>n.matches('button'));
+      const tops=children.map(el=>el.getBoundingClientRect().top);
+      return children.length>=2 && Math.max(...tops)-Math.min(...tops)<3;
+    };
+    const tip=advice?.getBoundingClientRect();
+    const heading=header?.getBoundingClientRect();
+    return {
+      adviceInFlow: !!advice && getComputedStyle(advice).position!=='fixed',
+      adviceUnderIdentity: !!tip && !!heading && tip.top>heading.bottom,
+      tipCollapsed: advice?.querySelector('button[aria-expanded="false"]')!==null,
+      tabSingleRow:sameRow(tabs),
+      modalitySingleRow:sameRow(modalities),
+      selectedTab: !!tabs?.querySelector('[aria-current="page"]'),
+      selectedModality: !!modalities?.querySelector('[aria-pressed="true"]'),
+      navOverflowHidden: tabs ? getComputedStyle(tabs).overflowY==='hidden':false,
+      patientRailComputed: tabs ? {
+        display: getComputedStyle(tabs).display,
+        direction: getComputedStyle(tabs).flexDirection,
+        wrap: getComputedStyle(tabs).flexWrap,
+        overflowX: getComputedStyle(tabs).overflowX,
+        overflowY: getComputedStyle(tabs).overflowY,
+        tops: [...tabs.querySelectorAll(':scope > button')].map(el => Math.round(el.getBoundingClientRect().top)),
+      } : null,
+      modalitiesRailComputed: modalities ? {
+        display: getComputedStyle(modalities).display,
+        direction: getComputedStyle(modalities).flexDirection,
+        wrap: getComputedStyle(modalities).flexWrap,
+        overflowX: getComputedStyle(modalities).overflowX,
+        overflowY: getComputedStyle(modalities).overflowY,
+        tops: [...modalities.querySelectorAll(':scope > button')].map(el => Math.round(el.getBoundingClientRect().top)),
+      } : null,
+    };
+  });
   await capture(page,'mobile-single-media-regression-390.png');
+  pass('390px inline NBA advice never overlays clinical identity or work',
+    compactUi.adviceInFlow && compactUi.adviceUnderIdentity && compactUi.tipCollapsed, compactUi);
+  pass('390px accessible patient and modality rails stay on exactly one row',
+    compactUi.tabSingleRow && compactUi.modalitySingleRow &&
+    compactUi.selectedTab && compactUi.selectedModality,compactUi);
   for(const width of [430,768,1280]){
     await page.setViewportSize({width,height:900});
     if(width<1280) {
@@ -234,6 +264,19 @@ try {
         await page.locator('[data-testid="multiview-denied"]').count()===0);
       pass('1280px fallback visibly explains safe compact layout',
         await page.getByText('Disposition trop large pour cet écran',{exact:false}).count()===1);
+    }
+    if (width === 430 || width === 768) {
+      const bars = await page.evaluate(() => {
+        const rails=['[data-tour="patient-tabs"]','[aria-label="Modalités d’imagerie"]'];
+        return rails.map(selector => {
+          const el=document.querySelector(selector);
+          if(!el) return false;
+          const buttons=[...el.querySelectorAll(':scope > button')];
+          const tops=buttons.map(button=>button.getBoundingClientRect().top);
+          return tops.length>=2 && Math.max(...tops)-Math.min(...tops)<3;
+        });
+      });
+      pass('navigation remains single row at '+width+'px',bars.every(Boolean),bars);
     }
     await capture(page,'responsive-'+width+'.png');
   }

@@ -352,15 +352,15 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
           <div className="grid w-full gap-1.5 sm:grid-cols-2 xl:w-auto xl:min-w-[650px] xl:grid-cols-[minmax(180px,1.3fr)_minmax(120px,.8fr)_minmax(120px,.8fr)_auto]" aria-label="Recherche et filtres médias">
             <label className="relative block min-w-0">
               <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher média…" aria-label="Rechercher un média" className="h-8 w-full rounded-lg border border-border-main bg-card-bg pl-8 pr-2 text-[11px] font-bold text-main outline-none focus:border-primary" />
+              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher média…" aria-label="Rechercher un média" className="h-10 w-full rounded-xl border border-border-main bg-card-bg pl-9 pr-2 text-xs font-semibold text-main outline-none focus:border-primary focus:ring-2 focus:ring-blue-100" />
             </label>
-            <select aria-label="Filtrer par type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary">
+            <select aria-label="Filtrer par type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary">
               <option value="ALL">Tous types</option><option value="PHOTO">Photos</option><option value="RADIOGRAPH">Radios</option><option value="DOCUMENT">Documents</option>
             </select>
-            <select aria-label="Filtrer par repère" value={timepointFilter} onChange={(event) => setTimepointFilter(event.target.value)} className="h-8 min-w-0 rounded-lg border border-border-main bg-card-bg px-2 text-[10px] font-black uppercase tracking-wide text-main outline-none focus:border-primary">
+            <select aria-label="Filtrer par repère" value={timepointFilter} onChange={(event) => setTimepointFilter(event.target.value)} className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary">
               <option value="ALL">Tous repères</option>{availableTimepoints.map((label) => <option key={label} value={label}>{label}</option>)}
             </select>
-            <button type="button" onClick={() => setCompareIds([])} disabled={compareIds.length === 0} className="inline-flex h-8 items-center justify-center rounded-lg border border-border-main px-3 text-[10px] font-black uppercase tracking-wider text-primary disabled:opacity-40">Réinitialiser compare</button>
+            <button type="button" onClick={() => setCompareIds([])} disabled={compareIds.length === 0} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border-main bg-white px-3 text-xs font-semibold text-primary disabled:opacity-40">Réinitialiser compare</button>
           </div>
         </div>
       </div>
@@ -378,8 +378,27 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
 
       {loading && <div className="flex min-h-[220px] items-center justify-center text-text-muted"><Loader2 size={28} className="animate-spin" /></div>}
       {!loading && loadError && <div className="flex min-h-[220px] flex-col items-center justify-center gap-4 rounded-[1.25rem] border border-border-main bg-card-bg p-6 text-center"><RefreshCcw size={30} className="text-text-muted" /><div><h3 className="font-black text-main">Médiathèque indisponible</h3><p className="mt-1 text-sm text-text-muted">La liste des médias n’a pas pu être chargée.</p></div><button type="button" onClick={() => void loadAssets()} className="rounded-xl border border-border-main px-4 py-2 text-xs font-black uppercase tracking-widest text-primary">Réessayer</button></div>}
-      {!loading && !loadError && items.length === 0 && <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[1.25rem] border border-dashed border-border-main bg-card-bg/60 p-6 text-center"><Images size={34} className="mb-3 text-primary" /><h3 className="text-base font-black text-main">Aucun média longitudinal</h3></div>}
-      {!loading && !loadError && items.length > 0 && filteredItems.length === 0 && <div className="flex min-h-[160px] flex-col items-center justify-center rounded-[1.25rem] border border-dashed border-border-main bg-card-bg/60 p-6 text-center"><Search size={28} className="mb-2 text-text-muted" /><h3 className="font-black text-main">Aucun média ne correspond aux filtres</h3></div>}
+      {!loading && !loadError && items.length === 0 && (
+        <div className="flex min-h-[170px] flex-col items-center justify-center rounded-2xl border border-dashed border-border-hover bg-gradient-to-br from-medical-pearl/70 to-card px-5 py-7 text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-card text-primary-ink shadow-sm"><Images size={24}/></div>
+          <h3 className="text-base font-extrabold tracking-tight text-text-main">Aucun média longitudinal</h3>
+          <p className="mt-1 max-w-sm text-xs leading-relaxed text-text-muted">
+            Photos, radiographies et documents apparaîtront ici lorsqu’ils seront disponibles dans ce dossier.
+          </p>
+          {readOnly && <span className="mt-3 rounded-full border border-border-hover bg-card px-2.5 py-1 text-xs font-semibold text-primary-ink">Consultation seule</span>}
+        </div>
+      )}
+      {!loading && !loadError && items.length > 0 && filteredItems.length === 0 && (
+        <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-dashed border-border-hover bg-medical-pearl/50 p-5 text-center">
+          <Search size={28} className="mb-2 text-primary"/>
+          <h3 className="font-extrabold text-text-main">Aucun média ne correspond aux filtres</h3>
+          <p className="mt-1 text-xs text-text-muted">Essayez une recherche différente ou réinitialisez les critères.</p>
+          <button type="button" onClick={() => { setSearchTerm(''); setTypeFilter('ALL'); setTimepointFilter('ALL'); }}
+            className="mt-3 min-h-10 rounded-xl border border-border-hover bg-card px-4 text-xs font-semibold text-primary-ink">
+            Effacer les filtres
+          </button>
+        </div>
+      )}
 
       {!loading && !loadError && filteredItems.length > 0 && (
         <>

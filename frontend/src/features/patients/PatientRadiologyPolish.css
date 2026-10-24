@@ -1,0 +1,418 @@
+/* LOT07 R2 human visual review — patient radiology only.
+   Never change RBAC, workstation bootstrap or hidden W/X controls here. */
+[data-dc-patient-radiology="true"] {
+  --dc-rad-border: var(--border-color);
+  --dc-rad-ink: var(--text-main);
+  min-width: 0;
+  color: var(--dc-rad-ink);
+}
+[data-dc-patient-radiology="true"] > header {
+  border-bottom-color: var(--border-color);
+  box-shadow: var(--shadow-elite);
+}
+[data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 12px;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  gap: 5px;
+}
+[data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+  flex: 0 0 auto;
+  min-height: 43px;
+  scroll-snap-align: start;
+  white-space: nowrap;
+}
+[data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
+  border-color: var(--dc-rad-border);
+  background: var(--bg-medical-pearl);
+  padding: 4px;
+  gap: 4px;
+  box-shadow: var(--shadow-elite);
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 8px;
+  overscroll-behavior-x: contain;
+}
+[data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] button {
+  min-height: 40px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  scroll-snap-align: start;
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] {
+  min-width: 0;
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] > div:first-child {
+  border-color: var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-elite);
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] input,
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] select {
+  min-height: 39px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] button {
+  min-height: 39px;
+  font-size: 11px;
+  letter-spacing: normal;
+}
+[data-dc-patient-radiology="true"] [data-testid="media-inline-viewer"] {
+  border-radius: 16px;
+}
+[data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] button:focus-visible,
+[data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] button:focus-visible,
+[data-dc-patient-radiology="true"] [data-tour="patient-tabs"] button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  [data-dc-patient-radiology="true"] > header > div {
+    padding-inline: 12px;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
+    margin-inline: -12px;
+    padding-inline: 12px;
+    padding-block: 3px;
+    gap: 6px;
+    scrollbar-width: none;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+    min-width: 92px;
+    min-height: 45px;
+    justify-content: center;
+    border-radius: 10px 10px 0 0;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
+    width: 100%;
+    gap: 5px;
+    border-radius: 13px;
+    scroll-padding-inline: 8px;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] button {
+    min-height: 44px;
+    font-size: 12px;
+    padding-inline: 10px;
+  }
+  [data-dc-patient-radiology="true"] main[data-flow-patient-surface="radiology"] {
+    padding-inline: 10px;
+    padding-top: 8px;
+  }
+  [data-dc-patient-radiology="true"] main[data-flow-patient-surface="radiology"] > div > div > div {
+    border-radius: 18px;
+  }
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] {
+    display: grid;
+    gap: 10px;
+  }
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 8px;
+  }
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] > label,
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] > button {
+    grid-column: 1 / -1;
+  }
+  [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] h2 {
+    font-size: 17px;
+    line-height: 1.3;
+  }
+}
+@media (max-width: 420px) {
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+    min-width: 90px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-dc-patient-radiology="true"] * {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* QA after real 390px screenshots: do not allow either navigation bar to
+   create a second row. Expose overflow as a real horizontally scrollable rail. */
+@media (max-width: 767px) {
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    align-items: stretch;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+    flex: 0 0 auto !important;
+    width: auto;
+    min-width: 86px;
+    white-space: nowrap !important;
+    flex-direction: column;
+    gap: 4px;
+    padding: 7px 9px;
+    font-size: 11px;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button [data-patient-tab-mobile-label] {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    align-items: center;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    width: 100%;
+    max-width: 100%;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] > button {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    min-height: 44px;
+  }
+  /* Make contextual advice less intrusive without truncating clinical copy.
+     The app's portal sits outside the patient subtree; scope through :has. */
+  body:has([data-dc-patient-radiology="true"]) .dc-global-toast-position [role="status"] {
+    max-width: calc(100vw - 24px);
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    padding: 8px 10px !important;
+  }
+}
+
+/* R2 G2 UX: a single horizontal, keyboard-readable navigation rail.
+   Text is inline with the icon, never a second row. Scrolling remains native. */
+@media (max-width: 767px) {
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    align-items: center;
+    gap: 6px;
+    min-height: 50px;
+    margin-inline: -12px;
+    padding: 3px 12px 5px;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hover) transparent;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    justify-content: center;
+    align-items: center;
+    width: auto;
+    min-width: 0 !important;
+    min-height: 44px;
+    gap: 6px;
+    padding: 7px 12px;
+    white-space: nowrap;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    box-shadow: none;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button[aria-current="page"] {
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+    background: var(--bg-medical-pearl);
+    box-shadow: var(--shadow-elite);
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button > svg {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button [data-patient-tab-mobile-label] {
+    display: inline !important;
+    font-size: 12px !important;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    max-width: 100%;
+    gap: 6px;
+    padding: 5px;
+    background: var(--bg-medical-pearl);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] > button {
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    min-height: 44px;
+    padding-inline: 12px;
+    color: var(--text-main);
+    font-size: 12px;
+    letter-spacing: 0;
+    border-radius: 10px;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] > button[aria-pressed="true"] {
+    color: var(--primary);
+    background: var(--card-bg);
+    box-shadow: var(--shadow-elite);
+  }
+}
+
+/* The NBA advice is now in-flow and not a fixed toast over clinical content.
+   Keep the collapsed row compact; expand text only on explicit interaction. */
+[data-dc-patient-radiology="true"] .dc-radiology-advice {
+  border-color: var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-main);
+  max-width: 100%;
+}
+[data-dc-patient-radiology="true"] .dc-radiology-advice button {
+  min-height: 36px;
+}
+@media (max-width: 430px) {
+  [data-dc-patient-radiology="true"] .dc-radiology-advice {
+    padding: 8px 10px;
+  }
+  [data-dc-patient-radiology="true"] .dc-radiology-advice button {
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+}
+
+/* Tablet (768–1023px): readable segmented tabs, one horizontal track,
+   no overlap with the patient's name or clinical media. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
+    flex-flow: row nowrap !important;
+    align-items: center;
+    gap: 7px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 6px;
+    scroll-padding-inline: 14px;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-height: 45px;
+    padding: 8px 13px;
+    gap: 7px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-muted);
+    background: var(--card-bg);
+    font-size: 12px;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button[aria-current="page"] {
+    border-color: var(--primary) !important;
+    background: var(--bg-medical-pearl);
+    color: var(--primary) !important;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
+    flex-flow: row nowrap !important;
+    overflow-x: auto;
+    max-width: 100%;
+    gap: 8px;
+    background: var(--bg-medical-pearl);
+    border: 1px solid var(--border-color);
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] > button {
+    flex: 0 0 auto !important;
+    min-height: 44px;
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+}
+
+/* Fail-closed mobile scroll tracks: dedicated IDs intentionally outrank
+   older global header layout rules, including stale responsive grid rules.
+   IDs are scoped to the one patient's radiology page; all colors inherited. */
+@media (max-width: 1023px) {
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs,
+  [data-dc-patient-radiology="true"] #dc-radiology-modalities {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-content: center !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    isolation: isolate;
+    touch-action: pan-x pan-y;
+  }
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs > button,
+  [data-dc-patient-radiology="true"] #dc-radiology-modalities > button {
+    display: inline-flex !important;
+    position: relative;
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-self: center !important;
+    white-space: nowrap !important;
+    float: none !important;
+    min-height: 44px;
+  }
+}
+
+
+/* LOT07 R2 micropolish: dark-on-dark actions must use readable semantic roles.
+   Restrict overrides to patient radiology; never change global theme settings. */
+[data-theme='dark'] [data-dc-patient-radiology="true"] {
+  --primary: var(--status-info);
+  --primary-ink: var(--status-info);
+  --text-on-primary: var(--bg-medical-pearl);
+  --text-muted: color-mix(in srgb, var(--text-main) 76%, var(--card-bg));
+
+  /* Tailwind v4 utilities consume --color-* aliases computed on :root.
+     Overriding only --primary / --text-muted here does not update them:
+     inherited aliases remain the dark indigo that failed visible contrast.
+     Override semantic aliases on this *radiology only* subtree instead. */
+  --color-primary: var(--status-info);
+  --color-primary-ink: var(--status-info);
+  --color-on-primary: var(--bg-medical-pearl);
+  --color-text-muted: color-mix(in srgb, var(--text-main) 76%, var(--card-bg));
+}
+
+/* Horizontal tabs remain accessible with touch, pointer and keyboard; the
+   visible hint explains that navigation continues outside the viewport. */
+@media (max-width: 767px) {
+  [data-dc-patient-radiology="true"] .dc-radiology-tab-scroll-hint {
+    margin: 1px 4px 0;
+    padding: 2px 1px 3px;
+    color: var(--text-muted);
+    text-align: right;
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.35;
+  }
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs {
+    scroll-padding-inline: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs::-webkit-scrollbar {
+    height: 4px;
+  }
+  [data-dc-patient-radiology="true"] #dc-radiology-patient-tabs::-webkit-scrollbar-thumb {
+    background: var(--border-hover);
+    border-radius: 999px;
+  }
+}
+@media (min-width: 768px) {
+  [data-dc-patient-radiology="true"] .dc-radiology-tab-scroll-hint {
+    display: none;
+  }
+}
