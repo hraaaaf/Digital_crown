@@ -224,12 +224,12 @@ try {
       navOverflowHidden: tabs ? getComputedStyle(tabs).overflowY==='hidden':false,
     };
   });
+  await capture(page,'mobile-single-media-regression-390.png');
   pass('390px inline NBA advice never overlays clinical identity or work',
     compactUi.adviceInFlow && compactUi.adviceUnderIdentity && compactUi.tipCollapsed, compactUi);
   pass('390px accessible patient and modality rails stay on exactly one row',
     compactUi.tabSingleRow && compactUi.modalitySingleRow &&
     compactUi.selectedTab && compactUi.selectedModality,compactUi);
-  await capture(page,'mobile-single-media-regression-390.png');
   for(const width of [430,768,1280]){
     await page.setViewportSize({width,height:900});
     if(width<1280) {
