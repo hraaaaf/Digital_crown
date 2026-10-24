@@ -176,6 +176,38 @@ class DocumentFactory:
                                 projection["lab_image_landmark_alignment"] = "UNVERIFIED"
                             else:
                                 projection["lab_verified_research_figure"] = plate
+                                # G5 anatomical curves are distinct from G4
+                                # landmarks and never accepted from request
+                                # payload. Only a DB-approved dentist trace
+                                # bound to this exact study/revision/source
+                                # and exact PNG SHA256 may replace G4's plate.
+                                from backend.services.ortho_anatomical_trace_store import (
+                                    resolve_approved_g5_trace, source_digest,
+                                )
+                                approved_trace = resolve_approved_g5_trace(
+                                    db,study=source_row,patient_id=patient_id,
+                                    analysis_id=analysis_id,
+                                    expected_revision=projection.get("analysis_revision"),
+                                    employer_id=user.get_employer_id())
+                                if approved_trace is not None:
+                                    from backend.services.ortho_lab_image_integrity import (
+                                        build_g5_anatomical_two_views,
+                                    )
+                                    g5_figure = build_g5_anatomical_two_views(
+                                        source_row.angles_data or {},image_file,
+                                        approved_trace,patient_id=patient_id,
+                                        analysis_id=analysis_id,
+                                        revision=projection.get("analysis_revision"),
+                                        scientific_digest=source_digest(source_row))
+                                    if g5_figure:
+                                        projection["lab_verified_research_figure"] = g5_figure
+                    if (_os.environ.get("ENVIRONMENT") == "test"
+                        and _os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "1"
+                        and _os.environ.get("ODF_G5_REQUIRE_CONTOURS") == "1"
+                        and source_row.image_original_path == "api/static/uploads/radios/t2-cephalo-seeded.png"
+                        and (projection.get("lab_verified_research_figure") or {}).get("kind")
+                          != "G5_MANUAL_ANATOMICAL_TRACE"):
+                        raise ValueError("G5_APPROVED_ANATOMICAL_CONTOURS_REQUIRED")
                     # G4 certification explicitly refuses producing a supposed
                     # source-matched cephalometric report WITHOUT the trace.
                     # This gate is restricted to the disposable CI lab; no
