@@ -1834,3 +1834,50 @@ def approve_ortho_bilan_practitioner_notes(
         expected_revision=req.expected_revision,
         expected_draft_version=req.expected_draft_version,actor=current_user)
     return result
+
+
+# G5 research LAB — manual anatomical contour drawing, dentist approval.
+# Explicitly unavailable on the production cabinet runtime.
+from backend.schemas.ortho_anatomical_trace import (
+    AnatomicalContourDraftWrite, AnatomicalContourApproval,
+)
+
+
+@router.get("/{patient_id}/ortho-bilan/{analysis_id}/anatomical-trace")
+def g5_anatomical_trace_read(
+    patient_id: int, analysis_id: int, expected_revision: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_anatomical_trace_store import get_g5_trace
+    return get_g5_trace(
+        db,patient_id=patient_id,analysis_id=analysis_id,
+        expected_revision=expected_revision,actor=current_user)
+
+
+@router.put("/{patient_id}/ortho-bilan/{analysis_id}/anatomical-trace/draft")
+def g5_anatomical_trace_draft(
+    patient_id: int, analysis_id: int, req: AnatomicalContourDraftWrite,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_anatomical_trace_store import save_g5_manual_draft
+    return save_g5_manual_draft(
+        db,patient_id=patient_id,analysis_id=analysis_id,
+        expected_revision=req.expected_revision,
+        expected_draft_version=req.expected_draft_version,
+        contours=req.contours,actor=current_user)
+
+
+@router.post("/{patient_id}/ortho-bilan/{analysis_id}/anatomical-trace/approve")
+def g5_anatomical_trace_approve(
+    patient_id: int, analysis_id: int, req: AnatomicalContourApproval,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_anatomical_trace_store import approve_g5_manual_trace
+    return approve_g5_manual_trace(
+        db,patient_id=patient_id,analysis_id=analysis_id,
+        expected_revision=req.expected_revision,
+        expected_draft_version=req.expected_draft_version,
+        actor=current_user)
