@@ -176,6 +176,16 @@ class DocumentFactory:
                                 projection["lab_image_landmark_alignment"] = "UNVERIFIED"
                             else:
                                 projection["lab_verified_research_figure"] = plate
+                    # G4 certification explicitly refuses producing a supposed
+                    # source-matched cephalometric report WITHOUT the trace.
+                    # This gate is restricted to the disposable CI lab; no
+                    # production account is touched by this work.
+                    if (_os.environ.get("ENVIRONMENT") == "test"
+                        and _os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "1"
+                        and _os.environ.get("ODF_G4_REQUIRE_TRACE") == "1"
+                        and source_row.image_original_path == "api/static/uploads/radios/t2-cephalo-seeded.png"
+                        and not projection.get("lab_verified_research_figure")):
+                        raise ValueError("G4_CEPHALOMETRIC_TRACE_REQUIRED_AND_SOURCE_BOUND")
                     approved_sections = resolve_approved_practitioner_sections(
                         db, patient_id=patient_id, analysis_id=analysis_id,
                         expected_revision=projection.get("analysis_revision"),
