@@ -143,6 +143,10 @@ def _ceph_rows(projection: Mapping[str, Any]) -> tuple[list[dict], list[dict]]:
         registry = CANONICAL_MEASUREMENTS.get(key)
         if registry is None or not matches_registry_unit(row.get("unit"), registry.unit):
             continue
+        if projection.get("lab_image_landmark_alignment") == "VERIFIED_AARIZ_EXPERT_PAIR" and registry.unit == "mm":
+            # No physical scale was supplied for the public Aariz research image.
+            # Never promote even a stray typed millimetre into the G3 report.
+            continue
         refs = row.get("measurement_refs")
         if not isinstance(refs, list) or not refs or not all(
             isinstance(ref, str) and ref in backed for ref in refs
