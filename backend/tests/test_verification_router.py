@@ -88,13 +88,26 @@ class TestVerifySpecialDocument:
     def test_bilan_with_existing_patient(self, client, db, dentiste):
         pat = _make_patient(db, dentiste, "VERBILAN")
         r = client.get(f"/api/documents/verify/{pat.id}/BILAN")
-        assert r.status_code == 200
-        assert "Bilan" in r.text or "Certifi" in r.text
+        assert r.status_code == 404
+        assert "text/html" in r.headers["content-type"]
+        assert "VERBILAN" not in r.text
+        assert "Bilan Orthodontique Certifié" not in r.text
+        assert "Vérification publique indisponible" in r.text
+        assert r.headers["cache-control"] == "no-store"
 
     def test_bilan_with_nonexistent_patient(self, client):
         r = client.get("/api/documents/verify/999999/BILAN")
-        assert r.status_code == 200
+        assert r.status_code == 404
         assert "text/html" in r.headers["content-type"]
+        assert "NON DISPONIBLE" in r.text
+
+    def test_bilan_guessed_patient_id_does_not_reveal_existence(self, client, db, dentiste):
+        pat = _make_patient(db, dentiste, "GUESSABLE_PRIVATE")
+        existing = client.get(f"/api/documents/verify/{pat.id}/BILAN")
+        missing = client.get("/api/documents/verify/999999/BILAN")
+        assert existing.status_code == missing.status_code == 404
+        assert existing.text == missing.text
+        assert "GUESSABLE_PRIVATE" not in existing.text
 
     def test_radio_with_nonexistent_id(self, client):
         r = client.get("/api/documents/verify/999999/RADIO")
@@ -124,3 +137,22 @@ class TestTrackDocument:
         r = client.get(f"/api/documents/track/{fragment}")
         assert r.status_code == 200
         assert "text/html" in r.headers["content-type"]
+
+# DEC-R2-01 — all legacy public lookup variants must fail closed for BILAN.
+def test_historical_bilan_never_disclosed_on_generic_public_verify_or_track(client, db, dentiste):
+    from backend import models
+
+    patient = _make_patient(db, dentiste, "PRIVATE_BILAN")
+    doc = _make_document(db, patient.id, dentiste.id)
+    doc.document_type = models.DocumentType.BILAN
+    db.commit()
+    db.refresh(doc)
+
+    for token in (str(doc.id), doc.filename[:8]):
+        for route in ("verify", "track"):
+            leaked = client.get(f"/api/documents/{route}/{token}")
+            unknown = client.get(f"/api/documents/{route}/r2-definitely-absent")
+            assert leaked.status_code == unknown.status_code == 200
+            assert leaked.text == unknown.text, (route, token)
+            assert "PRIVATE_BILAN" not in leaked.text
+            assert "BILAN" not in leaked.text
