@@ -1,0 +1,149 @@
+name: Digital Crown installable Windows build - exact certified master (isolated)
+on:
+  push:
+    branches:
+      - evidence/windows-installable-build-3cffc06c-20261024
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+jobs:
+  windows-cabinet-build:
+    name: Windows signed-provenance composition and installer build (no activation)
+    runs-on: windows-2022
+    timeout-minutes: 100
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CERTIFIED_SHA: 3cffc06c23c5be2086cdb18e23aae93d66dee700
+      CERT_RUN_ID: '40043891636'
+      MODEL_RUN_ID: '34281082926'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 3cffc06c23c5be2086cdb18e23aae93d66dee700
+          persist-credentials: false
+      - name: Immutable master preflight and zero clinical context
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:CERTIFIED_SHA) { throw 'Certified commit mismatch' }
+          $current=(gh api "repos/$env:GITHUB_REPOSITORY/branches/master" --jq '.commit.sha').Trim()
+          if ($current -ne $env:CERTIFIED_SHA) { throw "Master moved, require fresh release decision" }
+          if (Test-Path 'backend/ai_models') { throw 'Unexpected model bytes in Git' }
+          New-Item -ItemType Directory -Force -Path 'evidence/code','evidence/models','evidence/output','evidence/runtime' | Out-Null
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download exact official CODE_CERTIFIED release and historical pinned scientific artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download $env:CERT_RUN_ID --repo $env:GITHUB_REPOSITORY --name 'code-certified-dc-cabinet-3cffc06c23c5-run40043891636' --dir evidence/code
+          if ($LASTEXITCODE -ne 0) {throw 'Missing official code artifact'}
+          gh run download $env:MODEL_RUN_ID --repo $env:GITHUB_REPOSITORY --name 'cephalo-srpose38-onnx-parity' --dir evidence/models
+          if ($LASTEXITCODE -ne 0) {throw 'Missing historical scientific asset'}
+          $code=(Get-Content evidence/code/release-certification.json -Raw | ConvertFrom-Json)
+          if ($code.commit_sha -ne $env:CERTIFIED_SHA -or $code.certification_level -ne 'CODE_CERTIFIED' -or $code.installable -ne $false) { throw 'Invalid certified source' }
+          $model = Get-Item evidence/models/srpose38-tta-1024.onnx
+          if ($model.Length -ne 267484931L) { throw 'Pinned model size mismatch' }
+          $hash=(Get-FileHash evidence/models/srpose38-tta-1024.onnx -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb') { throw 'Pinned model integrity mismatch' }
+          New-Item -ItemType Directory -Force -Path evidence/models-ai | Out-Null
+          Copy-Item evidence/models/srpose38-tta-1024.onnx evidence/models-ai/srpose38-tta-1024.onnx
+          Write-Host 'OFFICIAL_CODE_AND_PINNED_MODEL=PASS'
+      - name: Install exact certified Windows dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --upgrade pip
+          Push-Location evidence/code/backend
+          try {
+            python -m pip install -r requirements-windows-build.txt
+            if ($LASTEXITCODE -ne 0) { throw 'Pinned Windows build dependencies failed' }
+          } finally { Pop-Location }
+          python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'Python dependency compatibility failed' }
+          python evidence/code/backend/scripts/windows_build_dependency_contract.py
+          if ($LASTEXITCODE -ne 0) { throw 'Windows dependency contract failed' }
+      - name: Create canonical asset ZIP and repackage actual official code files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PYTHONPATH=(Resolve-Path evidence/code).Path
+          python evidence/code/backend/scripts/certify_runtime_assets.py --code-release-dir evidence/code --ai-models-dir evidence/models-ai --output evidence/output/dc-runtime-assets.zip
+          if ($LASTEXITCODE -ne 0) {throw 'Real model asset certification failed'}
+          $script=@(
+            'import sys,zipfile,pathlib'
+            'src=pathlib.Path(sys.argv[1]).resolve()'
+            'dest=pathlib.Path(sys.argv[2]).resolve()'
+            'with zipfile.ZipFile(dest,"w",zipfile.ZIP_DEFLATED,allowZip64=True) as z:'
+            '    for item in sorted(src.rglob("*")):'
+            '        if item.is_file(): z.write(item,item.relative_to(src).as_posix())'
+          )
+          $script | Set-Content evidence/repack.py -Encoding utf8
+          python evidence/repack.py evidence/code evidence/output/dc-official-code.zip
+          if ($LASTEXITCODE -ne 0) {throw 'Official code ZIP repacking failed'}
+      - name: Compose genuine INSTALLABLE_CERTIFIED in isolated runner (Sigstore mandatory)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sourceScript=(Resolve-Path evidence/code/backend/scripts/create_release.ps1).Path
+          $codeZip=(Resolve-Path evidence/output/dc-official-code.zip).Path
+          $assetZip=(Resolve-Path evidence/output/dc-runtime-assets.zip).Path
+          $runtimeRoot=Join-Path $env:RUNNER_TEMP 'DigitalCrown-ISOLATED'
+          & $sourceScript -CertifiedArtifactZip $codeZip -RuntimeAssetsZip $assetZip -RuntimeRoot $runtimeRoot -VerifierPython python -GitHubCli gh
+          if ($LASTEXITCODE -ne 0) {throw 'INSTALLABLE composition failed closed'}
+          $release=Join-Path $runtimeRoot 'releases/dc-cabinet-3cffc06c23c5-run40043891636'
+          if (-not (Test-Path "$release/installable-certification.json")) {throw 'INSTALLABLE certificate absent'}
+          $proof=(Get-Content "$release/installable-certification.json" -Raw | ConvertFrom-Json)
+          if ($proof.certification_level -ne 'INSTALLABLE_CERTIFIED' -or $proof.installable -ne $true -or $proof.commit_sha -ne $env:CERTIFIED_SHA -or $proof.github_attestation_verified -ne $true) {throw 'Unexpected INSTALLABLE certificate'}
+          foreach($pack in @('BASIC','GOLD','ELITE')) {
+            $env:PYTHONPATH=$release
+            python "$release/backend/scripts/verify_installable_release.py" --release-dir $release --expected-pack $pack
+            if ($LASTEXITCODE -ne 0) {throw "INSTALLABLE verification failed: $pack"}
+          }
+          "$release" | Out-File -Encoding ascii evidence/output/release-dir.txt
+          $proof | ConvertTo-Json -Depth 10 | Out-File -Encoding utf8 evidence/output/installable-certification-proof.json
+          Write-Host 'INSTALLABLE_CERTIFIED_SOURCE=SUCCESS'
+      - name: Build Windows EXE from certified composition ONLY
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release=(Get-Content evidence/output/release-dir.txt -Raw).Trim()
+          $env:PYTHONPATH=''
+          Push-Location $release
+          try {
+            python -m PyInstaller --noconfirm --clean DigitalCrown.spec
+            if ($LASTEXITCODE -ne 0) {throw 'PyInstaller failed'}
+            if (-not (Test-Path 'dist/DigitalCrown/DigitalCrown.exe')) {throw 'EXE not found'}
+            foreach($f in @('release-certification.json','installable-certification.json','runtime-assets-certification.json','github-attestation-verification.json')) {
+              if (-not (Test-Path "dist/DigitalCrown/$f")) {throw "Installer guard missing bundled $f at root; correct source via separate PR, no bypass"}
+            }
+            Write-Host 'CERTIFIED_WINDOWS_EXE_CREATED=SUCCESS'
+          } finally { Pop-Location }
+      - name: Compile certified Inno Setup installer without executing it
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $release=(Get-Content evidence/output/release-dir.txt -Raw).Trim()
+          $compiler='C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $compiler)) {throw 'Pinned ISCC compiler missing; do not download unsigned substitute automatically'}
+          Push-Location $release
+          try {
+            & $compiler 'installer/DigitalCrown.iss'
+            if ($LASTEXITCODE -ne 0) {throw 'Inno Setup compilation rejected'}
+            $setup=Get-Item 'dist_installer/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe' -ErrorAction Stop
+            $digest=(Get-FileHash $setup.FullName -Algorithm SHA256).Hash
+            Write-Host "INSTALLER_SHA256=$digest; SIZE=$($setup.Length)"
+            Copy-Item $setup.FullName "$env:GITHUB_WORKSPACE/evidence/output/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe"
+            Write-Host 'INSTALLER_WINDOWS_CREATED_NOT_EXECUTED'
+          } finally { Pop-Location }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-windows-candidate-installer-3cffc06c
+          path: |
+            evidence/output/installable-certification-proof.json
+            evidence/output/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe
+          retention-days: 14
+          if-no-files-found: warn
