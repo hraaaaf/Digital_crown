@@ -18,7 +18,7 @@ const STRUCTURES:{id:CurveId;label:string;min:number;color:string}[]=[
   {id:'soft_tissue_profile',label:'Profil cutané',min:16,color:'#B26B55'},
 ];
 const W=1935,H=2400;
-const fresh=():Curve[]=STRUCTURES.map(item=>({id:item.id,points:[]}));
+const fresh=():Curve[]=>STRUCTURES.map(item=>({id:item.id,points:[]}));
 const pairedImage='/api/static/uploads/radios/t2-cephalo-seeded.png';
 
 export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
