@@ -56,7 +56,9 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "$MASTER_SHA"
           # This is a temporary filesystem integration, NOT a git merge commit
           # and never a push, rebase, branch mutation, or deployment.
-          git merge --no-commit --no-ff FETCH_HEAD
+          # Git checks the committer identity even with --no-commit.
+          # Provide an ephemeral identity to this invocation only (no config write).
+          git -c user.name='Disposable R2 CI' -c user.email='r2-disposable@example.invalid' merge --no-commit --no-ff FETCH_HEAD
           test "$(git rev-parse HEAD)" = "$R2_SOURCE_SHA"
           test -f .git/MERGE_HEAD
           test "$(git rev-parse MERGE_HEAD)" = "$MASTER_SHA"
