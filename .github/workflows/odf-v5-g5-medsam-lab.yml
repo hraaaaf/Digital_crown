@@ -50,7 +50,7 @@ jobs:
       - name: Install CPU-only MedSAM dependencies and original project source
         run: |
           python -m pip install --upgrade pip
-          python -m pip install 'torch==2.6.0' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'torch==2.6.0' 'torchvision==0.21.0' --index-url https://download.pytorch.org/whl/cpu
           python -m pip install 'numpy<2' 'pillow>=10,<12' 'opencv-python-headless<4.12' 'scikit-image<0.26' 'pytest<10'
           git clone --depth 1 https://github.com/bowang-lab/MedSAM.git /tmp/MedSAM
           echo "PYTHONPATH=/tmp/MedSAM:${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
