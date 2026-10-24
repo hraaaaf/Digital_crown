@@ -1,14 +1,14 @@
 /* LOT07 R2 human visual review — patient radiology only.
    Never change RBAC, workstation bootstrap or hidden W/X controls here. */
 [data-dc-patient-radiology="true"] {
-  --dc-rad-border: #dce6f2;
-  --dc-rad-ink: #152e4e;
+  --dc-rad-border: var(--border-color);
+  --dc-rad-ink: var(--text-main);
   min-width: 0;
   color: var(--dc-rad-ink);
 }
 [data-dc-patient-radiology="true"] > header {
-  border-bottom-color: #dbe6f4;
-  box-shadow: 0 8px 26px -24px rgba(12,39,84,.4);
+  border-bottom-color: var(--border-color);
+  box-shadow: var(--shadow-elite);
 }
 [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
   scroll-snap-type: x proximity;
@@ -25,10 +25,10 @@
 }
 [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
   border-color: var(--dc-rad-border);
-  background: #f7faff;
+  background: var(--bg-medical-pearl);
   padding: 4px;
   gap: 4px;
-  box-shadow: 0 6px 22px -20px rgba(7,40,95,.40);
+  box-shadow: var(--shadow-elite);
   scroll-snap-type: x proximity;
   scroll-padding-inline: 8px;
   overscroll-behavior-x: contain;
@@ -43,9 +43,9 @@
   min-width: 0;
 }
 [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] > div:first-child {
-  border-color: #dce7f4;
+  border-color: var(--border-color);
   border-radius: 16px;
-  box-shadow: 0 7px 18px -20px rgba(13,38,90,.40);
+  box-shadow: var(--shadow-elite);
 }
 [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] input,
 [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] [aria-label="Recherche et filtres médias"] select {
@@ -65,7 +65,7 @@
 [data-dc-patient-radiology="true"] [data-testid="patient-media-timeline"] button:focus-visible,
 [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] button:focus-visible,
 [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] button:focus-visible {
-  outline: 2px solid #1d4ed8;
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 @media (max-width: 767px) {
