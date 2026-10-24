@@ -60,7 +60,7 @@ python -m pip install --upgrade pip
 # These CPU versions correspond to requirements.txt and remain test-only.
 python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 \
   --index-url https://download.pytorch.org/whl/cpu
-grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?
+grep -vE '^(torch|torchvision|torchaudio)==' requirements.txt > .venv-a2-cert/requirements-no-torch.txt
 python -m pip install -r .venv-a2-cert/requirements-no-torch.txt
 python -m py_compile scripts/seed_v15_station_fallback_a2.py
 # OpenCV's native import requires OS runtime libraries. Fail before pytest if
