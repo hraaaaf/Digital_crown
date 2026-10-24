@@ -35,6 +35,10 @@ def fixture(root):
         if i<3:
             p.write_text(p.read_text()+
                          "6 0.58 0.40 0.04 0.15\n6 0.65 0.41 0.04 0.15\n")
+        elif i==3:
+            # A fourth case needs one uniquely-matched synthetic source box,
+            # not an additional duplicate-FDI group in the 31-group census.
+            p.write_text(p.read_text()+"6 0.58 0.40 0.04 0.15\n")
     changes = []
     for i,(split,stem) in enumerate(flagged[:17]):
         changes.append({"case":i+1,"split":split,"stem":stem,
