@@ -316,14 +316,66 @@ public static class Cb02NativeWindowDiagnostics {
   Move-Item -LiteralPath $file -Destination $aside
   try {
     $bad=Start-Process -FilePath $exe -WorkingDirectory $install -PassThru -WindowStyle Hidden
-    for($i=0;$i -lt 35;$i++) {
+    $sawRefusalDialog=$false
+    $dialogDismissed=$false
+    # console=False PyInstaller uses a Windows error dialog for uncaught failures.
+    # In non-interactive CI that modal holds the process alive until dismissed.
+    # Do not accept a mere still-running process as proof of rejection.
+    Add-Type -AssemblyName UIAutomationClient -ErrorAction Stop
+    $desktop=[System.Windows.Automation.AutomationElement]::RootElement
+    $pidCondition=[System.Windows.Automation.PropertyCondition]::new(
+      [System.Windows.Automation.AutomationElement]::ProcessIdProperty,
+      [int]$bad.Id
+    )
+    for($i=0;$i -lt 30;$i++) {
+      $bad.Refresh()
+      if($bad.HasExited) {break}
+      Need ($null -eq (Probe)) 'Missing attestation EXE exposed live HTTP before showing refusal'
+      $windows=$desktop.FindAll([System.Windows.Automation.TreeScope]::Children,$pidCondition)
+      for($w=0;$w -lt $windows.Count;$w++) {
+        $window=$windows.Item($w)
+        if($window.Current.Name -notmatch '^Unhandled exception in script$') {continue}
+        $controls=$window.FindAll(
+          [System.Windows.Automation.TreeScope]::Descendants,
+          [System.Windows.Automation.Condition]::TrueCondition
+        )
+        $attestationError=$false
+        for($c=0;$c -lt $controls.Count;$c++) {
+          $label=$controls.Item($c).Current.Name
+          if($label -match '(?i)(github.?attestation|attestation.*(changed|missing)|attestation verification evidence)') {
+            $attestationError=$true
+            break
+          }
+        }
+        Need $attestationError 'EXE error popup exists but does not prove missing Sigstore evidence'
+        $sawRefusalDialog=$true
+        Proof 'REAL_EXE_SIGSTORE_MISSING_UI=EXPECTED_ATTESTATION_REFUSAL_DIALOG'
+        Need ($null -eq (Probe)) 'Sigstore refusal dialog was displayed but server accepted HTTP'
+        $closeCondition=[System.Windows.Automation.PropertyCondition]::new(
+          [System.Windows.Automation.AutomationElement]::NameProperty,
+          'Close'
+        )
+        $closeButton=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$closeCondition)
+        Need ($null -ne $closeButton) 'Refusal modal has no Close action'
+        $closePattern=$closeButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+        Need ($null -ne $closePattern) 'Refusal modal Close is not invokable'
+        $closePattern.Invoke()
+        $dialogDismissed=$true
+        Proof 'REAL_EXE_SIGSTORE_REFUSAL_MODAL_DISMISSED=PASS'
+        break
+      }
+      if($dialogDismissed) {break}
+      Start-Sleep -Seconds 1
+    }
+    for($i=0;$i -lt 15;$i++) {
       $bad.Refresh()
       if($bad.HasExited) {break}
       Start-Sleep -Seconds 1
     }
-    Need ($bad.HasExited -and $bad.ExitCode -ne 0) 'Missing Sigstore evidence did not exit with failure'
+    $bad.Refresh()
+    Need ($bad.HasExited -and $bad.ExitCode -ne 0) 'Missing Sigstore evidence did not produce nonzero exit after closing native error dialog'
     Need ($null -eq (Probe)) 'EXE with missing Sigstore proof served health'
-    Proof 'REAL_EXE_MISSING_ATTESTATION=REJECTED_BEFORE_STARTUP'
+    Proof "REAL_EXE_MISSING_ATTESTATION=REJECTED_BEFORE_STARTUP; EXIT=$($bad.ExitCode); NATIVE_MODAL_CONFIRMED=$sawRefusalDialog"
   } finally {
     StopOwned $bad
     $bad=$null
