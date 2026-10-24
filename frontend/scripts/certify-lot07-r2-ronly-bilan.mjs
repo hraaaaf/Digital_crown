@@ -176,6 +176,8 @@ try {
       const hero = node.querySelector('[data-testid="multiview-real-dossier"] > div:first-child');
       return {
         expected, expectedSurface, expectedPrimaryText, expectedScopedPrimaryText, darkContrast,
+        renderedPrimaryLabel: intro ? getComputedStyle(intro).color : null,
+        renderedBadgeInk: modeBadge ? getComputedStyle(modeBadge).color : null,
         card: media ? getComputedStyle(media).backgroundColor : 'absent',
         text: getComputedStyle(node).color,
         surface: badge ? getComputedStyle(badge).backgroundColor : 'absent',
@@ -200,6 +202,11 @@ try {
         colors.darkContrast.intro >= 7 &&
         colors.darkContrast.mediaTitle >= 7 &&
         colors.darkContrast.modeBadge >= 7, colors.darkContrast);
+      assert('high-contrast clinical labels use real pure-black theme ink, not inherited brand blue',
+        colors.renderedPrimaryLabel === colors.expected.text &&
+        colors.renderedBadgeInk === colors.expected.text,
+        { renderedPrimaryLabel: colors.renderedPrimaryLabel,
+          renderedBadgeInk: colors.renderedBadgeInk, expected: colors.expected.text });
     }
     themeColors[chosenTheme] = colors;
     if (['emerald','dark','high-contrast'].includes(chosenTheme)) {
