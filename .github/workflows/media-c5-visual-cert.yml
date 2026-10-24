@@ -156,7 +156,15 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p ../artifacts/media-c5
-          node scripts/certify-media-c5-browser.mjs 2>&1 | tee ../artifacts/media-c5/runner.log
+          # Enrollment is a genuine password-authorized operation on the
+          # fingerprint-attested disposable T2 database, not a gate bypass.
+          # Persist the server-issued opaque workstation cookie across the C5
+          # API and Chromium contexts, as mandated by the workstation policy.
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test -n "${DIGITALCROWN_ISOLATION_DB_FINGERPRINT:-}"
+          node scripts/run-with-t2-workstation.mjs scripts/certify-media-c5-browser.mjs 2>&1 | tee ../artifacts/media-c5/runner.log
 
       - name: Dump runtime logs on failure
         if: failure()
