@@ -120,7 +120,11 @@ jobs:
           npm test -- src/features/multiview/studioLayouts.test.tsx \
             src/features/admin/DocumentStudio/DocumentStudioPermissionPolicy.r2.test.ts \
             | tee /tmp/r2-integrated-frontend.txt
-          grep -Eq 'Test Files[[:space:]]+2 passed' /tmp/r2-integrated-frontend.txt
+          # Vitest emits ANSI color codes even in CI; remove them only from
+          # the log used for count assertions, without changing the test run.
+          sed -E 's/\x1B\\[[0-9;]*[[:alpha:]]//g' /tmp/r2-integrated-frontend.txt > /tmp/r2-integrated-frontend-plain.txt
+          grep -Eq 'Test Files[[:space:]]+2 passed' /tmp/r2-integrated-frontend-plain.txt
+          grep -Eq 'Tests[[:space:]]+16 passed' /tmp/r2-integrated-frontend-plain.txt
           if grep -Eq '[[:space:]]+[1-9][0-9]* skipped' /tmp/r2-integrated-frontend.txt; then
             echo 'R2_INTEGRATED_FRONTEND_SKIPPED'
             exit 1
