@@ -12,6 +12,12 @@ on:
       - 'frontend/scripts/capture-ortho-f3-after.mjs'
       - '.github/workflows/ortho-f3-after.yml'
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-ortho-f3-after-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

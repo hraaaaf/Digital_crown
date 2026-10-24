@@ -16,6 +16,12 @@ on:
 env:
   V104_BASE_SHA: 7454215274032898d1a50659d624a5cb32aab494
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-cephalo-r18-scientific-concordance-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   audit:
     runs-on: ubuntu-latest

@@ -12,6 +12,12 @@ on:
       - 'audit/cephalo_r23g3_contract_tests/**'
       - 'backend/services/cephalo_runtime_chain.py'
   workflow_dispatch:
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-cephalo-r23g2-master-bridge-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:

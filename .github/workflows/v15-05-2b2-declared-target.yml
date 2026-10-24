@@ -9,6 +9,12 @@ on:
       - .github/workflows/v15-05-2b2-declared-target.yml
   workflow_dispatch:
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-v15-05-2b2-declared-target-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
