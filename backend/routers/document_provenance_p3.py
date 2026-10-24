@@ -251,6 +251,13 @@ def verify_document_with_p3_signature(
                 )
             ).first()
 
+        # DEC-R2-01: the P3 public verifier REPLACES the generic legacy
+        # /verify/{doc_id} route.  Block typed BILAN before reading any patient
+        # identity, even when found by numeric archive ID or filename fragment.
+        # The authenticated /api/documents/bilan/{id}/view is the only R path.
+        if doc is not None and doc.document_type == models.DocumentType.BILAN:
+            doc = None
+
         if doc is not None:
             patient = db.query(models.Patient).filter(
                 models.Patient.id == doc.patient_id
