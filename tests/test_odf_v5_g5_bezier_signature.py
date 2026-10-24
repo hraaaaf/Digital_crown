@@ -91,6 +91,20 @@ class V2DentistSignedControlsContract(TestCase):
         profile["points"][10][0]+=1
         self.assertIsNone(verify(record))
 
+    def test_signed_v2_controls_draw_the_same_v1_points_in_both_views(self):
+        from PIL import Image
+        record=signed_record()
+        verified=verify(record)
+        self.assertIsNotNone(verified)
+        x,y=record["contours"][-1]["points"][0]
+        for white in (True,False):
+            canvas=Image.new("RGB",(1935,2400),"white" if white else "#18202b")
+            v1.draw_contours(canvas,verified,background_is_white=white)
+            self.assertEqual(
+                canvas.getpixel((round(x),round(y))),
+                (178,107,85),  # signed soft_tissue_profile color #B26B55
+            )
+
     def test_legacy_v1_signed_record_remains_readable_without_handles(self):
         record=signed_record()
         record.pop("bezier_profile_nodes")
