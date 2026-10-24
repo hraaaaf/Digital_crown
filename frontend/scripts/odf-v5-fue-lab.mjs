@@ -240,15 +240,24 @@ try{
       'G5_BROWSER_SAVED_SIX_DISTINCT_STROKES');
     await snap('g5-02-manual-strokes-saved-unapproved');
 
-    const secretaryLogin=await api.post('/api/auth/login',{
-      form:{username:'odf-lab-secretaire@example.com',password}});
-    check(secretaryLogin.status()===200,'G5_SECRETARY_TEST_ACCOUNT');
-    const unauthorized=await api.post(g5Url+'/approve',{
-      headers:{Authorization:'Bearer '+(await secretaryLogin.json()).access_token},
-      data:{expected_revision:revision,expected_draft_version:1,
-        confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE'},
-    });
-    check(unauthorized.status()===403,'G5_SECRETARY_FORBIDDEN_APPROVAL');
+    // Important: a login response updates the request context cookie jar.
+    // Do NOT login as secretary using the dentist's APIRequestContext:
+    // otherwise subsequent stale-revision probes accidentally run as secretary
+    // and report 403 instead of the source-bound 409.
+    const secretaryApi=await request.newContext({baseURL:backend});
+    try{
+      const secretaryLogin=await secretaryApi.post('/api/auth/login',{
+        form:{username:'odf-lab-secretaire@example.com',password}});
+      check(secretaryLogin.status()===200,'G5_SECRETARY_TEST_ACCOUNT');
+      const unauthorized=await secretaryApi.post(g5Url+'/approve',{
+        headers:{Authorization:'Bearer '+(await secretaryLogin.json()).access_token},
+        data:{expected_revision:revision,expected_draft_version:1,
+          confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE'},
+      });
+      check(unauthorized.status()===403,'G5_SECRETARY_FORBIDDEN_APPROVAL');
+    }finally{
+      await secretaryApi.dispose();
+    }
     const forgedRevision=await api.get(g5Url,{
       headers,params:{expected_revision:revision+1}});
     const forgedStatus=forgedRevision.status();
@@ -290,16 +299,21 @@ try{
   check(blocked.status()===200 && !(await blocked.json()).approved,
     'A_NOTES_NOT_APPROVED_ON_DISTINCT_STUDY_B');
 
-  const secretary=await api.post('/api/auth/login',
-    {form:{username:'odf-lab-secretaire@example.com',password}});
-  check(secretary.status()===200,'RESTRICTED_TEST_STAFF_HAS_REAL_LOGIN');
-  const denied=await api.post(noteUrl+'/approve',{
-    headers:{Authorization:'Bearer '+(await secretary.json()).access_token},
-    data:{expected_revision:scientific.revision,
-       expected_draft_version:signedBody.draft_version,
-       confirmation:'JE_CONFIRME_MES_NOTES'},
-  });
-  check(denied.status()===403,'SECRETARY_CANNOT_APPROVE');
+  const secretaryNotesApi=await request.newContext({baseURL:backend});
+  try{
+    const secretary=await secretaryNotesApi.post('/api/auth/login',
+      {form:{username:'odf-lab-secretaire@example.com',password}});
+    check(secretary.status()===200,'RESTRICTED_TEST_STAFF_HAS_REAL_LOGIN');
+    const denied=await secretaryNotesApi.post(noteUrl+'/approve',{
+      headers:{Authorization:'Bearer '+(await secretary.json()).access_token},
+      data:{expected_revision:scientific.revision,
+         expected_draft_version:signedBody.draft_version,
+         confirmation:'JE_CONFIRME_MES_NOTES'},
+    });
+    check(denied.status()===403,'SECRETARY_CANNOT_APPROVE');
+  }finally{
+    await secretaryNotesApi.dispose();
+  }
   const anonymous=await request.newContext({baseURL:backend});
   const deniedAnon=await anonymous.get(noteUrl,
     {params:{expected_revision:scientific.revision}});
