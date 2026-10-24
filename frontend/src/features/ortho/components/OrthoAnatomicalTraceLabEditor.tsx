@@ -1,6 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {cephaloRepository} from '../cephaloRepository';
-import {G5BezierProfileLabCanvas} from './G5BezierProfileLabCanvas';
+import {G5BezierProfileLabCanvas, type G5BezierNode} from './G5BezierProfileLabCanvas';
 import {useOrthoStore} from '../stores/useOrthoStore';
 
 /** Only mounted with VITE_ODF_G5_LAB=1; API separately refuses all non-LAB calls.
@@ -33,6 +33,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const [zoom,setZoom]=useState<1|2|4|8>(1);
   const [panMode,setPanMode]=useState(false);
   const [bezierMode,setBezierMode]=useState(false);
+  const [bezierNodes,setBezierNodes]=useState<G5BezierNode[]|null>(null);
   const [viewportCenter,setViewportCenter]=useState<Point>([W/2,H/2]);
   const [selected,setSelected]=useState<CurveId>('cranial_base');
   const [revision,setRevision]=useState<number|null>(null);
@@ -51,7 +52,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   useEffect(()=>{
     const id=++requestId.current;
     drawing.current=false;panStart.current=null;
-    setZoom(1);setPanMode(false);setBezierMode(false);setViewportCenter([W/2,H/2]);
+    setZoom(1);setPanMode(false);setBezierMode(false);setBezierNodes(null);
+    setViewportCenter([W/2,H/2]);
     setCurves(fresh());setRevision(null);setDraftVersion(0);
     setDirty(false);setServerApproved(false);setError('');setNotice('');
     if(!patientId||!analysisId)return;
@@ -70,6 +72,12 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
           return {id:s.id,points:Array.isArray(c?.points)?
             c.points.map((p:number[])=>[p[0],p[1]] as Point):[]};
         }));
+        setBezierNodes(Array.isArray(server.bezier_profile_nodes)
+          ?server.bezier_profile_nodes.map(n=>({
+            anchor:[n.anchor[0],n.anchor[1]] as Point,
+            incoming:[n.incoming[0],n.incoming[1]] as Point,
+            outgoing:[n.outgoing[0],n.outgoing[1]] as Point,
+          })):null);
         setServerApproved(server.approved);
       }catch(e){
         if(id===requestId.current)setError(e instanceof Error?e.message:'Tracé non disponible');
@@ -88,6 +96,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     return [Math.round(x*10)/10,Math.round(y*10)/10];
   };
   const add=(p:Point)=>{
+    if(selected==='soft_tissue_profile')setBezierNodes(null);
     setCurves(prev=>prev.map(c=>{
       if(c.id!==selected)return c;
       const last=c.points[c.points.length-1];
@@ -97,9 +106,12 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     }));
     setDirty(true);setServerApproved(false);setNotice('');
   };
-  const undo=()=>{setCurves(prev=>prev.map(c=>c.id===selected?
+  const undo=()=>{if(selected==='soft_tissue_profile')setBezierNodes(null);
+    setCurves(prev=>prev.map(c=>c.id===selected?
       {...c,points:c.points.slice(0,-1)}:c));setDirty(true);setServerApproved(false);};
-  const clear=()=>{if(selected==='soft_tissue_profile')setBezierMode(false);
+  const clear=()=>{if(selected==='soft_tissue_profile'){
+      setBezierMode(false);setBezierNodes(null);
+    }
     setCurves(prev=>prev.map(c=>c.id===selected?
       {...c,points:[]}:c));setDirty(true);setServerApproved(false);};
   const complete=STRUCTURES.every(spec=>(curves.find(c=>c.id===spec.id)?.points.length||0)>=spec.min);
@@ -112,6 +124,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         patientId,analysisId,{
           expected_revision:revision,expected_draft_version:draftVersion,
           contours:curves,
+          bezier_profile_nodes:bezierNodes,
         });
       setDraftVersion(saved.draft_version);setServerApproved(false);
       setDirty(false);setNotice('Brouillon manuel enregistré ; validation encore nécessaire.');
@@ -187,7 +200,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     {selected==='soft_tissue_profile'&&<div className="flex flex-wrap items-center gap-2">
       <button type="button" data-testid="g5-bezier-mode-toggle"
         disabled={busy||loading||!revision||(!bezierMode&&
-          (curves.find(c=>c.id==='soft_tissue_profile')?.points.length||0)>0)}
+          (curves.find(c=>c.id==='soft_tissue_profile')?.points.length||0)>0
+          &&!bezierNodes)}
         aria-pressed={bezierMode}
         onClick={()=>{setBezierMode(v=>!v);setPanMode(false);}}
         className="rounded-lg border px-3 py-2 text-xs font-semibold"
@@ -202,6 +216,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     </div>}
     {bezierMode&&selected==='soft_tissue_profile'
       ?<G5BezierProfileLabCanvas
+        key={`g5-bezier-${patientId}-${analysisId}-${revision}-${draftVersion}`}
         imageUrl={pairedImage} imageWidth={W} imageHeight={H}
         viewport={{left:viewLeft,top:viewTop,width:viewW,height:viewH}}
         otherContours={curves.filter(c=>c.id!=='soft_tissue_profile').map(c=>({
@@ -210,6 +225,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         }))}
         disabled={busy||loading||!revision||panMode}
         borderColor={P.border} textColor={P.textMuted}
+        initialNodes={bezierNodes}
+        onNodesChange={setBezierNodes}
         onSampledChange={points=>{
           setCurves(prev=>prev.map(c=>c.id==='soft_tissue_profile'
             ?{...c,points:points.map(p=>[p[0],p[1]] as Point)}:c));
