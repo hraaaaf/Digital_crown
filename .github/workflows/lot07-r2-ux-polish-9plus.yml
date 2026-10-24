@@ -1,0 +1,238 @@
+name: LOT07 R2 UX premium 12 screenshots real-browser certification
+on:
+  pull_request:
+    branches:
+      - 'feat/lot07-r2-multiview-ronly-dec02-20261024'
+    paths:
+      - 'frontend/src/features/multiview/**'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/PatientRadiologyPolish.css'
+      - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
+      - 'frontend/scripts/certify-lot07-r2-ronly-bilan.mjs'
+      - 'scripts/lot07_r2_seed_bilan_t2.py'
+      - '.github/workflows/lot07-r2-ux-polish-9plus.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot07-r2-ux-polish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-t2:
+    name: Genuine Chrome 12-view UX regression, R-only BILAN and A-B-A isolation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      VITE_V15_07_1_MULTIVIEW_LAB: '1'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      # A single dedicated synthetic SQLCipher key shared by FastAPI and
+      # the separate T2 fixture process.  Never an actual cabinet key.
+      SQLCIPHER_KEY_HEX: '1111111111111111111111111111111111111111111111111111111111111111'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify isolated exact-SHA runtime and set random synthetic password
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test ! -f digitalcrown.db
+          password="$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Install disposable backend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/r2-dec02-req.txt
+          pip install -r /tmp/r2-dec02-req.txt
+          python -m pip check
+      - name: Install locked frontend and isolated Playwright browser
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          mkdir -p /tmp/dec02-playwright
+          npm install --prefix /tmp/dec02-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          ln -s /tmp/dec02-playwright/node_modules/playwright node_modules/playwright
+          /tmp/dec02-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Validate R-only React adapters and previously certified layout rules
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            src/features/multiview/HistoricBilanReadonlyPanel.test.tsx \
+            src/features/multiview/CabinetMultiViewLab.test.tsx \
+            src/features/multiview/studioLayouts.test.tsx \
+            src/features/patients/components/PatientMediaTimeline.multiviewReadonly.test.tsx \
+            | tee /tmp/r2-dec02-vitest.txt
+          sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' /tmp/r2-dec02-vitest.txt > /tmp/r2-dec02-vitest-plain.txt
+          grep -Eq 'Test Files[[:space:]]+4 passed' /tmp/r2-dec02-vitest-plain.txt
+          if grep -Eq '[[:space:]]+[1-9][0-9]* (skipped|failed)' /tmp/r2-dec02-vitest-plain.txt; then exit 1; fi
+      - name: Assert independently fingerprinted disposable SQLite target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import (
+              database_target_fingerprint, is_known_cabinet_database,
+          )
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target)
+          print("DIGITALCROWN_ISOLATION_DB_FINGERPRINT=" + database_target_fingerprint(target))
+          PY
+      - name: Start genuine disposable FastAPI server seeded only with T2
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/dec02-api.log 2>&1 &
+          pid=$!
+          echo "T2_SERVER_PID=$pid" >> "$GITHUB_ENV"
+          for i in {1..110}; do
+            if ! kill -0 "$pid" 2>/dev/null; then tail -70 /tmp/dec02-api.log; exit 1; fi
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8005/health >/dev/null
+      - name: Seed ONLY classified synthetic BILAN in the disposable T2 database and media
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/lot07_r2_seed_bilan_t2.py | tee /tmp/dec02-seed.txt
+          grep -q 'LOT07_R2_SYNTHETIC_BILAN_SEEDED' /tmp/dec02-seed.txt
+      - name: Serve genuine Vite Cabinet DEV lab (no API interception)
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/dec02-ui.log 2>&1 &
+          for i in {1..110}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -70 /tmp/dec02-ui.log
+          exit 1
+      - name: Browser DEC01+DEC02 BILAN positive/negative and zero W/X network
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/certify-lot07-r2-ronly-bilan.mjs | tee /tmp/dec02-real-browser.txt
+          grep -q 'LOT07_R2_DEC01_DEC02_REAL_BROWSER_E2E_PASS' /tmp/dec02-real-browser.txt
+      - name: Reset disposable T2 runtime between INDEPENDENT browser suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test "$SOURCE_HEAD" = "$(git rev-parse HEAD)"
+          test -n "${T2_SERVER_PID:-}"
+          # An enrollment persists in T2 and correctly rejects a subsequent
+          # unpaired HTTP client with 423. G1 requires a genuinely fresh test
+          # cabinet. Never delete a real database or weaken workstation checks.
+          kill "$T2_SERVER_PID"
+          for i in {1..30}; do
+            if ! kill -0 "$T2_SERVER_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if kill -0 "$T2_SERVER_PID" 2>/dev/null; then
+            echo "REFUSED: old T2 server still alive"; exit 1
+          fi
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from backend.core.runtime_safety import is_known_cabinet_database
+          assert os.environ["ENVIRONMENT"] == "test"
+          assert os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] == "1"
+          target = "sqlite:///./t2-runtime-cert.db"
+          assert os.environ["DATABASE_URL"] == target
+          assert not is_known_cabinet_database(target)
+          base = Path.cwd()
+          assert base.name == "Digital_crown"
+          for basename in ("t2-runtime-cert.db", "t2-runtime-cert.db-wal", "t2-runtime-cert.db-shm"):
+              file = base / basename
+              assert file.parent == base and file.name.startswith("t2-runtime-cert.db")
+              file.unlink(missing_ok=True)
+          print("LOT07_R2_ONLY_DISPOSABLE_T2_RESET")
+          PY
+          python scripts/t2_runtime_server.py >/tmp/dec02-api-fresh-g1.log 2>&1 &
+          new_pid=$!
+          echo "T2_SERVER_PID=$new_pid" >> "$GITHUB_ENV"
+          for i in {1..110}; do
+            if ! kill -0 "$new_pid" 2>/dev/null; then
+              tail -70 /tmp/dec02-api-fresh-g1.log; exit 1
+            fi
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8005/health >/dev/null
+      - name: Browser existing G1 A-B-A cross-patient and real-media multiview E2E
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/certify-v15-07-1ab-g1-real-t2.mjs | tee /tmp/dec02-real-g1.txt
+      - name: Verify all 12 independently captured synthetic screen views
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f artifacts/lot07-r2-ronly-dec02/synthetic-r-only-bilan-1920.png
+          test -f artifacts/lot07-071-g1-real-t2/mobile-single-media-regression-390.png
+          test -f artifacts/lot07-071-g1-real-t2/after-three-columns-1920.png
+          python - <<'PY'
+          from pathlib import Path
+          p = list(Path('artifacts/lot07-r2-ronly-dec02').glob('*.png')) + list(Path('artifacts/lot07-071-g1-real-t2').glob('*.png'))
+          assert len(p) >= 12, f'Expected 12 genuine screenshots, got {len(p)}'
+          for f in p:
+              assert f.stat().st_size > 5_000, f'Empty image: {f}'
+          print('LOT07_R2_UX_12_GENUINE_CHROMIUM_SCREENSHOTS_READY', len(p))
+          PY
+      - name: Final source and sandbox attestation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          echo "LOT07_R2_UX_9PLUS_CANDIDATE_EXACT_SHA_PASS $SOURCE_HEAD"
+      - name: Preserve synthetic screenshots and browser results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-r2-ux-polish-synthetic-browser
+          path: |
+            artifacts/lot07-r2-ronly-dec02/
+            artifacts/lot07-071-g1-real-t2/
+          if-no-files-found: warn
+          retention-days: 14
