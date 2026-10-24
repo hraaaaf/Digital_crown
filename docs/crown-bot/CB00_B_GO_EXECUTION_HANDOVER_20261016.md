@@ -14,7 +14,7 @@
 - DONE: product truth matrix, 12 specified synthetic business tasks, 9 concept mockups at 1280/1440/1920, existing 1280 interaction-state capture, owner direction B approval.
 - DONE on **historical isolated synthetic CI**: `scripts/ci/crownbot_cb00_t2_read_evidence.py` measured an authorized useful `/patient`+ID read across 30 warm repetitions, anonymous 401 and synthetic 403/404 controls; [CB-00 synthetic run #38942585020](https://github.com/hraaaaf/Digital_crown/actions/runs/38942585020) was successful. This is not a measurement on a physical cabinet or an authorized real workstation T2. A new clean integration HEAD needs its own CI.
 - NOT MEASURED on an authorized physical/workstation T2: actual cabinet useful-read HTTP and click-to-useful-DOM p50/p95 (historical **synthetic CI** values exist separately), genuine process cold start, actual flag-OFF BEFORE 1440/1920, 12 full staff E2E journeys, full DB write delta, 200% zoom and staff UX.
-- BLOCKED: authorized remote Desktop Commander device DESKTOP-3MAJEEH was OFFLINE when inspected. Never label SQL conflict query timings (0.7–2.1ms) as Crown Bot response time.
+- HISTORICAL OBSERVATION ONLY: remote Desktop Commander device `DESKTOP-3MAJEEH` was OFFLINE at the time of inspection. **This does NOT require reconnecting that device or block independent GitHub/CI synthetic evidence.** The actual staff/physical T2 measurements listed above remain `NOT_RUN` until performed on a separately authorized suitable device, where required. Never label SQL conflict query timings (0.7–2.1ms) as Crown Bot response time. See `AGENTS.md` for the current no-mandatory-remote-desktop rule.
 
 ## Required T2 evidence procedure (not yet run)
 
