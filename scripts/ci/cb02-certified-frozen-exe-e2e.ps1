@@ -60,7 +60,7 @@ try {
   $logs=Join-Path $base 'logs'
   $runtime=Join-Path $base 'runtime'
   $db=Join-Path $data 'empty-encrypted.db'
-  $profile=Join-Path $config '.env'
+  $profile=Join-Path $sandbox 'operator-profile/rehearsal.env'
   $sentinel=Join-Path $sandbox 'outside-sentinel.txt'
   Set-Content -LiteralPath $sentinel -Value 'SYNTHETIC ONLY - NO PATIENT' -Encoding ascii
   $sentinelDigest=(Get-FileHash $sentinel -Algorithm SHA256).Hash
@@ -75,6 +75,7 @@ try {
   Need ($cert.commit_sha -eq $expected -and $cert.installable -eq $true -and $cert.github_attestation_verified -eq $true) 'Invalid embedded installable certificate'
   Proof 'AUTHENTIC_WINDOWS_SETUP_INSTALLED_WITH_PROVENANCE=PASS'
   foreach($dir in @($config,$data,$logs,$runtime)) {New-Item -Force -ItemType Directory -Path $dir | Out-Null}
+  New-Item -Force -ItemType Directory -Path (Split-Path -Parent $profile) | Out-Null
   $env:ENVIRONMENT='rehearsal'
   $env:DIGITALCROWN_ISOLATED_RUNTIME='1'
   $env:TELEMETRY_ENABLED='false'
