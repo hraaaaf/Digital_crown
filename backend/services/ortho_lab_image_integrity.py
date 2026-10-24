@@ -194,11 +194,14 @@ def build_g5_anatomical_two_views(
                    "description":s["description"]}
                   for s in geometry["segments"]],
         "caption":(
-            "Tracé anatomique manuel approuvé par le praticien du laboratoire, "
-            "superposé à la téléradiographie appariée Aariz (CC BY 4.0). "
-            "Les courbes représentent exclusivement les annotations saisies ; "
-            "elles ne sont pas générées depuis les 24 repères. "
-            "Document de recherche sans validation diagnostique R14."
+            ("COURBES SYNTHÉTIQUES DE RECETTE TECHNIQUE — NON EXPERTISÉES. "
+             if __import__("os").environ.get("ODF_G5_E2E_SYNTHETIC_STROKES") == "1"
+             else "")
+            + "Tracé manuel enregistré par l'utilisateur authentifié du laboratoire, "
+            + "superposé à la téléradiographie appariée Aariz (CC BY 4.0). "
+            + "Ces courbes sont des annotations saisies, jamais des contours "
+            + "déduits des 24 repères. "
+            + "Document de recherche sans validation diagnostique R14."
         ),
         "source_url":"https://doi.org/10.1038/s41597-025-05542-3",
     }
