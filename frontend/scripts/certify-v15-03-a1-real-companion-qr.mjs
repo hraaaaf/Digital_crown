@@ -157,9 +157,25 @@ try {
     invitations[key]=(await res.json()).manual_code;
   }
   const phoneCtx=await browser.newContext({viewport:{width:390,height:844}});
+  // This specific Linux T2 laboratory has NO cabinet OS-bound private-key
+  // protector. The real Companion code explicitly supports browsers lacking
+  // crypto.randomUUID by creating a genuine LOCAL-ONLY encrypted vault pairing
+  // (remote_keys omitted). Model that supported capability profile, not an
+  // HTTP route mock or an insecure backend crypto bypass. AES-GCM WebCrypto
+  // and IndexedDB remain fully enabled. Remote transport remains NOT CERTIFIED.
+  await phoneCtx.addInitScript(() => {
+    if (location.hostname !== '127.0.0.1' || location.pathname !== '/companion') return;
+    Object.defineProperty(Crypto.prototype, 'randomUUID', {
+      configurable: true, value: undefined,
+    });
+  });
   phone=await phoneCtx.newPage();
   observe(phone,'companion');
   await phone.goto(origin+'/companion',{waitUntil:'domcontentloaded'});
+  const localOnlyCapability=await phone.evaluate(() =>
+    typeof crypto.randomUUID === 'undefined' &&
+    !!crypto.subtle && typeof indexedDB !== 'undefined');
+  assert(localOnlyCapability,'expected supported encrypted local-only Companion browser capability');
   const pairPhone=async (key) => {
     await phone.locator('[data-pc00-manual-code]').waitFor({state:'visible',timeout:40000});
     await phone.locator('[data-pc00-manual-code]').fill(invitations[key]);
@@ -179,6 +195,8 @@ try {
   await snap(phone,'03-companion-two-contexts.png');
   evidence.cases['03_real_companion_pairing']={
     productPairingHTTP:201, twoAuthorizedContexts:true, encryptedVaultViaProductUI:true,
+    browserCapability:'no crypto.randomUUID, WebCrypto AES-GCM + IndexedDB available',
+    remoteKeyEnrollment:'NOT_CERTIFIED Linux CI OS key protection unavailable',
   };
 
   station=await stationPage(browser,kiosk);
