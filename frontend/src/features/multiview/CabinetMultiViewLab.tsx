@@ -298,9 +298,11 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
         </div>
         </div>
       </header>
-      {!accepted && <p role="status" className="rounded-xl border border-warning-border bg-warning-surface px-3 py-2.5 text-sm font-medium text-warning">
+      {!accepted && <p role="status" className={responsiveSingleMediaFallback
+        ? 'rounded-xl border border-info-border bg-info-surface px-3 py-2.5 text-sm font-medium text-info'
+        : 'rounded-xl border border-warning-border bg-warning-surface px-3 py-2.5 text-sm font-medium text-warning'}>
         {responsiveSingleMediaFallback
-          ? 'Disposition trop large pour cet écran : affichage sécurisé de la médiathèque seule.'
+          ? 'Disposition trop large pour cet écran : médiathèque seule en lecture sécurisée. Agrandissez la fenêtre pour retrouver les vues côte à côte.'
           : 'Disposition protégée : identité du poste, permissions ou largeur des panneaux à vérifier.'}
       </p>}
       {responsiveSingleMediaFallback && trustedPatient
