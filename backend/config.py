@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: bool = False
     # CB-02 separate bounded guided parser preview; never enables an action.
     CROWN_BOT_GUIDED_NLU_ENABLED: bool = False
+    # CB-03 G1-A: independently gated, non-executable appointment preparation.
+    CROWN_BOT_CB03_PREPARATION_ENABLED: bool = False
     # CB-01 pilot: runtime cabinet IANA timezone; tenant-specific migration is Agenda A5.
     CROWN_BOT_CABINET_TIMEZONE: str = "Africa/Casablanca"
 
