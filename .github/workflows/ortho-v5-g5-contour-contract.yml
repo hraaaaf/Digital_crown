@@ -14,6 +14,7 @@ on:
       - 'backend/services/generators/bilan_ortho_gen.py'
       - 'alembic/versions/neo000000034_ortho_anatomical_trace.py'
       - 'frontend/src/features/ortho/components/OrthoAnatomicalTraceLabEditor.tsx'
+      - 'frontend/src/features/ortho/components/G5BezierProfileLabCanvas.tsx'
       - 'frontend/src/features/ortho/utils/g5BezierGeometry.ts'
       - 'frontend/src/features/ortho/utils/g5BezierGeometry.test.ts'
       - 'frontend/src/features/ortho/components/Step3Clinical.tsx'
