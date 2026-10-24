@@ -209,3 +209,42 @@
 @media (prefers-reduced-motion:reduce) {
   [data-v15-071-real-cabinet-lab] button,[data-v15-071-real-cabinet-lab] select {transition:none !important;}
 }
+
+/* LOT07 G2 clinical legibility in narrow real slots, without changing module
+   geometry rules or converting R-only media into editable widgets. */
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="patient-media-timeline"] h2 {
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: normal;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] article span,
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] article p {
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: normal;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-inline-viewer"] h3 {
+  font-size: 13px;
+  line-height: 1.35;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] {
+  gap: 7px;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [aria-label="Recherche et filtres médias"] :is(input,select,button) {
+  min-height: 42px;
+  padding-inline: 8px;
+  font-size: 12px;
+  color: var(--text-main);
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+  [data-v15-071-viewslot="imagerie"] [data-testid="media-asset-rail"] {
+  max-height: 245px;
+}
