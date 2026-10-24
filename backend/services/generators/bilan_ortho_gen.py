@@ -394,6 +394,18 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 Paragraph(escape(trace["caption"]), body),
                 Paragraph("Source : " + escape(trace["source_url"]), body),
             ]))
+            if trace.get("kind") == "G5_MANUAL_ANATOMICAL_TRACE":
+                # Same manual curves on a separate white drawing — never an
+                # illustration synthesized from unrelated landmarks.
+                clean_bytes=b64decode(trace["anatomical_only_b64"],validate=True)
+                elements.append(KeepTogether([
+                    Paragraph("Tracé anatomique — vue épurée",subheading),
+                    RLImage(BytesIO(clean_bytes),width=11.0*cm,
+                            height=(11.0*2400/1935)*cm),
+                    Spacer(1,0.18*cm),
+                    Paragraph("Les mêmes six contours approuvés sur fond blanc. "
+                              "Aucune silhouette générée automatiquement.",body),
+                ]))
         else:
             elements.append(Paragraph("01  Analyse céphalométrique", heading))
         for key, label in (
