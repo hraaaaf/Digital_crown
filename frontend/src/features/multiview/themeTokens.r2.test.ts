@@ -82,7 +82,7 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(lab).toContain('multiview-responsive-single-media-fallback');
     const labCss = source('features/multiview/CabinetMultiViewLab.css');
     expect(labCss).toContain('accent-color: var(--primary)');
-    expect(css.match(/#[0-9a-f]{3,8}\\b|\\brgba?\\s*\\(\\s*(?:\\d|\\.\\d)/gi) ?? []).toEqual([]);
+    expect(css.match(literalColor) ?? []).toEqual([]);
   });
 
   it('theme engine exposes all configured semantic color roles', () => {
