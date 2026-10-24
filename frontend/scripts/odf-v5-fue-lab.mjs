@@ -108,6 +108,68 @@ try{
   }
 
   await page.getByRole('button',{name:'3. Synthèse clinique',exact:true}).click();
+  await page.getByRole('button',{name:/3. Examen des moulages/}).click();
+  await page.locator('textarea[placeholder^="Note libre — auteur non vérifié"]').fill(
+    'LAB EXCLUSIVEMENT — Examen fictif des moulages : Angle classe I bilatérale; '
+    +'légère DDM maxillaire de -2 mm et mandibulaire de -1 mm. '
+    +'Ne provient pas de la radiographie publique.');
+  await page.locator('textarea[placeholder^="Note diagnostique libre"]').fill(
+    'LAB EXCLUSIVEMENT — Synthèse fictive : relations molaires et canines de '
+    +'classe I selon moulages simulés, discret encombrement antérieur. '
+    +'Classe squelettique et maturité non déterminées sur cette radio.');
+  await page.getByRole('button',{name:/5. Note thérapeutique libre/}).click();
+  await page.locator('textarea[placeholder^="Note thérapeutique libre"]').fill(
+    'LAB EXCLUSIVEMENT — Plan de démonstration : documenter la croissance, '
+    +'réaliser l’examen clinique complet et discuter les objectifs avec le praticien. '
+    +'Aucun acte, appareil, extraction ou prescription réelle décidée.');
+  // Avoid overwriting the four Angle selections with a late asynchronous
+  // "load empty notes" response. The form MUST hydrate before becoming editable.
+  await page.getByTestId('odf-note-source-ready').waitFor({state:'attached',timeout:20000});
+  for(const name of ['molaire-droite','molaire-gauche','canine-droite','canine-gauche']){
+    const select=page.getByTestId('odf-angle-'+name);
+    await select.selectOption('Classe I');
+    check((await select.inputValue())==='Classe I','ANGLE_CLINICIAN_SELECTION_'+name);
+  }
+  await snap('04-angle-class-one-fictional-casts');
+
+  const saveButton=page.getByRole('button',{name:'1. Enregistrer le brouillon'});
+  await saveButton.click();
+  await page.getByRole('status').getByText(/Brouillon enregistré/).waitFor({timeout:40000});
+  check(true,'REAL_HTTP_SAVE_DRAFT');
+  await snap('05-draft-saved');
+
+  const revResponse=await api.get('/api/ia/analyses/'+ids.older_id,{headers});
+  check(revResponse.status()===200,'READ_ACTUAL_SCIENTIFIC_REVISION');
+  const persistedStudy=(await revResponse.json()).angles_data;
+  const scientific=persistedStudy.scientific_read_path;
+  check(scientific.active_chain==='VERIFIED','SYNTHETIC_STUDY_SOURCE_VERIFIED_NOT_REAL_DIAGNOSIS');
+  if(process.env.ODF_G4_REQUIRE_TRACE === '1'){
+    check(persistedStudy.odf_lab_image_landmark_alignment === 'VERIFIED_AARIZ_EXPERT_PAIR',
+      'G4_SOURCE_PAIR_REVOKED_OR_LOST_ON_CLINICIAN_DRAFT_SAVE');
+    check(createHash('sha256').update(media).digest('hex')===persistedStudy.odf_lab_display_png_sha256,
+      'G4_ACTUAL_FILM_HASH_MUST_SURVIVE_UNCHANGED_CLINICIAN_SAVE');
+    check(Array.isArray(persistedStudy._evidence_graph_v1?.landmarks)
+          && persistedStudy._evidence_graph_v1.landmarks.length >= 19,
+      'G4_PERSISTED_EXPERT_LANDMARKS_MUST_SURVIVE_CLINICIAN_SAVE');
+  }
+  const noteUrl='/api/patients/'+ids.patient_id+'/ortho-bilan/'+ids.older_id+'/notes';
+  const pending=await api.get(noteUrl,{headers,params:{expected_revision:scientific.revision}});
+  check(pending.status()===200 && !(await pending.json()).approved,
+    'DRAFT_NOT_APPROVED_BEFORE_DENTIST_CONFIRMATION');
+
+  await page.getByRole('button',{name:'2. Approuver mes notes'}).click();
+  await page.getByRole('status').getByText(/Notes approuvées par le dentiste/).waitFor({timeout:20000});
+  check(true,'REAL_DENTIST_EXPLICIT_APPROVAL');
+  await snap('06-notes-approved');
+  const signed=await api.get(noteUrl,{headers,params:{expected_revision:scientific.revision}});
+  const signedBody=await signed.json();
+  check(signed.status()===200 && signedBody.approved===true
+    && signedBody.notes.moulages.classe_molaire_droite==='Classe I'
+    && signedBody.notes.moulages.classe_molaire_gauche==='Classe I',
+    'PERSISTED_STRUCTURED_ANGLE_BILATERAL_AND_SIGNED');
+
+  // Write G5 anatomy AFTER final G3 note-save/revision persistence.
+  // Otherwise silentSave could change source digest and revoke a signed curve.
   // G5 TECHNICAL FUE: the automation operates the real SVG drawing UI.
   // Coordinates are synthetic TEST strokes, explicitly NOT anatomical
   // annotations. Only a human-reviewed expert contour can pass visual GO.
@@ -214,65 +276,7 @@ try{
       status:'TECHNICAL_E2E_ONLY',approved_test_dentist:true,
       contour_count:6,expert_anatomical_validation:false};
   }
-  await page.getByRole('button',{name:/3. Examen des moulages/}).click();
-  await page.locator('textarea[placeholder^="Note libre — auteur non vérifié"]').fill(
-    'LAB EXCLUSIVEMENT — Examen fictif des moulages : Angle classe I bilatérale; '
-    +'légère DDM maxillaire de -2 mm et mandibulaire de -1 mm. '
-    +'Ne provient pas de la radiographie publique.');
-  await page.locator('textarea[placeholder^="Note diagnostique libre"]').fill(
-    'LAB EXCLUSIVEMENT — Synthèse fictive : relations molaires et canines de '
-    +'classe I selon moulages simulés, discret encombrement antérieur. '
-    +'Classe squelettique et maturité non déterminées sur cette radio.');
-  await page.getByRole('button',{name:/5. Note thérapeutique libre/}).click();
-  await page.locator('textarea[placeholder^="Note thérapeutique libre"]').fill(
-    'LAB EXCLUSIVEMENT — Plan de démonstration : documenter la croissance, '
-    +'réaliser l’examen clinique complet et discuter les objectifs avec le praticien. '
-    +'Aucun acte, appareil, extraction ou prescription réelle décidée.');
-  // Avoid overwriting the four Angle selections with a late asynchronous
-  // "load empty notes" response. The form MUST hydrate before becoming editable.
-  await page.getByTestId('odf-note-source-ready').waitFor({state:'attached',timeout:20000});
-  for(const name of ['molaire-droite','molaire-gauche','canine-droite','canine-gauche']){
-    const select=page.getByTestId('odf-angle-'+name);
-    await select.selectOption('Classe I');
-    check((await select.inputValue())==='Classe I','ANGLE_CLINICIAN_SELECTION_'+name);
-  }
-  await snap('04-angle-class-one-fictional-casts');
 
-  const saveButton=page.getByRole('button',{name:'1. Enregistrer le brouillon'});
-  await saveButton.click();
-  await page.getByRole('status').getByText(/Brouillon enregistré/).waitFor({timeout:40000});
-  check(true,'REAL_HTTP_SAVE_DRAFT');
-  await snap('05-draft-saved');
-
-  const revResponse=await api.get('/api/ia/analyses/'+ids.older_id,{headers});
-  check(revResponse.status()===200,'READ_ACTUAL_SCIENTIFIC_REVISION');
-  const persistedStudy=(await revResponse.json()).angles_data;
-  const scientific=persistedStudy.scientific_read_path;
-  check(scientific.active_chain==='VERIFIED','SYNTHETIC_STUDY_SOURCE_VERIFIED_NOT_REAL_DIAGNOSIS');
-  if(process.env.ODF_G4_REQUIRE_TRACE === '1'){
-    check(persistedStudy.odf_lab_image_landmark_alignment === 'VERIFIED_AARIZ_EXPERT_PAIR',
-      'G4_SOURCE_PAIR_REVOKED_OR_LOST_ON_CLINICIAN_DRAFT_SAVE');
-    check(createHash('sha256').update(media).digest('hex')===persistedStudy.odf_lab_display_png_sha256,
-      'G4_ACTUAL_FILM_HASH_MUST_SURVIVE_UNCHANGED_CLINICIAN_SAVE');
-    check(Array.isArray(persistedStudy._evidence_graph_v1?.landmarks)
-          && persistedStudy._evidence_graph_v1.landmarks.length >= 19,
-      'G4_PERSISTED_EXPERT_LANDMARKS_MUST_SURVIVE_CLINICIAN_SAVE');
-  }
-  const noteUrl='/api/patients/'+ids.patient_id+'/ortho-bilan/'+ids.older_id+'/notes';
-  const pending=await api.get(noteUrl,{headers,params:{expected_revision:scientific.revision}});
-  check(pending.status()===200 && !(await pending.json()).approved,
-    'DRAFT_NOT_APPROVED_BEFORE_DENTIST_CONFIRMATION');
-
-  await page.getByRole('button',{name:'2. Approuver mes notes'}).click();
-  await page.getByRole('status').getByText(/Notes approuvées par le dentiste/).waitFor({timeout:20000});
-  check(true,'REAL_DENTIST_EXPLICIT_APPROVAL');
-  await snap('06-notes-approved');
-  const signed=await api.get(noteUrl,{headers,params:{expected_revision:scientific.revision}});
-  const signedBody=await signed.json();
-  check(signed.status()===200 && signedBody.approved===true
-    && signedBody.notes.moulages.classe_molaire_droite==='Classe I'
-    && signedBody.notes.moulages.classe_molaire_gauche==='Classe I',
-    'PERSISTED_STRUCTURED_ANGLE_BILATERAL_AND_SIGNED');
 
   const blocked=await api.get(
     '/api/patients/'+ids.patient_id+'/ortho-bilan/'+ids.latest_id+'/notes',
