@@ -121,7 +121,7 @@ with tempfile.TemporaryDirectory(prefix="cb03-g4-sqlcipher-") as tmp:
             wrong.execute("SELECT COUNT(*) FROM appointments").fetchone()
         finally:
             wrong.close()
-    except sqlite3.DatabaseError:
+    except cipher.DatabaseError:
         pass
     else:
         raise AssertionError("WRONG_KEY_DECRYPTED_DB")
@@ -165,7 +165,6 @@ with tempfile.TemporaryDirectory(prefix="cb03-g4-sqlcipher-") as tmp:
     assert len(result) == 2 and all(v in {"won", "rejected", "locked-refused"} for v in result)
     with Session(engine) as db:
         assert db.get(Action, id1).status == "executed"
-        assert db.execute(select(audit.c.id).where(audit.c.action_id == id1)).rowcount != -1 or True
         assert len(db.execute(select(audit.c.id).where(audit.c.action_id == id1)).all()) == 1
         assert not claims.claim_prepared_action(db, Action, id1, user, tenant, datetime.utcnow())
         assert not claims.claim_prepared_action(db, Action, id2, user + 1, tenant, datetime.utcnow())
