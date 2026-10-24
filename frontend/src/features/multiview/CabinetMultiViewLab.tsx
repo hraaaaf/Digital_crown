@@ -298,13 +298,21 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
         </div>
         </div>
       </header>
-      {!accepted && <p role="status" className={responsiveSingleMediaFallback
-        ? 'rounded-xl border border-info-border bg-info-surface px-3 py-2.5 text-sm font-medium text-info'
-        : 'rounded-xl border border-warning-border bg-warning-surface px-3 py-2.5 text-sm font-medium text-warning'}>
-        {responsiveSingleMediaFallback
-          ? 'Disposition trop large pour cet écran : médiathèque seule en lecture sécurisée. Agrandissez la fenêtre pour retrouver les vues côte à côte.'
-          : 'Disposition protégée : identité du poste, permissions ou largeur des panneaux à vérifier.'}
-      </p>}
+      {responsiveSingleMediaFallback && trustedPatient
+        ? <section role="status" data-testid="multiview-layout-safe-info"
+            className="flex flex-wrap items-start gap-3 rounded-xl border border-info-border bg-card px-3 py-3 text-text-main shadow-sm">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-info-surface text-info"><Eye size={20}/></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-extrabold text-text-main">Mode compact sécurisé</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-text-muted">
+                Disposition trop large pour cet écran : médiathèque seule en lecture sécurisée. Agrandissez la fenêtre pour retrouver les vues côte à côte.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full border border-border-main bg-medical-pearl px-2.5 py-1 text-[11px] font-bold text-primary-ink">R · lecture seule</span>
+          </section>
+        : !accepted && <p role="status" className="rounded-xl border border-warning-border bg-warning-surface px-3 py-2.5 text-sm font-medium text-warning">
+            Disposition protégée : identité du poste, permissions ou largeur des panneaux à vérifier.
+          </p>}
       {responsiveSingleMediaFallback && trustedPatient
         ? <section data-testid="multiview-responsive-single-media-fallback"
             aria-label="Médiathèque clinique seule — repli de lisibilité"
