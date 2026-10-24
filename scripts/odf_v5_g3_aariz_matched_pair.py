@@ -51,8 +51,10 @@ def _paired_names(names: list[str]) -> tuple[str,str,str]:
     candidates=sorted(p for p in names if "/cephalograms/" in ("/"+p.lower())
                       and p.lower().endswith((".png",".jpg",".jpeg",".bmp")))
     # Prefer an ID from the independent validation set.
-    candidates.sort(key=lambda p:(not any(("/valid/","/test/") in "/"+p.lower()
-                                             for _ in [0]),p.lower()))
+    candidates.sort(key=lambda p: (
+        not any(part in ("/" + p.lower()) for part in ("/valid/", "/test/")),
+        p.lower(),
+    ))
     for image in candidates:
         root=image.rsplit("/",1)[0]
         prefix=root.rsplit("/",1)[0]+"/Annotations/Cephalometric Landmarks/"
