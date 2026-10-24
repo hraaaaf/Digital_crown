@@ -89,3 +89,20 @@ The private intake script and its 16 negative / positive contract tests were tra
 **Rights gate:** The FACAD vendor's publicly published terms indicate fixed licenses are computer-specific and installation in other computing environments without manufacturer consent is prohibited. Historical GitHub runners that successfully installed FACAD were disposable and do **not** convey durable authorization to a new runner. The owner must establish valid current license/consent for the actual machine used to export before any such GUI operation. An operator's `authorized_facad_use_confirmed=true` in the intake file is merely an assertion and requires independent documentary confirmation. Keep D3 isolation UNVERIFIED, no clinical edit / Save until verified.
 
 **New result gate:** No authentic six-file export set, no Ricketts 32F or 13F patient/sample numeric analysis results, and no numeric matches have been produced by this branch. If the contract tests pass, only the **private intake tooling** is verified. Numeric parity remains 0/45 observed, workflow parity 0/7 and CLINICAL NO-GO. No merge/deploy without separate approval.
+
+## 2026-10-24 — 45-position source-locked *manual* numerical diagnostic (NO CLINICAL PARITY)
+
+The independent **offline, nonclinical** `audit/cephalo_facad_manual_delta_diagnostic.py` tool is new in DRAFT PR #1065. It provides a source-locked review plan for 32 named **FACAD Ricketts 32F** vendor factors (the six existing mapping entries + the 26 resolved backlog entries) and **13 numbered 13F slots**. Its source set on `master` does **not** independently contain an ordered, named FACAD 13F roster: it must not silently substitute the **Gregoret/Atlas** 13 factor list. All 45 are *readiness slots* and **zero are measured clinical parity rows**. The 7 especially sensitive 32F constructs use the exact `facad_order` locks and `direct_alias_allowed=false` from the canonical final-seven schema; the additional vendor variants retain their separate construct identity.
+
+Readiness summary only (no vendor data, no license action):
+
+```bash
+python -m audit.cephalo_facad_manual_delta_diagnostic \
+  --private-output /private/unused-new-directory/facad-readiness.json
+```
+
+A supplementary **manually transcribed synthetic candidate** may be reviewed with `--manual-input /private/trace-candidates.json`; the tool only accepts a strict opaque case ID, at most 45 exact factor order/label slots, optional DECIMAL STRING values, unambiguous `mm`/`deg` units, an explicit DC canonical ID, and separate geometry/sign/rounding booleans. Neither the fact that the operator ticks those booleans nor a computed numerical difference proves a vendor export, provenance, landmark identity, signed/rounded display equality, or clinical concordance. Entries associated with seven source-locked sensitive geometries, any other vendor-specific variant, unit mismatch, false attestation, missing value, or unverified FACAD 13F roster are **refused a numerical difference**. Any difference that is computed is labeled `RAW_MANUAL_DIFFERENCE_UNVERIFIED`; exact numeric equality **never** creates a PASS status.
+
+The tool produces an output file **outside the repository** only if the file does not yet exist, does not access/parse FACAD installer, GUI, trial, EULA, raw vendor files, patients, archived PDFs or Digital Crown application runtime; it neither changes the existing LOT08 manifest nor publishes any data. This is preparation for a *later* independently sourced, consented six-file and same-calibration FACAD/DC numerical comparison. DO NOT use the diagnostic with real patients or clinical decisions. Current status remains **0 actual Ricketts numeric comparisons / 45 expected positions, 0 authentic new six-file exports, CLINICAL NO-GO**.
+
+Contract tests are in `audit/test_cephalo_facad_manual_delta_diagnostic.py`; the CI `.github/workflows/facad-robert-private-intake-contract.yml` runs them **only with synthetic values** alongside the original 16 private-staging tests. No runtime or official FACAD GUI is invoked.
