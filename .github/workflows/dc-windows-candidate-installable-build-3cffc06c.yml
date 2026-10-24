@@ -55,7 +55,16 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          # Windows-hosted toolcache has global pipx constraints unrelated to Cabinet.
+          # Isolate pinned cabinet packages; never weaken pip check or change the lock.
+          $venv=Join-Path $env:GITHUB_WORKSPACE 'evidence/venv-win'
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) {throw 'Isolated Python venv creation failed'}
+          $venvScripts=Join-Path $venv 'Scripts'
+          $env:PATH="$venvScripts;$env:PATH"
+          $venvScripts | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           python -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) {throw 'Isolated pip setup failed'}
           Push-Location evidence/code/backend
           try {
             python -m pip install -r requirements-windows-build.txt
