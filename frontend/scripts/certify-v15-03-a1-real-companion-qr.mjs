@@ -74,7 +74,7 @@ async function stationPage(browser, station) {
   await page.locator('[data-station-action="appointment"]').waitFor({state:'visible',timeout:50000});
   return {page,ctx};
 }
-let kiosk, paired, third, browser, phone, station;
+let kiosk, paired, third, patientApi, browser, phone, station;
 try {
   // Cold, unpaired first browser must not expose patient data.
   browser=await chromium.launch({headless:true});
@@ -206,7 +206,10 @@ try {
   // Replay and invented opaque bearer value are refused by genuine FastAPI.
   const handoffToken=new URL(created.handoffUrl).searchParams.get('stationSession');
   const auth={Authorization:'Bearer '+primaryAccess.access_token};
-  const postClaim=(token,accessId)=>paired.api.post('/api/workstation/patient-session/claim',{
+  // Patient claim checks must come from a phone-only HTTP client with no staff
+  // workstation cookie or clinical auth inherited from the kiosk actors.
+  patientApi=await request.newContext({baseURL:backend,timeout:20000});
+  const postClaim=(token,accessId)=>patientApi.post('/api/workstation/patient-session/claim',{
     headers:auth,data:{token,accessId},
   });
   const replay=await postClaim(handoffToken,primaryAccess.context.access_id);
@@ -254,7 +257,7 @@ try {
   console.log('G03_A1_REAL_COMPANION_QR_PASS '+JSON.stringify(evidence.cases));
 } finally {
   await browser?.close();
-  await Promise.allSettled([kiosk?.api?.dispose(),paired?.api?.dispose(),third?.api?.dispose()]);
+  await Promise.allSettled([kiosk?.api?.dispose(),paired?.api?.dispose(),third?.api?.dispose(),patientApi?.dispose()]);
   await fs.mkdir(out,{recursive:true});
   await fs.writeFile(path.join(out,'evidence-after.json'),JSON.stringify(evidence,null,2));
 }
