@@ -1,0 +1,58 @@
+name: Verify Sigstore for CODE_CERTIFIED 3cffc06c (isolated, evidence only)
+on:
+  push:
+    branches:
+      - evidence/attest-codecert-3cffc06c-20261024
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+jobs:
+  sigstore-provenance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SHA: 3cffc06c23c5be2086cdb18e23aae93d66dee700
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 3cffc06c23c5be2086cdb18e23aae93d66dee700
+          persist-credentials: false
+      - name: Check exact certified source and obtain official content manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/master" --jq '.commit.sha')" = "$EXPECTED_SHA"
+          mkdir -p evidence/code-release evidence/attestation
+          gh run download 40043891636 --repo "$GITHUB_REPOSITORY" --name code-certified-dc-cabinet-3cffc06c23c5-run40043891636 --dir evidence/code-release
+          python - <<'PY'
+          import json,hashlib,pathlib,os
+          p=pathlib.Path('evidence/code-release')
+          c=json.loads((p/'release-certification.json').read_text())
+          assert c['certification_level']=='CODE_CERTIFIED'
+          assert c['commit_sha']==os.environ['EXPECTED_SHA']
+          assert hashlib.sha256((p/'release-content.sha256').read_bytes()).hexdigest()==c['content_manifest_sha256']
+          assert c['installable'] is False
+          print('CODE_CERTIFICATE_MATCH=SUCCESS')
+          PY
+      - name: Independently verify GitHub Sigstore signature and exact origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh attestation verify evidence/code-release/release-content.sha256 --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/cabinet-release-certification.yml" --source-digest "$EXPECTED_SHA" --source-ref refs/heads/master --deny-self-hosted-runners --format json > evidence/attestation/github-attestation-verification.json
+          python - <<'PY'
+          import json
+          p='evidence/attestation/github-attestation-verification.json'
+          v=json.load(open(p))
+          assert isinstance(v,list) and v
+          print('GITHUB_SIGSTORE_VERIFIED=SUCCESS',len(v))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dc-verified-github-sigstore-3cffc06c
+          path: evidence/attestation/
+          if-no-files-found: warn
+          retention-days: 14
