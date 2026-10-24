@@ -153,7 +153,12 @@ jobs:
           if test -f /tmp/g5-rea-nemotec-chrome.pid; then
             kill "$(cat /tmp/g5-rea-nemotec-chrome.pid)" 2>/dev/null || true
           fi
-          rm -rf /tmp/g5-rea-synthetic-browser /tmp/g5-rea-nemotec-browser
+          # Chrome can still flush its ephemeral profile after SIGTERM. The VM is disposable.
+          sleep 2
+          rm -rf /tmp/g5-rea-synthetic-browser /tmp/g5-rea-nemotec-browser || {
+            echo 'CLEANUP_WARNING: Chrome profile was still being written; ephemeral runner will be destroyed.'
+            true
+          }
 
       - name: Upload only public website evidence; never patients or proprietary software
         if: always()
