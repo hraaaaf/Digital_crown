@@ -60,6 +60,8 @@ try {
   $logs=Join-Path $base 'logs'
   $runtime=Join-Path $base 'runtime'
   $db=Join-Path $data 'empty-encrypted.db'
+  # Rehearsal media must be a separate, explicitly named disposable root.
+  $media=Join-Path $base 'isolated-rehearsal-media'
   $profile=Join-Path $sandbox 'operator-profile/rehearsal.env'
   $sentinel=Join-Path $sandbox 'outside-sentinel.txt'
   Set-Content -LiteralPath $sentinel -Value 'SYNTHETIC ONLY - NO PATIENT' -Encoding ascii
@@ -74,7 +76,7 @@ try {
   Need ($code.commit_sha -eq $expected -and $code.certification_level -eq 'CODE_CERTIFIED') 'Invalid embedded CODE certificate'
   Need ($cert.commit_sha -eq $expected -and $cert.installable -eq $true -and $cert.github_attestation_verified -eq $true) 'Invalid embedded installable certificate'
   Proof 'AUTHENTIC_WINDOWS_SETUP_INSTALLED_WITH_PROVENANCE=PASS'
-  foreach($dir in @($config,$data,$logs,$runtime)) {New-Item -Force -ItemType Directory -Path $dir | Out-Null}
+  foreach($dir in @($config,$data,$logs,$runtime,$media)) {New-Item -Force -ItemType Directory -Path $dir | Out-Null}
   New-Item -Force -ItemType Directory -Path (Split-Path -Parent $profile) | Out-Null
   $env:ENVIRONMENT='rehearsal'
   $env:DIGITALCROWN_ISOLATED_RUNTIME='1'
@@ -93,6 +95,7 @@ try {
   $env:DIGITALCROWN_CONFIG_DIR=$config
   $env:DIGITALCROWN_LOG_DIR=$logs
   $env:DIGITALCROWN_RUNTIME_DIR=$runtime
+  $env:MEDIA_ROOT=$media
   $env:DIGITALCROWN_ENV_FILE=$profile
   $env:DIGITALCROWN_INSTANCE_ID="CB02-EXE-$env:GITHUB_RUN_ID"
   $env:DATABASE_URL='sqlite:///'+($db -replace '\\','/')
@@ -122,6 +125,7 @@ try {
     ('DIGITALCROWN_CONFIG_DIR="'+$config.Replace('\','/')+'"'),
     ('DIGITALCROWN_RUNTIME_DIR="'+$runtime.Replace('\','/')+'"'),
     ('DIGITALCROWN_LOG_DIR="'+$logs.Replace('\','/')+'"'),
+    ('MEDIA_ROOT="'+$media.Replace('\','/')+'"'),
     'CABINET_HOST=127.0.0.1','CABINET_PORT=18765',
     'ALLOWED_ORIGINS=http://127.0.0.1:18765',
     'TELEMETRY_ENABLED=false','CLOUD_AI_ENABLED=false',
@@ -139,7 +143,7 @@ import os
 from dotenv import dotenv_values
 envfile=os.environ["DIGITALCROWN_ENV_FILE"]
 values=dotenv_values(envfile)
-keys=("DIGITALCROWN_ENV_FILE","DIGITALCROWN_USER_DATA_DIR","DIGITALCROWN_CONFIG_DIR","DIGITALCROWN_RUNTIME_DIR","DIGITALCROWN_LOG_DIR")
+keys=("DIGITALCROWN_ENV_FILE","DIGITALCROWN_USER_DATA_DIR","DIGITALCROWN_CONFIG_DIR","DIGITALCROWN_RUNTIME_DIR","DIGITALCROWN_LOG_DIR","MEDIA_ROOT")
 for key in keys:
     expected=os.environ[key].replace(chr(92),"/")
     assert values.get(key)==expected, f"ENV_PATH_ENCODING_INVALID: {key}"
@@ -149,6 +153,22 @@ print("EXPLICIT_DOTENV_WINDOWS_PATH_ROUNDTRIP=PASS")
   & $py -c $pathCheck
   Need ($LASTEXITCODE -eq 0) 'Windows .env path round-trip failed; no migration and no frozen EXE launch'
   Proof 'EXPLICIT_DOTENV_WINDOWS_PATH_ROUNDTRIP=PASS'
+  # The application guard itself validates the exact media target before EXE boot.
+  $mediaCheck=@'
+import os
+from pathlib import Path
+from backend.core.media_paths import get_media_root, get_real_media_root, validate_media_root
+expected=Path(os.environ['MEDIA_ROOT']).resolve()
+actual=get_media_root()
+assert actual==expected, 'REHEARSAL_MEDIA_PATH_MISMATCH'
+assert actual!=get_real_media_root(), 'REHEARSAL_MEDIA_COLLIDES_WITH_CABINET'
+assert 'rehearsal' in str(actual).lower(), 'REHEARSAL_MEDIA_NAME_MISSING'
+validate_media_root(expected, 'rehearsal')
+print('REHEARSAL_MEDIA_CANONICAL_SAFETY_GUARD=PASS')
+'@
+  & $py -c $mediaCheck
+  Need ($LASTEXITCODE -eq 0) 'Canonical rehearsal media safety refused target'
+  Proof 'REHEARSAL_MEDIA_CANONICAL_SAFETY_GUARD=PASS'
 
   Need (-not (Test-Path -LiteralPath $db)) 'DB unexpectedly preexisted'
   & $py -m alembic -c alembic.ini upgrade head
