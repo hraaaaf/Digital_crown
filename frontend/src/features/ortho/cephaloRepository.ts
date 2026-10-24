@@ -63,6 +63,38 @@ export const cephaloRepository = {
     return res.data;
   },
 
+  /** G5 disposable LAB — real manually drawn source-bound anatomy. */
+  async readAnatomicalTrace(patientId: number, analysisId: number, revision: number) {
+    const res = await api.get(`/patients/${patientId}/ortho-bilan/${analysisId}/anatomical-trace`, {
+      params: { expected_revision: revision },
+    });
+    return res.data as {
+      draft_version: number; analysis_revision: number;
+      approved: boolean; stale: boolean;
+      contours: {id: string;points: number[][]}[];
+    };
+  },
+
+  async saveAnatomicalTraceDraft(patientId: number, analysisId: number, payload: {
+    expected_revision: number; expected_draft_version: number;
+    contours: {id: string;points: number[][]}[];
+  }) {
+    const res = await api.put(
+      `/patients/${patientId}/ortho-bilan/${analysisId}/anatomical-trace/draft`, payload,
+    );
+    return res.data;
+  },
+
+  async approveAnatomicalTrace(patientId: number, analysisId: number, payload: {
+    expected_revision: number; expected_draft_version: number;
+  }) {
+    const res = await api.post(
+      `/patients/${patientId}/ortho-bilan/${analysisId}/anatomical-trace/approve`,
+      {...payload,confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE'},
+    );
+    return res.data;
+  },
+
   /**
    * Demande au serveur de vérifier le candidat fiducial déjà persisté.
    * Aucun profil physique n'est sélectionnable côté client.
