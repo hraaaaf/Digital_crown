@@ -165,9 +165,11 @@
   grid-template-rows: max-content minmax(460px,auto) !important;
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] > [data-v15-071-viewslot="dossier"] {
-  /* Keep media visible without hiding historical PDFs: this panel scrolls
-     independently and the underlying dataset/authorization is unchanged. */
-  max-height: 225px;
+  /* The G1 real-browser contract requires the genuine media to start in
+     the initial 1920px viewport (<950px Y). Keep the summary content reachable
+     through independently scrollable read-only panel and BILAN fullscreen.
+     No clipping of document data or modification to business permissions. */
+  max-height: 180px;
   overflow-y: auto;
   scrollbar-width: thin;
 }
