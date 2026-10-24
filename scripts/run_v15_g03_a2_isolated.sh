@@ -76,7 +76,7 @@ python -m pytest backend/tests/test_station_patient_session_v15.py \
 (
   cd frontend
   npm ci
-  npm install --no-save --package-lock=false playwright@1.55.0
+  npm install --no-save --package-lock=false playwright@1.64.1
   npx playwright install --with-deps chromium
   node --check scripts/certify-v15-03-a2-real-fallback.mjs
   npx vitest run src/features/hub/StationPatientIdentity.test.tsx \
