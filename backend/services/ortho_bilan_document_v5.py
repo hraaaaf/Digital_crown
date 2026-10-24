@@ -236,5 +236,9 @@ def build_ortho_bilan_document(projection: Mapping[str, Any]) -> dict[str, Any]:
         # Lab-only source-bound research plate; the document factory injects
         # this after independent image/landmark verification. Never derive it
         # from user-provided narrative or an arbitrary image filename.
-        "research_figure": projection.get("lab_verified_research_figure"),
+        "research_figure": (
+            projection.get("lab_verified_research_figure")
+            if projection.get("lab_image_landmark_alignment") == "VERIFIED_AARIZ_EXPERT_PAIR"
+            else None
+        ),
     }
