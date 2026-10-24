@@ -116,11 +116,11 @@ try {
     'DIGITALCROWN_ISOLATED_RUNTIME=1',
     ('DIGITALCROWN_ISOLATION_DB_FINGERPRINT='+$fingerprint),
     ('DIGITALCROWN_INSTANCE_ID='+$env:DIGITALCROWN_INSTANCE_ID),
-    ('DIGITALCROWN_ENV_FILE="'+$profile+'"'),
-    ('DIGITALCROWN_USER_DATA_DIR="'+$data+'"'),
-    ('DIGITALCROWN_CONFIG_DIR="'+$config+'"'),
-    ('DIGITALCROWN_RUNTIME_DIR="'+$runtime+'"'),
-    ('DIGITALCROWN_LOG_DIR="'+$logs+'"'),
+    ('DIGITALCROWN_ENV_FILE="'+$profile.Replace('\','/')+'"'),
+    ('DIGITALCROWN_USER_DATA_DIR="'+$data.Replace('\','/')+'"'),
+    ('DIGITALCROWN_CONFIG_DIR="'+$config.Replace('\','/')+'"'),
+    ('DIGITALCROWN_RUNTIME_DIR="'+$runtime.Replace('\','/')+'"'),
+    ('DIGITALCROWN_LOG_DIR="'+$logs.Replace('\','/')+'"'),
     'CABINET_HOST=127.0.0.1','CABINET_PORT=18765',
     'ALLOWED_ORIGINS=http://127.0.0.1:18765',
     'TELEMETRY_ENABLED=false','CLOUD_AI_ENABLED=false',
@@ -130,6 +130,25 @@ try {
   )
   $profileBody | Set-Content -LiteralPath $profile -Encoding utf8
   Need (Test-Path -LiteralPath $profile -PathType Leaf) 'Explicit .env must exist before migration'
+  # python-dotenv decodes escape sequences in double-quoted values, including
+  # Windows path segments like D:\a and \no-patient; slash normalization is essential.
+  # Independently parse the written profile before any database migration.
+  $pathCheck=@'
+import os
+from dotenv import dotenv_values
+envfile=os.environ["DIGITALCROWN_ENV_FILE"]
+values=dotenv_values(envfile)
+keys=("DIGITALCROWN_ENV_FILE","DIGITALCROWN_USER_DATA_DIR","DIGITALCROWN_CONFIG_DIR","DIGITALCROWN_RUNTIME_DIR","DIGITALCROWN_LOG_DIR")
+for key in keys:
+    expected=os.environ[key].replace(chr(92),"/")
+    assert values.get(key)==expected, f"ENV_PATH_ENCODING_INVALID: {key}"
+assert values["DATABASE_URL"]==os.environ["DATABASE_URL"], "DB_URL_ENCODING_INVALID"
+print("EXPLICIT_DOTENV_WINDOWS_PATH_ROUNDTRIP=PASS")
+'@
+  & $py -c $pathCheck
+  Need ($LASTEXITCODE -eq 0) 'Windows .env path round-trip failed; no migration and no frozen EXE launch'
+  Proof 'EXPLICIT_DOTENV_WINDOWS_PATH_ROUNDTRIP=PASS'
+
   Need (-not (Test-Path -LiteralPath $db)) 'DB unexpectedly preexisted'
   & $py -m alembic -c alembic.ini upgrade head
   Need ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $db -PathType Leaf)) 'Explicit disposable encrypted DB migration failed'
