@@ -16,22 +16,25 @@
 | A2-01 Owner setup | owner enrollment/PIN, real Station lock, wrong PIN 403 | Browser harness real API |
 | A2-02 Phone and birth date | actual fallback form, punctuation-normalized phone, 200; rendered unique identity | Chromium AFTER + HTTP + independent SQL AuditLog |
 | A2-03 Name and birth date | accent/case/space-normalized names, 200 | second Chromium AFTER + API + AuditLog |
-| A2-04 Disabled | no public fallback button and real API 403 | Chromium 768 + HTTP |
+| A2-04 Disabled | no public fallback button and real API 403 | Chromium 768/1280 + HTTP |
 | A2-05 Collision | 2 fictional patients share phone+DOB; 403×4 then 429, no names shown | Chromium BEFORE/AFTER, 5 real requests |
 | A2-06 Restart/reset | refreshed session still 429; independent station remains 200 | actual backend + station-scoped SQL counter |
-| A2-07 Boundaries | wrong workstation 404 and test-only expired session 409 | distinct workstation cookie + injected disposable SQL expiry |
+| A2-07 Boundaries | wrong workstation 404 and test-only expired session 409, or 404 when UI status poll already purged the expired row | distinct workstation cookie + injected disposable SQL expiry + expired screen |
 | A2-08 Data minimization | sanitized HTTP path+status, no query/body/cookie/token/clinical data | evidence-after.json inspection |
-| A2-09 Independent readback | persisted 5 failed attempts, successful identity audits, 3 intact fictitious patients, 0 clinical appointment mutation | separate SQLCipher process |
-| A2-10 Regression | previous Station API pytest and React Station identity Vitest unchanged | exact HEAD run required |
+| A2-09 Independent readback | persisted 5 failed attempts, successful identity audits, 3 intact fictitious patients, 0 clinical appointment mutation and >=9 screenshots | separate SQLCipher process |
+| A2-10 Negative credentials | wrong DOB and unknown phone return generic 403, no patient name; PIN 403; independent station remains 200 | live Chromium / FastAPI / SQL |
+| A2-11 Regression | previous Station API pytest and React Station identity Vitest unchanged | exact HEAD run required |
 
 **Pre-existing code:** `backend/routers/station_patient_session.py` implements `phone_dob`, `name_dob`, `disabled`, mode set with owner PIN, station-scoped five failures in 15 minutes, normalized identifiers and generic collision refusal. A2 does NOT replace this production logic.
 
 ## Proof entry points
 
 - `scripts/seed_v15_station_fallback_a2.py` seeds exactly three fictitious patients; `--verify` reads SQLCipher independently and `--expire-session` injects only isolated expiry.
-- `frontend/scripts/certify-v15-03-a2-real-fallback.mjs` runs real Chromium-to-FastAPI cases and writes 8+ PNGs plus sanitized `evidence-after.json` (must be executed before any PASS).
+- `frontend/scripts/certify-v15-03-a2-real-fallback.mjs` runs real Chromium-to-FastAPI cases and writes 9+ PNGs plus sanitized `evidence-after.json` (must be executed before any PASS).
 - **CI blocker at creation:** editing the dedicated `.github/workflows/v15-fue-g03-a2-fallback.yml` was blocked by the GitHub tool security controls. Do not bypass the block, and do not claim executable certification until an authorized CI workflow is committed and an exact-HEAD run + artifacts are independently checked.
 
 ## Closure / exclusions
 
 A2 requires completed exact-SHA CI, jobs and step logs, actual negative responses, all genuine screenshots inspected, independent SQL oracle PASS, and human visual sign-off if UI/visual changes justify it. Failing any required case = A2 OPEN. No merge, Vercel, Production, patient real data or physical certification. A3 (deep 0/1/N RDV and public Wall) is a separate next step, not implicitly started.
+
+**CI escalation:** GitHub Issues is disabled (HTTP 410); the security-reviewed Actions workflow request is lodged in PR #1069 conversation. No privileged workflow-file write attempted after its explicit security-control block.
