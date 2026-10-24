@@ -71,4 +71,50 @@ describe('DEC-R2-02 MultiView BILAN R-only adapter', () => {
     expect(document.querySelector('input[type=file]')).toBeNull();
     expect(vi.mocked(api.post)).not.toHaveBeenCalled();
   });
+  it('offers a larger BILAN view without exporting, signing or modifying clinical data', async () => {
+    vi.mocked(api.get).mockImplementation((url) =>
+      url === '/patients/17/documents'
+        ? Promise.resolve({ data: [{ id: '41', type: 'BILAN', name: 'Bilan visuel synthétique' }] } as never)
+        : Promise.resolve({ data: new Blob(['%PDF-1.4'], { type: 'application/pdf' }) } as never));
+    render(<HistoricBilanReadonlyPanel patientId={17}/>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Consulter : Bilan visuel synthétique' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Agrandir/ })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /Agrandir/ }));
+    expect(screen.getByRole('dialog', { name: /Bilan historique agrandi/ })).toBeTruthy();
+    expect(document.querySelectorAll('iframe')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: /^Fermer$/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    for (const mutate of [api.post, api.put, api.patch, api.delete]) {
+      expect(vi.mocked(mutate)).not.toHaveBeenCalled();
+    }
+  });
+
+  it('renders guarded PNG pages with pure GET navigation and revokes old image URLs', async () => {
+    vi.mocked(api.get).mockImplementation((url) => {
+      if (url === '/patients/17/documents') return Promise.resolve({
+        data: [{ id: '41', type: 'BILAN', name: 'Bilan à deux pages' }],
+      } as never);
+      if (url === '/documents/bilan/41/view') return Promise.resolve({
+        data: new Blob(['%PDF-1.4'], { type: 'application/pdf' }),
+      } as never);
+      if (url === '/documents/bilan/41/page') return Promise.resolve({
+        data: new Blob(['synthetic-png-bytes'], { type: 'image/png' }),
+        headers: { 'x-bilan-page-count': '2' },
+      } as never);
+      return Promise.reject(new Error('unexpected route'));
+    });
+    render(<HistoricBilanReadonlyPanel patientId={17}/>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Consulter : Bilan à deux pages' }));
+    expect(await screen.findByTestId('bilan-page-image')).toBeTruthy();
+    expect(screen.getByText('Page 1 / 2')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Page suivante' }));
+    await waitFor(() => expect(screen.getByText('Page 2 / 2')).toBeTruthy());
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/documents/bilan/41/page', {
+      responseType: 'blob', params: { page: 2 },
+    });
+    expect(URL.revokeObjectURL).toHaveBeenCalled();
+    for (const mutation of [api.post, api.put, api.patch, api.delete])
+      expect(vi.mocked(mutation)).not.toHaveBeenCalled();
+  });
+
 });
