@@ -80,12 +80,21 @@ try {
   browser=await chromium.launch({headless:true});
   const cold=await browser.newContext({viewport:{width:430,height:932}});
   const coldPage=await cold.newPage();
-  await coldPage.goto(origin+'/station',{waitUntil:'domcontentloaded'});
-  await coldPage.waitForTimeout(1200);
+  // A cold, unpaired visitor must reach the real data-free Hub, not be
+  // photographed during the blank initial Station/bootstrap decision frame.
+  // The Hub is a recovery/first-use screen even without a staff login.
+  await coldPage.goto(origin+'/hub?select=1',{waitUntil:'domcontentloaded'});
+  const realHub=coldPage.locator('[data-v15-hub]');
+  await realHub.waitFor({state:'visible',timeout:30000});
+  await coldPage.getByText('Digital Crown Hub',{exact:true}).waitFor({state:'visible',timeout:15000});
+  await coldPage.locator('[data-hub-experience="station"]').waitFor({state:'visible',timeout:15000});
+  const hubText=await realHub.innerText();
+  assert(hubText.includes('Configuration guidée avant mise en service.'),'Hub first-use instruction absent');
+  assert(!hubText.includes(fixtures.primary.displayName),'fresh Hub must never contain patient data');
   assert(await coldPage.locator('[data-station-arrival-confirmed]').count()===0,'unauthenticated browser leaked arrival data');
-  await snap(coldPage,'01-fresh-unpaired-before.png');
+  await snap(coldPage,'01-fresh-unpaired-hub-before.png');
   await cold.close();
-  evidence.cases['01_cold_start']={anonymousArrivalHidden:true};
+  evidence.cases['01_cold_start']={anonymousArrivalHidden:true,realHubRendered:true,firstUseInstructionVisible:true};
 
   kiosk=await apiActor();
   const enroll=await expected(await kiosk.api.post('/api/workstation/enroll',{
@@ -235,7 +244,17 @@ try {
   await phone.locator('[data-pc00-context]').filter({hasText:fixtures.primary.displayName}).click();
   const claimed=await claims;
   await expected(claimed,'real Companion QR claim',[200]);
+  const claimResult=await claimed.json();
+  assert(claimResult.purpose==='appointment','Server must bind appointment intent to the genuine QR secret');
   await phone.locator('[data-station-handoff-status]').waitFor({state:'visible',timeout:25000});
+  const handoffCopy=await phone.locator('[data-station-handoff-status]').innerText();
+  assert(handoffCopy.includes('rendez-vous')&&handoffCopy.includes('arrivée'),
+    'patient companion must explain appointment arrival');
+  assert(!handoffCopy.includes('retrait'),'appointment QR must not show document-withdrawal wording');
+  assert(await phone.getByRole('button',{name:'Aujourd’hui'}).getAttribute('aria-current')==='page',
+    'appointment QR must return to Today, not Documents');
+  assert(await phone.locator('[data-station-documents-identity-confirmed]').count()===0,
+    'appointment QR cannot open Station documents flow');
   await kioskPage.locator('[data-station-arrival-bridge]').waitFor({state:'visible',timeout:25000});
   await snap(phone,'03-companion-claimed-after.png');
   await snap(kioskPage,'03-kiosk-patient-identified-after.png');
@@ -247,6 +266,8 @@ try {
   await snap(kioskPage,'03-kiosk-arrival-after.png');
   evidence.cases['03_real_phone_to_station']={
     realQRHandoff:true, explicitPatientSelection:true,
+    backendAuthenticatedPurpose:'appointment', companionArrivalWording:true,
+    companionTodayActive:true, noDocumentWithdrawalWording:true,
     claimStatus:claimed.status(), kioskIdentified:true, appointmentPersistedByRealAPI:true,
     wrongWorkstationDenied:wrongStation.status(), unclaimedArrivalDenied:before.status(),
   };
