@@ -47,11 +47,20 @@ def _patient(db, employer_id, suffix):
 
 
 def _archived_row(db, patient, kind):
+    # Mirror the archive service's mandatory SQL metadata without writing a PDF.
+    # A missing document_group_id/file_hash/file_size aborts at INSERT before any
+    # of the HTTP authorization assertions can execute.
+    from hashlib import sha256
+
+    synthetic_content = b"synthetic-r2-metadata-only"
     doc = models.DocumentArchive(
         patient_id=patient.id,
         document_type=kind,
         filename="r2-synthetic-unavailable.pdf",
         original_filename="r2-synthetic-unavailable.pdf",
+        document_group_id=f"r2-{patient.id}-{kind.value.lower()}",
+        file_hash=sha256(synthetic_content).hexdigest(),
+        file_size=len(synthetic_content),
         file_path="nonexistent-synthetic-only/r2.pdf",
         title="Synthetic R2 document",
     )
