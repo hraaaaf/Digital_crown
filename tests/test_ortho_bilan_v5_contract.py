@@ -193,7 +193,7 @@ class OrthoV5DocumentContract(unittest.TestCase):
             self.assertFalse(bad["resume_diagnostique"],change)
             self.assertFalse(bad["plan_traitement"],change)
 
-    def test_source_bound_research_annex_has_weasy_reportlab_parity(self):
+    def test_source_bound_trace_inside_first_phase_has_weasy_reportlab_parity(self):
         # Synthetic colored pixels solely to verify paper layouts.
         # Real Aariz image-to-landmark SHA256 and geometry are checked in G3.
         from PIL import Image
@@ -205,10 +205,14 @@ class OrthoV5DocumentContract(unittest.TestCase):
         encoded = b64encode(buffer.getvalue()).decode("ascii")
         study=typed_study()
         plate={
+            "contract_version":"ODF_CEPHALOMETRIC_GEOMETRY_V1",
+            "kind":"GEOMETRIC_CEPHALOMETRIC_TRACING",
             "data_uri":"data:image/jpeg;base64," + encoded,
             "image_b64":encoded,
             "caption":"Aariz Cephalometric Dataset (CC BY 4.0), recherche uniquement",
             "source_url":"https://doi.org/10.1038/s41597-025-05542-3",
+            "legend":[{"name": x, "color":"#44C5FF"} for x in
+                      ("SN","FH","NA","NB","Go–Me","U1","L1")],
         }
         study["lab_verified_research_figure"]=plate
         self.assertIsNone(build_ortho_bilan_document(study)["research_figure"])
@@ -222,11 +226,12 @@ class OrthoV5DocumentContract(unittest.TestCase):
                 pdf=PdfReader(pdf_path)
                 self.assertGreaterEqual(len(pdf.pages),2)
                 all_text="\\n".join(p.extract_text() or "" for p in pdf.pages)
-                self.assertIn("Téléradiographie de profil",all_text)
+                self.assertIn("Tracé céphalométrique",all_text)
                 self.assertIn("Aariz Cephalometric Dataset",all_text)
-                self.assertGreater(all_text.index("Plan de traitement"), -1)
-                self.assertLess(all_text.index("Plan de traitement"),
-                                all_text.index("Téléradiographie de profil"))
+                self.assertLess(all_text.index("Tracé céphalométrique"),
+                                all_text.index("A. Analyse osseuse"))
+                self.assertLess(all_text.index("Tracé céphalométrique"),
+                                all_text.index("Plan de traitement"))
                 self.assertNotIn("Non calculable",all_text)
 
     def test_real_pdf_weasyprint_and_fallback_have_same_four_phases(self):
