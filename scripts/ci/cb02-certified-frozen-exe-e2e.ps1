@@ -357,11 +357,32 @@ public static class Cb02NativeWindowDiagnostics {
         )
         $closeButton=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$closeCondition)
         Need ($null -ne $closeButton) 'Refusal modal has no Close action'
-        $closePattern=$closeButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-        Need ($null -ne $closePattern) 'Refusal modal Close is not invokable'
-        $closePattern.Invoke()
+        # PyInstaller's native #32770 MessageBox Close button does not support
+        # UIAutomation InvokePattern on Windows Server 2022. Use Win32 messages
+        # only on the confirmed, PID-owned attestation-refusal dialog.
+        $closeNative=@'
+using System;
+using System.Runtime.InteropServices;
+public static class Cb02RefusalDialogClose {
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern IntPtr SendMessage(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
+  [DllImport("user32.dll", SetLastError=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
+}
+'@
+        Add-Type -TypeDefinition $closeNative -ErrorAction Stop
+        $buttonHandle=[IntPtr]$closeButton.Current.NativeWindowHandle
+        $dialogHandle=[IntPtr]$window.Current.NativeWindowHandle
+        Need ($buttonHandle -ne [IntPtr]::Zero -and $dialogHandle -ne [IntPtr]::Zero) 'Expected attestation rejection dialog has no native Close handle'
+        [void][Cb02RefusalDialogClose]::SendMessage($buttonHandle,0x00F5,[IntPtr]::Zero,[IntPtr]::Zero)
+        Start-Sleep -Seconds 2
+        $bad.Refresh()
+        if(-not $bad.HasExited) {
+          Need ([Cb02RefusalDialogClose]::PostMessage($dialogHandle,0x0010,[IntPtr]::Zero,[IntPtr]::Zero)) 'Win32 WM_CLOSE refused by attestation dialog'
+        }
         $dialogDismissed=$true
-        Proof 'REAL_EXE_SIGSTORE_REFUSAL_MODAL_DISMISSED=PASS'
+        Proof 'REAL_EXE_SIGSTORE_REFUSAL_MODAL_CLOSE_REQUESTED=PASS'
         break
       }
       if($dialogDismissed) {break}
