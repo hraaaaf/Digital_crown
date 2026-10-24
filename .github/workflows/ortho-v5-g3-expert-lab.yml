@@ -126,6 +126,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_odf_v5_g3_aariz_pair.py' -v
           python -m unittest discover -s tests -p 'test_odf_v5_g4_tracing.py' -v
+          python -m pytest -q backend/tests/test_cephalo_repository_calibration_invariants.py -k g4
       - name: Source-matched Aariz expert landmark import (real image AND two annotations)
         run: |
           python -m scripts.odf_v5_g3_aariz_matched_pair
