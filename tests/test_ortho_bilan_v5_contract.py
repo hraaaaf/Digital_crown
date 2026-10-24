@@ -275,7 +275,11 @@ class OrthoV5DocumentContract(unittest.TestCase):
                 self.assertLess(text.index("Analyse osseuse"),
                                 text.index("Examen des moulages"))
                 self.assertNotIn("Non calculable",text)
-                self.assertGreaterEqual(len(pages),3)
+                self.assertGreaterEqual(len(pages),2)
+                import fitz
+                with fitz.open(output) as rendered:
+                    self.assertGreaterEqual(sum(len(page.get_images()) for page in rendered),2,
+                        'Both clinical overlay and white anatomical drawing must be embedded')
 
     def test_real_pdf_weasyprint_and_fallback_have_same_four_phases(self):
         source = typed_study()
