@@ -149,7 +149,7 @@ try{
     const layers=['Base du crâne','Maxillaire','Mandibule',
       'Incisive supérieure','Incisive inférieure','Profil cutané'];
     for(const [i,label] of layers.entries()){
-      await ui.getByRole('button',{name:new RegExp('^'+label)}).click();
+      await ui.getByRole('button',{name:new RegExp(label)}).click();
       await surface.scrollIntoViewIfNeeded();
       const bounds=await surface.boundingBox();
       check(Boolean(bounds&&bounds.width>200&&bounds.height>300),
@@ -162,7 +162,7 @@ try{
         await page.mouse.move(left+n*10,top+n*4+Math.sin(n/3)*9);
       }
       await page.mouse.up();
-      const count=await ui.getByRole('button',{name:new RegExp('^'+label)})
+      const count=await ui.getByRole('button',{name:new RegExp(label)})
         .innerText();
       check(/2[0-9]\/\d+ points minimum/.test(count),
         'G5_BROWSER_POINTER_STROKE_RECORDED_'+i);
