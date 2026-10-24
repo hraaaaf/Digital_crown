@@ -1,0 +1,201 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {cephaloRepository} from '../cephaloRepository';
+import {useOrthoStore} from '../stores/useOrthoStore';
+
+/** Only mounted with VITE_ODF_G5_LAB=1; API separately refuses all non-LAB calls.
+ * Draw what the dentist actually sees; never derive a silhouette from landmarks.
+ */
+type CurveId='cranial_base'|'maxilla'|'mandible'|'upper_incisor'|
+  'lower_incisor'|'soft_tissue_profile';
+type Point=[number,number];
+type Curve={id:CurveId;points:Point[]};
+const STRUCTURES:{id:CurveId;label:string;min:number;color:string}[]=[
+  {id:'cranial_base',label:'Base du crâne',min:10,color:'#28466A'},
+  {id:'maxilla',label:'Maxillaire',min:10,color:'#345C83'},
+  {id:'mandible',label:'Mandibule',min:16,color:'#24496E'},
+  {id:'upper_incisor',label:'Incisive supérieure',min:7,color:'#246D72'},
+  {id:'lower_incisor',label:'Incisive inférieure',min:7,color:'#246D72'},
+  {id:'soft_tissue_profile',label:'Profil cutané',min:16,color:'#B26B55'},
+];
+const W=1935,H=2400;
+const fresh=():Curve[]=STRUCTURES.map(item=>({id:item.id,points:[]}));
+const pairedImage='/api/static/uploads/radios/t2-cephalo-seeded.png';
+
+export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
+  const patientId=useOrthoStore(s=>s.patientId);
+  const analysisId=useOrthoStore(s=>s.analysisId);
+  const svgRef=useRef<SVGSVGElement|null>(null);
+  const drawing=useRef(false);
+  const requestId=useRef(0);
+  const [curves,setCurves]=useState<Curve[]>(fresh);
+  const [selected,setSelected]=useState<CurveId>('cranial_base');
+  const [revision,setRevision]=useState<number|null>(null);
+  const [draftVersion,setDraftVersion]=useState(0);
+  const [serverApproved,setServerApproved]=useState(false);
+  const [dirty,setDirty]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState('');
+  const [notice,setNotice]=useState('');
+
+  useEffect(()=>{
+    const id=++requestId.current;
+    drawing.current=false;
+    setCurves(fresh());setRevision(null);setDraftVersion(0);
+    setDirty(false);setServerApproved(false);setError('');setNotice('');
+    if(!patientId||!analysisId)return;
+    setLoading(true);
+    (async()=>{
+      try{
+        const study=await cephaloRepository.getAnalysis(analysisId);
+        const r=study.angles_data?.scientific_read_path?.revision;
+        if(study.id!==analysisId||!Number.isSafeInteger(r)||r<1)throw Error('Révision scientifique absente');
+        const server=await cephaloRepository.readAnatomicalTrace(patientId,analysisId,r);
+        if(id!==requestId.current)return;
+        setRevision(r);setDraftVersion(server.draft_version);
+        if(server.stale)throw Error('Courbes périmées : réouvrir cette étude');
+        setCurves(STRUCTURES.map(s=>{
+          const c=server.contours.find((v:{id:string})=>v.id===s.id);
+          return {id:s.id,points:Array.isArray(c?.points)?
+            c.points.map((p:number[])=>[p[0],p[1]] as Point):[]};
+        }));
+        setServerApproved(server.approved);
+      }catch(e){
+        if(id===requestId.current)setError(e instanceof Error?e.message:'Tracé non disponible');
+      }finally{if(id===requestId.current)setLoading(false);}
+    })();
+    return ()=>{requestId.current++;};
+  },[patientId,analysisId]);
+
+  const loc=(e:React.PointerEvent<SVGSVGElement>):Point|null=>{
+    const svg=svgRef.current;if(!svg)return null;
+    const rect=svg.getBoundingClientRect();
+    if(!rect.width||!rect.height)return null;
+    const x=(e.clientX-rect.left)*W/rect.width;
+    const y=(e.clientY-rect.top)*H/rect.height;
+    if(x<0||y<0||x>=W||y>=H)return null;
+    return [Math.round(x*10)/10,Math.round(y*10)/10];
+  };
+  const add=(p:Point)=>{
+    setCurves(prev=>prev.map(c=>{
+      if(c.id!==selected)return c;
+      const last=c.points[c.points.length-1];
+      if(last&&Math.hypot(last[0]-p[0],last[1]-p[1])<5)return c;
+      if(c.points.length>=600)return c;
+      return {...c,points:[...c.points,p]};
+    }));
+    setDirty(true);setServerApproved(false);setNotice('');
+  };
+  const undo=()=>{setCurves(prev=>prev.map(c=>c.id===selected?
+      {...c,points:c.points.slice(0,-1)}:c));setDirty(true);setServerApproved(false);};
+  const clear=()=>{setCurves(prev=>prev.map(c=>c.id===selected?
+      {...c,points:[]}:c));setDirty(true);setServerApproved(false);};
+  const complete=STRUCTURES.every(spec=>(curves.find(c=>c.id===spec.id)?.points.length||0)>=spec.min);
+
+  const save=async()=>{
+    if(!patientId||!analysisId||!revision||!complete||busy||loading)return;
+    setBusy(true);setError('');
+    try{
+      const saved=await cephaloRepository.saveAnatomicalTraceDraft(
+        patientId,analysisId,{
+          expected_revision:revision,expected_draft_version:draftVersion,
+          contours:curves,
+        });
+      setDraftVersion(saved.draft_version);setServerApproved(false);
+      setDirty(false);setNotice('Brouillon manuel enregistré ; validation encore nécessaire.');
+    }catch(e){setError(e instanceof Error?e.message:'Échec d’enregistrement');}
+    finally{setBusy(false);}
+  };
+  const approve=async()=>{
+    if(!patientId||!analysisId||!revision||!draftVersion||dirty||busy)return;
+    setBusy(true);setError('');
+    try{
+      const signed=await cephaloRepository.approveAnatomicalTrace(
+        patientId,analysisId,{
+          expected_revision:revision,expected_draft_version:draftVersion,
+        });
+      if(!signed.approved)throw Error('Approbation du tracé refusée par le serveur');
+      setServerApproved(true);setNotice('Six contours approuvés par le dentiste pour cette révision.');
+    }catch(e){setError(e instanceof Error?e.message:'Validation impossible');}
+    finally{setBusy(false);}
+  };
+
+  if(import.meta.env.VITE_ODF_G5_LAB!=='1')return null;
+  return <section data-testid="odf-g5-manual-tracing"
+    className="space-y-3 rounded-xl border p-4" style={{background:P.bgCard,borderColor:P.border}}>
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <div>
+        <h3 className="font-bold text-sm" style={{color:P.text}}>
+          G5 LAB — tracé anatomique manuel
+        </h3>
+        <p className="text-xs" style={{color:P.textMuted}}>
+          Dessinez à la main six contours sur cette radiographie réelle.
+          Aucun contour n’est proposé automatiquement.
+        </p>
+      </div>
+      <span className="text-xs font-semibold" style={{color:serverApproved?'#23765F':P.textMuted}}>
+        {serverApproved?'Approuvé (LAB)':dirty?'Modifié, non approuvé':'Brouillon'}
+      </span>
+    </div>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {STRUCTURES.map(spec=>{
+        const n=curves.find(c=>c.id===spec.id)?.points.length||0;
+        return <button type="button" key={spec.id} disabled={busy||loading||!revision}
+          aria-pressed={selected===spec.id}
+          onClick={()=>setSelected(spec.id)}
+          className="rounded-lg border px-2 py-2 text-left text-xs"
+          style={{color:P.text,borderColor:selected===spec.id?spec.color:P.border,
+            background:selected===spec.id?P.bgInput:P.bgCard}}>
+          <span style={{color:spec.color}}>●</span> {spec.label}
+          <span className="block opacity-70">{n}/{spec.min} points minimum</span>
+        </button>;
+      })}
+    </div>
+    <svg ref={svgRef} data-testid="odf-g5-drawing-surface"
+      viewBox={`0 0 ${W} ${H}`} role="img"
+      aria-label="Dessiner le contour sélectionné directement sur la téléradiographie"
+      className="mx-auto block w-full max-w-[530px] touch-none rounded-lg border"
+      style={{aspectRatio:`${W} / ${H}`,borderColor:P.border,background:'#18202b',cursor:'crosshair'}}
+      onPointerDown={e=>{
+        if(busy||loading||!revision)return;
+        const p=loc(e);if(!p)return;drawing.current=true;
+        e.currentTarget.setPointerCapture(e.pointerId);add(p);
+      }}
+      onPointerMove={e=>{
+        if(!drawing.current||busy)return;
+        const p=loc(e);if(p)add(p);
+      }}
+      onPointerUp={e=>{drawing.current=false;
+        if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
+      onPointerCancel={()=>{drawing.current=false;}}>
+      <image href={pairedImage} x="0" y="0" width={W} height={H}/>
+      {curves.map(curve=>{
+        const color=STRUCTURES.find(s=>s.id===curve.id)?.color||'#111111';
+        const points=curve.points.map(p=>p.join(',')).join(' ');
+        return <polyline key={curve.id} points={points}
+          fill="none" stroke={color} strokeWidth={curve.id===selected?8:5}
+          strokeLinecap="round" strokeLinejoin="round"/>;
+      })}
+    </svg>
+    <div className="flex flex-wrap gap-2">
+      <button type="button" disabled={busy||loading||!revision}
+        onClick={undo} className="rounded-lg border px-3 py-2 text-xs"
+        style={{borderColor:P.border,color:P.text}}>Annuler dernier point</button>
+      <button type="button" disabled={busy||loading||!revision}
+        onClick={clear} className="rounded-lg border px-3 py-2 text-xs"
+        style={{borderColor:P.border,color:P.text}}>Effacer ce contour</button>
+      <button type="button" disabled={!complete||busy||loading||!dirty||!revision}
+        onClick={save} className="rounded-lg px-3 py-2 text-xs font-semibold"
+        style={{background:P.accent,color:'#fff'}}>Enregistrer les six contours</button>
+      <button type="button" disabled={!complete||busy||loading||dirty||!draftVersion||serverApproved}
+        onClick={approve} className="rounded-lg border px-3 py-2 text-xs font-semibold"
+        style={{borderColor:P.accent,color:P.text}}>Approuver explicitement le tracé</button>
+    </div>
+    <p className="text-xs" style={{color:P.textMuted}}>
+      Pour valider, chaque courbe doit suivre une structure anatomique visible.
+      La saisie ne remplace pas la validation clinique du diagnostic.
+    </p>
+    {(error||notice)&&<p role="status" className="text-xs"
+      style={{color:error?'#ad493b':P.text}}>{error||notice}</p>}
+  </section>;
+};
