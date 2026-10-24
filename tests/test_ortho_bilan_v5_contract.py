@@ -234,6 +234,49 @@ class OrthoV5DocumentContract(unittest.TestCase):
                                 all_text.index("Plan de traitement"))
                 self.assertNotIn("Non calculable",all_text)
 
+    def test_g5_two_views_precede_measurements_in_both_pdf_engines(self):
+        # Synthetic imagery ONLY for pagination/layout. This is NOT an
+        # anatomical reference or a clinically approved Aariz tracing.
+        from PIL import Image
+        from base64 import b64encode
+        from io import BytesIO
+        source=typed_study()
+        radio=Image.new("RGB",(160,200),(33,54,73))
+        blank=Image.new("RGB",(160,200),(250,250,250))
+        def encoded(image):
+            buffer=BytesIO();image.save(buffer,format="JPEG")
+            return b64encode(buffer.getvalue()).decode("ascii")
+        r,c=encoded(radio),encoded(blank)
+        source["lab_image_landmark_alignment"]="VERIFIED_AARIZ_EXPERT_PAIR"
+        source["lab_verified_research_figure"]={
+            "kind":"G5_MANUAL_ANATOMICAL_TRACE",
+            "contract_version":"ODF_ANATOMIC_TRACE_V1",
+            "image_b64":r,"data_uri":"data:image/jpeg;base64,"+r,
+            "anatomical_only_b64":c,
+            "anatomical_only_data_uri":"data:image/jpeg;base64,"+c,
+            "caption":"Aariz Cephalometric Dataset (CC BY 4.0) - TEST LAYOUT",
+            "source_url":"https://doi.org/10.1038/s41597-025-05542-3",
+            "legend":[{"name":x,"color":"#28466A"} for x in ("SN","FH","NA","NB")],
+        }
+        with TemporaryDirectory() as root:
+            gen=BilanOrthoPDFGenerator(root)
+            for name in ("weasyprint","reportlab"):
+                output=str(Path(root)/(name+"-g5.pdf"))
+                getattr(gen,f"_generate_{name}")(vm(),output,projection=source)
+                pages=PdfReader(output).pages
+                text="\\n".join(p.extract_text() or "" for p in pages)
+                self.assertIn("Tracé céphalométrique",text)
+                self.assertIn("Tracé anatomique",text)
+                self.assertIn("vue épurée",text)
+                self.assertLess(text.index("Tracé céphalométrique"),
+                                text.index("Tracé anatomique"))
+                self.assertLess(text.index("Tracé anatomique"),
+                                text.index("Analyse osseuse"))
+                self.assertLess(text.index("Analyse osseuse"),
+                                text.index("Examen des moulages"))
+                self.assertNotIn("Non calculable",text)
+                self.assertGreaterEqual(len(pages),3)
+
     def test_real_pdf_weasyprint_and_fallback_have_same_four_phases(self):
         source = typed_study()
         original=deepcopy(source)
