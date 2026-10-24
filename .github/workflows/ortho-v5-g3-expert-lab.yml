@@ -111,6 +111,8 @@ jobs:
           assert (root/'RADIO_SOURCE_ET_LICENCE.txt').exists()
           print('LAB_PUBLIC_REAL_LATERAL_RADIO_CHECKSUM_CC_BY_SA_PASS')
           PY
+      - name: Check offline expert-image matching contract before downloading dataset
+        run: python -m unittest discover -s tests -p 'test_odf_v5_g3_aariz_pair.py' -v
       - name: Source-matched Aariz expert landmark import (real image AND two annotations)
         run: |
           python -m scripts.odf_v5_g3_aariz_matched_pair
