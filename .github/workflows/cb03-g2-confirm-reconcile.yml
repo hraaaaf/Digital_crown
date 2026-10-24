@@ -11,6 +11,7 @@ on:
       - backend/main.py
       - backend/routers/bot_cb03_confirm_g2.py
       - backend/services/bot/atomic_action_claim.py
+      - backend/services/agenda_availability.py
       - backend/tests/test_bot_cb03_g2_confirm.py
       - .github/workflows/cb03-g2-confirm-reconcile.yml
 
