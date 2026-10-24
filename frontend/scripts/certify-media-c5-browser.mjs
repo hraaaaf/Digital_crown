@@ -98,18 +98,26 @@ for (const viewport of viewports) {
   // the panel itself, otherwise it can hide or manufacture a sticky-header defect.
   await page.waitForTimeout(400);
   const visualFrame = await page.evaluate(() => {
-    const header = document.querySelector('header.sticky');
+    const header = document.querySelector('[data-dc-patient-radiology="true"] > header');
     const panel = document.querySelector('[data-testid="media-compare-panel"]');
     const workspace = document.querySelector('[data-testid="patient-media-timeline"]');
     if (!(header instanceof HTMLElement) || !(panel instanceof HTMLElement) || !(workspace instanceof HTMLElement)) {
-      return { stickyOverlap: true, workspaceOverlap: true, headerBottom: null, panelTop: null, workspaceTop: null };
+      return { stickyOverlap: true, workspaceOverlap: true, missingLayout: true,
+        headerBottom: null, panelTop: null, workspaceTop: null };
     }
+    const headerStyle = getComputedStyle(header);
+    // At <lg the patient header is intentionally in normal document flow,
+    // not position:sticky. CSS class selectors such as 'header.sticky' cannot
+    // detect conditional utility styles: inspect the resolved CSS instead.
+    const headerIsSticky = ['sticky', 'fixed'].includes(headerStyle.position);
     const headerBottom = Math.round(header.getBoundingClientRect().bottom);
     const panelTop = Math.round(panel.getBoundingClientRect().top);
     const workspaceTop = Math.round(workspace.getBoundingClientRect().top);
     return {
-      stickyOverlap: panelTop < headerBottom + 8,
-      workspaceOverlap: workspaceTop < headerBottom + 8,
+      stickyOverlap: headerIsSticky && headerBottom > 0 && panelTop < headerBottom + 8,
+      workspaceOverlap: headerIsSticky && headerBottom > 0 && workspaceTop < headerBottom + 8,
+      headerIsSticky,
+      headerPosition: headerStyle.position,
       headerBottom,
       panelTop,
       workspaceTop,
