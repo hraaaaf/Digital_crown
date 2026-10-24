@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {cephaloRepository} from '../cephaloRepository';
+import {G5BezierProfileLabCanvas} from './G5BezierProfileLabCanvas';
 import {useOrthoStore} from '../stores/useOrthoStore';
 
 /** Only mounted with VITE_ODF_G5_LAB=1; API separately refuses all non-LAB calls.
@@ -31,6 +32,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const [curves,setCurves]=useState<Curve[]>(fresh);
   const [zoom,setZoom]=useState<1|2|4|8>(1);
   const [panMode,setPanMode]=useState(false);
+  const [bezierMode,setBezierMode]=useState(false);
   const [viewportCenter,setViewportCenter]=useState<Point>([W/2,H/2]);
   const [selected,setSelected]=useState<CurveId>('cranial_base');
   const [revision,setRevision]=useState<number|null>(null);
@@ -49,7 +51,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   useEffect(()=>{
     const id=++requestId.current;
     drawing.current=false;panStart.current=null;
-    setZoom(1);setPanMode(false);setViewportCenter([W/2,H/2]);
+    setZoom(1);setPanMode(false);setBezierMode(false);setViewportCenter([W/2,H/2]);
     setCurves(fresh());setRevision(null);setDraftVersion(0);
     setDirty(false);setServerApproved(false);setError('');setNotice('');
     if(!patientId||!analysisId)return;
@@ -97,7 +99,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   };
   const undo=()=>{setCurves(prev=>prev.map(c=>c.id===selected?
       {...c,points:c.points.slice(0,-1)}:c));setDirty(true);setServerApproved(false);};
-  const clear=()=>{setCurves(prev=>prev.map(c=>c.id===selected?
+  const clear=()=>{if(selected==='soft_tissue_profile')setBezierMode(false);
+    setCurves(prev=>prev.map(c=>c.id===selected?
       {...c,points:[]}:c));setDirty(true);setServerApproved(false);};
   const complete=STRUCTURES.every(spec=>(curves.find(c=>c.id===spec.id)?.points.length||0)>=spec.min);
 
@@ -151,7 +154,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         const n=curves.find(c=>c.id===spec.id)?.points.length||0;
         return <button type="button" key={spec.id} disabled={busy||loading||!revision}
           aria-pressed={selected===spec.id}
-          onClick={()=>setSelected(spec.id)}
+          onClick={()=>{setSelected(spec.id);setBezierMode(false);}}
           className="rounded-lg border px-2 py-2 text-left text-xs"
           style={{color:P.text,borderColor:selected===spec.id?spec.color:P.border,
             background:selected===spec.id?P.bgInput:P.bgCard}}>
@@ -181,7 +184,39 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         {panMode?'Glissez pour déplacer, sans dessiner':'Coordonnées de l’image source'}
       </span>
     </div>
-    <svg ref={svgRef} data-testid="odf-g5-drawing-surface"
+    {selected==='soft_tissue_profile'&&<div className="flex flex-wrap items-center gap-2">
+      <button type="button" data-testid="g5-bezier-mode-toggle"
+        disabled={busy||loading||!revision||(!bezierMode&&
+          (curves.find(c=>c.id==='soft_tissue_profile')?.points.length||0)>0)}
+        aria-pressed={bezierMode}
+        onClick={()=>{setBezierMode(v=>!v);setPanMode(false);}}
+        className="rounded-lg border px-3 py-2 text-xs font-semibold"
+        style={{borderColor:bezierMode?'#ffac85':P.border,color:P.text}}>
+        {bezierMode?'Quitter l’édition Bézier':'Tracer le profil en Bézier'}
+      </button>
+      <span className="text-xs" style={{color:P.textMuted}}>
+        {bezierMode
+          ?'Mode LAB : poignées temporaires, même polyligne source-pixel que le PDF V1.'
+          :'Démarrer uniquement sur un profil vide ; effacer explicitement avant de recommencer.'}
+      </span>
+    </div>}
+    {bezierMode&&selected==='soft_tissue_profile'
+      ?<G5BezierProfileLabCanvas
+        imageUrl={pairedImage} imageWidth={W} imageHeight={H}
+        viewport={{left:viewLeft,top:viewTop,width:viewW,height:viewH}}
+        otherContours={curves.filter(c=>c.id!=='soft_tissue_profile').map(c=>({
+          id:c.id,points:c.points,
+          color:STRUCTURES.find(s=>s.id===c.id)?.color||'#111111',
+        }))}
+        disabled={busy||loading||!revision||panMode}
+        borderColor={P.border} textColor={P.textMuted}
+        onSampledChange={points=>{
+          setCurves(prev=>prev.map(c=>c.id==='soft_tissue_profile'
+            ?{...c,points:points.map(p=>[p[0],p[1]] as Point)}:c));
+          setDirty(true);setServerApproved(false);setNotice('');
+        }}
+      />
+      :<svg ref={svgRef} data-testid="odf-g5-drawing-surface"
       viewBox={`${viewLeft} ${viewTop} ${viewW} ${viewH}`} role="img"
       aria-label="Dessiner le contour sélectionné directement sur la téléradiographie"
       className="mx-auto block w-full max-w-[530px] touch-none rounded-lg border"
@@ -226,9 +261,9 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
           fill="none" stroke={color} strokeWidth={curve.id===selected?8:5}
           strokeLinecap="round" strokeLinejoin="round"/>;
       })}
-    </svg>
+    </svg>}
     <div className="flex flex-wrap gap-2">
-      <button type="button" disabled={busy||loading||!revision}
+      <button type="button" disabled={busy||loading||!revision||bezierMode}
         onClick={undo} className="rounded-lg border px-3 py-2 text-xs"
         style={{borderColor:P.border,color:P.text}}>Annuler dernier point</button>
       <button type="button" disabled={busy||loading||!revision}
