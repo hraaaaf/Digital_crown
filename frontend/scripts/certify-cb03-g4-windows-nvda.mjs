@@ -173,14 +173,49 @@ try {
   await page.screenshot({path:path.join(out,'g3-native-200-before.png')});
   report.screenshots.push('g3-native-200-before.png');
   await controls.input.fill('Prépare un RDV demain 10h pour Mme Benali contrôle');
-  await controls.input.focus();
-  await page.keyboard.press('Tab');
-  if(!await controls.prepare.evaluate(el=>document.activeElement===el))
-    throw Error('NOT_CERTIFIED: keyboard focus cannot reach prepare at native 200%');
-  await page.keyboard.press('Shift+Tab');
-  if(!await controls.input.evaluate(el=>document.activeElement===el))
-    throw Error('NOT_CERTIFIED: Shift+Tab cannot return to input at native 200%');
-  report.keyboard={tabToSubmit:true,shiftTabReturn:true};
+  // G3 is a multi-field form: the textarea is followed by FOUR labeled
+  // inputs, not directly by its submit button. Certify every native Tab and
+  // reverse Shift+Tab at Chrome getZoom(2), without skipping controls.
+  const keyboardSequence=[
+    controls.input,
+    page.getByRole('textbox',{name:/Patient ID \\(si dossier choisi\\)/}),
+    page.getByRole('textbox',{name:'Praticien ID'}),
+    page.getByRole('textbox',{name:'Durée en minutes'}),
+    page.getByRole('textbox',{name:/Ressource ID \\(facultatif\\)/}),
+    controls.prepare,
+  ];
+  const keyboardLabels=[
+    'Votre demande en français',
+    'Patient ID (si dossier choisi)',
+    'Praticien ID',
+    'Durée en minutes',
+    'Ressource ID (facultatif)',
+    'Vérifier et préparer',
+  ];
+  // Verify the accessible identities, no detached/missing inputs.
+  for(let i=0;i<keyboardSequence.length;i++){
+    if(await keyboardSequence[i].count()!==1 || !await keyboardSequence[i].isVisible())
+      throw Error('NOT_CERTIFIED: inaccessible native 200% control '+keyboardLabels[i]);
+  }
+  await keyboardSequence[0].focus();
+  const tabProof={nativeZoom:2,forward:[],backward:[],allFieldsVisited:false};
+  for(let i=1;i<keyboardSequence.length;i++){
+    await page.keyboard.press('Tab');
+    if(!await keyboardSequence[i].evaluate(el=>document.activeElement===el))
+      throw Error('NOT_CERTIFIED: Tab order mismatch at '+keyboardLabels[i]);
+    tabProof.forward.push(keyboardLabels[i]);
+  }
+  if(!await controls.prepare.isEnabled())
+    throw Error('NOT_CERTIFIED: submit disabled after valid React input');
+  for(let i=keyboardSequence.length-2;i>=0;i--){
+    await page.keyboard.press('Shift+Tab');
+    if(!await keyboardSequence[i].evaluate(el=>document.activeElement===el))
+      throw Error('NOT_CERTIFIED: Shift+Tab order mismatch at '+keyboardLabels[i]);
+    tabProof.backward.push(keyboardLabels[i]);
+  }
+  tabProof.allFieldsVisited=true;
+  report.keyboard=tabProof;
+  console.log('CB03_G4_NATIVE_200_KEYBOARD_PASS',JSON.stringify(tabProof));
   await nvda.start({capture:true});
   nvdaStarted=true;
   await sleep(700);
