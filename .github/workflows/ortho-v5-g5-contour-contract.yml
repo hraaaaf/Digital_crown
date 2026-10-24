@@ -15,6 +15,7 @@ on:
       - 'alembic/versions/neo000000034_ortho_anatomical_trace.py'
       - 'frontend/src/features/ortho/components/OrthoAnatomicalTraceLabEditor.tsx'
       - 'frontend/src/features/ortho/components/G5BezierProfileLabCanvas.tsx'
+      - 'frontend/src/features/ortho/components/G5BezierProfileLabCanvas.test.tsx'
       - 'frontend/src/features/ortho/utils/g5BezierGeometry.ts'
       - 'frontend/src/features/ortho/utils/g5BezierGeometry.test.ts'
       - 'frontend/src/features/ortho/components/Step3Clinical.tsx'
@@ -52,7 +53,7 @@ jobs:
         run: |
           npm ci
           npx tsc --noEmit -p tsconfig.app.json
-          npx vitest run src/features/ortho/utils/g5BezierGeometry.test.ts
+          npx vitest run src/features/ortho/utils/g5BezierGeometry.test.ts src/features/ortho/components/G5BezierProfileLabCanvas.test.tsx
       - name: G5 acceptance semantics
         run: |
           grep -q "ODF_G5_REQUIRE_CONTOURS" backend/services/document_factory.py
