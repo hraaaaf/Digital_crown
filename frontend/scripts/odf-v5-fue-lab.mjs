@@ -171,6 +171,11 @@ try{
   const pdf=await fs.readFile(pdfFile);
   check(pdf.subarray(0,4).toString('latin1')==='%PDF','SIGNED_NOTES_REAL_PDF_DOWNLOADED');
   await snap('07-first-use-success');
+  const headerPosition = await page.locator('[data-patient-record-header]').evaluate(
+    el => getComputedStyle(el).position);
+  check(headerPosition !== 'sticky' && headerPosition !== 'fixed',
+    'PATIENT_HEADER_DOES_NOT_OVERLAY_CEPHALOMETRIC_FORMS');
+  await snap('07b-no-sticky-header-overlap');
   report.pdf=path.basename(pdfFile);
   report.study={patient_id:ids.patient_id,analysis_id:ids.older_id,
     revision:scientific.revision,draft_version:signedBody.draft_version};
