@@ -272,3 +272,27 @@
 [data-v15-071-real-cabinet-lab] .dc-mv-commandbar input[type="range"] {
   accent-color: var(--primary);
 }
+
+/* Compact desktop fallback: preserve the authenticated R-only gate while
+   removing nonfunctional MultiView controls above the clinical media.
+   Every ink and surface inherits from the active cabinet theme tokens. */
+[data-v15-071-real-cabinet-lab] .dc-mv-desktop-compact {
+  border-color: var(--border-color);
+  background: linear-gradient(120deg, var(--card-bg), var(--bg-medical-pearl));
+  box-shadow: var(--shadow-elite);
+}
+[data-v15-071-real-cabinet-lab] .dc-mv-desktop-compact .dc-mv-compact-readonly {
+  color: var(--primary-ink);
+  border-color: var(--border-color);
+  background: var(--bg-medical-pearl);
+}
+@media (min-width: 1280px) and (max-width: 1400px) {
+  [data-v15-071-real-cabinet-lab] .dc-mv-desktop-compact {
+    padding: 12px 14px;
+    gap: 10px;
+    align-items: center;
+  }
+  [data-v15-071-real-cabinet-lab] [data-testid="multiview-responsive-single-media-fallback"] {
+    padding: 6px;
+  }
+}
