@@ -78,6 +78,76 @@ def require_document_permission(doc_type: str, current_user: models.User) -> Non
     if not has_permission(current_user, permission):
         raise HTTPException(status_code=403, detail=f"Accès refusé. Permission requise : {permission}.")
 
+def can_read_historic_bilan(patient: models.Patient, actor: models.User) -> bool:
+    """DEC-R2-01: dedicated R entitlement, never a general archive CRUD grant.
+
+    An owner dentist may read their own cabinet's registered BILAN.  An ADMIN
+    must belong to that cabinet AND carry the explicit 'bilan_read' grant;
+    the canonical has_permission() intentionally grants ADMIN too broadly for
+    this owner-approved historical BILAN exception.
+    """
+    if patient is None or actor is None or patient.employer_id is None:
+        return False
+    if actor.get_employer_id() != patient.employer_id:
+        return False
+    role = actor.role.value if hasattr(actor.role, "value") else str(actor.role)
+    if role == "DENTISTE" and actor.employer_id is None and actor.id == patient.employer_id:
+        return True
+    return (
+        role == "ADMIN"
+        and isinstance(actor.permissions, dict)
+        and actor.permissions.get("bilan_read") is True
+    )
+
+
+def require_historic_bilan_reader(patient_id: int, actor: models.User, db: Session) -> None:
+    """Authorize only the R view, never archive signature/download/mutation."""
+    assert_patient_access(patient_id, actor, db)
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not can_read_historic_bilan(patient, actor):
+        raise HTTPException(status_code=403, detail="Lecture BILAN non autorisée.")
+
+
+@router.get("/bilan/{document_id}/view", include_in_schema=True)
+def view_historic_bilan(
+    document_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Authenticated read-only inline PDF; never infer BILAN from legacy names."""
+    doc = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == document_id,
+        models.DocumentArchive.document_type == models.DocumentType.BILAN,
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+        models.DocumentArchive.is_latest_version == True,
+    ).first()
+    if doc is None:
+        raise HTTPException(status_code=404, detail="BILAN introuvable.")
+    require_historic_bilan_reader(doc.patient_id, current_user, db)
+
+    rel = str(doc.file_path or "").replace("\\\\", "/")
+    if rel.startswith("static/archives/"):
+        root = (MEDIA_DIR / "archives").resolve()
+        suffix = rel[len("static/archives/"):]
+    elif rel.startswith("static/documents/"):
+        root = (MEDIA_DIR / "documents").resolve()
+        suffix = rel[len("static/documents/"):]
+    else:
+        raise HTTPException(status_code=404, detail="Archive BILAN non classée.")
+    candidate = (root / suffix).resolve()
+    if not suffix or not candidate.is_relative_to(root) or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Fichier BILAN indisponible.")
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="MEDIA_ACCESS_GRANTED", resource_type="BILAN", resource_id=str(doc.id),
+        severity="INFO", details="Lecture BILAN historique autorisée.",
+    )
+    return FileResponse(
+        str(candidate), media_type="application/pdf",
+        headers={"Content-Disposition": "inline", "Cache-Control": "no-store"},
+    )
+
+
 @router.post("/generate",
     summary="Générer un document PDF",
     description="Génère une ordonnance, certificat, devis ou note d'honoraires. La génération ReportLab tourne dans un thread dédié pour ne pas bloquer l'event loop.")
