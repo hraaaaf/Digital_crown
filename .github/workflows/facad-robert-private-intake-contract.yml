@@ -11,6 +11,8 @@ on:
       - audit/cephalo_facad_manual_delta_diagnostic.py
       - docs/audits/schemas/ortho_lot08_facad_ricketts_editor_uia_45_roster_v1.json
       - audit/test_cephalo_facad_manual_delta_diagnostic.py
+      - audit/cephalo_facad_historical_roster_verify.py
+      - audit/test_cephalo_facad_historical_roster_verify.py
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
   pull_request:
@@ -20,6 +22,8 @@ on:
       - audit/cephalo_facad_manual_delta_diagnostic.py
       - docs/audits/schemas/ortho_lot08_facad_ricketts_editor_uia_45_roster_v1.json
       - audit/test_cephalo_facad_manual_delta_diagnostic.py
+      - audit/cephalo_facad_historical_roster_verify.py
+      - audit/test_cephalo_facad_historical_roster_verify.py
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
   workflow_dispatch:
@@ -82,6 +86,11 @@ jobs:
           python -m py_compile audit/cephalo_facad_manual_delta_diagnostic.py
           test ! -f docs/audits/evidence/facad/ROBERT_32F_ANALYSIS_VALUES.txt
 
+      - name: Verify historical GUI evidence ZIP parser with synthetic archives only
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_historical_roster_verify
+          python -m py_compile audit/cephalo_facad_historical_roster_verify.py
+
       - name: Revalidate canonical repository schema without vendor files
         run: python audit/cephalo_lot08_facad_parity_validate.py
 
@@ -92,4 +101,5 @@ jobs:
           echo "No Facad installer, binary, GUI, EULA acceptance, license or patient file was touched." >> "$GITHUB_STEP_SUMMARY"
           echo "Synthetic-only staging tests do not prove authentic vendor data or numeric parity." >> "$GITHUB_STEP_SUMMARY"
           echo "FACAD_SOURCE_LOCK=32 named 32F + 13 named 13F historical UIA editor definitions, 7 blocked direct aliases; zero runtime parities." >> "$GITHUB_STEP_SUMMARY"
+          echo "Historical archive verification uses synthetic ZIP fixtures in CI; authentic old archives stay private." >> "$GITHUB_STEP_SUMMARY"
           echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
