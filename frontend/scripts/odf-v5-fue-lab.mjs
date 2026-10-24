@@ -140,8 +140,18 @@ try{
 
   const revResponse=await api.get('/api/ia/analyses/'+ids.older_id,{headers});
   check(revResponse.status()===200,'READ_ACTUAL_SCIENTIFIC_REVISION');
-  const scientific=(await revResponse.json()).angles_data.scientific_read_path;
+  const persistedStudy=(await revResponse.json()).angles_data;
+  const scientific=persistedStudy.scientific_read_path;
   check(scientific.active_chain==='VERIFIED','SYNTHETIC_STUDY_SOURCE_VERIFIED_NOT_REAL_DIAGNOSIS');
+  if(process.env.ODF_G4_REQUIRE_TRACE === '1'){
+    check(persistedStudy.odf_lab_image_landmark_alignment === 'VERIFIED_AARIZ_EXPERT_PAIR',
+      'G4_SOURCE_PAIR_REVOKED_OR_LOST_ON_CLINICIAN_DRAFT_SAVE');
+    check(createHash('sha256').update(media).digest('hex')===persistedStudy.odf_lab_display_png_sha256,
+      'G4_ACTUAL_FILM_HASH_MUST_SURVIVE_UNCHANGED_CLINICIAN_SAVE');
+    check(Array.isArray(persistedStudy._evidence_graph_v1?.landmarks)
+          && persistedStudy._evidence_graph_v1.landmarks.length >= 19,
+      'G4_PERSISTED_EXPERT_LANDMARKS_MUST_SURVIVE_CLINICIAN_SAVE');
+  }
   const noteUrl='/api/patients/'+ids.patient_id+'/ortho-bilan/'+ids.older_id+'/notes';
   const pending=await api.get(noteUrl,{headers,params:{expected_revision:scientific.revision}});
   check(pending.status()===200 && !(await pending.json()).approved,
