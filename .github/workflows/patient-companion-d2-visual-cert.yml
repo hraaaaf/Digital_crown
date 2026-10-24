@@ -27,6 +27,12 @@ on:
       - 'docs/audits/PATIENT_COMPANION_D2.md'
       - '.github/workflows/patient-companion-d2-visual-cert.yml'
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-patient-companion-d2-visual-cert-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

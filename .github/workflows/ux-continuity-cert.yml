@@ -11,6 +11,12 @@ on:
       - 'frontend/src/UXContinuity.test.ts'
       - '.github/workflows/ux-continuity-cert.yml'
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-ux-continuity-cert-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

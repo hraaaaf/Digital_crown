@@ -20,6 +20,12 @@ on:
       - "backend/services/document_factory.py"
       - "backend/tests/test_template_engine.py"
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-settings-r11-templatebuilder-audit-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
