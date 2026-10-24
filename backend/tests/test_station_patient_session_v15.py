@@ -162,6 +162,79 @@ def test_patient_companion_claim_is_atomic_one_shot_and_purgeable(client, db, de
     assert expired_view.json()["status"] == "expired"
 
 
+def test_station_qr_purpose_is_bound_to_one_shot_secret_and_documents_stay_available(client, db, dentiste):
+    headers, _ = _station(client, dentiste)
+    _patient, access, patient_headers = _patient_context(db, dentiste, dossier="G03-A1-PURPOSE")
+
+    appointment = client.post(
+        "/api/workstation/patient-session",
+        headers=headers,
+        json={"purpose": "appointment"},
+    )
+    assert appointment.status_code == 201, appointment.text
+    raw_appointment = appointment.json()["handoffUrl"].split("stationSession=", 1)[1]
+    assert raw_appointment.endswith(".appointment")
+    assert appointment.json()["handoffUrl"] == appointment.json()["nfcPayload"]
+
+    # An attacker editing the public URL cannot change the flow: the raw
+    # token (including its bounded purpose) must match the stored SHA-256.
+    tampered = raw_appointment.removesuffix(".appointment") + ".documents"
+    rejected = client.post(
+        "/api/workstation/patient-session/claim",
+        headers=patient_headers,
+        json={"token": tampered, "accessId": access.public_id},
+    )
+    assert rejected.status_code == 409, rejected.text
+
+    approved = client.post(
+        "/api/workstation/patient-session/claim",
+        headers=patient_headers,
+        json={"token": raw_appointment, "accessId": access.public_id},
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["purpose"] == "appointment"
+
+    # The existing documents journey must never be replaced by arrival UI.
+    documents = client.post(
+        "/api/workstation/patient-session",
+        headers=headers,
+        json={"purpose": "documents"},
+    )
+    assert documents.status_code == 201, documents.text
+    document_claim = client.post(
+        "/api/workstation/patient-session/claim",
+        headers=patient_headers,
+        json={
+            "token": documents.json()["handoffUrl"].split("stationSession=", 1)[1],
+            "accessId": access.public_id,
+        },
+    )
+    assert document_claim.status_code == 200, document_claim.text
+    assert document_claim.json()["purpose"] == "documents"
+
+    # Old clients omit the payload: retain document handoff behavior.
+    legacy = client.post("/api/workstation/patient-session", headers=headers)
+    assert legacy.status_code == 201, legacy.text
+    legacy_claim = client.post(
+        "/api/workstation/patient-session/claim",
+        headers=patient_headers,
+        json={
+            "token": legacy.json()["handoffUrl"].split("stationSession=", 1)[1],
+            "accessId": access.public_id,
+        },
+    )
+    assert legacy_claim.status_code == 200, legacy_claim.text
+    assert legacy_claim.json()["purpose"] == "documents"
+
+    # Unknown purposes must fail at validation BEFORE replacing a live session.
+    invalid = client.post(
+        "/api/workstation/patient-session",
+        headers=headers,
+        json={"purpose": "staff"},
+    )
+    assert invalid.status_code == 422, invalid.text
+
+
 def test_station_patient_claim_hides_cross_tenant_session(client, db, dentiste):
     headers, _ = _station(client, dentiste)
     created = client.post("/api/workstation/patient-session", headers=headers).json()
