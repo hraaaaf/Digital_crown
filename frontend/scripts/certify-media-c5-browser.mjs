@@ -115,6 +115,29 @@ for (const viewport of viewports) {
     throw new Error('C5 authenticated server access failed: ' + JSON.stringify(browserResponses));
   }
 
+  // Exercise the real permission-filtered rail with a keyboard, not only CSS.
+  let mobileNavigation = null;
+  if (viewport.width === 390) {
+    const rail = page.locator('#dc-radiology-patient-tabs');
+    const nextButton = page.getByRole('button', { name: 'Afficher les autres onglets' });
+    await nextButton.waitFor({ state: 'visible', timeout: 20000 });
+    const before = await rail.evaluate(element => ({
+      left: element.scrollLeft,
+      max: element.scrollWidth - element.clientWidth,
+    }));
+    await nextButton.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => {
+      const rail = document.getElementById('dc-radiology-patient-tabs');
+      return rail !== null && rail.scrollLeft > 10;
+    }, null, { timeout: 10000 });
+    const after = await rail.evaluate(element => element.scrollLeft);
+    mobileNavigation = { pass: before.max > 10 && after > before.left, before, after };
+    if (!mobileNavigation.pass) {
+      throw new Error('Mobile tab keyboard pagination did not scroll: ' + JSON.stringify(mobileNavigation));
+    }
+  }
+
   const search = page.getByLabel('Rechercher un média');
   await search.fill('radio');
   const filteredText = await page.getByText(/1\/1/).count();
@@ -175,10 +198,30 @@ for (const viewport of viewports) {
     return { pass: columns === 2 && contentFit && buttons, columns, contentFit, buttons };
   }) : null;
   if (mobileCompare && !mobileCompare.pass) throw new Error('C5 mobile side-by-side full-content contract: ' + JSON.stringify(mobileCompare));
+  let mobileZoom = null;
+  if (viewport.width === 390) {
+    const labels = comparePanel.locator('.dc-c5-expand-label:visible');
+    const zoomCount = await labels.count();
+    const labelsReadable = zoomCount === 2 &&
+      await labels.evaluateAll(elements => elements.every(element =>
+        getComputedStyle(element).display !== 'none' &&
+        element.getBoundingClientRect().width >= 20));
+    mobileZoom = { pass: labelsReadable, count: zoomCount };
+    if (!mobileZoom.pass) {
+      throw new Error('C5 Zoom labels not visibly painted: ' + JSON.stringify(mobileZoom));
+    }
+  }
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
   const shot = `c5-after-compare-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, shot), fullPage: false });
-  evidence.push({ viewport, shot, overflow, visualFrame, mobileCompare, pageErrors, http5xx });
+  if (viewport.width === 390) {
+    await comparePanel.getByRole('button', { name: 'Ouvrir ce média en plein écran' }).first().click();
+    await page.getByRole('dialog', { name: 'Visionneuse média clinique' }).waitFor({
+      state: 'visible', timeout: 15000,
+    });
+    await page.getByRole('button', { name: 'Fermer la visionneuse' }).click();
+  }
+  evidence.push({ viewport, shot, overflow, visualFrame, mobileCompare, mobileNavigation, mobileZoom, pageErrors, http5xx });
   await context.close();
 }
 
