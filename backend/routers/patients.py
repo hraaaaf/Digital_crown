@@ -1866,7 +1866,8 @@ def g5_anatomical_trace_draft(
         db,patient_id=patient_id,analysis_id=analysis_id,
         expected_revision=req.expected_revision,
         expected_draft_version=req.expected_draft_version,
-        contours=req.contours,actor=current_user)
+        contours=req.contours,actor=current_user,
+        bezier_profile_nodes=req.bezier_profile_nodes)
 
 
 @router.post("/{patient_id}/ortho-bilan/{analysis_id}/anatomical-trace/approve")
