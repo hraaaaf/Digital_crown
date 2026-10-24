@@ -272,6 +272,9 @@ def confirm_preparation(
 
         # Prove the affected appointment belongs to the same patient and
         # cabinet and reflects the outcome BEFORE storing executed receipt.
+        # The status dispatcher uses a bulk SQL CAS; a loaded ORM instance
+        # from the pre-check can still show the old in-memory status.
+        db.expire_all()
         saved = db.query(models.Appointment).filter(
             models.Appointment.id == appointment_id,
             models.Appointment.employer_id == owner,
