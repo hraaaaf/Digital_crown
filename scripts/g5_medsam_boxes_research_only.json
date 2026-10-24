@@ -1,0 +1,46 @@
+{
+  "schema": "G5_MEDSAM_RESEARCH_ROIS_V1",
+  "image_sha256": "7f0746c91faeebbd5a80180b13e0dfa5baa0fe1e0d9403f59f85cf1c03f7eb50",
+  "clinical_validation": false,
+  "approved": false,
+  "source": "UNVERIFIED_ASSISTED_DRAFT_BOX_SUGGESTIONS",
+  "warning": "Six manually adjustable coarse research ROI prompts, not expert anatomy; not to be imported into a patient file.",
+  "boxes": {
+    "cranial_base": [
+      476,
+      663,
+      1305,
+      1092
+    ],
+    "maxilla": [
+      792,
+      1235,
+      1471,
+      1542
+    ],
+    "mandible": [
+      527,
+      1166,
+      1428,
+      1937
+    ],
+    "upper_incisor": [
+      1295,
+      1325,
+      1476,
+      1569
+    ],
+    "lower_incisor": [
+      1249,
+      1505,
+      1491,
+      1751
+    ],
+    "soft_tissue_profile": [
+      1224,
+      811,
+      1715,
+      1986
+    ]
+  }
+}
