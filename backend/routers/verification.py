@@ -248,18 +248,28 @@ def verify_special_document(public_id: str, document_type: str, db: Session = De
                 ))
         
         elif document_type == "BILAN":
-            patient = db.query(models.Patient).filter(models.Patient.id == int(public_id)).first()
-            if patient:
-                p_name = f"{patient.nom.upper()} {patient.prenom[0]}."
-                doc_date = patient.created_at.strftime("%d/%m/%Y")
-                return HTMLResponse(content=get_verification_html(
-                    title="Bilan Orthodontique Certifié",
-                    subtitle=cabinet_name,
-                    doc_type="DOSSIER & BILAN CLINIQUE",
-                    patient_name=p_name,
-                    doc_date=doc_date,
-                    primary_color=p_color
-                ))
+            # DEC-R2-01: typed BILAN is readable only through the authenticated
+            # /api/documents/bilan/{document_id}/view permission gate.  This
+            # legacy public verification URL receives a guessable patient ID
+            # (not a signed archive identifier) and previously disclosed
+            # patient identity while falsely claiming document certification.
+            # Never query patient data and never issue a public "certified" card.
+            return HTMLResponse(
+                status_code=404,
+                content=get_verification_html(
+                    title="Bilan non vérifiable publiquement",
+                    subtitle="Accès réservé au cabinet",
+                    doc_type="BILAN",
+                    patient_name="NON DISPONIBLE",
+                    doc_date="NON DISPONIBLE",
+                    primary_color=p_color,
+                    status_text="Vérification publique indisponible",
+                    status_color="#ef4444",
+                    is_valid=False,
+                    warning_msg="Demandez au praticien responsable l'accès autorisé.",
+                ),
+                headers={"Cache-Control": "no-store"},
+            )
     except Exception as e:
         logger.error(f"Error verifying special document: {str(e)}")
         
