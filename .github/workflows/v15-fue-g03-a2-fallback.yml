@@ -1,0 +1,135 @@
+# REVIEW REQUIRED — PR #1079 / HEAD 9c9b459; not committed, not executed, NOT a certification result.
+# GitHub workflow_dispatch is only available after a workflow is present on the default branch.
+# If committed to A2 branch only, the pull_request trigger can start the A2 test automatically.
+# Authorized repository maintainer must review this workflow before addition.
+# Actual sandbox replay at exact HEAD 9c9b459 passed: 39 backend, 28 frontend, Chromium/SQL. This YAML itself is NOT executed.
+# The A2 scripts require 10 SHA-256 verified real PNG screenshots, and exact checkout HEAD.
+name: "V1.5-03 A2 | Station fallback real-browser certification"
+
+on:
+  pull_request:
+    branches:
+      - test/v15-fue-g03-a1-identity-qr-20261024
+    paths:
+      - ".github/workflows/v15-fue-g03-a2-fallback.yml"
+      - "frontend/scripts/certify-v15-03-a2-real-fallback.mjs"
+      - "scripts/seed_v15_station_fallback_a2.py"
+      - "docs/quality/V15_FUE_G03_A2_EXECUTION_MATRIX.md"
+      - "backend/routers/station_patient_session.py"
+      - "backend/tests/test_station_patient_session_v15.py"
+      - "frontend/src/features/hub/StationPatientIdentity.tsx"
+      - "frontend/src/features/hub/StationPatientIdentity.test.tsx"
+      - "frontend/src/services/stationPatientSession.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-g03-a2-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  station-fallback-real-e2e:
+    name: "A2 | Chromium Station ↔ FastAPI ↔ disposable SQLCipher"
+    if: ${{ (github.event_name == 'pull_request' && github.head_ref == 'test/v15-fue-g03-a2-execution-fresh-pr-20261024') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/test/v15-fue-g03-a2-execution-fresh-pr-20261024') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: a2-only-disposable-runner-secret
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      T2_G03_A2: "1"
+      T2_STATION_FUE: "1"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      STATION_HANDOFF_PUBLIC_ORIGIN: "http://127.0.0.1:5173"
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate disposable account password
+        run: |
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+      - name: Install Python and validate seed syntax
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)==' requirements.txt >/tmp/v15-g03-a2-requirements.txt
+          pip install -r /tmp/v15-g03-a2-requirements.txt
+          python -m py_compile scripts/seed_v15_station_fallback_a2.py
+      - name: Install isolated OpenCV native dependencies before backend regressions
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libxcb1 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1
+          python -c 'import cv2; print("A2_OPENCV_NATIVE_IMPORT_PASS", cv2.__version__)'
+      - name: Real backend regression
+        run: |
+          python -m pytest backend/tests/test_station_patient_session_v15.py backend/tests/test_station_identity_pairing_migration_v15.py -q --disable-warnings
+      - name: Install Node and real Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.64.1
+          npx playwright install --with-deps chromium
+          node --check scripts/certify-v15-03-a2-real-fallback.mjs
+      - name: React Station regression and build
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/hub/StationPatientIdentity.test.tsx --maxWorkers=1 --fileParallelism=false
+          npm run build
+      - name: Launch isolated local SQLCipher runtime
+        run: |
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$T2_G03_A2" = 1
+          test "$DATABASE_URL" = "sqlite:///./t2-runtime-cert.db"
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/v15-g03-a2-backend.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:8005/health >/dev/null && exit 0; sleep 1; done
+          tail -120 /tmp/v15-g03-a2-backend.log
+          exit 1
+      - name: Seed only synthetic patients
+        run: python scripts/seed_v15_station_fallback_a2.py
+      - name: Launch real Vite/React Station
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/v15-g03-a2-frontend.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5173 >/dev/null && exit 0; sleep 1; done
+          tail -100 /tmp/v15-g03-a2-frontend.log
+          exit 1
+      - name: Chromium positive and negative fallback suite
+        working-directory: frontend
+        run: node scripts/certify-v15-03-a2-real-fallback.mjs
+      - name: Independent SQLCipher readback
+        run: python scripts/seed_v15_station_fallback_a2.py --verify
+      - name: Verify exact-SHA SQL and captured PNG oracle result
+        run: |
+          test -s frontend/artifacts/v15-03-a2-fallback-real/evidence-after.json
+          test -s frontend/artifacts/v15-03-a2-fallback-real/sql-after.json
+          python -c "import json, os; p=json.load(open('frontend/artifacts/v15-03-a2-fallback-real/sql-after.json')); assert p['status']=='PASS' and p['head']==os.environ['EVALUATED_SHA'] and p['visualCaptures']>=10; assert {390,430,768,1280}.issubset(set(p['verifiedViewports']))"
+      - name: Upload evidence (never auth secrets)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-g03-a2-real-fallback-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/artifacts/v15-03-a2-fallback-real
+          if-no-files-found: warn
+          retention-days: 14
