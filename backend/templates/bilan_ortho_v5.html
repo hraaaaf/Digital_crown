@@ -107,6 +107,31 @@ tbody tr:nth-child(even) { background: #fbfcfd; }
   color: var(--secondary);
   margin-right: 6pt;
 }
+/* An independently verified research illustration is an annex, NOT a phase
+   of the clinician's orthodontic examination. No invented interpretation. */
+.research-plate {
+  break-before: page;
+  page-break-before: always;
+  text-align: center;
+  margin: 0;
+}
+.research-plate h2 { text-align: left; margin-top: 0; }
+.research-plate img {
+  display: block;
+  margin: 9pt auto 10pt;
+  max-width: 90%;
+  max-height: 490pt;
+  object-fit: contain;
+}
+.research-plate figcaption {
+  font-size: 8.5pt;
+  color: var(--muted);
+  line-height: 1.48;
+  text-align: left;
+  padding: 8pt 11pt;
+  border-top: .8pt solid var(--line);
+}
+.research-source { font-size: 8pt; color: var(--muted); margin-top: 6pt; }
 </style>
 </head>
 <body>
@@ -183,6 +208,16 @@ tbody tr:nth-child(even) { background: #fbfcfd; }
   <strong>Éléments cliniques nécessitant une attention particulière</strong>
   <ul>{% for warning in odf.clinical_alerts %}<li>{{ warning }}</li>{% endfor %}</ul>
 </section>
+{% endif %}
+{% if odf.research_figure %}
+<figure class="research-plate">
+  <h2>Téléradiographie de profil — iconographie</h2>
+  <img src="{{ odf.research_figure.data_uri }}" alt="Téléradiographie latérale issue du jeu Aariz, avec repères anatomiques de recherche" />
+  <figcaption>
+    {{ odf.research_figure.caption }}
+    <div class="research-source">Source : {{ odf.research_figure.source_url }}</div>
+  </figcaption>
+</figure>
 {% endif %}
 </body>
 </html>
