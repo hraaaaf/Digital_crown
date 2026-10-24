@@ -42,6 +42,20 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(content.slice(start, end).match(fixedPalette) ?? []).toEqual([]);
   });
 
+  it('micropolish preserves semantic dark contrast, mobile discoverability and fail-closed 1280 mode', () => {
+    const css = source('features/patients/PatientRadiologyPolish.css');
+    const patient = source('features/patients/PatientDetailsInner.tsx');
+    const multiview = source('features/multiview/CabinetMultiViewLab.tsx');
+    expect(css).toContain('[data-theme=\\'dark\\'] [data-dc-patient-radiology="true"]');
+    expect(css).toContain('--primary: var(--status-info)');
+    expect(css).toContain('.dc-radiology-tab-scroll-hint');
+    expect(patient).toContain('aria-describedby={isRadiology');
+    expect(patient).toContain('Faites glisser pour afficher les autres onglets');
+    expect(multiview).toContain('multiview-responsive-single-media-fallback');
+    expect(multiview).toContain('Disposition trop large pour cet écran');
+    expect(multiview).toContain('bg-info-surface');
+  });
+
   it('theme engine exposes all configured semantic color roles', () => {
     const theme = source('index.css');
     for (const name of ['--card-bg', '--bg-medical-pearl', '--text-main',
