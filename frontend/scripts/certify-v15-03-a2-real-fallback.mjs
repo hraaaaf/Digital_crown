@@ -172,6 +172,8 @@ try{
   assert(await disabled.page.locator('[data-station-fallback-toggle]').count()===0,
     'disabled fallback unexpectedly visible');
   await screenshot(disabled.page,'05-disabled-before.png');
+  await disabled.page.setViewportSize({width:1280,height:800});
+  await screenshot(disabled.page,'06-disabled-1280-responsive.png');
   const disabledResponse=await kiosk.api.post(
     '/api/workstation/patient-session/'+disabled.session.sessionId+'/fallback',{
       headers:kiosk.headers,data:{phone:'0612345678',birthDate:'1992-05-04'}
@@ -186,8 +188,22 @@ try{
   evidence.cases.wrong_station=wrongStation.status();
   await disabled.ctx.close();
 
-  // Real TTL invalidation, injected ONLY in the disposable DB.
+  // Wrong date and unknown number: generic real-UI denial, no identity display.
+  // Use the independent station so the five-collision oracle below starts at zero.
   await configure(kiosk,'phone_dob');
+  const negative=await kioskFlow(browser,other,390);
+  await showFallback(negative);
+  await enter(negative,'phone_dob',{phone:'0612345678',birthDate:'1901-01-01'});
+  const wrongDob=await submit(negative,[403]);
+  await enter(negative,'phone_dob',{phone:'0600000000',birthDate:'1992-05-04'});
+  const unknownPhone=await submit(negative,[403]);
+  assert(await negative.page.getByText(fixtures.unique.displayName,{exact:false}).count()===0,
+    'invalid fallback revealed a patient identity');
+  evidence.cases.wrong_dob_unknown=[wrongDob.status(),unknownPhone.status()];
+  await screenshot(negative.page,'07-invalid-dob-and-phone-denied.png');
+  await negative.ctx.close();
+
+  // Real TTL invalidation, injected ONLY in the disposable DB.
   const expiry=await kioskFlow(browser,kiosk);
   execFileSync('python',['scripts/seed_v15_station_fallback_a2.py','--expire-session',expiry.session.sessionId],{
     cwd:path.resolve('..'),env:process.env,timeout:15000,stdio:'pipe'
@@ -196,8 +212,12 @@ try{
     '/api/workstation/patient-session/'+expiry.session.sessionId+'/fallback',{
       headers:kiosk.headers,data:{phone:'0612345678',birthDate:'1992-05-04'}
     });
-  await expectStatus(expiredResponse,'expired fallback rejected',[409]);
+  // A parallel UI status poll may already purge the expired row, so both
+  // 'expired but not purged' (409) and 'already purged' (404) fail closed.
+  await expectStatus(expiredResponse,'expired fallback rejected',[409,404]);
   evidence.cases.expiry=expiredResponse.status();
+  await expiry.page.getByText('Session expirée',{exact:true}).waitFor({state:'visible',timeout:20000});
+  await screenshot(expiry.page,'08-expired-session-verified.png');
   await expiry.ctx.close();
 
   // Two different matching patients must NEVER be identified by a shared phone + DOB.
@@ -214,7 +234,7 @@ try{
     assert(await collision.page.getByText(fixtures.collisionB.displayName,{exact:false}).count()===0,
       'collision leaked a second identity');
   }
-  await collision.page.getByRole('alert').getByText('Trop de tentatives',{exact:false})
+  await collision.page.getByRole('alert').filter({hasText:'Trop de tentatives'})
     .waitFor({state:'visible',timeout:15000});
   await screenshot(collision.page,'07-collision-locked-after.png');
   evidence.cases.collision_lock=denied;
@@ -248,6 +268,7 @@ try{
 
   // Do not leak tokens, birth dates or phone values into evidence.
   assert(evidence.http.every(h=>!h.pageerror),'real browser JavaScript error');
+  assert(evidence.screenshots.length>=9,'Missing multi-width before/after screenshots');
   assert(evidence.http.every(h=>!JSON.stringify(h).includes('stationSession=')),
     'QR bearer secret accidentally logged');
   console.log('G03_A2_REAL_FALLBACK_PASS '+JSON.stringify(evidence.cases));
