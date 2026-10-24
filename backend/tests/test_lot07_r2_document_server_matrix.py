@@ -97,6 +97,9 @@ def test_r2_unmapped_bilan_is_hidden_and_all_document_actions_fail_closed(client
     listing = client.get("/api/documents/", params={"patient_id": patient.id}, headers=headers)
     assert listing.status_code == 200, listing.text
     assert all(item["id"] != doc.id for item in listing.json()["documents"])
+    patient_listing = client.get(f"/api/patients/{patient.id}/documents", headers=headers)
+    assert patient_listing.status_code == 200, patient_listing.text
+    assert all(str(item["id"]) != str(doc.id) for item in patient_listing.json())
 
     attempted = (
         client.get(f"/api/documents/{doc.id}/download", headers=headers),
@@ -199,3 +202,28 @@ def test_r2_direct_generate_and_upload_refuse_unprivileged_document_writes(clien
     )
     assert archived.status_code == 403, archived.text
     assert db.query(models.DocumentArchive).count() == 0
+
+
+def test_r2_patient_document_route_never_leaks_financial_document_metadata(client, db, dentiste):
+    patient = _patient(db, dentiste.id, "FINANCIAL")
+    doc = _archived_row(db, patient, models.DocumentType.DEVIS)
+    doc.clinical_data = {"synthetic_confidential_billing": "DO_NOT_EXPOSE"}
+    db.commit()
+
+    staff = _mapped_read_only_actor(db, dentiste, "financial")
+    staff_headers = _credentials(client, staff)
+    patient_list = client.get(f"/api/patients/{patient.id}/documents", headers=staff_headers)
+    assert patient_list.status_code == 200, patient_list.text
+    assert all(str(item["id"]) != str(doc.id) for item in patient_list.json())
+    assert "DO_NOT_EXPOSE" not in patient_list.text
+
+    archive_list = client.get("/api/documents/", params={"patient_id": patient.id}, headers=staff_headers)
+    assert archive_list.status_code == 200, archive_list.text
+    assert all(item["id"] != doc.id for item in archive_list.json()["documents"])
+    assert client.get(f"/api/documents/{doc.id}/download", headers=staff_headers).status_code == 403
+
+    # Positive oracle: the legitimate owner still sees the same existing row.
+    owner_headers = _credentials(client, dentiste, password="TestPass123!")
+    authorized_list = client.get(f"/api/patients/{patient.id}/documents", headers=owner_headers)
+    assert authorized_list.status_code == 200, authorized_list.text
+    assert any(str(item["id"]) == str(doc.id) for item in authorized_list.json())
