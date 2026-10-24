@@ -12,15 +12,26 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
   const [bilans, setBilans] = useState<readonly BilanIndexItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
   const [selectedName, setSelectedName] = useState('');
   const [error, setError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const requestId = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
+  const pageUrlRef = useRef<string | null>(null);
 
   const revokeViewer = () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = null;
+    if (pageUrlRef.current) URL.revokeObjectURL(pageUrlRef.current);
+    pageUrlRef.current = null;
+    setPageImageUrl(null);
+    setSelectedId(null);
+    setCurrentPage(1);
+    setPageCount(1);
     setViewerUrl(null);
   };
 
@@ -57,8 +68,37 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
       requestId.current += 1;
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
+      if (pageUrlRef.current) URL.revokeObjectURL(pageUrlRef.current);
+      pageUrlRef.current = null;
     };
   }, [patientId]);
+
+  const fetchPage = async (documentId: number, targetPage: number, request: number) => {
+    try {
+      const result = await api.get(`/documents/bilan/${documentId}/page`, {
+        responseType: 'blob', params: { page: targetPage },
+      });
+      if (requestId.current !== request) return;
+      const png = result.data instanceof Blob ? result.data : new Blob([result.data], { type: 'image/png' });
+      if (png.type !== 'image/png') return; // Native authenticated PDF viewer fallback.
+      const uri = URL.createObjectURL(png);
+      if (pageUrlRef.current) URL.revokeObjectURL(pageUrlRef.current);
+      pageUrlRef.current = uri;
+      setPageImageUrl(uri);
+      setCurrentPage(targetPage);
+      const count = Number(result.headers?.['x-bilan-page-count'] ?? 1);
+      setPageCount(Number.isSafeInteger(count) && count >= 1 ? Math.min(count, 100) : 1);
+    } catch {
+      // A PDF whose page cannot be rendered is still available through the
+      // original authenticated inline PDF URL; never use an unauthenticated CDN.
+    }
+  };
+
+  const changePage = (targetPage: number) => {
+    if (!selectedId || targetPage < 1 || targetPage > pageCount) return;
+    const request = ++requestId.current;
+    void fetchPage(selectedId, targetPage, request);
+  };
 
   const open = async (item: BilanIndexItem) => {
     requestId.current += 1;
@@ -75,6 +115,8 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
       objectUrlRef.current = url;
       setViewerUrl(url);
       setSelectedName(item.name);
+      setSelectedId(item.id);
+      await fetchPage(item.id, 1, request);
     } catch {
       if (requestId.current === request) setError(true);
     }
