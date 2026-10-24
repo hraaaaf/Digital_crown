@@ -376,6 +376,15 @@
   --primary-ink: var(--status-info);
   --text-on-primary: var(--bg-medical-pearl);
   --text-muted: color-mix(in srgb, var(--text-main) 76%, var(--card-bg));
+
+  /* Tailwind v4 utilities consume --color-* aliases computed on :root.
+     Overriding only --primary / --text-muted here does not update them:
+     inherited aliases remain the dark indigo that failed visible contrast.
+     Override semantic aliases on this *radiology only* subtree instead. */
+  --color-primary: var(--status-info);
+  --color-primary-ink: var(--status-info);
+  --color-on-primary: var(--bg-medical-pearl);
+  --color-text-muted: color-mix(in srgb, var(--text-main) 76%, var(--card-bg));
 }
 
 /* Horizontal tabs remain accessible with touch, pointer and keyboard; the
