@@ -151,7 +151,7 @@ try {
       node.appendChild(localProbe);
       const expectedScopedPrimaryText = getComputedStyle(localProbe).color;
       localProbe.remove();
-      const rgb = value => (value.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+      const rgb = value => (value.match(/[0-9.]+/g) || []).slice(0, 3).map(Number);
       const luminance = value => {
         const [r,g,b] = rgb(value).map(v => {
           const x = v / 255;
