@@ -78,6 +78,14 @@ const presentationStrength = (presentation: CatalogPresentation): string =>
   [presentation.dosage, presentation.unite].filter(Boolean).join(' ').trim();
 
 
+// Display the provenance of EACH suggestion, never inferred from the query.
+// A historical catalog entry must not be presented as currently marketed.
+const catalogSourceShortLabel = (source: CatalogSource): string => {
+  if (source.id.startsWith('ammps-')) return 'AMMPS';
+  if (source.id === 'cnops-open-data-medications') return 'CNOPS Open Data';
+  return source.label || 'Référentiel documentaire';
+};
+
 const fmtMg = (mg: number) => (mg < 1000 ? `${mg}mg` : `${mg / 1000}g`);
 
 export const DrugRow: React.FC<DrugRowProps> = ({
@@ -492,7 +500,13 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                           <span className="mt-0.5 block truncate text-[9px] font-semibold text-text-muted">
                             {presentation.dci || 'DCI non renseignée'}
                           </span>
-
+                          <span
+                            data-catalog-provenance
+                            className="mt-0.5 block truncate text-[8px] font-bold text-text-muted/80"
+                            title={[presentation.source.label, presentation.source.snapshot_date].filter(Boolean).join(' · ')}
+                          >
+                            {catalogSourceShortLabel(presentation.source)} · {presentation.source.snapshot_date || 'date non renseignée'} · statut commercial actuel {presentation.source.current_marketing_status_verified ? 'vérifié' : 'non certifié'}
+                          </span>
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
                           <span className="text-right">
