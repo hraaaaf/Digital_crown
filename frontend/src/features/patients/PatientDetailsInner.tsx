@@ -408,7 +408,6 @@ export const PatientDetails = () => {
           </div>
           {isRadiology && hasOverflowingPatientTabs && (
             <div id="dc-radiology-tab-scroll-hint" className="dc-radiology-tab-scroll-hint md:hidden">
-              <span>↔ Glissez pour parcourir</span>
               <button type="button" className="dc-radiology-tabs-next"
                 aria-label="Afficher les autres onglets"
                 onClick={() => {
