@@ -109,8 +109,13 @@ try{
     'LAB EXCLUSIVEMENT — Plan de démonstration : documenter la croissance, '
     +'réaliser l’examen clinique complet et discuter les objectifs avec le praticien. '
     +'Aucun acte, appareil, extraction ou prescription réelle décidée.');
+  // Avoid overwriting the four Angle selections with a late asynchronous
+  // "load empty notes" response. The form MUST hydrate before becoming editable.
+  await page.getByTestId('odf-note-source-ready').waitFor({state:'attached',timeout:20000});
   for(const name of ['molaire-droite','molaire-gauche','canine-droite','canine-gauche']){
-    await page.getByTestId('odf-angle-'+name).selectOption('Classe I');
+    const select=page.getByTestId('odf-angle-'+name);
+    await select.selectOption('Classe I');
+    check((await select.inputValue())==='Classe I','ANGLE_CLINICIAN_SELECTION_'+name);
   }
   await snap('04-angle-class-one-fictional-casts');
 
