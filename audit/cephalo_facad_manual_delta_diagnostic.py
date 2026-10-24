@@ -16,6 +16,7 @@ SCHEMAS = ROOT / "docs/audits/schemas"
 MAPPING = SCHEMAS / "ortho_lot08_facad_dc_existing_protocol_mapping_v1.json"
 BACKLOG = SCHEMAS / "ortho_lot08_facad_dc_unmapped_backlog_v1.json"
 FINAL_SEVEN = SCHEMAS / "ortho_lot08_ricketts32_facad_final_seven_cluster_resolution_v1.json"
+ROSTER = SCHEMAS / "ortho_lot08_facad_ricketts_editor_uia_45_roster_v1.json"
 MANIFEST = SCHEMAS / "ortho_lot08_facad_ricketts_direct_parity_evidence_v1.json"
 INPUT_SCHEMA = "FACAD_DC_MANUAL_DELTA_DIAGNOSTIC_INPUT_V1"
 OUTPUT_SCHEMA = "FACAD_DC_MANUAL_DELTA_DIAGNOSTIC_OUTPUT_V1"
@@ -36,8 +37,8 @@ def read(path: Path) -> dict:
 
 
 def source_lock() -> dict:
-    mapping, backlog, final, manifest = map(
-        read, (MAPPING, BACKLOG, FINAL_SEVEN, MANIFEST)
+    mapping, backlog, final, manifest, roster = map(
+        read, (MAPPING, BACKLOG, FINAL_SEVEN, MANIFEST, ROSTER)
     )
     require(mapping["rules"]["canonical_label_match_does_not_prove_geometry_equivalence"] is True,
             "labels must never imply geometric equivalence")
@@ -55,6 +56,42 @@ def source_lock() -> dict:
     require(manifest["status"] == "DIRECT_DEFINITION_OBSERVED" and
             not manifest["evidence_records"] and not manifest["parity_rows"],
             "canonical source must remain definition-only")
+    require(roster["schema_version"] == "ORTHO_LOT08_FACAD_RICKETTS_EDITOR_UIA_45_ROSTER_V1"
+            and roster["status"] == "HISTORICAL_EDITOR_DEFINITION_UIA_OBSERVED_ONLY"
+            and roster["scientific_authority"] is False
+            and roster["compatibility_only"] is True
+            and roster["safety_rules"]["no_automatic_numeric_parity"] is True
+            and roster["safety_rules"]["no_direct_alias_on_matching_label"] is True,
+            "historical GUI roster source/status guard failed")
+    roster_profiles = roster["profile_rosters"]
+    require(len(roster_profiles) == 2 and
+            {p["profile_target_id"] for p in roster_profiles} == set(counts),
+            "both vendor editor profiles required")
+    verified_rosters = {}
+    label_orders = {}
+    for profile in roster_profiles:
+        target = profile["profile_target_id"]
+        lines = profile["ordered_factor_labels"]
+        require(len(lines) == counts[target] == profile["observed_factor_count"],
+                "historical editor roster count mismatch")
+        require(type(profile["source_artifact_id"]) is int and
+                profile["source_run_id"] in (37863549712, 37864557101) and
+                re.fullmatch(r"[a-f0-9]{64}", profile["source_uia_member_sha256"]) is not None,
+                "GUI provenance missing or malformed")
+        order_to_label = {}
+        label_to_order = {}
+        for i, rec in enumerate(lines, start=1):
+            require(type(rec) is dict and set(rec) == {"order", "facad_label"} and
+                    type(rec["order"]) is int and rec["order"] == i and
+                    type(rec["facad_label"]) is str and rec["facad_label"] and
+                    rec["facad_label"] not in label_to_order,
+                    "duplicate, unnamed or unordered historical factor")
+            order_to_label[i] = rec["facad_label"]
+            label_to_order[rec["facad_label"]] = i
+        verified_rosters[target] = order_to_label
+        label_orders[target] = label_to_order
+    require(set(label_orders[TARGET_32F]) == set(mapped) | set(labels),
+            "32F historical UIA roster does not match 6+26 source-locked factor names")
     seven = final["resolutions"]
     require(len(seven) == 7 and set(seven) == set(final["scope"]) and set(seven) <= set(mapped) | set(labels),
             "seven geometry source definitions incomplete")
@@ -65,7 +102,11 @@ def source_lock() -> dict:
         require(type(order) is int and 1 <= order <= 32 and order not in positions.values(),
                 "invalid seven-factor order")
         positions[label] = order
-    return {"mapped": mapped, "resolved": labels, "seven": positions, "counts": counts}
+    for label, order in positions.items():
+        require(label_orders[TARGET_32F].get(label) == order,
+                "final-seven order differs from independently archived UIA evidence")
+    return {"mapped": mapped, "resolved": labels, "seven": positions, "counts": counts,
+            "rosters": verified_rosters, "label_orders": label_orders}
 
 
 def readiness_report() -> dict:
@@ -75,8 +116,15 @@ def readiness_report() -> dict:
         "scope": "SOURCE_LOCKED_READINESS_ONLY",
         "source_32f_labels": sorted(set(lock["mapped"]) | set(lock["resolved"])),
         "source_32f_label_count": 32,
+        "source_32f_ordered_factor_labels": [
+            lock["rosters"][TARGET_32F][i] for i in range(1, 33)
+        ],
         "source_13f_factor_positions": list(range(1, 14)),
-        "source_13f_named_roster_independently_available": False,
+        "source_13f_ordered_factor_labels": [
+            lock["rosters"][TARGET_13F][i] for i in range(1, 14)
+        ],
+        "source_13f_named_roster_independently_available": True,
+        "source_13f_basis": "HISTORICAL_EDITOR_GUI_UIA_ONLY_NOT_NUMERIC_EXPORT",
         "sensitive_32f_no_direct_alias": [
             {"facad_label": k, "facad_order": v, "resolution": lock["resolved"][k]}
             for k, v in sorted(lock["seven"].items(), key=lambda pair: pair[1])
@@ -125,10 +173,8 @@ def diagnostic(data: dict) -> dict:
                 "duplicate vendor slot or name")
         seen_pairs.add((target, order))
         seen_names.add((target, label))
-        if target == TARGET_32F:
-            require(label in lock["mapped"] or label in lock["resolved"], "unknown 32F vendor label")
-            require(label not in lock["seven"] or lock["seven"][label] == order,
-                    "seven-sensitive vendor factor order mismatch")
+        require(lock["rosters"][target][order] == label,
+                "historical GUI source-locked factor label/order mismatch")
         dc_id = item["dc_measurement_id"]
         require(type(dc_id) is str and
                 (not dc_id or re.fullmatch(r"M_[A-Z0-9_]{4,100}", dc_id) is not None),
@@ -140,7 +186,7 @@ def diagnostic(data: dict) -> dict:
         require(fu in ("mm", "deg") and du in ("mm", "deg"), "unsupported unit")
         gates = []
         if target == TARGET_13F:
-            gates.append("13F_NAMED_VENDOR_ROSTER_NOT_IN_THIS_SOURCE")
+            gates.append("13F_GEOMETRY_CROSSWALK_NOT_SOURCE_LOCKED")
         if target == TARGET_32F:
             if label in lock["seven"]:
                 gates.append("SEVEN_SENSITIVE_DIRECT_ALIAS_FORBIDDEN")
@@ -205,7 +251,7 @@ def main() -> int:
         print(f"FACAD_MANUAL_DIAGNOSTIC_FAIL_CLOSED={type(exc).__name__}: {exc}")
         return 2
     print("FACAD_SOURCE_LOCKED_READINESS_32F=32")
-    print("FACAD_SOURCE_LOCKED_READINESS_13F=13_POSITIONS_ONLY")
+    print("FACAD_SOURCE_LOCKED_READINESS_13F=13_NAMED_GUI_EDITOR_DEFINITIONS_ONLY")
     print("FACAD_NUMERIC_CLINICAL_PARITY_ROWS=0")
     print("CLINICAL_NO_GO=true")
     print(f"FACAD_PRIVATE_REPORT={output}")
