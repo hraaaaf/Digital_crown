@@ -103,7 +103,7 @@ async function enter(flow,mode,values){
     await form.getByRole('textbox',{name:'Téléphone'}).fill(values.phone);
   }else{
     await form.getByRole('textbox',{name:'Prénom'}).fill(values.firstName);
-    await form.getByRole('textbox',{name:'Nom'}).fill(values.lastName);
+    await form.getByRole('textbox',{name:'Nom',exact:true}).fill(values.lastName);
   }
   await form.locator('input[type="date"]').fill(values.birthDate);
 }
