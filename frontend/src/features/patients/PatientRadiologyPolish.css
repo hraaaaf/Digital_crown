@@ -417,9 +417,9 @@
   }
 }
 
-// LOT07 R2 next polish: the accessibility palette stays strict black/white.
-// Tailwind v4's inherited --color-* aliases must follow the *selected* theme,
-// not the default Elite Blue values captured at root.
+/* LOT07 R2: keep the strict black/white accessibility palette.
+   Tailwind v4 inherited aliases must follow the selected theme, not
+   default Elite Blue values captured at the root. */
 [data-theme='high-contrast'] [data-dc-patient-radiology="true"] {
   --color-primary: var(--primary);
   --color-primary-ink: var(--primary);
