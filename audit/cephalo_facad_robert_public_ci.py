@@ -16,7 +16,7 @@ from audit import cephalo_facad_dc_private_subset_probe as dc
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "audit/fixtures/facad_robert_public_example_20261024_v1.json"
-EXPECTED_SHA256 = "836c6dd69e5210f7c346653d8b027ce548cd55404916ba3febef05473e0ca1b6"
+EXPECTED_SHA256 = "2ea42e215a614faa3663b8d97fa18cdaca85aa647d04c3084278890c7bdbda18"
 
 
 def require(ok: bool, reason: str) -> None:
