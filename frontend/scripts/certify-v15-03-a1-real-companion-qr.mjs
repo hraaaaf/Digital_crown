@@ -316,6 +316,33 @@ try {
     revokedStationFeedDenied:wallDenied.status(),
   };
 
+  // Positive regression: a genuine DOCUMENTS QR must still open the
+  // existing authorized withdrawal view rather than appointment check-in.
+  const docResponse=await expected(await kiosk.api.post('/api/workstation/patient-session',{
+    headers:kiosk.headers,data:{purpose:'documents'},
+  }),'documents QR issue',[201]);
+  const docHandoff=await docResponse.json();
+  await phone.goto(docHandoff.handoffUrl,{waitUntil:'domcontentloaded'});
+  await phone.getByText('Choisir un dossier',{exact:true}).waitFor({state:'visible',timeout:15000});
+  const docClaimPromise=phone.waitForResponse(r=>
+    new URL(r.url()).pathname==='/api/workstation/patient-session/claim'&&r.request().method()==='POST');
+  await phone.locator('[data-pc00-context]').filter({hasText:fixtures.primary.displayName}).click();
+  const docClaim=await docClaimPromise;
+  await expected(docClaim,'real Companion documents QR claim',[200]);
+  const docPayload=await docClaim.json();
+  assert(docPayload.purpose==='documents','documents QR purpose must be returned by verified backend');
+  await phone.locator('[data-station-handoff-status]').waitFor({state:'visible',timeout:15000});
+  const docCopy=await phone.locator('[data-station-handoff-status]').innerText();
+  assert(docCopy.includes('retrait')&&docCopy.includes('Documents'),
+    'documents QR must preserve the withdrawal wording');
+  assert(await phone.getByRole('button',{name:'Documents'}).getAttribute('aria-current')==='page',
+    'documents QR must preserve the Documents tab');
+  await snap(phone,'03-companion-documents-preserved-after.png');
+  evidence.cases['05_documents_non_regression']={
+    realCompanionDocumentsClaim:200, backendAuthenticatedPurpose:'documents',
+    documentsTabActive:true, withdrawalCopyPreserved:true,
+  };
+
   const finalPhoneError=evidence.http.filter(e=>e.pageerror);
   assert(finalPhoneError.length===0,'JavaScript error from actual browser: '+JSON.stringify(finalPhoneError));
   assert(evidence.http.some(h=>h.actor==='companion'&&h.path.endsWith('/claim')&&h.status===200),
