@@ -262,7 +262,7 @@ try{
       console.log('G5_SECRETARY_APPROVAL_PROBE',JSON.stringify({
         http_status:deniedStatus,body:(await unauthorized.text()).slice(0,280),
       }));
-      check(deniedStatus===403,'G5_SECRETARY_FORBIDDEN_APPROVAL_HTTP_'+deniedStatus);
+      check(deniedStatus===403,'G5_SECRETARY_FORBIDDEN_APPROVAL');
     }finally{
       await secretaryApi.dispose();
     }
