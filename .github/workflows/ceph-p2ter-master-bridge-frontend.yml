@@ -5,6 +5,12 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/ceph-p2ter-master-bridge-frontend.yml'
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-ceph-p2ter-master-bridge-frontend-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:

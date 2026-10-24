@@ -12,6 +12,12 @@ on:
       - frontend/src/features/ortho/cephaloRepository.test.ts
       - frontend/src/features/ortho/components/Step1Cephalo.tsx
 
+# Keep only the newest automatic PR run of this workflow per PR.
+# Manual and push executions are never superseded (unique run_id fallback).
+concurrency:
+  group: ci-latest-cephalo-r1-after-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
