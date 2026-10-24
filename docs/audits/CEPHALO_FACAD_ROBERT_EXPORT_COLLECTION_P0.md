@@ -122,3 +122,20 @@ Facial axis, Facial depth, ML/FH, LFH, PFH, Mand arc, Convexity, Max depth, Ii t
 Le diagnostic audit/cephalo_facad_manual_delta_diagnostic.py a été durci pour exiger **le nom ET l'ordre** pour les deux profils. Pour le profil 13F, même avec des noms connus et deux chiffres identiques, le gate 13F_GEOMETRY_CROSSWALK_NOT_SOURCE_LOCKED reste obligatoire : **l'existence d'un label dans FACAD ne crée pas une correspondance canonique de géométrie avec DC**. Les 7 constructions sensibles du 32F sont toujours interdites à l'alias direct.
 
 **Ce que cette récupération NE prouve toujours PAS :** un résultat numérique de Robert calculé dans FACAD pour les profils Ricketts, six exports authentiques, précision signée / arrondie, identités landmark/constructions entre FACAD et Digital Crown, app storage D3 isolé ou droit d'utiliser FACAD dans un nouveau runner. **État clinique inchangé = 0/45 comparaisons numériques observées ; 0/6 exports réels ; CLINICAL NO-GO**. Aucun FACAD vendor runtime, merge ni Vercel à cette étape.
+
+## 2026-10-24 — Re-vérification indépendante des deux anciens ZIP FACAD GUI
+
+Le vérificateur autonome en lecture seule audit/cephalo_facad_historical_roster_verify.py a été ajouté à la PR DRAFT #1065. Il ne lance pas FACAD et n'extrait aucun patient. Il exige des **ZIPs historiques fournis localement**, vérifie leurs SHA256 complets, ceux des membres UIA, la bonne fenêtre « Edit Cephalometric Analysis », le nom exact Ricketts 32F / 13F, le PREMIER tableau DataGrid et les 32/13 lignes factor (en excluant les titres Heading). Il compare les 45 noms et leur ordre au JSON de référence source-locké. À la moindre divergence, FAIL CLOSED. Il ne copie pas de fichier sous GitHub et ne produit jamais de verdict de parité numérique.
+
+L'analyse indépendante de ces deux ZIP originaux déjà téléchargés a donné :
+- #11586908104 Ricketts 32F : ZIP 2 500 871 octets, sha256 e060e68d4fc800c5bebec1dac51cc9b74dab968bdf3727d2fd3bc3b13377491b ; UIA 65 466 octets, sha256 43acb9c3ae778dc85def008f4b2045c1c6cb7b15bfd92063b865cc0d3f19fcf4 ; **32 facteurs / 6 Heading / 32 labels en ordre exact**.
+- #11587723671 Ricketts 13F : ZIP 2 475 163 octets, sha256 c41d06b2896bd952ad247c702c13238ebd89ad8035a8bd1d6db299ed81de77e8 ; UIA 48 827 octets, sha256 7dac25297ee031130a6a91668db956cea85aca76f4a61c95cb808a963ef3207d ; **13 facteurs / 4 Heading / 13 labels en ordre exact**.
+
+Exécution privée locale, jamais sur des patients :
+    python -m audit.cephalo_facad_historical_roster_verify \
+      --ricketts32f-zip /private/facad-history-11586908104.zip \
+      --ricketts13f-zip /private/facad-history-11587723671.zip
+
+Les ZIP ne sont PAS ajoutés au dépôt et ne sont PAS utilisés dans la CI. Le workflow synthetic-only exécute les 12 nouveaux tests audit/test_cephalo_facad_historical_roster_verify.py avec de faux ZIP générés pendant le job. Les tests négatifs couvrent les empreintes fausses, mauvais profil, ordre modifié, source altérée et l'affirmation impossible de parité par une archive d'éditeur.
+
+**Domaine : 45 définitions d'éditeur observées historiquement ; 0 exports vendor réels de valeurs Ricketts ; 0/45 parités numériques. CLINICAL NO-GO reste obligatoire.**
