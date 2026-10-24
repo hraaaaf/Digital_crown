@@ -118,6 +118,24 @@ class OrthoV5DocumentContract(unittest.TestCase):
             tampered['canonical_measurements'][0]['unit'] = invalid
             self.assertNotIn('SNA', [row['label'] for row in build_ortho_bilan_document(tampered)['osseuse']])
 
+    def test_g3_source_matched_image_never_prints_uncalibrated_mm(self):
+        source = typed_study()
+        source['lab_image_landmark_alignment'] = 'VERIFIED_AARIZ_EXPERT_PAIR'
+        source['measurements'].append({
+            'measurement_id':'evidence:typed:metric', 'method_id':'MCNAMARA_CO_A_CANONICAL_MM_V2',
+            'availability_status':'AVAILABLE', 'value':42.0, 'unit':'mm',
+            'scientific_source':'EVIDENCE_GRAPH_V1',
+        })
+        source['canonical_measurements'].append({
+            'canonical_measurement_id':'M_CO_A_MM_V1',
+            'value_authority_method_id':'MCNAMARA_CO_A_CANONICAL_MM_V2',
+            'measurement_refs':['evidence:typed:metric'],
+            'availability_status':'AVAILABLE', 'value':42.0, 'unit':'mm',
+        })
+        odf = build_ortho_bilan_document(source)
+        self.assertIn('SNA', [row['label'] for row in odf['osseuse']])
+        self.assertNotIn('Longueur maxillaire Co-A', [row['label'] for row in odf['osseuse']])
+
     def test_canonical_is_never_promoted_if_typed_source_disagrees(self):
         source = typed_study()
         for mutation in (
