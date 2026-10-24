@@ -7,7 +7,7 @@ fail() { printf 'A2 MANUAL LAB BLOCKED: %s\n' "$*" >&2; exit 1; }
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "not inside a Git checkout"
 cd "$ROOT"
-[[ "$(git branch --show-current)" == "test/v15-fue-g03-a2-fallback-20261024" ]] ||
+[[ "$(git branch --show-current)" == "test/v15-fue-g03-a2-execution-fresh-pr-20261024" ]] ||
   fail "checkout the A2 branch (not main, master, A1 or A3)"
 git diff --quiet && git diff --cached --quiet ||
   fail "tracked files changed; use a clean A2 checkout"
