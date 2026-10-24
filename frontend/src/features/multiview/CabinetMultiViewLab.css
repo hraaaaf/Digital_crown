@@ -165,7 +165,11 @@
   grid-template-rows: max-content minmax(460px,auto) !important;
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="two-rows"] > [data-v15-071-viewslot="dossier"] {
-  max-height: 560px;
+  /* Keep media visible without hiding historical PDFs: this panel scrolls
+     independently and the underlying dataset/authorization is unchanged. */
+  max-height: 290px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"] [data-v15-071-viewslot="dossier"] {
   font-size: 13px;
