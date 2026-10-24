@@ -114,6 +114,15 @@ async function submit(flow,codes){
   await flow.page.getByRole('button',{name:'Confirmer mon identité'}).click();
   return expectStatus(await resPromise,'real UI fallback POST',codes);
 }
+// A rejected fallback must never leave a phone, name or date visible on a shared kiosk.
+async function expectFallbackFieldsCleared(flow){
+  await flow.page.waitForFunction(() => {
+    const form=document.querySelector('[data-station-fallback-form]');
+    if(!form) return false;
+    const inputs=[...form.querySelectorAll('input')];
+    return inputs.length>=2 && inputs.every(input=>input.value==='');
+  },null,{timeout:15000});
+}
 async function configure(kiosk,mode,p=pin,expected=[200]){
   return expectStatus(await kiosk.api.patch('/api/workstation/patient-session/config',{
     headers:kiosk.headers,data:{fallbackMode:mode,ownerPin:p}
@@ -207,8 +216,11 @@ try{
   await showFallback(negative);
   await enter(negative,'phone_dob',{phone:'0612345678',birthDate:'1901-01-01'});
   const wrongDob=await submit(negative,[403]);
+  await expectFallbackFieldsCleared(negative);
   await enter(negative,'phone_dob',{phone:'0600000000',birthDate:'1992-05-04'});
   const unknownPhone=await submit(negative,[403]);
+  await expectFallbackFieldsCleared(negative);
+  evidence.cases.refused_inputs_scrubbed=true;
   assert(await negative.page.getByText(fixtures.unique.displayName,{exact:false}).count()===0,
     'invalid fallback revealed a patient identity');
   evidence.cases.wrong_dob_unknown=[wrongDob.status(),unknownPhone.status()];
@@ -245,9 +257,21 @@ try{
       'collision displayed a matched identity');
     assert(await collision.page.getByText(fixtures.collisionB.displayName,{exact:false}).count()===0,
       'collision leaked a second identity');
+    if(attempt<5){
+      await expectFallbackFieldsCleared(collision);
+      // Every retry requires explicit re-entry after privacy-driven scrubbing.
+      await enter(collision,'phone_dob',{phone:'0698877665',birthDate:'1990-06-07'});
+    }
   }
-  await collision.page.getByRole('alert').filter({hasText:'Trop de tentatives'})
-    .waitFor({state:'visible',timeout:15000});
+  const lockAlert=collision.page.getByRole('alert').filter({hasText:'Trop de tentatives'});
+  await lockAlert.waitFor({state:'visible',timeout:15000});
+  const message=await lockAlert.innerText();
+  assert(message.includes('Adressez-vous à l’accueil'),'lock guidance must direct patient to reception');
+  assert(!message.includes('nouvelle session'),'locked UI must not suggest QR regeneration');
+  await collision.page.locator('[data-station-fallback-form]').waitFor({state:'hidden',timeout:15000});
+  assert(await collision.page.locator('[data-station-fallback-toggle]').count()===0,
+    'locked kiosk still allows fallback input');
+  evidence.cases.locked_form_hidden=true;
   await screenshot(collision.page,'10-collision-locked-after.png');
   evidence.cases.collision_lock=denied;
   await collision.ctx.close();
