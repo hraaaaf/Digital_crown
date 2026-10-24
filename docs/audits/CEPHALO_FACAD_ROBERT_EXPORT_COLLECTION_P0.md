@@ -167,3 +167,28 @@ Exécution en lecture seule sur les archives locales :
       --ricketts13f-zip /private/facad-history-11587723671.zip
 
 **Aucun FACAD GUI/binaire ni EULA/trial utilisé de nouveau.** Ces 13 identités de signatures affichées **ne convertissent pas le statut 0/45 parités numériques ni les 0/6 exports**, et ne justifient aucun alias DC ni norm clinico-scientifique. CLINICAL NO-GO reste vrai.
+
+## 2026-10-24 — Premier sous-ensemble privé FACAD -> fonctions géométriques réelles Digital Crown (P1, non clinique)
+
+Le module **audit/cephalo_facad_dc_private_subset_probe.py** sur PR DRAFT #1065 importe les fonctions géométriques versionnées de **backend.services.cephalo_ricketts_geometry** et **backend.services.cephalo_steiner_geometry**. Il lit **six exports FACAD et le manifest d'intégrité en LOCAL seulement**, hors checkout Git, vérifie les six SHA256/tailles/profils, les deux ensembles de valeurs 9/5 et l'identité exacte des **30 paires de coordonnées des deux profils**. La sortie CLI n'inclut ni les coordonnées ni l'identifiant/données démographiques de Robert. L'environnement CI ne reçoit **aucune** donnée FACAD; son test utilise exclusivement des repères synthétiques.
+
+**Exécution du calcul en contexte privé sur une copie des six fichiers Drive renommée** (ne jamais transférer leur contenu vers Actions/PR/log public) :
+
+    cd Digital_crown
+    python -m audit.cephalo_facad_dc_private_subset_probe \
+      --private-dir /chemin/PRIVE/facad-normalise \
+      --integrity /chemin/PRIVE/Manifest_integrity.json
+
+Le répertoire privé doit contenir : 32F_Analysis_Values.txt, 32F_Analysis_Properties.txt, 32F_Object_Values.txt, 13F_Analysis_Values.txt, 13F_Analysis_Properties.txt, 13F_Object_Values.txt et **un manifeste des octets d'origine**. La conversion virgule->point est interprétative en mémoire et ne modifie pas les octets. Les Object Values portent déjà l'unité **[mm]** ; **ne pas multiplier à nouveau par 0,038853 mm/pixel**. L'orientation du repère FACAD reste non établie pour le moteur/adapter complet, puisque l'UI indique « système non défini ».
+
+**Quatre géométries candidates (raw helpers, pas runtime adapter ni parité clinique) :**
+- ILi/A-Pog : helper **ricketts_l1_apog_inclination_deg_v1** (Ii,Iia,A,Pog)
+- ILs/A-Pog : helper **ricketts_u1_apog_inclination_deg_v1** (Is,Isa,A,Pog)
+- InterIncisal : helper versionné **steiner_geometry._ray_angle_deg** (Is,Isa,Ii,Iia), PRIMITIVE seulement, pas un protocole certifié Ricketts
+- Facial cone angle : helper **ricketts_line_angle_acute_deg_v1** sur vecteurs Go->Me / N->Pog, PRIMITIVE seulement, pas preuve du même adapter clinique
+
+**Cinq blocages volontaires** : Convexity, Ii to A-Pog, Is to A-Pog, Li-EL exigent notamment **P et Or / FH** pour la convention de signe dans les fonctions DC ; FACAD Object Values ne les fournit pas. Upper lip len FACAD mesure **ANS-STs** alors que le helper DC appelle ANS-commissure; ne PAS substituer STs à la commissure.
+
+**Contrat de sortie** : aucune ligne ne peut être qualifiée de parité clinique, 0 clinical_numeric_parities_verified, dc_full_runtime_adapter_executed=false, clinical_no_go=true, même si les valeurs arrondies sont proches. Les angles ne nécessitent pas de recalibration, mais l'identité géométrique du repère est toujours à confirmer. Des différences inférieures à 0,3° sur coordonnées tronquées à 0,1 mm ne doivent pas être interprétées comme écarts cliniques.
+
+**Attention aux assertions préexistantes** : le validateur canonique reste DIRECT_EVIDENCE_PARTIAL après six exports authentiques. Ce test de sous-ensemble **n'ajoute PAS de parity_rows** ni d'approbation clinique. Prochain jalon : preuve indépendante du mapping anatomique/repère et exécution de l'adapter/protocole DC, puis nouvelles captures des points manquants si nécessaire.
