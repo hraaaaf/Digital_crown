@@ -152,6 +152,10 @@ jobs:
             foreach($f in $proofs) {
               if (-not (Test-Path -LiteralPath "dist/DigitalCrown/_internal/$f" -PathType Leaf)) {throw "PyInstaller bundle missing required identity file in _internal: $f"}
             }
+            $env:PYTHONPATH=(Get-Location).Path
+            python -c "from backend.release_certification import verify_installable_release_identity; verify_installable_release_identity('dist/DigitalCrown/_internal', expected_pack='BASIC'); print('FROZEN_BUNDLE_IDENTITY_AND_ASSETS=PASS')"
+            if ($LASTEXITCODE -ne 0) {throw 'Bundled identity/asset hash verification rejected _internal; do not compile installer'}
+            $env:PYTHONPATH=''
             Write-Host 'CERTIFIED_SOURCE_TO_WINDOWS_EXE_BUNDLE=SUCCESS; INNO_CANDIDATE_NOT_CERTIFIED'
           } finally { Pop-Location }
       - name: Diagnostic certified onedir layout (read-only, even after packaging failure)
@@ -228,6 +232,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {throw 'Real-bundle candidate Inno compilation failed'}
           $setup=Get-Item (Join-Path $candidate 'dist_installer/DigitalCrownSetup-INSTALLABLE-CERTIFIED.exe') -ErrorAction Stop
           $record.Add("REAL_BUNDLE_CANDIDATE_INNO=PASS SIZE=$($setup.Length) SHA256=$((Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant())")
+          $record | Set-Content -LiteralPath $report -Encoding utf8
           # A separate synthetic test tree verifies all seven fail-closed Inno preprocessor guards.
           # Synthetic placeholders are NEVER used for the above real-bundle compilation.
           $fake=Join-Path $env:RUNNER_TEMP 'CB02-INNO-NEGATIVE'
@@ -241,14 +246,21 @@ jobs:
           & $compiler $fakeScript | Out-Null
           if ($LASTEXITCODE -ne 0) {throw 'Inno synthetic positive fixture unexpectedly rejected'}
           $record.Add('SYNTHETIC_POSITIVE_GUARDS=PASS; FIXTURE_NOT_AUTHENTIC')
+          $record | Set-Content -LiteralPath $report -Encoding utf8
           foreach($name in $proofs) {
             $full=Join-Path $fakeInternal $name
             Remove-Item -LiteralPath $full -Force
             try {
               $log=(& $compiler $fakeScript 2>&1 | Out-String)
               if ($LASTEXITCODE -eq 0) {throw "MISSING_PROOF_ACCEPTED=$name"}
-              if ($log -notlike "*INSTALLABLE_CERTIFIED REQUIRED*" -or $log -notlike "*$name*") {throw "Missing-proof rejection reason not found: $name"}
+              # Inno's intentional #error text for attestation omits the filename.
+              # Match the exact declared error instead of weakening exit-code checks.
+              $expectedReason=if ($name -eq 'github-attestation-verification.json') {'GitHub attestation verification evidence is missing'} else {$name}
+              if ($log -notlike '*INSTALLABLE_CERTIFIED REQUIRED*' -or $log -notlike "*$expectedReason*") {
+                throw "Missing-proof rejection reason not found: $name; expected: $expectedReason; compiler_exit=$LASTEXITCODE"
+              }
               $record.Add("MISSING_$name=REJECTED")
+              $record | Set-Content -LiteralPath $report -Encoding utf8
             } finally {
               Set-Content -LiteralPath $full -Value 'Synthetic placeholder: NOT CERTIFIED' -Encoding ascii
             }
