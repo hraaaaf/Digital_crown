@@ -63,17 +63,30 @@ def synthetic_projection(n=95):
     # across unrelated angles and mm lengths is not an acceptable visual test.
     demo_values = (82.0, 80.0, 2.0, 32.0, 25.0, 0.8, 84.0, 22.0,
                    4.0, 25.0, 4.0, 92.0, 64.0, 132.0, 2.0, 2.5)
+    canonical = []
     for i in range(n):
         available = i < len(known) and i % 3 == 0
+        name = known[i] if i < len(known) else f"ANALYSIS_MEASURE_{i:03d}"
+        original_ref = f"evidence:demo:{i}"
+        method = f"DEMO_TYPED_METHOD_{i:03d}"
+        unit = "°" if i < len(known) and "_DEG_" in known[i] else "mm"
+        status = "AVAILABLE" if available else "NOT_COMPUTABLE"
+        value = demo_values[i] if available else None
         measurement.append({
-            "measurement_id": (known[i] if i < len(known) else f"ANALYSIS_MEASURE_{i:03d}"),
-            "availability_status": "AVAILABLE" if available else "NOT_COMPUTABLE",
-            "value": demo_values[i] if available else None,
-            "unit": "°" if i < len(known) and "_DEG_" in known[i] else "mm",
-            "method_id": "STEINER_SNA_DEG_V1",
+            "measurement_id": original_ref,
+            "availability_status": status,
+            "value": value,
+            "unit": unit, "method_id": method,
             "method_version": "1", "scientific_source": "EVIDENCE_GRAPH_V1",
             "calibration_ref": "non requise",
         })
+        if i < len(known):
+            canonical.append({
+                "canonical_measurement_id": name,
+                "value_authority_method_id": method,
+                "measurement_refs": [original_ref],
+                "availability_status": status, "value": value, "unit": unit,
+            })
     return {
         "analysis_id": 41, "analysis_revision": 3,
         "contract_version": "CEPHALO_PDF_PROJECTION_V1",
@@ -84,6 +97,7 @@ def synthetic_projection(n=95):
         "blocking_gates": ["diagnostic_rule_registry_empty",
                            "r14_authoritative_snapshot_not_persisted"],
         "measurements": measurement,
+        "canonical_measurements": canonical,
         "stages": [
             {"stage_id": "R11", "title": "Diagnostic scientifique",
              "presentation_state": "BLOCKED",
