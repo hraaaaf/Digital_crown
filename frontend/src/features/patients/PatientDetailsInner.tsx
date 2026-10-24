@@ -413,13 +413,13 @@ export const PatientDetails = () => {
         <div className={cn('animate-in fade-in slide-in-from-bottom-8 duration-700 h-full', !isDocuments && 'delay-150')}>
           {activeTab === 'radiology' && (
             <div className="space-y-2">
-              {radiologyAdvice?.patientId === id && dismissedAdvicePatient !== id && (
+              {radiologyAdvice !== null && radiologyAdvice.patientId === id && dismissedAdvicePatient !== id && (
                 <aside data-testid="patient-radiology-advice" aria-label="Conseil contextuel du dossier"
                   className="dc-radiology-advice rounded-xl border border-border-main bg-card px-3 py-2.5 shadow-sm">
                   <div className="flex min-w-0 items-center gap-2">
                     <span aria-hidden="true" className="shrink-0 text-lg">💡</span>
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-main">
-                      {radiologyAdvice.title}
+                      {radiologyAdvice?.title}
                     </span>
                     <button type="button" aria-expanded={adviceExpanded}
                       onClick={() => setAdviceExpanded(value => !value)}
@@ -427,15 +427,15 @@ export const PatientDetails = () => {
                       {adviceExpanded ? 'Réduire' : 'Détails'}
                     </button>
                     <button type="button" aria-label="Masquer ce conseil"
-                      onClick={() => setDismissedAdvicePatient(id)}
+                      onClick={() => setDismissedAdvicePatient(id ?? null)}
                       className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-text-muted">
                       Fermer
                     </button>
                   </div>
                   {adviceExpanded && (
                     <div className="mt-2 border-t border-border-main pt-2 text-sm leading-relaxed text-text-main">
-                      <p>{radiologyAdvice.message}</p>
-                      {radiologyAdvice.action && <p className="mt-1 font-semibold">Action suggérée : {radiologyAdvice.action}</p>}
+                      <p>{radiologyAdvice?.message}</p>
+                      {radiologyAdvice?.action && <p className="mt-1 font-semibold">Action suggérée : {radiologyAdvice.action}</p>}
                     </div>
                   )}
                 </aside>
