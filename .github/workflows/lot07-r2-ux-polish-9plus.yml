@@ -10,6 +10,7 @@ on:
       - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
       - 'frontend/scripts/certify-lot07-r2-ronly-bilan.mjs'
       - 'scripts/lot07_r2_seed_bilan_t2.py'
+      - '.github/workflows/media-c5-visual-cert.yml'
       - '.github/workflows/lot07-r2-ux-polish-9plus.yml'
 
 permissions:
