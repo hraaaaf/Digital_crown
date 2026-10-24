@@ -185,6 +185,18 @@ tbody tr:nth-child(even) { background: #fbfcfd; }
       <div class="research-source">Source : {{ odf.research_figure.source_url }}</div>
     </figcaption>
   </figure>
+  {% if odf.research_figure.kind == 'G5_MANUAL_ANATOMICAL_TRACE' %}
+  <figure class="ceph-trace ceph-trace-only" aria-label="Tracé anatomique seul sur fond blanc">
+    <div class="trace-heading">Tracé anatomique — vue épurée</div>
+    <img src="{{ odf.research_figure.anatomical_only_data_uri }}"
+         alt="Contours manuels validés des structures osseuses, incisives et profil cutané — même sujet et mêmes coordonnées que la téléradiographie" />
+    <figcaption>
+      Les mêmes six contours manuels approuvés, isolés sur fond blanc.
+      Les plans géométriques restent secondaires ; aucune silhouette
+      n’est reconstituée automatiquement.
+    </figcaption>
+  </figure>
+  {% endif %}
   {% endif %}
   <h3>A. Analyse osseuse</h3>
   {% if odf.osseuse %}
