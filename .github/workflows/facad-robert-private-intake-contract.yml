@@ -15,6 +15,8 @@ on:
       - audit/test_cephalo_facad_historical_roster_verify.py
       - audit/cephalo_facad_intravendor_ricketts_validate.py
       - audit/test_cephalo_facad_intravendor_ricketts_validate.py
+      - audit/cephalo_facad_dc_private_subset_probe.py
+      - audit/test_cephalo_facad_dc_private_subset_probe.py
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
@@ -29,6 +31,8 @@ on:
       - audit/test_cephalo_facad_historical_roster_verify.py
       - audit/cephalo_facad_intravendor_ricketts_validate.py
       - audit/test_cephalo_facad_intravendor_ricketts_validate.py
+      - audit/cephalo_facad_dc_private_subset_probe.py
+      - audit/test_cephalo_facad_dc_private_subset_probe.py
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
@@ -101,6 +105,11 @@ jobs:
         run: |
           python -m unittest -v audit.test_cephalo_facad_intravendor_ricketts_validate
           python -m audit.cephalo_facad_intravendor_ricketts_validate
+
+      - name: Run four versioned Digital Crown geometry helpers on synthetic points only
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_dc_private_subset_probe
+          python -m py_compile audit/cephalo_facad_dc_private_subset_probe.py
 
       - name: Revalidate canonical repository schema without vendor files
         run: python audit/cephalo_lot08_facad_parity_validate.py
