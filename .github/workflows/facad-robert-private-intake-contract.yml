@@ -23,6 +23,8 @@ on:
       - audit/test_cephalo_facad_robert_p2_geometry_gate.py
       - audit/cephalo_facad_robert_p2_matrix.py
       - audit/test_cephalo_facad_robert_p2_matrix.py
+      - audit/cephalo_facad_robert_p3_canonical_adapter_probe.py
+      - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
       - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
       - audit/fixtures/facad_robert_public_example_20261024_v1.json
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
@@ -47,6 +49,8 @@ on:
       - audit/test_cephalo_facad_robert_p2_geometry_gate.py
       - audit/cephalo_facad_robert_p2_matrix.py
       - audit/test_cephalo_facad_robert_p2_matrix.py
+      - audit/cephalo_facad_robert_p3_canonical_adapter_probe.py
+      - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
       - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
       - audit/fixtures/facad_robert_public_example_20261024_v1.json
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
@@ -155,4 +159,34 @@ jobs:
           echo "FACAD_SOURCE_LOCK=32 named 32F + 13 named 13F historical UIA editor definitions, 7 blocked direct aliases; zero runtime parities." >> "$GITHUB_STEP_SUMMARY"
           echo "Historical archive verification uses synthetic ZIP fixtures in CI; authentic old archives stay private." >> "$GITHUB_STEP_SUMMARY"
           echo "FACAD_13F_VS_32F_EDITOR_SIGNATURES=13/13 same types/refs; 4 separate displayed norm strings." >> "$GITHUB_STEP_SUMMARY"
+          echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
+
+  p3-canonical-adapter-educational:
+    name: P3 real canonical V2 typed adapter - two provisional angles
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      FACAD_CLINICAL_RELEASE: "false"
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Minimal typed evidence dependency only
+        run: python -m pip install --disable-pip-version-check "pydantic==2.6.3"
+      - name: Execute original Digital Crown canonical V2 typed adapter with educational Robert points
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_p3_canonical_adapter_probe
+          python -m audit.cephalo_facad_robert_p3_canonical_adapter_probe
+      - name: Immutable scientific boundary
+        shell: bash
+        run: |
+          echo "FACAD_P3_CANONICAL_ADAPTER=EDUCATIONAL_TWO_ANGLES_ONLY" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P3_SAME_TRACE_ANATOMICAL_IDENTITIES=UNVERIFIED" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P3_COMPLETE_CLINICAL_RUNTIME=NOT_EXECUTED" >> "$GITHUB_STEP_SUMMARY"
           echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
