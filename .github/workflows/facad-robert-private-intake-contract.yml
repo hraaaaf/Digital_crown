@@ -9,6 +9,7 @@ on:
       - audit/cephalo_facad_robert_evidence_stage.py
       - audit/test_cephalo_facad_robert_evidence_stage.py
       - audit/cephalo_facad_manual_delta_diagnostic.py
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_editor_uia_45_roster_v1.json
       - audit/test_cephalo_facad_manual_delta_diagnostic.py
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
@@ -17,6 +18,7 @@ on:
       - audit/cephalo_facad_robert_evidence_stage.py
       - audit/test_cephalo_facad_robert_evidence_stage.py
       - audit/cephalo_facad_manual_delta_diagnostic.py
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_editor_uia_45_roster_v1.json
       - audit/test_cephalo_facad_manual_delta_diagnostic.py
       - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
       - .github/workflows/facad-robert-private-intake-contract.yml
@@ -89,5 +91,5 @@ jobs:
           echo "FACAD_PRIVATE_INTAKE_CONTRACT=PASS" >> "$GITHUB_STEP_SUMMARY"
           echo "No Facad installer, binary, GUI, EULA acceptance, license or patient file was touched." >> "$GITHUB_STEP_SUMMARY"
           echo "Synthetic-only staging tests do not prove authentic vendor data or numeric parity." >> "$GITHUB_STEP_SUMMARY"
-          echo "FACAD_SOURCE_LOCK=32 named 32F + 13 unnamed 13F positions, 7 blocked direct aliases." >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_SOURCE_LOCK=32 named 32F + 13 named 13F historical UIA editor definitions, 7 blocked direct aliases; zero runtime parities." >> "$GITHUB_STEP_SUMMARY"
           echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
