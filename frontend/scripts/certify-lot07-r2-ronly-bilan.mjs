@@ -42,8 +42,16 @@ try {
   const bilan = docs.find(d => d.type === 'BILAN' && d.name === 'T2-historical-bilan.pdf');
   assert('BILAN classified R URL without static path', bilan?.url === '/api/documents/bilan/' + bilan?.id + '/view');
   const pdf = await api.get('/api/documents/bilan/' + bilan.id + '/view', { headers });
-  assert('owner can read R-only PDF', pdf.status() === 200 &&
-    (pdf.headers()['content-type'] ?? '').includes('application/pdf'));
+  const pdfBytes = await pdf.body();
+  assert('owner receives actual paginated PDF bytes for visual review',
+    pdf.status() === 200 && (pdf.headers()['content-type'] ?? '').includes('application/pdf') &&
+    pdfBytes.subarray(0,5).toString() === '%PDF-' && pdfBytes.includes(Buffer.from('%%EOF')) &&
+    pdfBytes.length > 900, { status: pdf.status(), bytes: pdfBytes.length });
+  const png = await api.get('/api/documents/bilan/' + bilan.id + '/page?page=1', { headers });
+  const pngBytes = await png.body();
+  assert('owner receives a real server-rendered authenticated BILAN page image',
+    png.status() === 200 && pngBytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) &&
+    png.headers()['x-bilan-page-count'] === '1', { status: png.status(), bytes: pngBytes.length });
   for (const [name, req] of [
     ['ordinary download blocked', api.get('/api/documents/' + bilan.id + '/download', { headers })],
     ['archive URL blocked', api.get('/api/static/archives/r2-dec01-t2/synthetic-bilan.pdf', { headers })],
@@ -73,6 +81,10 @@ try {
     headers: { Authorization: 'Bearer ' + restrictedJwt },
   });
   assert('secretary direct URL denied', restricted.status() === 403);
+  const restrictedPage = await restrictedContext.get('/api/documents/bilan/' + bilan.id + '/page?page=1', {
+    headers: { Authorization: 'Bearer ' + restrictedJwt },
+  });
+  assert('secretary cannot obtain raster BILAN page', restrictedPage.status() === 403);
   await restrictedContext.dispose();
   const withoutAuth = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
   const unauthorized = await withoutAuth.get('/api/documents/bilan/' + bilan.id + '/view');
@@ -108,6 +120,60 @@ try {
   const scope = page.locator('[data-v15-071-real-cabinet-lab]');
   await scope.locator('[data-testid="multiview-real-dossier"]').waitFor({ state: 'visible', timeout: 30000 });
   await scope.locator('[data-testid="multiview-bilan-readonly"]').waitFor({ state: 'visible' });
+  // Real Chromium visual proof: selected document theme tokens must drive
+  // every MultiView surface, independent of default Elite Blue branding.
+  // No mocks, no color literals and no change to the persisted theme setting.
+  const originalTheme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  const themeColors = {};
+  for (const chosenTheme of ['emerald','rose','ocean','graphite','prestige','dark','high-contrast']) {
+    await page.evaluate(name => document.documentElement.setAttribute('data-theme', name), chosenTheme);
+    const colors = await scope.evaluate(node => {
+      const probe = document.createElement('div');
+      probe.style.backgroundColor = 'var(--card-bg)';
+      probe.style.color = 'var(--text-main)';
+      probe.style.borderColor = 'var(--border-color)';
+      document.body.appendChild(probe);
+      const expected = {
+        card: getComputedStyle(probe).backgroundColor,
+        text: getComputedStyle(probe).color,
+        border: getComputedStyle(probe).borderColor,
+      };
+      probe.style.backgroundColor = 'var(--bg-medical-pearl)';
+      const expectedSurface = getComputedStyle(probe).backgroundColor;
+      probe.style.color = 'var(--text-on-primary)';
+      const expectedPrimaryText = getComputedStyle(probe).color;
+      probe.remove();
+      const media = node.querySelector('[data-v15-071-viewslot="imagerie"]');
+      const badge = node.querySelector('[data-testid="multiview-ronly-contract"]');
+      const hero = node.querySelector('[data-testid="multiview-real-dossier"] > div:first-child');
+      return {
+        expected, expectedSurface, expectedPrimaryText,
+        card: media ? getComputedStyle(media).backgroundColor : 'absent',
+        text: getComputedStyle(node).color,
+        surface: badge ? getComputedStyle(badge).backgroundColor : 'absent',
+        primaryText: hero ? getComputedStyle(hero).color : 'absent',
+      };
+    });
+    assert('theme ' + chosenTheme + ' inherits semantic colors in real MultiView',
+      colors.card === colors.expected.card &&
+      colors.text === colors.expected.text &&
+      colors.surface === colors.expectedSurface &&
+      colors.primaryText === colors.expectedPrimaryText, colors);
+    themeColors[chosenTheme] = colors;
+    if (['emerald','dark','high-contrast'].includes(chosenTheme)) {
+      await page.screenshot({
+        path: path.join(root, 'theme-' + chosenTheme + '-clinical-1920.png'),
+        fullPage: false,
+      });
+    }
+  }
+  assert('themes actually change the rendered surfaces',
+    themeColors.emerald.card !== themeColors.dark.card &&
+    themeColors.rose.card !== themeColors.prestige.card);
+  await page.evaluate(previous => {
+    if (previous === null) document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', previous);
+  }, originalTheme);
   const open = scope.getByRole('button', { name: 'Consulter : T2-historical-bilan.pdf' });
   await open.waitFor({ state: 'visible', timeout: 30000 });
   assert('R-only clinical slot has no upload inputs', await scope.locator('input[type=file]').count() === 0);
@@ -115,11 +181,36 @@ try {
     name: /^(Enregistrer|Supprimer|Signer|Importer)$/i,
   }).count() === 0);
   await open.click();
-  await scope.locator('iframe[title^="Bilan historique :"]').waitFor({ state: 'attached', timeout: 30000 });
+  const inlinePage = scope.locator('[data-testid="bilan-page-image"]');
+  await inlinePage.waitFor({ state: 'visible', timeout: 30000 });
+  assert('authenticated PNG page genuinely painted in browser',
+    await inlinePage.evaluate(img => img instanceof HTMLImageElement && img.complete && img.naturalWidth > 100));
   assert('real BILAN PDF read in browser using authenticated blob', true);
   assert('no BILAN write request from MultiView', writes.length === 0, { writes });
   assert('no uncaught browser errors', failures.length === 0, { failures });
+  // The authenticated blob viewer needs its own load event after the frame
+  // appears. The fixture is a real ReportLab PDF; do not claim a rendered
+  // document merely because an iframe node exists.
+  await inlinePage.evaluate((img) => {
+    if (!(img instanceof HTMLImageElement) || !img.complete || img.naturalWidth < 100)
+      throw Error('BILAN raster preview not rendered');
+  });
+  await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(root, 'synthetic-r-only-bilan-1920.png'), fullPage: false });
+  // This additional visual proof exposes the entire real PDF instead of only
+  // the top strip of an iframe below the 900px desktop fold.
+  await scope.getByRole('button', { name: /Agrandir/ }).click();
+  const enlarged = page.getByRole('dialog', { name: /Bilan historique agrandi/ });
+  await enlarged.waitFor({ state: 'visible', timeout: 20000 });
+  const expandedPage = enlarged.locator('[data-testid="bilan-page-image-expanded"]');
+  await expandedPage.waitFor({ state: 'visible' });
+  assert('fullscreen PDF preview actually renders page pixels',
+    await expandedPage.evaluate(img => img instanceof HTMLImageElement && img.complete && img.naturalWidth > 100));
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(root, 'synthetic-bilan-expanded-pdf-1920.png'), fullPage: false });
+  await enlarged.getByRole('button', { name: 'Fermer', exact: true }).click();
+  assert('fullscreen BILAN preview closes without mutation', await page.getByRole('dialog', { name: /Bilan historique agrandi/ }).count() === 0 &&
+    writes.length === 0);
   await fs.writeFile(path.join(root, 'assertions.json'), JSON.stringify({
     sourceHead: sha, syntheticOnly: true, browser: 'chromium', checks, failures, writes,
   }, null, 2));
