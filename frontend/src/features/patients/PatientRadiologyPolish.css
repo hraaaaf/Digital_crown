@@ -369,6 +369,26 @@
 }
 
 
+/* The theme switch updates root tokens, but Tailwind v4's --color-* values
+   may remain inherited from the default palette. Resolve semantic aliases
+   on the radiology root for EVERY selected theme, never literal brand colors.
+   Dark and High Contrast below may refine these semantic roles. */
+[data-dc-patient-radiology="true"] {
+  --primary-ink: var(--primary);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary);
+  --color-on-primary: var(--text-on-primary);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-border-main: var(--border-color);
+  --color-border-hover: var(--border-hover);
+  --color-card: var(--card-bg);
+  --color-medical-pearl: var(--bg-medical-pearl);
+  --color-background: var(--bg-medical-pearl);
+  --color-success: var(--status-success);
+  --color-info: var(--status-info);
+}
+
 /* LOT07 R2 micropolish: dark-on-dark actions must use readable semantic roles.
    Restrict overrides to patient radiology; never change global theme settings. */
 [data-theme='dark'] [data-dc-patient-radiology="true"] {
