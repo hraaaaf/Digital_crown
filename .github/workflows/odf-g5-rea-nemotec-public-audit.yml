@@ -44,61 +44,100 @@ jobs:
           /tmp/rea-public-lab/node_modules/.bin/rea --help > rea-public-evidence/rea-help.txt
           /tmp/rea-public-lab/node_modules/.bin/rea doctor --json > rea-public-evidence/rea-doctor.json || true
 
-      - name: Open public Nemotec demo with a dedicated local headless Chrome
+      - name: Prove REA browser inspector works on a synthetic local test page (NOT Nemotec)
         shell: bash
         run: |
           set -euo pipefail
-          command -v google-chrome || command -v chromium
-          curl --fail --location --silent --show-error --max-time 40 \
-            -o /dev/null -w 'Nemotec public HTTP %{http_code}\n' "$REA_NEMOTEC_PUBLIC_URL"
+          mkdir -p /tmp/rea-fixture
+          printf '%s\n' '<!doctype html><title>G5 REA synthetic smoke</title><main><h1>Local synthetic test only</h1><button type="button">Safe test</button></main>' > /tmp/rea-fixture/index.html
+          python3 -m http.server 8123 --bind 127.0.0.1 --directory /tmp/rea-fixture > /tmp/g5-rea-fixture-server.log 2>&1 &
+          echo "$!" > /tmp/g5-rea-fixture-server.pid
           google-chrome --headless=new --disable-gpu --no-sandbox \
-            --disable-dev-shm-usage --no-first-run --no-default-browser-check \
-            --remote-debugging-address=127.0.0.1 \
-            --remote-debugging-port=9222 \
-            --user-data-dir=/tmp/g5-rea-public-browser \
-            --window-size=1440,900 \
-            "$REA_NEMOTEC_PUBLIC_URL" \
-            >/tmp/g5-rea-chrome.log 2>&1 &
+            --disable-dev-shm-usage --no-first-run \
+            --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 \
+            --user-data-dir=/tmp/g5-rea-synthetic-browser --window-size=1440,900 \
+            http://127.0.0.1:8123/ > /tmp/g5-rea-smoke-chrome.log 2>&1 &
           echo "$!" > /tmp/g5-rea-chrome.pid
-          for i in $(seq 1 40); do
-            if curl -fsS --max-time 1 "http://127.0.0.1:9222/json/list" > rea-public-evidence/chrome-targets-cdp.json; then
-              break
-            fi
+          for i in $(seq 1 35); do
+            if curl -fsS --max-time 2 http://127.0.0.1:9222/json/list > rea-public-evidence/chrome-targets-cdp.json; then break; fi
             sleep 1
           done
-          test -s rea-public-evidence/chrome-targets-cdp.json
-          curl --fail --silent --show-error --max-time 5 \
-            "http://127.0.0.1:9222/json/version" > rea-public-evidence/chrome-version.json
           python3 - <<'PY'
           import json
           from pathlib import Path
-          targets=json.loads(Path("rea-public-evidence/chrome-targets-cdp.json").read_text())
-          match=[t for t in targets if t.get("type") == "page" and "nemouniversity.nemotec.com" in t.get("url", "")]
-          if not match:
-              raise SystemExit("NO_NEMOTEC_PUBLIC_PAGE_CDP")
-          Path("rea-public-evidence/chrome-target-id.txt").write_text(match[0]["id"])
-          print("CDP_PUBLIC_PAGE_READY", match[0]["url"])
+          ts=json.loads(Path("rea-public-evidence/chrome-targets-cdp.json").read_text())
+          a=[t for t in ts if t.get("type")=="page" and "127.0.0.1:8123" in t.get("url","")]
+          assert a, "LOCAL_SYNTHETIC_PAGE_NOT_VISIBLE"
+          Path("rea-public-evidence/smoke-target-id.txt").write_text(a[0]["id"])
+          print("CHROME_SYNTHETIC_LOCAL_PAGE_READY")
+          PY
+          REA=/tmp/rea-public-lab/node_modules/.bin/rea
+          "$REA" list-browser-targets http://127.0.0.1:9222 --json > rea-public-evidence/rea-smoke-targets.json
+          "$REA" inspect-web-page http://127.0.0.1:9222 "$(cat rea-public-evidence/smoke-target-id.txt)" \
+            --observation-ms 1000 --include-accessibility-text --json \
+            > rea-public-evidence/rea-smoke-inspection.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("rea-public-evidence/rea-smoke-inspection.json").read_text())
+          assert isinstance(d,dict) and len(str(d))>100
+          Path("rea-public-evidence/smoke-status.txt").write_text("PASS: REA inspector executed on synthetic local fixture. This is NOT NemoStudio.\n")
+          print("REA_REAL_BROWSER_INSPECTION_SMOKE_PASS")
           PY
 
-      - name: REA observes the public NemoUniversity page without interaction or credentials
+      - name: Try two official PUBLIC Nemo pages; never mistake a timeout for a REA failure
         shell: bash
         run: |
           set -euo pipefail
-          REA=/tmp/rea-public-lab/node_modules/.bin/rea
-          "$REA" list-browser-targets "$REA_CDP_ENDPOINT" --json \
-            > rea-public-evidence/rea-list-browser-targets.json
-          TARGET_ID="$(cat rea-public-evidence/chrome-target-id.txt)"
-          "$REA" inspect-web-page "$REA_CDP_ENDPOINT" "$TARGET_ID" \
-            --observation-ms 1000 --include-accessibility-text --json \
-            > rea-public-evidence/rea-inspect-nemotec-public-demo.json
+          URL=""
+          for candidate in \
+            'https://nemotec.com/nemostudio/en/products/nemoceph/' \
+            'https://nemouniversity.nemotec.com/en/demo/'; do
+            if curl --fail --location --silent --show-error --connect-timeout 5 \
+              --max-time 18 --output /tmp/g5-nemotec-public-response.html "$candidate"; then
+              URL="$candidate"
+              break
+            fi
+          done
+          if [ -z "$URL" ]; then
+            echo 'UNAVAILABLE: Both official public Nemo URLs failed network reachability from GitHub Ubuntu. NemoStudio itself was NOT installed, and NO Nemo audit was performed.' \
+              | tee rea-public-evidence/nemotec-site-check.txt
+            exit 0
+          fi
+          echo "HTTP_PUBLIC_REACHABLE: $URL" | tee rea-public-evidence/nemotec-site-check.txt
+          google-chrome --headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage \
+            --no-first-run --remote-debugging-address=127.0.0.1 --remote-debugging-port=9223 \
+            --user-data-dir=/tmp/g5-rea-nemotec-browser --window-size=1440,900 "$URL" \
+            >/tmp/g5-rea-nemotec-chrome.log 2>&1 &
+          echo "$!" > /tmp/g5-rea-nemotec-chrome.pid
+          for i in $(seq 1 35); do
+            if curl -fsS --max-time 2 http://127.0.0.1:9223/json/list \
+                > rea-public-evidence/nemotec-chrome-targets.json; then break; fi
+            sleep 1
+          done
           python3 - <<'PY'
           import json
           from pathlib import Path
-          p=Path("rea-public-evidence/rea-inspect-nemotec-public-demo.json")
+          ts=json.loads(Path("rea-public-evidence/nemotec-chrome-targets.json").read_text())
+          a=[t for t in ts if t.get("type")=="page" and ("nemotec.com" in t.get("url",""))]
+          assert a, "NEMOTEC_ORIGIN_UNAVAILABLE"
+          Path("rea-public-evidence/nemotec-public-target-id.txt").write_text(a[0]["id"])
+          print("REA_NEMOTEC_PUBLIC_CHROME_READY",a[0]["url"])
+          PY
+          REA=/tmp/rea-public-lab/node_modules/.bin/rea
+          "$REA" list-browser-targets http://127.0.0.1:9223 --json \
+            > rea-public-evidence/rea-nemotec-public-targets.json
+          "$REA" inspect-web-page http://127.0.0.1:9223 \
+            "$(cat rea-public-evidence/nemotec-public-target-id.txt)" \
+            --observation-ms 1000 --include-accessibility-text --json \
+            > rea-public-evidence/rea-nemotec-public-inspection.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("rea-public-evidence/rea-nemotec-public-inspection.json")
           d=json.loads(p.read_text())
-          assert isinstance(d, dict)
-          assert p.stat().st_size > 100
-          print("REA_BROWSER_INSPECTION_EVIDENCE_GENERATED", p.stat().st_size, "bytes", list(d)[:12])
+          assert isinstance(d,dict) and p.stat().st_size>100
+          print("REA_PUBLIC_NEMOTEC_WEBSITE_INSPECTION_COMPLETED_NOT_NEMOSTUDIO_APP")
           PY
 
       - name: Ensure browser shutdown and discard dedicated profile
@@ -108,7 +147,13 @@ jobs:
           if test -f /tmp/g5-rea-chrome.pid; then
             kill "$(cat /tmp/g5-rea-chrome.pid)" 2>/dev/null || true
           fi
-          rm -rf /tmp/g5-rea-public-browser
+          if test -f /tmp/g5-rea-fixture-server.pid; then
+            kill "$(cat /tmp/g5-rea-fixture-server.pid)" 2>/dev/null || true
+          fi
+          if test -f /tmp/g5-rea-nemotec-chrome.pid; then
+            kill "$(cat /tmp/g5-rea-nemotec-chrome.pid)" 2>/dev/null || true
+          fi
+          rm -rf /tmp/g5-rea-synthetic-browser /tmp/g5-rea-nemotec-browser
 
       - name: Upload only public website evidence; never patients or proprietary software
         if: always()
