@@ -305,6 +305,12 @@ def verify_document(doc_id: str, db: Session = Depends(database.get_db)):
                 )
             ).first()
             
+        # DEC-R2-01: even a numeric archive ID or filename fragment is not
+        # a public proof of BILAN authorization. Match unknown/missing output
+        # to prevent a document-existence oracle on this legacy public route.
+        if doc is not None and doc.document_type == models.DocumentType.BILAN:
+            doc = None
+
         if doc:
             patient = db.query(models.Patient).filter(models.Patient.id == doc.patient_id).first()
             p_name = f"{patient.nom.upper()} {patient.prenom[0]}." if patient else "PATIENT INCONNU"
@@ -351,6 +357,12 @@ def track_document(doc_id: str, db: Session = Depends(database.get_db)):
                 )
             ).first()
             
+        # DEC-R2-01: even a numeric archive ID or filename fragment is not
+        # a public proof of BILAN authorization. Match unknown/missing output
+        # to prevent a document-existence oracle on this legacy public route.
+        if doc is not None and doc.document_type == models.DocumentType.BILAN:
+            doc = None
+
         if doc:
             patient = db.query(models.Patient).filter(models.Patient.id == doc.patient_id).first()
             p_name = f"{patient.nom.upper()} {patient.prenom[0]}." if patient else "PATIENT INCONNU"
