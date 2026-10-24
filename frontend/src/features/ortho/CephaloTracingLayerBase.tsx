@@ -196,6 +196,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const isLayerVisible = (id: OrthoLayerId) => layerPresentation?.visibility[id] ?? true;
   const layerOpacityFor = (id: OrthoLayerId) => layerPresentation?.opacity[id] ?? 1;
   const isPro = uiMode === 'pro';
+  // R23-G4 reference-only: never inherit unverified geometry or annotations.
+  const referenceHold = activeAnalysis === 'r23-reference-hold';
 
   const {
     svgRef,
@@ -293,7 +295,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       defColor: string,
       opts?: { dash?: string; op?: number; renderKey?: string },
     ) => {
-      if (!p1 || !p2 || !isLayerVisible('plans')) return null;
+      if (referenceHold || !p1 || !p2 || !isLayerVisible('plans')) return null;
 
       if (activeAnalysis !== 'all' && !isGhost) {
         const analysis = activeAnalysis.toLowerCase();
@@ -419,7 +421,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
         {showWits && seg(occPost, occAnt, 'occ', cephaloGeometryColor('occ'), { dash: '4,4' })}
 
-        {vto.showSoftTissue && isLayerVisible('soft_tissue') && !isGhost && (() => {
+        {!referenceHold && vto.showSoftTissue && isLayerVisible('soft_tissue') && !isGhost && (() => {
           const ls2 = getPoint(finalPts, 'Ls2') || getPoint(finalPts, 'ls2');
           const li2 = getPoint(finalPts, 'Li2') || getPoint(finalPts, 'li2');
           const profilePoints = [gSoft, nSoft, prn, cm, sn, aSoft, ls, ls2, st, li2, li, bSoft, pogSoft, meSoft].filter(Boolean) as Landmark[];
@@ -531,7 +533,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           <path data-ortho-layer="measurements" opacity={layerOpacityFor('measurements')} d={wedgeNormPath} fill={wNorm} fillOpacity="0.20" stroke={wNorm} strokeWidth="1.1" vectorEffect="non-scaling-stroke" className="pointer-events-none" />
         )}
 
-        {isLayerVisible('teeth') && u1i && u1a && (
+        {!referenceHold && isLayerVisible('teeth') && u1i && u1a && (
           <AnatomicalTooth
             incisalPoint={u1i}
             apexPoint={u1a}
@@ -543,7 +545,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
             glowFilter={u1Glow}
           />
         )}
-        {isLayerVisible('teeth') && l1i && l1a && (
+        {!referenceHold && isLayerVisible('teeth') && l1i && l1a && (
           <AnatomicalTooth
             incisalPoint={l1i}
             apexPoint={l1a}
@@ -609,8 +611,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const wOr = (u1Dragged || frkDragged) ? getPoint(landmarks, 'Or') : null;
   const wGo = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Go') : null;
   const wMe = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Me') : null;
-  const showIMPA = !!(wL1i && wL1a && wGo && wMe);
-  const showIF = !!(wU1i && wU1a && wPo && wOr);
+  const showIMPA = !referenceHold && !!(wL1i && wL1a && wGo && wMe);
+  const showIF = !referenceHold && !!(wU1i && wU1a && wPo && wOr);
   const skeletalOp = activeDragId ? P.isolationDim : baseOpacity;
 
   if (imageWidth === 0 || imageHeight === 0) return null;
@@ -660,7 +662,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           {renderSkeletalLayer(landmarks, false, undefined, baseOpacity)}
 
           <g opacity={baseOpacity}>
-            {isLayerVisible('measurements') && isPro && visualDebug?.normative_zones?.map((z, i) => (
+            {!referenceHold && isLayerVisible('measurements') && isPro && visualDebug?.normative_zones?.map((z, i) => (
               <ellipse
                 key={`zone-${i}`}
                 cx={z.cx} cy={z.cy} rx={z.rx} ry={z.ry}
@@ -674,7 +676,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
                 className="pointer-events-none"
               />
             ))}
-            {isLayerVisible('plans') && francfortLineExtended && (
+            {!referenceHold && isLayerVisible('plans') && francfortLineExtended && (
               <line
                 x1={francfortLineExtended.x1} y1={francfortLineExtended.y1}
                 x2={francfortLineExtended.x2} y2={francfortLineExtended.y2}
@@ -688,7 +690,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         </motion.g>
 
-        {isLayerVisible('plans') && mcNamaraLine && nPrime && nPrimeTick && (
+        {!referenceHold && isLayerVisible('plans') && mcNamaraLine && nPrime && nPrimeTick && (
           <g opacity={layerOpacityFor('plans')} data-ortho-layer="plans">
             <line
               x1={mcNamaraLine.x1} y1={mcNamaraLine.y1}
@@ -719,7 +721,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {isLayerVisible('measurements') && aPrime && ptA && aPrimeTick && (
+        {!referenceHold && isLayerVisible('measurements') && aPrime && ptA && aPrimeTick && (
           <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptA.x} y1={ptA.y}
@@ -750,7 +752,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {isLayerVisible('measurements') && bPrime && ptB && bPrimeTick && (
+        {!referenceHold && isLayerVisible('measurements') && bPrime && ptB && bPrimeTick && (
           <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptB.x} y1={ptB.y}

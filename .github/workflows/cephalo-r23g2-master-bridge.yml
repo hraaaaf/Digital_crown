@@ -1,0 +1,48 @@
+name: Cephalo R23-G2 Master Bridge (experimental)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cephalo-r23g2-master-bridge.yml'
+      - 'backend/services/cephalo_protocol_projection.py'
+      - 'backend/services/cephalo_runtime_focus.py'
+      - 'backend/data/cephalometry/clinical_reference_profiles_v1.json'
+      - 'backend/data/cephalometry/ricketts_atlas2009_complete33_protocol_profile_v1.json'
+      - 'backend/data/cephalometry/ricketts_gregoret13_protocol_profile_v1.json'
+      - 'audit/cephalo_r23g2_contract_tests/**'
+      - 'audit/cephalo_r23g3_contract_tests/**'
+      - 'backend/services/cephalo_runtime_chain.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-only-fail-closed:
+    name: Source-only refusal and Focus (no clinical release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Confirm exact HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated test dependency
+        run: python -m pip install pytest==9.0.3
+      - name: Compile staged modules
+        run: python -m py_compile backend/services/cephalo_protocol_projection.py backend/services/cephalo_runtime_focus.py
+      - name: Execute negative source-profile and Focus contracts
+        run: python -m pytest --noconftest audit/cephalo_r23g2_contract_tests/test_profile_read_projection.py audit/cephalo_r23g3_contract_tests/test_active_focus.py -q
+      - name: Check the clinical runtime has NOT been enabled for historical profiles
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path("backend/services/cephalo_runtime_chain.py").read_text()
+          block=text.split('"protocol_profiles": {',1)[1].split('}',1)[0]
+          assert '"steiner"' in block and '"tweed_merrifield"' in block
+          assert all(f'"{name}"' not in block for name in ('mcnamara','com','ricketts_atlas2009','ricketts_gregoret13'))
+          print('PASS: source-only bridge has not activated historical clinical profiles')
+          PY
