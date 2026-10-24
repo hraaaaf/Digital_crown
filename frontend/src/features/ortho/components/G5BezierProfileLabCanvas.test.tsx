@@ -39,6 +39,26 @@ describe('G5 cutaneous Bezier canvas — research LAB guard',()=>{
     expect(emit.mock.calls.at(-1)?.[0]).toEqual(samples);
   });
 
+  it('rehydrates versioned Bézier anchors and handles from a server-validated draft',()=>{
+    const emit=vi.fn();
+    const persist=vi.fn();
+    const saved=[
+      {anchor:[150,200] as const,incoming:[150,200] as const,outgoing:[200,200] as const},
+      {anchor:[300,260] as const,incoming:[260,240] as const,outgoing:[300,260] as const},
+    ];
+    render(<G5BezierProfileLabCanvas
+      imageUrl="/g5-qa-fixture.png" imageWidth={width} imageHeight={height}
+      viewport={viewport} otherContours={[]} disabled={false}
+      initialNodes={saved} onNodesChange={persist}
+      borderColor="#999" textColor="#444" onSampledChange={emit}/>);
+    expect(screen.getByTestId('g5-bezier-anchor-0')).toBeTruthy();
+    expect(screen.getByTestId('g5-bezier-anchor-1')).toBeTruthy();
+    expect(screen.getByTestId('g5-bezier-handle-0-outgoing')).toBeTruthy();
+    expect(screen.getByTestId('g5-bezier-handle-1-incoming')).toBeTruthy();
+    expect(emit).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+  });
+
   it('does not create a contour when the LAB control is disabled',()=>{
     const emit=vi.fn();
     render(<G5BezierProfileLabCanvas
