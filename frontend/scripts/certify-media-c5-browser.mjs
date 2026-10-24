@@ -44,12 +44,6 @@ const evidence = [];
 for (const viewport of viewports) {
   const context = await browser.newContext({ viewport, colorScheme: 'light' });
   const page = await context.newPage();
-  await page.addInitScript(({ access, refresh }) => {
-    localStorage.setItem('token', access);
-    localStorage.setItem('refresh_token', refresh || '');
-    localStorage.setItem('appMode', 'prod');
-  }, { access: tokens.access_token, refresh: tokens.refresh_token });
-
   const pageErrors = [];
   const http5xx = [];
   page.on('pageerror', (error) => pageErrors.push(String(error)));
@@ -57,10 +51,36 @@ for (const viewport of viewports) {
     if (response.status() >= 500) http5xx.push({ url: response.url(), status: response.status() });
   });
 
-  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}`, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByRole('button', { name: 'Imagerie', exact: true }).click();
-  await page.getByRole('button', { name: 'Médiathèque', exact: true }).click();
-  await page.getByText('Médiathèque clinique', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  // Authenticate through the real Cabinet flow rather than injecting
+  // arbitrary browser localStorage values. The C5 matrix does not bypass
+  // route guards, patient tenancy or the active backend session.
+  await page.goto('http://127.0.0.1:5173/hub?select=1', {
+    waitUntil: 'domcontentloaded', timeout: 90000,
+  });
+  await page.locator('[data-hub-experience="cabinet"]').click();
+  await page.locator('input[type=email]').fill(runtimeUser);
+  await page.locator('input[type=password]').fill(runtimePassword);
+  await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
+  await page.waitForURL(url => new URL(url).pathname === '/dashboard', { timeout: 45000 });
+
+  // Open the actual patient module via the same supported URL state used
+  // by G1 E2E. This is not a mocked component nor a forced inactive tab.
+  await page.goto(
+    `http://127.0.0.1:5173/patients/${patient.id}?tab=radiology&radioTab=media`,
+    { waitUntil: 'domcontentloaded', timeout: 90000 },
+  );
+  await page.locator('[data-flow-patient-surface="radiology"]').waitFor({
+    state: 'visible', timeout: 45000,
+  });
+  await page.locator('[data-testid="patient-media-timeline"]').waitFor({
+    state: 'visible', timeout: 45000,
+  });
+  await page.getByText('Médiathèque clinique', { exact: true }).waitFor({
+    state: 'visible', timeout: 30000,
+  });
+  if (new URL(page.url()).pathname !== `/patients/${patient.id}`) {
+    throw new Error('C5 unexpectedly left the authenticated patient route: ' + page.url());
+  }
 
   const search = page.getByLabel('Rechercher un média');
   await search.fill('radio');
