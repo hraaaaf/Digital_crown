@@ -47,6 +47,11 @@ try {
     pdf.status() === 200 && (pdf.headers()['content-type'] ?? '').includes('application/pdf') &&
     pdfBytes.subarray(0,5).toString() === '%PDF-' && pdfBytes.includes(Buffer.from('%%EOF')) &&
     pdfBytes.length > 900, { status: pdf.status(), bytes: pdfBytes.length });
+  const png = await api.get('/api/documents/bilan/' + bilan.id + '/page?page=1', { headers });
+  const pngBytes = await png.body();
+  assert('owner receives a real server-rendered authenticated BILAN page image',
+    png.status() === 200 && pngBytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) &&
+    png.headers()['x-bilan-page-count'] === '1', { status: png.status(), bytes: pngBytes.length });
   for (const [name, req] of [
     ['ordinary download blocked', api.get('/api/documents/' + bilan.id + '/download', { headers })],
     ['archive URL blocked', api.get('/api/static/archives/r2-dec01-t2/synthetic-bilan.pdf', { headers })],
@@ -76,6 +81,10 @@ try {
     headers: { Authorization: 'Bearer ' + restrictedJwt },
   });
   assert('secretary direct URL denied', restricted.status() === 403);
+  const restrictedPage = await restrictedContext.get('/api/documents/bilan/' + bilan.id + '/page?page=1', {
+    headers: { Authorization: 'Bearer ' + restrictedJwt },
+  });
+  assert('secretary cannot obtain raster BILAN page', restrictedPage.status() === 403);
   await restrictedContext.dispose();
   const withoutAuth = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
   const unauthorized = await withoutAuth.get('/api/documents/bilan/' + bilan.id + '/view');
@@ -118,25 +127,31 @@ try {
     name: /^(Enregistrer|Supprimer|Signer|Importer)$/i,
   }).count() === 0);
   await open.click();
-  await scope.locator('iframe[title^="Bilan historique :"]').waitFor({ state: 'attached', timeout: 30000 });
+  const inlinePage = scope.locator('[data-testid="bilan-page-image"]');
+  await inlinePage.waitFor({ state: 'visible', timeout: 30000 });
+  assert('authenticated PNG page genuinely painted in browser',
+    await inlinePage.evaluate(img => img instanceof HTMLImageElement && img.complete && img.naturalWidth > 100));
   assert('real BILAN PDF read in browser using authenticated blob', true);
   assert('no BILAN write request from MultiView', writes.length === 0, { writes });
   assert('no uncaught browser errors', failures.length === 0, { failures });
   // The authenticated blob viewer needs its own load event after the frame
   // appears. The fixture is a real ReportLab PDF; do not claim a rendered
   // document merely because an iframe node exists.
-  await scope.locator('iframe[title^="Bilan historique :"]').evaluate((frame) => {
-    if (!(frame instanceof HTMLIFrameElement)) throw Error('BILAN iframe missing');
-    if (!frame.src.startsWith('blob:')) throw Error('BILAN not loaded from guarded PDF blob');
+  await inlinePage.evaluate((img) => {
+    if (!(img instanceof HTMLImageElement) || !img.complete || img.naturalWidth < 100)
+      throw Error('BILAN raster preview not rendered');
   });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(root, 'synthetic-r-only-bilan-1920.png'), fullPage: false });
   // This additional visual proof exposes the entire real PDF instead of only
   // the top strip of an iframe below the 900px desktop fold.
   await scope.getByRole('button', { name: /Agrandir/ }).click();
   const enlarged = page.getByRole('dialog', { name: /Bilan historique agrandi/ });
   await enlarged.waitFor({ state: 'visible', timeout: 20000 });
-  await enlarged.locator('iframe').waitFor({ state: 'visible' });
+  const expandedPage = enlarged.locator('[data-testid="bilan-page-image-expanded"]');
+  await expandedPage.waitFor({ state: 'visible' });
+  assert('fullscreen PDF preview actually renders page pixels',
+    await expandedPage.evaluate(img => img instanceof HTMLImageElement && img.complete && img.naturalWidth > 100));
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(root, 'synthetic-bilan-expanded-pdf-1920.png'), fullPage: false });
   await enlarged.getByRole('button', { name: 'Fermer', exact: true }).click();
