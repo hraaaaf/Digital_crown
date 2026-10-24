@@ -11,7 +11,8 @@ import {
  * stored and printed. V1 does not persist the editable handles: closing the
  * Bézier session leaves the sampled, non-approved polyline in the G5 draft.
  */
-type Node = {anchor:G5PixelPoint;incoming:G5PixelPoint;outgoing:G5PixelPoint};
+export type G5BezierNode = {anchor:G5PixelPoint;incoming:G5PixelPoint;outgoing:G5PixelPoint};
+type Node = G5BezierNode;
 type Handle = 'anchor'|'incoming'|'outgoing';
 type Drag = {index:number;handle:Handle;last:G5PixelPoint};
 type Props = {
@@ -22,6 +23,8 @@ type Props = {
   otherContours:readonly {id:string;points:readonly G5PixelPoint[];color:string}[];
   disabled:boolean;
   onSampledChange:(points:G5PixelPoint[])=>void;
+  initialNodes?:readonly G5BezierNode[]|null;
+  onNodesChange?:(nodes:G5BezierNode[])=>void;
   borderColor:string;
   textColor:string;
 };
@@ -34,13 +37,17 @@ const sub=(a:G5PixelPoint,b:G5PixelPoint):G5PixelPoint=>[a[0]-b[0],a[1]-b[1]];
 
 export const G5BezierProfileLabCanvas:React.FC<Props>=({
   imageUrl,imageWidth,imageHeight,viewport,otherContours,disabled,
-  onSampledChange,borderColor,textColor,
+  onSampledChange,initialNodes,onNodesChange,borderColor,textColor,
 })=>{
   const svg=useRef<SVGSVGElement|null>(null);
   const dragging=useRef<Drag|null>(null);
   const history=useRef<Node[][]>([]);
   const redoHistory=useRef<Node[][]>([]);
-  const [nodes,setNodes]=useState<Node[]>([]);
+  const [nodes,setNodes]=useState<Node[]>(()=>initialNodes?.map(n=>({
+    anchor:[...n.anchor] as G5PixelPoint,
+    incoming:[...n.incoming] as G5PixelPoint,
+    outgoing:[...n.outgoing] as G5PixelPoint,
+  }))||[]);
   const [error,setError]=useState('');
   const inImage=(e:React.PointerEvent<SVGSVGElement>):G5PixelPoint|null=>{
     const bounds=svg.current?.getBoundingClientRect();
@@ -64,6 +71,11 @@ export const G5BezierProfileLabCanvas:React.FC<Props>=({
         segments(next),{imageWidth,imageHeight,maxStepPixels:5},
       ):[];
       setNodes(next);
+      onNodesChange?.(next.map(n=>({
+        anchor:[...n.anchor] as G5PixelPoint,
+        incoming:[...n.incoming] as G5PixelPoint,
+        outgoing:[...n.outgoing] as G5PixelPoint,
+      })));
       onSampledChange(samples.map(p=>[p[0],p[1]]));
       setError('');
     }catch(e){
