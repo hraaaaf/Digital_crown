@@ -107,31 +107,53 @@ tbody tr:nth-child(even) { background: #fbfcfd; }
   color: var(--secondary);
   margin-right: 6pt;
 }
-/* An independently verified research illustration is an annex, NOT a phase
-   of the clinician's orthodontic examination. No invented interpretation. */
-.research-plate {
-  break-before: page;
-  page-break-before: always;
+/* G4: the traced film belongs to phase 01, not to a detached appendix. */
+.ceph-trace {
+  margin: 7pt 0 14pt;
+  padding: 8pt;
+  border: .8pt solid var(--line);
+  background: #f9fbfd;
   text-align: center;
-  margin: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
-.research-plate h2 { text-align: left; margin-top: 0; }
-.research-plate img {
+.ceph-trace .trace-heading {
+  text-align: left;
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 9.8pt;
+  margin: 0 0 7pt;
+}
+.ceph-trace img {
   display: block;
-  margin: 9pt auto 10pt;
-  max-width: 90%;
-  max-height: 490pt;
+  width: auto;
+  height: auto;
+  max-height: 380pt;
+  max-width: 98%;
+  margin: 0 auto;
   object-fit: contain;
 }
-.research-plate figcaption {
-  font-size: 8.5pt;
-  color: var(--muted);
-  line-height: 1.48;
+.ceph-trace figcaption {
   text-align: left;
-  padding: 8pt 11pt;
+  font-size: 7.8pt;
+  line-height: 1.35;
+  color: var(--muted);
   border-top: .8pt solid var(--line);
+  padding-top: 6pt;
+  margin-top: 7pt;
 }
-.research-source { font-size: 8pt; color: var(--muted); margin-top: 6pt; }
+.trace-legend {
+  text-align: left;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4pt 12pt;
+  margin-top: 6pt;
+  font-size: 7.3pt;
+}
+.trace-legend-item { display: inline-block; margin-right: 9pt; }
+.trace-legend-indicator { display: inline-block; width: 12pt; height: 3pt;
+  vertical-align: middle; margin: 0 4pt 2pt 0; }
+.research-source { font-size: 7.5pt; color: var(--muted); margin-top: 4pt; }
 </style>
 </head>
 <body>
@@ -146,6 +168,24 @@ tbody tr:nth-child(even) { background: #fbfcfd; }
 
 <section>
   <h2><span class="phase-title-number">01</span> Analyse céphalométrique</h2>
+  {% if odf.research_figure %}
+  <figure class="ceph-trace" aria-label="Tracé céphalométrique superposé à la téléradiographie">
+    <div class="trace-heading">Tracé céphalométrique — téléradiographie de profil</div>
+    <img src="{{ odf.research_figure.data_uri }}" alt="Même téléradiographie et tracé source-bound : lignes SN, Francfort, NA, NB, mandibulaire et axes incisifs superposés" />
+    <div class="trace-legend">
+      {% for plane in odf.research_figure.legend %}
+      <span class="trace-legend-item">
+        <span class="trace-legend-indicator" style="background-color:{{ plane.color }}"></span>
+        {{ plane.name }}{% if plane.name == 'FH' %} (Francfort){% endif %}
+      </span>
+      {% endfor %}
+    </div>
+    <figcaption>
+      {{ odf.research_figure.caption }}
+      <div class="research-source">Source : {{ odf.research_figure.source_url }}</div>
+    </figcaption>
+  </figure>
+  {% endif %}
   <h3>A. Analyse osseuse</h3>
   {% if odf.osseuse %}
   <table aria-label="Analyse osseuse">
@@ -209,15 +249,6 @@ tbody tr:nth-child(even) { background: #fbfcfd; }
   <ul>{% for warning in odf.clinical_alerts %}<li>{{ warning }}</li>{% endfor %}</ul>
 </section>
 {% endif %}
-{% if odf.research_figure %}
-<figure class="research-plate">
-  <h2>Téléradiographie de profil — iconographie</h2>
-  <img src="{{ odf.research_figure.data_uri }}" alt="Téléradiographie latérale issue du jeu Aariz, avec repères anatomiques de recherche" />
-  <figcaption>
-    {{ odf.research_figure.caption }}
-    <div class="research-source">Source : {{ odf.research_figure.source_url }}</div>
-  </figcaption>
-</figure>
-{% endif %}
+
 </body>
 </html>
