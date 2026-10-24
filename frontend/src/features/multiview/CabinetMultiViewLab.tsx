@@ -223,6 +223,24 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
 
   return (
     <div ref={root} data-v15-071-real-cabinet-lab className="min-w-0 space-y-3">
+      {responsiveSingleMediaFallback && trustedPatient ? (
+        <section role="status" data-testid="multiview-layout-safe-info"
+          className="dc-mv-desktop-compact flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-border-main bg-card px-4 py-3 text-text-main">
+          <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-info-surface text-info">
+            <Eye size={21}/>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-primary-ink">Espace clinique · MultiView</p>
+            <h2 className="mt-0.5 text-base font-extrabold tracking-tight text-text-main">Mode compact sécurisé</h2>
+            <p className="mt-0.5 text-xs leading-relaxed text-text-muted">
+              Disposition trop large pour cet écran : médiathèque seule en lecture sécurisée. Agrandissez la fenêtre pour retrouver les vues côte à côte.
+            </p>
+          </div>
+          <span className="dc-mv-compact-readonly inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border-main bg-medical-pearl px-3 py-1.5 text-xs font-bold text-primary-ink">
+            <LockKeyhole size={14}/> R · lecture seule
+          </span>
+        </section>
+      ) : (
       <header className="dc-mv-commandbar rounded-2xl border border-border-main bg-card p-3 shadow-sm sm:p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -298,21 +316,12 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
         </div>
         </div>
       </header>
-      {responsiveSingleMediaFallback && trustedPatient
-        ? <section role="status" data-testid="multiview-layout-safe-info"
-            className="flex flex-wrap items-start gap-3 rounded-xl border border-info-border bg-card px-3 py-3 text-text-main shadow-sm">
-            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-info-surface text-info"><Eye size={20}/></span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-extrabold text-text-main">Mode compact sécurisé</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-text-muted">
-                Disposition trop large pour cet écran : médiathèque seule en lecture sécurisée. Agrandissez la fenêtre pour retrouver les vues côte à côte.
-              </p>
-            </div>
-            <span className="shrink-0 rounded-full border border-border-main bg-medical-pearl px-2.5 py-1 text-[11px] font-bold text-primary-ink">R · lecture seule</span>
-          </section>
-        : !accepted && <p role="status" className="rounded-xl border border-warning-border bg-warning-surface px-3 py-2.5 text-sm font-medium text-warning">
-            Disposition protégée : identité du poste, permissions ou largeur des panneaux à vérifier.
-          </p>}
+      )}
+      {!accepted && !responsiveSingleMediaFallback && (
+        <p role="status" className="rounded-xl border border-warning-border bg-warning-surface px-3 py-2.5 text-sm font-medium text-warning">
+          Disposition protégée : identité du poste, permissions ou largeur des panneaux à vérifier.
+        </p>
+      )}
       {responsiveSingleMediaFallback && trustedPatient
         ? <section data-testid="multiview-responsive-single-media-fallback"
             aria-label="Médiathèque clinique seule — repli de lisibilité"
