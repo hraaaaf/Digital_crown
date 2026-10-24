@@ -53,24 +53,33 @@ try {
     const response = await req;
     assert(name, response.status() === 403, { status: response.status() });
   }
-  const restrictedLogin = await api.post('/api/auth/login', { form: {
+  // Enroll the authentic synthetic owner BEFORE any staff login. The app
+  // binds workstation permissions to the current authenticated owner session.
+  const ws = await enrollT2Workstation(api, tokens.access_token, password);
+  const cookies = ws.cookies.filter(c => c.name === 'dc_workstation');
+  assert('server workstation enrolled for browser', cookies.length === 1 && cookies[0].httpOnly);
+
+  // Staff must use its own HTTP context: never overwrite owner cookies.
+  const restrictedContext = await request.newContext({
+    baseURL: 'http://127.0.0.1:8005',
+    storageState: { cookies, origins: [] },
+  });
+  const restrictedLogin = await restrictedContext.post('/api/auth/login', { form: {
     username: 't2-restricted@cabinet.ma', password,
   } });
   assert('synthetic restricted login', restrictedLogin.status() === 200);
   const restrictedJwt = (await restrictedLogin.json()).access_token;
-  const restricted = await api.get('/api/documents/bilan/' + bilan.id + '/view', {
+  const restricted = await restrictedContext.get('/api/documents/bilan/' + bilan.id + '/view', {
     headers: { Authorization: 'Bearer ' + restrictedJwt },
   });
   assert('secretary direct URL denied', restricted.status() === 403);
+  await restrictedContext.dispose();
   const withoutAuth = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
   const unauthorized = await withoutAuth.get('/api/documents/bilan/' + bilan.id + '/view');
   assert('bearerless URL denied', [401,403].includes(unauthorized.status()));
   await withoutAuth.dispose();
 
   // Genuine browser login: do not inject tokens, intercept APIs or force stores.
-  const ws = await enrollT2Workstation(api, tokens.access_token, password);
-  const cookies = ws.cookies.filter(c => c.name === 'dc_workstation');
-  assert('server workstation enrolled for browser', cookies.length === 1 && cookies[0].httpOnly);
   context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     storageState: { cookies, origins: [] },
