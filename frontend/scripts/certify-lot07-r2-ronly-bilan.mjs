@@ -120,6 +120,60 @@ try {
   const scope = page.locator('[data-v15-071-real-cabinet-lab]');
   await scope.locator('[data-testid="multiview-real-dossier"]').waitFor({ state: 'visible', timeout: 30000 });
   await scope.locator('[data-testid="multiview-bilan-readonly"]').waitFor({ state: 'visible' });
+  // Real Chromium visual proof: selected document theme tokens must drive
+  // every MultiView surface, independent of default Elite Blue branding.
+  // No mocks, no color literals and no change to the persisted theme setting.
+  const originalTheme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  const themeColors = {};
+  for (const chosenTheme of ['emerald','rose','ocean','graphite','prestige','dark','high-contrast']) {
+    await page.evaluate(name => document.documentElement.setAttribute('data-theme', name), chosenTheme);
+    const colors = await scope.evaluate(node => {
+      const probe = document.createElement('div');
+      probe.style.backgroundColor = 'var(--card-bg)';
+      probe.style.color = 'var(--text-main)';
+      probe.style.borderColor = 'var(--border-color)';
+      document.body.appendChild(probe);
+      const expected = {
+        card: getComputedStyle(probe).backgroundColor,
+        text: getComputedStyle(probe).color,
+        border: getComputedStyle(probe).borderColor,
+      };
+      probe.style.backgroundColor = 'var(--bg-medical-pearl)';
+      const expectedSurface = getComputedStyle(probe).backgroundColor;
+      probe.style.color = 'var(--text-on-primary)';
+      const expectedPrimaryText = getComputedStyle(probe).color;
+      probe.remove();
+      const media = node.querySelector('[data-v15-071-viewslot="imagerie"]');
+      const badge = node.querySelector('[data-testid="multiview-ronly-contract"]');
+      const hero = node.querySelector('[data-testid="multiview-real-dossier"] > div:first-child');
+      return {
+        expected, expectedSurface, expectedPrimaryText,
+        card: media ? getComputedStyle(media).backgroundColor : 'absent',
+        text: getComputedStyle(node).color,
+        surface: badge ? getComputedStyle(badge).backgroundColor : 'absent',
+        primaryText: hero ? getComputedStyle(hero).color : 'absent',
+      };
+    });
+    assert('theme ' + chosenTheme + ' inherits semantic colors in real MultiView',
+      colors.card === colors.expected.card &&
+      colors.text === colors.expected.text &&
+      colors.surface === colors.expectedSurface &&
+      colors.primaryText === colors.expectedPrimaryText, colors);
+    themeColors[chosenTheme] = colors;
+    if (['emerald','dark','high-contrast'].includes(chosenTheme)) {
+      await page.screenshot({
+        path: path.join(root, 'theme-' + chosenTheme + '-clinical-1920.png'),
+        fullPage: false,
+      });
+    }
+  }
+  assert('themes actually change the rendered surfaces',
+    themeColors.emerald.card !== themeColors.dark.card &&
+    themeColors.rose.card !== themeColors.prestige.card);
+  await page.evaluate(previous => {
+    if (previous === null) document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', previous);
+  }, originalTheme);
   const open = scope.getByRole('button', { name: 'Consulter : T2-historical-bilan.pdf' });
   await open.waitFor({ state: 'visible', timeout: 30000 });
   assert('R-only clinical slot has no upload inputs', await scope.locator('input[type=file]').count() === 0);
