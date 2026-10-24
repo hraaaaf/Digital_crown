@@ -1,0 +1,135 @@
+name: ODF G5 LAB - REA open source ceph and face 3D incognito audit
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/odf-g5-rea-opensource-incognito.yml'
+permissions:
+  contents: read
+jobs:
+  public-rea-comparison:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout exact PR commit without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Node 24 for REA 6.7.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install REA for a public-source-only audit
+        run: |
+          set -euo pipefail
+          mkdir -p rea-opensource-evidence
+          node --version > rea-opensource-evidence/node-version.txt
+          npm install --no-audit --no-fund --prefix /tmp/g5-rea-open --no-save 'rea-agents@6.7.0'
+          /tmp/g5-rea-open/node_modules/.bin/rea --help > rea-opensource-evidence/rea-help.txt
+
+      - name: Observe public Apexo Cephalometric and FaceX demos with disposable Chrome incognito profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target in 'apexo|https://cephalometric.apexo.app/|9222' 'facex|https://facex-engine.github.io/facex/demo/|9223'; do
+            IFS='|' read -r label url port <<< "$target"
+            echo "PUBLIC_DEMO=$label URL=$url"
+            mkdir -p "rea-opensource-evidence/$label"
+            # No login, cookies from the user's browser, camera or microphone.
+            # A fresh isolated profile and --incognito are privacy measures, NOT auth bypass.
+            google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
+              --no-first-run --disable-extensions --incognito \
+              --use-fake-ui-for-media-stream=false \
+              --remote-debugging-address=127.0.0.1 --remote-debugging-port="$port" \
+              --user-data-dir="/tmp/g5-rea-$label-browser" \
+              --window-size=1440,960 "$url" \
+              >"/tmp/g5-rea-$label.log" 2>&1 &
+            chrome_pid=$!
+            echo "$chrome_pid" > "/tmp/g5-rea-$label.pid"
+            ready=0
+            for n in $(seq 1 40); do
+              if curl -fsS --max-time 2 "http://127.0.0.1:$port/json/list" \
+                 >"rea-opensource-evidence/$label/cdp-targets.json"; then ready=1; break; fi
+              sleep 1
+            done
+            if [ "$ready" != 1 ]; then
+              printf '%s\n' "CHROME_CDP_UNAVAILABLE" > "rea-opensource-evidence/$label/status.txt"
+              continue
+            fi
+            curl -sS -L --connect-timeout 5 --max-time 15 -o /dev/null \
+              -w 'http_status=%{http_code} final_url=%{url_effective}\n' "$url" \
+              >"rea-opensource-evidence/$label/http-reachability.txt" || true
+            python3 - "$label" "$url" <<'PY'
+          import json, pathlib, sys
+          label, url = sys.argv[1:]
+          folder = pathlib.Path("rea-opensource-evidence") / label
+          targets = json.loads((folder / "cdp-targets.json").read_text())
+          matches = [t for t in targets if t.get("type")=="page" and
+                     (url.split("/")[2] in t.get("url",""))]
+          if not matches:
+              (folder / "status.txt").write_text("BROWSER_TARGET_NOT_AT_EXPECTED_PUBLIC_ORIGIN\n")
+          else:
+              (folder / "target-id.txt").write_text(matches[0]["id"])
+              (folder / "observed-url.txt").write_text(matches[0]["url"] + "\n")
+          PY
+            if test ! -f "rea-opensource-evidence/$label/target-id.txt"; then continue; fi
+            /tmp/g5-rea-open/node_modules/.bin/rea list-browser-targets \
+              "http://127.0.0.1:$port" --json \
+              >"rea-opensource-evidence/$label/rea-targets.json" || true
+            if /tmp/g5-rea-open/node_modules/.bin/rea inspect-web-page \
+                 "http://127.0.0.1:$port" \
+                 "$(cat "rea-opensource-evidence/$label/target-id.txt")" \
+                 --observation-ms 1000 --include-accessibility-text --json \
+                 >"rea-opensource-evidence/$label/rea-inspection.json"; then
+              python3 - "$label" <<'PY'
+          import json,pathlib,sys
+          label=sys.argv[1]
+          folder=pathlib.Path("rea-opensource-evidence")/label
+          result=json.loads((folder/"rea-inspection.json").read_text())
+          if not isinstance(result,dict) or len(str(result))<100:
+              raise SystemExit("REA_CAPTURE_NOT_MEANINGFUL")
+          summary={
+              "target":label,
+              "origin_public_only":(folder/"observed-url.txt").read_text().strip(),
+              "capture_bytes":(folder/"rea-inspection.json").stat().st_size,
+              "root_fields":sorted(result.keys())[:25],
+              "claim":"PUBLIC_PAGE_UX_OBSERVED_ONLY_NOT_3D_MODEL_OR_CLINICAL_TRACING_VALIDATED",
+              "no_login":True,
+              "no_patient_data":True,
+              "software_license_bypass":False
+          }
+          (folder/"qa.json").write_text(json.dumps(summary,indent=2))
+          (folder/"status.txt").write_text("REA_INSPECTION_OK_PUBLIC_PAGE_ONLY\n")
+          print("REA_PUBLIC_INSPECTION_OK",label,summary["capture_bytes"])
+          PY
+            else
+              echo "REA_INSPECTION_FAILED" >"rea-opensource-evidence/$label/status.txt"
+            fi
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ("apexo","facex"):
+              f=Path("rea-opensource-evidence")/name/"status.txt"
+              print(name, f.read_text().strip() if f.exists() else "NO_CAPTURE")
+          PY
+      - name: Terminate ephemeral browsers and sanitize runtime profiles
+        if: always()
+        run: |
+          for label in apexo facex; do
+            if test -f "/tmp/g5-rea-$label.pid"; then
+              kill "$(cat "/tmp/g5-rea-$label.pid")" 2>/dev/null || true
+            fi
+          done
+          sleep 2
+          rm -rf /tmp/g5-rea-apexo-browser /tmp/g5-rea-facex-browser 2>/dev/null || true
+          echo 'All browser profiles are ephemeral and contain no user sessions.'
+      - name: Publish only public reference inspection reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: g5-rea-apexo-facex-public-audit-${{ github.run_id }}
+          path: rea-opensource-evidence/
+          if-no-files-found: warn
+          retention-days: 7
