@@ -75,7 +75,7 @@ export function CommandWorkbenchReactTarget(){
     <div className="cmd-brand"><img className="cmd-logo-full" src={OfficialLogo} alt="Digital Crown"/><img className="cmd-logo-mini" src={CompactLogo} alt="Digital Crown — logo compact" /><small>COMMAND · 07-C</small></div>
     <div className="cmd-navtitle">ESPACE CABINET</div>
     <nav aria-label="Navigation de démonstration" className="cmd-navigation">{menu.map(({name,icon:Icon})=><button type="button" key={name} aria-current={activeNavigation===name?'page':undefined} aria-label={name} className={activeNavigation===name?'cmd-selected':''} onClick={()=>{setActiveNavigation(name);if(name==='Agenda'){setView('Command');setAgendaFocusRequest(v=>v+1);}else if(name==='Dossier clinique'||name==='Imagerie'){setView('Command');setTab(name==='Imagerie'?'Imagerie':'Dossier');}else{setView(name);if(name==='Command')setTab('Vue d’ensemble');}setNotification('');}}><Icon size={17} aria-hidden="true"/><span>{name}</span></button>)}</nav>
-    <div className="cmd-sidebarfooter"><Settings size={16}/> Maquette sans backend<br/><small>Données TEST uniquement</small></div>
+    <div className="cmd-sidebarfooter"><Settings size={16}/> Démonstration fictive<br/><small>Données TEST uniquement</small></div>
   </aside>
   <main className="cmd-main">
    <header className="cmd-toolbar">

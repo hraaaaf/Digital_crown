@@ -52,13 +52,47 @@ def _create_tables():
 
 
 @pytest.fixture(autouse=True)
-def _reset_global_rate_limit_state():
+def _reset_global_rate_limit_state(tmp_path, monkeypatch):
     from backend.utils import rate_limit
+    # Preserve production rate limiting inside a test; isolate its disk state.
+    monkeypatch.setattr(rate_limit, "_store_path", lambda: tmp_path / "rate_limit_store.json")
     rate_limit._attempts.clear()
     rate_limit._loaded = False
     yield
     rate_limit._attempts.clear()
     rate_limit._loaded = False
+
+
+@pytest.fixture(autouse=True)
+def _station_document_test_media(request, tmp_path, monkeypatch):
+    """Keep synthetic Station document files isolated and root-consistent.
+
+    ArchiveService caches a module-level archive root at import time while
+    station_care_sheet resolves MEDIA_ROOT at read time. For Station document
+    tests, pin BOTH roots to the same per-test directory so checksums, tenant
+    permissions and no-symlink rules are tested against actual bytes.
+    Do not alter global imports used by independent Céphalo tests.
+    """
+    if request.node.path.name not in {
+        "test_station_care_sheet_v15.py",
+        "test_station_companion_delivery_v15.py",
+        "test_station_document_delivery_purge_v15.py",
+        "test_station_document_handoff_v15.py",
+        "test_station_https_cross_process_v15.py",
+    }:
+        yield
+        return
+
+    from backend.services import archive_service
+    from backend.core.media_paths import get_media_root
+
+    media = tmp_path / "synthetic_station_media"
+    monkeypatch.setenv("MEDIA_ROOT", str(media))
+    monkeypatch.setattr(archive_service, "MEDIA_DIR", media)
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", media / "archives")
+    monkeypatch.setattr(archive_service, "LEGACY_DOCS_DIR", media / "documents")
+    assert archive_service.ARCHIVE_BASE_DIR == get_media_root() / "archives"
+    yield
 
 
 @pytest.fixture()

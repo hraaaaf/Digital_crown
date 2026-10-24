@@ -9,6 +9,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 from backend.core.sqlite_alembic_baseline import bootstrap_empty_sqlite_to_head
+from backend.core.operator_baseline_metadata import register_operator_baseline_metadata
 from backend.models import Base
 
 
@@ -133,6 +134,7 @@ def test_ngap_insurance_migration_fails_closed_on_partial_ngap_table():
 
 
 def test_empty_sqlite_baseline_materializes_ngap_and_insurance_at_current_head():
+    register_operator_baseline_metadata(Base.metadata)
     heads = _alembic_heads()
     engine = create_engine("sqlite:///:memory:")
 

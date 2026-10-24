@@ -2,12 +2,24 @@
 import asyncio
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 
 from backend.core.media_paths import get_imaging_root
+
+
+def _authorized_cephalo_user():
+    # Exact owner-dentist permission policy: MagicMock alone is denied by RBAC.
+    return SimpleNamespace(
+        email="synthetic-dentist@example.invalid",
+        role="DENTISTE",
+        employer_id=None,
+        permissions={},
+        get_employer_id=lambda: 7,
+    )
 
 
 def test_imaging_root_uses_isolated_media_root(monkeypatch, tmp_path):
@@ -56,7 +68,7 @@ def test_radio_read_uses_external_storage_after_tenant_guard(monkeypatch, tmp_pa
     (root / "synthetic.jpg").write_bytes(b"synthetic-test-bytes")
     guard = MagicMock()
     monkeypatch.setattr(main, "_assert_media_tenant", guard)
-    user, db = MagicMock(), MagicMock()
+    user, db = _authorized_cephalo_user(), MagicMock()
     route = main.serve_radios if modality == "radios" else main.serve_panoramic
     response = asyncio.run(route("synthetic.jpg", user, db))
     guard.assert_called_once()
@@ -72,7 +84,7 @@ def test_radio_read_preserves_legacy_storage(monkeypatch, tmp_path):
     (legacy / "radios" / "synthetic.jpg").write_bytes(b"synthetic-test-bytes")
     monkeypatch.setattr(main, "UPLOAD_DIR", str(legacy))
     monkeypatch.setattr(main, "_assert_media_tenant", MagicMock())
-    response = asyncio.run(main.serve_radios("synthetic.jpg", MagicMock(), MagicMock()))
+    response = asyncio.run(main.serve_radios("synthetic.jpg", _authorized_cephalo_user(), MagicMock()))
     assert Path(response.path) == legacy / "radios" / "synthetic.jpg"
 
 
@@ -82,10 +94,34 @@ def test_radio_read_denied_before_serving_file(monkeypatch):
     def deny(*args, **kwargs):
         raise HTTPException(status_code=403, detail="Denied")
 
-    monkeypatch.setattr(main, "_assert_media_tenant", deny)
+    guard = MagicMock(side_effect=deny)
+    monkeypatch.setattr(main, "_assert_media_tenant", guard)
     serve = MagicMock()
     monkeypatch.setattr(main, "_serve_protected_file", serve)
     with pytest.raises(HTTPException) as error:
-        asyncio.run(main.serve_radios("synthetic.jpg", MagicMock(), MagicMock()))
+        asyncio.run(main.serve_radios("synthetic.jpg", _authorized_cephalo_user(), MagicMock()))
     assert error.value.status_code == 403
+    guard.assert_called_once()
+    serve.assert_not_called()
+
+
+def test_radio_read_requires_cephalo_permission_before_tenant_lookup(monkeypatch):
+    import backend.main as main
+
+    secretary = SimpleNamespace(
+        email="synthetic-secretary@example.invalid",
+        role="SECRETAIRE",
+        employer_id=7,
+        permissions={},
+        get_employer_id=lambda: 7,
+    )
+    guard = MagicMock()
+    serve = MagicMock()
+    monkeypatch.setattr(main, "_assert_media_tenant", guard)
+    monkeypatch.setattr(main, "_serve_protected_file", serve)
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(main.serve_radios("synthetic.jpg", secretary, MagicMock()))
+    assert error.value.status_code == 403
+    assert "cephalo" in str(error.value.detail)
+    guard.assert_not_called()
     serve.assert_not_called()

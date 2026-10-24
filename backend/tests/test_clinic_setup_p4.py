@@ -191,13 +191,16 @@ def test_setup_draft_commit_failure_rolls_back_user_and_new_organization(client,
     def fail_commit():
         raise RuntimeError("forced setup commit failure")
 
-    monkeypatch.setattr(db, "commit", fail_commit)
-    with pytest.raises(RuntimeError, match="forced setup commit failure"):
-        client.post(
-            "/api/clinics/",
-            json=_draft_payload(nom="Dr Partial"),
-            headers=headers,
-        )
+    # Rollback remains mandatory, but fault injection must end before fixture
+    # teardown so cleanup can commit the deletion of synthetic records.
+    with monkeypatch.context() as fault:
+        fault.setattr(db, "commit", fail_commit)
+        with pytest.raises(RuntimeError, match="forced setup commit failure"):
+            client.post(
+                "/api/clinics/",
+                json=_draft_payload(nom="Dr Partial"),
+                headers=headers,
+            )
 
     db.refresh(owner)
     assert owner.nom_complet == "Dr Before"

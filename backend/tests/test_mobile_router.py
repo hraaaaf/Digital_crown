@@ -208,6 +208,8 @@ class TestMobileAppointments:
         assert created.patient_id == pat.id
 
     def test_mobile_external_appointment_without_patient_id_is_supported(self, client, db, dentiste):
+        from backend.routers.agenda_settings import _create_default_settings
+        _create_default_settings(db, dentiste.id)
         token = _make_mobile_jwt(db, dentiste)
         before = db.query(models.Appointment).count()
         r = client.post(

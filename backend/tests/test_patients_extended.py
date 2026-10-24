@@ -375,7 +375,12 @@ class TestCSVImport:
 class TestCephaloValidation:
     def test_cephalo_validation_no_analysis_returns_404(self, client, auth_headers):
         pat = _create_patient(client, auth_headers, nom="Cephnoana", prenom="Test", dob="1960-06-06")
-        r = client.get(f"/api/patients/{pat['id']}/cephalo-validation", headers=auth_headers)
+        # Identity-bound API requires a selected study and exact revision.
+        r = client.get(
+            f"/api/patients/{pat['id']}/cephalo-validation",
+            params={"analysis_id": 999999, "expected_revision": 1},
+            headers=auth_headers,
+        )
         assert r.status_code == 404
 
 

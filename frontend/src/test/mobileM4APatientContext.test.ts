@@ -37,7 +37,8 @@ describe('M4-A patient contextual mobile bridge', () => {
     expect(onboardingSource.indexOf('/api/mobile/resource-bridge-destination')).toBeLessThan(onboardingSource.indexOf('/api/mobile/bridge-destination'));
     expect(onboardingSource).toContain('MobileStorage.saveBridgeContext(destination.context)');
     expect(onboardingSource).toContain("route: BRIDGE_ROUTES.context");
-    expect(onboardingSource).toContain("window.history.replaceState({}, '', '/mobile/onboarding')");
+    expect(onboardingSource).toContain("window.history.replaceState(window.history.state, '', '/mobile/onboarding')");
+    expect(onboardingSource).not.toContain("window.history.replaceState({}, '', '/mobile/onboarding')");
   });
 
   it('stores context in IndexedDB scope and clears it with the mobile session', () => {

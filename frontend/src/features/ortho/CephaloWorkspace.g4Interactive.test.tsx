@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 import { cephaloRepository } from './cephaloRepository';
 
 const state = vi.hoisted(() => ({
+  patientId: 7,
   analysisId: 99 as number | undefined,
   imageSrc: undefined as string | undefined,
   mmPerPixel: 0.1 as number | null,
@@ -32,6 +33,8 @@ const state = vi.hoisted(() => ({
   setCompletedSteps: vi.fn(),
   setStep: vi.fn(),
   setDiag: vi.fn(),
+  setDdm: vi.fn(),
+  setEtape2Data: vi.fn(),
   setEtape3Data: vi.fn(),
   setShowCalibration: vi.fn(),
   setCalibrationClickPoints: vi.fn(),
@@ -46,7 +49,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('./stores/useOrthoStore', () => ({
-  useOrthoStore: () => state,
+  useOrthoStore: Object.assign(() => state, { getState: () => state }),
 }));
 vi.mock('../../services/api', () => ({
   API_BASE:'http://api.test',
@@ -87,6 +90,7 @@ Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
 
 beforeEach(()=>{
   vi.clearAllMocks();
+  state.patientId=7;
   state.analysisId=99;
   state.imageSrc=undefined;
   state.step=1;
@@ -146,7 +150,7 @@ describe('CephaloWorkspace G4 shell matrix',()=>{
   it('saves only through the store save boundary and disables save when no analysis exists',async()=>{
     const view=render(<CephaloWorkspace patientId={7} patientName="Sara BENALI"/>);
     await screen.findByText('Step 1 content');
-    const save=screen.getByRole('button',{name:'Sauvegarder'}) as HTMLButtonElement;
+    const save=screen.getByRole('button',{name:'Sauvegarder l’analyse céphalométrique'}) as HTMLButtonElement;
     expect(save.disabled).toBe(false);
     fireEvent.click(save);
     expect(state.handleSave).toHaveBeenCalledTimes(1);
@@ -155,7 +159,7 @@ describe('CephaloWorkspace G4 shell matrix',()=>{
     state.analysisId=undefined;
     render(<CephaloWorkspace patientId={7} patientName="Sara BENALI"/>);
     await screen.findByText('Step 1 content');
-    expect((screen.getByRole('button',{name:'Sauvegarder'}) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button',{name:'Sauvegarder l’analyse céphalométrique'}) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('switches to history and hydrates the full archived scientific state before returning to studio',async()=>{
@@ -168,6 +172,7 @@ describe('CephaloWorkspace G4 shell matrix',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Open archived analysis'}));
     await waitFor(()=>expect(cephaloRepository.getAnalysis).toHaveBeenCalledWith(42));
 
+    expect(state.setAnalysisId).toHaveBeenNthCalledWith(1, undefined);
     expect(state.setAnalysisId).toHaveBeenCalledWith(42);
     expect(state.setImageSrc).toHaveBeenCalledWith('http://api.test/ceph/42.png');
     expect(state.setLocal).toHaveBeenCalledWith(expect.objectContaining({landmarks:[{id:'S',x:1,y:2}]}));

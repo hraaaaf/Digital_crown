@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Step4Documents } from './Step4Documents';
 import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { api } from '../../../services/api';
+import { cephaloRepository } from '../cephaloRepository';
 
 const state = vi.hoisted(() => ({
   photos:[
@@ -29,7 +30,11 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('../stores/useOrthoStore',()=>({
-  useOrthoStore:()=>state,
+  useOrthoStore: Object.assign(() => state, { getState: () => state }),
+  snapshotCephaloPdfClinicalInputs: vi.fn(() => ({})),
+}));
+vi.mock('../cephaloRepository',()=>({
+  cephaloRepository:{ getAnalysis:vi.fn(), generatePDF:vi.fn() },
 }));
 vi.mock('../../../services/api',()=>({
   api:{get:vi.fn(),post:vi.fn()},
@@ -60,7 +65,9 @@ beforeEach(()=>{
   state.handlePrint.mockResolvedValue(undefined);
   state.handlePreview.mockResolvedValue(undefined);
 
-  vi.mocked(api.get).mockResolvedValue({data:{is_valid:true,fatals:[],warnings:[]}} as never);
+  vi.mocked(cephaloRepository.getAnalysis).mockResolvedValue({id:99, angles_data:{scientific_read_path:{revision:3}}} as never);
+  vi.mocked(cephaloRepository.generatePDF).mockResolvedValue(new Uint8Array([1,2,3]) as never);
+  vi.mocked(api.get).mockResolvedValue({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:[]}} as never);
   vi.mocked(api.post).mockResolvedValue({data:new Uint8Array([1,2,3])} as never);
   vi.stubGlobal('URL',{createObjectURL:vi.fn(()=> 'blob:draft'),revokeObjectURL:vi.fn()});
 });
@@ -75,7 +82,9 @@ describe('Cephalo Step4 G4 document controls',()=>{
     state.imageSrc=undefined;
     state.local={landmarks:[]};
     render(<Step4Documents P={P}/>);
-    await waitFor(()=>expect(api.get).toHaveBeenCalledWith('/patients/7/cephalo-validation'));
+    await waitFor(()=>expect(api.get).toHaveBeenCalledWith('/patients/7/cephalo-validation', {
+      params:{analysis_id:99,expected_revision:3},
+    }));
 
     expect((screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/Aucune image uploadée/i)).toBeTruthy();
@@ -108,36 +117,41 @@ describe('Cephalo Step4 G4 document controls',()=>{
     fireEvent.click(screen.getByRole('button',{name:/Brouillon PDF/i}));
 
     await waitFor(()=>expect(state.silentSave).toHaveBeenCalledTimes(1));
-    expect(api.post).toHaveBeenCalledWith('/patients/7/pdf',{}, {responseType:'arraybuffer'});
+    await waitFor(()=>expect(cephaloRepository.generatePDF).toHaveBeenCalledWith(7, {
+      analysis_id:99, expected_revision:3, archive:false,
+    }));
     expect(click).toHaveBeenCalledTimes(1);
+    expect(api.post).not.toHaveBeenCalled();
     expect(state.handlePrint).not.toHaveBeenCalled();
   });
 
   it('revalidates immediately before archive and archives only when no fatal remains',async()=>{
     vi.mocked(api.get)
-      .mockResolvedValueOnce({data:{is_valid:true,fatals:[],warnings:[]}} as never)
-      .mockResolvedValueOnce({data:{is_valid:true,fatals:[],warnings:['Avertissement']}} as never);
+      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:[]}} as never)
+      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:['Avertissement']}} as never);
 
     render(<Step4Documents P={P}/>);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
 
     const archive=screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement;
-    expect(archive.disabled).toBe(false);
+    await waitFor(()=>expect(archive.disabled).toBe(false));
     fireEvent.click(archive);
 
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(2));
-    expect(state.handlePrint).toHaveBeenCalledTimes(1);
+    await waitFor(()=>expect(state.handlePrint).toHaveBeenCalledWith({analysis_id:99,expected_revision:3}));
   });
 
   it('blocks archive when the just-in-time backend validation returns a fatal',async()=>{
     vi.mocked(api.get)
-      .mockResolvedValueOnce({data:{is_valid:true,fatals:[],warnings:[]}} as never)
-      .mockResolvedValueOnce({data:{is_valid:false,fatals:['Landmarks incohérents'],warnings:[]}} as never);
+      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:[]}} as never)
+      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:false,fatals:['Landmarks incohérents'],warnings:[]}} as never);
 
     render(<Step4Documents P={P}/>);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(screen.getByRole('button',{name:/Archiver le bilan/i}));
+    const archive=screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement;
+    await waitFor(()=>expect(archive.disabled).toBe(false));
+    fireEvent.click(archive);
     await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(2));
     expect(state.handlePrint).not.toHaveBeenCalled();
     expect(await screen.findByText('Landmarks incohérents')).toBeTruthy();
