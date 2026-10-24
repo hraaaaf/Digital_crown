@@ -1,0 +1,82 @@
+name: FACAD Robert private intake contract (synthetic only)
+
+# No vendor install, license action, patient data, or FACAD executable use.
+on:
+  push:
+    branches:
+      - research/facad-sametrace-private-intake-20261024
+    paths:
+      - audit/cephalo_facad_robert_evidence_stage.py
+      - audit/test_cephalo_facad_robert_evidence_stage.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
+      - .github/workflows/facad-robert-private-intake-contract.yml
+  pull_request:
+    paths:
+      - audit/cephalo_facad_robert_evidence_stage.py
+      - audit/test_cephalo_facad_robert_evidence_stage.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
+      - .github/workflows/facad-robert-private-intake-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: facad-private-intake-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  private-intake-contract:
+    name: Offline, synthetic, fail-closed evidence staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      FACAD_VENDOR_RUNTIME_ALLOWED: "false"
+      FACAD_CLINICAL_RELEASE: "false"
+    steps:
+      - name: Exact checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prove canonical baseline remains direct-definition only
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from audit.cephalo_lot08_facad_parity_validate import validate_manifest
+          p=Path("docs/audits/schemas/ortho_lot08_facad_ricketts_direct_parity_evidence_v1.json")
+          d=json.loads(p.read_text())
+          assert not validate_manifest(d), "canonical parity manifest must validate"
+          assert d["status"] == "DIRECT_DEFINITION_OBSERVED"
+          assert not d["evidence_records"] and not d["parity_rows"]
+          assert d["scientific_authority"] is False
+          assert d["compatibility_only"] is True
+          assert sorted(x["expected_facad_factor_count"] for x in d["profiles"]) == [13, 32]
+          assert all(x["observation_status"] == "UNOBSERVED" for x in d["profiles"])
+          print("FACAD_SAME_TRACE_BASELINE=DEFINITION_ONLY")
+          print("FACAD_REAL_EXPORTS=0")
+          print("FACAD_NUMERIC_PARITY_ROWS=0")
+          print("FACAD_CLINICAL_RELEASE=false")
+          PY
+
+      - name: Run 16 private staging contract tests with synthetic fixtures only
+        run: python -m unittest -v audit.test_cephalo_facad_robert_evidence_stage
+
+      - name: Revalidate canonical repository schema without vendor files
+        run: python audit/cephalo_lot08_facad_parity_validate.py
+
+      - name: Boundary summary
+        shell: bash
+        run: |
+          echo "FACAD_PRIVATE_INTAKE_CONTRACT=PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "No Facad installer, binary, GUI, EULA acceptance, license or patient file was touched." >> "$GITHUB_STEP_SUMMARY"
+          echo "Synthetic-only staging tests do not prove authentic vendor data or numeric parity." >> "$GITHUB_STEP_SUMMARY"
+          echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
