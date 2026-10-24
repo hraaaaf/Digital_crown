@@ -15,6 +15,7 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
   const ddm = useOrthoStore(s => s.ddm);
   const [record, setRecord] = useState<NoteState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [molarRight, setMolarRight] = useState('');
   const [molarLeft, setMolarLeft] = useState('');
@@ -53,10 +54,14 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
   useEffect(() => {
     const generation = ++sequence.current;
     setRecord(null);
+    setLoading(true);
     setMessage('');
     approvedFingerprint.current = null;
     setMolarRight(''); setMolarLeft(''); setCanineRight(''); setCanineLeft('');
-    if (!patientId || !analysisId) return;
+    if (!patientId || !analysisId) {
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const revision = await fetchCurrentRevision(patientId, analysisId);
@@ -67,17 +72,24 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
         setMolarLeft(String(loaded.notes?.moulages?.classe_molaire_gauche || ''));
         setCanineRight(String(loaded.notes?.moulages?.classe_canine_droite || ''));
         setCanineLeft(String(loaded.notes?.moulages?.classe_canine_gauche || ''));
+        setLoading(false);
         // An approval loaded from another screen is intentionally NOT enough
         // to treat the current unsaved workspace as unchanged.
       } catch {
-        if (generation === sequence.current) setMessage('Validation des notes indisponible pour cette étude.');
+        if (generation === sequence.current) {
+          setMessage('Validation des notes indisponible pour cette étude.');
+          setLoading(false);
+        }
       }
     })();
     return () => { sequence.current++; };
   }, [patientId, analysisId, fetchCurrentRevision]);
 
   const saveDraft = async () => {
-    if (!patientId || !analysisId || busy) return;
+    if (!patientId || !analysisId || busy || loading || !record) return;
+    // Snapshot the visible clinician observations synchronously, before
+    // silentSave may rehydrate/re-mount the cephalometric editor.
+    const selectedAngles = { molarRight, molarLeft, canineRight, canineLeft };
     setBusy(true); setMessage('');
     approvedFingerprint.current = null;
     try {
@@ -89,10 +101,10 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
       const previous = await cephaloRepository.readPractitionerNotes(patientId, analysisId, revision);
       const latest = useOrthoStore.getState();
       const casts: Record<string, string | number> = {};
-      if (molarRight) casts.classe_molaire_droite = molarRight;
-      if (molarLeft) casts.classe_molaire_gauche = molarLeft;
-      if (canineRight) casts.classe_canine_droite = canineRight;
-      if (canineLeft) casts.classe_canine_gauche = canineLeft;
+      if (selectedAngles.molarRight) casts.classe_molaire_droite = selectedAngles.molarRight;
+      if (selectedAngles.molarLeft) casts.classe_molaire_gauche = selectedAngles.molarLeft;
+      if (selectedAngles.canineRight) casts.classe_canine_droite = selectedAngles.canineRight;
+      if (selectedAngles.canineLeft) casts.classe_canine_gauche = selectedAngles.canineLeft;
       if (latest.diag.analyse_moulages.trim()) casts.commentaire = latest.diag.analyse_moulages.trim();
       if (latest.ddm.maxillaire !== '' && Number.isFinite(Number(latest.ddm.maxillaire))) {
         casts.ddm_maxillaire = Number(latest.ddm.maxillaire);
@@ -165,12 +177,19 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
   if (!patientId || !analysisId) return null;
   const changed = approvedFingerprint.current !== noteSignature();
   return (
-    <section className="rounded-xl border p-4 space-y-3" style={{ borderColor: P.border, background: P.bgCard }}>
+    <section aria-busy={loading} className="rounded-xl border p-4 space-y-3" style={{ borderColor: P.border, background: P.bgCard }}>
       <h3 className="text-sm font-bold" style={{ color: P.text }}>Validation des notes du bilan orthodontique</h3>
       <p className="text-xs" style={{ color: P.textMuted }}>
         Examen des moulages, résumé diagnostique et plan de traitement. La validation
         est réservée au dentiste connecté et ne remplace pas l’évaluation scientifique R14.
       </p>
+      {loading ? (
+        <p role="status" className="text-xs" style={{ color: P.textMuted }}>
+          Chargement de la version du dossier et des notes du praticien…
+        </p>
+      ) : record ? (
+        <span data-testid="odf-note-source-ready" className="sr-only">Notes liées à l’étude chargées</span>
+      ) : null}
       <p className="text-xs" style={{ color: P.textMuted }}>
         {record?.approved ? 'Notes approuvées' : record?.stale ? 'Anciennes notes invalidées par une modification de l’étude' : 'Notes non approuvées'}
         {record ? ` · Version ${record.draft_version}` : ''}
@@ -188,6 +207,7 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
           <label key={id} className="text-xs" style={{ color: P.textMuted }}>
             {label}
             <select data-testid={`odf-angle-${id}`} value={value}
+              disabled={busy || loading || !record}
               onChange={event => update(event.target.value)}
               className="mt-1 w-full rounded-lg border px-2 py-2 text-xs"
               style={{ borderColor: P.border, background: P.bgCard, color: P.text }}>
@@ -204,7 +224,7 @@ export const OrthoPractitionerNotesApproval: React.FC<{ P: any }> = ({ P }) => {
         </p>
       </fieldset>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={busy} onClick={saveDraft}
+        <button type="button" disabled={busy || loading || !record} onClick={saveDraft}
           className="rounded-lg border px-3 py-2 text-xs font-semibold"
           style={{ borderColor: P.border, color: P.text }}>
           1. Enregistrer le brouillon
