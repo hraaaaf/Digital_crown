@@ -367,6 +367,7 @@ export const PatientDetails = () => {
           </div>
 
           <div id="dc-radiology-patient-tabs" data-tour="patient-tabs"
+            aria-describedby={isRadiology ? 'dc-radiology-tab-scroll-hint' : undefined}
             style={isRadiology ? {
               display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
               minWidth: 0, maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden',
@@ -380,6 +381,7 @@ export const PatientDetails = () => {
             {ownerOrAdmin && <TabButton compact={isRadiology} active={activeTab === 'companion'} onClick={() => handleTabChange('companion')} icon={<Smartphone size={17} />} label="Companion" mobileLabel="Companion" />}
             {canFinance && <TabButton compact={isRadiology} active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" mobileLabel="Finance" />}
           </div>
+          {isRadiology && <p id="dc-radiology-tab-scroll-hint" className="dc-radiology-tab-scroll-hint md:hidden">↔ Faites glisser pour afficher les autres onglets</p>}
         </div>
       </header>
 
