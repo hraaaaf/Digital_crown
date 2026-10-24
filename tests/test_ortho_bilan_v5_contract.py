@@ -193,6 +193,42 @@ class OrthoV5DocumentContract(unittest.TestCase):
             self.assertFalse(bad["resume_diagnostique"],change)
             self.assertFalse(bad["plan_traitement"],change)
 
+    def test_source_bound_research_annex_has_weasy_reportlab_parity(self):
+        # Synthetic colored pixels solely to verify paper layouts.
+        # Real Aariz image-to-landmark SHA256 and geometry are checked in G3.
+        from PIL import Image
+        from base64 import b64encode
+        from io import BytesIO
+        image = Image.new("RGB", (160, 200), (24, 54, 76))
+        buffer = BytesIO()
+        image.save(buffer, format="JPEG")
+        encoded = b64encode(buffer.getvalue()).decode("ascii")
+        study=typed_study()
+        plate={
+            "data_uri":"data:image/jpeg;base64," + encoded,
+            "image_b64":encoded,
+            "caption":"Aariz Cephalometric Dataset (CC BY 4.0), recherche uniquement",
+            "source_url":"https://doi.org/10.1038/s41597-025-05542-3",
+        }
+        study["lab_verified_research_figure"]=plate
+        self.assertIsNone(build_ortho_bilan_document(study)["research_figure"])
+        study["lab_image_landmark_alignment"]="VERIFIED_AARIZ_EXPERT_PAIR"
+        self.assertEqual(build_ortho_bilan_document(study)["research_figure"],plate)
+        with TemporaryDirectory() as root:
+            generator=BilanOrthoPDFGenerator(root)
+            for backend in ("weasyprint","reportlab"):
+                pdf_path=str(Path(root)/(backend+"-annex.pdf"))
+                getattr(generator, f"_generate_{backend}")(vm(),pdf_path,projection=study)
+                pdf=PdfReader(pdf_path)
+                self.assertGreaterEqual(len(pdf.pages),2)
+                all_text="\\n".join(p.extract_text() or "" for p in pdf.pages)
+                self.assertIn("Téléradiographie de profil",all_text)
+                self.assertIn("Aariz Cephalometric Dataset",all_text)
+                self.assertGreater(all_text.index("Plan de traitement"), -1)
+                self.assertLess(all_text.index("Plan de traitement"),
+                                all_text.index("Téléradiographie de profil"))
+                self.assertNotIn("Non calculable",all_text)
+
     def test_real_pdf_weasyprint_and_fallback_have_same_four_phases(self):
         source = typed_study()
         original=deepcopy(source)
