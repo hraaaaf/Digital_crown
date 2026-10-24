@@ -200,7 +200,7 @@ def seed_verified_pair():
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
     with database.SessionLocal() as db:
         dentist=db.query(models.User).filter(
-            models.User.email=="odf-lab-dentiste@example.invalid").one()
+            models.User.email=="odf-lab-dentiste@example.com").one()
         patient=db.query(models.Patient).filter(
             models.Patient.numero_dossier=="T2-0001",
             models.Patient.employer_id==dentist.id).one()
