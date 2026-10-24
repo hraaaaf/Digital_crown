@@ -21,6 +21,8 @@ on:
       - audit/test_cephalo_facad_robert_public_ci.py
       - audit/cephalo_facad_robert_p2_geometry_gate.py
       - audit/test_cephalo_facad_robert_p2_geometry_gate.py
+      - audit/cephalo_facad_robert_p2_matrix.py
+      - audit/test_cephalo_facad_robert_p2_matrix.py
       - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
       - audit/fixtures/facad_robert_public_example_20261024_v1.json
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
@@ -43,6 +45,8 @@ on:
       - audit/test_cephalo_facad_robert_public_ci.py
       - audit/cephalo_facad_robert_p2_geometry_gate.py
       - audit/test_cephalo_facad_robert_p2_geometry_gate.py
+      - audit/cephalo_facad_robert_p2_matrix.py
+      - audit/test_cephalo_facad_robert_p2_matrix.py
       - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
       - audit/fixtures/facad_robert_public_example_20261024_v1.json
       - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
@@ -133,6 +137,11 @@ jobs:
         run: |
           python -m unittest -v audit.test_cephalo_facad_robert_p2_geometry_gate
           python -m audit.cephalo_facad_robert_p2_geometry_gate --github-summary
+
+      - name: FACAD P2 complete 45-factor compatibility matrix (no clinical aliases)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_p2_matrix
+          python -m audit.cephalo_facad_robert_p2_matrix --github-summary
 
       - name: Revalidate canonical repository schema without vendor files
         run: python audit/cephalo_lot08_facad_parity_validate.py
