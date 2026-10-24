@@ -159,6 +159,36 @@ print("ZERO_REAL_OR_SYNTHETIC_PATIENT_ROWS=PASS")
     if($null -ne $h -and $h.status -eq 'ok' -and $h.db -eq 'ok' -and $h.instance_id -eq $env:DIGITALCROWN_INSTANCE_ID) {$ready=$true;break}
     Start-Sleep -Seconds 1
   }
+  if(-not $ready) {
+    $app.Refresh()
+    if($app.HasExited) {
+      Proof "REAL_EXE_NO_HEALTH=EXITED; EXIT_CODE=$($app.ExitCode); PID=$($app.Id)"
+    } else {
+      Proof "REAL_EXE_NO_HEALTH=RUNNING_BUT_NOT_READY; PID=$($app.Id)"
+    }
+    $fileLog=Join-Path $logs 'digitalcrown.log'
+    if(Test-Path -LiteralPath $fileLog -PathType Leaf) {
+      $safeErrors=@(Get-Content -LiteralPath $fileLog -Tail 100 |
+        Where-Object {$_ -match 'ERROR|CRITICAL|Traceback|Exception|ModuleNotFound|ImportError|RuntimeError|SECURITE|alembic|database|SQLCipher|Permission|OSError|failed|refused'} |
+        ForEach-Object {
+          $_ -replace '(?i)(secret|password|key|token)([=:\s]+)[^\s,;]+','$1$2[REDACTED]' -replace '(?i)\b[a-f0-9]{32,}\b','[DIGEST_OR_SECRET_REDACTED]'
+        })
+      if($safeErrors.Count -eq 0) {
+        Proof 'RUNTIME_LOG_FOUND_NO_ALLOWED_ERROR_LINES'
+      } else {
+        foreach($line in $safeErrors) {Proof "RUNTIME_LOG_DIAGNOSTIC=$line"}
+      }
+    } else {
+      Proof 'RUNTIME_FILE_LOG_ABSENT'
+    }
+    try {
+      $resp=Invoke-WebRequest -Uri 'http://127.0.0.1:18765/health' -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+      Proof "RUNTIME_HTTP_DIAGNOSTIC_STATUS=$($resp.StatusCode)"
+    } catch {
+      Proof "RUNTIME_HTTP_DIAGNOSTIC_CATEGORY=$($_.CategoryInfo.Category)"
+    }
+    # The full signed source, binary, and fail-closed success condition are unchanged.
+  }
   Need $ready 'Real installed EXE failed to respond at /health on correct instance'
   Proof "REAL_INSTALLED_DIGITALCROWN_EXE_HEALTH=PASS; PID=$($app.Id); LOOPBACK_ONLY=YES"
   StopOwned $app
