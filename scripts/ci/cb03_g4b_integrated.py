@@ -292,9 +292,13 @@ try:
             }])
             page=context.new_page()
             posts=[]
-            page.on("request",lambda r:
-                posts.append(r.url.split("/api/")[-1])
-                if r.method=="POST" and "/api/bot/guided/" in r.url else None)
+            reads=[]
+            def collect_request(request):
+                if "/api/bot/guided/" not in request.url: return
+                endpoint=request.url.split("/api/")[-1]
+                if request.method=="POST": posts.append(endpoint)
+                if request.method=="GET": reads.append(endpoint)
+            page.on("request",collect_request)
             page.goto("http://127.0.0.1:5173/cb03-g4b-live-pg-lab.html",
                 wait_until="domcontentloaded",timeout=45000)
             panel=page.get_by_role("region",name="CB-03 G3 — actions guidées")
@@ -343,8 +347,7 @@ try:
                 assert s.query(models.Appointment).filter(
                     models.Appointment.id==receipt["appointment_id"]).count()==1
             assert assert_one_audit(browser_action_id,1)
-            assert any(p.startswith("bot/guided/actions/") for p in
-                [r.url.split("/api/")[-1] for r in []]) is False or True
+            assert reads==["bot/guided/actions/"+browser_action_id],reads
             page.screenshot(path=str(artifact/"real-pg-after-readonly-get.png"),
                 full_page=True)
             proof.append({
@@ -355,6 +358,7 @@ try:
                 "receiptRecoveredViaReadOnlyGET":True,
                 "confirmPosts":posts.count("bot/guided/confirm"),
                 "preparedPosts":posts.count("bot/guided/prepare-appointment"),
+                "readOnlyGetRequests":len(reads),
                 "confirmedAudit":1,"oneAppointment":True,
                 "renderedFinalReceipt":True,
                 "syntheticAccountsOnly":True})
