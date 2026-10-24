@@ -244,7 +244,11 @@ try{
     // Do NOT login as secretary using the dentist's APIRequestContext:
     // otherwise subsequent stale-revision probes accidentally run as secretary
     // and report 403 instead of the source-bound 409.
-    const secretaryApi=await request.newContext({baseURL:backend});
+    // Share ONLY the already-enrolled workstation credential. Separate
+    // HTTP contexts still isolate dentist/secretary access-token cookie jars.
+    const secretaryApi=await request.newContext({
+      baseURL:backend,storageState:{cookies:stationCookie,origins:[]},
+    });
     try{
       const secretaryLogin=await secretaryApi.post('/api/auth/login',{
         form:{username:'odf-lab-secretaire@example.com',password}});
@@ -254,7 +258,11 @@ try{
         data:{expected_revision:revision,expected_draft_version:1,
           confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE'},
       });
-      check(unauthorized.status()===403,'G5_SECRETARY_FORBIDDEN_APPROVAL');
+      const deniedStatus=unauthorized.status();
+      console.log('G5_SECRETARY_APPROVAL_PROBE',JSON.stringify({
+        http_status:deniedStatus,body:(await unauthorized.text()).slice(0,280),
+      }));
+      check(deniedStatus===403,'G5_SECRETARY_FORBIDDEN_APPROVAL_HTTP_'+deniedStatus);
     }finally{
       await secretaryApi.dispose();
     }
@@ -299,7 +307,9 @@ try{
   check(blocked.status()===200 && !(await blocked.json()).approved,
     'A_NOTES_NOT_APPROVED_ON_DISTINCT_STUDY_B');
 
-  const secretaryNotesApi=await request.newContext({baseURL:backend});
+  const secretaryNotesApi=await request.newContext({
+    baseURL:backend,storageState:{cookies:stationCookie,origins:[]},
+  });
   try{
     const secretary=await secretaryNotesApi.post('/api/auth/login',
       {form:{username:'odf-lab-secretaire@example.com',password}});
