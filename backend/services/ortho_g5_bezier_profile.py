@@ -74,9 +74,14 @@ def sample_bezier_profile(
         for k in range(0 if idx == 0 else 1, steps + 1):
             t = k / steps
             q = 1 - t
+            # Match the JS g5CubicAt multiplication and summation order.
+            w0 = q*q*q
+            w1 = 3*q*q*t
+            w2 = 3*q*t*t
+            w3 = t*t*t
             p = [
-                q**3 * start[d] + 3*q*q*t * control1[d]
-                + 3*q*t*t * control2[d] + t**3 * end[d]
+                w0*start[d] + w1*control1[d]
+                + w2*control2[d] + w3*end[d]
                 for d in (0, 1)
             ]
             point = [_round_tenth(v) for v in p]
