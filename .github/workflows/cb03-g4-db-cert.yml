@@ -96,7 +96,7 @@ jobs:
         run: |
           set -euo pipefail
           export DIGITALCROWN_ISOLATION_DB_FINGERPRINT="$(python -c 'import hashlib;print(hashlib.sha256(b"postgresql://cb03_g4@loopback:5432/cb03_g4_ephemeral").hexdigest())')"
-          export MEDIA_ROOT="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cb03-g4-media-XXXXXX")"
+          export MEDIA_ROOT="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cb03-g4-rehearsal-media-XXXXXX")"
           trap 'rm -rf -- "$MEDIA_ROOT"' EXIT
           python -m alembic upgrade head
           PYTHONPATH=. python scripts/ci/cb03_g4_pg_http.py
