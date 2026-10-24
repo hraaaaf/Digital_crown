@@ -194,6 +194,13 @@ try {
         colors.darkContrast.mediaTitle >= 4.5 &&
         colors.darkContrast.modeBadge >= 4.5, colors.darkContrast);
     }
+    if (chosenTheme === 'high-contrast') {
+      assert('high-contrast clinical labels and R-mode badge reach AAA 7:1 measured contrast',
+        colors.darkContrast !== null &&
+        colors.darkContrast.intro >= 7 &&
+        colors.darkContrast.mediaTitle >= 7 &&
+        colors.darkContrast.modeBadge >= 7, colors.darkContrast);
+    }
     themeColors[chosenTheme] = colors;
     if (['emerald','dark','high-contrast'].includes(chosenTheme)) {
       await page.screenshot({
