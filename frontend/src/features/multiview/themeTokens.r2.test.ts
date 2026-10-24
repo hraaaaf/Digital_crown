@@ -60,6 +60,23 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(multiview).toContain('bg-info-surface');
   });
 
+  it('preserves genuine high-contrast aliases, simultaneous mobile C5 and secure fallback', () => {
+    const css = source('features/patients/PatientRadiologyPolish.css');
+    const media = source('features/patients/components/PatientMediaTimeline.tsx');
+    const lab = source('features/multiview/CabinetMultiViewLab.tsx');
+    expect(css).toContain(`[data-theme='high-contrast'] [data-dc-patient-radiology="true"]`);
+    expect(css).toContain('--color-primary: var(--primary)');
+    expect(css).toContain('--color-on-primary: var(--text-on-primary)');
+    expect(css).toContain('--color-text-muted: var(--text-muted)');
+    expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(css).toContain('object-fit: contain');
+    expect(media).toContain('dc-c5-compare-grid');
+    expect(media).toContain('dc-c5-compare-asset');
+    expect(lab).toContain('multiview-layout-safe-info');
+    expect(lab).toContain('Mode compact sécurisé');
+    expect(lab).toContain('multiview-responsive-single-media-fallback');
+  });
+
   it('theme engine exposes all configured semantic color roles', () => {
     const theme = source('index.css');
     for (const name of ['--card-bg', '--bg-medical-pearl', '--text-main',
