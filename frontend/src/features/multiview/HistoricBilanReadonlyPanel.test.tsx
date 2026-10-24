@@ -71,4 +71,22 @@ describe('DEC-R2-02 MultiView BILAN R-only adapter', () => {
     expect(document.querySelector('input[type=file]')).toBeNull();
     expect(vi.mocked(api.post)).not.toHaveBeenCalled();
   });
+  it('offers a larger BILAN view without exporting, signing or modifying clinical data', async () => {
+    vi.mocked(api.get).mockImplementation((url) =>
+      url === '/patients/17/documents'
+        ? Promise.resolve({ data: [{ id: '41', type: 'BILAN', name: 'Bilan visuel synthétique' }] } as never)
+        : Promise.resolve({ data: new Blob(['%PDF-1.4'], { type: 'application/pdf' }) } as never));
+    render(<HistoricBilanReadonlyPanel patientId={17}/>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Consulter : Bilan visuel synthétique' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Agrandir/ })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /Agrandir/ }));
+    expect(screen.getByRole('dialog', { name: /Bilan historique agrandi/ })).toBeTruthy();
+    expect(document.querySelectorAll('iframe')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: /^Fermer$/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    for (const mutate of [api.post, api.put, api.patch, api.delete]) {
+      expect(vi.mocked(mutate)).not.toHaveBeenCalled();
+    }
+  });
+
 });
