@@ -25,6 +25,7 @@ jobs:
     env:
       ENVIRONMENT: test
       ODF_G3_MATCHED_ANNOTATIONS: "1"
+      ODF_G3_FULL_ARCHIVE_FALLBACK: "1"
       SECRET_KEY: odf-v5-lab-test-only-secret-key-with-no-prod-access-001
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
