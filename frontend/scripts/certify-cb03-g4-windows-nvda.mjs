@@ -178,10 +178,10 @@ try {
   // reverse Shift+Tab at Chrome getZoom(2), without skipping controls.
   const keyboardSequence=[
     controls.input,
-    page.getByRole('textbox',{name:/Patient ID \\(si dossier choisi\\)/}),
+    page.getByRole('textbox',{name:'Patient ID (si dossier choisi)'}),
     page.getByRole('textbox',{name:'Praticien ID'}),
     page.getByRole('textbox',{name:'Durée en minutes'}),
-    page.getByRole('textbox',{name:/Ressource ID \\(facultatif\\)/}),
+    page.getByRole('textbox',{name:'Ressource ID (facultatif)'}),
     controls.prepare,
   ];
   const keyboardLabels=[
