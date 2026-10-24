@@ -286,3 +286,50 @@
     font-size: 11px;
   }
 }
+
+/* Tablet (768–1023px): readable segmented tabs, one horizontal track,
+   no overlap with the patient's name or clinical media. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] {
+    flex-flow: row nowrap !important;
+    align-items: center;
+    gap: 7px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 6px;
+    scroll-padding-inline: 14px;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-height: 45px;
+    padding: 8px 13px;
+    gap: 7px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-muted);
+    background: var(--card-bg);
+    font-size: 12px;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  [data-dc-patient-radiology="true"] [data-tour="patient-tabs"] > button[aria-current="page"] {
+    border-color: var(--primary) !important;
+    background: var(--bg-medical-pearl);
+    color: var(--primary) !important;
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] {
+    flex-flow: row nowrap !important;
+    overflow-x: auto;
+    max-width: 100%;
+    gap: 8px;
+    background: var(--bg-medical-pearl);
+    border: 1px solid var(--border-color);
+  }
+  [data-dc-patient-radiology="true"] [aria-label="Modalités d’imagerie"] > button {
+    flex: 0 0 auto !important;
+    min-height: 44px;
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+}
