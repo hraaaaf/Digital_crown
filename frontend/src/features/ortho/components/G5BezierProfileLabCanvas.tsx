@@ -51,9 +51,12 @@ export const G5BezierProfileLabCanvas:React.FC<Props>=({
   const [error,setError]=useState('');
   const inImage=(e:React.PointerEvent<SVGElement>):G5PixelPoint|null=>{
     const bounds=svg.current?.getBoundingClientRect();
-    if(!bounds||!bounds.width||!bounds.height)return null;
+    if(!bounds || !Number.isFinite(bounds.width) ||
+      !Number.isFinite(bounds.height) || bounds.width<=0 || bounds.height<=0 ||
+      !Number.isFinite(e.clientX) || !Number.isFinite(e.clientY))return null;
     const x=viewport.left+(e.clientX-bounds.left)*viewport.width/bounds.width;
     const y=viewport.top+(e.clientY-bounds.top)*viewport.height/bounds.height;
+    if(!Number.isFinite(x)||!Number.isFinite(y))return null;
     return [inside(x,imageWidth),inside(y,imageHeight)];
   };
   const takeSnapshot=()=>{
