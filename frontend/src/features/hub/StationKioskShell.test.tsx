@@ -48,7 +48,7 @@ describe('StationKioskShell', () => {
     ]) {
       fireEvent.click(screen.getByRole('button', { name: language }));
       expect(container).not.toHaveTextContent(technicalBadge);
-      fireEvent.click(screen.getByRole('button', { name: appointment }));
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(appointment, 'i') }));
       expect(container).not.toHaveTextContent(technicalBadge);
       expect(container.querySelector('[data-station-screen="appointment"]')).toBeInTheDocument();
     }
