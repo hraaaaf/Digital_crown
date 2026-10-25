@@ -1,0 +1,130 @@
+name: CB2 G7 Real Full-Schema SQLCipher E2E (DISPOSABLE)
+on:
+  push:
+    branches: [validation/cb2-g7-sqlcipher-fueg-20261025]
+permissions:
+  contents: read
+jobs:
+  real-sqlcipher-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      CB2_G7_SOURCE_SHA: f56d8fd55092bbc958d12254d7f484bda7625994
+      GITHUB_ACTIONS: "true"
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      ENVIRONMENT: rehearsal
+      SECRET_KEY: synthetic-cb2-g7-auth-secret-not-used-in-real-cabinet
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      DEBUG: "false"
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: "false"
+      CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+          persist-credentials: false
+      - name: Verify anchored source and source-only test branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$ENVIRONMENT" = rehearsal
+          test "$CLOUD_AI_ENABLED" = false
+          test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
+          git merge-base --is-ancestor "$CB2_G7_SOURCE_SHA" HEAD
+          changed="$(git diff --name-only "$CB2_G7_SOURCE_SHA" HEAD)"
+          while IFS= read -r file; do
+            case "$file" in
+              scripts/ci/cb2_g7_sqlcipher_full_e2e.py|frontend/src/components/CrownBot/CB03G5RealChatLab.tsx|.github/workflows/cb2-g7-real-sqlcipher-e2e.yml|"") ;;
+              *) echo "REFUSED: unauthorized application drift: $file"; exit 1 ;;
+            esac
+          done <<< "$changed"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated FastAPI SQLCipher and Playwright deps
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb2-g7-requirements.txt
+          pip install -r /tmp/cb2-g7-requirements.txt
+          pip install playwright==1.55.0 requests "sqlcipher3>=0.5,<1"
+          python -m pip check
+      - name: Install Chromium and compile CrownBot component
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          python -m playwright install --with-deps chromium
+          npx tsc --noEmit -p tsconfig.app.json
+      - name: Generate disposable encrypted target
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d "$RUNNER_TEMP/cb2-g7.XXXXXXXX")"
+          url="sqlite:///$dir/cb2-g7-synthetic.db"
+          key="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$key"
+          fingerprint="$(DATABASE_URL="$url" python -c 'import os; from backend.core.runtime_safety import database_target_fingerprint; print(database_target_fingerprint(os.environ["DATABASE_URL"]))')"
+          echo "DATABASE_URL=$url" >> "$GITHUB_ENV"
+          echo "SQLCIPHER_KEY_HEX=$key" >> "$GITHUB_ENV"
+          echo "DIGITALCROWN_ISOLATION_DB_FINGERPRINT=$fingerprint" >> "$GITHUB_ENV"
+          echo "MEDIA_ROOT=$dir/media" >> "$GITHUB_ENV"
+          echo "CB2_SQLCIPHER_DIR=$dir" >> "$GITHUB_ENV"
+          mkdir -p "$dir/media"
+          test ! -f "$dir/cb2-g7-synthetic.db"
+      - name: Full SQLCipher Alembic schema from empty file
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -f "$CB2_SQLCIPHER_DIR/cb2-g7-synthetic.db"
+          python -m alembic upgrade head
+          python - <<'PY'
+          from sqlalchemy import inspect
+          from backend.database import engine
+          from backend.core.schema_runtime import assert_database_at_current_head
+          assert_database_at_current_head(engine)
+          names=set(inspect(engine).get_table_names())
+          assert {"users","patients","appointments","bot_pending_actions","alembic_version"} <= names
+          print("CB2_G7_SQLCIPHER_FULL_SCHEMA_BASELINE_PASS",len(names))
+          PY
+      - name: Real Chromium to FastAPI to SQLCipher E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/ci/cb2_g7_sqlcipher_full_e2e.py
+          PYTHONPATH=. python scripts/ci/cb2_g7_sqlcipher_full_e2e.py
+      - name: Capture synthetic evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb2-g7-real-sqlcipher-browser-fastapi
+          path: artifacts/cb2-g7-sqlcipher/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Remove disposable database
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${CB2_SQLCIPHER_DIR:-}" && "$CB2_SQLCIPHER_DIR" == "$RUNNER_TEMP"/cb2-g7.* ]]; then
+            rm -rf -- "$CB2_SQLCIPHER_DIR"
+          fi
+      - name: Scope of proof
+        if: success()
+        shell: bash
+        run: |
+          echo "Source anchored f56d8fd; test-only branch, no production change." >> "$GITHUB_STEP_SUMMARY"
+          echo "Not native Windows MainLayout or human clinical/visual acceptance." >> "$GITHUB_STEP_SUMMARY"
