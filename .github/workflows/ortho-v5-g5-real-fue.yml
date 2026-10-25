@@ -1,5 +1,13 @@
 name: ORTHO V5 G5 — Browser-drawn contours, two actual PDF views (synthetic QA)
 on:
+  # The draft PR currently has merge conflicts. GitHub suppresses pull_request
+  # runs in that state, so use an isolated and branch-limited push fallback.
+  push:
+    branches:
+      - 'design/cephalo-premium-pdf-v2-20261023'
+    paths:
+      - 'frontend/scripts/odf-v5-fue-lab.mjs'
+      - '.github/workflows/ortho-v5-g5-real-fue.yml'
   pull_request:
     paths:
       - 'scripts/odf_v5_g3_aariz_matched_pair.py'
@@ -180,6 +188,22 @@ jobs:
           assert report.get('g5',{}).get('mode') == 'SYNTHETIC_BROWSER_STROKES_NOT_EXPERT_CONTOURS'
           assert report['g5'].get('expert_anatomical_validation') is False
           assert report['g5'].get('contour_count') == 6
+          v2=report.get('g5v2',{})
+          assert v2.get('mode') == 'SYNTHETIC_BEZIER_NODES_NOT_REAL_ANATOMY'
+          assert v2.get('expert_anatomical_validation') is False
+          assert v2.get('approved_test_dentist') is True
+          assert v2.get('node_count',0)>=3 and v2.get('sampled_points',0)>0
+          v2_must={'G5_V2_SAVED_REVOKES_OLD_DENTIST_APPROVAL',
+              'G5_V2_REOPEN_HANDLES_AND_PIXEL_SAMPLES_IDENTICAL',
+              'G5_V2_TAMPERED_HANDLE_REFUSED',
+              'G5_V2_BROWSER_REOPEN_VISIBLE_SAVED_ANCHORS_AND_HANDLES',
+              'G5_V2_EDIT_RESAVE_REVOCATION',
+              'G5_V2_SYNTHETIC_EXPLICIT_DENTIST_APPROVAL',
+              'G5_V2_SIGNED_HANDLES_PERSIST_IN_SAME_STUDY',
+              'G5_V2_RELOADED_NOTES_BROWSER_PDF_FAIL_CLOSED',
+              'G5_V2_SIGNED_PDF_API_SOURCE_AND_REVISION_BOUND',
+              'G5_V1_BROWSER_PDF_NONEMPTY'}
+          assert v2_must.issubset(set(report['checks'])),sorted(v2_must-set(report['checks']))
           assert {'G5_REAL_BROWSER_EXPLICIT_DENTIST_TEST_APPROVAL',
                   'G5_BROWSER_SAVED_SIX_DISTINCT_STROKES',
                   'G5_SECRETARY_FORBIDDEN_APPROVAL',
@@ -222,6 +246,23 @@ jobs:
               assert "24 avenue de l'Exemple" in text
               for forbidden in ('Mesure complémentaire','NOT_COMPUTABLE','DOCUMENT CLINIQUE INCOMPLET','PRÉ-BILAN'):
                   assert forbidden not in text,forbidden
+          # Compare embedded full-resolution *pixels*, not PDF binary metadata.
+          # The approved V2 PDF must actually differ from the browser-exported
+          # baseline G5 PDF (two real 1935x2400 views, synthetic strokes only).
+          def full_res_raster_sha256s(document):
+              hashes=set()
+              for page in document:
+                  for entry in page.get_images(full=True):
+                      pixels=fitz.Pixmap(document,entry[0])
+                      if pixels.width==1935 and pixels.height==2400:
+                          hashes.add(hashlib.sha256(pixels.samples).hexdigest())
+              return hashes
+          with fitz.open(root/report['g5_browser_pre_v2_pdf']) as pre_v2:
+              before_rasters=full_res_raster_sha256s(pre_v2)
+          with fitz.open(root/report['pdf']) as final_v2:
+              after_rasters=full_res_raster_sha256s(final_v2)
+          assert len(before_rasters)>=2 and len(after_rasters)>=2, 'Two full-size G5 views missing'
+          assert before_rasters!=after_rasters, 'V2 approved PDF unchanged from pre-V2 browser baseline'
           assert hashlib.sha1((root/'public-cephalo-ANUG-original.jpg').read_bytes()).hexdigest()=='2a284993c666790a72d0c004044b35a92534ce9d'
           print('ODF_G5_SYNTHETIC_POINTER_FUE_DUAL_PDF_PASS_NOT_CLINICAL_ANATOMY_CERTIFICATION')
           PY
