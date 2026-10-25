@@ -28,7 +28,7 @@ describe('Patient P6 identity truth boundary', () => {
   it('fails closed when duplicate/dossier checks or patient loading fail', () => {
     expect(add).toContain('Promise<boolean | null>');
     expect(add).toContain('Vérification anti-doublon indisponible');
-    expect(add).toContain('if (hasDuplicate === null) return');
+    expect(add).toContain('if (hasDuplicate !== false) return');
     expect(add).toContain('Disponibilité non vérifiée');
     expect(edit).toContain('Impossible de charger le patient');
     expect(edit).toContain("Le formulaire n'est pas affiché avec des valeurs par défaut.");
