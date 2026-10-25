@@ -295,6 +295,99 @@ try{
       &&finalData.contours.length===6,
       'G5_REAL_BROWSER_EXPLICIT_DENTIST_TEST_APPROVAL');
     await snap('g5-03-six-browser-strokes-test-approved');
+    // G5 V2 E2E: synthetic Bézier nodes are not research/clinical contours.
+    // Follow the ACTUAL API save/read/sign/revoke cycle, not only pure unit tests.
+    const synthNodes=[
+      {anchor:[1300,850],incoming:[1300,850],outgoing:[1340,900]},
+      {anchor:[1410,1010],incoming:[1370,955],outgoing:[1450,1065]},
+      {anchor:[1540,1180],incoming:[1500,1130],outgoing:[1540,1180]},
+    ];
+    function sampleG5(nodes){
+      const out=[];
+      for(let i=0;i<nodes.length-1;i++){
+        const a=nodes[i].anchor,c1=nodes[i].outgoing;
+        const c2=nodes[i+1].incoming,b=nodes[i+1].anchor;
+        const dist=(u,v)=>Math.hypot(u[0]-v[0],u[1]-v[1]);
+        const steps=Math.max(2,Math.ceil((dist(a,c1)+dist(c1,c2)+dist(c2,b))/6));
+        for(let k=i===0?0:1;k<=steps;k++){
+          const t=k/steps,q=1-t;
+          const w0=q*q*q,w1=3*q*q*t,w2=3*q*t*t,w3=t*t*t;
+          const pt=[0,1].map(d=>Math.round((
+            w0*a[d]+w1*c1[d]+w2*c2[d]+w3*b[d])*10)/10);
+          if(out.length&&dist(out[out.length-1],pt)<0.5)continue;
+          out.push(pt);
+        }
+      }
+      return out;
+    }
+    const v2Contours=finalData.contours.map(c=>c.id==='soft_tissue_profile'
+      ?{id:c.id,points:sampleG5(synthNodes)}
+      :{id:c.id,points:c.points});
+    const v2Write=await api.put(g5Url+'/draft',{headers,data:{
+      expected_revision:revision,expected_draft_version:1,
+      contours:v2Contours,bezier_profile_nodes:synthNodes,
+    }});
+    const v2WriteBody=await v2Write.json();
+    check(v2Write.status()===200&&!v2WriteBody.approved&&v2WriteBody.draft_version===2,
+      'G5_V2_SAVED_REVOKES_OLD_DENTIST_APPROVAL');
+    const v2Read=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    const v2ReadBody=await v2Read.json();
+    check(v2Read.status()===200&&v2ReadBody.draft_version===2
+      &&JSON.stringify(v2ReadBody.bezier_profile_nodes)===JSON.stringify(synthNodes)
+      &&JSON.stringify(v2ReadBody.contours.find(c=>c.id==='soft_tissue_profile').points)
+        ===JSON.stringify(sampleG5(synthNodes)),
+      'G5_V2_REOPEN_HANDLES_AND_PIXEL_SAMPLES_IDENTICAL');
+    const badNodes=structuredClone(synthNodes);
+    badNodes[1].incoming[0]+=25;
+    const v2Mismatch=await api.put(g5Url+'/draft',{headers,data:{
+      expected_revision:revision,expected_draft_version:2,
+      contours:v2Contours,bezier_profile_nodes:badNodes,
+    }});
+    check(v2Mismatch.status()===422,'G5_V2_TAMPERED_HANDLE_REFUSED');
+    // Reopen the actual React UI, not just the API JSON.
+    await page.reload({waitUntil:'domcontentloaded'});
+    const reopened=page.getByTestId('odf-g5-manual-tracing');
+    await reopened.waitFor({state:'visible',timeout:30000});
+    await reopened.getByRole('button',{name:/Profil cutané/}).click();
+    const bezierToggle=page.getByTestId('g5-bezier-mode-toggle');
+    await bezierToggle.waitFor({state:'visible',timeout:15000});
+    await bezierToggle.click();
+    const reopenedCanvas=page.getByTestId('odf-g5-bezier-surface');
+    await reopenedCanvas.waitFor({state:'visible'});
+    check(await page.getByTestId('g5-bezier-anchor-2').count()===1
+      &&await page.getByTestId('g5-bezier-handle-1-incoming').count()===1,
+      'G5_V2_BROWSER_REOPEN_VISIBLE_SAVED_ANCHORS_AND_HANDLES');
+    await snap('g5-v2-04-reopened-editable-bezier-test-only');
+    // Editing controls after reopening changes source-pixel samples and must
+    // revoke approval again. Test via strict API save to exclude flaky pixels.
+    const edited=structuredClone(synthNodes);
+    edited[1].incoming[0]+=8;
+    const editedContours=v2Contours.map(c=>c.id==='soft_tissue_profile'
+      ?{id:c.id,points:sampleG5(edited)}:c);
+    const editedWrite=await api.put(g5Url+'/draft',{headers,data:{
+      expected_revision:revision,expected_draft_version:2,
+      contours:editedContours,bezier_profile_nodes:edited,
+    }});
+    const editedBody=await editedWrite.json();
+    check(editedWrite.status()===200&&editedBody.draft_version===3
+      &&editedBody.approved===false,
+      'G5_V2_EDIT_RESAVE_REVOCATION');
+    const v2Approve=await api.post(g5Url+'/approve',{headers,data:{
+      expected_revision:revision,expected_draft_version:3,
+      confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE',
+    }});
+    const v2Approved=await v2Approve.json();
+    check(v2Approve.status()===200&&v2Approved.approved,
+      'G5_V2_SYNTHETIC_EXPLICIT_DENTIST_APPROVAL');
+    const verifiedV2=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    const verifiedV2Body=await verifiedV2.json();
+    check(verifiedV2Body.approved
+      &&JSON.stringify(verifiedV2Body.bezier_profile_nodes)===JSON.stringify(edited),
+      'G5_V2_SIGNED_HANDLES_PERSIST_IN_SAME_STUDY');
+    report.g5v2={mode:'SYNTHETIC_BEZIER_NODES_NOT_REAL_ANATOMY',
+      status:'V2_API_AND_BROWSER_REOPEN_TEST',node_count:edited.length,
+      sampled_points:sampleG5(edited).length,approved_test_dentist:true,
+      expert_anatomical_validation:false};
     report.g5={mode:'SYNTHETIC_BROWSER_STROKES_NOT_EXPERT_CONTOURS',
       status:'TECHNICAL_E2E_ONLY',approved_test_dentist:true,
       contour_count:6,expert_anatomical_validation:false};
