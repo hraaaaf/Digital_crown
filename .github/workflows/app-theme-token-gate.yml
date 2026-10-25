@@ -1,0 +1,86 @@
+name: App-Wide Semantic Theme Token Gate (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/app-wide-theme-token-governance-20261025
+      - fix/cb2-semantic-theme-tokens-20261025
+  pull_request:
+    branches:
+      - master
+      - feature/cb03-g5-real-crownbot-chat-20261025
+    paths:
+      - frontend/src/**
+      - scripts/ci/theme_token_policy.py
+      - .github/workflows/app-theme-token-gate.yml
+permissions:
+  contents: read
+jobs:
+  theme-token-policy:
+    name: Theme tokens whole-app inventory + exact-diff regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve immutable review baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            base="$(python -c 'import os,json;print(json.load(open(os.environ["GITHUB_EVENT_PATH"]))["pull_request"]["base"]["sha"])')"
+          elif [[ "$GITHUB_REF" == refs/heads/fix/cb2-semantic-theme-tokens-20261025 ]]; then
+            base=f56d8fd55092bbc958d12254d7f484bda7625994
+          elif [[ "$GITHUB_REF" == refs/heads/fix/app-wide-theme-token-governance-20261025 ]]; then
+            base=f5865dd48278a5b51b835f245a102fa21dcde45e
+          else
+            echo "REFUSED: unexpected theme-gate ref"; exit 1
+          fi
+          git cat-file -e "$base^{commit}"
+          echo "THEME_BASE_SHA=$base" >> "$GITHUB_ENV"
+      - name: Audit entire application and reject introduced hardcoded UI palettes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/ci/theme_token_policy.py
+          python -m unittest scripts.ci.test_theme_token_policy -v
+          python scripts/ci/theme_token_policy.py --base "$THEME_BASE_SHA"
+      - name: Upload inventory (legacy debt is not zero)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: whole-app-theme-token-audit
+          path: artifacts/theme-token-audit/report.json
+          retention-days: 14
+          if-no-files-found: warn
+  frontend-validation:
+    name: TypeScript + theme regression tests (NO CLINICAL ACTION)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and check component type contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit -p tsconfig.app.json
+      - name: Exercise canonical theme semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vitest run src/features/multiview/themeTokens.r2.test.ts src/components/themeSharedSurfaces.policy.test.ts --maxWorkers=1 --fileParallelism=false

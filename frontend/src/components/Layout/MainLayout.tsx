@@ -154,7 +154,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   }, [location.pathname]);
 
   return (
-    <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
+    <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-on-primary relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
       {animatedBg && <AnimatedBackground />}
 
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
@@ -230,27 +230,27 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
             }
           }}
           className={showAssociateSidecar
-            ? 'relative z-20 flex h-full min-h-0 w-[clamp(360px,30vw,480px)] shrink-0 flex-col border-l border-slate-200 bg-white shadow-2xl'
+            ? 'relative z-20 flex h-full min-h-0 w-[clamp(360px,30vw,480px)] shrink-0 flex-col border-l border-border-main bg-card shadow-2xl'
             : showWorkspaceDock
-              ? 'relative z-20 flex h-[clamp(250px,36dvh,340px)] min-h-0 w-full shrink-0 flex-col border-t border-slate-200 bg-white shadow-2xl'
-              : `fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
+              ? 'relative z-20 flex h-[clamp(250px,36dvh,340px)] min-h-0 w-full shrink-0 flex-col border-t border-border-main bg-card shadow-2xl'
+              : `fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-glass-border bg-glass-bg backdrop-blur-3xl ${
                 isPatientRoute
                   ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
                   : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px] sm:max-h-[calc(100dvh-8rem)]'
               }`}
         >
           {showStructuredPanel && (
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
+            <div className="flex shrink-0 items-center justify-between border-b border-border-main bg-background px-4 py-2">
               <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-800">Crown Bot · Associate</p>
-                <p className="text-[11px] text-slate-500">Aperçu expérimental — aucune écriture</p>
+                <p className="text-xs font-bold text-text-main">Crown Bot · Associate</p>
+                <p className="text-[11px] text-text-muted">Aperçu expérimental — aucune écriture</p>
               </div>
               <button
                 type="button"
                 aria-label="Réduire le panneau Crown Bot"
                 ref={sidecarCloseButtonRef}
                 onClick={closeAssociateSidecar}
-                className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="min-h-11 rounded-lg border border-border-main bg-card px-3 text-xs font-semibold text-text-main hover:bg-input-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 Réduire
               </button>
@@ -276,11 +276,11 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
           onClick={() => setIsBotOpen(!isBotOpen)}
           aria-label={isBotOpen ? 'Fermer CrownBot' : 'Ouvrir CrownBot'}
           aria-expanded={isBotOpen}
-          className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-tr from-primary to-secondary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/20 relative"
+          className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-tr from-primary to-secondary text-on-primary rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-glass-border relative"
         >
           <Bot size={24} />
           {ghostUnreadCount > 0 && !isBotOpen && (
-            <span data-cb01-parent-unread className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 text-slate-900 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse shadow-lg">
+            <span data-cb01-parent-unread className="absolute -top-1 -right-1 w-5 h-5 bg-warning-surface text-warning text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse shadow-lg">
               {ghostUnreadCount}
             </span>
           )}
@@ -295,7 +295,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className={`fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl ${
+            className={`fixed z-[1000] rounded-[24px] overflow-hidden shadow-2xl border border-glass-border bg-glass-bg backdrop-blur-3xl ${
               isPatientRoute
                 ? 'inset-3 lg:inset-auto lg:bottom-28 lg:right-8 lg:w-[400px] lg:h-[600px]'
                 : 'inset-3 sm:inset-auto sm:bottom-28 sm:right-8 sm:w-[400px] sm:h-[600px]'

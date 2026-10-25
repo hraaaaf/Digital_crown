@@ -311,7 +311,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         </div>
 
         {/* CABINET SWITCHER SECTION (Premium Glassmorphic Switcher) */}
-        <div className="sidebar-cabinet-section relative px-3 lg:px-2 py-4 border-b border-border-main shrink-0 bg-white/5 backdrop-blur-md">
+        <div className="sidebar-cabinet-section relative px-3 lg:px-2 py-4 border-b border-border-main shrink-0 bg-glass-bg backdrop-blur-md">
           <div
             className="sidebar-cabinet-compact h-10 w-10 mx-auto items-center justify-center rounded-xl border border-border-main bg-card-bg/60 text-base"
             aria-hidden="true"
@@ -342,7 +342,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
               }}
             >
               {cabinets.map(cab => (
-                <option key={cab.id} value={cab.id} className="text-black bg-white font-bold">
+                <option key={cab.id} value={cab.id} className="text-black bg-card font-bold">
                   🏢 {cab.nom}
                 </option>
               ))}
@@ -368,8 +368,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {/* SUPER ADMIN (Hidden for non-admin users) */}
           {user?.is_superadmin && (
             <div className="mt-4 pt-4 border-t border-border-main">
-              <NavItem to="/super-admin" icon={<Shield size={20} className="text-amber-500" />} label="Gestion des Dentistes" />
-              <NavItem to="/approvisionnement/admin" icon={<Store size={20} className="text-amber-500" />} label="Fournisseurs" />
+              <NavItem to="/super-admin" icon={<Shield size={20} className="text-warning" />} label="Gestion des Dentistes" />
+              <NavItem to="/approvisionnement/admin" icon={<Store size={20} className="text-warning" />} label="Fournisseurs" />
             </div>
           )}
 
@@ -463,7 +463,7 @@ const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: Re
             {label}
           </span>
           {badge && (
-            <span className="sidebar-badge relative z-10 ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <span className="sidebar-badge relative z-10 ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-warning-surface text-warning border border-warning-border">
               {badge}
             </span>
           )}

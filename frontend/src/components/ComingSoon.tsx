@@ -10,10 +10,10 @@ interface ComingSoonProps {
  */
 export const ComingSoon = ({ title, description }: ComingSoonProps) => (
   <div className="w-full min-h-[70vh] flex flex-col items-center justify-center p-8 text-center">
-    <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-6 shadow-sm">
+    <div className="w-20 h-20 rounded-3xl bg-warning-surface border border-warning-border flex items-center justify-center text-warning mb-6 shadow-sm">
       <Construction size={40} />
     </div>
-    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-500 mb-2">
+    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-warning mb-2">
       Fonction indisponible
     </span>
     <h1 className="text-2xl font-black text-text-main tracking-tight mb-3">{title}</h1>

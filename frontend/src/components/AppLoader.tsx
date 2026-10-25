@@ -11,7 +11,7 @@ interface AppLoaderProps {
 export const AppLoader: React.FC<AppLoaderProps> = ({
   text,
   minHeight = "h-screen",
-  className = "bg-slate-50"
+  className = "bg-background"
 }) => {
   return (
     <div className={`flex items-center justify-center ${minHeight} ${className} overflow-hidden`}>
@@ -20,19 +20,19 @@ export const AppLoader: React.FC<AppLoaderProps> = ({
         <div className="relative flex items-center justify-center">
           {/* Outer ring pulse */}
           <motion.div
-            className="absolute w-52 h-52 rounded-full border border-blue-200/60"
+            className="absolute w-52 h-52 rounded-full border border-border-main/60"
             animate={{ scale: [1, 1.18, 1], opacity: [0.6, 0, 0.6] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
           />
           {/* Inner ring pulse (offset phase) */}
           <motion.div
-            className="absolute w-40 h-40 rounded-full border border-blue-300/40"
+            className="absolute w-40 h-40 rounded-full border border-primary/40"
             animate={{ scale: [1, 1.22, 1], opacity: [0.4, 0, 0.4] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
           />
           {/* Glow blob */}
           <motion.div
-            className="absolute w-36 h-36 rounded-full bg-blue-500/10 blur-2xl"
+            className="absolute w-36 h-36 rounded-full bg-primary/10 blur-2xl"
             animate={{ scale: [0.9, 1.15, 0.9], opacity: [0.4, 0.8, 0.4] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           />
@@ -55,11 +55,11 @@ export const AppLoader: React.FC<AppLoaderProps> = ({
             transition={{ delay: 0.4, duration: 0.5 }}
             className="flex items-center gap-4"
           >
-            <div className="w-10 h-[1px] bg-gradient-to-r from-transparent to-slate-300" />
-            <span className="text-slate-400 font-semibold tracking-[0.2em] text-[11px] uppercase">
+            <div className="w-10 h-[1px] bg-gradient-to-r from-transparent to-border-hover" />
+            <span className="text-text-muted font-semibold tracking-[0.2em] text-[11px] uppercase">
               {text}
             </span>
-            <div className="w-10 h-[1px] bg-gradient-to-l from-transparent to-slate-300" />
+            <div className="w-10 h-[1px] bg-gradient-to-l from-transparent to-border-hover" />
           </motion.div>
         )}
 
@@ -68,7 +68,7 @@ export const AppLoader: React.FC<AppLoaderProps> = ({
           {[0, 1, 2].map(i => (
             <motion.div
               key={i}
-              className="w-1.5 h-1.5 rounded-full bg-blue-400"
+              className="w-1.5 h-1.5 rounded-full bg-primary"
               animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut", delay: i * 0.18 }}
             />
