@@ -345,7 +345,19 @@ try{
     }});
     check(v2Mismatch.status()===422,'G5_V2_TAMPERED_HANDLE_REFUSED');
     // Reopen the actual React UI, not just the API JSON.
+    // A full reload resets the React-selected analysis/tab; restore the
+    // same synthetic study by navigating via the real patient UI first.
     await page.reload({waitUntil:'domcontentloaded'});
+    await page.getByRole('button',{name:'Imagerie',exact:true}).click();
+    await page.locator('[aria-label="Modalités d’imagerie"]')
+      .getByRole('button',{name:'Céphalométrie',exact:true}).click();
+    await page.locator('[data-ortho-workspace-title]')
+      .waitFor({state:'visible',timeout:35000});
+    await page.getByRole('button',{name:'Historique',exact:true}).click();
+    await page.locator('[data-cephalo-history-analysis-id="'+ids.older_id+'"]').click();
+    await page.locator('[data-cephalo-selected-analysis-id="'+ids.older_id+'"]')
+      .waitFor({state:'visible',timeout:20000});
+    await page.getByRole('button',{name:'3. Synthèse clinique',exact:true}).click();
     const reopened=page.getByTestId('odf-g5-manual-tracing');
     await reopened.waitFor({state:'visible',timeout:30000});
     await reopened.getByRole('button',{name:/Profil cutané/}).click();
