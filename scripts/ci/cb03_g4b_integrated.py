@@ -259,6 +259,7 @@ try:
         env.update({
             "VITE_CB03_G4B_LIVE_PG_LAB":"true",
             "VITE_CB03_G5_CHAT_LAB":"true" if G5_CHAT else "false",
+            "VITE_CB03_G5_REAL_CHAT_PG":"true" if G5_CHAT else "false",
             "VITE_CB03_G5_LAB_PRACTITIONER_ID":str(owner_id),
             "VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED":"true" if G5_CHAT else "false",
             "VITE_CROWN_BOT_GUIDED_NLU_ENABLED":"true" if G5_CHAT else "false",
