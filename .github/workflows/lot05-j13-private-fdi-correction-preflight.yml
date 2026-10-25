@@ -15,6 +15,9 @@ on:
       - experiments/lot05_j15_private_staging_plan.py
       - experiments/test_lot05_j15_private_staging_plan.py
       - docs/research/LOT05_J15_PRIVATE_STAGING_SAFETY_PRE_20261025.md
+      - experiments/lot05_j17_private_manifest_preflight.py
+      - experiments/test_lot05_j17_private_manifest_preflight.py
+      - docs/research/LOT05_J17_PRIVATE_MANIFEST_PREFLIGHT_PRE_20261025.md
   workflow_dispatch:
 
 permissions:
@@ -46,6 +49,8 @@ jobs:
         run: python experiments/test_lot05_j15_private_staging_plan.py -v
       - name: Verify J15 synthetic plan is blocked, no private staging
         run: python experiments/lot05_j15_private_staging_plan.py
+      - name: Test ten synthetic J17 private-manifest schema and ontology safety checks
+        run: python experiments/test_lot05_j17_private_manifest_preflight.py -v
       - name: Pin academic YOLO TXT ONLY in disposable runner, never pixels
         shell: bash
         run: |

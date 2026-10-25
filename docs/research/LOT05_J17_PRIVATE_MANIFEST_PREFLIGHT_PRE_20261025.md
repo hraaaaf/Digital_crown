@@ -1,0 +1,5 @@
+# LOT05/J17 — Owner-private J16 manifest preflight (PRE)
+
+The private J16 manifest is not compatible with the legacy J13 manifest schema. This module adds **read-only structural and ontology preflight** for the versioned J16 schema. It imports the J14 FDI classifier and validates permanent-only active relabels, blocks primary 53/63 (including tentative), checks all release gates false, verifies private source-manifest SHA256 when original V22 bytes are supplied, and returns aggregate counts only. It **does not integrate the actual J13 label staging engine**, does not read university TXT/JPEG, does not adjudicate source geometry or collisions, and does not write output datasets.
+
+Public CI runs 10 synthetic tests, never passes a private file to the CLI. The private owner may invoke locally `python experiments/lot05_j17_private_manifest_preflight.py /private/J16.json /private/V22.json`; never run it in Actions. The older J13 hard-coded 21/10 counters remain in force and must not be bypassed. No merge, training, deploy, clinical activation, or license/patient independence claim.
