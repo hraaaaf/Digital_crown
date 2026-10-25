@@ -5,7 +5,9 @@
 
 @media (max-width: 1023px) {
   body:has([data-flow-patient-surface]) [data-rht-toaster] {
-    top: 5.5rem !important;
+    /* Detail-mode notifications stay below patient identity and safe areas. */
+    top: auto !important;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
     z-index: 900 !important;
     pointer-events: none !important;
   }

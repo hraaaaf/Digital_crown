@@ -544,9 +544,24 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
 
-    # 1. BDD
+    # 1. BDD — filter sensitive document types BEFORE reading rows or
+    # enriching provenance; patient visibility alone is not financial,
+    # prescription or clinical document authority.
+    from backend.routers.auth import has_permission
+    from backend.routers.documents import DOCUMENT_TYPE_PERMISSIONS, can_read_historic_bilan
+
+    allowed_doc_types = [
+        kind for kind in models.DocumentType
+        if DOCUMENT_TYPE_PERMISSIONS.get(kind.value.lower()) is not None
+        and has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS[kind.value.lower()])
+    ]
+    # DEC-R2-01: BILAN is a dedicated R privilege, not a CRUD mapping.
+    # Reject staff/admin without explicit scope before SQL reads/pagination.
+    if can_read_historic_bilan(patient, current_user):
+        allowed_doc_types.append(models.DocumentType.BILAN)
     docs = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient_id,
+        models.DocumentArchive.document_type.in_(allowed_doc_types),
         or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),
         or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None)
     ).order_by(models.DocumentArchive.created_at.desc()).all()
@@ -566,7 +581,11 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
             
         results.append({
             "id": str(doc.id), "name": doc.original_filename, "type": doc.document_type.value,
-            "date": doc.created_at.strftime("%d/%m/%Y"), "url": f"static/{rel_path}",
+            "date": doc.created_at.strftime("%d/%m/%Y"),
+            # BILAN R must use the special authenticated route, never raw static.
+            "url": (f"/api/documents/bilan/{doc.id}/view"
+                    if doc.document_type == models.DocumentType.BILAN
+                    else f"static/{rel_path}"),
             "clinical_data": doc.clinical_data, "timestamp": doc.created_at.timestamp(),
             "payment_status": getattr(doc.payment_status, "value", doc.payment_status),
             "is_accounted": True if doc.is_accounted is None else bool(doc.is_accounted),

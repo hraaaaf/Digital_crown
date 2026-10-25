@@ -35,6 +35,11 @@ def test_global_intelligence_score_is_no_longer_computed_or_presented():
 
 def test_patient_page_surfaces_nba_reason_and_unmounts_dead_flash_summary():
     details = (FRONTEND / "features" / "patients" / "PatientDetailsInner.tsx").read_text(encoding="utf-8")
-    assert "res.data.nba.message" in details
+    # Patient-scoped NBA text is normalized before entering the radiology advice
+    # panel, and never shown for a response from an abandoned patient route.
+    assert "const message = typeof tip.message === 'string' ? tip.message : '';" in details
+    assert "if (cancelled || !res.data?.nba) return;" in details
+    assert "setRadiologyAdvice({ patientId: id, title, message, action });" in details
+    assert "{radiologyAdvice?.message}" in details
     assert "<FlashSummary" not in details
     assert "import { FlashSummary }" not in details

@@ -67,10 +67,134 @@ DOCUMENT_TYPE_PERMISSIONS = {
 
 
 def require_document_permission(doc_type: str, current_user: models.User) -> None:
-    normalized_type = doc_type.lower()
+    """Fail closed for document kinds without an explicit server-side permission."""
+    normalized_type = str(doc_type or "").lower()
     permission = DOCUMENT_TYPE_PERMISSIONS.get(normalized_type)
-    if permission and not has_permission(current_user, permission):
+    if permission is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Type de document sans politique d'autorisation explicite.",
+        )
+    if not has_permission(current_user, permission):
         raise HTTPException(status_code=403, detail=f"Accès refusé. Permission requise : {permission}.")
+
+def can_read_historic_bilan(patient: models.Patient, actor: models.User) -> bool:
+    """DEC-R2-01: dedicated R entitlement, never a general archive CRUD grant.
+
+    An owner dentist may read their own cabinet's registered BILAN.  An ADMIN
+    must belong to that cabinet AND carry the explicit 'bilan_read' grant;
+    the canonical has_permission() intentionally grants ADMIN too broadly for
+    this owner-approved historical BILAN exception.
+    """
+    if patient is None or actor is None or patient.employer_id is None:
+        return False
+    if actor.get_employer_id() != patient.employer_id:
+        return False
+    role = actor.role.value if hasattr(actor.role, "value") else str(actor.role)
+    if role == "DENTISTE" and actor.employer_id is None and actor.id == patient.employer_id:
+        return True
+    return (
+        role == "ADMIN"
+        and isinstance(actor.permissions, dict)
+        and actor.permissions.get("bilan_read") is True
+    )
+
+
+def require_historic_bilan_reader(patient_id: int, actor: models.User, db: Session) -> None:
+    """Authorize only the R view, never archive signature/download/mutation."""
+    assert_patient_access(patient_id, actor, db)
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not can_read_historic_bilan(patient, actor):
+        raise HTTPException(status_code=403, detail="Lecture BILAN non autorisée.")
+
+
+@router.get("/bilan/{document_id}/view", include_in_schema=True)
+def view_historic_bilan(
+    document_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Authenticated read-only inline PDF; never infer BILAN from legacy names."""
+    doc = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == document_id,
+        models.DocumentArchive.document_type == models.DocumentType.BILAN,
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+        models.DocumentArchive.is_latest_version == True,
+    ).first()
+    if doc is None:
+        raise HTTPException(status_code=404, detail="BILAN introuvable.")
+    require_historic_bilan_reader(doc.patient_id, current_user, db)
+
+    rel = str(doc.file_path or "").replace("\\\\", "/")
+    if rel.startswith("static/archives/"):
+        root = (MEDIA_DIR / "archives").resolve()
+        suffix = rel[len("static/archives/"):]
+    elif rel.startswith("static/documents/"):
+        root = (MEDIA_DIR / "documents").resolve()
+        suffix = rel[len("static/documents/"):]
+    else:
+        raise HTTPException(status_code=404, detail="Archive BILAN non classée.")
+    candidate = (root / suffix).resolve()
+    if not suffix or not candidate.is_relative_to(root) or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Fichier BILAN indisponible.")
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="MEDIA_ACCESS_GRANTED", resource_type="BILAN", resource_id=str(doc.id),
+        severity="INFO", details="Lecture BILAN historique autorisée.",
+    )
+    return FileResponse(
+        str(candidate), media_type="application/pdf",
+        headers={"Content-Disposition": "inline", "Cache-Control": "no-store"},
+    )
+
+
+@router.get("/bilan/{document_id}/page", include_in_schema=True)
+def view_historic_bilan_page(
+    document_id: int,
+    page: int = 1,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """DEC-R2-01: securely render a BILAN PDF page for browsers without PDF plugins.
+
+    Reuses the exact typed, patient-scoped and actor-scoped PDF authorization,
+    file provenance and status checks. Returns in-memory pixels, never a public
+    static PNG or a mutation. The original PDF route remains available.
+    """
+    from fastapi.responses import Response
+    import fitz
+
+    if not 1 <= page <= 100:
+        raise HTTPException(status_code=404, detail="Page BILAN introuvable.")
+    guarded_pdf = view_historic_bilan(document_id, db, current_user)
+    source = pathlib.Path(str(guarded_pdf.path))
+    # Bound decoding to prevent untrusted huge clinical PDFs exhausting memory.
+    if source.stat().st_size > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Aperçu BILAN trop volumineux.")
+    try:
+        with fitz.open(str(source)) as pdf:
+            if page > pdf.page_count:
+                raise HTTPException(status_code=404, detail="Page BILAN introuvable.")
+            sheet = pdf[page - 1]
+            if not (100 <= sheet.rect.width <= 2000 and 100 <= sheet.rect.height <= 2000):
+                raise HTTPException(status_code=422, detail="Format de page BILAN non pris en charge.")
+            bitmap = sheet.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
+            if bitmap.width * bitmap.height > 6_000_000:
+                raise HTTPException(status_code=422, detail="Page BILAN trop grande.")
+            pixels = bitmap.tobytes("png")
+            count = pdf.page_count
+    except (fitz.FileDataError, fitz.EmptyFileError, ValueError):
+        raise HTTPException(status_code=422, detail="PDF BILAN illisible.")
+    return Response(
+        content=pixels,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "no-store, private",
+            "X-Bilan-Page-Count": str(count),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
 
 @router.post("/generate",
     summary="Générer un document PDF",
@@ -530,8 +654,8 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
     # post-filtering the response would still leak hidden totals and titles.
     allowed_types = [
         kind for kind in models.DocumentType
-        if DOCUMENT_TYPE_PERMISSIONS.get(kind.value.lower()) is None
-        or has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS[kind.value.lower()])
+        if DOCUMENT_TYPE_PERMISSIONS.get(kind.value.lower()) is not None
+        and has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS[kind.value.lower()])
     ]
 
     archive_service = get_archive_service(db)

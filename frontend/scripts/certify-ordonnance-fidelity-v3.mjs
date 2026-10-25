@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
+import { enrollT2Workstation } from './t2-workstation-session.mjs';
 
 const outDir = path.resolve('../artifacts/ordonnance-fidelity-v3');
 fs.mkdirSync(outDir, { recursive: true });
@@ -21,6 +22,11 @@ const login = await api.post('/api/auth/login', {
 });
 if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
+const station = await enrollT2Workstation(api, tokens.access_token, password);
+const stationCookies = station.cookies.filter(cookie => cookie.name === 'dc_workstation');
+if (stationCookies.length !== 1 || stationCookies[0].httpOnly !== true) {
+  throw new Error('T2 workstation enrollment must yield one HTTP-only identity');
+}
 
 const patients = await api.get('/api/patients', {
   headers: { Authorization: `Bearer ${tokens.access_token}` },
@@ -151,7 +157,10 @@ async function selectExactAmoxicillin(page) {
 }
 
 for (const viewport of viewports) {
-  const context = await browser.newContext({ viewport, colorScheme: 'light' });
+  const context = await browser.newContext({
+    viewport, colorScheme: 'light',
+    storageState: { cookies: stationCookies, origins: [] },
+  });
   const page = await context.newPage();
   await seedAuth(page);
   const pageErrors = [];

@@ -1,0 +1,132 @@
+name: LOT07 07.1 G1 genuine FastAPI and browser FUE-I isolated T2
+on:
+  push:
+    branches:
+      - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-*'
+    paths:
+      - 'frontend/scripts/certify-v15-07-1ab-g1-real-t2.mjs'
+      - 'frontend/src/features/multiview/**'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - '.github/workflows/v15-07-1ab-g1-real-t2.yml'
+  pull_request:
+    branches:
+      - master
+      - 'feat/v15-07-1ab-multiview-nine-layout-contract-*'
+permissions:
+  contents: read
+concurrency:
+  group: lot07-071-g1-real-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  authentic-cabinet-t2:
+    name: Authenticated Cabinet DEV lab / real media API / denied role / 390px
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      SOURCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      VITE_V15_07_1_MULTIVIEW_LAB: '1'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+    steps:
+      - name: Exact SHA checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Attest synthetic-only runtime and create ephemeral password
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          password="$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Install Python dependencies of disposable authentic FastAPI runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt >/tmp/071-g1-req.txt
+          pip install -r /tmp/071-g1-req.txt
+      - name: Install locked frontend and ephemeral isolated Playwright
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          mkdir -p /tmp/071-g1-playwright
+          npm install --prefix /tmp/071-g1-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          ln -s /tmp/071-g1-playwright/node_modules/playwright node_modules/playwright
+          /tmp/071-g1-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Assert database target is disposable and never a real Cabinet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os
+          from backend.core.runtime_safety import database_target_fingerprint, is_known_cabinet_database
+          target = 'sqlite:///./t2-runtime-cert.db'
+          assert os.environ['DATABASE_URL']==target
+          assert os.environ['ENVIRONMENT']=='test'
+          assert os.environ['DIGITALCROWN_ISOLATED_RUNTIME']=='1'
+          assert not is_known_cabinet_database(target)
+          print('DIGITALCROWN_ISOLATION_DB_FINGERPRINT='+database_target_fingerprint(target))
+          PY
+      - name: Start isolated FastAPI and seeded fictitious T2 actor + patient
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DIGITALCROWN_ISOLATION_DB_FINGERPRINT"
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/071-g1-backend.log 2>&1 &
+          process=$!
+          for i in {1..110}; do
+            if ! kill -0 "$process" 2>/dev/null; then
+              tail -80 /tmp/071-g1-backend.log; exit 1
+            fi
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/071-g1-backend.log
+          exit 1
+      - name: Start actual DEV opt-in Cabinet frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/071-g1-frontend.log 2>&1 &
+          for i in {1..110}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/071-g1-frontend.log
+          exit 1
+      - name: Execute real Chromium auth / workstation / patient / media / splits / denial
+        working-directory: frontend
+        shell: bash
+        run: node scripts/certify-v15-07-1ab-g1-real-t2.mjs
+      - name: Retain inspectable synthetic screenshot and assertion bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-071-g1-real-cabinet-t2
+          path: artifacts/lot07-071-g1-real-t2/
+          if-no-files-found: warn
+          retention-days: 14

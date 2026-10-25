@@ -6,8 +6,30 @@ import { isLibreDirty, setLibreDirty } from '../admin/DocumentStudio/LibreDirtyS
 import { isP7Dirty, setP7Dirty } from '../admin/DocumentStudio/P7DirtyState';
 import { usePatientStore } from '../../stores/usePatientStore';
 
-const hasAccountingDraft = () =>
-  useAccountingStore.getState().items.some(item => item.description.trim());
+/**
+ * Honoraires/Devis may be edited BEFORE an act description exists.
+ * Never infer "clean" solely from nonempty act labels: a price, payment
+ * choice or treatment grouping is itself a clinical financial draft.
+ * Ignore catalog suggestions and visual-only toggles, which are not drafts.
+ */
+const hasAccountingDraft = () => {
+  const state = useAccountingStore.getState();
+  return state.items.some(item =>
+    Boolean(item.description.trim()) ||
+    Boolean(item.dent.trim()) ||
+    item.price !== 0 ||
+    Boolean(item.toothNumbers?.length) ||
+    Boolean(item.odontogramNotes?.trim())
+  ) ||
+    state.groupTreatmentName.trim() !== '' ||
+    state.groupTreatmentPrice !== '' ||
+    state.paymentMode !== '' ||
+    state.paymentStatus !== 'EN_ATTENTE' ||
+    state.isAccounted !== true ||
+    state.isGlobalNote ||
+    state.installments.length > 0 ||
+    state.groupSelectedTeeth.length > 0;
+};
 
 export const hasUnsavedPatientDocumentDraft = () =>
   isPrescriptionDirty() ||

@@ -16,6 +16,63 @@ describe('resetPatientDocumentBoundary', () => {
     resetPatientDocumentBoundary();
   });
 
+  it('blocks Honoraires when a financial value is changed before an act description', () => {
+    const store = useAccountingStore.getState();
+    expect(hasUnsavedPatientDocumentDraft()).toBe(false);
+
+    store.setItems([{ id: 1, description: '', dent: '', price: 250 }]);
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+
+    useAccountingStore.getState().setPaymentMode('Virement');
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+
+    useAccountingStore.getState().setGroupTreatmentName('Traitement synthétique');
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+
+    useAccountingStore.getState().setGroupTreatmentPrice(800);
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+
+    useAccountingStore.getState().setGroupSelectedTeeth([11]);
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+
+    useAccountingStore.getState().setPaymentStatus('PAYE');
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+
+    useAccountingStore.getState().setIsAccounted(false);
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+
+    useAccountingStore.getState().setInstallments([
+      {id:1,date:'2026-10-23',amount:800,label:'Synthetic installment'},
+    ]);
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+
+    expect(hasUnsavedPatientDocumentDraft()).toBe(false);
+  });
+
+  it('does not falsely classify catalog suggestion and view toggles as an accounting draft', () => {
+    useAccountingStore.getState().setActSuggestions([{id:'test',name:'Catalogue synthétique'}]);
+    useAccountingStore.getState().setShowOdontoPanoramique(false);
+    expect(hasUnsavedPatientDocumentDraft()).toBe(false);
+  });
+
+  it('keeps actual prescription and certificate dirty flags independent from Honoraires', () => {
+    setPrescriptionDirty(true);
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+    setCertificateDirty(true);
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+    resetPatientDocumentBoundary();
+    expect(hasUnsavedPatientDocumentDraft()).toBe(false);
+  });
+
   it('detects and clears every patient-scoped document dirty source', () => {
     setPrescriptionDirty(true);
     setCertificateDirty(true);

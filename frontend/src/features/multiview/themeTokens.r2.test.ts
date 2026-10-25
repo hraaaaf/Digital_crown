@@ -1,0 +1,130 @@
+/** LOT07 R2: prohibit fixed brand palettes inside UX code we own.
+ * The globally maintained theme system is authoritative for all color choices.
+ */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const frontendRoot = process.cwd();
+const source = (relativePath: string) =>
+  readFileSync(resolve(frontendRoot, 'src', relativePath), 'utf8');
+
+const fixedPalette = /\b(?:bg|text|border|ring|outline|from|via|to|hover:bg|hover:text|hover:border)-(?:blue|slate|amber|white|black|gray|red|emerald|rose|indigo|cyan|teal|pink)(?:-\d+)?(?:\/\d+)?\b/g;
+const literalColor = /#[0-9a-f]{3,8}\b|\brgba?\s*\(\s*(?:\d|\.\d)/gi;
+
+describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
+  it.each([
+    'features/multiview/CabinetMultiViewLab.tsx',
+    'features/multiview/HistoricBilanReadonlyPanel.tsx',
+  ])('%s has only semantic theme classes', file => {
+    const content = source(file);
+    expect(content.match(fixedPalette) ?? []).toEqual([]);
+    expect(content.match(literalColor) ?? []).toEqual([]);
+    expect(content).toMatch(/(?:bg-card|bg-primary|bg-medical-pearl|border-border-main)/);
+  });
+
+  it.each([
+    'features/multiview/CabinetMultiViewLab.css',
+    'features/patients/PatientRadiologyPolish.css',
+  ])('%s inherits theme CSS variables', file => {
+    const content = source(file);
+    expect(content.match(literalColor) ?? []).toEqual([]);
+    expect(content).toContain('var(--');
+    expect(content).not.toMatch(/(?:background|color|border-color):\s*\b(?:blue|white|black|red|gray|grey)\b/i);
+  });
+
+  it('new clinical media empty states are theme-derived', () => {
+    const content = source('features/patients/components/PatientMediaTimeline.tsx');
+    const start = content.indexOf('{!loading && !loadError && items.length === 0 && (');
+    const end = content.indexOf('{!loading && !loadError && filteredItems.length > 0 && (', start);
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    expect(content.slice(start, end).match(fixedPalette) ?? []).toEqual([]);
+  });
+
+  it('micropolish preserves semantic dark contrast, mobile discoverability and fail-closed 1280 mode', () => {
+    const css = source('features/patients/PatientRadiologyPolish.css');
+    const patient = source('features/patients/PatientDetailsInner.tsx');
+    const multiview = source('features/multiview/CabinetMultiViewLab.tsx');
+    expect(css).toContain(`[data-theme='dark'] [data-dc-patient-radiology="true"]`);
+    expect(css).toContain('--primary: var(--status-info)');
+    expect(css).toContain('--color-primary: var(--status-info)');
+    expect(css).toContain('--color-primary-ink: var(--status-info)');
+    expect(css).toContain('--color-on-primary: var(--bg-medical-pearl)');
+    expect(css).toContain(`[data-theme='prestige'] [data-dc-patient-radiology="true"]`);
+    expect(css).toContain('--primary: var(--status-info)');
+    expect(css).toContain('--color-primary-ink: var(--status-info)');
+    expect(patient).toContain('Afficher les autres onglets');
+    expect(patient).not.toContain('↔ Glissez pour parcourir');
+    expect(css).toContain('--color-text-muted: color-mix(');
+    expect(css).toContain('.dc-radiology-tab-scroll-hint');
+    expect(patient).toContain('aria-describedby={isRadiology');
+    expect(patient).toContain('Afficher les autres onglets');
+    expect(patient).toContain('hasOverflowingPatientTabs');
+    expect(patient).toContain('ResizeObserver');
+    expect(patient).toContain('rail.scrollTo(');
+    expect(multiview).toContain('multiview-responsive-single-media-fallback');
+    expect(multiview).toContain('Disposition trop large pour cet écran');
+    expect(multiview).toContain('bg-info-surface');
+  });
+
+  it('preserves genuine high-contrast aliases, simultaneous mobile C5 and secure fallback', () => {
+    const css = source('features/patients/PatientRadiologyPolish.css');
+    const media = source('features/patients/components/PatientMediaTimeline.tsx');
+    const lab = source('features/multiview/CabinetMultiViewLab.tsx');
+    expect(css).toContain(`[data-theme='high-contrast'] [data-dc-patient-radiology="true"]`);
+    expect(css).toContain('--primary: var(--text-main)');
+    expect(css).toContain('--color-primary: var(--text-main)');
+    expect(css).toContain('--color-primary: var(--primary)');
+    expect(css).toContain('--color-primary-ink: var(--primary)');
+    expect(css).toContain('--color-on-primary: var(--text-on-primary)');
+    expect(css).toContain('--color-primary-ink: var(--text-main)');
+    expect(css).toContain('--color-on-primary: var(--card-bg)');
+    expect(css).toContain('--color-text-muted: var(--text-muted)');
+    expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(css).toContain('object-fit: contain');
+    expect(css).toContain('.dc-radiology-tabs-next');
+    expect(css).toContain('.dc-c5-expand-button');
+    expect(media).toContain('dc-c5-compare-grid');
+    expect(media).toContain('dc-c5-compare-asset');
+    expect(media).toContain('dc-c5-expand-label');
+    expect(media).toContain('className="dc-c5-expand-label">Zoom</span>');
+    expect(lab).toContain('multiview-layout-safe-info');
+    expect(lab).toContain('Mode compact sécurisé');
+    expect(lab).toContain('multiview-responsive-single-media-fallback');
+    const labCss = source('features/multiview/CabinetMultiViewLab.css');
+    expect(labCss).toContain('accent-color: var(--primary)');
+    expect(css.match(literalColor) ?? []).toEqual([]);
+  });
+
+  it('desktop 1280 shows real read-only media first; MultiView controls stay at readable widths', () => {
+    const lab = source('features/multiview/CabinetMultiViewLab.tsx');
+    const css = source('features/multiview/CabinetMultiViewLab.css');
+    expect(lab).toContain('responsiveSingleMediaFallback && trustedPatient ? (');
+    expect(lab).toContain('dc-mv-desktop-compact');
+    expect(lab).toContain('multiview-layout-safe-info');
+    expect(lab).toContain('multiview-responsive-single-media-fallback');
+    expect(lab).toContain('!accepted && !responsiveSingleMediaFallback');
+    expect(lab).toContain('Mode compact sécurisé');
+    expect(lab).toContain('R · lecture seule');
+    expect(lab).toContain('authorizeLayout(mounted,context,ratio)');
+    expect(lab).toContain('PatientMediaTimeline patientId={trustedPatient.id} readOnly');
+    expect(css).toContain('var(--border-color)');
+    expect(css).toContain('var(--card-bg)');
+    expect(css).toContain('var(--bg-medical-pearl)');
+    expect(css).toContain('.dc-mv-desktop-compact');
+    expect(css.match(literalColor) ?? []).toEqual([]);
+  });
+
+  it('theme engine exposes all configured semantic color roles', () => {
+    const theme = source('index.css');
+    for (const name of ['--card-bg', '--bg-medical-pearl', '--text-main',
+      '--text-muted', '--border-color', '--border-hover', '--primary',
+      '--text-on-primary', '--status-warning', '--status-warning-surface']) {
+      expect(theme).toContain(name + ':');
+    }
+    for (const themeName of ['emerald', 'rose', 'ocean', 'graphite', 'prestige', 'dark', 'high-contrast']) {
+      expect(theme).toContain("[data-theme='" + themeName + "']");
+    }
+  });
+});
