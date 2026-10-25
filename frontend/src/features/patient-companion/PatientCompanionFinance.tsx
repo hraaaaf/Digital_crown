@@ -186,7 +186,7 @@ export const PatientCompanionFinance = ({
           <button
             type="button"
             onClick={() => void load()}
-            className="mt-3 min-h-[44px] w-full rounded-xl border border-rose-200 bg-white px-3 text-xs font-black text-rose-800"
+            className="mt-3 min-h-[44px] w-full rounded-xl border border-rose-200 bg-card px-3 text-xs font-black text-rose-800"
           >
             <RefreshCw size={15} className="mr-2 inline" aria-hidden="true" />
             Réessayer

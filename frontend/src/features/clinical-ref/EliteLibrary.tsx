@@ -166,9 +166,9 @@ export const EliteLibrary: React.FC = () => {
         diff === 'complex' ? "text-amber-600" : "text-rose-600"
       )}>
         {DIFF_FR[diff as keyof typeof DIFF_FR] || diff}
-        <i className={cn("w-1.5 h-1.5 rounded-full", n >= 1 ? "bg-current" : "bg-slate-200")}></i>
-        <i className={cn("w-1.5 h-1.5 rounded-full", n >= 2 ? "bg-current" : "bg-slate-200")}></i>
-        <i className={cn("w-1.5 h-1.5 rounded-full", n >= 3 ? "bg-current" : "bg-slate-200")}></i>
+        <i className={cn("w-1.5 h-1.5 rounded-full", n >= 1 ? "bg-current" : "bg-input-field")}></i>
+        <i className={cn("w-1.5 h-1.5 rounded-full", n >= 2 ? "bg-current" : "bg-input-field")}></i>
+        <i className={cn("w-1.5 h-1.5 rounded-full", n >= 3 ? "bg-current" : "bg-input-field")}></i>
       </span>
     );
   };
