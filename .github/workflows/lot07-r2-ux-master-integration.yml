@@ -172,7 +172,7 @@ jobs:
         run: |
           set -euo pipefail
           npm test -- src/features/multiview/R3SplitWorkspace.test.tsx | tee /tmp/r3-integrated-split.txt
-          sed -E 's/\\x1B\\[[0-9;]*[[:alpha:]]//g' /tmp/r3-integrated-split.txt > /tmp/r3-integrated-split-plain.txt
+          sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' /tmp/r3-integrated-split.txt > /tmp/r3-integrated-split-plain.txt
           grep -Eq 'Test Files[[:space:]]+1 passed' /tmp/r3-integrated-split-plain.txt
           if grep -Eq '[[:space:]]+[1-9][0-9]* skipped' /tmp/r3-integrated-split-plain.txt; then
             echo 'R3_SPLIT_INTEGRATED_SKIPPED'
