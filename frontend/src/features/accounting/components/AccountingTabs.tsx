@@ -11,14 +11,14 @@ interface AccountingTabsProps {
 }
 
 export const AccountingTabs = ({ activeTab, setActiveTab, treasuryData, debtData }: AccountingTabsProps) => (
-  <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
+  <div className="flex gap-2 p-1.5 bg-input-field rounded-2xl w-fit">
     <button 
       onClick={() => setActiveTab('history')}
       className={cn(
-        "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
-        activeTab === 'history' ? "bg-white shadow-lg text-primary" : "text-slate-500 hover:text-slate-800"
+        "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary",
+        activeTab === 'history' ? "bg-card shadow-lg text-primary" : "text-text-muted hover:text-text-main"
       )}
-      style={activeTab === 'history' ? { color: 'var(--primary)' } : {}}
+     
     >
       Historique des Encaissements
     </button>
@@ -26,12 +26,12 @@ export const AccountingTabs = ({ activeTab, setActiveTab, treasuryData, debtData
       onClick={() => setActiveTab('treasury')}
       className={cn(
         "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
-        activeTab === 'treasury' ? "bg-white shadow-lg text-indigo-600" : "text-slate-500 hover:text-slate-800"
+        activeTab === 'treasury' ? "bg-card shadow-lg text-info" : "text-text-muted hover:text-text-main"
       )}
     >
       <Calculator size={14} /> Trésorerie
       {treasuryData?.pending_count > 0 && (
-        <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 text-[9px] rounded-full font-black animate-pulse">
+        <span className="ml-1 px-1.5 py-0.5 bg-info-surface text-info text-[9px] rounded-full font-black animate-pulse">
           {treasuryData.pending_count}
         </span>
       )}
@@ -40,9 +40,9 @@ export const AccountingTabs = ({ activeTab, setActiveTab, treasuryData, debtData
       onClick={() => setActiveTab('insights')}
       className={cn(
         "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
-        activeTab === 'insights' ? "bg-white shadow-lg text-primary" : "text-slate-500 hover:text-slate-800"
+        activeTab === 'insights' ? "bg-card shadow-lg text-primary" : "text-text-muted hover:text-text-main"
       )}
-      style={activeTab === 'insights' ? { color: 'var(--primary)' } : {}}
+     
     >
       <BarChart2 size={14} /> Visual Insights
     </button>
@@ -50,14 +50,14 @@ export const AccountingTabs = ({ activeTab, setActiveTab, treasuryData, debtData
       onClick={() => setActiveTab('unpaid')}
       className={cn(
         "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
-        activeTab === 'unpaid' ? "bg-white shadow-lg" : "text-slate-500 hover:text-slate-800"
+        activeTab === 'unpaid' ? "bg-card shadow-lg text-primary" : "text-text-muted hover:text-text-main"
       )}
-      style={activeTab === 'unpaid' ? { color: 'var(--primary)' } : {}}
+     
     >
       <AlertCircle size={14} />
       Impayés
       {debtData && debtData.total_patients > 0 && (
-        <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] rounded-full font-black">
+        <span className="ml-1 px-1.5 py-0.5 bg-danger-surface text-danger text-[9px] rounded-full font-black">
           {debtData.total_patients}
         </span>
       )}
