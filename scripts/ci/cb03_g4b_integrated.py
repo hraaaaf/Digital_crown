@@ -31,6 +31,9 @@ from sqlalchemy import text
 from playwright.sync_api import sync_playwright
 
 HEAD = os.getenv("CB03_G4B_SOURCE_HEAD", "")
+# G5 adds the ACTUAL CrownBotChat in front of the already-proven G4B
+# synthetic PG/real SIGKILL tests. Never silently switch the old G4B lab.
+G5_CHAT = os.getenv("CB03_G5_REAL_CHAT_PG") == "1"
 url = os.getenv("DATABASE_URL", "")
 u = urlsplit(url)
 if not (
@@ -255,6 +258,11 @@ try:
         env=os.environ.copy()
         env.update({
             "VITE_CB03_G4B_LIVE_PG_LAB":"true",
+            "VITE_CB03_G5_CHAT_LAB":"true" if G5_CHAT else "false",
+            "VITE_CB03_G5_LAB_PRACTITIONER_ID":str(owner_id),
+            "VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED":"true" if G5_CHAT else "false",
+            "VITE_CROWN_BOT_GUIDED_NLU_ENABLED":"true" if G5_CHAT else "false",
+            "VITE_CROWN_BOT_CB03_CHAT_ENABLED":"true" if G5_CHAT else "false",
             "VITE_CROWN_BOT_CB03_G3_ENABLED":"true",
             "VITE_CB03_G4_NATIVE_A11Y_LAB":"true", # disable DEV PWA only
             "VITE_API_URL":base,
@@ -264,12 +272,13 @@ try:
             "--port","5173","--strictPort",
         ],cwd=repo/"frontend",env=env,
             stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
+        lab_path="/cb03-g5-chat-lab.html" if G5_CHAT else "/cb03-g4b-live-pg-lab.html"
         def vite_ready():
             if vite.poll() is not None:
                 raise AssertionError("Vite exited before integrated browser")
             try:
                 return requests.get(
-                    "http://127.0.0.1:5173/cb03-g4b-live-pg-lab.html",
+                    "http://127.0.0.1:5173"+lab_path,
                     timeout=1.5).status_code == 200
             except requests.RequestException:
                 return False
@@ -299,14 +308,23 @@ try:
                 if request.method=="POST": posts.append(endpoint)
                 if request.method=="GET": reads.append(endpoint)
             page.on("request",collect_request)
-            page.goto("http://127.0.0.1:5173/cb03-g4b-live-pg-lab.html",
+            page.goto("http://127.0.0.1:5173"+lab_path,
                 wait_until="domcontentloaded",timeout=45000)
-            panel=page.get_by_role("region",name="CB-03 G3 — actions guidées")
-            panel.wait_for(timeout=25000)
-            box=page.get_by_role("textbox",name="Votre demande en français")
-            box.fill(phrase)
-            page.get_by_role("textbox",name="Praticien ID").fill(str(owner_id))
-            page.get_by_role("button",name=re.compile("Vérifier et préparer")).click()
+            if G5_CHAT:
+                page.get_by_role("button",name="Ouvrir CrownBot").click()
+                panel=page.get_by_role("region",
+                    name="Conversation Crown Bot — actions guidées CB-03")
+                panel.wait_for(timeout=25000)
+                box=page.get_by_role("textbox",name="Votre message à Crown Bot")
+                box.fill(phrase)
+                page.get_by_role("button",name="Envoyer").click()
+            else:
+                panel=page.get_by_role("region",name="CB-03 G3 — actions guidées")
+                panel.wait_for(timeout=25000)
+                box=page.get_by_role("textbox",name="Votre demande en français")
+                box.fill(phrase)
+                page.get_by_role("textbox",name="Praticien ID").fill(str(owner_id))
+                page.get_by_role("button",name=re.compile("Vérifier et préparer")).click()
             page.get_by_text("SALMA BENALI · Dossier G4B-001").wait_for(timeout=30000)
             confirm=page.get_by_role("button",name="Confirmer explicitement cette action")
             assert not confirm.is_enabled(),"CONFIRM_BEFORE_CHECKBOX"
@@ -330,15 +348,16 @@ try:
 
             # Physical network loss after commit and before response start.
             kill_server(backend);backend=None
-            page.get_by_text("Résultat à réconcilier").wait_for(timeout=20000)
+            page.get_by_text(re.compile("Résultat à réconcilier")).wait_for(timeout=20000)
             assert posts.count("bot/guided/confirm")==1,posts
             page.screenshot(path=str(artifact/"real-pg-lost-ack-uncertain.png"),
                 full_page=True)
             backend=start_backend()
             page.get_by_role("button",name=re.compile(
                 "Vérifier l’état par identifiant")).click()
-            page.get_by_text(re.compile("Action exécutée et vérifiée")).wait_for(
-                timeout=25000)
+            page.get_by_text(re.compile(
+                "Reçu retrouvé en lecture seule" if G5_CHAT
+                else "Action exécutée et vérifiée")).wait_for(timeout=25000)
             assert posts.count("bot/guided/confirm")==1,posts
             with database.SessionLocal() as s:
                 assert s.query(models.BotPendingAction).filter(
@@ -361,6 +380,7 @@ try:
                 "readOnlyGetRequests":len(reads),
                 "confirmedAudit":1,"oneAppointment":True,
                 "renderedFinalReceipt":True,
+                "realReactCrownBotChat":G5_CHAT,
                 "syntheticAccountsOnly":True})
             assert proof[-1]["preparedPosts"]==1,posts
             print("CB03_G4B_REAL_CHROMIUM_PG_LOST_ACK_PASS",json.dumps(proof[-1]))
