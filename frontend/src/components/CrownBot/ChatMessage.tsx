@@ -47,11 +47,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             isBot ? 'bg-card text-text-main border border-border-main rounded-tl-none' : 
                     'bg-primary text-on-primary rounded-tr-none'
           }`}>
-            <div className="prose prose-sm max-w-none text-text-main">
+            <div className="max-w-none">
               <ReactMarkdown
                 components={{
                   p: ({node, ...props}) => <p className="m-0" {...props} />,
-                  strong: ({node, ...props}) => <strong className="font-semibold text-on-primary" {...props} />,
+                  strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
                   ul: ({node, ...props}) => <ul className="pl-4 m-0 list-disc opacity-90" {...props} />,
                   li: ({node, ...props}) => <li className="mb-1 last:mb-0" {...props} />,
                 }}
