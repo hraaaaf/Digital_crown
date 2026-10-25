@@ -133,7 +133,7 @@ export const PatientMobileBridge = ({ patientId, patientName }: { patientId: num
             ) : error ? (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
                 <p className="text-sm font-bold text-rose-700">{error}</p>
-                <button data-m4a-touch type="button" onClick={() => void loadOptions()} className="mt-3 min-h-11 px-4 rounded-xl border border-rose-200 bg-white text-rose-700 font-black text-xs inline-flex items-center gap-2">
+                <button data-m4a-touch type="button" onClick={() => void loadOptions()} className="mt-3 min-h-11 px-4 rounded-xl border border-rose-200 bg-card text-rose-700 font-black text-xs inline-flex items-center gap-2">
                   <RefreshCcw size={15} /> Réessayer
                 </button>
               </div>
@@ -175,7 +175,7 @@ export const PatientMobileBridge = ({ patientId, patientName }: { patientId: num
                   </button>
                 ) : (
                   <div className="rounded-[1.75rem] border border-primary/15 bg-primary/[0.035] p-5 text-center">
-                    <img src={bridge.qr_code} alt="QR de pont mobile patient" className="w-52 h-52 max-w-full mx-auto rounded-2xl bg-white p-2 border border-border-main" />
+                    <img src={bridge.qr_code} alt="QR de pont mobile patient" className="w-52 h-52 max-w-full mx-auto rounded-2xl bg-card p-2 border border-border-main" />
                     <p className="mt-4 text-xs text-text-muted font-bold">Ou code manuel</p>
                     <p className="mt-1 text-2xl font-black tracking-[0.24em] text-text-main">{bridge.token_code}</p>
                     <p className="mt-3 text-xs font-black text-text-main">Cible : {bridge.target_user_name}</p>

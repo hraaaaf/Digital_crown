@@ -80,42 +80,42 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
+            className="bg-card rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
           >
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+            <div className="p-6 border-b border-border-main flex justify-between items-start bg-background/50">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Paiement acte</p>
-                <h2 className="text-base font-black text-slate-800 tracking-tight">{acte.libelle}</h2>
+                <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Paiement acte</p>
+                <h2 className="text-base font-black text-text-main tracking-tight">{acte.libelle}</h2>
               </div>
-              <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors mt-0.5">
+              <button onClick={handleClose} className="p-2 text-text-muted hover:text-text-muted rounded-full hover:bg-input-field transition-colors mt-0.5">
                 <X size={18} />
               </button>
             </div>
 
             {/* Résumé financier de l'acte */}
-            <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100">
+            <div className="grid grid-cols-3 divide-x divide-border-main border-b border-border-main">
               <div className="p-4 text-center">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Total acte</p>
-                <p className="text-lg font-black text-slate-700">{acte.montant.toLocaleString('fr-MA')}</p>
-                <p className="text-[9px] text-slate-400 font-bold">MAD</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-text-muted mb-1">Total acte</p>
+                <p className="text-lg font-black text-text-main">{acte.montant.toLocaleString('fr-MA')}</p>
+                <p className="text-[9px] text-text-muted font-bold">MAD</p>
               </div>
               <div className="p-4 text-center">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Déjà encaissé</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-text-muted mb-1">Déjà encaissé</p>
                 <p className="text-lg font-black text-emerald-600">{acte.total_paid.toLocaleString('fr-MA')}</p>
-                <p className="text-[9px] text-slate-400 font-bold">MAD</p>
+                <p className="text-[9px] text-text-muted font-bold">MAD</p>
               </div>
               <div className="p-4 text-center">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Reste dû</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-text-muted mb-1">Reste dû</p>
                 <p className="text-lg font-black text-red-600">{acte.remaining_due.toLocaleString('fr-MA')}</p>
-                <p className="text-[9px] text-slate-400 font-bold">MAD</p>
+                <p className="text-[9px] text-text-muted font-bold">MAD</p>
               </div>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               {/* Montant */}
               <div>
-                <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                <label className="block text-[11px] font-black uppercase tracking-widest text-text-muted mb-2">
                   Montant à encaisser (MAD)
                 </label>
                 <div className="relative">
@@ -127,9 +127,9 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
                     required
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
-                    className="w-full text-3xl font-black text-slate-800 pl-4 pr-16 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                    className="w-full text-3xl font-black text-text-main pl-4 pr-16 py-4 bg-background border border-border-main rounded-2xl outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
                   />
-                  <span className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">MAD</span>
+                  <span className="absolute right-5 top-1/2 -translate-y-1/2 text-text-muted font-bold text-sm">MAD</span>
                 </div>
                 {parseFloat(amount) < acte.remaining_due && parseFloat(amount) > 0 && (
                   <p className="text-[10px] text-amber-500 font-bold mt-1.5">
@@ -145,7 +145,7 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
 
               {/* Méthode */}
               <div>
-                <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Méthode</label>
+                <label className="block text-[11px] font-black uppercase tracking-widest text-text-muted mb-2">Méthode</label>
                 <div className="grid grid-cols-2 gap-2">
                   {METHODS.map(m => (
                     <button
@@ -156,7 +156,7 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
                         "flex items-center gap-2.5 p-3 rounded-xl border transition-all text-sm font-bold",
                         method === m.id
                           ? "bg-primary/5 border-primary text-primary shadow-sm"
-                          : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                          : "bg-card border-border-main text-text-muted hover:border-border-hover hover:bg-background"
                       )}
                     >
                       {m.icon} {m.label}
@@ -167,13 +167,13 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
 
               {/* Notes */}
               <div>
-                <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Notes (optionnel)</label>
+                <label className="block text-[11px] font-black uppercase tracking-widest text-text-muted mb-2">Notes (optionnel)</label>
                 <input
                   type="text"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   placeholder="Ex: Acompte traitement…"
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-primary"
+                  className="w-full px-4 py-3 bg-card border border-border-main rounded-xl text-sm font-medium outline-none focus:border-primary"
                 />
               </div>
 
