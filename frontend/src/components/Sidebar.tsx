@@ -274,7 +274,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
             setDesktopPinned(value => !value);
             setDesktopHovered(false);
           }}
-          className="sidebar-pin-toggle hidden lg:flex absolute right-2 top-2 z-20 h-7 w-7 items-center justify-center rounded-lg border border-border-main bg-card-bg/90 text-text-muted shadow-sm transition-[opacity,transform,color,background-color] duration-150 hover:text-primary hover:bg-card-bg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+          className="sidebar-pin-toggle hidden lg:flex absolute right-2 top-2 z-20 h-7 w-7 items-center justify-center rounded-lg border border-border-main bg-card-bg/90 text-text-muted shadow-sm transition-[opacity,transform,color,background-color] duration-150 hover:text-primary hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
           aria-pressed={desktopPinned}
           aria-hidden={!desktopExpanded}
           tabIndex={desktopExpanded ? 0 : -1}
@@ -368,8 +368,8 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {/* SUPER ADMIN (Hidden for non-admin users) */}
           {user?.is_superadmin && (
             <div className="mt-4 pt-4 border-t border-border-main">
-              <NavItem to="/super-admin" icon={<Shield size={20} className="text-amber-500" />} label="Gestion des Dentistes" />
-              <NavItem to="/approvisionnement/admin" icon={<Store size={20} className="text-amber-500" />} label="Fournisseurs" />
+              <NavItem to="/super-admin" icon={<Shield size={20} className="text-warning" />} label="Gestion des Dentistes" />
+              <NavItem to="/approvisionnement/admin" icon={<Store size={20} className="text-warning" />} label="Fournisseurs" />
             </div>
           )}
 
@@ -463,7 +463,7 @@ const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: Re
             {label}
           </span>
           {badge && (
-            <span className="sidebar-badge relative z-10 ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <span className="sidebar-badge relative z-10 ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-warning-surface text-warning border border-warning-border">
               {badge}
             </span>
           )}

@@ -13,10 +13,10 @@ export const LicenseBanner: React.FC = () => {
   
   if (!isLicensed) {
     return (
-      <div className="bg-red-500 text-white px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 shadow-sm z-50 relative">
+      <div className="border-y border-danger-border bg-danger-surface text-danger px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 shadow-sm z-50 relative">
         <ShieldAlert className="w-4 h-4" />
         Mode Lecture Seule : Votre licence a expiré. Vous pouvez consulter vos dossiers, mais toute modification est bloquée.
-        <a href="tel:0600000000" className="underline ml-2 hover:text-red-100">Contactez le support pour renouveler.</a>
+        <a href="tel:0600000000" className="underline ml-2 hover:opacity-80">Contactez le support pour renouveler.</a>
       </div>
     );
   }
@@ -25,10 +25,10 @@ export const LicenseBanner: React.FC = () => {
     const daysLeft = differenceInDays(expiresAt, new Date());
     if (daysLeft <= 7 && daysLeft >= 0) {
       return (
-        <div className="bg-amber-500 text-white px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 shadow-sm z-50 relative">
+        <div className="border-y border-warning-border bg-warning-surface text-warning px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 shadow-sm z-50 relative">
           <Info className="w-4 h-4" />
           Attention : Votre période d'essai ou licence expire dans {daysLeft} jour{daysLeft > 1 ? 's' : ''}.
-          <a href="tel:0600000000" className="underline ml-2 hover:text-amber-100">Renouvelez maintenant pour éviter toute interruption.</a>
+          <a href="tel:0600000000" className="underline ml-2 hover:opacity-80">Renouvelez maintenant pour éviter toute interruption.</a>
         </div>
       );
     }
