@@ -27,6 +27,9 @@ on:
       - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
       - audit/cephalo_facad_robert_p4_identity_gate.py
       - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/cephalo_facad_p5_overlay_registration.py
+      - audit/test_cephalo_facad_p5_overlay_registration.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_P5_SCREENSHOT_REGISTRATION.md
       - audit/fixtures/facad_robert_p4_six_landmark_definition_crosswalk_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_P4_LANDMARK_IDENTITY_GATE.md
       - docs/audits/CEPHALO_FACAD_ROBERT_P3_TYPED_ADAPTER_EVIDENCE.md
@@ -58,6 +61,9 @@ on:
       - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
       - audit/cephalo_facad_robert_p4_identity_gate.py
       - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/cephalo_facad_p5_overlay_registration.py
+      - audit/test_cephalo_facad_p5_overlay_registration.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_P5_SCREENSHOT_REGISTRATION.md
       - audit/fixtures/facad_robert_p4_six_landmark_definition_crosswalk_v1.json
       - docs/audits/CEPHALO_FACAD_ROBERT_P4_LANDMARK_IDENTITY_GATE.md
       - docs/audits/CEPHALO_FACAD_ROBERT_P3_TYPED_ADAPTER_EVIDENCE.md
@@ -156,6 +162,13 @@ jobs:
         run: |
           python -m unittest -v audit.test_cephalo_facad_robert_p2_matrix
           python -m audit.cephalo_facad_robert_p2_matrix --github-summary
+
+      - name: P5 screenshot overlay registration — synthetic pixels only, never upload real PNG
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_p5_overlay_registration
+          echo 'FACAD_P5_REAL_SCREENSHOT=NOT_EXECUTED_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P5_OVERLAY_REGISTRATION_SYNTHETIC_TESTS_ONLY=true' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P5_ANATOMICAL_IDENTITY=NOT_CERTIFIED' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Revalidate canonical repository schema without vendor files
         run: python audit/cephalo_lot08_facad_parity_validate.py
