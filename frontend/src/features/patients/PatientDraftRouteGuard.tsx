@@ -46,7 +46,8 @@ export function PatientDraftRouteGuard({ children }: { children: ReactNode }) {
       {children}
       {scope && blocker.state === 'blocked' && (
         <div
-          className="fixed inset-0 z-[10020] flex items-center justify-center bg-black/70 p-4"
+          // Neutral backdrop/scrim exception retained verbatim; dialog content uses semantic theme roles.
+          className="fixed inset-0 z-[10020] flex items-center justify-center bg-slate-950/70 p-4"
           role="presentation"
         >
           <section
