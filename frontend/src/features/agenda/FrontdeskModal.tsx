@@ -72,16 +72,16 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div role="dialog" aria-modal="true" aria-label="Nouvelle demande de RDV" className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b">
+      <div role="dialog" aria-modal="true" aria-label="Nouvelle demande de RDV" className="bg-card text-text-main border border-border-main rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-border-main">
           <h2 className="text-xl font-bold">Nouvelle demande de RDV</h2>
-          <button onClick={onClose} disabled={loading} aria-label="Fermer la demande de RDV" className="p-2 hover:bg-gray-100 rounded-lg">
+          <button onClick={onClose} disabled={loading} aria-label="Fermer la demande de RDV" className="p-2 hover:bg-input-field rounded-lg">
             <X size={20} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
+          {error && <div className="p-3 bg-danger-surface border border-danger-border text-danger rounded-lg text-sm">{error}</div>}
 
           <div className="grid grid-cols-2 gap-3">
             <input
@@ -91,7 +91,7 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
               onChange={(e) => setFirstName(e.target.value)}
               required
               disabled={loading}
-              className="px-3 py-2 border rounded-lg text-sm"
+              className="px-3 py-2 border border-border-main bg-input-field text-text-main placeholder:text-text-muted rounded-lg text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             />
             <input
               type="text"
@@ -100,7 +100,7 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
               onChange={(e) => setLastName(e.target.value)}
               required
               disabled={loading}
-              className="px-3 py-2 border rounded-lg text-sm"
+              className="px-3 py-2 border border-border-main bg-input-field text-text-main placeholder:text-text-muted rounded-lg text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             />
           </div>
 
@@ -110,7 +110,7 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             disabled={loading}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className="w-full px-3 py-2 border border-border-main bg-input-field text-text-main placeholder:text-text-muted rounded-lg text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           />
 
           <input
@@ -119,7 +119,7 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             disabled={loading}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className="w-full px-3 py-2 border border-border-main bg-input-field text-text-main placeholder:text-text-muted rounded-lg text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           />
 
           <div className="grid grid-cols-2 gap-3">
@@ -129,7 +129,7 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
               onChange={(e) => setDate(e.target.value)}
               required
               disabled={loading}
-              className="px-3 py-2 border rounded-lg text-sm"
+              className="px-3 py-2 border border-border-main bg-input-field text-text-main placeholder:text-text-muted rounded-lg text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             />
             <input
               type="time"
@@ -137,7 +137,7 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
               onChange={(e) => setTime(e.target.value)}
               required
               disabled={loading}
-              className="px-3 py-2 border rounded-lg text-sm"
+              className="px-3 py-2 border border-border-main bg-input-field text-text-main placeholder:text-text-muted rounded-lg text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             />
           </div>
 
@@ -145,7 +145,7 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
             value={duration}
             onChange={(e) => setDuration(Number(e.target.value))}
             disabled={loading}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className="w-full px-3 py-2 border border-border-main bg-input-field text-text-main placeholder:text-text-muted rounded-lg text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           >
             <option value={15}>15 minutes</option>
             <option value={30}>30 minutes</option>
@@ -161,7 +161,7 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
             onChange={(e) => setNote(e.target.value)}
             disabled={loading}
             rows={3}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className="w-full px-3 py-2 border border-border-main bg-input-field text-text-main placeholder:text-text-muted rounded-lg text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           />
 
           <div className="flex gap-3 pt-4">
@@ -169,14 +169,14 @@ export const FrontdeskModal: React.FC<FrontdeskModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 border rounded-lg font-medium hover:bg-gray-50"
+              className="flex-1 px-4 py-2 border border-border-main bg-card text-text-main rounded-lg font-medium hover:bg-input-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary text-on-primary rounded-lg font-medium hover:bg-secondary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               {loading ? 'Création...' : 'Créer demande'}
             </button>
