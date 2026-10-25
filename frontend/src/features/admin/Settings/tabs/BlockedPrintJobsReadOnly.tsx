@@ -57,25 +57,25 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
 
   return (
     <section data-testid="blocked-print-jobs-read-only" aria-label="Impressions bloquées"
-      className="w-full min-w-0 overflow-hidden [overflow-wrap:anywhere] rounded-2xl border border-amber-200 bg-amber-50/50 p-3 sm:p-4">
+      className="w-full min-w-0 overflow-hidden [overflow-wrap:anywhere] rounded-2xl border border-warning-border bg-warning-surface p-3 sm:p-4">
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <ShieldCheck className="mt-0.5 shrink-0 text-amber-700" size={22} />
+          <ShieldCheck className="mt-0.5 shrink-0 text-warning" size={22} />
           <div className="min-w-0">
-            <h3 className="min-w-0 break-words text-lg font-black text-slate-900">Impressions à vérifier</h3>
-            <p className="mt-1 text-sm leading-relaxed text-slate-700">
+            <h3 className="min-w-0 break-words text-lg font-black text-text-main">Impressions à vérifier</h3>
+            <p className="mt-1 text-sm leading-relaxed text-text-main">
               Suivi réservé au propriétaire du Cabinet. Une impression incertaine exige une vérification humaine.
               Aucune relance n’est possible depuis cet écran.
             </p>
           </div>
         </div>
         <button type="button" onClick={() => void refresh()} disabled={loading}
-          className="inline-flex w-full min-w-0 max-w-sm flex-wrap items-center justify-center gap-2 self-start rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 disabled:opacity-50">
+          className="inline-flex w-full min-w-0 max-w-sm flex-wrap items-center justify-center gap-2 self-start rounded-xl border border-border-main bg-card px-3 py-2 text-sm font-bold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
           <RefreshCw size={16} aria-hidden="true" />
           <span className="min-w-0 break-words text-center">Actualiser les états</span>
         </button>
       </div>
-      <div role="status" aria-live="polite" className="mt-4 min-w-0 break-words text-sm text-slate-700">
+      <div role="status" aria-live="polite" className="mt-4 min-w-0 break-words text-sm text-text-main">
         {loading ? 'Lecture des états…' : failed
           ? 'États indisponibles. Aucun résultat précédent n’est affiché.'
           : data && data.total === 0 ? 'Aucune impression bloquée répertoriée.'
@@ -86,17 +86,17 @@ export function BlockedPrintJobsReadOnly({ ownerVerified }: { ownerVerified: boo
         <ul className="mt-4 grid min-w-0 grid-cols-1 gap-3">
           {data.jobs.map((job) => (
             <li key={job.reference}
-              className="min-w-0 [overflow-wrap:anywhere] rounded-xl border border-amber-200 bg-white p-3 sm:p-4"
+              className="min-w-0 [overflow-wrap:anywhere] rounded-xl border border-warning-border bg-card p-3 sm:p-4"
               data-print-job-status="uncertain">
               <div className="flex min-w-0 items-center gap-2">
-                <AlertTriangle size={17} className="shrink-0 text-amber-700" aria-hidden="true" />
-                <strong className="break-all text-sm text-slate-900">Réf. {job.reference}</strong>
+                <AlertTriangle size={17} className="shrink-0 text-warning" aria-hidden="true" />
+                <strong className="break-all text-sm text-text-main">Réf. {job.reference}</strong>
               </div>
-              <p className="mt-2 break-words text-sm font-semibold text-amber-800">À vérifier — ne pas réimprimer</p>
-              <p className="mt-1 break-words text-xs text-slate-600">
+              <p className="mt-2 break-words text-sm font-semibold text-warning">À vérifier — ne pas réimprimer</p>
+              <p className="mt-1 break-words text-xs text-text-muted">
                 Dernier changement : {new Date(job.updatedAt).toLocaleString()}
               </p>
-              <p className="mt-1 break-words text-xs text-slate-600">
+              <p className="mt-1 break-words text-xs text-text-muted">
                 Constat(s) d’investigation : {job.investigations}
               </p>
             </li>
