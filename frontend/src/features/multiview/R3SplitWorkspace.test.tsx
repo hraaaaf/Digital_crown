@@ -8,7 +8,7 @@ const context: WorkspaceContext = {
   tenantId: 'T2-tenant-A', patientId: 17, cssViewportWidth: 1920,
   allowedModules: ['dossier','agenda','suivi','photos'],
 };
-afterEach(() => cleanup());
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const renderSlot = vi.fn((slot: { module: string }) => <p>{slot.module} — T2 uniquement</p>);
 
 describe('LOT07 R3-1: real two-pane splitter, isolated and R-only', () => {
@@ -47,6 +47,16 @@ describe('LOT07 R3-1: real two-pane splitter, isolated and R-only', () => {
   });
 
   it('supports pointer drag on the divider with clamped percentage', () => {
+    // JSDOM does not expose PointerEvent by default: use a MouseEvent-based
+    // PointerEvent fixture preserving real pointerId/button/client coordinates.
+    class SyntheticPointerEvent extends MouseEvent {
+      readonly pointerId: number;
+      constructor(type: string, options: MouseEventInit & { pointerId?: number }) {
+        super(type, options);
+        this.pointerId = options.pointerId ?? 1;
+      }
+    }
+    vi.stubGlobal('PointerEvent', SyntheticPointerEvent);
     render(<R3SplitWorkspace layout={getPreset('consultation')!} context={context} renderSlot={renderSlot}/>);
     const grid = screen.getByTestId('r3-1-grid');
     vi.spyOn(grid, 'getBoundingClientRect').mockReturnValue({

@@ -80,6 +80,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const [draftId,setDraftId] = useState(PILOT_LAYOUTS[0].id);
   const [preview,setPreview] = useState(false);
   const [ratio,setRatio] = useState(50);
+  const [splitResetEpoch,setSplitResetEpoch] = useState(0);
   const [exchanged,setExchanged] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -273,12 +274,12 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           </select>
           <button type="button" onClick={()=>setPreview(true)} className="rounded-md border px-3 py-2 text-xs">Aperçu</button>
           <button type="button" disabled={!preview || !canApply}
-            onClick={()=>{setAppliedId(draft.id);setRatio(50);setExchanged(false);setPreview(false);}}
+            onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
             className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">Appliquer</button>
           <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
             className="rounded-md border px-3 py-2 text-xs">Annuler</button>
           <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
-            setExchanged(false);setRatio(50);setPreview(false);}}
+            setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
             className="rounded-md border px-3 py-2 text-xs">Réinitialiser</button>
         </div>
         {preview && (
@@ -334,7 +335,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           </section>
         : (enableR3Split && import.meta.env.DEV &&
             (mounted.geometry==='two-columns' || mounted.geometry==='two-rows')
-          ? <R3SplitWorkspace layout={mounted} context={context} renderSlot={renderSlot}/>
+          ? <R3SplitWorkspace key={mounted.id + ':' + splitResetEpoch} layout={mounted} context={context} renderSlot={renderSlot}/>
           : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
               renderSlot={renderSlot}/>)} 
     </div>

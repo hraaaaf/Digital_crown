@@ -141,6 +141,8 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(sep.getAttribute('aria-valuenow')).toBe('50');
     fireEvent.keyDown(sep,{key:'ArrowRight'});
     expect(sep.getAttribute('aria-valuenow')).toBe('55');
+    fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
+    expect(screen.getByRole('separator').getAttribute('aria-valuenow')).toBe('50');
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
     const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
     fireEvent.change(select,{target:{value:'dossier-media-2rows'}});

@@ -92,16 +92,16 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
   const paneClass = 'min-w-0 min-h-0 overflow-auto rounded-lg border border-border-main bg-card';
   return <section aria-label={'R3-1 — ' + layout.label}
     data-r3-1-split={layout.geometry} data-r3-1-mode={mode}
-    className="min-w-0 rounded-xl border border-border-main bg-card-bg p-3 text-text-main">
+    className="min-w-0 rounded-xl border border-border-main bg-medical-pearl p-3 text-text-main">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-sm font-semibold">{layout.label} · R3-1</h2>
       <div className="flex items-center gap-2">
         {isRows && <button type="button" onClick={() => { finishPointer(); setMode(strict ? 'content-fit' : 'strict'); }}
-          aria-pressed={!strict} className="rounded-md border border-border-main bg-card px-3 py-2 text-xs focus-visible:outline-2 focus-visible:outline-primary">
+          aria-pressed={!strict} className="rounded-md border border-border-main bg-card px-3 py-2 text-xs text-text-main focus-visible:outline-2 focus-visible:outline-primary">
           {strict ? 'Ajuster au contenu' : 'Revenir au partage strict'}
         </button>}
         <button type="button" onClick={() => { finishPointer(); setMode('strict'); updateRatio(50); }}
-          className="rounded-md border border-border-main bg-card px-3 py-2 text-xs focus-visible:outline-2 focus-visible:outline-primary">
+          className="rounded-md border border-border-main bg-card px-3 py-2 text-xs text-text-main focus-visible:outline-2 focus-visible:outline-primary">
           Égaliser 50/50
         </button>
       </div>
