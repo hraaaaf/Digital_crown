@@ -155,12 +155,18 @@ def start_server(server_module, *, withhold=False):
         "ALLOWED_ORIGINS": "http://127.0.0.1:5173",
         "PYTHONPATH": str(server_module.parent) + os.pathsep + str(REPO),
     })
-    proc = subprocess.Popen([sys.executable, "-m", "uvicorn",
-        server_module.stem + ":app", "--host", "127.0.0.1", "--port", "8899",
-        "--lifespan", "off", "--log-level", "warning"], cwd=REPO, env=env,
-        stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    log_path = server_module.parent / ("uvicorn-restart.log" if not withhold else "uvicorn-first.log")
+    with log_path.open("wb") as server_log:
+        proc = subprocess.Popen([sys.executable, "-m", "uvicorn",
+            server_module.stem + ":app", "--host", "127.0.0.1", "--port", "8899",
+            "--lifespan", "off", "--log-level", "warning"], cwd=REPO, env=env,
+            stdout=server_log, stderr=subprocess.STDOUT)
     def ready():
-        assert proc.poll() is None, f"FastAPI process exited early: {proc.returncode}"
+        if proc.poll() is not None:
+            detail=log_path.read_text(encoding="utf-8",errors="replace")[-5000:]
+            for secret in (os.environ["SQLCIPHER_KEY_HEX"], os.environ["SECRET_KEY"]):
+                detail=detail.replace(secret, "[REDACTED]")
+            raise AssertionError(f"FastAPI early exit {proc.returncode}; redacted diagnostic: {detail}")
         try:
             with socket.create_connection(("127.0.0.1",8899), timeout=.5): return True
         except OSError: return False
