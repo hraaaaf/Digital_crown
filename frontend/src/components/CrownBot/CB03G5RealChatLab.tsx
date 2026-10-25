@@ -13,9 +13,15 @@ if (import.meta.env.VITE_CB03_G5_CHAT_LAB !== 'true'
     || location.pathname !== '/cb03-g5-chat-lab.html') {
   throw new Error('REFUSED: isolated G5 demo needs loopback + explicit CI opt-in');
 }
+// The PG integration test supplies its freshly minted synthetic owner ID
+// through a CI-only Vite variable. It is a UX hint, NEVER authentication.
+const labOwner = Number(import.meta.env.VITE_CB03_G5_LAB_PRACTITIONER_ID || '9');
+if (!Number.isSafeInteger(labOwner) || labOwner <= 0) {
+  throw new Error('REFUSED: invalid synthetic G5 practitioner');
+}
 useAuthStore.setState({
-  // Entirely fictitious account, not connected to a real clinic login.
-  user: { id: 9, employer_id: 9, role: 'DENTISTE' } as never,
+  // Entirely fictitious account, no patient or real clinic identity.
+  user: { id: labOwner, employer_id: labOwner, role: 'DENTISTE' } as never,
   isAuthenticated: true,
 });
 
