@@ -1,0 +1,73 @@
+name: CB-03 G5 Real CrownBotChat Conversation (isolated)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - feature/cb03-g4b-integrated-cert-20261024
+    paths:
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
+      - frontend/src/components/CrownBot/CrownBotGuidedConversationG5.tsx
+      - frontend/src/components/CrownBot/CrownBotGuidedConversationG5.test.tsx
+      - .github/workflows/cb03-g5-real-crownbot-chat.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb03-g5-chat-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-crownbotchat-ui-tests:
+    name: G5 real CrownBotChat mount, strict typed conversational actions, no-replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CB03_G5_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      VITE_CROWN_BOT_CB03_CHAT_ENABLED: "false"
+      VITE_CROWN_BOT_CB03_G3_ENABLED: "false"
+      VITE_CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify SHA, OFF baseline, and no real patient infrastructure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB03_G5_SOURCE_HEAD"
+          test "$VITE_CROWN_BOT_CB03_CHAT_ENABLED" = false
+          test "$VITE_CROWN_BOT_CB03_G3_ENABLED" = false
+          test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
+          test "$CLOUD_AI_ENABLED" = false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Locked frontend install
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript production checks
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Real chat panel + transactional G5 regression suite
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vitest run src/components/CrownBot/CrownBotGuidedConversationG5.test.tsx src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx src/components/CrownBot/CrownBotGuidedActionsG3.test.tsx
+          echo "G5 code tests run in jsdom against actual CrownBotChat mount; no real clinical transport, storage, Windows NVDA, or server." >> "$GITHUB_STEP_SUMMARY"
+          echo "CB03_G5_REAL_CHAT_ISOLATED_VITEST_PASS source=${CB03_G5_SOURCE_HEAD}"
+      - name: Protect closed clinical flags
+        if: always()
+        run: |
+          test "$VITE_CROWN_BOT_CB03_CHAT_ENABLED" = false
+          test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
