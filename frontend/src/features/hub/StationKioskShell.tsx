@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarCheck2, ChevronLeft, FileDown, HandHelping, Languages, ShieldCheck, TabletSmartphone } from 'lucide-react';
+import { CalendarCheck2, ChevronLeft, FileDown, HandHelping, Languages, TabletSmartphone } from 'lucide-react';
 import { StationPatientIdentity } from './StationPatientIdentity';
 
 type StationLanguage = 'fr' | 'ar' | 'en';
@@ -10,7 +10,6 @@ type Copy = {
   eyebrow: string;
   title: string;
   subtitle: string;
-  secure: string;
   appointment: string;
   appointmentHint: string;
   documents: string;
@@ -28,7 +27,6 @@ const COPY: Record<StationLanguage, Copy> = {
     eyebrow: 'Digital Crown · Station d’accueil',
     title: 'Bienvenue au cabinet',
     subtitle: 'Comment pouvons-nous vous aider aujourd’hui ?',
-    secure: 'Station sécurisée',
     appointment: 'J’ai rendez-vous',
     appointmentHint: 'Identification et arrivée au cabinet',
     documents: 'Retirer un document',
@@ -44,7 +42,6 @@ const COPY: Record<StationLanguage, Copy> = {
     eyebrow: 'Digital Crown · محطة الاستقبال',
     title: 'مرحباً بكم في العيادة',
     subtitle: 'كيف يمكننا مساعدتكم اليوم؟',
-    secure: 'محطة استقبال آمنة',
     appointment: 'لدي موعد',
     appointmentHint: 'التعرّف وتأكيد الوصول إلى العيادة',
     documents: 'استلام وثيقة',
@@ -60,7 +57,6 @@ const COPY: Record<StationLanguage, Copy> = {
     eyebrow: 'Digital Crown · Welcome station',
     title: 'Welcome to the clinic',
     subtitle: 'How can we help you today?',
-    secure: 'Secure welcome station',
     appointment: 'I have an appointment',
     appointmentHint: 'Identify yourself and confirm your arrival',
     documents: 'Collect a document',
@@ -161,11 +157,7 @@ export const StationKioskShell = ({
 
         <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center py-8 sm:py-10 lg:py-12">
           <div className="text-center">
-            <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-xs font-black uppercase tracking-widest text-primary">
-              <ShieldCheck size={15} aria-hidden="true" />
-              {copy.secure}
-            </div>
-            <p className="mt-5 text-xs font-black uppercase tracking-widest text-primary">{copy.eyebrow}</p>
+            <p className="text-xs font-black uppercase tracking-widest text-primary">{copy.eyebrow}</p>
             <h1 className="mx-auto mt-3 max-w-3xl font-outfit text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
               {screen === 'home' ? copy.title : copy[ACTIONS.find((action) => action.id === screen)?.title ?? 'appointment']}
             </h1>
