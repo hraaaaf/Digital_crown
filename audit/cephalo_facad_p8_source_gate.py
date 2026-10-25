@@ -20,6 +20,8 @@ def verify(image_data: bytes, export_bundle_data: bytes, attestation: dict) -> d
     for key in ("image_hash", "export_bundle_hash"):
         if not isinstance(attestation[key], str) or not re.fullmatch("[0-9a-f]{64}", attestation[key]):
             raise ValueError("invalid SHA256")
+    if type(image_data) is not bytes or type(export_bundle_data) is not bytes:
+        raise ValueError("binary inputs required")
     hashes_match = (hashlib.sha256(image_data).hexdigest() == attestation["image_hash"]
                     and hashlib.sha256(export_bundle_data).hexdigest() == attestation["export_bundle_hash"])
     declared = all(attestation[k] for k in FLAGS) and attestation["screen_capture"] is False
