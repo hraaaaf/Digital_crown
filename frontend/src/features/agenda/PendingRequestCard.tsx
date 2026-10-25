@@ -71,14 +71,14 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
   const timeStr = dateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   const statusIcon = {
-    'EN_ATTENTE_DEMANDE': <AlertCircle className="text-orange-600" size={20} />,
-    'EN_ATTENTE_CONFIRM': <Clock className="text-yellow-600" size={20} />,
+    'EN_ATTENTE_DEMANDE': <AlertCircle className="text-warning" size={20} />,
+    'EN_ATTENTE_CONFIRM': <Clock className="text-warning" size={20} />,
   }[request.status];
 
   const statusBg = {
-    'EN_ATTENTE_DEMANDE': 'bg-orange-50 border-orange-200',
-    'EN_ATTENTE_CONFIRM': 'bg-yellow-50 border-yellow-200',
-  }[request.status] || 'bg-gray-50 border-gray-200';
+    'EN_ATTENTE_DEMANDE': 'bg-warning-surface border-warning-border',
+    'EN_ATTENTE_CONFIRM': 'bg-warning-surface border-warning-border',
+  }[request.status] || 'bg-card border-border-main';
 
   return (
     <div className={`border-2 ${statusBg} rounded-xl p-4 shadow-md`}>
@@ -86,33 +86,33 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
         {statusIcon}
         <div className="flex-1">
           <h3 className="font-bold text-lg">{request.patient_name || "Demande de rendez-vous — identité masquée"}</h3>
-          {request.phone && <p className="text-sm text-gray-600">📱 {request.phone}</p>}
-          {request.motif && <p className="text-sm text-gray-600">💊 {request.motif}</p>}
+          {request.phone && <p className="text-sm text-text-muted">📱 {request.phone}</p>}
+          {request.motif && <p className="text-sm text-text-muted">💊 {request.motif}</p>}
         </div>
       </div>
 
       <div className="space-y-2 mb-4 text-sm">
-        <p className="text-gray-700">
+        <p className="text-text-main">
           <strong>Créneau :</strong> {dateStr} à {timeStr} ({request.duration_minutes} min)
         </p>
-        {request.source && <p className="text-gray-600"><strong>Source :</strong> {request.source}</p>}
+        {request.source && <p className="text-text-muted"><strong>Source :</strong> {request.source}</p>}
         {request.expires_at && (
-          <p className="text-red-600 text-xs">
+          <p className="text-danger text-xs">
             ⏰ Expire {new Date(request.expires_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
       </div>
 
       {showConfirmTemplate && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs">
-          <p className="text-blue-900">
+        <div className="bg-info-surface border border-info-border rounded-lg p-3 mb-4 text-xs">
+          <p className="text-info">
             Message template copié. Envoyez à {request.patient_name} :
           </p>
         </div>
       )}
 
       {!request.patient_name && (
-        <p role="status" className="mb-3 text-xs text-gray-600">Informations réservées aux utilisateurs autorisés à consulter les patients.</p>
+        <p role="status" className="mb-3 text-xs text-text-muted">Informations réservées aux utilisateurs autorisés à consulter les patients.</p>
       )}
 
       <div className="flex gap-2">
@@ -122,14 +122,14 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
               onClick={handleRequestConfirm}
               disabled={loading || !request.patient_name}
               title={!request.patient_name ? "Droit Patients requis pour une confirmation nominative" : undefined}
-              className="flex-1 px-3 py-2 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 disabled:opacity-50"
+              className="flex-1 px-3 py-2 border border-warning-border bg-warning-surface text-warning text-sm font-medium rounded-lg hover:bg-warning-border disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               Demander confirmation
             </button>
             <button
               onClick={handleConfirm}
               disabled={loading}
-              className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 px-3 py-2 bg-primary text-on-primary text-sm font-medium rounded-lg hover:bg-secondary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               Confirmer
             </button>
@@ -138,7 +138,7 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
           <button
             onClick={handleConfirm}
             disabled={loading}
-            className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex-1 px-3 py-2 bg-primary text-on-primary text-sm font-medium rounded-lg hover:bg-secondary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             Confirmer
           </button>
@@ -146,7 +146,7 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
         <button
           onClick={handleReject}
           disabled={loading}
-          className="flex-1 px-3 py-2 bg-red-100 text-red-700 text-sm font-medium rounded-lg hover:bg-red-200 disabled:opacity-50"
+          className="flex-1 px-3 py-2 border border-danger-border bg-danger-surface text-danger text-sm font-medium rounded-lg hover:bg-danger-border disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           Refuser
         </button>
