@@ -26,6 +26,11 @@ export function isCabinetMultiViewLabEnabled(dev: boolean, flag: string | undefi
   return dev === true && flag === '1';
 }
 
+/** R3-1 is a second independent DEV-only opt-in, never inferred from R2. */
+export function isR3SplitLabEnabled(dev: boolean, flag: string | undefined): boolean {
+  return dev === true && flag === '1';
+}
+
 function desktopSubscribe(onChange: () => void) {
   const mq = window.matchMedia?.('(min-width: 1280px)');
   mq?.addEventListener('change', onChange);

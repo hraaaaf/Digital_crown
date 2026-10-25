@@ -15,7 +15,7 @@ vi.mock('../patients/components/PatientMediaTimeline',()=>({
 vi.mock('../ortho/OrthoLongitudinalComparePanel',()=>({
   OrthoLongitudinalComparePanel:({patientId}:{patientId:number})=><div data-testid="suivi-live">Longitudinal patient {patientId}</div>,
 }));
-import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled } from './CabinetMultiViewLab';
+import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled, isR3SplitLabEnabled } from './CabinetMultiViewLab';
 
 const patient={id:17,prenom:'Prénom-A',nom:'NOM-A',numero_dossier:'DOS-A'};
 const user=(permissions:Record<string,boolean>={patients:true,cephalo:true})=>({
@@ -58,6 +58,10 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(isCabinetMultiViewLabEnabled(true,undefined)).toBe(false);
     expect(isCabinetMultiViewLabEnabled(true,'true')).toBe(false);
     expect(isCabinetMultiViewLabEnabled(true,'1')).toBe(true);
+    expect(isR3SplitLabEnabled(false,'1')).toBe(false);
+    expect(isR3SplitLabEnabled(true,undefined)).toBe(false);
+    expect(isR3SplitLabEnabled(true,'true')).toBe(false);
+    expect(isR3SplitLabEnabled(true,'1')).toBe(true);
   });
 
   it('mounts the real MultiView imagerie adapter in read-only R mode',async()=>{

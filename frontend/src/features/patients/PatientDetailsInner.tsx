@@ -42,7 +42,7 @@ import { PatientJourney } from './components/PatientJourney';
 import { PatientFinances } from './components/PatientFinances';
 import { PatientRvgPanel } from './components/PatientRvgPanel';
 import { PatientMediaTimeline } from './components/PatientMediaTimeline';
-import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled } from '../multiview/CabinetMultiViewLab';
+import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled, isR3SplitLabEnabled } from '../multiview/CabinetMultiViewLab';
 import './PatientRadiologyPolish.css';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientCompanionPanel } from './components/PatientCompanionPanel';
@@ -502,7 +502,8 @@ export const PatientDetails = () => {
               <div className="bg-card-bg rounded-[1.25rem] sm:rounded-[1.75rem] shadow-elite border border-border-main overflow-hidden min-h-[60vh] p-1.5 sm:p-2.5 md:p-3 min-w-0">
                 {radioTab === 'media' && (isCabinetMultiViewLabEnabled(import.meta.env.DEV, import.meta.env.VITE_V15_07_1_MULTIVIEW_LAB)
                   ? <CabinetMultiViewLab key={String(user?.id ?? '') + ':' + String(user?.employer_id ?? '') + ':' + String(patient.id)}
-                      patient={patient} routePatientId={id} user={user} />
+                      patient={patient} routePatientId={id} user={user}
+                      enableR3Split={isR3SplitLabEnabled(import.meta.env.DEV, import.meta.env.VITE_V15_07_1_R3_SPLIT_LAB)} />
                   : <PatientMediaTimeline patientId={Number(id)} />)}
                 {radioTab === 'rvg' && <PatientRvgPanel patientId={Number(id)} />}
                 {radioTab === 'panoramic' && canPanoramic && <PanoramicStudio patientId={Number(id)} patientName={fullName} />}
