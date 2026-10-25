@@ -234,7 +234,7 @@ export const PatientDocuments = () => {
   if (fetchError) {
     return (
       <div className="flex flex-col items-center justify-center py-28 gap-4 text-center">
-        <ArchiveX size={40} className="text-rose-400" />
+        <ArchiveX size={40} className="text-danger" />
         <div>
           <h3 className="text-text-main font-black text-lg">Impossible de charger l'historique</h3>
           <p className="text-text-muted text-sm mt-1">Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé.</p>
@@ -279,16 +279,16 @@ export const PatientDocuments = () => {
             <div key={doc.id} data-document-kind={isLegacy ? 'legacy' : 'canonical'} className={cn(
               'group backdrop-blur-xl p-6 rounded-[2.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:-translate-y-1.5 transition-all duration-500 relative overflow-visible',
               doc.isDuplicate
-                ? 'bg-rose-50/80 border-2 border-rose-300 shadow-[0_4px_20px_rgba(225,29,72,0.1)]'
+                ? 'bg-danger-surface/80 border-2 border-danger-border shadow-[0_4px_20px_rgba(225,29,72,0.1)]'
                 : doc.file_exists === false
-                  ? 'bg-amber-50/60 border border-amber-200 opacity-80'
+                  ? 'bg-warning-surface/60 border border-warning-border opacity-80'
                   : 'bg-card border border-border-main hover:shadow-[0_8px_30px_rgba(var(--primary-rgb),0.12)]'
             )}>
               {doc.isDuplicate && <div className="absolute top-0 inset-x-0 bg-rose-500 text-white text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 shadow-md rounded-t-[2.5rem]">Contenu similaire à vérifier</div>}
-              {doc.file_exists === false && !doc.isDuplicate && <div className="absolute top-0 inset-x-0 bg-amber-400 text-amber-900 text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 flex items-center justify-center gap-1.5 rounded-t-[2.5rem]"><FileX2 size={10} /> Fichier physique manquant</div>}
+              {doc.file_exists === false && !doc.isDuplicate && <div className="absolute top-0 inset-x-0 bg-amber-400 text-warning text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 flex items-center justify-center gap-1.5 rounded-t-[2.5rem]"><FileX2 size={10} /> Fichier physique manquant</div>}
 
               <div className="flex justify-between items-start mb-6 relative z-30">
-                <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors duration-500', doc.isDuplicate ? 'bg-rose-100 text-rose-600' : 'bg-gradient-to-br from-primary/5 to-white text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white')}>
+                <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors duration-500', doc.isDuplicate ? 'bg-danger-surface text-danger' : 'bg-gradient-to-br from-primary/5 to-white text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white')}>
                   {getDocIcon(doc.type, 'w-7 h-7')}
                 </div>
                 <div className="flex items-center gap-2 relative">
@@ -309,7 +309,7 @@ export const PatientDocuments = () => {
                                 type="button"
                                 disabled={signingDocId === doc.id}
                                 onClick={() => void handleSign(doc)}
-                                className="w-full min-h-11 px-3 rounded-lg hover:bg-emerald-50 text-emerald-700 font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
+                                className="w-full min-h-11 px-3 rounded-lg hover:bg-success-surface text-success font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
                               >
                                 {signingDocId === doc.id ? <Loader2 size={16} className="animate-spin" /> : <PenTool size={16} />}
                                 Enregistrer ma signature
@@ -328,14 +328,14 @@ export const PatientDocuments = () => {
                               <div className="mx-2 my-0.5 h-px bg-input-field" aria-hidden="true" />
                             </>
                           )}
-                          <button data-document-action="edit" data-m4c-touch role="menuitem" type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-lg hover:bg-background text-text-main font-bold text-xs inline-flex items-center gap-2 transition-colors"><Edit size={16} className="text-amber-600" /> Modifier</button>
+                          <button data-document-action="edit" data-m4c-touch role="menuitem" type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-lg hover:bg-background text-text-main font-bold text-xs inline-flex items-center gap-2 transition-colors"><Edit size={16} className="text-warning" /> Modifier</button>
                           <div className="mx-2 my-0.5 h-px bg-input-field" aria-hidden="true" />
-                          <button data-document-action="trash" data-m4c-touch role="menuitem" type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-lg hover:bg-rose-50/80 text-rose-600 font-bold text-xs inline-flex items-center gap-2 transition-colors"><Trash2 size={16} /> Mettre à la corbeille</button>
+                          <button data-document-action="trash" data-m4c-touch role="menuitem" type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-lg hover:bg-danger-surface/80 text-danger font-bold text-xs inline-flex items-center gap-2 transition-colors"><Trash2 size={16} /> Mettre à la corbeille</button>
                         </div>
                       )}
                     </div>
                   )}
-                  <span className={cn('px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border', isLegacy ? 'bg-input-field text-text-muted border-border-main' : doc.type.toUpperCase() === 'NOTE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-primary/10 text-primary border-primary/20')}>{doc.type}</span>
+                  <span className={cn('px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border', isLegacy ? 'bg-input-field text-text-muted border-border-main' : doc.type.toUpperCase() === 'NOTE' ? 'bg-success-surface text-success border-success-border' : 'bg-primary/10 text-primary border-primary/20')}>{doc.type}</span>
                 </div>
               </div>
 
@@ -351,9 +351,9 @@ export const PatientDocuments = () => {
                   className={cn(
                     'relative z-10 mb-5 min-h-12 rounded-2xl border px-3 py-2.5 flex items-start gap-2.5 text-[11px]',
                     hasRecordedSignature
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      ? 'border-success-border bg-success-surface text-success'
                       : hasRecordedAuthor
-                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                        ? 'border-warning-border bg-warning-surface text-warning'
                         : 'border-border-main bg-background text-text-muted',
                   )}
                 >
@@ -375,7 +375,7 @@ export const PatientDocuments = () => {
 
               <div className="grid grid-cols-2 gap-3 relative z-10">
                 {doc.file_exists === false ? (
-                  <div className="col-span-2 min-h-[48px] flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-600 rounded-2xl font-black text-xs uppercase tracking-widest"><FileX2 size={16} /> Fichier introuvable</div>
+                  <div className="col-span-2 min-h-[48px] flex items-center justify-center gap-2 bg-warning-surface border border-warning-border text-warning rounded-2xl font-black text-xs uppercase tracking-widest"><FileX2 size={16} /> Fichier introuvable</div>
                 ) : (
                   <>
                     <button data-m4c-touch onClick={() => void handleView(doc.id)} className="min-h-[48px] flex items-center justify-center gap-2 bg-background border border-border-main hover:bg-input-field text-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"><Eye size={16} /> Voir</button>

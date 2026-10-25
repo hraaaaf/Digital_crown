@@ -236,16 +236,16 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
           </button>
         </div>
 
-        <div className="mt-8 rounded-[2.25rem] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white p-[12px] sm:p-8 shadow-sm">
+        <div className="mt-8 rounded-[2.25rem] border border-warning-border bg-gradient-to-br from-amber-50 via-white to-white p-[12px] sm:p-8 shadow-sm">
           <div className="flex min-w-0 flex-col items-stretch gap-5">
             <div className="flex min-w-0 flex-col items-start gap-3 lg:flex-row lg:gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-warning-surface text-warning flex items-center justify-center shrink-0">
                 <RotateCcw size={24} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h4 className="break-words text-xl font-black text-text-main">Restauration guidée</h4>
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide uppercase bg-amber-100 text-amber-800">Action sensible</span>
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide uppercase bg-warning-surface text-warning">Action sensible</span>
                 </div>
                 <p data-testid="guided-restore-description" className="mt-2 max-w-2xl break-words text-sm font-medium text-text-muted">
                   Analyse la sauvegarde, prépare un point de secours vérifié, puis exige une confirmation forte avant le redémarrage. La bascule destructive reste hors du processus actif et rollback automatiquement si le smoke check échoue.
@@ -276,7 +276,7 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
           </div>
 
           {restoreError && (
-            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800 flex items-start gap-3">
+            <div className="mt-6 rounded-2xl border border-danger-border bg-danger-surface px-4 py-3 text-sm font-bold text-danger flex items-start gap-3">
               <AlertTriangle size={18} className="mt-0.5 shrink-0" />
               <span>{restoreError}</span>
             </div>
@@ -287,12 +287,12 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    {restore.compatible ? <CheckCircle2 size={20} className="text-emerald-600 shrink-0" /> : <AlertTriangle size={20} className="text-rose-600 shrink-0" />}
+                    {restore.compatible ? <CheckCircle2 size={20} className="text-success shrink-0" /> : <AlertTriangle size={20} className="text-danger shrink-0" />}
                     <h5 className="font-black text-text-main">{restore.compatible ? 'Préflight validé' : 'Préflight bloqué'}</h5>
                   </div>
                   <p className="text-xs text-text-muted mt-1 truncate max-w-xl" title={restore.original_name}>{restore.original_name}</p>
                 </div>
-                <span className={`self-start px-3 py-1.5 rounded-full text-xs font-black ${restore.compatible ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                <span className={`self-start px-3 py-1.5 rounded-full text-xs font-black ${restore.compatible ? 'bg-success-surface text-success' : 'bg-danger-surface text-danger'}`}>
                   {restore.archive_type}
                 </span>
               </div>
@@ -319,12 +319,12 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
               {(restore.warnings.length > 0 || restore.errors.length > 0) && (
                 <div className="mt-4 space-y-2">
                   {restore.warnings.map((warning) => (
-                    <div key={warning} className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs font-bold text-amber-800 flex gap-2">
+                    <div key={warning} className="rounded-xl bg-warning-surface border border-warning-border px-3 py-2 text-xs font-bold text-warning flex gap-2">
                       <AlertTriangle size={15} className="shrink-0" /> {warning}
                     </div>
                   ))}
                   {restore.errors.map((error) => (
-                    <div key={error} className="rounded-xl bg-rose-50 border border-rose-100 px-3 py-2 text-xs font-bold text-rose-800 flex gap-2">
+                    <div key={error} className="rounded-xl bg-danger-surface border border-danger-border px-3 py-2 text-xs font-bold text-danger flex gap-2">
                       <X size={15} className="shrink-0" /> {error}
                     </div>
                   ))}
@@ -353,7 +353,7 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
 
               {restore.compatible && restore.status === 'prepared' && (
                 <div className="mt-6 pt-5 border-t border-border-main">
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900 flex items-start gap-3">
+                  <div className="rounded-2xl border border-success-border bg-success-surface px-4 py-3 text-sm font-bold text-success flex items-start gap-3">
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                     <span>Préparation sécurisée validée. Le package et le point de secours DB ont été vérifiés avant confirmation.</span>
                   </div>
@@ -384,7 +384,7 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
               )}
 
               {terminalRestoreStates.has(restore.status) && restore.status !== 'blocked' && (
-                <div className={`mt-5 rounded-2xl px-4 py-4 border ${restore.status === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : restore.status === 'rolled_back' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-rose-50 border-rose-200 text-rose-900'}`}>
+                <div className={`mt-5 rounded-2xl px-4 py-4 border ${restore.status === 'success' ? 'bg-success-surface border-success-border text-success' : restore.status === 'rolled_back' ? 'bg-warning-surface border-warning-border text-warning' : 'bg-danger-surface border-danger-border text-danger'}`}>
                   <p className="font-black text-sm">{restore.message || restore.status}</p>
                   <p className="text-xs font-bold mt-1">Smoke check : {restore.smoke_check || '—'} · Rollback : {restore.rollback || '—'}</p>
                 </div>

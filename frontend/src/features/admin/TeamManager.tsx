@@ -298,25 +298,25 @@ export const TeamManager: React.FC = () => {
           <div className="flex items-center gap-1.5 text-sm font-bold text-text-main">
             <Users size={15} className="text-text-muted" />
             Dentistes :
-            <span className={cn("font-black", !quota.can_add_dentiste ? "text-rose-600" : "text-emerald-600")}>
+            <span className={cn("font-black", !quota.can_add_dentiste ? "text-danger" : "text-success")}>
               {quota.dentistes_used}/{quota.dentistes_max ?? 'Illimité'}
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-sm font-bold text-text-main">
             <Shield size={15} className="text-text-muted" />
             Assistantes :
-            <span className={cn("font-black", !quota.can_add_secretaire ? "text-rose-600" : "text-emerald-600")}>
+            <span className={cn("font-black", !quota.can_add_secretaire ? "text-danger" : "text-success")}>
               {quota.secretaires_used}/{quota.secretaires_max ?? 'Illimité'}
             </span>
           </div>
           {quota.pending_count > 0 && (
-            <div className="flex items-center gap-1.5 text-sm font-bold text-amber-600">
+            <div className="flex items-center gap-1.5 text-sm font-bold text-warning">
               <Clock size={15} />
               {quota.pending_count} en attente
             </div>
           )}
           {(!quota.can_add_dentiste || !quota.can_add_secretaire) && (
-            <div className="sm:ml-auto max-w-full flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-black">
+            <div className="sm:ml-auto max-w-full flex items-center gap-2 px-4 py-2 bg-warning-surface border border-warning-border rounded-xl text-warning text-xs font-black">
               <TrendingUp size={14} className="shrink-0" />
               <span className="break-words">
                 {quota.plan === 'ELITE'
@@ -334,13 +334,13 @@ export const TeamManager: React.FC = () => {
 
       {/* NOTIFICATIONS */}
       {success && (
-        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 animate-in fade-in duration-300">
+        <div className="flex items-center gap-3 p-4 bg-success-surface border border-success-border rounded-xl text-success animate-in fade-in duration-300">
           <CheckCircle2 size={20} />
           <span className="font-bold text-sm">{success}</span>
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 animate-in fade-in duration-300">
+        <div className="flex items-center gap-3 p-4 bg-danger-surface border border-danger-border rounded-xl text-danger animate-in fade-in duration-300">
           <AlertTriangle size={20} />
           <span className="font-bold text-sm">{error}</span>
           <button onClick={() => setError(null)} aria-label="Fermer l'erreur" className="ml-auto"><X size={16} /></button>
@@ -533,22 +533,22 @@ export const TeamManager: React.FC = () => {
       {/* SECTION EN ATTENTE */}
       {!loading && members.filter(m => m.approval_status === 'pending').length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-xs font-black uppercase tracking-widest text-amber-600 flex items-center gap-2">
+          <h4 className="text-xs font-black uppercase tracking-widest text-warning flex items-center gap-2">
             <Clock size={14} /> En attente d'approbation ({members.filter(m => m.approval_status === 'pending').length})
           </h4>
           {members.filter(m => m.approval_status === 'pending').map((member) => (
             <div
               key={member.id}
-              className="flex items-center justify-between p-5 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm"
+              className="flex items-center justify-between p-5 bg-warning-surface border border-warning-border rounded-2xl shadow-sm"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-200 text-amber-800 font-black text-lg">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-200 text-warning font-black text-lg">
                   {(member.nom_complet || 'A')[0].toUpperCase()}
                 </div>
                 <div>
                   <h4 className="font-black text-text-main flex items-center gap-2">
                     {member.nom_complet || 'Sans nom'}
-                    <span className="text-[9px] font-black bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[9px] font-black bg-warning-surface text-warning border border-warning-border px-2 py-0.5 rounded-full uppercase tracking-wider">
                       En attente
                     </span>
                     <span className="text-[9px] font-black bg-input-field text-text-muted px-2 py-0.5 rounded-full uppercase tracking-wider">
@@ -572,7 +572,7 @@ export const TeamManager: React.FC = () => {
                 <button
                   onClick={() => rejectMember(member)}
                   disabled={mutationKey !== null}
-                  className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-200 text-xs font-black rounded-xl transition-all hover:bg-rose-100 flex items-center gap-2"
+                  className="px-4 py-2 bg-danger-surface text-danger border border-danger-border text-xs font-black rounded-xl transition-all hover:bg-danger-surface flex items-center gap-2"
                 >
                   <XCircle size={14} />
                   Refuser
@@ -580,7 +580,7 @@ export const TeamManager: React.FC = () => {
                 <button
                   onClick={() => deleteMember(member)}
                   disabled={mutationKey !== null}
-                  className="p-2.5 bg-background text-text-muted hover:text-rose-500 hover:bg-rose-50 border border-border-main rounded-xl transition-all"
+                  className="p-2.5 bg-background text-text-muted hover:text-danger hover:bg-danger-surface border border-border-main rounded-xl transition-all"
                   title="Supprimer définitivement"
                 >
                   <Trash2 size={16} />
@@ -597,14 +597,14 @@ export const TeamManager: React.FC = () => {
           <Loader2 className="animate-spin" style={{ color: 'var(--primary)' }} size={40} />
         </div>
       ) : loadError ? (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center">
-          <AlertTriangle className="mx-auto text-rose-500" size={32} />
-          <h4 className="mt-3 text-lg font-black text-rose-800">Équipe non chargée</h4>
-          <p className="mt-2 text-sm font-medium text-rose-700">{loadError}</p>
+        <div className="bg-danger-surface border border-danger-border rounded-2xl p-8 text-center">
+          <AlertTriangle className="mx-auto text-danger" size={32} />
+          <h4 className="mt-3 text-lg font-black text-danger">Équipe non chargée</h4>
+          <p className="mt-2 text-sm font-medium text-danger">{loadError}</p>
           <button
             type="button"
             onClick={() => fetchMembers()}
-            className="mt-4 px-4 py-2 rounded-xl bg-card border border-rose-200 text-rose-700 text-xs font-black hover:bg-rose-100"
+            className="mt-4 px-4 py-2 rounded-xl bg-card border border-danger-border text-danger text-xs font-black hover:bg-danger-surface"
           >
             Réessayer
           </button>
@@ -627,8 +627,8 @@ export const TeamManager: React.FC = () => {
               className={cn(
                 "flex items-center justify-between p-5 bg-card border rounded-2xl shadow-sm transition-all hover:shadow-md group",
                 member.approval_status === 'rejected'
-                  ? "border-rose-200 bg-rose-50/20 opacity-60"
-                  : member.is_active ? "border-border-main" : "border-amber-200 bg-amber-50/20 opacity-75"
+                  ? "border-danger-border bg-danger-surface/20 opacity-60"
+                  : member.is_active ? "border-border-main" : "border-warning-border bg-warning-surface/20 opacity-75"
               )}
             >
               {/* Infos du membre */}
@@ -649,17 +649,17 @@ export const TeamManager: React.FC = () => {
                       {member.role}
                     </span>
                     {member.approval_status === 'rejected' && (
-                      <span className="text-[9px] font-black bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="text-[9px] font-black bg-danger-surface text-danger px-2 py-0.5 rounded-full uppercase tracking-wider">
                         Refusé
                       </span>
                     )}
                     {!member.is_active && member.approval_status !== 'rejected' && (
-                      <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="text-[9px] font-black bg-warning-surface text-warning px-2 py-0.5 rounded-full uppercase tracking-wider">
                         Suspendu
                       </span>
                     )}
                     {member.is_active && (
-                      <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="text-[9px] font-black bg-success-surface text-success px-2 py-0.5 rounded-full uppercase tracking-wider">
                         Actif
                       </span>
                     )}
@@ -694,8 +694,8 @@ export const TeamManager: React.FC = () => {
                     className={cn(
                       "p-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2",
                       member.is_active
-                        ? "bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200"
-                        : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200"
+                        ? "bg-warning-surface text-warning hover:bg-warning-surface border border-warning-border"
+                        : "bg-success-surface text-success hover:bg-success-surface border border-success-border"
                     )}
                     title={member.is_active ? "Suspendre l'accès" : "Réactiver l'accès"}
                   >
@@ -706,7 +706,7 @@ export const TeamManager: React.FC = () => {
                 <button
                   onClick={() => deleteMember(member)}
                   disabled={mutationKey !== null}
-                  className="p-2.5 bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all"
+                  className="p-2.5 bg-danger-surface text-danger hover:bg-danger-surface border border-danger-border rounded-xl transition-all"
                   title="Supprimer définitivement"
                 >
                   <Trash2 size={16} />

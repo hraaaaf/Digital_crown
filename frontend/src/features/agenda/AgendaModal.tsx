@@ -398,7 +398,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
               <p className="text-text-muted text-sm font-bold">Planification clinique</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 bg-card text-text-muted hover:text-rose-500 rounded-full shadow-sm border border-border-main transition-all hover:rotate-90" aria-label="Fermer">
+          <button onClick={onClose} className="p-3 bg-card text-text-muted hover:text-danger rounded-full shadow-sm border border-border-main transition-all hover:rotate-90" aria-label="Fermer">
             <X size={20} />
           </button>
         </div>
@@ -419,7 +419,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                     </div>
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => { onClose(); navigate(`/patients/${selectedPatient.id}/edit`); }} className="text-[9px] font-black text-blue-400 hover:text-blue-600 uppercase tracking-widest transition-colors">Modifier</button>
-                      <button type="button" onClick={() => setSelectedPatient(null)} className="text-blue-400 hover:text-rose-500 transition-colors">
+                      <button type="button" onClick={() => setSelectedPatient(null)} className="text-blue-400 hover:text-danger transition-colors">
                         <X size={18} />
                       </button>
                     </div>
@@ -453,7 +453,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                         <div className="text-sm font-black text-text-main">{p.nom} {p.prenom}</div>
                         <div className="text-[10px] font-bold text-text-muted">Dossier: {p.numero_dossier}</div>
                       </div>
-                      <Check className="ml-auto text-emerald-500 opacity-0 group-hover:opacity-100" size={18} />
+                      <Check className="ml-auto text-success opacity-0 group-hover:opacity-100" size={18} />
                     </button>
                   )) : (
                     <div className="p-6 text-center">
@@ -487,7 +487,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       </span>
                     </div>
                     {smartIntel?.solde_attente > 0 && (
-                      <span className="flex items-center gap-1.5 bg-rose-50 border border-rose-100 text-rose-600 px-3 py-1 rounded-xl text-[10px] font-black tracking-tight">
+                      <span className="flex items-center gap-1.5 bg-danger-surface border border-danger-border text-danger px-3 py-1 rounded-xl text-[10px] font-black tracking-tight">
                         <AlertCircle size={12} />
                         RESTE À PAYER : {smartIntel.solde_attente} MAD
                       </span>
@@ -539,17 +539,17 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
                       {/* OPTION ADMINISTRATIVE (DEVIS / OPPORTUNITÉ LOCALE) */}
                       {smartIntel && smartIntel.suggestion && (!suggestedAppointment || smartIntel.suggestion !== suggestedAppointment.motif) && (
-                        <div className="bg-card/80 border border-border-main rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-emerald-200 transition-all group">
+                        <div className="bg-card/80 border border-border-main rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-success-border transition-all group">
                           <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-success-surface border border-success-border text-success text-[9px] font-black uppercase tracking-wider">
                               Proposition Devis
                             </span>
-                            <p className="text-sm font-black text-text-main tracking-tight group-hover:text-emerald-950 transition-colors">
+                            <p className="text-sm font-black text-text-main tracking-tight group-hover:text-success transition-colors">
                               {smartIntel.suggestion}
                             </p>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-text-muted font-bold">
                               <span className="flex items-center gap-1 text-text-muted">
-                                <Clock size={12} className="text-emerald-500" />
+                                <Clock size={12} className="text-success" />
                                 {smartIntel.duration} min
                               </span>
                               <span className="text-text-muted">
@@ -580,12 +580,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
               <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-3 ml-1">Acte / Motif</label>
               <div className="relative group">
                 {selectedAct ? (
-                  <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-emerald-50/50 border-2 border-emerald-500 rounded-2xl text-sm font-black text-emerald-700">
+                  <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-success-surface/50 border-2 border-emerald-500 rounded-2xl text-sm font-black text-success">
                     <div className="flex items-center gap-2">
-                      <FileText className="absolute left-4 text-emerald-500" size={20} />
+                      <FileText className="absolute left-4 text-success" size={20} />
                       <span>{selectedAct.name}</span>
                     </div>
-                    <button type="button" onClick={() => setSelectedAct(null)} className="text-emerald-400 hover:text-rose-500 transition-colors">
+                    <button type="button" onClick={() => setSelectedAct(null)} className="text-success hover:text-danger transition-colors">
                       <X size={18} />
                     </button>
                   </div>
@@ -809,7 +809,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                 <button
                   type="button"
                   onClick={openWhatsApp}
-                  className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-black text-xs transition-colors"
+                  className="flex items-center gap-2 text-success hover:text-success font-black text-xs transition-colors"
                 >
                   <MessageCircle size={16} /> Rappel WhatsApp
                 </button>
@@ -818,7 +818,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="flex items-center gap-2 text-rose-500 hover:text-rose-700 font-black text-xs transition-colors"
+                  className="flex items-center gap-2 text-danger hover:text-danger font-black text-xs transition-colors"
                 >
                   <Trash2 size={16} /> Supprimer
                 </button>
@@ -826,7 +826,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             </div>
             <div className="flex flex-col w-full sm:w-auto gap-3">
               {conflicts.length > 0 && (
-                <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-700">
+                <div className="flex items-start gap-2 px-3 py-2 bg-warning-surface border border-warning-border rounded-xl text-[10px] font-bold text-warning">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />
                   <span>
                     Chevauchement avec {conflicts.length} RDV :&nbsp;

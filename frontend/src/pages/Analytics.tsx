@@ -44,7 +44,7 @@ export const Analytics = () => {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-card dark:bg-slate-800 rounded-3xl shadow-xl border border-border-main dark:border-border-hover p-8 text-center space-y-6">
-          <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mx-auto">
+          <div className="w-20 h-20 bg-danger-surface dark:bg-red-900/20 text-danger rounded-full flex items-center justify-center mx-auto">
             <AlertTriangle size={40} />
           </div>
           <div>
@@ -112,7 +112,7 @@ export const Analytics = () => {
         {/* BLOC 1 : FINANCES (Latent Cash & Revenus) */}
         <section className="bg-card dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-border-main dark:border-border-hover">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-2xl">
+            <div className="p-3 bg-success-surface dark:bg-green-900/30 text-success rounded-2xl">
               <TrendingUp size={24} />
             </div>
             <h2 className="text-xl font-bold text-text-main dark:text-white">Trésorerie & Revenus</h2>
@@ -160,7 +160,7 @@ export const Analytics = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
             <div className="bg-card dark:bg-slate-800 rounded-3xl p-6 shadow-2xl max-w-lg w-full relative">
               <h3 className="text-2xl font-bold text-text-main dark:text-white mb-4 flex items-center gap-2">
-                <MessageCircle className="text-green-500" /> Relances intelligentes
+                <MessageCircle className="text-success" /> Relances intelligentes
               </h3>
               <p className="text-text-muted dark:text-text-muted mb-6">
                 Le Ghost Brain a identifié {financialStats?.top_relances?.length || 0} patients à fort potentiel de conversion pour récupérer votre Latent Cash.
@@ -203,19 +203,19 @@ export const Analytics = () => {
         {/* BLOC 2 : OPERATIONS (Secrétariat & Flux) */}
         <section className="bg-card dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-border-main dark:border-border-hover">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-2xl">
+            <div className="p-3 bg-warning-surface dark:bg-amber-900/30 text-warning rounded-2xl">
               <Activity size={24} />
             </div>
             <h2 className="text-xl font-bold text-text-main dark:text-white">Opérations & Flux</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-5 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800/30">
+            <div className="p-5 bg-danger-surface dark:bg-rose-900/20 rounded-2xl border border-danger-border dark:border-rose-800/30">
               <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle size={16} className="text-rose-500" />
-                <p className="text-sm font-bold text-rose-600 dark:text-rose-400">Taux d'Annulation</p>
+                <AlertTriangle size={16} className="text-danger" />
+                <p className="text-sm font-bold text-danger dark:text-danger">Taux d'Annulation</p>
               </div>
-              <p className="text-3xl font-black text-rose-700 dark:text-rose-300">
+              <p className="text-3xl font-black text-danger dark:text-danger">
                 {operationalStats?.no_show_rate}%
               </p>
             </div>

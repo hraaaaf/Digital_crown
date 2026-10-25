@@ -219,7 +219,7 @@ export const LabJobsBoard: React.FC = () => {
                       <div className="text-[11px] font-semibold text-text-muted">
                         {job.material || "Matériau non renseigné"}
                       </div>
-                      <div className={`text-xs font-bold mt-2 ${isAlert(job) ? "text-red-500" : "text-text-muted"}`}>
+                      <div className={`text-xs font-bold mt-2 ${isAlert(job) ? "text-danger" : "text-text-muted"}`}>
                         ⏳ {formatDistanceToNowStrict(parseISO(job.deadline))}
                       </div>
                       <select
@@ -329,7 +329,7 @@ export const LabJobsBoard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => void handleDeleteLab(lab)}
-                    className="shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-black text-rose-600 hover:bg-rose-50"
+                    className="shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-black text-danger hover:bg-danger-surface"
                   >
                     Supprimer
                   </button>
@@ -355,7 +355,7 @@ export const LabJobsBoard: React.FC = () => {
                 placeholder="Téléphone (optionnel)"
                 className="w-full rounded-xl border border-border-main bg-card p-3 text-sm font-bold text-text-main"
               />
-              {labError && <p role="alert" className="text-[10px] font-bold text-rose-600">{labError}</p>}
+              {labError && <p role="alert" className="text-[10px] font-bold text-danger">{labError}</p>}
               <button
                 type="button"
                 onClick={() => void handleCreateLab()}

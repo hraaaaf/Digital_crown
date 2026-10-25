@@ -415,15 +415,15 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       {(validationErrors.length > 0 || coherenceWarnings.length > 0) && (
         <div className="space-y-2 px-2 mb-6">
           {validationErrors.map((err, idx) => (
-            <div key={`v-${idx}`} className="px-6 py-3 bg-red-50 border border-red-100 rounded-2xl text-[11px] text-red-600 font-black flex items-center gap-3 animate-in slide-in-from-top-2">
+            <div key={`v-${idx}`} className="px-6 py-3 bg-danger-surface border border-danger-border rounded-2xl text-[11px] text-danger font-black flex items-center gap-3 animate-in slide-in-from-top-2">
               <AlertCircle size={16} /> {err.message}
             </div>
           ))}
           {coherenceWarnings.map((w, idx) => (
             <div key={`c-${idx}`} className={cn(
               "px-6 py-3 rounded-2xl text-[11px] font-black flex items-center gap-3 animate-in slide-in-from-top-2",
-              w.level === 'warning' ? "bg-amber-50 border border-amber-100 text-amber-700"
-                : w.level === 'critical' ? "bg-red-50 border border-red-100 text-red-600"
+              w.level === 'warning' ? "bg-warning-surface border border-warning-border text-warning"
+                : w.level === 'critical' ? "bg-danger-surface border border-danger-border text-danger"
                 : "bg-blue-50 border border-blue-100 text-blue-600"
             )}>
               <AlertCircle size={16} className="shrink-0" /> {w.message}
@@ -611,7 +611,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               </button>
                             ))}
                             {groupSelectedTeeth.length > 0 && (
-                              <button type="button" onClick={() => selectTeethGroup('none')} className="ml-auto rounded-lg px-2.5 py-1.5 text-[9px] font-black text-rose-500 hover:bg-rose-50">
+                              <button type="button" onClick={() => selectTeethGroup('none')} className="ml-auto rounded-lg px-2.5 py-1.5 text-[9px] font-black text-danger hover:bg-danger-surface">
                                 Effacer
                               </button>
                             )}
@@ -638,7 +638,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                       </div>
                                       <span className="truncate text-[9px] sm:text-[10px] font-black text-text-muted uppercase tracking-wide sm:tracking-widest">{groupSelectedTeeth.length} dent(s) sélectionnée(s)</span>
                                     </div>
-                                    <button type="button" onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300">Réinitialiser</button>
+                                    <button type="button" onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-danger uppercase tracking-widest hover:text-danger">Réinitialiser</button>
                                   </div>
 
                                   {groupSuggestedActs.length > 0 ? (
@@ -869,7 +869,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 type="button"
                                 onClick={() => removeItem(item.id)}
                                 aria-label={`Supprimer ${item.description || `la ligne ${idx + 1}`}`}
-                                className="p-2.5 text-text-muted hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                className="p-2.5 text-text-muted hover:text-danger hover:bg-danger-surface rounded-lg transition-all"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -955,7 +955,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               {paymentStatusGuardMessage && (
                 <div
                   role="alert"
-                  className="relative z-20 flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"
+                  className="relative z-20 flex items-start justify-between gap-4 rounded-2xl border border-warning-border bg-warning-surface px-4 py-3 text-warning"
                 >
                   <div>
                     <div className="text-xs font-black uppercase tracking-wider">Paiement partiel</div>
@@ -964,7 +964,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   <button
                     type="button"
                     onClick={clearPaymentStatusGuard}
-                    className="shrink-0 rounded-xl border border-amber-300 bg-card px-3 py-2 text-[10px] font-black uppercase tracking-wider"
+                    className="shrink-0 rounded-xl border border-warning-border bg-card px-3 py-2 text-[10px] font-black uppercase tracking-wider"
                   >
                     Compris
                   </button>
@@ -976,9 +976,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   <label className={cn(labelClass, "text-text-muted")}>Statut de Règlement</label>
                   <div className="flex bg-background/50 p-1.5 rounded-[1.5rem] border border-border-main gap-1">
                     {[
-                      { id: 'EN_ATTENTE', label: 'Attente', color: 'text-amber-600 bg-card shadow-sm border border-border-main' },
+                      { id: 'EN_ATTENTE', label: 'Attente', color: 'text-warning bg-card shadow-sm border border-border-main' },
                       { id: 'PARTIEL', label: 'Partiel', color: 'text-blue-600 bg-card shadow-sm border border-border-main' },
-                      { id: 'PAYE', label: 'Réglé', color: 'text-emerald-600 bg-card shadow-sm border border-border-main' }
+                      { id: 'PAYE', label: 'Réglé', color: 'text-success bg-card shadow-sm border border-border-main' }
                     ].map((s) => (
                       <button
                         key={s.id}
@@ -1089,7 +1089,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             <button 
                               type="button"
                               onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
-                              className="p-3 text-text-muted hover:text-rose-400 transition-all bg-rose-50 sm:bg-transparent rounded-xl sm:rounded-none w-full sm:w-auto"
+                              className="p-3 text-text-muted hover:text-danger transition-all bg-danger-surface sm:bg-transparent rounded-xl sm:rounded-none w-full sm:w-auto"
                             >
                               <Trash2 size={16} className="mx-auto" />
                             </button>
