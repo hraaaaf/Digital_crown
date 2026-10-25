@@ -11,7 +11,8 @@ from audit.cephalo_facad_p6_identity_review_gate import validate_review
 
 def probe(review: object) -> dict:
     gate = validate_review(review)
-    ev = importlib.import_module("backend.services.cephalo_evidence")
+    from audit.cephalo_facad_robert_p3_canonical_adapter_probe import _real_typed_adapter
+    ev, _, _ = _real_typed_adapter()
     bridge = importlib.import_module("backend.services.cephalo_landmark_identity_bridge")
     # Actual P4 bridge path, with manual/legacy source provenance.
     raw = ev.LandmarkEvidence(
