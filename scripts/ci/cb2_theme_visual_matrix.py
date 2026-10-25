@@ -112,6 +112,20 @@ try:
             # The global theme transition lasts 400 ms; a shorter wait records
             # intermediary colors and yields a false GREEN. Wait for CSS to settle.
             page.wait_for_timeout(750)
+            # A CSS transition can yield a transient mixed foreground even
+            # after the background has reached its final token. Wait for exact
+            # computed-value convergence; never lower the equality/AA oracle.
+            page.wait_for_function("""() => {
+                const button=[...document.querySelectorAll('button')]
+                  .find(x=>x.textContent?.includes('Confirmer explicitement cette action'));
+                if(!button) return false;
+                const probe=document.createElement('span');
+                probe.style.color='var(--text-on-primary)';
+                document.body.append(probe);
+                const expected=getComputedStyle(probe).color;
+                probe.remove();
+                return getComputedStyle(button).color === expected;
+            }""", timeout=3500, polling=100)
             style=page.evaluate("""() => {
                 const root=document.documentElement;
                 const panel=document.querySelector('section[aria-label="Conversation Crown Bot — actions guidées CB-03"]');
