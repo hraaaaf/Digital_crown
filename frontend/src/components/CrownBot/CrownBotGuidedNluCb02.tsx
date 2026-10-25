@@ -78,7 +78,7 @@ export function CrownBotGuidedNluCb02() {
   };
   return (
     <section aria-label="Français guidé Crown Bot CB-02"
-      className="rounded-lg border border-sky-200 bg-white p-3 text-sm text-slate-800">
+      className="rounded-lg border border-info-border bg-card p-3 text-sm text-text-main">
       <h3 className="font-semibold">Demande en français — aperçu expérimental</h3>
       <p className="mt-1 text-xs leading-relaxed">
         Exemple : « Prépare un RDV demain 10h pour Mme Benali contrôle ».
@@ -95,17 +95,17 @@ export function CrownBotGuidedNluCb02() {
         <textarea id="cb02-utterance" aria-label="Votre demande en français"
           rows={2} maxLength={160} disabled={busy} value={utterance}
           onChange={event => edit(event.target.value)}
-          className="w-full min-w-0 rounded-md border border-slate-300 p-2 text-sm"
+          className="w-full min-w-0 rounded-md border border-border-main bg-input-field text-text-main p-2 text-sm"
           placeholder="Mon agenda demain" />
         <button type="submit" disabled={busy || !utterance.trim()}
-          className="min-h-11 rounded-md bg-sky-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
+          className="min-h-11 rounded-md bg-primary px-4 py-2 text-xs font-semibold text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
           {busy ? 'Vérification…' : 'Comprendre la demande'}
         </button>
       </form>
-      {error && <p role="alert" className="mt-2 rounded-md border border-rose-200 p-2 text-xs text-rose-800">{error}</p>}
-      {result && <div role="status" className="mt-3 space-y-2 rounded-md border border-slate-200 p-2">
+      {error && <p role="alert" className="mt-2 rounded-md border border-danger-border p-2 text-xs text-danger">{error}</p>}
+      {result && <div role="status" className="mt-3 space-y-2 rounded-md border border-border-main p-2">
         <p className="font-medium">{result.message}</p>
-        <p className="text-xs font-semibold text-amber-800">
+        <p className="text-xs font-semibold text-warning">
           Prévisualisation sans écriture · Aucune action disponible.
         </p>
         <dl className="space-y-1">
@@ -128,7 +128,7 @@ export function CrownBotGuidedNluCb02() {
             {result.candidates.map(choice => (
               <button key={choice.id} type="button" disabled={busy}
                 onClick={() => { void check(choice.id); }}
-                className="min-h-11 rounded-md border border-slate-300 p-2 text-left text-xs">
+                className="min-h-11 rounded-md border border-border-main p-2 text-left text-xs">
                 {choice.prenom} {choice.nom} — Dossier {choice.numero_dossier || 'non renseigné'}
               </button>
             ))}
