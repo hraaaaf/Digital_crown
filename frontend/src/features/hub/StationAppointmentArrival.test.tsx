@@ -134,4 +134,43 @@ describe('StationAppointmentArrival V1.5-03.4', () => {
     expect(screen.queryByText(/INTERNAL_FUTURE_STATUS/)).not.toBeInTheDocument();
   });
 
+  it('A3-03 prevents a second arrival confirmation while the first HTTP write is pending', async () => {
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({
+      status: 'single', staffActionRequired: false,
+      appointments: [{ appointmentId: 51, datetimeStart: '2026-10-25T09:30:00', durationMinutes: 30, schedulingType: 'EXACT_TIME', status: 'CONFIRMÉ' }],
+    });
+    let resolveArrival!: (value: { status: 'ARRIVED'; appointmentId: number }) => void;
+    vi.mocked(stationPatientSessionService.arrive).mockReturnValue(
+      new Promise(resolve => { resolveArrival = resolve; }),
+    );
+    render(<StationAppointmentArrival sessionId="a3-synthetic" displayName="Patient fictif" onLeave={vi.fn()} backLabel="Retour" />);
+    const confirm = await screen.findByRole('button', { name: 'Confirmer mon arrivée' });
+    fireEvent.click(confirm);
+    expect(await screen.findByRole('button', { name: 'Confirmation…' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmation…' }));
+    expect(stationPatientSessionService.arrive).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Arrivée confirmée')).toBeNull();
+    resolveArrival({ status: 'ARRIVED', appointmentId: 51 });
+    expect(await screen.findByText('Arrivée confirmée')).toBeInTheDocument();
+    expect(stationPatientSessionService.arrive).toHaveBeenCalledTimes(1);
+  });
+
+  it('A3-04 never claims arrival after a rejected write and permits explicit retry', async () => {
+    vi.mocked(stationPatientSessionService.todayAppointments).mockResolvedValue({
+      status: 'single', staffActionRequired: false,
+      appointments: [{ appointmentId: 52, datetimeStart: '2026-10-25T10:30:00', durationMinutes: 30, schedulingType: 'EXACT_TIME', status: 'CONFIRMÉ' }],
+    });
+    vi.mocked(stationPatientSessionService.arrive)
+      .mockRejectedValueOnce(new Error('network offline'))
+      .mockResolvedValueOnce({ status: 'ARRIVED', appointmentId: 52 });
+    render(<StationAppointmentArrival sessionId="a3-retry-synthetic" displayName="Patient fictif" onLeave={vi.fn()} backLabel="Retour" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmer mon arrivée' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Arrivée non confirmée');
+    expect(screen.queryByText('Arrivée confirmée')).toBeNull();
+    expect(stationPatientSessionService.arrive).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer mon arrivée' }));
+    expect(await screen.findByText('Arrivée confirmée')).toBeInTheDocument();
+    expect(stationPatientSessionService.arrive).toHaveBeenCalledTimes(2);
+  });
+
 });
