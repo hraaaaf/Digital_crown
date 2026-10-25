@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StationAppointmentArrival } from './StationAppointmentArrival';
 import { stationPatientSessionService } from '../../services/stationPatientSession';
@@ -171,6 +171,56 @@ describe('StationAppointmentArrival V1.5-03.4', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer mon arrivée' }));
     expect(await screen.findByText('Arrivée confirmée')).toBeInTheDocument();
     expect(stationPatientSessionService.arrive).toHaveBeenCalledTimes(2);
+  });
+
+  it('A3-11 does not let a late previous-session appointment response replace the new patient session', async () => {
+    let resolveOld!: (value: Awaited<ReturnType<typeof stationPatientSessionService.todayAppointments>>) => void;
+    const old = new Promise<Awaited<ReturnType<typeof stationPatientSessionService.todayAppointments>>>(resolve => { resolveOld = resolve; });
+    vi.mocked(stationPatientSessionService.todayAppointments).mockImplementation(session =>
+      session === 'session-old'
+        ? old
+        : Promise.resolve({
+            status: 'single', staffActionRequired: false,
+            appointments: [{ appointmentId: 74, datetimeStart: '2026-10-25T09:40:00', durationMinutes: 30, schedulingType: 'EXACT_TIME', status: 'CONFIRMÉ' }],
+          }),
+    );
+    const show = (sessionId: string) => <StationAppointmentArrival sessionId={sessionId} displayName="Patient fictif" onLeave={vi.fn()} backLabel="Retour" />;
+    const view = render(show('session-old'));
+    view.rerender(show('session-new'));
+    expect(await screen.findByRole('button', { name: 'Confirmer mon arrivée' })).toBeEnabled();
+    await act(async () => {
+      resolveOld({ status: 'none', staffActionRequired: false, appointments: [] });
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('button', { name: 'Confirmer mon arrivée' })).toBeEnabled();
+    expect(screen.queryByText('Aucun rendez-vous retrouvé aujourd’hui')).toBeNull();
+    expect(stationPatientSessionService.requestStaffAssistance).not.toHaveBeenCalled();
+  });
+
+  it('A3-11 ignores a late arrival acknowledgement after changing the patient session', async () => {
+    let releaseArrival!: (value: { status: 'ARRIVED'; appointmentId: number }) => void;
+    vi.mocked(stationPatientSessionService.arrive).mockReturnValue(
+      new Promise(resolve => { releaseArrival = resolve; }),
+    );
+    vi.mocked(stationPatientSessionService.todayAppointments).mockImplementation(session => Promise.resolve({
+      status: 'single', staffActionRequired: false,
+      appointments: [{
+        appointmentId: session === 'session-1' ? 71 : 72,
+        datetimeStart: '2026-10-25T09:40:00', durationMinutes: 30, schedulingType: 'EXACT_TIME', status: 'CONFIRMÉ',
+      }],
+    }));
+    const show = (sessionId: string) => <StationAppointmentArrival sessionId={sessionId} displayName="Patient fictif" onLeave={vi.fn()} backLabel="Retour" />;
+    const view = render(show('session-1'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmer mon arrivée' }));
+    await waitFor(() => expect(stationPatientSessionService.arrive).toHaveBeenCalledWith('session-1', 71));
+    view.rerender(show('session-2'));
+    expect(await screen.findByRole('button', { name: 'Confirmer mon arrivée' })).toBeEnabled();
+    await act(async () => {
+      releaseArrival({ status: 'ARRIVED', appointmentId: 71 });
+      await Promise.resolve();
+    });
+    expect(screen.queryByText('Arrivée confirmée')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Confirmer mon arrivée' })).toBeEnabled();
   });
 
 });
