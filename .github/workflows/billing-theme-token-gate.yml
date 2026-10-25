@@ -1,0 +1,51 @@
+name: Billing Theme P1 — Semantic Tokens Only (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/billing-semantic-tokens-phase1-20261025
+  pull_request:
+    branches:
+      - master
+    paths:
+      - frontend/src/features/accounting/**
+      - .github/workflows/billing-theme-token-gate.yml
+permissions:
+  contents: read
+jobs:
+  billing-theme:
+    name: Billing semantic roles, accounting behavior, TS and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Theme + accounting controller regression (no clinical HTTP)
+        run: |
+          npx vitest run \
+            src/features/accounting/accountingThemeTokens.phase1.test.ts \
+            src/features/accounting/hooks/useAccountingController.g9Interactive.test.tsx \
+            src/features/multiview/themeTokens.r2.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+      - name: Production build (not deployed)
+        run: npm run build
+      - name: Evidence scope
+        if: success()
+        run: |
+          echo "Billing phase1 token-only / no financial writes / no real patient data." >> "$GITHUB_STEP_SUMMARY"
+          echo "No visual owner gate for proven purely cosmetic role migrations per AGENTS.md." >> "$GITHUB_STEP_SUMMARY"
+          echo "No merge, release, deployment or whole-app theme compliance asserted." >> "$GITHUB_STEP_SUMMARY"
