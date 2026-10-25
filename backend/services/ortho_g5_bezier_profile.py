@@ -10,7 +10,7 @@ from typing import Any
 
 MAX_NODES = 150
 MAX_SAMPLES = 600
-STEP_PIXELS = 5
+STEP_PIXELS = 6
 
 
 class G5BezierRejected(ValueError):
