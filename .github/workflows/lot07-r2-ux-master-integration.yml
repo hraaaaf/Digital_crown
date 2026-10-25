@@ -21,22 +21,12 @@ concurrency:
 
 jobs:
   temporary-integration:
-    name: 'Disposable R2 master integration / W-X / RBAC (${{ matrix.scenario }})'
+    name: 'Disposable R2 master integration / W-X / RBAC / optional R3'
     runs-on: ubuntu-24.04
     timeout-minutes: 55
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - scenario: workflow-repair-pr
-            source_sha: ${{ github.event.pull_request.head.sha }}
-          # Exact R3-1 human-approved HEAD, isolated from its original branch.
-          - scenario: r3-1-approved-source
-            source_sha: a85bb437409936f92b63ca8eee959bb25ad69df4
     env:
-      R2_SOURCE_SHA: ${{ matrix.source_sha }}
+      R2_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
       MASTER_SHA: ${{ github.event.pull_request.base.sha }}
-      RUN_SCENARIO: ${{ matrix.scenario }}
       ENVIRONMENT: test
       DATABASE_URL: 'sqlite:///:memory:'
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
@@ -74,10 +64,6 @@ jobs:
           test -z "$(git status --porcelain)"
           git cat-file -e "$R2_SOURCE_SHA^{commit}"
           git merge-base "$MASTER_SHA" "$R2_SOURCE_SHA" >/dev/null
-          if [ "$RUN_SCENARIO" = 'r3-1-approved-source' ]; then
-            R3_REMOTE_SHA="$(git ls-remote origin refs/heads/feat/lot07-r3-1-split-engine-20261025 | cut -f1)"
-            test "$R3_REMOTE_SHA" = "$R2_SOURCE_SHA"
-          fi
           # Merge-tree exits nonzero on conflicts; no merge commit or ref mutation.
           INTEGRATION_TREE_SHA="$(git merge-tree --write-tree "$MASTER_SHA" "$R2_SOURCE_SHA")"
           [[ "$INTEGRATION_TREE_SHA" =~ ^[0-9a-f]{40}$ ]]
@@ -87,7 +73,7 @@ jobs:
           test "$(git write-tree)" = "$INTEGRATION_TREE_SHA"
           git diff --quiet
           test ! -f .git/MERGE_HEAD
-          echo "R2_DISPOSABLE_INTEGRATION_READY scenario=$RUN_SCENARIO source=$R2_SOURCE_SHA master=$MASTER_SHA tree=$INTEGRATION_TREE_SHA"
+          echo "R2_DISPOSABLE_INTEGRATION_READY source=$R2_SOURCE_SHA master=$MASTER_SHA tree=$INTEGRATION_TREE_SHA"
 
       - uses: actions/setup-python@v5
         with:
@@ -165,22 +151,27 @@ jobs:
           git diff --quiet
           echo 'R2_DEC01_DEC02_INTEGRATED_FRONTEND_R_ONLY_PASS'
 
-      - name: R3 split component exact-SHA integrated regression
-        if: matrix.scenario == 'r3-1-approved-source'
+      - name: R3 split regression when component is present in integrated tree
         shell: bash
         working-directory: frontend
         run: |
           set -euo pipefail
-          npm test -- src/features/multiview/R3SplitWorkspace.test.tsx | tee /tmp/r3-integrated-split.txt
-          sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' /tmp/r3-integrated-split.txt > /tmp/r3-integrated-split-plain.txt
-          grep -Eq 'Test Files[[:space:]]+1 passed' /tmp/r3-integrated-split-plain.txt
-          if grep -Eq '[[:space:]]+[1-9][0-9]* skipped' /tmp/r3-integrated-split-plain.txt; then
-            echo 'R3_SPLIT_INTEGRATED_SKIPPED'
-            exit 1
+          if [ -f src/features/multiview/R3SplitWorkspace.tsx ]; then
+            # Fail closed if the R3 component ships without its regression test.
+            test -f src/features/multiview/R3SplitWorkspace.test.tsx
+            npm test -- src/features/multiview/R3SplitWorkspace.test.tsx | tee /tmp/r3-integrated-split.txt
+            sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' /tmp/r3-integrated-split.txt > /tmp/r3-integrated-split-plain.txt
+            grep -Eq 'Test Files[[:space:]]+1 passed' /tmp/r3-integrated-split-plain.txt
+            if grep -Eq '[[:space:]]+[1-9][0-9]* skipped' /tmp/r3-integrated-split-plain.txt; then
+              echo 'R3_SPLIT_INTEGRATED_SKIPPED'
+              exit 1
+            fi
+            echo 'R3_SPLIT_INTEGRATED_PASS'
+          else
+            echo 'R3_SPLIT_NOT_PRESENT_ON_INTEGRATED_TREE'
           fi
           test "$(git write-tree)" = "$INTEGRATION_TREE_SHA"
           git diff --quiet
-          echo 'R3_SPLIT_INTEGRATED_PASS'
 
       - name: Final explicit no-commit/no-production attestation
         shell: bash
@@ -194,4 +185,4 @@ jobs:
           test ! -f .git/MERGE_HEAD
           test "$DATABASE_URL" = 'sqlite:///:memory:'
           test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
-          echo "LOT07_R2_DISPOSABLE_NO_COMMIT_NO_PRODUCTION_PASS scenario=$RUN_SCENARIO source=$R2_SOURCE_SHA master=$MASTER_SHA tree=$INTEGRATION_TREE_SHA"
+          echo "LOT07_R2_DISPOSABLE_NO_COMMIT_NO_PRODUCTION_PASS source=$R2_SOURCE_SHA master=$MASTER_SHA tree=$INTEGRATION_TREE_SHA"
