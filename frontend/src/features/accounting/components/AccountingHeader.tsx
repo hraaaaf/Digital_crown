@@ -51,14 +51,14 @@ export const AccountingHeader = ({
         </div>
         <div className="bg-success-surface px-6 py-4 rounded-3xl border border-success-border flex flex-col items-end shadow-sm">
           <span className="text-[10px] font-black text-success uppercase tracking-widest mb-1">Total Encaissé</span>
-          <span className="text-2xl font-black text-primary">{totalCollected.toLocaleString('fr-FR')} MAD</span>
+          <span className="text-2xl font-black text-success">{totalCollected.toLocaleString('fr-FR')} MAD</span>
         </div>
       </div>
 
       <button
         onClick={handleExportCsv}
         disabled={exportingCsv || itemsCount === 0}
-        className="flex items-center gap-2 px-5 py-4 bg-primary text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-[1.5rem] font-black uppercase text-[11px] tracking-widest shadow-lg shadow-lg hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
+        className="flex items-center gap-2 px-5 py-4 bg-primary text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-[1.5rem] font-black uppercase text-[11px] tracking-widest shadow-lg hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
       >
         {exportingCsv ? <Loader2 className="animate-spin" size={18} /> : <FileSpreadsheet size={18} />}
         CSV
