@@ -31,6 +31,10 @@ HEX = re.compile(
     r"[:=]\s*['\"]?\s*#[0-9a-fA-F]{3,8}\b"
 )
 CSS_COLOR = re.compile(r"(?<![\w-])(?:rgb|rgba|hsl|hsla)\(\s*\d")
+ARBITRARY = re.compile(
+    r"(?<![\\w/-])(?:[\\w-]+:)*(?:bg|text|border|ring|outline|fill|stroke|"
+    r"from|via|to)-\\[(?:#[0-9a-fA-F]{3,8}|rgba?\\([^]]+|hsla?\\([^]]+)\\]"
+)
 SOURCE_EXTS = (".tsx", ".jsx", ".ts", ".js", ".css")
 TEST_ENDINGS = (
     ".test.ts", ".test.tsx", ".test.js", ".test.jsx",
@@ -66,6 +70,7 @@ def signatures(src: str) -> Counter[str]:
     found = Counter(FIXED.findall(src))
     found.update("literal:" + m.group(0) for m in HEX.finditer(src))
     found.update("function:" + m.group(0) for m in CSS_COLOR.finditer(src))
+    found.update("arbitrary:" + m.group(0) for m in ARBITRARY.finditer(src))
     return found
 
 
@@ -95,6 +100,15 @@ def main() -> int:
         if delta:
             new_violations.append({"file": p, "introduced": dict(delta)})
     all_violations.sort(key=lambda x: x["total"], reverse=True)
+    by_area: dict[str, dict[str, int]] = {}
+    for row in all_violations:
+        parts = Path(row["file"]).parts
+        area = parts[2] + ("/" + parts[3] if len(parts) > 3 and parts[2] == "features" else "")
+        counts = by_area.setdefault(area, {"files": 0, "instances": 0})
+        counts["files"] += 1
+        counts["instances"] += row["total"]
+    areas = [{"area": area, **counts} for area, counts in by_area.items()]
+    areas.sort(key=lambda item: item["instances"], reverse=True)
     tokens_css = (SOURCE / "index.css").read_text(encoding="utf-8")
     for token in (
         "--color-primary", "--color-on-primary", "--color-card",
@@ -117,6 +131,8 @@ def main() -> int:
         "filesWithLegacyDebt": len(all_violations),
         "legacyInstances": sum(v["total"] for v in all_violations),
         "newViolations": new_violations,
+        "remainingLegacyByArea": areas,
+        "globalComplianceProven": not all_violations,
         "largestLegacySources": all_violations[:60],
         "policy": "New UI palette/literal color prohibited. Legacy debt OPEN.",
         "scope": "All tracked frontend/src production TS/TSX/JS/JSX/CSS, excluding tests and test labs.",
