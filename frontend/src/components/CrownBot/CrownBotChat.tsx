@@ -85,25 +85,25 @@ function PendingActionCard({
     : '✅ Confirmer cette action ?';
 
   return (
-    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-[12px]">
-      <p className="text-xs font-bold text-amber-800 mb-2">{label}</p>
+    <div className="mt-4 p-3 bg-warning-surface border border-warning-border rounded-[12px]">
+      <p className="text-xs font-bold text-warning mb-2">{label}</p>
       {rows.length > 0 && (
         <div className="space-y-1 mb-3">
           {rows.map((row, i) => (
             <div key={i} className="flex items-start gap-2 text-xs">
-              <span className="text-amber-600 font-bold w-20 shrink-0">{row.label}</span>
-              <span className="text-slate-700 font-medium">{row.value}</span>
+              <span className="text-warning font-bold w-20 shrink-0">{row.label}</span>
+              <span className="text-text-main font-medium">{row.value}</span>
             </div>
           ))}
         </div>
       )}
       <div className="flex gap-2">
         <button onClick={onConfirm}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-[8px] transition-colors">
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-primary hover:bg-secondary text-on-primary text-xs font-bold rounded-[8px] transition-colors">
           <Check size={14} /> Confirmer
         </button>
         <button onClick={onCancel}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-[8px] transition-colors">
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-input-field hover:bg-input-field text-text-main text-xs font-bold rounded-[8px] transition-colors">
           <XCircle size={14} /> Annuler
         </button>
       </div>
@@ -113,21 +113,21 @@ function PendingActionCard({
 
 function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
   return (
-    <div className="mt-4 rounded-[16px] overflow-hidden border border-amber-200 shadow-lg">
+    <div className="mt-4 rounded-[16px] overflow-hidden border border-warning-border shadow-lg">
       {/* Header gradient */}
-      <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-          <Crown size={14} className="text-white" />
+      <div className="bg-gradient-to-r from-primary to-secondary px-4 py-3 flex items-center gap-2">
+        <div className="w-7 h-7 rounded-full bg-on-primary/20 flex items-center justify-center shrink-0">
+          <Crown size={14} className="text-on-primary" />
         </div>
         <div>
-          <p className="text-white font-black text-xs tracking-wide leading-none">Crown Bot Premium</p>
-          <p className="text-white/75 text-xs mt-0.5">Limite de l’assistant atteinte</p>
+          <p className="text-on-primary font-black text-xs tracking-wide leading-none">Crown Bot Premium</p>
+          <p className="text-on-primary/75 text-xs mt-0.5">Limite de l’assistant atteinte</p>
         </div>
       </div>
 
       {/* Body */}
-      <div className="bg-amber-50 px-4 py-3">
-        <p className="text-amber-900 text-xs font-semibold mb-2 leading-relaxed">
+      <div className="bg-warning-surface px-4 py-3">
+        <p className="text-warning text-xs font-semibold mb-2 leading-relaxed">
           Vous avez utilisé vos <strong>3 échanges</strong> gratuits. Passez à Premium pour des conversations illimitées.
         </p>
         <ul className="space-y-1 mb-3">
@@ -136,8 +136,8 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
             'Mémoire contextuelle étendue',
             'Actions avancées (ordonnances et devis)',
           ].map((item) => (
-            <li key={item} className="flex items-start gap-1.5 text-xs text-amber-800 font-medium">
-              <Sparkles size={10} className="text-amber-500 mt-0.5 shrink-0" />
+            <li key={item} className="flex items-start gap-1.5 text-xs text-warning font-medium">
+              <Sparkles size={10} className="text-warning mt-0.5 shrink-0" />
               {item}
             </li>
           ))}
@@ -145,13 +145,13 @@ function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
         <div className="flex gap-2">
           <a
             href="/settings?tab=license"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black rounded-[8px] transition-all shadow-md shadow-amber-500/30"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-primary to-secondary hover:from-secondary hover:to-primary text-on-primary text-xs font-black rounded-[8px] transition-all shadow-md shadow-elite"
           >
             <Crown size={12} /> Passer à Premium
           </a>
           <button
             onClick={onClose}
-            className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-bold rounded-[8px] transition-colors"
+            className="px-3 py-2 bg-warning-surface hover:bg-warning-border text-warning text-xs font-bold rounded-[8px] transition-colors"
           >
             Plus tard
           </button>
@@ -650,27 +650,27 @@ export function CrownBotChat({
           }
         }}
         className={cn(
-          'absolute left-0 top-0 bottom-0 w-64 bg-slate-50 border-r border-slate-200 z-50 flex flex-col transition-transform duration-300',
+          'absolute left-0 top-0 bottom-0 w-64 bg-background border-r border-border-main z-50 flex flex-col transition-transform duration-300',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}>
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="font-semibold text-slate-700">Historique</h3>
-          <button type="button" ref={historyCloseRef} aria-label="Fermer l'historique Crown Bot" onClick={() => setIsSidebarOpen(false)} className="min-h-11 min-w-11 rounded-md p-2 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
-            <X size={16} className="text-slate-500" />
+        <div className="p-4 border-b border-border-main flex items-center justify-between">
+          <h3 className="font-semibold text-text-main">Historique</h3>
+          <button type="button" ref={historyCloseRef} aria-label="Fermer l'historique Crown Bot" onClick={() => setIsSidebarOpen(false)} className="min-h-11 min-w-11 rounded-md p-2 hover:bg-input-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+            <X size={16} className="text-text-muted" />
           </button>
         </div>
         <div className="p-2">
-          <button onClick={startNewSession} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors">
+          <button onClick={startNewSession} className="w-full flex items-center gap-2 px-3 py-2 bg-card border border-border-main hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors">
             <Plus size={16} /> Nouvelle conversation
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {sessions.length === 0
-            ? <p className="text-xs text-center text-slate-600 mt-4">Aucune conversation</p>
+            ? <p className="text-xs text-center text-text-muted mt-4">Aucune conversation</p>
             : sessions.map(session => (
               <div key={session.id}
                 className={cn('group flex items-center gap-1 p-1 rounded-lg transition-colors',
-                  currentSessionId === session.id ? 'bg-primary/10 text-primary' : 'hover:bg-slate-200 text-slate-700')}
+                  currentSessionId === session.id ? 'bg-primary/10 text-primary' : 'hover:bg-input-field text-text-main')}
               >
                 <button type="button" onClick={() => { void loadSession(session.id); }}
                   aria-label={`Ouvrir la conversation ${session.title}`}
@@ -684,7 +684,7 @@ export function CrownBotChat({
                     }
                   }}
                   aria-label={`Archiver la conversation ${session.title}`}
-                  className="min-h-11 min-w-11 rounded-md p-2 text-slate-500 hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                  className="min-h-11 min-w-11 rounded-md p-2 text-text-muted hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                   <Archive size={14} />
                 </button>
               </div>
@@ -694,22 +694,22 @@ export function CrownBotChat({
       </div>
 
       {/* Header + tabs */}
-      <div className="flex flex-col bg-primary text-white shrink-0">
+      <div className="flex flex-col bg-primary text-on-primary shrink-0">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-3">
-            <button type="button" ref={historyToggleRef} aria-label="Ouvrir l'historique Crown Bot" aria-expanded={isSidebarOpen} onClick={() => setIsSidebarOpen(true)} className="min-h-11 min-w-11 p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+            <button type="button" ref={historyToggleRef} aria-label="Ouvrir l'historique Crown Bot" aria-expanded={isSidebarOpen} onClick={() => setIsSidebarOpen(true)} className="min-h-11 min-w-11 p-2 -ml-2 hover:bg-on-primary/10 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
               <Menu size={18} />
             </button>
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-on-primary/20 flex items-center justify-center">
               <Bot size={18} />
             </div>
             <div>
               <h3 className="font-bold font-outfit text-sm leading-tight">Crown Bot</h3>
-              <p className="text-xs text-white/90">{pageCtx.title}</p>
+              <p className="text-xs text-on-primary/90">{pageCtx.title}</p>
             </div>
           </div>
           {onClose && (
-            <button type="button" aria-label="Fermer Crown Bot" onClick={onClose} className="min-h-11 min-w-11 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+            <button type="button" aria-label="Fermer Crown Bot" onClick={onClose} className="min-h-11 min-w-11 p-2 bg-on-primary/10 hover:bg-on-primary/20 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
               <X size={16} />
             </button>
           )}
@@ -723,12 +723,12 @@ export function CrownBotChat({
             onKeyDown={event => selectTabFromKeyboard(event, 'brain')}
             onClick={() => setActiveTab('brain')}
             className={cn('flex min-h-11 items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
-              activeTab === 'brain' ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/10 hover:text-white')}
+              activeTab === 'brain' ? 'bg-on-primary/20 text-on-primary' : 'text-on-primary/90 hover:bg-on-primary/10 hover:text-on-primary')}
           >
             <BrainCircuit size={15} aria-hidden="true" /> Mémoire contextuelle
             {unreadCount > 0 && (
               <span aria-label={`${unreadCount} nouvelles alertes`}
-                className="ml-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-xs font-bold text-slate-900">
+                className="ml-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-warning-surface px-1 text-xs font-bold text-text-main">
                 {unreadCount}
               </span>
             )}
@@ -739,7 +739,7 @@ export function CrownBotChat({
             onKeyDown={event => selectTabFromKeyboard(event, 'chat')}
             onClick={() => setActiveTab('chat')}
             className={cn('flex min-h-11 items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
-              activeTab === 'chat' ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/10 hover:text-white')}
+              activeTab === 'chat' ? 'bg-on-primary/20 text-on-primary' : 'text-on-primary/90 hover:bg-on-primary/10 hover:text-on-primary')}
           >
             <MessageSquare size={15} aria-hidden="true" /> Chat
           </button>
@@ -749,32 +749,32 @@ export function CrownBotChat({
       {/* ── TAB: CHAT — Bientôt disponible ── */}
       {activeTab === 'chat' && (historyBusy || !!historyError || !!currentSessionId) && (
         <section role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
-          className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
+          className="min-h-0 flex-1 overflow-y-auto bg-background p-4">
           <div role="region" aria-label="Conversation archivée — lecture seule">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
-              <h4 className="text-sm font-bold text-slate-900">Historique · lecture seule</h4>
-              <p className="text-xs text-slate-500">
+              <h4 className="text-sm font-bold text-text-main">Historique · lecture seule</h4>
+              <p className="text-xs text-text-muted">
                 {sessions.find(s => s.id === currentSessionId)?.title || 'Conversation sélectionnée'}
               </p>
             </div>
             <button type="button" onClick={startNewSession}
-              className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800">
+              className="min-h-11 rounded-lg border border-border-main bg-card px-3 text-xs font-semibold text-text-main">
               Retour aux actions
             </button>
           </div>
           {historyBusy && <p role="status">Chargement de la conversation…</p>}
-          {historyError && <p role="alert" className="text-rose-800">{historyError}</p>}
+          {historyError && <p role="alert" className="text-danger">{historyError}</p>}
           {!historyBusy && !historyError && currentSessionId && (
             <ol aria-label="Messages historiques" className="space-y-2">
               {messages.length ? messages.map(message => (
-                <li key={message.id} className="rounded-lg border border-slate-200 bg-white p-3">
-                  <p className="text-xs font-semibold text-slate-600">
+                <li key={message.id} className="rounded-lg border border-border-main bg-card p-3">
+                  <p className="text-xs font-semibold text-text-muted">
                     {message.sender === 'user' ? 'Vous' : 'Crown Bot'}
                   </p>
-                  <p className="whitespace-pre-wrap break-words text-sm text-slate-900">{message.text}</p>
+                  <p className="whitespace-pre-wrap break-words text-sm text-text-main">{message.text}</p>
                 </li>
-              )) : <li className="text-sm text-slate-600">Aucun message dans cette conversation.</li>}
+              )) : <li className="text-sm text-text-muted">Aucun message dans cette conversation.</li>}
             </ol>
           )}
           </div>
@@ -795,31 +795,31 @@ export function CrownBotChat({
       )}
       {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && !zeroLlmPreviewEnabled && (
         <div role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
-          className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
+          className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-background">
           <div className="relative">
-            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner border border-white/60">
+            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner border border-border-main">
               <MessageSquare size={36} className="text-primary/40" />
             </div>
             
           </div>
 
           <div className="text-center space-y-2">
-            <h3 className="font-black text-slate-800 text-sm tracking-tight">Assistant conversationnel</h3>
-            <p className="text-xs text-slate-500 leading-relaxed max-w-[220px]">
+            <h3 className="font-black text-text-main text-sm tracking-tight">Assistant conversationnel</h3>
+            <p className="text-xs text-text-muted leading-relaxed max-w-[220px]">
               Cette fonction n’est pas accessible depuis cet écran.
             </p>
           </div>
 
           <div className="flex flex-col gap-2 w-full max-w-[240px]">
             {['Créer un RDV', 'Résumer un dossier', 'Générer une ordonnance'].map((item) => (
-              <div key={item} className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-200 rounded-xl opacity-40 cursor-not-allowed select-none">
+              <div key={item} className="flex items-center gap-2.5 px-4 py-2.5 bg-card border border-border-main rounded-xl opacity-40 cursor-not-allowed select-none">
                 <Sparkles size={13} className="text-primary shrink-0" />
-                <span className="text-xs font-semibold text-slate-600">{item}</span>
+                <span className="text-xs font-semibold text-text-muted">{item}</span>
               </div>
             ))}
           </div>
 
-          <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">
+          <p className="text-xs text-text-muted font-bold uppercase tracking-widest">
             Assistant Digital Crown
           </p>
         </div>
@@ -828,7 +828,7 @@ export function CrownBotChat({
       {/* ── TAB: GHOST BRAIN ── */}
       {activeTab === 'brain' && (
         <div role="tabpanel" id="cb01-panel-brain" aria-labelledby="cb01-tab-brain"
-          className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50/50">
+          className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-background">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary relative">
@@ -837,7 +837,7 @@ export function CrownBotChat({
               </div>
               <div>
                 <p className="text-xs font-black text-primary uppercase tracking-widest leading-none">Mémoire contextuelle</p>
-                <p className="text-xs text-slate-600 font-bold mt-0.5">Suivi contextuel</p>
+                <p className="text-xs text-text-muted font-bold mt-0.5">Suivi contextuel</p>
               </div>
             </div>
             {unreadCount > 0 && (
@@ -850,11 +850,11 @@ export function CrownBotChat({
           {insights.length > 0 ? insights.map(insight => {
             const quickAction = getQuickAction(insight);
             return (
-              <div key={insight.id} className="p-3 bg-white border border-slate-100 rounded-2xl group hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
+              <div key={insight.id} className="p-3 bg-card border border-border-main rounded-2xl group hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
                 <div className="flex justify-between items-start mb-1">
                   {insight.patient_id ? (
                     <Link to={`/patients/${insight.patient_id}`} onClick={() => onClose?.()}
-                      className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors">
+                      className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-on-primary transition-colors">
                       {insight.insight_type}
                     </Link>
                   ) : (
@@ -862,33 +862,33 @@ export function CrownBotChat({
                       {insight.insight_type}
                     </span>
                   )}
-                  <span className="text-xs text-slate-600 font-bold">
+                  <span className="text-xs text-text-muted font-bold">
                     {new Date(insight.created_at).toLocaleDateString()}
                   </span>
                 </div>
                 {insight.patient_id ? (
                   <Link to={`/patients/${insight.patient_id}`} onClick={() => onClose?.()}
                     aria-label="Ouvrir le dossier patient associé à cette alerte"
-                    className="mt-2 block min-h-11 rounded-md p-2 text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    className="mt-2 block min-h-11 rounded-md p-2 text-text-main hover:bg-input-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                     <p className="text-xs font-medium leading-relaxed">
                       <TypewriterText text={insight.content} delay={8} />
                     </p>
                   </Link>
                 ) : (
                   <div className="mt-2">
-                    <p className="text-xs font-medium text-slate-700 leading-relaxed">
+                    <p className="text-xs font-medium text-text-main leading-relaxed">
                       <TypewriterText text={insight.content} delay={8} />
                     </p>
                   </div>
                 )}
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+                <div className="mt-3 flex items-center justify-between border-t border-border-main pt-2">
                   <button onClick={() => markAsRead(insight.id)}
-                    className="flex min-h-11 items-center gap-1 rounded-md px-2 text-xs font-black text-slate-700 hover:text-green-700 transition-colors uppercase focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                    className="flex min-h-11 items-center gap-1 rounded-md px-2 text-xs font-black text-text-main hover:text-success transition-colors uppercase focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                     <Check size={12} /> Marquer comme lu
                   </button>
                   {quickAction && (
                     <button onClick={quickAction.onClick}
-                      className="flex min-h-11 items-center gap-1.5 text-xs font-black bg-primary/10 text-primary px-3 py-2 rounded-lg hover:bg-primary hover:text-white transition-colors uppercase focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                      className="flex min-h-11 items-center gap-1.5 text-xs font-black bg-primary/10 text-primary px-3 py-2 rounded-lg hover:bg-primary hover:text-on-primary transition-colors uppercase focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                       {quickAction.icon} {quickAction.label}
                     </button>
                   )}
@@ -898,7 +898,7 @@ export function CrownBotChat({
           }) : (
             <div className="text-center py-10 flex flex-col items-center gap-2">
               <Check size={24} className="text-primary/30" />
-              <p className="text-xs font-bold text-slate-600 italic">Aucune nouvelle déduction.</p>
+              <p className="text-xs font-bold text-text-muted italic">Aucune nouvelle déduction.</p>
             </div>
           )}
         </div>
