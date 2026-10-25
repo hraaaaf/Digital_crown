@@ -44,7 +44,7 @@ describe('Agenda phase 1 semantic theme compliance', () => {
   it('preserves the scan-safe QR backdrop as the only fixed white surface', () => {
     const bridge = source('AppointmentMobileBridge.tsx');
     expect(bridge.match(/\bbg-white\b/g) ?? []).toHaveLength(1);
-    expect(bridge).toMatch(/<img src=\{bridge\.qr_code\}[^>]+bg-white[^>]+alt=/);
+    expect(bridge).toMatch(/<img src=\{bridge\.qr_code\}[^>]*alt="QR de pont mobile rendez-vous"[^>]*className="[^"]*bg-white/);
   });
 
   it('retains readonly/sensitive QR and server-derived invitation contracts', () => {
