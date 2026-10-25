@@ -202,4 +202,50 @@ describe('StationWallDisplay', () => {
     expect(await screen.findByText('Affichage momentanément indisponible')).toBeInTheDocument();
     expect(container.querySelector('[data-wall-state="unavailable"]')).toBeInTheDocument();
   });
+  it('A3-08 hides an expired public call without waiting for a server refresh', async () => {
+    vi.useFakeTimers();
+    const now = Date.now();
+    vi.setSystemTime(now);
+    vi.mocked(stationWallDisplayService.snapshot).mockResolvedValue({
+      waitingCount: 1,
+      entries: [{ ticketNumber: 44, identityLabel: 'S. A.' }],
+      currentCall: {
+        ticketNumber: 44,
+        identityLabel: 'S. A.',
+        expiresAt: new Date(now + 1_000).toISOString(),
+      },
+      callTtlSeconds: 1,
+      identityMode: 'initials',
+    });
+    const { container } = render(<StationWallDisplay />);
+    await act(async () => { await Promise.resolve(); });
+    expect(container.querySelector('[data-wall-state="calling"]')).toBeInTheDocument();
+    await act(async () => { vi.advanceTimersByTime(1_500); await Promise.resolve(); });
+    expect(container.querySelector('[data-wall-state="waiting"]')).toBeInTheDocument();
+    expect(screen.queryByText('Patient appelé')).toBeNull();
+    expect(screen.queryByText('N° 44')).toBeNull();
+  });
+
+  it('A3-08 suppresses an old patient call after polling fails, without pretending the waiting room is empty', async () => {
+    vi.useFakeTimers();
+    const now = Date.now();
+    vi.setSystemTime(now);
+    vi.mocked(stationWallDisplayService.snapshot)
+      .mockResolvedValueOnce({
+        waitingCount: 1, entries: [{ ticketNumber: 68, identityLabel: 'C. F.' }],
+        currentCall: { ticketNumber: 68, identityLabel: 'C. F.', expiresAt: new Date(now + 30_000).toISOString() },
+        callTtlSeconds: 30, identityMode: 'initials',
+      })
+      .mockRejectedValueOnce(new Error('offline'));
+    const { container } = render(<StationWallDisplay />);
+    await act(async () => { await Promise.resolve(); });
+    expect(container.querySelector('[data-wall-state="calling"]')).toBeInTheDocument();
+    await act(async () => { vi.advanceTimersByTime(2_000); await Promise.resolve(); });
+    expect(container.querySelector('[data-wall-state="unavailable"]')).toBeInTheDocument();
+    expect(screen.getByText('Affichage momentanément indisponible')).toBeInTheDocument();
+    expect(screen.queryByText('C. F.')).toBeNull();
+    expect(screen.queryByText('Patient appelé')).toBeNull();
+    expect(screen.queryByText('Merci de patienter')).toBeNull();
+  });
+
 });
