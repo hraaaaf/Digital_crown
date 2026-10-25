@@ -25,6 +25,10 @@ on:
       - audit/test_cephalo_facad_robert_p2_matrix.py
       - audit/cephalo_facad_robert_p3_canonical_adapter_probe.py
       - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
+      - audit/cephalo_facad_robert_p4_identity_gate.py
+      - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/fixtures/facad_robert_p4_six_landmark_definition_crosswalk_v1.json
+      - docs/audits/CEPHALO_FACAD_ROBERT_P4_LANDMARK_IDENTITY_GATE.md
       - docs/audits/CEPHALO_FACAD_ROBERT_P3_TYPED_ADAPTER_EVIDENCE.md
       - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
       - audit/fixtures/facad_robert_public_example_20261024_v1.json
@@ -52,6 +56,10 @@ on:
       - audit/test_cephalo_facad_robert_p2_matrix.py
       - audit/cephalo_facad_robert_p3_canonical_adapter_probe.py
       - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
+      - audit/cephalo_facad_robert_p4_identity_gate.py
+      - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/fixtures/facad_robert_p4_six_landmark_definition_crosswalk_v1.json
+      - docs/audits/CEPHALO_FACAD_ROBERT_P4_LANDMARK_IDENTITY_GATE.md
       - docs/audits/CEPHALO_FACAD_ROBERT_P3_TYPED_ADAPTER_EVIDENCE.md
       - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
       - audit/fixtures/facad_robert_public_example_20261024_v1.json
@@ -164,7 +172,7 @@ jobs:
           echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
 
   p3-canonical-adapter-educational:
-    name: P3 two real canonical V2 angles plus typed CRANIOM interincisal construction
+    name: P3/P4 real typed geometry and certified landmark identity gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -185,6 +193,10 @@ jobs:
         run: |
           python -m unittest -v audit.test_cephalo_facad_robert_p3_canonical_adapter_probe
           python -m audit.cephalo_facad_robert_p3_canonical_adapter_probe
+      - name: P4 genuine certified landmark identity projection (reject manual Pog hard alias)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_p4_identity_gate
+          python -m audit.cephalo_facad_robert_p4_identity_gate
       - name: Immutable scientific boundary
         shell: bash
         run: |
@@ -192,4 +204,8 @@ jobs:
           echo "FACAD_P3_CRANIOM_INTERINCISAL_TYPED_CONSTRUCTION=EDUCATIONAL_ONLY" >> "$GITHUB_STEP_SUMMARY"
           echo "FACAD_P3_SAME_TRACE_ANATOMICAL_IDENTITIES=UNVERIFIED" >> "$GITHUB_STEP_SUMMARY"
           echo "FACAD_P3_COMPLETE_CLINICAL_RUNTIME=NOT_EXECUTED" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P4_SOURCE_TERMINOLOGY=6_REVIEWED_IMAGE_PLACEMENTS_0_CERTIFIED" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P4_REAL_IDENTITY_BRIDGE=UNCERTIFIED_POG_HARD_BLOCKED" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P4_CANONICAL_V2_TWO_ANGLES=NOT_COMPUTABLE" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P4_INTERINCISAL_CRANIOM_CONSTRUCTION=EDUCATIONAL_ONLY" >> "$GITHUB_STEP_SUMMARY"
           echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
