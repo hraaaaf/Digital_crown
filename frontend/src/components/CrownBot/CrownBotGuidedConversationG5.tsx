@@ -401,12 +401,12 @@ export function CrownBotGuidedConversationG5({ practitionerId }: { practitionerI
       <div className="shrink-0 border-t border-slate-200 bg-white p-3">
         <div className="flex gap-2 overflow-x-auto pb-2">
           <button type="button" disabled={composerDisabled}
-            onClick={()=>setDraft('Prépare un RDV demain 10h pour Mme Benali contrôle')}
+            onClick={()=>setDraft('Prépare un RDV ')}
             className="min-h-11 shrink-0 rounded-full border border-indigo-200 px-3 text-xs font-semibold">
             Préparer un RDV
           </button>
           <button type="button" disabled={composerDisabled}
-            onClick={()=>setDraft('Statut RDV 32 en fauteuil')}
+            onClick={()=>setDraft('Statut RDV ')}
             className="min-h-11 shrink-0 rounded-full border border-indigo-200 px-3 text-xs font-semibold">
             Changer un statut
           </button>
