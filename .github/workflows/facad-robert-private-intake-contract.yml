@@ -27,6 +27,8 @@ on:
       - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
       - audit/cephalo_facad_robert_p4_identity_gate.py
       - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/cephalo_facad_p8_source_gate.py
+      - audit/test_cephalo_facad_p8_source_gate.py
       - audit/cephalo_facad_p7_canonical_provenance_probe.py
       - audit/test_cephalo_facad_p7_canonical_provenance_probe.py
       - audit/cephalo_facad_p6_identity_review_gate.py
@@ -65,6 +67,8 @@ on:
       - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
       - audit/cephalo_facad_robert_p4_identity_gate.py
       - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/cephalo_facad_p8_source_gate.py
+      - audit/test_cephalo_facad_p8_source_gate.py
       - audit/cephalo_facad_p7_canonical_provenance_probe.py
       - audit/test_cephalo_facad_p7_canonical_provenance_probe.py
       - audit/cephalo_facad_p6_identity_review_gate.py
@@ -193,6 +197,14 @@ jobs:
           echo 'FACAD_P7_PRODUCTION_BRIDGE=EXECUTED_WITH_SYNTHETIC_MANUAL_POG' >> "$GITHUB_STEP_SUMMARY"
           echo 'FACAD_P7_REAL_RADIOGRAPH=NOT_AVAILABLE_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
           echo 'FACAD_P7_UNCERTIFIED_POG_HARD=BLOCKED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'CLINICAL_NO_GO=true' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: P8 source provenance and SHA256 gate — synthetic byte checks only
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_p8_source_gate
+          echo 'FACAD_P8_REAL_SOURCE=NOT_PRESENT_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P8_HASH_MATCH_IS_NOT_SOURCE_AUTHENTICATION=true' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P8_SAME_TRACE=NOT_INDEPENDENTLY_VERIFIED' >> "$GITHUB_STEP_SUMMARY"
           echo 'CLINICAL_NO_GO=true' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Revalidate canonical repository schema without vendor files
