@@ -209,7 +209,8 @@ app=AfterCommitWithhold(actual_app)
         vite_env=os.environ.copy()
         vite_env.update({
             "VITE_CB03_G5_CHAT_LAB": "true",
-            "VITE_CB03_G5_REAL_CHAT_PG": "true",
+            "VITE_CB03_G5_REAL_CHAT_PG": "false",
+            "VITE_CB2_G7_REAL_SQLCIPHER": "true",
             "VITE_CB03_G5_LAB_PRACTITIONER_ID": str(owner_id),
             "VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED": "true",
             "VITE_CROWN_BOT_GUIDED_NLU_ENABLED": "true",
