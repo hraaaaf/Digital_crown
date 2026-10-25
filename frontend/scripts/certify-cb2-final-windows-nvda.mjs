@@ -226,7 +226,13 @@ try {
   await page.getByText('Salma Benali · Dossier S-21').waitFor();
   const confirm=page.getByRole('button',{name:'Confirmer explicitement cette action'});
   if(await confirm.isEnabled())throw Error('NOT_CERTIFIED: default confirmation enabled');
-  // The disabled confirmation is reached from the previous checkbox via Tab.
+  // An intentionally disabled button is skipped in normal keyboard traversal.
+  // Verify the safety lock first, then CHECK (without submitting) and require
+  // actual NVDA speech with the now-enabled button in the tab order.
+  const consent=page.getByRole('checkbox',{name:/J’ai vérifié le patient/});
+  await consent.check();
+  if(!await confirm.isEnabled())throw Error('NOT_CERTIFIED: explicit consent did not enable confirmation');
+  // The enabled confirmation is reached from the previous checkbox via Tab.
   // Both the focus path and the spoken button label must be observed.
   await confirm.focus();
   await nvda.press('Shift+Tab');
@@ -246,8 +252,8 @@ try {
   if(!found.message || !found.send || !found.confirmation)
     throw Error('NOT_CERTIFIED: NVDA did not speak G6 conversation / confirmation');
   await nvda.stop();nvdaStarted=false;
-  await page.getByRole('checkbox',{name:/J’ai vérifié le patient/}).check();
-  if(!await confirm.isEnabled())throw Error('NOT_CERTIFIED: checkbox did not unlock confirmation');
+  if(!await consent.isChecked() || !await confirm.isEnabled())
+    throw Error('NOT_CERTIFIED: consent lost during NVDA spoken acceptance');
   await confirm.click();
   await page.getByText(/Action exécutée et vérifiée · RDV #81/).waitFor();
   if(requests.length!==2 || !requests[0].endsWith('/prepare-appointment') || !requests[1].endsWith('/confirm'))
