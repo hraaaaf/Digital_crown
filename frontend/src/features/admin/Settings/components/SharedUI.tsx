@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 
-export const inputClass = "w-full px-5 py-4 bg-input-field text-text-main border border-border-main rounded-xl text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary transition-all duration-300 font-bold text-text-main";
+export const inputClass = "w-full px-5 py-4 bg-input-field border border-border-main rounded-xl text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary transition-all duration-300 font-bold text-text-main";
 export const labelClass = "text-[10px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1";
 
 interface SettingsSectionProps {
@@ -22,7 +22,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({ title, subtitl
         </div>
       )}
       <div className="min-w-0 max-w-full">
-        <h3 className="break-words [overflow-wrap:anywhere] text-2xl font-black" style={{ color: 'var(--primary)' }}>{title}</h3>
+        <h3 className="break-words [overflow-wrap:anywhere] text-2xl font-black text-primary">{title}</h3>
         {subtitle && <p className="break-words [overflow-wrap:anywhere] text-text-muted text-sm font-medium mt-1">{subtitle}</p>}
       </div>
     </div>
