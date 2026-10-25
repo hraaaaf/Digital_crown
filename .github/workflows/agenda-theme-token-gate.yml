@@ -1,0 +1,50 @@
+name: Agenda Semantic Theme Tokens — Synthetic CI (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/agenda-theme-tokens-phase1-20261025
+  pull_request:
+    branches:
+      - master
+    paths:
+      - frontend/src/features/agenda/**
+      - .github/workflows/agenda-theme-token-gate.yml
+
+permissions:
+  contents: read
+
+jobs:
+  agenda-theme:
+    name: Agenda tokens + TypeScript + regression (no clinical HTTP)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      VITE_CROWN_BOT_CB03_CHAT_ENABLED: "false"
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript and client contracts
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Strict theme regression and existing theme source tests
+        run: npx vitest run src/features/agenda/agendaThemeTokens.phase1.test.ts src/features/multiview/themeTokens.r2.test.ts --maxWorkers=1 --fileParallelism=false
+      - name: Rehearsal production bundle (no Vercel, no flags)
+        run: npm run build
+      - name: Proof limitations
+        if: success()
+        run: |
+          echo "Theme semantics validated statically on synthetic CI only." >> "$GITHUB_STEP_SUMMARY"
+          echo "No browser multi-theme screenshots, no clinical API writes or human visual approval in this job." >> "$GITHUB_STEP_SUMMARY"
+          echo "QR white canvas and transparent modal backdrop are deliberate documented non-theme surfaces." >> "$GITHUB_STEP_SUMMARY"
