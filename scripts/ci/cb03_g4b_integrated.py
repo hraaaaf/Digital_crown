@@ -353,8 +353,12 @@ try:
             page.screenshot(path=str(artifact/"real-pg-lost-ack-uncertain.png"),
                 full_page=True)
             backend=start_backend()
-            page.get_by_role("button",name=re.compile(
-                "Vérifier l’état par identifiant")).click()
+            # The G3 form and genuine G5 chat have DIFFERENT accessible
+            # button names. Check the actual rendered G5 button, never hide
+            # a failed reconciliation by falling back to server-side GET.
+            page.get_by_role("button",name=(
+                "Vérifier l’état (lecture seule)" if G5_CHAT
+                else re.compile("Vérifier l’état par identifiant"))).click()
             page.get_by_text(re.compile(
                 "Reçu retrouvé en lecture seule" if G5_CHAT
                 else "Action exécutée et vérifiée")).wait_for(timeout=25000)
