@@ -310,25 +310,25 @@ export function CrownBotGuidedConversationG5({ practitionerId }: { practitionerI
 
   return (
     <section aria-label="Conversation Crown Bot — actions guidées CB-03"
-      className="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-50 text-slate-900">
+      className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-text-main">
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3" role="log"
         aria-label="Échanges Crown Bot sécurisés" aria-live="polite" aria-relevant="additions">
         {turns.map(turn => (
           <div key={turn.id} className={turn.author === 'user' ? 'flex justify-end' : 'flex justify-start'}>
             <div className={'max-w-[92%] min-w-0 rounded-xl px-3 py-2 text-sm break-words whitespace-pre-wrap ' +
-              (turn.author === 'user' ? 'bg-indigo-700 text-white' :
-                'bg-white border border-slate-200 text-slate-800')}>
+              (turn.author === 'user' ? 'bg-primary text-on-primary' :
+                'bg-card border border-border-main text-text-main')}>
               <span className="sr-only">{turn.author === 'user' ? 'Vous : ' : 'Crown Bot : '}</span>{turn.text}
             </div>
           </div>
         ))}
         {phase?.kind === 'choose' && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2">
+          <div className="rounded-xl border border-warning-border bg-warning-surface p-3 space-y-2">
             <p className="text-xs font-bold">Quel dossier souhaitez-vous utiliser ?</p>
             {phase.candidates.map(p => (
               <button type="button" key={p.id} disabled={busy}
                 onClick={() => { void select(p); }}
-                className="block min-h-11 w-full rounded-lg border border-amber-300 bg-white px-2 text-left text-xs font-medium">
+                className="block min-h-11 w-full rounded-lg border border-warning-border bg-card px-2 text-left text-xs font-medium">
                 {person(p)}
               </button>
             ))}
@@ -337,7 +337,7 @@ export function CrownBotGuidedConversationG5({ practitionerId }: { practitionerI
           </div>
         )}
         {prepared && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2"
+          <div className="rounded-xl border border-warning-border bg-warning-surface p-3 space-y-2"
             aria-label="Récapitulatif vérifié par le serveur">
             <p className="text-sm font-bold">Préparation vérifiée · non exécutée</p>
             <dl className="space-y-1 text-xs">
@@ -364,13 +364,13 @@ export function CrownBotGuidedConversationG5({ practitionerId }: { practitionerI
               <div><dt className="inline font-semibold">Expiration : </dt>
                 <dd className="inline">{prepared.expires_at.slice(0,19).replace('T',' ')} UTC</dd></div>
             </dl>
-            <label className="flex min-h-11 items-start gap-2 rounded-lg bg-white p-2 text-xs font-medium">
+            <label className="flex min-h-11 items-start gap-2 rounded-lg bg-card p-2 text-xs font-medium">
               <input type="checkbox" disabled={busy} checked={checked} onChange={e=>setChecked(e.target.checked)}
                 className="mt-0.5 h-4 w-4 shrink-0"/>
               J’ai vérifié le patient, la date, le rendez-vous et l’opération.
             </label>
             <button type="button" onClick={()=>{ void confirm(); }} disabled={!checked || busy}
-              className="min-h-11 w-full rounded-lg bg-emerald-700 px-2 py-2 text-xs font-bold text-white disabled:opacity-50">
+              className="min-h-11 w-full rounded-lg bg-primary px-2 py-2 text-xs font-bold text-on-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               Confirmer explicitement cette action
             </button>
             <button type="button" disabled={busy} onClick={discard}
@@ -378,36 +378,36 @@ export function CrownBotGuidedConversationG5({ practitionerId }: { practitionerI
           </div>
         )}
         {(phase?.kind === 'uncertain' || phase?.kind === 'finished') && (
-          <div className="rounded-xl border border-slate-300 bg-white p-3 space-y-2">
+          <div className="rounded-xl border border-border-main bg-card p-3 space-y-2">
             <p className="text-xs font-semibold">
               {phase.kind === 'uncertain' ? 'Résultat à réconcilier · ne pas confirmer une deuxième fois'
                 : 'Exécution déjà vérifiée · aucune répétition'}
             </p>
             <p className="text-xs break-all">Identifiant de suivi : {phase.id}</p>
             <button type="button" disabled={busy} onClick={()=>{void reconcile();}}
-              className="min-h-11 w-full rounded-lg border border-indigo-300 bg-indigo-50 p-2 text-xs font-bold text-indigo-900">
+              className="min-h-11 w-full rounded-lg border border-info-border bg-info-surface p-2 text-xs font-bold text-info">
               Vérifier l’état (lecture seule)
             </button>
           </div>
         )}
         {phase?.kind === 'blocked' && <p role="status"
-          className="rounded-lg border border-slate-300 bg-slate-100 p-2 text-xs">
+          className="rounded-lg border border-border-main bg-input-field p-2 text-xs">
           Action terminée sans exécution : {phase.status}
         </p>}
-        {!!error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{error}</p>}
-        {busy && <p role="status" className="text-xs text-slate-600">Vérification en cours…</p>}
+        {!!error && <p role="alert" className="rounded-lg border border-danger-border bg-danger-surface p-2 text-xs text-danger">{error}</p>}
+        {busy && <p role="status" className="text-xs text-text-muted">Vérification en cours…</p>}
         <div ref={bottom}/>
       </div>
-      <div className="shrink-0 border-t border-slate-200 bg-white p-3">
+      <div className="shrink-0 border-t border-border-main bg-card p-3">
         <div className="flex gap-2 overflow-x-auto pb-2">
           <button type="button" disabled={composerDisabled}
             onClick={()=>setDraft('Prépare un RDV ')}
-            className="min-h-11 shrink-0 rounded-full border border-indigo-200 px-3 text-xs font-semibold">
+            className="min-h-11 shrink-0 rounded-full border border-border-main px-3 text-xs font-semibold">
             Préparer un RDV
           </button>
           <button type="button" disabled={composerDisabled}
             onClick={()=>setDraft('Statut RDV ')}
-            className="min-h-11 shrink-0 rounded-full border border-indigo-200 px-3 text-xs font-semibold">
+            className="min-h-11 shrink-0 rounded-full border border-border-main px-3 text-xs font-semibold">
             Changer un statut
           </button>
         </div>
@@ -416,18 +416,18 @@ export function CrownBotGuidedConversationG5({ practitionerId }: { practitionerI
           <textarea id="cb03-g5-input" rows={2} maxLength={160} disabled={composerDisabled}
             value={draft} onChange={e=>setDraft(e.target.value)}
             placeholder="Décrivez votre demande…"
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="min-w-0 flex-1 rounded-lg border border-border-main bg-input-field px-3 py-2 text-sm text-text-main placeholder:text-text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             onKeyDown={e=>{
               if(e.key==='Enter'&&!e.shiftKey){
                 e.preventDefault();send();
               }
             }} />
           <button type="submit" disabled={composerDisabled||!draft.trim()}
-            className="min-h-11 shrink-0 rounded-lg bg-indigo-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
+            className="min-h-11 shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             Envoyer
           </button>
         </form>
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-600">
+        <p className="mt-2 text-[11px] leading-relaxed text-text-muted">
           Pilote déterministe · actions serveur vérifiées · aucun envoi sans confirmation.
         </p>
       </div>
