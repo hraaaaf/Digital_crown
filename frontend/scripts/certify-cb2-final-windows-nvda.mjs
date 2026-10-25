@@ -197,6 +197,15 @@ try {
   try {await nvda.perform(nvda.keyboardCommands.exitFocusMode);}catch {}
   await nvda.press('Control+Home');
   await sleep(300);
+  // Navigate the real controls with NVDA's own keyboard path, not a detached
+  // virtual-buffer walk which may get stuck reading the header repeatedly.
+  await controls.send.focus();
+  await nvda.press('Shift+Tab');
+  await sleep(400);
+  await collect('keyboard-message');
+  await nvda.press('Tab');
+  await sleep(400);
+  await collect('keyboard-send');
   await collect('home');
   for(let i=0;i<26 && !Object.values(found).every(Boolean);i++){
     try {await nvda.next();}
@@ -217,6 +226,15 @@ try {
   await page.getByText('Salma Benali · Dossier S-21').waitFor();
   const confirm=page.getByRole('button',{name:'Confirmer explicitement cette action'});
   if(await confirm.isEnabled())throw Error('NOT_CERTIFIED: default confirmation enabled');
+  // The disabled confirmation is reached from the previous checkbox via Tab.
+  // Both the focus path and the spoken button label must be observed.
+  await confirm.focus();
+  await nvda.press('Shift+Tab');
+  await sleep(350);
+  await collect('keyboard-checkbox');
+  await nvda.press('Tab');
+  await sleep(350);
+  await collect('keyboard-confirmation');
   await collect('prepared');
   for(let i=0;i<45 && !found.confirmation;i++){
     try{await nvda.next();}catch{break;}
