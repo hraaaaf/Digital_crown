@@ -395,7 +395,9 @@ finally:
         except subprocess.TimeoutExpired:vite.kill();vite.wait()
 
 report={
-    "schema":"CB03_G4B_REAL_FAILURE_INTEGRATED_HTTP_PG_V1",
+    "schema":"CB03_G5_REAL_CHAT_FAILURE_INTEGRATED_HTTP_PG_V1" if G5_CHAT
+      else "CB03_G4B_REAL_FAILURE_INTEGRATED_HTTP_PG_V1",
+    "realCrownBotChat":G5_CHAT,
     "head":HEAD,"source":"exact-head-isolated-CI",
     "environment":"DOCKER_LOCALHOST_PG_ALembic_REAL_UVICORN_LINUX_CHROMIUM",
     "realOsSigkill":True,"realTcpLoss":True,"noMockedClinicalHttp":True,
@@ -412,4 +414,5 @@ report={
 out=Path("artifacts/cb03-g4b/real-failure-integrated-report.json")
 out.parent.mkdir(parents=True,exist_ok=True)
 out.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
-print("CB03_G4B_REAL_FAILURE_AND_INTEGRATED_PASS",json.dumps(report))
+print("CB03_G5_REAL_CROWNBOTCHAT_PG_SIGKILL_PASS" if G5_CHAT
+      else "CB03_G4B_REAL_FAILURE_AND_INTEGRATED_PASS",json.dumps(report))
