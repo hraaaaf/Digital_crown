@@ -47,6 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/ci/theme_token_policy.py
+          python -m unittest scripts.ci.test_theme_token_policy -v
           python scripts/ci/theme_token_policy.py --base "$THEME_BASE_SHA"
       - name: Upload inventory (legacy debt is not zero)
         if: always()
