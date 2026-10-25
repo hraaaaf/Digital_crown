@@ -83,6 +83,10 @@ async function kioskFlow(browser,kiosk,width=430){
   await page.goto(origin+'/station',{waitUntil:'domcontentloaded'});
   const choose=page.locator('[data-station-action="appointment"]');
   await choose.waitFor({state:'visible',timeout:45000});
+  // UX-only: a patient must never see a technical secure-station badge.
+  assert(await page.getByText('Station sécurisée',{exact:true}).count()===0,
+    'patient-facing secure-station technical badge still visible');
+  evidence.cases.patient_security_badge_absent=true;
   const createdResponse=page.waitForResponse(r=>
     new URL(r.url()).pathname==='/api/workstation/patient-session'
     && r.request().method()==='POST'
