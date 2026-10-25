@@ -144,7 +144,7 @@ try:
             assert style["card"]["background"] == style["expectedWarning"],(theme,style)
             # Independent WCAG normal-sized foreground contrast (>= 4.5:1).
             def luminance(rgb):
-                items=[int(x) for x in re.findall(r"\\d+",rgb)[:3]]
+                items=[int(x) for x in re.findall(r"\d+",rgb)[:3]]
                 assert len(items)==3,(theme,rgb)
                 channel=[v/255 for v in items]
                 channel=[c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4 for c in channel]
