@@ -54,4 +54,32 @@ describe('Digital Crown shared UI semantic theme contract', () => {
       expect(css).toContain("[data-theme='" + name + "']");
     }
   });
+  it('primary action foreground meets WCAG AA in all eight canonical themes', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
+    const root = css.match(/^:root\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
+    expect(root).not.toBe('');
+    const value = (block: string, name: string) =>
+      block.match(new RegExp('--' + name + '\\s*:\\s*([^;]+);'))?.[1].trim();
+    const luminance = (hex: string) => {
+      expect(hex).toMatch(/^#[0-9a-f]{6}$/i);
+      const c = hex.slice(1).match(/../g)!.map(v => parseInt(v, 16) / 255)
+        .map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    for (const theme of ['default', 'emerald', 'rose', 'ocean', 'graphite',
+                         'prestige', 'dark', 'high-contrast']) {
+      const match = theme === 'default'
+        ? null
+        : css.match(new RegExp("^\\[data-theme='" + theme + "'\\]\\s*\\{([\\s\\S]*?)^\\}", 'm'));
+      const block = match?.[1] ?? root;
+      const primary = value(block, 'primary') ?? value(root, 'primary')!;
+      const foreground = value(block, 'text-on-primary') ?? value(root, 'text-on-primary')!;
+      const a = luminance(primary);
+      const b = luminance(foreground);
+      const contrast = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      expect(contrast, 'Insufficient AA brand-button contrast for ' + theme)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
 });
