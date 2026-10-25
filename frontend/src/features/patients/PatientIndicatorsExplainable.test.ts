@@ -25,7 +25,10 @@ describe('patient indicators explainable source contracts', () => {
 
   it('shows the NBA reason and removes the dead FlashSummary mount', () => {
     const details = read('./PatientDetailsInner.tsx');
-    expect(details).toContain('res.data.nba.message');
+    expect(details).toContain("const message = typeof tip.message === 'string' ? tip.message : '';");
+    expect(details).toContain('if (cancelled || !res.data?.nba) return;');
+    expect(details).toContain('setRadiologyAdvice({ patientId: id, title, message, action });');
+    expect(details).toContain('{radiologyAdvice?.message}');
     expect(details).not.toContain('<FlashSummary');
     expect(details).not.toContain("import { FlashSummary }");
   });
