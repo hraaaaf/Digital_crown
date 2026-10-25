@@ -13,8 +13,6 @@ import type { ValidationError } from '../useDocumentGenerator';
 import { DrugRow } from './DrugRow';
 import { PrescriptionQuickAccessBar } from './PrescriptionQuickAccessBar';
 import { ProcedureSafetyNotice } from './ProcedureSafetyNotice';
-import { PatientClinicalContextPanel } from './PatientClinicalContextPanel';
-import { IEProphylaxisRulePanel } from './IEProphylaxisRulePanel';
 import type { DrugItem } from './prescriptionTypes';
 
 export interface PrescriptionAgenticStudioProps {
@@ -198,7 +196,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       </section>
 
       <ProcedureSafetyNotice patientId={patientId} presentationId={iePresentationId} />
-      <PatientClinicalContextPanel patientId={Number(patientId)} />
 
       <PrescriptionQuickAccessBar
         drugs={drugs}
@@ -233,11 +230,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           />
         ))}
       </div>
-
-      <IEProphylaxisRulePanel
-        patientId={Number(patientId)}
-        drug={drugs.find(drug => drug.catalogPresentationId === iePresentationId)}
-      />
 
       <button
         type="button"
