@@ -295,6 +295,20 @@ try{
       &&finalData.contours.length===6,
       'G5_REAL_BROWSER_EXPLICIT_DENTIST_TEST_APPROVAL');
     await snap('g5-03-six-browser-strokes-test-approved');
+    // Prove the real browser PDF action before the reload. After reload,
+    // the clinician-notes fingerprint deliberately fails closed; do not
+    // bypass it or silently re-save the study (which can revoke G5).
+    const [preV2BrowserDownload]=await Promise.all([
+      page.waitForEvent('download',{timeout:40000}),
+      page.getByRole('button',{name:'3. Exporter le PDF approuvé'}).click(),
+    ]);
+    const preV2BrowserPdfFile=path.join(out,'V5-Bilan-ODF-Pre-V2-Browser-LAB.pdf');
+    await preV2BrowserDownload.saveAs(preV2BrowserPdfFile);
+    const preV2BrowserPdf=await fs.readFile(preV2BrowserPdfFile);
+    check(preV2BrowserPdf.subarray(0,4).toString('latin1')==='%PDF',
+      'SIGNED_NOTES_REAL_PDF_DOWNLOADED');
+    check(preV2BrowserPdf.length>200000,'G5_V1_BROWSER_PDF_NONEMPTY');
+    report.g5_browser_pre_v2_pdf=path.basename(preV2BrowserPdfFile);
     // G5 V2 E2E: synthetic Bézier nodes are not research/clinical contours.
     // Follow the ACTUAL API save/read/sign/revoke cycle, not only pure unit tests.
     const synthNodes=[
@@ -435,14 +449,38 @@ try{
   check(deniedAnon.status()===401,'ANONYMOUS_NOTES_ACCESS_REFUSED');
   await anonymous.dispose();
 
-  // Browser download is triggered by the REAL "Exporter le PDF approuvé" button.
-  const downloadPromise=page.waitForEvent('download',{timeout:40000});
-  await page.getByRole('button',{name:'3. Exporter le PDF approuvé'}).click();
-  const download=await downloadPromise;
   const pdfFile=path.join(out,'V5-Bilan-ODF-Classe-I-LAB-1280.pdf');
-  await download.saveAs(pdfFile);
+  if(process.env.ODF_G5_E2E_SYNTHETIC_STROKES==='1'){
+    // Reload invalidates the browser-only clinician-notes fingerprint. This
+    // is deliberate: the UI must refuse export until an explicit re-sign.
+    // We have already proven live browser PDF download *before* the reload.
+    const uiPdfButton=page.getByRole('button',{name:'3. Exporter le PDF approuvé'});
+    check(await uiPdfButton.isDisabled()
+      &&await page.getByText(/Après modification ou rechargement du dossier/).isVisible(),
+      'G5_V2_RELOADED_NOTES_BROWSER_PDF_FAIL_CLOSED');
+    // Now verify the actual signed V2 PDF using the authenticated app API,
+    // preserving the source revision and avoiding a silentSave mutation.
+    const finalPdfResponse=await api.post('/api/patients/'+ids.patient_id+'/pdf',{
+      headers,data:{analysis_id:ids.older_id,
+        expected_revision:scientific.revision,archive:false},
+    });
+    const pdfHeaders=finalPdfResponse.headers();
+    check(finalPdfResponse.status()===200
+      &&pdfHeaders['x-cephalo-analysis-id']===String(ids.older_id)
+      &&pdfHeaders['x-cephalo-revision']===String(scientific.revision),
+      'G5_V2_SIGNED_PDF_API_SOURCE_AND_REVISION_BOUND');
+    await fs.writeFile(pdfFile,await finalPdfResponse.body());
+  }else{
+    // Non-G5 flows still prove a real browser-triggered PDF download.
+    const [download]=await Promise.all([
+      page.waitForEvent('download',{timeout:40000}),
+      page.getByRole('button',{name:'3. Exporter le PDF approuvé'}).click(),
+    ]);
+    await download.saveAs(pdfFile);
+    check(true,'SIGNED_NOTES_REAL_PDF_DOWNLOADED');
+  }
   const pdf=await fs.readFile(pdfFile);
-  check(pdf.subarray(0,4).toString('latin1')==='%PDF','SIGNED_NOTES_REAL_PDF_DOWNLOADED');
+  check(pdf.subarray(0,4).toString('latin1')==='%PDF','SIGNED_NOTES_REAL_PDF_VALID');
   if(process.env.ODF_G5_E2E_SYNTHETIC_STROKES==='1'){
     check(pdf.length>200000,'G5_REAL_PDF_TWO_VIEWS_NONEMPTY');
     report.g5.pdf=path.basename(pdfFile);
