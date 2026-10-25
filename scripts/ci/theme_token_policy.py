@@ -32,8 +32,8 @@ HEX = re.compile(
 )
 CSS_COLOR = re.compile(r"(?<![\w-])(?:rgb|rgba|hsl|hsla)\(\s*\d")
 ARBITRARY = re.compile(
-    r"(?<![\\w/-])(?:[\\w-]+:)*(?:bg|text|border|ring|outline|fill|stroke|"
-    r"from|via|to)-\\[(?:#[0-9a-fA-F]{3,8}|rgba?\\([^]]+|hsla?\\([^]]+)\\]"
+    r"(?<![\w/-])(?:[\w-]+:)*(?:bg|text|border|ring|outline|fill|stroke|"
+    r"from|via|to)-\[(?:#[0-9a-fA-F]{3,8}|rgba?\([^]]+|hsla?\([^]]+)\]"
 )
 SOURCE_EXTS = (".tsx", ".jsx", ".ts", ".js", ".css")
 TEST_ENDINGS = (
