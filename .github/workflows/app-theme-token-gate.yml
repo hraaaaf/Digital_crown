@@ -82,4 +82,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx vitest run src/features/multiview/themeTokens.r2.test.ts --maxWorkers=1 --fileParallelism=false
+          npx vitest run src/features/multiview/themeTokens.r2.test.ts src/components/themeSharedSurfaces.policy.test.ts --maxWorkers=1 --fileParallelism=false
