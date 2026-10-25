@@ -133,6 +133,23 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.queryByTestId('suivi-live')).toBeNull();
   });
 
+  it('R3-1 opt-in mounts an interactive split over the SAME verified real read-only modules',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()} enableR3Split/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    const sep=screen.getByRole('separator',{name:'Séparateur vertical des panneaux'});
+    expect(sep.getAttribute('aria-valuenow')).toBe('50');
+    fireEvent.keyDown(sep,{key:'ArrowRight'});
+    expect(sep.getAttribute('aria-valuenow')).toBe('55');
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    fireEvent.change(select,{target:{value:'dossier-media-2rows'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByRole('separator',{name:'Séparateur horizontal des panneaux'})).toBeTruthy();
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+  });
+
   it('does not offer longitudinal comparison without the canonical cephalo permission',async()=>{
     const actor=user({patients:true,cephalo:false});
     useAuthStore.setState({user:actor,isAuthenticated:true});
