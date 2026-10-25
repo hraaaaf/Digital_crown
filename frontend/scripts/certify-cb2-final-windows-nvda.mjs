@@ -1,7 +1,7 @@
 /**
- * CB-03 G4 Windows hosted native Chrome zoom + real NVDA speech.
+ * CB2 G6 Windows hosted native Chrome zoom + real NVDA speech.
  *
- * Standalone G6 React lab with synthetic INTERCEPTED responses. The only
+ * Real MainLayout G6 synthetic lab with synthetic INTERCEPTED responses. The only
  * certification scope here is native zoom/keyboard/NVDA accessibility of the
  * real G6 component; it is NOT a human Windows clinic rehearsal.
  */
@@ -37,7 +37,7 @@ const report = {
   schema:'CB2_G6_WINDOWS_REAL_NVDA_NATIVE_ZOOM_V1',
   sourceHead:HEAD, realNvdaSpeech:false, nativeZoomAtSpeech:null,
   nativeZoomMethod:'extension_chrome_tabs_setZoom_getZoom',
-  sourceScope:'ISOLATED_REAL_REACT_G6_MOCKED_BACKEND',
+  sourceScope:'REAL_MAINLAYOUT_G5_CHAT_MOCKED_HTTP_SYNTHETIC',
   screenshots:[], spokenPhrases:[], controls:{}, keyboard:{},
   allFlagsOffExceptDisposableLab:true, status:'NOT_CERTIFIED', error:null,
 };
@@ -105,8 +105,8 @@ try {
       VITE_CROWN_BOT_GUIDED_NLU_ENABLED:'true',
       VITE_CROWN_BOT_CB03_CHAT_ENABLED:'true',
       VITE_CROWN_BOT_ASSOCIATE_SIDECAR_ENABLED:'false',
-      VITE_CROWN_BOT_CB03_G6_ENABLED:'true',
-      VITE_CB2_G6_NATIVE_A11Y_LAB:'true'},
+      VITE_CROWN_BOT_CB03_G3_ENABLED:'true',
+      VITE_CB03_G4_NATIVE_A11Y_LAB:'true'},
     stdio:['ignore','pipe','pipe'],
   });
   server.stdout.on('data',d=>process.stdout.write('[G6-Vite] '+String(d)));
