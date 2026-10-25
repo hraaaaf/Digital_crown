@@ -8,6 +8,7 @@ import { api } from '../../services/api';
 import { PatientMediaTimeline } from '../patients/components/PatientMediaTimeline';
 import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
 import { StudioLayoutFrame } from './StudioLayoutFrame';
+import { R3SplitWorkspace } from './R3SplitWorkspace';
 import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
 import { geometryGridStyle, geometrySlotStyle } from './studioGeometry';
@@ -22,6 +23,11 @@ export interface MultiViewPatient {
 
 /** Explicit DEV-only opt-in. Importing this module never enables the lab in production. */
 export function isCabinetMultiViewLabEnabled(dev: boolean, flag: string | undefined): boolean {
+  return dev === true && flag === '1';
+}
+
+/** R3-1 is a second independent DEV-only opt-in, never inferred from R2. */
+export function isR3SplitLabEnabled(dev: boolean, flag: string | undefined): boolean {
   return dev === true && flag === '1';
 }
 
@@ -64,10 +70,12 @@ function tenantKey(user: AppUser | null): string | null {
  * Reuses ONE authenticated read-only PatientMediaTimeline and optional existing longitudinal
  * comparison; never mounts arbitrary module names or second CephaloWorkspace.
  */
-export function CabinetMultiViewLab({patient, routePatientId, user}: {
+export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Split = false}: {
   patient: MultiViewPatient;
   routePatientId: string | undefined;
   user: AppUser | null;
+  /** R3-1 opt-in development pilot only. R2 production path is untouched. */
+  enableR3Split?: boolean;
 }) {
   const desktop = useSyncExternalStore(desktopSubscribe, desktopSnapshot, () => false);
   const [workstationProof,setWorkstationProof] = useState<{key:string;id:string}|null>(null);
@@ -77,6 +85,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
   const [draftId,setDraftId] = useState(PILOT_LAYOUTS[0].id);
   const [preview,setPreview] = useState(false);
   const [ratio,setRatio] = useState(50);
+  const [splitResetEpoch,setSplitResetEpoch] = useState(0);
   const [exchanged,setExchanged] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -270,12 +279,12 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
           </select>
           <button type="button" onClick={()=>setPreview(true)} className="rounded-md border px-3 py-2 text-xs">Aperçu</button>
           <button type="button" disabled={!preview || !canApply}
-            onClick={()=>{setAppliedId(draft.id);setRatio(50);setExchanged(false);setPreview(false);}}
+            onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
             className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">Appliquer</button>
           <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
             className="rounded-md border px-3 py-2 text-xs">Annuler</button>
           <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
-            setExchanged(false);setRatio(50);setPreview(false);}}
+            setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
             className="rounded-md border px-3 py-2 text-xs">Réinitialiser</button>
         </div>
         {preview && (
@@ -306,7 +315,8 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
             onClick={()=>setExchanged(value=>!value)} className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">
             <ArrowLeftRight size={15} className="mr-1 inline-block align-middle"/> Échanger les vues
           </button>
-          {(applied.geometry==='two-columns' || applied.geometry==='hero-two') &&
+          {(!enableR3Split || !import.meta.env.DEV || applied.geometry==='hero-two') &&
+             (applied.geometry==='two-columns' || applied.geometry==='hero-two') &&
             <label className="flex items-center gap-2 text-xs">
               Largeur du panneau principal
               <input type="range" min={37} max={63} step={1} value={ratio}
@@ -328,8 +338,11 @@ export function CabinetMultiViewLab({patient, routePatientId, user}: {
             className="min-w-0 rounded-xl border border-border-main bg-card-bg p-2">
             <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>
           </section>
-        : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
-            renderSlot={renderSlot}/>} 
+        : (enableR3Split && import.meta.env.DEV &&
+            (mounted.geometry==='two-columns' || mounted.geometry==='two-rows')
+          ? <R3SplitWorkspace key={mounted.id + ':' + splitResetEpoch} layout={mounted} context={context} renderSlot={renderSlot}/>
+          : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
+              renderSlot={renderSlot}/>)} 
     </div>
   );
 }

@@ -15,6 +15,7 @@ const literalColor = /#[0-9a-f]{3,8}\b|\brgba?\s*\(\s*(?:\d|\.\d)/gi;
 describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
   it.each([
     'features/multiview/CabinetMultiViewLab.tsx',
+    'features/multiview/R3SplitWorkspace.tsx',
     'features/multiview/HistoricBilanReadonlyPanel.tsx',
   ])('%s has only semantic theme classes', file => {
     const content = source(file);
@@ -31,6 +32,26 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(content.match(literalColor) ?? []).toEqual([]);
     expect(content).toContain('var(--');
     expect(content).not.toMatch(/(?:background|color|border-color):\s*\b(?:blue|white|black|red|gray|grey)\b/i);
+  });
+
+  it('R3-1 uses semantic inherited theme roles for every visual surface and focus state', () => {
+    const code = source('features/multiview/R3SplitWorkspace.tsx');
+    const theme = source('index.css');
+    expect(code.match(fixedPalette) ?? []).toEqual([]);
+    expect(code.match(literalColor) ?? []).toEqual([]);
+    for (const cls of ['bg-medical-pearl', 'bg-card', 'text-text-main', 'text-text-muted',
+      'border-border-main', 'bg-border-hover', 'focus-visible:outline-primary']) {
+      expect(code).toContain(cls);
+    }
+    for (const semantic of ['--color-medical-pearl: var(--bg-medical-pearl)',
+      '--color-card: var(--card-bg)', '--color-text-main: var(--text-main)',
+      '--color-text-muted: var(--text-muted)', '--color-border-main: var(--border-color)',
+      '--color-border-hover: var(--border-hover)', '--color-primary: var(--primary)']) {
+      expect(theme).toContain(semantic);
+    }
+    for (const name of ['emerald','rose','ocean','graphite','prestige','dark','high-contrast']) {
+      expect(theme).toContain("[data-theme='" + name + "']");
+    }
   });
 
   it('new clinical media empty states are theme-derived', () => {
