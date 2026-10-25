@@ -47,7 +47,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             isBot ? 'bg-card text-text-main border border-border-main rounded-tl-none' : 
                     'bg-primary text-on-primary rounded-tr-none'
           }`}>
-            <div className="max-w-none">
+            <div className="prose prose-sm max-w-none">
               <ReactMarkdown
                 components={{
                   p: ({node, ...props}) => <p className="m-0" {...props} />,
