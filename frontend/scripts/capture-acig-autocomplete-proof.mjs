@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
+import { enrollT2Workstation } from './t2-workstation-session.mjs';
 
 const outDir = path.resolve('../artifacts/ordonnance-fidelity-v3');
 fs.mkdirSync(outDir, { recursive: true });
@@ -11,13 +12,21 @@ const api = await request.newContext({ baseURL: 'http://127.0.0.1:8005' });
 const login = await api.post('/api/auth/login', { form: { username: 't2-browser@cabinet.ma', password } });
 if (!login.ok()) throw new Error(`Login failed: ${login.status()} ${await login.text()}`);
 const tokens = await login.json();
+const station = await enrollT2Workstation(api, tokens.access_token, password);
+const stationCookies = station.cookies.filter(cookie => cookie.name === 'dc_workstation');
+if (stationCookies.length !== 1 || stationCookies[0].httpOnly !== true) {
+  throw new Error('T2 workstation enrollment must yield one HTTP-only identity');
+}
 const patients = await api.get('/api/patients', { headers: { Authorization: `Bearer ${tokens.access_token}` } });
 if (!patients.ok()) throw new Error(`Patients fetch failed: ${patients.status()} ${await patients.text()}`);
 const patient = (await patients.json()).find(p => p.numero_dossier === 'T2-0001');
 if (!patient) throw new Error('T2 certification patient not found');
 
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+const context = await browser.newContext({
+  viewport: { width: 1280, height: 900 }, colorScheme: 'light',
+  storageState: { cookies: stationCookies, origins: [] },
+});
 const page = await context.newPage();
 const pageErrors = [];
 page.on('pageerror', error => pageErrors.push(String(error)));
