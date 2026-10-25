@@ -102,6 +102,25 @@ try {
   if(await page.getByRole('button',{name:'Confirmer explicitement cette action'}).count())
     throw Error('NOT_CERTIFIED: repeatable confirmation');
   await page.screenshot({path:path.join(out,'g6-mainlayout-receipt.png'),fullPage:true});
+  // FUE: after the acknowledged booking, dismiss the real overlay and recover
+  // the launcher. Reopen from a narrow viewport; the clinical action must not
+  // repeat merely because the assistant was reopened or the screen resized.
+  const realClose=page.getByRole('button',{name:/Fermer Crown Bot|Fermer CrownBot/}).first();
+  await realClose.click();
+  await page.locator('[data-ux1-c-crownbot-overlay]').waitFor({state:'detached'});
+  await page.setViewportSize({width:390,height:844});
+  const narrowLauncher=page.locator('[data-ux1-c-crownbot-floating] button[aria-label="Ouvrir CrownBot"]');
+  await narrowLauncher.waitFor({state:'visible'});
+  await narrowLauncher.focus();
+  if(!await narrowLauncher.evaluate(el=>document.activeElement===el))
+    throw Error('NOT_CERTIFIED: keyboard cannot focus the real launcher');
+  await page.keyboard.press('Enter');
+  await chat.waitFor({state:'visible'});
+  const bounds=await chat.boundingBox();
+  if(!bounds||bounds.x<0||bounds.x+bounds.width>391)
+    throw Error('NOT_CERTIFIED: chat outside 390px mobile viewport');
+  await page.screenshot({path:path.join(out,'fue-mobile-390-reopened.png'),fullPage:true});
+  if(requests.length!==2)throw Error('NOT_CERTIFIED: FUE reopen repeated an action');
   if(requests.length!==2 || requests[0].path!=='/api/bot/guided/prepare-appointment'
       || requests[1].path!=='/api/bot/guided/confirm')
     throw Error('NOT_CERTIFIED: wrong/duplicate G1-G2 request pattern');
@@ -111,7 +130,8 @@ try {
     realMainLayout:true,realBackend:false,realDatabase:false,
     clinicalHttpIntercepted:true,clinicalWrite:false,
     flagsOutsideLab:false,posts:requests,blockedImplicitConfirm:true,
-    screenshots:['g6-mainlayout-floating-open.png',
+    firstUserExperience:{desktopSendAndExplicitConfirm:true,closeAndReopen:true,mobile390:true,keyboardLauncher:true,noReplayOnReopen:true},
+    screenshots:['fue-mobile-390-reopened.png','g6-mainlayout-floating-open.png',
       'g6-mainlayout-server-prepared.png','g6-mainlayout-receipt.png']};
   await fs.writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));
   console.log('CB03_G6_ACTUAL_MAINLAYOUT_CHAT_SYNTHETIC_VISUAL_PASS',JSON.stringify(report));
