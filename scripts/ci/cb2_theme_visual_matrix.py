@@ -109,7 +109,9 @@ try:
         assert not btn.is_enabled()
         for theme in STATES:
             page.evaluate("(t)=>{document.documentElement.setAttribute('data-theme',t)}",theme)
-            page.wait_for_timeout(180)
+            # The global theme transition lasts 400 ms; a shorter wait records
+            # intermediary colors and yields a false GREEN. Wait for CSS to settle.
+            page.wait_for_timeout(750)
             style=page.evaluate("""() => {
                 const root=document.documentElement;
                 const panel=document.querySelector('section[aria-label="Conversation Crown Bot — actions guidées CB-03"]');
@@ -119,15 +121,38 @@ try:
                 const styles=x=>{const z=getComputedStyle(x);return {background:z.backgroundColor,color:z.color,border:z.borderTopColor}};
                 const computed=getComputedStyle(root);
                 const probe=document.createElement('div');probe.style.backgroundColor='var(--bg-medical-pearl)';
-                root.append(probe);const rootBg=getComputedStyle(probe).backgroundColor;probe.remove();
+                root.append(probe);
+                const rootBg=getComputedStyle(probe).backgroundColor;
+                probe.style.backgroundColor='var(--primary)';
+                probe.style.color='var(--text-on-primary)';
+                const expectedPrimary=getComputedStyle(probe).backgroundColor;
+                const expectedText=getComputedStyle(probe).color;
+                probe.style.backgroundColor='var(--status-warning-surface)';
+                const expectedWarning=getComputedStyle(probe).backgroundColor;
+                probe.remove();
                 return {panel:styles(panel),card:styles(card),button:styles(button),
-                        rootBg,themeColor:computed.getPropertyValue('--text-main').trim(),
+                        rootBg,expectedPrimary,expectedText,expectedWarning,
+                        themeColor:computed.getPropertyValue('--text-main').trim(),
                         primary:computed.getPropertyValue('--primary').trim(),
                         onPrimary:computed.getPropertyValue('--text-on-primary').trim()};
             }""")
             # Actual computed styles, not just a color token name in JSX.
             assert style["panel"]["background"] == style["rootBg"],(theme,style)
             assert style["panel"]["background"] != "rgba(0, 0, 0, 0)",(theme,style)
+            assert style["button"]["background"] == style["expectedPrimary"],(theme,style)
+            assert style["button"]["color"] == style["expectedText"],(theme,style)
+            assert style["card"]["background"] == style["expectedWarning"],(theme,style)
+            # Independent WCAG normal-sized foreground contrast (>= 4.5:1).
+            def luminance(rgb):
+                items=[int(x) for x in re.findall(r"\\d+",rgb)[:3]]
+                assert len(items)==3,(theme,rgb)
+                channel=[v/255 for v in items]
+                channel=[c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4 for c in channel]
+                return .2126*channel[0]+.7152*channel[1]+.0722*channel[2]
+            low,high=sorted([luminance(style["expectedPrimary"]),
+                             luminance(style["expectedText"])])
+            contrast=(high+.05)/(low+.05)
+            assert contrast>=4.5,(theme,"contrast below WCAG AA",contrast)
             page.screenshot(path=str(ARTIFACT/("g5-"+theme+"-1280.png")),full_page=True)
             assert not btn.is_enabled()
             evidence.append({"theme":theme,"styles":style})
