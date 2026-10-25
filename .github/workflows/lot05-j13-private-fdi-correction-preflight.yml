@@ -9,6 +9,9 @@ on:
       - experiments/lot05_j13_private_clinician_corrections.py
       - experiments/test_lot05_j13_private_clinician_corrections.py
       - docs/research/LOT05_J13_PRIVATE_CLINICIAN_CORRECTION_ENGINE_PRE_20261024.md
+      - experiments/lot05_j14_mixed_dentition_ontology_gate.py
+      - experiments/test_lot05_j14_mixed_dentition_ontology_gate.py
+      - docs/research/LOT05_J14_MIXED_DENTITION_ONTOLOGY_PRE_20261025.md
   workflow_dispatch:
 
 permissions:
@@ -34,6 +37,8 @@ jobs:
           python-version: '3.11'
       - name: Test fifteen synthetic source-integrity, collision and privacy cases
         run: python experiments/test_lot05_j13_private_clinician_corrections.py -v
+      - name: Test thirteen synthetic permanent-primary FDI and certainty safety gates
+        run: python experiments/test_lot05_j14_mixed_dentition_ontology_gate.py -v
       - name: Pin academic YOLO TXT ONLY in disposable runner, never pixels
         shell: bash
         run: |
