@@ -1,0 +1,101 @@
+name: ORTHO V5 G5 — MedSAM research six masks (NO-GO clinical)
+on:
+  pull_request:
+    paths:
+      - 'scripts/odf_v5_g5_medsam_poc.py'
+      - 'scripts/g5_medsam_boxes_research_only.json'
+      - 'tests/test_odf_v5_g5_medsam_poc.py'
+      - '.github/workflows/odf-v5-g5-medsam-lab.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  public-research-cpu-medsam:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      G5_PUBLIC_ARTIFACT_ID: '12565744597'
+      G5_PUBLIC_SHA256: '7f0746c91faeebbd5a80180b13e0dfa5baa0fe1e0d9403f59f85cf1c03f7eb50'
+      G5_OFFICIAL_ZENODO_MD5: '3bb6db55bd0c9ca30b61248bca72f8d6'
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Pin exact PR HEAD; refuse production database or cloud secrets
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "${PRODUCTION_DATABASE_URL:-}"
+          test -z "${DATABASE_URL:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Read only one SHA-locked public research film from prior G5 QA artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/g5-medsam-poc
+          curl --fail --silent --show-error --location --retry 3 --max-time 180 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${G5_PUBLIC_ARTIFACT_ID}/zip" \
+            -o /tmp/g5-research-source.zip
+          unzip -p /tmp/g5-research-source.zip \
+            ortho-v5-g3-expert-lateral/expert-matched-cephalogram.png \
+            > artifacts/g5-medsam-poc/public-aariz.png
+          echo "${G5_PUBLIC_SHA256}  artifacts/g5-medsam-poc/public-aariz.png" | sha256sum -c -
+      - name: Install CPU-only MedSAM dependencies and original project source
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'torch==2.6.0' 'torchvision==0.21.0' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy<2' 'pillow>=10,<12' 'opencv-python-headless<4.12' 'scikit-image<0.26' 'pytest<10'
+          git clone --depth 1 https://github.com/bowang-lab/MedSAM.git /tmp/MedSAM
+          echo "PYTHONPATH=/tmp/MedSAM:${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
+      - name: Validate six prompts and isolation guardrails
+        env:
+          G5_POC_SOURCE_IMAGE: artifacts/g5-medsam-poc/public-aariz.png
+        run: |
+          python -m pytest -q tests/test_odf_v5_g5_medsam_poc.py
+          python scripts/odf_v5_g5_medsam_poc.py \
+            --source-image "$G5_POC_SOURCE_IMAGE" \
+            --boxes scripts/g5_medsam_boxes_research_only.json \
+            --out artifacts/g5-medsam-poc --prepare-only
+      - name: Download official checkpoint from Zenodo and verify exact MD5 before load
+        run: |
+          curl --fail --silent --show-error --location --retry 2 --retry-delay 4 --max-time 900 \
+            'https://zenodo.org/records/10689643/files/medsam_vit_b.pth?download=1' \
+            -o /tmp/medsam_vit_b.pth
+          echo "${G5_OFFICIAL_ZENODO_MD5}  /tmp/medsam_vit_b.pth" | md5sum -c -
+      - name: Run REAL MedSAM inference on public Aariz, six independent bounding boxes
+        run: |
+          python scripts/odf_v5_g5_medsam_poc.py \
+            --source-image artifacts/g5-medsam-poc/public-aariz.png \
+            --boxes scripts/g5_medsam_boxes_research_only.json \
+            --checkpoint /tmp/medsam_vit_b.pth \
+            --out artifacts/g5-medsam-poc --acknowledge-research-only
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('artifacts/g5-medsam-poc/medsam_research_qa.json').read_text())
+          assert data['run']=='MEDSAM_RESEARCH_ONLY'
+          assert data['approved'] is False and data['clinical_validation'] is False
+          assert len(data['masks'])==6
+          print('G5_SIX_MASKS_GENERATED_WITH_REAL_MODEL_NO_CLINICAL_VALIDATION')
+          PY
+      - name: Remove model weights (never attach or redistribute checkpoint)
+        if: always()
+        run: rm -f /tmp/medsam_vit_b.pth
+      - name: Upload public research-only masks, overlay and QA; no patient artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g5-medsam-research-masks-${{ github.event.pull_request.head.sha }}
+          path: |
+            artifacts/g5-medsam-poc/medsam_six_research_masks_overlay.png
+            artifacts/g5-medsam-poc/medsam_six_research_masks.npz
+            artifacts/g5-medsam-poc/medsam_research_qa.json
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Bilan orthodontique — {{ patient_nom }}</title>
+<style>
+@font-face {
+  font-family: "Outfit";
+  src: url("static/assets/fonts/Outfit-Regular.ttf");
+  font-style: normal;
+  font-weight: 400;
+}
+@font-face {
+  font-family: "Outfit";
+  src: url("static/assets/fonts/Outfit-Bold.ttf");
+  font-style: normal;
+  font-weight: 700;
+}
+@page {
+  size: A4;
+  margin: {{ page_margins_pt.top }}pt {{ page_margins_pt.right }}pt {{ page_margins_pt.bottom }}pt {{ page_margins_pt.left }}pt;
+}
+:root {
+  --primary: {{ primary_color }};
+  --secondary: {{ secondary_color }};
+  --line: #dae4ea;
+  --ink: #263d51;
+  --muted: #607487;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: {{ body_font_family }};
+  color: var(--ink);
+  font-size: 9.2pt;
+  line-height: 1.38;
+  margin: 0;
+}
+h1 { font-size: 19pt; color: var(--primary); margin: 0 0 8pt; line-height: 1.2; }
+h2 {
+  font-size: 12.7pt;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 16pt 0 8pt;
+  padding-bottom: 5pt;
+  border-bottom: 1pt solid var(--line);
+  break-after: avoid;
+}
+h3 {
+  font-size: 10.1pt;
+  color: var(--primary);
+  margin: 10pt 0 5pt;
+  break-after: avoid;
+}
+.report-title {
+  border-bottom: 2pt solid var(--primary);
+  margin-bottom: 12pt;
+  padding-bottom: 7pt;
+}
+.identite-patient {
+  padding: 10pt 11pt;
+  border: 0.8pt solid var(--line);
+  background: #f8fafb;
+  margin-bottom: 13pt;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+  margin: 3pt 0 8pt;
+  font-size: 8.6pt;
+  table-layout: fixed;
+}
+thead { display: table-header-group; }
+th {
+  text-align: left;
+  color: #24465f;
+  background: #eaf1f5;
+  padding: 6pt 8pt;
+  border-bottom: .8pt solid #c9d8e0;
+  font-weight: 700;
+}
+td {
+  padding: 5.4pt 8pt;
+  border-bottom: .55pt solid #e5ebef;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+tr { break-inside: avoid; }
+tbody tr:nth-child(even) { background: #fbfcfd; }
+.not-documented { color: var(--muted); font-style: italic; padding: 7pt 0; }
+.clinical-text {
+  white-space: pre-wrap;
+  margin: 6pt 0 10pt;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.clinical-alert {
+  border-left: 2pt solid #b48346;
+  padding: 7pt 11pt;
+  background: #fcf8f2;
+  margin-top: 12pt;
+  break-inside: avoid;
+}
+.clinical-alert ul { padding-left: 16pt; margin: 5pt 0; }
+.phase-title-number {
+  font-size: 10pt;
+  color: var(--secondary);
+  margin-right: 6pt;
+}
+/* G4: the traced film belongs to phase 01, not to a detached appendix. */
+.ceph-trace {
+  margin: 7pt 0 14pt;
+  padding: 8pt;
+  border: .8pt solid var(--line);
+  background: #f9fbfd;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.ceph-trace .trace-heading {
+  text-align: left;
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 9.8pt;
+  margin: 0 0 7pt;
+}
+.ceph-trace img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-height: 380pt;
+  max-width: 98%;
+  margin: 0 auto;
+  object-fit: contain;
+}
+.ceph-trace figcaption {
+  text-align: left;
+  font-size: 7.8pt;
+  line-height: 1.35;
+  color: var(--muted);
+  border-top: .8pt solid var(--line);
+  padding-top: 6pt;
+  margin-top: 7pt;
+}
+.trace-legend {
+  text-align: left;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4pt 12pt;
+  margin-top: 6pt;
+  font-size: 7.3pt;
+}
+.trace-legend-item { display: inline-block; margin-right: 9pt; }
+.trace-legend-indicator { display: inline-block; width: 12pt; height: 3pt;
+  vertical-align: middle; margin: 0 4pt 2pt 0; }
+.research-source { font-size: 7.5pt; color: var(--muted); margin-top: 4pt; }
+</style>
+</head>
+<body>
+<div class="report-title">
+  <h1>Bilan orthodontique</h1>
+</div>
+<div class="identite-patient">
+  <strong>Patient :</strong> {{ patient_nom.upper() }} {{ patient_prenom.capitalize() }}
+  &nbsp; &nbsp; <strong>Âge :</strong> {{ patient_age }} ans
+  &nbsp; &nbsp; <strong>Date :</strong> {{ date_analyse }}
+</div>
+
+<section>
+  <h2><span class="phase-title-number">01</span> Analyse céphalométrique</h2>
+  {% if odf.research_figure %}
+  <figure class="ceph-trace" aria-label="Tracé céphalométrique superposé à la téléradiographie">
+    <div class="trace-heading">Tracé céphalométrique — téléradiographie de profil</div>
+    <img src="{{ odf.research_figure.data_uri }}" alt="Même téléradiographie et tracé source-bound : lignes SN, Francfort, NA, NB, mandibulaire et axes incisifs superposés" />
+    <div class="trace-legend">
+      {% for plane in odf.research_figure.legend %}
+      <span class="trace-legend-item">
+        <span class="trace-legend-indicator" style="background-color:{{ plane.color }}"></span>
+        {{ plane.name }}{% if plane.name == 'FH' %} (Francfort){% endif %}
+      </span>
+      {% endfor %}
+    </div>
+    <figcaption>
+      {{ odf.research_figure.caption }}
+      <div class="research-source">Source : {{ odf.research_figure.source_url }}</div>
+    </figcaption>
+  </figure>
+  {% if odf.research_figure.kind == 'G5_MANUAL_ANATOMICAL_TRACE' %}
+  <figure class="ceph-trace ceph-trace-only" aria-label="Tracé anatomique seul sur fond blanc">
+    <div class="trace-heading">Tracé anatomique — vue épurée</div>
+    <img src="{{ odf.research_figure.anatomical_only_data_uri }}"
+         alt="Contours manuels validés des structures osseuses, incisives et profil cutané — même sujet et mêmes coordonnées que la téléradiographie" />
+    <figcaption>
+      Les mêmes six contours manuels approuvés, isolés sur fond blanc.
+      Les plans géométriques restent secondaires ; aucune silhouette
+      n’est reconstituée automatiquement.
+    </figcaption>
+  </figure>
+  {% endif %}
+  {% endif %}
+  <h3>A. Analyse osseuse</h3>
+  {% if odf.osseuse %}
+  <table aria-label="Analyse osseuse">
+    <thead><tr><th style="width:69%">Mesure</th><th style="width:31%">Résultat</th></tr></thead>
+    <tbody>{% for row in odf.osseuse %}
+      <tr><td>{{ row.label }}</td><td><strong>{{ row.value }}</strong></td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}
+  <p class="not-documented">Mesures osseuses à renseigner.</p>
+  {% endif %}
+
+  <h3>B. Analyse dento-alvéolaire</h3>
+  {% if odf.dentoalveolaire %}
+  <table aria-label="Analyse dento-alvéolaire">
+    <thead><tr><th style="width:69%">Mesure</th><th style="width:31%">Résultat</th></tr></thead>
+    <tbody>{% for row in odf.dentoalveolaire %}
+      <tr><td>{{ row.label }}</td><td><strong>{{ row.value }}</strong></td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}
+  <p class="not-documented">Mesures dento-alvéolaires à renseigner.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2><span class="phase-title-number">02</span> Examen des moulages</h2>
+  {% if odf.moulages %}
+  <table aria-label="Examen des moulages">
+    <thead><tr><th style="width:55%">Observation</th><th style="width:45%">Constat</th></tr></thead>
+    <tbody>{% for row in odf.moulages %}
+      <tr><td>{{ row.label }}</td><td>{{ row.value }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}
+  <p class="not-documented">Examen des moulages à renseigner par le praticien.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2><span class="phase-title-number">03</span> Résumé diagnostique</h2>
+  {% if odf.resume_diagnostique %}
+  <div class="clinical-text">{{ odf.resume_diagnostique }}</div>
+  {% else %}
+  <p class="not-documented">Synthèse diagnostique à renseigner par le praticien.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2><span class="phase-title-number">04</span> Plan de traitement</h2>
+  {% if odf.plan_traitement %}
+  <div class="clinical-text">{{ odf.plan_traitement }}</div>
+  {% else %}
+  <p class="not-documented">Plan de traitement à renseigner par le praticien.</p>
+  {% endif %}
+</section>
+
+{% if odf.clinical_alerts %}
+<section class="clinical-alert">
+  <strong>Éléments cliniques nécessitant une attention particulière</strong>
+  <ul>{% for warning in odf.clinical_alerts %}<li>{{ warning }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+</body>
+</html>

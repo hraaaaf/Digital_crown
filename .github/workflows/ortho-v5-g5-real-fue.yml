@@ -1,0 +1,247 @@
+name: ORTHO V5 G5 — Browser-drawn contours, two actual PDF views (synthetic QA)
+on:
+  pull_request:
+    paths:
+      - 'scripts/odf_v5_g3_aariz_matched_pair.py'
+      - 'backend/services/ortho_anatomical_trace.py'
+      - 'backend/services/ortho_anatomical_trace_store.py'
+      - 'backend/schemas/ortho_anatomical_trace.py'
+      - 'frontend/src/features/ortho/components/OrthoAnatomicalTraceLabEditor.tsx'
+      - 'alembic/versions/neo000000034_ortho_anatomical_trace.py'
+      - '.github/workflows/ortho-v5-g5-real-fue.yml'
+      - 'backend/services/cephalo_pdf_projection.py'
+      - 'backend/services/ortho_bilan_document_v5.py'
+      - 'backend/services/ortho_ceph_tracing.py'
+      - 'docs/audits/ODF_V5_G4_TRACE_CEPHALOMETRIQUE_DOD_2026-10-24.md'
+      - 'tests/test_odf_v5_g4_tracing.py'
+      - 'backend/services/ortho_lab_image_integrity.py'
+      - 'backend/services/generators/bilan_ortho_gen.py'
+      - 'backend/templates/bilan_ortho_v5.html'
+      - 'tests/test_odf_v5_g3_aariz_pair.py'
+      - 'tests/test_ortho_bilan_v5_contract.py'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'scripts/odf_v5_lab_seed.py'
+      - 'frontend/scripts/odf-v5-fue-lab.mjs'
+      - 'frontend/src/features/ortho/stores/useOrthoStore.ts'
+      - 'frontend/src/features/ortho/components/OrthoPractitionerNotesApproval.tsx'
+      - 'backend/services/ortho_bilan_practitioner_notes.py'
+      - 'backend/services/ortho_bilan_document_v5.py'
+      - 'backend/services/document_factory.py'
+      - 'backend/routers/patients.py'
+      - 'backend/models.py'
+      - '.github/workflows/ortho-v5-fue-lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  disposable-real-browser-odf-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      ENVIRONMENT: test
+      ODF_G3_MATCHED_ANNOTATIONS: "1"
+      ODF_G4_REQUIRE_TRACE: "1"
+      ODF_G5_REQUIRE_CONTOURS: "1"
+      ODF_G5_E2E_SYNTHETIC_STROKES: "1"
+      VITE_ODF_G5_LAB: "1"
+      VITE_ODF_G3_MATCHED_ANNOTATIONS: "1"
+      ODF_G3_FULL_ARCHIVE_FALLBACK: "1"
+      SECRET_KEY: odf-v5-lab-test-only-secret-key-with-no-prod-access-001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Match exact commit and prohibit production secrets
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = "sqlite:///./t2-runtime-cert.db"
+          test -z "${PRODUCTION_DATABASE_URL:-}"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate unique disposable credentials
+        run: |
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(28))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+          sqlcipher="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$sqlcipher"
+          echo "SQLCIPHER_KEY_HEX=$sqlcipher" >> "$GITHUB_ENV"
+      - name: Install full isolated backend (CPU only)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/odf-lab-deps.txt
+          pip install -r /tmp/odf-lab-deps.txt
+          pip install 'remotezip==0.12.6'
+          python -m pip check
+      - name: Install real Cabinet UI and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+          npx tsc --noEmit -p tsconfig.app.json
+      - name: Start separate throwaway FastAPI cabinet
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/odf-lab-backend.log 2>&1 &
+          echo $! > /tmp/odf-lab-backend.pid
+          for i in {1..80}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/odf-lab-backend.log
+          exit 1
+      - name: Seed synthetic studies with separate revisions
+        run: |
+          python -m scripts.ceph_p2ter_seed_t2 | tee /tmp/odf-lab-studies.log
+          studies="$(python - <<'PY'
+          import json
+          text=open('/tmp/odf-lab-studies.log').read()
+          line=next(x.split('=',1)[1] for x in text.splitlines() if x.startswith('P2TER_SYNTHETIC_STUDIES='))
+          print(json.dumps(json.loads(line),separators=(',',':')))
+          PY
+          )"
+          echo "P2TER_STUDIES=$studies" >> "$GITHUB_ENV"
+      - name: Create fictitious orthodontic cabinet and verified CC BY-SA real lateral film
+        run: |
+          python -m scripts.odf_v5_lab_seed
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          root=Path('artifacts/ortho-v5-first-user-lab')
+          original=root/'public-cephalo-ANUG-original.jpg'
+          assert hashlib.sha1(original.read_bytes()).hexdigest()=='2a284993c666790a72d0c004044b35a92534ce9d'
+          assert (root/'lab-manifest.json').exists()
+          assert (root/'RADIO_SOURCE_ET_LICENCE.txt').exists()
+          print('LAB_PUBLIC_REAL_LATERAL_RADIO_CHECKSUM_CC_BY_SA_PASS')
+          PY
+      - name: Check offline expert-image matching contract before downloading dataset
+        run: |
+          python -m unittest discover -s tests -p 'test_odf_v5_g3_aariz_pair.py' -v
+          python -m unittest discover -s tests -p 'test_odf_v5_g4_tracing.py' -v
+          python -m pytest -q backend/tests/test_cephalo_repository_calibration_invariants.py -k g4
+      - name: Source-matched Aariz expert landmark import (real image AND two annotations)
+        run: |
+          python -m scripts.odf_v5_g3_aariz_matched_pair
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          root=Path('artifacts/ortho-v5-g3-expert-lateral')
+          source=json.loads((root/'expert-pair-provenance.json').read_text())
+          assert source['expert_point_count']>=19
+          assert source['scientific_state']=='VERIFIED'
+          assert source['source_license']=='https://creativecommons.org/licenses/by/4.0/'
+          assert (root/'expert-landmarks-on-same-real-film.png').exists()
+          assert source['display_png_sha256']==hashlib.sha256((root/'expert-matched-cephalogram.png').read_bytes()).hexdigest()
+          angles=json.loads((root/'recomputed-canonical-angles.json').read_text())
+          available={row['id'] for row in angles if row['availability']=='AVAILABLE' and row['unit'] in ('deg','°') and isinstance(row['value'],(int,float))}
+          assert {'M_SNA_DEG_V1','M_ANB_DEG_V1'}.issubset(available), 'SOURCE_BOUND_SNA_ANB_NOT_AVAILABLE'
+          assert available.intersection({'M_U1_NA_DEG_V1','M_L1_NB_DEG_V1','M_INTERINCISAL_DEG_V1','M_IMPA_GOME_DEG_V1'}), 'SOURCE_BOUND_DENTAL_ANGLE_NOT_AVAILABLE'
+          print('ODF_G3_REAL_IMAGE_EXPERT_COORDINATES_MATCH_VERIFIED')
+          PY
+      - name: Start isolated real React Cabinet
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/odf-lab-frontend.log 2>&1 &
+          echo $! > /tmp/odf-lab-frontend.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/odf-lab-frontend.log
+          exit 1
+      - name: Real first user experience — public film, bilateral Angle and clinician notes
+        working-directory: frontend
+        run: node scripts/odf-v5-fue-lab.mjs
+      - name: Independently verify source-attributed PDF output and safety matrix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import fitz,json,hashlib
+          root=Path('artifacts/ortho-v5-first-user-lab')
+          report=json.loads((root/'fue-report.json').read_text())
+          assert report['success'] is True and report['head']=='${{ github.event.pull_request.head.sha || github.sha }}'
+          assert report.get('g5',{}).get('mode') == 'SYNTHETIC_BROWSER_STROKES_NOT_EXPERT_CONTOURS'
+          assert report['g5'].get('expert_anatomical_validation') is False
+          assert report['g5'].get('contour_count') == 6
+          assert {'G5_REAL_BROWSER_EXPLICIT_DENTIST_TEST_APPROVAL',
+                  'G5_BROWSER_SAVED_SIX_DISTINCT_STROKES',
+                  'G5_SECRETARY_FORBIDDEN_APPROVAL',
+                  'G5_CANNOT_APPROVE_WITHOUT_MANUAL_STROKES',
+                  'G5_MISSING_REAL_CURVE_LENGTH_REFUSED',
+                  'G5_DIFFERENT_STUDY_NOT_SHARED'}.issubset(set(report['checks']))
+          must={'REAL_BROWSER_JWT_LOGIN','REAL_WORKSTATION_ENROLLMENT',
+              'PUBLIC_LATERAL_CEPHALOGRAM_SERVABLE','REAL_HTTP_SAVE_DRAFT',
+              'REAL_DENTIST_EXPLICIT_APPROVAL','PERSISTED_STRUCTURED_ANGLE_BILATERAL_AND_SIGNED',
+              'SECRETARY_CANNOT_APPROVE','A_NOTES_NOT_APPROVED_ON_DISTINCT_STUDY_B',
+              'ANONYMOUS_NOTES_ACCESS_REFUSED','SIGNED_NOTES_REAL_PDF_DOWNLOADED'}
+          assert must.issubset(set(report['checks'])),sorted(must-set(report['checks']))
+          with fitz.open(root/report['pdf']) as pdf:
+              assert all(abs(p.rect.width-595.276)<2 and abs(p.rect.height-841.89)<2 for p in pdf)
+              text='\n'.join(p.get_text() for p in pdf)
+              phases=['Analyse céphalométrique','Examen des moulages','Résumé diagnostique','Plan de traitement']
+              assert [text.index(p) for p in phases]==sorted(text.index(p) for p in phases)
+              assert 'SNA' in text and 'ANB' in text, 'Expert-traced skeletal measurements missing'
+              assert ('IMPA' in text or 'Incisive' in text), 'Expert-traced dental analysis missing'
+              assert text.count('Classe I')>=2
+              assert 'Tracé céphalométrique' in text, 'Missing geometric tracing'
+              assert 'Aariz Cephalometric Dataset' in text, 'Missing research attribution'
+              assert text.index('Analyse céphalométrique') < text.index('Tracé céphalométrique') < text.index('Analyse osseuse') < text.index('Examen des moulages'), 'Traced film must be in PHASE 01'
+              assert len(pdf)>=2, 'Traced image must be readable in official PDF'
+              traced_pages=[p for p in pdf if 'Tracé céphalométrique' in p.get_text()]
+              assert traced_pages and any(len(p.get_images()) >= 2 for p in traced_pages), 'Tracing image missing from its PHASE 01 page'
+              assert 'Tracé anatomique' in text and 'vue épurée' in text, 'G5 must include the white-background anatomical-only view'
+              assert 'COURBES SYNTHÉTIQUES' in text, 'Mandatory warning: test strokes are not expert anatomical contours'
+              distinct={}
+              for p in pdf:
+                  for im in p.get_images(full=True):
+                      xref=im[0]
+                      item=pdf.extract_image(xref)
+                      if item and item['width']==1935 and item['height']==2400:
+                          distinct[hashlib.sha256(item['image']).hexdigest()]=item
+              assert len(distinct)>=2, 'G5 PDF must EMBED two distinct full-size film+manual contour views'
+              for legend in ('SN','FH','NA','NB','U1','L1'):
+                  assert legend in text, f'Missing tracing plan legend {legend}'
+              assert 'LAB EXCLUSIVEMENT' in text
+              assert "24 avenue de l'Exemple" in text
+              for forbidden in ('Mesure complémentaire','NOT_COMPUTABLE','DOCUMENT CLINIQUE INCOMPLET','PRÉ-BILAN'):
+                  assert forbidden not in text,forbidden
+          assert hashlib.sha1((root/'public-cephalo-ANUG-original.jpg').read_bytes()).hexdigest()=='2a284993c666790a72d0c004044b35a92534ce9d'
+          print('ODF_G5_SYNTHETIC_POINTER_FUE_DUAL_PDF_PASS_NOT_CLINICAL_ANATOMY_CERTIFICATION')
+          PY
+      - name: Isolated lab evidence on failure only (never credentials or DB)
+        if: failure()
+        run: |
+          tail -100 /tmp/odf-lab-backend.log || true
+          tail -100 /tmp/odf-lab-frontend.log || true
+      - name: Upload screenshots, public film, source license and PDF only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ortho-v5-g5-synthetic-pointer-lab-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            artifacts/ortho-v5-first-user-lab/
+            artifacts/ortho-v5-g3-expert-lateral/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Erase disposable runtime and any copies of credentials
+        if: always()
+        run: |
+          rm -f t2-runtime-cert.db
+          rm -f /tmp/odf-lab-studies.log

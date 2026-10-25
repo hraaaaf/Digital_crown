@@ -63,8 +63,40 @@ def _merge_calibration_projection(previous: Any, results: Dict[str, Any]) -> Dic
     ``verified``.
     """
     merged = _canonicalize_evidence_projection(results)
+
+    # G4 research LAB only: detached image/expert hashes are not ordinary
+    # client-editable analytical values. The clinician's routine note save
+    # recomputes the standard analysis DTO and would otherwise ERASE these
+    # bound hashes, causing a correctly refused tracing PDF after sign-off.
+    # Never trust client-supplied provenance; re-copy ONLY the previous DB
+    # record when the entire persisted evidence graph is byte-equivalent.
+    lab_keys = (
+        "odf_lab_image_landmark_alignment",
+        "odf_lab_display_png_sha256",
+        "odf_lab_source_image_sha256",
+        "odf_lab_source_senior_sha256",
+        "odf_lab_source_junior_sha256",
+        "odf_lab_dataset_image_id",
+    )
+    for key in lab_keys:
+        merged.pop(key, None)
     if not isinstance(previous, dict):
         return merged
+
+    import os
+    if (
+        os.environ.get("ENVIRONMENT") == "test"
+        and os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "1"
+        and previous.get("odf_lab_image_landmark_alignment")
+            == "VERIFIED_AARIZ_EXPERT_PAIR"
+        and isinstance(previous.get(_EVIDENCE_GRAPH_KEY), dict)
+        and previous[_EVIDENCE_GRAPH_KEY] == merged.get(_EVIDENCE_GRAPH_KEY)
+    ):
+        # The PDF layer independently verifies the displayed image SHA256
+        # and draws all segments from this unchanged authoritative graph.
+        for key in lab_keys:
+            if key in previous:
+                merged[key] = previous[key]
 
     for key in ("calibration_candidate", "calibration_decision"):
         if key in previous and key not in merged:

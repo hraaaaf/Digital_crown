@@ -64,9 +64,13 @@ def lock_selected_cephalo_for_archive(db: Session, *, patient_id: int, analysis_
         ) from exc
 
 
-def render_payload_digest(*, clinical_data: object, ai_diagnostic: object) -> str:
-    """Stable identity for all client-adjustable report rendering inputs."""
+def render_payload_digest(*, clinical_data: object, ai_diagnostic: object,
+                          practitioner_note_approval: object = None) -> str:
+    """Stable print input identity; independently approved notes are immutable."""
     payload = {"clinical_data": clinical_data, "ai_diagnostic": ai_diagnostic}
+    # Preserve historical digest for studies without separately approved notes.
+    if practitioner_note_approval is not None:
+        payload["practitioner_note_approval"] = practitioner_note_approval
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

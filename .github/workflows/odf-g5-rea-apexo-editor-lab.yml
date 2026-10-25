@@ -1,0 +1,113 @@
+name: ODF G5 LAB - REA Apexo public sample ceph editor inspection
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/odf-g5-rea-apexo-editor-lab.yml'
+permissions:
+  contents: read
+jobs:
+  apexo-public-demo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install public browser analysis in isolated sandbox
+        run: |
+          set -euo pipefail
+          mkdir -p rea-apexo-editor-evidence
+          npm install --prefix /tmp/rea-apexo-editor --no-save --no-audit --no-fund \
+            'rea-agents@6.7.0' 'playwright-core@1.56.1'
+      - name: Open Apexo site in Chrome with an incognito profile, and inspect sample editor only
+        shell: bash
+        run: |
+          set -euo pipefail
+          google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
+            --incognito --no-first-run --disable-extensions \
+            --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 \
+            --user-data-dir=/tmp/g5-apexo-editor-browser \
+            --window-size=1440,960 https://cephalometric.apexo.app/ \
+            >/tmp/apexo-editor-browser.log 2>&1 &
+          echo "$!" > /tmp/g5-apexo-editor.pid
+          for n in $(seq 1 35); do
+            if curl -fsS --max-time 2 http://127.0.0.1:9222/json/list \
+                > rea-apexo-editor-evidence/chrome-targets.json; then break; fi
+            sleep 1
+          done
+          node - <<'NODE'
+          const fs = require('fs');
+          const {chromium} = require('/tmp/rea-apexo-editor/node_modules/playwright-core');
+          (async () => {
+            const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
+            const page = browser.contexts().flatMap(c => c.pages()).find(
+              p => p.url().startsWith('https://cephalometric.apexo.app/'));
+            if (!page) throw new Error('APEXO_PUBLIC_DEMO_NOT_AVAILABLE');
+            await page.getByRole('button', { name: 'Use the demo' }).click({ timeout: 12000 });
+            await page.waitForTimeout(4500);
+            const values = await page.evaluate(() => ({
+              title: document.title,
+              url: location.href,
+              text: (document.body?.innerText ?? '').slice(0, 2800),
+              buttons: Array.from(document.querySelectorAll('button'))
+                .map(x => x.innerText || x.getAttribute('aria-label') || '')
+                .filter(Boolean).slice(0,120),
+              svgs: document.querySelectorAll('svg').length,
+              canvases: document.querySelectorAll('canvas').length,
+              images: document.querySelectorAll('img').length
+            }));
+            fs.writeFileSync('rea-apexo-editor-evidence/post-sample-ui.json',
+              JSON.stringify({...values, sample_only:true, user_patient:false,
+                medical_accuracy_validated:false},null,2));
+            const cdp = await page.context().newCDPSession(page);
+            const node = await cdp.send('Target.getTargetInfo');
+            fs.writeFileSync('rea-apexo-editor-evidence/post-sample-target-id.txt',
+              node.targetInfo.targetId);
+            console.log('APEXO_PUBLIC_SAMPLE_OPENED',JSON.stringify({
+              buttons:values.buttons.slice(0,20),svgs:values.svgs,canvases:values.canvases}));
+            await cdp.detach();
+            await browser.close();
+          })().catch(err => { console.error(err); process.exitCode=1; });
+          NODE
+          /tmp/rea-apexo-editor/node_modules/.bin/rea inspect-web-page \
+            http://127.0.0.1:9222 \
+            "$(cat rea-apexo-editor-evidence/post-sample-target-id.txt)" \
+            --observation-ms 1000 --include-accessibility-text --json \
+            >rea-apexo-editor-evidence/rea-inspection-after-sample.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('rea-apexo-editor-evidence')
+          post=json.loads((p/'post-sample-ui.json').read_text())
+          rea=json.loads((p/'rea-inspection-after-sample.json').read_text())
+          assert 'Cephalometric' in post['title']
+          assert rea['predicate_type']=='rea.web-page-inspection'
+          assert post['user_patient'] is False and post['medical_accuracy_validated'] is False
+          report={'status':'PUBLIC_DEMO_SAMPLE_REA_INSPECTED', 'origin':post['url'],
+              'buttons':post['buttons'],'svg_count':post['svgs'],
+              'canvas_count':post['canvases'],'role_nodes':
+              rea['normalized_result']['accessibility']['total_nodes'],
+              'medical_validation':False,'no_patient_data':True}
+          (p/'qa.json').write_text(json.dumps(report,indent=2))
+          print('REA_APEXO_EDITOR_PUBLIC_SAMPLE_INSPECTION_COMPLETE',json.dumps(report))
+          PY
+      - name: Stop incognito browser and leave no persisted session
+        if: always()
+        run: |
+          if test -f /tmp/g5-apexo-editor.pid; then
+            kill "$(cat /tmp/g5-apexo-editor.pid)" 2>/dev/null || true
+          fi
+          sleep 2
+          rm -rf /tmp/g5-apexo-editor-browser 2>/dev/null || true
+      - name: Upload only public sample editor evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g5-rea-apexo-editor-public-sample-${{ github.run_id }}
+          path: rea-apexo-editor-evidence/
+          retention-days: 7
+          if-no-files-found: warn

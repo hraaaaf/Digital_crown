@@ -4,6 +4,8 @@ import type { DiagnosticTexts, DonneesEtape3 } from '../cephaloTypes';
 import { fmtNum } from '../cephaloUtils';
 import { cn } from '../../../utils/cn';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { OrthoPractitionerNotesApproval } from './OrthoPractitionerNotesApproval';
+import { OrthoAnatomicalTraceLabEditor } from './OrthoAnatomicalTraceLabEditor';
 
 interface Step3ClinicalProps {
   P: any;
@@ -203,6 +205,10 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
           />
         </AccordionSection>
       </div>
+      {import.meta.env.VITE_ODF_G5_LAB === '1' && (
+        <OrthoAnatomicalTraceLabEditor P={P} />
+      )}
+      <OrthoPractitionerNotesApproval P={P} />
     </div>
   );
 };

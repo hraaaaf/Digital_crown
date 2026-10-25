@@ -48,6 +48,72 @@ export const cephaloRepository = {
     return res.data;
   },
 
+  /** Authenticated, dentist-approved notes only; distinct from scientific R14. */
+  async readPractitionerNotes(patientId: number, analysisId: number, expectedRevision: number) {
+    const res = await api.get(`/patients/${patientId}/ortho-bilan/${analysisId}/notes`, {
+      params: { expected_revision: expectedRevision },
+    });
+    return res.data as {
+      analysis_id: number; analysis_revision: number; draft_version: number;
+      notes: { moulages: Record<string, string | number>; resume_diagnostique: string; plan_traitement: string };
+      approved: boolean; stale: boolean; approved_by?: number; approved_at?: string;
+    };
+  },
+
+  async savePractitionerDraft(patientId: number, analysisId: number, payload: {
+    expected_revision: number; expected_draft_version: number;
+    moulages: Record<string, string | number>;
+    resume_diagnostique: string; plan_traitement: string;
+  }) {
+    const res = await api.put(`/patients/${patientId}/ortho-bilan/${analysisId}/notes/draft`, payload);
+    return res.data;
+  },
+
+  async approvePractitionerDraft(patientId: number, analysisId: number, payload: {
+    expected_revision: number; expected_draft_version: number;
+  }) {
+    const res = await api.post(`/patients/${patientId}/ortho-bilan/${analysisId}/notes/approve`, {
+      ...payload, confirmation: 'JE_CONFIRME_MES_NOTES',
+    });
+    return res.data;
+  },
+
+  /** G5 disposable LAB — real manually drawn source-bound anatomy. */
+  async readAnatomicalTrace(patientId: number, analysisId: number, revision: number) {
+    const res = await api.get(`/patients/${patientId}/ortho-bilan/${analysisId}/anatomical-trace`, {
+      params: { expected_revision: revision },
+    });
+    return res.data as {
+      draft_version: number; analysis_revision: number;
+      approved: boolean; stale: boolean;
+      contours: {id: string;points: number[][]}[];
+      bezier_profile_nodes?: {anchor:number[];incoming:number[];outgoing:number[]}[]|null;
+    };
+  },
+
+  async saveAnatomicalTraceDraft(patientId: number, analysisId: number, payload: {
+    expected_revision: number; expected_draft_version: number;
+    contours: {id: string;points: number[][]}[];
+    bezier_profile_nodes?: readonly {
+      anchor:readonly number[];incoming:readonly number[];outgoing:readonly number[];
+    }[]|null;
+  }) {
+    const res = await api.put(
+      `/patients/${patientId}/ortho-bilan/${analysisId}/anatomical-trace/draft`, payload,
+    );
+    return res.data;
+  },
+
+  async approveAnatomicalTrace(patientId: number, analysisId: number, payload: {
+    expected_revision: number; expected_draft_version: number;
+  }) {
+    const res = await api.post(
+      `/patients/${patientId}/ortho-bilan/${analysisId}/anatomical-trace/approve`,
+      {...payload,confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE'},
+    );
+    return res.data;
+  },
+
   /**
    * Demande au serveur de vérifier le candidat fiducial déjà persisté.
    * Aucun profil physique n'est sélectionnable côté client.

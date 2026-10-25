@@ -403,6 +403,66 @@ class CephaloAnalysis(Base):
     
     patient: Mapped["Patient"] = relationship(back_populates="analyses")
 
+class OrthoBilanPractitionerNote(Base):
+    """Cabinet-local, revision-bound independent clinician-note approval.
+
+    It is NOT a R14 scientific validation or a clinical diagnosis signature.
+    Edits are drafts until a dentist explicitly approves this exact source.
+    """
+    __tablename__ = "ortho_bilan_practitioner_notes"
+    __table_args__ = (
+        UniqueConstraint("analysis_id", name="uq_ortho_bilan_practitioner_analysis"),
+        Index("ix_ortho_bilan_notes_cabinet_patient", "employer_id", "patient_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    analysis_id: Mapped[int] = mapped_column(ForeignKey("cephalo_analyses.id", ondelete="CASCADE"), nullable=False)
+    analysis_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    study_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    draft_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    notes_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    drafted_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    approved_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    approved_digest: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+
+
+class OrthoAnatomicalTrace(Base):
+    """Independent manual G5 anatomy tracing, separate from diagnostic R14.
+
+    No contour is derived automatically from the cephalometric landmarks.
+    Publication requires an explicit source/revision-bound dentist approval.
+    """
+    __tablename__ = "ortho_anatomical_traces"
+    __table_args__ = (
+        UniqueConstraint("analysis_id", name="uq_ortho_anatomic_trace_analysis"),
+        Index("ix_ortho_anatomic_trace_tenant_patient", "employer_id", "patient_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    analysis_id: Mapped[int] = mapped_column(ForeignKey("cephalo_analyses.id", ondelete="CASCADE"), nullable=False)
+    analysis_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    scientific_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    image_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    image_width: Mapped[int] = mapped_column(Integer, nullable=False)
+    image_height: Mapped[int] = mapped_column(Integer, nullable=False)
+    contour_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    contours_json: Mapped[list] = mapped_column(JSON, nullable=False)
+    # G5 LAB V2 optional manual editable skin handles; V1 polylines stay canonical.
+    bezier_profile_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    draft_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    drafted_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    approved_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    approved_digest: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
 class PanoramicAnalysis(Base):
     """Stockage des analyses radiographiques panoramiques (DENTEX IA)."""
     __tablename__ = "panoramic_analyses"

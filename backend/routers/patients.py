@@ -1492,9 +1492,18 @@ def generate_cephalo_pdf(
 
     if req.archive:
         from backend.services.cephalo_document_lock import render_payload_digest
+        from backend.services.ortho_bilan_practitioner_notes import (
+            resolve_approved_practitioner_sections,
+        )
+        approved_practitioner_notes = resolve_approved_practitioner_sections(
+            db, patient_id=patient_id, analysis_id=selected.id,
+            expected_revision=revision, study_data=selected.angles_data or {},
+            employer_id=current_user.get_employer_id(),
+        )
         payload_digest = render_payload_digest(
             clinical_data=results.get("clinical_data", {}),
             ai_diagnostic=results.get("ai_diagnostic", {}),
+            practitioner_note_approval=approved_practitioner_notes,
         )
         # Same study/revision and IDENTICAL report input must replay the original.
         # A changed clinician payload with unchanged revision fails closed.
@@ -1777,3 +1786,99 @@ async def import_patients_csv(
 
     return {"created": created, "skipped_duplicates": skipped_duplicates, "errors": errors}
 
+
+
+# --- ODF V5 — cabinet-authenticated clinician notes, distinct from R14 ---
+from backend.schemas.ortho_bilan_notes import (
+    OrthoPractitionerDraftWrite, OrthoPractitionerDraftApproval,
+)
+
+
+@router.get("/{patient_id}/ortho-bilan/{analysis_id}/notes")
+def read_ortho_bilan_practitioner_notes(
+    patient_id: int, analysis_id: int, expected_revision: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_bilan_practitioner_notes import get_practitioner_note
+    return get_practitioner_note(
+        db, patient_id=patient_id, analysis_id=analysis_id,
+        expected_revision=expected_revision, actor=current_user)
+
+
+@router.put("/{patient_id}/ortho-bilan/{analysis_id}/notes/draft")
+def update_ortho_bilan_practitioner_notes(
+    patient_id: int, analysis_id: int, req: OrthoPractitionerDraftWrite,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_bilan_practitioner_notes import save_practitioner_draft
+    result=save_practitioner_draft(
+        db, patient_id=patient_id, analysis_id=analysis_id,
+        expected_revision=req.expected_revision,
+        expected_draft_version=req.expected_draft_version,
+        casts=req.moulages, summary=req.resume_diagnostique,
+        plan=req.plan_traitement, actor=current_user)
+    return result
+
+
+@router.post("/{patient_id}/ortho-bilan/{analysis_id}/notes/approve")
+def approve_ortho_bilan_practitioner_notes(
+    patient_id: int, analysis_id: int, req: OrthoPractitionerDraftApproval,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_bilan_practitioner_notes import approve_practitioner_draft
+    result=approve_practitioner_draft(
+        db, patient_id=patient_id, analysis_id=analysis_id,
+        expected_revision=req.expected_revision,
+        expected_draft_version=req.expected_draft_version,actor=current_user)
+    return result
+
+
+# G5 research LAB — manual anatomical contour drawing, dentist approval.
+# Explicitly unavailable on the production cabinet runtime.
+from backend.schemas.ortho_anatomical_trace import (
+    AnatomicalContourDraftWrite, AnatomicalContourApproval,
+)
+
+
+@router.get("/{patient_id}/ortho-bilan/{analysis_id}/anatomical-trace")
+def g5_anatomical_trace_read(
+    patient_id: int, analysis_id: int, expected_revision: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_anatomical_trace_store import get_g5_trace
+    return get_g5_trace(
+        db,patient_id=patient_id,analysis_id=analysis_id,
+        expected_revision=expected_revision,actor=current_user)
+
+
+@router.put("/{patient_id}/ortho-bilan/{analysis_id}/anatomical-trace/draft")
+def g5_anatomical_trace_draft(
+    patient_id: int, analysis_id: int, req: AnatomicalContourDraftWrite,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_anatomical_trace_store import save_g5_manual_draft
+    return save_g5_manual_draft(
+        db,patient_id=patient_id,analysis_id=analysis_id,
+        expected_revision=req.expected_revision,
+        expected_draft_version=req.expected_draft_version,
+        contours=req.contours,actor=current_user,
+        bezier_profile_nodes=req.bezier_profile_nodes)
+
+
+@router.post("/{patient_id}/ortho-bilan/{analysis_id}/anatomical-trace/approve")
+def g5_anatomical_trace_approve(
+    patient_id: int, analysis_id: int, req: AnatomicalContourApproval,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    from backend.services.ortho_anatomical_trace_store import approve_g5_manual_trace
+    return approve_g5_manual_trace(
+        db,patient_id=patient_id,analysis_id=analysis_id,
+        expected_revision=req.expected_revision,
+        expected_draft_version=req.expected_draft_version,
+        actor=current_user)
