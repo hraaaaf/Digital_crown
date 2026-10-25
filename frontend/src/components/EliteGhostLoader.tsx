@@ -13,8 +13,8 @@ export const EliteGhostLoader: React.FC<EliteGhostLoaderProps> = ({
   size = 'large'
 }) => {
   const containerClass = fullScreen 
-    ? "fixed inset-0 z-50 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-2xl" 
-    : "absolute inset-0 z-10 rounded-3xl bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md";
+    ? "fixed inset-0 z-50 bg-background/80 backdrop-blur-2xl" 
+    : "absolute inset-0 z-10 rounded-3xl bg-background/80 backdrop-blur-md";
     
   // Size could be passed down later if AppLoader supports size adjustments,
   // For now, AppLoader uses a standard elegant size.
