@@ -1,0 +1,64 @@
+name: CB2 Real MainLayout Eight-Theme Visual Matrix (SYNTHETIC)
+on:
+  push:
+    branches:
+      - fix/cb2-semantic-theme-tokens-20261025
+  pull_request:
+    branches:
+      - feature/cb03-g5-real-crownbot-chat-20261025
+    paths:
+      - frontend/src/components/CrownBot/**
+      - frontend/src/components/Layout/MainLayout.tsx
+      - scripts/ci/cb2_theme_visual_matrix.py
+      - .github/workflows/cb2-theme-visual-matrix.yml
+permissions:
+  contents: read
+jobs:
+  actual-rendered-theme-matrix:
+    name: Real Chrome CSS semantic roles — 8 themes (no clinical HTTP)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CB2_THEME_MATRIX_EXPERIMENT: "1"
+      GITHUB_ACTIONS: "true"
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated synthetic browser dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install playwright==1.55.0 requests
+          python -m playwright install --with-deps chromium
+          cd frontend
+          npm ci --no-audit --no-fund
+      - name: Actual CSS computed theme token correctness across all eight themes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/ci/cb2_theme_visual_matrix.py
+          PYTHONPATH=. python scripts/ci/cb2_theme_visual_matrix.py
+      - name: Upload real screenshots, no patient data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb2-g5-synthetic-eight-theme-screenshots
+          path: artifacts/cb2-theme-matrix/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Boundary of visual proof
+        if: success()
+        run: |
+          echo "Real MainLayout + real G5 CrownBotChat, native Linux Chromium CSS colors across 8 themes." >> "$GITHUB_STEP_SUMMARY"
+          echo "Not a real clinical backend; not native Windows/NVDA/zoom 200; human approval is still required." >> "$GITHUB_STEP_SUMMARY"
