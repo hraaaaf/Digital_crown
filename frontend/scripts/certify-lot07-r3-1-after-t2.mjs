@@ -186,7 +186,7 @@ try {
   const gripX=grip.x+grip.width/2;
   const gripY=grip.y+grip.height/2;
   const hit=await page.evaluate(({x,y})=>
-    document.elementFromPoint(x,y)?.closest('[data-testid="r3-1-separator"]')!==null,
+    Boolean(document.elementFromPoint(x,y)?.closest('[data-testid="r3-1-separator"]')),
     {x:gripX,y:gripY});
   pass('R3-1 Chromium pointer target is really hit-testable',hit,
     {gripX,gripY,viewport:{width:1920,height:1080}});
