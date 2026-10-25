@@ -134,11 +134,11 @@ export const LibreTemplatePresets: React.FC<{
   };
 
   return (
-    <div className="border-b border-slate-200 bg-white/70 px-5 py-4">
+    <div className="border-b border-border-main bg-card/70 px-5 py-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">Mes modèles</div>
-          <p className="mt-1 text-[10px] font-semibold text-slate-500">
+          <div className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">Mes modèles</div>
+          <p className="mt-1 text-[10px] font-semibold text-text-muted">
             Un modèle remplit le titre et le contenu uniquement après votre clic.
           </p>
         </div>
@@ -146,7 +146,7 @@ export const LibreTemplatePresets: React.FC<{
           type="button"
           onClick={openSave}
           disabled={!title.trim() || content.trim().length < 10}
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-primary/20 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-primary/20 bg-card px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Save size={14} /> Enregistrer comme modèle
         </button>
@@ -154,7 +154,7 @@ export const LibreTemplatePresets: React.FC<{
 
       <div className="mt-3 flex flex-wrap gap-2" aria-label="Modèles de document libre du cabinet">
         {loading ? (
-          <span className="text-[10px] font-bold text-slate-400">Chargement des modèles…</span>
+          <span className="text-[10px] font-bold text-text-muted">Chargement des modèles…</span>
         ) : templates.length > 0 ? (
           templates.map(template => (
             <button
@@ -162,14 +162,14 @@ export const LibreTemplatePresets: React.FC<{
               type="button"
               onClick={() => void applyTemplate(template.id)}
               disabled={applyingId !== null}
-              className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[11px] font-bold text-slate-600 transition-all hover:border-primary/30 hover:text-primary disabled:opacity-50"
+              className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-xl border border-border-main bg-card px-3 py-2 text-left text-[11px] font-bold text-text-muted transition-all hover:border-primary/30 hover:text-primary disabled:opacity-50"
             >
               <FileText size={14} className="shrink-0" />
               <span className="truncate">{template.name}</span>
             </button>
           ))
         ) : (
-          <span className="text-[10px] font-bold text-slate-400">Aucun modèle personnalisé enregistré.</span>
+          <span className="text-[10px] font-bold text-text-muted">Aucun modèle personnalisé enregistré.</span>
         )}
       </div>
 
@@ -189,44 +189,44 @@ export const LibreTemplatePresets: React.FC<{
 
       {showSave && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="libre-template-save-title">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl border border-border-main bg-card p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Document libre</p>
-                <h3 id="libre-template-save-title" className="mt-1 text-lg font-black text-slate-900">Enregistrer comme modèle</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Document libre</p>
+                <h3 id="libre-template-save-title" className="mt-1 text-lg font-black text-text-main">Enregistrer comme modèle</h3>
               </div>
-              <button type="button" onClick={() => setShowSave(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50" aria-label="Fermer">
+              <button type="button" onClick={() => setShowSave(false)} className="rounded-lg p-2 text-text-muted hover:bg-background" aria-label="Fermer">
                 <X size={16} />
               </button>
             </div>
 
             <div className="mt-5 space-y-4">
               <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-600">Nom du modèle / titre appliqué *</span>
+                <span className="text-xs font-bold text-text-muted">Nom du modèle / titre appliqué *</span>
                 <input
                   value={templateName}
                   onChange={event => setTemplateName(event.target.value)}
                   maxLength={100}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   placeholder="Ex. Lettre au médecin traitant"
                 />
               </label>
               <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-600">Contenu du modèle *</span>
+                <span className="text-xs font-bold text-text-muted">Contenu du modèle *</span>
                 <textarea
                   value={templateBody}
                   onChange={event => setTemplateBody(event.target.value)}
-                  className="min-h-44 w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  className="min-h-44 w-full resize-y rounded-xl border border-border-main px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   aria-label="Contenu du modèle de document libre"
                 />
               </label>
-              <p className="text-[10px] font-semibold text-slate-500">
+              <p className="text-[10px] font-semibold text-text-muted">
                 Destinataire, date, format et alignement restent propres au document en cours.
               </p>
             </div>
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={() => setShowSave(false)} className="min-h-10 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600">
+              <button type="button" onClick={() => setShowSave(false)} className="min-h-10 rounded-xl border border-border-main px-4 py-2 text-sm font-bold text-text-muted">
                 Annuler
               </button>
               <button
@@ -310,8 +310,8 @@ export const LibreForm: React.FC<LibreFormProps> = ({
     insertTag(tableSnippet, '');
   };
 
-  const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-100 rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
-  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2 ml-1";
+  const inputClass = "w-full px-4 py-3 bg-card/70 border border-border-main rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-text-main";
+  const labelClass = "text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block mb-2 ml-1";
   const titleError = validationErrors.find(e => e.field === 'libreTitle');
   const contentError = validationErrors.find(e => e.field === 'libreContent');
 
@@ -319,7 +319,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
     <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col max-w-4xl mx-auto py-8 w-full">
       
       {/* 🌟 Header Glassmorphism */}
-      <div className="bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-8 shadow-sm relative overflow-hidden">
+      <div className="bg-card/40 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-8 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full pointer-events-none" />
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
@@ -341,22 +341,22 @@ export const LibreForm: React.FC<LibreFormProps> = ({
             <input type="text" className={inputClass} value={customDate} onChange={(e) => { markDirty(); setCustomDate(e.target.value); }} placeholder="Ex: Rabat, le 12/05/2026" />
           </div>
           
-          <div className="md:col-span-3 flex flex-wrap items-center justify-between gap-6 mt-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+          <div className="md:col-span-3 flex flex-wrap items-center justify-between gap-6 mt-4 p-4 bg-background/50 rounded-2xl border border-border-main">
             <div className="flex items-center gap-3">
               <input 
                 type="checkbox" 
                 id="hideHeader" 
                 checked={hideHeader} 
                 onChange={(e) => { markDirty(); setHideHeader(e.target.checked); }}
-                className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary accent-primary"
+                className="w-4 h-4 rounded border-border-hover text-primary focus:ring-primary accent-primary"
               />
-              <label htmlFor="hideHeader" className="text-[11px] font-black text-slate-500 uppercase tracking-widest cursor-pointer">Masquer l'en-tête patient</label>
+              <label htmlFor="hideHeader" className="text-[11px] font-black text-text-muted uppercase tracking-widest cursor-pointer">Masquer l'en-tête patient</label>
             </div>
 
             <div className="flex gap-8">
               <div className="flex items-center gap-3">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Format</span>
-                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-100 gap-1">
+                <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Format</span>
+                <div className="flex bg-card p-1 rounded-xl shadow-sm border border-border-main gap-1">
                   {['A5', 'A4'].map((size) => (
                     <button 
                       key={size}
@@ -364,7 +364,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
                       onClick={() => { markDirty(); setPageSize(size as 'A5' | 'A4'); }}
                       className={cn(
                         "px-4 py-1.5 rounded-lg text-[10px] font-black transition-all",
-                        pageSize === size ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                        pageSize === size ? "bg-primary text-white shadow-md shadow-primary/20" : "text-text-muted hover:text-text-muted hover:bg-background"
                       )}
                     >
                       {size}
@@ -374,8 +374,8 @@ export const LibreForm: React.FC<LibreFormProps> = ({
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Alignement</span>
-                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-100 gap-1">
+                <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Alignement</span>
+                <div className="flex bg-card p-1 rounded-xl shadow-sm border border-border-main gap-1">
                   {[
                     { id: 'left', label: 'Gauche' },
                     { id: 'center', label: 'Centre' },
@@ -388,7 +388,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
                       onClick={() => { markDirty(); setAlignment(align.id as 'left' | 'center' | 'right' | 'justify'); }}
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-[10px] font-black transition-all",
-                        alignment === align.id ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                        alignment === align.id ? "bg-primary text-white shadow-md shadow-primary/20" : "text-text-muted hover:text-text-muted hover:bg-background"
                       )}
                     >
                       {align.label}
@@ -402,7 +402,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
       </div>
 
       {/* ✍️ Zone de Rédaction avec Toolbar */}
-      <div className="flex-1 min-h-[400px] flex flex-col bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden relative">
+      <div className="flex-1 min-h-[400px] flex flex-col bg-card rounded-[2.5rem] border border-border-main shadow-sm overflow-hidden relative">
         
         <LibreTemplatePresets
           title={title}
@@ -415,26 +415,26 @@ export const LibreForm: React.FC<LibreFormProps> = ({
         />
 
         {/* Toolbar */}
-        <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex items-center gap-2 flex-wrap">
-          <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
-             <button type="button" onClick={() => insertTag('<b>', '</b>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Gras">
+        <div className="px-6 py-4 bg-background/80 border-b border-border-main flex items-center gap-2 flex-wrap">
+          <div className="flex bg-card rounded-xl shadow-sm border border-border-main p-1">
+             <button type="button" onClick={() => insertTag('<b>', '</b>')} className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Gras">
                <Bold size={16} strokeWidth={2.5} />
              </button>
-             <button type="button" onClick={() => insertTag('<i>', '</i>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Italique">
+             <button type="button" onClick={() => insertTag('<i>', '</i>')} className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Italique">
                <Italic size={16} strokeWidth={2.5} />
              </button>
-             <button type="button" onClick={() => insertTag('<u>', '</u>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Souligné">
+             <button type="button" onClick={() => insertTag('<u>', '</u>')} className="p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Souligné">
                <Underline size={16} strokeWidth={2.5} />
              </button>
           </div>
           
-          <div className="w-px h-6 bg-slate-200 mx-2" />
+          <div className="w-px h-6 bg-input-field mx-2" />
           
-          <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
-             <button type="button" onClick={() => insertTag('<font size="16">', '</font>')} className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Agrandir">
+          <div className="flex bg-card rounded-xl shadow-sm border border-border-main p-1">
+             <button type="button" onClick={() => insertTag('<font size="16">', '</font>')} className="flex items-center gap-2 px-3 py-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Agrandir">
                <Type size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Grand Titre</span>
              </button>
-             <button type="button" onClick={handleTableInsert} className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Tableau">
+             <button type="button" onClick={handleTableInsert} className="flex items-center gap-2 px-3 py-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Tableau">
                <Table size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Tableau</span>
              </button>
           </div>
@@ -443,7 +443,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
         <textarea
           ref={textareaRef}
           className={cn(
-            "w-full flex-1 p-8 text-sm font-medium text-slate-700 outline-none transition-all resize-none leading-relaxed custom-scrollbar",
+            "w-full flex-1 p-8 text-sm font-medium text-text-main outline-none transition-all resize-none leading-relaxed custom-scrollbar",
             contentError ? "bg-red-50/30" : "bg-transparent"
           )}
           value={content}

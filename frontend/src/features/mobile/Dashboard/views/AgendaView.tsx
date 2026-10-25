@@ -196,7 +196,7 @@ export function AgendaView({
         )}
 
         {viewMode === 'mois' && (
-          <div className="bg-white border border-slate-100 rounded-[24px] p-4 shadow-sm">
+          <div className="bg-card border border-border-main rounded-[24px] p-4 shadow-sm">
             <h3 className="text-sm font-black text-center mb-4 capitalize">{format(currentParsedDate, 'MMMM yyyy', { locale: fr })}</h3>
             <div className="grid grid-cols-7 gap-2">
               {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
@@ -278,10 +278,10 @@ export function AgendaView({
                   if (appointmentsAtTime.length > 0) {
                     return (
                       <div key={time} className="relative">
-                        <div className="absolute -left-10 mt-3 bg-white px-1 text-[10px] font-bold text-slate-500 w-8 text-right z-10">
+                        <div className="absolute -left-10 mt-3 bg-card px-1 text-[10px] font-bold text-text-muted w-8 text-right z-10">
                           {time}
                         </div>
-                        <div className="absolute left-[-19px] top-4 w-2.5 h-2.5 rounded-full border-2 border-primary bg-white z-10" />
+                        <div className="absolute left-[-19px] top-4 w-2.5 h-2.5 rounded-full border-2 border-primary bg-card z-10" />
                         <div className="space-y-3">
                           {appointmentsAtTime.map(appointment => (
                             <DraggableApptCard
@@ -300,11 +300,11 @@ export function AgendaView({
 
                   return (
                     <div key={time} className="relative flex items-center group cursor-pointer" onClick={() => setShowAddModal(true)}>
-                      <div className="absolute -left-10 bg-glass-bg px-1 text-[10px] font-medium text-slate-400 w-8 text-right z-10">
+                      <div className="absolute -left-10 bg-glass-bg px-1 text-[10px] font-medium text-text-muted w-8 text-right z-10">
                         {time}
                       </div>
-                      <div className="absolute left-[-18px] w-2 h-2 rounded-full border border-slate-300 bg-slate-100 z-10 group-hover:border-primary group-hover:bg-primary/20 transition-colors" />
-                      <div className="min-h-11 flex-1 ml-4 border border-dashed border-slate-200 rounded-[12px] flex items-center px-4 text-[10px] text-slate-400 font-medium group-hover:border-primary/50 group-hover:text-primary transition-colors bg-white/30 backdrop-blur-sm">
+                      <div className="absolute left-[-18px] w-2 h-2 rounded-full border border-border-hover bg-input-field z-10 group-hover:border-primary group-hover:bg-primary/20 transition-colors" />
+                      <div className="min-h-11 flex-1 ml-4 border border-dashed border-border-main rounded-[12px] flex items-center px-4 text-[10px] text-text-muted font-medium group-hover:border-primary/50 group-hover:text-primary transition-colors bg-card/30 backdrop-blur-sm">
                         <Plus size={12} className="mr-1" /> Créneau libre
                       </div>
                     </div>
@@ -315,10 +315,10 @@ export function AgendaView({
               <div className="space-y-4">
                 {dayAppointments.map(apt => (
                   <div key={apt.id} className="relative">
-                    <div className="absolute -left-10 mt-3 bg-white px-1 text-[10px] font-bold text-slate-500 w-8 text-right z-10">
+                    <div className="absolute -left-10 mt-3 bg-card px-1 text-[10px] font-bold text-text-muted w-8 text-right z-10">
                       {normalizeAppointmentTime(apt.time)}
                     </div>
-                    <div className="absolute left-[-19px] top-4 w-2.5 h-2.5 rounded-full border-2 border-primary bg-white z-10" />
+                    <div className="absolute left-[-19px] top-4 w-2.5 h-2.5 rounded-full border-2 border-primary bg-card z-10" />
                     <DraggableApptCard
                       apt={apt}
                       onStatusChange={onStatusChange}

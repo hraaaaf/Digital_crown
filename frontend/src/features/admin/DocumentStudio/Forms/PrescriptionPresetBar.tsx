@@ -226,19 +226,19 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
           aria-labelledby="cust04-replace-title"
           className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/40 p-4"
         >
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ordonnance</p>
-            <h3 id="cust04-replace-title" className="mt-1 text-lg font-black text-slate-900">
+          <div className="w-full max-w-md rounded-2xl border border-border-main bg-card p-5 shadow-2xl">
+            <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Ordonnance</p>
+            <h3 id="cust04-replace-title" className="mt-1 text-lg font-black text-text-main">
               Remplacer les lignes actuelles ?
             </h3>
-            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+            <p className="mt-3 text-sm font-medium leading-relaxed text-text-muted">
               Le modèle « {pendingApply.label || pendingApply.act_context} » remplacera uniquement les lignes de prescription. Le patient, la date et l’indication restent inchangés.
             </p>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setPendingApply(null)}
-                className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+                className="min-h-11 rounded-xl border border-border-main px-4 py-2 text-sm font-bold text-text-muted"
               >
                 Conserver l’ordonnance actuelle
               </button>
@@ -264,11 +264,11 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
           aria-labelledby="cust04-save-title"
           className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/40 p-4"
         >
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-border-main bg-card p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ordonnance</p>
-                <h3 id="cust04-save-title" className="mt-1 text-lg font-black text-slate-900">
+                <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Ordonnance</p>
+                <h3 id="cust04-save-title" className="mt-1 text-lg font-black text-text-main">
                   Enregistrer un modèle
                 </h3>
               </div>
@@ -276,24 +276,24 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
                 type="button"
                 aria-label="Fermer"
                 onClick={() => setShowSave(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-50"
+                className="rounded-lg p-2 text-text-muted hover:bg-background"
               >
                 <X size={16} />
               </button>
             </div>
 
             <label className="mt-5 block space-y-1.5">
-              <span className="text-xs font-bold text-slate-600">Nom du modèle *</span>
+              <span className="text-xs font-bold text-text-muted">Nom du modèle *</span>
               <input
                 value={presetName}
                 onChange={event => setPresetName(event.target.value)}
                 maxLength={100}
                 placeholder="Ex. Post-opératoire personnel"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
               />
             </label>
 
-            <p className="mt-3 text-[10px] font-semibold leading-relaxed text-slate-500">
+            <p className="mt-3 text-[10px] font-semibold leading-relaxed text-text-muted">
               {drugs.filter(drug => drug.name.trim()).length} ligne(s) seront enregistrées. Aucune donnée patient, date ou indication n’est incluse.
             </p>
 
@@ -301,7 +301,7 @@ export const PrescriptionPresetBar: React.FC<PrescriptionPresetBarProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSave(false)}
-                className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+                className="min-h-11 rounded-xl border border-border-main px-4 py-2 text-sm font-bold text-text-muted"
               >
                 Annuler
               </button>

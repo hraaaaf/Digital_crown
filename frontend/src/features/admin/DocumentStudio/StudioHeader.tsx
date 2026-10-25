@@ -115,7 +115,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
     <div
       data-ordonnance-hierarchy-header={compactOrdonnance ? 'primary' : undefined}
       className={cn(
-        "-mt-1 -mx-1 mb-2 bg-white/85 dark:bg-slate-950/80 backdrop-blur-3xl rounded-2xl border border-slate-200/70 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 transition-all duration-300 shadow-sm",
+        "-mt-1 -mx-1 mb-2 bg-card/85 dark:bg-slate-950/80 backdrop-blur-3xl rounded-2xl border border-border-main/70 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 transition-all duration-300 shadow-sm",
         compactOrdonnance || compactAccounting ? "relative z-20" : "sticky top-0 z-[60]",
         compactOrdonnance
           ? "p-2 gap-2 sm:px-3 sm:py-2.5 md:gap-3"
@@ -144,19 +144,19 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
               {compactOrdonnance ? documentLabel : 'Documents'}
             </h2>
             {!compactOrdonnance && (
-              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">
+              <span className="rounded-full bg-input-field dark:bg-slate-800 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-text-muted dark:text-text-muted">
                 {documentLabel}
               </span>
             )}
           </div>
           <p className={cn(
-            "flex min-w-0 items-center gap-2 font-bold text-slate-500 dark:text-slate-400",
+            "flex min-w-0 items-center gap-2 font-bold text-text-muted dark:text-text-muted",
             compactOrdonnance ? "mt-1 text-[11px]" : "mt-1.5 text-[10px]",
           )}>
             <span className="shrink-0 uppercase tracking-widest">{compactOrdonnance ? 'Patient' : 'Patient actif'}</span>
-            <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">•</span>
+            <span aria-hidden="true" className="text-text-muted dark:text-text-main">•</span>
             <span className={cn(
-              "truncate font-black tracking-tight text-slate-900 dark:text-white",
+              "truncate font-black tracking-tight text-text-main dark:text-white",
               compactOrdonnance ? "text-xs sm:text-sm" : "",
             )}>{patientName}</span>
           </p>
@@ -177,7 +177,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
               compactHonorairesMobile ? "px-2.5 sm:px-3 py-2" : "px-3 py-2",
               showOdontoPanoramique
                 ? "bg-primary text-white shadow-lg shadow-primary/30"
-                : "bg-white dark:bg-slate-900 text-primary border border-primary/20 hover:bg-primary/5"
+                : "bg-card dark:bg-slate-900 text-primary border border-primary/20 hover:bg-primary/5"
             )}
             style={showOdontoPanoramique ? { backgroundColor: 'var(--primary)' } : { color: 'var(--primary)', borderColor: 'var(--primary)' }}
           >
@@ -186,21 +186,21 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         )}
 
         <div className={cn(
-          "min-w-[190px] flex-1 md:flex-none bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-white/10 flex items-center",
+          "min-w-[190px] flex-1 md:flex-none bg-card dark:bg-slate-900 rounded-xl shadow-sm border border-border-main dark:border-white/10 flex items-center",
           compactOrdonnance ? "h-11 px-2.5 gap-2 md:min-w-[210px]" : "p-2.5 flex-col items-start gap-1",
         )}>
           <label htmlFor="document-studio-author" className={cn(
-            "text-[9px] font-black text-slate-400 uppercase items-center gap-1 leading-none",
+            "text-[9px] font-black text-text-muted uppercase items-center gap-1 leading-none",
             compactOrdonnance ? "sr-only" : "flex h-3",
           )}>
             <Stethoscope size={10} /> Auteur clinique
           </label>
-          {compactOrdonnance && <Stethoscope size={13} className="shrink-0 text-slate-400" />}
+          {compactOrdonnance && <Stethoscope size={13} className="shrink-0 text-text-muted" />}
           <select
             id="document-studio-author"
             data-p3-author-selector
             aria-label="Auteur clinique du document"
-            className="w-full min-h-11 bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full min-h-11 bg-transparent text-xs font-black text-text-main dark:text-text-muted outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md disabled:cursor-not-allowed disabled:opacity-60"
             value={authorPractitionerId ?? ''}
             onChange={(event) => handleAuthorChange(event.target.value)}
             disabled={authorLoading || practitioners.length === 0}
@@ -213,7 +213,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         </div>
 
         <div className={cn(
-          "min-w-[140px] flex-1 md:flex-none bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-white/10",
+          "min-w-[140px] flex-1 md:flex-none bg-card dark:bg-slate-900 rounded-xl shadow-sm border border-border-main dark:border-white/10",
           compactOrdonnance
             ? "h-11 px-2 py-0 flex flex-row items-center gap-1.5 md:min-w-[150px]"
             : compactHonorairesMobile
@@ -223,19 +223,19 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           <label
             htmlFor="document-studio-date"
             className={cn(
-              "text-[9px] font-black text-slate-400 uppercase items-center gap-1 leading-none h-3",
+              "text-[9px] font-black text-text-muted uppercase items-center gap-1 leading-none h-3",
               compactOrdonnance ? "sr-only" : compactHonorairesMobile ? "sr-only sm:not-sr-only sm:flex" : "flex",
             )}
           >
             <CalendarIcon size={10} /> Date d'émission
           </label>
-          {compactOrdonnance && <CalendarIcon size={13} className="shrink-0 text-slate-400" />}
+          {compactOrdonnance && <CalendarIcon size={13} className="shrink-0 text-text-muted" />}
           <input
             id="document-studio-date"
             type="date"
             aria-label={compactOrdonnance || compactHonorairesMobile ? "Date d'émission" : undefined}
             className={cn(
-              "bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none w-full cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md",
+              "bg-transparent text-xs font-black text-text-main dark:text-text-muted outline-none w-full cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md",
               compactOrdonnance ? "min-h-11" : compactHonorairesMobile ? "min-h-11 sm:min-h-8" : "min-h-8",
             )}
             value={docDate}
