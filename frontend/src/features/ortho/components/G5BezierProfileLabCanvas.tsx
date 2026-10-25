@@ -71,7 +71,7 @@ export const G5BezierProfileLabCanvas:React.FC<Props>=({
   const commit=(next:Node[])=>{
     try{
       const samples=next.length>1?g5SampleBezierContour(
-        segments(next),{imageWidth,imageHeight,maxStepPixels:5},
+        segments(next),{imageWidth,imageHeight,maxStepPixels:6},
       ):[];
       setNodes(next);
       onNodesChange?.(next.map(n=>({
@@ -104,7 +104,7 @@ export const G5BezierProfileLabCanvas:React.FC<Props>=({
   if(nodes.length>1){
     try{
       renderedPoints=g5SampleBezierContour(segments(nodes),{
-        imageWidth,imageHeight,maxStepPixels:5,
+        imageWidth,imageHeight,maxStepPixels:6,
       });
     }catch{
       // Keep the last valid stored contour until the editor accepts an update.
