@@ -4,7 +4,7 @@ import unittest
 from audit.cephalo_facad_p8_source_gate import SCHEMA, verify
 
 def case():
-    image = b"SYNTHETIC TEST BYTES - NOT MEDICAL IMAGE"
+    image = bytes.fromhex("89504e470d0a1a0a0000000d49484452") + (1200).to_bytes(4,"big") + (900).to_bytes(4,"big") + bytes(9)
     bundle = b"SYNTHETIC TEST MANIFEST - NO REAL EXPORTS"
     a = {
         "schema": SCHEMA,
