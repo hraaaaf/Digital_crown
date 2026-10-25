@@ -32,7 +32,9 @@ function SyntheticShell() {
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">CB-03 G5 · simulation CI isolée</p>
       <h1 className="mt-2 text-xl font-bold">Digital Crown · exemple visuel de la vraie fenêtre conversationnelle</h1>
       <p className="mt-1 text-sm text-slate-600">Le composant intérieur est le vrai CrownBotChat. Le bouton flottant est un cadre de démonstration.
-        Le parcours HTTP est entièrement simulé, sans base ni patient réel.</p>
+        {import.meta.env.VITE_CB03_G5_REAL_CHAT_PG === 'true'
+          ? 'Le HTTP est RÉEL : API FastAPI locale et PostgreSQL jetable avec comptes inventés. Aucune base clinique, aucun patient réel.'
+          : 'Le HTTP est entièrement simulé, sans base de données ni patient réel.'}</p>
     </div>
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {open && <div className="h-[min(660px,calc(100vh-115px))] w-[min(420px,calc(100vw-32px))] min-w-0">
