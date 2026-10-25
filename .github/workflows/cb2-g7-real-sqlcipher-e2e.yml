@@ -82,9 +82,9 @@ jobs:
           echo "DATABASE_URL=$url" >> "$GITHUB_ENV"
           echo "SQLCIPHER_KEY_HEX=$key" >> "$GITHUB_ENV"
           echo "DIGITALCROWN_ISOLATION_DB_FINGERPRINT=$fingerprint" >> "$GITHUB_ENV"
-          echo "MEDIA_ROOT=$dir/media" >> "$GITHUB_ENV"
+          echo "MEDIA_ROOT=$dir/rehearsal-media" >> "$GITHUB_ENV"
           echo "CB2_SQLCIPHER_DIR=$dir" >> "$GITHUB_ENV"
-          mkdir -p "$dir/media"
+          mkdir -p "$dir/rehearsal-media"
           test ! -f "$dir/cb2-g7-synthetic.db"
       - name: Full SQLCipher Alembic schema from empty file
         shell: bash
