@@ -5,6 +5,8 @@ import { CertificateForm } from './Forms/CertificateForm';
 import { InstallmentStudio } from './Forms/InstallmentStudio';
 import { LibreForm } from './Forms/LibreForm';
 import { PrescriptionAgenticStudio, type DrugItem } from './Forms/PrescriptionAgenticStudio';
+import { PatientClinicalContextPanel } from './Forms/PatientClinicalContextPanel';
+import { IEProphylaxisRulePanel } from './Forms/IEProphylaxisRulePanel';
 import { useDocumentGenerator } from './useDocumentGenerator';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
 import type { CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
@@ -88,10 +90,13 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
     {activeTab === 'ordonnance' && (
       <div data-ordonnance-coherence="u6">
         <style>{`
+          [data-ordonnance-coherence="u6"] button { min-height: 44px; }
           [data-ordonnance-coherence="u6"] .prescription-r3-legacy div:has(> div[title^="Contrôles de sécurité partiellement disponibles"]) {
             display: none !important;
           }
         `}</style>
+
+        <PatientClinicalContextPanel patientId={Number(patientId)} />
 
         <PrescriptionAgenticStudio
           patientId={patientId || '0'}
@@ -117,6 +122,11 @@ export const DocumentHubContent: React.FC<DocumentHubContentProps> = ({
           validationErrors={generator.validationErrors}
           hasChanges={generator.hasChanges}
           coherenceWarnings={generator.coherenceWarnings}
+        />
+
+        <IEProphylaxisRulePanel
+          patientId={Number(patientId)}
+          drug={drugs.find(drug => drug.catalogPresentationId && ['AMOXICILLINE', 'AMOXICILLIN'].includes((drug.catalogDci || '').trim().toUpperCase()))}
         />
 
         <div data-ordonnance-secondary-meta className="mt-3 flex min-h-11 items-center gap-2 rounded-xl border border-border-main bg-glass-bg px-2 text-text-muted backdrop-blur-xl">
