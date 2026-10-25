@@ -9,7 +9,7 @@ import { StationPrintStatusPanel } from './StationPrintStatusPanel';
 
 const COPY = {
   fr: {
-    tooMany: 'Trop de tentatives. Générez une nouvelle session ou demandez de l’aide.',
+    tooMany: 'Trop de tentatives. L’identification de secours est temporairement bloquée sur cette borne. Adressez-vous à l’accueil.',
     disabled: 'Identification de secours désactivée par le cabinet.',
     notConfirmed: 'Identification non confirmée. Vérifiez les informations ou demandez de l’aide.',
     unavailable: 'Identification indisponible. Prévenez l’équipe d’accueil.',
@@ -33,7 +33,7 @@ const COPY = {
     documentsReady: 'Document disponible sur votre téléphone dans Patient Companion. Aucun PDF ne sera conservé sur cette borne.',
   },
   en: {
-    tooMany: 'Too many attempts. Generate a new session or ask for help.',
+    tooMany: 'Too many attempts. Backup identification is temporarily locked on this kiosk. Please contact reception.',
     disabled: 'Backup identification is disabled by the clinic.',
     notConfirmed: 'Identity not confirmed. Check the information or ask for help.',
     unavailable: 'Identification unavailable. Please notify the reception team.',
@@ -57,7 +57,7 @@ const COPY = {
     documentsReady: 'Document available on your phone in Patient Companion. This station does not save PDF files.',
   },
   ar: {
-    tooMany: 'محاولات كثيرة جداً. أنشئوا جلسة جديدة أو اطلبوا المساعدة.',
+    tooMany: 'محاولات كثيرة جداً. تم إيقاف التعرّف الاحتياطي مؤقتاً على هذه المحطة. يرجى مراجعة الاستقبال.',
     disabled: 'التعرّف الاحتياطي معطل من طرف العيادة.',
     notConfirmed: 'لم يتم تأكيد الهوية. تحققوا من المعلومات أو اطلبوا المساعدة.',
     unavailable: 'خدمة التعرّف غير متاحة. يرجى إبلاغ فريق الاستقبال.',
@@ -94,11 +94,16 @@ const purgeSessionBestEffort = async (sessionId: string) => {
   return false;
 };
 
+const fallbackErrorStatus = (error: unknown): number | undefined => {
+  if (typeof error !== 'object' || error === null || !('response' in error)) return undefined;
+  return (error as { response?: { status?: number } }).response?.status;
+};
+
 const apiErrorDetail = (error: unknown, language: StationFlowLanguage): string => {
   const copy = COPY[language];
   if (typeof error === 'object' && error !== null && 'response' in error) {
     const response = (error as { response?: { status?: number; data?: { detail?: string } } }).response;
-    if (response?.status === 429) return copy.tooMany;
+    if (fallbackErrorStatus(error) === 429) return copy.tooMany;
     if (response?.data?.detail === 'STATION_FALLBACK_DISABLED') return copy.disabled;
   }
   return copy.notConfirmed;
@@ -126,6 +131,7 @@ export const StationPatientIdentity = ({
   const [error, setError] = useState('');
   const [fallbackOpen, setFallbackOpen] = useState(false);
   const [fallbackBusy, setFallbackBusy] = useState(false);
+  const [fallbackLocked, setFallbackLocked] = useState(false);
   const [birthDate, setBirthDate] = useState('');
   const [phone, setPhone] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -134,6 +140,14 @@ export const StationPatientIdentity = ({
   const mountedRef = useRef(false);
   const generationRef = useRef(0);
   const sessionRef = useRef<string | null>(null);
+
+  // The shared kiosk must not retain identifiers after a rejected attempt.
+  const clearFallbackInputs = () => {
+    setBirthDate('');
+    setPhone('');
+    setFirstName('');
+    setLastName('');
+  };
 
   const requestPurge = useCallback((sessionId: string) => {
     if (purgeStartedRef.current.has(sessionId)) return;
@@ -171,10 +185,8 @@ export const StationPatientIdentity = ({
     setAvailableDocuments([]);
     setDocumentsError('');
     setFallbackOpen(false);
-    setBirthDate('');
-    setPhone('');
-    setFirstName('');
-    setLastName('');
+    setFallbackLocked(false);
+    clearFallbackInputs();
     void createSession(generation);
   };
 
@@ -291,8 +303,9 @@ export const StationPatientIdentity = ({
   }, [session]);
 
   const submitFallback = async () => {
-    if (!session || session.fallbackMode === 'disabled' || !birthDate) {
-      setError(copy.notConfirmed);
+    if (!session || session.fallbackMode === 'disabled' || fallbackLocked || !birthDate) {
+      clearFallbackInputs();
+      setError(fallbackLocked ? copy.tooMany : copy.notConfirmed);
       return;
     }
     setFallbackBusy(true);
@@ -308,7 +321,15 @@ export const StationPatientIdentity = ({
       setCompanionPaired(false);
       setStatus('identified');
       setFallbackOpen(false);
+      clearFallbackInputs();
     } catch (fallbackError) {
+      clearFallbackInputs();
+      if (fallbackErrorStatus(fallbackError) === 429) {
+        // The station-scoped lock survives QR regeneration. Hide the form
+        // rather than offer a misleading path to another attempt.
+        setFallbackLocked(true);
+        setFallbackOpen(false);
+      }
       setError(apiErrorDetail(fallbackError, language));
     } finally {
       setFallbackBusy(false);
@@ -383,11 +404,12 @@ export const StationPatientIdentity = ({
             <Nfc size={18} aria-hidden="true" /> {copy.nfc}
           </div>
 
-          {session.fallbackMode !== 'disabled' && (
+          {session.fallbackMode !== 'disabled' && !fallbackLocked && (
             <button
               type="button"
               data-station-fallback-toggle
               onClick={() => {
+                if (fallbackOpen) clearFallbackInputs();
                 setFallbackOpen((value) => !value);
                 setError('');
               }}
@@ -397,7 +419,7 @@ export const StationPatientIdentity = ({
             </button>
           )}
 
-          {fallbackOpen && session.fallbackMode !== 'disabled' && (
+          {fallbackOpen && !fallbackLocked && session.fallbackMode !== 'disabled' && (
             <div data-station-fallback-form className="mt-4 rounded-2xl border border-border-main bg-main-bg p-4 text-start">
               <p className="text-xs font-black uppercase tracking-wider text-primary">{copy.fallback}</p>
               {session.fallbackMode === 'phone_dob' ? (

@@ -36,6 +36,24 @@ describe('StationKioskShell', () => {
     expect(container.querySelector('[data-station-screen="home"]')).toBeInTheDocument();
   });
 
+  it('does not advertise technical station security on any patient-facing language or screen', () => {
+    const { container } = render(<StationKioskShell onAdminTap={vi.fn()} />);
+    const technicalBadge = /Station sécurisée|Secure welcome station|محطة استقبال آمنة/;
+    expect(container).not.toHaveTextContent(technicalBadge);
+    expect(screen.getByText('Digital Crown · Station d’accueil')).toBeInTheDocument();
+    for (const [language, appointment] of [
+      ['English', 'I have an appointment'],
+      ['العربية', 'لدي موعد'],
+      ['Français', 'J’ai rendez-vous'],
+    ]) {
+      fireEvent.click(screen.getByRole('button', { name: language }));
+      expect(container).not.toHaveTextContent(technicalBadge);
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(appointment, 'i') }));
+      expect(container).not.toHaveTextContent(technicalBadge);
+      expect(container.querySelector('[data-station-screen="appointment"]')).toBeInTheDocument();
+    }
+  });
+
   it('switches FR / AR / EN and applies RTL only to Arabic', () => {
     const { container } = render(<StationKioskShell onAdminTap={vi.fn()} />);
 

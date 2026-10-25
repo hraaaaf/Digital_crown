@@ -456,4 +456,93 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     appointment.unmount();
   });
 
+
+  it.each(['phone_dob', 'name_dob'] as const)(
+    'clears personal data from the shared Station form after a rejected %s identity',
+    async (mode) => {
+      vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+        status: 'pending', sessionId: 'session-1',
+        expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      });
+      vi.mocked(stationPatientSessionService.create).mockResolvedValue({
+        sessionId: 'session-1',
+        handoffUrl: 'https://cabinet.local/companion?stationSession=opaque-token',
+        nfcPayload: 'https://cabinet.local/companion?stationSession=opaque-token',
+        qrDataUrl: 'data:image/png;base64,AAAA',
+        expiresAt: new Date(Date.now() + 120_000).toISOString(),
+        fallbackMode: mode,
+      });
+      vi.mocked(stationPatientSessionService.fallback).mockRejectedValue({
+        response: { status: 403, data: { detail: 'STATION_FALLBACK_NOT_CONFIRMED' } },
+      });
+      render(<StationPatientIdentity onBack={vi.fn()} backLabel="Retour" />);
+      await screen.findByAltText('QR d’identification Patient Companion');
+      fireEvent.click(screen.getByRole('button', { name: 'Je n’ai pas mon téléphone' }));
+      if (mode === 'phone_dob') {
+        fireEvent.change(screen.getByLabelText('Téléphone'), { target: { value: '0612345678' } });
+      } else {
+        fireEvent.change(screen.getByLabelText('Prénom'), { target: { value: 'Aya' } });
+        fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Audit' } });
+      }
+      fireEvent.change(screen.getByLabelText('Date de naissance'), {
+        target: { value: '1992-05-04' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmer mon identité' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Identification non confirmée');
+      await waitFor(() => {
+        expect(screen.getByLabelText('Date de naissance')).toHaveValue('');
+        if (mode === 'phone_dob') {
+          expect(screen.getByLabelText('Téléphone')).toHaveValue('');
+        } else {
+          expect(screen.getByLabelText('Prénom')).toHaveValue('');
+          expect(screen.getByLabelText('Nom')).toHaveValue('');
+        }
+      });
+      expect(screen.getByRole('button', { name: 'Confirmer mon identité' })).toBeEnabled();
+      expect(stationPatientSessionService.fallback).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    ['fr', 'Je n’ai pas mon téléphone', 'Trop de tentatives', 'Adressez-vous à l’accueil.'],
+    ['en', 'I do not have my phone', 'Too many attempts', 'Please contact reception.'],
+    ['ar', 'ليس لدي هاتفي', 'محاولات كثيرة', 'يرجى مراجعة الاستقبال.'],
+  ] as const)(
+    'hides sensitive fallback fields and gives truthful locked assistance in %s',
+    async (language, fallbackLabel, lockMessage, helpMessage) => {
+      vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+        status: 'pending', sessionId: 'session-1',
+        expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      });
+      vi.mocked(stationPatientSessionService.fallback).mockRejectedValue({
+        response: { status: 429, data: { detail: 'STATION_FALLBACK_TOO_MANY_ATTEMPTS' } },
+      });
+      const mounted = render(
+        <StationPatientIdentity language={language} onBack={vi.fn()} backLabel="Retour" />,
+      );
+      await screen.findByRole('button', { name: fallbackLabel });
+      fireEvent.click(screen.getByRole('button', { name: fallbackLabel }));
+      fireEvent.change(screen.getByLabelText(language === 'fr' ? 'Téléphone' : language === 'en' ? 'Phone' : 'الهاتف'), {
+        target: { value: '0698877665' },
+      });
+      fireEvent.change(screen.getByLabelText(language === 'fr' ? 'Date de naissance' : language === 'en' ? 'Date of birth' : 'تاريخ الميلاد'), {
+        target: { value: '1990-06-07' },
+      });
+      fireEvent.click(screen.getByRole('button', {
+        name: language === 'fr' ? 'Confirmer mon identité' : language === 'en' ? 'Confirm my identity' : 'تأكيد هويتي',
+      }));
+      const alert = await screen.findByRole('alert');
+      expect(alert.textContent).toContain(lockMessage);
+      expect(alert.textContent).toContain(helpMessage);
+      expect(alert.textContent).not.toMatch(/nouvelle session|new session|جلسة جديدة/i);
+      await waitFor(() => expect(mounted.container.querySelector('[data-station-fallback-form]')).toBeNull());
+      expect(mounted.container.querySelector('[data-station-fallback-toggle]')).toBeNull();
+      expect(mounted.container.querySelector('input[type="date"], input[inputmode="tel"]')).toBeNull();
+      expect(screen.queryByRole('button', { name: /Nouveau QR|New QR code|رمز QR جديد/ })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Retour' })).toBeInTheDocument();
+      expect(stationPatientSessionService.fallback).toHaveBeenCalledTimes(1);
+      mounted.unmount();
+    },
+  );
+
 });
