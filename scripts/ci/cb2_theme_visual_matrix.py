@@ -68,16 +68,17 @@ try:
         clinical_posts=[]
         def route_generic(route):
             route.fulfill(status=404,content_type="application/json",body="{}",
-                          headers={"access-control-allow-origin":"*"})
+                          headers={"access-control-allow-origin":"http://127.0.0.1:5173","access-control-allow-credentials":"true"})
         def route_sessions(route):
             route.fulfill(status=200,content_type="application/json",body="[]",
-                          headers={"access-control-allow-origin":"*"})
+                          headers={"access-control-allow-origin":"http://127.0.0.1:5173","access-control-allow-credentials":"true"})
         def route_guided(route):
             req=route.request
             clinical_posts.append(req.method+" "+req.url.split("/api/")[-1])
             if req.method=="OPTIONS":
                 route.fulfill(status=204, headers={
-                    "access-control-allow-origin":"*",
+                    "access-control-allow-origin":"http://127.0.0.1:5173",
+                    "access-control-allow-credentials":"true",
                     "access-control-allow-methods":"POST,GET,OPTIONS",
                     "access-control-allow-headers":"content-type,authorization"
                 })
@@ -85,7 +86,7 @@ try:
             if req.method=="POST" and req.url.endswith("/prepare-appointment"):
                 route.fulfill(status=200,content_type="application/json",
                     body=json.dumps(fake_preparation),
-                    headers={"access-control-allow-origin":"*"})
+                    headers={"access-control-allow-origin":"http://127.0.0.1:5173","access-control-allow-credentials":"true"})
                 return
             raise AssertionError("REFUSED: test must not confirm or write clinical results")
         page.route("**/api/**",route_generic)
