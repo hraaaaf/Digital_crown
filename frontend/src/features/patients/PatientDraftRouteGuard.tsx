@@ -44,7 +44,7 @@ export function PatientDraftRouteGuard({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      {blocker.state === 'blocked' && (
+      {scope && blocker.state === 'blocked' && (
         <div
           className="fixed inset-0 z-[10020] flex items-center justify-center bg-slate-950/70 p-4"
           role="presentation"
