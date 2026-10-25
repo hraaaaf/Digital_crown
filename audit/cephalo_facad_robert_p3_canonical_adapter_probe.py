@@ -133,11 +133,52 @@ def assess(fixture: dict) -> dict:
             "source_image_orientation_proven": False,
             "clinical_parity": False,
         })
-    # This probe must NOT upgrade the third candidate merely because the
-    # CRANIOM angular helper was executed in the previous research stage.
+    # A third production path is a *typed CRANIOM construction*, not another
+    # canonical V2 Ricketts measurement and not the full clinical adapter.
+    craniom = importlib.import_module(
+        "backend.services.cephalo_construction_evidence_adapter")
+    craniom_constructions = craniom.materialize_craniom_constructions(
+        landmarks,
+        construction_namespace="FACAD_ROBERT_UNVERIFIED_GEOMETRY_CONSTRUCTIONS",
+    )
+    definition = "CRANIOM_U1_L1_INTERINCISAL_V1"
+    require(definition in craniom_constructions,
+            "CRANIOM interincisal construction unavailable")
+    inter = craniom_constructions[definition]
+    require(inter.definition_id == definition and inter.definition_version == "1"
+            and inter.availability_status == evidence.AvailabilityStatus.AVAILABLE
+            and inter.geometry.get("angle_convention") == "larger_supplementary_v1"
+            and inter.geometry.get("source_image_ref") == STUDY_REF,
+            "CRANIOM interincisal construction not correctly typed")
+    inter_value = inter.geometry.get("computed_angle_deg")
+    require(type(inter_value) in (float,int) and math.isfinite(inter_value),
+            "CRANIOM interincisal typed angle absent")
+    expected_inter = public.dc.raw_helpers(
+        {name: tuple(point) for name, point in coords.items()})["InterIncisal"]
+    require(math.isclose(inter_value, round(expected_inter, 1),
+                         rel_tol=0.0, abs_tol=1e-12),
+            "CRANIOM typed construction and versioned production geometry drift")
+    require(method_bridge.canonical_measurement_id_for_method(
+        "CRANIOM_INTERINCISAL_DEG_V1") == "M_INTERINCISAL_DEG_V1",
+        "CRANIOM clinical method bridge drift")
+    inter_vendor = fixture["facad_values"]["32F"]["InterIncisal"]["value"]
+    typed_interincisal = {
+        "facad_factor": "InterIncisal",
+        "facad_display_deg": inter_vendor,
+        "dc_versioned_construction_id": definition,
+        "canonical_measurement_id": "M_INTERINCISAL_DEG_V1",
+        "dc_craniom_typed_construction_deg": float(inter_value),
+        "raw_delta_deg": round(float(inter_value) - inter_vendor, 6),
+        "typed_craniom_measurement_adapter_executed": False,
+        "landmark_identity_proven": False,
+        "clinical_parity": False,
+    }
     return {
         "status": "P3_TYPED_CANONICAL_V2_TWO_ANGLES_EDUCATIONAL_ONLY",
         "canonical_v2_typed_adapter_executed": True,
+        "craniom_interincisal_typed_construction_executed": True,
+        "craniom_interincisal_typed_construction": typed_interincisal,
+        "complete_craniom_measurement_adapter_executed": False,
         "facad_operator_crosswalk_validated": False,
         "clinical_runtime_calibration_proven": False,
         "complete_analysis_runtime_executed": False,
@@ -159,6 +200,8 @@ def main() -> int:
         return 2
     print("FACAD_P3_TYPED_ADAPTER=PRODUCTION_CANONICAL_V2_TWO_ANGLES_EXECUTED")
     print("FACAD_P3_CANONICAL_ANGLE_COUNT=" + str(len(result["rows"])))
+    print("FACAD_P3_CRANIOM_INTERINCISAL=PRODUCTION_TYPED_CONSTRUCTION_EXECUTED")
+    print("FACAD_P3_TYPED_TOTAL=2_CANONICAL_V2_AND_1_CRANIOM_CONSTRUCTION")
     print("FACAD_P3_ANATOMICAL_MAPPING=UNVERIFIED")
     print("FACAD_P3_CLINICAL_PARITIES=0")
     print("CLINICAL_NO_GO=true")
