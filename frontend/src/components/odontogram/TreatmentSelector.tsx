@@ -207,7 +207,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 
   const modalClasses = embedded
     ? "w-full h-full flex flex-col overflow-hidden"
-    : "bg-white/95 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_128px_rgba(0,0,0,0.3)] w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden border border-white/50";
+    : "bg-card/95 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_128px_rgba(0,0,0,0.3)] w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden border border-white/50";
 
   const content = (
     <div className={containerClasses}>
@@ -225,7 +225,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-black text-white tracking-tighter">Dent {toothNumber}</h2>
-              <p className="text-slate-400 font-bold flex items-center gap-2">
+              <p className="text-text-muted font-bold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                 {toothName} • Sélection d'actes
               </p>
@@ -237,10 +237,10 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-          <div className={cn("flex-1 flex flex-col min-w-0", embedded ? "bg-white/5" : "bg-slate-50/30")}>
+          <div className={cn("flex-1 flex flex-col min-w-0", embedded ? "bg-white/5" : "bg-background/30")}>
             <div className="p-6 pb-0 shrink-0 flex flex-col gap-4 mb-4">
               <div className="relative w-full group">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted group-focus-within:text-primary transition-colors" />
                 <input
                   type="text"
                   placeholder="Rechercher un acte (Composite, Extraction, Couronne...)"
@@ -252,38 +252,38 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   }}
                   className={cn(
                     "w-full pl-14 pr-6 py-4 border rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all shadow-sm",
-                    embedded ? "bg-white/10 border-white/10 text-white placeholder:text-white/20" : "bg-white border-slate-200 text-slate-800"
+                    embedded ? "bg-white/10 border-white/10 text-white placeholder:text-white/20" : "bg-card border-border-main text-text-main"
                   )}
                 />
               </div>
 
-              <div className="flex flex-wrap bg-slate-200/50 p-1.5 rounded-2xl gap-1">
+              <div className="flex flex-wrap bg-input-field/50 p-1.5 rounded-2xl gap-1">
                 <button
                   onClick={() => { setActiveCategory('FAVORITES'); setSearchQuery(''); }}
                   className={cn(
                     "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    activeCategory === 'FAVORITES' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    activeCategory === 'FAVORITES' ? "bg-card text-text-main shadow-sm" : "text-text-muted hover:text-text-main"
                   )}
                 >Favoris</button>
                 <button
                   onClick={() => { setActiveCategory('RECENT'); setSearchQuery(''); }}
                   className={cn(
                     "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    activeCategory === 'RECENT' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    activeCategory === 'RECENT' ? "bg-card text-text-main shadow-sm" : "text-text-muted hover:text-text-main"
                   )}
                 >Récents</button>
                 <button
                   onClick={() => { setActiveCategory('SUGGESTED'); setSearchQuery(''); }}
                   className={cn(
                     "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    activeCategory === 'SUGGESTED' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    activeCategory === 'SUGGESTED' ? "bg-card text-text-main shadow-sm" : "text-text-muted hover:text-text-main"
                   )}
                 >Suggestions</button>
                 <button
                   onClick={() => { setActiveCategory('ALL'); setSearchQuery(''); }}
                   className={cn(
                     "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    activeCategory === 'ALL' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    activeCategory === 'ALL' ? "bg-card text-text-main shadow-sm" : "text-text-muted hover:text-text-main"
                   )}
                 >Tous les actes</button>
                 {Object.keys(TREATMENTS_BY_CATEGORY).map(cat => (
@@ -292,7 +292,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                     onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
                     className={cn(
                       "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      activeCategory === cat ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      activeCategory === cat ? "bg-card text-text-main shadow-sm" : "text-text-muted hover:text-text-main"
                     )}
                   >{CATEGORY_LABELS[cat]}</button>
                 ))}
@@ -300,17 +300,17 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
-              <div className={cn("rounded-3xl border shadow-sm overflow-hidden", embedded ? "bg-white/5 border-white/5" : "bg-white border-slate-200")}>
+              <div className={cn("rounded-3xl border shadow-sm overflow-hidden", embedded ? "bg-white/5 border-white/5" : "bg-card border-border-main")}>
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-12 text-center">État</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-auto">Acte</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-24 text-center">Durée</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32 text-right">Prix</th>
+                    <tr className="bg-background border-b border-border-main">
+                      <th className="px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-widest w-12 text-center">État</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-widest w-auto">Acte</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-widest w-24 text-center">Durée</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-widest w-32 text-right">Prix</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-border-main">
                     {(() => {
                       let items: Array<TreatmentTemplate | ActHistory> = [];
                       if (activeCategory === 'SEARCH') items = TREATMENT_TEMPLATES.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -334,13 +334,13 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                             onClick={() => toggleTreatment(template)}
                             className={cn(
                               "group cursor-pointer transition-colors",
-                              isSelected ? (embedded ? "bg-primary/20" : `${colors.bg}/40`) : (embedded ? "hover:bg-white/10" : "hover:bg-slate-50/80")
+                              isSelected ? (embedded ? "bg-primary/20" : `${colors.bg}/40`) : (embedded ? "hover:bg-white/10" : "hover:bg-background/80")
                             )}
                           >
                             <td className="px-6 py-3.5 text-center">
                               <div className={cn(
                                 "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all mx-auto",
-                                isSelected ? "bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20" : "border-slate-200 bg-white"
+                                isSelected ? "bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20" : "border-border-main bg-card"
                               )} style={isSelected ? { backgroundColor: 'var(--primary)', borderColor: 'var(--primary)' } : {}}>
                                 {isSelected && <Check size={14} strokeWidth={4} />}
                               </div>
@@ -349,8 +349,8 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                               <div className="flex items-center gap-3">
                                 <span className={cn("w-2 h-2 rounded-full shrink-0", colors.dot)} />
                                 <div>
-                                  <p className={cn("font-bold text-sm leading-tight", embedded ? "text-white" : "text-slate-800")}>{template.name}</p>
-                                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter mt-0.5">
+                                  <p className={cn("font-bold text-sm leading-tight", embedded ? "text-white" : "text-text-main")}>{template.name}</p>
+                                  <p className="text-[10px] font-medium text-text-muted uppercase tracking-tighter mt-0.5">
                                     {CATEGORY_LABELS[template.category] || template.category}
                                   </p>
                                 </div>
@@ -369,7 +369,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                                       size={14}
                                       className={cn(
                                         'transition-colors',
-                                        template.isFavorite ? 'fill-primary text-primary' : 'text-slate-300 hover:text-primary',
+                                        template.isFavorite ? 'fill-primary text-primary' : 'text-text-muted hover:text-primary',
                                       )}
                                     />
                                   </button>
@@ -378,11 +378,11 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                             </td>
                             <td className="px-6 py-3.5">
                               {template.duration ? (
-                                <div className={cn("flex items-center gap-1.5 text-xs font-bold", embedded ? "text-white/40" : "text-slate-500")}>
-                                  <Clock size={12} className={embedded ? "text-white/20" : "text-slate-300"} />
+                                <div className={cn("flex items-center gap-1.5 text-xs font-bold", embedded ? "text-white/40" : "text-text-muted")}>
+                                  <Clock size={12} className={embedded ? "text-white/20" : "text-text-muted"} />
                                   {template.duration} min
                                 </div>
-                              ) : <span className="text-slate-300">-</span>}
+                              ) : <span className="text-text-muted">-</span>}
                             </td>
                             <td className="px-6 py-3.5 text-right">
                               {isSelected ? (
@@ -392,13 +392,13 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                                     min="0"
                                     value={currentPrice || ''}
                                     onChange={(e) => updateTreatmentPrice(id, Number(e.target.value))}
-                                    className="w-24 px-3 py-2 bg-white border-2 border-primary/20 rounded-xl text-right font-black text-primary text-sm outline-none focus:border-primary transition-all"
+                                    className="w-24 px-3 py-2 bg-card border-2 border-primary/20 rounded-xl text-right font-black text-primary text-sm outline-none focus:border-primary transition-all"
                                     style={{ color: 'var(--primary)' }}
                                     autoFocus
                                   />
                                 </div>
                               ) : (
-                                <span className="font-bold text-slate-400 text-sm">{currentPrice > 0 ? `${currentPrice} MAD` : "---"}</span>
+                                <span className="font-bold text-text-muted text-sm">{currentPrice > 0 ? `${currentPrice} MAD` : "---"}</span>
                               )}
                             </td>
                           </tr>
@@ -408,7 +408,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   </tbody>
                 </table>
                 {activeCategory === 'SEARCH' && searchQuery.length > 2 && (
-                  <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-center">
+                  <div className="p-6 bg-background/50 border-t border-border-main flex justify-center">
                     <button
                       onClick={() => {
                         setNewActName(searchQuery);
@@ -416,7 +416,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                         setNewActSpecialtyId('');
                         setShowAddAct(true);
                       }}
-                      className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-500 hover:text-primary hover:border-primary transition-all shadow-sm group"
+                      className="flex items-center gap-2 px-6 py-3 bg-card border border-border-main rounded-2xl text-xs font-black text-text-muted hover:text-primary hover:border-primary transition-all shadow-sm group"
                     >
                       <Plus size={16} className="group-hover:rotate-90 transition-transform" />
                       Créer l'acte "{searchQuery}"
@@ -424,7 +424,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   </div>
                 )}
 
-                <div className="p-4 bg-slate-50/50 border-t border-slate-100">
+                <div className="p-4 bg-background/50 border-t border-border-main">
                   {!showAddAct ? (
                     <button
                       onClick={() => {
@@ -433,7 +433,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                         setNewActPrice('');
                         setNewActSpecialtyId(specialties.find(spec => spec.name === activeCategory)?.id || '');
                       }}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-dashed border-slate-200 rounded-2xl text-xs font-black text-slate-400 hover:text-primary hover:border-primary transition-all group"
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-card border border-dashed border-border-main rounded-2xl text-xs font-black text-text-muted hover:text-primary hover:border-primary transition-all group"
                     >
                       <Plus size={14} className="group-hover:rotate-90 transition-transform" />
                       Ajouter un acte au catalogue
@@ -444,7 +444,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                         aria-label="Spécialité du nouvel acte"
                         value={newActSpecialtyId}
                         onChange={event => setNewActSpecialtyId(event.target.value ? Number(event.target.value) : '')}
-                        className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-primary"
+                        className="min-w-0 rounded-xl border border-border-main bg-card px-3 py-2.5 text-xs font-bold text-text-main outline-none focus:border-primary"
                       >
                         <option value="">Spécialité…</option>
                         {specialties.map(spec => (
@@ -457,7 +457,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                         placeholder="Nom de l'acte..."
                         value={newActName}
                         onChange={event => setNewActName(event.target.value)}
-                        className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-primary"
+                        className="min-w-0 rounded-xl border border-border-main bg-card px-4 py-2.5 text-xs font-bold text-text-main outline-none focus:border-primary"
                       />
                       <input
                         type="number"
@@ -465,7 +465,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                         placeholder="Tarif"
                         value={newActPrice}
                         onChange={event => setNewActPrice(event.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-right text-slate-800 outline-none focus:border-primary"
+                        className="w-full rounded-xl border border-border-main bg-card px-3 py-2.5 text-xs font-bold text-right text-text-main outline-none focus:border-primary"
                       />
                       <button
                         disabled={!newActName.trim() || !newActSpecialtyId || addingAct}
@@ -502,7 +502,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                       </button>
                       <button
                         onClick={() => setShowAddAct(false)}
-                        className="rounded-xl bg-slate-100 px-3 py-2.5 text-xs font-black text-slate-500 hover:bg-slate-200 transition-all"
+                        className="rounded-xl bg-input-field px-3 py-2.5 text-xs font-black text-text-muted hover:bg-input-field transition-all"
                       >
                         ✕
                       </button>
@@ -513,25 +513,25 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
             </div>
           </div>
 
-          <div className={cn("w-full lg:w-[18rem] border-l p-8 flex flex-col shrink-0 overflow-y-auto custom-scrollbar", embedded ? "bg-white/5 border-white/5" : "bg-white border-slate-100")}>
+          <div className={cn("w-full lg:w-[18rem] border-l p-8 flex flex-col shrink-0 overflow-y-auto custom-scrollbar", embedded ? "bg-white/5 border-white/5" : "bg-card border-border-main")}>
             <div className="mb-10 flex-1">
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Notes Cliniques</h3>
+              <h3 className="text-[11px] font-black text-text-muted uppercase tracking-[0.3em] mb-4">Notes Cliniques</h3>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className={cn(
                   "w-full h-48 p-6 border-none rounded-3xl text-sm font-bold focus:ring-4 focus:ring-primary/5 transition-all outline-none resize-none shadow-inner",
-                  embedded ? "bg-white/5 text-white placeholder:text-white/20" : "bg-slate-50 text-slate-700 shadow-inner"
+                  embedded ? "bg-white/5 text-white placeholder:text-white/20" : "bg-background text-text-main shadow-inner"
                 )}
               />
             </div>
 
-            <div className="pt-8 border-t border-slate-100">
+            <div className="pt-8 border-t border-border-main">
               <div className="flex items-center justify-between mb-8">
-                <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">Total Devis</span>
+                <span className="text-[11px] font-black text-text-muted uppercase tracking-[0.3em]">Total Devis</span>
                 <div className="text-right">
-                  <span className={cn("text-3xl font-black tracking-tighter", embedded ? "text-white" : "text-slate-900")}>{totalPrice}</span>
-                  <span className="text-xs font-black text-slate-400 ml-2">MAD</span>
+                  <span className={cn("text-3xl font-black tracking-tighter", embedded ? "text-white" : "text-text-main")}>{totalPrice}</span>
+                  <span className="text-xs font-black text-text-muted ml-2">MAD</span>
                 </div>
               </div>
 
@@ -542,7 +542,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   "w-full py-6 rounded-3xl font-black uppercase tracking-[0.2em] text-xs transition-all shadow-2xl flex items-center justify-center gap-3",
                   selectedTreatments.length > 0
                     ? "bg-primary text-white hover:-translate-y-1 hover:shadow-primary/40 active:scale-95"
-                    : "bg-slate-100 text-slate-300 cursor-not-allowed"
+                    : "bg-input-field text-text-muted cursor-not-allowed"
                 )}
                 style={selectedTreatments.length > 0 ? { backgroundColor: 'var(--primary)' } : {}}
               >

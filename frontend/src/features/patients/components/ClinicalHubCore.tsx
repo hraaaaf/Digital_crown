@@ -362,7 +362,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
   const latestRevision = planRevisions[0];
 
   return (
-    <div className="w-full min-w-0 space-y-5 rounded-[1.75rem] border border-white/60 bg-white/40 p-3 shadow-elite backdrop-blur-xl dark:border-slate-800/50 dark:bg-slate-900/40 sm:p-6">
+    <div className="w-full min-w-0 space-y-5 rounded-[1.75rem] border border-white/60 bg-card/40 p-3 shadow-elite backdrop-blur-xl dark:border-border-hover/50 dark:bg-slate-900/40 sm:p-6">
       <header className="flex min-w-0 flex-col gap-3 border-b border-border-main/50 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary sm:h-12 sm:w-12">
@@ -387,7 +387,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                 <h3 className="text-sm font-black uppercase tracking-[0.1em] text-red-800">Sécurité médicale</h3>
                 <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600/80">Source : dossier Patient</p>
               </div>
-              {medicalError && <button onClick={() => void loadMedicalSource()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-xs font-black text-red-700"><RefreshCcw size={14} /> Réessayer</button>}
+              {medicalError && <button onClick={() => void loadMedicalSource()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 bg-card px-3 text-xs font-black text-red-700"><RefreshCcw size={14} /> Réessayer</button>}
             </div>
             <div className="mt-3 text-sm font-semibold leading-relaxed text-red-900">
               {medicalLoading
@@ -406,9 +406,9 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
         <div className="min-w-0 space-y-5 xl:col-span-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-xs font-black uppercase tracking-[0.18em] text-text-muted">Dossier clinique</h3>
-            <div className="flex max-w-full overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-              <button onClick={() => setViewMode('ODONTOGRAM')} className={cn('min-h-10 shrink-0 rounded-lg px-3 text-[10px] font-black uppercase tracking-wider', viewMode === 'ODONTOGRAM' ? 'bg-white text-primary shadow-sm dark:bg-slate-700' : 'text-text-muted')}>Odontogramme</button>
-              <button onClick={() => setViewMode('EXAMS')} className={cn('min-h-10 shrink-0 rounded-lg px-3 text-[10px] font-black uppercase tracking-wider', viewMode === 'EXAMS' ? 'bg-white text-primary shadow-sm dark:bg-slate-700' : 'text-text-muted')}>Examens</button>
+            <div className="flex max-w-full overflow-x-auto rounded-xl bg-input-field p-1 dark:bg-slate-800">
+              <button onClick={() => setViewMode('ODONTOGRAM')} className={cn('min-h-10 shrink-0 rounded-lg px-3 text-[10px] font-black uppercase tracking-wider', viewMode === 'ODONTOGRAM' ? 'bg-card text-primary shadow-sm dark:bg-slate-700' : 'text-text-muted')}>Odontogramme</button>
+              <button onClick={() => setViewMode('EXAMS')} className={cn('min-h-10 shrink-0 rounded-lg px-3 text-[10px] font-black uppercase tracking-wider', viewMode === 'EXAMS' ? 'bg-card text-primary shadow-sm dark:bg-slate-700' : 'text-text-muted')}>Examens</button>
             </div>
           </div>
 
@@ -424,7 +424,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {odontogramError && <button onClick={() => void loadOdontogram()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border-main bg-white px-3 text-xs font-black text-text-main"><RefreshCcw size={14} /> Recharger</button>}
+                  {odontogramError && <button onClick={() => void loadOdontogram()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border-main bg-card px-3 text-xs font-black text-text-main"><RefreshCcw size={14} /> Recharger</button>}
                   <button
                     onClick={() => void saveOdontogram()}
                     disabled={odontogramLoading || odontogramSaving || !odontogramDraft || !odontogramDirty}
@@ -469,7 +469,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                       <p className="mt-2 whitespace-pre-wrap text-xs font-semibold leading-relaxed text-indigo-800">{lastProposal.text}</p>
                       <p className="mt-2 text-[10px] font-bold text-indigo-600/70">Session · {lastProposal.date}</p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button onClick={() => setConclusionDraft(lastProposal.text)} className="min-h-10 rounded-xl border border-indigo-200 bg-white px-3 text-xs font-black text-indigo-700">Utiliser comme brouillon</button>
+                        <button onClick={() => setConclusionDraft(lastProposal.text)} className="min-h-10 rounded-xl border border-indigo-200 bg-card px-3 text-xs font-black text-indigo-700">Utiliser comme brouillon</button>
                       </div>
                     </div>
                     <button aria-label="Supprimer la proposition" onClick={() => setLastProposal(null)} className="shrink-0 rounded-lg p-2 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-700"><Trash2 size={16} /></button>
@@ -486,7 +486,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                   value={conclusionDraft}
                   onChange={(event) => setConclusionDraft(event.target.value)}
                   placeholder="Saisir la conclusion que vous retenez après examen…"
-                  className="min-h-28 w-full resize-y rounded-2xl border border-border-main bg-white p-3 text-sm font-semibold text-text-main outline-none focus:border-primary dark:bg-slate-900"
+                  className="min-h-28 w-full resize-y rounded-2xl border border-border-main bg-card p-3 text-sm font-semibold text-text-main outline-none focus:border-primary dark:bg-slate-900"
                 />
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   {conclusionError ? <p className="text-xs font-bold text-red-600">{conclusionError}</p> : <span />}
@@ -497,12 +497,12 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
               <section className="rounded-3xl border border-border-main bg-card-bg/80 p-4 shadow-sm sm:p-5">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div><h4 className="font-black text-text-main">Conclusions enregistrées</h4><p className="mt-1 text-xs font-bold text-text-muted">Historique append-only du dossier clinique.</p></div>
-                  <button onClick={() => void loadConclusions()} className="rounded-lg p-2 text-text-muted hover:bg-slate-100" aria-label="Recharger les conclusions"><RefreshCcw size={16} /></button>
+                  <button onClick={() => void loadConclusions()} className="rounded-lg p-2 text-text-muted hover:bg-input-field" aria-label="Recharger les conclusions"><RefreshCcw size={16} /></button>
                 </div>
                 {conclusionsLoading ? <p className="text-xs font-bold text-text-muted">Chargement…</p> : conclusions.length === 0 ? <p className="rounded-xl border border-dashed border-border-main p-4 text-xs font-bold text-text-muted">Aucune conclusion retenue enregistrée.</p> : (
                   <div className="space-y-3">
                     {conclusions.slice(0, 5).map((conclusion) => (
-                      <article key={conclusion.id} className="rounded-2xl border border-border-main bg-white/70 p-3 dark:bg-slate-900/70">
+                      <article key={conclusion.id} className="rounded-2xl border border-border-main bg-card/70 p-3 dark:bg-slate-900/70">
                         <p className="whitespace-pre-wrap text-sm font-semibold text-text-main">{conclusion.conclusion_text}</p>
                         <p className="mt-2 text-[10px] font-bold text-text-muted">Validée par utilisateur #{conclusion.validated_by} · {formatClinicalDate(conclusion.created_at)}</p>
                         {conclusion.proposal_source && <p className="mt-1 text-[10px] font-bold text-indigo-600">Provenance de brouillon : {conclusion.proposal_source}</p>}
@@ -569,21 +569,21 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
               <div className="flex items-center gap-2 text-xs font-black text-text-main"><Clock size={15} className="text-primary" /> Progression</div>
               <span className="text-xl font-black text-primary">{progressPercent}%</span>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} /></div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-input-field"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} /></div>
 
             {planError && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">{planError}</div>}
             {planLoading ? <p className="mt-5 text-xs font-bold text-text-muted">Chargement du plan…</p> : treatmentPlan.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-border-main p-5 text-center text-xs font-bold text-text-muted">Aucune étape de traitement enregistrée.</div> : (
               <div className="mt-5 space-y-3">
                 {treatmentPlan.map((step) => (
-                  <article key={step.id} className="rounded-2xl border border-border-main bg-white/70 p-3 dark:bg-slate-900/70">
+                  <article key={step.id} className="rounded-2xl border border-border-main bg-card/70 p-3 dark:bg-slate-900/70">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0"><p className="text-sm font-black text-text-main">{step.title}</p><p className="mt-1 text-[10px] font-bold text-text-muted">{step.assistant} · {step.date || 'Date non renseignée'}</p></div>
                       <button aria-label="Supprimer l’étape" onClick={() => void deleteStep(step.id)} className="shrink-0 rounded-lg p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button onClick={() => void updateStatus(step.id, 'pending')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-text-muted')}>À faire</button>
-                      <button onClick={() => void updateStatus(step.id, 'done')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'done' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-text-muted')}>Fait</button>
-                      <button onClick={() => void updateStatus(step.id, 'postponed')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'postponed' ? 'bg-slate-300 text-slate-800' : 'bg-slate-100 text-text-muted')}>Reporté</button>
+                      <button onClick={() => void updateStatus(step.id, 'pending')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-input-field text-text-muted')}>À faire</button>
+                      <button onClick={() => void updateStatus(step.id, 'done')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'done' ? 'bg-emerald-100 text-emerald-800' : 'bg-input-field text-text-muted')}>Fait</button>
+                      <button onClick={() => void updateStatus(step.id, 'postponed')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'postponed' ? 'bg-slate-300 text-text-main' : 'bg-input-field text-text-muted')}>Reporté</button>
                     </div>
                   </article>
                 ))}

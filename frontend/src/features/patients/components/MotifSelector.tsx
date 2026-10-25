@@ -34,9 +34,9 @@ type DisplayCategory = Omit<MotifCategory, 'motifs'> & { motifs: DisplayMotif[] 
 const CABINET_CATEGORY: Omit<DisplayCategory, 'motifs'> = {
   id: 'CABINET',
   label: 'Cabinet',
-  color: 'text-slate-700',
-  bgColor: 'bg-slate-50',
-  borderColor: 'border-slate-200',
+  color: 'text-text-main',
+  bgColor: 'bg-background',
+  borderColor: 'border-border-main',
 };
 
 export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange, maxSelect = 6 }) => {
@@ -176,7 +176,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
   return (
     <div className="space-y-3">
       {selected.length > 0 && (
-        <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+        <div className="flex flex-wrap gap-2 p-3 bg-background rounded-xl border border-border-main">
           {hasUrgent && (
             <span className="flex items-center gap-1 text-[9px] font-black text-red-600 uppercase tracking-widest bg-red-50 border border-red-200 px-2 py-1 rounded-full">
               <Zap size={9} /> URGENCE DÉTECTÉE
@@ -186,9 +186,9 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
             const resolved = motifIndex.get(id);
             if (!resolved) {
               return (
-                <span key={id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600">
+                <span key={id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-border-main bg-background text-text-muted">
                   {id}
-                  <span className="text-[9px] uppercase tracking-wider text-slate-400">Historique</span>
+                  <span className="text-[9px] uppercase tracking-wider text-text-muted">Historique</span>
                   <button type="button" onClick={() => toggle(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label={`Retirer ${id}`}>
                     <X size={12} />
                   </button>
@@ -212,14 +212,14 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
               </span>
             );
           })}
-          <button type="button" onClick={() => onChange([])} className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors px-2 py-1">
+          <button type="button" onClick={() => onChange([])} className="text-[10px] font-bold text-text-muted hover:text-red-500 transition-colors px-2 py-1">
             Tout effacer
           </button>
         </div>
       )}
 
       <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
         <input
           type="text"
           placeholder="Rechercher un motif..."
@@ -228,10 +228,10 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
             setSearchQuery(e.target.value);
             if (e.target.value) setExpandedCategories(new Set(categories.map(c => c.id)));
           }}
-          className="w-full pl-9 pr-9 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          className="w-full pl-9 pr-9 py-2 text-sm bg-card border border-border-main rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
         />
         {searchQuery && (
-          <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-muted">
             <X size={14} />
           </button>
         )}
@@ -253,7 +253,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
 
       <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
         {filteredDict.map(cat => (
-          <div key={cat.id} className="border border-slate-100 rounded-xl overflow-hidden">
+          <div key={cat.id} className="border border-border-main rounded-xl overflow-hidden">
             <button
               type="button"
               onClick={() => toggleCategory(cat.id)}
@@ -262,7 +262,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
               <span>{cat.label}</span>
               <div className="flex items-center gap-2">
                 {selected.filter(id => cat.motifs.some(m => m.id === id)).length > 0 && (
-                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-white/60">
+                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-card/60">
                     {selected.filter(id => cat.motifs.some(m => m.id === id)).length}
                   </span>
                 )}
@@ -270,7 +270,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
               </div>
             </button>
             {expandedCategories.has(cat.id) && (
-              <div className="bg-white divide-y divide-slate-50">
+              <div className="bg-card divide-y divide-border-main">
                 {cat.motifs.map(motif => {
                   const isSelected = selected.includes(motif.id);
                   const urgency = MOTIF_URGENCY_LABELS[motif.urgency];
@@ -282,16 +282,16 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
                       disabled={!isSelected && selected.length >= maxSelect}
                       className={cn(
                         'w-full flex items-center justify-between px-4 py-2.5 text-left transition-all text-sm',
-                        isSelected ? cn(cat.bgColor, 'font-bold') : 'hover:bg-slate-50 text-slate-700',
+                        isSelected ? cn(cat.bgColor, 'font-bold') : 'hover:bg-background text-text-main',
                         !isSelected && selected.length >= maxSelect && 'opacity-40 cursor-not-allowed',
                       )}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className={cn('w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all', isSelected ? cn('border-current', cat.color, cat.bgColor) : 'border-slate-300')}>
+                        <div className={cn('w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all', isSelected ? cn('border-current', cat.color, cat.bgColor) : 'border-border-hover')}>
                           {isSelected && <div className={cn('w-2 h-2 rounded-sm', cat.color.replace('text-', 'bg-'))} />}
                         </div>
                         <span className={cn('truncate', isSelected ? cat.color : '')}>{motif.label}</span>
-                        {motif.source === 'cabinet' && <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Cabinet</span>}
+                        {motif.source === 'cabinet' && <span className="text-[9px] font-black uppercase tracking-wider text-text-muted">Cabinet</span>}
                       </div>
                       <span className={cn('text-[9px] font-black border px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0', urgency.color)}>
                         {urgency.label}
@@ -307,43 +307,43 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
 
       {showCreate && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-labelledby="custom-motif-title">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-border-main bg-card p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Motif du cabinet</p>
-                <h3 id="custom-motif-title" className="mt-1 text-lg font-black text-slate-900">Ajouter un motif</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Motif du cabinet</p>
+                <h3 id="custom-motif-title" className="mt-1 text-lg font-black text-text-main">Ajouter un motif</h3>
               </div>
-              <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50" aria-label="Fermer">
+              <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg p-2 text-text-muted hover:bg-background" aria-label="Fermer">
                 <X size={16} />
               </button>
             </div>
 
             <div className="mt-5 space-y-4">
               <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-600">Nom du motif *</span>
-                <input value={newLabel} onChange={e => setNewLabel(e.target.value)} maxLength={255} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" placeholder="Ex. Contrôle gouttière ancienne" />
+                <span className="text-xs font-bold text-text-muted">Nom du motif *</span>
+                <input value={newLabel} onChange={e => setNewLabel(e.target.value)} maxLength={255} className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" placeholder="Ex. Contrôle gouttière ancienne" />
               </label>
               <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-600">Catégorie</span>
-                <select value={newCategory} onChange={e => setNewCategory(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">
+                <span className="text-xs font-bold text-text-muted">Catégorie</span>
+                <select value={newCategory} onChange={e => setNewCategory(e.target.value)} className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-semibold">
                   <option value="CABINET">Cabinet</option>
                   {MOTIFS_DICTIONARY.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
                 </select>
               </label>
               <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-600">Priorité d’accueil</span>
-                <select value={newUrgency} onChange={e => setNewUrgency(e.target.value as MotifItem['urgency'])} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">
+                <span className="text-xs font-bold text-text-muted">Priorité d’accueil</span>
+                <select value={newUrgency} onChange={e => setNewUrgency(e.target.value as MotifItem['urgency'])} className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-semibold">
                   <option value="urgence">Urgence</option>
                   <option value="normal">Normal</option>
                   <option value="planifié">Planifié</option>
                 </select>
               </label>
-              <p className="text-[11px] font-medium text-slate-500">Aucun acte ni spécialité ne sera suggéré automatiquement pour un motif du cabinet.</p>
+              <p className="text-[11px] font-medium text-text-muted">Aucun acte ni spécialité ne sera suggéré automatiquement pour un motif du cabinet.</p>
               {createError && <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{createError}</p>}
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600">Annuler</button>
+              <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-border-main px-4 py-2.5 text-sm font-bold text-text-muted">Annuler</button>
               <button type="button" onClick={() => void createMotif()} disabled={!newLabel.trim() || saving} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-white disabled:opacity-40">
                 {saving ? 'Enregistrement…' : 'Enregistrer'}
               </button>
