@@ -36,6 +36,11 @@ function fillRequired(container: HTMLElement) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // jsdom does not implement layout scrolling or the native HTMLDialogElement API.
+  // Preserve actual browser behavior assertions in the FUE-D Playwright gate.
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
   vi.mocked(api.get).mockImplementation(async (url: string) => {
     if (url === '/patients/next-dossier-number') return { data: { next_number: 'P-000008' } } as never;
     if (url.startsWith('/patients/check-dossier/')) return { data: { exists: false } } as never;
@@ -49,7 +54,7 @@ describe('AddPatientForm G2 interactive matrix', () => {
   it('creates only after identity validation and a successful anti-duplicate check', async () => {
     vi.mocked(api.post).mockImplementation(async (url: string) => {
       if (url === '/patients/check-duplicate') return { data: { has_duplicate: false } } as never;
-      if (url === '/patients/') return { data: { id: 8 } } as never;
+      if (url === '/patients/') return { data: { id: 8, nom: 'BENALI', prenom: 'Sara' } } as never;
       throw new Error(`unexpected POST ${url}`);
     });
 
@@ -96,7 +101,7 @@ describe('AddPatientForm G2 interactive matrix', () => {
           },
         } as never;
       }
-      if (url === '/patients/?force_create=true') return { data: { id: 9 } } as never;
+      if (url === '/patients/?force_create=true') return { data: { id: 9, nom: 'BENALI', prenom: 'Sara' } } as never;
       throw new Error(`unexpected POST ${url}`);
     });
 

@@ -104,8 +104,10 @@ jobs:
           const output = path.resolve('../../artifacts/cust-02-motifs');
           await fs.mkdir(output, { recursive: true });
 
-          const beforeServer = await createServer({ root: beforeRoot, server: { host: '127.0.0.1', port: 4186, strictPort: true }, clearScreen: false });
-          const afterServer = await createServer({ root: afterRoot, server: { host: '127.0.0.1', port: 4187, strictPort: true }, clearScreen: false });
+          // BEFORE and AFTER share one node_modules symlink: isolated Vite caches prevent
+          // concurrent optimizeDeps invalidation (HTTP 504 Outdated Optimize Dep).
+          const beforeServer = await createServer({ root: beforeRoot, cacheDir: path.join(beforeRoot, '.vite-cust02-before'), server: { host: '127.0.0.1', port: 4186, strictPort: true }, clearScreen: false });
+          const afterServer = await createServer({ root: afterRoot, cacheDir: path.join(afterRoot, '.vite-cust02-after'), server: { host: '127.0.0.1', port: 4187, strictPort: true }, clearScreen: false });
           await beforeServer.listen();
           await afterServer.listen();
 

@@ -28,6 +28,8 @@ function renderForm() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // jsdom lacks layout scrolling; browser-level focus/reflow lives in the FUE-D gate.
+  HTMLElement.prototype.scrollIntoView = vi.fn();
   vi.mocked(api.get).mockImplementation(async (url: string) => {
     if (url === '/patients/next-dossier-number') return { data: { next_number: 'P-000008' } } as never;
     if (url.startsWith('/patients/check-dossier/')) return { data: { exists: false } } as never;
@@ -35,7 +37,7 @@ beforeEach(() => {
   });
   vi.mocked(api.post).mockImplementation(async (url: string) => {
     if (url === '/patients/check-duplicate') return { data: { has_duplicate: false } } as never;
-    if (url === '/patients/') return { data: { id: 8 } } as never;
+    if (url === '/patients/') return { data: { id: 8, nom: 'BENALI', prenom: 'Sara' } } as never;
     throw new Error('unexpected POST ' + url);
   });
 });

@@ -1,0 +1,640 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium, request } from 'playwright';
+import { enrollT2Workstation } from './t2-workstation-session.mjs';
+
+const password = process.env.T2_PASSWORD;
+if (!password) throw new Error('T2_PASSWORD is required');
+const root = 'http://127.0.0.1:5173';
+const api = 'http://127.0.0.1:8005';
+const out = path.resolve('../artifacts/t2-browser/fue-d');
+fs.mkdirSync(out, { recursive: true });
+const first = await request.newContext({ baseURL: api });
+const bootstrap = await first.post('/api/auth/login', { form: { username: 't2-browser@cabinet.ma', password } });
+if (!bootstrap.ok()) throw new Error('Owner bootstrap login rejected: ' + bootstrap.status());
+const tokens = await bootstrap.json();
+const enrolled = await enrollT2Workstation(first, tokens.access_token, password);
+await first.dispose();
+const stationState = {
+  ...enrolled,
+  cookies: (enrolled.cookies || []).filter(c => !['access_token', 'refresh_token'].includes(c.name)),
+};
+const browser = await chromium.launch({ headless: true });
+const results = [];
+let passed = false;
+try {
+  for (const profile of [
+    { name: 'mobile', width: 390, height: 844, first: 'Mobile' },
+    { name: 'desktop', width: 1280, height: 900, first: 'Desktop' },
+  ]) {
+    const dir = path.join(out, profile.name);
+    fs.mkdirSync(dir, { recursive: true });
+    const ctx = await browser.newContext({
+      viewport: { width: profile.width, height: profile.height },
+      colorScheme: 'light',
+      storageState: stationState,
+    });
+    const page = await ctx.newPage();
+    const started = Date.now();
+    const errors = { page: [], console: [], server: [] };
+    const screenshots = [];
+    let interactions = 0;
+    const snap = async name => {
+      const overflow = await page.evaluate(() => Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) > innerWidth + 1);
+      const file = name + '.png';
+      await page.screenshot({ path: path.join(dir, file), fullPage: name !== '04-validation', animations: 'disabled' });
+      screenshots.push({ name, file, ms: Date.now() - started, interactions, overflow });
+      if (overflow) throw new Error(profile.name + ' horizontal overflow: ' + name);
+    };
+    page.on('pageerror', e => errors.page.push(String(e.message)));
+    page.on('console', msg => { if (msg.type() === 'error') errors.console.push(msg.text()); });
+    page.on('response', res => { if (res.status() >= 500) errors.server.push({ status: res.status(), pathname: new URL(res.url()).pathname }); });
+    try {
+      await page.goto(root + '/login', { waitUntil: 'domcontentloaded' });
+      await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.getByPlaceholder('nom@cabinet.com').waitFor({ state: 'visible', timeout: 15000 });
+      await snap('01-before-login');
+      await page.getByPlaceholder('nom@cabinet.com').fill('t2-browser@cabinet.ma'); interactions++;
+      await page.getByPlaceholder('••••••••').fill(password); interactions++;
+      await page.getByRole('button', { name: 'Se connecter', exact: true }).click(); interactions++;
+      await page.waitForURL(url => !['/login', '/setup'].includes(url.pathname), { timeout: 20000 });
+      const state = await ctx.request.get(api + '/api/clinics/init-status');
+      if (state.status() !== 200 || (await state.json()).is_initialized !== true) throw new Error('Cabinet not initialized');
+      const authorized = await ctx.request.get(api + '/api/patients/?limit=1');
+      if (authorized.status() !== 200) throw new Error('Patient authorization=' + authorized.status());
+      await page.goto(root + '/patients', { waitUntil: 'domcontentloaded' }); interactions++;
+      await page.getByRole('heading', { name: 'Dossiers Patients' }).waitFor({ timeout: 15000 });
+      await snap('02-patient-entry');
+      await page.getByRole('link', { name: 'Créer un dossier' }).click(); interactions++;
+      await page.waitForURL('**/patients/new');
+      await page.locator('input[name="nom"]').waitFor({ state: 'visible' });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await snap('03-form-before');
+      let posts = 0;
+      page.on('request', req => { if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/patients/') posts++; });
+      await page.getByRole('button', { name: 'Créer le dossier', exact: true }).click(); interactions++;
+      await page.waitForFunction(() => document.activeElement?.getAttribute('name') === 'nom', { timeout: 12000 });
+      if (posts !== 0) throw new Error('Invalid form sent create request');
+      const required = await page.locator('body').innerText();
+      if (!required.includes('Le nom est requis') || !required.includes('Le prénom est requis')) throw new Error('Required-field refusal not understandable');
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.locator('input[name="nom"]').scrollIntoViewIfNeeded();
+      await snap('04-validation');
+      const idtag = 'FUED-' + profile.name.toUpperCase() + '-' + String(Date.now()).slice(-9);
+      const nom = 'FUEDTEST';
+      await page.locator('input[name="nom"]').fill(nom); interactions++;
+      await page.locator('input[name="prenom"]').fill(profile.first); interactions++;
+      await page.locator('input[name="date_naissance"]').fill('1990-01-01'); interactions++;
+      await page.locator('select[name="sexe"]').selectOption('F'); interactions++;
+      await page.locator('input[name="numero_dossier"]').fill(idtag); interactions++;
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.locator('input[name="nom"]').scrollIntoViewIfNeeded();
+      await snap('05-form-filled');
+      const createResponse = page.waitForResponse(res => res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/patients/', { timeout: 25000 });
+      await page.getByRole('button', { name: 'Créer le dossier', exact: true }).click(); interactions++;
+      const response = await createResponse;
+      if (!response.ok()) throw new Error('Create HTTP ' + response.status());
+      const created = await response.json();
+      if (!Number.isInteger(created.id) || created.id <= 0) throw new Error('Create response lacks real positive ID');
+      if (String(created.nom).toUpperCase() !== nom || String(created.prenom).toLowerCase() !== profile.first.toLowerCase()) throw new Error('Create ACK identity mismatch');
+      const read = await ctx.request.get(api + '/api/patients/' + created.id);
+      if (read.status() !== 200) throw new Error('Independent GET patient=' + read.status());
+      const persisted = await read.json();
+      if (persisted.id !== created.id || String(persisted.nom).toUpperCase() !== nom || String(persisted.prenom).toLowerCase() !== profile.first.toLowerCase()) throw new Error('Persisted record mismatch');
+      await page.waitForURL(new RegExp('/patients/' + created.id + '(?:\\?|$)'), { timeout: 15000 });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.getByText(nom, { exact: false }).first().waitFor({ state: 'visible', timeout: 15000 });
+      await snap('06-after-reload');
+      const ms = Date.now() - started;
+      if (errors.page.length || errors.server.length) throw new Error('Browser/server errors ' + JSON.stringify(errors));
+      results.push({ viewport: profile.name, dimensions: [profile.width, profile.height], firstValueMs: ms, interactions, createStatus: response.status(), readStatus: read.status(), patientId: created.id, screenshotCount: screenshots.length, screenshots, errors });
+      await ctx.close();
+    } catch (e) {
+      results.push({ viewport: profile.name, failed: String(e?.stack || e), interactions, screenshots, errors });
+      await ctx.close();
+      throw e;
+    }
+  }
+
+  // Independent adversarial permission check: restricted secretary patients=false.
+  const restrictedCtx = await request.newContext({ baseURL: api });
+  try {
+    const auth = await restrictedCtx.post('/api/auth/login', { form: { username: 't2-restricted@cabinet.ma', password } });
+    if (!auth.ok()) throw new Error('Restricted persona login status=' + auth.status());
+    const restrictedToken = (await auth.json()).access_token;
+    const client = await request.newContext({ baseURL: api, storageState: stationState, extraHTTPHeaders: { Authorization: 'Bearer ' + restrictedToken } });
+    try {
+      const data = { nom: 'FUEDDENIED', prenom: 'Unauthorized', date_naissance: '1990-01-01', sexe: 'F' };
+      const read = await client.get('/api/patients/');
+      const create = await client.post('/api/patients/', { data });
+      const duplicate = await client.post('/api/patients/check-duplicate', { data });
+      if ([read.status(), create.status(), duplicate.status()].some(code => code !== 403)) {
+        throw new Error('patients=false boundary failed: ' + [read.status(), create.status(), duplicate.status()].join(','));
+      }
+      results.push({ viewport: 'restricted-api', listStatus: read.status(), createStatus: create.status(), duplicateStatus: duplicate.status() });
+    } finally { await client.dispose(); }
+  } finally { await restrictedCtx.dispose(); }
+
+  // Security/truth negative matrix on real isolated backend, with enrolled workstation.
+  const ownerAuth = await request.newContext({ baseURL: api });
+  try {
+    const login = await ownerAuth.post('/api/auth/login', { form: { username: 't2-browser@cabinet.ma', password } });
+    if (!login.ok()) throw new Error('Negative matrix owner authentication failed');
+    const accessToken = (await login.json()).access_token;
+    const owner = await request.newContext({ baseURL: api, storageState: stationState, extraHTTPHeaders: { Authorization: 'Bearer ' + accessToken } });
+    try {
+      const unique = 'FUEDNEG' + Date.now();
+      const payload = { nom: unique, prenom: 'Conflict', date_naissance: '1990-01-01', sexe: 'F' };
+      const initial = await owner.post('/api/patients/', { data: payload });
+      if (initial.status() !== 200) throw new Error('409 fixture creation=' + initial.status());
+      const original = await initial.json();
+      const conflict = await owner.post('/api/patients/', { data: payload });
+      if (conflict.status() !== 409) throw new Error('Duplicate should return 409, got ' + conflict.status());
+      const check = await owner.post('/api/patients/check-duplicate', { data: payload });
+      if (check.status() !== 200 || (await check.json()).has_duplicate !== true) throw new Error('Duplicate preflight failed');
+      const invalid = await owner.post('/api/patients/', { data: { nom: unique + 'BAD', prenom: 'Invalid', date_naissance: '1990-01-01', sexe: '' } });
+      if (invalid.status() !== 422) throw new Error('Missing explicit sex should return 422, got ' + invalid.status());
+      const after = await owner.get('/api/patients/?search=' + encodeURIComponent(unique));
+      if (after.status() !== 200) throw new Error('Duplicate verification search=' + after.status());
+      const patients = await after.json();
+      const exact = patients.filter(x => x.nom === unique);
+      if (exact.length !== 1 || exact[0].id !== original.id) throw new Error('409 produced extra patients or lost original: count=' + exact.length);
+      results.push({ viewport: 'negative-api', duplicateStatus: conflict.status(), invalidStatus: invalid.status(), preflightStatus: check.status(), patientCountAfter409: exact.length });
+    } finally { await owner.dispose(); }
+  } finally { await ownerAuth.dispose(); }
+
+  // Two independently authenticated dentist accounts; never expose another cabinet's patient.
+  const foreignAuth = await request.newContext({ baseURL: api });
+  try {
+    const login = await foreignAuth.post('/api/auth/login', { form: { username: 't2-setup-390@cabinet.ma', password } });
+    if (!login.ok()) throw new Error('Foreign owner authentication failed: ' + login.status());
+    const token = (await login.json()).access_token;
+    const foreignState = await enrollT2Workstation(foreignAuth, token, password);
+    const foreign = await request.newContext({ baseURL: api, storageState: foreignState, extraHTTPHeaders: { Authorization: 'Bearer ' + token } });
+    try {
+      const targetId = results.find(x => x.viewport === 'mobile')?.patientId;
+      if (!targetId) throw new Error('Missing target patient');
+      const read = await foreign.get('/api/patients/' + targetId);
+      if (![403, 404].includes(read.status())) throw new Error('Foreign cabinet read was not denied: ' + read.status());
+      results.push({ viewport: 'cross-cabinet-api', foreignReadStatus: read.status() });
+    } finally { await foreign.dispose(); }
+  } finally { await foreignAuth.dispose(); }
+
+  // Two requests at the same instant should not create two identical patient dossiers.
+  const raceAuth = await request.newContext({ baseURL: api });
+  try {
+    const login = await raceAuth.post('/api/auth/login', { form: { username: 't2-browser@cabinet.ma', password } });
+    if (!login.ok()) throw new Error('Parallel authentication failed: ' + login.status());
+    const token = (await login.json()).access_token;
+    const race = await request.newContext({ baseURL: api, storageState: stationState, extraHTTPHeaders: { Authorization: 'Bearer ' + token } });
+    try {
+      const nom = 'FUEDRACE' + Date.now();
+      const identity = { nom, prenom: 'Parallel', date_naissance: '1990-01-01', sexe: 'F' };
+      let a, b;
+      try {
+        [a, b] = await Promise.all([race.post('/api/patients/', { data: identity }), race.post('/api/patients/', { data: identity })]);
+      } catch {
+        throw new Error('Double-submit transport error (inspect sanitized backend logs)');
+      }
+      const codes = [a.status(), b.status()].sort((a, b) => a - b);
+      let get;
+      try { get = await race.get('/api/patients/?search=' + encodeURIComponent(nom)); }
+      catch { throw new Error('Double-submit follow-up GET transport error'); }
+      if (get.status() !== 200) throw new Error('Parallel read=' + get.status());
+      const exactCount = (await get.json()).filter(x => x.nom === nom).length;
+      if (exactCount !== 1 || codes[0] !== 200 || codes[1] !== 409) throw new Error('Double-submit violation: ' + codes.join(',') + ' stored=' + exactCount);
+      results.push({ viewport: 'parallel-api', createStatuses: codes, patientCount: exactCount });
+
+      // Two different patients created at once must both succeed, with
+      // distinct generated dossier numbers and exact persisted identities.
+      const tag = 'FUEDDISTINCT' + Date.now();
+      const identities = [
+        { nom: tag + 'A', prenom: 'Alpha', date_naissance: '1990-01-01', sexe: 'F' },
+        { nom: tag + 'B', prenom: 'Beta', date_naissance: '1990-01-01', sexe: 'F' },
+      ];
+      let responses;
+      try {
+        responses = await Promise.all(identities.map(data => race.post('/api/patients/', { data })));
+      } catch {
+        throw new Error('Concurrent distinct-patient transport failure');
+      }
+      const distinctStatuses = responses.map(x => x.status());
+      if (distinctStatuses.some(code => code !== 200)) {
+        throw new Error('Distinct concurrent identities should both create: ' + distinctStatuses.join(','));
+      }
+      const saved = await Promise.all(responses.map(x => x.json()));
+      if (new Set(saved.map(x => x.id)).size !== 2 || new Set(saved.map(x => x.numero_dossier)).size !== 2) {
+        throw new Error('Concurrent distinct patient IDs/dossier numbers are not unique');
+      }
+      const independentReads = await Promise.all(saved.map(x => race.get('/api/patients/' + x.id)));
+      if (independentReads.some(x => x.status() !== 200)) {
+        throw new Error('Concurrent distinct patient retrieval failed');
+      }
+      results.push({ viewport: 'parallel-distinct-api', createStatuses: distinctStatuses, uniqueIds: 2, uniqueDossierNumbers: 2 });
+    } finally { await race.dispose(); }
+  } finally { await raceAuth.dispose(); }
+
+  // Independent mobile browser negative journey: all POSTs below use synthetic identities.
+  // Deliberate HTTP 503 responses are Playwright interceptions, not backend outages.
+  const uxContext = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'light', storageState: stationState });
+  const ux = await uxContext.newPage();
+  const uxDir = path.join(out, 'adversarial-mobile');
+  fs.mkdirSync(uxDir, { recursive: true });
+  try {
+    await ux.goto(root + '/login', { waitUntil: 'domcontentloaded' });
+    await ux.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+    await ux.reload({ waitUntil: 'domcontentloaded' });
+    await ux.getByPlaceholder('nom@cabinet.com').fill('t2-browser@cabinet.ma');
+    await ux.getByPlaceholder('••••••••').fill(password);
+    await ux.getByRole('button', { name: 'Se connecter', exact: true }).click();
+    await ux.waitForURL(url => !['/login','/setup'].includes(url.pathname), { timeout: 20000 });
+    await ux.goto(root + '/patients/new', { waitUntil: 'domcontentloaded' });
+    await ux.locator('input[name="nom"]').waitFor({ state: 'visible' });
+    if ((await ux.locator('form').getAttribute('novalidate')) === null) {
+      throw new Error('Native email validation must not bypass accessible error focus');
+    }
+
+    // Real keyboard Tab travel; this does not assert full screen-reader accessibility.
+    await ux.locator('input[name="nom"]').focus();
+    await ux.keyboard.press('Tab');
+    const nextFocus = await ux.evaluate(() => document.activeElement?.getAttribute('name'));
+    if (nextFocus !== 'prenom') throw new Error('Keyboard tab progression failed, next=' + nextFocus);
+    const identityFieldNames = ['nom', 'prenom', 'date_naissance', 'sexe'];
+    const labelProof = await Promise.all(identityFieldNames.map(async name => {
+      const field = ux.locator('[name="' + name + '"]');
+      return { name, hasAssociatedLabel: await field.evaluate(el => Boolean(el.labels?.length || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby'))) };
+    }));
+    if (labelProof.some(x => !x.hasAssociatedLabel)) throw new Error('Required identity label inaccessible: ' + JSON.stringify(labelProof));
+    const requiredSemantics = await Promise.all(identityFieldNames.map(name =>
+      ux.locator('[name="' + name + '"]').getAttribute('aria-required')));
+    if (requiredSemantics.some(value => value !== 'true')) {
+      throw new Error('Required patient fields are missing semantic required state: ' + JSON.stringify(requiredSemantics));
+    }
+    // Section landmarks are real headings and meet normal-text WCAG contrast
+    // against the light patient-form surface (not just decorative separators).
+    const sectionHeadings = await ux.locator('form h3').evaluateAll(elements => elements.map(el => {
+      const rgb = getComputedStyle(el).color.match(/[0-9.]+/g)?.slice(0, 3).map(Number) || [];
+      const channel = n => {
+        const s = n / 255;
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      const luminance = rgb.length === 3 ? 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]) : 1;
+      return { name: el.textContent?.trim(), contrastOnWhite: 1.05 / (luminance + 0.05) };
+    }));
+    if (sectionHeadings.length !== 4 || sectionHeadings.some(h => h.contrastOnWhite < 4.5)) {
+      throw new Error('Patient section headings lack semantic/contrast proof: ' + JSON.stringify(sectionHeadings));
+    }
+    const nameHasAssociatedLabel = labelProof[0].hasAssociatedLabel;
+    const optionalNames = ['numero_dossier', 'assurance', 'telephone', 'email', 'adresse', 'antecedents_medicaux'];
+    const optionalLabels = await Promise.all(optionalNames.map(async name => ({
+      name, hasLabel: await ux.locator('[name="' + name + '"]').evaluate(el => Boolean(el.labels?.length || el.getAttribute('aria-label'))),
+    })));
+    if (optionalLabels.some(x => !x.hasLabel)) throw new Error('Optional patient control lacks accessible name: ' + JSON.stringify(optionalLabels));
+    if (!(await ux.getByText('Renseignez le nom, le prénom, la date de naissance et le sexe.', { exact: false }).isVisible())) {
+      throw new Error('First-use required-field explanation is missing');
+    }
+    const optionalCover = ux.locator('summary').filter({ hasText: 'Couverture médicale et assurance' });
+    const optionalClinical = ux.locator('summary').filter({ hasText: 'Contact, antécédents et suivi orthodontique' });
+    if (!(await optionalCover.isVisible()) || !(await optionalClinical.isVisible())) {
+      throw new Error('Progressive disclosure summaries are not discoverable');
+    }
+    await optionalCover.click();
+    await ux.locator('[name="assurance"]').selectOption('PRIVEE');
+    const privateInsuranceHasLabel = await ux.locator('[name="assurance_privee_nom"]').evaluate(el => Boolean(el.labels?.length));
+    if (!privateInsuranceHasLabel) throw new Error('Private insurance control lacks label');
+    await ux.locator('[name="assurance"]').selectOption('AUCUNE');
+    const complement = ux.getByRole('checkbox', { name: 'Assurance Complémentaire' });
+    await complement.focus();
+    await ux.keyboard.press('Space');
+    if (!(await complement.isChecked())) throw new Error('Complement insurance switch not keyboard-operable');
+    const complementaryLabel = await ux.locator('[name="assurance_complementaire_nom"]').evaluate(el => Boolean(el.labels?.length));
+    if (!complementaryLabel) throw new Error('Complementary insurer control lacks label');
+    await ux.keyboard.press('Space');
+    await optionalCover.click();
+    await optionalClinical.click();
+    const ortho = ux.getByRole('checkbox', { name: /Suivi Orthodontique/ });
+    await ortho.focus();
+    await ux.keyboard.press('Space');
+    if (!(await ortho.isChecked())) throw new Error('Ortho follow-up switch not keyboard-operable');
+    await ux.keyboard.press('Space');
+    await ux.getByRole('button', { name: '+ Ajouter un numéro' }).click();
+    const secondaryPhoneNamed = await ux.locator('[name="telephone_2"]').evaluate(el => Boolean(el.labels?.length || el.getAttribute('aria-label')));
+    if (!secondaryPhoneNamed) throw new Error('Secondary phone lacks accessible name');
+    const motifSearch = ux.getByRole('textbox', { name: 'Rechercher un motif de consultation' });
+    await motifSearch.fill('TEST-FUE');
+    await ux.getByRole('button', { name: 'Effacer la recherche de motifs' }).click();
+    if ((await motifSearch.inputValue()) !== '') throw new Error('Motif search clear button failed');
+    await ux.getByRole('button', { name: 'Ajouter un motif', exact: true }).click();
+    const motifDialog = ux.getByRole('dialog', { name: 'Ajouter un motif' });
+    await motifDialog.waitFor({ state: 'visible', timeout: 10000 });
+    const motifFocus = await ux.evaluate(() => document.activeElement?.closest('dialog')?.open === true);
+    if (!motifFocus) throw new Error('Custom motif dialog does not manage initial keyboard focus');
+    await ux.keyboard.press('Tab');
+    if (!(await ux.evaluate(() => document.activeElement?.closest('dialog')?.open === true))) {
+      throw new Error('Keyboard focus escaped custom motif modal');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '00a-accessible-motif-dialog.png'), fullPage: false, animations: 'disabled' });
+    // FastAPI 422 detail arrays must render as truthful text, not crash React.
+    const motifCreatePattern = '**/api/motifs/';
+    await ux.route(motifCreatePattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 422, contentType: 'application/json', body: '{"detail":[{"loc":["body","label"],"msg":"Synthetic invalid motif","input":"synthetic"}]}' });
+      } else {
+        await route.continue();
+      }
+    });
+    await motifDialog.getByRole('textbox', { name: 'Nom du motif *' }).fill('FUE-D synthetic motif');
+    const motif422 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/motifs/' && res.request().method() === 'POST' && res.status() === 422, { timeout: 12000 });
+    await motifDialog.getByRole('button', { name: 'Enregistrer' }).click();
+    await motif422;
+    await motifDialog.getByRole('alert').getByText('Motif invalide.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    await ux.screenshot({ path: path.join(uxDir, '00b-motif-422-safe-recovery.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(motifCreatePattern);
+    await ux.keyboard.press('Escape');
+    await motifDialog.waitFor({ state: 'hidden', timeout: 8000 });
+    await optionalClinical.click();
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await ux.waitForFunction(() => document.activeElement?.getAttribute('name') === 'nom', undefined, { timeout: 6000 });
+    if ((await ux.locator('[name="nom"]').getAttribute('aria-invalid')) !== 'true') {
+      throw new Error('Missing required identity field is not announced as invalid');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '00-first-use-required-fields.png'), fullPage: false, animations: 'disabled' });
+    // Invalid optional data must expand its own section and receive keyboard focus.
+    await ux.locator('input[name="nom"]').fill('UXEMAILTEST');
+    await ux.locator('input[name="prenom"]').fill('Check');
+    await ux.locator('input[name="date_naissance"]').fill('1990-01-01');
+    await ux.locator('select[name="sexe"]').selectOption('F');
+    await optionalClinical.click();
+    await ux.locator('input[name="email"]').fill('invalid-email');
+    await optionalClinical.click();
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await ux.waitForFunction(() => document.activeElement?.getAttribute('name') === 'email', undefined, { timeout: 6000 });
+    if ((await ux.locator('input[name="email"]').getAttribute('aria-invalid')) !== 'true' ||
+        !(await ux.locator('input[name="email"]').isVisible())) {
+      throw new Error('Invalid optional email did not reopen section and announce the field error');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '00b-optional-email-focus.png'), fullPage: false, animations: 'disabled' });
+    await ux.locator('input[name="email"]').fill('');
+    await optionalClinical.click();
+    await ux.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+    // Unlike the document-wide overflow check, this also catches text hidden by
+    // a local overflow-hidden header (the previous false-negative at 200%).
+    const assertHeaderNotClipped = async viewport => {
+      const result = await ux.evaluate(() => {
+        const heading = [...document.querySelectorAll('h2')].find(el => el.textContent?.trim() === 'Nouveau Patient');
+        const header = heading?.parentElement?.parentElement;
+        const description = heading?.nextElementSibling;
+        if (!header || !description) return { found: false };
+        const container = header.getBoundingClientRect();
+        const textBounds = [heading, description].flatMap(el => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          return Array.from(range.getClientRects(), r => ({ left: r.left, right: r.right }));
+        });
+        const titleTextNode = heading.firstChild;
+        const titleWordFragments = ['Nouveau', 'Patient'].map(word => {
+          if (!titleTextNode || titleTextNode.nodeType !== Node.TEXT_NODE) return { word, count: -1 };
+          const start = titleTextNode.textContent.indexOf(word);
+          if (start < 0) return { word, count: -1 };
+          const range = document.createRange();
+          range.setStart(titleTextNode, start);
+          range.setEnd(titleTextNode, start + word.length);
+          return { word, count: range.getClientRects().length };
+        });
+        return {
+          found: true,
+          titleWordFragments,
+          clipped: textBounds.some(r => r.left < container.left - 1 || r.right > container.right + 1),
+          headerScrollWidth: header.scrollWidth,
+          headerClientWidth: header.clientWidth,
+          documentOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) > innerWidth + 1,
+        };
+      });
+      if (!result.found || result.clipped || result.documentOverflow || result.headerScrollWidth > result.headerClientWidth + 1 || result.titleWordFragments.some(w => w.count !== 1)) {
+        throw new Error('200% text size clipping at ' + viewport + ': ' + JSON.stringify(result));
+      }
+      return result;
+    };
+    await ux.getByRole('heading', { name: 'Nouveau Patient' }).scrollIntoViewIfNeeded();
+    await ux.screenshot({ path: path.join(uxDir, '01-css-text-zoom-200pct.png'), fullPage: false, animations: 'disabled' });
+    const textZoomMobile = await assertHeaderNotClipped('390x844');
+    await ux.setViewportSize({ width: 320, height: 640 });
+    await ux.getByRole('heading', { name: 'Nouveau Patient' }).scrollIntoViewIfNeeded();
+    await ux.screenshot({ path: path.join(uxDir, '01a-css-text-zoom-200pct-narrow.png'), fullPage: false, animations: 'disabled' });
+    const textZoomNarrow = await assertHeaderNotClipped('320x640');
+    await ux.setViewportSize({ width: 1280, height: 900 });
+    await ux.locator('.sidebar-shell').hover();
+    await ux.locator('.sidebar-shell[data-expanded="true"]').waitFor({ timeout: 5000 });
+    await ux.waitForTimeout(460); // let sidebar width animation settle
+    const sidebarReflow = await ux.locator('.sidebar-nav-item').filter({ hasText: 'Tableau de bord' }).first().evaluate(link => {
+      const label = link.querySelector('.sidebar-label');
+      if (!label) return { found: false };
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      const linkBounds = link.getBoundingClientRect();
+      const fragments = Array.from(range.getClientRects()).map(rect => ({
+        left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+      }));
+      return {
+        found: true,
+        text: label.textContent?.trim(),
+        fragments: fragments.length,
+        clipped: fragments.some(rect => rect.left < linkBounds.left - 2 || rect.right > linkBounds.right + 2),
+        scrollWidth: label.scrollWidth,
+        clientWidth: label.clientWidth,
+      };
+    });
+    if (!sidebarReflow.found || sidebarReflow.text !== 'Tableau de bord' ||
+        sidebarReflow.clipped || sidebarReflow.scrollWidth > sidebarReflow.clientWidth + 1) {
+      throw new Error('200% sidebar navigation label clipped: ' + JSON.stringify(sidebarReflow));
+    }
+    const sidebarNavLabels = await ux.locator('.sidebar-nav-item .sidebar-label').evaluateAll(labels => labels.map(el => {
+      const rect = el.getBoundingClientRect();
+      const parent = el.closest('.sidebar-nav-item')?.getBoundingClientRect();
+      return { text: el.textContent?.trim(), scroll: el.scrollWidth, client: el.clientWidth,
+        clipped: !parent || rect.left < parent.left - 2 || rect.right > parent.right + 2 };
+    }));
+    if (!sidebarNavLabels.length || sidebarNavLabels.some(item => item.scroll > item.client + 1 || item.clipped)) {
+      throw new Error('At least one expanded sidebar label is truncated at 200%: ' + JSON.stringify(sidebarNavLabels));
+    }
+    await ux.screenshot({ path: path.join(uxDir, '01b-css-text-zoom-200pct-desktop.png'), fullPage: true, animations: 'disabled' });
+    const textZoomDesktop = await assertHeaderNotClipped('1280x900');
+    await ux.setViewportSize({ width: 390, height: 844 });
+    await ux.evaluate(() => { document.documentElement.style.fontSize = ''; });
+
+    const identity = 'FUEDUI' + Date.now();
+    await ux.locator('input[name="nom"]').fill(identity);
+    await ux.locator('input[name="prenom"]').fill('Failclosed');
+    await ux.locator('input[name="date_naissance"]').fill('1990-01-01');
+    await ux.locator('select[name="sexe"]').selectOption('F');
+    await ux.locator('input[name="numero_dossier"]').fill('UI' + String(Date.now()).slice(-9));
+    let uiCreatePostCount = 0;
+    ux.on('request', req => { if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/patients/') uiCreatePostCount++; });
+    const preflightPattern = '**/api/patients/check-duplicate';
+    // A malformed HTTP 200 from anti-duplicate preflight must fail closed.
+    await ux.route(preflightPattern, async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    });
+    const malformedPreflight = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/check-duplicate' && res.status() === 200, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await malformedPreflight;
+    await ux.getByRole('alert').getByText('Réponse anti-doublon invalide.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    if (uiCreatePostCount !== 0 || !ux.url().endsWith('/patients/new')) throw new Error('Malformed 200 preflight failed open to patient creation');
+    await ux.screenshot({ path: path.join(uxDir, '01z-malformed-preflight-refused.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(preflightPattern);
+    await ux.route(preflightPattern, async route => {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"Synthetic preflight outage"}' });
+    });
+    const preflight503 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/check-duplicate' && res.status() === 503, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await preflight503;
+    await ux.getByRole('alert').getByText('Vérification anti-doublon indisponible.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    if (uiCreatePostCount !== 0 || !ux.url().endsWith('/patients/new')) throw new Error('Preflight 503 must not create patient or navigate');
+    await ux.getByText('Service temporairement indisponible (503)', { exact: true }).waitFor({ state: 'visible', timeout: 12000 });
+    await ux.locator('form [role="alert"]').scrollIntoViewIfNeeded();
+    await ux.screenshot({ path: path.join(uxDir, '02-preflight-503-refused.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(preflightPattern);
+
+    // Simulate a 503 from POST only, after a real successful anti-duplicate preflight.
+    const createPattern = '**/api/patients/';
+    await ux.route(createPattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"Synthetic create outage"}' });
+      } else {
+        await route.continue();
+      }
+    });
+    const create503 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 503, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await create503;
+    await ux.getByRole('alert').getByText('Création non confirmée.', { exact: false }).waitFor({ state: 'visible', timeout: 12000 });
+    await ux.getByRole('button', { name: 'Consulter les dossiers' }).waitFor({ state: 'visible', timeout: 12000 });
+    if (uiCreatePostCount !== 1 || !ux.url().endsWith('/patients/new')) throw new Error('Create 503 must not claim success or navigate');
+    await ux.locator('form [role="alert"]').scrollIntoViewIfNeeded();
+    await ux.screenshot({ path: path.join(uxDir, '03-create-503-refused.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(createPattern);
+
+    // A concurrency 409 may provide an ID only. Show a truthful usable dialog.
+    await ux.route(createPattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 409, contentType: 'application/json', body: '{"detail":{"existing_patient":{"id":123456789}}}' });
+      } else {
+        await route.continue();
+      }
+    });
+    const createPartial409 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 409, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await createPartial409;
+    const partial409Dialog = ux.getByRole('dialog', { name: 'Patient similaire trouvé' });
+    await partial409Dialog.waitFor({ state: 'visible', timeout: 10000 });
+    if (!(await partial409Dialog.getByText('#123456789').isVisible())) throw new Error('Partial 409 lost the existing patient ID');
+    const partialDialogText = await partial409Dialog.innerText();
+    if (partialDialogText.includes('undefined') || partialDialogText.includes('Invalid Date')) throw new Error('Partial 409 displayed fabricated identity details');
+    await ux.screenshot({ path: path.join(uxDir, '03a-partial-409-truthful-dialog.png'), fullPage: false, animations: 'disabled' });
+    await partial409Dialog.getByRole('button', { name: 'Modifier les informations' }).click();
+    await partial409Dialog.waitFor({ state: 'hidden', timeout: 10000 });
+    await ux.unroute(createPattern);
+
+    // Explicit dossier-number collision: a known 409 needs a precise field
+    // error and must never be presented as an uncertain or successful creation.
+    await ux.route(createPattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 409, contentType: 'application/json', body: '{"detail":{"message":"Numéro de dossier déjà attribué. Réessayez."}}' });
+      } else {
+        await route.continue();
+      }
+    });
+    const create409 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 409, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await create409;
+    await ux.getByText('Numéro déjà attribué.', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
+    await ux.waitForFunction(() => document.activeElement?.getAttribute('name') === 'numero_dossier', undefined, { timeout: 5000 });
+    if ((await ux.locator('[name="numero_dossier"]').getAttribute('aria-invalid')) !== 'true') {
+      throw new Error('Dossier-number conflict did not announce invalid input');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '03b-number-409-field-recovery.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(createPattern);
+    const rejectedNumber = await ux.locator('[name="numero_dossier"]').inputValue();
+    await ux.getByRole('button', { name: 'Proposer un nouveau numéro' }).click();
+    await ux.waitForFunction(previous => {
+      const field = document.querySelector('[name="numero_dossier"]');
+      return field && field.value && field.value !== previous;
+    }, rejectedNumber, { timeout: 10000 });
+    if ((await ux.locator('[name="numero_dossier"]').getAttribute('aria-invalid')) === 'true') {
+      throw new Error('409 recovery did not clear dossier number field error');
+    }
+
+    // A syntactically successful but malformed 200 ACK must never create a
+    // fabricated patient route or a success message.
+    await ux.route(createPattern, async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"id":"invalid","nom":"wrong","prenom":"wrong"}' });
+      } else {
+        await route.continue();
+      }
+    });
+    const malformed200 = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 200, { timeout: 12000 });
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    await malformed200;
+    await ux.getByRole('alert').getByText('Création non confirmée.', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
+    if (!ux.url().endsWith('/patients/new')) throw new Error('Malformed 200 navigated to fabricated patient');
+    await ux.screenshot({ path: path.join(uxDir, '03c-malformed-200-rejected.png'), fullPage: false, animations: 'disabled' });
+    await ux.unroute(createPattern);
+
+    // Genuine double mouse-click through the rendered button with real backend.
+    const button = ux.getByRole('button', { name: 'Créer le dossier', exact: true });
+    await button.scrollIntoViewIfNeeded();
+    const bounds = await button.boundingBox();
+    if (!bounds) throw new Error('Double-click target missing');
+    const postsBeforeDoubleClick = uiCreatePostCount;
+    const successfulCreate = ux.waitForResponse(res => new URL(res.url()).pathname === '/api/patients/' && res.request().method() === 'POST' && res.status() === 200, { timeout: 25000 });
+    await ux.mouse.dblclick(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, { delay: 30 });
+    const accepted = await successfulCreate;
+    const created = await accepted.json();
+    await ux.waitForURL(new RegExp('/patients/' + created.id + '(?:\\?|$)'), { timeout: 15000 });
+    const independent = await uxContext.request.get(api + '/api/patients/' + created.id);
+    if (independent.status() !== 200) throw new Error('Double-click patient not persisted: ' + independent.status());
+    await ux.waitForTimeout(250);
+    const doubleClickPosts = uiCreatePostCount - postsBeforeDoubleClick;
+    if (doubleClickPosts !== 1) throw new Error('Real UI double-click emitted ' + doubleClickPosts + ' POST requests');
+    const persisted = await independent.json();
+    if (persisted.id !== created.id || persisted.nom !== identity) throw new Error('Real double-click persistence mismatch');
+    await ux.reload({ waitUntil: 'domcontentloaded' });
+    await ux.getByText(identity, { exact: false }).first().waitFor({ state: 'visible', timeout: 15000 });
+    await ux.screenshot({ path: path.join(uxDir, '04-after-double-click.png'), fullPage: true, animations: 'disabled' });
+
+    // Real backend preflight must display an accessible, keyboard-contained dialog
+    // for a duplicate identity. Native dialog handles inert backdrop and Escape.
+    await ux.goto(root + '/patients/new', { waitUntil: 'domcontentloaded' });
+    await ux.locator('input[name="nom"]').waitFor({ state: 'visible' });
+    await ux.locator('input[name="nom"]').fill(identity);
+    await ux.locator('input[name="prenom"]').fill('Failclosed');
+    await ux.locator('input[name="date_naissance"]').fill('1990-01-01');
+    await ux.locator('select[name="sexe"]').selectOption('F');
+    await ux.getByRole('button', { name: 'Créer le dossier', exact: true }).click();
+    const duplicateDialog = ux.getByRole('dialog', { name: 'Patient similaire trouvé' });
+    await duplicateDialog.waitFor({ state: 'visible', timeout: 15000 });
+    await duplicateDialog.getByRole('button', { name: 'Ouvrir le dossier existant' }).waitFor({ state: 'visible' });
+    const focusIsInDialog = await ux.evaluate(() => document.activeElement?.closest('dialog')?.open === true);
+    if (!focusIsInDialog) throw new Error('Duplicate dialog did not place keyboard focus inside modal');
+    await ux.keyboard.press('Tab');
+    if (!(await ux.evaluate(() => document.activeElement?.closest('dialog')?.open === true))) {
+      throw new Error('Keyboard focus escaped duplicate dialog');
+    }
+    await ux.screenshot({ path: path.join(uxDir, '05-accessible-duplicate-dialog.png'), fullPage: false, animations: 'disabled' });
+    await ux.keyboard.press('Escape');
+    await duplicateDialog.waitFor({ state: 'hidden', timeout: 8000 });
+    if (!ux.url().endsWith('/patients/new')) throw new Error('Escape from duplicate modal navigated away');
+    await ux.screenshot({ path: path.join(uxDir, '06-duplicate-dialog-escaped.png'), fullPage: false, animations: 'disabled' });
+    results.push({ viewport: 'adversarial-mobile-ui', duplicateDialogFocus: focusIsInDialog, duplicateDialogEscape: true, simulatedPreflightStatus: 503, simulatedCreateStatus: 503, noCreateOnPreflightFailure: true, noFalseSuccessOnCreateFailure: true, doubleClickPosts, doubleClickCreateStatus: accepted.status(), independentReadStatus: independent.status(), keyboardNextFocus: nextFocus, nameHasAssociatedLabel, labelProof, cssRootFont200PercentMobile: textZoomMobile, cssRootFont200PercentNarrow: textZoomNarrow, cssRootFont200PercentDesktop: textZoomDesktop, sidebarReflow, sidebarNavLabels, screenshots: ['00a-accessible-motif-dialog.png','01-css-text-zoom-200pct.png','01a-css-text-zoom-200pct-narrow.png','01b-css-text-zoom-200pct-desktop.png','02-preflight-503-refused.png','03-create-503-refused.png','03b-number-409-field-recovery.png','03c-malformed-200-rejected.png','04-after-double-click.png','05-accessible-duplicate-dialog.png','06-duplicate-dialog-escaped.png'] });
+  } finally {
+    await uxContext.close();
+  }
+  passed = true;
+} finally {
+  await browser.close();
+  fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify({ productHead: process.env.PRODUCT_HEAD || null, passed, completedAt: new Date().toISOString(), results }, null, 2));
+}
+if (!passed) throw new Error('FUE-D not certified');
+console.log('FUE_D_PATIENT_CREATION_PASS ' + JSON.stringify(results.map(({ viewport, firstValueMs, interactions, createStatus, readStatus }) => ({ viewport, firstValueMs, interactions, createStatus, readStatus }))));

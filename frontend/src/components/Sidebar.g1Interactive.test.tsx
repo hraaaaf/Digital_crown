@@ -157,7 +157,9 @@ describe('Sidebar G1 navigation matrix', () => {
     expect(container.querySelector('.sidebar-brand-compact svg.lucide-crown')).toBeNull();
 
     fireEvent.click(toggle);
-    expect(shell?.className).toContain('lg:w-72');
+    // Desktop width remains 18rem at 100% text, but must cap at 320px when text grows.
+    expect(shell?.className).toContain('lg:w-[min(18rem,320px)]');
+    expect(shell?.className).not.toContain('lg:w-72');
   });
 
   it('uses a staged premium desktop motion contract with reduced-motion fallback', () => {
