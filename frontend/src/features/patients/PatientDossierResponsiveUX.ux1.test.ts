@@ -67,7 +67,7 @@ describe('UX1 patient dossier responsive contract', () => {
     expect(app).toContain("maxWidth: patientCompact ? 'calc(100vw - 24px)' : '420px'");
     expect(app).toContain('<ContextualToaster />');
     expect(css).toContain('[data-rht-toaster]');
-    expect(css).toContain('top: 5.5rem !important');
+    expect(css).not.toContain('top: 5.5rem !important');
     expect(css).toContain('z-index: 900 !important');
     expect(css).toContain('pointer-events: none !important');
   });
