@@ -12,6 +12,9 @@ on:
       - experiments/lot05_j14_mixed_dentition_ontology_gate.py
       - experiments/test_lot05_j14_mixed_dentition_ontology_gate.py
       - docs/research/LOT05_J14_MIXED_DENTITION_ONTOLOGY_PRE_20261025.md
+      - experiments/lot05_j15_private_staging_plan.py
+      - experiments/test_lot05_j15_private_staging_plan.py
+      - docs/research/LOT05_J15_PRIVATE_STAGING_SAFETY_PRE_20261025.md
   workflow_dispatch:
 
 permissions:
@@ -39,6 +42,10 @@ jobs:
         run: python experiments/test_lot05_j13_private_clinician_corrections.py -v
       - name: Test thirteen synthetic permanent-primary FDI and certainty safety gates
         run: python experiments/test_lot05_j14_mixed_dentition_ontology_gate.py -v
+      - name: Test twelve synthetic J15 private staging safety blockers
+        run: python experiments/test_lot05_j15_private_staging_plan.py -v
+      - name: Verify J15 synthetic plan is blocked, no private staging
+        run: python experiments/lot05_j15_private_staging_plan.py
       - name: Pin academic YOLO TXT ONLY in disposable runner, never pixels
         shell: bash
         run: |
