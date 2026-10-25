@@ -49,7 +49,7 @@ export const G5BezierProfileLabCanvas:React.FC<Props>=({
     outgoing:[...n.outgoing] as G5PixelPoint,
   }))||[]);
   const [error,setError]=useState('');
-  const inImage=(e:React.PointerEvent<SVGSVGElement>):G5PixelPoint|null=>{
+  const inImage=(e:React.PointerEvent<SVGElement>):G5PixelPoint|null=>{
     const bounds=svg.current?.getBoundingClientRect();
     if(!bounds||!bounds.width||!bounds.height)return null;
     const x=viewport.left+(e.clientX-bounds.left)*viewport.width/bounds.width;
