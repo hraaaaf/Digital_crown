@@ -14,6 +14,33 @@ Digital Crown est une application de gestion de cabinet **on-premise / local-fir
 >
 > L'ancienne version détaillée de ce guide reste disponible dans l'historique Git à `master@f6dd36e`.
 
+## INVARIANTS PERMANENTS — CI ciblée, arrêt des runs obsolètes, tokens de thème
+
+**Applicables à tous les assistants, agents, PR, workflows, corrections et lots Digital Crown. Ces trois règles sont obligatoires et ne peuvent être assouplies pour obtenir artificiellement un statut GREEN. Les contrats de sécurité, les gates REQUIRED et les autorisations de release restent prioritaires.**
+
+### 1. CI chirurgicale — ne jamais repartir de zéro pour un RED isolé
+
+- Après un ou plusieurs échecs, lire les **logs réels et le SHA exact**. Identifier les tests/jobs FAILED, distinguer test obsolète, défaut de harness et vraie régression. Corriger **uniquement** la cause démontrée, sans réécrire les modules ou relancer des campagnes non touchées.
+- **Tests ciblés d'abord** : exécuter le fichier de test, le job échoué ou la plus petite certification couvrant le diff et ses dépendances. Ne jamais relancer volontairement l'ensemble des workflows, du backend, du frontend ou des captures UX pour un problème local. Ne pas utiliser une succession de microcommits comme déclencheur de matrices CI redondantes : grouper les corrections validées localement avant le push.
+- Les preuves GREEN existantes restent valides **si leur code, harness, configuration et dépendances pertinentes n'ont pas changé**. Avant une fusion/release, requalifier les preuves invalidées sur le **HEAD final exact** ; étendre aux gates transverses et de sécurité réellement impactés, jamais au détriment d'un gate obligatoire.
+- Avant un push, inspecter les déclencheurs `push`/`pull_request` et les filtres `paths` : **si le commit va relancer par effet de bord une matrice massive**, ne pas pousser immédiatement. Isoler la modification, adapter correctement le scope des triggers dans une mission autorisée ou consigner le blocage. Ne jamais désactiver ni masquer un contrôle REQUIRED pour éviter une CI.
+
+### 2. Annulation préalable impérative — un seul run utile par périmètre
+
+- **AVANT de créer un nouveau job/run ou de pousser un commit déclenchant une CI**, consulter GitHub Actions sur la **même PR / branche / workflow et ses SHAs successifs**. Relever les runs `queued`, `pending` et `in_progress` appartenant aux anciens HEAD et devenus **obsolètes**.
+- **TOUJOURS ANNULER les anciens runs obsolètes avant de lancer leurs remplaçants.** Annuler uniquement les runs supplantés du même périmètre ; ne jamais annuler un gate indépendant encore utile, une CI `master` protégée, ni une release/validation critique d'un autre périmètre. Vérifier via GitHub qu'ils sont réellement `completed/cancelled` avant de déclencher le nouveau run. Consigner IDs, URLs, ancien/nouveau SHA.
+- Configurer les workflows de développement/PR, lorsque cela est autorisé, avec un `concurrency.group` stable par **PR ou branche** (non par SHA) et `cancel-in-progress: true`, tout en préservant les workflows `master`/release pour lesquels une annulation automatique serait dangereuse. **L'auto-cancel ne dispense pas du contrôle préalable de l'état.**
+- Si l'outil GitHub connecté ne sait pas annuler ou si l'annulation n'est pas confirmée, **STOP : ne pas lancer de job/commit déclencheur de CI tant que l'ancien run obsolète n'est pas terminé ou annulé par une personne autorisée**. Signaler clairement le blocage et fournir les liens ; ne jamais prétendre avoir « tué » un run sans preuve ni effectuer un contournement de sécurité.
+- Les runs encore actifs sur un SHA antérieur ne sont jamais des preuves GREEN du SHA final. Ne jamais empiler des dizaines de runs `queued` en attendant les runners.
+
+### 3. Thème unique — AUCUNE valeur visuelle codée en dur
+
+- **Interdiction de coder en dur les choix visuels** dans React/TSX, CSS/SCSS, Tailwind, SVG, graphiques, overlays et composants : couleurs (HEX, RGB/RGBA, HSL/HSLA, `oklch` littéral), fonds, états, bordures, ombres, opacités de palette, typographie et autres paramètres de design doivent **hériter des design tokens sémantiques du thème actif**.
+- Réutiliser les variables CSS existantes (`var(--…)`), les utilitaires sémantiques Tailwind **réellement mappés** sur ces variables ou les composants du design system. Pas de `#…`, `rgb(…)`, `bg-[#…]`, `text-[#…]`, couleur inline, fallback visuel fixe ni nouveau token imaginaire dans une feature.
+- **S'il manque un token**, l'ajouter d'abord dans le **système central de thème**, fournir sa valeur dans **tous les thèmes et modes pris en charge** (clair, sombre, thèmes premium, contraste renforcé), puis l'utiliser par héritage. Ne pas créer de mini-palette locale ni contourner l'héritage du thème.
+- Toute retouche visuelle doit prouver les états de thème affectés et le responsive pertinent, notamment la lisibilité/contraste, les interactions et le mode High Contrast. Ajouter des tests de non-régression si nécessaire. Les dimensions calculées pour un layout fonctionnel et les constantes métier sourcées ne sont pas des couleurs de thème ; elles ne justifient aucune exception aux valeurs visuelles codées en dur.
+- En cas d'écart dans du code historique touché par la mission : corriger la valeur **dans le périmètre autorisé** ou déclarer le blocage, sans élargissement silencieux. **Un rendu flatteur dans un seul thème n'est pas une certification.**
+
 ## VERROU V1 — AUTORITÉ D'EXÉCUTION ABSOLUE
 
 Jusqu'à ce que `V1_OPERATIONAL` soit explicitement enregistré dans `docs/clinic/DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` :
