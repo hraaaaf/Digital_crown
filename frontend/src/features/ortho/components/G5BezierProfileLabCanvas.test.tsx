@@ -6,6 +6,14 @@ import {G5BezierProfileLabCanvas} from './G5BezierProfileLabCanvas';
 const width=1935;
 const height=2400;
 const viewport={left:0,top:0,width,height};
+/**
+ * JSDOM's fireEvent.pointerDown may construct a generic Event with undefined
+ * clientX/clientY. Dispatch the pointerdown event name with a real MouseEvent
+ * coordinate payload; React's onPointerDown sees the same DOM event type.
+ */
+const pointerDownAt=(element:Element,x:number,y:number)=>
+  fireEvent(element,new MouseEvent('pointerdown',{bubbles:true,clientX:x,clientY:y}));
+
 
 describe('G5 cutaneous Bezier canvas — research LAB guard',()=>{
   it('manually adds anchors and emits the sampled source-pixel contour',()=>{
@@ -19,11 +27,11 @@ describe('G5 cutaneous Bezier canvas — research LAB guard',()=>{
       left:0,top:0,width:530,height:657.3643410852713,right:530,
       bottom:657.3643410852713,x:0,y:0,toJSON:()=>({}),
     });
-    fireEvent.pointerDown(svg,{clientX:300,clientY:300});
+    pointerDownAt(svg,300,300);
     expect(screen.getByTestId('g5-bezier-anchor-0')).toBeTruthy();
     // The first single point is never a complete anatomy contour.
     expect(emit).toHaveBeenLastCalledWith([]);
-    fireEvent.pointerDown(svg,{clientX:310,clientY:380});
+    pointerDownAt(svg,310,380);
     expect(screen.getByTestId('g5-bezier-anchor-1')).toBeTruthy();
     const samples=emit.mock.calls.at(-1)?.[0];
     expect(Array.isArray(samples)).toBe(true);
@@ -59,6 +67,22 @@ describe('G5 cutaneous Bezier canvas — research LAB guard',()=>{
     expect(persist).not.toHaveBeenCalled();
   });
 
+  it('ignores malformed pointer events without creating NaN anchors',()=>{
+    const emit=vi.fn();
+    render(<G5BezierProfileLabCanvas
+      imageUrl="/g5-qa-fixture.png" imageWidth={width} imageHeight={height}
+      viewport={viewport} otherContours={[]} disabled={false}
+      borderColor="#999" textColor="#444" onSampledChange={emit}/>);
+    const svg=screen.getByTestId('odf-g5-bezier-surface');
+    vi.spyOn(svg,'getBoundingClientRect').mockReturnValue({
+      left:0,top:0,width:530,height:657.3643410852713,right:530,
+      bottom:657.3643410852713,x:0,y:0,toJSON:()=>({}),
+    });
+    fireEvent.pointerDown(svg);
+    expect(screen.queryByTestId('g5-bezier-anchor-0')).toBeNull();
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   it('does not create a contour when the LAB control is disabled',()=>{
     const emit=vi.fn();
     render(<G5BezierProfileLabCanvas
@@ -66,7 +90,7 @@ describe('G5 cutaneous Bezier canvas — research LAB guard',()=>{
       viewport={viewport} otherContours={[]} disabled={true}
       borderColor="#999" textColor="#444" onSampledChange={emit}/>);
     const svg=screen.getByTestId('odf-g5-bezier-surface');
-    fireEvent.pointerDown(svg,{clientX:300,clientY:300});
+    pointerDownAt(svg,300,300);
     expect(emit).not.toHaveBeenCalled();
   });
 });
