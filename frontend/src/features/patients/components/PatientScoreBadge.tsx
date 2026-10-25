@@ -59,7 +59,7 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
   };
 
   if (!loaded && !data) {
-    return <Loader2 size={14} className={cn('animate-spin text-slate-300', className)} />;
+    return <Loader2 size={14} className={cn('animate-spin text-text-muted', className)} />;
   }
   if (!data) return null;
 
@@ -69,12 +69,12 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
 
   return (
     <div className={cn('relative inline-flex max-w-full flex-wrap items-center gap-1.5', className)} ref={menuRef}>
-      <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2 py-1 text-[9px] font-black text-indigo-700 whitespace-nowrap">
+      <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-info-border bg-info-surface px-2 py-1 text-[9px] font-black text-info whitespace-nowrap">
         <CalendarCheck2 size={11} />
         {hasRdvHistory ? `${rdv_honores} RDV honoré${rdv_honores > 1 ? 's' : ''} · ${rdv_annules} annulé${rdv_annules > 1 ? 's' : ''}` : 'Aucun historique RDV'}
       </span>
 
-      <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700 whitespace-nowrap">
+      <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-info-border bg-info-surface px-2 py-1 text-[9px] font-black text-info whitespace-nowrap">
         <WalletCards size={11} />
         {has_billing_data ? `${money(total_encaisse)} / ${money(total_facture)} MAD encaissés` : 'Facturation indéterminée'}
       </span>
@@ -82,7 +82,7 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
       <button
         type="button"
         onClick={(event) => { event.stopPropagation(); setShowMenu(value => !value); }}
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-black text-slate-500 hover:bg-slate-50 whitespace-nowrap"
+        className="inline-flex items-center gap-1 rounded-lg border border-border-main bg-card px-2 py-1 text-[9px] font-black text-text-muted hover:bg-input-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary whitespace-nowrap"
         aria-label="Tag cabinet manuel"
         title="Tag cabinet manuel"
       >
@@ -90,9 +90,9 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
       </button>
 
       {showMenu && (
-        <div onClick={event => event.stopPropagation()} className="absolute left-0 top-full z-[9999] mt-2 w-64 rounded-2xl border border-slate-100 bg-white p-3 text-left shadow-2xl">
-          <p className="px-2 pb-2 text-[9px] font-black uppercase tracking-widest text-slate-400">Tag cabinet manuel</p>
-          <p className="px-2 pb-3 text-[10px] font-medium leading-relaxed text-slate-500">Ce tag est choisi par le cabinet. Il n'est jamais calculé automatiquement.</p>
+        <div onClick={event => event.stopPropagation()} className="absolute left-0 top-full z-[9999] mt-2 w-64 rounded-2xl border border-border-main bg-card p-3 text-left text-text-main shadow-2xl">
+          <p className="px-2 pb-2 text-[9px] font-black uppercase tracking-widest text-text-muted">Tag cabinet manuel</p>
+          <p className="px-2 pb-3 text-[10px] font-medium leading-relaxed text-text-muted">Ce tag est choisi par le cabinet. Il n'est jamais calculé automatiquement.</p>
           <div className="space-y-1">
             {(Object.keys(MANUAL_TAGS) as Array<keyof typeof MANUAL_TAGS>).map(grade => (
               <button
@@ -100,7 +100,7 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
                 type="button"
                 disabled={isUpdating}
                 onClick={() => updateManualTag(grade)}
-                className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50"
+                className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-text-main hover:bg-input-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
               >
                 {MANUAL_TAGS[grade]}
               </button>
@@ -111,7 +111,7 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
               type="button"
               disabled={isUpdating}
               onClick={() => updateManualTag(null)}
-              className="mt-2 flex w-full items-center justify-center gap-1 border-t border-slate-100 pt-3 text-[9px] font-black uppercase tracking-wider text-blue-600"
+              className="mt-2 flex w-full items-center justify-center gap-1 border-t border-border-main pt-3 text-[9px] font-black uppercase tracking-wider text-primary"
             >
               <RefreshCcw size={11} /> Retirer le tag
             </button>
