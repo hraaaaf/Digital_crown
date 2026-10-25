@@ -27,6 +27,8 @@ on:
       - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
       - audit/cephalo_facad_robert_p4_identity_gate.py
       - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/cephalo_facad_p6_identity_review_gate.py
+      - audit/test_cephalo_facad_p6_identity_review_gate.py
       - audit/cephalo_facad_p5_overlay_registration.py
       - audit/test_cephalo_facad_p5_overlay_registration.py
       - docs/audits/CEPHALO_FACAD_ROBERT_P5_SCREENSHOT_REGISTRATION.md
@@ -61,6 +63,8 @@ on:
       - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
       - audit/cephalo_facad_robert_p4_identity_gate.py
       - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/cephalo_facad_p6_identity_review_gate.py
+      - audit/test_cephalo_facad_p6_identity_review_gate.py
       - audit/cephalo_facad_p5_overlay_registration.py
       - audit/test_cephalo_facad_p5_overlay_registration.py
       - docs/audits/CEPHALO_FACAD_ROBERT_P5_SCREENSHOT_REGISTRATION.md
@@ -169,6 +173,14 @@ jobs:
           echo 'FACAD_P5_REAL_SCREENSHOT=NOT_EXECUTED_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
           echo 'FACAD_P5_OVERLAY_REGISTRATION_SYNTHETIC_TESTS_ONLY=true' >> "$GITHUB_STEP_SUMMARY"
           echo 'FACAD_P5_ANATOMICAL_IDENTITY=NOT_CERTIFIED' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: P6 independent anatomy review contract — synthetic only, fail closed
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_p6_identity_review_gate
+          echo 'FACAD_P6_REAL_IMAGE=NOT_EXECUTED_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P6_INDEPENDENT_ANATOMICAL_REVIEW=NOT_CERTIFIED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P6_POG_HARD_PRODUCTION_AUTHORIZATION=NO' >> "$GITHUB_STEP_SUMMARY"
+          echo 'CLINICAL_NO_GO=true' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Revalidate canonical repository schema without vendor files
         run: python audit/cephalo_lot08_facad_parity_validate.py
