@@ -10,6 +10,9 @@ on:
       - frontend/src/components/CrownBot/CrownBotChat.g9Interactive.test.tsx
       - frontend/src/components/CrownBot/CrownBotGuidedConversationG5.tsx
       - frontend/src/components/CrownBot/CrownBotGuidedConversationG5.test.tsx
+      - frontend/src/components/CrownBot/CB03G5RealChatLab.tsx
+      - frontend/cb03-g5-chat-lab.html
+      - frontend/scripts/certify-cb03-g5-chat-floating.mjs
       - .github/workflows/cb03-g5-real-crownbot-chat.yml
 
 permissions:
@@ -71,3 +74,56 @@ jobs:
         run: |
           test "$VITE_CROWN_BOT_CB03_CHAT_ENABLED" = false
           test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
+
+  synthetic-floating-browser:
+    name: Real CrownBotChat floating visual (explicit MOCK backend; not clinic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CB03_G5_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      CB03_G5_VISUAL_LAB: "1"
+      VITE_CROWN_BOT_CB03_CHAT_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Assert exact SHA and OFF flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB03_G5_SOURCE_HEAD"
+          test "$VITE_CROWN_BOT_CB03_CHAT_ENABLED" = false
+          test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies and synthetic Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Capture ACTUAL CrownBotChat floating and confirm card
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/certify-cb03-g5-chat-floating.mjs
+          echo "Actual CrownBotChat, temporary floating launcher; HTTP fully mocked, NOT real MainLayout/clinic, NVDA or PostgreSQL." >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive independent synthetic-only chat screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g5-actual-crownbot-chat-synthetic-floating
+          path: artifacts/cb03-g5/chat-actual-component
+          if-no-files-found: warn
+          retention-days: 14
