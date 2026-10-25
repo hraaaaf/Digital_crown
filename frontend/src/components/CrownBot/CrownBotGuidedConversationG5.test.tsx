@@ -103,7 +103,7 @@ describe('CB-03 G5 — genuine chat-style guided action security',()=>{
     expect(screen.queryByRole('button',{name:'Confirmer explicitement cette action'})).not.toBeInTheDocument();
     post.mockResolvedValueOnce({data:PREPARED} as never);
     fireEvent.click(choice);
-    await screen.findByText('Salma Benali · Dossier S-21');
+    await screen.findByRole('button',{name:'Confirmer explicitement cette action'});
     await waitFor(()=>expect(post).toHaveBeenCalledWith('/bot/guided/prepare-appointment',{
       utterance:'Prépare un RDV demain 10h pour Mme Benali contrôle',
       duration_minutes:30,praticien_id:9,chosen_patient_id:21,
