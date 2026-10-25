@@ -2,6 +2,7 @@
 from __future__ import annotations
 import hashlib
 import re
+import struct
 
 SCHEMA = "FACAD_P8_SOURCE_ATTESTATION_V1"
 FLAGS = ("native_source", "no_overlay", "same_case", "same_trace", "rights")
@@ -22,6 +23,10 @@ def verify(image_data: bytes, export_bundle_data: bytes, attestation: dict) -> d
             raise ValueError("invalid SHA256")
     if type(image_data) is not bytes or type(export_bundle_data) is not bytes:
         raise ValueError("binary inputs required")
+    if len(image_data) < 33 or image_data[:8] != bytes.fromhex("89504e470d0a1a0a") or image_data[12:16] != b"IHDR":
+        raise ValueError("PNG image required")
+    if struct.unpack(">II", image_data[16:24]) != (attestation["source_width"], attestation["source_height"]):
+        raise ValueError("image pixel dimensions do not match attestation")
     hashes_match = (hashlib.sha256(image_data).hexdigest() == attestation["image_hash"]
                     and hashlib.sha256(export_bundle_data).hexdigest() == attestation["export_bundle_hash"])
     declared = all(attestation[k] for k in FLAGS) and attestation["screen_capture"] is False
