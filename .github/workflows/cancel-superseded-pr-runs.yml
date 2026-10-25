@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-pr-run-cleanup-\${{ github.event.pull_request.number || github.ref }}
+  group: ci-pr-run-cleanup-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
       - name: Cancel only provably superseded same-PR runs
         uses: actions/github-script@v7
         with:
-          github-token: \${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
             const full = owner + "/" + repo;
