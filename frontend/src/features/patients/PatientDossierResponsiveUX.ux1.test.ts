@@ -58,7 +58,12 @@ describe('UX1 patient dossier responsive contract', () => {
   it('keeps compact patient toasts non-blocking and below CrownBot', () => {
     expect(app).toContain('const ContextualToaster');
     expect(app).toContain('window.innerWidth < 1024');
-    expect(app).toContain("position={patientCompact ? 'top-center' : 'bottom-right'}");
+    // A patient identity banner must remain visible while transient advice is shown.
+    expect(app).toContain("position={patientDetailCompact ? 'bottom-center' : patientCompact ? 'top-center' : 'bottom-right'}");
+    expect(app).toContain("const patientDetailCompact = /^\\/patients\\/\\d+(?:\\/|$)/.test(location.pathname) && compactViewport");
+    expect(app).toContain("bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))'");
+    expect(css).toContain("top: auto !important;");
+    expect(css).toContain("bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;");
     expect(app).toContain("maxWidth: patientCompact ? 'calc(100vw - 24px)' : '420px'");
     expect(app).toContain('<ContextualToaster />');
     expect(css).toContain('[data-rht-toaster]');
