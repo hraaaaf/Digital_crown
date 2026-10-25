@@ -207,9 +207,9 @@ export const ProfileTab: React.FC = () => {
                   value="PRIVE"
                   checked={profile.cabinet_type === 'PRIVE' || !profile.cabinet_type}
                   onChange={handleProfileChange}
-                  className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
+                  className="w-4 h-4 text-primary border-border-hover focus:ring-primary"
                 />
-                <span className="text-sm font-bold text-slate-700">Cabinet Privé</span>
+                <span className="text-sm font-bold text-text-main">Cabinet Privé</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -218,9 +218,9 @@ export const ProfileTab: React.FC = () => {
                   value="CLINIQUE"
                   checked={profile.cabinet_type === 'CLINIQUE'}
                   onChange={handleProfileChange}
-                  className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
+                  className="w-4 h-4 text-primary border-border-hover focus:ring-primary"
                 />
-                <span className="text-sm font-bold text-slate-700">Clinique</span>
+                <span className="text-sm font-bold text-text-main">Clinique</span>
               </label>
             </div>
 
@@ -236,7 +236,7 @@ export const ProfileTab: React.FC = () => {
 
           <div className="md:col-span-2 rounded-2xl border border-primary/15 bg-primary/5 p-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-primary">Praticien principal · Source compte praticien</p>
-            <p className="mt-1 text-xs font-medium text-slate-600">
+            <p className="mt-1 text-xs font-medium text-text-muted">
               Nom et INPE professionnel suivent le compte du praticien, jamais une copie dans le cabinet.
               {!canEditPractitionerIdentity && ' Modification réservée au praticien principal.'}
             </p>
@@ -252,7 +252,7 @@ export const ProfileTab: React.FC = () => {
               placeholder="Ex: Benmoussa Achraf"
               disabled={!canEditPractitionerIdentity}
             />
-            <p className="text-[9px] text-slate-400 mt-2 font-medium italic">Le titre "Dr." sera ajouté automatiquement sur les documents.</p>
+            <p className="text-[9px] text-text-muted mt-2 font-medium italic">Le titre "Dr." sera ajouté automatiquement sur les documents.</p>
           </div>
           <div dir="rtl">
             <label className={labelClass + " text-right"}>اسم الطبيب (بالعربية)</label>
@@ -281,7 +281,7 @@ export const ProfileTab: React.FC = () => {
                 </div>
               )}
             </div>
-            <p className="text-[9px] text-slate-400 mt-2 font-medium italic text-right">سيتم إضافة لقب ".د" تلقائياً.</p>
+            <p className="text-[9px] text-text-muted mt-2 font-medium italic text-right">سيتم إضافة لقب ".د" تلقائياً.</p>
           </div>
 
           <div className="md:col-span-2">
@@ -295,16 +295,16 @@ export const ProfileTab: React.FC = () => {
               className={cn(inputClass, !canEditPractitionerIdentity && 'opacity-60 cursor-not-allowed')}
               placeholder="INPE du praticien"
             />
-            <p className="text-[9px] text-slate-400 mt-2 font-medium italic">Attaché au compte du praticien principal.</p>
+            <p className="text-[9px] text-text-muted mt-2 font-medium italic">Attaché au compte du praticien principal.</p>
           </div>
 
           <div className="md:col-span-2 bg-primary/5 p-4 rounded-2xl border border-primary/10 flex items-center gap-4">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm">
+            <div className="w-10 h-10 bg-card rounded-xl flex items-center justify-center text-primary shadow-sm">
               <Stethoscope size={20} />
             </div>
             <div>
               <p className="text-xs font-black text-primary uppercase tracking-wider">Titre Professionnel</p>
-              <p className="text-sm font-bold text-slate-700">Chirurgien Dentiste / طبيب جراح للأسنان</p>
+              <p className="text-sm font-bold text-text-main">Chirurgien Dentiste / طبيب جراح للأسنان</p>
             </div>
           </div>
 
@@ -323,7 +323,7 @@ export const ProfileTab: React.FC = () => {
                       "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all group relative overflow-hidden",
                       isSelected
                         ? "border-primary bg-primary/5 shadow-md scale-[1.02]"
-                        : "border-slate-100 bg-white hover:border-slate-200"
+                        : "border-border-main bg-card hover:border-border-main"
                     )}
                   >
                     <div className={cn(
@@ -333,8 +333,8 @@ export const ProfileTab: React.FC = () => {
                       <spec.icon size={20} />
                     </div>
                     <div className="text-center">
-                      <span className={cn("block text-xs font-black", isSelected ? "text-primary" : "text-slate-600")}>{spec.fr}</span>
-                      <span className={cn("block text-[10px] font-bold font-amiri", isSelected ? "text-primary/70" : "text-slate-400")}>{spec.ar}</span>
+                      <span className={cn("block text-xs font-black", isSelected ? "text-primary" : "text-text-muted")}>{spec.fr}</span>
+                      <span className={cn("block text-[10px] font-bold font-amiri", isSelected ? "text-primary/70" : "text-text-muted")}>{spec.ar}</span>
                     </div>
                     {isSelected && (
                       <div className="absolute top-2 right-2">
@@ -346,8 +346,8 @@ export const ProfileTab: React.FC = () => {
               })}
             </div>
 
-            <div className="mt-6 p-5 bg-slate-50/80 rounded-2xl border border-slate-100">
-              <label className="text-xs font-bold text-slate-700 mb-3 block">Spécialité personnalisée (Optionnelle)</label>
+            <div className="mt-6 p-5 bg-background/80 rounded-2xl border border-border-main">
+              <label className="text-xs font-bold text-text-main mb-3 block">Spécialité personnalisée (Optionnelle)</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <input
                   type="text"
@@ -389,7 +389,7 @@ export const ProfileTab: React.FC = () => {
 
           <div className="md:col-span-2 bg-warning-surface p-6 rounded-3xl border border-warning-border">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-warning shadow-sm">
+              <div className="w-10 h-10 bg-card rounded-xl flex items-center justify-center text-warning shadow-sm">
                 <PaletteIcon size={20} />
               </div>
               <h4 className="font-black text-warning">Logo du Cabinet</h4>
@@ -398,7 +398,7 @@ export const ProfileTab: React.FC = () => {
               <button
                 type="button"
                 aria-label="Choisir le logo du cabinet"
-                className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-warning-border flex items-center justify-center cursor-pointer hover:brightness-95 transition-all relative group overflow-hidden"
+                className="w-32 h-32 rounded-3xl bg-card border-2 border-dashed border-warning-border flex items-center justify-center cursor-pointer hover:brightness-95 transition-all relative group overflow-hidden"
                 onClick={() => document.getElementById('logo-input')?.click()}
               >
                 {profile.logo_path ? (
@@ -438,8 +438,8 @@ export const ProfileTab: React.FC = () => {
             </div>
           </div>
 
-          <div className="md:col-span-2 rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Identifiants établissement · Source cabinet</p>
+          <div className="md:col-span-2 rounded-2xl border border-border-main bg-background/70 p-5">
+            <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Identifiants établissement · Source cabinet</p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelClass}>INPE établissement</label>
@@ -454,24 +454,24 @@ export const ProfileTab: React.FC = () => {
                 <input type="text" name="if" value={profile.if || ''} onChange={handleProfileChange} className={inputClass} placeholder="IF" />
               </div>
             </div>
-            <p className="mt-3 text-[9px] font-medium italic text-slate-400">L’ancien INPE ambigu n’est jamais reclassé automatiquement.</p>
+            <p className="mt-3 text-[9px] font-medium italic text-text-muted">L’ancien INPE ambigu n’est jamais reclassé automatiquement.</p>
           </div>
         </div>
       </SettingsSection>
 
-      <div className="rounded-[2rem] border border-slate-100 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-[2rem] border border-border-main bg-card shadow-sm overflow-hidden">
         <button
           type="button"
           onClick={() => setShowHeaderAdvanced((open) => !open)}
           aria-expanded={showHeaderAdvanced}
-          className="w-full p-5 sm:p-6 flex items-center gap-4 text-left hover:bg-slate-50/70 transition-colors"
+          className="w-full p-5 sm:p-6 flex items-center gap-4 text-left hover:bg-background/70 transition-colors"
         >
-          <div className="w-11 h-11 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-primary shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-background border border-border-main flex items-center justify-center text-primary shrink-0">
             <Users size={20} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-black text-slate-900">En-tête bilingue</h3>
+              <h3 className="font-black text-text-main">En-tête bilingue</h3>
               <span className={cn(
                 "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
                 profile.header_customized ? "bg-warning-surface text-warning" : "bg-success-surface text-success"
@@ -479,19 +479,19 @@ export const ProfileTab: React.FC = () => {
                 {profile.header_customized ? 'Personnalisé' : 'Automatique'}
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+            <p className="text-xs sm:text-sm text-text-muted font-medium mt-1">
               L'en-tête est généré depuis le praticien et les spécialités. Ouvrez seulement si vous souhaitez le personnaliser ligne par ligne.
             </p>
           </div>
-          {showHeaderAdvanced ? <ChevronUp size={20} className="text-slate-400 shrink-0" /> : <ChevronDown size={20} className="text-slate-400 shrink-0" />}
+          {showHeaderAdvanced ? <ChevronUp size={20} className="text-text-muted shrink-0" /> : <ChevronDown size={20} className="text-text-muted shrink-0" />}
         </button>
 
         {showHeaderAdvanced && (
-          <div className="border-t border-slate-100 p-5 sm:p-6 space-y-6 bg-slate-50/30">
+          <div className="border-t border-border-main p-5 sm:p-6 space-y-6 bg-background/30">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <p className="text-sm font-black text-slate-800">Personnalisation avancée</p>
-                <p className="text-xs text-slate-500 mt-1">Toute modification manuelle désactive la génération automatique jusqu'à réinitialisation.</p>
+                <p className="text-sm font-black text-text-main">Personnalisation avancée</p>
+                <p className="text-xs text-text-muted mt-1">Toute modification manuelle désactive la génération automatique jusqu'à réinitialisation.</p>
               </div>
               <button
                 type="button"
@@ -525,7 +525,7 @@ export const ProfileTab: React.FC = () => {
                       >×</button>
                     </div>
                   ))}
-                  <button onClick={() => updateProfile({ header_lines_fr: [...(profile.header_lines_fr || []), ""], header_customized: true })} className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all">+ Ligne FR</button>
+                  <button onClick={() => updateProfile({ header_lines_fr: [...(profile.header_lines_fr || []), ""], header_customized: true })} className="w-full py-2 border-2 border-dashed border-border-main text-text-muted font-bold text-xs rounded-xl hover:bg-background transition-all">+ Ligne FR</button>
                 </div>
               </div>
 
@@ -560,7 +560,7 @@ export const ProfileTab: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => updateProfile({ header_lines_ar: [...(profile.header_lines_ar || []), ""], header_customized: true })} className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all">+ Ligne AR</button>
+                  <button onClick={() => updateProfile({ header_lines_ar: [...(profile.header_lines_ar || []), ""], header_customized: true })} className="w-full py-2 border-2 border-dashed border-border-main text-text-muted font-bold text-xs rounded-xl hover:bg-background transition-all">+ Ligne AR</button>
                 </div>
               </div>
             </div>
@@ -600,20 +600,20 @@ export const ProfileTab: React.FC = () => {
                 onClick={() => updateProfile({ wall_display_identity_mode: option.value })}
                 className={cn(
                   "rounded-2xl border-2 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  active ? "border-primary bg-primary/5 shadow-sm" : "border-slate-100 bg-white hover:border-slate-200"
+                  active ? "border-primary bg-primary/5 shadow-sm" : "border-border-main bg-card hover:border-border-main"
                 )}
               >
-                <span className={cn("block text-sm font-black", active ? "text-primary" : "text-slate-800")}>
+                <span className={cn("block text-sm font-black", active ? "text-primary" : "text-text-main")}>
                   {option.title}
                 </span>
-                <span className="mt-2 block text-xs font-medium leading-relaxed text-slate-500">
+                <span className="mt-2 block text-xs font-medium leading-relaxed text-text-muted">
                   {option.description}
                 </span>
               </button>
             );
           })}
         </div>
-        <p className="mt-4 text-[11px] font-semibold leading-relaxed text-slate-500">
+        <p className="mt-4 text-[11px] font-semibold leading-relaxed text-text-muted">
           Le mode par défaut est « Initiales ». Le choix « Nom complet » rend volontairement l’identité du patient visible sur un écran public.
         </p>
       </SettingsSection>
@@ -630,19 +630,19 @@ export const ProfileTab: React.FC = () => {
             const label = type === 'fixe' ? 'Tél. Fixe' : type === 'mobile' ? 'Tél. Mobile' : type === 'whatsapp' ? 'WhatsApp' : 'Instagram';
 
             return (
-              <div key={type} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+              <div key={type} className="bg-card p-4 rounded-2xl border border-border-main shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Icon size={16} className="text-primary" style={{ color: 'var(--primary)' }} />
-                    <span className="text-xs font-black uppercase text-slate-400 tracking-wider">{label}</span>
+                    <span className="text-xs font-black uppercase text-text-muted tracking-wider">{label}</span>
                   </div>
                   <button
                     onClick={() => toggleContact(type)}
-                    className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1", c.enabled ? "bg-success" : "bg-slate-200")}
+                    className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1", c.enabled ? "bg-success" : "bg-input-field")}
                     aria-label={`${c.enabled ? 'Désactiver' : 'Activer'} ${label}`}
                     aria-pressed={c.enabled}
                   >
-                    <div className={cn("w-3 h-3 bg-white rounded-full transition-all", c.enabled ? "translate-x-5" : "translate-x-0")} />
+                    <div className={cn("w-3 h-3 bg-card rounded-full transition-all", c.enabled ? "translate-x-5" : "translate-x-0")} />
                   </button>
                 </div>
                 <input

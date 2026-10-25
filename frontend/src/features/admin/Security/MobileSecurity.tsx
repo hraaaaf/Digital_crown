@@ -157,20 +157,20 @@ export const MobileSecurity = () => {
           <Smartphone size={24} />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-white font-outfit">Digital Crown Pocket</h2>
-          <p className="text-sm text-slate-500">Connectez un téléphone à l’expérience mobile du cabinet.</p>
+          <h2 className="text-xl font-bold text-text-main dark:text-white font-outfit">Digital Crown Pocket</h2>
+          <p className="text-sm text-text-muted">Connectez un téléphone à l’expérience mobile du cabinet.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-slate-900/50 rounded-3xl border border-slate-200/60 dark:border-white/5 p-5 sm:p-8 relative overflow-hidden">
+        <div className="bg-card dark:bg-slate-900/50 rounded-3xl border border-border-main/60 dark:border-white/5 p-5 sm:p-8 relative overflow-hidden">
           <div className="relative z-10 space-y-6">
             <div>
               <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 <Shield size={18} className="text-emerald-500" />
                 Connexion mobile sécurisée
               </h3>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-text-muted">
                 Choisissez l’utilisateur. Pocket s’ouvre automatiquement sur son accueil autorisé par le rôle. Le QR ne contient aucune donnée patient et expire automatiquement.
               </p>
             </div>
@@ -181,7 +181,7 @@ export const MobileSecurity = () => {
                 <button
                   type="button"
                   onClick={() => void loadBridgeOptions()}
-                  className="mt-3 min-h-11 px-4 rounded-xl border border-rose-200 bg-white font-bold text-xs"
+                  className="mt-3 min-h-11 px-4 rounded-xl border border-rose-200 bg-card font-bold text-xs"
                 >
                   Réessayer
                 </button>
@@ -189,7 +189,7 @@ export const MobileSecurity = () => {
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 <label className="space-y-2">
-                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-text-muted flex items-center gap-2">
                     <UserRound size={14} /> Utilisateur
                   </span>
                   <select
@@ -197,7 +197,7 @@ export const MobileSecurity = () => {
                     value={selectedTargetId ?? ''}
                     onChange={event => handleTargetChange(event.target.value)}
                     disabled={isLoadingOptions || targets.length === 0}
-                    className="w-full min-h-[52px] rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-4 text-sm font-bold text-slate-800 dark:text-white outline-none focus:border-primary disabled:opacity-60"
+                    className="w-full min-h-[52px] rounded-2xl border border-border-main dark:border-white/10 bg-background dark:bg-slate-800 px-4 text-sm font-bold text-text-main dark:text-white outline-none focus:border-primary disabled:opacity-60"
                   >
                     {targets.map(target => (
                       <option key={target.id} value={target.id}>
@@ -232,7 +232,7 @@ export const MobileSecurity = () => {
                     <img
                       src={pairing.qr_code}
                       alt="QR de connexion Digital Crown Pocket"
-                      className="w-40 h-40 bg-white rounded-2xl p-2 object-contain border border-indigo-100"
+                      className="w-40 h-40 bg-card rounded-2xl p-2 object-contain border border-indigo-100"
                     />
                     <div className="min-w-0 flex-1 text-center sm:text-left">
                       <p className="text-sm font-black text-indigo-950 dark:text-indigo-100 break-words">
@@ -244,7 +244,7 @@ export const MobileSecurity = () => {
                       <p className="mt-3 text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center justify-center sm:justify-start gap-2">
                         <Clock3 size={14} /> Valable {formatCountdown(countdown)}
                       </p>
-                      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                      <p className="mt-2 text-[11px] leading-relaxed text-text-muted">
                         Aucune donnée patient dans le QR. Pocket ouvre l’accueil autorisé de l’utilisateur connecté.
                       </p>
                     </div>
@@ -263,7 +263,7 @@ export const MobileSecurity = () => {
               <AlertTriangle size={18} />
               Révoquer les accès
             </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+            <p className="text-sm text-text-muted dark:text-text-muted mb-6">
               En cas de perte ou de vol, révoquez les accès mobiles existants. Les accès actifs seront immédiatement désactivés et les QR en attente ne fonctionneront plus.
             </p>
 
@@ -299,9 +299,9 @@ export const MobileSecurity = () => {
         </div>
       </div>
 
-      <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-6 border border-slate-200/60 dark:border-white/5">
-        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Sécurité mobile locale</h4>
-        <p className="text-xs text-slate-500 leading-relaxed">
+      <div className="bg-background dark:bg-white/5 rounded-2xl p-6 border border-border-main/60 dark:border-white/5">
+        <h4 className="text-sm font-bold text-text-main dark:text-text-muted mb-2">Sécurité mobile locale</h4>
+        <p className="text-xs text-text-muted leading-relaxed">
           Les données cliniques restent au cabinet. La connexion mobile est chiffrée et respecte les droits de l’utilisateur.
         </p>
       </div>

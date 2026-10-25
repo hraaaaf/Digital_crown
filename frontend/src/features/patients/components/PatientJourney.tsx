@@ -121,7 +121,7 @@ function statusColorClass(status: string): string {
   if (GREEN_STATUSES.has(status)) return 'bg-emerald-100 text-emerald-600';
   if (AMBER_STATUSES.has(status)) return 'bg-amber-100 text-amber-600';
   if (RED_STATUSES.has(status)) return 'bg-red-100 text-red-600';
-  return 'bg-slate-100 text-slate-500';
+  return 'bg-input-field text-text-muted';
 }
 
 const MILESTONE_TYPES = ['DIAGNOSTIC', 'DEVIS_VALIDE', 'CONTROLE', 'CLOTURE'] as const;
@@ -315,7 +315,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
             <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Prochaine action</p>
             {nextAction ? (
               <>
-                <h2 className="text-lg md:text-xl font-black text-slate-800 break-words">{nextAction.title}</h2>
+                <h2 className="text-lg md:text-xl font-black text-text-main break-words">{nextAction.title}</h2>
                 <p className="text-sm text-text-muted font-bold mt-1">{nextAction.detail}</p>
                 <p className="text-[11px] text-text-muted mt-2">
                   Source : <span className="font-black">{nextAction.source}</span> · {format(new Date(nextAction.date), 'd MMM yyyy', { locale: fr })}
@@ -323,7 +323,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
               </>
             ) : (
               <>
-                <h2 className="text-lg md:text-xl font-black text-slate-500">Aucune action planifiée</h2>
+                <h2 className="text-lg md:text-xl font-black text-text-muted">Aucune action planifiée</h2>
                 <p className="text-[11px] text-text-muted mt-2">Aucun RDV futur ni étape PENDING enregistrée dans le Master Plan.</p>
               </>
             )}
@@ -350,7 +350,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
               <div className="text-xs text-text-muted font-bold mt-1">étapes en attente / total</div>
             </>
           ) : (
-            <div className="text-lg font-black text-slate-500">Aucun plan enregistré</div>
+            <div className="text-lg font-black text-text-muted">Aucun plan enregistré</div>
           )}
           <p className="text-[11px] text-text-muted mt-3">
             Source : <span className="font-black">Master Plan</span>
@@ -360,7 +360,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
 
         <div className="bg-card-bg p-5 md:p-6 rounded-[2rem] border border-border-main shadow-sm">
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Prochain RDV</p>
-          <div className="text-lg md:text-xl font-black text-slate-800">
+          <div className="text-lg md:text-xl font-black text-text-main">
             {data.summary.next_appointment
               ? format(new Date(data.summary.next_appointment), "d MMM yyyy · HH:mm", { locale: fr })
               : 'Aucun RDV planifié'}
@@ -374,12 +374,12 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
         <div className={cn(
           'p-5 md:p-6 rounded-[2rem] border shadow-sm',
           !data.summary.has_billing_data
-            ? 'bg-slate-50 border-slate-200'
+            ? 'bg-background border-border-main'
             : data.summary.remaining_due > 0 ? 'bg-red-50 border-red-100' : 'bg-card-bg border-border-main'
         )}>
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Situation financière</p>
           {!data.summary.has_billing_data ? (
-            <div className="text-lg md:text-xl font-black text-slate-500">Solde indéterminé</div>
+            <div className="text-lg md:text-xl font-black text-text-muted">Solde indéterminé</div>
           ) : (
             <div className={cn('text-2xl md:text-3xl font-black', data.summary.remaining_due > 0 ? 'text-red-600' : 'text-emerald-600')}>
               {data.summary.remaining_due.toLocaleString('fr-MA')} MAD
@@ -402,7 +402,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
           onClick={() => setSourceFilter(null)}
           className={cn(
             'px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors',
-            sourceFilter === null ? 'bg-primary text-white border-primary' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+            sourceFilter === null ? 'bg-primary text-white border-primary' : 'bg-card text-text-muted border-border-main hover:bg-background'
           )}
         >
           Tout
@@ -413,7 +413,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
             onClick={() => setSourceFilter(src)}
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors',
-              sourceFilter === src ? 'bg-primary text-white border-primary' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+              sourceFilter === src ? 'bg-primary text-white border-primary' : 'bg-card text-text-muted border-border-main hover:bg-background'
             )}
           >
             {SOURCE_LABELS[src] ?? src}
@@ -429,7 +429,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
         {!fullHistory && (
           <button
             onClick={() => setFullHistory(true)}
-            className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-primary transition-colors"
+            className="px-4 py-2 text-xs font-bold text-text-muted hover:text-primary transition-colors"
           >
             Voir tout l'historique
           </button>
@@ -455,11 +455,11 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
               <div key={phase} className="bg-card-bg rounded-[2rem] border border-border-main shadow-sm overflow-hidden">
                 <button
                   onClick={() => togglePhase(phase)}
-                  className="w-full flex items-center justify-between px-5 md:px-6 py-4 hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center justify-between px-5 md:px-6 py-4 hover:bg-background transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    <span className="font-black text-slate-800 truncate">{PHASE_LABELS[phase] ?? phase}</span>
+                    <span className="font-black text-text-main truncate">{PHASE_LABELS[phase] ?? phase}</span>
                     <span className="text-xs font-bold text-text-muted">{items.length}</span>
                   </div>
                 </button>
@@ -471,18 +471,18 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
                       return (
                         <div key={ev.event_key} className="flex gap-3 md:gap-4">
                           <div className="flex flex-col items-center">
-                            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-slate-100 border-4 border-white shadow-sm flex items-center justify-center text-primary z-10">
+                            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-input-field border-4 border-white shadow-sm flex items-center justify-center text-primary z-10">
                               <Icon size={16} />
                             </div>
                           </div>
-                          <div className="flex-1 min-w-0 bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                          <div className="flex-1 min-w-0 bg-card border border-border-main rounded-2xl p-4 shadow-sm">
                             <button
                               onClick={() => handleEventClick(ev)}
                               className="w-full text-left group"
                             >
                               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                                 <div className="min-w-0">
-                                  <div className="font-bold text-slate-800 break-words">{ev.title}</div>
+                                  <div className="font-bold text-text-main break-words">{ev.title}</div>
                                   <div className="text-xs text-text-muted font-bold">
                                     {format(new Date(ev.date), "d MMM yyyy 'à' HH:mm", { locale: fr })}
                                   </div>
@@ -503,10 +503,10 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
                               </div>
                             </button>
                             {ev.related_event_key && (
-                              <p className="text-[11px] text-slate-400 font-bold mt-1">Généré depuis une analyse liée</p>
+                              <p className="text-[11px] text-text-muted font-bold mt-1">Généré depuis une analyse liée</p>
                             )}
                             {ev.source === 'journey_milestone' && isExpanded && (
-                              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                              <div className="mt-3 pt-3 border-t border-border-main flex justify-end">
                                 <button
                                   onClick={() => deleteMilestoneMutation.mutate(ev.ref_id)}
                                   className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-600"
@@ -531,7 +531,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
         <div className="bg-card-bg rounded-[2.5rem] border border-border-main shadow-sm overflow-hidden">
           <button
             onClick={() => togglePhase('__legacy_actes__')}
-            className="w-full flex items-center justify-between px-5 md:px-8 py-5 md:py-6 hover:bg-slate-50 transition-colors"
+            className="w-full flex items-center justify-between px-5 md:px-8 py-5 md:py-6 hover:bg-background transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">
               {isPhaseExpanded('__legacy_actes__') ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
@@ -541,8 +541,8 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
           {isPhaseExpanded('__legacy_actes__') && (
             <div className="p-5 md:p-8 pt-0 space-y-6">
               {actes.map((acte) => (
-                <div key={acte.id} className="bg-white border border-slate-100 rounded-3xl p-5 md:p-6 shadow-sm">
-                  <h3 className="text-lg font-black text-slate-800 mb-3">{acte.libelle}</h3>
+                <div key={acte.id} className="bg-card border border-border-main rounded-3xl p-5 md:p-6 shadow-sm">
+                  <h3 className="text-lg font-black text-text-main mb-3">{acte.libelle}</h3>
                   <LegacyActeNotes acte={acte} patientId={patientId} />
                 </div>
               ))}
@@ -577,15 +577,15 @@ function MilestoneCreateModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl">
+      <div className="bg-card rounded-3xl p-6 w-full max-w-md shadow-xl">
         <h3 className="text-lg font-black mb-4">Ajouter un jalon</h3>
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Type</label>
+            <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Type</label>
             <select
               value={milestoneType}
               onChange={(e) => setMilestoneType(e.target.value)}
-              className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-sm"
+              className="w-full mt-1 border border-border-main rounded-xl p-2.5 text-sm"
             >
               {MILESTONE_TYPES.map((t) => (
                 <option key={t} value={t}>{t.replace('_', ' ')}</option>
@@ -593,25 +593,25 @@ function MilestoneCreateModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Date</label>
+            <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Date</label>
             <input
               type="date"
               value={milestoneDate}
               onChange={(e) => setMilestoneDate(e.target.value)}
-              className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-sm"
+              className="w-full mt-1 border border-border-main rounded-xl p-2.5 text-sm"
             />
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Note (optionnel)</label>
+            <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Note (optionnel)</label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-sm min-h-[80px]"
+              className="w-full mt-1 border border-border-main rounded-xl p-2.5 text-sm min-h-[80px]"
             />
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-text-muted hover:bg-input-field rounded-lg">
             Annuler
           </button>
           <button

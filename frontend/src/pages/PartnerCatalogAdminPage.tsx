@@ -302,7 +302,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between gap-4">
-        <Link to="/approvisionnement" className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-slate-700 hover:bg-slate-50">
+        <Link to="/approvisionnement" className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-text-main hover:bg-background">
           <ArrowLeft size={16} />
           Retour à l'approvisionnement
         </Link>
@@ -326,7 +326,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
               <Store size={20} />
             </div>
             <div>
-              <h2 className="font-outfit text-lg font-black text-slate-900">Ajouter un fournisseur</h2>
+              <h2 className="font-outfit text-lg font-black text-text-main">Ajouter un fournisseur</h2>
               <p className="text-xs font-bold uppercase tracking-widest text-text-muted">Configuration du fournisseur</p>
             </div>
           </div>
@@ -353,7 +353,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
               <Plus size={20} />
             </div>
             <div>
-              <h2 className="font-outfit text-lg font-black text-slate-900">Ajouter un produit</h2>
+              <h2 className="font-outfit text-lg font-black text-text-main">Ajouter un produit</h2>
               <p className="text-xs font-bold uppercase tracking-widest text-text-muted">Tri par catégorie et spécialité dentaire</p>
             </div>
           </div>
@@ -387,7 +387,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
             <Layers3 size={20} />
           </div>
           <div>
-            <h2 className="font-outfit text-lg font-black text-slate-900">Catalogue fournisseur</h2>
+            <h2 className="font-outfit text-lg font-black text-text-main">Catalogue fournisseur</h2>
             <p className="text-xs font-bold uppercase tracking-widest text-text-muted">Vue triable par fournisseur, catégorie et spécialité</p>
           </div>
         </div>
@@ -403,24 +403,24 @@ export const PartnerCatalogAdminPage: React.FC = () => {
           {loading ? (
             <p className="text-sm text-text-muted">Chargement du catalogue...</p>
           ) : filteredProducts.length === 0 ? (
-            <div className="col-span-full flex flex-col items-center text-center gap-2 rounded-elite border border-dashed border-border-main bg-slate-50 px-6 py-10">
-              <p className="font-black text-slate-900">Aucun produit ne correspond aux filtres</p>
+            <div className="col-span-full flex flex-col items-center text-center gap-2 rounded-elite border border-dashed border-border-main bg-background px-6 py-10">
+              <p className="font-black text-text-main">Aucun produit ne correspond aux filtres</p>
               <p className="text-sm text-text-muted">Ajoutez un produit ci-dessus ou ajustez les filtres.</p>
             </div>
           ) : (
             filteredProducts.map((product) => (
-              <article key={product.id} className="border border-border-main rounded-elite p-5 bg-slate-50 space-y-3">
+              <article key={product.id} className="border border-border-main rounded-elite p-5 bg-background space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">{product.dentalCategory} · {product.dentalSpecialty}</p>
-                    <h3 className="font-outfit text-lg font-black text-slate-900">{product.name}</h3>
+                    <h3 className="font-outfit text-lg font-black text-text-main">{product.name}</h3>
                     <p className="text-sm text-text-muted mt-1">{product.supplierName} · {product.sku}</p>
                   </div>
                   <span className={cn(
                     'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border whitespace-nowrap',
                     product.availability === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                     product.availability === 'ON_REQUEST' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                    'bg-slate-100 text-slate-500 border-slate-200'
+                    'bg-input-field text-text-muted border-border-main'
                   )}>
                     {PRODUCT_AVAILABILITY_LABELS[product.availability] ?? 'À vérifier'}
                   </span>
@@ -432,7 +432,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                 </div>
                 <div className="rounded-elite bg-card-bg p-3 border border-border-main">
                   <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Description courte</p>
-                  <p className="text-sm text-slate-600">{product.shortDescription || 'Non renseignée'}</p>
+                  <p className="text-sm text-text-muted">{product.shortDescription || 'Non renseignée'}</p>
                 </div>
               </article>
             ))
@@ -447,14 +447,14 @@ export const PartnerCatalogAdminPage: React.FC = () => {
               <ClipboardList size={20} />
             </div>
             <div>
-              <h2 className="font-outfit text-lg font-black text-slate-900">Commandes partenaire</h2>
+              <h2 className="font-outfit text-lg font-black text-text-main">Commandes partenaire</h2>
               <p className="text-xs font-bold uppercase tracking-widest text-text-muted">Suivi et réconciliation des commandes envoyées</p>
             </div>
           </div>
           <button
             type="button"
             onClick={loadOrders}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-elite border border-border-main text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-elite border border-border-main text-xs font-black uppercase tracking-widest text-text-muted hover:bg-background"
           >
             <RefreshCw size={12} />
             Recharger
@@ -465,8 +465,8 @@ export const PartnerCatalogAdminPage: React.FC = () => {
           {loadingOrders ? (
             <p className="text-sm text-text-muted">Chargement des commandes partenaire...</p>
           ) : orders.length === 0 ? (
-            <div className="col-span-full flex flex-col items-center text-center gap-2 rounded-elite border border-dashed border-border-main bg-slate-50 px-6 py-10">
-              <p className="font-black text-slate-900">Aucune commande partenaire enregistrée</p>
+            <div className="col-span-full flex flex-col items-center text-center gap-2 rounded-elite border border-dashed border-border-main bg-background px-6 py-10">
+              <p className="font-black text-text-main">Aucune commande partenaire enregistrée</p>
               <p className="text-sm text-text-muted">Les commandes passées depuis l’approvisionnement apparaîtront ici pour suivi.</p>
             </div>
           ) : (
@@ -479,13 +479,13 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                 saving: false,
               };
               return (
-                <div key={order.orderNumber} className="border border-border-main rounded-elite p-4 space-y-3 bg-slate-50">
+                <div key={order.orderNumber} className="border border-border-main rounded-elite p-4 space-y-3 bg-background">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-black text-slate-900">{order.orderNumber}</p>
+                      <p className="font-black text-text-main">{order.orderNumber}</p>
                       <p className="text-sm text-text-muted mt-1">{order.strategyLabel}</p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
+                    <span className="px-2.5 py-1 rounded-full bg-input-field text-text-muted text-[10px] font-black uppercase tracking-widest">
                       {orderStatusLabel(order.status)}
                     </span>
                   </div>
@@ -493,11 +493,11 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="rounded-elite bg-card-bg p-3 border border-border-main">
                       <p className="text-text-muted text-[10px] font-black uppercase tracking-widest">Total courant</p>
-                      <p className="font-black text-slate-900 mt-1">{formatMoney(order.currentTotal)}</p>
+                      <p className="font-black text-text-main mt-1">{formatMoney(order.currentTotal)}</p>
                     </div>
                     <div className="rounded-elite bg-card-bg p-3 border border-border-main">
                       <p className="text-text-muted text-[10px] font-black uppercase tracking-widest">Revenu reconnu</p>
-                      <p className="font-black text-slate-900 mt-1">{formatMoney(order.recognizedRevenueAmount)}</p>
+                      <p className="font-black text-text-main mt-1">{formatMoney(order.recognizedRevenueAmount)}</p>
                     </div>
                   </div>
 
@@ -533,7 +533,7 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                     type="button"
                     disabled={state.saving}
                     onClick={() => handleReconcile(order)}
-                    className="w-full py-3 rounded-elite border border-border-main bg-card-bg text-slate-800 font-black uppercase tracking-widest text-xs hover:bg-slate-50 disabled:opacity-60"
+                    className="w-full py-3 rounded-elite border border-border-main bg-card-bg text-text-main font-black uppercase tracking-widest text-xs hover:bg-background disabled:opacity-60"
                   >
                     {state.saving ? 'Mise à jour…' : 'Enregistrer les modifications'}
                   </button>
@@ -615,7 +615,7 @@ const Select = ({
 
 const Toggle = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) => (
   <div className="rounded-elite border border-border-main px-4 py-3 flex items-center justify-between">
-    <span className="text-sm font-black text-slate-700">{label}</span>
+    <span className="text-sm font-black text-text-main">{label}</span>
     <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="w-4 h-4" />
   </div>
 );
@@ -623,7 +623,7 @@ const Toggle = ({ label, checked, onChange }: { label: string; checked: boolean;
 const Stat = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-elite bg-card-bg p-3 border border-border-main">
     <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">{label}</p>
-    <p className="text-sm font-black text-slate-900 mt-1">{value}</p>
+    <p className="text-sm font-black text-text-main mt-1">{value}</p>
   </div>
 );
 

@@ -280,8 +280,8 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
   };
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_#e7f0ff_0,_#f8fafc_42%,_#eef4fb_100%)] text-slate-900">
-      <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+    <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_#e7f0ff_0,_#f8fafc_42%,_#eef4fb_100%)] text-text-main">
+      <header className="border-b border-border-main/80 bg-card/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#003380] text-white shadow-sm">
@@ -289,7 +289,7 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-black text-[#003380] sm:text-base">DigitalCrown</p>
-              <p className="truncate text-xs font-semibold text-slate-500">Patient Companion</p>
+              <p className="truncate text-xs font-semibold text-text-muted">Patient Companion</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -301,7 +301,7 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
                 type="button"
                 onClick={logout}
                 disabled={authBusy}
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border-main bg-card px-3 text-sm font-bold text-text-muted hover:bg-background disabled:opacity-50"
               >
                 <LogOut size={16} /> <span className="hidden sm:inline">Déconnexion</span>
               </button>
@@ -312,10 +312,10 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
 
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         {!configured ? (
-          <section className="mx-auto max-w-xl rounded-[28px] border border-amber-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
+          <section className="mx-auto max-w-xl rounded-[28px] border border-amber-200 bg-card p-6 shadow-xl shadow-slate-200/50 sm:p-8">
             <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700"><LockKeyhole /></div>
             <h1 className="text-2xl font-black">Espace patient indisponible</h1>
-            <p className="mt-3 leading-7 text-slate-600">La configuration Firebase Patient Companion n’est pas disponible sur cette installation. Aucun contournement d’authentification n’est autorisé.</p>
+            <p className="mt-3 leading-7 text-text-muted">La configuration Firebase Patient Companion n’est pas disponible sur cette installation. Aucun contournement d’authentification n’est autorisé.</p>
           </section>
         ) : !authReady ? (
           <div className="flex min-h-[55vh] items-center justify-center gap-3 font-bold text-[#003380]"><Spinner /> Ouverture de l’espace patient…</div>
@@ -331,25 +331,25 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
               </div>
             </div>
 
-            <form onSubmit={submitAuth} className="rounded-[32px] border border-white bg-white/90 p-6 shadow-xl shadow-slate-200/60 backdrop-blur sm:p-8">
+            <form onSubmit={submitAuth} className="rounded-[32px] border border-white bg-card/90 p-6 shadow-xl shadow-slate-200/60 backdrop-blur sm:p-8">
               <div className="mb-6">
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-[#003380]">Accès patient</p>
                 <h2 className="mt-2 text-2xl font-black">{authMode === 'signin' ? 'Connexion' : 'Créer mon compte'}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Utilisez l’adresse e-mail vérifiée à laquelle votre cabinet a adressé l’invitation.</p>
+                <p className="mt-2 text-sm leading-6 text-text-muted">Utilisez l’adresse e-mail vérifiée à laquelle votre cabinet a adressé l’invitation.</p>
               </div>
-              <label className="block text-sm font-bold text-slate-700">E-mail
-                <span className="mt-2 flex min-h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 focus-within:border-[#003380] focus-within:ring-4 focus-within:ring-blue-100">
-                  <Mail size={17} className="shrink-0 text-slate-400" />
+              <label className="block text-sm font-bold text-text-main">E-mail
+                <span className="mt-2 flex min-h-12 items-center gap-3 rounded-2xl border border-border-main bg-card px-4 focus-within:border-[#003380] focus-within:ring-4 focus-within:ring-blue-100">
+                  <Mail size={17} className="shrink-0 text-text-muted" />
                   <input className="min-w-0 flex-1 bg-transparent py-3 outline-none" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                 </span>
               </label>
-              <label className="mt-4 block text-sm font-bold text-slate-700">Mot de passe
-                <span className="mt-2 flex min-h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 focus-within:border-[#003380] focus-within:ring-4 focus-within:ring-blue-100">
-                  <KeyRound size={17} className="shrink-0 text-slate-400" />
+              <label className="mt-4 block text-sm font-bold text-text-main">Mot de passe
+                <span className="mt-2 flex min-h-12 items-center gap-3 rounded-2xl border border-border-main bg-card px-4 focus-within:border-[#003380] focus-within:ring-4 focus-within:ring-blue-100">
+                  <KeyRound size={17} className="shrink-0 text-text-muted" />
                   <input className="min-w-0 flex-1 bg-transparent py-3 outline-none" type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} />
                 </span>
               </label>
-              {authMessage && <p role="status" className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">{authMessage}</p>}
+              {authMessage && <p role="status" className="mt-4 rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-text-muted">{authMessage}</p>}
               <button disabled={authBusy} className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#003380] px-5 font-black text-white shadow-lg shadow-blue-900/20 hover:bg-blue-900 disabled:opacity-50">
                 {authBusy ? <Spinner /> : <ChevronRight size={18} />}{authMode === 'signin' ? 'Me connecter' : 'Créer et vérifier mon compte'}
               </button>
@@ -359,23 +359,23 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
             </form>
           </section>
         ) : !authUser.emailVerified ? (
-          <section className="mx-auto max-w-xl rounded-[32px] border border-white bg-white/90 p-7 shadow-xl shadow-slate-200/60 sm:p-9">
+          <section className="mx-auto max-w-xl rounded-[32px] border border-white bg-card/90 p-7 shadow-xl shadow-slate-200/60 sm:p-9">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#003380]"><Mail /></div>
             <h1 className="mt-5 text-2xl font-black">Vérifiez votre adresse e-mail</h1>
-            <p className="mt-3 leading-7 text-slate-600">L’activation reste bloquée tant que Firebase ne confirme pas l’adresse du destinataire. C’est volontaire : un code photographié ne suffit pas.</p>
-            {authMessage && <p role="status" className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">{authMessage}</p>}
+            <p className="mt-3 leading-7 text-text-muted">L’activation reste bloquée tant que Firebase ne confirme pas l’adresse du destinataire. C’est volontaire : un code photographié ne suffit pas.</p>
+            {authMessage && <p role="status" className="mt-4 rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-text-muted">{authMessage}</p>}
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button disabled={authBusy} onClick={refreshVerification} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#003380] px-4 font-black text-white disabled:opacity-50"><RefreshCw size={17} /> J’ai vérifié</button>
-              <button disabled={authBusy} onClick={() => services.auth.resendVerification().then(() => setAuthMessage('E-mail de vérification renvoyé.')).catch((error) => setAuthMessage(patientAuthErrorMessage(error)))} className="min-h-12 rounded-2xl border border-slate-200 bg-white px-4 font-black text-slate-700 disabled:opacity-50">Renvoyer l’e-mail</button>
+              <button disabled={authBusy} onClick={() => services.auth.resendVerification().then(() => setAuthMessage('E-mail de vérification renvoyé.')).catch((error) => setAuthMessage(patientAuthErrorMessage(error)))} className="min-h-12 rounded-2xl border border-border-main bg-card px-4 font-black text-text-main disabled:opacity-50">Renvoyer l’e-mail</button>
             </div>
           </section>
         ) : contextLoading ? (
           <div className="flex min-h-[45vh] items-center justify-center gap-3 font-bold text-[#003380]"><Spinner /> Vérification de vos accès…</div>
         ) : needsActivation ? (
-          <section className="mx-auto max-w-xl rounded-[32px] border border-white bg-white/90 p-7 shadow-xl shadow-slate-200/60 sm:p-9">
+          <section className="mx-auto max-w-xl rounded-[32px] border border-white bg-card/90 p-7 shadow-xl shadow-slate-200/60 sm:p-9">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#003380]"><KeyRound /></span>
             <h1 className="mt-5 text-3xl font-black">Activer mon espace patient</h1>
-            <p className="mt-3 leading-7 text-slate-600">Le code est à usage unique et doit correspondre à votre identité Firebase vérifiée.</p>
+            <p className="mt-3 leading-7 text-text-muted">Le code est à usage unique et doit correspondre à votre identité Firebase vérifiée.</p>
             <form onSubmit={activate} className="mt-6">
               {qrToken ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
@@ -384,8 +384,8 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
                   <button type="button" onClick={() => setQrToken('')} className="mt-3 text-xs font-black text-[#003380]">Utiliser plutôt un code manuel</button>
                 </div>
               ) : (
-                <label className="block text-sm font-bold text-slate-700">Code d’activation
-                  <input value={manualCode} onChange={(e) => setManualCode(e.target.value.toUpperCase())} autoComplete="one-time-code" placeholder="ABCD-EFGH-JKLM" className="mt-2 min-h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-center font-mono text-lg font-black tracking-[0.12em] outline-none focus:border-[#003380] focus:ring-4 focus:ring-blue-100" />
+                <label className="block text-sm font-bold text-text-main">Code d’activation
+                  <input value={manualCode} onChange={(e) => setManualCode(e.target.value.toUpperCase())} autoComplete="one-time-code" placeholder="ABCD-EFGH-JKLM" className="mt-2 min-h-14 w-full rounded-2xl border border-border-main bg-card px-4 text-center font-mono text-lg font-black tracking-[0.12em] outline-none focus:border-[#003380] focus:ring-4 focus:ring-blue-100" />
                 </label>
               )}
               {activationMessage && <p role="status" className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{activationMessage}</p>}
@@ -396,28 +396,28 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
           <section className="mx-auto max-w-3xl">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#003380]">Vos accès</p>
             <h1 className="mt-2 text-3xl font-black">Choisissez le dossier à consulter</h1>
-            <p className="mt-3 text-slate-600">Chaque contexte reste isolé. Les données ne sont jamais fusionnées.</p>
+            <p className="mt-3 text-text-muted">Chaque contexte reste isolé. Les données ne sont jamais fusionnées.</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {contexts.map((context) => (
-                <button key={context.access_id} onClick={() => setSelectedAccessId(context.access_id)} className="flex min-h-24 items-center gap-4 rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm hover:border-blue-300 hover:shadow-md">
+                <button key={context.access_id} onClick={() => setSelectedAccessId(context.access_id)} className="flex min-h-24 items-center gap-4 rounded-3xl border border-border-main bg-card p-5 text-left shadow-sm hover:border-blue-300 hover:shadow-md">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#003380]"><UserRound /></span>
-                  <span className="min-w-0 flex-1"><strong className="block truncate text-base">{context.patient.display_name || 'Patient'}</strong><span className="mt-1 block text-xs font-bold text-slate-500">{relationshipLabel[context.relationship_type] || context.relationship_type}</span></span>
-                  <ChevronRight className="shrink-0 text-slate-400" />
+                  <span className="min-w-0 flex-1"><strong className="block truncate text-base">{context.patient.display_name || 'Patient'}</strong><span className="mt-1 block text-xs font-bold text-text-muted">{relationshipLabel[context.relationship_type] || context.relationship_type}</span></span>
+                  <ChevronRight className="shrink-0 text-text-muted" />
                 </button>
               ))}
             </div>
           </section>
         ) : selectedContext ? (
           <section>
-            <div className="flex flex-col gap-5 rounded-[30px] border border-white bg-white/80 p-5 shadow-lg shadow-slate-200/50 backdrop-blur sm:p-7 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-col gap-5 rounded-[30px] border border-white bg-card/80 p-5 shadow-lg shadow-slate-200/50 backdrop-blur sm:p-7 lg:flex-row lg:items-end lg:justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-[#003380]">Espace patient</p>
                 <h1 className="mt-2 truncate text-3xl font-black sm:text-4xl">{selectedContext.patient.display_name || 'Patient'}</h1>
-                <p className="mt-2 text-sm font-semibold text-slate-500">{relationshipLabel[selectedContext.relationship_type] || selectedContext.relationship_type} · consultation uniquement</p>
+                <p className="mt-2 text-sm font-semibold text-text-muted">{relationshipLabel[selectedContext.relationship_type] || selectedContext.relationship_type} · consultation uniquement</p>
               </div>
               {contexts.length > 1 && (
-                <label className="w-full text-xs font-black uppercase tracking-[0.1em] text-slate-500 lg:w-72">Contexte patient
-                  <select value={selectedAccessId} onChange={(e) => setSelectedAccessId(e.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold normal-case tracking-normal text-slate-800 outline-none focus:border-[#003380]">
+                <label className="w-full text-xs font-black uppercase tracking-[0.1em] text-text-muted lg:w-72">Contexte patient
+                  <select value={selectedAccessId} onChange={(e) => setSelectedAccessId(e.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-border-main bg-card px-4 text-sm font-bold normal-case tracking-normal text-text-main outline-none focus:border-[#003380]">
                     {contexts.map((context) => <option key={context.access_id} value={context.access_id}>{context.patient.display_name} · {relationshipLabel[context.relationship_type] || context.relationship_type}</option>)}
                   </select>
                 </label>
@@ -427,33 +427,33 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
             {pageMessage && <p role="status" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{pageMessage}</p>}
 
             <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-2">
-              <article className="min-w-0 rounded-[28px] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+              <article className="min-w-0 rounded-[28px] border border-border-main/80 bg-card p-5 shadow-sm sm:p-6">
                 <div className="flex items-center justify-between gap-3">
-                  <div><p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">Lecture seule</p><h2 className="mt-1 text-xl font-black">Prochains rendez-vous</h2></div>
+                  <div><p className="text-xs font-black uppercase tracking-[0.12em] text-text-muted">Lecture seule</p><h2 className="mt-1 text-xl font-black">Prochains rendez-vous</h2></div>
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#003380]"><CalendarDays /></span>
                 </div>
                 <div className="mt-5 space-y-3">
-                  {dataLoading ? <p className="flex items-center gap-2 py-6 text-sm font-bold text-slate-500"><Spinner /> Chargement…</p> : appointments.length === 0 ? (
-                    <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold leading-6 text-slate-500">Aucun rendez-vous futur partagé par le cabinet.</p>
+                  {dataLoading ? <p className="flex items-center gap-2 py-6 text-sm font-bold text-text-muted"><Spinner /> Chargement…</p> : appointments.length === 0 ? (
+                    <p className="rounded-2xl bg-background p-5 text-sm font-semibold leading-6 text-text-muted">Aucun rendez-vous futur partagé par le cabinet.</p>
                   ) : appointments.map((appointment) => {
                     const formatted = formatAppointment(appointment.datetime_start);
-                    return <div key={appointment.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"><p className="font-black capitalize text-slate-800">{formatted.day}</p><p className="mt-1 text-sm font-bold text-[#003380]">{formatted.time}{appointment.duration_minutes ? ` · ${appointment.duration_minutes} min` : ''}</p><p className="mt-2 text-sm font-semibold text-slate-500">{appointment.motif || 'Consultation'}</p></div>;
+                    return <div key={appointment.id} className="rounded-2xl border border-border-main bg-background/70 p-4"><p className="font-black capitalize text-text-main">{formatted.day}</p><p className="mt-1 text-sm font-bold text-[#003380]">{formatted.time}{appointment.duration_minutes ? ` · ${appointment.duration_minutes} min` : ''}</p><p className="mt-2 text-sm font-semibold text-text-muted">{appointment.motif || 'Consultation'}</p></div>;
                   })}
                 </div>
               </article>
 
-              <article className="min-w-0 rounded-[28px] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+              <article className="min-w-0 rounded-[28px] border border-border-main/80 bg-card p-5 shadow-sm sm:p-6">
                 <div className="flex items-center justify-between gap-3">
-                  <div><p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">Allow-list cabinet</p><h2 className="mt-1 text-xl font-black">Éléments partagés</h2></div>
+                  <div><p className="text-xs font-black uppercase tracking-[0.12em] text-text-muted">Allow-list cabinet</p><h2 className="mt-1 text-xl font-black">Éléments partagés</h2></div>
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><ShieldCheck /></span>
                 </div>
                 <div className="mt-5 space-y-4">
-                  {dataLoading ? <p className="flex items-center gap-2 py-6 text-sm font-bold text-slate-500"><Spinner /> Chargement…</p> : shares.length === 0 ? (
-                    <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold leading-6 text-slate-500">Aucun document ou média n’a été explicitement partagé.</p>
+                  {dataLoading ? <p className="flex items-center gap-2 py-6 text-sm font-bold text-text-muted"><Spinner /> Chargement…</p> : shares.length === 0 ? (
+                    <p className="rounded-2xl bg-background p-5 text-sm font-semibold leading-6 text-text-muted">Aucun document ou média n’a été explicitement partagé.</p>
                   ) : (
                     <>
-                      {documentShares.length > 0 && <div><p className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.1em] text-slate-400"><FileText size={14} /> Documents</p><div className="space-y-2">{documentShares.map((share) => <div key={share.share_id} className="rounded-2xl border border-slate-100 p-4"><p className="truncate text-sm font-black text-slate-800">{share.title || 'Document partagé'}</p><p className="mt-1 text-xs font-bold text-slate-500">{share.document_type || 'Document'} · métadonnées uniquement</p></div>)}</div></div>}
-                      {mediaShares.length > 0 && <div><p className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.1em] text-slate-400"><ImageIcon size={14} /> Médias</p><div className="space-y-2">{mediaShares.map((share) => <div key={share.share_id} className="rounded-2xl border border-slate-100 p-4"><p className="text-sm font-black text-slate-800">{share.asset_type || 'Média partagé'}</p><p className="mt-1 text-xs font-bold text-slate-500">{share.mime_type || 'Fichier'} · aperçu non exposé en D1</p></div>)}</div></div>}
+                      {documentShares.length > 0 && <div><p className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.1em] text-text-muted"><FileText size={14} /> Documents</p><div className="space-y-2">{documentShares.map((share) => <div key={share.share_id} className="rounded-2xl border border-border-main p-4"><p className="truncate text-sm font-black text-text-main">{share.title || 'Document partagé'}</p><p className="mt-1 text-xs font-bold text-text-muted">{share.document_type || 'Document'} · métadonnées uniquement</p></div>)}</div></div>}
+                      {mediaShares.length > 0 && <div><p className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.1em] text-text-muted"><ImageIcon size={14} /> Médias</p><div className="space-y-2">{mediaShares.map((share) => <div key={share.share_id} className="rounded-2xl border border-border-main p-4"><p className="text-sm font-black text-text-main">{share.asset_type || 'Média partagé'}</p><p className="mt-1 text-xs font-bold text-text-muted">{share.mime_type || 'Fichier'} · aperçu non exposé en D1</p></div>)}</div></div>}
                     </>
                   )}
                 </div>
@@ -463,7 +463,7 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
             <div className="mt-6 flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm font-semibold leading-6 text-blue-900"><UsersRound className="mt-0.5 shrink-0" size={18} /><span>Patient Companion n’autorise aucune modification de rendez-vous et n’ouvre aucun fichier non explicitement partagé par le cabinet.</span></div>
           </section>
         ) : (
-          <section className="mx-auto max-w-xl rounded-[28px] bg-white p-7 shadow-lg"><h1 className="text-2xl font-black">Aucun accès actif</h1><p className="mt-3 text-slate-600">Votre identité est reconnue mais aucun contexte patient actif n’est disponible.</p></section>
+          <section className="mx-auto max-w-xl rounded-[28px] bg-card p-7 shadow-lg"><h1 className="text-2xl font-black">Aucun accès actif</h1><p className="mt-3 text-text-muted">Votre identité est reconnue mais aucun contexte patient actif n’est disponible.</p></section>
         )}
       </div>
     </main>

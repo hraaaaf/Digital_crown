@@ -107,13 +107,13 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
       case 'PRÉVU': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'EN_S_ATTENTE': return 'bg-amber-100 text-amber-700 border-amber-200';
       case 'EN_FAUTEUIL': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'TERMINÉ': return 'bg-slate-50 text-slate-400 border-slate-200 opacity-60';
+      case 'TERMINÉ': return 'bg-background text-text-muted border-border-main opacity-60';
       case 'ANNULÉ': return 'bg-rose-50 text-rose-400 border-rose-200 line-through opacity-70';
       case 'EN_ATTENTE_DEMANDE': return 'bg-orange-100 text-orange-700 border-orange-200';
       case 'EN_ATTENTE_CONFIRM': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       case 'CONFIRMÉ': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'REFUSÉ': return 'bg-red-100 text-red-500 border-red-200 line-through opacity-70';
-      case 'EXPIRÉ': return 'bg-gray-100 text-gray-400 border-gray-200 opacity-50';
+      case 'EXPIRÉ': return 'bg-input-field text-text-muted border-border-main opacity-50';
       case 'ABSENT': return 'bg-rose-100 text-rose-600 border-rose-200';
       default: return 'bg-blue-50 text-blue-600';
     }
@@ -124,7 +124,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
       
       {/* QUICK ACTIONS BAR */}
       <div className="flex justify-end gap-3 px-2">
-        <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
+        <button onClick={fetchAppointments} className="p-3 bg-card/50 border border-white hover:bg-card text-text-muted rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-blue-500")} />
         </button>
         <button onClick={() => setIsModalOpen(true)} className="px-6 py-3 bg-[#003380] text-white font-bold rounded-2xl shadow-xl shadow-blue-900/10 hover:bg-blue-900 transition-all flex items-center gap-2">
@@ -141,18 +141,18 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
             .filter((appt) => new Date(appt.datetime_start).toDateString() === date.toDateString())
             .sort((a, b) => new Date(a.datetime_start).getTime() - new Date(b.datetime_start).getTime());
           return (
-            <div key={date.toISOString()} className={cn("rounded-2xl border p-4 shadow-sm", open ? "bg-white border-slate-100" : "bg-slate-100/80 border-slate-200")}>
+            <div key={date.toISOString()} className={cn("rounded-2xl border p-4 shadow-sm", open ? "bg-card border-border-main" : "bg-input-field/80 border-border-main")}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">{date.toLocaleDateString('fr-FR', { weekday: 'long' })}</p>
-                  <p className="font-black text-slate-800 mt-1">{date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}</p>
-                  <p className="text-xs font-bold text-slate-500 mt-1">{exception ? exception.reason || 'Fermeture exceptionnelle' : formatScheduleSummary(schedule)}</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-text-muted">{date.toLocaleDateString('fr-FR', { weekday: 'long' })}</p>
+                  <p className="font-black text-text-main mt-1">{date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}</p>
+                  <p className="text-xs font-bold text-text-muted mt-1">{exception ? exception.reason || 'Fermeture exceptionnelle' : formatScheduleSummary(schedule)}</p>
                 </div>
-                <span className={cn("text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full", open ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-600")}>{open ? 'Ouvert' : 'Fermé'}</span>
+                <span className={cn("text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full", open ? "bg-emerald-50 text-emerald-700" : "bg-input-field text-text-muted")}>{open ? 'Ouvert' : 'Fermé'}</span>
               </div>
               <div className="mt-3 space-y-2">
                 {dayAppointments.length === 0 ? (
-                  <p className="text-sm font-medium text-slate-400 py-2">Aucun rendez-vous</p>
+                  <p className="text-sm font-medium text-text-muted py-2">Aucun rendez-vous</p>
                 ) : dayAppointments.map((appt) => (
                   <button
                     key={appt.id}
@@ -187,32 +187,32 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
         })}
       </div>
 
-      <div className="hidden md:block bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">
-        <div className="grid grid-cols-8 border-b border-slate-100 bg-slate-50/50">
-          <div className="p-4 border-r border-slate-100"></div>
+      <div className="hidden md:block bg-card/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">
+        <div className="grid grid-cols-8 border-b border-border-main bg-background/50">
+          <div className="p-4 border-r border-border-main"></div>
           {weekDays.map((date, i) => {
             const open = isDateOpen(date, agendaSettings, exceptions);
             const exception = getExceptionForDate(date, exceptions);
             return (
               <div key={i} className={cn(
-                "p-3 text-center border-r border-slate-100 last:border-0 min-w-0",
-                !open ? "bg-slate-100/80" : date.toDateString() === new Date().toDateString() ? "bg-blue-50/50" : ""
+                "p-3 text-center border-r border-border-main last:border-0 min-w-0",
+                !open ? "bg-input-field/80" : date.toDateString() === new Date().toDateString() ? "bg-blue-50/50" : ""
               )}>
-                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{date.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
+                <span className="block text-[10px] font-black text-text-muted uppercase tracking-widest">{date.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
                 <span className={cn(
                   "inline-flex items-center justify-center w-8 h-8 mt-1 text-sm font-black rounded-lg",
-                  date.toDateString() === new Date().toDateString() ? "bg-[#003380] text-white" : "text-slate-700"
+                  date.toDateString() === new Date().toDateString() ? "bg-[#003380] text-white" : "text-text-main"
                 )}>{date.getDate()}</span>
-                {!open && <span className="block mt-1 text-[8px] font-black uppercase tracking-wider text-slate-500 truncate" title={exception?.reason || 'Fermé'}>{exception?.reason || 'Fermé'}</span>}
+                {!open && <span className="block mt-1 text-[8px] font-black uppercase tracking-wider text-text-muted truncate" title={exception?.reason || 'Fermé'}>{exception?.reason || 'Fermé'}</span>}
               </div>
             );
           })}
         </div>
 
         {/* SECTION FLEXIBLE / ALL DAY */}
-        <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-50/30">
-          <div className="p-2 border-r border-slate-100 flex items-center justify-center">
-             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Flexible</span>
+        <div className="grid grid-cols-8 border-b border-border-main bg-background/30">
+          <div className="p-2 border-r border-border-main flex items-center justify-center">
+             <span className="text-[9px] font-black text-text-muted uppercase tracking-widest text-center">Flexible</span>
           </div>
           {weekDays.map((date, dayIdx) => {
             const flexAppts = appointments.filter(a => 
@@ -220,7 +220,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
               a.scheduling_type && a.scheduling_type !== 'EXACT_TIME'
             );
             return (
-              <div key={dayIdx} className="border-r border-slate-100 last:border-0 p-1 min-h-[40px] flex flex-col gap-1">
+              <div key={dayIdx} className="border-r border-border-main last:border-0 p-1 min-h-[40px] flex flex-col gap-1">
                 {flexAppts.map(appt => (
                   <div
                     key={appt.id}
@@ -249,8 +249,8 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
             {/* Heures */}
             <div className="flex flex-col">
               {Array.from({ length: totalHours }).map((_, i) => (
-                <div key={i} className="h-20 border-b border-slate-100 text-center relative">
-                  <span className="absolute -top-2 left-0 w-full text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                <div key={i} className="h-20 border-b border-border-main text-center relative">
+                  <span className="absolute -top-2 left-0 w-full text-[10px] font-black text-text-muted uppercase tracking-tighter">
                     {startHour + i}:00
                   </span>
                 </div>
@@ -261,11 +261,11 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
             {weekDays.map((date, dayIdx) => (
               <div 
                 key={dayIdx} 
-                className={cn("relative border-r border-slate-100 last:border-0 grow transition-colors", isDateOpen(date, agendaSettings, exceptions) ? "cursor-crosshair hover:bg-slate-50/30" : "cursor-not-allowed bg-slate-100/60")}
+                className={cn("relative border-r border-border-main last:border-0 grow transition-colors", isDateOpen(date, agendaSettings, exceptions) ? "cursor-crosshair hover:bg-background/30" : "cursor-not-allowed bg-input-field/60")}
                 onClick={(e) => handleGridClick(e, date)}
               >
                 {Array.from({ length: totalHours }).map((_, i) => (
-                  <div key={i} className="h-20 border-b border-slate-100/50"></div>
+                  <div key={i} className="h-20 border-b border-border-main/50"></div>
                 ))}
                 
                 {/* Rendu des rendez-vous exacts pour ce jour */}
@@ -299,7 +299,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSett
                           disabled={sendingReminder === appt.id}
                           className={cn(
                             "absolute bottom-1 right-1 p-0.5 rounded opacity-0 group-hover/card:opacity-100 transition-opacity",
-                            appt.reminder_sent ? "text-emerald-600" : "text-slate-400 hover:text-blue-600"
+                            appt.reminder_sent ? "text-emerald-600" : "text-text-muted hover:text-blue-600"
                           )}
                           title={appt.reminder_sent ? "Rappel déjà envoyé" : "Envoyer rappel SMS"}
                         >
