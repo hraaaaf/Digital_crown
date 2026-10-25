@@ -52,7 +52,22 @@ for (const viewport of viewports) {
     { timeout: 20000 },
   );
   await page.waitForTimeout(250);
-  const cardCount = await cards.count();
+  let cardCount = await cards.count();
+  if (cardCount !== 2) {
+    // A Vite development reload can replace the document between the initial
+    // two-card check and the stability probe. Start a fresh navigation once,
+    // then require both real DrugRow cards to persist (never inject fixture DOM).
+    await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+    await page.locator('[data-composer-visual-fixture]').waitFor({ state: 'attached', timeout: 20000 });
+    await page.locator('[data-ordonnance-drug-card]').nth(1).waitFor({ state: 'visible', timeout: 20000 });
+    await page.waitForFunction(
+      () => document.querySelectorAll('[data-ordonnance-drug-card]').length === 2,
+      undefined,
+      { timeout: 20000 },
+    );
+    await page.waitForTimeout(500);
+    cardCount = await cards.count();
+  }
   if (cardCount !== 2) {
     throw new Error(`Expected stable 2 DrugRow cards at ${viewport.width}x${viewport.height}, got ${cardCount}; pageErrors=${pageErrors.join(' | ')}`);
   }
