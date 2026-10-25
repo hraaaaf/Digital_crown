@@ -136,6 +136,7 @@ export function CrownBotGuidedConversationG5({ practitionerId }: { practitionerI
     setPhase(null);
     setDraft('');
     setChecked(false);
+    setBusy(false);
   }
 
   async function prepare(phrase: string, choiceId?: number) {
