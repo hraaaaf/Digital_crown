@@ -59,7 +59,10 @@ def canonical_bezier_profile_nodes(
 
 def sample_bezier_profile(
     nodes: object, *, image_size: tuple[int, int],
+    step_pixels: int = STEP_PIXELS,
 ) -> list[list[float]]:
+    if step_pixels not in (5, 6):
+        raise G5BezierRejected('G5_BEZIER_UNSUPPORTED_SAMPLE_STEP')
     canonical = canonical_bezier_profile_nodes(nodes, image_size=image_size)
     output: list[list[float]] = []
     for idx in range(len(canonical) - 1):
@@ -70,7 +73,7 @@ def sample_bezier_profile(
         control_length = (_distance(start, control1)
                           + _distance(control1, control2)
                           + _distance(control2, end))
-        steps = max(2, ceil(control_length / STEP_PIXELS))
+        steps = max(2, ceil(control_length / step_pixels))
         for k in range(0 if idx == 0 else 1, steps + 1):
             t = k / steps
             q = 1 - t
@@ -104,15 +107,25 @@ def verify_bezier_profile_matches(
     profile = next((x for x in contours if x.get("id") == "soft_tissue_profile"), None)
     if profile is None:
         raise G5BezierRejected("G5_BEZIER_SOFT_TISSUE_MISSING")
-    expected = sample_bezier_profile(canonical, image_size=image_size)
     actual = profile.get("points")
-    if not isinstance(actual, list) or len(actual) != len(expected):
+    if not isinstance(actual, list):
         raise G5BezierRejected("G5_BEZIER_SAMPLES_DIFFER_FROM_V1")
-    for given, sampled in zip(actual, expected):
-        if not isinstance(given, list) or len(given) != 2 or any(
-            type(v) not in (float, int) or not isfinite(v) for v in given
+    # Legacy LAB-V2 drafts may have been persisted with 5px sampling before
+    # the 6px headroom change. Match exact stored pixels, never resample a
+    # signed draft silently; new edits always use the default 6px sampler.
+    for step in (6, 5):
+        try:
+            expected = sample_bezier_profile(
+                canonical, image_size=image_size, step_pixels=step)
+        except G5BezierRejected:
+            continue
+        if len(actual) != len(expected):
+            continue
+        if all(
+            isinstance(given, list) and len(given) == 2 and
+            all(type(v) in (float, int) and isfinite(v) for v in given) and
+            all(abs(a - b) <= 1e-7 for a, b in zip(given, sampled))
+            for given, sampled in zip(actual, expected)
         ):
-            raise G5BezierRejected("G5_BEZIER_SAMPLES_DIFFER_FROM_V1")
-        if any(abs(a - b) > 1e-7 for a, b in zip(given, sampled)):
-            raise G5BezierRejected("G5_BEZIER_SAMPLES_DIFFER_FROM_V1")
-    return canonical
+            return canonical
+    raise G5BezierRejected("G5_BEZIER_SAMPLES_DIFFER_FROM_V1")
