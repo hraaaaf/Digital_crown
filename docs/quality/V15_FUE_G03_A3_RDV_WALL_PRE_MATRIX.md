@@ -68,3 +68,14 @@ A3 ne couvre pas l'identification QR/Companion A1, l'identification secours A2, 
 - Chaque scénario donne un identifiant stable, acteur, entrée synthétique, action observée, code HTTP, oracle SQL indépendant, image PNG, empreinte SHA-256 et commit \`EVALUATED_SHA\`. Un scénario manquant est **NOT_RUN**, pas PASS.
 - Les séquences E2E / captures A3 ne se déclenchent pas automatiquement à la création de cette documentation. Aucun compte réel, dossier clinique réel, infrastructure du cabinet, LOT10, matériel ni production.
 - **Ordre obligatoire : A2 CI certifié → A3 delta exécuté au HEAD exact → revue visuelle humaine A3 → verdict A3**. A3 peut préparer ses fixtures et son plan pendant le blocage CI A2, mais ne déclare jamais « A3 GREEN » sur cette base documentaire.
+
+
+## 8. Gate A2 levé — lancement d'A3 autorisé (25/10/2026)
+
+**La dépendance bloquante A2 a été levée et vérifiée sur GitHub** au commit `972eba4cbed824d97f0eee01d48cbd0a3bedba37`, [PR #1079](https://github.com/hraaaaf/Digital_crown/pull/1079). [E2E Chromium / FastAPI / SQLCipher #40178655899](https://github.com/hraaaaf/Digital_crown/actions/runs/40178655899) = `success`; [CI Scope #40178655906](https://github.com/hraaaaf/Digital_crown/actions/runs/40178655906) = `success`; [Hub Visual Proof #40178655895](https://github.com/hraaaaf/Digital_crown/actions/runs/40178655895) = `success`; [Human Visual Approval exact HEAD #40181754812](https://github.com/hraaaaf/Digital_crown/actions/runs/40181754812) = `success`. Le label propriétaire `visual-approved-by-achraf` est présent. Le retrait de « Station sécurisée » est inclus et vérifié. **A2 est certifié techniquement et visuellement, mais non fusionné.**
+
+**Nouvel ordre d'exécution demandé par le propriétaire** : « Allez A3 ! ». A3 passe de *PRE bloqué par A2* à *préparation d'exécution autorisée*. Il ne devient pas certifié sans tests A3 au SHA final, SQL indépendant, vrais écrans et approbation humaine A3 propre.
+
+**Règle de branchement :** le code A3 en laboratoire doit partir du HEAD A2 certifié (ou être explicitement empilé dessus), tandis que la PR documentaire #1076 reste volontairement ancrée sur A1. Une validation G03.21 ancienne ne remplace pas les scénarios négatifs A3 actuels. Aucun merge, déploiement ou dossier réel.
+
+**Critères d'entrée A3** : cas P1 A3-03/04/05/06/07/08/09/11 prioritaires ; trois acteurs isolés (Station, réception staff, Wall) ; jeu fictif exclusivement ; tests contrôlés des données affichées en public, retard de réponse, reprise, révocation, appels non autorisés et idempotence. Les preuves doivent indiquer chaque cas testé ou `NOT_RUN` ; interdiction de « GREEN » global si les oracles exigés manquent.
