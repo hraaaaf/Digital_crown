@@ -1,0 +1,132 @@
+name: LOT05 J20 Synthetic + Public TXT Read-Only QA
+
+on:
+  push:
+    branches:
+      - exp/lot05-j20-actions-synthetic-20261025
+    paths:
+      - .github/workflows/lot05-j20-actions-synthetic-source-qa.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  j20-research-readonly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout only this isolated test branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: J17 J19 J20 unit tests with synthetic fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python experiments/test_lot05_j17_private_manifest_preflight.py -v
+          python experiments/test_lot05_j19_private_source_geometry_preflight.py -v
+          python experiments/test_lot05_j20_private_source_qa.py -v
+      - name: Verify J20 rejects private CLI input in public Actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          output=$(python experiments/lot05_j20_private_source_qa.py /not-a-private-manifest /not-a-private-source)
+          code=$?
+          set -e
+          test "$code" -eq 1
+          test "$output" = '{"status":"FAIL_CLOSED_PRIVATE_INPUT_FORBIDDEN"}'
+          echo "PUBLIC_ACTIONS_PRIVATE_CLI_REFUSAL_PASS"
+      - name: Download exclusively pinned public academic TXT labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p third_party
+          git clone --filter=blob:none --depth=1 --no-checkout \
+            https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
+          git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
+            'AKUDENTAL/folds/fold_0/labels/'
+          git -C third_party/AKUDENTAL checkout --detach \
+            92e2cc3ae5eebc9de509311a3edefb7106fca7dd
+          test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
+            '92e2cc3ae5eebc9de509311a3edefb7106fca7dd'
+          test "$(find third_party/AKUDENTAL/AKUDENTAL/folds/fold_0/labels -name '*.txt' -type f | wc -l)" -eq 333
+          test "$(find third_party/AKUDENTAL/AKUDENTAL/folds/fold_0/labels -type f ! -name '*.txt' | wc -l)" -eq 0
+          echo "PINNED_SOURCE_TXT_333_PASS_NO_IMAGES"
+      - name: Real 333-TXT J20 read-only mechanism with public-only synthetic decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import sys
+          from collections import Counter
+          from pathlib import Path
+          sys.path.insert(0, "experiments")
+          from test_lot05_j17_private_manifest_preflight import fixture
+          from lot05_j13_private_clinician_corrections import FDI, labels_inventory
+          from lot05_j10w_akudental_duplicate_fdi_root_cause import _rows
+          from lot05_j20_private_source_qa import verify
+
+          root = Path("third_party/AKUDENTAL/AKUDENTAL/folds/fold_0/labels")
+          inventory = labels_inventory(root)
+          reverse_fdi = {class_id: fdi for fdi, class_id in FDI.items()}
+          manifest = fixture()  # Synthetic ONLY, never J16 private data.
+          selected = False
+          for (split, stem), path in sorted(inventory.items()):
+              rows = _rows(path.read_text(encoding="utf-8"))
+              present = Counter(cls for cls, _ in rows)
+              absent = next((cls for cls in range(32) if cls not in present), None)
+              if absent is None:
+                  continue
+              source = next(
+                  ((cls, box) for cls, box in rows if cls < 32 and present[cls] == 1),
+                  None,
+              )
+              if source is None:
+                  continue
+              cls, bbox = source
+              manifest["active_permanent"][0]["decision"] = {
+                  "case": 1,
+                  "split": split,
+                  "stem": stem,
+                  "from_fdi": reverse_fdi[cls],
+                  "to_fdi": reverse_fdi[absent],
+                  "expected_bbox": list(bbox),
+              }
+              selected = True
+              break
+          assert selected, "no_public_synthetic_geometry_witness"
+          result = verify(manifest, root, b"synthetic")
+          assert result["status"] == "READ_ONLY_QA_COMPLETE_STAGING_BLOCKED"
+          assert result["source_label_files"] == 333
+          assert result["active_witnesses_checked"] == 1
+          assert result["source_target_collision_files"] == 0
+          assert result["all_333_source_hashes_unchanged"] is True
+          assert result["academic_duplicate_census_pass"] is True
+          assert result["source_manifest_hash_verified"] is True
+          assert result["staging_performed"] is False
+          assert result["training_authorized"] is False
+          assert result["clinical_use_authorized"] is False
+          print(json.dumps({
+              "status": "SYNTHETIC_J20_MECHANISM_PASS_NOT_PRIVATE_J16",
+              "source_label_files": result["source_label_files"],
+              "active_synthetic_witnesses_checked": result["active_witnesses_checked"],
+              "academic_duplicate_census_pass": result["academic_duplicate_census_pass"],
+              "all_333_source_hashes_unchanged": result["all_333_source_hashes_unchanged"],
+              "staging_performed": False,
+              "training_authorized": False,
+              "clinical_use_authorized": False,
+          }, sort_keys=True))
+          PY
+      - name: Delete ephemeral public source labels
+        if: always()
+        shell: bash
+        run: rm -rf third_party/AKUDENTAL
