@@ -207,7 +207,7 @@ export const GhostBrainWidget = () => {
       >
         <BrainCircuit size={20} className={`transition-elite ${unreadCount > 0 ? 'text-primary' : ''} group-hover:scale-110`} />
         {unreadCount > 0 && (
-          <span className="absolute top-2.5 right-2.5 w-3 h-3 bg-primary text-white text-[7px] font-black rounded-full border-2 border-card-bg flex items-center justify-center animate-pulse shadow-[0_0_8px_rgba(212,175,55,0.8)]">
+          <span className="absolute top-2.5 right-2.5 w-3 h-3 bg-primary text-on-primary text-[7px] font-black rounded-full border-2 border-card-bg flex items-center justify-center animate-pulse shadow-elite">
             {unreadCount}
           </span>
         )}
@@ -251,13 +251,13 @@ export const GhostBrainWidget = () => {
                             <Link
                               to={`/patients/${insight.patient_id}`}
                               onClick={() => setIsOpen(false)}
-                              className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors cursor-pointer"
+                              className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-on-primary transition-colors cursor-pointer"
                               title="Accéder au dossier patient"
                             >
                               {insight.insight_type}
                             </Link>
                           ) : (
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-warning-surface text-warning uppercase">
                               {insight.insight_type}
                             </span>
                           )}
@@ -272,7 +272,7 @@ export const GhostBrainWidget = () => {
                             setIsOpen(false);
                          }
                       }}>
-                          <p className="text-[11px] font-medium text-main mt-2 leading-relaxed" style={{ color: 'var(--text-main)' }}>
+                          <p className="text-[11px] font-medium text-text-main mt-2 leading-relaxed" style={{ color: 'var(--text-main)' }}>
                               <TypewriterText text={insight.content} delay={8} />
                           </p>
                       </div>
@@ -280,7 +280,7 @@ export const GhostBrainWidget = () => {
                       <div className="mt-3 flex items-center justify-between border-t border-border-main/50 pt-2">
                           <button 
                               onClick={() => markAsRead(insight.id)}
-                              className="flex items-center gap-1 text-[9px] font-black text-text-muted hover:text-green-500 transition-colors uppercase"
+                              className="flex items-center gap-1 text-[9px] font-black text-text-muted hover:text-success transition-colors uppercase"
                           >
                               <Check size={12} /> Marquer comme lu
                           </button>
@@ -288,7 +288,7 @@ export const GhostBrainWidget = () => {
                           {quickAction && (
                               <button
                                   onClick={quickAction.onClick}
-                                  className="flex items-center gap-1.5 text-[9px] font-black bg-primary/10 text-primary px-2 py-1 rounded-lg hover:bg-primary hover:text-white transition-colors uppercase"
+                                  className="flex items-center gap-1.5 text-[9px] font-black bg-primary/10 text-primary px-2 py-1 rounded-lg hover:bg-primary hover:text-on-primary transition-colors uppercase"
                               >
                                   {quickAction.icon}
                                   {quickAction.label}
