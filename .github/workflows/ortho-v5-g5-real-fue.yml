@@ -193,6 +193,12 @@ jobs:
           assert v2.get('expert_anatomical_validation') is False
           assert v2.get('approved_test_dentist') is True
           assert v2.get('node_count',0)>=3 and v2.get('sampled_points',0)>0
+          assert v2.get('browser_mouse_drag') is True
+          assert v2.get('ui_saved') is True and v2.get('ui_approved') is True
+          assert v2.get('handle_index')==1 and v2.get('handle_kind')=='incoming'
+          before=v2['before_source_px']; after=v2['after_source_px']
+          assert 25 < after['x']-before['x'] < 70, 'Drag x must move in source pixels'
+          assert 12 < before['y']-after['y'] < 60, 'Drag y must move in source pixels'
           v2_must={'G5_V2_SAVED_REVOKES_OLD_DENTIST_APPROVAL',
               'G5_V2_REOPEN_HANDLES_AND_PIXEL_SAMPLES_IDENTICAL',
               'G5_V2_TAMPERED_HANDLE_REFUSED',
@@ -202,7 +208,15 @@ jobs:
               'G5_V2_SIGNED_HANDLES_PERSIST_IN_SAME_STUDY',
               'G5_V2_RELOADED_NOTES_BROWSER_PDF_FAIL_CLOSED',
               'G5_V2_SIGNED_PDF_API_SOURCE_AND_REVISION_BOUND',
-              'G5_V1_BROWSER_PDF_NONEMPTY'}
+              'G5_V1_BROWSER_PDF_NONEMPTY',
+              'G5_V2_REAL_POINTER_HANDLE_HIT_TARGET',
+              'G5_V2_REAL_MOUSE_DRAG_MOVED_SOURCE_PIXEL_HANDLE',
+              'G5_V2_REAL_DRAG_PRESERVES_ANCHORS_AND_NODE_COUNT',
+              'G5_V2_REAL_DRAG_CHANGED_SAMPLED_GEOMETRY',
+              'G5_V2_DRAG_NOT_PERSISTED_BEFORE_EXPLICIT_SAVE',
+              'G5_V2_REAL_MOUSE_DRAG_UI_SAVED_EXACT_SOURCE_GEOMETRY',
+              'G5_V2_REAL_DRAG_EXACT_HANDLE_SURVIVES_FULL_RELOAD',
+              'G5_V2_REAL_DRAG_SIGNED_POLYLINE_SURVIVES_RELOAD'}
           assert v2_must.issubset(set(report['checks'])),sorted(v2_must-set(report['checks']))
           assert {'G5_REAL_BROWSER_EXPLICIT_DENTIST_TEST_APPROVAL',
                   'G5_BROWSER_SAVED_SIX_DISTINCT_STROKES',
