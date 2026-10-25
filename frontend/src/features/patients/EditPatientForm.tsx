@@ -133,7 +133,7 @@ export const EditPatientForm = () => {
 
   if (fetchError) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-6">
-      <AlertCircle size={42} className="text-rose-500" />
+      <AlertCircle size={42} className="text-danger" />
       <div>
         <h2 className="font-black text-text-main text-xl">Impossible de charger le patient</h2>
         <p className="text-text-muted text-sm mt-1">Le formulaire n'est pas affiché avec des valeurs par défaut.</p>
@@ -199,25 +199,25 @@ export const EditPatientForm = () => {
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-text-muted animate-spin" />}
-                {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-emerald-500" />}
+                {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-danger" />}
+                {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-success" />}
               </div>
             </div>
             {dossierStatus.status === 'taken' && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1 font-bold uppercase tracking-tight">
+              <p className="mt-2 text-sm text-danger flex items-center gap-1 font-bold uppercase tracking-tight">
                 <AlertTriangle size={14} /> Déjà utilisé par : {dossierStatus.owner}
               </p>
             )}
             {numeroError && !dossierStatus.owner && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+              <p className="mt-2 text-sm text-danger flex items-center gap-1">
                 <AlertCircle size={14} /> {numeroError}
               </p>
             )}
             {dossierStatus.status === 'available' && (
-              <p className="mt-2 text-xs text-emerald-600 font-bold">✓ Numéro disponible</p>
+              <p className="mt-2 text-xs text-success font-bold">✓ Numéro disponible</p>
             )}
             {dossierStatus.status === 'error' && (
-              <p className="mt-2 text-xs text-amber-600 font-bold flex items-center gap-1"><AlertTriangle size={13} /> Disponibilité non vérifiée</p>
+              <p className="mt-2 text-xs text-warning font-bold flex items-center gap-1"><AlertTriangle size={13} /> Disponibilité non vérifiée</p>
             )}
             <p className="mt-2 text-xs text-text-muted">
               ⚠️ Modifiez avec précaution - ce numéro est utilisé pour identifier le dossier physique

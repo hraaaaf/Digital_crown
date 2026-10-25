@@ -178,7 +178,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-2 p-3 bg-background rounded-xl border border-border-main">
           {hasUrgent && (
-            <span className="flex items-center gap-1 text-[9px] font-black text-red-600 uppercase tracking-widest bg-red-50 border border-red-200 px-2 py-1 rounded-full">
+            <span className="flex items-center gap-1 text-[9px] font-black text-danger uppercase tracking-widest bg-danger-surface border border-danger-border px-2 py-1 rounded-full">
               <Zap size={9} /> URGENCE DÉTECTÉE
             </span>
           )}
@@ -212,7 +212,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
               </span>
             );
           })}
-          <button type="button" onClick={() => onChange([])} className="text-[10px] font-bold text-text-muted hover:text-red-500 transition-colors px-2 py-1">
+          <button type="button" onClick={() => onChange([])} className="text-[10px] font-bold text-text-muted hover:text-danger transition-colors px-2 py-1">
             Tout effacer
           </button>
         </div>
@@ -246,7 +246,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
       </button>
 
       {selected.length >= maxSelect && (
-        <p className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+        <p className="text-[11px] font-semibold text-warning bg-warning-surface border border-warning-border px-3 py-1.5 rounded-lg">
           Maximum {maxSelect} motifs sélectionnés.
         </p>
       )}
@@ -339,7 +339,7 @@ export const MotifSelector: React.FC<MotifSelectorProps> = ({ selected, onChange
                 </select>
               </label>
               <p className="text-[11px] font-medium text-text-muted">Aucun acte ni spécialité ne sera suggéré automatiquement pour un motif du cabinet.</p>
-              {createError && <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{createError}</p>}
+              {createError && <p role="alert" className="rounded-xl bg-danger-surface px-3 py-2 text-xs font-bold text-danger">{createError}</p>}
             </div>
 
             <div className="mt-5 flex justify-end gap-2">

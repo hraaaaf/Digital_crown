@@ -467,8 +467,8 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                 {/* CLINICAL SUMMARY CARD */}
                 <div className="p-4 bg-gradient-to-tr from-amber-500/10 to-yellow-500/5 rounded-[1.8rem] border border-amber-500/20 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Activity size={14} className="text-amber-500 animate-pulse" />
-                    <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Diagnostic Final Établi</span>
+                    <Activity size={14} className="text-warning animate-pulse" />
+                    <span className="text-[9px] font-black text-warning uppercase tracking-widest">Diagnostic Final Établi</span>
                   </div>
                   
                   <h3 className="text-sm font-black text-text-main dark:text-white leading-tight">
@@ -483,8 +483,8 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                 {/* WARNINGS */}
                 {result.warnings.map((w: string, idx: number) => (
                   <div key={idx} className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex gap-2.5 items-start">
-                    <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
-                    <p className="text-[10px] font-bold text-rose-600 leading-normal">
+                    <AlertCircle size={15} className="text-danger shrink-0 mt-0.5" />
+                    <p className="text-[10px] font-bold text-danger leading-normal">
                       {w}
                     </p>
                   </div>
@@ -494,7 +494,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                 {result.protocol.length > 0 && (
                   <div className="p-4 bg-background dark:bg-white/5 rounded-2xl space-y-2 border border-border-main dark:border-white/5">
                     <h4 className="text-[9px] font-black text-text-muted dark:text-text-muted uppercase tracking-widest flex items-center gap-1.5">
-                      <ShieldCheck size={11} className="text-emerald-500" /> Recommandations Cliniques
+                      <ShieldCheck size={11} className="text-success" /> Recommandations Cliniques
                     </h4>
                     <ul className="space-y-1">
                       {result.protocol.map((p: string, idx: number) => (
@@ -513,7 +513,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                       <Sparkles size={11} className="text-primary" /> Plan de Traitement Personnalisable
                     </h4>
                     {isLoadingPrices && (
-                      <span className="text-[7px] font-black uppercase text-amber-500 animate-pulse">
+                      <span className="text-[7px] font-black uppercase text-warning animate-pulse">
                         🔄 Recherche habitudes...
                       </span>
                     )}
@@ -576,7 +576,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                             onClick={() => {
                               setEditableActs(prev => prev.filter((_, i) => i !== idx));
                             }}
-                            className="p-1 hover:bg-rose-500/10 text-text-muted hover:text-rose-500 rounded-lg transition-colors"
+                            className="p-1 hover:bg-rose-500/10 text-text-muted hover:text-danger rounded-lg transition-colors"
                           >
                             <Trash2 size={12} />
                           </button>
@@ -714,7 +714,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               className="relative w-full max-w-sm bg-card dark:bg-slate-900 border border-border-main dark:border-white/10 rounded-[2rem] shadow-2xl p-6 text-center space-y-4 z-10"
             >
-              <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 bg-emerald-500/10 text-success rounded-full flex items-center justify-center mx-auto">
                 <ShieldCheck size={24} />
               </div>
               
