@@ -205,8 +205,8 @@ export const AddPatientForm = () => {
     }
   };
 
-  const inputClass = "w-full px-5 py-4 bg-white/60 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#003380]/15 focus:border-[#003380] outline-none transition-all duration-300 shadow-sm text-slate-800 font-medium";
-  const labelClass = "text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-2 ml-1";
+  const inputClass = "w-full px-5 py-4 bg-card/60 border border-border-main rounded-2xl focus:ring-4 focus:ring-[#003380]/15 focus:border-[#003380] outline-none transition-all duration-300 shadow-sm text-text-main font-medium";
+  const labelClass = "text-[11px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1";
 
   // Formatage de la date pour affichage
   const formatDate = (dateStr: string) => {
@@ -217,7 +217,7 @@ export const AddPatientForm = () => {
 
   return (
     <div className="w-full min-w-0 max-w-4xl mx-auto px-3 sm:px-6 lg:px-10 py-6 lg:py-10">
-      <div className="w-full min-w-0 bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white/80 overflow-hidden">
+      <div className="w-full min-w-0 bg-card/70 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white/80 overflow-hidden">
         
         {/* Header Premium */}
         <div className="bg-[#003380] px-5 sm:px-10 py-6 sm:py-8 flex justify-between items-center relative overflow-hidden">
@@ -254,7 +254,7 @@ export const AddPatientForm = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Numéro de Dossier</span>
+              <span className="text-xs font-black text-text-muted uppercase tracking-widest">Numéro de Dossier</span>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
@@ -280,7 +280,7 @@ export const AddPatientForm = () => {
                   placeholder="P-XXXXXX"
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                  {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-slate-400 animate-spin" />}
+                  {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-text-muted animate-spin" />}
                   {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-red-500" />}
                   {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-emerald-500" />}
                 </div>
@@ -304,7 +304,7 @@ export const AddPatientForm = () => {
             </div>
 
             {/* Champs Nom et Prénom - nécessaires dans les deux cas */}
-            <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
+            <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-border-main">
               <div>
                 <label className={labelClass}>Nom de famille *</label>
                 <input 
@@ -337,7 +337,7 @@ export const AddPatientForm = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Identité Civile</span>
+              <span className="text-xs font-black text-text-muted uppercase tracking-widest">Identité Civile</span>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
@@ -399,14 +399,14 @@ export const AddPatientForm = () => {
                 )}
                 
                 {/* Assurance Complémentaire */}
-                <div className="mt-4 pt-4 border-t border-slate-200">
+                <div className="mt-4 pt-4 border-t border-border-main">
                   <label className="flex items-center gap-3 cursor-pointer mb-3">
                     <div className={cn(
                       "w-10 h-5 rounded-full transition-all duration-300 relative",
                       formData.assurance_complementaire ? "bg-[#003380]" : "bg-slate-300"
                     )}>
                       <div className={cn(
-                        "absolute top-1 w-3 h-3 rounded-full bg-white shadow-md transition-all duration-300",
+                        "absolute top-1 w-3 h-3 rounded-full bg-card shadow-md transition-all duration-300",
                         formData.assurance_complementaire ? "left-6" : "left-1"
                       )} />
                     </div>
@@ -417,7 +417,7 @@ export const AddPatientForm = () => {
                       onChange={handleChange}
                       className="hidden"
                     />
-                    <span className="font-bold text-slate-700 text-sm">Assurance Complémentaire</span>
+                    <span className="font-bold text-text-main text-sm">Assurance Complémentaire</span>
                   </label>
                   
                   {formData.assurance_complementaire && (
@@ -442,7 +442,7 @@ export const AddPatientForm = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Contact</span>
+              <span className="text-xs font-black text-text-muted uppercase tracking-widest">Contact</span>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
@@ -450,7 +450,7 @@ export const AddPatientForm = () => {
               <div>
                 <label className={labelClass}>Téléphone Principal</label>
                 <div className="relative mb-2">
-                  <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
                   <input 
                     type="tel" 
                     name="telephone" 
@@ -463,7 +463,7 @@ export const AddPatientForm = () => {
                 
                 {showPhone2 && (
                   <div className="relative mb-2 mt-2">
-                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                     <input 
                       type="tel" 
                       name="telephone_2" 
@@ -477,7 +477,7 @@ export const AddPatientForm = () => {
                 
                 {showPhone3 && (
                   <div className="relative mb-2 mt-2">
-                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                     <input 
                       type="tel" 
                       name="telephone_3" 
@@ -506,7 +506,7 @@ export const AddPatientForm = () => {
               <div>
                 <label className={labelClass}>Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
                   <input 
                     type="email" 
                     name="email" 
@@ -537,7 +537,7 @@ export const AddPatientForm = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Antécédents Médicaux</span>
+              <span className="text-xs font-black text-text-muted uppercase tracking-widest">Antécédents Médicaux</span>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
@@ -572,23 +572,23 @@ export const AddPatientForm = () => {
                 isOrtho ? "bg-[#003380]" : "bg-slate-300"
               )}>
                 <div className={cn(
-                  "absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300",
+                  "absolute top-1 w-6 h-6 rounded-full bg-card shadow-md transition-all duration-300",
                   isOrtho ? "left-7" : "left-1"
                 )} />
               </div>
               <div>
-                <span className="font-bold text-slate-800">Suivi Orthodontique</span>
-                <p className="text-xs text-slate-500">Activer le suivi orthodontique pour ce patient</p>
+                <span className="font-bold text-text-main">Suivi Orthodontique</span>
+                <p className="text-xs text-text-muted">Activer le suivi orthodontique pour ce patient</p>
               </div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-200">
+          <div className="flex items-center justify-end gap-4 pt-6 border-t border-border-main">
             <button 
               type="button" 
               onClick={() => navigate('/patients')}
-              className="px-8 py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-100 transition-all"
+              className="px-8 py-4 rounded-2xl font-bold text-text-muted hover:bg-input-field transition-all"
             >
               Annuler
             </button>
@@ -616,26 +616,26 @@ export const AddPatientForm = () => {
       {/* Modal de détection de doublon */}
       {showDuplicateModal && duplicateInfo?.existing_patient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 animate-in fade-in zoom-in duration-200">
+          <div className="bg-card rounded-3xl shadow-2xl max-w-lg w-full p-8 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-amber-100 rounded-2xl">
                 <AlertTriangle className="w-8 h-8 text-amber-600" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-800">Patient similaire trouvé</h3>
-                <p className="text-slate-500 text-sm">Un dossier avec les mêmes informations existe déjà.</p>
+                <h3 className="text-xl font-black text-text-main">Patient similaire trouvé</h3>
+                <p className="text-text-muted text-sm">Un dossier avec les mêmes informations existe déjà.</p>
               </div>
             </div>
 
-            <div className="bg-slate-50 rounded-2xl p-6 mb-6 border border-slate-200">
+            <div className="bg-background rounded-2xl p-6 mb-6 border border-border-main">
               <div className="flex items-center gap-3 mb-4">
                 <UserCheck className="w-5 h-5 text-[#003380]" />
-                <span className="font-bold text-slate-800">Dossier existant :</span>
+                <span className="font-bold text-text-main">Dossier existant :</span>
               </div>
               <div className="space-y-2 text-sm">
-                <p><span className="text-slate-500">Nom :</span> <span className="font-bold">{duplicateInfo.existing_patient.nom} {duplicateInfo.existing_patient.prenom}</span></p>
-                <p><span className="text-slate-500">Né(e) le :</span> <span className="font-bold">{formatDate(duplicateInfo.existing_patient.date_naissance)}</span></p>
-                <p><span className="text-slate-500">Créé le :</span> <span className="text-slate-600">{formatDate(duplicateInfo.existing_patient.created_at)}</span></p>
+                <p><span className="text-text-muted">Nom :</span> <span className="font-bold">{duplicateInfo.existing_patient.nom} {duplicateInfo.existing_patient.prenom}</span></p>
+                <p><span className="text-text-muted">Né(e) le :</span> <span className="font-bold">{formatDate(duplicateInfo.existing_patient.date_naissance)}</span></p>
+                <p><span className="text-text-muted">Créé le :</span> <span className="text-text-muted">{formatDate(duplicateInfo.existing_patient.created_at)}</span></p>
               </div>
             </div>
 
@@ -654,7 +654,7 @@ export const AddPatientForm = () => {
                   setShowDuplicateModal(false);
                   performSubmit(true);
                 }}
-                className="w-full py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 bg-card border-2 border-border-main text-text-main rounded-2xl font-bold hover:bg-background transition-all flex items-center justify-center gap-2"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 Créer quand même (doublon autorisé)
@@ -665,7 +665,7 @@ export const AddPatientForm = () => {
                   setShowDuplicateModal(false);
                   setForceCreate(false);
                 }}
-                className="w-full py-3 text-slate-500 hover:text-slate-700 transition-colors"
+                className="w-full py-3 text-text-muted hover:text-text-main transition-colors"
               >
                 Modifier les informations
               </button>
