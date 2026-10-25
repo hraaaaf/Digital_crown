@@ -41,12 +41,12 @@ export function PatientDraftRouteGuard({ children }: { children: ReactNode }) {
     if (blocker.state === 'blocked') stayButton.current?.focus();
   }, [blocker.state]);
 
+  // Scrim is a neutral existing overlay exception; the dialog and buttons use theme tokens.
   return (
     <>
       {children}
       {scope && blocker.state === 'blocked' && (
         <div
-          // Neutral backdrop/scrim exception retained verbatim; dialog content uses semantic theme roles.
           className="fixed inset-0 z-[10020] flex items-center justify-center bg-slate-950/70 p-4"
           role="presentation"
         >
