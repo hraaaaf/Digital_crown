@@ -1,0 +1,53 @@
+name: Admin Theme P1 — Semantic Tokens Only (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/admin-semantic-tokens-phase1-20261025
+  pull_request:
+    branches:
+      - master
+    paths:
+      - frontend/src/features/admin/**
+      - .github/workflows/admin-theme-token-gate.yml
+permissions:
+  contents: read
+jobs:
+  admin-theme:
+    name: Admin theme roles, read-only safety, TypeScript and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Theme and existing admin printing / settings regression (no clinical HTTP)
+        run: |
+          npx vitest run \
+            src/features/admin/adminThemeTokens.phase1.test.ts \
+            src/features/admin/Settings/tabs/BlockedPrintJobsReadOnly.test.tsx \
+            src/features/admin/Settings/SettingsContainer.g5Interactive.test.tsx \
+            src/features/admin/DocumentStudio/AccountingQuickActions.test.tsx \
+            src/features/multiview/themeTokens.r2.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+      - name: Production build (not deployed)
+        run: npm run build
+      - name: Evidence scope
+        if: success()
+        run: |
+          echo "Admin phase1 token-only; read-only printing and permission guards are unchanged." >> "$GITHUB_STEP_SUMMARY"
+          echo "No visual owner gate for proven purely cosmetic role migrations per AGENTS.md." >> "$GITHUB_STEP_SUMMARY"
+          echo "No release, deployment, clinical action or whole-app certification." >> "$GITHUB_STEP_SUMMARY"
