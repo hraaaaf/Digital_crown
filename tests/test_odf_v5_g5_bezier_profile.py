@@ -45,6 +45,17 @@ class G5BezierProfileContract(TestCase):
         checked=mod.verify_bezier_profile_matches(NODES,contours=samples,image_size=IMG)
         self.assertEqual(len(checked),3)
 
+    def test_legacy_five_pixel_bezier_drafts_remain_exactly_readable(self):
+        old_points=mod.sample_bezier_profile(
+            NODES,image_size=IMG,step_pixels=5)
+        contours=[{"id":"soft_tissue_profile","points":old_points}]
+        restored=mod.verify_bezier_profile_matches(
+            NODES,contours=contours,image_size=IMG)
+        self.assertEqual(len(restored),len(NODES))
+        new_points=mod.sample_bezier_profile(NODES,image_size=IMG)
+        self.assertLessEqual(len(new_points),len(old_points))
+        self.assertNotEqual(new_points,old_points)
+
     def test_forged_v1_polyline_is_rejected(self):
         forged=contours_from_nodes()
         forged[0]["points"][15][0]+=3
