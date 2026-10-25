@@ -36,6 +36,27 @@ class CanonicalV2ProvisionalCrosswalkTests(unittest.TestCase):
                             not x["source_image_orientation_proven"] and
                             x["clinical_parity"] is False for x in rows))
 
+    def test_production_craniom_interincisal_typed_construction_rounds_once(self):
+        result = p3.assess(self.fixture)
+        self.assertTrue(result["craniom_interincisal_typed_construction_executed"])
+        self.assertFalse(result["complete_craniom_measurement_adapter_executed"])
+        inter = result["craniom_interincisal_typed_construction"]
+        self.assertEqual(inter["dc_versioned_construction_id"],
+                         "CRANIOM_U1_L1_INTERINCISAL_V1")
+        self.assertEqual(inter["canonical_measurement_id"], "M_INTERINCISAL_DEG_V1")
+        self.assertEqual(inter["dc_craniom_typed_construction_deg"], 140.7)
+        self.assertEqual(inter["facad_display_deg"], 140.9)
+        self.assertAlmostEqual(inter["raw_delta_deg"], -0.2, places=6)
+        self.assertFalse(inter["clinical_parity"])
+
+    def test_production_typed_interincisal_does_not_promote_clinical_parity(self):
+        result = p3.assess(self.fixture)
+        self.assertEqual(result["clinical_parity_verified"], 0)
+        self.assertFalse(result["facad_operator_crosswalk_validated"])
+        self.assertFalse(result["complete_analysis_runtime_executed"])
+        self.assertTrue(result["clinical_no_go"])
+        self.assertFalse(result["craniom_interincisal_typed_construction"]["landmark_identity_proven"])
+
     def test_no_po_or_frankfort_fabricated(self):
         self.assertNotIn("Po", p3.CANDIDATE_CROSSWALK)
         self.assertNotIn("Or", p3.CANDIDATE_CROSSWALK)
