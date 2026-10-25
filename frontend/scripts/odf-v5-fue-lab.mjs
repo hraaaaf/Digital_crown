@@ -358,20 +358,25 @@ try{
       contours:v2Contours,bezier_profile_nodes:badNodes,
     }});
     check(v2Mismatch.status()===422,'G5_V2_TAMPERED_HANDLE_REFUSED');
-    // Reopen the actual React UI, not just the API JSON.
-    // A full reload resets the React-selected analysis/tab; restore the
-    // same synthetic study by navigating via the real patient UI first.
-    await page.reload({waitUntil:'domcontentloaded'});
-    await page.getByRole('button',{name:'Imagerie',exact:true}).click();
-    await page.locator('[aria-label="Modalités d’imagerie"]')
-      .getByRole('button',{name:'Céphalométrie',exact:true}).click();
-    await page.locator('[data-ortho-workspace-title]')
-      .waitFor({state:'visible',timeout:35000});
-    await page.getByRole('button',{name:'Historique',exact:true}).click();
-    await page.locator('[data-cephalo-history-analysis-id="'+ids.older_id+'"]').click();
-    await page.locator('[data-cephalo-selected-analysis-id="'+ids.older_id+'"]')
-      .waitFor({state:'visible',timeout:20000});
-    await page.getByRole('button',{name:'3. Synthèse clinique',exact:true}).click();
+    // Reopen the actual React UI, not just the API JSON. A full reload
+    // resets the selected modality, study and clinical tab; never rely on
+    // React memory or deep-linking directly into an assumed editor.
+    async function reopenSelectedG5Study(){
+      await page.reload({waitUntil:'domcontentloaded'});
+      await page.getByRole('button',{name:'Imagerie',exact:true}).click();
+      await page.locator('[aria-label="Modalités d’imagerie"]')
+        .getByRole('button',{name:'Céphalométrie',exact:true}).click();
+      await page.locator('[data-ortho-workspace-title]')
+        .waitFor({state:'visible',timeout:35000});
+      await page.getByRole('button',{name:'Historique',exact:true}).click();
+      await page.locator('[data-cephalo-history-analysis-id="'+ids.older_id+'"]').click();
+      await page.locator('[data-cephalo-selected-analysis-id="'+ids.older_id+'"]')
+        .waitFor({state:'visible',timeout:20000});
+      await page.getByRole('button',{name:'3. Synthèse clinique',exact:true}).click();
+      await page.getByTestId('odf-g5-manual-tracing')
+        .waitFor({state:'visible',timeout:30000});
+    }
+    await reopenSelectedG5Study();
     const reopened=page.getByTestId('odf-g5-manual-tracing');
     await reopened.waitFor({state:'visible',timeout:30000});
     await reopened.getByRole('button',{name:/Profil cutané/}).click();
@@ -384,36 +389,107 @@ try{
       &&await page.getByTestId('g5-bezier-handle-1-incoming').count()===1,
       'G5_V2_BROWSER_REOPEN_VISIBLE_SAVED_ANCHORS_AND_HANDLES');
     await snap('g5-v2-04-reopened-editable-bezier-test-only');
-    // Editing controls after reopening changes source-pixel samples and must
-    // revoke approval again. Test via strict API save to exclude flaky pixels.
+    // Real Chromium pointer interaction: hit the actual SVG handle, let
+    // React process pointer capture/move/up, and read source-pixel coordinates
+    // from the rendered circle. No DOM event injection or API edit here.
+    const handle=page.getByTestId('g5-bezier-handle-1-incoming');
+    const anchor=page.getByTestId('g5-bezier-anchor-1');
+    await handle.scrollIntoViewIfNeeded();
+    const beforeHandle=await handle.evaluate(el=>({
+      x:Number(el.getAttribute('cx')),y:Number(el.getAttribute('cy')),
+    }));
+    const beforeAnchor=await anchor.evaluate(el=>({
+      x:Number(el.getAttribute('cx')),y:Number(el.getAttribute('cy')),
+    }));
+    const hit=await handle.boundingBox();
+    const surfaceRect=await reopenedCanvas.boundingBox();
+    check(Boolean(hit&&surfaceRect&&hit.width>0&&hit.height>0
+      &&surfaceRect.width>250),'G5_V2_REAL_POINTER_HANDLE_HIT_TARGET');
+    const fromX=hit.x+hit.width/2,fromY=hit.y+hit.height/2;
+    await page.mouse.move(fromX,fromY);
+    await page.mouse.down();
+    for(let i=1;i<=8;i++){
+      await page.mouse.move(fromX+12*i/8,fromY-8*i/8);
+    }
+    await page.mouse.up();
+    const afterHandle=await handle.evaluate(el=>({
+      x:Number(el.getAttribute('cx')),y:Number(el.getAttribute('cy')),
+    }));
+    const afterAnchor=await anchor.evaluate(el=>({
+      x:Number(el.getAttribute('cx')),y:Number(el.getAttribute('cy')),
+    }));
+    check(Number.isFinite(afterHandle.x)&&Number.isFinite(afterHandle.y)
+      &&afterHandle.x-beforeHandle.x>25
+      &&afterHandle.x-beforeHandle.x<70
+      &&beforeHandle.y-afterHandle.y>12
+      &&beforeHandle.y-afterHandle.y<60,
+      'G5_V2_REAL_MOUSE_DRAG_MOVED_SOURCE_PIXEL_HANDLE');
+    check(JSON.stringify(beforeAnchor)===JSON.stringify(afterAnchor)
+      &&await page.getByTestId('g5-bezier-anchor-2').count()===1,
+      'G5_V2_REAL_DRAG_PRESERVES_ANCHORS_AND_NODE_COUNT');
     const edited=structuredClone(synthNodes);
-    edited[1].incoming[0]+=8;
-    const editedContours=v2Contours.map(c=>c.id==='soft_tissue_profile'
-      ?{id:c.id,points:sampleG5(edited)}:c);
-    const editedWrite=await api.put(g5Url+'/draft',{headers,data:{
-      expected_revision:revision,expected_draft_version:2,
-      contours:editedContours,bezier_profile_nodes:edited,
-    }});
-    const editedBody=await editedWrite.json();
-    check(editedWrite.status()===200&&editedBody.draft_version===3
-      &&editedBody.approved===false,
+    edited[1].incoming=[afterHandle.x,afterHandle.y];
+    check(JSON.stringify(sampleG5(edited))!==JSON.stringify(sampleG5(synthNodes)),
+      'G5_V2_REAL_DRAG_CHANGED_SAMPLED_GEOMETRY');
+    await snap('g5-v2-05-real-mouse-drag-before-save-test-only');
+    const unchangedOnServer=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    const unchangedBody=await unchangedOnServer.json();
+    check(unchangedOnServer.status()===200
+      &&unchangedBody.draft_version===2
+      &&JSON.stringify(unchangedBody.bezier_profile_nodes)===JSON.stringify(synthNodes),
+      'G5_V2_DRAG_NOT_PERSISTED_BEFORE_EXPLICIT_SAVE');
+    // Save with the REAL UI button, not the previously used API shortcut.
+    await reopened.getByRole('button',{name:'Enregistrer les six contours'}).click();
+    await reopened.getByRole('status')
+      .getByText(/Brouillon manuel enregistré/).waitFor({timeout:25000});
+    const editedRead=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    const editedBody=await editedRead.json();
+    check(editedRead.status()===200&&editedBody.draft_version===3
+      &&editedBody.approved===false
+      &&JSON.stringify(editedBody.bezier_profile_nodes)===JSON.stringify(edited)
+      &&JSON.stringify(editedBody.contours.find(c=>c.id==='soft_tissue_profile').points)
+        ===JSON.stringify(sampleG5(edited)),
       'G5_V2_EDIT_RESAVE_REVOCATION');
-    const v2Approve=await api.post(g5Url+'/approve',{headers,data:{
-      expected_revision:revision,expected_draft_version:3,
-      confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE',
-    }});
-    const v2Approved=await v2Approve.json();
-    check(v2Approve.status()===200&&v2Approved.approved,
-      'G5_V2_SYNTHETIC_EXPLICIT_DENTIST_APPROVAL');
+    check(true,'G5_V2_REAL_MOUSE_DRAG_UI_SAVED_EXACT_SOURCE_GEOMETRY');
+    await snap('g5-v2-06-real-mouse-drag-saved-test-only');
+    await reopened.getByRole('button',{name:'Approuver explicitement le tracé'}).click();
+    await reopened.getByRole('status')
+      .getByText(/Six contours approuvés/).waitFor({timeout:25000});
     const verifiedV2=await api.get(g5Url,{headers,params:{expected_revision:revision}});
     const verifiedV2Body=await verifiedV2.json();
-    check(verifiedV2Body.approved
+    check(verifiedV2.status()===200&&verifiedV2Body.approved
+      &&verifiedV2Body.draft_version===3
       &&JSON.stringify(verifiedV2Body.bezier_profile_nodes)===JSON.stringify(edited),
       'G5_V2_SIGNED_HANDLES_PERSIST_IN_SAME_STUDY');
+    check(true,'G5_V2_SYNTHETIC_EXPLICIT_DENTIST_APPROVAL');
+    // A second genuine reload must restore the edited handle and the
+    // signed source-pixel polyline, not only a stale local SVG.
+    await reopenSelectedG5Study();
+    const afterReloadEditor=page.getByTestId('odf-g5-manual-tracing');
+    await afterReloadEditor.getByRole('button',{name:/Profil cutané/}).click();
+    await page.getByTestId('g5-bezier-mode-toggle').click();
+    const loadedHandle=page.getByTestId('g5-bezier-handle-1-incoming');
+    await loadedHandle.waitFor({state:'visible',timeout:15000});
+    const loadedSource=await loadedHandle.evaluate(el=>({
+      x:Number(el.getAttribute('cx')),y:Number(el.getAttribute('cy')),
+    }));
+    check(JSON.stringify(loadedSource)===JSON.stringify(afterHandle)
+      &&await page.getByTestId('g5-bezier-anchor-2').count()===1,
+      'G5_V2_REAL_DRAG_EXACT_HANDLE_SURVIVES_FULL_RELOAD');
+    const finalRead=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    const finalBody=await finalRead.json();
+    check(finalRead.status()===200&&finalBody.approved
+      &&JSON.stringify(finalBody.contours.find(c=>c.id==='soft_tissue_profile').points)
+        ===JSON.stringify(sampleG5(edited)),
+      'G5_V2_REAL_DRAG_SIGNED_POLYLINE_SURVIVES_RELOAD');
+    await snap('g5-v2-07-signed-real-drag-reopened-test-only');
     report.g5v2={mode:'SYNTHETIC_BEZIER_NODES_NOT_REAL_ANATOMY',
-      status:'V2_API_AND_BROWSER_REOPEN_TEST',node_count:edited.length,
-      sampled_points:sampleG5(edited).length,approved_test_dentist:true,
-      expert_anatomical_validation:false};
+      status:'V2_REAL_MOUSE_DRAG_UI_SAVE_APPROVE_RELOAD_AND_SIGNED_PDF',
+      node_count:edited.length,sampled_points:sampleG5(edited).length,
+      browser_mouse_drag:true,ui_saved:true,ui_approved:true,
+      handle_index:1,handle_kind:'incoming',
+      before_source_px:beforeHandle,after_source_px:afterHandle,
+      approved_test_dentist:true,expert_anatomical_validation:false};
     report.g5={mode:'SYNTHETIC_BROWSER_STROKES_NOT_EXPERT_CONTOURS',
       status:'TECHNICAL_E2E_ONLY',approved_test_dentist:true,
       contour_count:6,expert_anatomical_validation:false};
