@@ -176,10 +176,21 @@ try {
   await page.getByRole('button',{name:'Égaliser 50/50'}).click();
   pass('R3-1 reset restores strict 50/50',await separator.getAttribute('aria-valuenow')==='50');
 
+  // Keyboard focus and reset can scroll the page. Mouse coordinates alone do not
+  // auto-scroll a DOM target: prove the actual separator is under the pointer.
+  await separator.scrollIntoViewIfNeeded();
+  await separator.hover();
   const grip=await separator.boundingBox();
   const bounds=await page.locator('[data-testid="r3-1-grid"]').boundingBox();
   if(!grip || !bounds)throw Error('Real R3-1 separator geometry missing');
-  await page.mouse.move(grip.x+grip.width/2,grip.y+grip.height/2);
+  const gripX=grip.x+grip.width/2;
+  const gripY=grip.y+grip.height/2;
+  const hit=await page.evaluate(({x,y})=>
+    Boolean(document.elementFromPoint(x,y)?.closest('[data-testid="r3-1-separator"]')),
+    {x:gripX,y:gripY});
+  pass('R3-1 Chromium pointer target is really hit-testable',hit,
+    {gripX,gripY,viewport:{width:1920,height:1080}});
+  await page.mouse.move(gripX,gripY);
   await page.mouse.down();
   await page.mouse.move(bounds.x+bounds.width*0.6,grip.y+grip.height/2,{steps:9});
   await page.mouse.up();
