@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Exact-diff proof for waves 02, 03 and 04: bounded neutral Tailwind class changes.
+"""Exact-diff proof for waves 02–05: bounded neutral + semantic status Tailwind changes.
 
-No semantic status colors, chart meaning, printed content or clinical logic is
-transformed by this codemod; it deliberately leaves dark/neutrals used as
-scrims and low-opacity white overlays for subsequent targeted review.
+Status shades are mapped only to existing danger/success/warning role tokens;
+brand palettes, saturated button fills, chart meaning, printed content and
+clinical logic remain unchanged. Dark scrims are deliberately excluded.
 """
 from __future__ import annotations
 
@@ -62,6 +62,37 @@ FILES = (
     "frontend/src/components/odontogram/TreatmentSelector.tsx",
     "frontend/src/features/patients/PatientDocuments.tsx",
 )
+STATUS_FILES = (
+    "frontend/src/features/admin/AccountingStudioLegacy.tsx",
+    "frontend/src/features/superadmin/SuperAdminDashboard.tsx",
+    "frontend/src/features/agenda/AgendaModal.tsx",
+    "frontend/src/pages/AccountingPage.tsx",
+    "frontend/src/features/admin/TeamManager.tsx",
+    "frontend/src/features/admin/Settings/tabs/CatalogTab.tsx",
+    "frontend/src/pages/StockPage.tsx",
+    "frontend/src/components/LabJobsBoard.tsx",
+    "frontend/src/pages/Analytics.tsx",
+    "frontend/src/features/patients/components/ClinicalHubCore.tsx",
+    "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx",
+    "frontend/src/features/patients/CnssInsuranceSubmissionReview.tsx",
+    "frontend/src/features/patients/AddPatientForm.tsx",
+    "frontend/src/features/patients/PatientDocuments.tsx",
+    "frontend/src/features/patients/components/PatientFinances.tsx",
+    "frontend/src/features/patients/PatientList.tsx",
+    "frontend/src/features/patients/EditPatientForm.tsx",
+    "frontend/src/features/patients/components/PatientCompanionPanel.tsx",
+    "frontend/src/features/patients/components/PatientJourney.tsx",
+    "frontend/src/features/patients/components/MotifSelector.tsx",
+    "frontend/src/features/admin/Settings/tabs/AgendaTab.tsx",
+    "frontend/src/features/agenda/AgendaStudio.tsx",
+    "frontend/src/pages/PatientCompanionPage.tsx",
+    "frontend/src/pages/PartnerCatalogAdminPage.tsx",
+    "frontend/src/pages/Dashboard.tsx",
+    "frontend/src/pages/LoginPage.tsx",
+    "frontend/src/features/admin/DocumentStudio/HouseWizard.tsx",
+)
+STATUS = re.compile(r"(?<![\w/-])((?:[\w-]+:)*)(bg|text|border)-(red|rose|emerald|green|amber|orange)-(\d{2,3})(/\d+)?(?![\w/-])")
+
 NEUTRAL = re.compile(r"(?<![\w/-])((?:[\w-]+:)*)(bg|text|border|divide|placeholder)-(slate|gray|zinc)-(\d{2,3})(/\d+)?(?![\w/-])")
 WHITE = re.compile(r"(?<![\w/-])((?:[\w-]+:)*)bg-white(/(\d{1,3}))?(?![\w/-])")
 
@@ -88,14 +119,34 @@ def migrate(src: str) -> str:
     return WHITE.sub(replace_white, result)
 
 
+
+def migrate_status(src: str) -> str:
+    """Unambiguous semantic statuses only: no saturated fills or dark charts."""
+    def replace(m: re.Match[str]) -> str:
+        prefix, utility, shade_name, shade, alpha = m.groups()
+        role = ("danger" if shade_name in ("red", "rose")
+                else "success" if shade_name in ("emerald", "green") else "warning")
+        level = int(shade)
+        new = None
+        if utility == "text" and level >= 300:
+            new = "text-" + role
+        elif utility == "border" and level <= 300:
+            new = "border-" + role + "-border"
+        elif utility == "bg" and level <= 100:
+            new = "bg-" + role + "-surface"
+        return prefix + new + (alpha or "") if new else m.group(0)
+    return STATUS.sub(replace, src)
+
+
 def test_exact_diff() -> int:
     # Verifies text *byte-for-byte* after the finite, whitelisted palette
     # mapping: no API, auth, patient, calculation or TSX expression edit can pass.
     results: list[tuple[str, int]] = []
-    for file in FILES:
+    for file in sorted(set(FILES) | set(STATUS_FILES)):
         original = subprocess.check_output(["git", "show", BASE + ":" + file], cwd=ROOT).decode("utf-8")
         current = (ROOT / file).read_text(encoding="utf-8")
-        expected = migrate(original)
+        neutral_expected = migrate(original) if file in FILES else original
+        expected = migrate_status(neutral_expected) if file in STATUS_FILES else neutral_expected
         if current != expected:
             print("THEME_NEUTRAL_BATCH_NONCOSMETIC_DIFF_REFUSED", file)
             return 1
@@ -106,18 +157,25 @@ def test_exact_diff() -> int:
         from difflib import SequenceMatcher
         # Measurable count = old palette class count minus new palette class count,
         # using exactly the two source regexes, matching the migration's audit.
-        count = len(NEUTRAL.findall(original)) + len(WHITE.findall(original))
-        count -= len(NEUTRAL.findall(current)) + len(WHITE.findall(current))
+        count = 0
+        if file in FILES:
+            count += len(NEUTRAL.findall(original)) + len(WHITE.findall(original))
+            count -= len(NEUTRAL.findall(neutral_expected)) + len(WHITE.findall(neutral_expected))
+        if file in STATUS_FILES:
+            count += len(STATUS.findall(neutral_expected)) - len(STATUS.findall(current))
         results.append((file, count))
 
     total = sum(x[1] for x in results)
-    if total < 2200:
+    if total < 2700:
         print("THEME_NEUTRAL_BATCH_REDUCTION_TOO_SMALL", total)
         return 1
     css = (ROOT / "frontend/src/index.css").read_text(encoding="utf-8")
     for role in ("--color-background:", "--color-card:", "--color-input-field:",
                  "--color-text-main:", "--color-text-muted:", "--color-border-main:",
-                 "--color-border-hover:"):
+                 "--color-border-hover:", "--color-success:", "--color-success-border:",
+                 "--color-success-surface:", "--color-danger:", "--color-danger-border:",
+                 "--color-danger-surface:", "--color-warning:", "--color-warning-border:",
+                 "--color-warning-surface:"):
         if role not in css:
             print("THEME_NEUTRAL_BATCH_MISSING_ROLE", role)
             return 1
@@ -125,7 +183,7 @@ def test_exact_diff() -> int:
         if "[data-theme='" + theme + "']" not in css:
             print("THEME_NEUTRAL_BATCH_MISSING_THEME", theme)
             return 1
-    print("THEME_NEUTRAL_WAVES02_03_04_PASS", {"files": len(results), "neutralClassesRemoved": total,
+    print("THEME_NEUTRAL_AND_STATUS_WAVES02_TO_05_PASS", {"files": len(results), "semanticColorsRemoved": total, "statusOnlyFiles": len(set(STATUS_FILES) - set(FILES)),
                                        "noBehaviorOrStructureChanges": True})
     return 0
 
