@@ -52,7 +52,9 @@ jobs:
           git clone --filter=blob:none --depth=1 --no-checkout \
             https://github.com/melihoz/AKUDENTAL.git third_party/AKUDENTAL
           git -C third_party/AKUDENTAL sparse-checkout set --no-cone \
-            'AKUDENTAL/folds/fold_0/labels/'
+            '/AKUDENTAL/folds/fold_0/labels/train/*.txt' \
+            '/AKUDENTAL/folds/fold_0/labels/val/*.txt' \
+            '/AKUDENTAL/folds/fold_0/labels/test/*.txt'
           git -C third_party/AKUDENTAL checkout --detach \
             92e2cc3ae5eebc9de509311a3edefb7106fca7dd
           test "$(git -C third_party/AKUDENTAL rev-parse HEAD)" = \
