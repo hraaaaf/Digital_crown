@@ -46,7 +46,7 @@ export function PatientDraftRouteGuard({ children }: { children: ReactNode }) {
       {children}
       {scope && blocker.state === 'blocked' && (
         <div
-          className="fixed inset-0 z-[10020] flex items-center justify-center bg-slate-950/70 p-4"
+          className="fixed inset-0 z-[10020] flex items-center justify-center bg-black/70 p-4"
           role="presentation"
         >
           <section
@@ -60,12 +60,12 @@ export function PatientDraftRouteGuard({ children }: { children: ReactNode }) {
                 stayOnPatient();
               }
             }}
-            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-border-main bg-card p-6 text-text-main shadow-2xl"
           >
-            <h2 id="patient-draft-exit-heading" className="text-lg font-bold text-slate-900">
+            <h2 id="patient-draft-exit-heading" className="text-lg font-bold text-text-main">
               Brouillon non enregistré
             </h2>
-            <p id="patient-draft-exit-description" className="mt-2 text-sm text-slate-700">
+            <p id="patient-draft-exit-description" className="mt-2 text-sm text-text-muted">
               Vous avez des modifications non enregistrées dans ce dossier.
               Voulez-vous rester pour les conserver ou quitter sans sauvegarder ?
             </p>
@@ -74,14 +74,14 @@ export function PatientDraftRouteGuard({ children }: { children: ReactNode }) {
                 ref={stayButton}
                 type="button"
                 onClick={stayOnPatient}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900"
+                className="rounded-lg border border-border-main bg-card px-4 py-2 text-sm font-semibold text-text-main hover:bg-input-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 Rester sur ce dossier
               </button>
               <button
                 type="button"
                 onClick={discardAndProceed}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                className="rounded-lg border border-danger-border bg-danger-surface px-4 py-2 text-sm font-semibold text-danger hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
               >
                 Quitter sans sauvegarder
               </button>
