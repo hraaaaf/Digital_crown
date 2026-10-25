@@ -68,13 +68,11 @@ async function zoom(worker, value) {
   return z;
 }
 const descriptors = {
-  launcher: /ouvrir crownbot/i,
   message: /votre message [àa] crown bot/i,
   send: /envoyer/i,
   confirmation: /confirmer explicitement cette action/i,
 };
 const roleMatches = {
-  launcher: s=>descriptors.launcher.test(s) && /button|bouton/i.test(s),
   message: s=>descriptors.message.test(s) && /edit|[ée]dition|textbox/i.test(s),
   send: s=>descriptors.send.test(s) && /button|bouton/i.test(s),
   confirmation: s=>descriptors.confirmation.test(s) && /button|bouton/i.test(s),
@@ -159,7 +157,7 @@ try {
   const panel=page.getByRole('region',{name:'Conversation Crown Bot — actions guidées CB-03'});
   await panel.waitFor();
   const controls={
-    launcher, message:page.getByRole('textbox',{name:'Votre message à Crown Bot'}),
+    message:page.getByRole('textbox',{name:'Votre message à Crown Bot'}),
     send:page.getByRole('button',{name:'Envoyer'}),
   };
   for(const [key,loc] of Object.entries(controls))
