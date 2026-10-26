@@ -375,3 +375,26 @@
     grid-row: 2;
   }
 }
+
+/*
+ * R3 visual alignment — Treatment Plan "hero + two" preset only.
+ * Keep the approved left-hero/right-stack geometry, but fit its grid within
+ * a 1080p Cabinet viewport. The old generic 78vh fixed height left a vast
+ * empty Plan panel and pushed the real Media viewer below the visible fold.
+ * Prioritize the media row while preserving independent read-only scroll.
+ * Does not change geometry validation, permissions, data or other presets.
+ */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="planification-traitements"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"] {
+  height: min(61vh, 680px);
+  min-height: 560px;
+  max-height: 680px;
+  grid-template-rows: minmax(210px, 0.78fr) minmax(340px, 1.22fr) !important;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="planification-traitements"]
+  [data-v15-071-geometry="hero-two"] > [data-v15-071-viewslot] {
+  min-height: 0;
+  overflow-y: auto;
+}
