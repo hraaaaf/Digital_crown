@@ -37,10 +37,10 @@ export const Step7Confirmation: React.FC<Props> = ({
       <section className="p-5 sm:p-6 bg-card/60 rounded-3xl border border-border-main shadow-inner">
         <div className="flex justify-between items-start mb-4 gap-4">
           <div className="min-w-0">
-            <p className="text-[9px] font-black text-primary uppercase tracking-widest">Structure d’exercice</p>
+            <p className="text-[9px] font-black text-text-main uppercase tracking-widest">Structure d’exercice</p>
             <h3 className="mt-1 text-lg font-black text-text-main break-words">{valueOrDash(identity.nomCabinet)}</h3>
           </div>
-          <div className="w-10 h-10 shrink-0 rounded-xl bg-card flex items-center justify-center"><Building2 size={20} className="text-primary" /></div>
+          <div className="w-10 h-10 shrink-0 rounded-xl bg-card flex items-center justify-center"><Building2 size={20} className="text-text-main" /></div>
         </div>
         <div className="space-y-3 pt-4 border-t border-border-main">
           <div className="flex items-start gap-2 text-xs text-text-main font-medium"><MapPin size={14} className="mt-0.5 shrink-0 text-text-muted" /> {valueOrDash(identity.adresse)}</div>
@@ -56,30 +56,30 @@ export const Step7Confirmation: React.FC<Props> = ({
 
       <section className="p-5 sm:p-6 bg-primary/5 rounded-3xl border border-primary/10">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 shrink-0 rounded-xl bg-card flex items-center justify-center text-primary"><UserRound size={20} /></div>
+          <div className="w-10 h-10 shrink-0 rounded-xl bg-card flex items-center justify-center text-text-main"><UserRound size={20} /></div>
           <div className="min-w-0">
-            <p className="text-[9px] font-black text-primary uppercase tracking-widest">Praticien principal</p>
+            <p className="text-[9px] font-black text-text-main uppercase tracking-widest">Praticien principal</p>
             <p className="mt-1 text-sm font-black text-text-main break-words">{valueOrDash(identity.nomPraticien)}</p>
             {identity.nomPraticienAR && <p dir="rtl" className="mt-1 text-sm font-bold font-arabic text-text-main">{identity.nomPraticienAR}</p>}
-            <div className="mt-3 flex items-center gap-2 text-xs text-text-main"><BadgeCheck size={14} className="text-primary" /> INPE professionnel : {valueOrDash(identity.inpe)}</div>
+            <div className="mt-3 flex items-center gap-2 text-xs text-text-main"><BadgeCheck size={14} className="text-text-main" /> INPE professionnel : {valueOrDash(identity.inpe)}</div>
           </div>
         </div>
       </section>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
-          <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Police & Identité visuelle</p>
+          <p className="text-[9px] font-black text-text-main uppercase tracking-widest mb-1">Police & Identité visuelle</p>
           <p className="text-xs font-bold text-text-main capitalize">{selectedFont} / {BRAND_IDENTITIES.find(i => i.id === selectedIdentity)?.name}</p>
         </div>
         <div className="p-4 bg-card rounded-2xl border border-border-main">
-          <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Design & Ambiance</p>
+          <p className="text-[9px] font-black text-text-main uppercase tracking-widest mb-1">Design & Ambiance</p>
           <p className="text-xs font-bold text-text-main capitalize">{selectedTheme}</p>
         </div>
         <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 sm:col-span-2">
           <div className="flex items-start gap-3">
-            <QrCode size={18} className="shrink-0 text-primary" />
+            <QrCode size={18} className="shrink-0 text-text-main" />
             <div>
-              <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">QR Code</p>
+              <p className="text-[9px] font-black text-text-main uppercase tracking-widest mb-1">QR Code</p>
               <p className="text-xs font-bold text-text-main">
                 {qrConfig.enabled ? `${qrConfig.type} : ${qrConfig.label || 'Sans libellé'}` : 'Désactivé'}
               </p>
