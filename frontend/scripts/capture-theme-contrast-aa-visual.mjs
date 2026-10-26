@@ -87,6 +87,10 @@ try {
           if(!pageRoot) throw new Error('WelcomeScreen background root missing');
           if(phase==='before') pageRoot.style.backgroundColor='#f8fafc';
           else pageRoot.style.removeProperty('background-color');
+          const originalLogo=document.querySelector('img[alt="Digital Crown"]');
+          if(!originalLogo) throw new Error('WelcomeScreen logo missing for BEFORE comparison');
+          if(phase==='before') originalLogo.style.setProperty('filter','none','important');
+          else originalLogo.style.removeProperty('filter');
         }
       },{phase,color:beforeColors[theme]});
       await page.waitForTimeout(80);
@@ -126,8 +130,9 @@ try {
       }
       state.samples.forEach(x=>{x.ratio=ratio(x.color,x.background);if(phase==='after' && x.ratio<4.5) report.failures.push(theme+' '+viewport.width+' '+x.label+' contrast '+x.ratio.toFixed(2)+' < 4.5');});
       if(state.scrollWidth>state.clientWidth) report.failures.push(theme+' '+viewport.width+' horizontal overflow');
-      if(['dark','prestige'].includes(theme) && state.logoFilter!=='brightness(0) invert(1)') report.failures.push(theme+' '+viewport.width+' logo filter missing: '+state.logoFilter);
-      if(!['dark','prestige'].includes(theme) && state.logoFilter!=='none') report.failures.push(theme+' '+viewport.width+' unexpected logo filter: '+state.logoFilter);
+      if(phase==='before' && state.logoFilter!=='none') report.failures.push(theme+' '+viewport.width+' BEFORE original logo filter mismatch: '+state.logoFilter);
+      if(phase==='after' && ['dark','prestige'].includes(theme) && state.logoFilter!=='brightness(0) invert(1)') report.failures.push(theme+' '+viewport.width+' AFTER logo filter missing: '+state.logoFilter);
+      if(phase==='after' && !['dark','prestige'].includes(theme) && state.logoFilter!=='none') report.failures.push(theme+' '+viewport.width+' AFTER unexpected logo filter: '+state.logoFilter);
       if(errors.length) report.failures.push(theme+' '+viewport.width+' '+errors.join('; '));
       const expected = phase==='before'?beforeColors[theme]:afterColors[theme];
       if(state.computedMuted.toLowerCase()!==expected) report.failures.push(theme+' '+viewport.width+' '+phase+' muted expected '+expected+' got '+state.computedMuted);
