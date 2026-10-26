@@ -136,10 +136,19 @@ try {
 
   const pane=page.locator('[data-r3-1-split="two-columns"]');
   await pane.waitFor({state:'visible',timeout:25000});
+  const patientHeader=page.locator('[data-r3-1-patient-header="nonsticky"]');
+  pass('R3 premium patient header is not sticky over clinical controls',
+    await patientHeader.count()===1 &&
+    await patientHeader.evaluate(el=>getComputedStyle(el).position!=='sticky'));
+  pass('R3 premium controls are grouped without changing R-only permissions',
+    await page.locator('[data-testid="r3-1-premium-actions"]').count()===1 &&
+    await page.locator('[data-testid="r3-1-dossier-readonly-help"]').count()===1);
   pass('R3-1 explicit DEV splitter mounted, not legacy R2',
     await page.locator('[data-testid="r3-1-grid"]').count()===1 &&
     await page.locator('[data-v15-071-multiview-grid]').count()===0);
   const separator=page.locator('[data-testid="r3-1-separator"]');
+  pass('R3 grip offers a visible semantic resize handle',
+    await separator.locator('[aria-hidden="true"]').count()===1);
   pass('genuine vertical splitter starts 50/50',
     await separator.getAttribute('aria-orientation')==='vertical' &&
     await separator.getAttribute('aria-valuenow')==='50');
@@ -204,6 +213,17 @@ try {
   await page.getByRole('button',{name:'Appliquer',exact:true}).click();
   await page.locator('[data-r3-1-split="two-rows"]').waitFor({state:'visible'});
   const rowSep=page.locator('[data-testid="r3-1-separator"]');
+  const rowGrid=page.locator('[data-testid="r3-1-grid"]');
+  await rowGrid.scrollIntoViewIfNeeded();
+  const rowVisibility=await rowGrid.evaluate(el=>{
+    const a=el.querySelector('[aria-label="Panneau 1"]')?.getBoundingClientRect();
+    const b=el.querySelector('[aria-label="Panneau 2"]')?.getBoundingClientRect();
+    const view=window.innerHeight;
+    const visible=(r)=>r?Math.max(0,Math.min(view,r.bottom)-Math.max(0,r.top)):0;
+    return {a:visible(a),b:visible(b),viewport:view};
+  });
+  pass('R3-1 two-row real modules are both visible in a 1080p viewport',
+    rowVisibility.a>=160 && rowVisibility.b>=160,rowVisibility);
   pass('real R3-1 horizontal 50/50 with accessible separator',
     await rowSep.getAttribute('aria-orientation')==='horizontal' &&
     await rowSep.getAttribute('aria-valuenow')==='50');
@@ -216,6 +236,13 @@ try {
   pass('R3-1 content-fit explicit, without interactive separator',
     await page.locator('[data-r3-1-mode="content-fit"]').count()===1 &&
     await page.locator('[data-testid="r3-1-separator"]').count()===0);
+  const fit=await page.locator('[data-testid="r3-1-grid"]').evaluate(el=>{
+    const a=el.querySelector('[aria-label="Panneau 1"]')?.getBoundingClientRect();
+    const b=el.querySelector('[aria-label="Panneau 2"]')?.getBoundingClientRect();
+    return {firstHeight:a?.height||0,secondHeight:b?.height||0};
+  });
+  pass('R3-1 content-fit caps dossier while preserving media height',
+    fit.firstHeight>0 && fit.firstHeight<=342 && fit.secondHeight>=219,fit);
   await capture(page,'after-r3-1-two-rows-content-fit-high-contrast-1920.png');
   pass('nine unintegrated presets still unavailable',
     await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9);
