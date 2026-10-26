@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Maximize2, RotateCcw } from 'lucide-react';
 import { authorizeLayout, type Layout, type Slot, type WorkspaceContext } from './studioLayouts';
 import { StudioLayoutFrame } from './StudioLayoutFrame';
+import { R3_MODULE_LABEL } from './R3ModuleChoice';
 
 /**
  * LOT07 R3-2 — isolated DEV-only, three REAL read-only clinical modules.
@@ -44,7 +45,7 @@ export function R3ThreePaneWorkspace({layout, context, renderSlot}: {
               title={'Agrandir : ' + slot.module}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border-main bg-card px-2.5 py-2 text-xs font-medium text-text-main hover:bg-medical-pearl focus-visible:outline-2 focus-visible:outline-primary">
               <Maximize2 size={14} aria-hidden="true" />
-              {slot.module==='dossier'?'Dossier':slot.module==='imagerie'?'Médias':'Suivi'}
+              {R3_MODULE_LABEL[slot.module as keyof typeof R3_MODULE_LABEL] ?? slot.module}
             </button>)}
           </div>}
     </div>
