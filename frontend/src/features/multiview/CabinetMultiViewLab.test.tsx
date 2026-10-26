@@ -156,6 +156,28 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
   });
 
+  it('R3 premium toolbar groups actions while retaining the R-only, nine-disabled-preset contract',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()} enableR3Split/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('r3-1-premium-actions')).toBeTruthy();
+    expect(screen.getByRole('group',{name:'Disposition des panneaux'})).toBeTruthy();
+    expect(screen.getByRole('group',{name:'Outils de disposition'})).toBeTruthy();
+    expect(screen.getByRole('group',{name:'Confirmation de disposition'})).toBeTruthy();
+    expect(screen.getByTestId('r3-1-dossier-readonly-help').textContent).toContain('consultation seule');
+    expect(screen.getByRole('combobox',{name:'Disposition MultiView'}).querySelectorAll('option:disabled')).toHaveLength(9);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getByRole('button',{name:'Appliquer'}).hasAttribute('disabled')).toBe(true);
+    fireEvent.change(screen.getByRole('combobox',{name:'Disposition MultiView'}),{target:{value:'dossier-media-2rows'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    expect(screen.getByTestId('multiview-schematic-preview')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByRole('separator',{name:'Séparateur horizontal des panneaux'})).toBeTruthy();
+    expect(screen.queryByTestId('multiview-schematic-preview')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
+    expect(screen.getByRole('separator',{name:'Séparateur vertical des panneaux'})).toBeTruthy();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+  });
+
   it('does not offer longitudinal comparison without the canonical cephalo permission',async()=>{
     const actor=user({patients:true,cephalo:false});
     useAuthStore.setState({user:actor,isAuthenticated:true});
