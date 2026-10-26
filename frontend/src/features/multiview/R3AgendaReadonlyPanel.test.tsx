@@ -33,7 +33,8 @@ describe('LOT07 R3 real authenticated Cabinet agenda — R-only',()=>{
   it('redacts appointment identities when Agenda is allowed but Patients is denied',()=>{
     render(<R3AgendaReadonlyPanel user={actor({agenda:true,patients:false})}/>);
     expect(screen.queryByText('A Synthetic')).toBeNull();
-    expect(screen.getByText('Rendez-vous')).toBeTruthy();
+    expect(screen.getAllByText('Rendez-vous').length).toBeGreaterThan(0);
+    expect(screen.getByRole('row',{name:/09:30 Rendez-vous CONFIRMÉ/})).toBeTruthy();
   });
 
   it('refuses absent Agenda permission, and never presents malformed API data as empty',()=>{
