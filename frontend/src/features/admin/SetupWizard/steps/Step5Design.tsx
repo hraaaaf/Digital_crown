@@ -113,10 +113,10 @@ export const Step5Design: React.FC<Props> = ({
                       <div className="flex-1" style={{ backgroundColor: palette.secondary }} />
                       <div className="flex-1" style={{ backgroundColor: palette.accent }} />
                     </div>
-                    <span className={cn("text-[13px] font-medium leading-tight", isSelected ? "text-primary" : "text-text-muted group-hover:text-text-main")}>
+                    <span className={cn("text-[13px] font-medium leading-tight", isSelected ? "text-text-main" : "text-text-muted group-hover:text-text-main")}>
                       {palette.name}
                     </span>
-                    {isSelected && <Check size={14} className="ml-auto text-primary" />}
+                    {isSelected && <Check size={14} className="ml-auto text-text-main" />}
                   </button>
                 );
               })}
@@ -138,7 +138,7 @@ export const Step5Design: React.FC<Props> = ({
                     )}
                   >
                     <div>
-                      <div className={cn("text-[16px] leading-tight mb-1", font.class, isSelected ? "text-primary" : "text-text-main")}>
+                      <div className={cn("text-[16px] leading-tight mb-1", font.class, isSelected ? "text-text-main" : "text-text-main")}>
                         {font.name}
                       </div>
                       <div className="text-[13px] text-text-muted">{font.desc}</div>
@@ -164,9 +164,9 @@ export const Step5Design: React.FC<Props> = ({
                       isSelected ? "border-primary bg-primary/5" : "border-border-main hover:border-border-hover"
                     )}
                   >
-                    <span className={cn("text-[13px] font-bold leading-tight", isSelected ? "text-primary" : "text-text-main")}>{tpl.name}</span>
+                    <span className={cn("text-[13px] font-bold leading-tight", isSelected ? "text-text-main" : "text-text-main")}>{tpl.name}</span>
                     <span className="text-[11px] text-text-muted">{tpl.desc}</span>
-                    {isSelected && <Check size={14} className="absolute top-3 right-3 text-primary" />}
+                    {isSelected && <Check size={14} className="absolute top-3 right-3 text-text-main" />}
                   </button>
                 );
               })}
@@ -182,7 +182,7 @@ export const Step5Design: React.FC<Props> = ({
                   onClick={() => handleDensityClick(d)}
                   className={cn(
                     "flex-1 py-2 font-medium text-[13px] rounded-lg transition-all capitalize",
-                    currentDensity === d ? "bg-card text-primary shadow-sm" : "text-text-muted hover:text-text-main"
+                    currentDensity === d ? "bg-card text-text-main shadow-sm" : "text-text-muted hover:text-text-main"
                   )}
                 >
                   {d}
@@ -194,7 +194,7 @@ export const Step5Design: React.FC<Props> = ({
               <div>
                 <div className="flex justify-between mb-2">
                   <label className="text-[13px] text-text-muted">Marge supérieure</label>
-                  <span className="text-[13px] font-medium text-primary">{margins.top}cm</span>
+                  <span className="text-[13px] font-medium text-text-main">{margins.top}cm</span>
                 </div>
                 <input type="range" min="1" max="8" step="0.1" value={margins.top} onChange={e => setMargins(m => ({ ...m, top: parseFloat(e.target.value) }))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
               </div>
@@ -202,7 +202,7 @@ export const Step5Design: React.FC<Props> = ({
                 <div>
                   <div className="flex justify-between mb-2">
                     <label className="text-[13px] text-text-muted">Taille du logo</label>
-                    <span className="text-[13px] font-medium text-primary">{Math.round(advanced.headerLogoScale * 100)}%</span>
+                    <span className="text-[13px] font-medium text-text-main">{Math.round(advanced.headerLogoScale * 100)}%</span>
                   </div>
                   <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.headerLogoScale} onChange={e => advanced.setHeaderLogoScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
                 </div>
