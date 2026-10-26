@@ -12,7 +12,7 @@ TRANSFORMS={
     "bg-blue-50/50": "bg-card/50",
     "bg-white/70": "bg-card/70",
     "bg-white": "bg-card",
-    "text-blue-700": "text-primary",
+    "text-blue-700": "text-text-main",
     "text-blue-900/70": "text-text-muted",
     "border-slate-100": "border-border-main",
     "border-emerald-500": "border-primary",
@@ -39,7 +39,7 @@ TRANSFORMS={
     "text-slate-600": "text-text-main",
     "bg-blue-50/60": "bg-card/60",
     "border-blue-100": "border-border-main",
-    "text-blue-700": "text-primary",
+    "text-blue-700": "text-text-main",
     "bg-white": "bg-card",
     "bg-emerald-50": "bg-card",
     "border-emerald-100": "border-border-main",
@@ -61,6 +61,17 @@ def replace_text(text,path):
             out=re.sub(r"(?<![\w/-])"+re.escape(old)+r"(?![\w/-])",lambda _:new,out)
         if path.endswith("PWAInstallPrompt.tsx") and "bg-amber-500" in line:
             out=out.replace("text-text-main","text-on-primary")
+        if path.endswith("Step1Identity.tsx"):
+            out=out.replace("bg-card text-primary shadow-sm","bg-card text-text-main shadow-sm")
+            out=out.replace("tracking-widest text-primary","tracking-widest text-text-main")
+        elif path.endswith("Step2Specialties.tsx"):
+            out=out.replace('selectedSpecialties.includes(spec.id) ? "text-primary" :','selectedSpecialties.includes(spec.id) ? "text-text-main" :')
+        elif path.endswith("Step7Confirmation.tsx"):
+            out=out.replace("text-primary uppercase tracking-widest","text-text-main uppercase tracking-widest")
+            out=out.replace("bg-card flex items-center justify-center text-primary","bg-card flex items-center justify-center text-text-main")
+            out=out.replace('<Building2 size={20} className="text-primary" />','<Building2 size={20} className="text-text-main" />')
+            out=out.replace('<BadgeCheck size={14} className="text-primary" />','<BadgeCheck size={14} className="text-text-main" />')
+            out=out.replace('<QrCode size={18} className="shrink-0 text-primary" />','<QrCode size={18} className="shrink-0 text-text-main" />')
         lines.append(out)
     return "\n".join(lines)
 
