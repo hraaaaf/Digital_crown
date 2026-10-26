@@ -29,6 +29,13 @@ if is_known_cabinet_database(target) or (
 ):
     raise RuntimeError("REFUSED: R3 CEPHALO QA database identity mismatch")
 
+# The disposable T2 server sets this *test-only* storage key before importing
+# database.py. A separate QA seeder is a new process and MUST use the exact
+# same key; otherwise SQLCipher refuses the already-encrypted T2 database.
+# These values are permitted only after the strict T2 fingerprint guard above.
+os.environ["SECRET_KEY"] = "t2-runtime-certification-secret-key-000001"
+os.environ["MOBILE_PAIRING_KEY_HEX"] = "2" * 64
+
 from backend import database, models
 
 with database.SessionLocal() as db:
