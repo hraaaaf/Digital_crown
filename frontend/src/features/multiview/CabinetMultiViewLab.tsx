@@ -9,6 +9,7 @@ import { PatientMediaTimeline } from '../patients/components/PatientMediaTimelin
 import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
 import { StudioLayoutFrame } from './StudioLayoutFrame';
 import { R3SplitWorkspace } from './R3SplitWorkspace';
+import { R3ThreePaneWorkspace } from './R3ThreePaneWorkspace';
 import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
 import { geometryGridStyle, geometrySlotStyle } from './studioGeometry';
@@ -28,6 +29,11 @@ export function isCabinetMultiViewLabEnabled(dev: boolean, flag: string | undefi
 
 /** R3-1 is a second independent DEV-only opt-in, never inferred from R2. */
 export function isR3SplitLabEnabled(dev: boolean, flag: string | undefined): boolean {
+  return dev === true && flag === '1';
+}
+
+/** R3-2 needs a third independent DEV opt-in; never implies R3-1 or production access. */
+export function isR3FocusLabEnabled(dev: boolean, flag: string | undefined): boolean {
   return dev === true && flag === '1';
 }
 
@@ -70,12 +76,14 @@ function tenantKey(user: AppUser | null): string | null {
  * Reuses ONE authenticated read-only PatientMediaTimeline and optional existing longitudinal
  * comparison; never mounts arbitrary module names or second CephaloWorkspace.
  */
-export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Split = false}: {
+export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Split = false, enableR3Focus = false}: {
   patient: MultiViewPatient;
   routePatientId: string | undefined;
   user: AppUser | null;
   /** R3-1 opt-in development pilot only. R2 production path is untouched. */
   enableR3Split?: boolean;
+  /** R3-2 extra opt-in; requires R3-1 DEV opt-in and verified cephalo permission. */
+  enableR3Focus?: boolean;
 }) {
   const desktop = useSyncExternalStore(desktopSubscribe, desktopSnapshot, () => false);
   const [workstationProof,setWorkstationProof] = useState<{key:string;id:string}|null>(null);
@@ -175,9 +183,13 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const possible=selectablePilotLayouts(canCephalo);
   const applied=possible.find(item=>item.id===appliedId) || possible[0];
   const draft=possible.find(item=>item.id===draftId) || applied;
-  // Premium controls exist only in the real DEV R3 two-pane pilot, not R2/production.
+  // R3-2 is additive: no three-pane focus without R3-1 and an independent flag.
+  // The normal R2 and the nine unconnected product presets remain unchanged.
+  const r3FocusPilot = enableR3Split && enableR3Focus && import.meta.env.DEV;
+  const r3ThreePane = r3FocusPilot && canCephalo &&
+    (applied.geometry==='three-columns' || applied.geometry==='hero-two');
   const premiumR3 = enableR3Split && import.meta.env.DEV &&
-    (applied.geometry==='two-columns' || applied.geometry==='two-rows');
+    (applied.geometry==='two-columns' || applied.geometry==='two-rows' || r3ThreePane);
   const mounted: Layout = exchanged && applied.slots.length>1
     ? {...applied,slots:[...applied.slots].reverse()} : applied;
   const context: WorkspaceContext = {
@@ -420,8 +432,11 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
         : (enableR3Split && import.meta.env.DEV &&
             (mounted.geometry==='two-columns' || mounted.geometry==='two-rows')
           ? <R3SplitWorkspace key={mounted.id + ':' + splitResetEpoch} layout={mounted} context={context} renderSlot={renderSlot}/>
-          : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
-              renderSlot={renderSlot}/>)} 
+          : (r3ThreePane
+            ? <R3ThreePaneWorkspace key={mounted.id + ':' + splitResetEpoch}
+                layout={mounted} context={context} renderSlot={renderSlot}/>
+            : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
+                renderSlot={renderSlot}/>))} 
     </div>
   );
 }
