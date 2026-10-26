@@ -1,0 +1,61 @@
+name: Theme Wave05 — Exact Semantic Status Roles (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/theme-status-wave05-20261025
+  pull_request:
+    branches:
+      - fix/theme-neutral-bulk-wave04-20261025
+permissions:
+  contents: read
+jobs:
+  semantic-status:
+    name: 49 UI sources exact token-only diff, patient accounting tests, TS, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reject noncosmetic diffs across all five waves
+        run: python scripts/ci/theme_neutral_batch02.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Verify patient data-entry, insurance and accounting UX (synthetic)
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/patients/AddPatientForm.g2Interactive.test.tsx \
+            src/features/patients/EditPatientForm.g2Interactive.test.tsx \
+            src/features/patients/PatientDetails.g2Interactive.test.tsx \
+            src/features/patients/CnssInsuranceAction.preferred.test.tsx \
+            src/features/accounting/hooks/useAccountingController.g9Interactive.test.tsx \
+            src/features/admin/Settings/tabs/AgendaTab.g5Interactive.test.tsx \
+            src/features/multiview/themeTokens.r2.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+      - name: Production build (not deployed)
+        working-directory: frontend
+        run: npm run build
+      - name: Scope evidence
+        if: success()
+        run: |
+          echo "Wave05 maps 522 unambiguous status UI shades into existing danger, success and warning theme roles." >> "$GITHUB_STEP_SUMMARY"
+          echo "Combined stacked waves 02-05: 2,732 exact controlled substitutions, 49 TSX sources." >> "$GITHUB_STEP_SUMMARY"
+          echo "No brand/chart saturated fills rewritten. All feature logic, API calls, mutations and permissions remain byte-for-byte identical outside styling." >> "$GITHUB_STEP_SUMMARY"
+          echo "No manual screenshots required only for verified cosmetic token migrations; no merge, deploy, release or clinical activation authorized." >> "$GITHUB_STEP_SUMMARY"

@@ -34,7 +34,7 @@ const StatusBadge: React.FC<{ active: boolean }> = ({ active }) => (
   <span
     className={cn(
       'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide',
-      active ? 'bg-emerald-50 text-emerald-700' : 'bg-input-field text-text-muted',
+      active ? 'bg-success-surface text-success' : 'bg-input-field text-text-muted',
     )}
   >
     {active ? <CheckCircle2 size={12} /> : <CircleOff size={12} />}
@@ -292,7 +292,7 @@ const CatalogFormModal: React.FC<{
           )}
 
           {formError && (
-            <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{formError}</p>
+            <p role="alert" className="rounded-xl bg-danger-surface px-4 py-3 text-sm font-bold text-danger">{formError}</p>
           )}
 
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
@@ -503,13 +503,13 @@ export const CatalogTab: React.FC = () => {
               <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/3 rounded-full bg-rose-500/5 blur-3xl" />
               <div className="relative mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="flex items-center gap-3 text-xl font-black text-text-main">
-                  <span className="rounded-xl bg-rose-100 p-2 text-rose-600"><FolderPlus size={20} /></span>
+                  <span className="rounded-xl bg-danger-surface p-2 text-danger"><FolderPlus size={20} /></span>
                   Pathologies
                 </h3>
                 <button
                   type="button"
                   onClick={() => setModal({ kind: 'pathology', mode: 'create', specialtyId: activeSpecialty.id })}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-700 transition-colors hover:bg-rose-100 sm:w-auto"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-danger-surface px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:bg-danger-surface sm:w-auto"
                 >
                   <Plus size={16} /> Ajouter une pathologie
                 </button>
@@ -536,7 +536,7 @@ export const CatalogTab: React.FC = () => {
                       onClick={() => setModal({ kind: 'pathology', mode: 'edit', specialtyId: activeSpecialty.id, pathology })}
                       aria-label={`Modifier la pathologie ${pathology.name}`}
                       title="Modifier la pathologie"
-                      className="shrink-0 rounded-lg p-2 text-text-muted transition hover:bg-rose-50 hover:text-rose-700"
+                      className="shrink-0 rounded-lg p-2 text-text-muted transition hover:bg-danger-surface hover:text-danger"
                     >
                       <Pencil size={14} />
                     </button>

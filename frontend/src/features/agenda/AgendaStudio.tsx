@@ -210,7 +210,7 @@ export const AgendaStudio: React.FC = () => {
         <div data-tour="agenda-view-switcher" className="w-full lg:w-auto min-w-0 flex flex-wrap items-center justify-center lg:justify-end gap-1 sm:gap-2 bg-input-field/50 p-1.5 rounded-2xl border border-border-main/50 backdrop-blur-md">
           <button
             onClick={() => setIsFrontdeskModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 text-orange-600 hover:bg-orange-100 font-bold text-sm rounded-xl transition-all relative"
+            className="flex items-center gap-2 px-4 py-2.5 text-warning hover:bg-warning-surface font-bold text-sm rounded-xl transition-all relative"
             title="Nouvelle demande de rendez-vous"
           >
             <AlertCircle size={18} />
@@ -278,14 +278,14 @@ export const AgendaStudio: React.FC = () => {
 
       {/* PENDING REQUESTS SECTION */}
       {pendingCount > 0 && (
-        <div className="space-y-3 bg-orange-50 border-2 border-orange-200 rounded-2xl p-6">
+        <div className="space-y-3 bg-warning-surface border-2 border-warning-border rounded-2xl p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black text-orange-800 flex items-center gap-2">
+            <h2 className="text-lg font-black text-warning flex items-center gap-2">
               <AlertCircle size={20} /> Demandes en attente ({pendingCount})
             </h2>
             <button
               onClick={() => setShowPendingOnly(!showPendingOnly)}
-              className="text-xs px-3 py-1.5 bg-orange-200 text-orange-800 rounded-lg hover:bg-orange-300 font-bold"
+              className="text-xs px-3 py-1.5 bg-orange-200 text-warning rounded-lg hover:bg-orange-300 font-bold"
             >
               {showPendingOnly ? 'Afficher tout' : 'Afficher seulement'}
             </button>

@@ -104,7 +104,7 @@ export const AccountingPage = () => {
       if (item.is_collected) {
         return (
           <div className="flex flex-col items-center gap-1">
-            <span className="px-2 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-tighter">
+            <span className="px-2 py-1 text-[10px] font-black rounded-full bg-success-surface text-success uppercase tracking-tighter">
               Encaissé
             </span>
             {item.validated_by && <span className="text-[8px] text-text-muted font-bold uppercase tracking-widest whitespace-nowrap">par {item.validated_by}</span>}
@@ -113,7 +113,7 @@ export const AccountingPage = () => {
       }
       return (
         <div className="flex flex-col items-center gap-1">
-          <span className="px-2 py-1 text-[10px] font-black rounded-full bg-green-100 text-green-700 uppercase tracking-tighter">
+          <span className="px-2 py-1 text-[10px] font-black rounded-full bg-success-surface text-success uppercase tracking-tighter">
             Réglé
           </span>
           {item.validated_by && <span className="text-[8px] text-text-muted font-bold uppercase tracking-widest whitespace-nowrap">par {item.validated_by}</span>}
@@ -138,7 +138,7 @@ export const AccountingPage = () => {
     }
 
     return (
-      <span className="px-2 py-1 text-[10px] font-black rounded-full bg-amber-100 text-amber-700 uppercase tracking-tighter">
+      <span className="px-2 py-1 text-[10px] font-black rounded-full bg-warning-surface text-warning uppercase tracking-tighter">
         En attente
       </span>
     );
@@ -147,9 +147,9 @@ export const AccountingPage = () => {
   const getAssuranceBadge = (assurance: string) => {
     switch (assurance) {
       case 'CNOPS': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-black">CNOPS</span>;
-      case 'CNSS': return <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black">CNSS</span>;
+      case 'CNSS': return <span className="px-2 py-1 bg-success-surface text-success rounded-lg text-[10px] font-black">CNSS</span>;
       case 'MUTUELLE_FAR': return <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-[10px] font-black">FAR</span>;
-      case 'PRIVEE': return <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black">PRIVÉE</span>;
+      case 'PRIVEE': return <span className="px-2 py-1 bg-warning-surface text-warning rounded-lg text-[10px] font-black">PRIVÉE</span>;
       default: return <span className="px-2 py-1 bg-primary/10 text-primary rounded-lg text-[10px] font-black">AUCUNE</span>;
     }
   };
@@ -268,7 +268,7 @@ export const AccountingPage = () => {
                 <span className="text-xs font-bold text-text-muted ml-2">MAD</span>
               </div>
               {trend && (
-                <div className={`mt-4 flex items-center gap-2 ${trend.up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                <div className={`mt-4 flex items-center gap-2 ${trend.up ? 'text-success' : 'text-danger'}`}>
                   <TrendingUp size={14} className={trend.up ? '' : 'rotate-180'} />
                   <span className="text-[10px] font-bold">{trend.up ? '+' : '-'}{trend.pct}% sur la période</span>
                 </div>
@@ -392,7 +392,7 @@ export const AccountingPage = () => {
                     <td className="px-6 py-4 text-sm font-black text-text-main text-right">{amount.toLocaleString('fr-FR')} MAD</td>
                   </tr>
                 ))}
-                <tr className="bg-emerald-50/50">
+                <tr className="bg-success-surface/50">
                   <td className="px-6 py-4 text-sm font-black text-text-main uppercase tracking-widest text-right">Total Général</td>
                   <td className="px-6 py-4 text-lg font-black text-right" style={{ color: 'var(--primary)' }}>{totalAmount.toLocaleString('fr-FR')} MAD</td>
                 </tr>
@@ -404,10 +404,10 @@ export const AccountingPage = () => {
 
       {/* CONFIRMATION SUPPRESSION */}
       {confirmDeleteId && (
-        <div className="flex items-center gap-4 px-5 py-3 bg-rose-50 border border-rose-200 rounded-2xl text-sm font-bold text-rose-700">
+        <div className="flex items-center gap-4 px-5 py-3 bg-danger-surface border border-danger-border rounded-2xl text-sm font-bold text-danger">
           <span className="flex-1">Supprimer cette note définitivement ?</span>
           <button onClick={confirmDelete} className="px-4 py-1.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all">Confirmer</button>
-          <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-1.5 bg-card border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 transition-all">Annuler</button>
+          <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-1.5 bg-card border border-danger-border text-danger rounded-xl hover:bg-danger-surface transition-all">Annuler</button>
         </div>
       )}
 
@@ -519,11 +519,11 @@ export const AccountingPage = () => {
                           {hasMultiple ? (
                              // Si c'est un groupe, on affiche "Encaissé" uniquement si TOUS sont encaissés
                              group.notes.every(n => n.payment_status === 'PAYE' && n.is_collected) ? (
-                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-tighter">Encaissé</span>
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-success-surface text-success uppercase tracking-tighter">Encaissé</span>
                              ) : group.notes.every(n => n.payment_status === 'PAYE') ? (
-                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-green-100 text-green-700 uppercase tracking-tighter">Réglé</span>
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-success-surface text-success uppercase tracking-tighter">Réglé</span>
                              ) : (
-                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-amber-100 text-amber-700 uppercase tracking-tighter">En attente</span>
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-warning-surface text-warning uppercase tracking-tighter">En attente</span>
                              )
                           ) : (
                             getStatusBadge(group.notes[0])
@@ -550,7 +550,7 @@ export const AccountingPage = () => {
                                   <button
                                     onClick={e => { e.stopPropagation(); handleEncaisser(group.notes[0].id, paymentMethods[String(group.notes[0].id)]); }}
                                     disabled={!paymentMethods[String(group.notes[0].id)]}
-                                    className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="p-2 bg-success-surface text-success rounded-lg hover:bg-green-600 hover:text-white transition-all border border-success-border disabled:opacity-40 disabled:cursor-not-allowed"
                                     title="Encaisser"
                                   >
                                     <Check size={16} />
@@ -570,10 +570,10 @@ export const AccountingPage = () => {
                                   </button>
                                 </>
                               )}
-                              <Link to={`/patients/${group.patient_id}?tab=admin`} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100" title="Gérer Patient / Assurance" onClick={e => e.stopPropagation()}>
+                              <Link to={`/patients/${group.patient_id}?tab=admin`} className="p-2 bg-success-surface text-success rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-success-border" title="Gérer Patient / Assurance" onClick={e => e.stopPropagation()}>
                                 <Edit size={16} />
                               </Link>
-                              <button onClick={e => { e.stopPropagation(); handleDelete(getHonoraireTrashTarget(group.notes[0])); }} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
+                              <button onClick={e => { e.stopPropagation(); handleDelete(getHonoraireTrashTarget(group.notes[0])); }} className="p-2 bg-danger-surface text-danger rounded-lg hover:bg-red-600 hover:text-white transition-all border border-danger-border" title="Supprimer">
                                 <Trash2 size={16} />
                               </button>
                             </div>
@@ -650,7 +650,7 @@ export const AccountingPage = () => {
                                   <button
                                     onClick={() => handleEncaisser(note.id, paymentMethods[String(note.id)])}
                                     disabled={!paymentMethods[String(note.id)]}
-                                    className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="p-2 bg-success-surface text-success rounded-lg hover:bg-green-600 hover:text-white transition-all border border-success-border disabled:opacity-40 disabled:cursor-not-allowed"
                                     title="Encaisser"
                                   >
                                     <Check size={14} />
@@ -670,7 +670,7 @@ export const AccountingPage = () => {
                                   </button>
                                 </>
                               )}
-                              <button onClick={() => handleDelete(getHonoraireTrashTarget(note))} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
+                              <button onClick={() => handleDelete(getHonoraireTrashTarget(note))} className="p-2 bg-danger-surface text-danger rounded-lg hover:bg-red-600 hover:text-white transition-all border border-danger-border" title="Supprimer">
                                 <Trash2 size={14} />
                               </button>
                             </div>

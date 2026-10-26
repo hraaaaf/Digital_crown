@@ -123,7 +123,7 @@ export const LoginPage: React.FC = () => {
             </div>
             {isLocked ? (
               <>
-                <h1 className="font-bold text-red-600 text-xl text-center flex items-center gap-2">
+                <h1 className="font-bold text-danger text-xl text-center flex items-center gap-2">
                   <Lock className="w-5 h-5" /> Accès Verrouillé
                 </h1>
                 <p className="text-text-muted text-sm mt-2 text-center">
@@ -145,7 +145,7 @@ export const LoginPage: React.FC = () => {
           {/* SI VERROUILLE ET DEJA CONNECTE -> On affiche juste le bouton pour revérifier */}
           {isLocked && isAuthenticated ? (
             <div className="space-y-5">
-              <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl text-sm text-orange-800 text-center">
+              <div className="p-4 bg-warning-surface border border-warning-border rounded-xl text-sm text-warning text-center">
                 Vous êtes connecté en tant qu'Administrateur. Vous pouvez forcer la revérification de la licence si vous venez de la renouveler.
               </div>
 
@@ -153,7 +153,7 @@ export const LoginPage: React.FC = () => {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm"
+                  className="flex items-center gap-3 p-4 bg-danger-surface border border-danger-border text-danger rounded-xl text-sm"
                 >
                   <AlertCircle className="w-5 h-5 shrink-0" />
                   <p>{error}</p>
@@ -252,7 +252,7 @@ export const LoginPage: React.FC = () => {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm"
+                  className="flex items-center gap-3 p-4 bg-danger-surface border border-danger-border text-danger rounded-xl text-sm"
                 >
                   <AlertCircle className="w-5 h-5 shrink-0" />
                   <p>{error}</p>

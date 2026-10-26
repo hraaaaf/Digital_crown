@@ -316,8 +316,8 @@ export const PartnerCatalogAdminPage: React.FC = () => {
         </button>
       </div>
 
-      {successMessage && <div className="rounded-elite border border-emerald-200 bg-emerald-50 text-emerald-800 p-4 text-sm font-medium">{successMessage}</div>}
-      {errorMessage && <div className="rounded-elite border border-rose-200 bg-rose-50 text-rose-800 p-4 text-sm font-medium">{errorMessage}</div>}
+      {successMessage && <div className="rounded-elite border border-success-border bg-success-surface text-success p-4 text-sm font-medium">{successMessage}</div>}
+      {errorMessage && <div className="rounded-elite border border-danger-border bg-danger-surface text-danger p-4 text-sm font-medium">{errorMessage}</div>}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <section className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6 space-y-4">
@@ -418,8 +418,8 @@ export const PartnerCatalogAdminPage: React.FC = () => {
                   </div>
                   <span className={cn(
                     'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border whitespace-nowrap',
-                    product.availability === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                    product.availability === 'ON_REQUEST' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                    product.availability === 'AVAILABLE' ? 'bg-success-surface text-success border-success-border' :
+                    product.availability === 'ON_REQUEST' ? 'bg-warning-surface text-warning border-warning-border' :
                     'bg-input-field text-text-muted border-border-main'
                   )}>
                     {PRODUCT_AVAILABILITY_LABELS[product.availability] ?? 'À vérifier'}

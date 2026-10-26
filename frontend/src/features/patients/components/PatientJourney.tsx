@@ -118,9 +118,9 @@ const AMBER_STATUSES = new Set(['EN_ATTENTE', 'PARTIEL', 'pending', 'PENDING', '
 const RED_STATUSES = new Set(['ANNULÉ', 'ANNULE', 'REFUSÉ', 'REFUSE', 'EXPIRÉ', 'EXPIRE']);
 
 function statusColorClass(status: string): string {
-  if (GREEN_STATUSES.has(status)) return 'bg-emerald-100 text-emerald-600';
-  if (AMBER_STATUSES.has(status)) return 'bg-amber-100 text-amber-600';
-  if (RED_STATUSES.has(status)) return 'bg-red-100 text-red-600';
+  if (GREEN_STATUSES.has(status)) return 'bg-success-surface text-success';
+  if (AMBER_STATUSES.has(status)) return 'bg-warning-surface text-warning';
+  if (RED_STATUSES.has(status)) return 'bg-danger-surface text-danger';
   return 'bg-input-field text-text-muted';
 }
 
@@ -375,13 +375,13 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
           'p-5 md:p-6 rounded-[2rem] border shadow-sm',
           !data.summary.has_billing_data
             ? 'bg-background border-border-main'
-            : data.summary.remaining_due > 0 ? 'bg-red-50 border-red-100' : 'bg-card-bg border-border-main'
+            : data.summary.remaining_due > 0 ? 'bg-danger-surface border-danger-border' : 'bg-card-bg border-border-main'
         )}>
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Situation financière</p>
           {!data.summary.has_billing_data ? (
             <div className="text-lg md:text-xl font-black text-text-muted">Solde indéterminé</div>
           ) : (
-            <div className={cn('text-2xl md:text-3xl font-black', data.summary.remaining_due > 0 ? 'text-red-600' : 'text-emerald-600')}>
+            <div className={cn('text-2xl md:text-3xl font-black', data.summary.remaining_due > 0 ? 'text-danger' : 'text-success')}>
               {data.summary.remaining_due.toLocaleString('fr-MA')} MAD
             </div>
           )}
@@ -437,7 +437,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
       </div>
 
       {data.truncated && (
-        <div className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2">
+        <div className="text-xs font-bold text-warning bg-warning-surface border border-warning-border rounded-xl px-4 py-2">
           {data.events.length} événements affichés sur {data.total_events_available} · affinez les filtres pour voir le reste.
         </div>
       )}
@@ -509,7 +509,7 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
                               <div className="mt-3 pt-3 border-t border-border-main flex justify-end">
                                 <button
                                   onClick={() => deleteMilestoneMutation.mutate(ev.ref_id)}
-                                  className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-600"
+                                  className="flex items-center gap-1 text-xs font-bold text-danger hover:text-danger"
                                 >
                                   <Trash2 size={14} /> Supprimer ce jalon
                                 </button>

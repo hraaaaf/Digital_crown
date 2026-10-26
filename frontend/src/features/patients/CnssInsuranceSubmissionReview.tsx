@@ -149,7 +149,7 @@ export const CnssInsuranceSubmissionReview = ({
                       <td className="px-4 py-3 font-bold text-text-main">{line.label}</td>
                       <td className="px-4 py-3 font-semibold text-text-muted">{line.teeth.join(', ') || '—'}</td>
                       <td className="px-4 py-3">
-                        <span className={cn('inline-flex items-center px-2 py-1 rounded-lg font-black', line.mapping_status === 'EXACT' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
+                        <span className={cn('inline-flex items-center px-2 py-1 rounded-lg font-black', line.mapping_status === 'EXACT' ? 'bg-success-surface text-success' : 'bg-warning-surface text-warning')}>
                           {line.ngap_code || line.mapping_status}
                         </span>
                       </td>
@@ -220,10 +220,10 @@ export const CnssInsuranceSubmissionReview = ({
             </div>
 
             {visibleBlockers.length > 0 && (
-              <div data-cnss-blockers className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-amber-800">
+              <div data-cnss-blockers className="mt-4 rounded-xl border border-warning-border bg-warning-surface px-3.5 py-3 text-warning">
                 <div className="flex items-center gap-2 font-black text-xs"><AlertCircle size={16} /> À compléter avant validation</div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {visibleBlockers.map(key => <span key={key} className="px-2 py-1 rounded-lg bg-card/80 border border-amber-200 text-[10px] font-bold">{blockerLabel[key] || key}</span>)}
+                  {visibleBlockers.map(key => <span key={key} className="px-2 py-1 rounded-lg bg-card/80 border border-warning-border text-[10px] font-bold">{blockerLabel[key] || key}</span>)}
                 </div>
               </div>
             )}
@@ -232,7 +232,7 @@ export const CnssInsuranceSubmissionReview = ({
           <section className="rounded-2xl border border-border-main p-4 sm:p-5" data-cnss-section="actions">
             <h3 className="font-black text-text-main text-sm">3. Actions contrôlées</h3>
             <p className="text-[11px] text-text-muted mt-1">La validation lie le dossier à votre identité applicative. Digital Crown n’appose automatiquement ni signature manuscrite, ni cachet, ni décision CNSS.</p>
-            {error && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700">{error}</div>}
+            {error && <div className="mt-3 rounded-xl border border-danger-border bg-danger-surface px-3 py-2.5 text-xs font-bold text-danger">{error}</div>}
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button data-cnss-action="validate" type="button" disabled={!canValidate} onClick={onValidate} className="min-h-[48px] rounded-xl bg-slate-900 text-white font-black text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
                 {busyAction === 'validate' ? <Loader2 size={17} className="animate-spin" /> : draft.status === 'VALIDATED' ? <BadgeCheck size={17} /> : <ShieldCheck size={17} />}
@@ -243,7 +243,7 @@ export const CnssInsuranceSubmissionReview = ({
                 Générer et archiver le PDF
               </button>
             </div>
-            {!allMappingsExact && <p className="mt-3 text-[11px] font-bold text-amber-700">Le serveur signale au moins un mapping NGAP non exact. La validation reste bloquée.</p>}
+            {!allMappingsExact && <p className="mt-3 text-[11px] font-bold text-warning">Le serveur signale au moins un mapping NGAP non exact. La validation reste bloquée.</p>}
           </section>
         </div>
       </div>

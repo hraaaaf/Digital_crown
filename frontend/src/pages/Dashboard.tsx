@@ -289,7 +289,7 @@ export const Dashboard: React.FC = () => {
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-cyan-400" />
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 flex items-center gap-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-success mb-1 flex items-center gap-1">
                   <Sparkles size={10} aria-hidden="true" /> Ghost Action
                 </p>
                 <h3 className="text-sm font-black text-white truncate max-w-[200px]">
@@ -311,7 +311,7 @@ export const Dashboard: React.FC = () => {
                   type="checkbox"
                   checked={ghostChecklist.encaisser}
                   onChange={event => setGhostChecklist(previous => ({ ...previous, encaisser: event.target.checked }))}
-                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-success focus:ring-emerald-500 focus:ring-offset-slate-900"
                 />
                 <span className={cn('text-xs font-bold', ghostChecklist.encaisser ? 'text-text-muted line-through' : 'text-text-muted')}>Encaisser les soins du jour</span>
               </label>
@@ -320,7 +320,7 @@ export const Dashboard: React.FC = () => {
                   type="checkbox"
                   checked={ghostChecklist.ordonnance}
                   onChange={event => setGhostChecklist(previous => ({ ...previous, ordonnance: event.target.checked }))}
-                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-success focus:ring-emerald-500 focus:ring-offset-slate-900"
                 />
                 <span className={cn('text-xs font-bold', ghostChecklist.ordonnance ? 'text-text-muted line-through' : 'text-text-muted')}>Remettre l'ordonnance</span>
               </label>
@@ -329,13 +329,13 @@ export const Dashboard: React.FC = () => {
                   type="checkbox"
                   checked={ghostChecklist.rdv}
                   onChange={event => setGhostChecklist(previous => ({ ...previous, rdv: event.target.checked }))}
-                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-success focus:ring-emerald-500 focus:ring-offset-slate-900"
                 />
                 <span className={cn('text-xs font-bold', ghostChecklist.rdv ? 'text-text-muted line-through' : 'text-text-muted')}>Fixer le RDV de contrôle</span>
               </label>
             </div>
             {ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-center text-[10px] font-black uppercase text-emerald-400">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-center text-[10px] font-black uppercase text-success">
                 Action terminée !
               </motion.div>
             )}

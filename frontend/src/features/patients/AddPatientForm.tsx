@@ -234,7 +234,7 @@ export const AddPatientForm = () => {
 
         <form onSubmit={handleSubmit} className="p-5 sm:p-10 space-y-8 sm:space-y-10">
           {errors.global && (
-            <div className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
+            <div className="p-4 bg-danger-surface text-danger rounded-2xl border border-danger-border flex items-center gap-2 font-bold text-sm">
               <Activity className="w-5 h-5" /> {errors.global}
             </div>
           )}
@@ -264,7 +264,7 @@ export const AddPatientForm = () => {
               <div className="relative">
                 <FileDigit className={cn(
                   "absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5",
-                  dossierStatus.status === 'taken' ? "text-red-500" : "text-[#003380]"
+                  dossierStatus.status === 'taken' ? "text-danger" : "text-[#003380]"
                 )} />
                 <input 
                   type="text" 
@@ -281,23 +281,23 @@ export const AddPatientForm = () => {
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                   {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-text-muted animate-spin" />}
-                  {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                  {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-emerald-500" />}
+                  {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-danger" />}
+                  {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-success" />}
                 </div>
               </div>
               
               {dossierStatus.status === 'taken' && (
-                <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                <p className="text-danger text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <AlertTriangle size={12} /> Ce numéro appartient déjà à : <span className="underline">{dossierStatus.owner}</span>
                 </p>
               )}
               {dossierStatus.status === 'available' && (
-                <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                <p className="text-success text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <UserCheck size={12} /> Numéro disponible
                 </p>
               )}
               {dossierStatus.status === 'error' && (
-                <p className="text-amber-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                <p className="text-warning text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <AlertTriangle size={12} /> Disponibilité non vérifiée
                 </p>
               )}
@@ -315,7 +315,7 @@ export const AddPatientForm = () => {
                   className={cn(inputClass, errors.nom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                   placeholder="BENMOUSSA"
                 />
-                {errors.nom && <span className="text-red-500 text-xs mt-1 ml-1">{errors.nom}</span>}
+                {errors.nom && <span className="text-danger text-xs mt-1 ml-1">{errors.nom}</span>}
               </div>
 
               <div>
@@ -328,7 +328,7 @@ export const AddPatientForm = () => {
                   className={cn(inputClass, errors.prenom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                   placeholder="Yazan"
                 />
-                {errors.prenom && <span className="text-red-500 text-xs mt-1 ml-1">{errors.prenom}</span>}
+                {errors.prenom && <span className="text-danger text-xs mt-1 ml-1">{errors.prenom}</span>}
               </div>
             </div>
           </div>
@@ -351,7 +351,7 @@ export const AddPatientForm = () => {
                   onChange={handleChange}
                   className={cn(inputClass, errors.date_naissance && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                 />
-                {errors.date_naissance && <span className="text-red-500 text-xs mt-1 ml-1">{errors.date_naissance}</span>}
+                {errors.date_naissance && <span className="text-danger text-xs mt-1 ml-1">{errors.date_naissance}</span>}
               </div>
 
               <div>
@@ -366,7 +366,7 @@ export const AddPatientForm = () => {
                   <option value="F">Féminin</option>
                   <option value="M">Masculin</option>
                 </select>
-                {errors.sexe && <span className="text-red-500 text-xs mt-1 ml-1">{errors.sexe}</span>}
+                {errors.sexe && <span className="text-danger text-xs mt-1 ml-1">{errors.sexe}</span>}
               </div>
 
               <div>
@@ -516,7 +516,7 @@ export const AddPatientForm = () => {
                     placeholder="yazan.benmoussa@email.com"
                   />
                 </div>
-                {errors.email && <span className="text-red-500 text-xs mt-1 ml-1">{errors.email}</span>}
+                {errors.email && <span className="text-danger text-xs mt-1 ml-1">{errors.email}</span>}
               </div>
 
               <div className="md:col-span-2">
@@ -618,8 +618,8 @@ export const AddPatientForm = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-card rounded-3xl shadow-2xl max-w-lg w-full p-8 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-amber-100 rounded-2xl">
-                <AlertTriangle className="w-8 h-8 text-amber-600" />
+              <div className="p-3 bg-warning-surface rounded-2xl">
+                <AlertTriangle className="w-8 h-8 text-warning" />
               </div>
               <div>
                 <h3 className="text-xl font-black text-text-main">Patient similaire trouvé</h3>

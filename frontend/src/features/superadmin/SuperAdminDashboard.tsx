@@ -237,11 +237,11 @@ export const SuperAdminDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-lg backdrop-blur-sm">
-              <Shield className="text-amber-400" size={32} />
+              <Shield className="text-warning" size={32} />
             </div>
             <div>
               <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-                Digital Crown <span className="bg-amber-400 text-amber-950 px-3 py-1 rounded-lg text-sm font-black uppercase tracking-widest border border-amber-300">SuperAdmin</span>
+                Digital Crown <span className="bg-amber-400 text-warning px-3 py-1 rounded-lg text-sm font-black uppercase tracking-widest border border-warning-border">SuperAdmin</span>
               </h1>
               <p className="text-blue-200 font-medium mt-1">Gestion Globale des Licences & Clients</p>
             </div>
@@ -249,17 +249,17 @@ export const SuperAdminDashboard: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <Link
               to="/approvisionnement/admin"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-300/60 bg-amber-400 px-5 py-3 text-sm font-black text-amber-950 shadow-lg shadow-amber-950/10 transition hover:-translate-y-0.5 hover:bg-amber-300"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-warning-border/60 bg-amber-400 px-5 py-3 text-sm font-black text-warning shadow-lg shadow-amber-950/10 transition hover:-translate-y-0.5 hover:bg-amber-300"
             >
               <Store size={16} />
               Fournisseurs
             </Link>
             <div className="bg-white/10 border border-white/20 rounded-2xl px-6 py-4 flex flex-col items-center">
-              <span className="text-3xl font-black text-amber-400">{clients.length}</span>
+              <span className="text-3xl font-black text-warning">{clients.length}</span>
               <span className="text-[10px] uppercase tracking-widest font-bold text-blue-200">Total Clients</span>
             </div>
             <div className="bg-white/10 border border-white/20 rounded-2xl px-6 py-4 flex flex-col items-center">
-              <span className="text-3xl font-black text-emerald-400">
+              <span className="text-3xl font-black text-success">
                 {clients.filter(c => c.is_licensed && !getExpirationStatus(c.license_expires_at).expired && !c.is_suspended && !c.is_archived).length}
               </span>
               <span className="text-[10px] uppercase tracking-widest font-bold text-blue-200">Actifs</span>
@@ -355,7 +355,7 @@ export const SuperAdminDashboard: React.FC = () => {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-black text-text-main">{code.code}</span>
-                          <span className={`rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-widest ${isUsed ? 'bg-emerald-100 text-emerald-700' : isRevoked ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}`}>
+                          <span className={`rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-widest ${isUsed ? 'bg-success-surface text-success' : isRevoked ? 'bg-danger-surface text-danger' : 'bg-blue-100 text-blue-700'}`}>
                             {isUsed ? 'Utilisé' : isRevoked ? 'Révoqué' : 'Actif'}
                           </span>
                         </div>
@@ -367,7 +367,7 @@ export const SuperAdminDashboard: React.FC = () => {
                           Copier Le Lien
                         </button>
                         {!isUsed && !isRevoked && (
-                          <button onClick={() => handleRevokeTrialCode(code.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-rose-700 hover:bg-rose-100">
+                          <button onClick={() => handleRevokeTrialCode(code.id)} className="rounded-xl border border-danger-border bg-danger-surface px-4 py-2 text-[10px] font-black uppercase tracking-widest text-danger hover:bg-danger-surface">
                             Révoquer
                           </button>
                         )}
@@ -396,22 +396,22 @@ export const SuperAdminDashboard: React.FC = () => {
               badgeText = "Archivé";
               BadgeIcon = Archive;
             } else if (client.is_suspended) {
-              badgeStyle = "bg-orange-100 text-orange-700 border-orange-200 shadow-orange-500/10";
+              badgeStyle = "bg-warning-surface text-warning border-warning-border shadow-orange-500/10";
               badgeText = "Suspendu";
               BadgeIcon = Ban;
             } else if (expStatus.expired) {
-              badgeStyle = "bg-rose-100 text-rose-700 border-rose-200 shadow-rose-500/10";
+              badgeStyle = "bg-danger-surface text-danger border-danger-border shadow-rose-500/10";
               badgeText = "Expiré";
               BadgeIcon = XCircle;
             } else {
-              badgeStyle = "bg-emerald-100 text-emerald-700 border-emerald-200 shadow-emerald-500/10";
+              badgeStyle = "bg-success-surface text-success border-success-border shadow-emerald-500/10";
               badgeText = "Actif";
               BadgeIcon = CheckCircle2;
               if (expStatus.daysLeft <= 7) {
-                badgeStyle = "bg-rose-100 text-rose-700 border-rose-200 shadow-rose-500/10";
+                badgeStyle = "bg-danger-surface text-danger border-danger-border shadow-rose-500/10";
                 badgeText = `Expire < 7j (${expStatus.daysLeft}j)`;
               } else if (expStatus.daysLeft <= 30) {
-                badgeStyle = "bg-amber-100 text-amber-700 border-amber-200 shadow-amber-500/10";
+                badgeStyle = "bg-warning-surface text-warning border-warning-border shadow-amber-500/10";
                 badgeText = `Expire < 30j (${expStatus.daysLeft}j)`;
               }
             }
@@ -420,7 +420,7 @@ export const SuperAdminDashboard: React.FC = () => {
               <div key={client.id} className={`bg-card border border-border-main rounded-[2rem] shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col group relative ${client.is_archived ? 'opacity-60' : ''}`}>
                 
                 {/* Header Card */}
-                <div className={`p-6 border-b flex justify-between items-start transition-colors ${active ? 'bg-emerald-50/50 border-emerald-100' : 'bg-background border-border-main'}`}>
+                <div className={`p-6 border-b flex justify-between items-start transition-colors ${active ? 'bg-success-surface/50 border-success-border' : 'bg-background border-border-main'}`}>
                   <div>
                     <h3 className="text-lg font-black text-text-main flex items-center gap-2">
                       {client.nom_complet || 'Sans Nom'}
@@ -446,7 +446,7 @@ export const SuperAdminDashboard: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4 w-full sm:w-auto">
                     <div className="flex flex-col gap-1">
                       <p className="text-text-muted text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><CalendarRange size={12}/> Expiration</p>
-                      <p className={`font-black text-sm ${expStatus.expired ? 'text-rose-600' : 'text-text-main'}`}>{formatDate(client.license_expires_at)}</p>
+                      <p className={`font-black text-sm ${expStatus.expired ? 'text-danger' : 'text-text-main'}`}>{formatDate(client.license_expires_at)}</p>
                     </div>
                     <div className="flex flex-col gap-1">
                       <p className="text-text-muted text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><UserPlus size={12}/> Patients</p>
@@ -503,10 +503,10 @@ export const SuperAdminDashboard: React.FC = () => {
                       <button onClick={() => handleSendRenewalEmail(client.id)} title="WhatsApp de relance" disabled={client.is_archived} className="p-2 bg-input-field hover:bg-blue-100 hover:text-blue-600 text-text-muted rounded-lg transition-colors disabled:opacity-50">
                         <Mail size={14} />
                       </button>
-                      <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_suspended ? 'réactiver' : 'suspendre'} ce client ?`)) handleToggleSuspend(client.id); }} title={client.is_suspended ? 'Réactiver' : 'Suspendre'} className={`p-2 rounded-lg transition-colors ${client.is_suspended ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' : 'bg-input-field text-text-muted hover:bg-orange-100 hover:text-orange-600'}`}>
+                      <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_suspended ? 'réactiver' : 'suspendre'} ce client ?`)) handleToggleSuspend(client.id); }} title={client.is_suspended ? 'Réactiver' : 'Suspendre'} className={`p-2 rounded-lg transition-colors ${client.is_suspended ? 'bg-warning-surface text-warning hover:bg-orange-200' : 'bg-input-field text-text-muted hover:bg-warning-surface hover:text-warning'}`}>
                         <Ban size={14} />
                       </button>
-                      <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_archived ? 'désarchiver' : 'archiver'} ce client ?`)) handleToggleArchive(client.id); }} title={client.is_archived ? 'Désarchiver' : 'Archiver'} className={`p-2 rounded-lg transition-colors ${client.is_archived ? 'bg-rose-100 text-rose-600 hover:bg-rose-200' : 'bg-input-field text-text-muted hover:bg-rose-100 hover:text-rose-600'}`}>
+                      <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_archived ? 'désarchiver' : 'archiver'} ce client ?`)) handleToggleArchive(client.id); }} title={client.is_archived ? 'Désarchiver' : 'Archiver'} className={`p-2 rounded-lg transition-colors ${client.is_archived ? 'bg-danger-surface text-danger hover:bg-rose-200' : 'bg-input-field text-text-muted hover:bg-danger-surface hover:text-danger'}`}>
                         <Archive size={14} />
                       </button>
                     </div>
@@ -558,7 +558,7 @@ export const SuperAdminDashboard: React.FC = () => {
                       <p className="text-xs text-text-muted">{formatDate(item.timestamp)}</p>
                     </div>
                     {item.duration && (
-                      <div className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg text-xs font-black">
+                      <div className="bg-success-surface text-success px-2 py-1 rounded-lg text-xs font-black">
                         +{item.duration} jours
                       </div>
                     )}

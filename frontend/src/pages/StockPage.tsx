@@ -46,8 +46,8 @@ const mutationErrorMessage = (error: any, fallback: string) => {
 const CATEGORIE_COLORS: Record<string, string> = {
   CONSOMMABLE: 'bg-blue-50 text-blue-700 border-blue-200',
   MATERIAU:    'bg-purple-50 text-purple-700 border-purple-200',
-  MEDICAMENT:  'bg-emerald-50 text-emerald-700 border-emerald-200',
-  EQUIPEMENT:  'bg-amber-50 text-amber-700 border-amber-200',
+  MEDICAMENT:  'bg-success-surface text-success border-success-border',
+  EQUIPEMENT:  'bg-warning-surface text-warning border-warning-border',
 };
 
 // ─── Modal Ajout / Édition ────────────────────────────────────────────────────
@@ -168,7 +168,7 @@ const StockModal = ({ item, onClose, onSaved }: ModalProps) => {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            <div role="alert" className="rounded-xl border border-danger-border bg-danger-surface px-4 py-3 text-sm font-bold text-danger">
               {error}
             </div>
           )}
@@ -264,8 +264,8 @@ export const StockPage = () => {
         <div>
           <h1 className="text-xl font-black tracking-tight text-text-main">Gestion du Stock</h1>
         </div>
-        <div className="min-h-[320px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-amber-200 bg-amber-50/70 px-6 text-center">
-          <AlertTriangle size={40} className="text-amber-500" />
+        <div className="min-h-[320px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-warning-border bg-warning-surface/70 px-6 text-center">
+          <AlertTriangle size={40} className="text-warning" />
           <div>
             <h2 className="font-black text-text-main">Stock indisponible</h2>
             <p className="mt-1 max-w-xl text-sm text-text-muted">Impossible de confirmer le contenu du stock. Aucun état vide n’est affiché tant que la lecture n’a pas réussi.</p>
@@ -305,13 +305,13 @@ export const StockPage = () => {
 
       {/* Alert banner */}
       {(alertsData?.count ?? 0) > 0 && (
-        <div className="flex items-center gap-3 px-6 py-4 bg-red-50 border border-red-200 rounded-[1.5rem]">
-          <AlertTriangle size={18} className="text-red-500 shrink-0" />
+        <div className="flex items-center gap-3 px-6 py-4 bg-danger-surface border border-danger-border rounded-[1.5rem]">
+          <AlertTriangle size={18} className="text-danger shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-black text-red-700">
+            <p className="text-sm font-black text-danger">
               {alertsData!.count} article{alertsData!.count > 1 ? 's' : ''} en dessous du seuil d'alerte
             </p>
-            <p className="text-[10px] font-medium text-red-500 mt-0.5">
+            <p className="text-[10px] font-medium text-danger mt-0.5">
               {alertsData!.items.map(i => `${i.nom} (${i.quantite} ${i.unite})`).join(' · ')}
             </p>
           </div>
@@ -319,7 +319,7 @@ export const StockPage = () => {
       )}
 
       {mutationError && (
-        <div role="alert" className="flex items-start gap-3 rounded-[1.5rem] border border-red-200 bg-red-50 px-5 py-4 text-red-700">
+        <div role="alert" className="flex items-start gap-3 rounded-[1.5rem] border border-danger-border bg-danger-surface px-5 py-4 text-danger">
           <AlertTriangle size={18} className="mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-black">Action stock non enregistrée</p>
@@ -361,7 +361,7 @@ export const StockPage = () => {
       <div className="bg-card rounded-[2rem] border border-border-main shadow-sm overflow-x-auto">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center py-20 text-text-muted">
-            <CheckCircle2 size={40} className="text-emerald-300 mb-3" />
+            <CheckCircle2 size={40} className="text-success mb-3" />
             <p className="font-bold text-sm">
               {items.length === 0 ? 'Aucun article. Commencez par en ajouter un.' : 'Aucun résultat pour cette recherche.'}
             </p>
@@ -384,12 +384,12 @@ export const StockPage = () => {
                   key={item.id}
                   className={cn(
                     "transition-colors group",
-                    item.alerte ? "bg-red-50/40 hover:bg-red-50" : "hover:bg-background"
+                    item.alerte ? "bg-danger-surface/40 hover:bg-danger-surface" : "hover:bg-background"
                   )}
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      {item.alerte && <AlertTriangle size={13} className="text-red-400 shrink-0" />}
+                      {item.alerte && <AlertTriangle size={13} className="text-danger shrink-0" />}
                       <div>
                         <p className="font-black text-sm text-text-main">{item.nom}</p>
                         {item.notes && (
@@ -418,7 +418,7 @@ export const StockPage = () => {
                       </button>
                       <span className={cn(
                         "text-sm font-black w-16 text-center",
-                        item.alerte ? "text-red-600" : "text-text-main"
+                        item.alerte ? "text-danger" : "text-text-main"
                       )}>
                         {item.quantite} <span className="text-[10px] font-medium text-text-muted">{item.unite}</span>
                       </span>
@@ -451,10 +451,10 @@ export const StockPage = () => {
                       <button
                         onClick={() => { setMutationError(null); setDeleteTarget(item); }}
                         disabled={deletingId === item.id}
-                        className="p-2 rounded-xl border border-red-100 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        className="p-2 rounded-xl border border-danger-border hover:bg-danger-surface transition-colors disabled:opacity-50"
                         title="Supprimer"
                       >
-                        <Trash2 size={13} className="text-red-400" />
+                        <Trash2 size={13} className="text-danger" />
                       </button>
                     </div>
                   </td>
@@ -480,7 +480,7 @@ export const StockPage = () => {
           <section className="w-full rounded-[2rem] bg-card p-6 shadow-2xl">
             <h2 className="text-lg font-black text-text-main">Supprimer cet article ?</h2>
             <p className="mt-2 text-sm font-semibold text-text-muted">{deleteTarget.nom} sera supprimé définitivement du stock.</p>
-            {mutationError && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{mutationError}</div>}
+            {mutationError && <div role="alert" className="mt-4 rounded-xl border border-danger-border bg-danger-surface px-4 py-3 text-sm font-bold text-danger">{mutationError}</div>}
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button type="button" data-dialog-autofocus onClick={() => { if (deletingId === null) { setDeleteTarget(null); setMutationError(null); } }} disabled={deletingId !== null} className="rounded-xl border border-border-main px-4 py-3 text-sm font-black text-text-muted disabled:opacity-50">Annuler</button>
               <button type="button" onClick={() => void handleDelete(deleteTarget.id)} disabled={deletingId === deleteTarget.id} className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50">{deletingId === deleteTarget.id ? 'Suppression…' : 'Supprimer définitivement'}</button>

@@ -185,7 +185,7 @@ const ExceptionModal: React.FC<{
             <span className="block text-xs font-black uppercase tracking-wider text-text-muted">Motif</span>
             <input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={255} placeholder="Ex. Congés annuels" className="w-full rounded-2xl border border-border-main px-4 py-3 font-semibold text-text-main outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
           </label>
-          {error && <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p>}
+          {error && <p role="alert" className="rounded-xl bg-danger-surface px-4 py-3 text-sm font-bold text-danger">{error}</p>}
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button type="button" onClick={onClose} disabled={saving} className="rounded-2xl border border-border-main px-5 py-3 text-sm font-bold text-text-muted hover:bg-background disabled:opacity-40">Annuler</button>
             <button type="submit" disabled={saving} className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-black disabled:opacity-60">{saving ? 'Ajout…' : 'Ajouter'}</button>
@@ -296,7 +296,7 @@ export const AgendaTab: React.FC = () => {
           <h2 className="flex items-center gap-3 text-2xl font-black tracking-tight text-text-main sm:text-3xl"><CalendarDays className="shrink-0 text-primary" size={30} />Horaires & Agenda</h2>
           <p className="mt-2 max-w-2xl text-sm font-medium text-text-muted">Définissez les heures réellement utilisées par l'agenda et les fermetures du cabinet.</p>
         </div>
-        {dirty && <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-amber-700">Modifications non enregistrées</span>}
+        {dirty && <span className="w-fit rounded-full bg-warning-surface px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-warning">Modifications non enregistrées</span>}
       </div>
 
       <section className="min-w-0 rounded-[2rem] border border-border-main bg-card p-5 shadow-sm sm:p-7">
@@ -395,7 +395,7 @@ export const AgendaTab: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setConfirmDeleteId(exception.id)} className="shrink-0 rounded-xl border border-border-main px-3 py-2 text-xs font-bold text-text-muted hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700">Retirer</button>
+                  <button type="button" onClick={() => setConfirmDeleteId(exception.id)} className="shrink-0 rounded-xl border border-border-main px-3 py-2 text-xs font-bold text-text-muted hover:border-danger-border hover:bg-danger-surface hover:text-danger">Retirer</button>
                 )}
               </article>
             ))}
@@ -405,10 +405,10 @@ export const AgendaTab: React.FC = () => {
 
       <PractitionerAvailabilityPanel cabinetSchedule={settings.weekly_schedule} />
 
-      {formError && <p role="alert" className="rounded-2xl bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">{formError}</p>}
+      {formError && <p role="alert" className="rounded-2xl bg-danger-surface px-5 py-4 text-sm font-bold text-danger">{formError}</p>}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        {!dirty && <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700"><Check size={15} />Horaires enregistrés</span>}
+        {!dirty && <span className="inline-flex items-center gap-1.5 text-xs font-bold text-success"><Check size={15} />Horaires enregistrés</span>}
         <button type="button" onClick={() => void handleSave()} disabled={saving || !dirty} className="w-full rounded-2xl bg-primary px-8 py-4 font-black text-white shadow-xl shadow-primary/20 transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto">
           {saving ? 'Sauvegarde…' : 'Enregistrer les horaires'}
         </button>

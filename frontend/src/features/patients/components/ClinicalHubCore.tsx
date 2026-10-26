@@ -72,21 +72,21 @@ const ASSISTANTS = [
     name: 'Examen clinique complet',
     description: 'Collecte structurée générale et synthèse à valider par le praticien.',
     icon: Stethoscope,
-    iconClass: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    iconClass: 'bg-emerald-500/10 text-success border-emerald-500/20',
   },
   {
     id: 'paro',
     name: 'Parodontologie',
     description: 'Bilan parodontal structuré et observations à interpréter par le praticien.',
     icon: HeartPulse,
-    iconClass: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+    iconClass: 'bg-rose-500/10 text-danger border-rose-500/20',
   },
   {
     id: 'endo',
     name: 'Endodontie',
     description: 'Symptômes pulpaires et péri-apicaux, proposition clinique non autoritative.',
     icon: Activity,
-    iconClass: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+    iconClass: 'bg-amber-500/10 text-warning border-amber-500/20',
   },
   {
     id: 'prothese',
@@ -378,18 +378,18 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
         </div>
       </header>
 
-      <section aria-label="Sécurité médicale" className="rounded-2xl border border-red-200 bg-red-50/80 p-4 shadow-sm">
+      <section aria-label="Sécurité médicale" className="rounded-2xl border border-danger-border bg-danger-surface/80 p-4 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700"><ShieldCheck size={20} /></div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-surface text-danger"><ShieldCheck size={20} /></div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.1em] text-red-800">Sécurité médicale</h3>
-                <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600/80">Source : dossier Patient</p>
+                <h3 className="text-sm font-black uppercase tracking-[0.1em] text-danger">Sécurité médicale</h3>
+                <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-danger/80">Source : dossier Patient</p>
               </div>
-              {medicalError && <button onClick={() => void loadMedicalSource()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 bg-card px-3 text-xs font-black text-red-700"><RefreshCcw size={14} /> Réessayer</button>}
+              {medicalError && <button onClick={() => void loadMedicalSource()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-danger-border bg-card px-3 text-xs font-black text-danger"><RefreshCcw size={14} /> Réessayer</button>}
             </div>
-            <div className="mt-3 text-sm font-semibold leading-relaxed text-red-900">
+            <div className="mt-3 text-sm font-semibold leading-relaxed text-danger">
               {medicalLoading
                 ? 'Chargement des antécédents…'
                 : medicalError
@@ -434,8 +434,8 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                   </button>
                 </div>
               </div>
-              {odontogramError && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">{odontogramError}</div>}
-              {odontogramDirty && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">Modifications non enregistrées.</div>}
+              {odontogramError && <div className="mb-4 rounded-xl border border-danger-border bg-danger-surface p-3 text-xs font-bold text-danger">{odontogramError}</div>}
+              {odontogramDirty && <div className="mb-4 rounded-xl border border-warning-border bg-warning-surface p-3 text-xs font-bold text-warning">Modifications non enregistrées.</div>}
               {odontogramLoading ? (
                 <div className="flex min-h-48 items-center justify-center text-sm font-bold text-text-muted">Chargement de l’odontogramme…</div>
               ) : (
@@ -489,7 +489,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                   className="min-h-28 w-full resize-y rounded-2xl border border-border-main bg-card p-3 text-sm font-semibold text-text-main outline-none focus:border-primary dark:bg-slate-900"
                 />
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  {conclusionError ? <p className="text-xs font-bold text-red-600">{conclusionError}</p> : <span />}
+                  {conclusionError ? <p className="text-xs font-bold text-danger">{conclusionError}</p> : <span />}
                   <button onClick={() => void saveConclusion()} disabled={conclusionSaving || !conclusionDraft.trim()} className="min-h-10 rounded-xl bg-primary px-4 text-xs font-black text-white disabled:opacity-40">{conclusionSaving ? 'Enregistrement…' : 'Enregistrer la conclusion'}</button>
                 </div>
               </section>
@@ -560,7 +560,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                 if (window.confirm('Remplacer le plan enregistré par un plan vide ?') && await savePlan([])) toast.success('Plan de traitement réinitialisé.');
               }}
               disabled={planLoading || treatmentPlan.length === 0}
-              className="min-h-9 rounded-lg border border-rose-200 px-2.5 text-[9px] font-black uppercase tracking-wider text-rose-600 disabled:opacity-40"
+              className="min-h-9 rounded-lg border border-danger-border px-2.5 text-[9px] font-black uppercase tracking-wider text-danger disabled:opacity-40"
             >Réinitialiser</button>
           </div>
 
@@ -571,18 +571,18 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-input-field"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} /></div>
 
-            {planError && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">{planError}</div>}
+            {planError && <div className="mt-4 rounded-xl border border-danger-border bg-danger-surface p-3 text-xs font-bold text-danger">{planError}</div>}
             {planLoading ? <p className="mt-5 text-xs font-bold text-text-muted">Chargement du plan…</p> : treatmentPlan.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-border-main p-5 text-center text-xs font-bold text-text-muted">Aucune étape de traitement enregistrée.</div> : (
               <div className="mt-5 space-y-3">
                 {treatmentPlan.map((step) => (
                   <article key={step.id} className="rounded-2xl border border-border-main bg-card/70 p-3 dark:bg-slate-900/70">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0"><p className="text-sm font-black text-text-main">{step.title}</p><p className="mt-1 text-[10px] font-bold text-text-muted">{step.assistant} · {step.date || 'Date non renseignée'}</p></div>
-                      <button aria-label="Supprimer l’étape" onClick={() => void deleteStep(step.id)} className="shrink-0 rounded-lg p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
+                      <button aria-label="Supprimer l’étape" onClick={() => void deleteStep(step.id)} className="shrink-0 rounded-lg p-2 text-danger hover:bg-danger-surface hover:text-danger"><Trash2 size={14} /></button>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button onClick={() => void updateStatus(step.id, 'pending')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-input-field text-text-muted')}>À faire</button>
-                      <button onClick={() => void updateStatus(step.id, 'done')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'done' ? 'bg-emerald-100 text-emerald-800' : 'bg-input-field text-text-muted')}>Fait</button>
+                      <button onClick={() => void updateStatus(step.id, 'pending')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'pending' ? 'bg-warning-surface text-warning' : 'bg-input-field text-text-muted')}>À faire</button>
+                      <button onClick={() => void updateStatus(step.id, 'done')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'done' ? 'bg-success-surface text-success' : 'bg-input-field text-text-muted')}>Fait</button>
                       <button onClick={() => void updateStatus(step.id, 'postponed')} className={cn('rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase', step.status === 'postponed' ? 'bg-slate-300 text-text-main' : 'bg-input-field text-text-muted')}>Reporté</button>
                     </div>
                   </article>

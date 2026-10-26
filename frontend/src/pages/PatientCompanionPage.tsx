@@ -293,7 +293,7 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 sm:flex">
+            <span className="hidden items-center gap-1.5 rounded-full bg-success-surface px-3 py-1.5 text-xs font-bold text-success sm:flex">
               <ShieldCheck size={14} /> Accès patient sécurisé
             </span>
             {authUser && (
@@ -312,8 +312,8 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
 
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         {!configured ? (
-          <section className="mx-auto max-w-xl rounded-[28px] border border-amber-200 bg-card p-6 shadow-xl shadow-slate-200/50 sm:p-8">
-            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700"><LockKeyhole /></div>
+          <section className="mx-auto max-w-xl rounded-[28px] border border-warning-border bg-card p-6 shadow-xl shadow-slate-200/50 sm:p-8">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-warning-surface text-warning"><LockKeyhole /></div>
             <h1 className="text-2xl font-black">Espace patient indisponible</h1>
             <p className="mt-3 leading-7 text-text-muted">La configuration Firebase Patient Companion n’est pas disponible sur cette installation. Aucun contournement d’authentification n’est autorisé.</p>
           </section>
@@ -378,9 +378,9 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
             <p className="mt-3 leading-7 text-text-muted">Le code est à usage unique et doit correspondre à votre identité Firebase vérifiée.</p>
             <form onSubmit={activate} className="mt-6">
               {qrToken ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                  <p className="flex items-center gap-2 text-sm font-black text-emerald-800"><CheckCircle2 size={17} /> Invitation QR détectée</p>
-                  <p className="mt-1 text-xs font-semibold text-emerald-700">Le secret n’est pas affiché à l’écran.</p>
+                <div className="rounded-2xl border border-success-border bg-success-surface p-4">
+                  <p className="flex items-center gap-2 text-sm font-black text-success"><CheckCircle2 size={17} /> Invitation QR détectée</p>
+                  <p className="mt-1 text-xs font-semibold text-success">Le secret n’est pas affiché à l’écran.</p>
                   <button type="button" onClick={() => setQrToken('')} className="mt-3 text-xs font-black text-[#003380]">Utiliser plutôt un code manuel</button>
                 </div>
               ) : (
@@ -388,7 +388,7 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
                   <input value={manualCode} onChange={(e) => setManualCode(e.target.value.toUpperCase())} autoComplete="one-time-code" placeholder="ABCD-EFGH-JKLM" className="mt-2 min-h-14 w-full rounded-2xl border border-border-main bg-card px-4 text-center font-mono text-lg font-black tracking-[0.12em] outline-none focus:border-[#003380] focus:ring-4 focus:ring-blue-100" />
                 </label>
               )}
-              {activationMessage && <p role="status" className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{activationMessage}</p>}
+              {activationMessage && <p role="status" className="mt-4 rounded-2xl bg-danger-surface px-4 py-3 text-sm font-semibold text-danger">{activationMessage}</p>}
               <button disabled={activationBusy} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#003380] px-5 font-black text-white hover:bg-blue-900 disabled:opacity-50">{activationBusy ? <Spinner /> : <ShieldCheck size={18} />} Activer mon espace</button>
             </form>
           </section>
@@ -424,7 +424,7 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
               )}
             </div>
 
-            {pageMessage && <p role="status" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{pageMessage}</p>}
+            {pageMessage && <p role="status" className="mt-4 rounded-2xl border border-warning-border bg-warning-surface px-4 py-3 text-sm font-semibold text-warning">{pageMessage}</p>}
 
             <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-2">
               <article className="min-w-0 rounded-[28px] border border-border-main/80 bg-card p-5 shadow-sm sm:p-6">
@@ -445,7 +445,7 @@ export const PatientCompanionPage = ({ services = defaultServices }: { services?
               <article className="min-w-0 rounded-[28px] border border-border-main/80 bg-card p-5 shadow-sm sm:p-6">
                 <div className="flex items-center justify-between gap-3">
                   <div><p className="text-xs font-black uppercase tracking-[0.12em] text-text-muted">Allow-list cabinet</p><h2 className="mt-1 text-xl font-black">Éléments partagés</h2></div>
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><ShieldCheck /></span>
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-success-surface text-success"><ShieldCheck /></span>
                 </div>
                 <div className="mt-5 space-y-4">
                   {dataLoading ? <p className="flex items-center gap-2 py-6 text-sm font-bold text-text-muted"><Spinner /> Chargement…</p> : shares.length === 0 ? (
