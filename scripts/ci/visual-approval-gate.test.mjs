@@ -205,9 +205,13 @@ function tokenWaiverFixture(options={}) {
   const number=1097, pinned=TOKEN_ONLY_CERTIFIED_WAVES[number], actual=options.actual??pinned.sha;
   const labels=new Set(options.hasLabel?[APPROVAL_LABEL]:[]);
   let deletes=0;
+  let headReads=0;
   const api={
     async get(route) {
-      if(route===`/pulls/${number}`) return {head:{sha:actual}};
+      if(route===`/pulls/${number}`) {
+        headReads++;
+        return {head:{sha:options.raceAfterHeadGet&&headReads>=options.raceAfterHeadGet?'d'.repeat(40):actual}};
+      }
       if(route.startsWith(`/pulls/${number}/files?`))return (options.files??[
         {filename:'frontend/src/pages/Example.tsx'},
         {filename:pinned.path},
@@ -285,4 +289,14 @@ test('auto-waiver manifest covers only the seven previously verified cosmetic wa
     1097,1098,1100,1101,1102,1103,1104
   ]);
   assert.equal(TOKEN_ONLY_CERTIFIED_WAVES[1105],undefined);
+});
+
+test('automatic waiver fails closed on a HEAD race during labeled evaluation',async()=>{
+  const f=tokenWaiverFixture({raceAfterHeadGet:2});
+  await assert.rejects(f.run('labeled'),/HEAD changed during auto token-only validation/);
+});
+
+test('automatic waiver fails closed on a HEAD race during synchronize checks',async()=>{
+  const f=tokenWaiverFixture({raceAfterHeadGet:3});
+  await assert.rejects(f.run('synchronize'),/HEAD changed during auto token-only synchronize checks/);
 });
