@@ -121,13 +121,13 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden max-h-[calc(100dvh-2rem)] flex flex-col my-auto"
+            className="bg-card rounded-3xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden max-h-[calc(100dvh-2rem)] flex flex-col my-auto"
           >
-            <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50 shrink-0">
+            <div className="p-5 sm:p-6 border-b border-border-main flex justify-between items-start bg-background/50 shrink-0">
               <div className="min-w-0 pr-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Plan d'échéances</p>
-                <h2 id="installment-plan-title" className="text-base font-black text-slate-800 tracking-tight truncate">{acte.libelle}</h2>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Plan d'échéances</p>
+                <h2 id="installment-plan-title" className="text-base font-black text-text-main tracking-tight truncate">{acte.libelle}</h2>
+                <p className="text-xs text-text-muted font-medium mt-0.5">
                   Reste dû : <span className="font-black text-red-600">{remainingDue.toLocaleString('fr-MA')} MAD</span>
                 </p>
               </div>
@@ -135,7 +135,7 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
                 type="button"
                 onClick={onClose}
                 aria-label="Fermer le plan d’échéances"
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors mt-0.5 shrink-0"
+                className="p-2 text-text-muted hover:text-text-muted rounded-full hover:bg-input-field transition-colors mt-0.5 shrink-0"
               >
                 <X size={18} />
               </button>
@@ -144,19 +144,19 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
               <div className="p-5 sm:p-6 space-y-5 overflow-y-auto overscroll-contain flex-1 min-h-0">
                 <div>
-                  <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Titre du plan</label>
+                  <label className="block text-[11px] font-black uppercase tracking-widest text-text-muted mb-2">Titre du plan</label>
                   <input
                     type="text"
                     required
                     value={title}
                     onChange={e => setTitle(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-primary"
+                    className="w-full px-4 py-3 bg-background border border-border-main rounded-xl text-sm font-bold outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-3 gap-3">
-                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Versements</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest text-text-muted">Versements</label>
                     <button
                       type="button"
                       onClick={addRow}
@@ -168,7 +168,7 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
 
                   <div className="space-y-3">
                     {rows.map((row, idx) => (
-                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem_10rem_auto] gap-2 sm:items-center rounded-2xl sm:rounded-none border border-slate-100 sm:border-0 p-3 sm:p-0 bg-slate-50/40 sm:bg-transparent">
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem_10rem_auto] gap-2 sm:items-center rounded-2xl sm:rounded-none border border-border-main sm:border-0 p-3 sm:p-0 bg-background/40 sm:bg-transparent">
                         <input
                           type="text"
                           required
@@ -176,7 +176,7 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
                           onChange={e => updateRow(idx, 'label', e.target.value)}
                           placeholder={`Versement ${idx + 1}`}
                           aria-label={`Libellé du versement ${idx + 1}`}
-                          className="w-full min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary"
+                          className="w-full min-w-0 px-3 py-2 bg-background border border-border-main rounded-xl text-xs font-bold outline-none focus:border-primary"
                         />
                         <div className="relative min-w-0">
                           <input
@@ -188,19 +188,19 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
                             onChange={e => updateRow(idx, 'amount', e.target.value)}
                             placeholder="Montant"
                             aria-label={`Montant du versement ${idx + 1}`}
-                            className="w-full min-w-0 px-3 py-2 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary"
+                            className="w-full min-w-0 px-3 py-2 pr-8 bg-background border border-border-main rounded-xl text-xs font-bold outline-none focus:border-primary"
                           />
-                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">MAD</span>
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-text-muted font-bold">MAD</span>
                         </div>
                         <div className="relative min-w-0">
-                          <CalendarDays size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <CalendarDays size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
                           <input
                             type="date"
                             required
                             value={row.due_date}
                             onChange={e => updateRow(idx, 'due_date', e.target.value)}
                             aria-label={`Date du versement ${idx + 1}`}
-                            className="w-full min-w-0 pl-7 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary"
+                            className="w-full min-w-0 pl-7 pr-2 py-2 bg-background border border-border-main rounded-xl text-xs font-bold outline-none focus:border-primary"
                           />
                         </div>
                         <button
@@ -208,7 +208,7 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
                           onClick={() => removeRow(idx)}
                           disabled={rows.length <= 1}
                           aria-label={`Supprimer le versement ${idx + 1}`}
-                          className="justify-self-end sm:justify-self-auto p-2 text-slate-300 hover:text-red-400 transition-colors disabled:opacity-30 rounded-lg"
+                          className="justify-self-end sm:justify-self-auto p-2 text-text-muted hover:text-red-400 transition-colors disabled:opacity-30 rounded-lg"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -217,23 +217,23 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
                   </div>
                 </div>
 
-                <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
-                  <div className="flex justify-between gap-4 text-xs font-bold text-slate-600">
+                <div className="bg-background rounded-2xl p-4 space-y-2">
+                  <div className="flex justify-between gap-4 text-xs font-bold text-text-muted">
                     <span>Total des versements</span>
                     <span className="whitespace-nowrap">{totalEntered.toLocaleString('fr-MA')} MAD</span>
                   </div>
-                  <div className="flex justify-between gap-4 text-xs font-bold text-slate-600">
+                  <div className="flex justify-between gap-4 text-xs font-bold text-text-muted">
                     <span>Reste dû sur l'acte</span>
                     <span className="whitespace-nowrap">{remainingDue.toLocaleString('fr-MA')} MAD</span>
                   </div>
-                  <div className={`flex justify-between gap-4 text-xs font-black pt-1 border-t border-slate-200 ${gap > 0 ? 'text-amber-600' : gap < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                  <div className={`flex justify-between gap-4 text-xs font-black pt-1 border-t border-border-main ${gap > 0 ? 'text-amber-600' : gap < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                     <span>{gap > 0 ? 'Non couvert' : gap < 0 ? 'Dépassement' : 'Couverture exacte'}</span>
                     <span className="text-right">{gap > 0 ? `${gap.toLocaleString('fr-MA')} MAD restant` : gap < 0 ? `+${Math.abs(gap).toLocaleString('fr-MA')} MAD` : '✓'}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-5 sm:p-6 border-t border-slate-100 shrink-0 bg-white">
+              <div className="p-5 sm:p-6 border-t border-border-main shrink-0 bg-card">
                 <button
                   type="submit"
                   disabled={submitting || !rowsValid || !coverageExact || title.trim().length === 0}

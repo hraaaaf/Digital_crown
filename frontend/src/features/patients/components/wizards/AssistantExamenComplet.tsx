@@ -292,7 +292,7 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
         </div>
 
         <div className="flex justify-start pt-2">
-          <button onClick={onCancel} className="text-xs font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest">Annuler</button>
+          <button onClick={onCancel} className="text-xs font-black text-text-muted hover:text-text-muted uppercase tracking-widest">Annuler</button>
         </div>
       </div>
     );
@@ -308,10 +308,10 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
         )}>
           <Stethoscope size={32} />
         </div>
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">
+        <h3 className="text-sm font-black uppercase tracking-widest text-text-muted">
           {branch === 'urgence' ? 'Protocole d\'urgence en cours…' : 'Synthèse du bilan clinique…'}
         </h3>
-        <p className="text-xs text-slate-400 font-bold">
+        <p className="text-xs text-text-muted font-bold">
         {branch === 'urgence' ? 'Synthèse des observations et signaux de vigilance' : 'Synthèse clinique structurée'}
       </p>
       </div>
@@ -326,7 +326,7 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
     <div className="flex flex-col h-full">
       {/* Progress */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div className="flex-1 h-1.5 bg-input-field dark:bg-slate-700 rounded-full overflow-hidden">
           <motion.div
             className={cn('h-full rounded-full', isUrgence ? 'bg-rose-500' : 'bg-emerald-500')}
             animate={{ width: `${progress}%` }}
@@ -386,7 +386,7 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
                     'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ml-3 transition-colors',
                     isSelected
                       ? isUrgence ? 'border-rose-500 bg-rose-500' : 'border-emerald-500 bg-emerald-500'
-                      : 'border-slate-300'
+                      : 'border-border-hover'
                   )}>
                     {isSelected && <CheckCircle2 size={11} className="text-white" />}
                   </div>
@@ -399,14 +399,14 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
 
       {/* Navigation */}
       <div className="flex items-center justify-between mt-8 pt-4 border-t border-border-main">
-        <button onClick={onCancel} className="text-xs font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest">
+        <button onClick={onCancel} className="text-xs font-black text-text-muted hover:text-text-muted uppercase tracking-widest">
           Annuler
         </button>
         <div className="flex items-center gap-4">
           {currentStep > 0 && (
             <button
               onClick={() => setCurrentStep(prev => prev - 1)}
-              className="text-xs font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+              className="text-xs font-black text-text-muted hover:text-text-muted uppercase tracking-widest"
             >
               ← Retour
             </button>
@@ -414,7 +414,7 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
           {currentStep === 0 && (
             <button
               onClick={() => { setBranch('none'); setAnswers({}); }}
-              className="text-xs font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+              className="text-xs font-black text-text-muted hover:text-text-muted uppercase tracking-widest"
             >
               ← Triage
             </button>

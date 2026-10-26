@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exact-diff proof for waves 02–05: bounded neutral + semantic status Tailwind changes.
+"""Exact-diff proof for waves 02–06: bounded neutral + semantic status Tailwind changes.
 
 Status shades are mapped only to existing danger/success/warning role tokens;
 brand palettes, saturated button fills, chart meaning, printed content and
@@ -61,6 +61,20 @@ FILES = (
     "frontend/src/features/patients/components/MotifSelector.tsx",
     "frontend/src/components/odontogram/TreatmentSelector.tsx",
     "frontend/src/features/patients/PatientDocuments.tsx",
+    "frontend/src/features/admin/DocumentStudio/Forms/CertificateFormInner.tsx",
+    "frontend/src/features/admin/DocumentStudio/Forms/LibreForm.tsx",
+    "frontend/src/features/admin/DocumentStudio/Forms/PrescriptionGuideModal.tsx",
+    "frontend/src/features/admin/DocumentStudio/Forms/PrescriptionPresetBar.tsx",
+    "frontend/src/features/admin/DocumentStudio/TreatmentPlanStudio.tsx",
+    "frontend/src/features/admin/DocumentStudio/StudioTabs.tsx",
+    "frontend/src/features/admin/DocumentStudio/DocumentHubDialogs.tsx",
+    "frontend/src/features/admin/DocumentStudio/Forms/TemplateOverwriteDialog.tsx",
+    "frontend/src/features/admin/DocumentStudio/Forms/PrescriptionForm.tsx",
+    "frontend/src/features/patients/components/wizards/AssistantExamenComplet.tsx",
+    "frontend/src/features/admin/DocumentStudio/Forms/InstallmentStudioInner.tsx",
+    "frontend/src/features/admin/DocumentStudio/StudioHeader.tsx",
+    "frontend/src/features/patients/components/InstallmentPlanModal.tsx",
+    "frontend/src/features/mobile/Dashboard/views/AgendaView.tsx",
 )
 STATUS_FILES = (
     "frontend/src/features/admin/AccountingStudioLegacy.tsx",
@@ -166,7 +180,7 @@ def test_exact_diff() -> int:
         results.append((file, count))
 
     total = sum(x[1] for x in results)
-    if total < 2700:
+    if total < 3090:
         print("THEME_NEUTRAL_BATCH_REDUCTION_TOO_SMALL", total)
         return 1
     css = (ROOT / "frontend/src/index.css").read_text(encoding="utf-8")
@@ -183,7 +197,7 @@ def test_exact_diff() -> int:
         if "[data-theme='" + theme + "']" not in css:
             print("THEME_NEUTRAL_BATCH_MISSING_THEME", theme)
             return 1
-    print("THEME_NEUTRAL_AND_STATUS_WAVES02_TO_05_PASS", {"files": len(results), "semanticColorsRemoved": total, "statusOnlyFiles": len(set(STATUS_FILES) - set(FILES)),
+    print("THEME_NEUTRAL_AND_STATUS_WAVES02_TO_06_PASS", {"files": len(results), "semanticColorsRemoved": total, "statusOnlyFiles": len(set(STATUS_FILES) - set(FILES)),
                                        "noBehaviorOrStructureChanges": True})
     return 0
 
