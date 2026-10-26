@@ -54,13 +54,13 @@ export const RegisterPage: React.FC = () => {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md"
       >
-        <div className="bg-white/80 backdrop-blur-xl border border-white p-8 rounded-3xl shadow-2xl shadow-primary/10">
+        <div className="bg-card/80 backdrop-blur-xl border border-white p-8 rounded-3xl shadow-2xl shadow-primary/10">
           <div className="flex flex-col items-center mb-8">
             <Link to="/login" className="mb-4">
               <img src={Logo} alt="Digital Crown" className="h-16 w-auto" />
             </Link>
-            <h1 className="font-bold text-slate-900 text-lg uppercase tracking-wider">Rejoindre l'Elite</h1>
-            <p className="text-slate-500 text-xs mt-1 text-center">
+            <h1 className="font-bold text-text-main text-lg uppercase tracking-wider">Rejoindre l'Elite</h1>
+            <p className="text-text-muted text-xs mt-1 text-center">
               Demandez votre accès à Digital Crown Elite.
             </p>
           </div>
@@ -69,15 +69,15 @@ export const RegisterPage: React.FC = () => {
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center text-center p-6 bg-slate-50 rounded-2xl border border-slate-100"
+              className="flex flex-col items-center text-center p-6 bg-background rounded-2xl border border-border-main"
             >
               <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 shadow-inner">
                 <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-lg font-black text-slate-800 mb-2">Demande Envoyée</h2>
-              <p className="text-sm font-bold text-slate-500 mb-6">
+              <h2 className="text-lg font-black text-text-main mb-2">Demande Envoyée</h2>
+              <p className="text-sm font-bold text-text-muted mb-6">
                 Votre compte a bien été enregistré.<br/><br/>
                 Il est actuellement <strong>en attente de validation</strong> par notre équipe (SuperAdmin). Après activation, connectez-vous pour configurer votre cabinet dans l'onboarding.
               </p>
@@ -88,14 +88,14 @@ export const RegisterPage: React.FC = () => {
           ) : (
             <form onSubmit={handleRegister} className="space-y-5">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Nom Complet</label>
+              <label className="block text-sm font-bold text-text-main mb-1.5 ml-1">Nom Complet</label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted w-5 h-5" />
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-slate-900"
+                  className="w-full pl-12 pr-4 py-3 bg-background/50 border border-border-main rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-text-main"
                   placeholder="Dr. Jean Dupont"
                   required
                 />
@@ -103,14 +103,14 @@ export const RegisterPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Email Professionnel</label>
+              <label className="block text-sm font-bold text-text-main mb-1.5 ml-1">Email Professionnel</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted w-5 h-5" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-slate-900"
+                  className="w-full pl-12 pr-4 py-3 bg-background/50 border border-border-main rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-text-main"
                   placeholder="votre@email.com"
                   required
                 />
@@ -118,14 +118,14 @@ export const RegisterPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Mot de passe</label>
+              <label className="block text-sm font-bold text-text-main mb-1.5 ml-1">Mot de passe</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted w-5 h-5" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-slate-900"
+                  className="w-full pl-12 pr-4 py-3 bg-background/50 border border-border-main rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-text-main"
                   placeholder="8 caractères minimum"
                   minLength={8}
                   required
@@ -133,13 +133,13 @@ export const RegisterPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-              <label className="flex items-start gap-3 text-xs font-semibold text-slate-600">
+            <div className="space-y-3 rounded-xl border border-border-main bg-background/70 p-4">
+              <label className="flex items-start gap-3 text-xs font-semibold text-text-muted">
                 <input
                   type="checkbox"
                   checked={acceptTerms}
                   onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20"
+                  className="mt-0.5 h-4 w-4 rounded border-border-hover text-primary focus:ring-primary/20"
                   required
                 />
                 <span>
@@ -150,12 +150,12 @@ export const RegisterPage: React.FC = () => {
                   .
                 </span>
               </label>
-              <label className="flex items-start gap-3 text-xs font-semibold text-slate-600">
+              <label className="flex items-start gap-3 text-xs font-semibold text-text-muted">
                 <input
                   type="checkbox"
                   checked={acceptPrivacy}
                   onChange={(e) => setAcceptPrivacy(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20"
+                  className="mt-0.5 h-4 w-4 rounded border-border-hover text-primary focus:ring-primary/20"
                   required
                 />
                 <span>
@@ -197,15 +197,15 @@ export const RegisterPage: React.FC = () => {
           )}
 
           {!success && (
-            <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-4">
-              <p className="text-sm text-slate-600">
+            <div className="mt-8 pt-6 border-t border-border-main flex flex-col items-center gap-4">
+              <p className="text-sm text-text-muted">
                 Déjà inscrit ?{' '}
                 <Link to="/login" className="text-primary font-bold hover:underline">
                   Se connecter
                 </Link>
               </p>
               
-              <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+              <p className="text-[10px] text-text-muted text-center leading-relaxed">
                 Les CGU et la politique de confidentialite doivent etre acceptees avant creation du compte.
                 <br />© 2026 SANINOVA - Digital Crown Elite
               </p>

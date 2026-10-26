@@ -284,7 +284,7 @@ export const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="fixed bottom-6 right-6 z-50 w-80 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700/50 p-5 overflow-hidden"
+            className="fixed bottom-6 right-6 z-50 w-80 bg-slate-900 text-white rounded-2xl shadow-2xl border border-border-hover/50 p-5 overflow-hidden"
           >
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-cyan-400" />
             <div className="flex justify-between items-start mb-4">
@@ -300,38 +300,38 @@ export const Dashboard: React.FC = () => {
                 type="button"
                 onClick={() => setGhostSecretariatPatient(null)}
                 aria-label="Fermer les actions de sortie patient"
-                className="min-w-11 min-h-11 flex items-center justify-center text-slate-400 hover:text-white transition-colors rounded-full"
+                className="min-w-11 min-h-11 flex items-center justify-center text-text-muted hover:text-white transition-colors rounded-full"
               >
                 <X size={16} aria-hidden="true" />
               </button>
             </div>
             <div className="space-y-2">
-              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-border-hover bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
                 <input
                   type="checkbox"
                   checked={ghostChecklist.encaisser}
                   onChange={event => setGhostChecklist(previous => ({ ...previous, encaisser: event.target.checked }))}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
                 />
-                <span className={cn('text-xs font-bold', ghostChecklist.encaisser ? 'text-slate-500 line-through' : 'text-slate-200')}>Encaisser les soins du jour</span>
+                <span className={cn('text-xs font-bold', ghostChecklist.encaisser ? 'text-text-muted line-through' : 'text-text-muted')}>Encaisser les soins du jour</span>
               </label>
-              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-border-hover bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
                 <input
                   type="checkbox"
                   checked={ghostChecklist.ordonnance}
                   onChange={event => setGhostChecklist(previous => ({ ...previous, ordonnance: event.target.checked }))}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
                 />
-                <span className={cn('text-xs font-bold', ghostChecklist.ordonnance ? 'text-slate-500 line-through' : 'text-slate-200')}>Remettre l'ordonnance</span>
+                <span className={cn('text-xs font-bold', ghostChecklist.ordonnance ? 'text-text-muted line-through' : 'text-text-muted')}>Remettre l'ordonnance</span>
               </label>
-              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-border-hover bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
                 <input
                   type="checkbox"
                   checked={ghostChecklist.rdv}
                   onChange={event => setGhostChecklist(previous => ({ ...previous, rdv: event.target.checked }))}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                  className="w-4 h-4 rounded border-border-hover bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
                 />
-                <span className={cn('text-xs font-bold', ghostChecklist.rdv ? 'text-slate-500 line-through' : 'text-slate-200')}>Fixer le RDV de contrôle</span>
+                <span className={cn('text-xs font-bold', ghostChecklist.rdv ? 'text-text-muted line-through' : 'text-text-muted')}>Fixer le RDV de contrôle</span>
               </label>
             </div>
             {ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv && (
@@ -363,14 +363,14 @@ export const Dashboard: React.FC = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               onKeyDown={handleMobileDialogKeyDown}
-              className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
+              className="relative w-full max-w-4xl bg-card dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
             >
               <button
                 type="button"
                 autoFocus
                 onClick={closeMobileModal}
                 aria-label="Fermer la fenêtre de sécurité mobile"
-                className="absolute top-6 right-6 min-w-11 min-h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"
+                className="absolute top-6 right-6 min-w-11 min-h-11 flex items-center justify-center text-text-muted hover:text-text-muted hover:bg-input-field rounded-full transition-colors z-20"
               >
                 <X size={24} aria-hidden="true" />
               </button>

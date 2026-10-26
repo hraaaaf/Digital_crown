@@ -204,23 +204,23 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 0.9, y: -20, filter: 'blur(10px)' }}
             className={cn(
-              "pointer-events-auto w-72 bg-white/90 dark:bg-slate-900/80 backdrop-blur-3xl border border-slate-200/50 dark:border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden z-[10002]",
+              "pointer-events-auto w-72 bg-card/90 dark:bg-slate-900/80 backdrop-blur-3xl border border-border-main/50 dark:border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden z-[10002]",
               "absolute top-12 right-0 mt-2"
             )}
           >
             {/* Header - More Compact */}
-            <div className="px-5 py-3 bg-gradient-to-r from-primary/10 to-transparent flex items-center justify-between border-b border-slate-100 dark:border-white/5">
+            <div className="px-5 py-3 bg-gradient-to-r from-primary/10 to-transparent flex items-center justify-between border-b border-border-main dark:border-white/5">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
                   <Brain size={14} className="text-white" />
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Ghost Brain</h4>
+                  <h4 className="text-[10px] font-black text-text-main dark:text-white uppercase tracking-widest">Ghost Brain</h4>
                 </div>
               </div>
               <button
                 onClick={() => setIsExpanded(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="p-1.5 text-text-muted hover:text-text-main dark:hover:text-white transition-colors"
               >
                 <X size={14} />
               </button>
@@ -235,26 +235,26 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                   className="space-y-3"
                 >
                   <div className="flex items-center justify-between px-1">
-                    <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Intelligence Stats</h5>
+                    <h5 className="text-[9px] font-black text-text-muted uppercase tracking-widest">Intelligence Stats</h5>
                     <div className="px-1.5 py-0.5 bg-primary/20 rounded-full text-[8px] font-black text-primary">
                       {intelligenceScore}%
                     </div>
                   </div>
 
                     <div className="space-y-1.5">
-                      <div className="p-2.5 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center justify-between">
+                      <div className="p-2.5 bg-background/50 dark:bg-white/5 rounded-xl border border-border-main dark:border-white/5 flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
                           <Zap size={12} className="text-amber-500" />
-                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Actes Maîtrisés</span>
+                          <span className="text-[11px] font-bold text-text-muted dark:text-text-muted">Actes Maîtrisés</span>
                         </div>
-                        <span className="text-[11px] font-black text-slate-900 dark:text-white">
+                        <span className="text-[11px] font-black text-text-main dark:text-white">
                           {Object.keys(PriceBrain.getHistory()).length}
                         </span>
                       </div>
-                    <div className="p-2.5 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center justify-between">
+                    <div className="p-2.5 bg-background/50 dark:bg-white/5 rounded-xl border border-border-main dark:border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <Sparkles size={12} className="text-primary" />
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Protocoles & Règles</span>
+                        <span className="text-[11px] font-bold text-text-muted dark:text-text-muted">Protocoles & Règles</span>
                       </div>
                       <span className="text-[11px] font-black text-emerald-500 flex items-center gap-1">
                         <ShieldCheck size={10} /> 14 Actifs
@@ -264,7 +264,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
 
                   <button
                     onClick={() => setShowStats(false)}
-                    className="w-full py-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest transition-all"
+                    className="w-full py-2 bg-input-field dark:bg-white/5 hover:bg-input-field dark:hover:bg-white/10 text-text-muted dark:text-text-muted hover:text-text-main dark:hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest transition-all"
                   >
                     Retour Suggestions
                   </button>
@@ -303,7 +303,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                       )}
                     </div>
 
-                    <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 leading-normal px-1">
+                    <p className="text-[12px] font-semibold text-text-main dark:text-text-muted leading-normal px-1">
                       {currentInsight.content}
                     </p>
 
@@ -350,7 +350,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                             setIsExpanded(false);
                           }
                         }}
-                        className="w-full mt-1 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 group"
+                        className="w-full mt-1 py-2.5 bg-slate-900 dark:bg-card text-white dark:text-text-main rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 group"
                       >
                         {currentInsight.actionLabel}
                         <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform" />
@@ -360,7 +360,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     {/* Feedback loop — practitioner reaction */}
                     {!feedbackSent[currentInsight.id] ? (
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex-1">Utile ?</span>
+                        <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest flex-1">Utile ?</span>
                         <button
                           onClick={() => submitFeedback(currentInsight, 'accept')}
                           className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-500 transition-all"
@@ -393,17 +393,17 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="space-y-2.5">
                       <div className="flex items-center gap-2">
                         <CalendarDays size={14} className="text-primary" />
-                        <span className="text-[10px] font-black text-slate-700 dark:text-white uppercase tracking-widest">Briefing du Jour</span>
-                        <span className="ml-auto text-[9px] font-black text-slate-400">{briefingData.date}</span>
+                        <span className="text-[10px] font-black text-text-main dark:text-white uppercase tracking-widest">Briefing du Jour</span>
+                        <span className="ml-auto text-[9px] font-black text-text-muted">{briefingData.date}</span>
                       </div>
                       <div className="flex gap-2">
                         <div className="flex-1 p-2 bg-primary/5 rounded-xl border border-primary/10 text-center">
                           <div className="text-base font-black text-primary">{briefingData.total_patients}</div>
-                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Patients</div>
+                          <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Patients</div>
                         </div>
                         <div className="flex-1 p-2 bg-amber-500/5 rounded-xl border border-amber-500/10 text-center">
                           <div className="text-base font-black text-amber-500">{briefingData.total_outstanding.toLocaleString()}</div>
-                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">MAD impayés</div>
+                          <div className="text-[9px] font-bold text-text-muted uppercase tracking-widest">MAD impayés</div>
                         </div>
                       </div>
                       {briefingData.patients.filter(p => p.solde_attente > 0).slice(0, 3).map(p => (
@@ -413,11 +413,11 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                             navigate(`/patients/${p.patient_id}?tab=accounting`);
                             setIsExpanded(false);
                           }}
-                          className="flex items-center justify-between px-2 py-1.5 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/5 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group"
+                          className="flex items-center justify-between px-2 py-1.5 bg-background dark:bg-white/5 rounded-lg border border-border-main dark:border-white/5 cursor-pointer hover:bg-input-field dark:hover:bg-white/10 transition-colors group"
                         >
                           <div>
-                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">{p.prenom} {p.nom}</span>
-                            <div className="text-[9px] text-slate-400">{p.appointment_time}</div>
+                            <span className="text-[10px] font-bold text-text-main dark:text-text-muted group-hover:text-primary transition-colors">{p.prenom} {p.nom}</span>
+                            <div className="text-[9px] text-text-muted">{p.appointment_time}</div>
                           </div>
                           <span className="text-[10px] font-black text-amber-500">{p.solde_attente.toLocaleString()} MAD</span>
                         </div>
@@ -425,10 +425,10 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     </motion.div>
                   ) : (
                   <div className="text-center py-2 space-y-3">
-                    <div className="w-10 h-10 bg-slate-100 dark:bg-white/5 rounded-xl mx-auto flex items-center justify-center text-slate-300 dark:text-white/20">
+                    <div className="w-10 h-10 bg-input-field dark:bg-white/5 rounded-xl mx-auto flex items-center justify-center text-text-muted dark:text-white/20">
                       <Sparkles size={20} />
                     </div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                       Audit Live Actif...
                     </p>
                     <button
@@ -446,14 +446,14 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
 
             {/* Navigation & Footer - Slimmer */}
             {!showStats && insights.length > 1 && (
-              <div className="px-5 py-2 bg-slate-50 dark:bg-white/5 flex items-center justify-between">
+              <div className="px-5 py-2 bg-background dark:bg-white/5 flex items-center justify-between">
                 <div className="flex gap-1">
                   {insights.map((_, i) => (
                     <div
                       key={i}
                       className={cn(
                         "w-1 h-1 rounded-full transition-all",
-                        i === activeInsightIndex ? "w-3 bg-primary" : "bg-slate-200 dark:bg-white/10"
+                        i === activeInsightIndex ? "w-3 bg-primary" : "bg-input-field dark:bg-white/10"
                       )}
                     />
                   ))}
@@ -462,14 +462,14 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                   <button
                     onClick={() => setActiveInsightIndex(prev => Math.max(0, prev - 1))}
                     disabled={activeInsightIndex === 0}
-                    className="p-1 text-slate-400 dark:text-white/40 hover:text-slate-900 dark:hover:text-white disabled:opacity-20 transition-all"
+                    className="p-1 text-text-muted dark:text-white/40 hover:text-text-main dark:hover:text-white disabled:opacity-20 transition-all"
                   >
                     <ChevronLeft size={14} />
                   </button>
                   <button
                     onClick={() => setActiveInsightIndex(prev => Math.min(insights.length - 1, prev + 1))}
                     disabled={activeInsightIndex === insights.length - 1}
-                    className="p-1 text-slate-400 dark:text-white/40 hover:text-slate-900 dark:hover:text-white disabled:opacity-20 transition-all"
+                    className="p-1 text-text-muted dark:text-white/40 hover:text-text-main dark:hover:text-white disabled:opacity-20 transition-all"
                   >
                     <ChevronRight size={14} />
                   </button>
@@ -510,11 +510,11 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
 
             <div
               onClick={() => setShowStats(true)}
-              className="px-5 py-3 bg-slate-50 dark:bg-black/20 flex items-center justify-between border-t border-slate-100 dark:border-white/5 cursor-pointer hover:bg-slate-100 dark:hover:bg-black/30 transition-all"
+              className="px-5 py-3 bg-background dark:bg-black/20 flex items-center justify-between border-t border-border-main dark:border-white/5 cursor-pointer hover:bg-input-field dark:hover:bg-black/30 transition-all"
             >
-              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">IAmina Score</span>
+              <span className="text-[10px] font-black text-text-muted dark:text-text-muted uppercase tracking-widest">IAmina Score</span>
               <div className="flex items-center gap-2">
-                <div className="w-16 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                <div className="w-16 h-1.5 bg-input-field dark:bg-white/10 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${intelligenceScore}%` }}
@@ -562,7 +562,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
             ? "bg-primary/10 text-primary"
             : hasFinancialRisk
               ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-amber-400"
-              : "text-slate-400 hover:text-primary hover:bg-white/80 dark:hover:bg-slate-800"
+              : "text-text-muted hover:text-primary hover:bg-card/80 dark:hover:bg-slate-800"
         )}
       >
         {isExpanded ? (
@@ -571,7 +571,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
           <div className="relative z-10">
             {insights.length > 0 && (
               <span className={cn(
-                "absolute -top-1.5 -right-1.5 w-4 h-4 text-white text-[8px] font-black flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800 animate-bounce",
+                "absolute -top-1.5 -right-1.5 w-4 h-4 text-white text-[8px] font-black flex items-center justify-center rounded-full border-2 border-white dark:border-border-hover animate-bounce",
                 hasFinancialRisk ? "bg-rose-600" : "bg-primary"
               )}>
                 {insights.length}

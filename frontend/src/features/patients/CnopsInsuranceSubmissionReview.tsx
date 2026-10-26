@@ -63,8 +63,8 @@ const hasValue = (value: unknown): boolean => {
 };
 
 const fmtAmount = (value: number) => `${Number(value || 0).toLocaleString('fr-MA')} MAD`;
-const inputClass = 'w-full min-h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20';
-const labelClass = 'text-[10px] uppercase tracking-wider font-black text-slate-500';
+const inputClass = 'w-full min-h-11 px-3 rounded-xl border border-border-main bg-card text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20';
+const labelClass = 'text-[10px] uppercase tracking-wider font-black text-text-muted';
 
 export const CnopsInsuranceSubmissionReview = ({
   draft,
@@ -117,32 +117,32 @@ export const CnopsInsuranceSubmissionReview = ({
       aria-modal="true"
       aria-labelledby="cnops-review-title"
     >
-      <div className="w-full sm:max-w-5xl max-h-[96dvh] sm:max-h-[92vh] overflow-hidden rounded-t-[2rem] sm:rounded-[2rem] bg-white shadow-2xl border border-slate-200 flex flex-col">
-        <header className="shrink-0 px-5 sm:px-7 py-5 border-b border-slate-100 bg-gradient-to-r from-white to-primary/5 flex items-start justify-between gap-4">
+      <div className="w-full sm:max-w-5xl max-h-[96dvh] sm:max-h-[92vh] overflow-hidden rounded-t-[2rem] sm:rounded-[2rem] bg-card shadow-2xl border border-border-main flex flex-col">
+        <header className="shrink-0 px-5 sm:px-7 py-5 border-b border-border-main bg-gradient-to-r from-white to-primary/5 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-primary text-[10px] sm:text-xs font-black uppercase tracking-[0.18em]">
               <ShieldCheck size={16} /> CNOPS · Feuille de soins dentaires
             </div>
-            <h2 id="cnops-review-title" className="mt-1 text-xl sm:text-2xl font-black text-slate-900">Revue avant validation praticien</h2>
-            <p className="mt-1 text-xs sm:text-sm text-slate-500 font-medium">Source Honoraires #{draft.honoraires_document_id} · données cliniques verrouillées</p>
+            <h2 id="cnops-review-title" className="mt-1 text-xl sm:text-2xl font-black text-text-main">Revue avant validation praticien</h2>
+            <p className="mt-1 text-xs sm:text-sm text-text-muted font-medium">Source Honoraires #{draft.honoraires_document_id} · données cliniques verrouillées</p>
           </div>
-          <button type="button" aria-label="Fermer la revue CNOPS" onClick={onClose} className="min-w-11 min-h-11 rounded-xl border border-slate-200 bg-white inline-flex items-center justify-center text-slate-500 hover:bg-slate-50">
+          <button type="button" aria-label="Fermer la revue CNOPS" onClick={onClose} className="min-w-11 min-h-11 rounded-xl border border-border-main bg-card inline-flex items-center justify-center text-text-muted hover:bg-background">
             <X size={19} />
           </button>
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-7 py-5 space-y-5">
-          <section className="rounded-2xl border border-slate-200 overflow-hidden" data-cnops-section="source">
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">
+          <section className="rounded-2xl border border-border-main overflow-hidden" data-cnops-section="source">
+            <div className="px-4 py-3 bg-background border-b border-border-main flex items-center justify-between gap-3">
               <div>
-                <h3 className="font-black text-slate-800 text-sm">1. Source Honoraires vérifiée</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Lecture seule. Actes, dents, montants et mappings NGAP proviennent du serveur.</p>
+                <h3 className="font-black text-text-main text-sm">1. Source Honoraires vérifiée</h3>
+                <p className="text-[11px] text-text-muted mt-0.5">Lecture seule. Actes, dents, montants et mappings NGAP proviennent du serveur.</p>
               </div>
-              <LockKeyhole size={18} className="text-slate-400 shrink-0" />
+              <LockKeyhole size={18} className="text-text-muted shrink-0" />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] text-xs">
-                <thead className="bg-white text-slate-400 uppercase tracking-wider text-[9px]">
+                <thead className="bg-card text-text-muted uppercase tracking-wider text-[9px]">
                   <tr>
                     <th className="text-left px-4 py-3">Date</th>
                     <th className="text-left px-4 py-3">Acte</th>
@@ -152,19 +152,19 @@ export const CnopsInsuranceSubmissionReview = ({
                     <th className="text-right px-4 py-3">Montant</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border-main">
                   {draft.lines.map((line, index) => (
                     <tr key={`${line.source.source_line_uid || line.source.honoraires_line_index}-${index}`}>
-                      <td className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">{line.service_date}</td>
-                      <td className="px-4 py-3 font-bold text-slate-800">{line.label}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-600">{line.teeth.join(', ') || '—'}</td>
+                      <td className="px-4 py-3 font-semibold text-text-muted whitespace-nowrap">{line.service_date}</td>
+                      <td className="px-4 py-3 font-bold text-text-main">{line.label}</td>
+                      <td className="px-4 py-3 font-semibold text-text-muted">{line.teeth.join(', ') || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={cn('inline-flex items-center px-2 py-1 rounded-lg font-black', line.mapping_status === 'EXACT' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
                           {line.ngap_code || line.mapping_status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-semibold text-slate-600">{line.ngap_coefficient ?? '—'}</td>
-                      <td className="px-4 py-3 text-right font-black text-slate-800 whitespace-nowrap">{fmtAmount(line.amount_mad)}</td>
+                      <td className="px-4 py-3 font-semibold text-text-muted">{line.ngap_coefficient ?? '—'}</td>
+                      <td className="px-4 py-3 text-right font-black text-text-main whitespace-nowrap">{fmtAmount(line.amount_mad)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -175,8 +175,8 @@ export const CnopsInsuranceSubmissionReview = ({
           <section className="rounded-2xl border border-primary/20 bg-primary/[0.025] p-4 sm:p-5" data-cnops-section="administrative">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-black text-slate-800 text-sm">2. Données administratives CNOPS</h3>
-                <p className="text-[11px] text-slate-500 mt-1">Les champs assuré sont saisis explicitement. Digital Crown ne déduit ni affiliation, ni immatriculation, ni identité assuré.</p>
+                <h3 className="font-black text-text-main text-sm">2. Données administratives CNOPS</h3>
+                <p className="text-[11px] text-text-muted mt-1">Les champs assuré sont saisis explicitement. Digital Crown ne déduit ni affiliation, ni immatriculation, ni identité assuré.</p>
               </div>
               <span className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-700">
                 <BadgeCheck size={13} /> Formulaire cabinet validé
@@ -217,7 +217,7 @@ export const CnopsInsuranceSubmissionReview = ({
                 <input data-cnops-field="insured_address" value={admin.insured_address || ''} onChange={e => updateAdmin('insured_address', e.target.value || null)} className={inputClass} />
               </label>
 
-              <div className="sm:col-span-2 lg:col-span-4 h-px bg-slate-200 my-1" aria-hidden="true" />
+              <div className="sm:col-span-2 lg:col-span-4 h-px bg-input-field my-1" aria-hidden="true" />
 
               <label className="space-y-1.5">
                 <span className={labelClass}>Bénéficiaire</span>
@@ -265,20 +265,20 @@ export const CnopsInsuranceSubmissionReview = ({
               <div data-cnops-blockers className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-amber-800">
                 <div className="flex items-center gap-2 font-black text-xs"><AlertCircle size={16} /> À compléter avant validation</div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {visibleBlockers.map(key => <span key={key} className="px-2 py-1 rounded-lg bg-white/80 border border-amber-200 text-[10px] font-bold">{blockerLabel[key] || key}</span>)}
+                  {visibleBlockers.map(key => <span key={key} className="px-2 py-1 rounded-lg bg-card/80 border border-amber-200 text-[10px] font-bold">{blockerLabel[key] || key}</span>)}
                 </div>
               </div>
             )}
           </section>
 
-          <section className="rounded-2xl border border-slate-200 p-4 sm:p-5" data-cnops-section="actions">
-            <h3 className="font-black text-slate-800 text-sm">3. Validation et archivage</h3>
-            <p className="text-[11px] text-slate-500 mt-1">La validation verrouille le brouillon contre le formulaire CNOPS et la référence NGAP. Le PDF n’est généré qu’après validation praticien.</p>
+          <section className="rounded-2xl border border-border-main p-4 sm:p-5" data-cnops-section="actions">
+            <h3 className="font-black text-text-main text-sm">3. Validation et archivage</h3>
+            <p className="text-[11px] text-text-muted mt-1">La validation verrouille le brouillon contre le formulaire CNOPS et la référence NGAP. Le PDF n’est généré qu’après validation praticien.</p>
 
             {error && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-rose-700 text-xs font-bold">{error}</div>}
 
             <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-              <div className="text-[10px] font-bold text-slate-500">
+              <div className="text-[10px] font-bold text-text-muted">
                 Statut : <span className={cn('font-black', draft.status === 'VALIDATED' ? 'text-emerald-700' : 'text-amber-700')}>{draft.status}</span>
                 {draft.template.template_hash && <span className="ml-2">· SHA {draft.template.template_hash.slice(0, 8)}…</span>}
               </div>

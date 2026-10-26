@@ -172,7 +172,7 @@ export const AgendaStudio: React.FC = () => {
           </div>
           <button 
             onClick={handleBlockHoliday}
-            className="bg-white text-primary px-4 py-2 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors"
+            className="bg-card text-primary px-4 py-2 rounded-xl font-bold text-sm hover:bg-input-field transition-colors"
           >
             Bloquer l'agenda
           </button>
@@ -180,7 +180,7 @@ export const AgendaStudio: React.FC = () => {
       )}
 
       {/* GLOBAL CONTROLS HEADER */}
-      <div data-tour="agenda-header" className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-6 bg-white/40 backdrop-blur-2xl border border-white/60 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl min-w-0">
+      <div data-tour="agenda-header" className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-6 bg-card/40 backdrop-blur-2xl border border-white/60 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl min-w-0">
         
         {/* Left: Branding & Date Navigation */}
         <div className="flex items-center gap-3 sm:gap-6 min-w-0">
@@ -191,15 +191,15 @@ export const AgendaStudio: React.FC = () => {
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-black text-primary tracking-tight whitespace-nowrap">Agenda</h1>
             <div className="flex items-center gap-3">
-              <button onClick={handlePrev} className="p-1.5 hover:bg-white/60 rounded-full transition-colors text-primary">
+              <button onClick={handlePrev} className="p-1.5 hover:bg-card/60 rounded-full transition-colors text-primary">
                 <ChevronLeft size={20} />
               </button>
-              <span className="text-sm font-black text-slate-600 min-w-[140px] text-center uppercase tracking-wider">
+              <span className="text-sm font-black text-text-muted min-w-[140px] text-center uppercase tracking-wider">
                 {viewMode === 'month' 
                   ? selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
                   : selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
-              <button onClick={handleNext} className="p-1.5 hover:bg-white/60 rounded-full transition-colors text-primary">
+              <button onClick={handleNext} className="p-1.5 hover:bg-card/60 rounded-full transition-colors text-primary">
                 <ChevronRight size={20} />
               </button>
             </div>
@@ -207,7 +207,7 @@ export const AgendaStudio: React.FC = () => {
         </div>
 
         {/* Right: View Switching & Actions */}
-        <div data-tour="agenda-view-switcher" className="w-full lg:w-auto min-w-0 flex flex-wrap items-center justify-center lg:justify-end gap-1 sm:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-md">
+        <div data-tour="agenda-view-switcher" className="w-full lg:w-auto min-w-0 flex flex-wrap items-center justify-center lg:justify-end gap-1 sm:gap-2 bg-input-field/50 p-1.5 rounded-2xl border border-border-main/50 backdrop-blur-md">
           <button
             onClick={() => setIsFrontdeskModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 text-orange-600 hover:bg-orange-100 font-bold text-sm rounded-xl transition-all relative"
@@ -227,13 +227,13 @@ export const AgendaStudio: React.FC = () => {
             <span className="hidden xl:inline">Importer</span>
           </button>
           
-          <div className="hidden sm:block w-px h-6 bg-slate-200 mx-1" />
+          <div className="hidden sm:block w-px h-6 bg-input-field mx-1" />
 
           <button 
             onClick={() => setViewMode('day')}
             className={cn(
               "flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all",
-              viewMode === 'day' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40"
+              viewMode === 'day' ? "bg-card text-primary shadow-sm" : "text-text-muted hover:text-primary hover:bg-card/40"
             )}
           >
             <CalendarDays size={18} /> Jour
@@ -242,7 +242,7 @@ export const AgendaStudio: React.FC = () => {
             onClick={() => setViewMode('week')}
             className={cn(
               "flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all",
-              viewMode === 'week' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40"
+              viewMode === 'week' ? "bg-card text-primary shadow-sm" : "text-text-muted hover:text-primary hover:bg-card/40"
             )}
           >
             <ListFilter size={18} /> Semaine
@@ -251,7 +251,7 @@ export const AgendaStudio: React.FC = () => {
             onClick={() => setViewMode('month')}
             className={cn(
               "flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all",
-              viewMode === 'month' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-primary hover:bg-white/40"
+              viewMode === 'month' ? "bg-card text-primary shadow-sm" : "text-text-muted hover:text-primary hover:bg-card/40"
             )}
           >
             <LayoutGrid size={18} /> Mois
@@ -260,16 +260,16 @@ export const AgendaStudio: React.FC = () => {
             onClick={() => setViewMode('multi')}
             className={cn(
               "flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all",
-              viewMode === 'multi' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600 hover:bg-white/40"
+              viewMode === 'multi' ? "bg-card text-indigo-600 shadow-sm" : "text-text-muted hover:text-indigo-600 hover:bg-card/40"
             )}
             title="Vue multi-praticien (PREMIUM/ELITE)"
           >
             <Users size={18} /> Multi
           </button>
-          <div className="hidden sm:block w-px h-6 bg-slate-200 mx-1" />
+          <div className="hidden sm:block w-px h-6 bg-input-field mx-1" />
           <button
             onClick={handleToday}
-            className="px-5 py-2.5 bg-white text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all border border-slate-200 shadow-sm"
+            className="px-5 py-2.5 bg-card text-text-main font-bold text-sm rounded-xl hover:bg-background transition-all border border-border-main shadow-sm"
           >
             Aujourd'hui
           </button>
