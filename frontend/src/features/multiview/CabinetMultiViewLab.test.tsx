@@ -250,7 +250,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(select.querySelectorAll('option:disabled')).toHaveLength(2);
     for(const id of ['vue-ensemble','consultation','agenda-cabinet','suivi-clinique','imagerie','gestion-administrative'])
       expect(select.querySelector('option[value="'+id+'"]')).toBeTruthy();
-    expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.hasAttribute('disabled')).toBe(true);
+    expect(select.querySelector('option[value="comparaison-orthodontique"]')).toBeTruthy();
     fireEvent.change(select,{target:{value:'vue-ensemble'}});
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
     fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
@@ -307,8 +307,8 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     await screen.findByTestId('multiview-real-dossier');
     const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
     expect(select.querySelector('option[value="planification-traitements"]')).toBeTruthy();
-    expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.hasAttribute('disabled')).toBe(true);
-    expect(select.querySelector('option[value="future-presentation-patient"]')?.hasAttribute('disabled')).toBe(true);
+    expect(select.querySelector('option[value="comparaison-orthodontique"]')).toBeTruthy();
+    expect(select.querySelector('option[value="presentation-patient"]')).toBeTruthy();
     fireEvent.change(select,{target:{value:'planification-traitements'}});
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
     fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
