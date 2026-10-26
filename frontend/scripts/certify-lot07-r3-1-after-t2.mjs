@@ -58,6 +58,11 @@ try {
     [timepoint,mediaIndex.items?.find(item=>item.timepoint===timepoint)?.id]));
   pass('two persisted synthetic clinical asset ids',Boolean(byTimepoint.T0 && byTimepoint.T1),
     {timepoints:Object.keys(byTimepoint)});
+  const cephPair={T0:Number(process.env.R3_T2_CEPHALO_T0_ID),T1:Number(process.env.R3_T2_CEPHALO_T1_ID)};
+  pass('two separate persisted synthetic CEPHALO record ids from isolated T2',
+    Number.isSafeInteger(cephPair.T0)&&cephPair.T0>0 &&
+    Number.isSafeInteger(cephPair.T1)&&cephPair.T1>0 &&
+    cephPair.T0!==cephPair.T1,cephPair);
   const orthoCase=await api.post('/api/patients/'+patient.id+'/ortho-case',{
     headers:head,data:{started_at:'2026-01-02T09:00:00'},
   });
@@ -75,7 +80,28 @@ try {
     const link=await api.post('/api/patients/'+patient.id+'/ortho-case/'+orthoCaseId+
       '/timepoints/'+tpId+'/evidences',{headers:head,data:{clinical_asset_id:byTimepoint[timepoint]}});
     pass('real synthetic evidence linked '+timepoint,link.status()===201,{status:link.status()});
+    const cephLink=await api.post('/api/patients/'+patient.id+'/ortho-case/'+orthoCaseId+
+      '/timepoints/'+tpId+'/evidences',{headers:head,data:{cephalo_analysis_id:cephPair[timepoint]}});
+    pass('real authenticated persisted CEPHALO evidence linked '+timepoint,
+      cephLink.status()===201 && (await cephLink.json()).cephalo_analysis_id===cephPair[timepoint],
+      {status:cephLink.status(),ordinal});
   }
+  const actualCompareResponse=await api.get('/api/patients/'+patient.id+'/ortho-case/'+orthoCaseId+
+    '/compare?from_ordinal=0&to_ordinal=1',{headers:head});
+  pass('real authenticated F3 compare endpoint with two synthetic CEPHALO sources',
+    actualCompareResponse.status()===200,{status:actualCompareResponse.status()});
+  const actualCompare=await actualCompareResponse.json();
+  const t0Sources=(actualCompare.from_timepoint?.evidences||[]).filter(e=>e.kind==='CEPHALO');
+  const t1Sources=(actualCompare.to_timepoint?.evidences||[]).filter(e=>e.kind==='CEPHALO');
+  pass('F3 server returns distinct verified T0/T1 CEPHALO bindings and numerical SNA delta',
+    actualCompare.patient_id===patient.id && actualCompare.ortho_case_id===orthoCaseId &&
+    t0Sources.length===1 && t1Sources.length===1 &&
+    t0Sources[0].ref_id===cephPair.T0 && t1Sources[0].ref_id===cephPair.T1 &&
+    actualCompare.measurement_status==='AVAILABLE' &&
+    actualCompare.interpretation_policy==='NUMERIC_ONLY_CLINICIAN_INTERPRETATION' &&
+    actualCompare.measurements.some(m=>m.key==='SNA' && Math.abs(m.from_value-82)<0.01 &&
+      Math.abs(m.to_value-83.2)<0.01),
+    {status:actualCompare.measurement_status,t0:t0Sources.length,t1:t1Sources.length});
   // Master Plan seed via the REAL authenticated clinical API, never mocked.
   const syntheticPlan=await api.put('/api/patients/'+patient.id+'/master-plan',{
     headers:head,data:[{title:'Contrôle de suivi synthétique',assistant:'Clinique',status:'pending',date_str:'2026-11-01'}],
@@ -381,6 +407,24 @@ try {
       await presentation.getByText('Présentation masquée').count()===1 &&
       await page.locator('[data-testid="r3-presentation-visible"]').count()===0);
     await capture(page,'after-r3-presentation-masked-1920.png');
+
+    await chooser.selectOption('comparaison-orthodontique');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const clinicalT0=page.getByTestId('r3-cephalo-t0');
+    const clinicalT1=page.getByTestId('r3-cephalo-t1');
+    await clinicalT0.getByText('Analyse source #'+cephPair.T0).waitFor({state:'visible'});
+    await clinicalT1.getByText('Analyse source #'+cephPair.T1).waitFor({state:'visible'});
+    pass('real isolated T0/T1 clinical GET-only panels render distinct canonical source ids',
+      await clinicalT0.getByText('SNA').count()===1 &&
+      await clinicalT1.getByText('SNA').count()===1 &&
+      (await clinicalT0.innerText()).includes('82') &&
+      (await clinicalT1.innerText()).includes('83,2') &&
+      await page.locator('[data-v15-071-viewslot="cephalo"]').count()===2 &&
+      await page.locator('[data-testid="r3-cephalo-missing-t0"]').count()===0 &&
+      await page.locator('[data-testid="r3-cephalo-missing-t1"]').count()===0,
+      {T0:cephPair.T0,T1:cephPair.T1});
+    await capture(page,'after-r3-real-ortho-t0-t1-synthetic-records-1920.png');
   }
   pass('no browser JavaScript errors',errors.length===0,{errors:errors.slice(0,4)});
   console.log('R3-1 AUTHENTIC AFTER PASS '+evidence.tests.length+' tests, '+evidence.screens.length+
