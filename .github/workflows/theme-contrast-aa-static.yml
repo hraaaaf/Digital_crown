@@ -1,0 +1,35 @@
+name: Theme Semantic Contrast AA — Static Roles (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/theme-contrast-aa-20261026
+  pull_request:
+    branches:
+      - fix/theme-neutral-wave08-20261026
+permissions:
+  contents: read
+jobs:
+  theme-contrast:
+    name: Eight-theme opaque text-role contrast plus TS and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - name: WCAG AA opaque semantic role regression
+        run: npx vitest run src/features/multiview/themeContrastAA.r1.test.ts --maxWorkers=1 --fileParallelism=false
+        working-directory: frontend
+      - name: TypeScript
+        run: npx tsc --noEmit -p tsconfig.app.json
+        working-directory: frontend
+      - name: Production build without deployment
+        run: npm run build
+        working-directory: frontend

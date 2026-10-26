@@ -69,7 +69,7 @@
   --card-bg: white;
   --sidebar-bg: white;
   --text-main: #0f172a;
-  --text-muted: #64748b;
+  --text-muted: #475569;
   --border-color: #e2e8f0;
   --border-hover: #cbd5e1;
   --input-bg: #f1f5f9;
@@ -120,7 +120,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --card-bg: #fcfdfd;
   --sidebar-bg: #ecfdf5;
   --text-main: #064e3b;
-  --text-muted: #059669;
+  --text-muted: #047857;
   --border-color: #d1fae5;
   --border-hover: #a7f3d0;
   --input-bg: #f0fdf4;
@@ -141,7 +141,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --card-bg: #fffbfb;
   --sidebar-bg: #fff1f2;
   --text-main: #831843;
-  --text-muted: #db2777;
+  --text-muted: #be185d;
   --border-color: #fecdd3;
   --border-hover: #fda4af;
   --input-bg: #fff1f2;
@@ -182,7 +182,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --card-bg: #ffffff;
   --sidebar-bg: #f0f9ff;
   --text-main: #0c4a6e;
-  --text-muted: #0284c7;
+  --text-muted: #0369a1;
   --border-color: #bae6fd;
   --border-hover: #7dd3fc;
   --input-bg: #f0f9ff;
@@ -223,7 +223,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --card-bg: #0f172a;
   --sidebar-bg: #020617;
   --text-main: #f8fafc;
-  --text-muted: #64748b;
+  --text-muted: #94a3b8;
   --border-color: #1e293b;
   --border-hover: #334155;
   --input-bg: #020617;
