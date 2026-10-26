@@ -1,0 +1,46 @@
+name: Theme Wave11 exact token-only proof (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/theme-wave11-auth-pwa-20261026
+  pull_request:
+    paths:
+      - frontend/src/**
+      - scripts/ci/theme_wave11_cosmetic.py
+      - .github/workflows/theme-wave11-cosmetic.yml
+permissions:
+  contents: read
+jobs:
+  exact-cosmetic-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact SHA baseline token-only source proof
+        run: python scripts/ci/theme_wave11_cosmetic.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Eight-theme AA opaque role contrast and focused UI regression
+        working-directory: frontend
+        run: npx vitest run src/features/multiview/themeContrastAA.r1.test.ts src/features/multiview/themeTokens.r2.test.ts --maxWorkers=1 --fileParallelism=false
+      - name: TypeScript
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Production build (no deploy)
+        working-directory: frontend
+        run: npm run build
