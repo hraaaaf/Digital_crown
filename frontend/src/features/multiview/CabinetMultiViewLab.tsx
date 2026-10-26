@@ -175,6 +175,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const possible=selectablePilotLayouts(canCephalo);
   const applied=possible.find(item=>item.id===appliedId) || possible[0];
   const draft=possible.find(item=>item.id===draftId) || applied;
+  // Premium controls exist only in the real DEV R3 two-pane pilot, not R2/production.
+  const premiumR3 = enableR3Split && import.meta.env.DEV &&
+    (applied.geometry==='two-columns' || applied.geometry==='two-rows');
   const mounted: Layout = exchanged && applied.slots.length>1
     ? {...applied,slots:[...applied.slots].reverse()} : applied;
   const context: WorkspaceContext = {
@@ -204,7 +207,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     if (!trustedPatient) return null;
     if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>;
     if (slot.module==='dossier') return (
-      <div data-testid="multiview-real-dossier" className="min-w-0 space-y-3 p-2.5 text-sm sm:p-3.5">
+      <div data-testid="multiview-real-dossier" className="min-w-0 space-y-2.5 p-2.5 text-sm sm:p-3">
         <div className="rounded-2xl bg-gradient-to-br from-primary via-primary to-primary p-4 text-on-primary shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-on-primary/85">Dossier patient</p>
@@ -220,6 +223,10 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
             </div>
           </div>
         </div>
+        {premiumR3 && <p data-testid="r3-1-dossier-readonly-help"
+          className="rounded-lg border border-border-main bg-medical-pearl px-3 py-2 text-xs leading-relaxed text-text-muted">
+          Aperçu en consultation seule. Seuls les bilans autorisés sont affichés ci-dessous.
+        </p>}
         <HistoricBilanReadonlyPanel patientId={trustedPatient.id} />
       </div>
     );
@@ -250,44 +257,132 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           </span>
         </section>
       ) : (
-      <header className="dc-mv-commandbar rounded-2xl border border-border-main bg-card p-3 shadow-sm sm:p-4">
+      <header className={'dc-mv-commandbar rounded-2xl border border-border-main bg-card shadow-sm ' +
+        (premiumR3 ? 'p-2.5 sm:p-3' : 'p-3 sm:p-4')}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary"><LayoutGrid size={21}/></span>
             <div className="min-w-0">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-primary">Espace clinique · MultiView</p>
               <h2 className="mt-0.5 text-lg font-extrabold tracking-tight text-text-main">Vues multiples</h2>
-              <p className="text-xs text-text-muted">Un dossier patient, plusieurs perspectives. Dispositions de démonstration non enregistrées.</p>
+              {!premiumR3 && <p className="text-xs text-text-muted">Un dossier patient, plusieurs perspectives. Dispositions de démonstration non enregistrées.</p>}
             </div>
           </div>
           <span data-testid="multiview-ronly-contract" className="inline-flex items-center gap-1.5 rounded-full border border-border-hover bg-medical-pearl px-3 py-2 text-xs font-bold text-primary-ink">
             <LockKeyhole size={15}/> Mode R · consultation seule — édition et signature indisponibles ici
           </span>
         </div>
-        <div className="mt-3 space-y-3 rounded-xl border border-border-main bg-medical-pearl/80 p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="multiview-pilot-select" className="text-sm">Disposition</label>
-          <select id="multiview-pilot-select" aria-label="Disposition MultiView"
-            value={draft.id} onChange={e=>{setDraftId(e.target.value);setPreview(false);}}
-            className="rounded-md border border-border-main bg-card px-2 py-2 text-sm">
-            <optgroup label="Connectées aux vrais modules">
-              {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
-            </optgroup>
-            <optgroup label="Neuf directions produit — non connectées">
-              {PRESETS.map(item=><option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
-            </optgroup>
-          </select>
-          <button type="button" onClick={()=>setPreview(true)} className="rounded-md border px-3 py-2 text-xs">Aperçu</button>
-          <button type="button" disabled={!preview || !canApply}
-            onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
-            className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">Appliquer</button>
-          <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
-            className="rounded-md border px-3 py-2 text-xs">Annuler</button>
-          <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
-            setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
-            className="rounded-md border px-3 py-2 text-xs">Réinitialiser</button>
+      {premiumR3 ? (
+        <div data-testid="r3-1-premium-actions"
+          className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-border-main bg-medical-pearl/80 p-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2" role="group" aria-label="Disposition des panneaux">
+            <label htmlFor="multiview-pilot-select" className="text-xs font-semibold text-text-main">Disposition</label>
+            <select id="multiview-pilot-select" aria-label="Disposition MultiView"
+              value={draft.id} onChange={e=>{setDraftId(e.target.value);setPreview(false);}}
+              className="min-h-10 max-w-full rounded-lg border border-border-main bg-card px-2 py-1.5 text-xs text-text-main">
+              <optgroup label="Connectées aux vrais modules">
+                {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+              </optgroup>
+              <optgroup label="Neuf directions produit — non connectées">
+                {PRESETS.map(item=><option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
+              </optgroup>
+            </select>
+          </div>
+          <div role="group" aria-label="Outils de disposition"
+            className="flex flex-wrap items-center gap-1 border-l border-border-main pl-2">
+            <button type="button" disabled={applied.slots.length<2}
+              onClick={()=>setExchanged(value=>!value)}
+              className="rounded-lg border border-border-main bg-card px-2.5 py-2 text-xs text-text-main hover:bg-medical-pearl disabled:opacity-40">
+              <ArrowLeftRight size={14} className="mr-1 inline-block align-middle"/> Échanger les vues
+            </button>
+            <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
+              setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
+              className="rounded-lg border border-border-main bg-card px-2.5 py-2 text-xs text-text-main hover:bg-medical-pearl">
+              Réinitialiser
+            </button>
+          </div>
+          <div role="group" aria-label="Confirmation de disposition"
+            className="ml-auto flex flex-wrap items-center gap-1.5 border-l border-border-main pl-2">
+            <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
+              className="rounded-lg px-2.5 py-2 text-xs text-text-muted hover:bg-card">
+              Annuler
+            </button>
+            <button type="button" onClick={()=>setPreview(true)}
+              className="rounded-lg border border-border-hover bg-card px-3 py-2 text-xs font-semibold text-text-main hover:bg-medical-pearl">
+              Aperçu
+            </button>
+            <button type="button" disabled={!preview || !canApply}
+              onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
+              className="rounded-lg border border-primary bg-primary px-3 py-2 text-xs font-semibold text-on-primary disabled:opacity-40">
+              Appliquer
+            </button>
+          </div>
         </div>
-        {preview && (
+      ) : (
+          <div className="mt-3 space-y-3 rounded-xl border border-border-main bg-medical-pearl/80 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="multiview-pilot-select" className="text-sm">Disposition</label>
+            <select id="multiview-pilot-select" aria-label="Disposition MultiView"
+              value={draft.id} onChange={e=>{setDraftId(e.target.value);setPreview(false);}}
+              className="rounded-md border border-border-main bg-card px-2 py-2 text-sm">
+              <optgroup label="Connectées aux vrais modules">
+                {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+              </optgroup>
+              <optgroup label="Neuf directions produit — non connectées">
+                {PRESETS.map(item=><option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
+              </optgroup>
+            </select>
+            <button type="button" onClick={()=>setPreview(true)} className="rounded-md border px-3 py-2 text-xs">Aperçu</button>
+            <button type="button" disabled={!preview || !canApply}
+              onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
+              className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">Appliquer</button>
+            <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
+              className="rounded-md border px-3 py-2 text-xs">Annuler</button>
+            <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
+              setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
+              className="rounded-md border px-3 py-2 text-xs">Réinitialiser</button>
+          </div>
+          {preview && (
+            <div aria-label="Aperçu schématique sans données patient" data-testid="multiview-schematic-preview"
+              className="rounded-xl border border-dashed border-border-hover bg-card p-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-text-main">Prévisualisation des panneaux</p>
+                <span className="rounded-full border border-border-main bg-medical-pearl px-2 py-1 text-[11px] font-medium text-text-muted">
+                  Schéma · aucune donnée patient
+                </span>
+              </div>
+              <div data-testid="multiview-preview-geometry" style={{...geometryGridStyle(draft.geometry),height:146}}>
+                {draft.slots.map((slot,index)=><div key={slot.id} style={geometrySlotStyle(draft.geometry,index)}
+                  className="flex min-w-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-border-main bg-medical-pearl px-2 text-center shadow-sm">
+                  {slot.module === 'dossier' ? <FileText size={21} className="text-primary"/> :
+                    slot.module === 'imagerie' ? <Images size={21} className="text-primary"/> :
+                    <Activity size={21} className="text-primary"/>}
+                  <span className="text-xs font-bold text-text-main">
+                    {slot.module === 'dossier' ? 'Dossier patient' : slot.module === 'imagerie' ? 'Médiathèque' : 'Suivi longitudinal'}
+                  </span>
+                  <span className="text-[11px] text-text-muted">Lecture seule</span>
+                </div>)}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" disabled={applied.slots.length<2}
+              onClick={()=>setExchanged(value=>!value)} className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">
+              <ArrowLeftRight size={15} className="mr-1 inline-block align-middle"/> Échanger les vues
+            </button>
+            {(!enableR3Split || !import.meta.env.DEV || applied.geometry==='hero-two') &&
+               (applied.geometry==='two-columns' || applied.geometry==='hero-two') &&
+              <label className="flex items-center gap-2 text-xs">
+                Largeur du panneau principal
+                <input type="range" min={37} max={63} step={1} value={ratio}
+                  aria-label="Redimensionner les panneaux" onChange={e=>setRatio(Number(e.target.value))}/>
+                <span>{ratio} %</span>
+              </label>}
+          </div>
+          </div>
+      )}
+      {premiumR3 && preview ? (
+        <div className="mt-2">{preview && (
           <div aria-label="Aperçu schématique sans données patient" data-testid="multiview-schematic-preview"
             className="rounded-xl border border-dashed border-border-hover bg-card p-3">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -308,23 +403,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
                 <span className="text-[11px] text-text-muted">Lecture seule</span>
               </div>)}
             </div>
-          </div>
-        )}
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" disabled={applied.slots.length<2}
-            onClick={()=>setExchanged(value=>!value)} className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">
-            <ArrowLeftRight size={15} className="mr-1 inline-block align-middle"/> Échanger les vues
-          </button>
-          {(!enableR3Split || !import.meta.env.DEV || applied.geometry==='hero-two') &&
-             (applied.geometry==='two-columns' || applied.geometry==='hero-two') &&
-            <label className="flex items-center gap-2 text-xs">
-              Largeur du panneau principal
-              <input type="range" min={37} max={63} step={1} value={ratio}
-                aria-label="Redimensionner les panneaux" onChange={e=>setRatio(Number(e.target.value))}/>
-              <span>{ratio} %</span>
-            </label>}
-        </div>
-        </div>
+          </div></div>
+      ) : null}
+
       </header>
       )}
       {!accepted && !responsiveSingleMediaFallback && (
