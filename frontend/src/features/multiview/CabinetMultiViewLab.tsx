@@ -10,6 +10,7 @@ import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalCompare
 import { StudioLayoutFrame } from './StudioLayoutFrame';
 import { R3SplitWorkspace } from './R3SplitWorkspace';
 import { R3ThreePaneWorkspace } from './R3ThreePaneWorkspace';
+import { chooseR3Module, r3ModuleOptions, R3_MODULE_LABEL } from './R3ModuleChoice';
 import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
 import { geometryGridStyle, geometrySlotStyle } from './studioGeometry';
@@ -91,6 +92,8 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const [workspaceWidth,setWorkspaceWidth] = useState(0);
   const [appliedId,setAppliedId] = useState(PILOT_LAYOUTS[0].id);
   const [draftId,setDraftId] = useState(PILOT_LAYOUTS[0].id);
+  const [appliedCustom,setAppliedCustom] = useState<Layout|null>(null);
+  const [draftCustom,setDraftCustom] = useState<Layout|null>(null);
   const [preview,setPreview] = useState(false);
   const [ratio,setRatio] = useState(50);
   const [splitResetEpoch,setSplitResetEpoch] = useState(0);
@@ -180,12 +183,13 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     <PatientMediaTimeline patientId={patient.id} readOnly/>
   </section>;
 
-  const possible=selectablePilotLayouts(canCephalo);
-  const applied=possible.find(item=>item.id===appliedId) || possible[0];
-  const draft=possible.find(item=>item.id===draftId) || applied;
-  // R3-2 is additive: no three-pane focus without R3-1 and an independent flag.
-  // The normal R2 and the nine unconnected product presets remain unchanged.
+  // R3-2 is additive: only authorized real adapters, not nine fake presets.
   const r3FocusPilot = enableR3Split && enableR3Focus && import.meta.env.DEV;
+  const possible=selectablePilotLayouts(canCephalo);
+  const baseApplied=possible.find(item=>item.id===appliedId) || possible[0];
+  const applied=r3FocusPilot && appliedCustom?.id===baseApplied.id ? appliedCustom : baseApplied;
+  const baseDraft=possible.find(item=>item.id===draftId) || applied;
+  const draft=r3FocusPilot && draftCustom?.id===baseDraft.id ? draftCustom : baseDraft;
   const r3ThreePane = r3FocusPilot && canCephalo &&
     (applied.geometry==='three-columns' || applied.geometry==='hero-two');
   const premiumR3 = enableR3Split && import.meta.env.DEV &&
@@ -215,6 +219,24 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     Boolean(workstationId && trustedPatient);
   const canApply=authorizeLayout(draft,context,50).ok;
 
+  const changeDraftModule=(slotIndex:number,module:ModuleKey)=>{
+    if (!r3FocusPilot) return;
+    const changed=chooseR3Module(draft,slotIndex,module,context);
+    if (!changed) return;
+    setDraftCustom(changed);setPreview(false);
+  };
+  const applyDraft=()=>{
+    if (!preview || !canApply) return;
+    setAppliedId(draft.id);
+    setAppliedCustom(r3FocusPilot && draftCustom?.id===draft.id ? draftCustom : null);
+    setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);
+  };
+  const cancelDraft=()=>{setDraftId(applied.id);setDraftCustom(appliedCustom);setPreview(false);};
+  const resetLayout=()=>{
+    setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
+    setAppliedCustom(null);setDraftCustom(null);
+    setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);
+  };
   const renderSlot=(slot:{module:ModuleKey})=>{
     if (!trustedPatient) return null;
     if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>;
@@ -294,7 +316,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           <div className="flex min-w-0 flex-wrap items-center gap-2" role="group" aria-label="Disposition des panneaux">
             <label htmlFor="multiview-pilot-select" className={r3ThreePane ? 'sr-only' : 'text-xs font-semibold text-text-main'}>Disposition</label>
             <select id="multiview-pilot-select" aria-label="Disposition MultiView"
-              value={draft.id} onChange={e=>{setDraftId(e.target.value);setPreview(false);}}
+              value={draft.id} onChange={e=>{setDraftId(e.target.value);setDraftCustom(null);setPreview(false);}}
               className="min-h-10 max-w-full rounded-lg border border-border-main bg-card px-2 py-1.5 text-xs text-text-main">
               <optgroup label="Connectées aux vrais modules">
                 {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
@@ -304,6 +326,23 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
               </optgroup>
             </select>
           </div>
+          {r3FocusPilot && draft.slots.length>1 && (
+            <div data-testid="r3-module-chooser" role="group" aria-label="Modules par panneau"
+              className="flex flex-wrap items-center gap-1.5">
+              {draft.slots.map((slot,index)=>(
+                <label key={slot.id} className="flex items-center gap-1 text-xs text-text-muted">
+                  <span className="sr-only">{'Panneau '+(index+1)}</span>
+                  <select aria-label={'Module panneau '+(index+1)}
+                    value={slot.module}
+                    onChange={e=>changeDraftModule(index,e.target.value as ModuleKey)}
+                    className="min-h-10 rounded-lg border border-border-main bg-card px-2 py-1.5 text-xs text-text-main">
+                    {r3ModuleOptions(draft,index,context).map(module=>
+                      <option key={module} value={module}>{(index+1)+'. '+R3_MODULE_LABEL[module]}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+          )}
           <div role="group" aria-label="Outils de disposition"
             className="flex flex-wrap items-center gap-1 border-l border-border-main pl-2">
             <button type="button" disabled={applied.slots.length<2}
@@ -312,8 +351,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
               className="rounded-lg border border-border-main bg-card px-2.5 py-2 text-xs text-text-main hover:bg-medical-pearl disabled:opacity-40">
               <ArrowLeftRight size={14} className="mr-1 inline-block align-middle"/> {r3ThreePane ? 'Échanger' : 'Échanger les vues'}
             </button>
-            <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
-              setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
+            <button type="button" onClick={resetLayout}
               aria-label={r3ThreePane ? 'Réinitialiser' : undefined}
               className="rounded-lg border border-border-main bg-card px-2.5 py-2 text-xs text-text-main hover:bg-medical-pearl">
               {r3ThreePane ? 'Réinit.' : 'Réinitialiser'}
@@ -321,7 +359,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           </div>
           <div role="group" aria-label="Confirmation de disposition"
             className="ml-auto flex flex-wrap items-center gap-1.5 border-l border-border-main pl-2">
-            <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
+            <button type="button" onClick={cancelDraft}
               className="rounded-lg px-2.5 py-2 text-xs text-text-muted hover:bg-card">
               Annuler
             </button>
@@ -330,7 +368,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
               Aperçu
             </button>
             <button type="button" disabled={!preview || !canApply}
-              onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
+              onClick={applyDraft}
               className="rounded-lg border border-primary bg-primary px-3 py-2 text-xs font-semibold text-on-primary disabled:opacity-40">
               Appliquer
             </button>
@@ -341,7 +379,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           <div className="flex flex-wrap items-center gap-2">
             <label htmlFor="multiview-pilot-select" className="text-sm">Disposition</label>
             <select id="multiview-pilot-select" aria-label="Disposition MultiView"
-              value={draft.id} onChange={e=>{setDraftId(e.target.value);setPreview(false);}}
+              value={draft.id} onChange={e=>{setDraftId(e.target.value);setDraftCustom(null);setPreview(false);}}
               className="rounded-md border border-border-main bg-card px-2 py-2 text-sm">
               <optgroup label="Connectées aux vrais modules">
                 {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
@@ -352,12 +390,11 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
             </select>
             <button type="button" onClick={()=>setPreview(true)} className="rounded-md border px-3 py-2 text-xs">Aperçu</button>
             <button type="button" disabled={!preview || !canApply}
-              onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
+              onClick={applyDraft}
               className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">Appliquer</button>
-            <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
+            <button type="button" onClick={cancelDraft}
               className="rounded-md border px-3 py-2 text-xs">Annuler</button>
-            <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
-              setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
+            <button type="button" onClick={resetLayout}
               className="rounded-md border px-3 py-2 text-xs">Réinitialiser</button>
           </div>
           {preview && (
