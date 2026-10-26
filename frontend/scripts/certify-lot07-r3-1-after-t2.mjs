@@ -258,6 +258,18 @@ try {
   pass('R3-1 content-fit caps dossier while preserving media height',
     fit.firstHeight>0 && fit.firstHeight<=342 && fit.secondHeight>=219,fit);
   await capture(page,'after-r3-1-two-rows-content-fit-high-contrast-1920.png');
+  // Return to Ghost Elite light-blue palette after explicit contrast-theme QA.
+  await page.evaluate(()=>{
+    document.documentElement.removeAttribute('data-theme');
+    document.body.removeAttribute('data-theme');
+  });
+  const defaultColors=await page.evaluate(()=>{
+    const s=getComputedStyle(document.documentElement);
+    return {primary:s.getPropertyValue('--primary').trim().toLowerCase(),
+      surface:s.getPropertyValue('--bg-medical-pearl').trim().toLowerCase()};
+  });
+  pass('R3 principal screenshots use default blue instead of test dark theme',
+    defaultColors.primary==='#003380' && defaultColors.surface==='#f8fafc',defaultColors);
   const realRoadmapReady=await select.locator('option[value="vue-ensemble"]').count()===1;
   pass('roadmap presets unlock only with real Agenda adapter and remain fail-closed otherwise',
     await select.locator('option:disabled').count()===9-provenRoadmapCount);
