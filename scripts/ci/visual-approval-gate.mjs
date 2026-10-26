@@ -93,7 +93,10 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
       throw new Error('Stale visual approval label still present after DELETE');
     if((await head(api,number))!==actual)
       throw new Error('PR HEAD changed during approval revocation');
-    if(await verifiedTokenOnlyWaiver(api,number,actual,files))return {state:'auto-token-only-verified',head:actual};
+    if(await verifiedTokenOnlyWaiver(api,number,actual,files)) {
+      if((await head(api,number))!==actual)throw new Error('PR HEAD changed during auto token-only synchronize checks');
+      return {state:'auto-token-only-verified',head:actual};
+    }
     throw new Error('PR HEAD changed: approval revoked; new screenshots and explicit approval required');
   }
 
