@@ -182,6 +182,62 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
   });
 
+  it('R3 module selector previews swaps without mounting duplicates, then applies or cancels',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('r3-module-chooser')).toBeTruthy();
+    const modules=screen.getByRole('combobox',{name:'Module panneau 1'});
+    expect((modules as HTMLSelectElement).value).toBe('dossier');
+    fireEvent.change(modules,{target:{value:'suivi'}});
+    expect((modules as HTMLSelectElement).value).toBe('suivi');
+    // Draft does not mutate the mounted real modules before Apply.
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Annuler'}));
+    expect((screen.getByRole('combobox',{name:'Module panneau 1'}) as HTMLSelectElement).value)
+      .toBe('dossier');
+
+    fireEvent.change(screen.getByRole('combobox',{name:'Module panneau 1'}),{target:{value:'suivi'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    expect(screen.getByTestId('multiview-schematic-preview')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('suivi-live')).toBeTruthy();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getByTestId('r3-module-chooser')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByRole('combobox',{name:'Disposition MultiView'})
+      .querySelectorAll('option:disabled')).toHaveLength(9);
+  });
+
+  it('R3 selector swaps all three authorized slots without duplicated clinical viewers',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    fireEvent.change(screen.getByRole('combobox',{name:'Disposition MultiView'}),{
+      target:{value:'dossier-media-suivi-3cols'},
+    });
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    const chooser=screen.getByRole('combobox',{name:'Module panneau 1'});
+    expect((chooser as HTMLSelectElement).value).toBe('dossier');
+    fireEvent.change(chooser,{target:{value:'suivi'}});
+    expect((screen.getByRole('combobox',{name:'Module panneau 3'}) as HTMLSelectElement).value)
+      .toBe('dossier');
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    const panes=screen.getByTestId('r3-2-three-real-panes').querySelectorAll('[data-v15-071-viewslot]');
+    expect(Array.from(panes,el=>el.getAttribute('data-v15-071-viewslot')))
+      .toEqual(['suivi','imagerie','dossier']);
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+  });
+
   it('R3-2 triple-opt-in mounts exactly three TRUE R-only slots and focus unmounts the rest',async()=>{
     render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
       enableR3Split enableR3Focus/>);
