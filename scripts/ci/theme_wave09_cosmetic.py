@@ -72,6 +72,10 @@ def replace_text(text,path):
             out=out.replace('<Building2 size={20} className="text-primary" />','<Building2 size={20} className="text-text-main" />')
             out=out.replace('<BadgeCheck size={14} className="text-primary" />','<BadgeCheck size={14} className="text-text-main" />')
             out=out.replace('<QrCode size={18} className="shrink-0 text-primary" />','<QrCode size={18} className="shrink-0 text-text-main" />')
+        if path.endswith(("Step1Identity.tsx","Step2Specialties.tsx")):
+            out=out.replace("bg-primary/10 flex items-center justify-center text-primary","bg-primary/10 flex items-center justify-center text-text-main")
+            out=out.replace("group-hover:text-primary","group-hover:text-text-main")
+            out=out.replace("hover:text-primary","hover:text-text-main")
         lines.append(out)
     return "\n".join(lines)
 
