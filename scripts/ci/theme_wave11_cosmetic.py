@@ -51,6 +51,8 @@ def replace_text(text,path):
             out=re.sub(r"(?<![\w/-])"+re.escape(old)+r"(?![\w/-])",lambda _:new,out)
         if path.endswith("PWAInstallPrompt.tsx") and "bg-amber-500" in line:
             out=out.replace("text-text-main","text-on-primary")
+        if path.endswith("ForgotPasswordPage.tsx"):
+            out=out.replace("hover:text-primary","hover:text-text-main")
         lines.append(out)
     return "\n".join(lines)
 
