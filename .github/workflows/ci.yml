@@ -202,8 +202,129 @@ jobs:
           python -m pip check
       - name: Prod safety check (config hardening)
         run: python scripts/prod_safety_check.py
-      - name: Full backend regression suite (DB / patients / documents included)
-        run: python -m pytest backend/tests -q
+      - name: Full shared SQLite backend regression (DB, patients, documents)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # These exact 14 files run in dedicated subprocess/PG18 contracts below.
+          # Refuse silently growing the exclusion set: a new standalone test must
+          # first be added to the isolated runner, never simply disappear from CI.
+          python - <<'PY'
+          from pathlib import Path
+          tests = Path("backend/tests")
+          actual = {p.name for glob in ("test_legacy_migration_*.py", "test_legacy_sql_*.py")
+                    for p in tests.glob(glob)}
+          expected = {
+            "test_legacy_migration_http_pg_v15.py",
+            "test_legacy_migration_staff_gateway_v15.py",
+            "test_legacy_migration_synthetic_file_v15.py",
+            "test_legacy_sql_inspector_v15.py",
+            "test_legacy_sql_inspector_v15_security.py",
+            "test_legacy_sql_mapping_v15.py",
+            "test_legacy_sql_migration_scenarios_v15.py",
+            "test_legacy_sql_physical_schema_gate_lab_v15.py",
+            "test_legacy_sql_real_orm_scratch_v15.py",
+            "test_legacy_sql_replay_restore_lab_v15.py",
+            "test_legacy_sql_sqlite_e2e_100x200_v15.py",
+            "test_legacy_sql_synthetic_dryrun_v15.py",
+            "test_legacy_sql_target_manifest_v15.py",
+            "test_legacy_sql_tenant_link_guard_lab_v15.py",
+          }
+          if actual != expected:
+              raise SystemExit(f"LEGACY_ISOLATION_INVENTORY_CHANGED missing={sorted(expected-actual)} unexpected={sorted(actual-expected)}")
+          print(f"LEGACY_ISOLATION_INVENTORY_OK count={len(actual)}; dedicated PG18 + subprocess runner REQUIRED")
+          PY
+          python -m pytest backend/tests -q --maxfail=1 \
+            --ignore-glob='backend/tests/test_legacy_migration_*.py' \
+            --ignore-glob='backend/tests/test_legacy_sql_*.py'
+
+  legacy-migration-pg18:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
+    name: Standalone rehearsal-only HTTP/JWT/PostgreSQL guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dc_cert_candidate_rehearsal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dc_cert_candidate_rehearsal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dc_cert_candidate_rehearsal
+      ENVIRONMENT: rehearsal
+      SECRET_KEY: candidate-rehearsal-jwt-secret-key-minimum-32-characters
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify exact master workflow SHA
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated HTTP/PG dependencies
+        run: |
+          python -m pip install alembic==1.20.0 sqlalchemy==2.0.28 psycopg2-binary==2.9.9 \
+            'pydantic[email]==2.6.3' pydantic-settings==2.2.1 \
+            fastapi==0.115.6 starlette==0.41.3 httpx==0.28.1 \
+            python-jose==3.5.0 passlib==1.7.4 bcrypt==3.2.2 \
+            python-multipart==0.0.31 python-dotenv==1.2.1 \
+            cryptography==49.0.0 PyYAML==6.0.3
+      - name: Migrate fresh isolated PostgreSQL 18
+        run: alembic upgrade head
+      - name: Execute standalone safety contract (no pytest collection)
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python backend/tests/test_legacy_migration_http_pg_v15.py 2>&1 | tee /tmp/candidate-rehearsal.log
+          grep -q '^LOT05_6_HTTP_PG_PASS ' /tmp/candidate-rehearsal.log
+      - name: Preserve independent staff-gateway unittest guards
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_staff_gateway_v15.py -v 2>&1 | tee /tmp/candidate-staff-gateway.log
+          grep -q '^Ran 14 tests' /tmp/candidate-staff-gateway.log
+          grep -q '^OK$' /tmp/candidate-staff-gateway.log
+      - name: Official synthetic-file and preceding legacy-migration safety contracts
+        run: |
+          set -euo pipefail
+          PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_migration_synthetic_file_v15.py -v 2>&1 | tee /tmp/candidate-synthetic-file.log
+          grep -q 'Ran 12 tests' /tmp/candidate-synthetic-file.log
+          grep -q '^OK$' /tmp/candidate-synthetic-file.log
+          for item in \
+            "test_legacy_sql_sqlite_e2e_100x200_v15.py:11" \
+            "test_legacy_sql_tenant_link_guard_lab_v15.py:7" \
+            "test_legacy_sql_physical_schema_gate_lab_v15.py:6" \
+            "test_legacy_sql_replay_restore_lab_v15.py:8" \
+            "test_legacy_sql_real_orm_scratch_v15.py:10" \
+            "test_legacy_sql_synthetic_dryrun_v15.py:19" \
+            "test_legacy_sql_migration_scenarios_v15.py:12" \
+            "test_legacy_sql_mapping_v15.py:25" \
+            "test_legacy_sql_target_manifest_v15.py:25"; do
+            name="${item%%:*}"
+            count="${item##*:}"
+            python "backend/tests/${name}" -v 2>&1 | tee "/tmp/${name}.log"
+            grep -q "Ran ${count} tests" "/tmp/${name}.log"
+            grep -q '^OK$' "/tmp/${name}.log"
+          done
+          python -m unittest discover -s backend/tests -p 'test_legacy_sql_inspector_v15*.py' -v 2>&1 | tee /tmp/candidate-inspector.log
+          grep -q 'Ran 28 tests' /tmp/candidate-inspector.log
+          grep -q '^OK$' /tmp/candidate-inspector.log
 
   frontend:
     needs: classify-change
