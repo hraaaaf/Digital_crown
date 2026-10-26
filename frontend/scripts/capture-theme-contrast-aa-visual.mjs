@@ -67,7 +67,7 @@ try {
     let loaded=false;
     for(let attempt=1;attempt<=3;attempt++) {
       try {
-        const response=await page.goto('http://127.0.0.1:4229/theme-contrast-aa-visual.html',{waitUntil:'domcontentloaded',timeout:25000});
+        const response=await page.goto('http://127.0.0.1:4229/theme-contrast-aa-visual.html?welcome_bg_before='+ (process.env.THEME_WELCOME_BG_BEFORE==='1'?'1':'0'),{waitUntil:'domcontentloaded',timeout:25000});
         if(!response || response.status()!==200) throw new Error('HTML status '+response?.status());
         await page.getByRole('heading',{name:/Digital Crown/}).waitFor({state:'visible',timeout:20000});
         loaded=true; break;
@@ -80,6 +80,12 @@ try {
       await page.evaluate(({phase,color})=>{
         if(phase==='before') document.documentElement.style.setProperty('--text-muted',color);
         else document.documentElement.style.removeProperty('--text-muted');
+        if(window.location.search.includes('welcome_bg_before=1')) {
+          const pageRoot=document.querySelector('div.min-h-screen');
+          if(!pageRoot) throw new Error('WelcomeScreen background root missing');
+          if(phase==='before') pageRoot.style.backgroundColor='#f8fafc';
+          else pageRoot.style.removeProperty('background-color');
+        }
       },{phase,color:beforeColors[theme]});
       await page.waitForTimeout(80);
       const state=await page.evaluate(()=>{
