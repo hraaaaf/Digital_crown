@@ -244,8 +244,9 @@ try {
   pass('R3-1 content-fit caps dossier while preserving media height',
     fit.firstHeight>0 && fit.firstHeight<=342 && fit.secondHeight>=219,fit);
   await capture(page,'after-r3-1-two-rows-content-fit-high-contrast-1920.png');
-  pass('nine unintegrated presets still unavailable',
-    await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9);
+  const realRoadmapReady=await select.locator('option[value="vue-ensemble"]').count()===1;
+  pass('roadmap presets unlock only with real Agenda adapter and remain fail-closed otherwise',
+    await select.locator('option:disabled').count()===(realRoadmapReady ? 6 : 9));
   // R3-2: the third opt-in is independent, and the three modules are TRUE
   // authenticated patient views. Every focus transition unmounts other viewers.
   if(process.env.VITE_V15_07_1_R3_2_FOCUS_LAB==='1') {
@@ -262,8 +263,8 @@ try {
     pass('R3-2 single real media and true longitudinal source',
       await three.locator('[data-testid="patient-media-timeline"]').count()===1 &&
       await three.locator('[data-v15-071-viewslot="suivi"]').count()===1);
-    pass('R3-2 nine unintegrated product presets remain unavailable',
-      await select.locator('option:disabled').count()===9);
+    pass('R3-2 remaining unintegrated roadmap presets are still unavailable',
+      await select.locator('option:disabled').count()===(realRoadmapReady ? 6 : 9));
     await three.scrollIntoViewIfNeeded();
     await capture(page,'after-r3-2-three-columns-1920.png');
 
@@ -296,6 +297,28 @@ try {
       await page.locator('[data-testid="r3-2-single-focus"] [data-v15-071-viewslot="suivi"]').count()===1 &&
       await page.locator('[data-testid="patient-media-timeline"]').count()===0);
     await capture(page,'after-r3-2-focus-suivi-1920.png');
+    pass('R3-2 authenticated T2 Agenda permission enables 3 exact roadmap presets',
+      realRoadmapReady &&
+      await select.locator('option[value="consultation"]').count()===1 &&
+      await select.locator('option[value="agenda-cabinet"]').count()===1);
+    for (const [id,expectedModules,filename] of [
+      ['vue-ensemble',['dossier','agenda','imagerie'],'after-r3-2-real-vue-ensemble-1920.png'],
+      ['consultation',['dossier','agenda'],'after-r3-2-real-consultation-1920.png'],
+      ['agenda-cabinet',['agenda','dossier'],'after-r3-2-real-agenda-cabinet-1920.png'],
+    ]) {
+      await select.selectOption(id);
+      await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+      await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+      const slots=await page.locator('[data-v15-071-viewslot]').evaluateAll(items =>
+        items.map(item=>item.getAttribute('data-v15-071-viewslot')));
+      pass('R3-2 real roadmap preset '+id,
+        slots.join(',')===expectedModules.join(',') &&
+        await page.locator('[data-testid="r3-real-agenda"]').count()===1 &&
+        await select.locator('option:disabled').count()===6,
+        {id,slots});
+      await page.locator('[data-testid="r3-real-agenda"]').scrollIntoViewIfNeeded();
+      await capture(page,filename);
+    }
   }
   pass('no browser JavaScript errors',errors.length===0,{errors:errors.slice(0,4)});
   console.log('R3-1 AUTHENTIC AFTER PASS '+evidence.tests.length+' tests, '+evidence.screens.length+
