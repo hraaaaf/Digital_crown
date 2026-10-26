@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/cabinet-release-certification.yml'
       - '.github/workflows/cabinet-code-cert-candidate.yml'
+      - '.github/workflows/ci.yml'
       - 'backend/tests/**'
       - 'frontend/src/**'
       - 'frontend/package*.json'
