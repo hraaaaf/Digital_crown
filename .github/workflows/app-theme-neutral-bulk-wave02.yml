@@ -6,6 +6,10 @@ on:
   pull_request:
     branches:
       - master
+    paths:
+      - '.github/workflows/app-theme-neutral-bulk-wave02.yml'
+      - 'scripts/ci/theme_neutral_batch02.py'
+      - 'frontend/src/features/admin/AccountingStudioLegacy.tsx'
 permissions:
   contents: read
 jobs:
