@@ -410,7 +410,28 @@ try {
 
     await chooser.selectOption('comparaison-orthodontique');
     await page.getByRole('button',{name:'Aperçu',exact:true}).click();
-    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    // 1920px viewport has <1704px of effective clinical workspace. Keep the
+    // fail-closed three-cephalo/photo geometry gate, do not fake a narrow PASS.
+    const applyOrtho=page.getByRole('button',{name:'Appliquer',exact:true});
+    const widthAt1920=await page.locator('[data-v15-071-real-cabinet-lab]').evaluate(
+      el=>Math.floor(el.getBoundingClientRect().width));
+    pass('three-pane cephalo refuses unreadable 1920px nested workspace',
+      widthAt1920<1704 && await applyOrtho.isDisabled(),{cssWidth:widthAt1920});
+
+    // The DEV-only R3 patient media route can occupy a genuine >=1704px
+    // workspace on a wider monitor; widen the real browser, not a mock element.
+    await page.setViewportSize({width:2560,height:1080});
+    await page.waitForFunction(()=> {
+      const root=document.querySelector('[data-v15-071-real-cabinet-lab]');
+      const apply=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()==='Appliquer');
+      return Boolean(root && root.getBoundingClientRect().width>=1704 && apply && !apply.disabled);
+    },null,{timeout:15000});
+    const widthAt2560=await page.locator('[data-v15-071-real-cabinet-lab]').evaluate(
+      el=>Math.floor(el.getBoundingClientRect().width));
+    pass('wider real Cabinet DEV workspace enables readable triple cephalo layout',
+      widthAt2560>=1704 && widthAt2560<=2200 && await applyOrtho.isEnabled(),
+      {cssWidth:widthAt2560});
+    await applyOrtho.click();
     const clinicalT0=page.getByTestId('r3-cephalo-t0');
     const clinicalT1=page.getByTestId('r3-cephalo-t1');
     await clinicalT0.getByText('Analyse source #'+cephPair.T0).waitFor({state:'visible'});
@@ -424,7 +445,7 @@ try {
       await page.locator('[data-testid="r3-cephalo-missing-t0"]').count()===0 &&
       await page.locator('[data-testid="r3-cephalo-missing-t1"]').count()===0,
       {T0:cephPair.T0,T1:cephPair.T1});
-    await capture(page,'after-r3-real-ortho-t0-t1-synthetic-records-1920.png');
+    await capture(page,'after-r3-real-ortho-t0-t1-synthetic-records-2560.png');
   }
   pass('no browser JavaScript errors',errors.length===0,{errors:errors.slice(0,4)});
   console.log('R3-1 AUTHENTIC AFTER PASS '+evidence.tests.length+' tests, '+evidence.screens.length+
