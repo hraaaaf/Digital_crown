@@ -247,8 +247,8 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
       enableR3Split enableR3Focus/>);
     await screen.findByTestId('multiview-real-dossier');
     const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
-    expect(select.querySelectorAll('option:disabled')).toHaveLength(4);
-    for(const id of ['vue-ensemble','consultation','agenda-cabinet','suivi-clinique','imagerie'])
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(3);
+    for(const id of ['vue-ensemble','consultation','agenda-cabinet','suivi-clinique','imagerie','gestion-administrative'])
       expect(select.querySelector('option[value="'+id+'"]')).toBeTruthy();
     expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.hasAttribute('disabled')).toBe(true);
     fireEvent.change(select,{target:{value:'vue-ensemble'}});
@@ -283,7 +283,15 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.getByTestId('suivi-live')).toBeTruthy();
     expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
     expect(screen.getByTestId('r3-module-chooser')).toBeTruthy();
-    expect(select.querySelectorAll('option:disabled')).toHaveLength(4);
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(3);
+
+    fireEvent.change(select,{target:{value:'gestion-administrative'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('r3-real-agenda')).toBeTruthy();
+    expect(screen.getByTestId('media-live').getAttribute('data-fixed-type')).toBe('DOCUMENT');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
   });
 
   it('Imagerie preset uses independent real RADIOGRAPH and PHOTO media adapters, both R-only',async()=>{
