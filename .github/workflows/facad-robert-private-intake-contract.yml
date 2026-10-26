@@ -1,0 +1,266 @@
+name: FACAD Robert source-lock and optional public example (safe CI)
+
+# No vendor install, license action, patient data, or FACAD executable use.
+on:
+  push:
+    branches:
+      - research/facad-sametrace-private-intake-20261024
+    paths:
+      - audit/cephalo_facad_robert_evidence_stage.py
+      - audit/test_cephalo_facad_robert_evidence_stage.py
+      - audit/cephalo_facad_manual_delta_diagnostic.py
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_editor_uia_45_roster_v1.json
+      - audit/test_cephalo_facad_manual_delta_diagnostic.py
+      - audit/cephalo_facad_historical_roster_verify.py
+      - audit/test_cephalo_facad_historical_roster_verify.py
+      - audit/cephalo_facad_intravendor_ricketts_validate.py
+      - audit/test_cephalo_facad_intravendor_ricketts_validate.py
+      - audit/cephalo_facad_dc_private_subset_probe.py
+      - audit/test_cephalo_facad_dc_private_subset_probe.py
+      - audit/cephalo_facad_robert_public_ci.py
+      - audit/test_cephalo_facad_robert_public_ci.py
+      - audit/cephalo_facad_robert_p2_geometry_gate.py
+      - audit/test_cephalo_facad_robert_p2_geometry_gate.py
+      - audit/cephalo_facad_robert_p2_matrix.py
+      - audit/test_cephalo_facad_robert_p2_matrix.py
+      - audit/cephalo_facad_robert_p3_canonical_adapter_probe.py
+      - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
+      - audit/cephalo_facad_robert_p4_identity_gate.py
+      - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/cephalo_facad_p8_png_integrity.py
+      - audit/cephalo_facad_p8_manifest_integrity.py
+      - audit/cephalo_facad_p8_source_gate.py
+      - audit/test_cephalo_facad_p8_source_gate.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_P8_SOURCE_GATE.md
+      - audit/cephalo_facad_p7_canonical_provenance_probe.py
+      - audit/test_cephalo_facad_p7_canonical_provenance_probe.py
+      - audit/cephalo_facad_p6_identity_review_gate.py
+      - audit/test_cephalo_facad_p6_identity_review_gate.py
+      - audit/cephalo_facad_p5_overlay_registration.py
+      - audit/test_cephalo_facad_p5_overlay_registration.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_P5_SCREENSHOT_REGISTRATION.md
+      - audit/fixtures/facad_robert_p4_six_landmark_definition_crosswalk_v1.json
+      - docs/audits/CEPHALO_FACAD_ROBERT_P4_LANDMARK_IDENTITY_GATE.md
+      - docs/audits/CEPHALO_FACAD_ROBERT_P3_TYPED_ADAPTER_EVIDENCE.md
+      - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
+      - audit/fixtures/facad_robert_public_example_20261024_v1.json
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
+      - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
+      - .github/workflows/facad-robert-private-intake-contract.yml
+  pull_request:
+    paths:
+      - audit/cephalo_facad_robert_evidence_stage.py
+      - audit/test_cephalo_facad_robert_evidence_stage.py
+      - audit/cephalo_facad_manual_delta_diagnostic.py
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_editor_uia_45_roster_v1.json
+      - audit/test_cephalo_facad_manual_delta_diagnostic.py
+      - audit/cephalo_facad_historical_roster_verify.py
+      - audit/test_cephalo_facad_historical_roster_verify.py
+      - audit/cephalo_facad_intravendor_ricketts_validate.py
+      - audit/test_cephalo_facad_intravendor_ricketts_validate.py
+      - audit/cephalo_facad_dc_private_subset_probe.py
+      - audit/test_cephalo_facad_dc_private_subset_probe.py
+      - audit/cephalo_facad_robert_public_ci.py
+      - audit/test_cephalo_facad_robert_public_ci.py
+      - audit/cephalo_facad_robert_p2_geometry_gate.py
+      - audit/test_cephalo_facad_robert_p2_geometry_gate.py
+      - audit/cephalo_facad_robert_p2_matrix.py
+      - audit/test_cephalo_facad_robert_p2_matrix.py
+      - audit/cephalo_facad_robert_p3_canonical_adapter_probe.py
+      - audit/test_cephalo_facad_robert_p3_canonical_adapter_probe.py
+      - audit/cephalo_facad_robert_p4_identity_gate.py
+      - audit/test_cephalo_facad_robert_p4_identity_gate.py
+      - audit/cephalo_facad_p8_png_integrity.py
+      - audit/cephalo_facad_p8_manifest_integrity.py
+      - audit/cephalo_facad_p8_source_gate.py
+      - audit/test_cephalo_facad_p8_source_gate.py
+      - audit/cephalo_facad_p7_canonical_provenance_probe.py
+      - audit/test_cephalo_facad_p7_canonical_provenance_probe.py
+      - audit/cephalo_facad_p6_identity_review_gate.py
+      - audit/test_cephalo_facad_p6_identity_review_gate.py
+      - audit/cephalo_facad_p5_overlay_registration.py
+      - audit/test_cephalo_facad_p5_overlay_registration.py
+      - docs/audits/CEPHALO_FACAD_ROBERT_P5_SCREENSHOT_REGISTRATION.md
+      - audit/fixtures/facad_robert_p4_six_landmark_definition_crosswalk_v1.json
+      - docs/audits/CEPHALO_FACAD_ROBERT_P4_LANDMARK_IDENTITY_GATE.md
+      - docs/audits/CEPHALO_FACAD_ROBERT_P3_TYPED_ADAPTER_EVIDENCE.md
+      - docs/audits/CEPHALO_FACAD_ROBERT_P2_GEOMETRY_GATE.md
+      - audit/fixtures/facad_robert_public_example_20261024_v1.json
+      - docs/audits/schemas/ortho_lot08_facad_ricketts_13f_vs_32f_gui_definitions_v1.json
+      - docs/audits/CEPHALO_FACAD_ROBERT_EXPORT_COLLECTION_P0.md
+      - .github/workflows/facad-robert-private-intake-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: facad-private-intake-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  private-intake-contract:
+    name: Source-lock tests and optional public demo helper run
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      FACAD_VENDOR_RUNTIME_ALLOWED: "false"
+      FACAD_CLINICAL_RELEASE: "false"
+    steps:
+      - name: Exact checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prove canonical baseline remains direct-definition only
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from audit.cephalo_lot08_facad_parity_validate import validate_manifest
+          p=Path("docs/audits/schemas/ortho_lot08_facad_ricketts_direct_parity_evidence_v1.json")
+          d=json.loads(p.read_text())
+          assert not validate_manifest(d), "canonical parity manifest must validate"
+          assert d["status"] == "DIRECT_DEFINITION_OBSERVED"
+          assert not d["evidence_records"] and not d["parity_rows"]
+          assert d["scientific_authority"] is False
+          assert d["compatibility_only"] is True
+          assert sorted(x["expected_facad_factor_count"] for x in d["profiles"]) == [13, 32]
+          assert all(x["observation_status"] == "UNOBSERVED" for x in d["profiles"])
+          print("FACAD_SAME_TRACE_BASELINE=DEFINITION_ONLY")
+          print("FACAD_REAL_EXPORTS=0")
+          print("FACAD_NUMERIC_PARITY_ROWS=0")
+          print("FACAD_CLINICAL_RELEASE=false")
+          PY
+
+      - name: Run 16 private staging contract tests with synthetic fixtures only
+        run: python -m unittest -v audit.test_cephalo_facad_robert_evidence_stage
+
+      - name: Verify source-locked 45-factor offline diagnostic (synthetic only)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_manual_delta_diagnostic
+          python -m py_compile audit/cephalo_facad_manual_delta_diagnostic.py
+          test ! -f docs/audits/evidence/facad/ROBERT_32F_ANALYSIS_VALUES.txt
+
+      - name: Verify historical GUI evidence ZIP parser with synthetic archives only
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_historical_roster_verify
+          python -m py_compile audit/cephalo_facad_historical_roster_verify.py
+
+      - name: Verify intra-FACAD vendor signature/norm crosswalk (synthetic only)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_intravendor_ricketts_validate
+          python -m audit.cephalo_facad_intravendor_ricketts_validate
+
+      - name: Run four versioned Digital Crown geometry helpers on synthetic points only
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_dc_private_subset_probe
+          python -m py_compile audit/cephalo_facad_dc_private_subset_probe.py
+
+      - name: Public Robert example math-only DC comparison (requires separately reviewed fixture)
+        shell: bash
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_public_ci
+          python -m audit.cephalo_facad_robert_public_ci --github-summary
+
+      - name: FACAD P2 source-locked angular rounding gate on Robert (3 candidates, 1 forbidden alias)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_p2_geometry_gate
+          python -m audit.cephalo_facad_robert_p2_geometry_gate --github-summary
+
+      - name: FACAD P2 complete 45-factor compatibility matrix (no clinical aliases)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_p2_matrix
+          python -m audit.cephalo_facad_robert_p2_matrix --github-summary
+
+      - name: P5 screenshot overlay registration — synthetic pixels only, never upload real PNG
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_p5_overlay_registration
+          echo 'FACAD_P5_REAL_SCREENSHOT=NOT_EXECUTED_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P5_OVERLAY_REGISTRATION_SYNTHETIC_TESTS_ONLY=true' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P5_ANATOMICAL_IDENTITY=NOT_CERTIFIED' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: P6 independent anatomy review contract — synthetic only, fail closed
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_p6_identity_review_gate
+          echo 'FACAD_P6_REAL_IMAGE=NOT_EXECUTED_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P6_INDEPENDENT_ANATOMICAL_REVIEW=NOT_CERTIFIED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P6_POG_HARD_PRODUCTION_AUTHORIZATION=NO' >> "$GITHUB_STEP_SUMMARY"
+          echo 'CLINICAL_NO_GO=true' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: P7 real canonical identity bridge provenance guard — synthetic only
+        run: |
+          python -m pip install --disable-pip-version-check "pydantic==2.6.3"
+          python -m unittest -v audit.test_cephalo_facad_p7_canonical_provenance_probe
+          echo 'FACAD_P7_PRODUCTION_BRIDGE=EXECUTED_WITH_SYNTHETIC_MANUAL_POG' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P7_REAL_RADIOGRAPH=NOT_AVAILABLE_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P7_UNCERTIFIED_POG_HARD=BLOCKED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'CLINICAL_NO_GO=true' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: P8 source provenance and SHA256 gate — synthetic byte checks only
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_p8_source_gate
+          echo 'FACAD_P8_REAL_SOURCE=NOT_PRESENT_IN_PUBLIC_CI' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P8_HASH_MATCH_IS_NOT_SOURCE_AUTHENTICATION=true' >> "$GITHUB_STEP_SUMMARY"
+          echo 'FACAD_P8_SAME_TRACE=NOT_INDEPENDENTLY_VERIFIED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'CLINICAL_NO_GO=true' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Revalidate canonical repository schema without vendor files
+        run: python audit/cephalo_lot08_facad_parity_validate.py
+
+      - name: Boundary summary
+        shell: bash
+        run: |
+          echo "FACAD_PRIVATE_INTAKE_CONTRACT=PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "No Facad installer, binary, GUI, EULA acceptance, license or patient file was touched." >> "$GITHUB_STEP_SUMMARY"
+          echo "Synthetic guards plus optional educational Robert sample do not certify clinical numeric parity." >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_SOURCE_LOCK=32 named 32F + 13 named 13F historical UIA editor definitions, 7 blocked direct aliases; zero runtime parities." >> "$GITHUB_STEP_SUMMARY"
+          echo "Historical archive verification uses synthetic ZIP fixtures in CI; authentic old archives stay private." >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_13F_VS_32F_EDITOR_SIGNATURES=13/13 same types/refs; 4 separate displayed norm strings." >> "$GITHUB_STEP_SUMMARY"
+          echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"
+
+  p3-canonical-adapter-educational:
+    name: P3/P4 real typed geometry and certified landmark identity gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      FACAD_CLINICAL_RELEASE: "false"
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Minimal typed evidence dependency only
+        run: python -m pip install --disable-pip-version-check "pydantic==2.6.3"
+      - name: Execute actual canonical V2 typed adapter and CRANIOM interincisal construction
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_p3_canonical_adapter_probe
+          python -m audit.cephalo_facad_robert_p3_canonical_adapter_probe
+      - name: P4 genuine certified landmark identity projection (reject manual Pog hard alias)
+        run: |
+          python -m unittest -v audit.test_cephalo_facad_robert_p4_identity_gate
+          python -m audit.cephalo_facad_robert_p4_identity_gate
+      - name: Immutable scientific boundary
+        shell: bash
+        run: |
+          echo "FACAD_P3_CANONICAL_V2_ADAPTER=EDUCATIONAL_TWO_RICKETTS_ANGLES_ONLY" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P3_CRANIOM_INTERINCISAL_TYPED_CONSTRUCTION=EDUCATIONAL_ONLY" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P3_SAME_TRACE_ANATOMICAL_IDENTITIES=UNVERIFIED" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P3_COMPLETE_CLINICAL_RUNTIME=NOT_EXECUTED" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P4_SOURCE_TERMINOLOGY=6_REVIEWED_IMAGE_PLACEMENTS_0_CERTIFIED" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P4_REAL_IDENTITY_BRIDGE=UNCERTIFIED_POG_HARD_BLOCKED" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P4_CANONICAL_V2_TWO_ANGLES=NOT_COMPUTABLE" >> "$GITHUB_STEP_SUMMARY"
+          echo "FACAD_P4_INTERINCISAL_CRANIOM_CONSTRUCTION=EDUCATIONAL_ONLY" >> "$GITHUB_STEP_SUMMARY"
+          echo "CLINICAL_NO_GO=true" >> "$GITHUB_STEP_SUMMARY"

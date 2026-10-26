@@ -1,0 +1,78 @@
+{
+  "schema_version": "FACAD_ROBERT_P4_DEFINITIONAL_LANDMARK_CROSSWALK_V1",
+  "purpose": "Vendor terminology reconciliation; not image-specific landmark identity certification.",
+  "vendor_manual": {
+    "title": "FACAD Tracing 3.8 User's Guide",
+    "publication_date": "2014-05-07",
+    "url": "https://www.facad.com/dox/dox38/FacadTracingUsersGuide_ENG.pdf",
+    "page_printed": 2,
+    "warning": "Terminology source is version 3.8, not independent verification of installed FACAD 3.14.1.1111 point placement."
+  },
+  "facad_v3_14_1_1111_evidence": "32F_Analysis_Properties.txt and 32F_Object_Values.txt operator export of public Robert Example (separate Drive evidence); no person fields stored in this crosswalk",
+  "digital_crown_sources": [
+    "docs/SRPOSE38_LANDMARK_CONTRACT.md",
+    "docs/audits/CEPHALO_VNEXT_LOT06_CANONICAL_LANDMARK_IDENTITY_BRIDGE.md",
+    "backend/services/cephalo_landmark_identity_bridge.py"
+  ],
+  "clinical_authority": false,
+  "robert_case_landmarks_image_placement_independently_verified": false,
+  "facad_to_dc_canonical_identity_bridge_authorized": false,
+  "frankfort_anatomical_landmarks_present": false,
+  "quantized_coordinate_step_mm": 0.1,
+  "records": [
+    {
+      "facad_landmark": "Ii",
+      "dc_research_target": "L1_incisal",
+      "facad_3_8_definition": "Incisor inferior (lower incisor tip)",
+      "dc_corpus_definition_phrase": "bord/tip incisif de l'incisive mandibulaire de référence",
+      "shared_anatomical_role_hypothesis": true,
+      "robert_marker_placement_independently_verified": false,
+      "authorized_to_promote_to_dc_canonical_identity": false
+    },
+    {
+      "facad_landmark": "Iia",
+      "dc_research_target": "L1_apex",
+      "facad_3_8_definition": "Incisor inferior apex (lower incisor root)",
+      "dc_corpus_definition_phrase": "apex radiculaire de l'incisive mandibulaire de référence",
+      "shared_anatomical_role_hypothesis": true,
+      "robert_marker_placement_independently_verified": false,
+      "authorized_to_promote_to_dc_canonical_identity": false
+    },
+    {
+      "facad_landmark": "Is",
+      "dc_research_target": "U1_incisal",
+      "facad_3_8_definition": "Incisor superior (upper incisor tip)",
+      "dc_corpus_definition_phrase": "bord/tip incisif de l'incisive maxillaire de référence",
+      "shared_anatomical_role_hypothesis": true,
+      "robert_marker_placement_independently_verified": false,
+      "authorized_to_promote_to_dc_canonical_identity": false
+    },
+    {
+      "facad_landmark": "Isa",
+      "dc_research_target": "U1_apex",
+      "facad_3_8_definition": "Incisor superior apex (upper incisor root)",
+      "dc_corpus_definition_phrase": "apex radiculaire de l'incisive maxillaire de référence",
+      "shared_anatomical_role_hypothesis": true,
+      "robert_marker_placement_independently_verified": false,
+      "authorized_to_promote_to_dc_canonical_identity": false
+    },
+    {
+      "facad_landmark": "A",
+      "dc_research_target": "A",
+      "facad_3_8_definition": "Downs’ A-point ; Subspinale",
+      "dc_corpus_definition_phrase": "point médian le plus profond de la concavité antérieure maxillaire",
+      "shared_anatomical_role_hypothesis": true,
+      "robert_marker_placement_independently_verified": false,
+      "authorized_to_promote_to_dc_canonical_identity": false
+    },
+    {
+      "facad_landmark": "Pog",
+      "dc_research_target": "Pog_hard",
+      "facad_3_8_definition": "Pogonion",
+      "dc_corpus_definition_phrase": "Pogonion as the most anterior point of the bony chin/symphysis",
+      "shared_anatomical_role_hypothesis": true,
+      "robert_marker_placement_independently_verified": false,
+      "authorized_to_promote_to_dc_canonical_identity": false
+    }
+  ]
+}

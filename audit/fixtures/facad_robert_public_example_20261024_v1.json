@@ -1,0 +1,195 @@
+{
+  "clinical_authority": false,
+  "clinical_parity_proven": false,
+  "coordinate_rounding_mm": 0.1,
+  "coordinate_system": "FACAD_EXPORTED_ORIGINAL_SAGITTAL_VERTICAL_MM_UNSPECIFIED_ORIENTATION",
+  "description": "De-identified coordinate/value transcription from vendor-supplied public Robert Example pretreatment tracing. Educational compatibility only.",
+  "facad_values": {
+    "13F": {
+      "Convexity": {
+        "unit": "mm",
+        "value": -13.2
+      },
+      "ILi/A-Pog": {
+        "unit": "°",
+        "value": 33.3
+      },
+      "Ii to A-Pog": {
+        "unit": "mm",
+        "value": 5.9
+      },
+      "InterIncisal": {
+        "unit": "°",
+        "value": 140.9
+      },
+      "Li-EL": {
+        "unit": "mm",
+        "value": -4.8
+      }
+    },
+    "32F": {
+      "Convexity": {
+        "unit": "mm",
+        "value": -13.2
+      },
+      "Facial cone angle": {
+        "unit": "°",
+        "value": 65.3
+      },
+      "ILi/A-Pog": {
+        "unit": "°",
+        "value": 33.3
+      },
+      "ILs/A-Pog": {
+        "unit": "°",
+        "value": 5.8
+      },
+      "Ii to A-Pog": {
+        "unit": "mm",
+        "value": 5.9
+      },
+      "InterIncisal": {
+        "unit": "°",
+        "value": 140.9
+      },
+      "Is to A-Pog": {
+        "unit": "mm",
+        "value": -4.7
+      },
+      "Li-EL": {
+        "unit": "mm",
+        "value": -4.8
+      },
+      "Upper lip len": {
+        "unit": "mm",
+        "value": 27.7
+      }
+    }
+  },
+  "points_mm": {
+    "A": [
+      92.8,
+      100.9
+    ],
+    "ANS": [
+      95.9,
+      94.5
+    ],
+    "B": [
+      100,
+      137
+    ],
+    "Ba": [
+      8.7,
+      95
+    ],
+    "GNs": [
+      104.9,
+      168.4
+    ],
+    "Gn": [
+      100.8,
+      162.4
+    ],
+    "Go": [
+      34.2,
+      131.1
+    ],
+    "Ii": [
+      101.8,
+      117.6
+    ],
+    "Iia": [
+      93.6,
+      136.8
+    ],
+    "Is": [
+      91.6,
+      120.8
+    ],
+    "Isa": [
+      85,
+      98.1
+    ],
+    "Li": [
+      118.2,
+      123.6
+    ],
+    "Ls": [
+      111.9,
+      110.8
+    ],
+    "MEs": [
+      92,
+      172.7
+    ],
+    "Me": [
+      95.1,
+      163.3
+    ],
+    "Mi-d": [
+      70,
+      119.4
+    ],
+    "Ms-d": [
+      62.9,
+      110.7
+    ],
+    "N": [
+      109.1,
+      45.3
+    ],
+    "ONs": [
+      124.3,
+      68.1
+    ],
+    "PGs": [
+      113.8,
+      155.2
+    ],
+    "PNS": [
+      63.3,
+      95.3
+    ],
+    "PRN": [
+      131.9,
+      93.7
+    ],
+    "Pog": [
+      102.8,
+      156.6
+    ],
+    "S": [
+      33.7,
+      53.2
+    ],
+    "SLi": [
+      110.9,
+      136.3
+    ],
+    "SLs": [
+      109.5,
+      105.6
+    ],
+    "SN": [
+      110.5,
+      102.8
+    ],
+    "STi": [
+      112,
+      117.5
+    ],
+    "STs": [
+      111,
+      117.6
+    ],
+    "T": [
+      58.7,
+      170.9
+    ]
+  },
+  "schema_version": "FACAD_ROBERT_PUBLIC_EDUCATIONAL_GEOMETRY_V1",
+  "signed_measurements_may_not_be_compared_without_FH": true,
+  "source_proof_level": "OPERATOR_ONLY_GUI_NOT_INDEPENDENTLY_VERIFIED",
+  "source_type": "FACAD_3_14_PUBLIC_DEMO_OPERATOR_EXPORT"
+}
