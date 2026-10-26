@@ -445,6 +445,21 @@ try {
       await page.locator('[data-testid="r3-cephalo-missing-t0"]').count()===0 &&
       await page.locator('[data-testid="r3-cephalo-missing-t1"]').count()===0,
       {T0:cephPair.T0,T1:cephPair.T1});
+    // Visual acceptance: a 3rd Photos pane on a 2560px monitor is still a
+    // ~700px inline-size container. Its desktop-xl media filter cannot overlap.
+    const photosFilters=page.locator('[data-v15-071-viewslot="photos"] [aria-label="Recherche et filtres médias"]');
+    const photosFilterFit=await photosFilters.evaluate(element=>{
+      const outer=element.getBoundingClientRect();
+      const boxes=Array.from(element.children).map(el=>el.getBoundingClientRect());
+      const overflow=boxes.some(b=>b.left<outer.left-2||b.right>outer.right+2);
+      const collision=boxes.some((b,i)=>boxes.slice(i+1).some(c=>
+        Math.min(b.right,c.right)-Math.max(b.left,c.left)>2 &&
+        Math.min(b.bottom,c.bottom)-Math.max(b.top,c.top)>2));
+      return {width:outer.width,overflow,collision,controls:boxes.length};
+    });
+    pass('R3 T0/T1 Photos controls fit their actual narrow third pane without overlap',
+      photosFilterFit.width>200 && photosFilterFit.controls===4 &&
+      !photosFilterFit.overflow && !photosFilterFit.collision,photosFilterFit);
     await capture(page,'after-r3-real-ortho-t0-t1-synthetic-records-2560.png');
   }
   pass('no browser JavaScript errors',errors.length===0,{errors:errors.slice(0,4)});

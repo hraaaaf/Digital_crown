@@ -398,3 +398,46 @@
   min-height: 0;
   overflow-y: auto;
 }
+
+/* R3 3-pane PHOTO reflow: slot width, not outer 2560px viewport.
+ * The real PatientMediaTimeline uses xl:min-w-[650px] and horizontal header
+ * based on global breakpoints, causing clipped/overlapping filters at ~700px.
+ * Scope ONLY to the approved three-column read-only Photos instance. */
+@container (max-width: 760px) {
+  [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+    [data-v15-071-viewslot="photos"]
+    [data-testid="patient-media-timeline"] > div:first-child > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+    [data-v15-071-viewslot="photos"] [aria-label="Recherche et filtres médias"] {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+    [data-v15-071-viewslot="photos"] [aria-label="Recherche et filtres médias"] > label,
+  [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+    [data-v15-071-viewslot="photos"] [aria-label="Recherche et filtres médias"] > button {
+    grid-column: 1 / -1;
+  }
+  [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+    [data-v15-071-viewslot="photos"] [data-testid="media-asset-rail"],
+  [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+    [data-v15-071-viewslot="photos"] [data-testid="media-inline-viewer"] {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+    [data-v15-071-viewslot="photos"] [data-testid="media-asset-rail"] {
+    grid-row: 1;
+    max-height: 230px;
+    overflow-y: auto;
+  }
+  [data-v15-071-real-cabinet-lab] [data-v15-071-geometry="three-columns"]
+    [data-v15-071-viewslot="photos"] [data-testid="media-inline-viewer"] {
+    grid-row: 2;
+  }
+}
