@@ -86,14 +86,16 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
     display: 'grid', width: '100%', minWidth: 0, gap: 0,
     gridTemplateColumns: isColumns ? splitTracks(layout.geometry, ratio, mode) : 'minmax(0,1fr)',
     gridTemplateRows: isRows ? splitTracks(layout.geometry, ratio, mode) : undefined,
-    height: strict ? 'min(70vh,760px)' : 'auto',
-    minHeight: strict ? 520 : 0,
+    // Two-row previews should show BOTH independent read-only panes inside 1080p.
+    // Content-fit never allocates the entire height to an unbounded dossier.
+    height: strict ? (isRows ? 'min(54vh,560px)' : 'min(70vh,760px)') : 'auto',
+    minHeight: strict ? (isRows ? 460 : 520) : 0,
   };
-  const paneClass = 'min-w-0 min-h-0 overflow-auto rounded-lg border border-border-main bg-card';
+  const paneClass = 'min-w-0 min-h-0 overflow-auto overscroll-contain rounded-lg border border-border-main bg-card';
   return <section aria-label={'R3-1 — ' + layout.label}
     data-r3-1-split={layout.geometry} data-r3-1-mode={mode}
-    className="min-w-0 rounded-xl border border-border-main bg-medical-pearl p-3 text-text-main">
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    className="relative isolate min-w-0 rounded-xl border border-border-main bg-medical-pearl p-2.5 text-text-main sm:p-3">
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-sm font-semibold">{layout.label} · R3-1</h2>
       <div className="flex items-center gap-2">
         {isRows && <button type="button" onClick={() => { finishPointer(); setMode(strict ? 'content-fit' : 'strict'); }}
@@ -108,6 +110,7 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
     </div>
     <div ref={gridRef} data-testid="r3-1-grid" style={gridStyle}>
       <section id={panelA} aria-label="Panneau 1" data-v15-071-viewslot={layout.slots[0].module}
+        style={isRows && !strict ? {maxHeight:'min(32vh,340px)'} : undefined}
         className={paneClass}>{renderSlot(layout.slots[0])}</section>
       {strict
         ? <div role="separator" tabIndex={0}
@@ -120,9 +123,17 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
             onPointerUp={finishPointer} onPointerCancel={finishPointer}
             onLostPointerCapture={finishPointer}
             style={{touchAction:'none',cursor:isColumns?'col-resize':'row-resize'}}
-            className="rounded-sm bg-border-hover focus-visible:outline-2 focus-visible:outline-primary" />
+            className="group relative flex items-center justify-center rounded-sm bg-border-main/70 transition-colors hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            <span aria-hidden="true" className={
+              'pointer-events-none flex items-center justify-center rounded-full border border-border-hover bg-card shadow-sm transition-colors group-hover:border-primary group-focus-visible:border-primary ' +
+              (isColumns ? 'h-14 w-2.5' : 'h-2.5 w-14')
+            }>
+              <span className={'rounded-full bg-primary/70 ' + (isColumns ? 'h-7 w-1' : 'h-1 w-7')} />
+            </span>
+          </div>
         : <div aria-hidden="true" className="bg-border-main" />}
       <section id={panelB} aria-label="Panneau 2" data-v15-071-viewslot={layout.slots[1].module}
+        style={isRows && !strict ? {minHeight:220} : undefined}
         className={paneClass}>{renderSlot(layout.slots[1])}</section>
     </div>
     <p className="mt-2 text-xs text-text-muted">
