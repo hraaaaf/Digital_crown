@@ -10,7 +10,7 @@ vi.mock('../../services/workstationMode',()=>({
 }));
 vi.mock('../../services/api',()=>({API_BASE:'http://localhost:8005',api:{get:vi.fn()}}));
 vi.mock('../patients/components/PatientMediaTimeline',()=>({
-  PatientMediaTimeline:({patientId,readOnly}:{patientId:number;readOnly?:boolean})=><div data-testid="media-live" data-read-only={String(Boolean(readOnly))}>Media API module patient {patientId}</div>,
+  PatientMediaTimeline:({patientId,readOnly,fixedAssetType}:{patientId:number;readOnly?:boolean;fixedAssetType?:string})=><div data-testid="media-live" data-read-only={String(Boolean(readOnly))} data-fixed-type={fixedAssetType ?? 'ALL'}>Media API module patient {patientId}</div>,
 }));
 vi.mock('../ortho/OrthoLongitudinalComparePanel',()=>({
   OrthoLongitudinalComparePanel:({patientId}:{patientId:number})=><div data-testid="suivi-live">Longitudinal patient {patientId}</div>,
@@ -212,7 +212,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.queryByTestId('suivi-live')).toBeNull();
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
     expect(screen.getByRole('combobox',{name:'Disposition MultiView'})
-      .querySelectorAll('option:disabled')).toHaveLength(8);
+      .querySelectorAll('option:disabled')).toHaveLength(7);
   });
 
   it('R3 selector swaps all three authorized slots without duplicated clinical viewers',async()=>{
@@ -247,8 +247,8 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
       enableR3Split enableR3Focus/>);
     await screen.findByTestId('multiview-real-dossier');
     const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
-    expect(select.querySelectorAll('option:disabled')).toHaveLength(5);
-    for(const id of ['vue-ensemble','consultation','agenda-cabinet','suivi-clinique'])
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(4);
+    for(const id of ['vue-ensemble','consultation','agenda-cabinet','suivi-clinique','imagerie'])
       expect(select.querySelector('option[value="'+id+'"]')).toBeTruthy();
     expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.hasAttribute('disabled')).toBe(true);
     fireEvent.change(select,{target:{value:'vue-ensemble'}});
@@ -283,7 +283,25 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.getByTestId('suivi-live')).toBeTruthy();
     expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
     expect(screen.getByTestId('r3-module-chooser')).toBeTruthy();
-    expect(select.querySelectorAll('option:disabled')).toHaveLength(5);
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(4);
+  });
+
+  it('Imagerie preset uses independent real RADIOGRAPH and PHOTO media adapters, both R-only',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelector('option[value="imagerie"]')).toBeTruthy();
+    fireEvent.change(select,{target:{value:'imagerie'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    const viewers=screen.getAllByTestId('media-live');
+    expect(viewers).toHaveLength(2);
+    expect(viewers.map(x=>x.getAttribute('data-fixed-type'))).toEqual(['RADIOGRAPH','PHOTO']);
+    expect(viewers.every(x=>x.getAttribute('data-read-only')==='true')).toBe(true);
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(7);
   });
 
   it('R3-2 triple-opt-in mounts exactly three TRUE R-only slots and focus unmounts the rest',async()=>{
@@ -305,7 +323,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
     expect(screen.getByTestId('suivi-live')).toBeTruthy();
     expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
-    expect(select.querySelectorAll('option:disabled')).toHaveLength(8);
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(7);
 
     fireEvent.click(screen.getByRole('button',{name:'Agrandir le panneau 2 : imagerie'}));
     expect(screen.getByTestId('r3-2-single-focus')).toBeTruthy();
