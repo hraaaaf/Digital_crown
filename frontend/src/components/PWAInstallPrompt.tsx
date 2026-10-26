@@ -19,7 +19,7 @@ export function PWAInstallPrompt() {
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h3 className="font-semibold text-lg flex items-center gap-2">
-            <Download size={20} className="text-warning" />
+            <Download size={20} className="text-text-main" />
             Installer Pocket
           </h3>
           <p className="text-text-muted text-sm mt-1">
@@ -43,7 +43,7 @@ export function PWAInstallPrompt() {
                 <div className="absolute top-0 left-0 w-1 h-full bg-info"></div>
                 <p className="flex items-center gap-2 mb-2">
                   <span className="bg-card w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-text-main border border-border-hover">1</span>
-                  Appuyez sur <Share size={16} className="text-info mx-1" /> dans la barre Safari
+                  Appuyez sur <Share size={16} className="text-text-main mx-1" /> dans la barre Safari
                 </p>
                 <p className="flex items-center gap-2">
                   <span className="bg-card w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-text-main border border-border-hover">2</span>
