@@ -58,7 +58,7 @@ describe('LOT07 R3 panel module chooser — real adapters only',()=>{
       {...context,workstationId:null},
       {...context,patientId:null},
       {...context,cssViewportWidth:1279},
-      {...context,allowedModules:['dossier','imagerie']},
+      {...context,allowedModules:['dossier','imagerie'] as const},
     ];
     for(const c of denied) expect(chooseR3Module(columns,0,'suivi',c)).toBeNull();
     expect(chooseR3Module({...columns,slots:[{...columns.slots[0],access:'W'},columns.slots[1]]},0,'suivi',context)).toBeNull();
