@@ -29,12 +29,12 @@ TRANSFORMS={
     "hover:bg-slate-600": "hover:bg-background",
     "text-white": "text-text-main",
     "text-slate-300": "text-text-muted",
-    "text-amber-400": "text-warning",
+    "text-amber-400": "text-text-main",
     "border-slate-700": "border-border-main",
     "border-slate-600": "border-border-hover",
     "border-slate-400": "border-border-main",
     "bg-blue-500": "bg-info",
-    "text-blue-400": "text-info",
+    "text-blue-400": "text-text-main",
     "bg-amber-500": "bg-primary",
     "hover:bg-amber-600": "hover:bg-primary/90"
   }
