@@ -123,7 +123,7 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
             onPointerUp={finishPointer} onPointerCancel={finishPointer}
             onLostPointerCapture={finishPointer}
             style={{touchAction:'none',cursor:isColumns?'col-resize':'row-resize'}}
-            className="group relative flex items-center justify-center rounded-sm bg-border-main/70 transition-colors hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            className="group relative flex items-center justify-center rounded-sm bg-border-hover transition-colors hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             <span aria-hidden="true" className={
               'pointer-events-none flex items-center justify-center rounded-full border border-border-hover bg-card shadow-sm transition-colors group-hover:border-primary group-focus-visible:border-primary ' +
               (isColumns ? 'h-14 w-2.5' : 'h-2.5 w-14')
