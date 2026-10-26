@@ -52,7 +52,7 @@ export const Step2Specialties: React.FC<Props> = ({
                 "w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300",
                 selectedSpecialties.includes(spec.id)
                   ? "bg-primary text-on-primary shadow-xl shadow-primary/30 scale-105"
-                  : "bg-background text-text-muted group-hover:bg-primary/10 group-hover:text-primary group-hover:scale-105"
+                  : "bg-background text-text-muted group-hover:bg-primary/10 group-hover:text-text-main group-hover:scale-105"
               )}>
                 <spec.icon size={32} />
               </div>
@@ -72,7 +72,7 @@ export const Step2Specialties: React.FC<Props> = ({
 
         <button
           onClick={() => setShowCustomModal(true)}
-          className="p-4 rounded-2xl border-2 border-dashed border-border-main flex items-center justify-center gap-2 text-text-muted hover:border-primary hover:text-primary transition-all"
+          className="p-4 rounded-2xl border-2 border-dashed border-border-main flex items-center justify-center gap-2 text-text-muted hover:border-primary hover:text-text-main transition-all"
         >
           <Plus size={16} />
           <span className="font-bold text-xs">Autre spécialité...</span>
@@ -113,7 +113,7 @@ export const Step2Specialties: React.FC<Props> = ({
                   />
                   <button
                     onClick={() => setShowArKeyboard({ show: true, target: 'custom_spec' })}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-input-field rounded-lg text-text-muted hover:text-primary transition-colors"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-input-field rounded-lg text-text-muted hover:text-text-main transition-colors"
                   >
                     <Type size={16} />
                   </button>
