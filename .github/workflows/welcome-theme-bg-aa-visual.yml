@@ -1,0 +1,60 @@
+name: WelcomeScreen Theme Background — Rendered Before After (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/welcome-theme-bg-aa-20261026
+    paths:
+      - .github/workflows/welcome-theme-bg-aa-visual.yml
+      - frontend/src/pages/WelcomeScreen.semantic-bg.r1.test.ts
+      - frontend/src/pages/WelcomeScreen.tsx
+      - frontend/scripts/capture-theme-contrast-aa-visual.mjs
+  pull_request:
+    branches:
+      - fix/theme-contrast-aa-20261026
+    paths:
+      - .github/workflows/welcome-theme-bg-aa-visual.yml
+      - frontend/src/pages/WelcomeScreen.semantic-bg.r1.test.ts
+      - frontend/src/pages/WelcomeScreen.tsx
+      - frontend/scripts/capture-theme-contrast-aa-visual.mjs
+permissions:
+  contents: read
+jobs:
+  capture:
+    name: Real WelcomeScreen 8 themes x 2 viewports x BEFORE/AFTER
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and isolated Chromium
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Enforce semantic Welcome background source contract
+        working-directory: frontend
+        run: npx vitest run src/pages/WelcomeScreen.semantic-bg.r1.test.ts --maxWorkers=1 --fileParallelism=false
+      - name: Capture real WelcomeScreen and test sampled rendered text contrast
+        working-directory: frontend
+        env:
+          THEME_CONTRAST_BASE_SHA: 7a209b5d78de51e0ccf9a8d7fb599e63d3caf40d
+          THEME_WELCOME_BG_BEFORE: "1"
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/capture-theme-contrast-aa-visual.mjs
+      - name: Archive both PASS and FAIL evidence (human signoff separate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: welcome-semantic-bg-eight-theme-before-after
+          path: frontend/theme-contrast-visual-evidence/
+          if-no-files-found: warn
+          retention-days: 30
