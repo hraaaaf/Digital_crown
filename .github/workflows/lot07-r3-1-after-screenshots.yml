@@ -26,6 +26,7 @@ jobs:
       SOURCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       VITE_V15_07_1_MULTIVIEW_LAB: '1'
       VITE_V15_07_1_R3_SPLIT_LAB: '1'
+      VITE_V15_07_1_R3_2_FOCUS_LAB: '1'
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: '1'
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
