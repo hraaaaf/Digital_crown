@@ -15,13 +15,19 @@ export function chooseR3Module(
   module: ModuleKey,
   context: WorkspaceContext,
 ): Layout | null {
-  if (!validLayout(source) || !['two-columns','two-rows','three-columns','hero-two'].includes(source.geometry)) return null;
+  if (!validLayout(source) || !['two-columns','two-rows','three-columns','hero-two'].includes(source.geometry) ||
+      source.slots.some(slot => slot.access && slot.access !== 'R')) return null;
   if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= source.slots.length ||
       !R3_REAL_MODULES.some(candidate => candidate === module) ||
-      !context.allowedModules.includes(module)) return null;
-  const slots = source.slots.map((slot,index) => index === slotIndex
-    ? {...slot,module,access:'R' as const} : slot);
-  // Do not create two live media/longitudinal components or parallel clinical stores.
+      !context.allowedModules.includes(module) ||
+      source.slots.some(slot => !R3_REAL_MODULES.some(candidate => candidate === slot.module))) return null;
+  const oldModule = source.slots[slotIndex].module;
+  // Choosing an already used module swaps its position, never mounts it twice.
+  const slots = source.slots.map((slot,index) => ({
+    ...slot,
+    module:index===slotIndex ? module : slot.module===module ? oldModule : slot.module,
+    access:'R' as const,
+  }));
   if (new Set(slots.map(slot => slot.module)).size !== slots.length) return null;
   const proposed: Layout = {...source,slots};
   return authorizeLayout(proposed,context).ok ? proposed : null;
