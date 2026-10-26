@@ -1,0 +1,54 @@
+name: Theme Contrast AA — Rendered Before After (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/theme-contrast-aa-20261026
+    paths:
+      - .github/workflows/theme-contrast-aa-visual.yml
+      - frontend/src/index.css
+      - frontend/src/pages/WelcomeScreen.tsx
+      - frontend/scripts/capture-theme-contrast-aa-visual.mjs
+  pull_request:
+    branches:
+      - fix/theme-neutral-wave08-20261026
+    paths:
+      - .github/workflows/theme-contrast-aa-visual.yml
+      - frontend/src/index.css
+      - frontend/src/pages/WelcomeScreen.tsx
+      - frontend/scripts/capture-theme-contrast-aa-visual.mjs
+permissions:
+  contents: read
+jobs:
+  capture:
+    name: Real WelcomeScreen 8 themes x 2 viewports x BEFORE/AFTER
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and isolated Chromium
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Capture real WelcomeScreen and test sampled rendered text contrast
+        working-directory: frontend
+        env:
+          THEME_CONTRAST_BASE_SHA: 7a209b5d78de51e0ccf9a8d7fb599e63d3caf40d
+        run: node scripts/capture-theme-contrast-aa-visual.mjs
+      - name: Archive both PASS and FAIL evidence (human signoff separate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: theme-contrast-eight-theme-before-after
+          path: frontend/theme-contrast-visual-evidence/
+          if-no-files-found: warn
+          retention-days: 30
