@@ -48,7 +48,7 @@ jobs:
         env:
           THEME_CONTRAST_BASE_SHA: 7a209b5d78de51e0ccf9a8d7fb599e63d3caf40d
           THEME_WELCOME_BG_BEFORE: "1"
-          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          THEME_CONTRAST_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/capture-theme-contrast-aa-visual.mjs
       - name: Archive both PASS and FAIL evidence (human signoff separate)
         if: always()
