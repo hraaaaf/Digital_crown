@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runGate, APPROVAL_LABEL, APPROVER_LOGIN } from './visual-approval-gate.mjs';
+import { runGate, APPROVAL_LABEL, APPROVER_LOGIN, TOKEN_ONLY_CERTIFIED_WAVES } from './visual-approval-gate.mjs';
 
 const repo = 'hraaaaf/Digital_crown';
 const pr = 910;
@@ -199,4 +199,104 @@ test('trusted gate never tries posting an issue comment during approval', async 
   const { readFile } = await import('node:fs/promises');
   const source = await readFile(new URL('./visual-approval-gate.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /request\('POST',/);
+});
+
+function tokenWaiverFixture(options={}) {
+  const number=1097, pinned=TOKEN_ONLY_CERTIFIED_WAVES[number], actual=options.actual??pinned.sha;
+  const labels=new Set(options.hasLabel?[APPROVAL_LABEL]:[]);
+  let deletes=0;
+  let headReads=0;
+  const api={
+    async get(route) {
+      if(route===`/pulls/${number}`) {
+        headReads++;
+        return {head:{sha:options.raceAfterHeadGet&&headReads>=options.raceAfterHeadGet?'d'.repeat(40):actual}};
+      }
+      if(route.startsWith(`/pulls/${number}/files?`))return (options.files??[
+        {filename:'frontend/src/pages/Example.tsx'},
+        {filename:pinned.path},
+        {filename:'scripts/ci/theme_neutral_batch02.py'}
+      ]);
+      if(route.startsWith(`/issues/${number}/labels?`))return [...labels].map(name=>({name}));
+      if(route===`/actions/runs/${pinned.proof}`)return {
+        head_sha:options.proofSha??pinned.sha,
+        status:'completed',conclusion:options.proofConclusion??'success',
+        event:'pull_request',path:options.workflowPath??pinned.path
+      };
+      if(route===`/actions/runs/${pinned.scope}`)return {
+        head_sha:pinned.sha,status:'completed',
+        conclusion:options.scopeConclusion??'success',event:'pull_request',name:'CI Scope Gate'
+      };
+      throw new Error('Unexpected GitHub API GET '+route);
+    },
+    async delete(route) {
+      assert.equal(route,`/issues/${number}/labels/${APPROVAL_LABEL}`);
+      deletes++;labels.delete(APPROVAL_LABEL);
+    },
+  };
+  const run=(action,more={})=>runGate({api,repo,number,action,eventHead:pinned.sha,
+    eventLabel:'token-only-evidence',eventSender:'integration-bot',...more});
+  return {run,labels,get deletes(){return deletes;}};
+}
+
+test('waives human signoff AUTOMATICALLY for unchanged, exact-SHA proven token-only PR',async()=>{
+  const f=tokenWaiverFixture();
+  assert.deepEqual(await f.run('labeled'),{
+    state:'auto-token-only-verified',head:TOKEN_ONLY_CERTIFIED_WAVES[1097].sha
+  });
+  assert.equal(f.deletes,0);
+  assert.equal(f.labels.has(APPROVAL_LABEL),false);
+});
+
+test('automatic token-only waiver preserves revocation on synchronize',async()=>{
+  const f=tokenWaiverFixture({hasLabel:true});
+  assert.equal((await f.run('synchronize')).state,'auto-token-only-verified');
+  assert.equal(f.deletes,1);
+  assert.equal(f.labels.has(APPROVAL_LABEL),false);
+});
+
+test('automatic token-only waiver rejects SHA changes without inheriting consent',async()=>{
+  const f=tokenWaiverFixture({actual:'c'.repeat(40)});
+  await assert.rejects(f.run('labeled',{eventHead:'c'.repeat(40)}),/require explicit visual approval label/);
+});
+
+test('automatic token-only waiver cannot bypass failing exact-diff CI',async()=>{
+  const f=tokenWaiverFixture({proofConclusion:'failure'});
+  await assert.rejects(f.run('labeled'),/CI proof is absent or not GREEN/);
+});
+
+test('automatic token-only waiver cannot bypass failing scope gate',async()=>{
+  const f=tokenWaiverFixture({scopeConclusion:'failure'});
+  await assert.rejects(f.run('labeled'),/CI proof is absent or not GREEN/);
+});
+
+test('automatic token-only waiver refuses backend or unapproved file paths',async()=>{
+  const f=tokenWaiverFixture({files:[
+    {filename:'frontend/src/pages/Example.tsx'},
+    {filename:TOKEN_ONLY_CERTIFIED_WAVES[1097].path},
+    {filename:'backend/security.py'}
+  ]});
+  await assert.rejects(f.run('labeled'),/unapproved path/);
+});
+
+test('automatic token-only waiver rejects workflow substitution',async()=>{
+  const f=tokenWaiverFixture({workflowPath:'.github/workflows/untrusted.yml'});
+  await assert.rejects(f.run('labeled'),/workflow path mismatch/);
+});
+
+test('auto-waiver manifest covers only the seven previously verified cosmetic waves',()=>{
+  assert.deepEqual(Object.keys(TOKEN_ONLY_CERTIFIED_WAVES).map(Number).sort((a,b)=>a-b),[
+    1097,1098,1100,1101,1102,1103,1104
+  ]);
+  assert.equal(TOKEN_ONLY_CERTIFIED_WAVES[1105],undefined);
+});
+
+test('automatic waiver fails closed on a HEAD race during labeled evaluation',async()=>{
+  const f=tokenWaiverFixture({raceAfterHeadGet:2});
+  await assert.rejects(f.run('labeled'),/HEAD changed during auto token-only validation/);
+});
+
+test('automatic waiver fails closed on a HEAD race during synchronize checks',async()=>{
+  const f=tokenWaiverFixture({raceAfterHeadGet:3});
+  await assert.rejects(f.run('synchronize'),/HEAD changed during auto token-only synchronize checks/);
 });

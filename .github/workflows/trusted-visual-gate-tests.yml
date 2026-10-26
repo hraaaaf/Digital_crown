@@ -1,0 +1,24 @@
+name: Trusted Visual Gate Tests (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - scripts/ci/visual-approval-gate.mjs
+      - scripts/ci/visual-approval-gate.test.mjs
+      - .github/workflows/trusted-visual-gate-tests.yml
+permissions:
+  contents: read
+jobs:
+  trusted-gate-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout unprivileged PR source for unit tests
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run positive and fail-closed negative cases
+        run: node --test scripts/ci/visual-approval-gate.test.mjs

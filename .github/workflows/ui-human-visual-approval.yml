@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read # Read exact-SHA token-only workflow evidence; no dispatch/write capability.
   issues: write
 
 jobs:
