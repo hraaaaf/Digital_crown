@@ -212,7 +212,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.queryByTestId('suivi-live')).toBeNull();
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
     expect(screen.getByRole('combobox',{name:'Disposition MultiView'})
-      .querySelectorAll('option:disabled')).toHaveLength(9);
+      .querySelectorAll('option:disabled')).toHaveLength(8);
   });
 
   it('R3 selector swaps all three authorized slots without duplicated clinical viewers',async()=>{
@@ -247,10 +247,10 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
       enableR3Split enableR3Focus/>);
     await screen.findByTestId('multiview-real-dossier');
     const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
-    expect(select.querySelectorAll('option:disabled')).toHaveLength(6);
-    for(const id of ['vue-ensemble','consultation','agenda-cabinet'])
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(5);
+    for(const id of ['vue-ensemble','consultation','agenda-cabinet','suivi-clinique'])
       expect(select.querySelector('option[value="'+id+'"]')).toBeTruthy();
-    expect(select.querySelector('option[value="comparaison-orthodontique"]')).toBeNull();
+    expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.hasAttribute('disabled')).toBe(true);
     fireEvent.change(select,{target:{value:'vue-ensemble'}});
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
     fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
@@ -276,6 +276,14 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
     expect(screen.getByTestId('r3-real-agenda')).toBeTruthy();
     expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+
+    fireEvent.change(select,{target:{value:'suivi-clinique'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('suivi-live')).toBeTruthy();
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getByTestId('r3-module-chooser')).toBeTruthy();
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(5);
   });
 
   it('R3-2 triple-opt-in mounts exactly three TRUE R-only slots and focus unmounts the rest',async()=>{
@@ -297,7 +305,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
     expect(screen.getByTestId('suivi-live')).toBeTruthy();
     expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
-    expect(select.querySelectorAll('option:disabled')).toHaveLength(9);
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(8);
 
     fireEvent.click(screen.getByRole('button',{name:'Agrandir le panneau 2 : imagerie'}));
     expect(screen.getByTestId('r3-2-single-focus')).toBeTruthy();
