@@ -38,6 +38,12 @@ def replace_text(text,path):
             out=re.sub(r"(?<![\w/-])"+re.escape(old)+r"(?![\w/-])",lambda _:new,out)
         if path.endswith("PWAInstallPrompt.tsx") and "bg-amber-500" in line:
             out=out.replace("text-text-main","text-on-primary")
+        if path.endswith("Step5Design.tsx"):
+            out=out.replace('isSelected ? "text-primary" :','isSelected ? "text-text-main" :')
+            out=out.replace("bg-card text-primary shadow-sm","bg-card text-text-main shadow-sm")
+            out=out.replace('className="ml-auto text-primary"','className="ml-auto text-text-main"')
+            out=out.replace('className="absolute top-3 right-3 text-primary"','className="absolute top-3 right-3 text-text-main"')
+            out=out.replace("font-medium text-primary","font-medium text-text-main")
         lines.append(out)
     return "\n".join(lines)
 
