@@ -354,6 +354,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
     expect(await screen.findByTestId('r3-cephalo-missing-t0')).toBeTruthy();
     expect(await screen.findByTestId('r3-cephalo-missing-t1')).toBeTruthy();
+    expect(screen.queryByTestId('r3-module-chooser')).toBeNull(); // Scientific timepoint slots are fixed.
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
     fireEvent.change(select,{target:{value:'presentation-patient'}});
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
