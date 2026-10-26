@@ -25,6 +25,8 @@ describe('LOT07 R3 real authenticated Cabinet agenda — R-only',()=>{
     expect(screen.getByText('A Synthetic')).toBeTruthy();
     expect(screen.getByText('09:30')).toBeTruthy();
     expect(screen.getByText('CONFIRMÉ')).toBeTruthy();
+    expect(screen.getByText('1 RDV')).toBeTruthy();
+    expect(screen.getByTestId('r3-real-agenda').getAttribute('data-r3-agenda-state')).toBe('populated');
     expect(container.querySelectorAll('button')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button',{name:"Actualiser l'agenda"}));
     expect(hook.mock.results[0].value.refreshAppointments).toHaveBeenCalledTimes(1);
@@ -48,6 +50,14 @@ describe('LOT07 R3 real authenticated Cabinet agenda — R-only',()=>{
     render(<R3AgendaReadonlyPanel user={actor({agenda:true,patients:true})}/>);
     expect(screen.getByRole('alert').textContent).toContain('indisponible');
     expect(screen.queryByText("Aucun rendez-vous aujourd'hui.")).toBeNull();
+  });
+
+  it('renders a compact, honest no-appointment state only when the server returned an empty list',()=>{
+    hook.mockReturnValue({appointmentsState:'ready',appointments:[],refreshAppointments:vi.fn()});
+    render(<R3AgendaReadonlyPanel user={actor({agenda:true,patients:true})}/>);
+    expect(screen.getByTestId('r3-real-agenda').getAttribute('data-r3-agenda-state')).toBe('empty');
+    expect(screen.getByTestId('r3-agenda-empty').textContent).toContain("Aucun rendez-vous aujourd'hui.");
+    expect(screen.queryByRole('table')).toBeNull();
   });
 
   it('does not manufacture empty state during loading or failed request',()=>{

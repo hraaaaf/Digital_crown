@@ -17,10 +17,18 @@ export function R3AgendaReadonlyPanel({user}:{user:AppUser}) {
   const projected=authorized ? projectReadOnlyAppointments(appointments,hasAccess(user,'patients')) : null;
   const ready=appointmentsState==='ready' && projected!==null;
   const rows=projected ?? [];
-  return <section data-testid="r3-real-agenda" aria-label="Agenda Cabinet lecture seule"
+  const agendaVisualState=!authorized?'denied':appointmentsState==='ready'
+    ? (rows.length===0?'empty':'populated') : appointmentsState;
+  return <section data-testid="r3-real-agenda" data-r3-agenda-state={agendaVisualState}
+    aria-label="Agenda Cabinet lecture seule"
     className="min-w-0 space-y-2 p-3 text-text-main">
     <div className="flex items-center justify-between gap-2">
-      <h3 className="text-sm font-semibold">Agenda</h3>
+      <div className="flex min-w-0 items-center gap-2">
+        <h3 className="text-sm font-semibold">Agenda</h3>
+        {ready && <span className="rounded-full border border-border-main bg-medical-pearl px-2 py-0.5 text-[11px] font-semibold text-primary-ink">
+          {rows.length} RDV
+        </span>}
+      </div>
       {authorized && <button type="button" onClick={()=>{void refreshAppointments();}}
         disabled={appointmentsState==='loading'}
         aria-label="Actualiser l'agenda"
@@ -32,7 +40,9 @@ export function R3AgendaReadonlyPanel({user}:{user:AppUser}) {
         : !ready
           ? <p role="alert" className="text-xs">Agenda indisponible.</p>
           : rows.length===0
-            ? <p role="status" className="text-xs text-text-muted">Aucun rendez-vous aujourd'hui.</p>
+            ? <div data-testid="r3-agenda-empty" className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-border-main bg-medical-pearl/50 px-4 py-5 text-center">
+                <p role="status" className="text-xs text-text-muted">Aucun rendez-vous aujourd'hui.</p>
+              </div>
             : <div className="max-h-[390px] overflow-auto">
                 <table className="w-full text-left text-xs">
                   <caption className="sr-only">Rendez-vous vérifiés du jour, lecture seule</caption>

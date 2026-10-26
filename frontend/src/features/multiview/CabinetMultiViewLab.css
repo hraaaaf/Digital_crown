@@ -441,3 +441,75 @@
     grid-row: 2;
   }
 }
+
+/*
+ * R3 POLISH — the minimum clinical width checks, equal-width split contract,
+ * permissions and panel mounting are unchanged. These rules only remove
+ * excessive unused vertical space inside named DEV laboratory presets.
+ * Empty agenda is honest (server-ready and zero rows), not an inferred absence
+ * while an authenticated request is pending or denied.
+ */
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-v15-071-multiview-grid][data-v15-071-geometry="two-columns"] {
+  height: min(48vh, 520px);
+  min-height: 360px;
+  max-height: 520px;
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-v15-071-multiview-grid][data-v15-071-geometry="two-columns"]:has([data-r3-agenda-state="empty"]) {
+  height: 340px;
+  min-height: 340px;
+  max-height: 340px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="vue-ensemble"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"] {
+  height: min(66vh, 720px);
+  min-height: 640px;
+  max-height: 720px;
+  grid-template-rows: minmax(230px, .83fr) minmax(380px, 1.17fr) !important;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="vue-ensemble"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has([data-r3-agenda-state="empty"]) {
+  grid-template-rows: minmax(145px, 0.28fr) minmax(440px, 1.72fr) !important;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="imagerie"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="two-columns"] {
+  height: min(66vh, 720px);
+  min-height: 570px;
+  max-height: 720px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="comparaison-orthodontique"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="three-columns"] {
+  height: min(64vh, 690px);
+  min-height: 560px;
+  max-height: 690px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="presentation-patient"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="single"] {
+  height: auto;
+  min-height: 240px;
+  max-height: none;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="presentation-patient"] [data-v15-071-viewslot="presentation"] {
+  max-height: none;
+}
+/* Agenda legibility within actual narrow panels, including 3-up hero preset. */
+[data-v15-071-real-cabinet-lab] [data-testid="r3-real-agenda"] table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+[data-v15-071-real-cabinet-lab] [data-testid="r3-real-agenda"] tbody tr:last-child td {
+  padding-bottom: 12px;
+}

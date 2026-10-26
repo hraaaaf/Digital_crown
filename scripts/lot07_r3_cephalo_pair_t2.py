@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from datetime import datetime, time
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -70,6 +71,26 @@ with database.SessionLocal() as db:
         db.flush()
         ids[ordinal] = analysis.id
     assert ids[0] != ids[1] and ids[0] > 0 and ids[1] > 0
+
+    # Populate the REAL authenticated Agenda GET in this disposable T2 DB.
+    # Pure QA labels, no external appointment creation, no patient contact.
+    today = datetime.now().date()
+    for hour, minute, status, label in (
+        (9, 20, models.AppointmentStatus.CONFIRME, "QA R3 - Bilan de contrôle"),
+        (11, 10, models.AppointmentStatus.EN_SALLE_ATTENTE, "QA R3 - Suivi"),
+        (15, 30, models.AppointmentStatus.PREVU, "QA R3 - Consultation"),
+    ):
+        slot = datetime.combine(today, time(hour, minute))
+        db.add(models.Appointment(
+            patient_id=patient.id,
+            patient_name="T2 CERTIFICATION",
+            datetime_start=slot,
+            duration_minutes=30,
+            motif=label,
+            status=status,
+            employer_id=owner.id,
+            source="r3-qa-only",
+        ))
     db.commit()
     print(f"R3_T2_CEPHALO_T0_ID={ids[0]}", flush=True)
     print(f"R3_T2_CEPHALO_T1_ID={ids[1]}", flush=True)

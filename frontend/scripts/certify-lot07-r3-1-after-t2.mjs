@@ -102,9 +102,24 @@ try {
     actualCompare.measurements.some(m=>m.key==='SNA' && Math.abs(m.from_value-82)<0.01 &&
       Math.abs(m.to_value-83.2)<0.01),
     {status:actualCompare.measurement_status,t0:t0Sources.length,t1:t1Sources.length});
+  // Seed an actually populated R-only dashboard through the real encrypted T2
+  // database and authenticated endpoint, not through intercepted network data.
+  const day=new Date().toISOString().slice(0,10);
+  const agendaSeed=await api.get('/api/appointments/?start_date='+day+'T00:00:00&end_date='+day+'T23:59:59',{headers:head});
+  pass('authentic synthetic T2 Agenda GET populated',agendaSeed.status()===200,{status:agendaSeed.status()});
+  const agendaRows=await agendaSeed.json();
+  pass('three persisted and server-authorized distinct T2 agenda rows',
+    agendaRows.length===3 && new Set(agendaRows.map(a=>a.id)).size===3 &&
+    agendaRows.every(a=>a.employer_id===auth.user?.id || a.patient_id===patient.id) &&
+    agendaRows.every(a=>typeof a.motif==='string' && a.motif.startsWith('QA R3')),
+    {count:agendaRows.length});
   // Master Plan seed via the REAL authenticated clinical API, never mocked.
   const syntheticPlan=await api.put('/api/patients/'+patient.id+'/master-plan',{
-    headers:head,data:[{title:'Contrôle de suivi synthétique',assistant:'Clinique',status:'pending',date_str:'2026-11-01'}],
+    headers:head,data:[
+      {title:'Bilan initial synthétique',assistant:'Clinique',status:'done',date_str:'2026-10-01'},
+      {title:'Contrôle de suivi synthétique',assistant:'Clinique',status:'pending',date_str:'2026-11-01'},
+      {title:'Réévaluation synthétique',assistant:'Clinique',status:'postponed',date_str:'2026-12-10'},
+    ],
   });
   pass('real authenticated synthetic Master Plan stored',syntheticPlan.ok(),{status:syntheticPlan.status()});
   // Distinct patient B in the SAME disposable cabinet for real SPA A→B→A.
@@ -366,6 +381,14 @@ try {
       await page.getByRole('button',{name:'Appliquer',exact:true}).click();
       const slots=await page.locator('[data-v15-071-viewslot]').evaluateAll(items =>
         items.map(item=>item.getAttribute('data-v15-071-viewslot')));
+      if(['vue-ensemble','consultation','agenda-cabinet','gestion-administrative'].includes(id)){
+        const agendaView=page.locator('[data-v15-071-layout="'+id+'"] [data-testid="r3-real-agenda"]');
+        await agendaView.locator('tbody tr').first().waitFor({state:'visible',timeout:30000});
+        pass('R3 populated real T2 Agenda in '+id,
+          await agendaView.locator('tbody tr').count()===3 &&
+          await agendaView.getAttribute('data-r3-agenda-state')==='populated',
+          {id,rows:await agendaView.locator('tbody tr').count()});
+      }
       const realSourceVerified=id==='suivi-clinique'
         ? await page.locator('[data-v15-071-viewslot="photos"] select[aria-label="Filtrer par type"]').inputValue()==='PHOTO'
           && await page.locator('[data-v15-071-viewslot="photos"] select[aria-label="Filtrer par type"]').isDisabled()
@@ -407,6 +430,15 @@ try {
       await presentation.getByText('Présentation masquée').count()===1 &&
       await page.locator('[data-testid="r3-presentation-visible"]').count()===0);
     await capture(page,'after-r3-presentation-masked-1920.png');
+    await presentation.getByRole('button',{name:'Présenter sur cet écran'}).click();
+    await presentation.getByText('T2 CERTIFICATION').waitFor({state:'visible',timeout:20000});
+    pass('synthetic patient presentation visible only after clinician-triggered action',
+      await page.locator('[data-testid="r3-presentation-visible"]').count()===1 &&
+      (await presentation.innerText()).includes('Contrôle de suivi synthétique'));
+    await capture(page,'after-r3-presentation-active-t2-only-1920.png');
+    await presentation.getByRole('button',{name:'Masquer immédiatement'}).click();
+    pass('synthetic patient presentation completely hides on clinician demand',
+      await page.locator('[data-testid="r3-presentation-visible"]').count()===0);
 
     await chooser.selectOption('comparaison-orthodontique');
     await page.getByRole('button',{name:'Aperçu',exact:true}).click();
