@@ -135,7 +135,7 @@ try {
   const agendaRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="vue-ensemble"]').count()===1;
   const followupRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="suivi-clinique"]').count()===1;
   const imagerieRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="imagerie"]').count()===1;
-  const provenRoadmapCount=(agendaRoadmapReady ? 3 : 0)+(followupRoadmapReady ? 1 : 0)+(imagerieRoadmapReady ? 1 : 0);
+  const provenRoadmapCount=(agendaRoadmapReady ? 4 : 0)+(followupRoadmapReady ? 1 : 0)+(imagerieRoadmapReady ? 1 : 0);
   pass('only proven roadmap presets unlocked, all others denied',
     await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9-provenRoadmapCount);
 
@@ -312,6 +312,7 @@ try {
       ['agenda-cabinet',['agenda','dossier'],'after-r3-2-real-agenda-cabinet-1920.png'],
       ['suivi-clinique',['suivi','photos'],'after-r3-2-real-suivi-clinique-1920.png'],
       ['imagerie',['imagerie','galerie'],'after-r3-2-real-imagerie-1920.png'],
+      ['gestion-administrative',['agenda','documents'],'after-r3-2-real-gestion-administrative-1920.png'],
     ]) {
       await select.selectOption(id);
       await page.getByRole('button',{name:'Aperçu',exact:true}).click();
@@ -326,7 +327,11 @@ try {
             && await page.locator('[data-v15-071-viewslot="galerie"] select[aria-label="Filtrer par type"]').inputValue()==='PHOTO'
             && await page.locator('[data-v15-071-viewslot="imagerie"] select[aria-label="Filtrer par type"]').isDisabled()
             && await page.locator('[data-v15-071-viewslot="galerie"] select[aria-label="Filtrer par type"]').isDisabled()
-          : await page.locator('[data-testid="r3-real-agenda"]').count()===1;
+          : id==='gestion-administrative'
+            ? await page.locator('[data-testid="r3-real-agenda"]').count()===1
+              && await page.locator('[data-v15-071-viewslot="documents"] select[aria-label="Filtrer par type"]').inputValue()==='DOCUMENT'
+              && await page.locator('[data-v15-071-viewslot="documents"] select[aria-label="Filtrer par type"]').isDisabled()
+            : await page.locator('[data-testid="r3-real-agenda"]').count()===1;
       pass('R3-2 real roadmap preset '+id,
         slots.join(',')===expectedModules.join(',') && realSourceVerified &&
         await select.locator('option:disabled').count()===9-provenRoadmapCount,
