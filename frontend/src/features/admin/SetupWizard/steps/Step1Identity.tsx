@@ -23,9 +23,9 @@ export const Step1Identity: React.FC<Props> = ({
 
     <section className="space-y-5 rounded-3xl border border-border-main bg-card/50 p-4 sm:p-6">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card text-primary shadow-sm"><Building2 size={18} /></div>
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card text-text-main shadow-sm"><Building2 size={18} /></div>
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Structure d’exercice · Source cabinet</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-text-main">Structure d’exercice · Source cabinet</p>
           <p className="mt-1 text-xs font-medium text-text-muted">Type, nom et adresse appartiennent à l’établissement.</p>
         </div>
       </div>
@@ -86,9 +86,9 @@ export const Step1Identity: React.FC<Props> = ({
 
     <section className="space-y-5 rounded-3xl border border-primary/15 bg-primary/5 p-4 sm:p-6">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card text-primary shadow-sm"><UserRound size={18} /></div>
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card text-text-main shadow-sm"><UserRound size={18} /></div>
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Praticien principal · Source compte praticien</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-text-main">Praticien principal · Source compte praticien</p>
           <p className="mt-1 text-xs font-medium text-text-main">Prérempli depuis votre compte. Les modifications suivent la même vérité que Réglages.</p>
         </div>
       </div>
