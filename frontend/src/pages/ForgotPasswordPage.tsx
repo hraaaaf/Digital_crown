@@ -87,7 +87,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
               <Link 
                 to="/login" 
-                className="flex items-center justify-center gap-2 text-sm text-text-muted hover:text-primary font-bold transition-colors mt-6"
+                className="flex items-center justify-center gap-2 text-sm text-text-muted hover:text-text-main font-bold transition-colors mt-6"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Retour à la connexion
