@@ -133,8 +133,10 @@ try {
   pass('exactly one live real Media Timeline',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
   pass('real patient dossier name', (await page.locator('[data-testid="multiview-real-dossier"]').innerText()).includes(patient.numero_dossier));
   const agendaRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="vue-ensemble"]').count()===1;
-  pass('only proven roadmap modules unlocked (3/9), all others denied',
-    await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===(agendaRoadmapReady ? 6 : 9));
+  const followupRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="suivi-clinique"]').count()===1;
+  const provenRoadmapCount=(agendaRoadmapReady ? 3 : 0)+(followupRoadmapReady ? 1 : 0);
+  pass('only proven roadmap presets unlocked, all others denied',
+    await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9-provenRoadmapCount);
 
   const pane=page.locator('[data-r3-1-split="two-columns"]');
   await pane.waitFor({state:'visible',timeout:25000});
@@ -248,7 +250,7 @@ try {
   await capture(page,'after-r3-1-two-rows-content-fit-high-contrast-1920.png');
   const realRoadmapReady=await select.locator('option[value="vue-ensemble"]').count()===1;
   pass('roadmap presets unlock only with real Agenda adapter and remain fail-closed otherwise',
-    await select.locator('option:disabled').count()===(realRoadmapReady ? 6 : 9));
+    await select.locator('option:disabled').count()===9-provenRoadmapCount);
   // R3-2: the third opt-in is independent, and the three modules are TRUE
   // authenticated patient views. Every focus transition unmounts other viewers.
   if(process.env.VITE_V15_07_1_R3_2_FOCUS_LAB==='1') {
@@ -266,7 +268,7 @@ try {
       await three.locator('[data-testid="patient-media-timeline"]').count()===1 &&
       await three.locator('[data-v15-071-viewslot="suivi"]').count()===1);
     pass('R3-2 remaining unintegrated roadmap presets are still unavailable',
-      await select.locator('option:disabled').count()===(realRoadmapReady ? 6 : 9));
+      await select.locator('option:disabled').count()===9-provenRoadmapCount);
     await three.scrollIntoViewIfNeeded();
     await capture(page,'after-r3-2-three-columns-1920.png');
 
@@ -307,18 +309,22 @@ try {
       ['vue-ensemble',['dossier','agenda','imagerie'],'after-r3-2-real-vue-ensemble-1920.png'],
       ['consultation',['dossier','agenda'],'after-r3-2-real-consultation-1920.png'],
       ['agenda-cabinet',['agenda','dossier'],'after-r3-2-real-agenda-cabinet-1920.png'],
+      ['suivi-clinique',['suivi','photos'],'after-r3-2-real-suivi-clinique-1920.png'],
     ]) {
       await select.selectOption(id);
       await page.getByRole('button',{name:'Aperçu',exact:true}).click();
       await page.getByRole('button',{name:'Appliquer',exact:true}).click();
       const slots=await page.locator('[data-v15-071-viewslot]').evaluateAll(items =>
         items.map(item=>item.getAttribute('data-v15-071-viewslot')));
+      const realSourceVerified=id==='suivi-clinique'
+        ? await page.locator('[data-v15-071-viewslot="photos"] select[aria-label="Filtrer par type"]').inputValue()==='PHOTO'
+          && await page.locator('[data-v15-071-viewslot="photos"] select[aria-label="Filtrer par type"]').isDisabled()
+        : await page.locator('[data-testid="r3-real-agenda"]').count()===1;
       pass('R3-2 real roadmap preset '+id,
-        slots.join(',')===expectedModules.join(',') &&
-        await page.locator('[data-testid="r3-real-agenda"]').count()===1 &&
-        await select.locator('option:disabled').count()===6,
+        slots.join(',')===expectedModules.join(',') && realSourceVerified &&
+        await select.locator('option:disabled').count()===9-provenRoadmapCount,
         {id,slots});
-      await page.locator('[data-testid="r3-real-agenda"]').scrollIntoViewIfNeeded();
+      await page.locator('[data-v15-071-viewslot]').first().scrollIntoViewIfNeeded();
       await capture(page,filename);
     }
   }
