@@ -83,15 +83,15 @@ export const Step5Design: React.FC<Props> = ({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Personnalisation visuelle</h2>
-        <p className="text-slate-500 text-sm mt-1">Personnalisez l'apparence de vos documents officiels.</p>
+        <h2 className="text-2xl font-black text-text-main tracking-tight">Personnalisation visuelle</h2>
+        <p className="text-text-muted text-sm mt-1">Personnalisez l'apparence de vos documents officiels.</p>
       </div>
 
 
       {headerOption === 'auto' && (
         <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="font-bold text-[11px] text-slate-400 tracking-[0.12em] uppercase mb-5">Palette</h3>
+          <div className="bg-card border border-border-main rounded-2xl p-6 shadow-sm">
+            <h3 className="font-bold text-[11px] text-text-muted tracking-[0.12em] uppercase mb-5">Palette</h3>
             <div className="grid grid-cols-2 gap-3">
               {BRAND_IDENTITIES.map(palette => {
                 const isSelected = selectedIdentity === palette.id;
@@ -105,7 +105,7 @@ export const Step5Design: React.FC<Props> = ({
                     }}
                     className={cn(
                       "flex items-center gap-3 p-3 rounded-xl border transition-all text-left group",
-                      isSelected ? "border-primary bg-primary/5" : "border-slate-200 hover:border-slate-400"
+                      isSelected ? "border-primary bg-primary/5" : "border-border-main hover:border-border-hover"
                     )}
                   >
                     <div className="flex w-[32px] h-[32px] rounded-md overflow-hidden border border-slate-200 flex-shrink-0">
@@ -113,7 +113,7 @@ export const Step5Design: React.FC<Props> = ({
                       <div className="flex-1" style={{ backgroundColor: palette.secondary }} />
                       <div className="flex-1" style={{ backgroundColor: palette.accent }} />
                     </div>
-                    <span className={cn("text-[13px] font-medium leading-tight", isSelected ? "text-primary" : "text-slate-500 group-hover:text-slate-800")}>
+                    <span className={cn("text-[13px] font-medium leading-tight", isSelected ? "text-primary" : "text-text-muted group-hover:text-text-main")}>
                       {palette.name}
                     </span>
                     {isSelected && <Check size={14} className="ml-auto text-primary" />}
@@ -123,8 +123,8 @@ export const Step5Design: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="font-bold text-[11px] text-slate-400 tracking-[0.12em] uppercase mb-5">Typographie</h3>
+          <div className="bg-card border border-border-main rounded-2xl p-6 shadow-sm">
+            <h3 className="font-bold text-[11px] text-text-muted tracking-[0.12em] uppercase mb-5">Typographie</h3>
             <div className="flex flex-col gap-2">
               {PREMIUM_FONTS.map(font => {
                 const isSelected = selectedFont === font.id;
@@ -134,24 +134,24 @@ export const Step5Design: React.FC<Props> = ({
                     onClick={() => setSelectedFont(font.id)}
                     className={cn(
                       "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
-                      isSelected ? "border-primary bg-primary/5" : "border-slate-200 hover:border-slate-400"
+                      isSelected ? "border-primary bg-primary/5" : "border-border-main hover:border-border-hover"
                     )}
                   >
                     <div>
-                      <div className={cn("text-[16px] leading-tight mb-1", font.class, isSelected ? "text-primary" : "text-slate-800")}>
+                      <div className={cn("text-[16px] leading-tight mb-1", font.class, isSelected ? "text-primary" : "text-text-main")}>
                         {font.name}
                       </div>
-                      <div className="text-[13px] text-slate-500">{font.desc}</div>
+                      <div className="text-[13px] text-text-muted">{font.desc}</div>
                     </div>
-                    {isSelected && <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center shrink-0"><Check size={12} /></div>}
+                    {isSelected && <div className="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0"><Check size={12} /></div>}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="font-bold text-[11px] text-slate-400 tracking-[0.12em] uppercase mb-5">Modèles d'Ordonnance</h3>
+          <div className="bg-card border border-border-main rounded-2xl p-6 shadow-sm">
+            <h3 className="font-bold text-[11px] text-text-muted tracking-[0.12em] uppercase mb-5">Modèles d'Ordonnance</h3>
             <div className="grid grid-cols-2 gap-3">
               {TEMPLATES.map(tpl => {
                 const isSelected = selectedTemplate === tpl.id;
@@ -161,11 +161,11 @@ export const Step5Design: React.FC<Props> = ({
                     onClick={() => setSelectedTemplate(tpl.id as TemplateOption)}
                     className={cn(
                       "flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left relative",
-                      isSelected ? "border-primary bg-primary/5" : "border-slate-200 hover:border-slate-400"
+                      isSelected ? "border-primary bg-primary/5" : "border-border-main hover:border-border-hover"
                     )}
                   >
-                    <span className={cn("text-[13px] font-bold leading-tight", isSelected ? "text-primary" : "text-slate-800")}>{tpl.name}</span>
-                    <span className="text-[11px] text-slate-500">{tpl.desc}</span>
+                    <span className={cn("text-[13px] font-bold leading-tight", isSelected ? "text-primary" : "text-text-main")}>{tpl.name}</span>
+                    <span className="text-[11px] text-text-muted">{tpl.desc}</span>
                     {isSelected && <Check size={14} className="absolute top-3 right-3 text-primary" />}
                   </button>
                 );
@@ -173,16 +173,16 @@ export const Step5Design: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="font-bold text-[11px] text-slate-400 tracking-[0.12em] uppercase mb-5">Mise en page</h3>
-            <div className="flex bg-slate-50 p-1 rounded-xl mb-6 border border-slate-100">
+          <div className="bg-card border border-border-main rounded-2xl p-6 shadow-sm">
+            <h3 className="font-bold text-[11px] text-text-muted tracking-[0.12em] uppercase mb-5">Mise en page</h3>
+            <div className="flex bg-background p-1 rounded-xl mb-6 border border-border-main">
               {(['compact', 'confort', 'etendu'] as Density[]).map(d => (
                 <button
                   key={d}
                   onClick={() => handleDensityClick(d)}
                   className={cn(
                     "flex-1 py-2 font-medium text-[13px] rounded-lg transition-all capitalize",
-                    currentDensity === d ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"
+                    currentDensity === d ? "bg-card text-primary shadow-sm" : "text-text-muted hover:text-text-main"
                   )}
                 >
                   {d}
@@ -193,18 +193,18 @@ export const Step5Design: React.FC<Props> = ({
             <div className="flex flex-col gap-5">
               <div>
                 <div className="flex justify-between mb-2">
-                  <label className="text-[13px] text-slate-500">Marge supérieure</label>
+                  <label className="text-[13px] text-text-muted">Marge supérieure</label>
                   <span className="text-[13px] font-medium text-primary">{margins.top}cm</span>
                 </div>
-                <input type="range" min="1" max="8" step="0.1" value={margins.top} onChange={e => setMargins(m => ({ ...m, top: parseFloat(e.target.value) }))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none outline-none accent-primary cursor-pointer" />
+                <input type="range" min="1" max="8" step="0.1" value={margins.top} onChange={e => setMargins(m => ({ ...m, top: parseFloat(e.target.value) }))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
               </div>
               {advanced && (
                 <div>
                   <div className="flex justify-between mb-2">
-                    <label className="text-[13px] text-slate-500">Taille du logo</label>
+                    <label className="text-[13px] text-text-muted">Taille du logo</label>
                     <span className="text-[13px] font-medium text-primary">{Math.round(advanced.headerLogoScale * 100)}%</span>
                   </div>
-                  <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.headerLogoScale} onChange={e => advanced.setHeaderLogoScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none outline-none accent-primary cursor-pointer" />
+                  <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.headerLogoScale} onChange={e => advanced.setHeaderLogoScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
                 </div>
               )}
             </div>
@@ -213,36 +213,36 @@ export const Step5Design: React.FC<Props> = ({
               <>
                 <button 
                   onClick={() => setAdvancedOpen(!advancedOpen)}
-                  className="mt-5 flex items-center gap-2 text-[13px] font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+                  className="mt-5 flex items-center gap-2 text-[13px] font-semibold text-text-muted hover:text-text-main transition-colors"
                 >
                   Réglages avancés {advancedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
 
                 {advancedOpen && (
-                  <div className="mt-5 pt-5 border-t border-slate-200 flex flex-col gap-5 animate-in fade-in slide-in-from-top-2">
+                  <div className="mt-5 pt-5 border-t border-border-main flex flex-col gap-5 animate-in fade-in slide-in-from-top-2">
                     <div>
-                      <div className="flex justify-between mb-2"><label className="text-[13px] text-slate-500">Police en-tête</label></div>
-                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.headerFontScale} onChange={e => advanced.setHeaderFontScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none outline-none accent-primary cursor-pointer" />
+                      <div className="flex justify-between mb-2"><label className="text-[13px] text-text-muted">Police en-tête</label></div>
+                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.headerFontScale} onChange={e => advanced.setHeaderFontScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
                     </div>
                     <div>
-                      <div className="flex justify-between mb-2"><label className="text-[13px] text-slate-500">Interligne en-tête</label></div>
-                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.headerLineHeight} onChange={e => advanced.setHeaderLineHeight(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none outline-none accent-primary cursor-pointer" />
+                      <div className="flex justify-between mb-2"><label className="text-[13px] text-text-muted">Interligne en-tête</label></div>
+                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.headerLineHeight} onChange={e => advanced.setHeaderLineHeight(parseFloat(e.target.value))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
                     </div>
                     <div>
-                      <div className="flex justify-between mb-2"><label className="text-[13px] text-slate-500">Marge inférieure</label></div>
-                      <input type="range" min="1" max="6" step="0.1" value={margins.bottom} onChange={e => setMargins(m => ({ ...m, bottom: parseFloat(e.target.value) }))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none outline-none accent-primary cursor-pointer" />
+                      <div className="flex justify-between mb-2"><label className="text-[13px] text-text-muted">Marge inférieure</label></div>
+                      <input type="range" min="1" max="6" step="0.1" value={margins.bottom} onChange={e => setMargins(m => ({ ...m, bottom: parseFloat(e.target.value) }))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
                     </div>
                     <div>
-                      <div className="flex justify-between mb-2"><label className="text-[13px] text-slate-500">Police pied de page</label></div>
-                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.footerFontScale} onChange={e => advanced.setFooterFontScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none outline-none accent-primary cursor-pointer" />
+                      <div className="flex justify-between mb-2"><label className="text-[13px] text-text-muted">Police pied de page</label></div>
+                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.footerFontScale} onChange={e => advanced.setFooterFontScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
                     </div>
                     <div>
-                      <div className="flex justify-between mb-2"><label className="text-[13px] text-slate-500">Interligne pied de page</label></div>
-                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.footerLineHeight} onChange={e => advanced.setFooterLineHeight(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none outline-none accent-primary cursor-pointer" />
+                      <div className="flex justify-between mb-2"><label className="text-[13px] text-text-muted">Interligne pied de page</label></div>
+                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.footerLineHeight} onChange={e => advanced.setFooterLineHeight(parseFloat(e.target.value))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
                     </div>
                     <div>
-                      <div className="flex justify-between mb-2"><label className="text-[13px] text-slate-500">Taille QR Code</label></div>
-                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.footerQrScale} onChange={e => advanced.setFooterQrScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none outline-none accent-primary cursor-pointer" />
+                      <div className="flex justify-between mb-2"><label className="text-[13px] text-text-muted">Taille QR Code</label></div>
+                      <input type="range" min="0.5" max="2.0" step="0.05" value={advanced.footerQrScale} onChange={e => advanced.setFooterQrScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-border-main rounded-full appearance-none outline-none accent-primary cursor-pointer" />
                     </div>
                   </div>
                 )}
@@ -250,7 +250,7 @@ export const Step5Design: React.FC<Props> = ({
             )}
           </div>
 
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+          <div className="p-4 bg-background border border-border-main rounded-2xl flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-24 h-12 flex items-center justify-center bg-white overflow-hidden p-1 shadow-sm rounded-lg">
                 {logoPreview
@@ -258,11 +258,11 @@ export const Step5Design: React.FC<Props> = ({
                   : <img src={Logo} className="w-full h-full object-contain opacity-80" alt="Default Logo" />}
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-900">Logo du cabinet</h4>
-                <p className="text-[10px] text-slate-500">PNG ou SVG (Optionnel)</p>
+                <h4 className="text-xs font-bold text-text-main">Logo du cabinet</h4>
+                <p className="text-[10px] text-text-muted">PNG ou SVG (Optionnel)</p>
               </div>
             </div>
-            <button onClick={() => logoInputRef.current?.click()} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Uploader</button>
+            <button onClick={() => logoInputRef.current?.click()} className="px-4 py-2 bg-card border border-border-main rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-background transition-all shadow-sm">Uploader</button>
             <input ref={logoInputRef} type="file" className="hidden" accept="image/png,image/svg+xml" onChange={handleLogoChange} />
           </div>
         </div>
