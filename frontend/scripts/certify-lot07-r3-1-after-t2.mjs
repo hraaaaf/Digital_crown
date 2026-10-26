@@ -132,7 +132,9 @@ try {
     .waitFor({state:'visible',timeout:30000});
   pass('exactly one live real Media Timeline',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
   pass('real patient dossier name', (await page.locator('[data-testid="multiview-real-dossier"]').innerText()).includes(patient.numero_dossier));
-  pass('nine product directions explicitly unavailable',await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9);
+  const agendaRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="vue-ensemble"]').count()===1;
+  pass('only proven roadmap modules unlocked (3/9), all others denied',
+    await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===(agendaRoadmapReady ? 6 : 9));
 
   const pane=page.locator('[data-r3-1-split="two-columns"]');
   await pane.waitFor({state:'visible',timeout:25000});
