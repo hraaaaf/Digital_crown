@@ -27,6 +27,44 @@ const head=async(api,pr)=>{
 };
 const hasLabel=async(api,pr)=>
   (await pages(api,`/issues/${pr}/labels`)).some(x=>x?.name===APPROVAL_LABEL);
+/** Owner's 25 Oct 2026 waiver: exact, independently evidenced token-only waves.
+ * This is deliberately SHA-bound: an altered diff never inherits the waiver.
+ * Future waves require their own exact-diff + build/contrast proof and a
+ * trusted manifest update, NOT a fake owner visual approval label.
+ */
+export const TOKEN_ONLY_CERTIFIED_WAVES=Object.freeze({
+  1097:{sha:'722d34edbbfd7235b7bb768b6b8012fb0740126b',proof:40241662730,scope:40241662872,path:'.github/workflows/app-theme-neutral-bulk-wave02.yml'},
+  1098:{sha:'310354cf7600799b076aa4ffb84d6d3f52c8eb16',proof:40242074409,scope:40242074395,path:'.github/workflows/app-theme-neutral-bulk-wave03.yml'},
+  1100:{sha:'23bd6acaf0f652e00383fa96f2dfc87c7e8fe6df',proof:40243194930,scope:40243195164,path:'.github/workflows/app-theme-neutral-bulk-wave04.yml'},
+  1101:{sha:'e841fa786405d975a40e7b6ea2c31fb2ba31a246',proof:40245197477,scope:40245197605,path:'.github/workflows/app-theme-status-wave05.yml'},
+  1102:{sha:'db5eeca6991c8560d4984a5f83b5afcf2d0c76bf',proof:40246248646,scope:40246248714,path:'.github/workflows/app-theme-neutral-wave06.yml'},
+  1103:{sha:'ede172d1c25891e0c2e40f21eb73e2f02eca7532',proof:40247331818,scope:40247331868,path:'.github/workflows/app-theme-neutral-wave07.yml'},
+  1104:{sha:'7a209b5d78de51e0ccf9a8d7fb599e63d3caf40d',proof:40249242088,scope:40249242098,path:'.github/workflows/app-theme-neutral-wave08.yml'},
+});
+async function verifiedTokenOnlyWaiver(api,number,actual,files) {
+  const entry=TOKEN_ONLY_CERTIFIED_WAVES[number];
+  if(!entry||entry.sha!==actual)return false;
+  // Exact head plus a bounded file inventory: no API, auth, RBAC or backend.
+  const paths=files.map(x=>x?.filename);
+  if(!paths.length||!paths.some(p=>typeof p==='string'&&p.startsWith('frontend/src/')&&p.endsWith('.tsx')))
+    throw new Error('Pinned token-only wave has no TSX source change');
+  for(const p of paths) {
+    if(typeof p!=='string'||!(/^frontend\/src\/.*\.tsx$/.test(p)||p===entry.path||p==='scripts/ci/theme_neutral_batch02.py'))
+      throw new Error('Pinned token-only wave includes an unapproved path');
+  }
+  if(!paths.includes(entry.path))throw new Error('Pinned token-only proof workflow is absent');
+  for(const [runId,expectedPath] of [[entry.proof,entry.path],[entry.scope,null]]) {
+    const run=await api.get(`/actions/runs/${runId}`);
+    if(run?.head_sha!==actual||run?.status!=='completed'||run?.conclusion!=='success'||run?.event!=='pull_request')
+      throw new Error('Pinned token-only CI proof is absent or not GREEN on exact SHA');
+    if(expectedPath && run?.path!==expectedPath)
+      throw new Error('Pinned token-only CI workflow path mismatch');
+    if(!expectedPath && run?.name!=='CI Scope Gate')
+      throw new Error('Pinned token-only CI scope workflow mismatch');
+  }
+  return true;
+}
+
 /** Only the trusted, owner-created approval label event may approve a UI HEAD. */
 export async function runGate({api,repo,number,action,eventHead,eventLabel,eventSender}){
   valid(repo,REPO.test(repo),'repository');
@@ -55,6 +93,7 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
       throw new Error('Stale visual approval label still present after DELETE');
     if((await head(api,number))!==actual)
       throw new Error('PR HEAD changed during approval revocation');
+    if(await verifiedTokenOnlyWaiver(api,number,actual,files))return {state:'auto-token-only-verified',head:actual};
     throw new Error('PR HEAD changed: approval revoked; new screenshots and explicit approval required');
   }
 
@@ -64,6 +103,10 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
 
   const actual=await head(api,number);
   if(actual!==eventHead)throw new Error('Stale webhook event: PR HEAD differs from event HEAD');
+  if(await verifiedTokenOnlyWaiver(api,number,actual,files)) {
+    if((await head(api,number))!==actual)throw new Error('PR HEAD changed during auto token-only validation');
+    return {state:'auto-token-only-verified',head:actual};
+  }
   if(!(await hasLabel(api,number)))throw new Error('UI changes require explicit visual approval label');
 
   // The trusted GitHub Actions check is the durable SHA-bound attestation.
